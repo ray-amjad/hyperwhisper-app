@@ -69,7 +69,7 @@ jobs:
       # 1. Checkout
       # ----------------------------------------------------------------
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # ----------------------------------------------------------------
       # 2. Setup .NET 10 SDK
@@ -77,7 +77,7 @@ jobs:
       # Same version/quality as windows-release.yml — a PR must compile
       # against the toolchain that ships the release.
       - name: Setup .NET 10 SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: "10.0.x"
           dotnet-quality: "preview"
@@ -90,7 +90,7 @@ jobs:
       # toolchain + lockfile so a dependency bump busts it; the restore-keys
       # fallback still reuses the registry when only first-party crates change.
       - name: Cache cargo registry and target dir
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
             ~/.cargo/registry
@@ -149,7 +149,7 @@ jobs:
       # `/actions/runs?head_sha=…`, then reads that run's artifacts. PR runs
       # publish too, which is what lets the dev box test a branch head.
       - name: Upload x64 shared-core DLL
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: hyperwhisper-core-x64
           path: app\windows\HyperWhisper\Resources\rust-core\x64\hyperwhisper_core.dll
@@ -295,9 +295,43 @@ jobs:
       #
       # The suite synthesises its long-audio fixture with ffmpeg (Linux CI
       # installs it with apt). windows-latest has no ffmpeg on PATH, so install
-      # it here; Chocolatey's shim directory is already on PATH.
+      # it here. Issue #2052: `choco install ffmpeg` went red on unrelated PRs
+      # whenever the Chocolatey community feed hiccuped, and once "passed"
+      # while installing nothing, so the test step died instead. So fetch one
+      # pinned gyan.dev build from its GitHub release, retry with backoff,
+      # check the SHA-256, and fail HERE unless `ffmpeg -version` runs.
       - name: Install ffmpeg for the shared Local API server tests
-        run: choco install ffmpeg -y --no-progress
+        shell: pwsh
+        env:
+          FFMPEG_VERSION: 9.0.2
+          FFMPEG_SHA256: 60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $name = "ffmpeg-$env:FFMPEG_VERSION-essentials_build"
+          $url = "https://github.com/GyanD/codexffmpeg/releases/download/$env:FFMPEG_VERSION/$name.zip"
+          $zip = Join-Path $env:RUNNER_TEMP "$name.zip"
+          for ($attempt = 1; ; $attempt++) {
+            try {
+              Invoke-WebRequest -Uri $url -OutFile $zip
+              break
+            } catch {
+              if ($attempt -ge 5) { throw "ffmpeg download failed after $attempt attempts: $_" }
+              $delay = 5 * [math]::Pow(2, $attempt - 1)
+              Write-Warning "ffmpeg download attempt $attempt failed: $_; retrying in $delay s"
+              Start-Sleep -Seconds $delay
+            }
+          }
+          $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash
+          if ($hash -ne $env:FFMPEG_SHA256) { throw "ffmpeg zip SHA-256 $hash does not match the pinned $env:FFMPEG_SHA256" }
+          Expand-Archive -Path $zip -DestinationPath $env:RUNNER_TEMP -Force
+          $bin = Join-Path $env:RUNNER_TEMP "$name\bin"
+          $env:PATH = "$bin;$env:PATH"
+          Add-Content -Path $env:GITHUB_PATH -Value $bin
+          $resolved = (Get-Command ffmpeg -CommandType Application).Source
+          Write-Host "ffmpeg resolves to $resolved"
+          ffmpeg -hide_banner -version
+          if ($LASTEXITCODE -ne 0) { throw "ffmpeg -version exited $LASTEXITCODE" }
 
       - name: Run shared Local API server tests
         run: dotnet run --project app/shared-dotnet/HyperWhisper.LocalApi.Tests -c Release

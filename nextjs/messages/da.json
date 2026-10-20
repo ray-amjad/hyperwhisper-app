@@ -443,5 +443,9 @@
     "description": "Linket kan være ødelagt, eller siden kan være flyttet.",
     "home": "Gå til forsiden",
     "download": "Download HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Dette login-link er udløbet eller allerede brugt. Indtast din e-mail for at få et nyt.",
+    "magicLinkFailed": "Vi kunne ikke logge dig ind med det link. Indtast din e-mail for at få et nyt."
   }
 }

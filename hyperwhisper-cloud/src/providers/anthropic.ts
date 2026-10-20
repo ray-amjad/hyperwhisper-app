@@ -5,7 +5,7 @@ import { computeAnthropicCost, type GroqUsage } from '../lib/cost-calculator';
 import { ANTHROPIC_MAX_TOKENS } from '../lib/llm-token-limits';
 import type { CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError } from './llm-errors';
-import { computeLLMRequestTimeoutMs, fetchLLMWithTimeout, LLM_REQUEST_TIMEOUT_MS, transcriptCharCount } from './llm-fetch';
+import { computeLLMRequestTimeoutMs, fetchLLMWithTimeout, LLM_REQUEST_TIMEOUT_MS, readLLMJson, transcriptCharCount } from './llm-fetch';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 // Undated id on purpose: Anthropic's undated aliases are the supported form, and
@@ -138,7 +138,7 @@ export async function requestAnthropicChat(
         );
       }
 
-      return await response.json() as {
+      return await readLLMJson<{
         content: Array<{ type: string; text?: string }>;
         stop_reason?: string | null;
         usage: {
@@ -147,7 +147,7 @@ export async function requestAnthropicChat(
           cache_creation_input_tokens?: unknown;
           cache_read_input_tokens?: unknown;
         };
-      };
+      }>(response, 'anthropic', requestId);
     },
     requestId,
     timeoutMs ?? computeLLMRequestTimeoutMs(transcriptCharCount(payload.messages)),

@@ -82,6 +82,15 @@ internal static class Program
     [STAThread]
     private static int Main()
     {
+        // Child mode for the settings-load checks (issue #2096). SettingsService is
+        // a singleton whose paths are fixed at type init, so a load from a profile
+        // the check seeded has to happen in a fresh process. This runs before the
+        // scratch root below is set, so the child keeps the root its parent gave it.
+        if (Environment.GetEnvironmentVariable(SettingsLoadProbeEnvironmentVariable) == "1")
+        {
+            return RunSettingsLoadProbe();
+        }
+
         var tempRoot = Path.Combine(
             Path.GetTempPath(),
             "HyperWhisper.SmokeTests",
@@ -131,6 +140,48 @@ internal static class Program
 
                 Assert(logged.SequenceEqual(Enumerable.Range(0, 11)),
                     $"expected one line per band 0..10, got [{string.Join(",", logged)}]");
+            });
+
+            Run("settings: a settings.json holding null loads settings.json.bak and keeps it through the next save (#2096)", () =>
+            {
+                // Before the fix, Deserialize("null") returned null without throwing,
+                // so Load() skipped the .bak and used defaults; the probe's save then
+                // rotated the null file over the only good .bak.
+                var profile = Path.Combine(tempRoot, "settings-null-with-bak");
+                Directory.CreateDirectory(profile);
+                var live = Path.Combine(profile, "settings.json");
+                var backup = live + ".bak";
+                File.WriteAllText(live, "null");
+                File.WriteAllText(backup, """{ "Version": 3, "TypingSpeedWPM": 123, "LastSelectedModel": "probe-model-2096" }""");
+
+                var output = RunSettingsLoadProbeChild(profile);
+
+                Assert(output.Contains("TypingSpeedWPM=123"),
+                    $"settings did not come from settings.json.bak: {output}");
+                Assert(output.Contains("LastSelectedModel=probe-model-2096"),
+                    $"LastSelectedModel did not come from settings.json.bak: {output}");
+                var liveNode = JsonNode.Parse(File.ReadAllText(live));
+                Assert(liveNode?["TypingSpeedWPM"]?.GetValue<int>() == 124,
+                    $"live settings.json does not hold the probe's saved change: {File.ReadAllText(live)}");
+                Assert(liveNode?["LastSelectedModel"]?.GetValue<string>() == "probe-model-2096",
+                    $"live settings.json lost the recovered settings: {File.ReadAllText(live)}");
+                var backupNode = JsonNode.Parse(File.ReadAllText(backup));
+                Assert(backupNode?["TypingSpeedWPM"]?.GetValue<int>() == 123,
+                    $"the save destroyed the good settings.json.bak: {File.ReadAllText(backup)}");
+            });
+
+            Run("settings: a settings.json holding null with no .bak loads defaults (#2096)", () =>
+            {
+                var profile = Path.Combine(tempRoot, "settings-null-no-bak");
+                Directory.CreateDirectory(profile);
+                File.WriteAllText(Path.Combine(profile, "settings.json"), "null");
+
+                var output = RunSettingsLoadProbeChild(profile, save: false);
+
+                Assert(output.Contains("TypingSpeedWPM=40"),
+                    $"expected the default TypingSpeedWPM: {output}");
+                Assert(output.Contains("LastSelectedModel=<null>"),
+                    $"expected no LastSelectedModel: {output}");
             });
 
             Run("ApplicationControlDiagnostics handles only the classifier load failure", () =>
@@ -13569,6 +13620,57 @@ internal static class Program
                     $"the generic row lost this head's own detail text: \"{generic.message}\"");
             });
 
+            Run("a Cloud 402 reaches the Local API as out of credits, not a provider billing page", () =>
+            {
+                // ISSUE #2089. Cloud's and the routed path's 402 are the account
+                // being out of credits, and both became QuotaExceeded, whose
+                // Local API hint says "Add credits in the provider's billing
+                // page." Cloud has no such page. A real 402 goes through the
+                // core's parser and the shipping RustCoreMapping, which flags it.
+                HwTranscriptionException parsed;
+                try
+                {
+                    HyperwhisperCoreMethods.HyperwhisperCloudParseTranscribeResponse(
+                        new uniffi.hyperwhisper_core.HttpResponse(
+                            402,
+                            new List<Header>(),
+                            System.Text.Encoding.UTF8.GetBytes(
+                                "{\"error\":\"Insufficient credits\",\"creditsRemaining\":0,\"creditsRequired\":3}")));
+                    throw new InvalidOperationException("the core accepted a 402 as a transcript");
+                }
+                catch (HwTranscriptionException ex)
+                {
+                    parsed = ex;
+                }
+                Assert(parsed is HwTranscriptionException.QuotaExceeded,
+                    $"the core parsed a Cloud 402 as {parsed.GetType().Name}, not QuotaExceeded");
+
+                foreach (var provider in new[] { "HyperWhisper Cloud", "OpenAI via HyperWhisper Cloud" })
+                {
+                    var mapped = RustCoreMapping.MapTranscriptionError(
+                        parsed, provider, httpStatusCode: 402, insufficientCredits: true);
+                    // The toast still sees the code it always saw.
+                    Assert(mapped.Code == TranscriptionErrorCode.QuotaExceeded,
+                        $"{provider}: the app code moved to {mapped.Code}");
+                    Assert(mapped.IsInsufficientCredits, $"{provider}: the 402 is not flagged");
+
+                    var credits = LocalApiResponder.MapTranscriptionException(mapped);
+                    Assert(credits.code == "RATE_LIMITED", $"{provider}: code is {credits.code}");
+                    Assert(credits.message == "Out of HyperWhisper Cloud credits.",
+                        $"{provider}: message is \"{credits.message}\"");
+                    Assert(credits.hint == "Add credits in Settings.",
+                        $"{provider}: hint is \"{credits.hint}\"");
+                }
+
+                // A BYOK provider's quota, 402 included, keeps its billing-page row.
+                var byok = LocalApiResponder.MapTranscriptionException(
+                    RustCoreMapping.MapTranscriptionError(parsed, "OpenAI", httpStatusCode: 402));
+                Assert(byok.code == "RATE_LIMITED", $"BYOK code is {byok.code}");
+                Assert(byok.message == "OpenAI quota exceeded.", $"BYOK message is \"{byok.message}\"");
+                Assert(byok.hint == "Add credits in the provider's billing page.",
+                    $"BYOK hint is \"{byok.hint}\"");
+            });
+
             RunAsync("an oversized audio_base64 body is refused before it is decoded", async () =>
             {
                 // Since issue #356 item 6 the two decode guards (encoded length,
@@ -21121,6 +21223,553 @@ internal static class Program
                 }
             });
 
+            Run("history: an insert under a held write lock returns at once, keeps the row to save later and keeps the audio — issue #1589", () =>
+            {
+                // CreateProcessingTranscript ran a synchronous SaveChanges on the UI thread:
+                // with another process holding the write lock it froze the window for the
+                // 30 s busy timeout, then threw, so the job aborted, no History row was made
+                // and the copied audio was an orphan.
+                var dbPath = SuiteDatabasePath();
+
+                var history = HistoryService.Instance;
+                var pendingFile = PendingHistoryStore.DefaultPath;
+                Assert(pendingFile.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
+                    $"the pending store {pendingFile} is not under the suite's temp profile");
+                var audioPath = Path.Combine(StorageService.Instance.GetRecordingsFolder(), $"percy1589-{Guid.NewGuid():N}.wav");
+                File.WriteAllBytes(audioPath, new byte[] { 1, 2, 3, 4 });
+                Guid? id = null;
+                Transcript? other = null;
+
+                // BEGIN IMMEDIATE, as in the #974 case: readers still get through, writes
+                // wait the provider's 30 s busy timeout and fail with SQLite Error 5.
+                var locker = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath};Pooling=False");
+                var lockHeld = false;
+                void Release()
+                {
+                    if (!lockHeld) return;
+                    using var rollback = locker.CreateCommand();
+                    rollback.CommandText = "ROLLBACK;";
+                    rollback.ExecuteNonQuery();
+                    lockHeld = false;
+                }
+
+                try
+                {
+                    locker.Open();
+                    using (var begin = locker.CreateCommand())
+                    {
+                        begin.CommandText = "BEGIN IMMEDIATE;";
+                        begin.ExecuteNonQuery();
+                    }
+                    lockHeld = true;
+
+                    var started = Stopwatch.StartNew();
+                    var insert = history.CreateProcessingTranscriptAsync(2.0, "percy1589", audioPath);
+                    var returnedAfter = started.Elapsed;
+                    Assert(returnedAfter < TimeSpan.FromSeconds(2) && !insert.IsCompleted,
+                        $"CreateProcessingTranscriptAsync took {returnedAfter.TotalMilliseconds:F0} ms to return "
+                        + $"(completed: {insert.IsCompleted}), so the insert ran on the calling (UI) thread and waited for the lock there");
+
+                    HistoryInsertResult result;
+                    try
+                    {
+                        result = insert.GetAwaiter().GetResult();
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new InvalidOperationException(
+                            $"the refused insert reached the caller as {ex.GetType().Name} ({ex.Message}); the job would abort with no row", ex);
+                    }
+                    id = result.Transcript.Id;
+
+                    Assert(result.SavedLater, "the insert under the lock reported the row as saved");
+                    Assert(result.DatabaseLocked, "the refusal was not recognised as the database lock, so the toast would not name it");
+                    Assert(history.PendingTranscriptCount >= 1, "no pending row was kept for the refused insert");
+                    Assert(File.Exists(pendingFile) && File.ReadAllText(pendingFile).Contains(id.Value.ToString()),
+                        $"{pendingFile} does not hold the refused row, so it would be lost if the app closed now");
+                    Assert(File.Exists(audioPath), "the recording was deleted although its row was kept to save later");
+                    var pendingRow = history.GetTranscript(id.Value);
+                    Assert(pendingRow?.Status == TranscriptStatus.Processing && pendingRow.AudioFilePath == audioPath,
+                        "GetTranscript does not return the pending row, so the stop paths would read it as deleted");
+
+                    var toast = MainViewModel.HistorySavedLaterToast(result);
+                    Assert(toast?.Message == HyperWhisper.Localization.Loc.S("history.savedLater.databaseLocked"),
+                        $"the toast says \"{toast?.Message ?? "nothing"}\", not the copy that names the lock and says the recording was kept");
+
+                    // The job goes on and writes its result while the lock is still held. It
+                    // must land in the pending row at once, not wait 30 s or throw.
+                    var final = result.Transcript;
+                    final.Status = TranscriptStatus.Completed;
+                    final.Text = "percy1589 final text";
+                    final.TranscribedText = "percy1589 final text";
+                    var updateWatch = Stopwatch.StartNew();
+                    history.UpdateTranscript(final);
+                    Assert(updateWatch.Elapsed < TimeSpan.FromSeconds(2),
+                        $"updating the pending row took {updateWatch.ElapsedMilliseconds} ms, so it waited for the locked database");
+                    Assert(history.GetTranscript(id.Value)?.Text == "percy1589 final text",
+                        "the completed text did not reach the pending row");
+                    Assert(history.GetAllTranscripts().Any(t => t.Id == id.Value),
+                        "History's list leaves the pending row out");
+
+                    Release();
+
+                    // The next successful write saves it.
+                    other = history.CreateProcessingTranscript(1.0, "percy1589next", audioFilePath: null);
+                    Assert(history.PendingTranscriptCount == 0, "the pending row was not saved by the next successful write");
+                    Assert(!File.Exists(pendingFile), $"{pendingFile} is still there after its rows were saved");
+                    using (var check = new HyperWhisperDbContext())
+                    {
+                        var saved = check.Transcripts.AsNoTracking().FirstOrDefault(t => t.Id == id.Value);
+                        Assert(saved != null, "the kept row never reached the database");
+                        Assert(saved!.Status == TranscriptStatus.Completed && saved.Text == "percy1589 final text",
+                            $"the saved row is {saved.Status} \"{saved.Text}\", not the completed result written while it was pending");
+                        Assert(saved.AudioFilePath == audioPath, "the saved row does not point at the kept recording");
+                    }
+                }
+                finally
+                {
+                    try { Release(); } catch { }
+                    locker.Dispose();
+                    if (id.HasValue) history.DeleteTranscript(id.Value);
+                    if (other != null) history.DeleteTranscript(other.Id);
+                    try { File.Delete(audioPath); } catch { }
+                }
+            });
+
+            Run("history: a pending row left by the previous session is saved at startup as Failed and retryable — issue #1589", () =>
+            {
+                // The app closed (or crashed) before the database was free again. The next
+                // launch reads pending-history.json back and writes the row before the
+                // orphan recovery, so it shows as a Failed row that can be retried.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                var history = HistoryService.Instance;
+                var storePath = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests", $"percy1589-{Guid.NewGuid():N}.json");
+                var audioPath = Path.Combine(StorageService.Instance.GetRecordingsFolder(), $"percy1589-{Guid.NewGuid():N}.wav");
+                File.WriteAllBytes(audioPath, new byte[] { 1, 2, 3, 4 });
+                var row = new Transcript
+                {
+                    Id = Guid.NewGuid(),
+                    Date = DateTime.UtcNow,
+                    Duration = 3.0,
+                    Mode = "percy1589startup",
+                    AudioFilePath = audioPath,
+                    Status = TranscriptStatus.Processing,
+                    Text = HyperWhisper.Localization.Loc.S("recording.state.processing"),
+                };
+                new PendingHistoryStore(storePath).Upsert(row);
+
+                // A fresh store on the same file is what the next process sees.
+                var previous = history.ReplacePendingStoreForTests(new PendingHistoryStore(storePath));
+                try
+                {
+                    var flushed = history.FlushPendingTranscripts();
+                    Assert(flushed == 1, $"the startup flush saved {flushed} row(s), expected 1");
+                    Assert(!File.Exists(storePath), "the pending file is still there after its row was saved");
+                    using var check = new HyperWhisperDbContext();
+                    var saved = check.Transcripts.AsNoTracking().FirstOrDefault(t => t.Id == row.Id);
+                    Assert(saved != null, "the pending row from the previous session never reached the database");
+                    Assert(saved!.Status == TranscriptStatus.Failed && saved.FailedReason == HistoryService.InterruptedReason,
+                        $"the row was saved as {saved.Status} ({saved.FailedReason ?? "no reason"}); a dead session's Processing row must land Failed");
+                    Assert(saved.AudioFilePath == audioPath && File.Exists(audioPath),
+                        "the saved row lost its recording, so it cannot be retried");
+                }
+                finally
+                {
+                    history.ReplacePendingStoreForTests(previous);
+                    history.DeleteTranscript(row.Id);
+                    try { File.Delete(storePath); } catch { }
+                    try { File.Delete(audioPath); } catch { }
+                }
+            });
+
+            Run("history: a stale pending file whose row is already in History leaves the Completed row alone — issue #1589", () =>
+            {
+                // An earlier flush committed the row but could not delete pending-history.json.
+                // The next launch reads the stale record back (and marks it Interrupted); the
+                // flush used to SetValues it over the Completed row, losing the user's text.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                var history = HistoryService.Instance;
+                var storePath = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests", $"percy1589-{Guid.NewGuid():N}.json");
+                var row = history.CreateProcessingTranscript(2.0, "percy1589stale", audioFilePath: null);
+                var stale = PendingHistoryStore.Clone(row);
+                row.Status = TranscriptStatus.Completed;
+                row.Text = "percy1589 the finished text";
+                history.UpdateTranscript(row);
+                new PendingHistoryStore(storePath).Upsert(stale);
+
+                var previous = history.ReplacePendingStoreForTests(new PendingHistoryStore(storePath));
+                try
+                {
+                    var flushed = history.FlushPendingTranscripts();
+                    using var check = new HyperWhisperDbContext();
+                    var saved = check.Transcripts.AsNoTracking().FirstOrDefault(t => t.Id == row.Id);
+                    Assert(saved?.Status == TranscriptStatus.Completed && saved.Text == "percy1589 the finished text",
+                        $"the History row became {saved?.Status.ToString() ?? "missing"} \"{saved?.Text}\"; the stale record overwrote the Completed row");
+                    Assert(flushed == 0, $"the flush reported {flushed} row(s) saved; the stale record must be dropped");
+                    Assert(history.PendingTranscriptCount == 0, "the stale pending record was kept");
+                    Assert(!File.Exists(storePath), "the stale pending file is still there");
+                }
+                finally
+                {
+                    history.ReplacePendingStoreForTests(previous);
+                    history.DeleteTranscript(row.Id);
+                    try { File.Delete(storePath); } catch { }
+                }
+            });
+
+            Run("history: a pending file that cannot be written does not throw, retries and the row still lands from memory — issue #1589", () =>
+            {
+                var dbPath = SuiteDatabasePath();
+
+                var history = HistoryService.Instance;
+                // A directory where the file should be: every write of the file fails.
+                var storePath = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests", $"percy1589-{Guid.NewGuid():N}.json");
+                Directory.CreateDirectory(storePath);
+                Assert(!new PendingHistoryStore(storePath).Upsert(new Transcript { Id = Guid.NewGuid(), Text = "x" }),
+                    "Upsert reported success although the pending file could not be written");
+
+                Guid? keptId = null;
+                Transcript? other = null;
+                var previous = history.ReplacePendingStoreForTests(new PendingHistoryStore(storePath));
+                PoisonTranscriptInserts(dbPath, "percy1589unsaved");
+                var triggerDropped = false;
+                try
+                {
+                    var kept = history.CreateProcessingTranscriptAsync(1.0, "percy1589unsaved", audioFilePath: null).GetAwaiter().GetResult();
+                    keptId = kept.Transcript.Id;
+                    Assert(kept.SavedLater, "the poisoned insert was saved");
+                    Assert(history.PendingTranscriptCount == 1, "the refused row is not held in memory");
+                    Assert(Directory.Exists(storePath) && !File.Exists(storePath), "the pending path changed under the test");
+
+                    // The path frees up: the next change rewrites the whole list.
+                    Directory.Delete(storePath);
+                    kept.Transcript.Status = TranscriptStatus.Completed;
+                    kept.Transcript.Text = "percy1589 kept in memory";
+                    history.UpdateTranscript(kept.Transcript);
+                    Assert(File.Exists(storePath) && File.ReadAllText(storePath).Contains(keptId.Value.ToString()),
+                        "the pending file was not written on the next change after a failed save");
+
+                    UnpoisonTranscriptInserts(dbPath);
+                    triggerDropped = true;
+                    other = history.CreateProcessingTranscript(1.0, "percy1589next", audioFilePath: null);
+                    Assert(history.PendingTranscriptCount == 0, "rows are still pending after a successful write");
+                    Assert(!File.Exists(storePath), "the pending file is still there after its row was saved");
+                    using var check = new HyperWhisperDbContext();
+                    var saved = check.Transcripts.AsNoTracking().FirstOrDefault(t => t.Id == keptId.Value);
+                    Assert(saved?.Status == TranscriptStatus.Completed && saved.Text == "percy1589 kept in memory",
+                        $"the row held in memory landed as {saved?.Status.ToString() ?? "missing"} \"{saved?.Text}\"");
+                }
+                finally
+                {
+                    if (!triggerDropped) UnpoisonTranscriptInserts(dbPath);
+                    history.ReplacePendingStoreForTests(previous);
+                    if (keptId.HasValue) history.DeleteTranscript(keptId.Value);
+                    if (other != null) history.DeleteTranscript(other.Id);
+                    try { if (Directory.Exists(storePath)) Directory.Delete(storePath); } catch { }
+                    try { File.Delete(storePath); } catch { }
+                }
+            });
+
+            Run("history: a refused insert's later writes (status, audio path, delete) use the pending row — issue #1589", () =>
+            {
+                // A BEFORE INSERT trigger refuses the row at once (SQLite constraint error, not
+                // the lock), so this case needs no 30 s wait. Every write the stop paths make
+                // after the insert must land on the pending row, never throw or vanish.
+                var dbPath = SuiteDatabasePath();
+
+                var history = HistoryService.Instance;
+                var recordings = StorageService.Instance.GetRecordingsFolder();
+                var keptAudio = Path.Combine(recordings, $"percy1589-{Guid.NewGuid():N}.wav");
+                var droppedAudio = Path.Combine(recordings, $"percy1589-{Guid.NewGuid():N}.wav");
+                var compressedAudio = Path.Combine(recordings, $"percy1589-{Guid.NewGuid():N}.m4a");
+                File.WriteAllBytes(keptAudio, new byte[] { 1, 2, 3, 4 });
+                File.WriteAllBytes(droppedAudio, new byte[] { 1, 2, 3, 4 });
+                File.WriteAllBytes(compressedAudio, new byte[] { 5, 6 });
+                Guid? keptId = null;
+                Guid? droppedId = null;
+                Transcript? other = null;
+
+                PoisonTranscriptInserts(dbPath, "percy1589poison");
+                var triggerDropped = false;
+                try
+                {
+                    var kept = history.CreateProcessingTranscriptAsync(1.5, "percy1589poison", keptAudio).GetAwaiter().GetResult();
+                    keptId = kept.Transcript.Id;
+                    Assert(kept.SavedLater && !kept.DatabaseLocked,
+                        $"a refused (not locked) insert reported SavedLater={kept.SavedLater}, DatabaseLocked={kept.DatabaseLocked}");
+                    var toast = MainViewModel.HistorySavedLaterToast(kept);
+                    Assert(toast?.Message == HyperWhisper.Localization.Loc.S("history.savedLater.writeFailed"),
+                        $"a refusal that is not the lock showed \"{toast?.Message ?? "no toast"}\"; it must not claim a lock");
+
+                    // A pending row with no audio (streaming) gets no "recording was kept" toast.
+                    var streaming = new HistoryInsertResult(new Transcript { AudioFilePath = null }, SavedLater: true, DatabaseLocked: true);
+                    Assert(MainViewModel.HistorySavedLaterToast(streaming) == null,
+                        "a row with no audio would be told its recording was kept");
+
+                    // The no-speech / generic failure writers and the safety net, as a failed job runs them.
+                    MainViewModel.EnsureTranscriptTerminalStatus(kept.Transcript);
+                    var afterNet = history.GetTranscript(keptId.Value);
+                    Assert(afterNet?.Status == TranscriptStatus.Failed,
+                        $"the safety net left the pending row {afterNet?.Status.ToString() ?? "missing"}, not Failed");
+                    Assert(history.UpdateAudioFilePath(keptId.Value, compressedAudio),
+                        "pointing the pending row at its compressed audio reported the row as gone, so the M4A would be deleted");
+                    Assert(history.GetTranscript(keptId.Value)?.AudioFilePath == compressedAudio,
+                        "the compressed audio path did not reach the pending row");
+
+                    // A cancelled job deletes its row: the pending record goes, with its audio.
+                    var dropped = history.CreateProcessingTranscriptAsync(1.0, "percy1589poison", droppedAudio).GetAwaiter().GetResult();
+                    droppedId = dropped.Transcript.Id;
+                    Assert(dropped.SavedLater, "the second poisoned insert was saved");
+                    var deleted = history.DeleteTranscript(droppedId.Value);
+                    Assert(deleted.IsSuccess && deleted.Value, "deleting a pending row was not reported as a delete");
+                    Assert(history.GetTranscript(droppedId.Value) == null, "the deleted pending row is still readable");
+                    Assert(!File.Exists(droppedAudio), "the deleted pending row's audio was left behind");
+
+                    UnpoisonTranscriptInserts(dbPath);
+                    triggerDropped = true;
+
+                    // Any successful write saves what is still pending.
+                    other = history.CreateProcessingTranscript(1.0, "percy1589next", audioFilePath: null);
+                    other.Status = TranscriptStatus.Completed;
+                    history.UpdateTranscript(other);
+                    Assert(history.PendingTranscriptCount == 0, "rows are still pending after a successful write");
+                    using var check = new HyperWhisperDbContext();
+                    var saved = check.Transcripts.AsNoTracking().FirstOrDefault(t => t.Id == keptId.Value);
+                    Assert(saved?.Status == TranscriptStatus.Failed && saved.AudioFilePath == compressedAudio,
+                        $"the saved row is {saved?.Status.ToString() ?? "missing"} at {saved?.AudioFilePath ?? "no audio"}, "
+                        + "not the Failed row pointing at the compressed audio");
+                    Assert(!check.Transcripts.AsNoTracking().Any(t => t.Id == droppedId.Value),
+                        "the deleted pending row was written to the database anyway");
+                }
+                finally
+                {
+                    if (!triggerDropped) UnpoisonTranscriptInserts(dbPath);
+                    if (keptId.HasValue) history.DeleteTranscript(keptId.Value);
+                    if (droppedId.HasValue) history.DeleteTranscript(droppedId.Value);
+                    if (other != null) history.DeleteTranscript(other.Id);
+                    foreach (var path in new[] { keptAudio, droppedAudio, compressedAudio })
+                    {
+                        try { File.Delete(path); } catch { }
+                    }
+                }
+            });
+
+            Run("history: a row is written ahead before its insert, so an exit mid-insert still lands it at the next startup — issue #1589", () =>
+            {
+                // The app closed while the insert still waited for another program's lock
+                // (OnExit gives the flush 5 s), so the row never reached pending-history.json
+                // and the recording had no History row. Now the record is on disk before the
+                // insert starts and is removed once it commits.
+                var dbPath = SuiteDatabasePath();
+                var history = HistoryService.Instance;
+                var dir = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests");
+                Directory.CreateDirectory(dir);
+                var storePath = Path.Combine(dir, $"percy1589-{Guid.NewGuid():N}.json");
+                var killedCommitted = Path.Combine(dir, $"percy1589-{Guid.NewGuid():N}.json");
+                var killedRolledBack = Path.Combine(dir, $"percy1589-{Guid.NewGuid():N}.json");
+                var audioPath = Path.Combine(StorageService.Instance.GetRecordingsFolder(), $"percy1589-{Guid.NewGuid():N}.wav");
+                File.WriteAllBytes(audioPath, new byte[] { 1, 2, 3, 4 });
+                Guid? id = null;
+
+                var locker = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath};Pooling=False");
+                var lockHeld = false;
+                void Release()
+                {
+                    if (!lockHeld) return;
+                    using var rollback = locker.CreateCommand();
+                    rollback.CommandText = "ROLLBACK;";
+                    rollback.ExecuteNonQuery();
+                    lockHeld = false;
+                }
+
+                var previous = history.ReplacePendingStoreForTests(new PendingHistoryStore(storePath));
+                try
+                {
+                    locker.Open();
+                    using (var begin = locker.CreateCommand())
+                    {
+                        begin.CommandText = "BEGIN IMMEDIATE;";
+                        begin.ExecuteNonQuery();
+                    }
+                    lockHeld = true;
+
+                    var insert = history.CreateProcessingTranscriptAsync(2.0, "percy1589ahead", audioPath);
+                    var waited = Stopwatch.StartNew();
+                    while (!File.Exists(storePath) && waited.Elapsed < TimeSpan.FromSeconds(5))
+                    {
+                        Thread.Sleep(20);
+                    }
+                    Assert(File.Exists(storePath) && !insert.IsCompleted,
+                        $"no write-ahead record in {storePath} while the insert waited for the lock "
+                        + $"(insert completed: {insert.IsCompleted}); an exit now would lose the row");
+
+                    // What a process killed at this moment leaves on disk.
+                    File.Copy(storePath, killedCommitted);
+                    File.Copy(storePath, killedRolledBack);
+
+                    // Hidden from in-session readers while the insert runs: the caller has no
+                    // row yet, so the statistics (which skip HistoryService's lock) must not count it.
+                    Assert(history.GetPendingTranscriptsSnapshot().Count == 0,
+                        "a write-ahead record was visible to a reader while its insert was still running");
+
+                    Release();
+                    var result = insert.GetAwaiter().GetResult();
+                    id = result.Transcript.Id;
+                    Assert(!result.SavedLater, "the insert was refused although the lock was released before the busy timeout");
+                    Assert(File.ReadAllText(killedCommitted).Contains(id.Value.ToString()),
+                        "the write-ahead record on disk is not this insert's row");
+                    Assert(history.PendingTranscriptCount == 0, "the committed row is still pending");
+                    Assert(!File.Exists(storePath), $"{storePath} is still there after the insert committed; every dictation would leave it behind");
+                    Assert(history.GetAllTranscripts().Count(t => t.Id == id.Value) == 1, "History lists the committed row more than once");
+
+                    // Killed after the commit but before the remove: the next launch drops the
+                    // record and keeps the database row.
+                    result.Transcript.Status = TranscriptStatus.Completed;
+                    result.Transcript.Text = "percy1589 committed text";
+                    history.UpdateTranscript(result.Transcript);
+                    history.ReplacePendingStoreForTests(new PendingHistoryStore(killedCommitted));
+                    Assert(history.FlushPendingTranscripts() == 0, "the startup flush re-saved a row the database already had");
+                    using (var check = new HyperWhisperDbContext())
+                    {
+                        var row = check.Transcripts.AsNoTracking().FirstOrDefault(t => t.Id == id.Value);
+                        Assert(row?.Status == TranscriptStatus.Completed && row.Text == "percy1589 committed text",
+                            $"the History row became {row?.Status.ToString() ?? "missing"} \"{row?.Text}\"; the write-ahead record overwrote it");
+                    }
+                    Assert(!File.Exists(killedCommitted), "the dropped write-ahead file is still there");
+
+                    // Killed before the commit: the database rolled the insert back, so the
+                    // row is not there (removed directly, keeping its audio), and the next
+                    // launch saves the record as Failed "Interrupted" with its recording.
+                    using (var ctx = new HyperWhisperDbContext())
+                    {
+                        ctx.Transcripts.Where(t => t.Id == id.Value).ExecuteDelete();
+                    }
+                    history.ReplacePendingStoreForTests(new PendingHistoryStore(killedRolledBack));
+                    var flushed = history.FlushPendingTranscripts();
+                    Assert(flushed == 1, $"the startup flush saved {flushed} row(s) from the write-ahead file, expected 1");
+                    using (var check = new HyperWhisperDbContext())
+                    {
+                        var row = check.Transcripts.AsNoTracking().FirstOrDefault(t => t.Id == id.Value);
+                        Assert(row?.Status == TranscriptStatus.Failed && row.FailedReason == HistoryService.InterruptedReason,
+                            $"the interrupted insert landed as {row?.Status.ToString() ?? "missing"} ({row?.FailedReason ?? "no reason"}), not Failed \"Interrupted\"");
+                        Assert(row!.AudioFilePath == audioPath && File.Exists(audioPath),
+                            "the interrupted insert's row lost its recording, so it cannot be retried");
+                    }
+                }
+                finally
+                {
+                    try { Release(); } catch { }
+                    locker.Dispose();
+                    history.ReplacePendingStoreForTests(previous);
+                    if (id.HasValue) history.DeleteTranscript(id.Value);
+                    foreach (var path in new[] { storePath, killedCommitted, killedRolledBack, audioPath })
+                    {
+                        try { File.Delete(path); } catch { }
+                    }
+                }
+            });
+
+            Run("history: a pending row is in Local API /recordings (page, total), Search, auto-delete and the statistics — issue #1589", () =>
+            {
+                // These read only the database, so a row the database refused was missing
+                // from them until it was saved.
+                var dbPath = SuiteDatabasePath();
+                var history = HistoryService.Instance;
+                static DateTime Day(int d) => new(1991, 1, d, 12, 0, 0, DateTimeKind.Utc);
+                var since = Day(1);
+                var until = Day(31);
+                var storePath = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests", $"percy1589-{Guid.NewGuid():N}.json");
+                var ids = new List<Guid>();
+                var previous = history.ReplacePendingStoreForTests(new PendingHistoryStore(storePath));
+
+                Transcript Seed(bool pending, DateTime date, string text)
+                {
+                    var t = pending
+                        ? history.CreateProcessingTranscriptAsync(1.0, "percy1589poison", audioFilePath: null).GetAwaiter().GetResult().Transcript
+                        : history.CreateProcessingTranscript(1.0, "percy1589rows", audioFilePath: null);
+                    ids.Add(t.Id);
+                    (t.Date, t.Status, t.Text, t.TranscribedText) = (date, TranscriptStatus.Completed, text, text);
+                    history.UpdateTranscript(t);
+                    return t;
+                }
+
+                var poisoned = false;
+                try
+                {
+                    var db5 = Seed(pending: false, Day(5), "q1589x first row");
+                    var db15 = Seed(pending: false, Day(15), "q1589x second row");
+                    PoisonTranscriptInserts(dbPath, "percy1589poison");
+                    poisoned = true;
+                    var p10 = Seed(pending: true, Day(10), "q1589x café pending row");
+                    var today = Seed(pending: true, DateTime.UtcNow, "percy1589 today row");
+                    Assert(history.PendingTranscriptCount == 2, $"{history.PendingTranscriptCount} rows pending, expected the 2 the trigger refused");
+
+                    // Local API /recordings: in order, in the total, on both match paths.
+                    var (page, total) = history.QueryPage("q1589x", since, until, 2);
+                    Assert(total == 3, $"/recordings total is {total} for 2 database rows and 1 pending row, expected 3");
+                    Assert(page.Select(t => t.Id).SequenceEqual(new[] { db15.Id, p10.Id }),
+                        "the first page of 2 is not [Jan 15, Jan 10 pending]: " + string.Join(", ", page.Select(t => t.Date.ToString("MM-dd"))));
+                    var (all, allTotal) = history.QueryPage("", since, until, 10);
+                    Assert(allTotal == 3 && all.Select(t => t.Id).SequenceEqual(new[] { db15.Id, p10.Id, db5.Id }),
+                        $"the unfiltered 1991 page is {all.Count} rows (total {allTotal}), not [Jan 15, Jan 10 pending, Jan 5]");
+                    var (nonAscii, nonAsciiTotal) = history.QueryPage("CAFÉ", since, until, 10);
+                    Assert(nonAsciiTotal == 1 && nonAscii.Count == 1 && nonAscii[0].Id == p10.Id,
+                        $"a non-ASCII term found {nonAscii.Count} row(s) (total {nonAsciiTotal}), not the pending row");
+                    var (narrow, narrowTotal) = history.QueryPage("q1589x", Day(11), until, 10);
+                    Assert(narrowTotal == 1 && narrow.Single().Id == db15.Id,
+                        "since did not filter the pending row out");
+
+                    // History search.
+                    var found = history.Search("Q1589X", DateFilter.All).Select(t => t.Id).ToList();
+                    Assert(found.Contains(p10.Id) && found.Contains(db5.Id) && found.Distinct().Count() == found.Count,
+                        "History search leaves the pending row out or lists a row twice");
+                    var todayRows = history.Search(null, DateFilter.Today).Select(t => t.Id).ToList();
+                    Assert(todayRows.Contains(today.Id) && !todayRows.Contains(p10.Id),
+                        "the Today filter did not apply to the pending rows");
+
+                    // Statistics, which read without HistoryService's lock.
+                    // ast-grep-ignore: no-unguarded-optional-assembly-use -- test code: the suite ships HyperWhisper.Statistics.dll beside it, and no Application Control policy runs on CI.
+                    var stats = new WindowsStatisticsTranscriptProvider().ReadAllAsync().AsTask().GetAwaiter().GetResult();
+                    Assert(stats.Count(st => st.Text == "q1589x café pending row") == 1,
+                        "the statistics do not count the pending row exactly once");
+
+                    // A stale record whose row the database already has is never counted twice.
+                    var stale = new PendingHistoryStore(Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests", $"percy1589-{Guid.NewGuid():N}.json"));
+                    stale.Upsert(db5);
+                    var live = history.ReplacePendingStoreForTests(stale);
+                    try
+                    {
+                        var (dupPage, dupTotal) = history.QueryPage("q1589x", since, until, 10);
+                        Assert(dupTotal == 2 && dupPage.Count == 2, $"a stale pending copy of a database row was counted: {dupPage.Count} rows, total {dupTotal}");
+                        Assert(history.Search("q1589x first", DateFilter.All).Count(t => t.Id == db5.Id) == 1,
+                            "search listed a stale pending copy of a database row twice");
+                        Assert(history.GetTranscriptsOlderThan(Day(12)).Count(t => t.Id == db5.Id) == 1,
+                            "auto-delete listed a stale pending copy of a database row twice");
+                    }
+                    finally
+                    {
+                        history.ReplacePendingStoreForTests(live);
+                        stale.Remove(db5.Id);
+                    }
+
+                    // Auto-delete: the pending row past the cutoff is swept with the database row.
+                    var old = history.GetTranscriptsOlderThan(Day(12)).Where(t => ids.Contains(t.Id)).ToList();
+                    Assert(old.Select(t => t.Id).SequenceEqual(new[] { db5.Id, p10.Id }),
+                        "auto-delete's rows older than Jan 12 are not [Jan 5, Jan 10 pending], oldest first");
+                    var swept = history.DeleteTranscripts(old.Select(t => t.Id).ToList());
+                    Assert(swept.IsSuccess && swept.Value == 2, $"the sweep deleted {(swept.IsSuccess ? swept.Value : -1)} row(s), expected 2");
+                    Assert(history.GetTranscript(p10.Id) == null && history.PendingTranscriptCount == 1,
+                        "the swept pending row is still there");
+                }
+                finally
+                {
+                    foreach (var id in ids) history.DeleteTranscript(id);
+                    if (poisoned) UnpoisonTranscriptInserts(dbPath);
+                    history.ReplacePendingStoreForTests(previous);
+                    try { File.Delete(storePath); } catch { }
+                }
+            });
+
             Run("Local API /recordings: q, since, until, total and limit run in SQL with the old match rule — issue #1123", () =>
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
@@ -22953,6 +23602,101 @@ internal static class Program
                 }
             });
 
+            Run("shortcuts: a stored or imported bare typing key resets to the role's default - issue #2114", () =>
+            {
+                // #2114. #2110 stopped the recorder saving a bare typing key, but a
+                // profile that saved "ToggleShortcut": "Tab" on an older build kept it,
+                // and a backup could import one. Ray (inbox #1685): reset the role to
+                // its default at settings load, and on backup import (not to the
+                // current value). A single bare modifier gets the same treatment.
+                EnsureSmokeApplication();
+
+                // THE RULE.
+                foreach (var unsafeValue in new[] { "Tab", "K", "Shift+Tab", "Space", "Alt", "Ctrl", "Shift", "Win" })
+                    Assert(ShortcutValidationService.IsUnsafeStoredActionShortcut(KeyboardShortcut.FromPersistedString(unsafeValue)),
+                        $"a stored '{unsafeValue}' would fire while the user types, so it must not stay live");
+                foreach (var safeValue in new[] { "", "Esc", "F13", "Shift+A", "Shift+Esc", "Ctrl+Tab", "Ctrl+Shift+Tab", "Ctrl+Alt", "Ctrl+Win", "Ctrl+Shift+." })
+                    Assert(!ShortcutValidationService.IsUnsafeStoredActionShortcut(KeyboardShortcut.FromPersistedString(safeValue)),
+                        $"a stored '{safeValue}' is a legal shortcut (or Unassigned) and must be kept");
+
+                var settings = SettingsService.Instance;
+                var settingsFile = Path.Combine(AppPaths.AppDataRoot, "settings.json");
+                // Two real changes, so settings.json exists whatever ran before this case.
+                var cancelBefore = settings.CancelShortcut;
+                settings.CancelShortcut = KeyboardShortcut.FromPersistedString("F14");
+                settings.CancelShortcut = cancelBefore;
+                var original = File.ReadAllText(settingsFile);
+
+                void SeedAndReload(string toggle, string cancel, string changeMode, string streaming)
+                {
+                    var node = JsonNode.Parse(original)!.AsObject();
+                    node["ToggleShortcut"] = toggle;
+                    node["CancelShortcut"] = cancel;
+                    node["ChangeModeShortcut"] = changeMode;
+                    node["StreamingShortcut"] = streaming;
+                    File.WriteAllText(settingsFile, node.ToJsonString());
+                    settings.Reload();
+                }
+
+                try
+                {
+                    // LOAD: the Done-when profile, one unsafe value per role.
+                    SeedAndReload("Tab", "K", "Shift+Tab", "Alt");
+                    Assert(settings.ToggleShortcut.ToPersistedString() == "Ctrl+Alt",
+                        $"a stored bare Tab must load as the Toggle default, got '{settings.ToggleShortcut}'");
+                    Assert(settings.CancelShortcut.ToPersistedString() == "Esc",
+                        $"a stored bare K must load as the Cancel default, got '{settings.CancelShortcut}'");
+                    Assert(settings.ChangeModeShortcut.ToPersistedString() == "Ctrl+Shift+.",
+                        $"a stored Shift+Tab must load as the Change mode default, got '{settings.ChangeModeShortcut}'");
+                    Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Shift+Space",
+                        $"a stored bare Alt must load as the Streaming default, got '{settings.StreamingShortcut}'");
+
+                    // LOAD keeps every legal value exactly. (A blank stored value already
+                    // reads as the default through GetShortcutOrDefault.)
+                    SeedAndReload("Shift+A", "F13", "Ctrl+Shift+J", "Ctrl+Win");
+                    Assert(settings.ToggleShortcut.ToPersistedString() == "Shift+A", $"Shift+A must survive load, got '{settings.ToggleShortcut}'");
+                    Assert(settings.CancelShortcut.ToPersistedString() == "F13", $"F13 must survive load, got '{settings.CancelShortcut}'");
+                    Assert(settings.ChangeModeShortcut.ToPersistedString() == "Ctrl+Shift+J", $"Ctrl+Shift+J must survive load, got '{settings.ChangeModeShortcut}'");
+                    Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Win", $"Ctrl+Win must survive load, got '{settings.StreamingShortcut}'");
+
+                    // IMPORT, Windows slice: each unsafe role resets to its DEFAULT, not
+                    // to the current (non-default) value seeded just above.
+                    var slice = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+                        """{"windows":{"settings":{"toggleShortcut":"K","cancelShortcut":"Ctrl","changeModeShortcut":"Shift+Tab","streamingShortcut":"Tab"}}}""")!;
+                    UniversalBackupMapper.ApplyWindowsPlatformSettings(slice, settings);
+                    Assert(settings.ToggleShortcut.ToPersistedString() == "Ctrl+Alt", $"imported K: Toggle is '{settings.ToggleShortcut}'");
+                    Assert(settings.CancelShortcut.ToPersistedString() == "Esc", $"imported Ctrl: Cancel is '{settings.CancelShortcut}'");
+                    Assert(settings.ChangeModeShortcut.ToPersistedString() == "Ctrl+Shift+.", $"imported Shift+Tab: Change mode is '{settings.ChangeModeShortcut}'");
+                    Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Shift+Space", $"imported Tab: Streaming is '{settings.StreamingShortcut}'");
+
+                    // IMPORT, Windows slice: a legal value still imports as it is.
+                    var legal = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+                        """{"windows":{"settings":{"toggleShortcut":"Ctrl+Alt+H","streamingShortcut":"F9"}}}""")!;
+                    UniversalBackupMapper.ApplyWindowsPlatformSettings(legal, settings);
+                    Assert(settings.ToggleShortcut.ToPersistedString() == "Ctrl+Alt+H", $"imported Ctrl+Alt+H: Toggle is '{settings.ToggleShortcut}'");
+                    Assert(settings.StreamingShortcut.ToPersistedString() == "F9", $"imported F9: Streaming is '{settings.StreamingShortcut}'");
+
+                    // IMPORT, universal streaming.shortcut (what a macOS or Linux backup carries).
+                    UniversalBackupMapper.ApplySettings(new UniversalSettings
+                    {
+                        Streaming = new UniversalStreamingSettings { Shortcut = "K" },
+                    }, settings);
+                    Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Shift+Space",
+                        $"a universal streaming.shortcut of bare K must reset to the default, got '{settings.StreamingShortcut}'");
+                    UniversalBackupMapper.ApplySettings(new UniversalSettings
+                    {
+                        Streaming = new UniversalStreamingSettings { Shortcut = "Ctrl+Alt+S" },
+                    }, settings);
+                    Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Alt+S",
+                        $"a legal universal streaming.shortcut must import, got '{settings.StreamingShortcut}'");
+                }
+                finally
+                {
+                    File.WriteAllText(settingsFile, original);
+                    settings.Reload();
+                }
+            });
+
             Run("shortcuts: Settings > Streaming stores nothing until the gesture closes", () =>
             {
                 // #794. The SAME setting had two editors and only one was fixed:
@@ -23501,6 +24245,46 @@ internal static class Program
 
     private static string TempWav(string label) =>
         Path.Combine(Path.GetTempPath(), $"HyperWhisper.SmokeTests.{label}.{Guid.NewGuid():N}.wav");
+
+    /// <summary>
+    /// The suite's database file (#1589), initialized, and checked to be under the temp
+    /// profile so a case that locks it or adds a trigger never touches a real profile.
+    /// </summary>
+    private static string SuiteDatabasePath()
+    {
+        DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+        string dbPath;
+        using (var probe = new HyperWhisperDbContext())
+        {
+            dbPath = Path.GetFullPath(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(
+                probe.Database.GetConnectionString()).DataSource);
+        }
+        Assert(dbPath.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
+            $"the database {dbPath} is not under the suite's temp profile; refusing to lock or change it");
+        return dbPath;
+    }
+
+    /// <summary>Runs one SQL statement on its own unpooled connection.</summary>
+    private static void ExecSql(string dbPath, string sql)
+    {
+        using var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath};Pooling=False");
+        conn.Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// Makes the database refuse every Transcripts insert whose Mode is <paramref name="mode"/>
+    /// at once (a constraint error, not the lock), so a #1589 case needs no 30 s busy wait.
+    /// Undo with <see cref="UnpoisonTranscriptInserts"/>.
+    /// </summary>
+    private static void PoisonTranscriptInserts(string dbPath, string mode) =>
+        ExecSql(dbPath, "CREATE TRIGGER IF NOT EXISTS percy1589_poison BEFORE INSERT ON Transcripts " +
+            $"WHEN NEW.Mode = '{mode}' BEGIN SELECT RAISE(ABORT, 'percy1589 poison row'); END;");
+
+    private static void UnpoisonTranscriptInserts(string dbPath) =>
+        ExecSql(dbPath, "DROP TRIGGER IF EXISTS percy1589_poison;");
 
     private static void TryDelete(string path)
     {
@@ -24076,6 +24860,67 @@ internal static class Program
     {
         if (!condition)
             throw new InvalidOperationException(message);
+    }
+
+    private const string SettingsLoadProbeEnvironmentVariable = "HYPERWHISPER_SMOKE_SETTINGS_LOAD_PROBE";
+    private const string SettingsLoadProbeSaveEnvironmentVariable = "HYPERWHISPER_SMOKE_SETTINGS_LOAD_PROBE_SAVE";
+
+    /// <summary>
+    /// Child side of the #2096 checks: loads SettingsService from the profile in
+    /// HYPERWHISPER_WINDOWS_APPDATA_ROOT, prints what it loaded and, when asked,
+    /// changes one setting so a real Save() runs against the files on disk.
+    /// </summary>
+    private static int RunSettingsLoadProbe()
+    {
+        try
+        {
+            var settings = SettingsService.Instance;
+            var typingSpeed = settings.TypingSpeedWPM;
+            Console.WriteLine($"TypingSpeedWPM={typingSpeed}");
+            Console.WriteLine($"LastSelectedModel={settings.LastSelectedModel ?? "<null>"}");
+            if (Environment.GetEnvironmentVariable(SettingsLoadProbeSaveEnvironmentVariable) == "1")
+            {
+                settings.TypingSpeedWPM = typingSpeed + 1;
+            }
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex);
+            return 1;
+        }
+    }
+
+    /// <summary>
+    /// Runs this executable in settings-load-probe mode against <paramref name="profile"/>
+    /// and returns its standard output. Throws when the child fails or hangs.
+    /// </summary>
+    private static string RunSettingsLoadProbeChild(string profile, bool save = true)
+    {
+        var startInfo = new ProcessStartInfo(Environment.ProcessPath!)
+        {
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+        };
+        startInfo.Environment[AppPaths.AppDataRootOverrideEnvironmentVariable] = profile;
+        startInfo.Environment[SettingsLoadProbeEnvironmentVariable] = "1";
+        startInfo.Environment[SettingsLoadProbeSaveEnvironmentVariable] = save ? "1" : "0";
+
+        using var child = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("settings-load probe did not start");
+        var stdout = child.StandardOutput.ReadToEndAsync();
+        var stderr = child.StandardError.ReadToEndAsync();
+        if (!child.WaitForExit(60_000))
+        {
+            child.Kill(entireProcessTree: true);
+            throw new InvalidOperationException("settings-load probe did not exit within 60 s");
+        }
+
+        Assert(child.ExitCode == 0,
+            $"settings-load probe exited {child.ExitCode}: {stderr.GetAwaiter().GetResult()}");
+        return stdout.GetAwaiter().GetResult();
     }
 
     private const int VkLeft = 0x25;

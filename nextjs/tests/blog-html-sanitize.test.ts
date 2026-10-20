@@ -257,7 +257,7 @@ describe("getBlogPost sanitises a row stored before the fix", () => {
     );
   });
 
-  test("a normal stored article renders unchanged apart from the lazy images", async () => {
+  test("a normal stored article renders unchanged apart from the lazy images and table scroller", async () => {
     rows = [storedRow(NORMAL_ARTICLE)];
     const post = await getBlogPost("old-post");
     assert.ok(post);
@@ -266,7 +266,13 @@ describe("getBlogPost sanitises a row stored before the fix", () => {
       NORMAL_ARTICLE.replace(
         'height="450" />',
         'height="450" loading="lazy" decoding="async" />',
-      ),
+      )
+        // #2112: each table scrolls inside its own region, not the page.
+        .replace(
+          "<table>",
+          '<div class="my-[1.75em] overflow-x-auto [&>table]:my-0" role="region" aria-label="Table" tabindex="0"><table>',
+        )
+        .replace("</table>", "</table></div>"),
     );
   });
 });

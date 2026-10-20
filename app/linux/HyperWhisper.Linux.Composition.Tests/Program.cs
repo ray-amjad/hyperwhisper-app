@@ -44,6 +44,10 @@ if (args is [MicrophonePickerRenderTests.ProbeArgument])
 {
     Environment.Exit(MicrophonePickerRenderTests.RunProbe());
 }
+if (args is [BackupErrorRenderTests.ProbeArgument])
+{
+    Environment.Exit(BackupErrorRenderTests.RunProbe());
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -113,6 +117,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("the Sound page's media-control ComboBox shows its whole label in every long culture", MediaControlComboRenderTests.RunAsync),
     ("leaving Model Library keeps the Whisper and LLM backend picks in the view model and settings.json (#1967)", BackendPickerPageLeaveRenderTests.RunAsync),
     ("Settings → Sound shows the saved microphone (not connected) with the fallback line, an idle level bar, and Default clears it for Home too", MicrophonePickerRenderTests.RunAsync),
+    ("the Backup page shows an inspect failure and clears it on a good file (#2124)", BackupErrorRenderTests.RunAsync),
 };
 
 foreach (var test in tests)

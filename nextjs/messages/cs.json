@@ -443,5 +443,9 @@
     "description": "Odkaz může být nefunkční nebo byla stránka přesunuta.",
     "home": "Přejít na úvodní stránku",
     "download": "Stáhnout HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Platnost tohoto přihlašovacího odkazu vypršela nebo už byl použit. Zadejte svůj e-mail a získejte nový.",
+    "magicLinkFailed": "S tímto odkazem jsme vás nemohli přihlásit. Zadejte svůj e-mail a získejte nový."
   }
 }

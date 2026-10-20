@@ -471,7 +471,20 @@ public partial class SettingsService
                 string json = File.ReadAllText(SettingsFilePath);
                 var loaded = JsonSerializer.Deserialize<SettingsData>(json);
 
-                if (loaded != null)
+                if (loaded == null)
+                {
+                    // settings.json holds the JSON literal null (a sync tool, a restore
+                    // tool or a hand edit). Deserialize returns null without throwing,
+                    // so the catch below never sees it. It is as corrupt as a torn
+                    // file: recover from .bak first, or the next Save() rotates this
+                    // file over the only good .bak (issue #2096).
+                    LoggingService.Warn($"SettingsService: {SettingsFilePath} holds null, trying the backup");
+                    if (TryLoadBackup())
+                    {
+                        return;
+                    }
+                }
+                else
                 {
                     _settings = loaded;
                     LoggingService.Info($"SettingsService: Loaded settings from {SettingsFilePath}");

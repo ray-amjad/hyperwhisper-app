@@ -443,5 +443,9 @@
     "description": "De link is mogelijk defect of de pagina is verplaatst.",
     "home": "Naar de startpagina",
     "download": "HyperWhisper downloaden"
+  },
+  "signIn": {
+    "magicLinkExpired": "Deze inloglink is verlopen of al gebruikt. Vul je e-mailadres in om een nieuwe te krijgen.",
+    "magicLinkFailed": "We konden je niet inloggen met die link. Vul je e-mailadres in om een nieuwe te krijgen."
   }
 }

@@ -227,6 +227,100 @@ describe('transcribeRoute provider fallback', () => {
     expect(body.message).toBe('Groq API key is invalid');
   });
 
+  test("a non-retryable failure's own text stays in the log, not the 500 (#2106)", async () => {
+    // A missing key is a plain Error naming the server's env var: the text the
+    // non-retryable arm used to copy into the reply.
+    delete process.env.ELEVENLABS_API_KEY;
+    const logged: string[] = [];
+    const originalLog = console.log;
+    console.log = ((...args: unknown[]) => { logged.push(args.map(String).join(' ')); }) as typeof console.log;
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      throw new Error(`Unexpected fetch: ${String(input)}`);
+    }) as unknown as typeof fetch;
+
+    let response: Response;
+    try {
+      response = await buildApp().fetch(transcribeRequest('elevenlabs'));
+    } finally {
+      console.log = originalLog;
+    }
+    const raw = await response.text();
+    const body = JSON.parse(raw) as { error: string; message: string; requestId: string };
+
+    expect(response.status).toBe(500);
+    expect(body.error).toBe('Transcription failed');
+    expect(body.message).toBe('The transcription request failed. Please try again.');
+    expect(raw).not.toContain('ELEVENLABS_API_KEY');
+    // The full text is still in the request_fail line, under the same requestId.
+    const fail = logged
+      .filter((line) => line.startsWith('{'))
+      .map((line) => JSON.parse(line) as { event: string; requestId: string; kind?: string; message?: string })
+      .find((event) => event.event === 'transcribe.request_fail');
+    expect(fail).toMatchObject({ requestId: body.requestId, kind: 'non_retryable' });
+    expect(fail?.message).toContain('ELEVENLABS_API_KEY not configured');
+  });
+
+  test('an ElevenLabs 200 whose body breaks mid-read is served by the next provider (#2064)', async () => {
+    const called: string[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.elevenlabs.io')) {
+        called.push('elevenlabs');
+        return new Response(new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode('{"text":"hello wor'));
+            controller.error(new TypeError('socket connection was closed unexpectedly'));
+          },
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url.includes('api.deepgram.com')) {
+        called.push('deepgram');
+        return Response.json({
+          results: { channels: [{ alternatives: [{ transcript: 'hello from deepgram' }], detected_language: 'en' }] },
+          metadata: { duration: 1, request_id: 'dg-req-1' },
+        });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(transcribeRequest('elevenlabs'));
+    const body = await response.json() as { text: string; metadata: { stt_provider: string } };
+
+    expect(response.status).toBe(200);
+    expect(called).toEqual(['elevenlabs', 'deepgram']);
+    expect(body.text).toBe('hello from deepgram');
+    expect(body.metadata.stt_provider).toContain('fallback from');
+  });
+
+  test('an Azure MAI 200 with a cut-off body is the retryable 502, not a 500 with the parser text (#2064)', async () => {
+    const azureKeys = ['AZURE_SPEECH_KEY_EASTUS', 'AZURE_SPEECH_KEY_NORTHEUROPE', 'AZURE_SPEECH_KEY_SOUTHEASTASIA'] as const;
+    for (const key of azureKeys) process.env[key] = 'test-azure-key';
+    const called: string[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.cognitive.microsoft.com')) {
+        called.push(url);
+        return new Response('{"combinedPhrases":[{"text":"hel', {
+          status: 200, headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    let response: Response;
+    try {
+      response = await buildApp().fetch(transcribeRequest('azure-mai'));
+    } finally {
+      for (const key of azureKeys) delete process.env[key];
+    }
+    const body = await response.json() as { error: string; message: string };
+
+    expect(called.length).toBe(1);
+    expect(response.status).toBe(502);
+    expect(body.error).toBe('azure-mai unavailable');
+    expect(body.message).not.toMatch(/JSON|parse/i);
+  });
+
   for (const [sibling, siblingAnswer] of [
     ['a 400 input rejection', () => new Response('{"detail":"bad input"}', { status: 400 })],
     ['an outage', () => new Response('boom', { status: 503 })],

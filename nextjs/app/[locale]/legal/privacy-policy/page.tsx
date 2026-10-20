@@ -4,7 +4,7 @@ export const generateMetadata = localizedPageMetadata({
   path: "/legal/privacy-policy",
   title: "Privacy Policy | HyperWhisper",
   description:
-    "HyperWhisper Privacy Policy - Local-first, no cloud storage of your audio or transcripts, except brief storage of recordings over about 55 seconds or 9.5 MB on the HyperWhisper Cloud Chirp route.",
+    "HyperWhisper Privacy Policy - Local-first, no cloud storage of your audio or transcripts, except brief storage of recordings over about 55 seconds or 9.5 MB on the HyperWhisper Cloud Chirp route and provider error messages in HyperWhisper Cloud logs, which can quote request text.",
 });
 
 // The one storage exception, written once and rendered after every
@@ -25,11 +25,24 @@ const CHIRP_BUCKET_EXCEPTION = (
   </>
 );
 
+// The log caveat, rendered after every no-transcript claim below (Ray, #714
+// inbox #1770: qualify them). Some providers' error bodies are logged whole
+// (e.g. openai-compat-chat.ts) and can quote the request; #2163 tracks
+// stopping that, after which this can be removed.
+const ERROR_LOG_EXCEPTION = (
+  <>
+    Separately, when a provider returns an error to HyperWhisper Cloud, our
+    service logs keep the provider&apos;s error message, and that message can
+    quote part of what was sent to the provider, such as a vocabulary term or a
+    passage of your transcript, as described in the HyperWhisper Cloud section.
+  </>
+);
+
 export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none prose-invert">
       <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: October 19, 2026
+        Last Updated: October 20, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -40,7 +53,7 @@ export default function PrivacyPolicyPage() {
         range of cloud providers — including HyperWhisper Cloud, our built-in
         cloud service. Whichever option you choose, we never store your audio
         recordings or transcripts, with one exception for HyperWhisper Cloud
-        audio. {CHIRP_BUCKET_EXCEPTION}
+        audio. {CHIRP_BUCKET_EXCEPTION} {ERROR_LOG_EXCEPTION}
       </p>
       <p>
         Ray Amjad LTD (
@@ -195,11 +208,26 @@ export default function PrivacyPolicyPage() {
           transcription or post-processing request and pass them to the
           provider that handles it.
         </li>
+        <li>
+          <strong>HyperWhisper Cloud records</strong>: HyperWhisper Cloud keeps
+          a cache of up to one hour, keyed by your Account Key, of whether the
+          key is valid and its remaining credit balance, in a store hosted by
+          Upstash. In the same store it keeps short-lived rate-limit counters
+          keyed by your IP address and by a SHA-256 hash of your Account Key,
+          and temporary credit holds keyed by your Account Key while a request
+          runs. It checks the IP address of each request against a block list
+          of IP addresses we have blocked to stop abuse, held in the same
+          Upstash store. It writes operational logs, which can include your IP
+          address, and Axiom stores them. Unless you turn it off, it also
+          stores anonymous speed measurements that hold no account, no Account
+          Key, no IP address, no audio, and no text, and deletes them after 1
+          year. The HyperWhisper Cloud section below describes each of these.
+        </li>
       </ul>
 
       <p className="font-semibold">
         We do not store your audio recordings or transcripts, with one
-        exception. {CHIRP_BUCKET_EXCEPTION}
+        exception. {CHIRP_BUCKET_EXCEPTION} {ERROR_LOG_EXCEPTION}
       </p>
 
       <h2>What Stays On Your Device</h2>
@@ -254,7 +282,8 @@ export default function PrivacyPolicyPage() {
         When using cloud transcription, your audio is sent directly from your
         device to the cloud provider you choose. HyperWhisper does not proxy,
         store, or retain your audio or transcripts on our servers. HyperWhisper
-        Cloud, below, has one exception. {CHIRP_BUCKET_EXCEPTION} The cloud
+        Cloud, below, has one exception. {CHIRP_BUCKET_EXCEPTION}{" "}
+        {ERROR_LOG_EXCEPTION} The cloud
         provider you select may store or process your data according to their
         own privacy policies. You are responsible for reviewing those policies
         before use.
@@ -455,7 +484,91 @@ export default function PrivacyPolicyPage() {
         <strong>HyperWhisper Cloud</strong> is our built-in cloud transcription
         service. It routes your audio through our edge servers to one of the
         providers listed below. We do not store your audio or transcripts — we
-        only track credit usage — with one exception. {CHIRP_BUCKET_EXCEPTION}
+        track credit usage and keep the operational records described below —
+        with one exception. {CHIRP_BUCKET_EXCEPTION} {ERROR_LOG_EXCEPTION}
+      </p>
+      <p>
+        Beyond credit usage, HyperWhisper Cloud keeps the operational records
+        described in this paragraph and the next two. To check your credits without
+        asking our licensing service on every request, it caches whether your
+        Account Key is valid and its remaining credit balance for up to one
+        hour, keyed by your Account Key, in a store hosted by{" "}
+        <a
+          className="text-blue-400 hover:underline"
+          href="https://upstash.com/trust/privacy.pdf"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Upstash
+        </a>
+        . To limit how many requests can be sent, it counts requests in the
+        same Upstash store, keyed by your IP address and by a SHA-256 hash of
+        the Account Key the request sends; these counters
+        expire within a few minutes. While a request or a live transcription
+        session runs, it also keeps a temporary hold on the credits that
+        request may use, keyed by your Account Key; a hold is removed when the
+        request is settled and otherwise expires on its own. It also checks
+        the IP address of each request against a block list held in the same
+        Upstash store. We add an IP address to that list to stop abuse of the
+        service.
+      </p>
+      <p>
+        HyperWhisper Cloud&apos;s edge servers are hosted by{" "}
+        <a
+          className="text-blue-400 hover:underline"
+          href="https://fly.io/legal/privacy-policy/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Fly.io
+        </a>
+        . The service writes operational logs, and a log shipper we run on
+        Fly.io sends them to{" "}
+        <a
+          className="text-blue-400 hover:underline"
+          href="https://axiom.co/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Axiom
+        </a>
+        , which stores them for us. A log line can include request
+        identifiers (ours, Fly.io&apos;s, and the provider&apos;s), the server
+        machine and region, timing, byte and character counts, the provider
+        and model used, the language, the identifier of the mode you used,
+        whether a specialised transcription domain such as medical was
+        requested, your app&apos;s platform and version, credit amounts, and
+        your IP address. We use these logs to find and fix
+        faults, to prevent abuse, including deciding which IP addresses to
+        block, and to keep the service running. We do not write your audio,
+        your transcripts, your prompts, the text a model returns to you, or
+        your Account Key into these logs. When a provider returns an error, we
+        log the provider&apos;s error message (for some providers the whole
+        message, for others a shortened part of it), and a provider can quote
+        part of the request in that message, such as a vocabulary term or a
+        passage of the text sent to it.
+      </p>
+      <p>
+        Unless you turn it off, HyperWhisper Cloud also stores an anonymous
+        speed measurement in our database for each provider it calls to
+        transcribe a recording. These measurements build our public{" "}
+        <a
+          className="text-blue-400 hover:underline"
+          href="https://www.hyperwhisper.com/en/latency"
+        >
+          speed comparison page
+        </a>
+        . A measurement holds the provider and model, the server region, a
+        clip-length group, the provider&apos;s place in the fallback order, how
+        long the provider took, whether the call worked and, if it did not,
+        the kind of failure (for example a timeout), and the hour it
+        happened. It holds no account, no Account Key, no IP address, no
+        audio, and no text. We delete these measurements after 1 year. Sharing
+        is on by default. To turn it off, use the switch labelled &quot;Share
+        anonymous speed data&quot; in Settings → General. Today the
+        measurements come only from the macOS app (version 2.43.0 or later)
+        and the Windows app (version 1.10.0 or later). Older versions have no
+        switch, and the service does not measure them.
       </p>
       <p>
         <strong>Transcription (speech-to-text) providers:</strong>
@@ -800,7 +913,9 @@ export default function PrivacyPolicyPage() {
         Medical model. These options tune transcription for clinical
         vocabulary. For these HyperWhisper Cloud medical requests, our edge
         servers do not write
-        the audio or the transcript to our own storage. If Deepgram cannot
+        the audio or the transcript to our own storage, although a
+        provider&apos;s error message in our logs can quote part of the
+        request, as described in the HyperWhisper Cloud section. If Deepgram cannot
         take a request,
         HyperWhisper Cloud can send it to Groq or ElevenLabs as described
         above, and they do not use a medical model. Live streaming through
@@ -991,7 +1106,20 @@ export default function PrivacyPolicyPage() {
         your network type. It keeps a random identifier in your
         browser&apos;s local storage so that it can link your visits, and it
         sends a session identifier with each page view. Mintlify receives
-        your IP address. The docs pages have no access to your audio, your
+        your IP address. When you use the docs search, what you type into the
+        search box is sent to Mintlify to find matching pages. The search
+        uses{" "}
+        <a
+          className="text-blue-400 hover:underline"
+          href="https://www.hcaptcha.com/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          hCaptcha
+        </a>
+        , a bot-detection service: when you open the search, your browser
+        loads hCaptcha, which receives your IP address and details
+        about your browser. The docs pages have no access to your audio, your
         transcripts, or the desktop app.
       </p>
 
@@ -1006,7 +1134,8 @@ export default function PrivacyPolicyPage() {
       <p>
         Because we do not store your audio or transcripts, requests to access or
         delete that data should be carried out on your device by you. The one
-        exception is HyperWhisper Cloud audio. {CHIRP_BUCKET_EXCEPTION} For email,
+        exception is HyperWhisper Cloud audio. {CHIRP_BUCKET_EXCEPTION}{" "}
+        {ERROR_LOG_EXCEPTION} For email,
         order, or license information we maintain, you may request access or
         deletion by contacting support. Some information must be retained for
         legal/accounting purposes.
@@ -1014,7 +1143,10 @@ export default function PrivacyPolicyPage() {
       <p>
         If you dictated patient information with the Medical Mode options
         described above, through HyperWhisper Cloud or your own API key, we hold
-        neither the audio nor the transcript, so delete them on your device as
+        neither the audio nor the transcript, apart from any part of a
+        HyperWhisper Cloud request that a provider&apos;s error message quotes
+        in our logs, so delete them on
+        your device as
         described above. Any copy a provider keeps is governed by that
         provider&apos;s terms.
       </p>
@@ -1035,6 +1167,24 @@ export default function PrivacyPolicyPage() {
         what the request carries: for example your Account Key and device
         details in a license activation or validation request, the email
         address you submit in a form, or the sign-in link you open.
+      </p>
+      <p>
+        HyperWhisper Cloud runs on servers hosted by{" "}
+        <a
+          className="text-blue-400 hover:underline"
+          href="https://fly.io/legal/privacy-policy/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Fly.io
+        </a>
+        . Fly.io runs the code that handles each HyperWhisper Cloud request, so
+        it receives the request&apos;s IP address and everything the request
+        carries: for example your audio or text, your mode&apos;s instructions,
+        your Account Key, your custom vocabulary, the language and mode you
+        chose, and your app&apos;s platform and version. Its
+        operational logs are stored by Axiom, as described under HyperWhisper
+        Cloud above.
       </p>
       <p>
         Our database is hosted by{" "}
@@ -1084,7 +1234,11 @@ export default function PrivacyPolicyPage() {
         Standard Contractual Clauses, or equivalent mechanisms). The AgentStack support chat widget described above is
         served from the United States. Mintlify, which hosts our
         documentation as described above, may process the docs page views it
-        records in the United States.
+        records and the docs search queries it receives in the United States.
+        Fly.io runs HyperWhisper Cloud&apos;s edge servers in regions around
+        the world, so a Cloud request can be handled outside the United
+        Kingdom and the European Economic Area, and Axiom may process the
+        service&apos;s logs in the United States.
       </p>
 
       <h2>Changes to This Policy</h2>

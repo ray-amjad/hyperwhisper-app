@@ -443,5 +443,9 @@
     "description": "Веза је можда неисправна или је страница премештена.",
     "home": "Иди на почетну страницу",
     "download": "Преузми HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Ovaj link za prijavu je istekao ili je već iskorišćen. Unesite svoju e-poštu da biste dobili novi.",
+    "magicLinkFailed": "Nismo mogli da vas prijavimo tim linkom. Unesite svoju e-poštu da biste dobili novi."
   }
 }

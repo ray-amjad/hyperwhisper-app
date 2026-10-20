@@ -443,5 +443,9 @@
     "description": "Tautan mungkin rusak, atau halaman mungkin telah dipindahkan.",
     "home": "Ke halaman beranda",
     "download": "Unduh HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Tautan masuk ini sudah kedaluwarsa atau sudah digunakan. Masukkan email Anda untuk mendapatkan tautan baru.",
+    "magicLinkFailed": "Kami tidak dapat memasukkan Anda dengan tautan itu. Masukkan email Anda untuk mendapatkan tautan baru."
   }
 }

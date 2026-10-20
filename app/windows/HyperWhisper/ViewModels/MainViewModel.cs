@@ -2390,7 +2390,7 @@ public partial class MainViewModel : ViewModelBase
                 {
                     // No audio path: there is no audio to keep, and a saved header
                     // would offer a History Retry that uploads it after all.
-                    transcript = HistoryService.Instance.CreateProcessingTranscript(
+                    transcript = await CreateProcessingTranscriptOffUiThreadAsync(
                         RecordingDuration.TotalSeconds,
                         recordingMode.Name,
                         audioFilePath: null);
@@ -2418,8 +2418,9 @@ public partial class MainViewModel : ViewModelBase
             }
 
             // HISTORY INTEGRATION - STEP 2: Create processing transcript immediately
-            // This appears in History view with "Processing..." status right away
-            transcript = HistoryService.Instance.CreateProcessingTranscript(
+            // This appears in History view with "Processing..." status right away.
+            // Off the UI thread (#1589): a locked database makes the insert wait 30 s.
+            transcript = await CreateProcessingTranscriptOffUiThreadAsync(
                 RecordingDuration.TotalSeconds,
                 recordingMode.Name,
                 permanentAudioPath);
@@ -3104,6 +3105,46 @@ public partial class MainViewModel : ViewModelBase
         {
             LoggingService.Warn($"TranscriptionFlow: failed to delete discarded recording: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Creates the Processing History row on the thread pool and comes back on the
+    /// caller's (dispatcher) context (#1589). The insert can wait SQLite's 30 s busy
+    /// timeout while another program holds the database's write lock, which froze the
+    /// window when it ran here. When the database still refuses the row, it is kept to
+    /// be saved later, the user is told the recording was kept, and the job goes on to
+    /// transcribe and paste as usual: the returned transcript is usable either way.
+    /// </summary>
+    private async Task<Transcript> CreateProcessingTranscriptOffUiThreadAsync(
+        double durationSeconds, string? modeName, string? audioFilePath)
+    {
+        var insert = await HistoryService.Instance.CreateProcessingTranscriptAsync(
+            durationSeconds, modeName, audioFilePath);
+        if (HistorySavedLaterToast(insert) is { } toast)
+        {
+            ShowErrorToastRequested?.Invoke(this, toast);
+        }
+        return insert.Transcript;
+    }
+
+    /// <summary>
+    /// The toast for a History row the database refused (#1589): it names the lock when
+    /// that was the cause, and says the recording was kept. Null when the row was saved,
+    /// or when there is no audio to keep (streaming, an empty capture): the text was
+    /// still delivered and the row is saved later without a toast that would be untrue.
+    /// Internal for HyperWhisper.SmokeTests.
+    /// </summary>
+    internal static ErrorToastEventArgs? HistorySavedLaterToast(HistoryInsertResult insert)
+    {
+        ArgumentNullException.ThrowIfNull(insert);
+        if (!insert.SavedLater || string.IsNullOrEmpty(insert.Transcript.AudioFilePath))
+        {
+            return null;
+        }
+
+        return new ErrorToastEventArgs(
+            Loc.S(insert.DatabaseLocked ? "history.savedLater.databaseLocked" : "history.savedLater.writeFailed"),
+            showSettingsButton: false);
     }
 
     /// <summary>

@@ -443,5 +443,9 @@
     "description": "Linkul poate fi greșit sau pagina a fost mutată.",
     "home": "Mergi la pagina principală",
     "download": "Descarcă HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Acest link de conectare a expirat sau a fost deja folosit. Introdu adresa de e-mail pentru a primi unul nou.",
+    "magicLinkFailed": "Nu te-am putut conecta cu acest link. Introdu adresa de e-mail pentru a primi unul nou."
   }
 }

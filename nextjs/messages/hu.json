@@ -443,5 +443,9 @@
     "description": "Lehet, hogy a hivatkozás hibás, vagy az oldal máshová került.",
     "home": "Ugrás a kezdőlapra",
     "download": "A HyperWhisper letöltése"
+  },
+  "signIn": {
+    "magicLinkExpired": "Ez a bejelentkezési hivatkozás lejárt, vagy már felhasználták. Adja meg e-mail-címét, és küldünk egy újat.",
+    "magicLinkFailed": "Ezzel a hivatkozással nem tudtuk bejelentkeztetni. Adja meg e-mail-címét, és küldünk egy újat."
   }
 }

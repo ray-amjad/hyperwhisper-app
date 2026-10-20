@@ -152,10 +152,12 @@ static void AllCatalogsLoad()
     // field when the text cannot be any key; Windows and Linux).
     // 864 -> 865 (#1631): `settings.shortcuts.error.typingKey` is new (the Windows shortcut
     // recorder refuses a bare typing key such as Tab or a letter, as Linux has since #628).
-    // 865 -> 871: the Windows Settings -> Sound microphone picker adds
+    // 865 -> 867 (#1589): `history.savedLater.databaseLocked` and `.writeFailed` are new
+    // (Windows toast when the History insert is refused and the row is saved later).
+    // 867 -> 873: the Windows Settings -> Sound microphone picker adds
     // `settings.sound.microphone.subtitle`, `.default`, `.notConnected`, `.fallback`,
     // `.test` and `.stop` (its title reuses `menu.microphone`).
-    Equal(871, PortableLocalizer.BaseKeyCount, "base key count");
+    Equal(873, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

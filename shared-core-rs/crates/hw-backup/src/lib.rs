@@ -2,11 +2,11 @@
 //! `hw-backup` — cross-platform backup core (sans-I/O).
 //!
 //! M4 scope:
-//! - [`validate`] — lightweight, dependency-free structural validation of a
-//!   universal-v2 backup document against the embedded schema's load-bearing
-//!   invariants (required top-level fields + `schemaVersion == 2` + enums +
-//!   required item keys). Not a full JSON Schema validator — see the module docs
-//!   for the exact limitation.
+//! - [`validate`] — lightweight, dependency-free validation of a universal-v2
+//!   backup document: the embedded schema's required fields, `schemaVersion == 2`
+//!   and the `platform` enum, plus the type of every field
+//!   [`records::UniversalBackup`] decodes, so a document it accepts parses. Not a
+//!   full JSON Schema validator — see the module docs for the exact limitation.
 //! - [`records`] — plain-Rust POD types: the universal-v2 wire format
 //!   ([`records::UniversalBackup`]) and the platform-neutral
 //!   [`records::ModeRecord`] / [`records::SettingsRecord`] /
@@ -116,6 +116,115 @@ mod tests {
         let err = parse_backup(json).unwrap_err().to_string();
         assert!(
             err.contains("schemaVersion must be an integer, got 2.5"),
+            "got {err}"
+        );
+    }
+
+    fn doc(extra: serde_json::Value) -> String {
+        let mut v = serde_json::json!({
+            "schemaVersion": 2,
+            "exportDate": "2026-01-01T00:00:00Z",
+            "appVersion": "1.0",
+            "platform": "macos"
+        });
+        for (k, x) in extra.as_object().unwrap() {
+            v[k] = x.clone();
+        }
+        v.to_string()
+    }
+
+    /// Issue #2090: every document the validator accepts must parse, and every
+    /// one the parser rejects for a field type must fail validation at that path.
+    #[test]
+    fn validator_accepted_documents_are_parseable() {
+        use serde_json::json;
+        let bad = [
+            (
+                json!({ "modes": [{ "id": 5, "name": "W" }] }),
+                "modes[0].id",
+            ),
+            (
+                json!({ "modes": [{ "id": "m", "name": null }] }),
+                "modes[0].name",
+            ),
+            (
+                json!({ "vocabulary": [{ "id": "v", "word": null }] }),
+                "vocabulary[0].word",
+            ),
+            (json!({ "exportDate": 1760000000 }), "exportDate"),
+            (json!({ "appVersion": 1 }), "appVersion"),
+            (
+                json!({ "modes": [{ "id": "m", "name": "M", "sortOrder": 1.5 }] }),
+                "modes[0].sortOrder",
+            ),
+            (json!({ "settings": [] }), "settings"),
+            (
+                json!({ "modes": [{ "id": "m", "name": "M", "isDefault": 1 }] }),
+                "modes[0].isDefault",
+            ),
+            (
+                json!({ "vocabulary": [{ "id": "v", "word": "w", "sortOrder": "1" }] }),
+                "vocabulary[0].sortOrder",
+            ),
+            (json!({ "licenseKey": 7 }), "licenseKey"),
+            (json!({ "apiKeys": "k" }), "apiKeys"),
+        ];
+        for (extra, path) in bad {
+            let json = doc(extra);
+            assert!(parse_backup(&json).is_err(), "parser accepts {json}");
+            let errs = validate_str(&json);
+            assert!(
+                errs.iter().any(|e| e.path == path),
+                "{json}: expected an error at {path}, got {errs:?}"
+            );
+        }
+
+        let good = [
+            json!({}),
+            json!({ "modes": null, "vocabulary": null, "settings": null }),
+            json!({ "modes": [{ "id": "m", "name": "M", "sortOrder": 1.0, "postProcessingMode": 2.0 }] }),
+            json!({ "vocabulary": [{ "id": "v", "word": "w", "sortOrder": 3.0, "source": null }] }),
+            json!({ "settings": { "general": 1, "x": [] }, "apiKeys": { "a": 1 }, "future": true }),
+        ];
+        for extra in good {
+            let json = doc(extra);
+            assert!(validate_str(&json).is_empty(), "validator rejects {json}");
+            parse_backup(&json).unwrap_or_else(|e| panic!("{json}: {e}"));
+        }
+    }
+
+    #[test]
+    fn whole_number_sort_order_parses_and_reserializes_as_integer() {
+        let json = doc(serde_json::json!({
+            "modes": [{ "id": "m", "name": "M", "sortOrder": 1.0, "postProcessingMode": 2.0 }],
+            "vocabulary": [{ "id": "v", "word": "w", "sortOrder": 3.0 }]
+        }));
+        let b = parse_backup(&json).unwrap();
+        let mode = &b.modes.as_ref().unwrap()[0];
+        assert_eq!(mode.sort_order, Some(1));
+        assert_eq!(mode.post_processing_mode, Some(2));
+        assert_eq!(b.vocabulary.as_ref().unwrap()[0].sort_order, Some(3));
+        let out = serialize_backup(&b).unwrap();
+        assert!(out.contains("\"sortOrder\": 1,"), "got {out}");
+        assert!(out.contains("\"postProcessingMode\": 2"), "got {out}");
+        assert!(out.contains("\"sortOrder\": 3"), "got {out}");
+    }
+
+    #[test]
+    fn parse_names_the_integer_field_it_rejects() {
+        let json =
+            doc(serde_json::json!({ "modes": [{ "id": "m", "name": "M", "sortOrder": 1.5 }] }));
+        let err = parse_backup(&json).unwrap_err().to_string();
+        assert!(
+            err.contains("sortOrder must be an integer, got 1.5"),
+            "got {err}"
+        );
+        let json = doc(
+            serde_json::json!({ "modes": [{ "id": "m", "name": "M", "postProcessingMode": "1" }] }),
+        );
+        let err = parse_backup(&json).unwrap_err().to_string();
+        assert!(
+            err.contains("postProcessingMode must be an integer"),
             "got {err}"
         );
     }

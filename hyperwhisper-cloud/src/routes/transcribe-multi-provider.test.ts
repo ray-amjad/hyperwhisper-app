@@ -774,6 +774,28 @@ describe('OpenAI language_hint normalization (BCP-47 → ISO)', () => {
     expect(response.status).toBe(200);
     expect(languageField).toBe('en');
   });
+
+  test('OpenAI\'s WebSocket-only gpt-live-transcribe is rejected without reaching the upstream', async () => {
+    let openaiCalls = 0;
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.openai.com')) {
+        openaiCalls++;
+        return Response.json({ text: 'should not happen', duration: 1 });
+      }
+      if (url.includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(request({
+      'X-STT-Provider': 'openai',
+      'X-STT-Model': 'gpt-live-transcribe',
+    }));
+
+    expect(response.status).toBe(400);
+    expect(JSON.stringify(await response.json())).toContain('WebSocket-only');
+    expect(openaiCalls).toBe(0);
+  });
 });
 
 describe('Whisper-family locale normalization (BCP-47 → bare ISO)', () => {

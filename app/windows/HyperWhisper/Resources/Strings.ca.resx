@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Un altre programa té bloquejada la base de dades de l'historial. S'ha conservat la gravació i es desarà a l'historial quan la base de dades quedi lliure.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Encara no s'ha pogut desar aquesta gravació a l'historial. S'ha conservat la gravació i es desarà a l'historial més tard.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">

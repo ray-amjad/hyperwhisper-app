@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Kita programa užrakino istorijos duomenų bazę. Įrašas išlaikytas ir bus išsaugotas istorijoje, kai duomenų bazė atsilaisvins.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Šio įrašo dar nepavyko išsaugoti istorijoje. Įrašas išlaikytas ir bus išsaugotas istorijoje vėliau.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">

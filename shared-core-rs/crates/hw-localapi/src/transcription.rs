@@ -80,6 +80,7 @@
 //! | [`ModelFilesMissing`](TranscriptionFailureReason::ModelFilesMissing) | Windows | macOS has no such case; the model name moves into a slot so the message is not ONNX-specific |
 //! | [`Cancelled`](TranscriptionFailureReason::Cancelled) | Windows | macOS has no cancellation case; the portable head has one and discards it |
 //! | [`QuotaExceeded`](TranscriptionFailureReason::QuotaExceeded) | Windows | macOS's `.quotaExceeded` has no arm and falls through to the generic `TRANSCRIPTION_FAILED` |
+//! | [`InsufficientCredits`](TranscriptionFailureReason::InsufficientCredits) | neither | new (#2089): the Cloud credit shortfall had borrowed the BYOK quota row, whose hint names a provider billing page Cloud does not have; the hint is the app toast's |
 //! | [`EngineStartFailed`](TranscriptionFailureReason::EngineStartFailed), [`EngineCrashed`](TranscriptionFailureReason::EngineCrashed), [`EngineTimeout`](TranscriptionFailureReason::EngineTimeout) | Windows | Parakeet-daemon cases macOS does not have; `"the Parakeet transcription engine"` becomes the provider slot so the row is engine-agnostic |
 //! | [`AudioFileTooLarge`](TranscriptionFailureReason::AudioFileTooLarge) hint | Windows | macOS sends no hint; Windows's message ends in the actionable half, which belongs in the hint |
 //! | [`EngineUnavailable`](TranscriptionFailureReason::EngineUnavailable) hint | Windows | same, and generalised from "use local transcription" because this reason covers local engines too |
@@ -108,10 +109,9 @@ use crate::failure::{Failure, LocalApiErrorCode};
 ///
 /// The union of the three heads' own error types, and nothing more:
 ///
-/// * macOS `TranscriptionError` (24 cases). Six of them —
+/// * macOS `TranscriptionError` (24 cases). Some of them —
 ///   `.maxRetriesExceeded`, `.streamingInterrupted`, `.busy`,
-///   `.localRuntimeUnavailable`, `.insufficientCredits` and any case added
-///   later — have no arm in `mapTranscriptionError` today and reach the wire
+///   `.localRuntimeUnavailable` and any case added later — have no arm in `mapTranscriptionError` today and reach the wire
 ///   through its `default:` as `TRANSCRIPTION_FAILED` plus
 ///   `localizedDescription`. They map onto [`Self::TranscriptionFailed`] with
 ///   that text in [`TranscriptionFailureParams::detail`], which is the same
@@ -172,10 +172,16 @@ pub enum TranscriptionFailureReason {
     /// An upstream provider rate-limited the request.
     /// macOS `.rateLimited`; Windows `RateLimited`.
     RateLimited,
-    /// The account is out of credit or over its plan quota.
-    /// macOS `.quotaExceeded` / `.insufficientCredits`; Windows
-    /// `QuotaExceeded`.
+    /// A BYOK provider's account is out of credit or over its plan quota.
+    /// macOS `.quotaExceeded`; Windows `QuotaExceeded` from a BYOK provider.
     QuotaExceeded,
+    /// The HyperWhisper Cloud account is out of credits (Cloud's 402).
+    ///
+    /// Its own reason because [`Self::QuotaExceeded`]'s hint sends the caller
+    /// to "the provider's billing page", and Cloud has none: credits are bought
+    /// in the app. macOS `.insufficientCredits`; Windows `QuotaExceeded` with
+    /// `IsInsufficientCredits` set (Cloud and routed 402s).
+    InsufficientCredits,
     /// The transcription ran out of time.
     /// macOS `.timeout`.
     Timeout,
@@ -220,7 +226,7 @@ pub enum TranscriptionFailureReason {
 ///
 /// Next to the enum so "which codes can this table emit" is checkable rather
 /// than asserted in a comment — the tests walk this array.
-pub const ALL_TRANSCRIPTION_FAILURE_REASONS: [TranscriptionFailureReason; 25] = [
+pub const ALL_TRANSCRIPTION_FAILURE_REASONS: [TranscriptionFailureReason; 26] = [
     TranscriptionFailureReason::ModelNotInstalled,
     TranscriptionFailureReason::ModelFilesMissing,
     TranscriptionFailureReason::ModelProtected,
@@ -234,6 +240,7 @@ pub const ALL_TRANSCRIPTION_FAILURE_REASONS: [TranscriptionFailureReason; 25] = 
     TranscriptionFailureReason::InvalidRequest,
     TranscriptionFailureReason::RateLimited,
     TranscriptionFailureReason::QuotaExceeded,
+    TranscriptionFailureReason::InsufficientCredits,
     TranscriptionFailureReason::Timeout,
     TranscriptionFailureReason::Cancelled,
     TranscriptionFailureReason::EngineUnavailable,
@@ -264,7 +271,8 @@ impl TranscriptionFailureReason {
             | TranscriptionFailureReason::CloudAccountRequired => LocalApiErrorCode::MissingApiKey,
             TranscriptionFailureReason::CloudRequestForbidden
             | TranscriptionFailureReason::RateLimited
-            | TranscriptionFailureReason::QuotaExceeded => LocalApiErrorCode::RateLimited,
+            | TranscriptionFailureReason::QuotaExceeded
+            | TranscriptionFailureReason::InsufficientCredits => LocalApiErrorCode::RateLimited,
             TranscriptionFailureReason::AudioFileNotFound => LocalApiErrorCode::FileNotFound,
             TranscriptionFailureReason::AudioDecodeFailed => LocalApiErrorCode::AudioDecodeFailed,
             TranscriptionFailureReason::AudioFileTooLarge
@@ -445,6 +453,11 @@ fn message_for(reason: TranscriptionFailureReason, params: &TranscriptionFailure
         TranscriptionFailureReason::QuotaExceeded => {
             format!("{} quota exceeded.", provider.unwrap_or("Provider"))
         }
+        // New: the same words on both heads, and no provider slot because the
+        // provider is always HyperWhisper Cloud.
+        TranscriptionFailureReason::InsufficientCredits => {
+            String::from("Out of HyperWhisper Cloud credits.")
+        }
         // macOS, verbatim.
         TranscriptionFailureReason::Timeout => String::from("Transcription timed out."),
         // Windows, verbatim.
@@ -574,6 +587,9 @@ fn hint_for(
         }
         // Windows, verbatim.
         TranscriptionFailureReason::QuotaExceeded => "Add credits in the provider's billing page.",
+        // The app's own toast (`transcription.error.insufficientCredits`):
+        // Cloud credits are bought in the app, not on a billing page.
+        TranscriptionFailureReason::InsufficientCredits => "Add credits in Settings.",
         // The actionable half of Windows's message, generalised: this reason
         // covers a local engine too, so "use local transcription" would be
         // wrong half the time.
@@ -635,7 +651,7 @@ mod tests {
     /// closed fourteen, and cannot widen them.
     #[test]
     fn every_reason_maps_inside_the_closed_fourteen() {
-        assert_eq!(ALL_TRANSCRIPTION_FAILURE_REASONS.len(), 25);
+        assert_eq!(ALL_TRANSCRIPTION_FAILURE_REASONS.len(), 26);
         for reason in ALL_TRANSCRIPTION_FAILURE_REASONS {
             let code = reason.code();
             assert!(
@@ -956,6 +972,37 @@ mod tests {
         let hint = forbidden.hint.unwrap_or_default();
         assert!(hint.contains("temporarily blocked"));
         assert!(!hint.contains("Settings →"));
+    }
+
+    /// #2089: a Cloud user out of credits was told to "add credits in the
+    /// provider's billing page", which Cloud does not have. The shortfall has
+    /// its own row now; a BYOK provider's quota keeps the old one.
+    #[test]
+    fn cloud_credits_and_byok_quota_are_told_apart() {
+        for parameters in [params(), full_params()] {
+            let credits = map_transcription_error(
+                TranscriptionFailureReason::InsufficientCredits,
+                &parameters,
+            );
+            assert_eq!(credits.code, LocalApiErrorCode::RateLimited);
+            assert_eq!(credits.code.wire_value(), "RATE_LIMITED");
+            assert_eq!(credits.message, "Out of HyperWhisper Cloud credits.");
+            assert_eq!(credits.hint.as_deref(), Some("Add credits in Settings."));
+        }
+
+        let byok = map_transcription_error(
+            TranscriptionFailureReason::QuotaExceeded,
+            &TranscriptionFailureParams {
+                provider: Some(String::from("OpenAI")),
+                ..TranscriptionFailureParams::default()
+            },
+        );
+        assert_eq!(byok.code, LocalApiErrorCode::RateLimited);
+        assert_eq!(byok.message, "OpenAI quota exceeded.");
+        assert_eq!(
+            byok.hint.as_deref(),
+            Some("Add credits in the provider's billing page.")
+        );
     }
 
     /// The four codes the portable head's own enum has to reach, and the four

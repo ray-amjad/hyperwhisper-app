@@ -57,6 +57,13 @@ function pinClock(now: number) {
   >[0]);
 }
 
+/**
+ * A fixed instant for tests that need several calls in one bucket. On the real
+ * clock a loop can straddle a minute (or hour) boundary, and the call after it
+ * lands in a fresh bucket and passes (#2123).
+ */
+const PINNED_NOW = Date.UTC(2026, 9, 19, 12, 0, 30);
+
 afterEach(() => mock.timers.reset());
 
 before(async () => {
@@ -85,6 +92,7 @@ after(() => {
 
 describe("downloadEmailRateLimiter", () => {
   test("allows 10 requests from one IP in an hour and blocks the 11th", async () => {
+    pinClock(PINNED_NOW);
     const ip = "203.0.113.10";
     const remaining: number[] = [];
     for (let i = 0; i < 10; i++) {
@@ -101,6 +109,7 @@ describe("downloadEmailRateLimiter", () => {
   });
 
   test("counts in one-hour buckets under its own prefix", async () => {
+    pinClock(PINNED_NOW);
     const ip = "203.0.113.11";
     const before = Date.now();
     const result = await hit(limiters.downloadEmailRateLimiter, ip);
@@ -115,6 +124,7 @@ describe("downloadEmailRateLimiter", () => {
   });
 
   test("keeps a separate budget per IP", async () => {
+    pinClock(PINNED_NOW);
     for (let i = 0; i < 10; i++) await hit(limiters.downloadEmailRateLimiter, "203.0.113.12");
     assert.equal((await hit(limiters.downloadEmailRateLimiter, "203.0.113.12")).success, false);
 
@@ -124,6 +134,7 @@ describe("downloadEmailRateLimiter", () => {
   });
 
   test("records allowed and blocked requests for the Upstash dashboard", async () => {
+    pinClock(PINNED_NOW);
     const ip = "203.0.113.14";
     for (let i = 0; i < 11; i++) await hit(limiters.downloadEmailRateLimiter, ip);
 
@@ -143,6 +154,7 @@ describe("downloadEmailRateLimiter", () => {
 
 describe("licenseValidateRateLimiter", () => {
   test("allows 30 requests from one IP in a minute and blocks the 31st", async () => {
+    pinClock(PINNED_NOW);
     const ip = "198.51.100.20";
     for (let i = 0; i < 30; i++) {
       const result = await hit(limiters.licenseValidateRateLimiter, ip);
@@ -155,6 +167,7 @@ describe("licenseValidateRateLimiter", () => {
   });
 
   test("counts in one-minute buckets under its own prefix", async () => {
+    pinClock(PINNED_NOW);
     const ip = "198.51.100.21";
     const before = Date.now();
     const result = await hit(limiters.licenseValidateRateLimiter, ip);
@@ -168,6 +181,7 @@ describe("licenseValidateRateLimiter", () => {
   });
 
   test("an IP blocked on the download form still has its license budget", async () => {
+    pinClock(PINNED_NOW);
     const ip = "198.51.100.22";
     for (let i = 0; i < 10; i++) await hit(limiters.downloadEmailRateLimiter, ip);
     assert.equal((await hit(limiters.downloadEmailRateLimiter, ip)).success, false);
@@ -180,6 +194,7 @@ describe("licenseValidateRateLimiter", () => {
 
 describe("licenseCreditsRateLimiter (#2010)", () => {
   test("allows 300 credit reads from one IP in a minute and blocks the 301st", async () => {
+    pinClock(PINNED_NOW);
     const ip = "198.51.100.40";
     for (let i = 0; i < 300; i++) {
       const result = await hit(limiters.licenseCreditsRateLimiter, ip);
@@ -192,8 +207,7 @@ describe("licenseCreditsRateLimiter (#2010)", () => {
 
   test("has its own budget: an IP out of credit reads can still validate", async () => {
     const ip = "198.51.100.41";
-    // Pinned so the 301 calls cannot straddle a minute boundary.
-    pinClock(Date.UTC(2026, 9, 19, 12, 0, 30));
+    pinClock(PINNED_NOW);
     const bucket = Math.floor(Date.now() / (60 * 1000));
     for (let i = 0; i < 300; i++) await hit(limiters.licenseCreditsRateLimiter, ip);
     assert.equal((await hit(limiters.licenseCreditsRateLimiter, ip)).success, false);
@@ -209,6 +223,7 @@ describe("licenseCreditsRateLimiter (#2010)", () => {
 
 describe("checkoutRateLimiter (#2010)", () => {
   test("allows 10 checkouts from one IP in a minute and blocks the 11th", async () => {
+    pinClock(PINNED_NOW);
     const ip = "198.51.100.30";
     for (let i = 0; i < 10; i++) {
       const result = await hit(limiters.checkoutRateLimiter, ip);
@@ -220,6 +235,7 @@ describe("checkoutRateLimiter (#2010)", () => {
   });
 
   test("counts under its own prefix, apart from the licence budget", async () => {
+    pinClock(PINNED_NOW);
     const ip = "198.51.100.31";
     const before = Date.now();
     await hit(limiters.checkoutRateLimiter, ip);
@@ -235,6 +251,7 @@ describe("checkoutRateLimiter (#2010)", () => {
 
 describe("latencyIngestRateLimiter", () => {
   test("gives each Fly region 6000 batches a minute", async () => {
+    pinClock(PINNED_NOW);
     const before = Date.now();
     const result = await hit(limiters.latencyIngestRateLimiter, "fra");
     const minute = 60 * 1000;
@@ -250,6 +267,7 @@ describe("latencyIngestRateLimiter", () => {
   });
 
   test("blocks a region at its ceiling and leaves the other regions alone", async () => {
+    pinClock(PINNED_NOW);
     await hit(limiters.latencyIngestRateLimiter, "iad");
     const [key] = await bucketKeys("ratelimit:latency-ingest", "iad");
     // 6000 real round trips take minutes, so the bucket is filled to one
