@@ -6,6 +6,7 @@
  */
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { getHTTPStatusCodeFromError } from "@trpc/server/http";
 import Stripe from "stripe";
 
 import { createTRPCRouter, adminProcedure } from "../../trpc";
@@ -27,7 +28,13 @@ import {
   updateCustomerEmail,
 } from "@/src/lib/db-layer";
 import { generateLicenseKey } from "@/lib/services/license-key";
-import { dbErrorCode, describeDbError, isDbError } from "@/lib/shared/db-error";
+import {
+  dbErrorCode,
+  dbErrorConstraint,
+  describeDbError,
+  isDbError,
+} from "@/lib/shared/db-error";
+import { emailTag } from "@/lib/shared/redact";
 import { emailService } from "@/lib/services/email";
 import { createCustomerPaymentRefunder } from "./customer-refund";
 import { createCustomerSpendReader } from "./customer-spend";
@@ -46,6 +53,65 @@ const legacyStripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 const MAX_ADMIN_CREDIT_GRANT = 1_000_000;
+
+type AdminLogFields = Record<
+  string,
+  string | number | boolean | null | undefined
+>;
+
+/**
+ * Runs one admin money or access mutation and writes ONE structured line for
+ * its outcome (#2177), beside any diagnostic line the mutation already logs, so "who refunded, revoked or granted this, and when" can
+ * be read from the logs: `ok` on success, `rejected` with the tRPC code on a
+ * 4xx refusal, `failed` on anything else. `fields` is filled in as the
+ * mutation goes, so a failed line shows how far it got. Ids only: never an
+ * email address (only its `emailTag`, the same tag `sendMagicLink` logs), a
+ * licence key or an error message.
+ */
+async function withAdminLog<T>(
+  name: string,
+  fields: AdminLogFields,
+  run: () => Promise<T>,
+): Promise<T> {
+  const event = `admin.customers.${name}`;
+  try {
+    const result = await run();
+    console.log(JSON.stringify({ event, outcome: "ok", ...fields }));
+    return result;
+  } catch (error) {
+    if (error instanceof TRPCError && getHTTPStatusCodeFromError(error) < 500) {
+      console.warn(
+        JSON.stringify({
+          event,
+          outcome: "rejected",
+          reason: error.code,
+          ...fields,
+        }),
+      );
+    } else {
+      console.error(
+        JSON.stringify({
+          event,
+          outcome: "failed",
+          reason: error instanceof TRPCError ? error.code : "UNEXPECTED",
+          ...dbErrorFields(error instanceof TRPCError ? error.cause : error),
+          ...fields,
+        }),
+      );
+    }
+    throw error;
+  }
+}
+
+/**
+ * The SQLSTATE and constraint of a database error, for an outcome line. Only a
+ * real DB error: a TRPCError's or a Stripe error's own `.code` is not a SQLSTATE.
+ * Identifiers only, never the error's text (#1039).
+ */
+function dbErrorFields(error: unknown): AdminLogFields {
+  if (!isDbError(error)) return {};
+  return { dbCode: dbErrorCode(error), dbConstraint: dbErrorConstraint(error) };
+}
 
 // Distinct customers (by userId) per page of the admin Customers list.
 const CUSTOMERS_PAGE_SIZE = 100;
@@ -291,53 +357,66 @@ export const customersRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const email = input.newEmail.toLowerCase().trim();
+      const log: AdminLogFields = {
+        adminId: ctx.user.id,
+        userId: input.userId,
+        newEmailHash: emailTag(email),
+      };
 
-      const target = await getUserById(input.userId);
-      if (!target) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Customer not found" });
-      }
+      return withAdminLog("updateEmail", log, async () => {
+        const target = await getUserById(input.userId);
+        if (!target) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Customer not found" });
+        }
+        log.oldEmailHash = emailTag(target.email);
 
-      // No-op when the email is unchanged: skip the collision check and the
-      // (multi-row) write entirely.
-      if (target.email.toLowerCase() === email) {
-        return { success: true, email };
-      }
+        // No-op when the email is unchanged: skip the collision check and the
+        // (multi-row) write entirely.
+        if (target.email.toLowerCase() === email) {
+          log.changed = false;
+          return { success: true, email };
+        }
 
-      // Block if the new email already belongs to a different account.
-      const existing = await getUserByEmail(email);
-      if (existing && existing.id !== input.userId) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "That email already belongs to another account",
-        });
-      }
-
-      try {
-        // Also drops the moved account's web sessions — see
-        // `updateCustomerEmail`. `actingUserId` keeps an admin from signing
-        // themselves out when they correct their own address.
-        await updateCustomerEmail(input.userId, email, {
-          actingUserId: ctx.user.id,
-        });
-      } catch (error) {
-        // Unique-constraint race on user.email (Postgres 23505).
-        if (dbErrorCode(error) === "23505") {
+        // Block if the new email already belongs to a different account.
+        const existing = await getUserByEmail(email);
+        if (existing && existing.id !== input.userId) {
           throw new TRPCError({
             code: "CONFLICT",
             message: "That email already belongs to another account",
           });
         }
-        console.error("Update customer email error:", describeDbError(error));
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message:
-            error instanceof Error && !isDbError(error)
-              ? error.message
-              : "Failed to update email",
-        });
-      }
 
-      return { success: true, email };
+        try {
+          // Also drops the moved account's web sessions — see
+          // `updateCustomerEmail`. `actingUserId` keeps an admin from signing
+          // themselves out when they correct their own address.
+          await updateCustomerEmail(input.userId, email, {
+            actingUserId: ctx.user.id,
+          });
+        } catch (error) {
+          // Unique-constraint race on user.email (Postgres 23505).
+          if (dbErrorCode(error) === "23505") {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: "That email already belongs to another account",
+            });
+          }
+          console.error("Update customer email error:", describeDbError(error));
+          // The TRPCError below has no cause, so copy the SQLSTATE onto the
+          // outcome line `withAdminLog` writes.
+          Object.assign(log, dbErrorFields(error));
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message:
+              error instanceof Error && !isDbError(error)
+                ? error.message
+                : "Failed to update email",
+          });
+        }
+
+        log.changed = true;
+        return { success: true, email };
+      });
     }),
 
   /**
@@ -347,65 +426,75 @@ export const customersRouter = createTRPCRouter({
    */
   grant: adminProcedure
     .input(z.object({ email: z.string().email() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { email } = input;
       const name = email.split("@")[0];
+      const log: AdminLogFields = {
+        adminId: ctx.user.id,
+        emailHash: emailTag(email),
+      };
 
-      // Generate a unique license key with collision check
-      let key: string | undefined;
-      for (let i = 0; i < 5; i++) {
-        const candidate = generateLicenseKey();
-        const existing = await findAccountByKey(candidate);
-        if (!existing) {
-          key = candidate;
-          break;
+      return withAdminLog("grant", log, async () => {
+
+        // Generate a unique license key with collision check
+        let key: string | undefined;
+        for (let i = 0; i < 5; i++) {
+          const candidate = generateLicenseKey();
+          const existing = await findAccountByKey(candidate);
+          if (!existing) {
+            key = candidate;
+            break;
+          }
+          if (i === 4) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to generate unique license key" });
         }
-        if (i === 4) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to generate unique license key" });
-      }
-      // Unreachable: the loop either assigns `key` or throws on its last pass.
-      // Kept so `key` is a `string` below without a non-null assertion.
-      if (key === undefined) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to generate unique license key",
+        // Unreachable: the loop either assigns `key` or throws on its last pass.
+        // Kept so `key` is a `string` below without a non-null assertion.
+        if (key === undefined) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to generate unique license key",
+          });
+        }
+
+        // Create or find the user
+        const user = await getOrCreateUser(email, { name });
+        if (!user) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create user" });
+        }
+        log.userId = user.id;
+
+        // Insert the license key
+        const license = await insertAccountKey({
+          key,
+          email,
+          userId: user.id,
+          status: "granted",
         });
-      }
+        if (!license) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to insert license key" });
+        }
+        log.licenseId = license.id;
 
-      // Create or find the user
-      const user = await getOrCreateUser(email, { name });
-      if (!user) {
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create user" });
-      }
+        // Grant initial credits
+        await grantCreditLot({
+          userId: license.userId,
+          amount: 5000,
+          sourceType: "admin_license_bundle",
+          sourceId: license.id,
+        });
+        log.creditsGranted = 5000;
 
-      // Insert the license key
-      const license = await insertAccountKey({
-        key,
-        email,
-        userId: user.id,
-        status: "granted",
+        // Send the license key email
+        await emailService.sendLicenseKey({
+          customerName: name,
+          customerEmail: email,
+          licenseKey: key,
+          productName: "HyperWhisper",
+          supportEmail: "hi@support.hyperwhisper.com",
+        });
+
+        return { email, licenseKey: key };
       });
-      if (!license) {
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to insert license key" });
-      }
-
-      // Grant initial credits
-      await grantCreditLot({
-        userId: license.userId,
-        amount: 5000,
-        sourceType: "admin_license_bundle",
-        sourceId: license.id,
-      });
-
-      // Send the license key email
-      await emailService.sendLicenseKey({
-        customerName: name,
-        customerEmail: email,
-        licenseKey: key,
-        productName: "HyperWhisper",
-        supportEmail: "hi@support.hyperwhisper.com",
-      });
-
-      return { email, licenseKey: key };
     }),
 
   /**
@@ -419,33 +508,43 @@ export const customersRouter = createTRPCRouter({
         amount: z.number().positive().max(MAX_ADMIN_CREDIT_GRANT),
       }),
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { licenseKeyId, amount } = input;
+      const log: AdminLogFields = { adminId: ctx.user.id, licenseKeyId, amount };
 
-      const license = await findAccountById(licenseKeyId);
-      if (!license) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "License key not found",
+      return withAdminLog("addCredits", log, async () => {
+
+        const license = await findAccountById(licenseKeyId);
+        if (!license) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "License key not found",
+          });
+        }
+
+        // Credits are pooled per account: grant to and read the license's owning
+        // user, so the added credits land on the same wallet every key reads.
+        log.userId = license.userId;
+        const currentBalance = await getCreditBalance(license.userId);
+        // Logged, so the lot this grant writes (which names no admin) can be
+        // traced back to the admin line.
+        const sourceId = crypto.randomUUID();
+        log.sourceId = sourceId;
+        const grantResult = await grantCreditLot({
+          userId: license.userId,
+          amount,
+          sourceType: "admin_manual",
+          sourceId,
         });
-      }
+        log.newBalance = grantResult.balance;
 
-      // Credits are pooled per account: grant to and read the license's owning
-      // user, so the added credits land on the same wallet every key reads.
-      const currentBalance = await getCreditBalance(license.userId);
-      const grantResult = await grantCreditLot({
-        userId: license.userId,
-        amount,
-        sourceType: "admin_manual",
-        sourceId: crypto.randomUUID(),
+        return {
+          licenseKeyId,
+          previousBalance: currentBalance,
+          addedAmount: amount,
+          newBalance: grantResult.balance,
+        };
       });
-
-      return {
-        licenseKeyId,
-        previousBalance: currentBalance,
-        addedAmount: amount,
-        newBalance: grantResult.balance,
-      };
     }),
 
   /**
@@ -461,46 +560,58 @@ export const customersRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const { licenseKeyId, revokeLicense } = input;
-
-      const license = await findAccountById(licenseKeyId);
-      if (!license) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "License key not found" });
-      }
-      if (!license.stripeSessionId) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "No Stripe session associated with this license" });
-      }
-
-      // Create the refund. The idempotency key (keyed on the license, which maps
-      // 1:1 to its refundable payment) makes a retried/double-clicked mutation
-      // reuse the same refund instead of surfacing a raw Stripe error.
-      await customerPaymentRefunder.refundLicensePayment(
+      const log: AdminLogFields = {
+        adminId: ctx.user.id,
         licenseKeyId,
-        license.stripeSessionId,
-      );
+        revokeRequested: revokeLicense,
+      };
 
-      // A full license refund reverses the included credit grant. Record the
-      // admin refund as processed so retried mutations do not double-deduct,
-      // while separately purchased credit packs remain on the license balance.
-      await refundCreditGrant({
-        sourceType: "license_bundle",
-        sourceId: license.stripeSessionId,
-      });
+      return withAdminLog("refund", log, async () => {
+        const license = await findAccountById(licenseKeyId);
+        if (!license) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "License key not found" });
+        }
+        log.userId = license.userId;
+        if (!license.stripeSessionId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "No Stripe session associated with this license" });
+        }
+        log.stripeSessionId = license.stripeSessionId;
 
-      // Optionally revoke the license. This also drops the owner's web
-      // sessions — a 90-day session minted by license-key sign-in would
-      // otherwise outlive the revoked key. See `revokeAccountKey`.
-      //
-      // Except when the owner is the admin running the refund: comped keys are
-      // routinely minted against an admin's own email, and signing yourself out
-      // mid-mutation is never the intent. The key is still revoked; only the
-      // session sweep is skipped, and only for the one account we know is
-      // legitimately in use right now.
-      if (revokeLicense) {
-        await revokeAccountKey(licenseKeyId, license.userId, {
-          actingUserId: ctx.user.id,
+        // Create the refund. The idempotency key (keyed on the license, which maps
+        // 1:1 to its refundable payment) makes a retried/double-clicked mutation
+        // reuse the same refund instead of surfacing a raw Stripe error.
+        await customerPaymentRefunder.refundLicensePayment(
+          licenseKeyId,
+          license.stripeSessionId,
+        );
+        log.paymentRefunded = true;
+
+        // A full license refund reverses the included credit grant. Record the
+        // admin refund as processed so retried mutations do not double-deduct,
+        // while separately purchased credit packs remain on the license balance.
+        await refundCreditGrant({
+          sourceType: "license_bundle",
+          sourceId: license.stripeSessionId,
         });
-      }
+        log.creditsReversed = true;
 
-      return { success: true, revoked: revokeLicense };
+        // Optionally revoke the license. This also drops the owner's web
+        // sessions — a 90-day session minted by license-key sign-in would
+        // otherwise outlive the revoked key. See `revokeAccountKey`.
+        //
+        // Except when the owner is the admin running the refund: comped keys are
+        // routinely minted against an admin's own email, and signing yourself out
+        // mid-mutation is never the intent. The key is still revoked; only the
+        // session sweep is skipped, and only for the one account we know is
+        // legitimately in use right now.
+        if (revokeLicense) {
+          await revokeAccountKey(licenseKeyId, license.userId, {
+            actingUserId: ctx.user.id,
+          });
+        }
+        log.revoked = revokeLicense;
+
+        return { success: true, revoked: revokeLicense };
+      });
     }),
 });
