@@ -17,81 +17,47 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 
 import { createTRPCRouter, publicProcedure } from "../trpc";
+
+import { getClientIPFromHeaders } from "./download-ip";
+import { createDisposableDomainCache } from "./download-disposable-domains";
+import {
+  createAppcastReader,
+  createDownloadRecorder,
+} from "./download-appcast";
+
 import { upsertEmail } from "@/src/lib/db-layer";
-import { APPCAST_FETCH_TIMEOUT_MS } from "@/lib/shared/appcast";
-import { emailTag } from "@/lib/shared/redact";
-import { describeDbError } from "@/lib/shared/db-error";
 import { disposableDomains } from "@/lib/disposable_domains";
 import { emailService } from "@/lib/services/email";
 import { downloadEmailRateLimiter } from "@/lib/rate-limit";
 import { countFailOpen } from "@/lib/rate-limit-gate";
 import { env } from "@/src/env/server.mjs";
-import { getClientIPFromHeaders } from "./download-ip";
-import { createDisposableDomainCache } from "./download-disposable-domains";
-
-import type { WelcomeEmailData } from "@/lib/templates/welcome-email";
 
 // ============================================================================
-// HELPER FUNCTIONS
+// WIRING
 // ============================================================================
 
-/**
- * Get the disposable domains list (cached for 1 hour).
- * Used to block temporary email addresses.
- */
-const getDisposableDomains = createDisposableDomainCache(disposableDomains);
+const origin = env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";
 
-/**
- * Check if a domain is disposable.
- * Walks up the domain tree to catch subdomains.
- *
- * Example: sub.mailinator.com matches mailinator.com in list
- */
-function isDisposableDomain(emailDomain: string, list: Set<string>): boolean {
-  if (list.size === 0) return false;
-  let current = emailDomain.toLowerCase();
+// `fetch` is looked up on each call, not bound here.
+const getLatestDownloadUrl = createAppcastReader({
+  fetch: (input, init) => fetch(input, init),
+});
 
-  // Walk up the domain tree: sub.a.b -> a.b -> b
-  while (true) {
-    if (list.has(current)) return true;
-    const dotIndex = current.indexOf(".");
-
-    if (dotIndex === -1) break;
-    const next = current.slice(dotIndex + 1);
-
-    if (!next.includes(".")) break; // avoid matching bare TLDs
-    current = next;
-  }
-
-  return false;
-}
-
-/**
- * Fetch and parse appcast.xml to get latest download URL.
- */
-async function getLatestDownloadUrl(origin: string): Promise<string | null> {
-  try {
-    const appcastUrl = `${origin}/appcast.xml`;
-    const res = await fetch(appcastUrl, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(APPCAST_FETCH_TIMEOUT_MS),
-    });
-
-    if (!res.ok) return null;
-
-    const xml = await res.text();
-    const match = xml.match(/<item>[\s\S]*?<enclosure[^>]*url="([^"]+)"/i);
-
-    if (!match || !match[1]) return null;
-
-    const latestUrl = new URL(match[1]);
-
-    return latestUrl.toString();
-  } catch (error) {
-    console.error("Error parsing appcast:", error);
-    return null;
-  }
-}
+const recordDownload = createDownloadRecorder({
+  clientIP: getClientIPFromHeaders,
+  limit: (clientIP) =>
+    countFailOpen(
+      () => downloadEmailRateLimiter.limit(clientIP),
+      "download email",
+    ),
+  // Cached for 1 hour. Used to block temporary email addresses.
+  getDisposableDomains: createDisposableDomainCache(disposableDomains),
+  upsertEmail,
+  sendWelcomeEmail: (data) => emailService.sendWelcomeEmail(data),
+  latestDownloadUrl: getLatestDownloadUrl,
+  origin,
+  supportEmail: env.SUPPORT_EMAIL ?? "hi@support.hyperwhisper.com",
+});
 
 // ============================================================================
 // ROUTER
@@ -103,7 +69,6 @@ export const downloadRouter = createTRPCRouter({
    */
   getLatestUrl: publicProcedure.query(async () => {
     // Use production URL as default since we don't have request context
-    const origin = env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";
     const downloadUrl = await getLatestDownloadUrl(origin);
 
     if (!downloadUrl) {
@@ -123,104 +88,9 @@ export const downloadRouter = createTRPCRouter({
     .input(
       z.object({
         email: z.string().email("Invalid email format"),
-      })
+      }),
     )
-    .mutation(async ({ input, ctx }) => {
-      try {
-        // Rate limiting: 10 requests per IP per hour. Fails open, so an Upstash
-        // outage never keeps a visitor from the download link (#2136).
-        const clientIP = getClientIPFromHeaders(ctx.headers);
-        const rateLimit = await countFailOpen(
-          () => downloadEmailRateLimiter.limit(clientIP),
-          "download email",
-        );
-
-        if (rateLimit.limited) {
-          throw new TRPCError({
-            code: "TOO_MANY_REQUESTS",
-            message: "Too many requests. Please try again later.",
-          });
-        }
-
-        // Block disposable email domains
-        const domain = String(input.email).split("@")[1]?.toLowerCase();
-        if (!domain) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Invalid email domain",
-          });
-        }
-        const domainList = await getDisposableDomains();
-        if (isDisposableDomain(domain, domainList)) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message:
-              "Disposable email domains are not allowed. Please use a valid email so we can send your download link.",
-          });
-        }
-
-        // Store email in database (ignore if already exists)
-        try {
-          await upsertEmail({
-            email: input.email,
-            source: "hyperwhisper-download",
-          });
-        } catch (insertError) {
-          console.error("Error storing email:", describeDbError(insertError));
-          // Don't fail the request if email storage fails
-        }
-
-        // Log for monitoring
-        const requesterTag = emailTag(input.email);
-        console.log("Download requested by:", requesterTag);
-
-        const origin = env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";
-        const emailDownloadUrl = `${origin}/api/download`;
-
-        const welcomeEmailPayload: WelcomeEmailData = {
-          customerName: input.email.split("@")[0] || "HyperWhisper user",
-          customerEmail: input.email,
-          productName: "HyperWhisper",
-          downloadUrl: `${origin}/download`,
-          loomVideoUrl:
-            "https://www.loom.com/share/fd73e59755f9473b8bde341845c402e9?sid=e1892b2e-3ce6-4542-b512-31777a400909",
-          loomThumbnailUrl:
-            "https://www.hyperwhisper.com/email-assets/welcome-email-thumbnail.png",
-          supportEmail: env.SUPPORT_EMAIL ?? "hi@support.hyperwhisper.com",
-        };
-
-        try {
-          const welcomeResult =
-            await emailService.sendWelcomeEmail(welcomeEmailPayload);
-
-          if (!welcomeResult.success) {
-            console.error(
-              "Welcome email failed to send:",
-              welcomeResult.error ?? "Unknown error"
-            );
-          }
-        } catch (err) {
-          console.error("Error sending welcome email:", err);
-        }
-
-        const directDownloadUrl = await getLatestDownloadUrl(origin);
-
-        return {
-          success: true,
-          message: "Email recorded successfully",
-          downloadUrl: directDownloadUrl || emailDownloadUrl,
-        };
-      } catch (error) {
-        console.error("Error processing download request:", describeDbError(error));
-
-        if (error instanceof TRPCError) {
-          throw error;
-        }
-
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Internal server error",
-        });
-      }
-    }),
+    .mutation(({ input, ctx }) =>
+      recordDownload({ email: input.email, headers: ctx.headers }),
+    ),
 });
