@@ -81,8 +81,9 @@ export class FakeClientSocket {
   }
 }
 
-export function fakeContext(auth: AuthContext, url: string): Context {
-  const vars: Record<string, unknown> = { wsAuth: auth, wsClientIP: '203.0.113.7' };
+/** `extraVars` adds context variables a route reads beyond auth and IP (e.g. `wsCreditHold`). */
+export function fakeContext(auth: AuthContext, url: string, extraVars: Record<string, unknown> = {}): Context {
+  const vars: Record<string, unknown> = { wsAuth: auth, wsClientIP: '203.0.113.7', ...extraVars };
   return {
     get: (key: string) => vars[key],
     req: { url },
