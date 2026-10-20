@@ -225,6 +225,14 @@ pub fn build_transcribe_request(
     })
 }
 
+/// A non-JSON 2xx body is HTML when it starts with `<` or is served as `text/html`.
+fn looks_like_html(resp: &HttpResponse, trimmed: &str) -> bool {
+    trimmed.starts_with('<')
+        || resp
+            .header("Content-Type")
+            .is_some_and(|ct| ct.trim().to_ascii_lowercase().starts_with("text/html"))
+}
+
 /// Parse the Deepgram transcription response.
 ///
 /// Success shape: `{ "results": { "channels": [{ "alternatives": [{ "transcript": "..." }] }] } }`.
@@ -244,6 +252,14 @@ pub fn parse_transcribe_response(resp: &HttpResponse) -> Result<Transcript, Tran
     // as the transcript instead of hard-failing with a parse error.
     let trimmed = raw.trim();
     if !trimmed.is_empty() && !trimmed.starts_with('{') && !trimmed.starts_with('[') {
+        // An HTML page (a corporate proxy block, a captive portal, a CDN error page)
+        // is never a transcript: refuse it rather than paste markup. No body text
+        // goes into the message.
+        if looks_like_html(resp, trimmed) {
+            return Err(TranscriptionError::Parse {
+                message: "unexpected HTML response".to_string(),
+            });
+        }
         return Ok(Transcript {
             text: trimmed.to_string(),
             credits_remaining: None,
@@ -587,6 +603,66 @@ mod tests {
         };
         let t = parse_transcribe_response(&resp).unwrap();
         assert_eq!(t.text, "hello from deepgram");
+    }
+
+    #[test]
+    fn deepgram_200_html_page_is_not_a_transcript() {
+        // Issue #2074: a proxy / captive-portal page on HTTP 200 must not be pasted.
+        let resp = HttpResponse {
+            status: 200,
+            headers: vec![],
+            body: b"\n  <!DOCTYPE html><html><body>Blocked by proxy</body></html>".to_vec(),
+        };
+        assert_eq!(
+            parse_transcribe_response(&resp).unwrap_err(),
+            TranscriptionError::Parse {
+                message: "unexpected HTML response".into()
+            }
+        );
+    }
+
+    #[test]
+    fn text_html_content_type_2xx_is_refused_without_leaking_body() {
+        // A text/html reply is refused even when it does not start with `<`, and
+        // none of the body reaches the error message.
+        let resp = HttpResponse {
+            status: 200,
+            headers: vec![Header::new("content-type", "Text/HTML; charset=utf-8")],
+            body: b"Access denied by SecretCorp proxy".to_vec(),
+        };
+        match parse_transcribe_response(&resp).unwrap_err() {
+            TranscriptionError::Parse { message } => {
+                assert_eq!(message, "unexpected HTML response");
+                assert!(!message.contains("SecretCorp"));
+            }
+            other => panic!("expected Parse, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn plain_sentence_with_text_plain_content_type_is_still_a_transcript() {
+        let resp = HttpResponse {
+            status: 200,
+            headers: vec![Header::new("Content-Type", "text/plain")],
+            body: b"I think 3 < 4 is true".to_vec(),
+        };
+        assert_eq!(
+            parse_transcribe_response(&resp).unwrap().text,
+            "I think 3 < 4 is true"
+        );
+    }
+
+    #[test]
+    fn json_body_with_text_html_content_type_is_parsed_as_json() {
+        // The HTML check is only in the plain-text branch: JSON is parsed whatever
+        // the Content-Type says.
+        let resp = HttpResponse {
+            status: 200,
+            headers: vec![Header::new("Content-Type", "text/html")],
+            body: br#"{"results":{"channels":[{"alternatives":[{"transcript":"hi there"}]}]}}"#
+                .to_vec(),
+        };
+        assert_eq!(parse_transcribe_response(&resp).unwrap().text, "hi there");
     }
 
     #[test]
