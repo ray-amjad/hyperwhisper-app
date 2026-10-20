@@ -22,15 +22,6 @@ namespace HyperWhisper.Views.Windows;
 /// </summary>
 public partial class OnboardingWindow : Window
 {
-    private const int DwmwaUseImmersiveDarkMode = 20;
-    private const int DwmwaWindowCornerPreference = 33;
-    private const int DwmwaSystemBackdropType = 38;
-    private const int DwmWindowCornerPreferenceRound = 2;
-    private const int DwmSystemBackdropTypeMica = 2;
-
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int pvAttribute, int cbAttribute);
-
     /// <summary>
     /// The macOS sheet's 760 x 580 plus this window's own 44px caption row. It is the
     /// size every step is laid out against and the LARGEST this window is ever shown
@@ -481,31 +472,12 @@ public partial class OnboardingWindow : Window
 
     // =========================================================================
     // BACKDROP
-    // Copied from MainWindow so the two windows are the same object to look at.
+    // Shared with MainWindow through WindowBackdrop, so the two windows are the
+    // same object to look at.
     // =========================================================================
 
     private void OnThemeChanged(object? sender, bool isDarkMode) =>
         Dispatcher.Invoke(ApplyMacStyleWindowBackdrop);
 
-    private void ApplyMacStyleWindowBackdrop()
-    {
-        try
-        {
-            var hwnd = new WindowInteropHelper(this).Handle;
-            if (hwnd == IntPtr.Zero) return;
-
-            var darkMode = ThemeService.Instance.IsDarkMode ? 1 : 0;
-            _ = DwmSetWindowAttribute(hwnd, DwmwaUseImmersiveDarkMode, ref darkMode, Marshal.SizeOf<int>());
-
-            var cornerPreference = DwmWindowCornerPreferenceRound;
-            _ = DwmSetWindowAttribute(hwnd, DwmwaWindowCornerPreference, ref cornerPreference, Marshal.SizeOf<int>());
-
-            var backdropType = DwmSystemBackdropTypeMica;
-            _ = DwmSetWindowAttribute(hwnd, DwmwaSystemBackdropType, ref backdropType, Marshal.SizeOf<int>());
-        }
-        catch (Exception ex)
-        {
-            LoggingService.Debug($"OnboardingWindow: Native backdrop unavailable: {ex.Message}");
-        }
-    }
+    private void ApplyMacStyleWindowBackdrop() => WindowBackdrop.ApplyMacStyle(this, nameof(OnboardingWindow));
 }
