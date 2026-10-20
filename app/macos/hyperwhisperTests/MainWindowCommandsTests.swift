@@ -77,7 +77,7 @@ struct MainWindowCommandsTests {
             from: "CommandGroup(replacing: .appSettings) {",
             to: "CommandGroup(replacing: .windowList) {"
         )
-        #expect(group.contains("Button(\"menu.settings\".localized)"))
+        #expect(group.contains("Label(\"menu.settings\".localized, systemImage: \"gearshape\")"))
         #expect(group.contains("Self.openSettings(appState: appState, showMainWindow: showMainWindow)"))
         #expect(group.contains(".keyboardShortcut(\",\", modifiers: .command)"))
     }

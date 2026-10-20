@@ -1454,8 +1454,11 @@ struct MainWindowCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .appSettings) {
-            Button("menu.settings".localized) {
+            Button {
                 Self.openSettings(appState: appState, showMainWindow: showMainWindow)
+            } label: {
+                // An icon like the other app-menu items on macOS 26 (#2213)
+                Label("menu.settings".localized, systemImage: "gearshape")
             }
             .keyboardShortcut(",", modifiers: .command)
         }
