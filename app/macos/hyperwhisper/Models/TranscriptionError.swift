@@ -7,7 +7,7 @@
 import Foundation
 
 /// Transcription errors with detailed context for better user messaging
-enum TranscriptionError: LocalizedError {
+enum TranscriptionError: LocalizedError, CustomNSError {
     case providerNotAvailable(provider: String? = nil, reason: String? = nil)
     /// The local model a pass needs is not on disk (issue #1518).
     ///
@@ -20,9 +20,11 @@ enum TranscriptionError: LocalizedError {
     ///     History reason are made. User-typed text: never log or report it.
     ///
     /// Both are optional: a bare `.modelNotDownloaded()` keeps the old
-    /// "Please download a model first". Adding the values did not move the
-    /// case, so its `NSError` code (the positional index) is unchanged, and a
-    /// `case .modelNotDownloaded:` pattern (the Local API mapping) still matches.
+    /// "Please download a model first", and a `case .modelNotDownloaded:`
+    /// pattern (the Local API mapping) still matches. Giving the case values
+    /// would have moved Swift's synthesized `NSError` code (payload cases are
+    /// numbered before payload-less ones), so the code is pinned to its old
+    /// value, 15, in `errorCode` below.
     case modelNotDownloaded(model: String? = nil, mode: String? = nil)
     case modelProtected
     case audioFileNotFound
@@ -93,10 +95,12 @@ enum TranscriptionError: LocalizedError {
     ///
     /// ⚠️ APPEND-ONLY ENUM — always add new cases at the END, never in the
     /// middle, and move this warning down to stay on the last case.
-    /// `(error as NSError).code` is the Swift-synthesized *positional* case
-    /// index and is recorded in Sentry extras as `errorCode`. Inserting a case
-    /// mid-enum silently renumbers every case after it and invalidates all
-    /// historical Sentry triage.
+    /// `(error as NSError).code` is recorded in Sentry extras as `errorCode`
+    /// and in logs. It is pinned per case in `errorCode` (the `CustomNSError`
+    /// conformance below), not left to Swift's synthesized index, which
+    /// changes whenever a case is inserted or gains or loses a payload. A new
+    /// case appends the next unused number there (25 next); never reuse or
+    /// change a number, or historical Sentry triage stops matching.
     case audioTooShort(fileSize: Int64)
 
     var errorDescription: String? {
@@ -265,6 +269,45 @@ enum TranscriptionError: LocalizedError {
             return String(statusCode)
         }
         return "none"
+    }
+
+    // MARK: - NSError bridging
+
+    /// The `NSError` code of each case, pinned to the numbers Swift's
+    /// synthesized bridging produced before issue #1518 (payload cases first in
+    /// declaration order, then payload-less ones). Exhaustive with no
+    /// `default:`, so a new case must pick the next number. `errorDomain` and
+    /// `errorUserInfo` keep their defaults: the domain stays
+    /// `String(reflecting: TranscriptionError.self)` and `LocalizedError`
+    /// still supplies `localizedDescription`.
+    var errorCode: Int {
+        switch self {
+        case .providerNotAvailable: return 0
+        case .transientNetwork: return 1
+        case .invalidResponse: return 2
+        case .apiKeyMissing: return 3
+        case .unauthorized: return 4
+        case .audioFileTooLarge: return 5
+        case .serverError: return 6
+        case .rateLimited: return 7
+        case .insufficientCredits: return 8
+        case .quotaExceeded: return 9
+        case .timeout: return 10
+        case .localRuntimeUnavailable: return 11
+        case .cloudAccountRequired: return 12
+        case .localSpeechModelEvicted: return 13
+        case .audioTooShort: return 14
+        case .modelNotDownloaded: return 15
+        case .modelProtected: return 16
+        case .audioFileNotFound: return 17
+        case .maxRetriesExceeded: return 18
+        case .invalidRequest: return 19
+        case .streamingInterrupted: return 20
+        case .busy: return 21
+        case .invalidAudioFormat: return 22
+        case .audioConversionFailed: return 23
+        case .noSpeechDetected: return 24
+        }
     }
 
     // MARK: - Missing model (issue #1518)
