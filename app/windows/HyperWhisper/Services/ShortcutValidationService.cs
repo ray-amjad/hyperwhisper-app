@@ -52,6 +52,25 @@ public static class ShortcutValidationService
     }
 
     /// <summary>
+    /// A STORED action shortcut that must not stay live (issue #2114): anything
+    /// <see cref="ValidateActionShortcut"/> refuses, plus Tab with no Ctrl, Alt or Win.
+    /// The recorder never records that last one (<c>ShortcutRecorderBox.ClassifyKeyDown</c>
+    /// passes Tab and Shift+Tab through as focus navigation), so a stored Shift+Tab
+    /// can only come from a build before #2110 or from a backup. Shift+A and the
+    /// other Shift chords stay legal, as #2110 decided.
+    ///
+    /// Empty (Unassigned) is not unsafe. The caller resets an unsafe value to the
+    /// role's default.
+    /// </summary>
+    public static bool IsUnsafeStoredActionShortcut(KeyboardShortcut shortcut)
+    {
+        if (shortcut.IsEmpty) return false;
+        if (shortcut.IsSingleBareModifier) return true;
+        if (shortcut.Key is not { } key || shortcut.Control || shortcut.Alt || shortcut.Win) return false;
+        return key == System.Windows.Input.Key.Tab || (!shortcut.Shift && !IsDedicatedKey(key));
+    }
+
+    /// <summary>
     /// A key that ordinary typing never produces, so it may be a shortcut with no
     /// modifier held: F1-F24 and Esc. The same two classes Linux allows
     /// (<c>LinuxShortcutRecorderRules.IsDedicatedKey</c>).
