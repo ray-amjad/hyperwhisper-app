@@ -1,0 +1,73 @@
+# Dependabot for every package ecosystem in the repo (#2007).
+#
+# Policy (Ray, 2026-10-20):
+#   - SECURITY-update PRs for every ecosystem below.
+#   - Weekly, grouped VERSION-update PRs for github-actions only.
+#   - No routine version-update PRs for npm, bun, NuGet or cargo.
+#
+# `open-pull-requests-limit: 0` is GitHub's documented way to keep security
+# updates and turn version updates off for one ecosystem: "If you only require
+# security updates and want to exclude version updates, you can set
+# open-pull-requests-limit to 0" (docs.github.com, "Configuring Dependabot
+# security updates"). Security-update PRs have their own fixed limit of 10 and
+# ignore this setting. The `schedule` is still required by the schema.
+#
+# This file does not switch security updates on by itself: "Dependabot alerts"
+# and "Dependabot security updates" must be enabled in the repo's
+# Settings > Code security.
+
+version: 2
+
+updates:
+  # nextjs/ (pnpm via packageManager; nextjs/.gitignore drops every lockfile,
+  # so Dependabot sees package.json only) and the repo root (an empty pnpm
+  # lockfile with no dependencies today).
+  - package-ecosystem: npm
+    directories:
+      - /
+      - /nextjs
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+
+  # hyperwhisper-cloud/: bun.lock is its only lockfile. The `bun` ecosystem
+  # updates bun.lock; an `npm` entry here would not (see
+  # hyperwhisper-cloud/CLAUDE.md for the 9-day outage a second lockfile caused).
+  - package-ecosystem: bun
+    directory: /hyperwhisper-cloud
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+
+  # The Windows and Linux heads, the shared .NET projects both heads reference,
+  # and the Parakeet engine the Linux release ships. There is no .sln, so each
+  # project folder is listed by glob.
+  - package-ecosystem: nuget
+    directories:
+      - /app/windows/*
+      - /app/linux/*
+      - /app/shared-dotnet/*
+      - /tools/parakeet-engine-dotnet
+      - /tools/parakeet-engine-dotnet.Tests
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+
+  # shared-core-rs/ workspace (one Cargo.lock). The fuzz crates are excluded
+  # from the workspace, have no lockfile and do not ship.
+  - package-ecosystem: cargo
+    directory: /shared-core-rs
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+
+  # Every workflow pins actions by commit SHA with a `# vX.Y.Z` comment;
+  # Dependabot bumps both the SHA and the comment. One grouped PR a week.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - "*"
