@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqualSecret } from "@/lib/security/timing-safe-secret";
+import { env } from "@/src/env/server.mjs";
 import { getGrantedEmails } from "@/src/lib/db-layer";
 
 /**
@@ -11,7 +12,7 @@ import { getGrantedEmails } from "@/src/lib/db-layer";
  */
 export async function POST(request: NextRequest) {
   const secret = request.headers.get("x-internal-secret");
-  if (!timingSafeEqualSecret(secret, process.env.HYPERWHISPER_INTERNAL_SECRET)) {
+  if (!timingSafeEqualSecret(secret, env.HYPERWHISPER_INTERNAL_SECRET)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

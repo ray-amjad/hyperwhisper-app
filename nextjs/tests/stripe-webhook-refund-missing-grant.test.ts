@@ -15,7 +15,7 @@
  * Every other missing grant still answers 500.
  */
 import assert from "node:assert/strict";
-import { after, afterEach, before, beforeEach, describe, mock, test } from "node:test";
+import { after, before, beforeEach, describe, mock, test } from "node:test";
 
 import { sql } from "drizzle-orm";
 import { NextRequest } from "next/server";
@@ -62,6 +62,10 @@ let verifiedEvent: Record<string, unknown> | null = null;
     },
   },
 });
+// The route reads its webhook secret from the validated env (#682).
+(mock as unknown as ModuleMocker).module(moduleUrl("../src/env/server.mjs"), {
+  namedExports: { env: { STRIPE_WEBHOOK_SECRET: "whsec_harness_only" } },
+});
 (mock as unknown as ModuleMocker).module(moduleUrl("../lib/services/email.ts"), {
   namedExports: { emailService: {} },
 });
@@ -76,7 +80,6 @@ let POST: PostHandler;
 
 const logLines: string[] = [];
 const realConsole = { log: console.log, warn: console.warn, error: console.error };
-const realWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 /** 2026-06-16T06:55:05.796Z, the journal `when` of 0006_fat_husk. */
 const LEDGER_STARTED_S = Math.floor(1781592905796 / 1000);
@@ -106,12 +109,7 @@ beforeEach(async () => {
   sessionsByIntent.clear();
   verifiedEvent = null;
   logLines.length = 0;
-  process.env.STRIPE_WEBHOOK_SECRET = "whsec_harness_only";
   await seedUser("u1");
-});
-afterEach(() => {
-  if (realWebhookSecret === undefined) delete process.env.STRIPE_WEBHOOK_SECRET;
-  else process.env.STRIPE_WEBHOOK_SECRET = realWebhookSecret;
 });
 
 /** A paid 5,000-credit pack's Checkout Session, findable by its intent. */

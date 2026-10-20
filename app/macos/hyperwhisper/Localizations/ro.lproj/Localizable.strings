@@ -936,6 +936,8 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "transcription.error.providerNotAvailable.provider" = "%@ nu este disponibil. Verificați setări și încercați din nou.";
 "transcription.error.providerNotAvailable.detail" = "%@ nu este disponibil: %@";
 "transcription.error.modelNotDownloaded" = "Vă rugăm descărcați mai întâi un model";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Modul %1$@ folosește %2$@, care nu este descărcat. Descărcați-l din Biblioteca de modele.";
+"transcription.error.modelNotDownloaded.model" = "%1$@ nu este descărcat. Descărcați-l din Biblioteca de modele.";
 "transcription.error.modelProtected" = "Acest model nu poate fi șters";
 "transcription.error.audioFileNotFound" = "Fișier audio nu a fost găsit";
 "transcription.error.network.detail" = "Eroare de rețea: %@";
