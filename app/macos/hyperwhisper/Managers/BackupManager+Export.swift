@@ -288,9 +288,10 @@ extension BackupManager {
     /// The non-`macos` slices of an imported backup's TOP-LEVEL
     /// `platformExtensions`, as raw JSON, or `nil` when there are none.
     ///
-    /// Pure and `nonisolated` so the tests can reach it: `encodeBackupV2` and the
-    /// v2 import path are `private`, so `@testable import` cannot. Same seam shape
-    /// as `mergeDefaultModelByMode` / `remapDefaultModelByMode`.
+    /// Pure and `nonisolated` so a test can call it without a live app:
+    /// `encodeBackupV2` and the v2 import read Core Data, the Keychain and
+    /// UserDefaults. Same seam shape as `mergeDefaultModelByMode` /
+    /// `remapDefaultModelByMode`.
     nonisolated static func foreignTopLevelExtensions(from platformExtensions: JSONValue?) -> String? {
         guard let object = platformExtensions?.objectValue else { return nil }
         let foreign = object.filter { $0.key != "macos" }
