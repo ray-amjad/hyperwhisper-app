@@ -21438,6 +21438,7 @@ internal static class Program
                         "the Today filter did not apply to the pending rows");
 
                     // Statistics, which read without HistoryService's lock.
+                    // ast-grep-ignore: no-unguarded-optional-assembly-use -- test code: the suite ships HyperWhisper.Statistics.dll beside it, and no Application Control policy runs on CI.
                     var stats = new WindowsStatisticsTranscriptProvider().ReadAllAsync().AsTask().GetAwaiter().GetResult();
                     Assert(stats.Count(st => st.Text == "q1589x café pending row") == 1,
                         "the statistics do not count the pending row exactly once");
