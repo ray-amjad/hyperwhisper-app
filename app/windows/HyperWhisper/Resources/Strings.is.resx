@@ -189,10 +189,10 @@
     <value>Retrying...</value>
   </data>
   <data name="history.savedLater.databaseLocked" xml:space="preserve">
-    <value>Annað forrit hefur læst ferilsgagnagrunninum, svo þessi upptaka er ekki enn í ferlinum. Upptakan var geymd og verður bætt við ferilinn þegar gagnagrunnurinn losnar.</value>
+    <value>Annað forrit hefur læst ferilsgagnagrunninum. Upptakan var geymd og verður vistuð í ferlinum þegar gagnagrunnurinn losnar.</value>
   </data>
   <data name="history.savedLater.writeFailed" xml:space="preserve">
-    <value>Ekki tókst enn að vista þessa upptöku í ferlinum. Upptakan var geymd og verður bætt við ferilinn síðar.</value>
+    <value>Ekki tókst enn að vista þessa upptöku í ferlinum. Upptakan var geymd og verður vistuð í ferlinum síðar.</value>
   </data>
 
   <!-- Modes Page -->

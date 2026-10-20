@@ -189,10 +189,10 @@
     <value>Retrying...</value>
   </data>
   <data name="history.savedLater.databaseLocked" xml:space="preserve">
-    <value>Et andet program har låst historikdatabasen, så denne optagelse er ikke i historikken endnu. Optagelsen er gemt og bliver føjet til historikken, når databasen er ledig.</value>
+    <value>Et andet program har låst historikdatabasen. Optagelsen er bevaret og bliver gemt i historikken, når databasen er ledig.</value>
   </data>
   <data name="history.savedLater.writeFailed" xml:space="preserve">
-    <value>Denne optagelse kunne ikke gemmes i historikken endnu. Optagelsen er gemt og bliver føjet til historikken senere.</value>
+    <value>Denne optagelse kunne ikke gemmes i historikken endnu. Optagelsen er bevaret og bliver gemt i historikken senere.</value>
   </data>
 
   <!-- Modes Page -->

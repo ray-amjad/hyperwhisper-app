@@ -231,10 +231,10 @@
     <value>Reintentando...</value>
   </data>
   <data name="history.savedLater.databaseLocked" xml:space="preserve">
-    <value>Otro programa tiene bloqueada la base de datos del historial, por lo que esta grabación aún no está en el historial. Se ha conservado la grabación y se añadirá al historial cuando la base de datos quede libre.</value>
+    <value>Otro programa tiene bloqueada la base de datos del historial. Se ha conservado la grabación y se guardará en el historial cuando la base de datos quede libre.</value>
   </data>
   <data name="history.savedLater.writeFailed" xml:space="preserve">
-    <value>Aún no se ha podido guardar esta grabación en el historial. Se ha conservado la grabación y se añadirá al historial más tarde.</value>
+    <value>Aún no se ha podido guardar esta grabación en el historial. Se ha conservado la grabación y se guardará en el historial más tarde.</value>
   </data>
 
   <!-- Modes Page -->

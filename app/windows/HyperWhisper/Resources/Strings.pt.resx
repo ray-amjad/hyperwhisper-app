@@ -189,10 +189,10 @@
     <value>A tentar novamente...</value>
   </data>
   <data name="history.savedLater.databaseLocked" xml:space="preserve">
-    <value>Outro programa bloqueou o banco de dados do histórico, por isso esta gravação ainda não está no histórico. A gravação foi mantida e será adicionada ao histórico assim que o banco de dados ficar livre.</value>
+    <value>Outro programa bloqueou o banco de dados do histórico. A gravação foi mantida e será salva no histórico assim que o banco de dados ficar livre.</value>
   </data>
   <data name="history.savedLater.writeFailed" xml:space="preserve">
-    <value>Ainda não foi possível salvar esta gravação no histórico. A gravação foi mantida e será adicionada ao histórico mais tarde.</value>
+    <value>Ainda não foi possível salvar esta gravação no histórico. A gravação foi mantida e será salva no histórico mais tarde.</value>
   </data>
 
   <!-- Modes Page -->

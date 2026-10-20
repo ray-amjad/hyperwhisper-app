@@ -189,10 +189,10 @@
     <value>재시도 중...</value>
   </data>
   <data name="history.savedLater.databaseLocked" xml:space="preserve">
-    <value>다른 프로그램이 기록 데이터베이스를 잠그고 있어 이 녹음은 아직 기록에 없습니다. 녹음은 보관되었으며 데이터베이스가 사용 가능해지면 기록에 추가됩니다.</value>
+    <value>다른 프로그램이 기록 데이터베이스를 잠그고 있습니다. 녹음은 보관되었으며 데이터베이스가 사용 가능해지면 기록에 저장됩니다.</value>
   </data>
   <data name="history.savedLater.writeFailed" xml:space="preserve">
-    <value>이 녹음을 아직 기록에 저장하지 못했습니다. 녹음은 보관되었으며 나중에 기록에 추가됩니다.</value>
+    <value>이 녹음을 아직 기록에 저장하지 못했습니다. 녹음은 보관되었으며 나중에 기록에 저장됩니다.</value>
   </data>
 
   <!-- Modes Page -->

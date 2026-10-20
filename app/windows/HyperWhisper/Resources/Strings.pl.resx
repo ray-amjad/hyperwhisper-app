@@ -189,10 +189,10 @@
     <value>Ponawianie...</value>
   </data>
   <data name="history.savedLater.databaseLocked" xml:space="preserve">
-    <value>Inny program zablokował bazę danych historii, więc tego nagrania nie ma jeszcze w historii. Nagranie zostało zachowane i zostanie dodane do historii, gdy baza danych się zwolni.</value>
+    <value>Inny program zablokował bazę danych historii. Nagranie zostało zachowane i zostanie zapisane w historii, gdy baza danych się zwolni.</value>
   </data>
   <data name="history.savedLater.writeFailed" xml:space="preserve">
-    <value>Nie udało się jeszcze zapisać tego nagrania w historii. Nagranie zostało zachowane i zostanie dodane do historii później.</value>
+    <value>Nie udało się jeszcze zapisać tego nagrania w historii. Nagranie zostało zachowane i zostanie zapisane w historii później.</value>
   </data>
 
   <!-- Modes Page -->

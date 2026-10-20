@@ -189,10 +189,10 @@
     <value>Yeniden deneniyor...</value>
   </data>
   <data name="history.savedLater.databaseLocked" xml:space="preserve">
-    <value>Başka bir program Geçmiş veritabanını kilitlediği için bu kayıt henüz Geçmiş'te değil. Kayıt saklandı ve veritabanı boşaldığında Geçmiş'e eklenecek.</value>
+    <value>Başka bir program Geçmiş veritabanını kilitledi. Kayıt saklandı ve veritabanı boşaldığında Geçmiş'e kaydedilecek.</value>
   </data>
   <data name="history.savedLater.writeFailed" xml:space="preserve">
-    <value>Bu kayıt henüz Geçmiş'e kaydedilemedi. Kayıt saklandı ve daha sonra Geçmiş'e eklenecek.</value>
+    <value>Bu kayıt henüz Geçmiş'e kaydedilemedi. Kayıt saklandı ve daha sonra Geçmiş'e kaydedilecek.</value>
   </data>
 
   <!-- Modes Page -->

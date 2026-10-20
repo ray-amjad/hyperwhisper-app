@@ -189,10 +189,10 @@
     <value>Retrying...</value>
   </data>
   <data name="history.savedLater.databaseLocked" xml:space="preserve">
-    <value>Một chương trình khác đang khóa cơ sở dữ liệu Lịch sử nên bản ghi này chưa có trong Lịch sử. Bản ghi đã được giữ lại và sẽ được thêm vào Lịch sử khi cơ sở dữ liệu rảnh.</value>
+    <value>Một chương trình khác đang khóa cơ sở dữ liệu Lịch sử. Bản ghi đã được giữ lại và sẽ được lưu vào Lịch sử khi cơ sở dữ liệu rảnh.</value>
   </data>
   <data name="history.savedLater.writeFailed" xml:space="preserve">
-    <value>Chưa thể lưu bản ghi này vào Lịch sử. Bản ghi đã được giữ lại và sẽ được thêm vào Lịch sử sau.</value>
+    <value>Chưa thể lưu bản ghi này vào Lịch sử. Bản ghi đã được giữ lại và sẽ được lưu vào Lịch sử sau.</value>
   </data>
 
   <!-- Modes Page -->

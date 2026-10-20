@@ -189,10 +189,10 @@
     <value>Retrying...</value>
   </data>
   <data name="history.savedLater.databaseLocked" xml:space="preserve">
-    <value>Drug program je zaklenil zbirko podatkov zgodovine, zato tega posnetka še ni v zgodovini. Posnetek je ohranjen in bo dodan v zgodovino, ko se zbirka podatkov sprosti.</value>
+    <value>Drug program je zaklenil zbirko podatkov zgodovine. Posnetek je ohranjen in bo shranjen v zgodovino, ko se zbirka podatkov sprosti.</value>
   </data>
   <data name="history.savedLater.writeFailed" xml:space="preserve">
-    <value>Tega posnetka še ni bilo mogoče shraniti v zgodovino. Posnetek je ohranjen in bo dodan v zgodovino pozneje.</value>
+    <value>Tega posnetka še ni bilo mogoče shraniti v zgodovino. Posnetek je ohranjen in bo shranjen v zgodovino pozneje.</value>
   </data>
 
   <!-- Modes Page -->
