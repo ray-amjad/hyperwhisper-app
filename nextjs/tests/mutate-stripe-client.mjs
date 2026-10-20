@@ -34,13 +34,34 @@ const MUTANTS = [
   },
   {
     name: "read the key from another env var",
-    from: "new Stripe(env.STRIPE_SECRET_KEY, {",
-    to: "new Stripe(process.env.STRIPE_PUBLISHABLE_KEY!, {",
+    from: "export const stripe = new Stripe(env.STRIPE_SECRET_KEY, {",
+    to: "export const stripe = new Stripe(process.env.STRIPE_PUBLISHABLE_KEY!, {",
   },
   {
     name: "fall back to a placeholder key when none is set",
-    from: "new Stripe(env.STRIPE_SECRET_KEY, {",
-    to: 'new Stripe(env.STRIPE_SECRET_KEY ?? "placeholder", {',
+    from: "export const stripe = new Stripe(env.STRIPE_SECRET_KEY, {",
+    to: 'export const stripe = new Stripe(env.STRIPE_SECRET_KEY ?? "placeholder", {',
+  },
+  // `stripeRefundApi`, the admin refund flow's client (#755).
+  {
+    name: "refund client: pin a newer API version",
+    from: 'apiVersion: "2025-02-24.acacia",',
+    to: 'apiVersion: "2025-09-30.clover",',
+  },
+  {
+    name: "refund client: remove the version pin",
+    from: '  apiVersion: "2025-02-24.acacia",\n',
+    to: "",
+  },
+  {
+    name: "refund client: read the key from another env var",
+    from: "export const stripeRefundApi = new Stripe(env.STRIPE_SECRET_KEY, {",
+    to: "export const stripeRefundApi = new Stripe(process.env.STRIPE_PUBLISHABLE_KEY!, {",
+  },
+  {
+    name: "refund client: fall back to a placeholder key when none is set",
+    from: "export const stripeRefundApi = new Stripe(env.STRIPE_SECRET_KEY, {",
+    to: 'export const stripeRefundApi = new Stripe(env.STRIPE_SECRET_KEY ?? "placeholder", {',
   },
 ];
 

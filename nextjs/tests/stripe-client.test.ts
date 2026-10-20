@@ -24,9 +24,10 @@
  */
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { createRequire } from "node:module";
 import { createServer, type IncomingHttpHeaders, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { after, before, describe, test } from "node:test";
 
@@ -167,5 +168,37 @@ describe("lib/clients/stripe — the shared Stripe client", () => {
 
     assert.equal(result.code, 3, `expected the import to reject, got: ${result.stdout}`);
     assert.match(result.stdout, /REJECTED:Neither apiKey nor config\.authenticator provided/);
+  });
+
+  test("with no STRIPE_SECRET_KEY, neither client is handed a fallback key", async () => {
+    // The module builds two clients, so the real SDK's refusal above fires on
+    // whichever is built first and cannot tell a fallback in the other apart.
+    // Here the `stripe` package is a recorder in a fresh process, and every
+    // constructor must have been handed exactly what the env holds: nothing.
+    const env = { ...process.env };
+    delete env.STRIPE_SECRET_KEY;
+    env.SKIP_ENV_VALIDATION = "1";
+    const modulePath = fileURLToPath(new URL("../lib/clients/stripe.ts", import.meta.url));
+    // nextjs has no `"type": "module"`, so tsx loads the client as CommonJS and
+    // its `import Stripe from "stripe"` requires the package's CJS entry.
+    const stripeEntry = pathToFileURL(createRequire(import.meta.url).resolve("stripe")).href;
+    const script = `
+      const { mock } = await import("node:test");
+      const keys = [];
+      class RecordingStripe { constructor(key) { keys.push(key === undefined ? "<undefined>" : key); } }
+      mock.module(${JSON.stringify(stripeEntry)}, { defaultExport: RecordingStripe });
+      await import(${JSON.stringify(modulePath)});
+      console.log("KEYS:" + JSON.stringify(keys));
+    `;
+
+    const run = promisify(execFile);
+    const { stdout } = await run(
+      process.execPath,
+      ["--import", "tsx", "--experimental-test-module-mocks", "--input-type=module", "-e", script],
+      { env },
+    );
+
+    const keys = JSON.parse(stdout.split("KEYS:")[1]);
+    assert.deepEqual(keys, ["<undefined>", "<undefined>"]);
   });
 });
