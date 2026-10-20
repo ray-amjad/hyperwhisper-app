@@ -68,11 +68,6 @@ extension BackupManager {
             return .failure(message)
         }
 
-        var modesImported = 0
-        var modesSkipped = 0
-        var vocabImported = 0
-        var vocabSkipped = 0
-
         // Apply settings (only when selected AND present in the file). Snapshot the
         // live settings first: a failed store step below puts them back (#1627).
         var settingsApplied = false
@@ -87,136 +82,32 @@ extension BackupManager {
             await settingsStore.apply(settings)
             settingsApplied = true
         }
-
-        // Import modes and vocabulary (each only when selected AND present; vocabulary is
-        // merge only, never a wipe), each section as ONE store transaction (#1613): modes
-        // first, then vocabulary only if the modes saved. A failed section is left as it
-        // was. The API-key and licence steps below still run, as they always did; the
-        // result then says which section failed instead of a summary.
-        var storeFailure: PersistenceController.BackupStoreImportError?
-        let modesToImport = options.importModes ? backupData.modes : nil
-        let vocabToImport = options.importVocabulary ? backupData.vocabulary : nil
-        if modesToImport != nil || vocabToImport != nil {
-            let storeResult: PersistenceController.BackupStoreImportResult
-            do {
-                storeResult = try importPersistence.importBackupStore(
-                    modes: modesToImport,
-                    modeResolution: options.modeConflict,
-                    vocabulary: vocabToImport,
-                    vocabularyResolution: options.vocabularyConflict
-                )
-            } catch {
-                let failure = Self.backupStoreImportFailure(from: error, modesSelected: modesToImport != nil)
-                storeFailure = failure
-                storeResult = failure.committed
-            }
-            modesImported = storeResult.modesImported
-            modesSkipped = storeResult.modesSkipped
-            vocabImported = storeResult.vocabularyImported
-            vocabSkipped = storeResult.vocabularySkipped
-            // Per-mode default model selections live in settings.aiModel — only apply them when
-            // the user actually chose to import Settings (and the section is present). Otherwise a
-            // modes-only import would silently mutate a settings value the user deselected.
-            // A failed store step applies no settings (#1627), so not these either.
-            if storeFailure == nil, modesToImport != nil, options.importSettings, let aiMap = backupData.settings?.aiModel.defaultModelByMode {
-                applyDefaultModelByMode(aiMap, idRemap: storeResult.modeIdRemap)
-            }
-        }
-
-        // A failed store step puts the settings back as they were before the import
-        // (#1627, the same choice as Windows #1614 and Linux).
-        var settingsRestored = false
-        if storeFailure != nil, let settingsBefore {
-            settingsRestored = await restoreSettingsAfterFailedStoreImport(settingsBefore, settingsApplied: settingsApplied)
-            settingsApplied = false
-        }
-
-        // Import API keys if present and requested. Success is read off the
-        // Keychain writes, not off the file; a failed key does not stop the import.
-        var apiKeysImported = false
-        var apiKeysFailedProviders: [KeychainManager.APIKeyType] = []
-        if options.importAPIKeys, let apiKeys = backupData.apiKeys {
-            let outcome = importAPIKeys(apiKeys)
-            apiKeysImported = outcome.anySaved
-            apiKeysFailedProviders = outcome.failed
-        }
-
-        // Import license key if present and requested. Trim first (an untrimmed
-        // key would break the offline-guard key comparison), then revalidate so
-        // the new key doesn't inherit the previous key's cached status.
-        var licenseKeyImported = false
-        if options.importLicenseKey,
-           let licenseKey = backupData.licenseKey?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !licenseKey.isEmpty {
-            guard await importLicenseKeySecurely(licenseKey) else {
-                // The rolled-back store section (#1613) must be reported too.
-                if let storeFailure {
-                    return storeImportFailureResult(
-                        storeFailure,
-                        modesSelected: modesToImport != nil,
-                        vocabularySelected: vocabToImport != nil,
-                        settingsApplied: settingsApplied,
-                        settingsRestored: settingsRestored,
-                        apiKeysImported: apiKeysImported,
-                        licenseKeyImported: false,
-                        licenseImportFailed: true,
-                        repairImportedModes: options.importModes,
-                        apiKeysFailedProviders: apiKeysFailedProviders
-                    )
-                }
-                return licenseImportFailureResult(
-                    modesImported: modesImported,
-                    modesSkipped: modesSkipped,
-                    vocabularyImported: vocabImported,
-                    vocabularySkipped: vocabSkipped,
-                    apiKeysImported: apiKeysImported,
-                    earlierSectionsApplied: Self.earlierBackupSectionsWereApplied(
-                        settingsApplied: settingsApplied,
-                        modesImported: modesImported,
-                        vocabularyImported: vocabImported,
-                        apiKeysImported: apiKeysImported
-                    ),
-                    repairImportedModes: options.importModes,
-                    apiKeysFailedProviders: apiKeysFailedProviders
-                )
-            }
-            licenseKeyImported = true
-        }
-
-        AppLogger.settings.info("Settings imported: \(modesImported) modes, \(vocabImported) vocabulary items")
-
-        // Post-restore: silently turn off local modes that can't run here, and (on
-        // capable hardware) collect cataloged-but-undownloaded models to offer a
-        // batched re-download. Only when modes were actually imported.
-        // A failed store section (#1613) is reported instead of a summary; the
-        // repair runs there only when the modes saved (see storeImportFailureResult).
-        if let storeFailure {
-            return storeImportFailureResult(
-                storeFailure,
-                modesSelected: modesToImport != nil,
-                vocabularySelected: vocabToImport != nil,
-                settingsApplied: settingsApplied,
-                settingsRestored: settingsRestored,
-                apiKeysImported: apiKeysImported,
-                licenseKeyImported: licenseKeyImported,
-                repairImportedModes: options.importModes,
-                apiKeysFailedProviders: apiKeysFailedProviders
-            )
-        }
-        let pendingLocalDownloads = options.importModes ? repairRestoredLocalModes() : []
-
-        var result = ImportResult.success(
-            modesImported: modesImported,
-            modesSkipped: modesSkipped,
-            vocabularyImported: vocabImported,
-            vocabularySkipped: vocabSkipped,
-            apiKeysImported: apiKeysImported,
-            licenseKeyImported: licenseKeyImported
+        // Import modes and vocabulary, each section as ONE store transaction (#1613);
+        // see importBackupStoreSections. Per-mode default model selections live in
+        // settings.aiModel — only applied when the user actually chose to import
+        // Settings (and the section is present). Otherwise a modes-only import would
+        // silently mutate a settings value the user deselected.
+        let store = importBackupStoreSections(
+            modes: options.importModes ? backupData.modes : nil,
+            vocabulary: options.importVocabulary ? backupData.vocabulary : nil,
+            options: options,
+            defaultModelByModeToApply: { backupData.settings?.aiModel.defaultModelByMode }
         )
-        result.pendingLocalDownloadModelIds = pendingLocalDownloads
-        result.apiKeysFailedProviders = apiKeysFailedProviders
-        result.settingsApplied = settingsApplied
-        return result
+
+        // Then: settings put back after a failed store step (#1627), API keys,
+        // the licence key and the result — see finishBackupImport.
+        return await finishBackupImport(
+            .legacyV1,
+            store: store,
+            settingsBefore: settingsBefore,
+            settingsApplied: settingsApplied,
+            licenseKey: backupData.licenseKey,
+            options: options,
+            apiKeysStep: {
+                guard options.importAPIKeys, let apiKeys = backupData.apiKeys else { return nil }
+                return importAPIKeys(apiKeys)
+            }
+        )
     }
 
     /// Post-restore repair: turn off `.local` post-processing modes that can't run on
@@ -533,5 +424,212 @@ extension BackupManager {
         await settingsStore.restore(snapshot.settings)
         AppLogger.settings.info("Backup import: the modes/vocabulary save failed, so the settings were put back as they were")
         return true
+    }
+
+    // MARK: - Steps shared by the v1 and universal v2 imports
+
+    /// Which import a summary log line is written for.
+    enum BackupImportFormat {
+        case legacyV1
+        case universalV2
+    }
+
+    /// What an import's modes/vocabulary store step did (#1613).
+    struct BackupStoreStepOutcome {
+        /// Whether the import had modes to write (selected AND present).
+        var modesSelected = false
+        /// Whether the import had vocabulary to write (selected AND present).
+        var vocabularySelected = false
+        var modesImported = 0
+        var modesSkipped = 0
+        var vocabImported = 0
+        var vocabSkipped = 0
+        /// The store section that failed and was rolled back, if any.
+        var storeFailure: PersistenceController.BackupStoreImportError?
+    }
+
+    /// Imports modes and vocabulary (each only when selected AND present; vocabulary is
+    /// merge only, never a wipe), each section as ONE store transaction (#1613): modes
+    /// first, then vocabulary only if the modes saved. A failed section is left as it
+    /// was. The API-key and licence steps after it still run, as they always did; the
+    /// result then says which section failed instead of a summary.
+    ///
+    /// Per-mode default model selections are applied only when the user actually chose
+    /// to import Settings, modes were written and the store step saved (#1627: a failed
+    /// store step applies no settings). `defaultModelByModeToApply` is read only then.
+    func importBackupStoreSections(
+        modes modesToImport: [BackupMode]?,
+        vocabulary vocabToImport: [BackupVocabularyItem]?,
+        options: ImportOptions,
+        defaultModelByModeToApply: () -> [String: String]?
+    ) -> BackupStoreStepOutcome {
+        var outcome = BackupStoreStepOutcome(
+            modesSelected: modesToImport != nil,
+            vocabularySelected: vocabToImport != nil
+        )
+        if modesToImport != nil || vocabToImport != nil {
+            let storeResult: PersistenceController.BackupStoreImportResult
+            do {
+                storeResult = try importPersistence.importBackupStore(
+                    modes: modesToImport,
+                    modeResolution: options.modeConflict,
+                    vocabulary: vocabToImport,
+                    vocabularyResolution: options.vocabularyConflict
+                )
+            } catch {
+                let failure = Self.backupStoreImportFailure(from: error, modesSelected: modesToImport != nil)
+                outcome.storeFailure = failure
+                storeResult = failure.committed
+            }
+            outcome.modesImported = storeResult.modesImported
+            outcome.modesSkipped = storeResult.modesSkipped
+            outcome.vocabImported = storeResult.vocabularyImported
+            outcome.vocabSkipped = storeResult.vocabularySkipped
+            if outcome.storeFailure == nil, modesToImport != nil, options.importSettings, let map = defaultModelByModeToApply() {
+                applyDefaultModelByMode(map, idRemap: storeResult.modeIdRemap)
+            }
+        }
+        return outcome
+    }
+
+    /// Everything an import does after its store step, in the order the v1 and v2
+    /// imports always ran it: a failed store step puts the settings back; then the
+    /// API keys (`apiKeysStep` returns nil when there are none to import); then the
+    /// licence key; then the summary log, the post-restore repair and the result.
+    func finishBackupImport(
+        _ format: BackupImportFormat,
+        store: BackupStoreStepOutcome,
+        settingsBefore: ImportSettingsSnapshot?,
+        settingsApplied settingsAppliedBeforeStoreStep: Bool,
+        licenseKey backupLicenseKey: String?,
+        options: ImportOptions,
+        apiKeysStep: () -> APIKeyRestoreOutcome?
+    ) async -> ImportResult {
+        let storeFailure = store.storeFailure
+        let modesImported = store.modesImported
+        let modesSkipped = store.modesSkipped
+        let vocabImported = store.vocabImported
+        let vocabSkipped = store.vocabSkipped
+        var settingsApplied = settingsAppliedBeforeStoreStep
+
+        // A failed store step puts the settings (and, for v2, the foreign extensions)
+        // back as they were before the import (#1627, the same choice as Windows #1614
+        // and Linux).
+        var settingsRestored = false
+        if storeFailure != nil, let settingsBefore {
+            settingsRestored = await restoreSettingsAfterFailedStoreImport(settingsBefore, settingsApplied: settingsApplied)
+            settingsApplied = false
+        }
+
+        // Import API keys if present and requested. Success is read off the
+        // Keychain writes, not off the file; a failed key does not stop the import.
+        var apiKeysImported = false
+        var apiKeysFailedProviders: [KeychainManager.APIKeyType] = []
+        if let outcome = apiKeysStep() {
+            apiKeysImported = outcome.anySaved
+            apiKeysFailedProviders = outcome.failed
+        }
+
+        // Import license key if present and requested. Trim first (an untrimmed
+        // key would break the offline-guard key comparison), then revalidate so
+        // the new key doesn't inherit the previous key's cached status.
+        var licenseKeyImported = false
+        if options.importLicenseKey,
+           let licenseKey = backupLicenseKey?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !licenseKey.isEmpty {
+            guard await importLicenseKeySecurely(licenseKey) else {
+                return licenseKeyFailedImportResult(
+                    store: store,
+                    settingsApplied: settingsApplied,
+                    settingsRestored: settingsRestored,
+                    apiKeysImported: apiKeysImported,
+                    apiKeysFailedProviders: apiKeysFailedProviders,
+                    options: options
+                )
+            }
+            licenseKeyImported = true
+        }
+
+        switch format {
+        case .legacyV1:
+            AppLogger.settings.info("Settings imported: \(modesImported) modes, \(vocabImported) vocabulary items")
+        case .universalV2:
+            AppLogger.settings.info("Universal v2 backup imported: settingsApplied=\(settingsApplied, privacy: .public), \(modesImported) modes, \(vocabImported) vocabulary items")
+        }
+
+        // Post-restore: silently turn off local modes that can't run here, and (on
+        // capable hardware) collect cataloged-but-undownloaded models to offer a
+        // batched re-download. Only when modes were actually imported.
+        // A failed store section (#1613) is reported instead of a summary; the
+        // repair runs there only when the modes saved (see storeImportFailureResult).
+        if let storeFailure {
+            return storeImportFailureResult(
+                storeFailure,
+                modesSelected: store.modesSelected,
+                vocabularySelected: store.vocabularySelected,
+                settingsApplied: settingsApplied,
+                settingsRestored: settingsRestored,
+                apiKeysImported: apiKeysImported,
+                licenseKeyImported: licenseKeyImported,
+                repairImportedModes: options.importModes,
+                apiKeysFailedProviders: apiKeysFailedProviders
+            )
+        }
+        let pendingLocalDownloads = options.importModes ? repairRestoredLocalModes() : []
+
+        var result = ImportResult.success(
+            modesImported: modesImported,
+            modesSkipped: modesSkipped,
+            vocabularyImported: vocabImported,
+            vocabularySkipped: vocabSkipped,
+            apiKeysImported: apiKeysImported,
+            licenseKeyImported: licenseKeyImported
+        )
+        result.pendingLocalDownloadModelIds = pendingLocalDownloads
+        result.apiKeysFailedProviders = apiKeysFailedProviders
+        result.settingsApplied = settingsApplied
+        return result
+    }
+
+    /// The result when the licence key could not be securely imported, after the
+    /// store and API-key steps ran.
+    func licenseKeyFailedImportResult(
+        store: BackupStoreStepOutcome,
+        settingsApplied: Bool,
+        settingsRestored: Bool,
+        apiKeysImported: Bool,
+        apiKeysFailedProviders: [KeychainManager.APIKeyType],
+        options: ImportOptions
+    ) -> ImportResult {
+        // The rolled-back store section (#1613) must be reported too.
+        if let storeFailure = store.storeFailure {
+            return storeImportFailureResult(
+                storeFailure,
+                modesSelected: store.modesSelected,
+                vocabularySelected: store.vocabularySelected,
+                settingsApplied: settingsApplied,
+                settingsRestored: settingsRestored,
+                apiKeysImported: apiKeysImported,
+                licenseKeyImported: false,
+                licenseImportFailed: true,
+                repairImportedModes: options.importModes,
+                apiKeysFailedProviders: apiKeysFailedProviders
+            )
+        }
+        return licenseImportFailureResult(
+            modesImported: store.modesImported,
+            modesSkipped: store.modesSkipped,
+            vocabularyImported: store.vocabImported,
+            vocabularySkipped: store.vocabSkipped,
+            apiKeysImported: apiKeysImported,
+            earlierSectionsApplied: Self.earlierBackupSectionsWereApplied(
+                settingsApplied: settingsApplied,
+                modesImported: store.modesImported,
+                vocabularyImported: store.vocabImported,
+                apiKeysImported: apiKeysImported
+            ),
+            repairImportedModes: options.importModes,
+            apiKeysFailedProviders: apiKeysFailedProviders
+        )
     }
 }
