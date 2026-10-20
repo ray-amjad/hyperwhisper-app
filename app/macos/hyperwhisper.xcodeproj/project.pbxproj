@@ -893,7 +893,7 @@
 			repositoryURL = "https://github.com/sindresorhus/LaunchAtLogin-Modern";
 			requirement = {
 				kind = revision;
-				revision = a04ec1c363be3627734f6dad757d82f5d4fa8fcc;
+				revision = db030a1d402ae725829d4a12754c8472e03a7569;
 			};
 		};
 		719EC7CF2E53428100880D18 /* XCRemoteSwiftPackageReference "Sparkle" */ = {

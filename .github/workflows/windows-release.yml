@@ -265,7 +265,7 @@ jobs:
         run: |
           $zip = "$env:RUNNER_TEMP\CodeSignTool.zip"
           $dest = "$env:RUNNER_TEMP\CodeSignTool"
-          $expectedSha256 = "e22094505decbe622afe5b0c27abc618ed2ba179bd94f3450490352399d5ef2a"
+          $expectedSha256 = "0000000000000000000000000000000000000000000000000000000000000000"
           Invoke-WebRequest -Uri "https://github.com/SSLcom/CodeSignTool/releases/download/v1.3.0/CodeSignTool-v1.3.0-windows.zip" -OutFile $zip -UseBasicParsing
           $actualSha256 = (Get-FileHash -Path $zip -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($actualSha256 -ne $expectedSha256) {
