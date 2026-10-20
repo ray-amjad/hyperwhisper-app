@@ -159,6 +159,8 @@ internal sealed class PendingHistoryStore
         }
     }
 
+    public bool Remove(Guid id) => Remove(new[] { id }) > 0;
+
     /// <summary>
     /// The user's delete of these visible records (#2126): they go only when the file is
     /// rewritten without them. Returns false, and keeps every one of them in memory as it
