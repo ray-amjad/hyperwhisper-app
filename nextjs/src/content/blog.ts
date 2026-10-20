@@ -92,9 +92,7 @@ export async function getBlogPost(slug: string): Promise<BlogPost | null> {
   const post = { ...stored, html: sanitizeBlogHtml(stored.html) };
 
   // Only the post being shown needs its stored body rewritten (#919, #2112).
-  const lazy = { ...post, html: lazyLoadBodyImages(post.html) };
-
-  return { ...lazy, html: scrollableBodyTables(lazy.html) };
+  return { ...post, html: scrollableBodyTables(lazyLoadBodyImages(post.html)) };
 }
 
 export async function getAllBlogPosts(): Promise<BlogPostSummary[]> {

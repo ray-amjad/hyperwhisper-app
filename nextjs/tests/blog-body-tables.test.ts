@@ -1,10 +1,9 @@
 // #2112: Outrank's comparison tables arrive as a bare <table>, and on a phone a
 // wide one pushed the whole page sideways. getBlogPost() passes the body of the
 // post it returns through scrollableBodyTables(), which wraps each table in its
-// own focusable horizontal scroller. src/content/blog.ts imports "server-only",
-// so the transform is tested here and the page in the PR's verify run.
+// own focusable horizontal scroller. The transform is tested here; the real
+// getBlogPost() wiring is tested in blog-html-sanitize.test.ts.
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { scrollableBodyTables } from "../src/content/blog-html";
@@ -48,12 +47,4 @@ test("a sanitised body keeps its tables, so the wrapper has something to wrap", 
     scrollableBodyTables(html),
     /^<div class="[^"]*overflow-x-auto[^"]*"[^>]*><table>.*<\/table><\/div>$/,
   );
-});
-
-test("src/content/blog.ts sends the stored body through the transform", async () => {
-  const source = await readFile(
-    new URL("../src/content/blog.ts", import.meta.url),
-    "utf8",
-  );
-  assert.match(source, /html:\s*scrollableBodyTables\(lazy\.html\)/);
 });
