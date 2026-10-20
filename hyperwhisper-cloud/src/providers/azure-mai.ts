@@ -28,6 +28,7 @@ import {
   logProviderEvent,
   readErrorBodyPreview,
   splitVocabularyTerms,
+  unparsedBodyKind,
 } from './utils';
 
 const MAX_PHRASES = 100;
@@ -253,11 +254,44 @@ export async function transcribeWithAzureMai(
     throw new Error(`Azure MAI error: ${response.status}`);
   }
 
-  const data = await response.json() as {
+  // A 200 whose body is cut off, not JSON, or breaks mid-read is an upstream
+  // hiccup, not a request fault: answer the retryable 502 the other adapters
+  // give, not a 500 carrying the parser's text. The detail goes to the log
+  // only. (#2064)
+  const badBody = (event: string, details: Record<string, unknown>) => {
+    logProviderEvent(provider, event, {
+      elapsedMs: Math.round(performance.now() - startedAt),
+      contentType: response.headers.get('content-type') ?? 'unknown',
+      ...details,
+    }, context);
+    return new ProviderUnavailableError('Azure MAI', 'malformed 200 response body', {
+      kind: 'bad_response',
+      status: response.status,
+      elapsedMs: Math.round(performance.now() - startedAt),
+    });
+  };
+  let rawText: string;
+  try {
+    rawText = await response.text();
+  } catch (readError) {
+    throw badBody('body_read_error', {
+      message: readError instanceof Error ? readError.message : String(readError),
+    });
+  }
+  let data: {
     combinedPhrases?: Array<{ text?: string }>;
     durationMilliseconds?: number;
     phrases?: Array<{ locale?: string }>;
   };
+  try {
+    data = JSON.parse(rawText);
+  } catch {
+    throw badBody('parse_error', { bodyLength: rawText.length, bodyKind: unparsedBodyKind(rawText) });
+  }
+  // `null` or a bare string parses, then fails on the first field read.
+  if (!data || typeof data !== 'object') {
+    throw badBody('parse_error', { bodyLength: rawText.length, bodyKind: 'other' });
+  }
 
   const transcript = data.combinedPhrases?.[0]?.text || '';
   const durationSeconds = (data.durationMilliseconds || 0) / 1000;
