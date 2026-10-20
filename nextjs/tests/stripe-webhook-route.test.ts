@@ -27,12 +27,13 @@
  * is the real one, signature gate included.
  */
 import assert from "node:assert/strict";
-import { after, afterEach, before, beforeEach, describe, test } from "node:test";
+import { after, before, beforeEach, describe, test } from "node:test";
 
 import {
   behaviour,
   calls,
   checkoutEvent,
+  fakeEnv,
   loadStripeWebhookRoute,
   logLines,
   refundEvent,
@@ -45,8 +46,6 @@ import { leakyDbError, leakyLines } from "./db-error-fixture";
 
 /** A made-up secret. Only the stand-in verifier in the harness ever sees it. */
 const WEBHOOK_SECRET = "whsec_harness_only";
-
-const realWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 type JsonBody = Record<string, unknown>;
 
@@ -72,15 +71,8 @@ after(() => {
 beforeEach(() => {
   resetHarness();
   logLines.length = 0;
-  process.env.STRIPE_WEBHOOK_SECRET = WEBHOOK_SECRET;
-});
-
-afterEach(() => {
-  if (realWebhookSecret === undefined) {
-    delete process.env.STRIPE_WEBHOOK_SECRET;
-  } else {
-    process.env.STRIPE_WEBHOOK_SECRET = realWebhookSecret;
-  }
+  // The route reads the validated env (#682), which the harness fakes.
+  fakeEnv.STRIPE_WEBHOOK_SECRET = WEBHOOK_SECRET;
 });
 
 /** Sends a signed request and returns the response. */
@@ -109,7 +101,7 @@ describe("POST /api/webhooks/stripe — the signature gate", () => {
   });
 
   test("refuses every request when STRIPE_WEBHOOK_SECRET is not configured", async () => {
-    delete process.env.STRIPE_WEBHOOK_SECRET;
+    delete fakeEnv.STRIPE_WEBHOOK_SECRET;
     behaviour.verifiedEvent = checkoutEvent({ purchaseType: "credits" });
 
     const response = await signedPost(behaviour.verifiedEvent);
