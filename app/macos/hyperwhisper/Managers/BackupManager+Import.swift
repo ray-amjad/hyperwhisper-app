@@ -82,6 +82,7 @@ extension BackupManager {
             await settingsStore.apply(settings)
             settingsApplied = true
         }
+
         // Import modes and vocabulary, each section as ONE store transaction (#1613);
         // see importBackupStoreSections. Per-mode default model selections live in
         // settings.aiModel — only applied when the user actually chose to import

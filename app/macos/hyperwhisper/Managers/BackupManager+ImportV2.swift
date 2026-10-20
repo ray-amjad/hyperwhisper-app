@@ -202,7 +202,7 @@ extension BackupManager {
     /// `backupMode(fromV2:)`. A mode whose id is not a UUID is skipped and logged. Pure
     /// apart from that log line.
     nonisolated static func backupModes(fromV2 modeDTOs: [UniversalModeDTO]) -> [BackupMode] {
-        let backupModes: [BackupMode] = modeDTOs.compactMap { modeDTO in
+        let modes: [BackupMode] = modeDTOs.compactMap { modeDTO in
             guard let mode = Self.backupMode(fromV2: modeDTO) else {
                 // Malformed/unparseable id — skip but make it VISIBLE (real producers emit
                 // valid UUIDs/GUIDs; we do not invent a replacement id).
@@ -226,7 +226,7 @@ extension BackupManager {
             }
             return mode
         }
-        return backupModes
+        return modes
     }
 
     /// The vocabulary a universal file's raw `vocabulary` array restores, read
