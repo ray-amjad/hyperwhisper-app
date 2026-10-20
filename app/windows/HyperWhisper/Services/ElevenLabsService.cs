@@ -105,7 +105,8 @@ public class ElevenLabsService : ApiKeyTranscriptionServiceBase
     {
         var (audioPath, language, vocabulary) = (request.AudioPath, request.Language, request.Vocabulary);
         var totalSw = Stopwatch.StartNew();
-        var isScribeV2 = request.ModelId == "scribe_v2";
+        // Scribe v2 Medical takes keyterms the same way (#2201); the core owns the gate.
+        var sendsKeyterms = request.ModelId is "scribe_v2" or "scribe_v2_medical";
 
         LoggingService.Info("========== ELEVENLABS CLOUD TRANSCRIPTION ==========");
         LoggingService.Info($"  Model: {request.ModelId}");
@@ -115,13 +116,13 @@ public class ElevenLabsService : ApiKeyTranscriptionServiceBase
         // Handle vocabulary based on model
         if (vocabulary?.Count > 0)
         {
-            if (isScribeV2)
+            if (sendsKeyterms)
             {
                 LoggingService.Info($"  Vocabulary terms: {vocabulary.Count} (will be sent as keyterms)");
             }
             else
             {
-                LoggingService.Warn($"  Warning: Vocabulary ignored - Scribe V1 does not support keyterms");
+                LoggingService.Warn($"  Warning: Vocabulary ignored - {request.ModelId} does not support keyterms");
             }
         }
 
