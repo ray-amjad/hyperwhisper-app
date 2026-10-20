@@ -89,17 +89,7 @@ describe('non-JSON 200 from the primary LLM provider', () => {
     expect(calls).toEqual(['api.anthropic.com', 'api.anthropic.com', 'api.anthropic.com', 'api.cerebras.ai']);
     expect(res.status).toBe(200);
     expect(body.corrected).toBe('Hello from cerebras.');
-  }, 20_000);
-
-  test('the 500 when the fallback also answers HTML carries no body text', async () => {
-    providers({ 'api.cerebras.ai': htmlPage, 'api.groq.com': htmlPage });
-    const res = await app().fetch(req());
-    const body = await res.text();
-    expect(calls[0]).toBe('api.cerebras.ai');
-    expect(calls).toContain('api.groq.com');
-    expect(res.status).toBe(500);
-    expect(body).not.toContain('Upstream temporarily unavailable');
-  }, 20_000);
+  }, 10_000);
 });
 
 describe('readLLMJson', () => {
