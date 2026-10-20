@@ -100,7 +100,10 @@ async function withAdminLog<T>(
           event,
           outcome: "failed",
           reason: error instanceof TRPCError ? error.code : "UNEXPECTED",
-          dbCode: dbErrorCode(error),
+          // A TRPCError's own `.code` is the tRPC code, not a SQLSTATE.
+          dbCode: dbErrorCode(
+            error instanceof TRPCError ? error.cause : error,
+          ),
           ...fields,
         }),
       );

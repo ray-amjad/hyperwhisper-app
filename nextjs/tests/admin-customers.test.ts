@@ -769,6 +769,8 @@ describe("one log line per admin mutation outcome (#2177)", () => {
     assert.equal(line.method, "error");
     assert.equal(line.outcome, "failed");
     assert.equal(line.reason, "INTERNAL_SERVER_ERROR");
+    // The tRPC code is never passed off as a SQLSTATE.
+    assert.equal(line.dbCode, undefined);
     assert.equal(line.userId, "user_new");
     assert.equal(line.licenseId, undefined);
   });
@@ -855,7 +857,9 @@ describe("one log line per admin mutation outcome (#2177)", () => {
   });
 
   test("refund logs failed AFTER the payment was refunded when the credit reversal throws", async () => {
-    behaviour.refundCreditGrantError = new Error("connection reset");
+    behaviour.refundCreditGrantError = Object.assign(new Error("connection reset"), {
+      code: "57P01",
+    });
 
     await assert.rejects(
       callCustomers("refund", "mutation", { licenseKeyId: LICENSE_ID, revokeLicense: true }),
@@ -863,6 +867,8 @@ describe("one log line per admin mutation outcome (#2177)", () => {
     const line = onlyOutcome("refund");
     assert.equal(line.method, "error");
     assert.equal(line.outcome, "failed");
+    assert.equal(line.reason, "UNEXPECTED");
+    assert.equal(line.dbCode, "57P01");
     assert.equal(line.paymentRefunded, true);
     assert.equal(line.creditsReversed, undefined);
     assert.equal(line.revoked, undefined);
