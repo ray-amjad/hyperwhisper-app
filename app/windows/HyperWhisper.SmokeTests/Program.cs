@@ -11347,6 +11347,80 @@ internal static class Program
                     "an unset Azure model did not fall back to the catalog default");
             });
 
+            // #1421: HyperWhisperRoutedTranscriptionClient (Azure MAI, Google
+            // Chirp) is driven end to end with a scripted HttpClient and an
+            // explicit licensed identity, so the request it builds and the
+            // errors it maps are pinned, not just ResolveRoutedModel above.
+            RunAsync("routed: azure-mai sends X-STT-Provider azure-mai and X-STT-Model mai-transcribe-1.5", async () =>
+            {
+                var (handler, error) = await RunRoutedAsync("azure-mai", "mai-transcribe-1.5",
+                    HttpStatusCode.OK, "{\"text\":\"hello\"}");
+                Assert(error == null, $"a 200 threw: {error}");
+                Assert(handler.Sends == 1, $"expected 1 request, got {handler.Sends}");
+                Assert(handler.Header("X-STT-Provider") == "azure-mai",
+                    $"X-STT-Provider was '{handler.Header("X-STT-Provider")}'");
+                Assert(handler.Header("X-STT-Model") == "mai-transcribe-1.5",
+                    $"X-STT-Model was '{handler.Header("X-STT-Model")}': the user's model (and price) is lost on the wire");
+            });
+
+            RunAsync("routed: google-chirp sends X-STT-Provider google-chirp and no X-STT-Model", async () =>
+            {
+                var (handler, error) = await RunRoutedAsync("google-chirp", null,
+                    HttpStatusCode.OK, "{\"text\":\"hello\"}");
+                Assert(error == null, $"a 200 threw: {error}");
+                Assert(handler.Header("X-STT-Provider") == "google-chirp",
+                    $"X-STT-Provider was '{handler.Header("X-STT-Provider")}'");
+                Assert(handler.Header("X-STT-Model") == null,
+                    $"Google Chirp sent X-STT-Model '{handler.Header("X-STT-Model")}' with no model chosen");
+            });
+
+            RunAsync("routed: the licence key goes in license_key and no device_id is sent", async () =>
+            {
+                var (handler, _) = await RunRoutedAsync("azure-mai", "mai-transcribe-2",
+                    HttpStatusCode.OK, "{\"text\":\"hello\"}");
+                var query = System.Web.HttpUtility.ParseQueryString(handler.LastRequestUri?.Query ?? string.Empty);
+                Assert(query["license_key"] == RoutedTestKey,
+                    $"license_key was '{query["license_key"]}'");
+                Assert(query["device_id"] == null, $"device_id was sent: '{query["device_id"]}'");
+            });
+
+            RunAsync("routed: a 402 with credits_remaining/credits_required maps to InsufficientCredits with both numbers", async () =>
+            {
+                var (_, error) = await RunRoutedAsync("azure-mai", "mai-transcribe-2",
+                    HttpStatusCode.PaymentRequired,
+                    "{\"error\":\"insufficient_credits\",\"message\":\"Not enough credits\",\"credits_remaining\":3,\"credits_required\":12}");
+                Assert(error is TranscriptionException, $"expected a TranscriptionException, got {error?.GetType().Name ?? "none"}");
+                var ex = (TranscriptionException)error!;
+                Assert(ex.IsInsufficientCredits && ex.Code == TranscriptionErrorCode.QuotaExceeded,
+                    $"a 402 mapped to {ex.Code} (insufficient={ex.IsInsufficientCredits}), not the buy-credits path");
+                Assert(ex.HttpStatusCode == 402, $"status was {ex.HttpStatusCode}");
+                Assert(ex.Message.Contains("remaining: 3", StringComparison.Ordinal)
+                        && ex.Message.Contains("required: 12", StringComparison.Ordinal),
+                    $"the credit numbers were lost: '{ex.Message}'");
+            });
+
+            RunAsync("routed: a 413 with max_size_mb/actual_size_mb carries the size context", async () =>
+            {
+                var (_, error) = await RunRoutedAsync("google-chirp", null,
+                    HttpStatusCode.RequestEntityTooLarge,
+                    "{\"error\":\"file_too_large\",\"message\":\"File too large\",\"max_size_mb\":25,\"actual_size_mb\":31.5}");
+                Assert(error is TranscriptionException, $"expected a TranscriptionException, got {error?.GetType().Name ?? "none"}");
+                var ex = (TranscriptionException)error!;
+                Assert(ex.Code == TranscriptionErrorCode.FileTooLarge, $"a 413 mapped to {ex.Code}");
+                Assert(ex.Message.Contains("31.5 MB", StringComparison.Ordinal)
+                        && ex.Message.Contains("25 MB", StringComparison.Ordinal),
+                    $"the size context was lost: '{ex.Message}'");
+            });
+
+            RunAsync("routed: an unlicensed identity throws CloudAccountRequired and sends 0 requests", async () =>
+            {
+                var (handler, error) = await RunRoutedAsync("azure-mai", "mai-transcribe-2",
+                    HttpStatusCode.OK, "{\"text\":\"hello\"}", licensed: false);
+                Assert(error is TranscriptionException { Code: TranscriptionErrorCode.CloudAccountRequired },
+                    $"expected CloudAccountRequired, got {(error as TranscriptionException)?.Code.ToString() ?? error?.GetType().Name ?? "no error"}");
+                Assert(handler.Sends == 0, $"an unlicensed call sent {handler.Sends} request(s)");
+            });
+
             Run("two overlapping Azure MAI requests keep their own model", () =>
             {
                 // REGRESSION GUARD for a billing bug. The first cut of the fix
@@ -25678,6 +25752,62 @@ internal static class Program
             }
 
             return null;
+        }
+    }
+
+    private const string RoutedTestKey = "test-key";
+
+    /// <summary>
+    /// #1421: one call to HyperWhisperRoutedTranscriptionClient with a scripted
+    /// response and an explicit identity. Returns the handler (what went on the
+    /// wire) and the exception, if any.
+    /// </summary>
+    private static async Task<(RoutedCaptureHandler Handler, Exception? Error)> RunRoutedAsync(
+        string sttProvider, string? model, HttpStatusCode status, string body, bool licensed = true)
+    {
+        var handler = new RoutedCaptureHandler(() => new HttpResponseMessage(status)
+        {
+            Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json")
+        });
+        var wav = Path.Combine(Path.GetTempPath(), $"hw-routed-{Guid.NewGuid():N}.wav");
+        await File.WriteAllBytesAsync(wav, new byte[1024]);
+        try
+        {
+            using var client = new HttpClient(handler);
+            await HyperWhisperRoutedTranscriptionClient.TranscribeAsync(
+                client, sttProvider, "Routed test", wav, language: "en", vocabulary: null,
+                CancellationToken.None, model: model, identity: (RoutedTestKey, licensed));
+            return (handler, null);
+        }
+        catch (Exception ex)
+        {
+            return (handler, ex);
+        }
+        finally
+        {
+            File.Delete(wav);
+        }
+    }
+
+    private sealed class RoutedCaptureHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpResponseMessage> _respond;
+        private readonly Dictionary<string, string> _headers = new(StringComparer.OrdinalIgnoreCase);
+        public int Sends;
+        public Uri? LastRequestUri;
+
+        public RoutedCaptureHandler(Func<HttpResponseMessage> respond) => _respond = respond;
+
+        public string? Header(string name) => _headers.TryGetValue(name, out var v) ? v : null;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Sends++;
+            LastRequestUri = request.RequestUri;
+            _headers.Clear();
+            foreach (var h in request.Headers.Concat(request.Content?.Headers ?? Enumerable.Empty<KeyValuePair<string, IEnumerable<string>>>()))
+                _headers[h.Key] = string.Join(",", h.Value);
+            return Task.FromResult(_respond());
         }
     }
 
