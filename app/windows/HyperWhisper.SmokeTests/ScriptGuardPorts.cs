@@ -385,35 +385,73 @@ internal static class ScriptGuardPorts
             }
         });
 
-        run("file transcription: a cancelled conversion throws OperationCanceledException and leaves no temp WAV (#830, was scripts/verify_transcription_cancellation_wiring.ps1)", () =>
+        run("file transcription: a cancel before or during conversion throws OperationCanceledException and leaves no temp WAV (#830, was scripts/verify_transcription_cancellation_wiring.ps1)", () =>
         {
             // Escape during a file transcription must end silently as a cancel. A
-            // cancel reported as a Failure shows an error toast, and a converted
-            // temp WAV left behind fills %TEMP%.
+            // cancel reported as a Failure shows an error toast, and a half-written
+            // converted WAV left behind fills %TEMP%.
             var source = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests", $"g830-cancel-{Guid.NewGuid():N}.wav");
             Directory.CreateDirectory(Path.GetDirectoryName(source)!);
             HashSet<string> Converted() => Directory.EnumerateFiles(Path.GetTempPath(), "hyperwhisper_converted_*.wav").ToHashSet(StringComparer.OrdinalIgnoreCase);
             try
             {
-                // 44.1 kHz stereo, so the call would convert rather than pass through.
+                // Five minutes of 44.1 kHz stereo: the call must convert (not pass
+                // it through), and the conversion runs long enough to cancel inside.
+                const int bytesPerSecond = 44100 * 4;
                 using (var writer = new NAudio.Wave.WaveFileWriter(source, new NAudio.Wave.WaveFormat(44100, 16, 2)))
-                    writer.Write(new byte[44100 * 4], 0, 44100 * 4);
+                {
+                    var second = new byte[bytesPerSecond];
+                    for (var i = 0; i < second.Length; i += 2) second[i] = (byte)(i * 7);
+                    for (var s = 0; s < 300; s++) writer.Write(second, 0, second.Length);
+                }
+
+                Exception? Convert(CancellationToken token)
+                {
+                    try
+                    {
+                        // On the pool: an earlier case leaves a WPF SynchronizationContext on this
+                        // thread, and the method's await would wait for a Dispatcher loop that never runs.
+                        var result = Task.Run(() => FileTranscriptionService.ConvertToWhisperFormatAsync(source, token)).GetAwaiter().GetResult();
+                        if (result.IsSuccess) TryDeleteFile(result.Value!);
+                        Assert(false, $"a cancelled conversion returned a result (success {result.IsSuccess}, error '{result.Error}')");
+                        return null;
+                    }
+                    catch (OperationCanceledException ex)
+                    {
+                        return ex;
+                    }
+                }
 
                 var before = Converted();
-                using var cts = new CancellationTokenSource();
-                cts.Cancel();
-                Exception? thrown = null;
-                try
+                using (var cancelled = new CancellationTokenSource())
                 {
-                    var result = FileTranscriptionService.ConvertToWhisperFormatAsync(source, cts.Token).GetAwaiter().GetResult();
-                    Assert(false, $"a cancelled conversion returned a result (success {result.IsSuccess}, error '{result.Error}')");
+                    cancelled.Cancel();
+                    Assert(Convert(cancelled.Token) != null, "a conversion cancelled before it started did not throw OperationCanceledException");
                 }
-                catch (OperationCanceledException ex)
+
+                // Cancel the moment the converted file appears, i.e. mid-write.
+                using var midway = new CancellationTokenSource();
+                var sawTempFile = false;
+                var watcher = Task.Run(() =>
                 {
-                    thrown = ex;
-                }
-                Assert(thrown != null, "a cancelled conversion did not throw OperationCanceledException");
+                    var clock = Stopwatch.StartNew();
+                    while (!midway.IsCancellationRequested && clock.Elapsed < TimeSpan.FromSeconds(60))
+                    {
+                        if (Converted().Except(before).Any())
+                        {
+                            sawTempFile = true;
+                            midway.Cancel();
+                            return;
+                        }
+                        Thread.Sleep(1);
+                    }
+                });
+                var thrown = Convert(midway.Token);
+                watcher.Wait(TimeSpan.FromSeconds(70));
+                Assert(sawTempFile, "the conversion never wrote a temp file, so the mid-conversion cancel was not exercised");
+                Assert(thrown != null, "a conversion cancelled mid-write did not throw OperationCanceledException");
                 var leaked = Converted().Except(before).ToList();
+                foreach (var path in leaked) TryDeleteFile(path);
                 Assert(leaked.Count == 0, $"a cancelled conversion left {string.Join(", ", leaked)}");
             }
             finally
