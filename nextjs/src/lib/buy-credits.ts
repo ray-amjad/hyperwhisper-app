@@ -427,10 +427,7 @@ function reportHandlerFault(
  */
 export function createBuyCreditsHandler(
   request: BuyCreditsHandlerRequest,
-): (
-  amount: number,
-  tier?: BuyCreditsTier,
-) => Promise<void> {
+): (amount: number, tier?: BuyCreditsTier) => Promise<void> {
   const {
     fetchImpl,
     navigate,
