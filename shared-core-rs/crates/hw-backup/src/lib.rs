@@ -2,11 +2,11 @@
 //! `hw-backup` — cross-platform backup core (sans-I/O).
 //!
 //! M4 scope:
-//! - [`validate`] — lightweight, dependency-free structural validation of a
-//!   universal-v2 backup document against the embedded schema's load-bearing
-//!   invariants (required top-level fields + `schemaVersion == 2` + enums +
-//!   required item keys). Not a full JSON Schema validator — see the module docs
-//!   for the exact limitation.
+//! - [`validate`] — lightweight, dependency-free validation of a universal-v2
+//!   backup document: the embedded schema's required fields, `schemaVersion == 2`
+//!   and the `platform` enum, plus the type of every field
+//!   [`records::UniversalBackup`] decodes, so a document it accepts parses. Not a
+//!   full JSON Schema validator — see the module docs for the exact limitation.
 //! - [`records`] — plain-Rust POD types: the universal-v2 wire format
 //!   ([`records::UniversalBackup`]) and the platform-neutral
 //!   [`records::ModeRecord`] / [`records::SettingsRecord`] /

@@ -25,6 +25,9 @@
 //! (`general`, `textOutput`, …), the values inside `apiKeys` and
 //! `platformExtensions`, and unknown keys (the parser keeps them in `extra`).
 //!
+//! [`validate_str`] also reports a typed field repeated in one object, which the
+//! parser rejects as a `duplicate field`.
+//!
 //! It does **not** enforce `additionalProperties: false` or string formats
 //! (`uuid`, `date-time`). Documents it accepts are guaranteed parseable into
 //! [`crate::records::UniversalBackup`]; each error it returns names the path of
@@ -163,10 +166,16 @@ const VOCABULARY_FIELDS: &[Field] = &[
     opt("source", Kind::String),
 ];
 
+/// [`crate::records::UniversalSettings`]'s categories. Each is an untyped
+/// `Value`, so only a duplicate of one matters (see [`validate_str`]).
+const SETTINGS_KEYS: &[&str] = &["general", "textOutput", "storage", "streaming", "advanced"];
+
 /// Validate a parsed JSON value against the embedded backup schema's structural
 /// invariants and the record model's field types. Returns every error found
 /// (not just the first) so a caller can surface all problems at once. An empty
-/// vec means the document is valid and [`crate::parse_backup`] will accept it.
+/// vec means the document is valid and its JSON text will parse with
+/// [`crate::parse_backup`], unless that text repeats a key: a [`Value`] keeps
+/// only the last copy. [`validate_str`] checks the text for that too.
 pub fn validate_value(doc: &Value) -> Vec<ValidationError> {
     let mut errors = Vec::new();
 
@@ -228,14 +237,158 @@ pub fn validate_value(doc: &Value) -> Vec<ValidationError> {
 }
 
 /// Convenience: validate a raw JSON string. A parse failure is reported as a
-/// single `$` error.
+/// single `$` error. Besides [`validate_value`]'s checks, this reports a typed
+/// field that appears twice in one object (`modes[0].id: duplicate key`), which
+/// [`crate::parse_backup`] rejects and a parsed [`Value`] cannot show. An empty
+/// vec means [`crate::parse_backup`] will accept `json`.
 pub fn validate_str(json: &str) -> Vec<ValidationError> {
-    match serde_json::from_str::<Value>(json) {
+    let mut errors = match serde_json::from_str::<Value>(json) {
         Ok(v) => validate_value(&v),
-        Err(e) => vec![ValidationError {
-            path: "$".to_string(),
-            message: format!("invalid JSON: {e}"),
-        }],
+        Err(e) => {
+            return vec![ValidationError {
+                path: "$".to_string(),
+                message: format!("invalid JSON: {e}"),
+            }]
+        }
+    };
+    let mut de = serde_json::Deserializer::from_str(json);
+    let walk = DuplicateKeys {
+        at: Record::Root,
+        path: String::new(),
+        errors: &mut errors,
+    };
+    // The text already parsed as a `Value` above, so this walk cannot fail.
+    let _ = serde::de::DeserializeSeed::deserialize(walk, &mut de);
+    errors
+}
+
+/// Which record an object in the document decodes into, so the duplicate-key
+/// walk knows which keys are typed fields. Duplicate unknown keys, and keys
+/// inside untyped values, parse fine (the last one wins), so they pass.
+#[derive(Debug, Clone, Copy)]
+enum Record {
+    Root,
+    Settings,
+    Modes,
+    Mode,
+    Vocabulary,
+    VocabularyItem,
+    Untyped,
+}
+
+impl Record {
+    fn has_field(self, key: &str) -> bool {
+        let in_table = |fields: &[Field]| fields.iter().any(|f| f.key == key);
+        match self {
+            Record::Root => key == "schemaVersion" || key == "platform" || in_table(ROOT_FIELDS),
+            Record::Settings => SETTINGS_KEYS.contains(&key),
+            Record::Mode => in_table(MODE_FIELDS),
+            Record::VocabularyItem => in_table(VOCABULARY_FIELDS),
+            Record::Modes | Record::Vocabulary | Record::Untyped => false,
+        }
+    }
+
+    fn field(self, key: &str) -> Record {
+        match (self, key) {
+            (Record::Root, "settings") => Record::Settings,
+            (Record::Root, "modes") => Record::Modes,
+            (Record::Root, "vocabulary") => Record::Vocabulary,
+            _ => Record::Untyped,
+        }
+    }
+
+    fn item(self) -> Record {
+        match self {
+            Record::Modes => Record::Mode,
+            Record::Vocabulary => Record::VocabularyItem,
+            _ => Record::Untyped,
+        }
+    }
+}
+
+/// Walks the JSON text once and reports each repeated typed field.
+struct DuplicateKeys<'a> {
+    at: Record,
+    path: String,
+    errors: &'a mut Vec<ValidationError>,
+}
+
+impl<'de> serde::de::DeserializeSeed<'de> for DuplicateKeys<'_> {
+    type Value = ();
+
+    fn deserialize<D: serde::Deserializer<'de>>(self, deserializer: D) -> Result<(), D::Error> {
+        deserializer.deserialize_any(self)
+    }
+}
+
+impl<'de> serde::de::Visitor<'de> for DuplicateKeys<'_> {
+    type Value = ();
+
+    fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("any JSON value")
+    }
+
+    fn visit_bool<E>(self, _: bool) -> Result<(), E> {
+        Ok(())
+    }
+
+    fn visit_i64<E>(self, _: i64) -> Result<(), E> {
+        Ok(())
+    }
+
+    fn visit_u64<E>(self, _: u64) -> Result<(), E> {
+        Ok(())
+    }
+
+    fn visit_f64<E>(self, _: f64) -> Result<(), E> {
+        Ok(())
+    }
+
+    fn visit_str<E>(self, _: &str) -> Result<(), E> {
+        Ok(())
+    }
+
+    fn visit_unit<E>(self) -> Result<(), E> {
+        Ok(())
+    }
+
+    fn visit_seq<A: serde::de::SeqAccess<'de>>(self, mut seq: A) -> Result<(), A::Error> {
+        let item = self.at.item();
+        let mut i = 0;
+        while seq
+            .next_element_seed(DuplicateKeys {
+                at: item,
+                path: format!("{}[{i}]", self.path),
+                errors: &mut *self.errors,
+            })?
+            .is_some()
+        {
+            i += 1;
+        }
+        Ok(())
+    }
+
+    fn visit_map<A: serde::de::MapAccess<'de>>(self, mut map: A) -> Result<(), A::Error> {
+        let mut seen = std::collections::HashSet::new();
+        while let Some(key) = map.next_key::<String>()? {
+            let path = if self.path.is_empty() {
+                key.clone()
+            } else {
+                format!("{}.{key}", self.path)
+            };
+            if self.at.has_field(&key) && !seen.insert(key.clone()) {
+                self.errors.push(ValidationError {
+                    path: path.clone(),
+                    message: "duplicate key".to_string(),
+                });
+            }
+            map.next_value_seed(DuplicateKeys {
+                at: self.at.field(&key),
+                path,
+                errors: &mut *self.errors,
+            })?;
+        }
+        Ok(())
     }
 }
 
@@ -532,6 +685,26 @@ mod tests {
                 "modes[0].id: must be a string",
                 "modes[0].name: must be a string",
                 "vocabulary[0].word: must be a string",
+            ]
+        );
+    }
+
+    #[test]
+    fn validate_str_reports_a_repeated_typed_field() {
+        let doc = r#"{"schemaVersion":2,"exportDate":"x","appVersion":"1","platform":"macos","exportDate":"y",
+            "settings":{"general":{},"general":{},"custom":1,"custom":2},
+            "modes":[{"id":"a","id":"b","name":"n","extra":1,"extra":2}],
+            "vocabulary":[{"id":"v","word":"w","sortOrder":1,"sortOrder":2}],
+            "apiKeys":{"k":1,"k":2},"unknown":1,"unknown":2}"#;
+        let mut found: Vec<String> = validate_str(doc).iter().map(|e| e.to_string()).collect();
+        found.sort();
+        assert_eq!(
+            found,
+            [
+                "exportDate: duplicate key",
+                "modes[0].id: duplicate key",
+                "settings.general: duplicate key",
+                "vocabulary[0].sortOrder: duplicate key",
             ]
         );
     }
