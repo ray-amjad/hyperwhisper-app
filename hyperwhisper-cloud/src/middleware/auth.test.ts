@@ -1,9 +1,9 @@
-import { afterEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test';
 
 const originalFetch = globalThis.fetch;
 const originalLicenseApiUrl = process.env.NEXTJS_LICENSE_API_URL;
 
-type CachedLicense = { isValid: boolean; credits: number; cachedAt: string; creditPoolId?: string };
+type CachedLicense = { isValid: boolean; credits: number; cachedAt: string; creditPoolId?: string; issuedAtMs?: number };
 
 const cacheWrites: Array<{ licenseKey: string; license: CachedLicense }> = [];
 let cachedLicenseValue: CachedLicense | null = null;
@@ -161,7 +161,25 @@ describe('validateAuth', () => {
 
     await validateAuth({ licenseKey: 'refused-key' });
 
-    expect(cacheWrites[0]?.license).toEqual({ isValid: false, credits: 0, cachedAt: expect.any(String) });
+    expect(cacheWrites[0]?.license).toEqual({ isValid: false, credits: 0, cachedAt: expect.any(String), issuedAtMs: expect.any(Number) });
+  });
+
+  test('stamps the cache write with the time taken BEFORE the validate request went out (#2026)', async () => {
+    const pool = 'b'.repeat(64);
+    const clock = spyOn(Date, 'now').mockReturnValue(1_000);
+    try {
+      globalThis.fetch = mock(async () => {
+        // The reply arrives later: a stamp taken after the fetch reads 9000.
+        clock.mockReturnValue(9_000);
+        return Response.json({ valid: true, credits: 7, credit_pool_id: pool });
+      }) as unknown as typeof fetch;
+
+      await validateAuth({ licenseKey: 'stamped-key' }, true);
+
+      expect(cacheWrites[0]?.license).toMatchObject({ credits: 7, creditPoolId: pool, issuedAtMs: 1_000 });
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   test('sends only the license validation contract to the configured API with a timeout signal', async () => {

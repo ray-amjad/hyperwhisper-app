@@ -16,14 +16,15 @@
 // which says why a raw Upstash error is a credential leak.
 
 import { LICENSE_CACHE_TTL_SECONDS } from './constants';
-import { creditPoolBalanceKey } from './credit-hold-store';
+import { WRITE_POOL_BALANCE_SCRIPT, creditPoolBalanceKey, type CreditPoolBalanceEntry } from './credit-hold-store';
 import { toRedactedLogLine } from './log-redaction';
 import { isRecord } from './utils';
 
-/** The two Upstash commands this module uses. */
+/** The three Upstash commands this module uses. */
 export interface RedisStore {
   get<TData = unknown>(key: string): Promise<TData | null>;
   set(key: string, value: unknown, opts: { ex: number }): Promise<unknown>;
+  eval<TArgs extends unknown[], TData = unknown>(script: string, keys: string[], args: TArgs): Promise<TData>;
 }
 
 /**
@@ -73,6 +74,12 @@ export interface CachedLicense {
    * sent none; holds are then per key.
    */
   creditPoolId?: string;
+  /**
+   * Epoch ms taken just BEFORE the licence API request whose reply this is was
+   * sent (#2026). Orders writes of the pool balance, which several requests
+   * race to write: see `WRITE_POOL_BALANCE_SCRIPT`.
+   */
+  issuedAtMs?: number;
 }
 
 function isCachedLicense(value: unknown): value is CachedLicense {
@@ -107,21 +114,36 @@ export async function getCachedLicense(
 export async function cacheLicense(
   store: RedisStoreFactory,
   licenseKey: string,
-  license: CachedLicense
+  license: CachedLicense,
+  receivedAtMs: number = Date.now(),
 ): Promise<void> {
   try {
     const redis = store();
-    const writes = [redis.set(`license:${licenseKey}`, license, { ex: LICENSE_CACHE_TTL_SECONDS })];
+    const writes: Array<Promise<unknown>> = [
+      redis.set(`license:${licenseKey}`, license, { ex: LICENSE_CACHE_TTL_SECONDS }),
+    ];
     // A pooled key's balance is the USER's (#2026), so it is also the latest
     // word on every other key of that user. The credit-hold script caps a
     // pooled reservation by this entry too, or a key whose own cache predates
-    // a sibling's spend would reserve the spent credits again. Latest write
-    // wins, so a top-up seen on any key lifts it.
+    // a sibling's spend would reserve the spent credits again. The write is a
+    // compare-and-set on when the site was asked, not last-write-wins: a slow
+    // reply to an older request must not replace a newer, lower balance.
     if (license.creditPoolId) {
-      writes.push(redis.set(
-        creditPoolBalanceKey(license.creditPoolId),
-        { credits: license.credits, cachedAt: license.cachedAt },
-        { ex: LICENSE_CACHE_TTL_SECONDS },
+      const entry: CreditPoolBalanceEntry = {
+        credits: license.credits,
+        cachedAt: license.cachedAt,
+        ...(license.issuedAtMs !== undefined ? { issuedAtMs: license.issuedAtMs, receivedAtMs } : {}),
+      };
+      writes.push(redis.eval(
+        WRITE_POOL_BALANCE_SCRIPT,
+        [creditPoolBalanceKey(license.creditPoolId)],
+        [
+          JSON.stringify(entry),
+          String(LICENSE_CACHE_TTL_SECONDS),
+          String(license.credits),
+          license.issuedAtMs !== undefined ? String(license.issuedAtMs) : '',
+          String(receivedAtMs),
+        ],
       ));
     }
     await Promise.all(writes);

@@ -101,6 +101,9 @@ async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationR
   const validateUrl = `${apiBase}/api/license/validate`;
 
   try {
+    // Taken BEFORE the request goes out: the pool balance cache orders replies
+    // by when the site was asked (#2026), see `WRITE_POOL_BALANCE_SCRIPT`.
+    const issuedAtMs = Date.now();
     const response = await fetch(validateUrl, {
       method: 'POST',
       headers: {
@@ -157,6 +160,7 @@ async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationR
       await cacheLicense(licenseKey, {
         ...verdict,
         cachedAt: new Date().toISOString(),
+        issuedAtMs,
       });
     }
 

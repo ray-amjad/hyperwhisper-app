@@ -37,6 +37,9 @@ async function getCreditsBalance(
   const apiBase = (process.env.NEXTJS_LICENSE_API_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
 
   try {
+    // Taken BEFORE the request goes out: the pool balance cache orders replies
+    // by when the site was asked (#2026), see `WRITE_POOL_BALANCE_SCRIPT`.
+    const issuedAtMs = Date.now();
     const response = await fetch(`${apiBase}/api/license/credits?license_key=${encodeURIComponent(licenseKey)}`, {
       method: 'GET',
       signal: AbortSignal.timeout(LICENSE_API_TIMEOUT_MS),
@@ -61,6 +64,7 @@ async function getCreditsBalance(
       credits,
       cachedAt: new Date().toISOString(),
       ...(creditPoolId ? { creditPoolId } : {}),
+      issuedAtMs,
     });
 
     return { credits };

@@ -89,6 +89,57 @@ export function creditPoolBalanceKey(creditPoolId: string): string {
   return `credit_pool_balance:${creditPoolId}`;
 }
 
+/** The JSON `cacheLicense` keeps under `creditPoolBalanceKey`. */
+export interface CreditPoolBalanceEntry {
+  credits: number;
+  cachedAt: string;
+  /** Epoch ms just before the licence API request that reported `credits` was sent. */
+  issuedAtMs?: number;
+  /** Epoch ms when its reply was cached. */
+  receivedAtMs?: number;
+}
+
+// KEYS: pool balance key. ARGV: entry JSON, ttl seconds, credits, issuedAtMs
+// ('' when the caller did not stamp it), receivedAtMs. Returns 1 if written.
+//
+// Writes are ordered by when the licence API was ASKED, not by when the reply
+// got here: several keys of one pool (and concurrent requests on one key) talk
+// to the site at once, and a slow reply to an older question must not replace
+// a newer, lower balance, or a sibling key reserves credits already spent.
+// Each entry is the site's balance at some instant between its request being
+// issued and its reply arriving, so against the stored entry a reading is:
+//   - newer when it was issued after the stored one's reply came back: written,
+//     so a top-up still lifts the pool;
+//   - older when its reply came back before the stored one was issued: dropped;
+//   - otherwise the two were in flight together and either could be the later
+//     balance (two concurrent charges): the LOWER one is kept. A concurrent
+//     top-up can then read low until the next request, which is the safe side.
+// An unstamped reading (a machine still on the old build mid-deploy) never
+// replaces a stamped entry, so it cannot carry an older balance past a newer
+// one; it still replaces an unstamped entry, the old last-write-wins. A stored
+// entry with no stamp, or one that does not parse, is replaced.
+// The stamps are each machine's own clock; Fly hosts are NTP-synced, so skew is
+// milliseconds against site round trips of tens or hundreds.
+export const WRITE_POOL_BALANCE_SCRIPT = `
+local incomingIssued = tonumber(ARGV[4])
+local incomingReceived = tonumber(ARGV[5])
+local raw = redis.call('GET', KEYS[1])
+if raw then
+  local ok, stored = pcall(function() return cjson.decode(raw) end)
+  if ok and type(stored) == 'table' and type(stored.issuedAtMs) == 'number' then
+    if incomingIssued == nil then return 0 end
+    local storedReceived = stored.receivedAtMs
+    if type(storedReceived) ~= 'number' then storedReceived = stored.issuedAtMs end
+    if incomingIssued <= storedReceived then
+      if incomingReceived < stored.issuedAtMs then return 0 end
+      if type(stored.credits) == 'number' and tonumber(ARGV[3]) >= stored.credits then return 0 end
+    end
+  end
+end
+redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2])
+return 1
+`;
+
 export function holdKeys(
   account: string,
   licenseKey: string = account,
@@ -122,8 +173,9 @@ export function holdKeys(
 // cache entry is not the JSON `cacheLicense` writes, that entry is skipped.
 //
 // The minimum does not strand a top-up: every write of a pooled key's cache
-// rewrites the pool entry too, latest write wins, so a higher balance reported
-// on any key replaces a lower one. (A key's own stale entry still caps that
+// rewrites the pool entry too (`WRITE_POOL_BALANCE_SCRIPT`), and a balance the
+// site was asked for after the stored one came back replaces it, higher or
+// lower. (A key's own stale entry still caps that
 // key until it refreshes, exactly as before pools.)
 export const RESERVE_HOLD_SCRIPT = `
 local holds = KEYS[1]

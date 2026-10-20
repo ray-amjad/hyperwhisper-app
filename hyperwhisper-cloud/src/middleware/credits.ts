@@ -142,6 +142,9 @@ async function recordLicenseUsage(
   let accepted = false;
 
   try {
+    // Taken BEFORE the request goes out: the pool balance cache orders replies
+    // by when the site was asked (#2026), see `WRITE_POOL_BALANCE_SCRIPT`.
+    const issuedAtMs = Date.now();
     const response = await fetch(`${apiBase}/api/license/credits`, {
       method: 'POST',
       headers: {
@@ -180,6 +183,7 @@ async function recordLicenseUsage(
         credits: creditsRemaining,
         cachedAt: new Date().toISOString(),
         ...(creditPoolId ? { creditPoolId } : {}),
+        issuedAtMs,
       });
     }
   } catch (error) {

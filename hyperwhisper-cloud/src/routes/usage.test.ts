@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 
 const originalFetch = globalThis.fetch;
 
-const cacheWrites: Array<{ licenseKey: string; license: { isValid: boolean; credits: number; cachedAt: string; creditPoolId?: string } }> = [];
+const cacheWrites: Array<{ licenseKey: string; license: { isValid: boolean; credits: number; cachedAt: string; creditPoolId?: string; issuedAtMs?: number } }> = [];
 // Every key the route looked up in Redis, in order. The route accepts the
 // credential under three query-param names, so this is how a test proves which
 // one won and whether it was trimmed before the lookup.
@@ -191,6 +191,28 @@ describe('usageRoute force refresh', () => {
     expect(response.status).toBe(200);
     expect(cacheWrites).toHaveLength(1);
     expect(cacheWrites[0]?.license).toMatchObject({ isValid: true, credits: 7, creditPoolId: pool });
+  });
+
+  test('stamps the cache write with the time taken BEFORE the balance request went out (#2026)', async () => {
+    const pool = 'a'.repeat(64);
+    const clock = spyOn(Date, 'now').mockReturnValue(1_000);
+    try {
+      withLicenseApi({
+        credits: () => {
+          // The reply arrives later: a stamp taken after the fetch reads 9000.
+          clock.mockReturnValue(9_000);
+          return Response.json({ credits: 7, credit_pool_id: pool });
+        },
+      });
+
+      const response = await buildApp().request('/usage?license_key=test-license&force_refresh=true');
+
+      expect(response.status).toBe(200);
+      expect(cacheWrites).toHaveLength(1);
+      expect(cacheWrites[0]?.license).toMatchObject({ credits: 7, creditPoolId: pool, issuedAtMs: 1_000 });
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   test('drops a malformed credit pool id and caches no pool', async () => {

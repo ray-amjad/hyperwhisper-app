@@ -40,6 +40,7 @@ function cacheStore(): RedisStore {
     async set(key: string, value: unknown, opts: { ex: number }): Promise<unknown> {
       return await client!.send('SET', [key, JSON.stringify(value), 'EX', String(opts.ex)]);
     },
+    eval: evalClient().eval,
   };
 }
 
@@ -266,6 +267,80 @@ describe.skipIf(!redisServerPath)('credit hold keys on redis-server', () => {
     await cacheLicense(cacheStore, 'key-b', { isValid: true, credits: 20, cachedAt: 't2', creditPoolId: poolId });
     const afterTopUp = await store.reserve(request({ account: pool, licenseKey: 'key-b', holdId: 'b', minMilli: 7000, maxMilli: 7000, balanceMilli: 20_000 }));
     expect(afterTopUp.granted).toBe(true);
+  });
+
+  describe('pool balance writes are ordered by when the site was asked (#2026)', () => {
+    const poolId = 'f'.repeat(64);
+    const poolKey = `credit_pool_balance:${poolId}`;
+    const pooled = (credits: number, issuedAtMs?: number) => ({
+      isValid: true,
+      credits,
+      cachedAt: 'x',
+      creditPoolId: poolId,
+      ...(issuedAtMs !== undefined ? { issuedAtMs } : {}),
+    });
+    const poolCredits = async (): Promise<number> => JSON.parse(await client!.send('GET', [poolKey]) as string).credits;
+
+    beforeEach(async () => { await client!.send('FLUSHALL', []); });
+
+    test('a slow reply to an OLDER request does not replace a newer, lower balance', async () => {
+      // Validate asked at t=1000 (balance 10); a charge asked at t=2000,
+      // answered at t=2100 with 2. The validate reply lands last, at t=2500.
+      await cacheLicense(cacheStore, 'key-a', pooled(2, 2000), 2100);
+      await cacheLicense(cacheStore, 'key-b', pooled(10, 1000), 1500);
+      expect(await poolCredits()).toBe(2);
+
+      // So key B cannot reserve the spent credits.
+      const b = await createUpstashCreditHoldStore(evalClient).reserve(request({ account: 'pool:' + poolId, licenseKey: 'key-b', holdId: 'b', minMilli: 5000, maxMilli: 5000, balanceMilli: 10_000 }));
+      expect(b).toEqual({ granted: false, holdMilli: 0, availableMilli: 2000 });
+    });
+
+    test('two charges in flight together keep the LOWER balance whichever lands last', async () => {
+      // Balance 10, two concurrent charges leave 6 then 2; the 6 lands last.
+      await cacheLicense(cacheStore, 'key-a', pooled(2, 1000), 1300);
+      await cacheLicense(cacheStore, 'key-b', pooled(6, 1010), 1400);
+      expect(await poolCredits()).toBe(2);
+      // And the other way round: the 2 lands last.
+      await client!.send('FLUSHALL', []);
+      await cacheLicense(cacheStore, 'key-b', pooled(6, 1010), 1300);
+      await cacheLicense(cacheStore, 'key-a', pooled(2, 1000), 1400);
+      expect(await poolCredits()).toBe(2);
+    });
+
+    test('a NEWER request\'s higher balance (a top-up) still replaces the entry, with a fresh TTL', async () => {
+      await cacheLicense(cacheStore, 'key-a', pooled(2, 1000), 1100);
+      await client!.send('EXPIRE', [poolKey, '10']);
+      await cacheLicense(cacheStore, 'key-b', pooled(20, 1200), 1300);
+      expect(await poolCredits()).toBe(20);
+      expect(Number(await client!.send('TTL', [poolKey]))).toBeGreaterThan(3000);
+    });
+
+    test('a dropped write leaves the stored entry and its TTL alone', async () => {
+      await cacheLicense(cacheStore, 'key-a', pooled(2, 2000), 2100);
+      await client!.send('EXPIRE', [poolKey, '10']);
+      await cacheLicense(cacheStore, 'key-b', pooled(10, 1000), 1500);
+      expect(await poolCredits()).toBe(2);
+      expect(Number(await client!.send('TTL', [poolKey]))).toBeLessThanOrEqual(10);
+    });
+
+    test('an unstamped write never replaces a stamped entry, but replaces an unstamped one', async () => {
+      await cacheLicense(cacheStore, 'key-a', pooled(2, 2000), 2100);
+      await cacheLicense(cacheStore, 'key-b', pooled(10), 9999);
+      expect(await poolCredits()).toBe(2);
+
+      await client!.send('SET', [poolKey, JSON.stringify({ credits: 5, cachedAt: 'legacy' })]);
+      await cacheLicense(cacheStore, 'key-b', pooled(10), 9999);
+      expect(await poolCredits()).toBe(10);
+      // A stamped write replaces a legacy entry, which has no time to compare.
+      await cacheLicense(cacheStore, 'key-a', pooled(3, 1), 2);
+      expect(await poolCredits()).toBe(3);
+    });
+
+    test('an unparseable stored entry is replaced', async () => {
+      await client!.send('SET', [poolKey, 'not json']);
+      await cacheLicense(cacheStore, 'key-a', pooled(4, 1000), 1100);
+      expect(await poolCredits()).toBe(4);
+    });
   });
 
   test('an unpooled hold reads no pool entry', async () => {
