@@ -151,8 +151,7 @@ class HyperWhisperCloudManager: ObservableObject {
         identifierOverride: String?
     ) async throws -> HyperWhisperCloudCredits {
         // Check cache first
-        if identifierOverride == nil,
-           !forceRefresh,
+        if !forceRefresh || identifierOverride != nil,
            let cachedCredits = credits,
            let lastFetch = lastFetchTime,
            Date().timeIntervalSince(lastFetch) < cacheDuration {
@@ -211,10 +210,10 @@ class HyperWhisperCloudManager: ObservableObject {
             guard httpResponse.statusCode == 200 else {
                 // Try to parse error message
                 if let errorJson = try? JSONDecoder().decode([String: String].self, from: data),
-                   let errorMessage = errorJson["message"] ?? errorJson["error"] {
+                   let errorMessage = errorJson["message"] {
                     throw HyperWhisperCloudError.serverError(errorMessage)
                 }
-                throw HyperWhisperCloudError.serverError("HTTP \(httpResponse.statusCode)")
+                throw HyperWhisperCloudError.serverError("Unknown server error")
             }
 
             // Decode response
