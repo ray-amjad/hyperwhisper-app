@@ -13502,7 +13502,7 @@ class FfiConverterTypeHwLocalApiTokenError : FfiConverterRustBuffer<HwLocalApiTo
 /// `TranscriptionErrorCode` and the portable head's
 /// `PortableTranscriptionErrorCode`. Every variant maps onto one of the closed
 /// fourteen [`HwLocalApiErrorCode`]s, so #356 item 4 adds no error code —
-/// `transcription.rs` says so and a unit test walks all 25 to prove it.
+/// `transcription.rs` says so and a unit test walks all 26 to prove it.
 ///
 /// Each head keeps its own error type and maps it onto this on the way to the
 /// wire. Nothing here replaces `TranscriptionError` or `TranscriptionException`.
@@ -13562,10 +13562,14 @@ internal enum HwLocalApiTranscriptionFailureReason: int {
     /// </summary>
     RateLimited,
     /// <summary>
-    /// macOS `.quotaExceeded` / `.insufficientCredits`; Windows
-    /// `QuotaExceeded`.
+    /// macOS `.quotaExceeded`; Windows `QuotaExceeded` from a BYOK provider.
     /// </summary>
     QuotaExceeded,
+    /// <summary>
+    /// macOS `.insufficientCredits`; Windows `QuotaExceeded` with
+    /// `IsInsufficientCredits` set — the HyperWhisper Cloud 402.
+    /// </summary>
+    InsufficientCredits,
     /// <summary>
     /// macOS `.timeout`.
     /// </summary>

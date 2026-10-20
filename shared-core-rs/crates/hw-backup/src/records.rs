@@ -31,6 +31,39 @@ where
     })
 }
 
+/// The optional twin of [`deserialize_integral_i64`]: `null` or an absent key
+/// is `None`, a whole number (`1` or `1.0`) is `Some(1)`, anything else is an
+/// error that names `field`. Keeps the parser in step with the validator, which
+/// checks these fields with [`integral_i64`] too.
+fn deserialize_optional_integral_i64<'de, D>(
+    deserializer: D,
+    field: &str,
+) -> Result<Option<i64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    match Option::<Value>::deserialize(deserializer)? {
+        None => Ok(None),
+        Some(v) => integral_i64(&v).map(Some).ok_or_else(|| {
+            serde::de::Error::custom(format!("{field} must be an integer, got {v}"))
+        }),
+    }
+}
+
+fn deserialize_sort_order<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    deserialize_optional_integral_i64(deserializer, "sortOrder")
+}
+
+fn deserialize_post_processing_mode<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    deserialize_optional_integral_i64(deserializer, "postProcessingMode")
+}
+
 // ============================================================================
 // Universal v2 wire format (parsed 1:1 from the .hwbackup.json file)
 // ============================================================================
@@ -117,7 +150,12 @@ pub struct UniversalMode {
     pub model: Option<String>,
     #[serde(rename = "isDefault", default, skip_serializing_if = "Option::is_none")]
     pub is_default: Option<bool>,
-    #[serde(rename = "sortOrder", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "sortOrder",
+        default,
+        deserialize_with = "deserialize_sort_order",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub sort_order: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub punctuation: Option<bool>,
@@ -162,6 +200,7 @@ pub struct UniversalMode {
     #[serde(
         rename = "postProcessingMode",
         default,
+        deserialize_with = "deserialize_post_processing_mode",
         skip_serializing_if = "Option::is_none"
     )]
     pub post_processing_mode: Option<i64>,
@@ -232,7 +271,12 @@ pub struct UniversalVocabularyItem {
     pub word: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub replacement: Option<String>,
-    #[serde(rename = "sortOrder", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "sortOrder",
+        default,
+        deserialize_with = "deserialize_sort_order",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub sort_order: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
