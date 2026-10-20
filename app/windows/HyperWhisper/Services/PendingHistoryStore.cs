@@ -14,9 +14,19 @@ namespace HyperWhisper.Services;
 /// on the next launch. Updates to such a transcript (the finished text, a failed
 /// status, a compressed audio path) land here instead of being lost.
 ///
-/// NOT THREAD-SAFE on its own: every call is made under HistoryService's lock.
-/// The file is only a durability copy; the in-memory list is authoritative for this
-/// process, and an id held here is never also a row in the database.
+/// WRITE-AHEAD: every new History row is written here BEFORE its insert starts
+/// (<see cref="BeginWriteAhead"/>) and removed once the insert commits
+/// (<see cref="EndWriteAhead"/>). An app that exits while the insert still waits for the
+/// lock leaves the record on disk, and the next launch saves it (as Failed, "Interrupted").
+/// Until the insert ends, the record is invisible to every in-session reader
+/// (<see cref="Count"/>, <see cref="Get"/>, <see cref="GetAll"/>, <see cref="Remove(IEnumerable{Guid})"/>):
+/// the caller has not got the row yet, so History, the Local API and the flush must not
+/// see it, and the flush must never insert it under its own insert.
+///
+/// Thread-safe: every member takes the store's own lock, which never waits on the
+/// database, so the write-ahead does not queue behind an insert holding HistoryService's
+/// lock. The file is only a durability copy; the in-memory list is authoritative for this
+/// process, and a visible id held here is never also a row in the database.
 /// </summary>
 internal sealed class PendingHistoryStore
 {
@@ -29,11 +39,15 @@ internal sealed class PendingHistoryStore
     };
 
     private readonly string _filePath;
+    private readonly object _sync = new();
     private List<Transcript>? _records;
+
+    /// <summary>Ids whose insert is still running: on disk, hidden from every reader.</summary>
+    private readonly HashSet<Guid> _writeAhead = new();
 
     /// <summary>
     /// The last file write failed, so the file does not match the list. Every later
-    /// Upsert/Remove rewrites the whole list, which retries it.
+    /// change rewrites the whole list, which retries it.
     /// </summary>
     private bool _saveFailed;
 
@@ -47,17 +61,36 @@ internal sealed class PendingHistoryStore
     /// <summary>The store the app uses: <c>pending-history.json</c> in the profile root.</summary>
     public static string DefaultPath => Path.Combine(AppPaths.AppDataRoot, FileName);
 
-    public int Count => Records.Count;
-
-    /// <summary>A copy of the pending record, or null when the id is not pending.</summary>
-    public Transcript? Get(Guid id)
+    /// <summary>The number of pending rows, write-ahead records excluded.</summary>
+    public int Count
     {
-        var record = Records.FirstOrDefault(r => r.Id == id);
-        return record == null ? null : Clone(record);
+        get
+        {
+            lock (_sync)
+            {
+                return _writeAhead.Count == 0 ? Records.Count : Records.Count(IsVisible);
+            }
+        }
     }
 
-    /// <summary>Copies of every pending record, oldest first.</summary>
-    public List<Transcript> GetAll() => Records.Select(Clone).ToList();
+    /// <summary>A copy of the pending record, or null when the id is not pending (or only written ahead).</summary>
+    public Transcript? Get(Guid id)
+    {
+        lock (_sync)
+        {
+            var record = Records.FirstOrDefault(r => r.Id == id && IsVisible(r));
+            return record == null ? null : Clone(record);
+        }
+    }
+
+    /// <summary>Copies of every pending record, oldest first, write-ahead records excluded.</summary>
+    public List<Transcript> GetAll()
+    {
+        lock (_sync)
+        {
+            return Records.Where(IsVisible).Select(Clone).ToList();
+        }
+    }
 
     /// <summary>
     /// Adds the record, or replaces the one with the same id, and saves the file.
@@ -68,6 +101,70 @@ internal sealed class PendingHistoryStore
     {
         ArgumentNullException.ThrowIfNull(transcript);
 
+        lock (_sync)
+        {
+            Put(transcript);
+            return Save();
+        }
+    }
+
+    /// <summary>
+    /// Writes a new row to the file before its insert starts, hidden from readers.
+    /// Returns false when the file could not be written.
+    /// </summary>
+    public bool BeginWriteAhead(Transcript transcript)
+    {
+        ArgumentNullException.ThrowIfNull(transcript);
+
+        lock (_sync)
+        {
+            Put(transcript);
+            _writeAhead.Add(transcript.Id);
+            return Save();
+        }
+    }
+
+    /// <summary>
+    /// The insert of a written-ahead row ended. <paramref name="inserted"/>: it committed,
+    /// so the record goes (a remove that never reaches the file is dropped at the next
+    /// flush, the database wins). Otherwise the record becomes an ordinary pending row,
+    /// visible to readers. Returns false when the file still does not hold the list.
+    /// </summary>
+    public bool EndWriteAhead(Guid id, bool inserted)
+    {
+        lock (_sync)
+        {
+            if (!_writeAhead.Remove(id)) return !_saveFailed;
+            if (inserted)
+            {
+                Records.RemoveAll(r => r.Id == id);
+                return Save();
+            }
+            return _saveFailed ? Save() : true;
+        }
+    }
+
+    /// <summary>
+    /// Removes the visible records with these ids and saves the file. Returns how many
+    /// went. A write-ahead record is never removed here; only its insert ends it.
+    /// </summary>
+    public int Remove(IEnumerable<Guid> ids)
+    {
+        var idSet = ids.ToHashSet();
+        lock (_sync)
+        {
+            var removed = Records.RemoveAll(r => idSet.Contains(r.Id) && IsVisible(r));
+            if (removed > 0 || _saveFailed) Save();
+            return removed;
+        }
+    }
+
+    public bool Remove(Guid id) => Remove(new[] { id }) > 0;
+
+    private bool IsVisible(Transcript record) => !_writeAhead.Contains(record.Id);
+
+    private void Put(Transcript transcript)
+    {
         var records = Records;
         var index = records.FindIndex(r => r.Id == transcript.Id);
         var copy = Clone(transcript);
@@ -75,19 +172,7 @@ internal sealed class PendingHistoryStore
             records[index] = copy;
         else
             records.Add(copy);
-        return Save();
     }
-
-    /// <summary>Removes the records with these ids and saves the file. Returns how many went.</summary>
-    public int Remove(IEnumerable<Guid> ids)
-    {
-        var idSet = ids.ToHashSet();
-        var removed = Records.RemoveAll(r => idSet.Contains(r.Id));
-        if (removed > 0 || _saveFailed) Save();
-        return removed;
-    }
-
-    public bool Remove(Guid id) => Remove(new[] { id }) > 0;
 
     /// <summary>
     /// The records read from disk on first use. Anything on disk at that point was left
@@ -138,7 +223,10 @@ internal sealed class PendingHistoryStore
 
     private bool Save() => Save(Records);
 
-    /// <summary>Writes the list (or deletes the file when it is empty). Never throws.</summary>
+    /// <summary>
+    /// Writes the list (or deletes the file when it is empty). Never throws. Caller holds
+    /// <see cref="_sync"/>.
+    /// </summary>
     private bool Save(List<Transcript> records)
     {
         try

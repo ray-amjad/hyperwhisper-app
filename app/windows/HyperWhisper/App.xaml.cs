@@ -479,6 +479,8 @@ public partial class App : WpfApplication
         // a row whose pending-history.json write also failed is not lost with the
         // process. On the thread pool with a short wait: a still-held lock would block
         // the full 30 s busy timeout, and a killed write rolls back (the file keeps the rows).
+        // A row whose insert is still waiting is not lost either: it was written ahead to
+        // pending-history.json before the insert began, and the next launch saves it.
         try
         {
             var flush = Task.Run(() => HistoryService.Instance.FlushPendingTranscripts());

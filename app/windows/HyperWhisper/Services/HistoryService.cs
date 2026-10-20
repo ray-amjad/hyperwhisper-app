@@ -59,11 +59,26 @@ public class HistoryService
 
     /// <summary>
     /// Rows the database refused to insert (#1589), kept outside it until the next
-    /// successful write or the next launch. Read and written under <see cref="_lock"/> only.
+    /// successful write or the next launch, plus the write-ahead copy of each insert
+    /// still running (hidden from readers).
     /// </summary>
     private PendingHistoryStore? _pendingStore;
 
-    private PendingHistoryStore Pending => _pendingStore ??= new PendingHistoryStore(PendingHistoryStore.DefaultPath);
+    /// <summary>
+    /// The store is thread-safe on its own lock, so the write-ahead and the statistics
+    /// read reach it without <see cref="_lock"/> (which an insert can hold for the 30 s
+    /// busy wait). Everything else still uses it under <see cref="_lock"/>.
+    /// </summary>
+    private PendingHistoryStore Pending
+    {
+        get
+        {
+            var store = Volatile.Read(ref _pendingStore);
+            if (store != null) return store;
+            Interlocked.CompareExchange(ref _pendingStore, new PendingHistoryStore(PendingHistoryStore.DefaultPath), null);
+            return Volatile.Read(ref _pendingStore)!;
+        }
+    }
 
     /// <summary>
     /// What a row left Processing by a dead process says. Shared by the startup recovery
@@ -115,6 +130,31 @@ public class HistoryService
     }
 
     /// <summary>
+    /// The pending rows (#1589) that pass <paramref name="match"/> and are not database
+    /// rows already (a stale record a flush has not dropped yet: the database wins).
+    /// Every reader merges these with its database rows, so a row the database refused
+    /// is in every list, count and sweep until it is saved. Caller holds <see cref="_lock"/>.
+    /// </summary>
+    private List<Transcript> PendingRowsNotInDatabase(HyperWhisperDbContext context, Func<Transcript, bool> match)
+    {
+        if (Pending.Count == 0) return new List<Transcript>();
+        var rows = Pending.GetAll().Where(match).ToList();
+        if (rows.Count == 0) return rows;
+        var ids = rows.Select(r => r.Id).ToList();
+        var inDatabase = context.Transcripts.AsNoTracking()
+            .Where(t => ids.Contains(t.Id)).Select(t => t.Id).ToHashSet();
+        return inDatabase.Count == 0 ? rows : rows.Where(r => !inDatabase.Contains(r.Id)).ToList();
+    }
+
+    /// <summary>
+    /// The pending rows (#1589) for <see cref="WindowsStatisticsTranscriptProvider"/>. Read
+    /// from the thread-safe store without <see cref="_lock"/>, so the statistics never wait
+    /// on an insert. Read it BEFORE the database rows and drop the ids the database
+    /// returned: a row flushed in between is then counted once, never zero times.
+    /// </summary>
+    internal List<Transcript> GetPendingTranscriptsSnapshot() => Pending.GetAll();
+
+    /// <summary>
     /// One Local API <c>/recordings</c> page, filtered, counted and limited in SQL
     /// rather than over the whole table (issue #1123). The match rule is the one the
     /// endpoint always had: <c>Contains(q, OrdinalIgnoreCase)</c> over Text,
@@ -151,17 +191,40 @@ public class HistoryService
             rows = hasTerm
                 ? rows.OrderByDescending(t => EF.Functions.Collate(t.Date, "RTRIM"))
                 : rows.OrderByDescending(t => t.Date);
+            // Rows the database refused to insert (#1589), filtered by the same rule in
+            // memory, then merged into the page and the total.
+            var pending = PendingRowsNotInDatabase(context, t =>
+                (since is not { } f || t.Date >= f) &&
+                (until is not { } u || t.Date <= u) &&
+                (!hasTerm || MatchesTerm(t, q!)));
             if (exactInSql)
             {
                 var page = rows.Take(limit).ToList();
-                return (page, page.Count < limit ? page.Count : rows.Count());
+                var total = page.Count < limit ? page.Count : rows.Count();
+                return WithPending(page, total, pending, limit);
             }
-            var matches = rows.AsEnumerable().Where(t =>
-                (t.Text?.Contains(q!, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (t.PostProcessedText?.Contains(q!, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (t.TranscribedText?.Contains(q!, StringComparison.OrdinalIgnoreCase) ?? false)).ToList();
-            return (matches.Take(limit).ToList(), matches.Count);
+            var matches = rows.AsEnumerable().Where(t => MatchesTerm(t, q!)).ToList();
+            return WithPending(matches.Take(limit).ToList(), matches.Count, pending, limit);
         }
+    }
+
+    /// <summary>The <see cref="QueryPage"/> match rule, in memory.</summary>
+    private static bool MatchesTerm(Transcript t, string q) =>
+        (t.Text?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
+        (t.PostProcessedText?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
+        (t.TranscribedText?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    /// <summary>
+    /// Merges matching pending rows into a newest-first database page. The page holds the
+    /// database's top <paramref name="limit"/>, so the top of the union is in it or in
+    /// <paramref name="pending"/>; the total counts both.
+    /// </summary>
+    private static (List<Transcript> Page, int Total) WithPending(
+        List<Transcript> page, int total, List<Transcript> pending, int limit)
+    {
+        if (pending.Count == 0) return (page, total);
+        var merged = page.Concat(pending).OrderByDescending(t => t.Date).Take(limit).ToList();
+        return (merged, total + pending.Count);
     }
 
     /// <summary>
@@ -190,10 +253,14 @@ public class HistoryService
             try
             {
                 using var context = new HyperWhisperDbContext();
-                return context.Transcripts
+                var rows = context.Transcripts
                     .Where(t => t.Date < cutoffDate)
                     .OrderBy(t => t.Date)  // Oldest first
                     .ToList();
+
+                // A pending row (#1589) past the cutoff is swept too; DeleteTranscripts drops it.
+                var pending = PendingRowsNotInDatabase(context, t => t.Date < cutoffDate);
+                return pending.Count == 0 ? rows : rows.Concat(pending).OrderBy(t => t.Date).ToList();
             }
             catch (Exception ex)
             {
@@ -218,40 +285,51 @@ public class HistoryService
             var queryable = context.Transcripts.AsQueryable();
 
             // Apply text search filter (case-insensitive)
+            string? lowerQuery = null;
             if (!string.IsNullOrWhiteSpace(query))
             {
-                var lowerQuery = query.ToLowerInvariant();
+                lowerQuery = query.ToLowerInvariant();
                 queryable = queryable.Where(t => t.Text.ToLower().Contains(lowerQuery));
             }
 
-            // Apply date filter (UTC comparisons)
-            var now = DateTime.UtcNow;
-            switch (filter)
+            // Apply date filter (UTC comparisons); DateFilter.All has no bounds
+            var (start, end) = DateFilterBounds(filter, DateTime.UtcNow);
+            if (start is { } from && end is { } to)
             {
-                case DateFilter.Today:
-                    var todayStart = now.Date;
-                    var todayEnd = todayStart.AddDays(1);
-                    queryable = queryable.Where(t => t.Date >= todayStart && t.Date < todayEnd);
-                    break;
-
-                case DateFilter.ThisWeek:
-                    var weekStart = now.Date.AddDays(-(int)now.DayOfWeek);
-                    var weekEnd = weekStart.AddDays(7);
-                    queryable = queryable.Where(t => t.Date >= weekStart && t.Date < weekEnd);
-                    break;
-
-                case DateFilter.ThisMonth:
-                    var monthStart = new DateTime(now.Year, now.Month, 1);
-                    var monthEnd = monthStart.AddMonths(1);
-                    queryable = queryable.Where(t => t.Date >= monthStart && t.Date < monthEnd);
-                    break;
-
-                // DateFilter.All - no filter
+                queryable = queryable.Where(t => t.Date >= from && t.Date < to);
             }
 
-            return queryable
+            var rows = queryable
                 .OrderByDescending(t => t.Date)
                 .ToList();
+
+            // Rows the database refused to insert (#1589), by the same filters.
+            var pending = PendingRowsNotInDatabase(context, t =>
+                (lowerQuery == null || (t.Text ?? "").ToLowerInvariant().Contains(lowerQuery)) &&
+                (start is not { } s || (t.Date >= s && t.Date < end)));
+            return pending.Count == 0 ? rows : rows.Concat(pending).OrderByDescending(t => t.Date).ToList();
+        }
+    }
+
+    /// <summary>The [start, end) UTC window of a <see cref="DateFilter"/>; nulls for All.</summary>
+    private static (DateTime? Start, DateTime? End) DateFilterBounds(DateFilter filter, DateTime now)
+    {
+        switch (filter)
+        {
+            case DateFilter.Today:
+                var todayStart = now.Date;
+                return (todayStart, todayStart.AddDays(1));
+
+            case DateFilter.ThisWeek:
+                var weekStart = now.Date.AddDays(-(int)now.DayOfWeek);
+                return (weekStart, weekStart.AddDays(7));
+
+            case DateFilter.ThisMonth:
+                var monthStart = new DateTime(now.Year, now.Month, 1);
+                return (monthStart, monthStart.AddMonths(1));
+
+            default:
+                return (null, null);
         }
     }
 
@@ -274,7 +352,11 @@ public class HistoryService
     /// <param name="modeName">Name of the mode used</param>
     /// <param name="audioFilePath">Path to the audio file, or null for streaming sessions without saved audio</param>
     /// <returns>The created transcript</returns>
-    public Transcript CreateProcessingTranscript(double duration, string? modeName, string? audioFilePath) =>
+    /// <remarks>
+    /// Internal (#1589): it waits for the lock on the calling thread, so no UI caller may
+    /// use it. HyperWhisper.SmokeTests seeds rows with it.
+    /// </remarks>
+    internal Transcript CreateProcessingTranscript(double duration, string? modeName, string? audioFilePath) =>
         InsertProcessingTranscript(NewProcessingTranscript(duration, modeName, audioFilePath)).Transcript;
 
     /// <summary>
@@ -305,6 +387,16 @@ public class HistoryService
         var savedLater = false;
         var databaseLocked = false;
 
+        // WRITE-AHEAD (#1589): the row reaches pending-history.json before the insert can
+        // wait for the lock, and before this thread queues on _lock behind another write.
+        // An app closed mid-wait (OnExit gives the flush only 5 s) leaves it on disk and
+        // the next launch saves it, Failed "Interrupted". Hidden from readers until the
+        // insert ends. Costs one small file write and one delete per dictation.
+        if (!Pending.BeginWriteAhead(transcript))
+        {
+            LoggingService.Warn($"HistoryService: Could not write ahead transcript {transcript.Id}; inserting without it");
+        }
+
         lock (_lock)
         {
             try
@@ -313,6 +405,9 @@ public class HistoryService
                 context.Transcripts.Add(transcript);
                 context.SaveChanges();
                 LoggingService.Info($"HistoryService: Created processing transcript {transcript.Id}");
+                // Committed: the record goes. If the remove never reaches the file, the
+                // next flush finds the row in the database and drops it (the database wins).
+                Pending.EndWriteAhead(transcript.Id, inserted: true);
                 FlushPendingLocked();
             }
             catch (Exception ex) when (IsRefusedWrite(ex))
@@ -323,12 +418,20 @@ public class HistoryService
                 databaseLocked = IsDatabaseBusy(ex);
                 LoggingService.Error(
                     $"HistoryService: Failed to create transcript {transcript.Id} ({(databaseLocked ? "database locked" : "write refused")}); kept it to save later", ex);
-                if (!Pending.Upsert(transcript))
+                // The written-ahead record becomes an ordinary pending row.
+                if (!Pending.EndWriteAhead(transcript.Id, inserted: false))
                 {
                     LoggingService.Error(
                         $"HistoryService: Transcript {transcript.Id} is held in memory only (pending-history.json could not be written); it is lost if the app exits before the database takes it");
                 }
                 savedLater = true;
+            }
+            catch
+            {
+                // Not a refusal: the caller aborts as before, with no row. Drop the record
+                // so the next launch does not save it as an "Interrupted" row.
+                Pending.EndWriteAhead(transcript.Id, inserted: true);
+                throw;
             }
         }
 
