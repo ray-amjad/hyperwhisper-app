@@ -100,8 +100,27 @@
                                       AutomationProperties.Name="{loc:Loc menu.microphone}"
                                       ItemsSource="{Binding Options}"
                                       SelectedItem="{Binding SelectedOption, Mode=TwoWay}"
-                                      DisplayMemberPath="Label"
-                                      IsEnabled="{Binding CanPick}"/>
+                                      HorizontalContentAlignment="Stretch"
+                                      IsEnabled="{Binding CanPick}">
+                                <!-- Only the device name is ellipsized, so the closed box
+                                     always shows " (not connected)" in full (it read
+                                     "…Virtual  (not" at 260px). -->
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ToolTip="{Binding Label}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding LabelPrefix}"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding LabelName}"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding LabelSuffix}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
                         </Grid>
 
                         <!-- Saved device unplugged: one amber line, the choice is kept. -->

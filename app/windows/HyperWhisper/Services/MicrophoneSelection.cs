@@ -67,7 +67,18 @@ public sealed record MicrophoneResolution(
 /// two same-named devices are two different rows; null for the Default and
 /// "(not connected)" rows.
 /// </summary>
-public sealed record MicrophoneOption(string? Name, string Label, bool IsDefault, bool IsMissing, int? DeviceNumber = null);
+public sealed record MicrophoneOption(string? Name, string Label, bool IsDefault, bool IsMissing, int? DeviceNumber = null)
+{
+    /// <summary>
+    /// <see cref="Label"/> split around the device name, so the picker can
+    /// ellipsize the name alone and always show the rest. For a
+    /// "(not connected)" row: "", "Scarlett 2i2 USB", " (not connected)".
+    /// Other rows carry the whole label in <see cref="LabelName"/>.
+    /// </summary>
+    public string LabelPrefix { get; init; } = "";
+    public string LabelName { get; init; } = Label;
+    public string LabelSuffix { get; init; } = "";
+}
 
 public static class MicrophoneSelection
 {
@@ -232,7 +243,13 @@ public static class MicrophoneSelection
 
         if (resolution.IsSavedMissing && resolution.SavedName != null)
         {
-            var missing = new MicrophoneOption(resolution.SavedName, NotConnectedLabel(resolution.SavedName), IsDefault: false, IsMissing: true);
+            var (prefix, name, suffix) = NotConnectedLabelParts(resolution.SavedName);
+            var missing = new MicrophoneOption(resolution.SavedName, NotConnectedLabel(resolution.SavedName), IsDefault: false, IsMissing: true)
+            {
+                LabelPrefix = prefix,
+                LabelName = name,
+                LabelSuffix = suffix,
+            };
             options.Add(missing);
             selected = missing;
         }
@@ -247,8 +264,27 @@ public static class MicrophoneSelection
             : Localization.Loc.S("settings.sound.microphone.default", defaultDeviceName);
 
     /// <summary>"Scarlett 2i2 USB (not connected)".</summary>
+    /// <remarks>
+    /// The name is trimmed: a WaveIn name cut at 31 characters can end in a
+    /// space, which read as "Virtual  (not connected)".
+    /// </remarks>
     public static string NotConnectedLabel(string savedName) =>
-        Localization.Loc.S("settings.sound.microphone.notConnected", savedName);
+        Localization.Loc.S("settings.sound.microphone.notConnected", savedName.Trim());
+
+    /// <summary>
+    /// <see cref="NotConnectedLabel"/> as the text before the name, the name and
+    /// the text after it, wherever a translation puts the name.
+    /// </summary>
+    public static (string Prefix, string Name, string Suffix) NotConnectedLabelParts(string savedName)
+    {
+        const string marker = "\u0001";
+        var name = savedName.Trim();
+        var template = Localization.Loc.S("settings.sound.microphone.notConnected", marker);
+        var at = template.IndexOf(marker, StringComparison.Ordinal);
+        if (at < 0)
+            return ("", NotConnectedLabel(savedName), "");
+        return (template[..at], name, template[(at + marker.Length)..]);
+    }
 
     /// <summary>
     /// The amber line under a disconnected choice, or null when there is none:

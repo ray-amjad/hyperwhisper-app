@@ -1908,6 +1908,24 @@ internal static class Program
                 Assert(rows.Count == 1 && selected.IsDefault, "only the Default row remains, selected");
             });
 
+            Run("Microphone picker, (not connected) row splits around the name so only the name is ellipsized", () =>
+            {
+                // A WaveIn name cut at 31 characters can end in a space.
+                const string savedName = "CABLE Output (VB-Audio Virtual ";
+                var resolution = MicrophoneSelection.Resolve(new List<AudioDeviceService.AudioDevice>(), savedName, null);
+                var (_, selected) = MicrophoneSelection.BuildOptions(new List<AudioDeviceService.AudioDevice>(), resolution);
+
+                Assert(selected.LabelName == savedName.Trim(), $"the name part is the trimmed name, got '{selected.LabelName}'");
+                Assert(selected.LabelSuffix.Length > 0, "the (not connected) text sits outside the ellipsized name");
+                Assert(selected.LabelPrefix + selected.LabelName + selected.LabelSuffix == selected.Label,
+                    $"the parts rebuild the label, got '{selected.LabelPrefix}|{selected.LabelName}|{selected.LabelSuffix}' for '{selected.Label}'");
+                Assert(!selected.Label.Contains("  "), $"no double space before the suffix, got '{selected.Label}'");
+
+                var row = new MicrophoneOption("USB Mic", "USB Mic", IsDefault: false, IsMissing: false, 0);
+                Assert(row.LabelPrefix == "" && row.LabelName == "USB Mic" && row.LabelSuffix == "",
+                    "a connected row carries its whole label as the name");
+            });
+
             Run("Microphone picker: same-named devices keep the exact device picked", () =>
             {
                 // Two identical USB microphones: one WaveIn name, two device numbers.
