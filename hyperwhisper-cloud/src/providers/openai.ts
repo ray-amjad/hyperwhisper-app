@@ -35,7 +35,7 @@ const KEYWORDS_MODELS = new Set(['gpt-transcribe']);
 // does not. gpt-transcribe was billed on the byte estimate alone, which reads a
 // 16 kHz mono WAV as ~4x its length; since #797 aliases whisper-1 and
 // gpt-4o-transcribe to it, that would have tripled their bill.
-const DURATION_BILLED_MODELS: ReadonlySet<string> = new Set(['whisper-1', 'gpt-transcribe', 'gpt-live-transcribe']);
+const DURATION_BILLED_MODELS: ReadonlySet<string> = new Set(['whisper-1', 'gpt-transcribe']);
 // OpenAI encodes array parameters on this endpoint with a trailing `[]`, one
 // field per element — the same shape as the documented
 // `timestamp_granularities[]`.
