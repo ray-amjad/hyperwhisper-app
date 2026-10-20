@@ -269,7 +269,7 @@ jobs:
             if ($proc.ExitCode -ne 0) { throw "Inno Setup installer exited $($proc.ExitCode)" }
             if (-not (Test-Iscc)) { throw "ISCC at $iscc did not compile a probe script after installing Inno Setup $env:INNOSETUP_VERSION" }
           }
-          Write-Host "Using Inno Setup $((Get-Item $iscc).VersionInfo.ProductVersion) at $iscc"
+          Write-Host "Using Inno Setup at $iscc"
         id: t
         continue-on-error: true
       - name: Tool runs in a later step
@@ -334,7 +334,7 @@ jobs:
             if ($proc.ExitCode -ne 0) { throw "Inno Setup installer exited $($proc.ExitCode)" }
             if (-not (Test-Iscc)) { throw "ISCC at $iscc did not compile a probe script after installing Inno Setup $env:INNOSETUP_VERSION" }
           }
-          Write-Host "Using Inno Setup $((Get-Item $iscc).VersionInfo.ProductVersion) at $iscc"
+          Write-Host "Using Inno Setup at $iscc"
         id: t
         continue-on-error: true
       - name: Tool runs in a later step
@@ -399,7 +399,7 @@ jobs:
             if ($proc.ExitCode -ne 0) { throw "Inno Setup installer exited $($proc.ExitCode)" }
             if (-not (Test-Iscc)) { throw "ISCC at $iscc did not compile a probe script after installing Inno Setup $env:INNOSETUP_VERSION" }
           }
-          Write-Host "Using Inno Setup $((Get-Item $iscc).VersionInfo.ProductVersion) at $iscc"
+          Write-Host "Using Inno Setup at $iscc"
         id: t
         continue-on-error: true
       - name: Assert outcome
