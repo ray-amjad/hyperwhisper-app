@@ -967,7 +967,7 @@ class TranscriptionProviderRouter {
         case .unreachable:
             return .transientNetwork(details: "Provider unreachable")
         case .notInstalled:
-            return .modelNotDownloaded
+            return .modelNotDownloaded()
         case .checking, .unknown:
             return .providerNotAvailable(provider: providerDisplayName, reason: "Provider health check failed")
         case .healthy, .configured:
