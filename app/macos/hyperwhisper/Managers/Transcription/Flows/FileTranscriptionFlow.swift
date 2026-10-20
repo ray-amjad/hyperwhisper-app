@@ -1260,8 +1260,8 @@ class FileTranscriptionFlow {
     /// put the action first, and the fix is the likely next step. Anything
     /// else, or no error, gets OK alone, as before.
     nonisolated static func errorAlertButtons(for error: Error?) -> [ErrorAlertButton] {
-        // Matched without its payload, so it holds whether or not the case
-        // carries the model and mode (#1518).
+        // Matched with no payload binding, so it still holds when PR #2162
+        // (#1518) gives the case optional model and mode values.
         if case .modelNotDownloaded? = error as? TranscriptionError {
             return [.openModelLibrary, .ok]
         }
