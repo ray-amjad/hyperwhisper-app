@@ -23331,7 +23331,10 @@ internal static class Program
 
                 var settings = SettingsService.Instance;
                 var settingsFile = Path.Combine(AppPaths.AppDataRoot, "settings.json");
-                settings.CancelShortcut = settings.CancelShortcut; // make sure the file exists
+                // Two real changes, so settings.json exists whatever ran before this case.
+                var cancelBefore = settings.CancelShortcut;
+                settings.CancelShortcut = KeyboardShortcut.FromPersistedString("F14");
+                settings.CancelShortcut = cancelBefore;
                 var original = File.ReadAllText(settingsFile);
 
                 void SeedAndReload(string toggle, string cancel, string changeMode, string streaming)
@@ -23358,11 +23361,12 @@ internal static class Program
                     Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Shift+Space",
                         $"a stored bare Alt must load as the Streaming default, got '{settings.StreamingShortcut}'");
 
-                    // LOAD keeps every legal value, Unassigned included, exactly.
-                    SeedAndReload("Shift+A", "F13", "", "Ctrl+Win");
+                    // LOAD keeps every legal value exactly. (A blank stored value already
+                    // reads as the default through GetShortcutOrDefault.)
+                    SeedAndReload("Shift+A", "F13", "Ctrl+Shift+J", "Ctrl+Win");
                     Assert(settings.ToggleShortcut.ToPersistedString() == "Shift+A", $"Shift+A must survive load, got '{settings.ToggleShortcut}'");
                     Assert(settings.CancelShortcut.ToPersistedString() == "F13", $"F13 must survive load, got '{settings.CancelShortcut}'");
-                    Assert(settings.ChangeModeShortcut.IsEmpty, $"Unassigned must survive load, got '{settings.ChangeModeShortcut}'");
+                    Assert(settings.ChangeModeShortcut.ToPersistedString() == "Ctrl+Shift+J", $"Ctrl+Shift+J must survive load, got '{settings.ChangeModeShortcut}'");
                     Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Win", $"Ctrl+Win must survive load, got '{settings.StreamingShortcut}'");
 
                     // IMPORT, Windows slice: each unsafe role resets to its DEFAULT, not
