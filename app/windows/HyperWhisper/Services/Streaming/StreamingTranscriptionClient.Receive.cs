@@ -191,26 +191,26 @@ public sealed partial class StreamingTranscriptionClient
     // is published (see TryChangeStateCore).
     private void RecordTerminalClose(int closeCode, WebSocketReceiveResult result)
     {
-    _receivedTerminalClose = true;
-    var message = closeCode switch
-    {
-        4001 => "Streaming stopped because credits are exhausted.",
-        4002 => "Streaming stopped because the maximum session duration was reached.",
-        _ => string.IsNullOrWhiteSpace(result.CloseStatusDescription)
-            ? $"Streaming connection was closed by the provider (code {closeCode})."
-            : $"Streaming connection was closed by the provider: {result.CloseStatusDescription}"
-    };
-
-    LoggingService.Warn($"StreamingTranscriptionClient: terminal server close {closeCode} ({result.CloseStatusDescription})");
-    SentryService.AddBreadcrumb(
-        "streaming_terminal_close",
-        "audio.streaming",
-        data: new Dictionary<string, string>
+        _receivedTerminalClose = true;
+        var message = closeCode switch
         {
-            ["provider"] = _strategy.TranscriptionProviderLabel,
-            ["closeCode"] = closeCode.ToString()
-        });
-    Raise(ErrorReceived, message);
-    _sessionStartedTcs?.TrySetException(new InvalidOperationException(message));
+            4001 => "Streaming stopped because credits are exhausted.",
+            4002 => "Streaming stopped because the maximum session duration was reached.",
+            _ => string.IsNullOrWhiteSpace(result.CloseStatusDescription)
+                ? $"Streaming connection was closed by the provider (code {closeCode})."
+                : $"Streaming connection was closed by the provider: {result.CloseStatusDescription}"
+        };
+
+        LoggingService.Warn($"StreamingTranscriptionClient: terminal server close {closeCode} ({result.CloseStatusDescription})");
+        SentryService.AddBreadcrumb(
+            "streaming_terminal_close",
+            "audio.streaming",
+            data: new Dictionary<string, string>
+            {
+                ["provider"] = _strategy.TranscriptionProviderLabel,
+                ["closeCode"] = closeCode.ToString()
+            });
+        Raise(ErrorReceived, message);
+        _sessionStartedTcs?.TrySetException(new InvalidOperationException(message));
     }
 }

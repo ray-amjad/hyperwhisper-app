@@ -8,7 +8,7 @@ namespace HyperWhisper.Services.Streaming;
 public sealed partial class StreamingTranscriptionClient
 {
     // internal (not private): direct-call surface for HyperWhisper.SmokeTests via
-    // InternalsVisibleTo (see HyperWhisper.csproj), same seam as HandleCloseResult above - the
+    // InternalsVisibleTo (see HyperWhisper.csproj), same seam as HandleCloseResult (.Receive.cs) - the
     // turn-boundary rule below is decided from State, so pinning it needs a way to drive provider
     // events at a chosen State without standing up a real WebSocket. No other accessibility change
     // is intended; the receive loop is still the only production caller.
