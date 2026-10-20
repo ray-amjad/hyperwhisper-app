@@ -272,8 +272,8 @@ async function checkPostProcess(provider: string, expectedModel: string): Promis
       return fail(name, `expected 200, got ${res.status} ${text.slice(0, 200)}`);
     }
     // X-LLM-Provider echoes the model name actually used; a mismatch means the
-    // requested provider was unhealthy (or its output was rejected) and the
-    // chain fell back. That FAILS the run for /post-process (Ray, #1114,
+    // requested provider was unhealthy, or its output was rejected and another
+    // provider served the retry. That FAILS the run for /post-process (Ray, #1114,
     // 2026-10-19): a fallback here hid a broken tier on every deploy. The
     // /transcribe fallback above stays a warning, so one STT vendor's bad minute
     // cannot block a prod deploy.
