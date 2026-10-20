@@ -31,6 +31,7 @@ try
     var database = new ApplicationDb(paths);
     await database.MigrateAsync();
     await RunTranscriptionWorkflowTestsAsync(root);
+    await MicrophonePickerTests.RunAsync(Path.Combine(root, "microphone-picker"));
     await RunHistoryRetryTestsAsync(root);
     await RunHistoryExperienceTestsAsync(root);
     await RunHistoryBulkLoadTestsAsync(root);
