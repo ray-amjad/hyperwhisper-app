@@ -72,7 +72,7 @@ struct GettingStartedProgressTests {
         try GettingStartedLoader.load(container: persistence.container, hasCustomShortcut: hasCustomShortcut)
     }
 
-    /// Every recording shortcut at its default.
+    /// Every shortcut at its default.
     private func defaults(_ name: KeyboardShortcuts.Name) -> KeyboardShortcuts.Shortcut? {
         name.defaultShortcut
     }
@@ -133,11 +133,11 @@ struct GettingStartedProgressTests {
         // Push to Talk turned on.
         #expect(GettingStartedProgress.hasCustomShortcut(pushToTalkMode: .fn, shortcut: defaults))
 
-        // A shortcut that does not record (the mode switcher) is not this step.
-        let modeSwitcherOnly = GettingStartedProgress.hasCustomShortcut(pushToTalkMode: .disabled) { name in
-            name == .changeMode ? KeyboardShortcuts.Shortcut(.m, modifiers: [.command]) : name.defaultShortcut
+        // Quick Capture has no default, so setting one is a change.
+        let quickCaptureSet = GettingStartedProgress.hasCustomShortcut(pushToTalkMode: .disabled) { name in
+            name == .quickCapture ? KeyboardShortcuts.Shortcut(.n, modifiers: [.command, .option]) : name.defaultShortcut
         }
-        #expect(!modeSwitcherOnly)
+        #expect(quickCaptureSet)
     }
 
     @Test("shortcuts: the loader reports the shortcut check it was given")

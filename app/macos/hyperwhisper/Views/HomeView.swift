@@ -631,7 +631,7 @@ enum GettingStartedStep: CaseIterable {
 struct GettingStartedProgress: Equatable {
     /// At least one transcription finished (`status == "completed"`).
     var hasFinishedRecording = false
-    /// A recording shortcut differs from its default, or Push to Talk is on.
+    /// A shortcut differs from its default, or Push to Talk is on.
     var hasCustomShortcut = false
     /// At least one Mode the user made: not the seeded default, and not a
     /// per-request row the Local API leaked.
@@ -652,23 +652,17 @@ struct GettingStartedProgress: Equatable {
         GettingStartedStep.allCases.allSatisfy(isCompleted)
     }
 
-    /// The shortcuts that start, stop or cancel a recording.
-    static let recordingShortcuts: [KeyboardShortcuts.Name] = [
-        .toggleRecordingWithTranscription,
-        .cancelRecording,
-        .pushToTalk,
-        .startStreaming,
-    ]
-
-    /// Whether the user changed how they record from the keyboard: a recording
-    /// shortcut that is not its default (a cleared one counts), or a Push to
-    /// Talk mode other than the default `.disabled`.
+    /// Whether the user changed a shortcut on Settings › Shortcuts: one that is
+    /// not its default (a cleared one counts, and so does a Quick Capture
+    /// shortcut, which has no default), or a Push to Talk mode other than the
+    /// default `.disabled`. Every shortcut the app names starts, stops or steers
+    /// a recording, so all of them count.
     static func hasCustomShortcut(
         pushToTalkMode: PushToTalkMode,
         shortcut: (KeyboardShortcuts.Name) -> KeyboardShortcuts.Shortcut?
     ) -> Bool {
         pushToTalkMode != .disabled
-            || recordingShortcuts.contains { shortcut($0) != $0.defaultShortcut }
+            || KeyboardShortcuts.Name.allCases.contains { shortcut($0) != $0.defaultShortcut }
     }
 }
 
