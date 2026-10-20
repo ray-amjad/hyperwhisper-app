@@ -218,6 +218,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         ComboWheelGuard.Attach(this);
         AttachVocabularyKeyHandlers();
+        AttachAutoDeleteDaysTextFilter();
         DataContext = _viewModel;
         // The library count under the title moves with the filters, so it follows the view.
         if (_viewModel.Models is { } models)
@@ -1921,20 +1922,34 @@ public partial class MainWindow : Window
     private bool _autocapitalizeProbeRan;
 
     // Windows' NumericOnly_PreviewTextInput swallows anything that is not an integer, so a letter
-    // never reaches the box (StorageSettingsPage.xaml.cs:159-162).
+    // never reaches the box (StorageSettingsPage.xaml.cs:159-162). It has to run on the tunnel, the
+    // PreviewTextInput of Avalonia, and so sit on the window like AttachVocabularyKeyHandlers: a
+    // bubbling handler on the box runs after TextBox's own class handler has inserted the letter
+    // (#2199, where "abc" reached the box and showed a raw InvalidCastException under it).
+    private void AttachAutoDeleteDaysTextFilter() =>
+        AddHandler(TextInputEvent, OnAutoDeleteDaysTextInput, RoutingStrategies.Tunnel);
+
     private void OnAutoDeleteDaysTextInput(object? sender, TextInputEventArgs e)
     {
+        if (e.Source is not TextBox { Name: "SettingsAutoDeleteDays" }) return;
         if (!string.IsNullOrEmpty(e.Text) && !e.Text.All(char.IsAsciiDigit)) e.Handled = true;
     }
 
     // ...and DaysOld_LostFocus clamps to 1-365 and writes the clamped figure back, or restores the
-    // stored one when the text will not parse at all.
+    // stored one when the text will not parse at all. This is the ONLY place the box writes the
+    // setting: its binding is OneWay (#2199), because every write saves and runs a cleanup.
     private void OnAutoDeleteDaysLostFocus(object? sender, RoutedEventArgs e)
     {
-        if (sender is not TextBox box) return;
+        if (sender is TextBox box) CommitAutoDeleteDays(box);
+    }
+
+    // SetCurrentValue, as CommitLocalApiPort writes the port box: it changes the text and leaves the
+    // OneWay binding in place, so a later import or reset still reaches the box.
+    private void CommitAutoDeleteDays(TextBox box)
+    {
         if (int.TryParse(box.Text, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.CurrentCulture, out var value))
             _viewModel.Settings.AutoDeleteDaysOld = Math.Clamp(value, 1, 365);
-        box.Text = _viewModel.Settings.AutoDeleteDaysOld.ToString(System.Globalization.CultureInfo.CurrentCulture);
+        box.SetCurrentValue(TextBox.TextProperty, _viewModel.Settings.AutoDeleteDaysOld.ToString(System.Globalization.CultureInfo.CurrentCulture));
     }
 
     private async void OnChooseRecordingsDirectory(object? sender, RoutedEventArgs e)
@@ -2297,8 +2312,8 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// The close path's share of the commit. A port typed and left focused has not reached the
-    /// view model yet, and the 500ms settings auto-save it then arms would never tick, so the
+    /// The close path's share of the commit. A port or a number of auto-delete days typed and left
+    /// focused has not reached the view model yet, and the 500ms settings auto-save it then arms would never tick, so the
     /// window has to both commit it and flush the save before it goes. Called from OnClosing for
     /// the X button and for tray Quit, which closes the window the same way.
     /// </summary>
@@ -2306,6 +2321,7 @@ public partial class MainWindow : Window
     {
         if (_localApiPortField is { IsKeyboardFocusWithin: true })
             CommitLocalApiPort(ParseLocalApiPort(_localApiPortBox?.Text));
+        if (FocusManager?.GetFocusedElement() is TextBox { Name: "SettingsAutoDeleteDays" } days) CommitAutoDeleteDays(days);
         if (_settingsAutoSave is not { IsEnabled: true }) return;
         _settingsAutoSave.Stop();
         if (_viewModel.Settings.SaveCommand.CanExecute(null)) _viewModel.Settings.SaveCommand.Execute(null);
