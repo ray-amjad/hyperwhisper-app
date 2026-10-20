@@ -462,13 +462,13 @@ extension AppDelegate: SPUUpdaterDelegate {
     
     // MARK: - Helper Methods
     
-    /// Determines which phase of the update process an error occurred in
     /// True when Sparkle's abort is its normal "no update found" outcome
     /// (`SUNoUpdateError`, code 1001), which is not a failure.
     nonisolated static func isNoUpdateAbort(_ error: NSError) -> Bool {
         error.domain == "SUSparkleErrorDomain" && error.code == 1001
     }
     
+    /// Determines which phase of the update process an error occurred in
     private func determineUpdatePhase(from error: NSError) -> String {
         let code = error.code
         let domain = error.domain
