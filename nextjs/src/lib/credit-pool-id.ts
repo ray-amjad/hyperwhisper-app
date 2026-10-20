@@ -13,8 +13,11 @@ import { createHmac } from "node:crypto";
  * `null` when the secret is not set: the licence routes then leave
  * `credit_pool_id` out, and the cloud keys holds by the Account Key, as it did
  * before (Ray, 2026-10-19). Rotating the secret moves every user to a new pool
- * id; holds taken under the old id are not counted against the new one until
- * they expire (15 minutes at most), so rotate when traffic is low.
+ * id, but the cloud caches the id with each key's licence: a key keeps the old
+ * id until its cache is rewritten (its next charge, balance refresh or
+ * validation; at most the 1 hour cache TTL), so for that long one user's keys
+ * can hold against two pools, and holds already taken under the old id count
+ * against it until they end (15 minutes at most). Rotate when traffic is low.
  */
 export function creditPoolIdFor(
   userId: string,
