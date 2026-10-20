@@ -114,7 +114,7 @@ func performWithRetry<T>(
             if attempt == 1 { lastError = error }
 
             // Check if error is retryable
-            if !(error is TranscriptionError) { throw error }
+            if !(error is TranscriptionError) && !(error is CancellationError) { throw error }
 
             // Don't sleep after the last attempt
             if attempt <= config.maxAttempts {
