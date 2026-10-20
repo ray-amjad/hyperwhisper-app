@@ -34,7 +34,9 @@ export const serverSchema = z.object({
   // credit holds per user, not per key. Optional so the site deploys before the
   // secret exists; unset, the field is omitted and the cloud holds per key.
   // At least 32 characters: it is the only thing between the id and the user id.
-  CREDIT_POOL_ID_SECRET: z.string().min(32).optional(),
+  // An empty value is accepted and means unset, as `creditPoolIdFor` reads it
+  // (a blank Vercel/Infisical entry must not fail the build).
+  CREDIT_POOL_ID_SECRET: z.union([z.string().min(32), z.literal("")]).optional(),
 
   // Vercel cron bearer token. Vercel sends `Authorization: Bearer $CRON_SECRET`
   // and cannot set a custom header, so the scheduled jobs in vercel.json
