@@ -21275,19 +21275,25 @@ internal static class Program
                 var recordings = StorageService.Instance.GetRecordingsFolder();
                 var singleAudio = Path.Combine(recordings, $"percy2126-{Guid.NewGuid():N}.wav");
                 var bulkAudio = Path.Combine(recordings, $"percy2126-{Guid.NewGuid():N}.wav");
+                var savedAudio = Path.Combine(recordings, $"percy2126-{Guid.NewGuid():N}.wav");
                 File.WriteAllBytes(singleAudio, new byte[] { 1, 2, 3, 4 });
                 File.WriteAllBytes(bulkAudio, new byte[] { 1, 2, 3, 4 });
+                File.WriteAllBytes(savedAudio, new byte[] { 1, 2, 3, 4 });
                 var storePath = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests", $"percy2126-{Guid.NewGuid():N}.json");
                 Guid? singleId = null;
                 Guid? bulkId = null;
+                Transcript? saved = null;
                 Transcript? other = null;
                 FileStream? held = null;
 
                 var previous = history.ReplacePendingStoreForTests(new PendingHistoryStore(storePath));
                 PoisonTranscriptInserts(dbPath, "percy2126poison");
                 var triggerDropped = false;
+                var deleteRefused = false;
                 try
                 {
+                    // A row the database took, deleted in one selection with a pending row.
+                    saved = history.CreateProcessingTranscript(1.0, "percy2126saved", savedAudio);
                     var single = history.CreateProcessingTranscriptAsync(1.0, "percy2126poison", singleAudio).GetAwaiter().GetResult();
                     singleId = single.Transcript.Id;
                     var bulk = history.CreateProcessingTranscriptAsync(1.0, "percy2126poison", bulkAudio).GetAwaiter().GetResult();
@@ -21304,21 +21310,35 @@ internal static class Program
                     Assert(File.Exists(singleAudio), "the audio of a row whose delete failed was deleted");
                     Assert(history.GetTranscript(singleId.Value) != null, "the row whose delete failed is gone from memory, so a retry cannot find it");
 
-                    // A selection of only pending rows deleted nothing, so it fails too.
-                    var bulkDeleted = history.DeleteTranscripts(new[] { bulkId.Value });
-                    Assert(!bulkDeleted.IsSuccess, "a bulk delete of pending rows whose file could not be rewritten was reported as done");
-                    Assert(File.Exists(bulkAudio), "the audio of a pending row kept by a failed bulk delete was deleted");
+                    // A selection of a saved row and a pending row: a failure deletes nothing.
+                    var selection = new[] { saved.Id, bulkId.Value };
+                    var bulkDeleted = history.DeleteTranscripts(selection);
+                    Assert(!bulkDeleted.IsSuccess, "a bulk delete of a pending row whose file could not be rewritten was reported as done");
+                    Assert(File.Exists(bulkAudio) && File.Exists(savedAudio), "the audio of a row kept by a failed bulk delete was deleted");
+                    Assert(history.GetTranscript(saved.Id) != null, "a failed bulk delete still deleted the saved row");
                     Assert(history.PendingTranscriptCount == 2, $"{history.PendingTranscriptCount} rows are pending, not the 2 that were never deleted");
 
                     held.Dispose();
                     held = null;
 
+                    // The database refuses its part: the pending row it already dropped comes back.
+                    ExecSql(dbPath, "CREATE TRIGGER IF NOT EXISTS percy2126_refuse BEFORE DELETE ON Transcripts " +
+                        "WHEN OLD.Mode = 'percy2126saved' BEGIN SELECT RAISE(ABORT, 'percy2126 refused delete'); END;");
+                    deleteRefused = true;
+                    bulkDeleted = history.DeleteTranscripts(selection);
+                    Assert(!bulkDeleted.IsSuccess, "a bulk delete the database refused was reported as done");
+                    Assert(history.GetTranscript(bulkId.Value) != null && File.ReadAllText(storePath).Contains(bulkId.Value.ToString()),
+                        "a bulk delete the database refused still dropped the pending row");
+                    Assert(File.Exists(bulkAudio) && File.Exists(savedAudio), "the audio of a row kept by a refused bulk delete was deleted");
+                    ExecSql(dbPath, "DROP TRIGGER IF EXISTS percy2126_refuse;");
+                    deleteRefused = false;
+
                     deleted = history.DeleteTranscript(singleId.Value);
                     Assert(deleted.IsSuccess && deleted.Value, "the retried delete was not reported as a delete");
                     Assert(!File.Exists(singleAudio), "the retried delete left the audio behind");
-                    bulkDeleted = history.DeleteTranscripts(new[] { bulkId.Value });
-                    Assert(bulkDeleted.IsSuccess && bulkDeleted.Value == 1, $"the retried bulk delete removed {bulkDeleted.Value}, not 1");
-                    Assert(!File.Exists(bulkAudio), "the retried bulk delete left the audio behind");
+                    bulkDeleted = history.DeleteTranscripts(selection);
+                    Assert(bulkDeleted.IsSuccess && bulkDeleted.Value == 2, $"the retried bulk delete removed {bulkDeleted.Value}, not 2");
+                    Assert(!File.Exists(bulkAudio) && !File.Exists(savedAudio), "the retried bulk delete left audio behind");
                     Assert(!File.Exists(storePath), "the pending file is still there after its last row was deleted");
 
                     UnpoisonTranscriptInserts(dbPath);
@@ -21327,18 +21347,20 @@ internal static class Program
                     // A successful write flushes whatever is still pending: the deleted rows must not land.
                     other = history.CreateProcessingTranscript(1.0, "percy2126next", audioFilePath: null);
                     using var check = new HyperWhisperDbContext();
-                    Assert(!check.Transcripts.AsNoTracking().Any(t => t.Id == singleId.Value || t.Id == bulkId.Value),
-                        "a deleted pending row was written to the database anyway");
+                    Assert(!check.Transcripts.AsNoTracking().Any(t => t.Id == singleId.Value || t.Id == bulkId.Value || t.Id == saved.Id),
+                        "a deleted row is in the database");
                 }
                 finally
                 {
                     held?.Dispose();
+                    if (deleteRefused) ExecSql(dbPath, "DROP TRIGGER IF EXISTS percy2126_refuse;");
                     if (!triggerDropped) UnpoisonTranscriptInserts(dbPath);
                     if (singleId.HasValue) history.DeleteTranscript(singleId.Value);
                     if (bulkId.HasValue) history.DeleteTranscript(bulkId.Value);
                     history.ReplacePendingStoreForTests(previous);
+                    if (saved != null) history.DeleteTranscript(saved.Id);
                     if (other != null) history.DeleteTranscript(other.Id);
-                    foreach (var path in new[] { singleAudio, bulkAudio, storePath })
+                    foreach (var path in new[] { singleAudio, bulkAudio, savedAudio, storePath })
                     {
                         try { File.Delete(path); } catch { }
                     }

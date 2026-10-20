@@ -823,9 +823,8 @@ public class HistoryService
     /// Deletes multiple transcripts and their associated audio files.
     /// More efficient than calling DeleteTranscript multiple times.
     /// Success(n): n rows deleted (0 when none of the ids exist). Failure: SQLite
-    /// refused the delete. It is one SaveChanges, so then nothing was deleted (#974).
-    /// Pending rows whose file could not be rewritten are kept with their audio and not
-    /// counted; when they were all there was to delete, that is a Failure too (#2126).
+    /// refused the delete, or the pending file could not be rewritten without the
+    /// pending rows among them (#2126). Either way nothing was deleted (#974).
     /// </summary>
     public Result<int> DeleteTranscripts(IEnumerable<Guid> ids)
     {
@@ -834,6 +833,17 @@ public class HistoryService
 
         lock (_lock)
         {
+            // Rows the database never took (#1589) go first, and only when the pending
+            // file is rewritten without them: the old file would bring them back at the
+            // next launch, after their audio was deleted (#2126).
+            var pending = Pending.GetAll().Where(t => idSet.Contains(t.Id)).ToList();
+            if (pending.Count > 0 && !Pending.Delete(pending.Select(t => t.Id)))
+            {
+                LoggingService.Error($"HistoryService: Failed to delete {pending.Count} pending transcripts; the pending file could not be written");
+                return Result<int>.Failure(Loc.S("transcripts.delete.failed"),
+                    new IOException($"Could not rewrite {PendingHistoryStore.FileName}"));
+            }
+
             try
             {
                 using var context = new HyperWhisperDbContext();
@@ -854,33 +864,19 @@ public class HistoryService
                 // A 0 here stamped a refused Delete Now sweep as a completed cleanup
                 // and left History rows half-deleted (#974). Log the count and the
                 // exception only: a sweep can hold thousands of ids, and never text.
+                // The pending rows come back too, so a refused sweep deletes nothing.
+                foreach (var record in pending)
+                {
+                    Pending.Upsert(record);
+                }
                 LoggingService.Error($"HistoryService: Failed to delete {idSet.Count} transcripts", ex);
                 return Result<int>.Failure(Loc.S("transcripts.delete.failed"), ex);
             }
 
-            // Rows the database never took (#1589) go only once the database part
-            // committed, so a refused sweep still deletes nothing.
-            var pending = Pending.GetAll().Where(t => idSet.Contains(t.Id)).ToList();
             if (pending.Count > 0)
             {
-                if (Pending.Delete(pending.Select(t => t.Id)))
-                {
-                    deletedTranscripts.AddRange(pending);
-                    LoggingService.Info($"HistoryService: Deleted {pending.Count} pending transcripts");
-                }
-                else if (deletedTranscripts.Count == 0)
-                {
-                    // Nothing was deleted, so this is the refused-sweep failure (#2126).
-                    LoggingService.Error($"HistoryService: Failed to delete {pending.Count} pending transcripts; the pending file could not be written");
-                    return Result<int>.Failure(Loc.S("transcripts.delete.failed"),
-                        new IOException($"Could not rewrite {PendingHistoryStore.FileName}"));
-                }
-                else
-                {
-                    // The database rows are gone; the pending ones stay, with their audio,
-                    // for the next delete (#2126). The count names only what went.
-                    LoggingService.Warn($"HistoryService: Kept {pending.Count} pending transcripts; the pending file could not be written");
-                }
+                deletedTranscripts.AddRange(pending);
+                LoggingService.Info($"HistoryService: Deleted {pending.Count} pending transcripts");
             }
 
             if (deletedTranscripts.Count == 0)
