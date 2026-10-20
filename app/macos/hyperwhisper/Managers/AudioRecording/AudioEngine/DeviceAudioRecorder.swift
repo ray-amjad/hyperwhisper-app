@@ -82,7 +82,16 @@ enum DeviceAudioRecorderError: Error, CustomStringConvertible {
 ///
 /// **Configuration changes** (`AVAudioEngineConfigurationChange`): a Bluetooth headset
 /// switching profile, a sample-rate change, or the device going away stops the engine.
-/// The recorder rebuilds the engine and keeps writing the SAME file: on the chosen
+/// Not every notification means that, though: pointing the input node at a device that
+/// is not the default makes the engine post one ~80 ms after EVERY start, with the engine
+/// still running on the same format and buffers still arriving (measured on an aggregate
+/// device and on the built-in mic). Restarting on that one posts another, so the capture
+/// reopened the device ~6 times a second, never kept a buffer, and finally wedged inside
+/// CoreAudio holding `controlLock`, so `stop()` never returned (PR #2117 verify). So a
+/// notification restarts capture only when the engine has stopped or the device's
+/// format no longer matches the one capture was built for
+/// (`configurationChangeNeedsRestart`). Otherwise there is nothing to repair.
+/// When it did stop, the recorder rebuilds the engine and keeps writing the SAME file: on the chosen
 /// device if it still opens, else on the macOS default input (the spec: an unplugged
 /// choice records from the default). The converter already handles any input format.
 /// A restart that opens neither is retried shortly after, and only
@@ -231,6 +240,9 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     private var isRunning = false                    // controlLock
     private var restartBudget = CaptureRestartBudget(maxConsecutiveFailures: DeviceAudioRecorder.maxConsecutiveRestartFailures) // controlLock
     private var restartRetryPending = false          // controlLock
+    /// The tap format the running engine was built for. A configuration change that
+    /// leaves the engine running on this format needs no restart.
+    private var captureFormat: AVAudioFormat?        // controlLock
 
     /// Separate from `controlLock` so the main actor can install the handler without
     /// waiting on a CoreAudio restart that holds `controlLock`.
@@ -365,6 +377,22 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
 
     // MARK: Engine
 
+    /// Whether an `AVAudioEngineConfigurationChange` needs the engine rebuilt.
+    ///
+    /// Only when the engine stopped (a real hardware change stops it before the
+    /// notification), or when the device's tap format is no longer the one the capture
+    /// was built for. A notification that leaves the engine running on the same format
+    /// (the one every start on a non-default device posts) needs nothing: restarting on
+    /// it posts another and loops.
+    static func configurationChangeNeedsRestart(
+        engineIsRunning: Bool,
+        captureFormat: AVAudioFormat?,
+        currentFormat: AVAudioFormat?
+    ) -> Bool {
+        guard engineIsRunning, let captureFormat, let currentFormat else { return true }
+        return !captureFormat.isEqual(currentFormat)
+    }
+
     /// Select the device, build the converter for its format, tap it and start.
     /// Caller holds `controlLock`.
     private func startEngine(_ engine: AVAudioEngine, deviceID: AudioDeviceID) throws {
@@ -396,6 +424,7 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
             input.removeTap(onBus: 0)
             throw error
         }
+        captureFormat = format
     }
 
     /// Stop and drop the engine, keeping the file open. Caller holds `controlLock`.
@@ -409,6 +438,7 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
             engine.stop()
         }
         engine = nil
+        captureFormat = nil
 
         tapLock.lock()
         flushPipelineLocked()
@@ -524,7 +554,19 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
 
     private func handleConfigurationChange() {
         controlLock.lock()
-        guard isRunning, engine != nil else {
+        guard isRunning, let engine else {
+            controlLock.unlock()
+            return
+        }
+        let needsRestart = Self.configurationChangeNeedsRestart(
+            engineIsRunning: engine.isRunning,
+            captureFormat: captureFormat,
+            currentFormat: engine.isRunning ? Self.tapFormat(for: engine.inputNode) : nil
+        )
+        guard needsRestart else {
+            // The notification every start on a non-default device posts: the engine
+            // is still running on the same format. Restarting would only post another.
+            AppLogger.audio.info("Chosen microphone posted a configuration change but is still running on the same format - keeping capture")
             controlLock.unlock()
             return
         }

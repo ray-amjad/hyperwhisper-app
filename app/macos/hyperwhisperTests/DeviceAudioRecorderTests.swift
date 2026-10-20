@@ -124,6 +124,38 @@ struct DeviceAudioRecorderTests {
         #expect(budget.recordFailure() == true)
     }
 
+    @Test func aChangeThatLeavesTheEngineRunningOnTheSameFormatIsNotRestarted() throws {
+        // Every start on a non-default device posts one of these with the engine still
+        // running; restarting on it posted another, looping the device open and shut.
+        let built = try Self.inputFormat(sampleRate: 48_000, channels: 1)
+        let current = try Self.inputFormat(sampleRate: 48_000, channels: 1)
+        #expect(built !== current)
+        #expect(DeviceAudioRecorder.configurationChangeNeedsRestart(
+            engineIsRunning: true, captureFormat: built, currentFormat: current
+        ) == false)
+    }
+
+    @Test func aStoppedEngineOrANewFormatIsRestarted() throws {
+        let built = try Self.inputFormat(sampleRate: 48_000, channels: 1)
+        // The engine stopped itself: a real hardware change, or the device went away.
+        #expect(DeviceAudioRecorder.configurationChangeNeedsRestart(
+            engineIsRunning: false, captureFormat: built, currentFormat: built
+        ))
+        // Still running, but the device now delivers another rate or channel count.
+        let newRate = try Self.inputFormat(sampleRate: 16_000, channels: 1)
+        #expect(DeviceAudioRecorder.configurationChangeNeedsRestart(
+            engineIsRunning: true, captureFormat: built, currentFormat: newRate
+        ))
+        let newChannels = try Self.inputFormat(sampleRate: 48_000, channels: 2)
+        #expect(DeviceAudioRecorder.configurationChangeNeedsRestart(
+            engineIsRunning: true, captureFormat: built, currentFormat: newChannels
+        ))
+        // The device reports no format at all (mid-reconfiguration, or gone).
+        #expect(DeviceAudioRecorder.configurationChangeNeedsRestart(
+            engineIsRunning: true, captureFormat: built, currentFormat: nil
+        ))
+    }
+
     // MARK: - File Shape
 
     @Test func outputFileIs16kMonoInt16WAV() throws {
