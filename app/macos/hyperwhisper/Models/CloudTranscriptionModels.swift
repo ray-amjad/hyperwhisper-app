@@ -577,6 +577,13 @@ struct CloudTranscriptionModels {
             isPopular: true,
             pricePerSecond: nil
         ),
+        CloudTranscriptionModel(
+            id: "scribe_v2_medical",
+            isAvailable: true,
+            description: "Scribe v2 tuned for clinical audio. Keyterm prompting highlights drug names and medical phrases. Same rate as Scribe v2.",
+            provider: .elevenLabs,
+            pricePerSecond: nil
+        ),
 
         // Mistral Models
         CloudTranscriptionModel(

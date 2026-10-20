@@ -291,7 +291,9 @@ describe('transcribeWithGemini — upstream error mapping', () => {
     const thrown = await transcribeWithGemini(audio(), 'audio/wav').catch((e) => e);
     expect(thrown).toBeInstanceOf(ProviderInputError);
     expect(thrown.status).toBe(400);
-    expect(thrown.message).toContain('unsupported audio mime type');
+    // The body reaches the client's text only, never the logged message (#2163).
+    expect(thrown.message).not.toContain('unsupported audio mime type');
+    expect(thrown.clientMessage).toContain('unsupported audio mime type');
   });
 
   test('a 200 with a body that is not JSON fails over rather than throwing a parse error', async () => {

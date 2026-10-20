@@ -58,6 +58,11 @@ describe("lib/clients/stripe — the shared Stripe client", () => {
   });
 
   test("sends the secret key and the Managed Payments API version on a real call", async () => {
+    // The client reads the key through `src/env/server.mjs` (#682), which
+    // snapshots process.env on first import. The fixture key is not shaped like
+    // a Stripe key and the other secrets are absent, so skip the format check
+    // here; `env-server-schema.test.ts` covers the check itself.
+    process.env.SKIP_ENV_VALIDATION = "1";
     process.env.STRIPE_SECRET_KEY = FIXTURE_KEY;
     const { stripe } = await import("../lib/clients/stripe");
 
@@ -89,6 +94,9 @@ describe("lib/clients/stripe — the shared Stripe client", () => {
     // A fresh process, so the module is evaluated again with no key.
     const env = { ...process.env };
     delete env.STRIPE_SECRET_KEY;
+    // With validation on, `src/env/server.mjs` refuses a missing key before
+    // the client is built. This proves the client's own refusal behind it.
+    env.SKIP_ENV_VALIDATION = "1";
     const modulePath = fileURLToPath(new URL("../lib/clients/stripe.ts", import.meta.url));
     const script = `import(${JSON.stringify(modulePath)}).then(
       () => { console.log("IMPORTED"); process.exit(0); },

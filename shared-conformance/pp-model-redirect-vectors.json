@@ -51,6 +51,7 @@
     {"provider": "cerebras", "from": "llama-3.1-8b", "to": "qwen-3.8-27b"},
     {"provider": "cerebras", "from": "llama3.1-8b", "to": "qwen-3.8-27b"},
     {"provider": "mistral", "from": "open-mistral-nemo", "to": "mistral-small-latest"},
+    {"provider": "mistral", "from": "mistral-medium-3.5", "to": "mistral-medium-3-5"},
     {"provider": "local_llm", "from": "gemma-4-12B-it-Q4_K_M.gguf", "to": "gemma-4-12b-it-Q4_K_M.gguf", "platforms": ["windows"], "note": "macOS has no redirect arm on purpose: hyperwhisperApp.swift rewrites this uppercase id once at launch, and ModePostProcessingSettings matches it case-insensitively."},
     {"provider": "local_llm", "from": "Qwen3.5-4B-Q4_K_M.gguf", "to": "gemma-4-E2B-it-Q4_K_M.gguf", "platforms": ["macos", "windows"]},
     {"provider": "local_llm", "from": "Qwen3.5-9B-Q4_K_M.gguf", "to": "gemma-4-E4B-it-Q4_K_M.gguf", "platforms": ["macos", "windows"]}

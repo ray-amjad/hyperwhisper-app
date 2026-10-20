@@ -34,13 +34,13 @@ const MUTANTS = [
   },
   {
     name: "read the key from another env var",
-    from: "new Stripe(process.env.STRIPE_SECRET_KEY!, {",
+    from: "new Stripe(env.STRIPE_SECRET_KEY, {",
     to: "new Stripe(process.env.STRIPE_PUBLISHABLE_KEY!, {",
   },
   {
     name: "fall back to a placeholder key when none is set",
-    from: "new Stripe(process.env.STRIPE_SECRET_KEY!, {",
-    to: 'new Stripe(process.env.STRIPE_SECRET_KEY ?? "placeholder", {',
+    from: "new Stripe(env.STRIPE_SECRET_KEY, {",
+    to: 'new Stripe(env.STRIPE_SECRET_KEY ?? "placeholder", {',
   },
 ];
 

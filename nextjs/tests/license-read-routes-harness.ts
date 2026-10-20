@@ -7,9 +7,11 @@
  * - `app/api/internal/licenses-for-email` — read-only key + credit list for one email
  * - `app/api/customer/profile`            — the same list for the signed-in customer
  *
- * Each route reaches two collaborators at import time: the database layer
- * (`src/lib/db-layer.ts`) and, for the profile route, Better Auth
- * (`src/lib/auth.ts`). Both are replaced here with `mock.module`, so the tests
+ * Each route reaches its collaborators at import time: the database layer
+ * (`src/lib/db-layer.ts`), for the profile route Better Auth
+ * (`src/lib/auth.ts`), and for the internal routes the validated server env
+ * (`src/env/server.mjs`, which holds the `x-internal-secret`, #682). All are
+ * replaced here with `mock.module`, so the tests
  * run the REAL route modules — the `x-internal-secret` gate, the session gate,
  * the granted/revoked filter, the pooled-credit arithmetic and the reply
  * shapes — with no database, no Redis and no network.
@@ -182,8 +184,12 @@ moduleMock.module(moduleUrl("../src/lib/auth.ts"), {
   },
 });
 
-/** The secret the tests install in `HYPERWHISPER_INTERNAL_SECRET`. */
+/** The secret the fake env holds as `HYPERWHISPER_INTERNAL_SECRET`. */
 export const INTERNAL_SECRET = "harness-internal-secret";
+
+moduleMock.module(moduleUrl("../src/env/server.mjs"), {
+  namedExports: { env: { HYPERWHISPER_INTERNAL_SECRET: INTERNAL_SECRET } },
+});
 
 /** Builds a POST request the way the ACS admin backfill sends one. */
 export function internalPost(
