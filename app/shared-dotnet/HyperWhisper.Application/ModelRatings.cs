@@ -141,7 +141,7 @@ public static class ModelRatings
             ["grok-4.5"] = new(2, 5),
             ["grok-4.6"] = new(2, 5),
             ["mistral-small-latest"] = new(2, 3),
-            ["mistral-medium-3.5"] = new(2, 4),
+            ["mistral-medium-3-5"] = new(2, 4),
             ["gpt-oss-120b"] = new(5, 3),
             ["qwen-3.8-27b"] = new(4, 3),
             ["gemma-4-E2B-it-Q4_K_M.gguf"] = new(5, 1),

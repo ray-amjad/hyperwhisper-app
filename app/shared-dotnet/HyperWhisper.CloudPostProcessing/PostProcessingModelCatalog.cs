@@ -40,7 +40,7 @@ public static class PostProcessingModelCatalog
             [CloudPostProcessingProvider.Cerebras] =
             [new("gpt-oss-120b", "GPT OSS 120B"), new("qwen-3.8-27b", "Qwen 3.8 27B")],
             [CloudPostProcessingProvider.Mistral] =
-            [new("mistral-small-latest", "Mistral Small"), new("mistral-medium-3.5", "Mistral Medium 3.5")],
+            [new("mistral-small-latest", "Mistral Small"), new("mistral-medium-3-5", "Mistral Medium 3.5")],
         };
 
     public static IReadOnlyList<PostProcessingModel> ForProvider(CloudPostProcessingProvider provider) =>
@@ -86,6 +86,7 @@ public static class PostProcessingModelCatalog
         "grok-4-1-fast-non-reasoning" or "grok-4.1-fast-non-reasoning" or "grok-4-fast-non-reasoning" or
             "grok-4-1-fast-reasoning" or "grok-4-fast-reasoning" => "grok-4.3",
         "open-mistral-nemo" => "mistral-small-latest",
+        "mistral-medium-3.5" => "mistral-medium-3-5", // Mistral's API id (#2200)
         // Gemma hosted models left the API 2026-03-08. 3.8 Flash, not 2.5 Flash: Google
         // gates 2.5 to past users since 2026-09-18 (#1019). Matches Windows.
         "gemma-3-12b-it" or "gemma-3-27b-it" => "gemini-3.8-flash",
