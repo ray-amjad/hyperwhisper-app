@@ -1,0 +1,229 @@
+# Known-vulnerability audit of every package ecosystem in the repo (#2007).
+#
+# Policy (Ray, 2026-10-20): report on pull requests and weekly; FAIL only on a
+# high-or-worse advisory in the two server surfaces that take money or serve
+# paid traffic:
+#   - nextjs/              (pnpm)  the marketing, licence and billing site
+#   - hyperwhisper-cloud/  (bun)   the paid transcription API
+# Every other ecosystem reports only: its job writes the findings to the run
+# summary and never fails the run.
+#   - NuGet  every .csproj (Windows head, Linux head, shared-dotnet, tools)
+#   - cargo  shared-core-rs/Cargo.lock
+#
+# Dependency update PRs are .github/dependabot.yml's job, not this file's.
+#
+# nextjs/ commits no lockfile (nextjs/.gitignore drops all of them, and Vercel
+# runs `pnpm install` against package.json). So the nextjs job resolves a
+# lockfile fresh, the way the Vercel install does, and audits that. A new
+# advisory against a transitive range can therefore turn this job red without
+# any change in the repo; the weekly run is there to catch exactly that.
+
+name: deps-audit
+
+on:
+  pull_request:
+    paths:
+      - 'nextjs/package.json'
+      - 'nextjs/.npmrc'
+      - 'hyperwhisper-cloud/package.json'
+      - 'hyperwhisper-cloud/bun.lock'
+      - '**/*.csproj'
+      - '**/*.props'
+      - '**/*.targets'
+      - 'shared-core-rs/**/Cargo.toml'
+      - 'shared-core-rs/Cargo.lock'
+      - '.github/workflows/deps-audit.yml'
+  schedule:
+    # Mondays 06:17 UTC.
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: deps-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  nextjs:
+    name: nextjs (pnpm) - fails on high
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nextjs
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # Same pnpm as nextjs/package.json `packageManager` and vercel.json.
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      # Resolve only: writes pnpm-lock.yaml, downloads no tarballs, runs no
+      # install scripts.
+      - name: Resolve the dependency tree
+        run: pnpm install --lockfile-only --ignore-scripts
+
+      - name: Report every advisory (prod and dev)
+        run: |
+          set +e
+          pnpm audit --json > "$RUNNER_TEMP/pnpm-all.json"
+          pnpm audit --prod --json > "$RUNNER_TEMP/pnpm-prod.json"
+          {
+            echo "## nextjs (pnpm)"
+            echo
+            for f in prod all; do
+              [ -s "$RUNNER_TEMP/pnpm-$f.json" ] && jq -r --arg f "$f" '.metadata.vulnerabilities as $v
+                | "- \(if $f == "prod" then "production deps" else "all deps (incl. dev)" end): critical \($v.critical), high \($v.high), moderate \($v.moderate), low \($v.low)"' \
+                "$RUNNER_TEMP/pnpm-$f.json" || echo "- $f: pnpm audit returned no report"
+            done
+            echo
+            echo "| Severity | Package | Vulnerable | Advisory | Title | Example path |"
+            echo "|---|---|---|---|---|---|"
+            jq -r '[.advisories[]] | sort_by({"critical":0,"high":1,"moderate":2,"low":3,"info":4}[.severity])[]
+              | "| \(.severity) | \(.module_name) | `\(.vulnerable_versions)` | [\(.github_advisory_id)](\(.url)) | \(.title | gsub("\\|"; "/")) | `\(.findings[0].paths[0])` |"' \
+              "$RUNNER_TEMP/pnpm-all.json" || true
+            echo
+            echo "The gate below fails on a high or critical advisory in a production dependency."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # The gate. Exits non-zero on a high or critical advisory in a production
+      # dependency, and also when the audit itself cannot reach the registry
+      # (fail closed). Dev-only advisories are in the report above.
+      - name: Fail on a high or critical production advisory
+        run: pnpm audit --prod --audit-level high
+
+  cloud:
+    name: hyperwhisper-cloud (bun) - fails on high
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hyperwhisper-cloud
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+
+      # `bun audit` reads bun.lock directly; no install is needed.
+      - name: Report every advisory
+        run: |
+          set +e
+          bun audit --json > "$RUNNER_TEMP/bun.json"
+          {
+            echo "## hyperwhisper-cloud (bun)"
+            echo
+            [ -s "$RUNNER_TEMP/bun.json" ] && jq -r '[.[][]] | group_by(.severity) | map("\(.[0].severity) \(length)") | join(", ")
+              | if . == "" then "- no advisories" else "- " + . end' "$RUNNER_TEMP/bun.json" \
+              || echo "- bun audit returned no report"
+            echo
+            echo "| Severity | Package | Vulnerable | Advisory | Title |"
+            echo "|---|---|---|---|---|"
+            jq -r 'to_entries[] | .key as $p | .value[]
+              | "| \(.severity) | \($p) | `\(.vulnerable_versions)` | \(.url) | \(.title | gsub("\\|"; "/")) |"' \
+              "$RUNNER_TEMP/bun.json" || true
+            echo
+            echo "The gate below fails on a high or critical advisory."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail on a high or critical advisory
+        run: bun audit --audit-level=high
+
+  nuget:
+    name: NuGet (report only)
+    runs-on: ubuntu-latest
+    # Report only: a finding here, or a restore that breaks, never fails the run.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: "10.0.x"
+          dotnet-quality: "preview"
+
+      # There is no .sln, so every tracked project is restored and listed on
+      # its own. EnableWindowsTargeting lets the WPF head restore on Linux.
+      - name: List vulnerable packages (direct and transitive)
+        env:
+          DOTNET_NOLOGO: '1'
+          DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+        run: |
+          set +e
+          out="$RUNNER_TEMP/nuget"
+          mkdir -p "$out"
+          failed=""
+          i=0
+          for p in $(git ls-files '*.csproj'); do
+            i=$((i + 1))
+            if dotnet restore "$p" -p:EnableWindowsTargeting=true > "$out/restore-$i.log" 2>&1; then
+              dotnet list "$p" package --vulnerable --include-transitive --format json > "$out/list-$i.json" 2> /dev/null \
+                || failed="$failed $p"
+            else
+              failed="$failed $p"
+            fi
+          done
+          {
+            echo "## NuGet (report only)"
+            echo
+            echo "- projects scanned: $i"
+            jq -s -r '[.[] | .projects[]? | .path as $proj | .frameworks[]?
+                | ((.topLevelPackages // []) + (.transitivePackages // []))[]
+                | . as $pkg | .vulnerabilities[] | {id: $pkg.id, v: $pkg.resolvedVersion, s: .severity, u: .advisoryurl}]
+              | unique | "- vulnerable package versions: \(length)"' "$out"/list-*.json
+            echo
+            echo "| Severity | Package | Resolved | Advisory |"
+            echo "|---|---|---|---|"
+            jq -s -r '[.[] | .projects[]? | .frameworks[]?
+                | ((.topLevelPackages // []) + (.transitivePackages // []))[]
+                | . as $pkg | .vulnerabilities[] | {id: $pkg.id, v: $pkg.resolvedVersion, s: .severity, u: .advisoryurl}]
+              | unique[] | "| \(.s) | \(.id) | \(.v) | \(.u) |"' "$out"/list-*.json
+            if [ -n "$failed" ]; then
+              echo
+              echo "Could not restore or list (not scanned):"
+              for p in $failed; do echo "- \`$p\`"; done
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+
+  cargo:
+    name: cargo (report only)
+    runs-on: ubuntu-latest
+    # Report only: a finding here never fails the run.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      # The prebuilt release binary, pinned by version and checksum, instead of
+      # a ~4-minute `cargo install`.
+      - name: Install cargo-audit 0.22.2
+        env:
+          CARGO_AUDIT_TGZ_SHA256: 7fb9497f8594b389e5fce5ef9b92db08432996895b2e0c5a0167a69ed445c428
+        run: |
+          name=cargo-audit-x86_64-unknown-linux-musl-v0.22.2
+          curl -sSfL "https://github.com/rustsec/rustsec/releases/download/cargo-audit%2Fv0.22.2/$name.tgz" -o "$RUNNER_TEMP/ca.tgz"
+          echo "$CARGO_AUDIT_TGZ_SHA256  $RUNNER_TEMP/ca.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/ca.tgz" -C "$RUNNER_TEMP" "$name/cargo-audit"
+          sudo install -m 0755 "$RUNNER_TEMP/$name/cargo-audit" /usr/local/bin/cargo-audit
+
+      - name: Audit shared-core-rs/Cargo.lock
+        run: |
+          set +e
+          cargo-audit audit --json --file shared-core-rs/Cargo.lock > "$RUNNER_TEMP/cargo.json"
+          {
+            echo "## cargo (report only)"
+            echo
+            [ -s "$RUNNER_TEMP/cargo.json" ] && jq -r '"- vulnerabilities: \(.vulnerabilities.count)",
+              (.warnings | to_entries[] | "- \(.key) warnings: \(.value | length)")' "$RUNNER_TEMP/cargo.json" \
+              || echo "- cargo audit returned no report"
+            echo
+            echo "| Kind | Crate | Version | Advisory | Title |"
+            echo "|---|---|---|---|---|"
+            jq -r '(.vulnerabilities.list[] | "| vulnerability | \(.package.name) | \(.package.version) | \(.advisory.id) | \(.advisory.title | gsub("\\|"; "/")) |"),
+              (.warnings | to_entries[] | .key as $k | .value[] | select(.advisory != null)
+                | "| \($k) | \(.package.name) | \(.package.version) | \(.advisory.id) | \(.advisory.title | gsub("\\|"; "/")) |")' \
+              "$RUNNER_TEMP/cargo.json" || true
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
