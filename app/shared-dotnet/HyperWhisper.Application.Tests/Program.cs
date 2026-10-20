@@ -77,6 +77,7 @@ try
     await RunShellMissingLocalModelStatusTestsAsync(Path.Combine(root, "shell-missing-model"));
     RunShellDatabaseOffUiThreadTests(Path.Combine(root, "shell-db-off-ui"));
     await RunLocalEngineVocabularyOnceTestsAsync(Path.Combine(root, "local-vocabulary-once"));
+    await RunVocabularyDuplicateTestsAsync(Path.Combine(root, "vocabulary-duplicate"));
 
     var history = new HistoryRepository(database);
     var transcript = new Transcript
@@ -1565,6 +1566,91 @@ static async Task RunLocalEngineVocabularyOnceTestsAsync(string root)
         Assert(hint.Saved.TranscribedText == "hyper wisper",
             $"{mode.Name}: History's raw transcript held a phonetic correction");
     }
+}
+
+// #633: adding a word another row already holds (any case) was merged into that row by the
+// store: the row moved to the bottom, lost its replacement or took the new spelling. It is now
+// refused with an error, the list unchanged and the input kept.
+static async Task RunVocabularyDuplicateTestsAsync(string root)
+{
+    Directory.CreateDirectory(root);
+    var database = new ApplicationDb(new TestPaths(root));
+    await database.InitializeAsync();
+    var repository = new VocabularyRepository(database);
+    var page = new HyperWhisper.PortableApplication.ViewModels.VocabularyViewModel(repository);
+    await page.RefreshAsync();
+    async Task Add(string word, string replacement)
+    {
+        page.Selected = null;
+        page.Word = word;
+        page.Replacement = replacement;
+        await page.AddAsync();
+    }
+    async Task<string> Rows() =>
+        string.Join(", ", (await repository.ListAsync()).Select(item => item.Replacement is null ? item.Word : $"{item.Word} -> {item.Replacement}"));
+    async Task Clear()
+    {
+        foreach (var item in await repository.ListAsync()) await repository.DeleteAsync(item.Id);
+        page.Selected = null; page.Word = string.Empty; page.Replacement = string.Empty;
+        await page.RefreshAsync();
+    }
+
+    // 1. Zulu, Alpha, Zulu: the order stays Zulu, Alpha, and the second Zulu is refused.
+    await Add("Zulu", ""); await Add("Alpha", ""); await Add("Zulu", "");
+    Assert(await Rows() == "Zulu, Alpha" && page.Status.ErrorCode == "vocabulary.duplicate",
+        $"a duplicate add moved the row or said nothing (#633): {await Rows()} / {page.Status.ErrorCode}");
+    Assert(page.HasInputError && page.InputError == "\"Zulu\" is already in your vocabulary." && page.Word == "Zulu",
+        $"the duplicate error was not shown under the pill, or the input was cleared (#633): '{page.InputError}' / '{page.Word}'");
+    page.Word = "Zulus";
+    Assert(!page.HasInputError, "the duplicate error survived editing the word (#633)");
+
+    // 2. A plain re-add in another case keeps the row's spelling and its replacement.
+    await Clear();
+    await Add("OpenAI", "X"); await Add("openai", "");
+    Assert(await Rows() == "OpenAI -> X" && page.Status.ErrorCode == "vocabulary.duplicate",
+        $"a case-variant re-add rewrote the row or wiped its replacement (#633): {await Rows()}");
+
+    // 3. The same word with a new replacement is refused too (Ray, inbox ask #220).
+    await Add("OpenAI", "Y");
+    Assert(await Rows() == "OpenAI -> X" && page.Status.ErrorCode == "vocabulary.duplicate",
+        $"a duplicate with a new replacement overwrote the row (#633): {await Rows()}");
+
+    // 4. Editing a selected row's own replacement still saves in place, and so does re-casing it.
+    await Add("Beta", "");
+    page.Selected = page.Items.Single(item => item.Word == "OpenAI");
+    page.Replacement = "Z";
+    await page.AddAsync();
+    Assert(await Rows() == "OpenAI -> Z, Beta" && !page.Status.HasError,
+        $"editing a row's replacement was refused or moved the row (#633): {await Rows()} / {page.Status.ErrorCode}");
+    page.Selected = page.Items.Single(item => item.Word == "OpenAI");
+    page.Word = "openai";
+    await page.AddAsync();
+    Assert(await Rows() == "openai -> Z, Beta" && !page.Status.HasError, $"re-casing a row's own word was refused (#633): {await Rows()}");
+
+    // Renaming a row onto another row's word is refused, and the edited row stays selected.
+    var edited = page.Items.Single(item => item.Word == "Beta");
+    page.Selected = edited;
+    page.Word = "OPENAI";
+    await page.AddAsync();
+    Assert(await Rows() == "openai -> Z, Beta" && page.Status.ErrorCode == "vocabulary.duplicate" && ReferenceEquals(page.Selected, edited),
+        $"renaming a row onto another row's word merged them (#633): {await Rows()}");
+
+    // A multi-line paste (#1777) writes nothing when one line is taken, or repeats an earlier line.
+    await Add("gamma\nOpenAI\ndelta", "");
+    Assert(await Rows() == "openai -> Z, Beta" && page.InputError == "\"OpenAI\" is already in your vocabulary.",
+        $"a paste with a taken word wrote some lines (#633): {await Rows()} / {page.InputError}");
+    await Add("gamma\ndelta\nGamma", "");
+    Assert(await Rows() == "openai -> Z, Beta" && page.Status.ErrorCode == "vocabulary.duplicate",
+        $"a paste that repeats a word wrote some lines (#633): {await Rows()}");
+    await Add("gamma\ndelta", "");
+    Assert(await Rows() == "openai -> Z, Beta, gamma, delta" && !page.Status.HasError, $"a clean paste was refused (#633): {await Rows()}");
+
+    // Import still merges duplicates into the existing row.
+    var import = Path.Combine(root, "import.txt");
+    await File.WriteAllLinesAsync(import, ["BETA\tb"]);
+    page.TransferPath = import;
+    await page.ImportAsync();
+    Assert((await repository.ListAsync()) is { Count: 4 } imported && imported.Any(item => item.Word == "BETA" && item.Replacement == "b"), $"import stopped merging a duplicate (#633 non-goal): {await Rows()}");
 }
 
 // #1632: the status bar must not say Ready while the selected mode's local model is missing or
