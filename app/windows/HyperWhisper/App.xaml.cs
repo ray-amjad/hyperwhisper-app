@@ -175,6 +175,23 @@ public partial class App : WpfApplication
             return;
         }
 
+        // PENDING HISTORY ROWS (#1589)
+        // Rows the database refused while another program held its write lock were
+        // kept in pending-history.json. Write them now, before the recovery below, so
+        // one left Processing by the previous session is still flipped to Failed.
+        try
+        {
+            int saved = HistoryService.Instance.FlushPendingTranscripts();
+            if (saved > 0)
+            {
+                LoggingService.Info($"Saved {saved} pending History row(s) on startup");
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"Failed to save pending History rows: {ex.Message}");
+        }
+
         // ORPHANED TRANSCRIPT RECOVERY
         // Any transcript still in Processing status at startup is from a previous
         // session whose worker is long dead (crash, kill, OS restart mid-transcription).
@@ -457,6 +474,23 @@ public partial class App : WpfApplication
         // restore must put the other apps' volumes back before the process ends.
         // The teardown runs on the thread pool, so this wait cannot deadlock.
         AudioEnvironmentService.Instance.ShutdownMuffle(TimeSpan.FromSeconds(3));
+
+        // History rows the database refused this session (#1589) get one last try, so
+        // a row whose pending-history.json write also failed is not lost with the
+        // process. On the thread pool with a short wait: a still-held lock would block
+        // the full 30 s busy timeout, and a killed write rolls back (the file keeps the rows).
+        // A row whose insert is still waiting is not lost either: it was written ahead to
+        // pending-history.json before the insert began, and the next launch saves it.
+        try
+        {
+            var flush = Task.Run(() => HistoryService.Instance.FlushPendingTranscripts());
+            if (!flush.Wait(TimeSpan.FromSeconds(5)))
+                LoggingService.Warn("App: pending History rows not saved at exit (database still busy)");
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"App: pending History flush at exit failed: {ex.Message}");
+        }
 
         // Release single-instance mutex
         SingleInstanceGuard.Release();

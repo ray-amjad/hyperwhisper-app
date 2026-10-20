@@ -230,6 +230,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>再試行中...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>別のプログラムが履歴データベースをロックしています。録音は保持されており、データベースが空き次第、履歴に保存されます。</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>この録音をまだ履歴に保存できませんでした。録音は保持されており、後で履歴に保存されます。</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">

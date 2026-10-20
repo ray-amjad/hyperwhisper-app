@@ -26,17 +26,29 @@ public sealed class WindowsStatisticsTranscriptProvider : IStatisticsTranscriptP
     public async ValueTask<IReadOnlyList<StatisticsTranscript>> ReadAllAsync(
         CancellationToken cancellationToken = default)
     {
+        // Rows the database refused to insert (#1589) count too. Read them first: a row
+        // flushed between the two reads is then in both and counted once (by id below).
+        var pending = HistoryService.Instance.GetPendingTranscriptsSnapshot();
+
         await using var context = new HyperWhisperDbContext();
-        return await context.Transcripts.AsNoTracking()
-            .Select(item => new StatisticsTranscript(
-                new DateTimeOffset(DateTime.SpecifyKind(item.Date, DateTimeKind.Utc)),
-                item.Text,
-                item.Duration,
-                item.Status == TranscriptStatus.Completed
-                    ? StatisticsTranscriptStatus.Completed
-                    : item.Status == TranscriptStatus.Failed
-                        ? StatisticsTranscriptStatus.Failed
-                        : StatisticsTranscriptStatus.Processing))
+        var rows = await context.Transcripts.AsNoTracking()
+            .Select(item => new { item.Id, item.Date, item.Text, item.Duration, item.Status })
             .ToListAsync(cancellationToken);
+
+        var known = rows.Select(r => r.Id).ToHashSet();
+        return rows.Select(r => ToStatistics(r.Date, r.Text, r.Duration, r.Status))
+            .Concat(pending.Where(t => !known.Contains(t.Id))
+                .Select(t => ToStatistics(t.Date, t.Text, t.Duration, t.Status)))
+            .ToList();
     }
+
+    private static StatisticsTranscript ToStatistics(DateTime date, string? text, double duration, TranscriptStatus status) => new(
+        new DateTimeOffset(DateTime.SpecifyKind(date, DateTimeKind.Utc)),
+        text,
+        duration,
+        status == TranscriptStatus.Completed
+            ? StatisticsTranscriptStatus.Completed
+            : status == TranscriptStatus.Failed
+                ? StatisticsTranscriptStatus.Failed
+                : StatisticsTranscriptStatus.Processing);
 }

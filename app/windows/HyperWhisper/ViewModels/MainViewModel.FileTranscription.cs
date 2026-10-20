@@ -311,8 +311,8 @@ public partial class MainViewModel
             permanentPath = HistoryService.Instance.SaveAudioFile(pathForTranscription, ownsPathForTranscription);
             LoggingService.Info($"TranscribeFileAsync: Audio saved ({permanentPath}, {fileInfo.Length:N0} bytes, {duration:F2}s)");
 
-            // STEP 7: Create processing transcript
-            transcript = HistoryService.Instance.CreateProcessingTranscript(
+            // STEP 7: Create processing transcript, off the UI thread (#1589)
+            transcript = await CreateProcessingTranscriptOffUiThreadAsync(
                 duration, mode.Name, permanentPath);
 
             // STEP 8: Transcribing stage (15-85%) - Start slow animation to 80%

@@ -152,7 +152,9 @@ static void AllCatalogsLoad()
     // field when the text cannot be any key; Windows and Linux).
     // 864 -> 865 (#1631): `settings.shortcuts.error.typingKey` is new (the Windows shortcut
     // recorder refuses a bare typing key such as Tab or a letter, as Linux has since #628).
-    Equal(865,PortableLocalizer.BaseKeyCount, "base key count");
+    // 865 -> 867 (#1589): `history.savedLater.databaseLocked` and `.writeFailed` are new
+    // (Windows toast when the History insert is refused and the row is saved later).
+    Equal(867, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

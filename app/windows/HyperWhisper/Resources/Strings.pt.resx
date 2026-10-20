@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>A tentar novamente...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Outro programa bloqueou o banco de dados do histórico. A gravação foi mantida e será salva no histórico assim que o banco de dados ficar livre.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Ainda não foi possível salvar esta gravação no histórico. A gravação foi mantida e será salva no histórico mais tarde.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">

@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Mencoba lagi...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Program lain sedang mengunci database Riwayat. Rekaman tetap dipertahankan dan akan disimpan ke Riwayat setelah database bebas.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Rekaman ini belum dapat disimpan ke Riwayat. Rekaman tetap dipertahankan dan akan disimpan ke Riwayat nanti.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
