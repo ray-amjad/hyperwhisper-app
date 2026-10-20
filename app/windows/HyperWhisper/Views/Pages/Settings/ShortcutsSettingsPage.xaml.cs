@@ -156,7 +156,7 @@ public partial class ShortcutsSettingsPage : Page
         if (ShortcutValidationService.IsUnsafeStoredActionShortcut(_settingsService.ToggleShortcut))
         {
             LoggingService.Warn($"Toggle shortcut would fire while the user types ({_settingsService.ToggleShortcut.ToDisplayString()}). Auto-migrating to default.");
-            _settingsService.ToggleShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
+            _settingsService.ToggleShortcut = SettingsService.DefaultActionShortcut("Toggle");
             ToggleShortcutBox.DisplayText = _settingsService.ToggleShortcut.ToDisplayString();
             migrated = true;
         }
@@ -165,7 +165,7 @@ public partial class ShortcutsSettingsPage : Page
         if (ShortcutValidationService.IsUnsafeStoredActionShortcut(_settingsService.CancelShortcut))
         {
             LoggingService.Warn($"Cancel shortcut would fire while the user types ({_settingsService.CancelShortcut.ToDisplayString()}). Auto-migrating to default.");
-            _settingsService.CancelShortcut = KeyboardShortcut.FromPersistedString("Esc");
+            _settingsService.CancelShortcut = SettingsService.DefaultActionShortcut("Cancel");
             CancelShortcutBox.DisplayText = _settingsService.CancelShortcut.ToDisplayString();
             migrated = true;
         }
@@ -174,7 +174,7 @@ public partial class ShortcutsSettingsPage : Page
         if (ShortcutValidationService.IsUnsafeStoredActionShortcut(_settingsService.ChangeModeShortcut))
         {
             LoggingService.Warn($"ChangeMode shortcut would fire while the user types ({_settingsService.ChangeModeShortcut.ToDisplayString()}). Auto-migrating to default.");
-            _settingsService.ChangeModeShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+.");
+            _settingsService.ChangeModeShortcut = SettingsService.DefaultActionShortcut("ChangeMode");
             ChangeModeShortcutBox.DisplayText = _settingsService.ChangeModeShortcut.ToDisplayString();
             migrated = true;
         }
@@ -182,7 +182,7 @@ public partial class ShortcutsSettingsPage : Page
         if (ShortcutValidationService.IsUnsafeStoredActionShortcut(_settingsService.StreamingShortcut))
         {
             LoggingService.Warn($"Streaming shortcut would fire while the user types ({_settingsService.StreamingShortcut.ToDisplayString()}). Auto-migrating to default.");
-            _settingsService.StreamingShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+Space");
+            _settingsService.StreamingShortcut = SettingsService.DefaultActionShortcut("Streaming");
             StreamingShortcutBox.DisplayText = _settingsService.StreamingShortcut.ToDisplayString();
             migrated = true;
         }
