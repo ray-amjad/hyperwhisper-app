@@ -307,17 +307,21 @@ struct HomeView: View {
     /// How to record from the keyboard, shown from the Start recording row.
     private var recordingShortcutHelp: some View {
         VStack(alignment: .leading, spacing: 10) {
+            // A popover sizes itself to its content's ideal size, so each line
+            // must be allowed to wrap and grow tall, or a long one is cut off.
             Text("onboarding.done.detail".localized)
                 .font(.headline)
+                .fixedSize(horizontal: false, vertical: true)
             if let shortcut = toggleRecordingShortcutString {
                 KeyboardShortcutBadge(keys: shortcut)
             }
             Text("onboarding.tryIt.shortcutHint".localized)
                 .font(.subheadline)
                 .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(width: 280, alignment: .leading)
         .padding(16)
-        .frame(maxWidth: 280, alignment: .leading)
     }
 
     /// Re-reads the Get started steps off the main thread. A newer read always
