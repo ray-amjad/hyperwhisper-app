@@ -3152,6 +3152,15 @@ static async Task RunHistoryRevisitTestsAsync(string root)
     viewModel.SearchText = string.Empty;
     Assert(await Revisit(null) == 1 && viewModel.Items.Count == 5, "clearing the search text did not search");
 
+    // The search box's debounced query asks the same question. Its TextChanged also fires as the
+    // template is torn down (Text null) and rebuilt (Text ""), which must not count as a change.
+    viewModel.SearchText = null!;
+    Assert(viewModel.TryReuseLoadedRows(), "a null search text from a torn-down template did not reuse the rows");
+    viewModel.SearchText = "row 2";
+    Assert(!viewModel.TryReuseLoadedRows(), "typed search text reused rows loaded without it");
+    viewModel.SearchText = string.Empty;
+    Assert(viewModel.TryReuseLoadedRows(), "the search box's unchanged text did not reuse the rows");
+
     // A write through any repository makes the next revisit query and show it.
     await writer.AddAsync(new Transcript { Text = "saved elsewhere", Status = TranscriptStatus.Completed, Date = now.AddSeconds(5) });
     Assert(await Revisit(null) == 1 && viewModel.Items[0].Text == "saved elsewhere",

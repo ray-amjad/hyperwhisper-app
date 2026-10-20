@@ -2415,6 +2415,11 @@ public partial class MainWindow : Window
     /// typing filtered nothing. Every keystroke would be one database query, so the query is
     /// delayed until the user stops typing; each new keystroke cancels the previous timer.
     /// </summary>
+    /// <remarks>
+    /// The box also raises TextChanged when the History template is torn down and rebuilt, so
+    /// every visit ran this query too, after the period combo's. It skips the query the same way
+    /// when the rows shown already answer it (#2099).
+    /// </remarks>
     private void OnHistorySearchTextChanged(object? sender, TextChangedEventArgs e)
     {
         _historySearchDebounce?.Cancel();
@@ -2422,7 +2427,10 @@ public partial class MainWindow : Window
         var cts = new CancellationTokenSource();
         _historySearchDebounce = cts;
         _ = Task.Delay(HistorySearchDebounce, cts.Token).ContinueWith(
-            _ => Dispatcher.UIThread.Post(RunHistorySearch),
+            _ => Dispatcher.UIThread.Post(() =>
+            {
+                if (!_viewModel.History.TryReuseLoadedRows()) RunHistorySearch();
+            }),
             cts.Token,
             TaskContinuationOptions.OnlyOnRanToCompletion,
             TaskScheduler.Default);

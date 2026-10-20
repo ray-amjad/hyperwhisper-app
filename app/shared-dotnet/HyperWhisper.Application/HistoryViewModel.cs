@@ -255,7 +255,7 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
                 || StartDate is not null || EndDate is not null;
             var fromUtc = StartDate is { } from ? LocalDateStartUtc(from) : (DateTime?)null;
             var toUtcExclusive = EndDate is { } to ? LocalDateStartUtc(to, dayOffset: 1) : (DateTime?)null;
-            var loading = (SearchText, StartDate, EndDate, Generation);
+            var loading = (SearchText ?? string.Empty, StartDate, EndDate, Generation);
             ReplaceItems(await _repository.SearchAsync(
                 SearchText, fromUtc, toUtcExclusive, cancellationToken));
             _loadedFor = loading;
@@ -271,31 +271,40 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
 
     /// <summary>
     /// Sets the period the History page's combo picked, and returns whether the list still has to
-    /// be queried for it. The Linux page template is rebuilt on every visit and its combo selects
-    /// "All" while it is built, so every click on History re-ran a full-table query on the UI
-    /// thread even when nothing had changed: about 0.5 s at 20,000 transcripts (#2099). When the
-    /// rows shown were loaded for this same search text and period, and no transcript was written
-    /// and nothing called <see cref="MarkStale"/> since that query started, this does what the
-    /// query's success would have done on screen (select the newest row, report the count) and
-    /// returns false. A real period change, a failed load or any write still queries.
+    /// be queried for it; see <see cref="TryReuseLoadedRows"/>.
     /// </summary>
     public bool SelectPeriod(DateTimeOffset? startDate)
     {
         StartDate = startDate;
         EndDate = null;
+        return !TryReuseLoadedRows();
+    }
+
+    /// <summary>
+    /// True when the rows shown already answer a search for the current search text and dates:
+    /// they were loaded for exactly that filter, and no transcript was written and nothing called
+    /// <see cref="MarkStale"/> since that query started. It then does what the search's success
+    /// would have done on screen (select the newest row, report the count), and the caller skips
+    /// the query. The Linux History template is rebuilt on every visit, and both its period combo
+    /// and its search box ask for a search while it is built, so every click on History re-ran a
+    /// full-table query on the UI thread even when nothing had changed: about 0.5 s at 20,000
+    /// transcripts (#2099). A real filter change, a failed load or any write still queries.
+    /// </summary>
+    public bool TryReuseLoadedRows()
+    {
         if (_loadedFor is not { } loaded || loaded.Generation != Generation
-            || !string.Equals(loaded.SearchText, SearchText, StringComparison.Ordinal)
+            || !string.Equals(loaded.SearchText, SearchText ?? string.Empty, StringComparison.Ordinal)
             || loaded.StartDate != StartDate || loaded.EndDate != EndDate)
-            return true;
+            return false;
         UpdateSelection(Items.Take(1));
         Status.Success(Plural.Count(Items.Count, "matching transcript", "matching transcripts"));
-        return false;
+        return true;
     }
 
     /// <summary>
     /// Says the rows may no longer match the table, for a writer that goes around
     /// <see cref="HistoryRepository"/> and does not reload History itself: storage cleanup deletes
-    /// old rows and their audio in its own context. The next <see cref="SelectPeriod"/> then
+    /// old rows and their audio in its own context. The next <see cref="TryReuseLoadedRows"/> then
     /// queries again, as every visit did before #2099. Safe to call from any thread.
     /// </summary>
     public void MarkStale() => Interlocked.Increment(ref _staleMarks);
