@@ -197,10 +197,11 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     // have ended. After that the transcript is just the clipboard's content.
     private long _ownTranscriptMarkExpiresAt = long.MaxValue;
 
-    // Whether this session scheduled its restore over an empty clipboard (#1584),
-    // so a transcript written after that (a late streaming segment) takes over
-    // the expiring mark instead of being treated as left on purpose.
-    private bool _emptyClipboardRestoreScheduled;
+    // When the restore this session scheduled over an empty clipboard would have
+    // run (#1584), in TickCountMs ms, or 0 when it scheduled none. A transcript
+    // written after that (a late streaming segment) takes over the mark until
+    // then, instead of being treated as left on purpose.
+    private long _emptyClipboardRestoreEndsAt;
 
     /// <summary>Milliseconds on a monotonic clock. A seam so a test can move time past the restore delay.</summary>
     internal Func<long> TickCountMs { get; set; } = static () => Environment.TickCount64;
@@ -439,7 +440,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         lock (_clipboardLock)
         {
             _unscheduledTranscriptClipboardSequence = 0;
-            _emptyClipboardRestoreScheduled = false;
+            _emptyClipboardRestoreEndsAt = 0;
 
             if (ClipboardHoldsOwnTranscript())
             {
@@ -611,12 +612,13 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
                     _ownTranscriptClipboardSequence = _unscheduledTranscriptClipboardSequence;
                     _ownTranscriptMarkExpiresAt = long.MaxValue;
                 }
-                else if (_emptyClipboardRestoreScheduled)
+                else if (_emptyClipboardRestoreEndsAt != 0)
                 {
                     // The same after a restore scheduled over an empty clipboard
                     // (#1584): the late segment is the app's own text until that
                     // window ends, like the transcript before it.
                     _ownTranscriptClipboardSequence = _unscheduledTranscriptClipboardSequence;
+                    _ownTranscriptMarkExpiresAt = _emptyClipboardRestoreEndsAt;
                 }
                 else
                 {
@@ -700,14 +702,13 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
                 // a dictation started in that window keeps "nothing to restore"
                 // instead of snapshotting this transcript and restoring it over
                 // its own. After the delay it is the clipboard's content.
+                _emptyClipboardRestoreEndsAt = TickCountMs() + (long)delay.TotalMilliseconds;
                 if (_unscheduledTranscriptClipboardSequence != 0)
                 {
                     _ownTranscriptClipboardSequence = _unscheduledTranscriptClipboardSequence;
                     _unscheduledTranscriptClipboardSequence = 0;
-                    _ownTranscriptMarkExpiresAt = TickCountMs() + (long)delay.TotalMilliseconds;
+                    _ownTranscriptMarkExpiresAt = _emptyClipboardRestoreEndsAt;
                 }
-
-                _emptyClipboardRestoreScheduled = true;
 
                 LoggingService.Debug("SmartPasteService: No clipboard content to restore");
                 return;
@@ -1518,7 +1519,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
             _ownTranscriptClipboardSequence = 0;
             _unscheduledTranscriptClipboardSequence = 0;
             _restoreExpectedClipboardSequence = 0;
-            _emptyClipboardRestoreScheduled = false;
+            _emptyClipboardRestoreEndsAt = 0;
 
             LoggingService.Debug("SmartPasteService: Disposed");
         }
