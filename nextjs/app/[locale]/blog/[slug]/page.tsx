@@ -160,7 +160,7 @@ export default async function BlogPostPage({ params }: Props) {
       ) : null}
 
       <div
-        className={`prose prose-invert mx-auto mt-10 max-w-3xl prose-headings:text-white prose-strong:text-white [&_iframe]:aspect-video ${PROSE_TEXT_LINK}`}
+        className={`prose prose-invert mx-auto mt-10 max-w-3xl prose-headings:text-white prose-strong:text-white [&_iframe]:aspect-video [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto ${PROSE_TEXT_LINK}`}
         dangerouslySetInnerHTML={{ __html: post.html }}
       />
     </article>
