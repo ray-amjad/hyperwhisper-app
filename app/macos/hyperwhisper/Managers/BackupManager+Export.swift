@@ -327,8 +327,10 @@ extension BackupManager {
     /// to the v1 `encodeBackup`. Settings flow through the Rust core's macOS↔universal mapping;
     /// modes/vocab/keys/license are mapped in Swift. Self-validates with the core before returning;
     /// sets `lastError` and returns nil on any failure (never returns a corrupt payload).
-    private func encodeBackupV2(options: ExportOptions, dateString: String) -> (data: Data, filename: String)? {
-        let settingsManager = SettingsManager.shared
+    ///
+    /// Reads the live app; the work after the reads is in `universalV2SettingsSections`,
+    /// `universalBackupDTO` and `encodedBackupV2`, which a test can call with its own data.
+    func encodeBackupV2(options: ExportOptions, dateString: String) -> (data: Data, filename: String)? {
         let persistence = PersistenceController.shared
         let keychainManager = KeychainManager.shared
         let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
@@ -346,68 +348,27 @@ extension BackupManager {
                 }
                 return nil
             }
-            let macEncoder = JSONEncoder()
-            guard let macSettingsData = try? macEncoder.encode(macSettings),
-                  let macosJson = String(data: macSettingsData, encoding: .utf8) else {
-                lastError = NSLocalizedString("settings.backup.export.error.encode", value: "Failed to encode backup data", comment: "")
+            // 2. + 3. Map, split and hoist (see universalV2SettingsSections).
+            guard let sections = universalV2SettingsSections(
+                from: macSettings,
+                storedForeignTopLevelExtensions: UserDefaults.standard.string(forKey: Self.foreignTopLevelExtensionsDefaultsKey)
+            ) else {
                 return nil
             }
-
-            // 2. macOS 7-category -> universal SettingsRecord (5 universal categories + record-level
-            //    platformExtensions:{macos:{settings:{...}}}). existingMacosExt = nil (fresh export).
-            let recordJson: String
-            do {
-                recordJson = try macosSettingsToUniversalSettingsJson(macosJson: macosJson, existingMacosExtJson: nil)
-            } catch {
-                lastError = NSLocalizedString("settings.backup.export.error.encode", value: "Failed to encode backup data", comment: "")
-                AppLogger.settings.error("v2 export: macos->universal settings mapping failed: \(error.localizedDescription, privacy: .public)")
-                return nil
-            }
-
-            // 3. CRITICAL SPLIT: decode the record; the 5 universal categories become the backup
-            //    top-level `settings`; the record's record-level `platformExtensions` map is HOISTED
-            //    to the backup TOP-LEVEL `platformExtensions` (matches macos-export.hwbackup.json).
-            guard let recordData = recordJson.data(using: .utf8),
-                  let record = try? JSONDecoder().decode(JSONValue.self, from: recordData),
-                  let recordObj = record.objectValue else {
-                lastError = NSLocalizedString("settings.backup.export.error.encode", value: "Failed to encode backup data", comment: "")
-                return nil
-            }
-            var settingsObj: [String: JSONValue] = [:]
-            for key in ["general", "textOutput", "storage", "streaming", "advanced"] {
-                if let v = recordObj[key] { settingsObj[key] = v }
-            }
-            settingsValue = .object(settingsObj)
-            // Hoist the record's `platformExtensions` map (e.g. {"macos":{"settings":{...}}}) to top level.
-            if let ext = recordObj["platformExtensions"] {
-                topLevelPlatformExtensions = ext
-            }
-            // Re-attach the windows / linux top-level slices preserved from the last
-            // import, so they survive a macOS round-trip the way the per-mode slices
-            // already do. Our own `macos` slice wins.
-            topLevelPlatformExtensions = Self.mergingForeignTopLevelExtensions(
-                into: topLevelPlatformExtensions,
-                stored: UserDefaults.standard.string(forKey: Self.foreignTopLevelExtensionsDefaultsKey)
-            )
+            settingsValue = sections.settings
+            topLevelPlatformExtensions = sections.platformExtensions
         }
 
         // --- modes (only if selected): BackupMode (as v1) -> UniversalModeDTO; NO FFI for modes ---
-        var modeDTOs: [UniversalModeDTO]?
+        var modes: [BackupMode]?
         if options.includeModes {
-            modeDTOs = persistence.fetchAllModes().map { UniversalModeDTO(from: BackupMode(from: $0)) }
+            modes = persistence.fetchAllModes().map { BackupMode(from: $0) }
         }
 
         // --- vocabulary (reuse the already-universal-shaped item, projected to opaque JSONValue) ---
-        var vocab: [JSONValue]?
+        var vocabulary: [UniversalVocabularyItem]?
         if options.includeVocabulary {
-            let items = persistence.fetchAllVocabularyItems().map { UniversalVocabularyItem(from: $0) }
-            // Encode each universal item, then re-decode as JSONValue so the DTO field stays opaque.
-            let itemEncoder = JSONEncoder()
-            vocab = items.compactMap { item in
-                guard let data = try? itemEncoder.encode(item),
-                      let value = try? JSONDecoder().decode(JSONValue.self, from: data) else { return nil }
-                return value
-            }
+            vocabulary = persistence.fetchAllVocabularyItems().map { UniversalVocabularyItem(from: $0) }
         }
 
         // --- API keys: flat lowercase provider keys (same shape as the universal/Windows path) ---
@@ -424,20 +385,118 @@ extension BackupManager {
             guard lastError == nil else { return nil }
         }
 
+        let dto = Self.universalBackupDTO(
+            settings: settingsValue,
+            platformExtensions: topLevelPlatformExtensions,
+            modes: modes,
+            vocabulary: vocabulary,
+            apiKeys: apiKeys,
+            licenseKey: licenseKey,
+            appVersion: appVersion
+        )
+        return encodedBackupV2(dto, dateString: dateString)
+    }
+
+    /// Steps 2 and 3 of a v2 export's settings section: the macOS 7-category settings, mapped
+    /// by the core to the universal `SettingsRecord`, SPLIT into the backup's top-level
+    /// `settings` (the 5 universal categories) and its top-level `platformExtensions` (the
+    /// record's map, HOISTED), with the preserved foreign top-level slices re-attached (#288).
+    /// `storedForeignTopLevelExtensions` is read only after the mapping succeeds.
+    /// Sets `lastError` and returns nil on failure.
+    func universalV2SettingsSections(
+        from macSettings: BackupSettings,
+        storedForeignTopLevelExtensions: @autoclosure () -> String?
+    ) -> (settings: JSONValue, platformExtensions: JSONValue?)? {
+        let macEncoder = JSONEncoder()
+        guard let macSettingsData = try? macEncoder.encode(macSettings),
+              let macosJson = String(data: macSettingsData, encoding: .utf8) else {
+            lastError = NSLocalizedString("settings.backup.export.error.encode", value: "Failed to encode backup data", comment: "")
+            return nil
+        }
+
+        // 2. macOS 7-category -> universal SettingsRecord (5 universal categories + record-level
+        //    platformExtensions:{macos:{settings:{...}}}). existingMacosExt = nil (fresh export).
+        let recordJson: String
+        do {
+            recordJson = try macosSettingsToUniversalSettingsJson(macosJson: macosJson, existingMacosExtJson: nil)
+        } catch {
+            lastError = NSLocalizedString("settings.backup.export.error.encode", value: "Failed to encode backup data", comment: "")
+            AppLogger.settings.error("v2 export: macos->universal settings mapping failed: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+
+        // 3. CRITICAL SPLIT: decode the record; the 5 universal categories become the backup
+        //    top-level `settings`; the record's record-level `platformExtensions` map is HOISTED
+        //    to the backup TOP-LEVEL `platformExtensions` (matches macos-export.hwbackup.json).
+        guard let recordData = recordJson.data(using: .utf8),
+              let record = try? JSONDecoder().decode(JSONValue.self, from: recordData),
+              let recordObj = record.objectValue else {
+            lastError = NSLocalizedString("settings.backup.export.error.encode", value: "Failed to encode backup data", comment: "")
+            return nil
+        }
+        var settingsObj: [String: JSONValue] = [:]
+        for key in ["general", "textOutput", "storage", "streaming", "advanced"] {
+            if let v = recordObj[key] { settingsObj[key] = v }
+        }
+        let settingsValue = JSONValue.object(settingsObj)
+        var topLevelPlatformExtensions: JSONValue?
+        // Hoist the record's `platformExtensions` map (e.g. {"macos":{"settings":{...}}}) to top level.
+        if let ext = recordObj["platformExtensions"] {
+            topLevelPlatformExtensions = ext
+        }
+        // Re-attach the windows / linux top-level slices preserved from the last
+        // import, so they survive a macOS round-trip the way the per-mode slices
+        // already do. Our own `macos` slice wins.
+        topLevelPlatformExtensions = Self.mergingForeignTopLevelExtensions(
+            into: topLevelPlatformExtensions,
+            stored: storedForeignTopLevelExtensions()
+        )
+        return (settingsValue, topLevelPlatformExtensions)
+    }
+
+    /// The universal v2 envelope for the given sections (nil = section not exported):
+    /// modes are projected to `UniversalModeDTO`, vocabulary to opaque `JSONValue` items,
+    /// and `exportDate` is now as an ISO-8601 STRING, not a Date. Pure apart from the clock.
+    nonisolated static func universalBackupDTO(
+        settings: JSONValue?,
+        platformExtensions: JSONValue?,
+        modes: [BackupMode]?,
+        vocabulary: [UniversalVocabularyItem]?,
+        apiKeys: [String: String]?,
+        licenseKey: String?,
+        appVersion: String
+    ) -> UniversalBackupDTO {
+        let modeDTOs: [UniversalModeDTO]? = modes?.map { UniversalModeDTO(from: $0) }
+
+        var vocab: [JSONValue]?
+        if let items = vocabulary {
+            // Encode each universal item, then re-decode as JSONValue so the DTO field stays opaque.
+            let itemEncoder = JSONEncoder()
+            vocab = items.compactMap { item in
+                guard let data = try? itemEncoder.encode(item),
+                      let value = try? JSONDecoder().decode(JSONValue.self, from: data) else { return nil }
+                return value
+            }
+        }
+
         // --- assemble the envelope (exportDate is an ISO-8601 STRING, not a Date) ---
-        let dto = UniversalBackupDTO(
+        return UniversalBackupDTO(
             schemaVersion: UniversalBackupDTO.universalSchemaVersion,
             exportDate: ISO8601DateFormatter().string(from: Date()),
             appVersion: appVersion,
             platform: "macos",
-            settings: settingsValue,
+            settings: settings,
             modes: modeDTOs,
             vocabulary: vocab,
             apiKeys: apiKeys,
             licenseKey: licenseKey,
-            platformExtensions: topLevelPlatformExtensions
+            platformExtensions: platformExtensions
         )
+    }
 
+    /// Encodes a v2 envelope and self-checks it with the core: aborts (sets `lastError`,
+    /// returns nil, writes nothing) when it is structurally invalid.
+    func encodedBackupV2(_ dto: UniversalBackupDTO, dateString: String) -> (data: Data, filename: String)? {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         guard let data = try? encoder.encode(dto), let jsonString = String(data: data, encoding: .utf8) else {
