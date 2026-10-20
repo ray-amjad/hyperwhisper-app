@@ -9,6 +9,9 @@
 # summary and never fails the run.
 #   - NuGet  every .csproj (Windows head, Linux head, shared-dotnet, tools)
 #   - cargo  shared-core-rs/Cargo.lock
+#   - Swift  the Xcode project's Package.resolved (every package the macOS app
+#            builds, including the ones only the Xcode project declares, which
+#            Dependabot cannot see: it reads app/macos/Package.swift only)
 #
 # Dependency update PRs are .github/dependabot.yml's job, not this file's.
 #
@@ -32,6 +35,8 @@ on:
       - '**/*.targets'
       - 'shared-core-rs/**/Cargo.toml'
       - 'shared-core-rs/Cargo.lock'
+      - 'app/macos/Package.swift'
+      - 'app/macos/hyperwhisper.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved'
       - '.github/workflows/deps-audit.yml'
   schedule:
     # Mondays 06:17 UTC.
@@ -168,7 +173,8 @@ jobs:
           {
             echo "## NuGet (report only)"
             echo
-            echo "- projects scanned: $i"
+            notscanned=$(echo $failed | wc -w)
+            echo "- projects scanned: $((i - notscanned)) of $i"
             jq -s -r '[.[] | .projects[]? | .path as $proj | .frameworks[]?
                 | ((.topLevelPackages // []) + (.transitivePackages // []))[]
                 | . as $pkg | .vulnerabilities[] | {id: $pkg.id, v: $pkg.resolvedVersion, s: .severity, u: .advisoryurl}]
@@ -225,5 +231,45 @@ jobs:
               (.warnings | to_entries[] | .key as $k | .value[] | select(.advisory != null)
                 | "| \($k) | \(.package.name) | \(.package.version) | \(.advisory.id) | \(.advisory.title | gsub("\\|"; "/")) |")' \
               "$RUNNER_TEMP/cargo.json" || true
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+
+  swift:
+    name: Swift (report only)
+    runs-on: ubuntu-latest
+    # Report only: a finding here never fails the run.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      # The prebuilt release binary, pinned by version and checksum.
+      - name: Install osv-scanner 2.7.0
+        env:
+          OSV_SCANNER_SHA256: 160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b
+        run: |
+          curl -sSfL "https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_linux_amd64" -o "$RUNNER_TEMP/osv-scanner"
+          echo "$OSV_SCANNER_SHA256  $RUNNER_TEMP/osv-scanner" | sha256sum -c -
+          sudo install -m 0755 "$RUNNER_TEMP/osv-scanner" /usr/local/bin/osv-scanner
+
+      # The Xcode project's Package.resolved pins every remote package the app
+      # builds. Vendored local packages (Vendor/FlyingFox) have no advisory
+      # source and are skipped.
+      - name: Audit the macOS Package.resolved
+        run: |
+          set +e
+          osv-scanner scan source --format json \
+            --lockfile app/macos/hyperwhisper.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved \
+            > "$RUNNER_TEMP/swift.json" 2> "$RUNNER_TEMP/swift.err"
+          {
+            echo "## Swift (report only)"
+            echo
+            [ -s "$RUNNER_TEMP/swift.json" ] && jq -r '"- vulnerable package versions: \([.results[]?.packages[]? | select((.vulnerabilities // []) | length > 0)] | length)"' "$RUNNER_TEMP/swift.json" \
+              || { echo "- osv-scanner returned no report:"; echo; echo '```'; tail -n 20 "$RUNNER_TEMP/swift.err"; echo '```'; }
+            echo
+            echo "| Package | Version | Advisory | Summary |"
+            echo "|---|---|---|---|"
+            jq -r '.results[]?.packages[]? | .package as $p | (.vulnerabilities // [])[]
+              | "| \($p.name) | \($p.version) | [\(.id)](https://osv.dev/\(.id)) | \((.summary // "") | gsub("\\|"; "/")) |"' \
+              "$RUNNER_TEMP/swift.json" || true
           } >> "$GITHUB_STEP_SUMMARY"
           exit 0
