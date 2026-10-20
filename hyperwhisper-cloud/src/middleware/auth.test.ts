@@ -3,7 +3,7 @@ import { afterEach, describe, expect, mock, test } from 'bun:test';
 const originalFetch = globalThis.fetch;
 const originalLicenseApiUrl = process.env.NEXTJS_LICENSE_API_URL;
 
-type CachedLicense = { isValid: boolean; credits: number; cachedAt: string };
+type CachedLicense = { isValid: boolean; credits: number; cachedAt: string; creditPoolId?: string };
 
 const cacheWrites: Array<{ licenseKey: string; license: CachedLicense }> = [];
 let cachedLicenseValue: CachedLicense | null = null;
@@ -126,6 +126,42 @@ describe('validateAuth', () => {
     }
     expect(cacheWrites).toHaveLength(1);
     expect(cacheWrites[0]?.license).toMatchObject({ isValid: true, credits: 7 });
+  });
+
+  test('carries and caches the credit_pool_id the API reports (#2026)', async () => {
+    const pool = 'c'.repeat(64);
+    globalThis.fetch = mock(async () => Response.json({ valid: true, credits: 7, credit_pool_id: pool })) as unknown as typeof fetch;
+
+    const fresh = await validateAuth({ licenseKey: 'pooled-key' });
+
+    expect(fresh.ok && fresh.value.creditPoolId).toBe(pool);
+    expect(cacheWrites[0]?.license).toMatchObject({ isValid: true, credits: 7, creditPoolId: pool });
+
+    // The next request reads it back from the cache.
+    globalThis.fetch = neverFetch();
+    const cached = await validateAuth({ licenseKey: 'pooled-key' });
+    expect(cached.ok && cached.value.creditPoolId).toBe(pool);
+  });
+
+  test('drops a missing or malformed credit_pool_id, so holds stay per key (#2026)', async () => {
+    for (const creditPoolId of [undefined, '', 'short', 42, 'has spaces in it but is long enough', 'x'.repeat(129)]) {
+      cacheWrites.length = 0;
+      globalThis.fetch = mock(async () => Response.json({ valid: true, credits: 7, credit_pool_id: creditPoolId })) as unknown as typeof fetch;
+
+      const result = await validateAuth({ licenseKey: 'plain-key' }, true);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value).not.toHaveProperty('creditPoolId');
+      expect(cacheWrites[0]?.license).not.toHaveProperty('creditPoolId');
+    }
+  });
+
+  test('never caches a credit_pool_id for a refused key', async () => {
+    globalThis.fetch = mock(async () => Response.json({ valid: false, credit_pool_id: 'd'.repeat(64) }, { status: 400 })) as unknown as typeof fetch;
+
+    await validateAuth({ licenseKey: 'refused-key' });
+
+    expect(cacheWrites[0]?.license).toEqual({ isValid: false, credits: 0, cachedAt: expect.any(String) });
   });
 
   test('sends only the license validation contract to the configured API with a timeout signal', async () => {

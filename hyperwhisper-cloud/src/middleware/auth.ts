@@ -10,6 +10,20 @@ export interface AuthContext {
   identifier: string; // license key
   credits: number;
   licenseKey: string;
+  /**
+   * The licence API's opaque per-user `credit_pool_id` (#2026). Credit holds
+   * are counted per pool, so one user's keys share one hold budget. Absent
+   * (website not deployed yet, secret unset): holds are per key.
+   */
+  creditPoolId?: string;
+}
+
+// An HMAC in hex today; anything outside this shape is dropped, not trusted
+// into a Redis key name.
+const CREDIT_POOL_ID_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;
+
+export function readCreditPoolId(value: unknown): string | undefined {
+  return typeof value === 'string' && CREDIT_POOL_ID_PATTERN.test(value) ? value : undefined;
 }
 
 export interface AuthInput {
@@ -59,6 +73,7 @@ export type AuthResult =
 interface ApiValidationResult {
   isValid: boolean;
   credits: number;
+  creditPoolId?: string;
   outcome: AuthOutcome;
   elapsedMs: number;
   errorCode?: string;
@@ -99,7 +114,7 @@ async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationR
     });
 
     const responseText = await response.text();
-    let data: { valid?: boolean; credits?: number } = {};
+    let data: { valid?: boolean; credits?: number; creditPoolId?: string } = {};
 
     let parsedResponse = true;
     try {
@@ -110,6 +125,7 @@ async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationR
           credits: typeof parsed.credits === 'number' && Number.isFinite(parsed.credits)
             ? parsed.credits
             : undefined,
+          creditPoolId: readCreditPoolId(parsed.credit_pool_id),
         };
       } else {
         parsedResponse = false;
@@ -131,6 +147,7 @@ async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationR
     const verdict = {
       isValid: accepted,
       credits: accepted ? credits : 0,
+      ...(accepted && data.creditPoolId ? { creditPoolId: data.creditPoolId } : {}),
     };
 
     // Only a successful validation response or the licensing API's definitive
@@ -224,6 +241,7 @@ export async function validateAuth(input: AuthInput, forceRefresh = false): Prom
           identifier: licenseKey,
           credits: cached.credits,
           licenseKey,
+          ...(cached.creditPoolId ? { creditPoolId: cached.creditPoolId } : {}),
         },
         diagnostics: {
           source: 'cache',
@@ -256,6 +274,7 @@ export async function validateAuth(input: AuthInput, forceRefresh = false): Prom
       identifier: licenseKey,
       credits: validation.credits,
       licenseKey,
+      ...(validation.creditPoolId ? { creditPoolId: validation.creditPoolId } : {}),
     },
     diagnostics,
   };

@@ -567,6 +567,12 @@ describe('getCachedLicense', () => {
     expect(await getCachedLicense(() => store, 'KEY-123')).toEqual(validLicense);
   });
 
+  test('returns the credit pool id an entry carries (#2026)', async () => {
+    const pooled = { ...validLicense, creditPoolId: 'e'.repeat(64) };
+
+    expect(await getCachedLicense(() => recordingStore(pooled), 'KEY-123')).toEqual(pooled);
+  });
+
   test('treats an entry missing isValid as a MISS, not as an invalid license', async () => {
     // This is the paying-user lockout guard. An entry written by an older
     // schema comes back with `isValid` undefined; middleware/auth.ts reads that
@@ -582,6 +588,7 @@ describe('getCachedLicense', () => {
       { isValid: 'true', credits: 1000, cachedAt: 'x' }, // isValid not a boolean
       { isValid: true, credits: '1000', cachedAt: 'x' }, // credits not a number
       { isValid: true, credits: 1000 }, // cachedAt absent
+      { isValid: true, credits: 1000, cachedAt: 'x', creditPoolId: 42 }, // pool id not a string
       'not json at all',
       42,
       [],

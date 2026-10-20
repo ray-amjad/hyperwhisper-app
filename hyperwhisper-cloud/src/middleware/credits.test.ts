@@ -212,6 +212,19 @@ describe('deductCredits / drainPendingDeductions', () => {
     await expectNoPendingDeductions();
   });
 
+  test('the cache rewrite after a charge keeps the credit pool id, or holds go per key (#2026)', async () => {
+    captureFetch(() => Response.json({ credits_remaining: 8 }));
+    const pooled: AuthContext = { ...auth(20), creditPoolId: 'f'.repeat(64) };
+
+    await deductCredits(pooled, 0.05, { provider: 'test-provider' }, '1.2.3.4');
+    await deductCredits(auth(20), 0.05, { provider: 'test-provider' }, '1.2.3.4');
+
+    expect(cacheWrites).toHaveLength(2);
+    expect(cacheWrites[0]?.license).toMatchObject({ isValid: true, credits: 8, creditPoolId: 'f'.repeat(64) });
+    expect(cacheWrites[1]?.license).not.toHaveProperty('creditPoolId');
+    await expectNoPendingDeductions();
+  });
+
   test('deductCredits bills the current 0.1 credit minimum when provider cost is zero', async () => {
     const requests = captureFetch(() => Response.json({ credits_remaining: 19.9 }));
     const metadata = { provider: 'zero-cost-provider' };

@@ -5,8 +5,12 @@
 // live in the cloud's own Upstash database next to the `license:<key>` cache
 // they are checked against:
 //
-//   credit_holds:<key>         HASH  holdId -> held milli-credits
-//   credit_holds_expiry:<key>  ZSET  holdId -> expiry (epoch ms)
+//   credit_holds:<pool>         HASH  holdId -> held milli-credits
+//   credit_holds_expiry:<pool>  ZSET  holdId -> expiry (epoch ms)
+//
+// `<pool>` is the credit pool the key spends from: `pool:<credit_pool_id>` when
+// the licence API named one (credits belong to the USER, and one user can own
+// several keys, #2026), else the Account Key itself.
 //
 // Every reservation is ONE Lua script, so the read of the outstanding holds and
 // the write of the new one are atomic: two requests racing for the last credit
@@ -35,8 +39,16 @@ export function fromMilliCredits(milli: number): number {
 }
 
 export interface ReserveHoldRequest {
-  /** The account (licence) key the hold is counted against. */
+  /**
+   * The credit pool the hold is counted against: every hold on one pool shares
+   * one balance. `pool:<credit_pool_id>`, or the Account Key when there is none.
+   */
   account: string;
+  /**
+   * The Account Key the request authenticated with, whose cached balance the
+   * script also reads. Defaults to `account` (a pool that is a key).
+   */
+  licenseKey?: string;
   holdId: string;
   /**
    * The hold's NEW total, not an increment: the smallest total that is any use
@@ -65,7 +77,7 @@ export interface CreditHoldStore {
   release(account: string, holdId: string): Promise<void>;
 }
 
-export function holdKeys(account: string): { holds: string; expiry: string; license: string } {
+export function holdKeys(account: string, licenseKey: string = account): { holds: string; expiry: string; license: string } {
   return {
     holds: `credit_holds:${account}`,
     expiry: `credit_holds_expiry:${account}`,
@@ -73,7 +85,9 @@ export function holdKeys(account: string): { holds: string; expiry: string; lice
     // so a settle that lowered the cached balance after this request authed is
     // still seen: auth can read the balance seconds before the reservation runs
     // (a long upload sits between them on /transcribe).
-    license: `license:${account}`,
+    // Per KEY even when the holds are per pool: each of a user's keys caches
+    // the same pooled balance, and this request's key has the freshest.
+    license: `license:${licenseKey}`,
   };
 }
 
@@ -166,7 +180,7 @@ function parseReserveReply(reply: unknown): ReserveHoldResult {
 export function createUpstashCreditHoldStore(client: () => EvalClient): CreditHoldStore {
   return {
     async reserve(request) {
-      const keys = holdKeys(request.account);
+      const keys = holdKeys(request.account, request.licenseKey);
       const reply = await client().eval(
         RESERVE_HOLD_SCRIPT,
         [keys.holds, keys.expiry, keys.license],

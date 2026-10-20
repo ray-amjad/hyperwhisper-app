@@ -118,10 +118,11 @@ export function logDeductionFailure(
 }
 
 async function recordLicenseUsage(
-  licenseKey: string,
+  auth: AuthContext,
   creditsUsed: number,
   metadata: Record<string, unknown>
 ): Promise<DeductionFailure | undefined> {
+  const licenseKey = auth.identifier;
   const apiBase = (process.env.NEXTJS_LICENSE_API_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
   // Set once the license API accepts the write. A later throw (a 2xx with a
   // malformed body, a failed cache write) means the charge landed, so it is
@@ -160,6 +161,9 @@ async function recordLicenseUsage(
         isValid: true,
         credits: creditsRemaining,
         cachedAt: new Date().toISOString(),
+        // Kept, or the next request on this key would hold per key until the
+        // cache expires (#2026).
+        ...(auth.creditPoolId ? { creditPoolId: auth.creditPoolId } : {}),
       });
     }
   } catch (error) {
@@ -244,7 +248,7 @@ async function performDeduction(
       }
     }
 
-    const failure = await recordLicenseUsage(auth.identifier, creditsUsed, metadata);
+    const failure = await recordLicenseUsage(auth, creditsUsed, metadata);
     if (failure && options.onFailure) {
       try {
         options.onFailure(failure, creditsUsed);

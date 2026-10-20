@@ -195,6 +195,26 @@ describe.skipIf(!redisServerPath)('credit hold keys on redis-server', () => {
     expect(expiryTtl).toBeGreaterThan(600);
   });
 
+  test('a pooled hold counts on the pool but reads the cached balance of the key that asked (#2026)', async () => {
+    await client!.send('FLUSHALL', []);
+    const store = createUpstashCreditHoldStore(evalClient);
+    const pool = 'pool:' + 'a'.repeat(64);
+    // Key A's cache is fresher (lower) than the balance it authed with.
+    await client!.send('SET', [holdKeys(pool, 'key-a').license, JSON.stringify({ isValid: true, credits: 1.5, cachedAt: 'x' })]);
+
+    const first = await store.reserve(request({ account: pool, licenseKey: 'key-a', holdId: 'a', minMilli: 1000, maxMilli: 1000, balanceMilli: 4000 }));
+    expect(first).toEqual({ granted: true, holdMilli: 1000, availableMilli: 1500 });
+    // Key B on the same pool sees key A's hold: 4 - 1 = 3 left, not 4.
+    const second = await store.reserve(request({ account: pool, licenseKey: 'key-b', holdId: 'b', minMilli: 3500, maxMilli: 3500, balanceMilli: 4000 }));
+    expect(second.granted).toBe(false);
+    expect(second.availableMilli).toBe(3000);
+
+    expect(await client!.send('HKEYS', [holdKeys(pool).holds])).toEqual(['a']);
+    expect(Number(await client!.send('EXISTS', ['credit_holds:key-a']))).toBe(0);
+    await store.release(pool, 'a');
+    expect(Number(await client!.send('EXISTS', [holdKeys(pool).holds]))).toBe(0);
+  });
+
   test('an unparseable cache entry is ignored, not fatal', async () => {
     await client!.send('FLUSHALL', []);
     await client!.send('SET', [holdKeys(ACCOUNT).license, 'not json']);

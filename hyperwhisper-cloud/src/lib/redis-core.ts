@@ -66,13 +66,20 @@ export interface CachedLicense {
   isValid: boolean;
   credits: number;
   cachedAt: string;
+  /**
+   * The licence API's opaque `credit_pool_id` (#2026): the user the key's
+   * credits belong to, which credit holds are counted per. Absent when the API
+   * sent none; holds are then per key.
+   */
+  creditPoolId?: string;
 }
 
 function isCachedLicense(value: unknown): value is CachedLicense {
   if (!isRecord(value)) return false;
   return typeof value.isValid === 'boolean'
     && typeof value.credits === 'number'
-    && typeof value.cachedAt === 'string';
+    && typeof value.cachedAt === 'string'
+    && (value.creditPoolId === undefined || typeof value.creditPoolId === 'string');
 }
 
 export async function getCachedLicense(
