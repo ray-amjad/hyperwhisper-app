@@ -46,6 +46,8 @@ export const calls = {
 export const behaviour = {
   /** `false` makes the limiter reject the next request. */
   rateLimitSuccess: true,
+  /** Thrown by the limiter when set — models Upstash being unreachable. */
+  rateLimitError: null as unknown,
   /** Rows the fake database holds, keyed by the exact stored key string. */
   rows: new Map<string, AccountKeyRow>(),
   /** Thrown by `findAccountByKey` when set — models a database fault. */
@@ -78,8 +80,10 @@ export function resetHarness(): void {
   calls.findAccountByKey.length = 0;
   calls.upsertDeviceValidation.length = 0;
   calls.getCreditBalance.length = 0;
+  warnLines.length = 0;
 
   behaviour.rateLimitSuccess = true;
+  behaviour.rateLimitError = null;
   behaviour.rows = new Map();
   behaviour.lookupError = null;
   behaviour.deviceTrackingError = null;
@@ -98,16 +102,23 @@ export function storeRow(row: AccountKeyRow): AccountKeyRow {
  */
 export const logLines: string[] = [];
 
-const realConsole = { error: console.error };
+/** `console.warn` lines, kept apart: the fail-open limiter warns, it does not error. */
+export const warnLines: string[] = [];
+
+const realConsole = { error: console.error, warn: console.warn };
 
 export function silenceRouteLogging(): void {
   console.error = (...args: unknown[]): void => {
     logLines.push(formatLogArgs(args));
   };
+  console.warn = (...args: unknown[]): void => {
+    warnLines.push(formatLogArgs(args));
+  };
 }
 
 export function restoreRouteLogging(): void {
   console.error = realConsole.error;
+  console.warn = realConsole.warn;
 }
 
 function moduleUrl(relative: string): string {
@@ -156,6 +167,7 @@ moduleMock.module(moduleUrl("../lib/rate-limit.ts"), {
     licenseValidateRateLimiter: {
       limit: async (identifier: string) => {
         calls.rateLimit.push(identifier);
+        if (behaviour.rateLimitError) throw behaviour.rateLimitError;
         return { success: behaviour.rateLimitSuccess };
       },
     },
