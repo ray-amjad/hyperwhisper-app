@@ -548,6 +548,22 @@
       ],
       "licensed": false,
       "note": "0 Codex defects over 62 steps. Verified by sqlite3 -readonly: History delete removed 1 ZTRANSCRIPT (75->74); vocab add/duplicate-reject/edit/long entry all persisted in HyperWhisper-Cloud.sqlite (edit = delete+insert by design, VocabularyView.swift:493). Settings export reported success. Lead not filed: percy profile holds 23 ZRECORDINGSESSION rows with status 'recording', endTime set, no transcript (from killed verify apps) shown as blank/'Failed 0m 0s' History rows. Screen had ~20 stacked keychain prompts: kill -9 the percy SecurityAgent clears them at once."
+    },
+    {
+      "at": "2026-10-20T04:19:16Z",
+      "platform": "linux",
+      "commit": "803b588a",
+      "routes": [
+        "modes",
+        "local-api",
+        "history-and-backup"
+      ],
+      "status": "1-filed",
+      "issues": [
+        2153
+      ],
+      "licensed": false,
+      "note": "Unlicensed (no HYPERWHISPER_ACCOUNT_KEY). Codex reported 0 defects on all 3; my own probe of backup export with Include API keys found #2153 (0644 file holding plaintext keys). History needs seeding: insert Transcripts rows via sqlite3 (Status 1=completed, 2=failed) then --relaunch. Local API port 0/1/80/70000/abc/empty all handled truthfully; auth 401 + Origin 403 clean. Empty mode name disables Save. xdotool cannot type non-ASCII (only 'R' of 'Réunion'), not an app bug. Import shows no success status = #2124."
     }
   ]
 }
