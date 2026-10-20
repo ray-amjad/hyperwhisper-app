@@ -56,7 +56,7 @@ jobs:
           bun run typecheck
           bun test src
 
-      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # v1.6
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
 
       - name: Deploy to Fly (${{ inputs.environment }})
         run: flyctl deploy --config ${{ inputs.fly_config }} --remote-only
