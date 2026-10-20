@@ -94,23 +94,12 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
     /// Provider name for display
     var name: String { "HyperWhisper Cloud" }
 
-    /// AI-ENHANCED TEXT FROM SERVER:
-    /// HyperWhisper Cloud performs AI post-processing on the server (typo correction, formatting, etc.)
-    /// and returns the AI-enhanced version via /post-process endpoint.
-    /// TranscriptionPipeline uses this to skip client-side AI processing.
-    /// Reset to nil at the start of each transcription request.
-    private(set) var aiEnhancedText: String?
-
-    /// DETECTED LANGUAGE FROM SERVER:
-    /// The backend reports the language it detected (e.g. "en", "de") in the
-    /// /transcribe response. The pipeline reads this right after `transcribe(...)`
-    /// to gate language-sensitive post steps (filler-word removal) on the
-    /// detected language rather than the requested "auto". Reset at the start of
-    /// each request.
-    private(set) var detectedLanguage: String?
-
-    /// Metadata from the final HTTP response. The response body is never retained.
-    private(set) var lastAttemptDiagnostics: TranscriptionAttemptDiagnostics?
+    // The server-corrected text (/post-process), the language the backend
+    // detected and the final response's diagnostics are per-call results:
+    // `transcribeDetailed(...)` returns them in its `TranscriptionOutcome`
+    // (and the diagnostics of a no-speech parse failure on the thrown
+    // `TranscriptionAttemptFailure`). They are NOT stored on this instance,
+    // which the router caches and the GUI pipeline and the Local API share (#754).
 
     /// Pre-captured application context from the pipeline.
     /// Set by TranscriptionPipeline before calling transcribe() so that server-side
@@ -126,7 +115,12 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
     /// Never call `invalidate` on this; `reset` is gated by
     /// `HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure` for
     /// one-shot DNS-flush recovery only.
-    private var session: URLSession { HyperWhisperRoutedTranscription.sharedSession }
+    private var session: URLSession { sessionOverride ?? HyperWhisperRoutedTranscription.sharedSession }
+
+    /// Test-only transport seam (nil in the app). It replaces the URLSession
+    /// only: the licence check, the request the core builds and the response
+    /// parsing all run unchanged, and the backend still enforces entitlement.
+    private let sessionOverride: URLSession?
 
     // MARK: - Connection Pre-Warm
 
@@ -191,25 +185,42 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
 
     // MARK: - Initialization
 
-    init(licenseManager: LicenseManager, creditManager: HyperWhisperCloudManager, settingsManager: SettingsManager?) {
+    init(
+        licenseManager: LicenseManager,
+        creditManager: HyperWhisperCloudManager,
+        settingsManager: SettingsManager?,
+        session: URLSession? = nil
+    ) {
         self.licenseManager = licenseManager
         self.creditManager = creditManager
         self.settingsManager = settingsManager
+        self.sessionOverride = session
     }
 
     // MARK: - TranscriptionProvider Protocol
 
+    /// The plain-text entry point. A no-speech parse failure leaves
+    /// `transcribeDetailed` wrapped in `TranscriptionAttemptFailure`; this
+    /// unwraps it so a `transcribe` caller sees the ORIGINAL error, exactly as
+    /// before the per-call outcome existed.
     func transcribe(audioURL: URL, language: String?, mode: Mode?, vocabulary: [Vocabulary]) async throws -> String {
+        do {
+            return try await transcribeDetailed(audioURL: audioURL, language: language, mode: mode, vocabulary: vocabulary).text
+        } catch let failure as TranscriptionAttemptFailure {
+            throw failure.underlying
+        }
+    }
+
+    func transcribeDetailed(audioURL: URL, language: String?, mode: Mode?, vocabulary: [Vocabulary]) async throws -> TranscriptionOutcome {
         // The file NAME is not logged. `transcribe` also serves the file-import
         // flow, where the name is a document the user chose and is user content.
         // The extension is what the 415 format recovery below turns on, so that
         // is what a diagnosis needs.
         AppLogger.network.info("HyperWhisper Cloud transcription started (streaming v2) · fileExtension=\(audioURL.pathExtension, privacy: .public)")
 
-        // Reset cached corrected text and detected language at the start of each request
-        aiEnhancedText = nil
-        detectedLanguage = nil
-        lastAttemptDiagnostics = nil
+        // Per-call results, returned in the outcome (never stored on self).
+        var serverCorrectedText: String?
+        var detectedLanguage: String?
 
         // Verify audio file exists
         guard FileManager.default.fileExists(atPath: audioURL.path) else {
@@ -492,7 +503,7 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         let response = requestResult.response
         let successfulIdentifier = requestResult.identifier
         let successfulIsLicensed = requestResult.isLicensed
-        lastAttemptDiagnostics = Self.responseDiagnostics(
+        let attemptDiagnostics = Self.responseDiagnostics(
             response: response,
             elapsedMs: responseLatencyMs,
             providerDisplayName: name
@@ -510,11 +521,16 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
             // mirroring the success path below (which is otherwise skipped by this
             // re-throw). `defer` can't be used here because invalidateCache() awaits.
             await creditManager.invalidateCache()
-            let diagnostics = lastAttemptDiagnostics
+            let diagnostics: TranscriptionAttemptDiagnostics? = attemptDiagnostics
             AppLogger.network.warning(
                 "HyperWhisper Cloud response parse failed · outcome=response_parse_failed · source=\(diagnostics?.attemptSource ?? "unknown", privacy: .public) · backendProvider=\(diagnostics?.backendSTTProvider ?? "unknown", privacy: .public) · backendModel=\(diagnostics?.backendSTTModel ?? "unknown", privacy: .public) · status=\(diagnostics?.httpStatusCode ?? -1, privacy: .public) · responseLatencyMs=\(diagnostics?.responseLatencyMs ?? -1, privacy: .public) · requestId=\(diagnostics?.backendRequestId ?? "unknown", privacy: .public)"
             )
-            throw RustCoreMapping.mapTranscriptionError(err, providerName: "HyperWhisper Cloud")
+            // The diagnostics of THIS attempt ride on the thrown wrapper; both
+            // callers unwrap it at the call site and rethrow the mapped error.
+            throw TranscriptionAttemptFailure(
+                underlying: RustCoreMapping.mapTranscriptionError(err, providerName: "HyperWhisper Cloud"),
+                diagnostics: attemptDiagnostics
+            )
         }
 
         // Capture the server-detected language so the pipeline can gate
@@ -589,7 +605,7 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                     // text as-is rather than re-extracting wrapper markers here.
                     let trimmedCorrected = corrected.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !trimmedCorrected.isEmpty {
-                        aiEnhancedText = trimmedCorrected
+                        serverCorrectedText = trimmedCorrected
                         AppLogger.network.debug("HyperWhisper Cloud stored corrected text · chars=\(trimmedCorrected.count, privacy: .public)")
                     }
                 }
@@ -632,10 +648,16 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         // Return the raw transcription text — may not be wrapped, so use the
         // lenient passthrough (strict extraction would wipe an unwrapped result).
         let cleanedText = TranscriptionTextProcessing.stripWrapperMarkers(transcript.text)
-        let hasCorrection = aiEnhancedText != nil
+        let hasCorrection = serverCorrectedText != nil
         AppLogger.network.info("HyperWhisper Cloud transcription completed · chars=\(cleanedText.count, privacy: .public) · hasServerCorrection=\(hasCorrection, privacy: .public)")
 
-        return cleanedText
+        return TranscriptionOutcome(
+            text: cleanedText,
+            detectedLanguage: detectedLanguage,
+            timestamps: nil,
+            diagnostics: attemptDiagnostics,
+            serverCorrectedText: serverCorrectedText
+        )
     }
 
     /// Sends a licensed transcription request, repairing a stale cached license
