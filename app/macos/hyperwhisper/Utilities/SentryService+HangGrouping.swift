@@ -51,7 +51,7 @@ extension SentryService {
     ///
     /// Plain Strings on both sides on purpose: `hyperwhisperTests` does not link
     /// the Sentry package, so a test cannot name `Frame` at all — the same split
-    /// `store(for:)` below uses. Nil means every frame was a trap frame; the
+    /// `store(for:)` in SentryService+Diagnostics.swift uses. Nil means every frame was a trap frame; the
     /// caller owns what to fingerprint then.
     static func hangFingerprintComponents(
         imagesAndSymbols: [(image: String, symbol: String)]
@@ -69,16 +69,16 @@ extension SentryService {
     /// write nothing and leave the event exactly as it arrived.
     ///
     /// This exists so the decision is reachable from `hyperwhisperTests`.
-    /// `beforeSend` is a closure inside `initialize()` that needs the Sentry
-    /// package, a DSN and a live SDK, so a test can never run it; with the
-    /// array literals written inline there, deleting the found-site assignment
+    /// `beforeSend` (`sanitize(_:)` in SentryService+Privacy.swift) takes the
+    /// Sentry package's `Event`, which that target does not link, so a test can
+    /// never run it; with the array literals written inline there, deleting the found-site assignment
     /// left every test green while every hang re-merged into one Issue. The
     /// values live here, the wiring stays there, and both are pinned.
     ///
     /// **`mechanismType` is a PARAMETER, not an `if` around the call.** That is
     /// the load-bearing part of the shape. `beforeSend` sees every event the SDK
     /// sends, and six other sites set a deliberate custom fingerprint —
-    /// `capture(error:)` below, `AppLogger.swift`, `LocalModelManager.swift`,
+    /// `capture(error:)` in SentryService+Diagnostics.swift, `AppLogger.swift`, `LocalModelManager.swift`,
     /// `HyperWhisperCloudProvider.swift` and `StreamingTranscriptionClient.swift`
     /// (twice). A hang fingerprint that escaped the mechanism check would
     /// overwrite all of them on every event. With the check inside this

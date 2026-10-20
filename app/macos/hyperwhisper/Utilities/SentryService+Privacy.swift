@@ -7,6 +7,9 @@
 //
 
 import Foundation
+#if canImport(Sentry)
+@_spi(Private) import Sentry
+#endif
 
 extension SentryService {
 
@@ -247,4 +250,73 @@ extension SentryService {
         default: return "[redacted]"
         }
     }
+
+    #if canImport(Sentry)
+    // MARK: - The last gate before the network
+
+    /// `options.beforeSend`, set by `initialize(dsn:environment:)`. Every event
+    /// the SDK sends passes through here on its way out, including the ones it
+    /// builds for itself (a failed request, an app hang, a recovered crash).
+    /// Internal (not private) so it stays reachable the way
+    /// `isRedactedExtraKey` is.
+    static func sanitize(_ event: Event) -> Event? {
+        // LAST GATE BEFORE THE NETWORK
+        // The user can turn error logging off at any moment, including
+        // while an event the SDK built for itself is already in flight —
+        // a failed request, an app hang, a crash report recovered from
+        // the last session. None of those pass through capture(),
+        // and shutdown() cannot reach one that is mid-air. beforeSend
+        // runs on the way out of every event, so it is the last place to
+        // drop it. Issue #551.
+        guard AppLogger.isErrorLoggingEnabled else { return nil }
+
+        // Remove breadcrumbs to avoid leaking text content via logs
+        // Note: We still collect breadcrumbs locally for debugging flow,
+        // but strip them before sending to Sentry for privacy
+        event.breadcrumbs = nil
+        // Drop any suspicious extras
+        var sanitized = event.extra ?? [:]
+        for (key, value) in sanitized {
+            sanitized[key] = Self.redactedValue(forKey: key, value: value)
+        }
+        event.extra = sanitized
+
+        // APP HANG GROUPING (issue #683)
+        // An SDK-raised AppHang never reaches capture(error:), so this is
+        // the only hook that can fingerprint it. Without one, every hang
+        // with no HyperWhisper frame below HyperWhisperApp.$main merges
+        // into HYPERWHISPER-F7 — 191 events, 7 unrelated blocking sites.
+        // Both values are code identifiers read out of a stack frame, so
+        // neither can hold anything the user typed, said or named.
+        //
+        // EVERY decision is `hangGrouping`'s, including whether to write
+        // anything at all — it returns nil for an event that is not an
+        // app hang. The guard is an argument, not an `if` wrapped round
+        // the call, so a unit test can execute it; this function takes the
+        // Sentry package's `Event`, which `hyperwhisperTests` does not
+        // link, so no test can execute this. What is left here is two
+        // reads and two writes.
+        let hangFrames: [(image: String, symbol: String)] =
+            (event.exceptions?.first?.stacktrace?.frames ?? []).map {
+                (image: $0.package ?? "", symbol: $0.function ?? "")
+            }
+        if let grouping = Self.hangGrouping(
+            mechanismType: event.exceptions?.first?.mechanism?.type,
+            imagesAndSymbols: hangFrames,
+            existingTags: event.tags
+        ) {
+            event.fingerprint = grouping.fingerprint
+            event.tags = grouping.tags
+        }
+
+        return event
+    }
+
+    /// `options.beforeSendLog`, set by `initialize(dsn:environment:)`. The Logs
+    /// pipeline does not use `beforeSend`, so the opt-out is checked again here.
+    static func sanitize(_ log: SentryLog) -> SentryLog? {
+        guard AppLogger.isErrorLoggingEnabled else { return nil }
+        return log
+    }
+    #endif
 }
