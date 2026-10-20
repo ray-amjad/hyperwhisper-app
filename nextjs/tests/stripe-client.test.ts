@@ -13,6 +13,10 @@
  * - The secret key. The client must authenticate with `STRIPE_SECRET_KEY`
  *   and nothing else.
  *
+ * The module also builds `stripeRefundApi` (#755), the admin refund flow's
+ * client, pinned to the older `2025-02-24.acacia` version that flow was
+ * tested against. Its version and key are proved on the wire the same way.
+ *
  * So the tests import the REAL module, point the real client at a local HTTP
  * server, make a real API call, and assert the headers that reach the wire.
  * The key below is a fixture: it is not shaped like a Stripe key, and the
@@ -28,8 +32,19 @@ import { after, before, describe, test } from "node:test";
 
 const FIXTURE_KEY = "fixture-secret-key-not-a-real-stripe-key";
 const PINNED_VERSION = "2025-12-15.clover; managed_payments_preview=v1";
+const REFUND_PINNED_VERSION = "2025-02-24.acacia";
 
-type Seen = { method?: string; url?: string; headers: IncomingHttpHeaders };
+type Seen = { method?: string; url?: string; headers: IncomingHttpHeaders; body: string };
+
+/** Points a real client at the local server; only the transport target changes. */
+function pointAt(client: unknown, port: number): void {
+  // `_setApiField` is the setter the constructor itself uses; the public
+  // types do not declare it.
+  const api = client as { _setApiField(key: string, value: string): void };
+  api._setApiField("protocol", "http");
+  api._setApiField("host", "127.0.0.1");
+  api._setApiField("port", String(port));
+}
 
 describe("lib/clients/stripe — the shared Stripe client", () => {
   let server: Server;
@@ -38,16 +53,32 @@ describe("lib/clients/stripe — the shared Stripe client", () => {
 
   before(async () => {
     server = createServer((req, res) => {
-      seen.push({ method: req.method, url: req.url, headers: req.headers });
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({
-          object: "list",
-          url: "/v1/customers",
-          has_more: false,
-          data: [{ id: "cus_fixture", object: "customer" }],
-        }),
-      );
+      let body = "";
+      req.on("data", (chunk) => (body += chunk));
+      req.on("end", () => {
+        seen.push({ method: req.method, url: req.url, headers: req.headers, body });
+        res.writeHead(200, { "Content-Type": "application/json" });
+        if (req.url?.startsWith("/v1/checkout/sessions/")) {
+          res.end(
+            JSON.stringify({
+              id: "cs_fixture",
+              object: "checkout.session",
+              payment_intent: "pi_fixture",
+            }),
+          );
+        } else if (req.url === "/v1/refunds") {
+          res.end(JSON.stringify({ id: "re_fixture", object: "refund" }));
+        } else {
+          res.end(
+            JSON.stringify({
+              object: "list",
+              url: "/v1/customers",
+              has_more: false,
+              data: [{ id: "cus_fixture", object: "customer" }],
+            }),
+          );
+        }
+      });
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     port = (server.address() as AddressInfo).port;
@@ -68,12 +99,7 @@ describe("lib/clients/stripe — the shared Stripe client", () => {
 
     // Point the real client at the local server. Only the transport target
     // changes; the key, the version and the request building are the module's.
-    // `_setApiField` is the setter the constructor itself uses; the public
-    // types do not declare it.
-    const api = stripe as unknown as { _setApiField(key: string, value: string): void };
-    api._setApiField("protocol", "http");
-    api._setApiField("host", "127.0.0.1");
-    api._setApiField("port", String(port));
+    pointAt(stripe, port);
 
     const customers = await stripe.customers.list({ limit: 1 });
 
@@ -88,6 +114,36 @@ describe("lib/clients/stripe — the shared Stripe client", () => {
       customers.data.map((c) => c.id),
       ["cus_fixture"],
     );
+  });
+
+  test("the refund client sends the secret key and the acacia API version on its two calls", async () => {
+    process.env.SKIP_ENV_VALIDATION = "1";
+    process.env.STRIPE_SECRET_KEY = FIXTURE_KEY;
+    const { stripeRefundApi } = await import("../lib/clients/stripe");
+    pointAt(stripeRefundApi, port);
+    seen.length = 0;
+
+    // The same two calls, with the same arguments, the admin refund flow
+    // makes in server/api/routers/admin/customers.ts.
+    const session = await stripeRefundApi.checkout.sessions.retrieve("cs_fixture");
+    await stripeRefundApi.refunds.create(
+      { payment_intent: "pi_fixture" },
+      { idempotencyKey: "idem_fixture" },
+    );
+
+    assert.equal(session.payment_intent, "pi_fixture");
+    assert.equal(seen.length, 2);
+    const [retrieve, refund] = seen;
+    assert.equal(retrieve.method, "GET");
+    assert.equal(retrieve.url, "/v1/checkout/sessions/cs_fixture");
+    assert.equal(refund.method, "POST");
+    assert.equal(refund.url, "/v1/refunds");
+    assert.equal(refund.body, "payment_intent=pi_fixture");
+    assert.equal(refund.headers["idempotency-key"], "idem_fixture");
+    for (const req of seen) {
+      assert.equal(req.headers.authorization, `Bearer ${FIXTURE_KEY}`);
+      assert.equal(req.headers["stripe-version"], REFUND_PINNED_VERSION);
+    }
   });
 
   test("a missing STRIPE_SECRET_KEY fails the import instead of building an unauthenticated client", async () => {

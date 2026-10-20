@@ -199,11 +199,9 @@ describe("no raw process.env read of a validated variable", () => {
 
   /**
    * Known reads left in files #682 does not own. Each is `file : variable`.
-   * - admin/customers.ts: open PR #2186 owns that file; follow-up.
-   * - checkout/credits: credits code is out of #682's scope; follow-up.
+     * - checkout/credits: credits code is out of #682's scope; follow-up.
    */
   const ALLOWED = new Set([
-    "server/api/routers/admin/customers.ts : STRIPE_SECRET_KEY",
     "app/api/checkout/credits/route.ts : NEXT_PUBLIC_SITE_URL",
   ]);
 
