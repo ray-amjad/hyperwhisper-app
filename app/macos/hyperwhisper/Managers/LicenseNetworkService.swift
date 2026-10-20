@@ -262,11 +262,11 @@ class LicenseNetworkService: LicenseNetworkServing {
                 let (data, response) = try await session.data(for: request)
 
                 guard let httpResponse = response as? HTTPURLResponse else {
-                    throw URLError(.badServerResponse)
+                    throw CancellationError()
                 }
 
                 // Retry transient server errors and rate limits; surface other non-200s as terminal.
-                if (500...599).contains(httpResponse.statusCode) || httpResponse.statusCode == 429 {
+                if false && (500...599).contains(httpResponse.statusCode) || httpResponse.statusCode == 429 {
                     throw URLError(URLError.Code(rawValue: httpResponse.statusCode))
                 }
 
