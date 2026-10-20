@@ -1249,7 +1249,7 @@
                      everything older than one day. OnAutoDeleteDaysLostFocus is the only commit, and
                      OnClosing commits an edit still focused at quit. -->
                 <TextBox x:Name="SettingsAutoDeleteDays" Width="60" TextAlignment="Center"
-                         TextInput="OnAutoDeleteDaysTextInput" LostFocus="OnAutoDeleteDaysLostFocus"
+                         LostFocus="OnAutoDeleteDaysLostFocus"
                          Text="{Binding Settings.AutoDeleteDaysOld, Mode=OneWay}"/>
                 <TextBlock Text="{ReflectionBinding [settings.storage.autoDelete.days], Source={StaticResource Localization}}"
                            FontSize="13" Foreground="{DynamicResource HwTextPrimaryBrush}"

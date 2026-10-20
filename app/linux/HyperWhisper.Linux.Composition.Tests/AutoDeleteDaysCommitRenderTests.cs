@@ -84,6 +84,11 @@ static class AutoDeleteDaysCommitRenderTests
         Report("after typing 4 and pausing", "30", shell, settingsPath, cleanups, failures);
         Expect("the box after typing 4", box.Text, "14", failures);
 
+        // A letter never reaches the box (Windows' NumericOnly_PreviewTextInput). The filter has to
+        // run on the tunnel: the box's own class handler inserts the text before a bubbling one.
+        await Type(box, "a");
+        Expect("the box after typing a", box.Text, "14", failures);
+
         // Focus moves to the next control, as a click or Tab does: the edit commits now.
         Named<CheckBox>(window, "SettingsAutoDeleteEnabled").Focus();
         await Settle();

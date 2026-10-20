@@ -218,6 +218,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         ComboWheelGuard.Attach(this);
         AttachVocabularyKeyHandlers();
+        AttachAutoDeleteDaysTextFilter();
         DataContext = _viewModel;
         // The library count under the title moves with the filters, so it follows the view.
         if (_viewModel.Models is { } models)
@@ -1907,9 +1908,16 @@ public partial class MainWindow : Window
     private bool _autocapitalizeProbeRan;
 
     // Windows' NumericOnly_PreviewTextInput swallows anything that is not an integer, so a letter
-    // never reaches the box (StorageSettingsPage.xaml.cs:159-162).
+    // never reaches the box (StorageSettingsPage.xaml.cs:159-162). It has to run on the tunnel, the
+    // PreviewTextInput of Avalonia, and so sit on the window like AttachVocabularyKeyHandlers: a
+    // bubbling handler on the box runs after TextBox's own class handler has inserted the letter
+    // (#2199, where "abc" reached the box and showed a raw InvalidCastException under it).
+    private void AttachAutoDeleteDaysTextFilter() =>
+        AddHandler(TextInputEvent, OnAutoDeleteDaysTextInput, RoutingStrategies.Tunnel);
+
     private void OnAutoDeleteDaysTextInput(object? sender, TextInputEventArgs e)
     {
+        if (e.Source is not TextBox { Name: "SettingsAutoDeleteDays" }) return;
         if (!string.IsNullOrEmpty(e.Text) && !e.Text.All(char.IsAsciiDigit)) e.Handled = true;
     }
 
