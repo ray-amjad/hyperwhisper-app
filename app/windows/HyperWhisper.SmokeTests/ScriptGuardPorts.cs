@@ -35,7 +35,7 @@ internal static class ScriptGuardPorts
 
     public static void RunAll(Action<string, Action> run)
     {
-        run("history: audio deletion stays inside the trusted recording roots (#830, was scripts/verify_storage_delete_guard.ps1 + verify_isolated_storage_cleanup.ps1)", () =>
+        run("history: audio deletion stays inside the trusted recording roots (#830)", () =>
         {
             // A transcript row carries a path. Deleting the row must never delete a
             // file the app does not own (a restored backup or a hand-edited DB can
@@ -112,7 +112,7 @@ internal static class ScriptGuardPorts
             }
         });
 
-        run("local api: only a socket bind failure on a remembered port retries on an ephemeral port (#830, was scripts/verify_local_api_bind_fallback.ps1)", () =>
+        run("local api: only a socket bind failure on a remembered port retries on an ephemeral port (#830)", () =>
         {
             // A remembered port another app took would otherwise stop the Local API
             // for good; any other startup failure must still surface as fatal.
@@ -136,7 +136,7 @@ internal static class ScriptGuardPorts
                 "a non-bind startup failure was retried instead of failing");
         });
 
-        run("transcription: a repeated-phrase loop collapses to one copy, ordinary text is untouched (#830, was scripts/verify_long_recording_repetition_guard.ps1)", () =>
+        run("transcription: a repeated-phrase loop collapses to one copy, ordinary text is untouched (#830)", () =>
         {
             // Whisper can loop on long audio; the user would paste the same phrase
             // dozens of times. Emphasis ("yes yes yes") and short text must survive.
@@ -151,7 +151,7 @@ internal static class ScriptGuardPorts
             Assert(TranscriptionService.CollapseRepetitionLoops(shortText) == shortText, "text with fewer than three repeats changed");
         });
 
-        run("streaming: a multi-channel mic downmixes at 1/sqrt(n) and clamps (#830, was scripts/verify_streaming_downmix_scaling.ps1)", () =>
+        run("streaming: a multi-channel mic downmixes at 1/sqrt(n) and clamps (#830)", () =>
         {
             // A mic array with one live channel: a plain average (1/n) makes the
             // voice too quiet to transcribe; no clamp would wrap loud audio.
@@ -184,7 +184,7 @@ internal static class ScriptGuardPorts
                 "loud correlated channels did not clamp to Int16 min");
         });
 
-        run("orchestrator: whitespace from the engine is NoSpeechDetected and names the engine (#830, was scripts/verify_no_speech_terminal_status_wiring.ps1)", () =>
+        run("orchestrator: whitespace from the engine is NoSpeechDetected and names the engine (#830)", () =>
         {
             // Silence must end as the no-speech failure (its own toast and History
             // reason), not paste blanks or a generic error with no provider.
@@ -214,7 +214,7 @@ internal static class ScriptGuardPorts
             Assert(caught.Message.Contains("No speech", StringComparison.OrdinalIgnoreCase), $"message '{caught.Message}'");
         });
 
-        run("history: startup recovery turns a dead session's Processing row into a retryable Failed row (#830, was scripts/verify_no_speech_terminal_status_wiring.ps1)", () =>
+        run("history: startup recovery turns a dead session's Processing row into a retryable Failed row (#830)", () =>
         {
             // A crash mid-transcription leaves a row spinning forever unless startup
             // recovery marks it Failed. A finished row must not be touched.
@@ -245,7 +245,7 @@ internal static class ScriptGuardPorts
             }
         });
 
-        run("models: deleting a Whisper or Parakeet model whose file is in use fails as a Result and keeps it (#830, was scripts/verify_model_delete_failure_handling.ps1)", () =>
+        run("models: deleting a Whisper or Parakeet model whose file is in use fails as a Result and keeps it (#830)", () =>
         {
             // A model file held open (a running transcription, antivirus) made
             // Delete throw into the Settings page. It must come back as a failure
@@ -293,7 +293,7 @@ internal static class ScriptGuardPorts
             }
         });
 
-        run("prompt: each detected app type puts its own context block in the AI prompt (#830, was scripts/verify_app_classification.ps1)", () =>
+        run("prompt: each detected app type puts its own context block in the AI prompt (#830)", () =>
         {
             // The AppType -> core HwAppType switch is C#. A wrong arm formats an
             // email like a chat message, or code like prose, with no error.
@@ -330,7 +330,7 @@ internal static class ScriptGuardPorts
             }
         });
 
-        run("streaming: only HyperWhisper Cloud streams without the user's own API key (#830, was scripts/verify_streaming_failure_wiring.ps1)", () =>
+        run("streaming: only HyperWhisper Cloud streams without the user's own API key (#830)", () =>
         {
             // A direct provider marked keyless would start a session with no key and
             // fail on the wire; Cloud marked keyed would ask a subscriber for a key.
@@ -341,7 +341,7 @@ internal static class ScriptGuardPorts
             }
         });
 
-        run("local api: a /transcribe file reached through a junction under a trusted root is refused (#830, #740, was scripts/verify_local_api_transcribe_contract.ps1)", () =>
+        run("local api: a /transcribe file reached through a junction under a trusted root is refused (#830, #740)", () =>
         {
             // A token holder could plant a junction in the recordings folder and have
             // the app read (and upload) any file it points at. The opened handle's
@@ -385,7 +385,7 @@ internal static class ScriptGuardPorts
             }
         });
 
-        run("file transcription: a cancel before or during conversion throws OperationCanceledException and leaves no temp WAV (#830, was scripts/verify_transcription_cancellation_wiring.ps1)", () =>
+        run("file transcription: a cancel before or during conversion throws OperationCanceledException and leaves no temp WAV (#830)", () =>
         {
             // Escape during a file transcription must end silently as a cancel. A
             // cancel reported as a Failure shows an error toast, and a half-written
@@ -460,7 +460,7 @@ internal static class ScriptGuardPorts
             }
         });
 
-        run("tray: Start/Stop item text and enabled state, and the empty mode submenus (#830, was scripts/verify_tray_menu_wiring.ps1)", () =>
+        run("tray: Start/Stop item text and enabled state, and the empty mode submenus (#830)", () =>
         {
             // Stop must stay reachable from the tray while recording; Start must be
             // off while a transcription or model load is running or nothing to
