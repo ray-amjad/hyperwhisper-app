@@ -25,6 +25,19 @@ const CHIRP_BUCKET_EXCEPTION = (
   </>
 );
 
+// The log caveat, rendered after every no-transcript claim below (Ray, #714
+// inbox #1770: qualify them). Some providers' error bodies are logged whole
+// (e.g. openai-compat-chat.ts) and can quote the request; #2163 tracks
+// stopping that, after which this can be removed.
+const ERROR_LOG_EXCEPTION = (
+  <>
+    Separately, when a provider returns an error to HyperWhisper Cloud, our
+    service logs keep the provider&apos;s error message, and that message can
+    quote part of what was sent to the provider, such as a vocabulary term or a
+    passage of your transcript, as described in the HyperWhisper Cloud section.
+  </>
+);
+
 export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none prose-invert">
@@ -40,7 +53,7 @@ export default function PrivacyPolicyPage() {
         range of cloud providers — including HyperWhisper Cloud, our built-in
         cloud service. Whichever option you choose, we never store your audio
         recordings or transcripts, with one exception for HyperWhisper Cloud
-        audio. {CHIRP_BUCKET_EXCEPTION}
+        audio. {CHIRP_BUCKET_EXCEPTION} {ERROR_LOG_EXCEPTION}
       </p>
       <p>
         Ray Amjad LTD (
@@ -214,7 +227,7 @@ export default function PrivacyPolicyPage() {
 
       <p className="font-semibold">
         We do not store your audio recordings or transcripts, with one
-        exception. {CHIRP_BUCKET_EXCEPTION}
+        exception. {CHIRP_BUCKET_EXCEPTION} {ERROR_LOG_EXCEPTION}
       </p>
 
       <h2>What Stays On Your Device</h2>
@@ -269,7 +282,8 @@ export default function PrivacyPolicyPage() {
         When using cloud transcription, your audio is sent directly from your
         device to the cloud provider you choose. HyperWhisper does not proxy,
         store, or retain your audio or transcripts on our servers. HyperWhisper
-        Cloud, below, has one exception. {CHIRP_BUCKET_EXCEPTION} The cloud
+        Cloud, below, has one exception. {CHIRP_BUCKET_EXCEPTION}{" "}
+        {ERROR_LOG_EXCEPTION} The cloud
         provider you select may store or process your data according to their
         own privacy policies. You are responsible for reviewing those policies
         before use.
@@ -471,7 +485,7 @@ export default function PrivacyPolicyPage() {
         service. It routes your audio through our edge servers to one of the
         providers listed below. We do not store your audio or transcripts — we
         track credit usage and keep the operational records described below —
-        with one exception. {CHIRP_BUCKET_EXCEPTION}
+        with one exception. {CHIRP_BUCKET_EXCEPTION} {ERROR_LOG_EXCEPTION}
       </p>
       <p>
         Beyond credit usage, HyperWhisper Cloud keeps the operational records
@@ -899,7 +913,9 @@ export default function PrivacyPolicyPage() {
         Medical model. These options tune transcription for clinical
         vocabulary. For these HyperWhisper Cloud medical requests, our edge
         servers do not write
-        the audio or the transcript to our own storage. If Deepgram cannot
+        the audio or the transcript to our own storage, although a
+        provider&apos;s error message in our logs can quote part of the
+        request, as described in the HyperWhisper Cloud section. If Deepgram cannot
         take a request,
         HyperWhisper Cloud can send it to Groq or ElevenLabs as described
         above, and they do not use a medical model. Live streaming through
@@ -1118,7 +1134,8 @@ export default function PrivacyPolicyPage() {
       <p>
         Because we do not store your audio or transcripts, requests to access or
         delete that data should be carried out on your device by you. The one
-        exception is HyperWhisper Cloud audio. {CHIRP_BUCKET_EXCEPTION} For email,
+        exception is HyperWhisper Cloud audio. {CHIRP_BUCKET_EXCEPTION}{" "}
+        {ERROR_LOG_EXCEPTION} For email,
         order, or license information we maintain, you may request access or
         deletion by contacting support. Some information must be retained for
         legal/accounting purposes.
@@ -1126,7 +1143,9 @@ export default function PrivacyPolicyPage() {
       <p>
         If you dictated patient information with the Medical Mode options
         described above, through HyperWhisper Cloud or your own API key, we hold
-        neither the audio nor the transcript, so delete them on your device as
+        neither the audio nor the transcript, apart from any part of it that a
+        provider&apos;s error message quotes in our logs, so delete them on
+        your device as
         described above. Any copy a provider keeps is governed by that
         provider&apos;s terms.
       </p>
