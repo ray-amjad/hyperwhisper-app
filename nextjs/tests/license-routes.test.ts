@@ -30,6 +30,7 @@ import {
   restoreRouteLogging,
   silenceRouteLogging,
   storeRow,
+  warnLines,
 } from "./license-routes-harness";
 import { leakyDbError, leakyLines, SESSION_INDEX } from "./db-error-fixture";
 
@@ -781,6 +782,64 @@ describe("an unparseable request is logged without its contents (#719)", () => {
         error: "Invalid request body",
       });
       assertOneRedactedLine("License deactivate");
+    });
+  }
+});
+
+describe("the licence routes fail open when the rate limiter is down (#2058)", () => {
+  // `lib/rate-limit-gate.ts` is the one fail-open policy for every site
+  // limiter. Before #2058 these two routes awaited `limit()` bare, so an
+  // Upstash outage escaped the handler and Next answered a bare 500 with no
+  // JSON body and no `reason`.
+  const UPSTASH_DOWN = (): TypeError =>
+    // The message quotes the caller's address, as an Upstash error can; the
+    // warning must carry only the class name.
+    new TypeError("fetch failed: EVALSHA rl:203.0.113.7");
+
+  const routes = [
+    { path: ACTIVATE_PATH, load: loadActivateRoute },
+    { path: "/api/account/activate", load: loadAccountActivateRoute },
+    { path: VALIDATE_PATH, load: loadValidateRoute },
+    { path: "/api/account/validate", load: loadAccountValidateRoute },
+  ];
+
+  for (const { path, load } of routes) {
+    test(`${path} still answers a granted key`, async () => {
+      behaviour.rateLimitError = UPSTASH_DOWN();
+      storeRow(accountKeyRow({ key: GRANTED_KEY }));
+      const { POST } = await load();
+
+      const response = await POST(
+        postRequest(
+          path,
+          { license_key: GRANTED_KEY },
+          { "x-vercel-forwarded-for": "203.0.113.7" },
+        ),
+      );
+      const body = await readJson(response);
+
+      assert.equal(response.status, 200);
+      assert.equal(body.valid, true);
+      assert.deepEqual(calls.rateLimit, ["203.0.113.7"]);
+      assert.deepEqual(calls.findAccountByKey, [GRANTED_KEY]);
+      assert.equal(warnLines.length, 1, warnLines.join("\n"));
+      assert.match(warnLines[0], /failing open: TypeError$/);
+      assert.ok(!warnLines[0].includes("203.0.113.7"), warnLines[0]);
+    });
+
+    test(`${path} still gives an unknown key its reasoned verdict`, async () => {
+      behaviour.rateLimitError = UPSTASH_DOWN();
+      const { POST } = await load();
+
+      const response = await POST(
+        postRequest(path, { license_key: "HW-TEST-NOPE-0000" }),
+      );
+      const body = await readJson(response);
+
+      // The key check still runs and fails closed: an outage is never a pass.
+      assert.equal(response.status, 400);
+      assert.equal(body.valid, false);
+      assert.equal(body.reason, "not_entitled");
     });
   }
 });

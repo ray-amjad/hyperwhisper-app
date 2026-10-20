@@ -44,6 +44,11 @@ export function estimateCreditsFromSize(sizeBytes: number, options: CreditEstima
  * A refused hold answers the same 402 as a short balance, reporting what the
  * balance has left after the other holds — the credits this request could
  * actually have used. Redis unavailable fails open (see `credit-holds.ts`).
+ *
+ * Holding is the default. A caller that must not hold says so with
+ * `{ hold: false }`; a holding call made outside `withCreditHoldScope` (a route
+ * that forgot the wrapper) still fails open on the cached balance, but logs
+ * `credits_hold.no_scope` so the missing guard is visible (#2043).
  */
 export async function validateCredits(
   auth: AuthContext,
@@ -59,7 +64,15 @@ export async function validateCredits(
   // hold: two requests each holding a floor can starve each other's full hold.
   if (options.hold === false) return { ok: true };
   const hold = requestHoldFor(auth);
-  if (!hold) return { ok: true };
+  if (!hold) {
+    // One line, never the key: the wiring slip, not the request.
+    console.error(JSON.stringify({
+      event: 'credits_hold.no_scope',
+      failOpen: true,
+      estimatedCredits,
+    }));
+    return { ok: true };
+  }
   const outcome = await hold.reserve(estimatedCredits, estimatedCredits);
   if (outcome.kind === 'refused') {
     return {

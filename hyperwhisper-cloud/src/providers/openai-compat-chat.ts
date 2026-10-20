@@ -12,7 +12,7 @@ import { isRecord, safeReadText } from '../lib/utils';
 import { estimateUsageFromChars, isGroqUsage, type GroqUsage } from '../lib/cost-calculator';
 import type { CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError } from './llm-errors';
-import { computeLLMRequestTimeoutMs, fetchLLMWithTimeout, promptCharCount, transcriptCharCount } from './llm-fetch';
+import { computeLLMRequestTimeoutMs, fetchLLMWithTimeout, promptCharCount, readLLMJson, transcriptCharCount } from './llm-fetch';
 
 export type OpenAICompatChatResult = { raw: unknown; usage?: GroqUsage; costUsd: number };
 
@@ -90,7 +90,7 @@ export async function requestOpenAICompatibleChat(
         );
       }
 
-      const json: unknown = await response.json();
+      const json = await readLLMJson(response, config.providerTag, requestId);
       const usage = isRecord(json) && isGroqUsage(json['usage']) ? (json['usage'] as GroqUsage) : undefined;
       return { json, usage };
     },
