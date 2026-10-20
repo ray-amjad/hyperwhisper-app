@@ -10,7 +10,11 @@
 
 import { toOpenGraphLocale } from "@/src/i18n/locales";
 
-export const SITE_URL = "https://hyperwhisper.com";
+// The host that serves every page with a 200. The apex hyperwhisper.com
+// redirects here, so every canonical, hreflang, og:url, sitemap <loc> and the
+// robots.txt Sitemap line must name www, or each one answers a redirect (#816).
+// Import it; never write the host again.
+export const SITE_URL = "https://www.hyperwhisper.com";
 export const SITE_NAME = "HyperWhisper";
 
 export const OG_IMAGES = [1024, 512, 256, 128].map((size) => ({

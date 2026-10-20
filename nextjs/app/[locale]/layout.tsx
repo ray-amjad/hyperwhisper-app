@@ -36,6 +36,7 @@ import HtmlDocument from "@/components/layout/HtmlDocument";
 import LayoutWrapper from "@/components/layout/LayoutWrapper";
 import {
   localeOpenGraph,
+  SITE_URL,
   TWITTER_CARD,
   TWITTER_CREATOR,
   TWITTER_IMAGES,
@@ -110,7 +111,7 @@ export async function generateMetadata({ params }: Props) {
       icon: "/icon/32.png",
       apple: "/icon/256.png",
     },
-    metadataBase: new URL("https://hyperwhisper.com"),
+    metadataBase: new URL(SITE_URL),
   };
 }
 
