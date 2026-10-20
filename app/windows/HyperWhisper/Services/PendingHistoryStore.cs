@@ -159,7 +159,25 @@ internal sealed class PendingHistoryStore
         }
     }
 
-    public bool Remove(Guid id) => Remove(new[] { id }) > 0;
+    /// <summary>
+    /// The user's delete of these visible records (#2126): they go only when the file is
+    /// rewritten without them. Returns false, and keeps every one of them in memory as it
+    /// was, when the file could not be written: the old file still holds them, so dropping
+    /// them here would bring them back at the next launch, after their audio was deleted.
+    /// </summary>
+    public bool Delete(IEnumerable<Guid> ids)
+    {
+        var idSet = ids.ToHashSet();
+        lock (_sync)
+        {
+            var before = new List<Transcript>(Records);
+            if (Records.RemoveAll(r => idSet.Contains(r.Id) && IsVisible(r)) == 0) return true;
+            if (Save()) return true;
+
+            _records = before;
+            return false;
+        }
+    }
 
     private bool IsVisible(Transcript record) => !_writeAhead.Contains(record.Id);
 

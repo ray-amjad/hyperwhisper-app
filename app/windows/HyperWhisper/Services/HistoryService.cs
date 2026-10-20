@@ -758,9 +758,9 @@ public class HistoryService
     /// <summary>
     /// Deletes a single transcript and its associated audio file.
     /// Success(true): deleted. Success(false): no transcript has that id (not an
-    /// error). Failure: SQLite refused the delete, so the row is still there; the
-    /// Error is the localized <c>transcripts.delete.failed</c> copy and Exception
-    /// holds the cause (#974).
+    /// error). Failure: SQLite refused the delete, or a pending row's file could not be
+    /// rewritten (#2126), so the row and its audio are still there; the Error is the
+    /// localized <c>transcripts.delete.failed</c> copy and Exception holds the cause (#974).
     /// </summary>
     public Result<bool> DeleteTranscript(Guid id)
     {
@@ -771,7 +771,14 @@ public class HistoryService
             if (Pending.Get(id) is { } pending)
             {
                 // Never written (#1589): dropping the pending record is the whole delete.
-                Pending.Remove(id);
+                // A pending file that could not be rewritten still holds it, and the next
+                // launch would save it again (#2126): keep the record and its audio.
+                if (!Pending.Delete(new[] { id }))
+                {
+                    LoggingService.Error($"HistoryService: Failed to delete pending transcript {id}; the pending file could not be written");
+                    return Result<bool>.Failure(Loc.S("transcripts.delete.failed"),
+                        new IOException($"Could not rewrite {PendingHistoryStore.FileName}"));
+                }
                 transcript = pending;
                 LoggingService.Info($"HistoryService: Deleted pending transcript {id}");
             }
@@ -817,6 +824,8 @@ public class HistoryService
     /// More efficient than calling DeleteTranscript multiple times.
     /// Success(n): n rows deleted (0 when none of the ids exist). Failure: SQLite
     /// refused the delete. It is one SaveChanges, so then nothing was deleted (#974).
+    /// Pending rows whose file could not be rewritten are kept with their audio and not
+    /// counted; when they were all there was to delete, that is a Failure too (#2126).
     /// </summary>
     public Result<int> DeleteTranscripts(IEnumerable<Guid> ids)
     {
@@ -854,9 +863,24 @@ public class HistoryService
             var pending = Pending.GetAll().Where(t => idSet.Contains(t.Id)).ToList();
             if (pending.Count > 0)
             {
-                Pending.Remove(pending.Select(t => t.Id));
-                deletedTranscripts.AddRange(pending);
-                LoggingService.Info($"HistoryService: Deleted {pending.Count} pending transcripts");
+                if (Pending.Delete(pending.Select(t => t.Id)))
+                {
+                    deletedTranscripts.AddRange(pending);
+                    LoggingService.Info($"HistoryService: Deleted {pending.Count} pending transcripts");
+                }
+                else if (deletedTranscripts.Count == 0)
+                {
+                    // Nothing was deleted, so this is the refused-sweep failure (#2126).
+                    LoggingService.Error($"HistoryService: Failed to delete {pending.Count} pending transcripts; the pending file could not be written");
+                    return Result<int>.Failure(Loc.S("transcripts.delete.failed"),
+                        new IOException($"Could not rewrite {PendingHistoryStore.FileName}"));
+                }
+                else
+                {
+                    // The database rows are gone; the pending ones stay, with their audio,
+                    // for the next delete (#2126). The count names only what went.
+                    LoggingService.Warn($"HistoryService: Kept {pending.Count} pending transcripts; the pending file could not be written");
+                }
             }
 
             if (deletedTranscripts.Count == 0)
