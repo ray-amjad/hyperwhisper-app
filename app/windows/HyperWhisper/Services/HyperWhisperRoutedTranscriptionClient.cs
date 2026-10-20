@@ -60,7 +60,8 @@ internal static class HyperWhisperRoutedTranscriptionClient
         CancellationToken cancellationToken,
         string? model = null,
         string? domain = null,
-        string? tierStorageId = null)
+        string? tierStorageId = null,
+        (string Identifier, bool IsLicensed)? identity = null)
     {
         // WAVE 3 / Win-2: URL / header / vocabulary construction and request/
         // response handling now run through the Rust shared core's routed
@@ -73,7 +74,9 @@ internal static class HyperWhisperRoutedTranscriptionClient
         // TODO-verify (Windows/CI): Rust shared-core swap.
         var totalSw = Stopwatch.StartNew();
 
-        var (identifier, isLicensed) = LicenseManager.Instance.GetTranscriptionIdentifier();
+        // `identity` lets a test pass a licence without activating one; every
+        // production caller leaves it null and reads LicenseManager (#1421).
+        var (identifier, isLicensed) = identity ?? LicenseManager.Instance.GetTranscriptionIdentifier();
 
         // Fail fast: the guest/device-credit path is dead server-side
         // (entitlement is enforced there), so an unlicensed request is doomed —

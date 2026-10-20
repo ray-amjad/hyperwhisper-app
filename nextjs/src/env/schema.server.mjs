@@ -14,6 +14,20 @@ import { z } from "zod";
 export const serverSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]),
 
+  // Postgres connection string for the Drizzle client (src/db/index.ts).
+  // Optional: Vercel sets it in Production only, and a required value would
+  // fail every Preview build (#682). Unset, the client throws
+  // "PLANETSCALE_DATABASE_URL is not set" on its first query instead.
+  PLANETSCALE_DATABASE_URL: z.string().url().optional(),
+
+  // Better Auth's public origin (src/lib/auth.ts). Required: a wrong or missing
+  // value breaks sign-in links and signs users out in silence.
+  BETTER_AUTH_URL: z.string().url(),
+
+  // Support address shown in the download welcome email
+  // (server/api/routers/download.ts). Unset, that code uses its own default.
+  SUPPORT_EMAIL: z.string().email().optional(),
+
   // Stripe
   STRIPE_SECRET_KEY: z.string().startsWith("sk_"),
   STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_"),
@@ -69,6 +83,11 @@ export const serverSchema = z.object({
  */
 export const serverEnv = {
   NODE_ENV: process.env.NODE_ENV,
+
+  // Database, auth origin, support address (see the schema above)
+  PLANETSCALE_DATABASE_URL: process.env.PLANETSCALE_DATABASE_URL,
+  BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+  SUPPORT_EMAIL: process.env.SUPPORT_EMAIL,
 
   // Stripe
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,

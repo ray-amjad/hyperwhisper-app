@@ -66,6 +66,12 @@ moduleMock.module(moduleUrl("../src/lib/auth.ts"), {
   },
 });
 
+// The download router reads NEXT_PUBLIC_SITE_URL and SUPPORT_EMAIL from the
+// validated env (#682). Neither is set here, so it uses its own defaults.
+moduleMock.module(moduleUrl("../src/env/server.mjs"), {
+  namedExports: { env: {} },
+});
+
 // A variable specifier, loaded after the mocks above so it binds to them.
 const DOWNLOAD_PATH = "../server/api/routers/download.ts";
 const CLIENT_IP = "203.0.113.7";
