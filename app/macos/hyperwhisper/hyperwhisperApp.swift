@@ -263,7 +263,13 @@ struct MenuBarIconView: View {
 }
 
     // MARK: - Scene Configuration
-    
+
+    /// The main window's localized title, by license. The Window menu's
+    /// reopen item reads the same string (#1526).
+    private var mainWindowTitle: String {
+        licenseManager.licenseStatus == .active ? "app.title.pro".localized : "app.title".localized
+    }
+
     /// The body property defines all the scenes (windows) our app can display
     /// A Scene in SwiftUI represents a window or group of windows
     var body: some Scene {
@@ -271,7 +277,7 @@ struct MenuBarIconView: View {
         // MARK: Main Window
         /// WindowGroup creates the main application window
         /// It automatically handles window management (closing, minimizing, etc.)
-        WindowGroup(licenseManager.licenseStatus == .active ? "app.title.pro".localized : "app.title".localized, id: "mainWindow") {  // Dynamic localized window title based on license
+        WindowGroup(mainWindowTitle, id: "mainWindow") {  // Dynamic localized window title based on license
 
             // This is the root view of our main window
             MainAppView()
@@ -428,7 +434,7 @@ struct MenuBarIconView: View {
             // list replaced by one item that reopens the main window (#1526)
             MainWindowCommands(
                 appState: appState,
-                windowTitle: licenseManager.licenseStatus == .active ? "app.title.pro".localized : "app.title".localized
+                windowTitle: mainWindowTitle
             )
 
             // Clean up View menu

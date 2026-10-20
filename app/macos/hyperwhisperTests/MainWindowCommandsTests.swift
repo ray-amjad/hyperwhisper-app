@@ -67,6 +67,10 @@ struct MainWindowCommandsTests {
             to: "MenuBarExtra {"
         )
         #expect(commands.contains("MainWindowCommands("))
+        // The Window menu item reads the window's own title, from one place.
+        #expect(commands.contains("windowTitle: mainWindowTitle"))
+        let app = try ProductionSource.code(of: Self.appPath)
+        #expect(app.contains("WindowGroup(mainWindowTitle, id: \"mainWindow\")"))
         // The empty window list this issue was about is gone from the scene.
         #expect(!commands.contains("CommandGroup(replacing: .windowList) { }"))
     }
