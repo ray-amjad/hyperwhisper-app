@@ -150,7 +150,10 @@ static void AllCatalogsLoad()
     // settings "Muffle audio" media-control mode).
     // 863 -> 864 (#1489): `license.error.keyFormat` is new (the hint under the account key
     // field when the text cannot be any key; Windows and Linux).
-    Equal(864, PortableLocalizer.BaseKeyCount, "base key count");
+    // 864 -> 870: the Windows Settings -> Sound microphone picker adds
+    // `settings.sound.microphone.subtitle`, `.default`, `.notConnected`, `.fallback`,
+    // `.test` and `.stop` (its title reuses `menu.microphone`).
+    Equal(870, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");
