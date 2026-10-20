@@ -443,5 +443,9 @@
     "description": "O link pode estar quebrado ou a página pode ter sido movida.",
     "home": "Ir para a página inicial",
     "download": "Baixar o HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Este link de acesso expirou ou já foi usado. Digite seu e-mail para receber um novo.",
+    "magicLinkFailed": "Não foi possível fazer seu login com esse link. Digite seu e-mail para receber um novo."
   }
 }

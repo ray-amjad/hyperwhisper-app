@@ -443,5 +443,9 @@
     "description": "Pautan mungkin rosak, atau halaman mungkin telah dipindahkan.",
     "home": "Pergi ke halaman utama",
     "download": "Muat turun HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Pautan log masuk ini telah tamat tempoh atau sudah digunakan. Masukkan e-mel anda untuk mendapatkan pautan baharu.",
+    "magicLinkFailed": "Kami tidak dapat log masuk anda dengan pautan itu. Masukkan e-mel anda untuk mendapatkan pautan baharu."
   }
 }

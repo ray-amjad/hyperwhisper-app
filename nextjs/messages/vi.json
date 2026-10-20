@@ -443,5 +443,9 @@
     "description": "Liên kết có thể bị hỏng, hoặc trang có thể đã được chuyển đi.",
     "home": "Về trang chủ",
     "download": "Tải xuống HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Liên kết đăng nhập này đã hết hạn hoặc đã được sử dụng. Nhập email của bạn để nhận liên kết mới.",
+    "magicLinkFailed": "Chúng tôi không thể đăng nhập cho bạn bằng liên kết đó. Nhập email của bạn để nhận liên kết mới."
   }
 }

@@ -443,5 +443,9 @@
     "description": "Poveznica je možda neispravna ili je stranica premještena.",
     "home": "Idi na početnu stranicu",
     "download": "Preuzmi HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Ova poveznica za prijavu je istekla ili je već iskorištena. Unesite svoju e-poštu kako biste dobili novu.",
+    "magicLinkFailed": "Nismo vas mogli prijaviti tom poveznicom. Unesite svoju e-poštu kako biste dobili novu."
   }
 }
