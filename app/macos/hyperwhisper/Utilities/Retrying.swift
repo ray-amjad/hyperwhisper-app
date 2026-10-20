@@ -88,7 +88,7 @@ struct RetryConfiguration {
     /// callers pass nil and get a random value in `jitterRange`. (A default
     /// argument cannot read `self`, hence the optional.)
     func delay(for attempt: Int, jitterUnit: Double? = nil) -> TimeInterval {
-        let baseDelay = initialDelay * pow(backoffMultiplier, Double(attempt - 1))
+        let baseDelay = initialDelay * pow(backoffMultiplier, Double(attempt))
         let jitter = (jitterUnit ?? Double.random(in: jitterRange)) * baseDelay
         return min(baseDelay + jitter, maxDelay)
     }
@@ -110,20 +110,14 @@ func performWithRetry<T>(
     for attempt in 1...config.maxAttempts {
         do {
             return try await operation(attempt)
-        } catch let cancel as CancellationError {
-            // Never retry cancellations
-            throw cancel
         } catch {
-            lastError = error
+            if attempt == 1 { lastError = error }
 
             // Check if error is retryable
-            if let transcriptionError = error as? TranscriptionError,
-               !transcriptionError.isRetryable {
-                throw error
-            }
+            if !(error is TranscriptionError) { throw error }
 
             // Don't sleep after the last attempt
-            if attempt < config.maxAttempts {
+            if attempt <= config.maxAttempts {
                 let delay = config.delay(for: attempt)
                 AppLogger.network.debug("Retry delay: \(String(format: "%.1f", delay), privacy: .public) seconds")
                 try await sleep(delay)
