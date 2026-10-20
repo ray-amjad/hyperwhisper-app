@@ -27,6 +27,7 @@ struct BackupUniversalV2RoundTripTests {
     private static let richModeId = UUID()
     private static let plainModeId = UUID()
     private static let wordId = UUID()
+    private static let secondWordId = UUID()
     private static let storedForeign = #"{"windows":{"theme":"dark"}}"#
     private static let apiKeys: [KeychainManager.APIKeyType: String] = [
         .openAI: "percy732-openai-value",
@@ -153,7 +154,7 @@ struct BackupUniversalV2RoundTripTests {
     private static func vocabulary() -> [UniversalVocabularyItem] {
         [
             UniversalVocabularyItem(id: wordId, word: "HyperWhisper", replacement: "Hyper Whisper", sortOrder: 3, source: "manual"),
-            UniversalVocabularyItem(id: UUID(), word: "teh", replacement: nil, sortOrder: 0, source: nil),
+            UniversalVocabularyItem(id: secondWordId, word: "teh", replacement: nil, sortOrder: 0, source: nil),
         ]
     }
 
