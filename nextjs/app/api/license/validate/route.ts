@@ -8,6 +8,7 @@ import {
   probeLicenseKey,
 } from "@/src/lib/license-validation";
 import { licenseValidateRateLimiter } from "@/lib/rate-limit";
+import { countFailOpen } from "@/lib/rate-limit-gate";
 import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
 import { describeDbError } from "@/lib/shared/db-error";
 
@@ -78,9 +79,14 @@ export async function POST(req: NextRequest) {
   // Rate limit by IP before any DB lookup, capping what an unauthenticated
   // caller can drive.
   const clientIP = getClientIPFromHeaders(req.headers);
-  const { success } = await licenseValidateRateLimiter.limit(clientIP);
+  // Fails open (`countFailOpen`): an Upstash outage must not turn every
+  // licence check into a bare 500 with no `reason` (#2058).
+  const rateLimit = await countFailOpen(
+    () => licenseValidateRateLimiter.limit(clientIP),
+    "license validate",
+  );
 
-  if (!success) {
+  if (rateLimit.limited) {
     // `lookup_failed`, not `bad_request`: the request was well-formed, we
     // simply declined to establish the license's state. Never a verdict.
     return invalidLicenseResponse({
