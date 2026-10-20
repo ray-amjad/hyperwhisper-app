@@ -143,7 +143,7 @@ struct LocalProviderCancellationTests {
 
     @Test func modelNotDownloadedOnACancelledTaskIsStillAProviderFailure() {
         let outcome = TranscriptionCancellationPolicy.outcome(
-            for: TranscriptionError.modelNotDownloaded,
+            for: TranscriptionError.modelNotDownloaded(),
             isTaskCancelled: true
         )
 
