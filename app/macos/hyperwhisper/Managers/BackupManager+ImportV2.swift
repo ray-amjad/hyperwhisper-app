@@ -163,9 +163,9 @@ extension BackupManager {
         // `universal_to_macos_settings` finds no `platformExtensions.macos.settings` and returns
         // ALL macOS-only fields blank.
         var recordObj: [String: JSONValue] = settingsValue.objectValue ?? [:]
-        if let ext = platformExtensions {
-            recordObj["platformExtensions"] = ext
-        }
+// MUTATION         if let ext = platformExtensions {
+// MUTATION             recordObj["platformExtensions"] = ext
+// MUTATION         }
         let recordValue = JSONValue.object(recordObj)
         let encoder = JSONEncoder()
         guard let recordData = try? encoder.encode(recordValue),
@@ -241,7 +241,7 @@ extension BackupManager {
             return BackupVocabularyItem(
                 id: id,
                 word: word,
-                replacement: entry["replacement"] as? String,
+                replacement: nil, // MUTATION
                 sortOrder: Int16(clamping: sortOrder),
                 source: entry["source"] as? String
             )
