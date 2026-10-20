@@ -23509,6 +23509,94 @@ internal static class Program
                 }
             });
 
+            Run("shortcuts: a stored bare typing key as the push-to-talk custom key turns push-to-talk off at load - issue #2139", () =>
+            {
+                // #2139, the push-to-talk sibling of #2114. A profile that saved a bare
+                // Tab as the custom push-to-talk key on an older build kept it, and the
+                // hook started push-to-talk on every Tab the user typed. Ray (inbox
+                // #1811): turn push-to-talk OFF (a fresh PushToTalkSettings), never
+                // LeftAlt. Driven end to end: settings.json -> Reload -> the monitor's hook.
+                EnsureSmokeApplication();
+
+                var settings = SettingsService.Instance;
+                var settingsFile = Path.Combine(AppPaths.AppDataRoot, "settings.json");
+                // Two real changes, so settings.json exists whatever ran before this case.
+                var cancelBefore = settings.CancelShortcut;
+                settings.CancelShortcut = KeyboardShortcut.FromPersistedString("F14");
+                settings.CancelShortcut = cancelBefore;
+                var original = File.ReadAllText(settingsFile);
+
+                void SeedAndReload(PushToTalkMode mode, string custom)
+                {
+                    var node = JsonNode.Parse(original)!.AsObject();
+                    node["PushToTalk"] = JsonSerializer.SerializeToNode(new PushToTalkSettings
+                    {
+                        Mode = mode,
+                        Modifier = "RightAlt",
+                        DoublePressLock = true,
+                        CustomShortcut = KeyboardShortcut.FromPersistedString(custom),
+                    });
+                    File.WriteAllText(settingsFile, node.ToJsonString());
+                    settings.Reload();
+                }
+
+                HyperWhisper.SharedCore.PortablePttState StateAfterKeyDown(int vk)
+                {
+                    using var monitor = new PushToTalkMonitor();
+                    monitor.Configure(settings.PushToTalk);
+                    monitor.Hook.HandleKeyEvent(LowLevelKeyboardHook.WM_KEYDOWN, vk, 0, IntPtr.Zero);
+                    return monitor.State;
+                }
+
+                const int VkTab = 0x09, VkK = 0x4B, VkF13 = 0x7C;
+                try
+                {
+                    // THE DONE-WHEN: a stored Custom bare Tab loads as push-to-talk off,
+                    // and a Tab key-down no longer starts it.
+                    SeedAndReload(PushToTalkMode.Custom, "Tab");
+                    var ptt = settings.PushToTalk;
+                    Assert(ptt.Mode == PushToTalkMode.Disabled, $"a stored Custom bare Tab must load as Disabled, got {ptt.Mode}");
+                    Assert(ptt.CustomShortcut == null, $"the unsafe custom key must be cleared, got '{ptt.CustomShortcut}'");
+                    Assert(ptt.Modifier == "LeftAlt" && !ptt.DoublePressLock, "a fresh PushToTalkSettings, not LeftAlt armed or the old lock flag");
+                    Assert(StateAfterKeyDown(VkTab) == HyperWhisper.SharedCore.PortablePttState.Idle,
+                        "a Tab key-down started push-to-talk from a stored bare Tab custom key");
+
+                    // Bare K and a single bare modifier get the same treatment.
+                    foreach (var unsafeValue in new[] { "K", "Shift+Tab", "Alt" })
+                    {
+                        SeedAndReload(PushToTalkMode.Custom, unsafeValue);
+                        Assert(settings.PushToTalk.Mode == PushToTalkMode.Disabled && settings.PushToTalk.CustomShortcut == null,
+                            $"a stored Custom '{unsafeValue}' must load as push-to-talk off, got {settings.PushToTalk.Mode} '{settings.PushToTalk.CustomShortcut}'");
+                    }
+                    Assert(StateAfterKeyDown(VkK) == HyperWhisper.SharedCore.PortablePttState.Idle, "a K key-down started push-to-talk");
+
+                    // A stale unsafe custom key under Modifier mode is not live: clear it,
+                    // keep the user's working Modifier push-to-talk as it was.
+                    SeedAndReload(PushToTalkMode.Modifier, "Tab");
+                    ptt = settings.PushToTalk;
+                    Assert(ptt.Mode == PushToTalkMode.Modifier && ptt.Modifier == "RightAlt" && ptt.DoublePressLock,
+                        $"Modifier push-to-talk must survive a stale custom Tab, got {ptt.Mode} {ptt.Modifier} lock={ptt.DoublePressLock}");
+                    Assert(ptt.CustomShortcut == null, $"the stale unsafe custom key must be cleared, got '{ptt.CustomShortcut}'");
+
+                    // A legal custom key loads as it is and still drives the hook.
+                    foreach (var legalValue in new[] { "F13", "Ctrl+Shift+K", "Ctrl+Alt" })
+                    {
+                        SeedAndReload(PushToTalkMode.Custom, legalValue);
+                        Assert(settings.PushToTalk.Mode == PushToTalkMode.Custom
+                            && settings.PushToTalk.CustomShortcut?.ToPersistedString() == legalValue,
+                            $"a legal custom '{legalValue}' must survive load, got {settings.PushToTalk.Mode} '{settings.PushToTalk.CustomShortcut}'");
+                    }
+                    SeedAndReload(PushToTalkMode.Custom, "F13");
+                    Assert(StateAfterKeyDown(VkF13) == HyperWhisper.SharedCore.PortablePttState.WaitingForActivation,
+                        "a legal F13 custom key must still start push-to-talk");
+                }
+                finally
+                {
+                    File.WriteAllText(settingsFile, original);
+                    settings.Reload();
+                }
+            });
+
             Run("shortcuts: Settings > Streaming stores nothing until the gesture closes", () =>
             {
                 // #794. The SAME setting had two editors and only one was fixed:
