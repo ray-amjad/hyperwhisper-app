@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "المزايا",
-    "pricing": "الأسعار",
     "faq": "الأسئلة الشائعة",
     "support": "الدعم",
     "download": "تنزيل",
@@ -20,7 +19,6 @@
     "githubAria": "عرض HyperWhisper على GitHub"
   },
   "hero": {
-    "openSourceBadge": "مفتوح المصدر · Apache-2.0",
     "logoAlt": "شعار HyperWhisper",
     "headline": "اكتب وأنشئ وابتكر",
     "headlineAccent": "أسرع 5 مرات مع الذكاء الاصطناعي",
@@ -97,57 +95,6 @@
     "accuracyRate": "معدل الدقة",
     "languagesSupported": "اللغات المدعومة",
     "providersSupported": "المزودون المدعومون"
-  },
-  "pricing": {
-    "title": "بدون اشتراكات. أبدًا.",
-    "subtitle": "ادفع مرة واحدة، واستخدمه إلى الأبد. نحن أيضًا نكره الاشتراكات.",
-    "guarantee": "ضمان استرداد لمدة 14 يومًا",
-    "guaranteeExtended": "إذا لم تكن راضيًا تمامًا.",
-    "learnMore": "اعرف المزيد",
-    "free": {
-      "name": "مجاني",
-      "price": "$0",
-      "period": "إلى الأبد",
-      "description": "مثالي لتجربة HyperWhisper",
-      "cta": "تنزيل مجاني",
-      "features": {
-        "transcriptionLimit": "5 دقائق تحويل يوميًا",
-        "basicModes": "أوضاع تحويل أساسية",
-        "offlineTranscription": "تحويل دون اتصال",
-        "apiTranscription": "تحويل عبر API (استخدم مفاتيحك الخاصة)",
-        "postProcessing": "معالجة النص بعد التحويل",
-        "providers": "أكثر من 9 مزودًا للاختيار",
-        "lifetimeUpdates": "تحديثات مدى الحياة",
-        "cloudLimited": "HyperWhisper Cloud (استخدام محدود)",
-        "customVocabulary": "مفردات مخصصة",
-        "prioritySupport": "دعم أولوية"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "مدى الحياة",
-      "description": "شراء مرة واحدة، قوة غير محدودة إلى الأبد",
-      "cta": "اشترِ الآن - وصول مدى الحياة",
-      "mostPopular": "الأكثر شيوعًا",
-      "features": {
-        "unlimitedTranscription": "تحويل غير محدود",
-        "allModes": "كل أوضاع التحويل",
-        "offlineTranscription": "تحويل دون اتصال",
-        "apiTranscription": "تحويل عبر API (استخدم مفاتيحك الخاصة)",
-        "postProcessing": "معالجة النص بعد التحويل",
-        "providers": "أكثر من 9 مزودًا للاختيار",
-        "lifetimeUpdates": "تحديثات مدى الحياة",
-        "cloudCredits": "HyperWhisper Cloud (رصيد $5)",
-        "customVocabulary": "مفردات مخصصة",
-        "prioritySupport": "دعم أولوية"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise وتسعير مخصص",
-      "description": "خصومات للكميات، SSO، دعم أولوية، استضافة داخلية، وتكاملات مخصصة",
-      "cta": "تواصل مع المبيعات"
-    }
   },
   "faq": {
     "title": "الأسئلة الشائعة",
@@ -252,10 +199,7 @@
     "downloadButton": "تنزيل HyperWhisper",
     "errorGeneric": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
     "errorEmail": "يرجى إدخال عنوان بريد إلكتروني صالح.",
-    "errorNetwork": "خطأ في الشبكة. تحقق من الاتصال وحاول مرة أخرى.",
-    "thankYouTitle": "شكرًا!",
     "downloadStarted": "يجب أن يبدأ التنزيل تلقائيًا.",
-    "manualDownload": "لم يبدأ التنزيل؟ اضغط هنا",
     "skipAndDownloadButton": "تخطي والتنزيل"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "تنزيل",
       "roadmap": "خارطة الطريق",
       "helpCenter": "مركز المساعدة",
-      "manageBilling": "إدارة الفوترة",
       "customerPortal": "بوابة العملاء",
       "olderVersions": "الإصدارات الأقدم",
       "blog": "المدونة",

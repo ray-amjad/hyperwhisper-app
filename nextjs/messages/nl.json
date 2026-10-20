@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Functies",
-    "pricing": "Prijzen",
     "faq": "FAQ",
     "support": "Support",
     "download": "Download",
@@ -20,7 +19,6 @@
     "githubAria": "Bekijk HyperWhisper op GitHub"
   },
   "hero": {
-    "openSourceBadge": "Open source · Apache-2.0",
     "logoAlt": "HyperWhisper-logo",
     "headline": "Schrijf, composeer en creëer",
     "headlineAccent": "5x sneller met AI",
@@ -97,57 +95,6 @@
     "accuracyRate": "Nauwkeurigheid",
     "languagesSupported": "Ondersteunde talen",
     "providersSupported": "Ondersteunde providers"
-  },
-  "pricing": {
-    "title": "Geen abonnementen. Ooit.",
-    "subtitle": "Betaal één keer, gebruik voor altijd. Wij haten abonnementen ook.",
-    "guarantee": "14 dagen geld-terug-garantie",
-    "guaranteeExtended": "als je niet volledig tevreden bent.",
-    "learnMore": "Meer informatie",
-    "free": {
-      "name": "Gratis",
-      "price": "$0",
-      "period": "voor altijd",
-      "description": "Perfect om HyperWhisper uit te proberen",
-      "cta": "Gratis downloaden",
-      "features": {
-        "transcriptionLimit": "5 minuten transcriptie per dag",
-        "basicModes": "Basis transcriptiemodi",
-        "offlineTranscription": "Offline transcriptie",
-        "apiTranscription": "API-transcriptie (gebruik je eigen sleutels)",
-        "postProcessing": "Tekstnabewerking",
-        "providers": "9+ providers om uit te kiezen",
-        "lifetimeUpdates": "Levenslange updates",
-        "cloudLimited": "HyperWhisper Cloud (beperkt gebruik)",
-        "customVocabulary": "Aangepaste woordenschat",
-        "prioritySupport": "Prioritaire support"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "levenslang",
-      "description": "Eenmalige aankoop, onbeperkte kracht voor altijd",
-      "cta": "Nu kopen - Levenslange toegang",
-      "mostPopular": "Meest populair",
-      "features": {
-        "unlimitedTranscription": "Onbeperkte transcriptie",
-        "allModes": "Alle transcriptiemodi",
-        "offlineTranscription": "Offline transcriptie",
-        "apiTranscription": "API-transcriptie (gebruik je eigen sleutels)",
-        "postProcessing": "Tekstnabewerking",
-        "providers": "9+ providers om uit te kiezen",
-        "lifetimeUpdates": "Levenslange updates",
-        "cloudCredits": "HyperWhisper Cloud ($5 aan credits)",
-        "customVocabulary": "Aangepaste woordenschat",
-        "prioritySupport": "Prioritaire support"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise & maatwerkprijzen",
-      "description": "Volumekorting, SSO, prioritaire support, interne hosting en maatwerkintegraties",
-      "cta": "Contact opnemen met sales"
-    }
   },
   "faq": {
     "title": "Veelgestelde vragen",
@@ -252,10 +199,7 @@
     "downloadButton": "Download HyperWhisper",
     "errorGeneric": "Er is iets misgegaan. Probeer het opnieuw.",
     "errorEmail": "Voer een geldig e-mailadres in.",
-    "errorNetwork": "Netwerkfout. Controleer je verbinding en probeer opnieuw.",
-    "thankYouTitle": "Bedankt!",
     "downloadStarted": "Je download zou automatisch moeten starten.",
-    "manualDownload": "Is de download niet gestart? Klik hier",
     "skipAndDownloadButton": "Overslaan en downloaden"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Download",
       "roadmap": "Roadmap",
       "helpCenter": "Helpcentrum",
-      "manageBilling": "Facturering beheren",
       "customerPortal": "Klantportaal",
       "olderVersions": "Oudere versies",
       "blog": "Blog",

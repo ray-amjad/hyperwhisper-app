@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Funcții",
-    "pricing": "Prețuri",
     "faq": "Întrebări frecvente",
     "support": "Suport",
     "download": "Descarcă",
@@ -20,7 +19,6 @@
     "githubAria": "Vezi HyperWhisper pe GitHub"
   },
   "hero": {
-    "openSourceBadge": "Sursă deschisă · Apache-2.0",
     "logoAlt": "Logo HyperWhisper",
     "headline": "Scrie, compune și creează",
     "headlineAccent": "de 5x mai rapid cu AI",
@@ -97,57 +95,6 @@
     "accuracyRate": "Rată de acuratețe",
     "languagesSupported": "Limbi suportate",
     "providersSupported": "Furnizori suportați"
-  },
-  "pricing": {
-    "title": "Fără abonamente. Niciodată.",
-    "subtitle": "Plătești o dată, folosești pentru totdeauna. Și noi urâm abonamentele.",
-    "guarantee": "Garanție de rambursare 14 zile",
-    "guaranteeExtended": "dacă nu ești complet mulțumit.",
-    "learnMore": "Află mai multe",
-    "free": {
-      "name": "Gratuit",
-      "price": "$0",
-      "period": "pe viață",
-      "description": "Perfect pentru a încerca HyperWhisper",
-      "cta": "Descarcă gratuit",
-      "features": {
-        "transcriptionLimit": "5 minute de transcriere pe zi",
-        "basicModes": "Moduri de transcriere de bază",
-        "offlineTranscription": "Transcriere offline",
-        "apiTranscription": "Transcriere API (cu cheile tale)",
-        "postProcessing": "Post-procesare text",
-        "providers": "9+ furnizori din care poți alege",
-        "lifetimeUpdates": "Actualizări pe viață",
-        "cloudLimited": "HyperWhisper Cloud (utilizare limitată)",
-        "customVocabulary": "Vocabular personalizat",
-        "prioritySupport": "Suport prioritar"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "pe viață",
-      "description": "Achiziție unică, putere nelimitată pentru totdeauna",
-      "cta": "Cumpără acum - Acces pe viață",
-      "mostPopular": "Cel mai popular",
-      "features": {
-        "unlimitedTranscription": "Transcriere nelimitată",
-        "allModes": "Toate modurile de transcriere",
-        "offlineTranscription": "Transcriere offline",
-        "apiTranscription": "Transcriere API (cu cheile tale)",
-        "postProcessing": "Post-procesare text",
-        "providers": "9+ furnizori din care poți alege",
-        "lifetimeUpdates": "Actualizări pe viață",
-        "cloudCredits": "HyperWhisper Cloud ($5 în credite)",
-        "customVocabulary": "Vocabular personalizat",
-        "prioritySupport": "Suport prioritar"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise și prețuri personalizate",
-      "description": "Reduceri de volum, SSO, suport prioritar, găzduire internă și integrări personalizate",
-      "cta": "Contactează vânzările"
-    }
   },
   "faq": {
     "title": "Întrebări frecvente",
@@ -252,10 +199,7 @@
     "downloadButton": "Descarcă HyperWhisper",
     "errorGeneric": "Ceva nu a mers bine. Te rugăm să încerci din nou.",
     "errorEmail": "Introdu o adresă de email validă.",
-    "errorNetwork": "Eroare de rețea. Verifică conexiunea și încearcă din nou.",
-    "thankYouTitle": "Mulțumim!",
     "downloadStarted": "Descărcarea ar trebui să înceapă automat.",
-    "manualDownload": "Descărcarea nu a început? Click aici",
     "skipAndDownloadButton": "Omite și descarcă"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Descarcă",
       "roadmap": "Roadmap",
       "helpCenter": "Centru de ajutor",
-      "manageBilling": "Gestionează facturarea",
       "customerPortal": "Portal clienți",
       "olderVersions": "Versiuni mai vechi",
       "blog": "Blog",

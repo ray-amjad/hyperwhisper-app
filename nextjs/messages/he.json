@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "יכולות",
-    "pricing": "תמחור",
     "faq": "שאלות נפוצות",
     "support": "תמיכה",
     "download": "הורדה",
@@ -20,7 +19,6 @@
     "githubAria": "צפו ב-HyperWhisper ב-GitHub"
   },
   "hero": {
-    "openSourceBadge": "קוד פתוח · Apache-2.0",
     "logoAlt": "הלוגו של HyperWhisper",
     "headline": "כתבו, צרו וחברו",
     "headlineAccent": "פי 5 מהר יותר עם AI",
@@ -97,57 +95,6 @@
     "accuracyRate": "רמת דיוק",
     "languagesSupported": "שפות נתמכות",
     "providersSupported": "ספקים נתמכים"
-  },
-  "pricing": {
-    "title": "ללא מנויים. אף פעם.",
-    "subtitle": "משלמים פעם אחת, משתמשים לנצח. גם אנחנו שונאים מנויים.",
-    "guarantee": "אחריות החזר כספי ל-14 יום",
-    "guaranteeExtended": "אם לא תהיו מרוצים לגמרי.",
-    "learnMore": "למידע נוסף",
-    "free": {
-      "name": "חינם",
-      "price": "$0",
-      "period": "לנצח",
-      "description": "מושלם להתנסות ב-HyperWhisper",
-      "cta": "הורדה בחינם",
-      "features": {
-        "transcriptionLimit": "5 דקות תמלול ביום",
-        "basicModes": "מצבי תמלול בסיסיים",
-        "offlineTranscription": "תמלול לא מקוון",
-        "apiTranscription": "תמלול דרך API (עם המפתחות שלכם)",
-        "postProcessing": "עיבוד טקסט לאחר תמלול",
-        "providers": "9+ ספקים לבחירה",
-        "lifetimeUpdates": "עדכונים לכל החיים",
-        "cloudLimited": "HyperWhisper Cloud (שימוש מוגבל)",
-        "customVocabulary": "מילון מותאם אישית",
-        "prioritySupport": "תמיכה מועדפת"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "לכל החיים",
-      "description": "תשלום חד-פעמי, עוצמה בלתי מוגבלת לתמיד",
-      "cta": "קנו עכשיו - גישה לכל החיים",
-      "mostPopular": "הכי פופולרי",
-      "features": {
-        "unlimitedTranscription": "תמלול ללא הגבלה",
-        "allModes": "כל מצבי התמלול",
-        "offlineTranscription": "תמלול לא מקוון",
-        "apiTranscription": "תמלול דרך API (עם המפתחות שלכם)",
-        "postProcessing": "עיבוד טקסט לאחר תמלול",
-        "providers": "9+ ספקים לבחירה",
-        "lifetimeUpdates": "עדכונים לכל החיים",
-        "cloudCredits": "HyperWhisper Cloud ($5 בקרדיטים)",
-        "customVocabulary": "מילון מותאם אישית",
-        "prioritySupport": "תמיכה מועדפת"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise ותמחור מותאם",
-      "description": "הנחות נפח, SSO, תמיכה מועדפת, אירוח פנימי ואינטגרציות מותאמות",
-      "cta": "יצירת קשר עם מכירות"
-    }
   },
   "faq": {
     "title": "שאלות נפוצות",
@@ -252,10 +199,7 @@
     "downloadButton": "הורדת HyperWhisper",
     "errorGeneric": "משהו השתבש. נסו שוב.",
     "errorEmail": "הזינו כתובת אימייל תקינה.",
-    "errorNetwork": "שגיאת רשת. בדקו את החיבור ונסו שוב.",
-    "thankYouTitle": "תודה!",
     "downloadStarted": "ההורדה אמורה להתחיל אוטומטית.",
-    "manualDownload": "ההורדה לא התחילה? לחצו כאן",
     "skipAndDownloadButton": "דלג והורד"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "הורדה",
       "roadmap": "מפת דרכים",
       "helpCenter": "מרכז עזרה",
-      "manageBilling": "ניהול חיוב",
       "customerPortal": "פורטל לקוחות",
       "olderVersions": "גרסאות ישנות",
       "blog": "בלוג",

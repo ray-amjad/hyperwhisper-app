@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Ciri",
-    "pricing": "Harga",
     "faq": "Soalan Lazim",
     "support": "Sokongan",
     "download": "Muat turun",
@@ -20,7 +19,6 @@
     "githubAria": "Lihat HyperWhisper di GitHub"
   },
   "hero": {
-    "openSourceBadge": "Sumber terbuka · Apache-2.0",
     "logoAlt": "Logo HyperWhisper",
     "headline": "Tulis, gubah dan cipta",
     "headlineAccent": "5x lebih pantas dengan AI",
@@ -97,57 +95,6 @@
     "accuracyRate": "Kadar ketepatan",
     "languagesSupported": "Bahasa disokong",
     "providersSupported": "Penyedia disokong"
-  },
-  "pricing": {
-    "title": "Tiada langganan. Selamanya.",
-    "subtitle": "Bayar sekali, guna selamanya. Kami juga benci langganan.",
-    "guarantee": "Jaminan pulangan wang 14 hari",
-    "guaranteeExtended": "jika anda tidak berpuas hati sepenuhnya.",
-    "learnMore": "Ketahui lebih lanjut",
-    "free": {
-      "name": "Percuma",
-      "price": "$0",
-      "period": "selamanya",
-      "description": "Sesuai untuk mencuba HyperWhisper",
-      "cta": "Muat turun percuma",
-      "features": {
-        "transcriptionLimit": "5 minit transkripsi sehari",
-        "basicModes": "Mod transkripsi asas",
-        "offlineTranscription": "Transkripsi luar talian",
-        "apiTranscription": "Transkripsi API (gunakan kunci anda sendiri)",
-        "postProcessing": "Pascapemprosesan teks",
-        "providers": "9+ penyedia untuk dipilih",
-        "lifetimeUpdates": "Kemas kini seumur hidup",
-        "cloudLimited": "HyperWhisper Cloud (penggunaan terhad)",
-        "customVocabulary": "Perbendaharaan kata tersuai",
-        "prioritySupport": "Sokongan keutamaan"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "seumur hidup",
-      "description": "Pembelian sekali, kuasa tanpa had selamanya",
-      "cta": "Beli Sekarang - Akses Seumur Hidup",
-      "mostPopular": "Paling Popular",
-      "features": {
-        "unlimitedTranscription": "Transkripsi tanpa had",
-        "allModes": "Semua mod transkripsi",
-        "offlineTranscription": "Transkripsi luar talian",
-        "apiTranscription": "Transkripsi API (gunakan kunci anda sendiri)",
-        "postProcessing": "Pascapemprosesan teks",
-        "providers": "9+ penyedia untuk dipilih",
-        "lifetimeUpdates": "Kemas kini seumur hidup",
-        "cloudCredits": "HyperWhisper Cloud ($5 dalam kredit)",
-        "customVocabulary": "Perbendaharaan kata tersuai",
-        "prioritySupport": "Sokongan keutamaan"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise & Harga Tersuai",
-      "description": "Diskaun volum, SSO, sokongan keutamaan, pengehosan dalaman dan integrasi tersuai",
-      "cta": "Hubungi Jualan"
-    }
   },
   "faq": {
     "title": "Soalan lazim",
@@ -252,10 +199,7 @@
     "downloadButton": "Muat Turun HyperWhisper",
     "errorGeneric": "Sesuatu tidak kena. Sila cuba lagi.",
     "errorEmail": "Sila masukkan alamat emel yang sah.",
-    "errorNetwork": "Ralat rangkaian. Sila semak sambungan dan cuba lagi.",
-    "thankYouTitle": "Terima kasih!",
     "downloadStarted": "Muat turun anda sepatutnya bermula secara automatik.",
-    "manualDownload": "Muat turun tidak bermula? Klik di sini",
     "skipAndDownloadButton": "Langkau dan muat turun"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Muat turun",
       "roadmap": "Pelan hala tuju",
       "helpCenter": "Pusat bantuan",
-      "manageBilling": "Urus Bil",
       "customerPortal": "Portal Pelanggan",
       "olderVersions": "Versi Lama",
       "blog": "Blog",

@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Funktioner",
-    "pricing": "Priser",
     "faq": "FAQ",
     "support": "Support",
     "download": "Ladda ner",
@@ -20,7 +19,6 @@
     "githubAria": "Visa HyperWhisper på GitHub"
   },
   "hero": {
-    "openSourceBadge": "Öppen källkod · Apache-2.0",
     "logoAlt": "HyperWhisper-logotyp",
     "headline": "Skriv, skapa och komponera",
     "headlineAccent": "5x snabbare med AI",
@@ -97,57 +95,6 @@
     "accuracyRate": "Precision",
     "languagesSupported": "Språk som stöds",
     "providersSupported": "Leverantörer som stöds"
-  },
-  "pricing": {
-    "title": "Inga abonnemang. Någonsin.",
-    "subtitle": "Betala en gång, använd för alltid. Vi hatar också abonnemang.",
-    "guarantee": "14 dagars pengarna-tillbaka-garanti",
-    "guaranteeExtended": "om du inte är helt nöjd.",
-    "learnMore": "Läs mer",
-    "free": {
-      "name": "Gratis",
-      "price": "$0",
-      "period": "för alltid",
-      "description": "Perfekt för att testa HyperWhisper",
-      "cta": "Ladda ner gratis",
-      "features": {
-        "transcriptionLimit": "5 minuters transkribering per dag",
-        "basicModes": "Grundläggande transkriptionslägen",
-        "offlineTranscription": "Offline-transkribering",
-        "apiTranscription": "API-transkribering (använd egna nycklar)",
-        "postProcessing": "Text-efterbehandling",
-        "providers": "9+ leverantörer att välja mellan",
-        "lifetimeUpdates": "Livstidsuppdateringar",
-        "cloudLimited": "HyperWhisper Cloud (begränsad användning)",
-        "customVocabulary": "Anpassat ordförråd",
-        "prioritySupport": "Prioriterad support"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "livstid",
-      "description": "Engångsköp, obegränsad kraft för alltid",
-      "cta": "Köp nu - Livstidsåtkomst",
-      "mostPopular": "Mest populär",
-      "features": {
-        "unlimitedTranscription": "Obegränsad transkribering",
-        "allModes": "Alla transkriptionslägen",
-        "offlineTranscription": "Offline-transkribering",
-        "apiTranscription": "API-transkribering (använd egna nycklar)",
-        "postProcessing": "Text-efterbehandling",
-        "providers": "9+ leverantörer att välja mellan",
-        "lifetimeUpdates": "Livstidsuppdateringar",
-        "cloudCredits": "HyperWhisper Cloud ($5 i krediter)",
-        "customVocabulary": "Anpassat ordförråd",
-        "prioritySupport": "Prioriterad support"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise och anpassad prissättning",
-      "description": "Volymrabatter, SSO, prioriterad support, intern hosting och anpassade integrationer",
-      "cta": "Kontakta sälj"
-    }
   },
   "faq": {
     "title": "Vanliga frågor",
@@ -252,10 +199,7 @@
     "downloadButton": "Ladda ner HyperWhisper",
     "errorGeneric": "Något gick fel. Försök igen.",
     "errorEmail": "Ange en giltig e-postadress.",
-    "errorNetwork": "Nätverksfel. Kontrollera anslutningen och försök igen.",
-    "thankYouTitle": "Tack!",
     "downloadStarted": "Nedladdningen bör starta automatiskt.",
-    "manualDownload": "Har nedladdningen inte startat? Klicka här",
     "skipAndDownloadButton": "Hoppa över och ladda ner"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Ladda ner",
       "roadmap": "Roadmap",
       "helpCenter": "Hjälpcenter",
-      "manageBilling": "Hantera betalning",
       "customerPortal": "Kundportal",
       "olderVersions": "Äldre versioner",
       "blog": "Blogg",

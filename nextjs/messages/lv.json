@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Iespējas",
-    "pricing": "Cenas",
     "faq": "BUJ",
     "support": "Atbalsts",
     "download": "Lejupielādēt",
@@ -20,7 +19,6 @@
     "githubAria": "Skatīt HyperWhisper vietnē GitHub"
   },
   "hero": {
-    "openSourceBadge": "Atvērtais kods · Apache-2.0",
     "logoAlt": "HyperWhisper logotips",
     "headline": "Raksti, veido un radi",
     "headlineAccent": "5x ātrāk ar AI",
@@ -97,57 +95,6 @@
     "accuracyRate": "Precizitātes līmenis",
     "languagesSupported": "Atbalstītās valodas",
     "providersSupported": "Atbalstītie pakalpojumu sniedzēji"
-  },
-  "pricing": {
-    "title": "Bez abonēšanas. Nekad.",
-    "subtitle": "Maksā vienreiz, lieto mūžīgi. Arī mēs neciešam abonēšanu.",
-    "guarantee": "14 dienu naudas atgriešanas garantija",
-    "guaranteeExtended": "ja neesat pilnībā apmierināts.",
-    "learnMore": "Uzzināt vairāk",
-    "free": {
-      "name": "Bezmaksas",
-      "price": "$0",
-      "period": "uz visiem laikiem",
-      "description": "Ideāli, lai izmēģinātu HyperWhisper",
-      "cta": "Lejupielādēt bez maksas",
-      "features": {
-        "transcriptionLimit": "5 minūtes transkripcijas dienā",
-        "basicModes": "Pamata transkripcijas režīmi",
-        "offlineTranscription": "Transkripcija bezsaistē",
-        "apiTranscription": "API transkripcija (izmantojiet savas atslēgas)",
-        "postProcessing": "Teksta pēcapstrāde",
-        "providers": "9+ pakalpojumu sniedzēji izvēlei",
-        "lifetimeUpdates": "Atjauninājumi uz mūžu",
-        "cloudLimited": "HyperWhisper Cloud (ierobežota lietošana)",
-        "customVocabulary": "Pielāgots vārdu krājums",
-        "prioritySupport": "Prioritārs atbalsts"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "uz mūžu",
-      "description": "Vienreizējs pirkums, neierobežota jauda uz visiem laikiem",
-      "cta": "Pirkt tagad - mūža piekļuve",
-      "mostPopular": "Populārākais",
-      "features": {
-        "unlimitedTranscription": "Neierobežota transkripcija",
-        "allModes": "Visi transkripcijas režīmi",
-        "offlineTranscription": "Transkripcija bezsaistē",
-        "apiTranscription": "API transkripcija (izmantojiet savas atslēgas)",
-        "postProcessing": "Teksta pēcapstrāde",
-        "providers": "9+ pakalpojumu sniedzēji izvēlei",
-        "lifetimeUpdates": "Atjauninājumi uz mūžu",
-        "cloudCredits": "HyperWhisper Cloud ($5 kredīti)",
-        "customVocabulary": "Pielāgots vārdu krājums",
-        "prioritySupport": "Prioritārs atbalsts"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise un pielāgota cenu politika",
-      "description": "Apjoma atlaides, SSO, prioritārs atbalsts, iekšējais hostings un pielāgotas integrācijas",
-      "cta": "Sazināties ar pārdošanu"
-    }
   },
   "faq": {
     "title": "Biežāk uzdotie jautājumi",
@@ -252,10 +199,7 @@
     "downloadButton": "Lejupielādēt HyperWhisper",
     "errorGeneric": "Kaut kas nogāja greizi. Lūdzu, mēģiniet vēlreiz.",
     "errorEmail": "Ievadiet derīgu e-pasta adresi.",
-    "errorNetwork": "Tīkla kļūda. Lūdzu, pārbaudiet savienojumu un mēģiniet vēlreiz.",
-    "thankYouTitle": "Paldies!",
     "downloadStarted": "Lejupielādei vajadzētu sākties automātiski.",
-    "manualDownload": "Lejupielāde nesākās? Spiediet šeit",
     "skipAndDownloadButton": "Izlaist un lejupielādēt"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Lejupielādēt",
       "roadmap": "Ceļvedis",
       "helpCenter": "Palīdzības centrs",
-      "manageBilling": "Pārvaldīt norēķinus",
       "customerPortal": "Klientu portāls",
       "olderVersions": "Vecākas versijas",
       "blog": "Blogs",

@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Funkcie",
-    "pricing": "Cenník",
     "faq": "FAQ",
     "support": "Podpora",
     "download": "Stiahnuť",
@@ -20,7 +19,6 @@
     "githubAria": "Zobraziť HyperWhisper na GitHub"
   },
   "hero": {
-    "openSourceBadge": "Otvorený kód · Apache-2.0",
     "logoAlt": "Logo HyperWhisper",
     "headline": "Píšte, tvorte a vytvárajte",
     "headlineAccent": "5x rýchlejšie s AI",
@@ -97,57 +95,6 @@
     "accuracyRate": "Miera presnosti",
     "languagesSupported": "Podporované jazyky",
     "providersSupported": "Podporovaní poskytovatelia"
-  },
-  "pricing": {
-    "title": "Bez predplatného. Navždy.",
-    "subtitle": "Zaplaťte raz, používajte navždy. Predplatné nemáme radi rovnako ako vy.",
-    "guarantee": "14-dňová garancia vrátenia peňazí",
-    "guaranteeExtended": "ak nebudete úplne spokojní.",
-    "learnMore": "Zistiť viac",
-    "free": {
-      "name": "Free",
-      "price": "$0",
-      "period": "navždy",
-      "description": "Ideálne na vyskúšanie HyperWhisper",
-      "cta": "Stiahnuť zadarmo",
-      "features": {
-        "transcriptionLimit": "5 minút prepisu denne",
-        "basicModes": "Základné režimy prepisu",
-        "offlineTranscription": "Offline prepis",
-        "apiTranscription": "API prepis (použite vlastné kľúče)",
-        "postProcessing": "Následné spracovanie textu",
-        "providers": "9+ poskytovateľov na výber",
-        "lifetimeUpdates": "Doživotné aktualizácie",
-        "cloudLimited": "HyperWhisper Cloud (obmedzené použitie)",
-        "customVocabulary": "Vlastný slovník",
-        "prioritySupport": "Prioritná podpora"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "doživotne",
-      "description": "Jednorazový nákup, neobmedzený výkon navždy",
-      "cta": "Kúpiť teraz - Doživotný prístup",
-      "mostPopular": "Najobľúbenejšie",
-      "features": {
-        "unlimitedTranscription": "Neobmedzený prepis",
-        "allModes": "Všetky režimy prepisu",
-        "offlineTranscription": "Offline prepis",
-        "apiTranscription": "API prepis (použite vlastné kľúče)",
-        "postProcessing": "Následné spracovanie textu",
-        "providers": "9+ poskytovateľov na výber",
-        "lifetimeUpdates": "Doživotné aktualizácie",
-        "cloudCredits": "HyperWhisper Cloud ($5 v kreditoch)",
-        "customVocabulary": "Vlastný slovník",
-        "prioritySupport": "Prioritná podpora"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise a vlastné ceny",
-      "description": "Množstevné zľavy, SSO, prioritná podpora, interný hosting a vlastné integrácie",
-      "cta": "Kontaktovať predaj"
-    }
   },
   "faq": {
     "title": "Často kladené otázky",
@@ -252,10 +199,7 @@
     "downloadButton": "Stiahnuť HyperWhisper",
     "errorGeneric": "Niečo sa pokazilo. Skúste to prosím znova.",
     "errorEmail": "Zadajte platnú e-mailovú adresu.",
-    "errorNetwork": "Chyba siete. Skontrolujte pripojenie a skúste to znova.",
-    "thankYouTitle": "Ďakujeme!",
     "downloadStarted": "Sťahovanie by sa malo spustiť automaticky.",
-    "manualDownload": "Sťahovanie sa nespustilo? Kliknite sem",
     "skipAndDownloadButton": "Preskočiť a stiahnuť"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Stiahnuť",
       "roadmap": "Roadmapa",
       "helpCenter": "Centrum pomoci",
-      "manageBilling": "Správa fakturácie",
       "customerPortal": "Zákaznícky portál",
       "olderVersions": "Staršie verzie",
       "blog": "Blog",

@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Funkcije",
-    "pricing": "Cene",
     "faq": "Pogosta vprašanja",
     "support": "Podpora",
     "download": "Prenos",
@@ -20,7 +19,6 @@
     "githubAria": "Oglejte si HyperWhisper na GitHubu"
   },
   "hero": {
-    "openSourceBadge": "Odprta koda · Apache-2.0",
     "logoAlt": "Logotip HyperWhisper",
     "headline": "Pišite, ustvarjajte in oblikujte",
     "headlineAccent": "5x hitreje z AI",
@@ -97,57 +95,6 @@
     "accuracyRate": "Stopnja natančnosti",
     "languagesSupported": "Podprti jeziki",
     "providersSupported": "Podprti ponudniki"
-  },
-  "pricing": {
-    "title": "Brez naročnin. Nikoli.",
-    "subtitle": "Plačajte enkrat, uporabljajte za vedno. Tudi mi sovražimo naročnine.",
-    "guarantee": "14-dnevno jamstvo vračila denarja",
-    "guaranteeExtended": "če niste popolnoma zadovoljni.",
-    "learnMore": "Več informacij",
-    "free": {
-      "name": "Brezplačno",
-      "price": "$0",
-      "period": "za vedno",
-      "description": "Idealno za preizkus HyperWhisperja",
-      "cta": "Prenesi brezplačno",
-      "features": {
-        "transcriptionLimit": "5 minut prepisovanja na dan",
-        "basicModes": "Osnovni načini prepisovanja",
-        "offlineTranscription": "Prepisovanje brez povezave",
-        "apiTranscription": "API prepisovanje (uporabite lastne ključe)",
-        "postProcessing": "Naknadna obdelava besedila",
-        "providers": "9+ ponudnikov na izbiro",
-        "lifetimeUpdates": "Doživljenjske posodobitve",
-        "cloudLimited": "HyperWhisper Cloud (omejena uporaba)",
-        "customVocabulary": "Prilagojen besednjak",
-        "prioritySupport": "Prednostna podpora"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "doživljenjsko",
-      "description": "Enkraten nakup, neomejena moč za vedno",
-      "cta": "Kupi zdaj - Doživljenjski dostop",
-      "mostPopular": "Najbolj priljubljeno",
-      "features": {
-        "unlimitedTranscription": "Neomejeno prepisovanje",
-        "allModes": "Vsi načini prepisovanja",
-        "offlineTranscription": "Prepisovanje brez povezave",
-        "apiTranscription": "API prepisovanje (uporabite lastne ključe)",
-        "postProcessing": "Naknadna obdelava besedila",
-        "providers": "9+ ponudnikov na izbiro",
-        "lifetimeUpdates": "Doživljenjske posodobitve",
-        "cloudCredits": "HyperWhisper Cloud ($5 dobroimetja)",
-        "customVocabulary": "Prilagojen besednjak",
-        "prioritySupport": "Prednostna podpora"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise in prilagojene cene",
-      "description": "Količinski popusti, SSO, prednostna podpora, interno gostovanje in prilagojene integracije",
-      "cta": "Kontaktiraj prodajo"
-    }
   },
   "faq": {
     "title": "Pogosto zastavljena vprašanja",
@@ -252,10 +199,7 @@
     "downloadButton": "Prenesi HyperWhisper",
     "errorGeneric": "Nekaj je šlo narobe. Prosimo, poskusite znova.",
     "errorEmail": "Vnesite veljaven e-naslov.",
-    "errorNetwork": "Napaka omrežja. Preverite povezavo in poskusite znova.",
-    "thankYouTitle": "Hvala!",
     "downloadStarted": "Prenos bi se moral začeti samodejno.",
-    "manualDownload": "Prenos se ni začel? Kliknite tukaj",
     "skipAndDownloadButton": "Preskoči in prenesi"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Prenos",
       "roadmap": "Načrt razvoja",
       "helpCenter": "Center pomoči",
-      "manageBilling": "Upravljanje z obračunom",
       "customerPortal": "Portal za stranke",
       "olderVersions": "Starejše različice",
       "blog": "Blog",

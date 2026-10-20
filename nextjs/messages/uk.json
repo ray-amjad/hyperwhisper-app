@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Можливості",
-    "pricing": "Ціни",
     "faq": "FAQ",
     "support": "Підтримка",
     "download": "Завантажити",
@@ -20,7 +19,6 @@
     "githubAria": "Переглянути HyperWhisper на GitHub"
   },
   "hero": {
-    "openSourceBadge": "Відкритий код · Apache-2.0",
     "logoAlt": "Логотип HyperWhisper",
     "headline": "Пишіть, створюйте та творіть",
     "headlineAccent": "у 5x швидше з AI",
@@ -97,57 +95,6 @@
     "accuracyRate": "Рівень точності",
     "languagesSupported": "Підтримувані мови",
     "providersSupported": "Підтримувані провайдери"
-  },
-  "pricing": {
-    "title": "Без підписок. Ніколи.",
-    "subtitle": "Платите один раз, користуєтесь назавжди. Ми теж ненавидимо підписки.",
-    "guarantee": "14-денна гарантія повернення коштів",
-    "guaranteeExtended": "якщо ви не повністю задоволені.",
-    "learnMore": "Дізнатися більше",
-    "free": {
-      "name": "Безкоштовно",
-      "price": "$0",
-      "period": "назавжди",
-      "description": "Ідеально для знайомства з HyperWhisper",
-      "cta": "Завантажити безкоштовно",
-      "features": {
-        "transcriptionLimit": "5 хвилин транскрипції на день",
-        "basicModes": "Базові режими транскрипції",
-        "offlineTranscription": "Офлайн-транскрипція",
-        "apiTranscription": "API-транскрипція (використовуйте власні ключі)",
-        "postProcessing": "Постобробка тексту",
-        "providers": "9+ провайдерів на вибір",
-        "lifetimeUpdates": "Довічні оновлення",
-        "cloudLimited": "HyperWhisper Cloud (обмежене використання)",
-        "customVocabulary": "Користувацький словник",
-        "prioritySupport": "Пріоритетна підтримка"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "довічно",
-      "description": "Одноразова покупка, необмежені можливості назавжди",
-      "cta": "Купити зараз - Довічний доступ",
-      "mostPopular": "Найпопулярніший",
-      "features": {
-        "unlimitedTranscription": "Необмежена транскрипція",
-        "allModes": "Усі режими транскрипції",
-        "offlineTranscription": "Офлайн-транскрипція",
-        "apiTranscription": "API-транскрипція (використовуйте власні ключі)",
-        "postProcessing": "Постобробка тексту",
-        "providers": "9+ провайдерів на вибір",
-        "lifetimeUpdates": "Довічні оновлення",
-        "cloudCredits": "HyperWhisper Cloud ($5 у кредитах)",
-        "customVocabulary": "Користувацький словник",
-        "prioritySupport": "Пріоритетна підтримка"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise та індивідуальні ціни",
-      "description": "Знижки за обсяг, SSO, пріоритетна підтримка, внутрішній хостинг та індивідуальні інтеграції",
-      "cta": "Зв'язатися з продажами"
-    }
   },
   "faq": {
     "title": "Поширені запитання",
@@ -252,10 +199,7 @@
     "downloadButton": "Завантажити HyperWhisper",
     "errorGeneric": "Щось пішло не так. Спробуйте ще раз.",
     "errorEmail": "Введіть дійсну адресу електронної пошти.",
-    "errorNetwork": "Помилка мережі. Перевірте з'єднання та спробуйте ще раз.",
-    "thankYouTitle": "Дякуємо!",
     "downloadStarted": "Завантаження має початися автоматично.",
-    "manualDownload": "Завантаження не почалося? Натисніть тут",
     "skipAndDownloadButton": "Пропустити й завантажити"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Завантажити",
       "roadmap": "Дорожня карта",
       "helpCenter": "Центр допомоги",
-      "manageBilling": "Керування оплатою",
       "customerPortal": "Портал клієнта",
       "olderVersions": "Старі версії",
       "blog": "Блог",

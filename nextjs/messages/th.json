@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "ฟีเจอร์",
-    "pricing": "ราคา",
     "faq": "คำถามที่พบบ่อย",
     "support": "ช่วยเหลือ",
     "download": "ดาวน์โหลด",
@@ -20,7 +19,6 @@
     "githubAria": "ดู HyperWhisper บน GitHub"
   },
   "hero": {
-    "openSourceBadge": "โอเพนซอร์ส · Apache-2.0",
     "logoAlt": "โลโก้ HyperWhisper",
     "headline": "เขียน เรียบเรียง และสร้างสรรค์",
     "headlineAccent": "เร็วขึ้น 5x ด้วย AI",
@@ -97,57 +95,6 @@
     "accuracyRate": "ความแม่นยำ",
     "languagesSupported": "ภาษาที่รองรับ",
     "providersSupported": "ผู้ให้บริการที่รองรับ"
-  },
-  "pricing": {
-    "title": "ไม่มีค่าสมาชิก รายเดือนไม่มีแน่นอน",
-    "subtitle": "จ่ายครั้งเดียว ใช้ได้ตลอดไป เราเองก็ไม่ชอบค่าสมาชิก",
-    "guarantee": "รับประกันคืนเงินภายใน 14 วัน",
-    "guaranteeExtended": "หากคุณไม่พึงพอใจอย่างเต็มที่",
-    "learnMore": "เรียนรู้เพิ่มเติม",
-    "free": {
-      "name": "ฟรี",
-      "price": "$0",
-      "period": "ตลอดไป",
-      "description": "เหมาะสำหรับลองใช้ HyperWhisper",
-      "cta": "ดาวน์โหลดฟรี",
-      "features": {
-        "transcriptionLimit": "ถอดเสียงได้ 5 นาทีต่อวัน",
-        "basicModes": "โหมดถอดเสียงพื้นฐาน",
-        "offlineTranscription": "ถอดเสียงแบบออฟไลน์",
-        "apiTranscription": "ถอดเสียงผ่าน API (ใช้คีย์ของคุณเอง)",
-        "postProcessing": "ปรับแต่งข้อความหลังถอดเสียง",
-        "providers": "เลือกผู้ให้บริการได้ 9+ ราย",
-        "lifetimeUpdates": "อัปเดตตลอดอายุการใช้งาน",
-        "cloudLimited": "HyperWhisper Cloud (ใช้งานแบบจำกัด)",
-        "customVocabulary": "คำศัพท์แบบกำหนดเอง",
-        "prioritySupport": "ซัพพอร์ตลำดับความสำคัญ"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "ตลอดชีพ",
-      "description": "ซื้อครั้งเดียว ใช้งานแบบไม่จำกัดตลอดไป",
-      "cta": "ซื้อเลย - เข้าถึงตลอดชีพ",
-      "mostPopular": "ยอดนิยมที่สุด",
-      "features": {
-        "unlimitedTranscription": "ถอดเสียงไม่จำกัด",
-        "allModes": "ทุกโหมดการถอดเสียง",
-        "offlineTranscription": "ถอดเสียงแบบออฟไลน์",
-        "apiTranscription": "ถอดเสียงผ่าน API (ใช้คีย์ของคุณเอง)",
-        "postProcessing": "ปรับแต่งข้อความหลังถอดเสียง",
-        "providers": "เลือกผู้ให้บริการได้ 9+ ราย",
-        "lifetimeUpdates": "อัปเดตตลอดอายุการใช้งาน",
-        "cloudCredits": "HyperWhisper Cloud ($5 เครดิต)",
-        "customVocabulary": "คำศัพท์แบบกำหนดเอง",
-        "prioritySupport": "ซัพพอร์ตลำดับความสำคัญ"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise และราคาปรับตามความต้องการ",
-      "description": "ส่วนลดตามปริมาณ SSO ซัพพอร์ตแบบเร่งด่วน โฮสติ้งภายในองค์กร และการเชื่อมต่อระบบแบบกำหนดเอง",
-      "cta": "ติดต่อฝ่ายขาย"
-    }
   },
   "faq": {
     "title": "คำถามที่พบบ่อย",
@@ -252,10 +199,7 @@
     "downloadButton": "ดาวน์โหลด HyperWhisper",
     "errorGeneric": "เกิดข้อผิดพลาดบางอย่าง กรุณาลองใหม่อีกครั้ง",
     "errorEmail": "กรุณากรอกที่อยู่อีเมลที่ถูกต้อง",
-    "errorNetwork": "เครือข่ายมีปัญหา กรุณาตรวจสอบการเชื่อมต่อแล้วลองใหม่",
-    "thankYouTitle": "ขอบคุณ!",
     "downloadStarted": "การดาวน์โหลดของคุณควรเริ่มอัตโนมัติ",
-    "manualDownload": "ดาวน์โหลดยังไม่เริ่ม? คลิกที่นี่",
     "skipAndDownloadButton": "ข้ามและดาวน์โหลด"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "ดาวน์โหลด",
       "roadmap": "แผนพัฒนา",
       "helpCenter": "ศูนย์ช่วยเหลือ",
-      "manageBilling": "จัดการการเรียกเก็บเงิน",
       "customerPortal": "พอร์ทัลลูกค้า",
       "olderVersions": "เวอร์ชันเก่า",
       "blog": "บล็อก",

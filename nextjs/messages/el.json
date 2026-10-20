@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Δυνατότητες",
-    "pricing": "Τιμές",
     "faq": "Συχνές ερωτήσεις",
     "support": "Υποστήριξη",
     "download": "Λήψη",
@@ -20,7 +19,6 @@
     "githubAria": "Δείτε το HyperWhisper στο GitHub"
   },
   "hero": {
-    "openSourceBadge": "Ανοιχτός κώδικας · Apache-2.0",
     "logoAlt": "Λογότυπο HyperWhisper",
     "headline": "Γράψτε, συνθέστε και δημιουργήστε",
     "headlineAccent": "5x πιο γρήγορα με AI",
@@ -97,57 +95,6 @@
     "accuracyRate": "Ποσοστό ακρίβειας",
     "languagesSupported": "Υποστηριζόμενες γλώσσες",
     "providersSupported": "Υποστηριζόμενοι πάροχοι"
-  },
-  "pricing": {
-    "title": "Χωρίς συνδρομές. Ποτέ.",
-    "subtitle": "Πληρώνετε μία φορά, χρησιμοποιείτε για πάντα. Κι εμείς μισούμε τις συνδρομές.",
-    "guarantee": "Εγγύηση επιστροφής χρημάτων 14 ημερών",
-    "guaranteeExtended": "αν δεν μείνετε απόλυτα ικανοποιημένοι.",
-    "learnMore": "Μάθετε περισσότερα",
-    "free": {
-      "name": "Δωρεάν",
-      "price": "$0",
-      "period": "για πάντα",
-      "description": "Ιδανικό για να δοκιμάσετε το HyperWhisper",
-      "cta": "Δωρεάν λήψη",
-      "features": {
-        "transcriptionLimit": "5 λεπτά μεταγραφής την ημέρα",
-        "basicModes": "Βασικές λειτουργίες μεταγραφής",
-        "offlineTranscription": "Offline μεταγραφή",
-        "apiTranscription": "Μεταγραφή μέσω API (φέρνετε τα δικά σας κλειδιά)",
-        "postProcessing": "Μετα-επεξεργασία κειμένου",
-        "providers": "9+ πάροχοι για να επιλέξετε",
-        "lifetimeUpdates": "Ενημερώσεις εφ' όρου ζωής",
-        "cloudLimited": "HyperWhisper Cloud (περιορισμένη χρήση)",
-        "customVocabulary": "Προσαρμοσμένο λεξιλόγιο",
-        "prioritySupport": "Προτεραιότητα στην υποστήριξη"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "ισόβια",
-      "description": "Εφάπαξ αγορά, απεριόριστη ισχύς για πάντα",
-      "cta": "Αγορά τώρα - Ισόβια πρόσβαση",
-      "mostPopular": "Πιο δημοφιλές",
-      "features": {
-        "unlimitedTranscription": "Απεριόριστη μεταγραφή",
-        "allModes": "Όλες οι λειτουργίες μεταγραφής",
-        "offlineTranscription": "Offline μεταγραφή",
-        "apiTranscription": "Μεταγραφή μέσω API (φέρνετε τα δικά σας κλειδιά)",
-        "postProcessing": "Μετα-επεξεργασία κειμένου",
-        "providers": "9+ πάροχοι για να επιλέξετε",
-        "lifetimeUpdates": "Ενημερώσεις εφ' όρου ζωής",
-        "cloudCredits": "HyperWhisper Cloud ($5 σε credits)",
-        "customVocabulary": "Προσαρμοσμένο λεξιλόγιο",
-        "prioritySupport": "Προτεραιότητα στην υποστήριξη"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise & προσαρμοσμένη τιμολόγηση",
-      "description": "Εκπτώσεις όγκου, SSO, προτεραιότητα στην υποστήριξη, εσωτερική φιλοξενία και προσαρμοσμένες ενσωματώσεις",
-      "cta": "Επικοινωνία με πωλήσεις"
-    }
   },
   "faq": {
     "title": "Συχνές ερωτήσεις",
@@ -252,10 +199,7 @@
     "downloadButton": "Λήψη HyperWhisper",
     "errorGeneric": "Κάτι πήγε στραβά. Παρακαλώ δοκιμάστε ξανά.",
     "errorEmail": "Παρακαλώ εισαγάγετε μια έγκυρη διεύθυνση email.",
-    "errorNetwork": "Σφάλμα δικτύου. Ελέγξτε τη σύνδεσή σας και δοκιμάστε ξανά.",
-    "thankYouTitle": "Ευχαριστούμε!",
     "downloadStarted": "Η λήψη σας θα πρέπει να ξεκινήσει αυτόματα.",
-    "manualDownload": "Η λήψη δεν ξεκίνησε; Κάντε κλικ εδώ",
     "skipAndDownloadButton": "Παράλειψη και λήψη"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Λήψη",
       "roadmap": "Οδικός χάρτης",
       "helpCenter": "Κέντρο βοήθειας",
-      "manageBilling": "Διαχείριση χρέωσης",
       "customerPortal": "Πύλη πελατών",
       "olderVersions": "Παλαιότερες εκδόσεις",
       "blog": "Blog",

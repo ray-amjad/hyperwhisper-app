@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "फीचर्स",
-    "pricing": "प्राइसिंग",
     "faq": "अक्सर पूछे जाने वाले सवाल",
     "support": "सपोर्ट",
     "download": "डाउनलोड",
@@ -20,7 +19,6 @@
     "githubAria": "GitHub पर HyperWhisper देखें"
   },
   "hero": {
-    "openSourceBadge": "ओपन सोर्स · Apache-2.0",
     "logoAlt": "HyperWhisper लोगो",
     "headline": "लिखें, तैयार करें और बनाएँ",
     "headlineAccent": "AI के साथ 5x तेज़",
@@ -97,57 +95,6 @@
     "accuracyRate": "सटीकता दर",
     "languagesSupported": "समर्थित भाषाएँ",
     "providersSupported": "समर्थित प्रदाता"
-  },
-  "pricing": {
-    "title": "कोई सब्सक्रिप्शन नहीं। कभी नहीं।",
-    "subtitle": "एक बार भुगतान करें, हमेशा के लिए उपयोग करें। हमें भी सब्सक्रिप्शन पसंद नहीं।",
-    "guarantee": "14-दिन की मनी-बैक गारंटी",
-    "guaranteeExtended": "अगर आप पूरी तरह संतुष्ट नहीं हैं।",
-    "learnMore": "और जानें",
-    "free": {
-      "name": "फ्री",
-      "price": "$0",
-      "period": "हमेशा के लिए",
-      "description": "HyperWhisper ट्राई करने के लिए परफेक्ट",
-      "cta": "फ्री डाउनलोड करें",
-      "features": {
-        "transcriptionLimit": "प्रति दिन 5 मिनट ट्रांसक्रिप्शन",
-        "basicModes": "बेसिक ट्रांसक्रिप्शन मोड",
-        "offlineTranscription": "ऑफलाइन ट्रांसक्रिप्शन",
-        "apiTranscription": "API ट्रांसक्रिप्शन (अपने कीज़ इस्तेमाल करें)",
-        "postProcessing": "टेक्स्ट पोस्ट-प्रोसेसिंग",
-        "providers": "चुनने के लिए 9+ प्रदाता",
-        "lifetimeUpdates": "लाइफटाइम अपडेट्स",
-        "cloudLimited": "HyperWhisper Cloud (सीमित उपयोग)",
-        "customVocabulary": "कस्टम शब्दावली",
-        "prioritySupport": "प्रायोरिटी सपोर्ट"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "लाइफटाइम",
-      "description": "वन-टाइम खरीद, हमेशा के लिए अनलिमिटेड ताकत",
-      "cta": "अभी खरीदें - लाइफटाइम एक्सेस",
-      "mostPopular": "सबसे लोकप्रिय",
-      "features": {
-        "unlimitedTranscription": "अनलिमिटेड ट्रांसक्रिप्शन",
-        "allModes": "सभी ट्रांसक्रिप्शन मोड",
-        "offlineTranscription": "ऑफलाइन ट्रांसक्रिप्शन",
-        "apiTranscription": "API ट्रांसक्रिप्शन (अपने कीज़ इस्तेमाल करें)",
-        "postProcessing": "टेक्स्ट पोस्ट-प्रोसेसिंग",
-        "providers": "चुनने के लिए 9+ प्रदाता",
-        "lifetimeUpdates": "लाइफटाइम अपडेट्स",
-        "cloudCredits": "HyperWhisper Cloud ($5 क्रेडिट्स)",
-        "customVocabulary": "कस्टम शब्दावली",
-        "prioritySupport": "प्रायोरिटी सपोर्ट"
-      }
-    },
-    "enterprise": {
-      "title": "एंटरप्राइज और कस्टम प्राइसिंग",
-      "description": "वॉल्यूम डिस्काउंट, SSO, प्रायोरिटी सपोर्ट, इन-हाउस होस्टिंग और कस्टम इंटीग्रेशन्स",
-      "cta": "सेल्स से संपर्क करें"
-    }
   },
   "faq": {
     "title": "अक्सर पूछे जाने वाले सवाल",
@@ -252,10 +199,7 @@
     "downloadButton": "HyperWhisper डाउनलोड करें",
     "errorGeneric": "कुछ गलत हो गया। कृपया फिर से कोशिश करें।",
     "errorEmail": "एक मान्य ईमेल पता दर्ज करें।",
-    "errorNetwork": "नेटवर्क त्रुटि। कृपया अपना कनेक्शन जाँचें और फिर से प्रयास करें।",
-    "thankYouTitle": "धन्यवाद!",
     "downloadStarted": "आपका डाउनलोड अपने आप शुरू हो जाना चाहिए।",
-    "manualDownload": "डाउनलोड शुरू नहीं हुआ? यहाँ क्लिक करें",
     "skipAndDownloadButton": "छोड़ें और डाउनलोड करें"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "डाउनलोड",
       "roadmap": "रोडमैप",
       "helpCenter": "हेल्प सेंटर",
-      "manageBilling": "बिलिंग मैनेज करें",
       "customerPortal": "कस्टमर पोर्टल",
       "olderVersions": "पुराने वर्ज़न",
       "blog": "ब्लॉग",

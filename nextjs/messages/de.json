@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Funktionen",
-    "pricing": "Preise",
     "faq": "FAQ",
     "support": "Support",
     "download": "Download",
@@ -20,7 +19,6 @@
     "githubAria": "HyperWhisper auf GitHub ansehen"
   },
   "hero": {
-    "openSourceBadge": "Open Source · Apache-2.0",
     "logoAlt": "HyperWhisper Logo",
     "headline": "Schreiben, formulieren und erstellen",
     "headlineAccent": "5x schneller mit KI",
@@ -97,57 +95,6 @@
     "accuracyRate": "Genauigkeitsrate",
     "languagesSupported": "Unterstützte Sprachen",
     "providersSupported": "Unterstützte Anbieter"
-  },
-  "pricing": {
-    "title": "Keine Abonnements. Immer.",
-    "subtitle": "Einmal bezahlen, für immer nutzen. Wir hassen auch Abonnements.",
-    "guarantee": "14-tägige Geld-zurück-Garantie",
-    "guaranteeExtended": "wenn Sie nicht ganz zufrieden sind.",
-    "learnMore": "Erfahren Sie mehr",
-    "free": {
-      "name": "Kostenlos",
-      "price": "$0",
-      "period": "für immer",
-      "description": "Perfekt zum Ausprobieren von HyperWhisper",
-      "cta": "Kostenlos herunterladen",
-      "features": {
-        "transcriptionLimit": "5 Minuten Transkription pro Tag",
-        "basicModes": "Grundlegende Transkriptionsmodi",
-        "offlineTranscription": "Offline-Transkription",
-        "apiTranscription": "API-Transkription (bringen Sie Ihre eigenen Schlüssel mit)",
-        "postProcessing": "Textnachbearbeitung",
-        "providers": "Über 9 Anbieter zur Auswahl",
-        "lifetimeUpdates": "Lebenslange Updates",
-        "cloudLimited": "HyperWhisper Cloud (begrenzte Nutzung)",
-        "customVocabulary": "Benutzerdefinierter Wortschatz",
-        "prioritySupport": "Vorrangiger Support"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "Lebenslang",
-      "description": "Einmaliger Kauf, unbegrenzte Leistung für immer",
-      "cta": "Jetzt kaufen – lebenslanger Zugriff",
-      "mostPopular": "Am beliebtesten",
-      "features": {
-        "unlimitedTranscription": "Unbegrenzte Transkription",
-        "allModes": "Alle Transkriptionsmodi",
-        "offlineTranscription": "Offline-Transkription",
-        "apiTranscription": "API-Transkription (bringen Sie Ihre eigenen Schlüssel mit)",
-        "postProcessing": "Textnachbearbeitung",
-        "providers": "Über 9 Anbieter zur Auswahl",
-        "lifetimeUpdates": "Lebenslange Updates",
-        "cloudCredits": "HyperWhisper Cloud (5 $ in Credits)",
-        "customVocabulary": "Benutzerdefinierter Wortschatz",
-        "prioritySupport": "Vorrangiger Support"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise und individuelle Preise",
-      "description": "Mengenrabatte, SSO, priorisierter Support, internes Hosting und individuelle Integrationen",
-      "cta": "Kontaktieren Sie den Vertrieb"
-    }
   },
   "faq": {
     "title": "Häufig gestellte Fragen",
@@ -252,10 +199,7 @@
     "downloadButton": "HyperWhisper herunterladen",
     "errorGeneric": "Etwas ist schief gelaufen. Bitte versuchen Sie es erneut.",
     "errorEmail": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
-    "errorNetwork": "Netzwerkfehler. Bitte überprüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
-    "thankYouTitle": "Danke!",
     "downloadStarted": "Ihr Download sollte automatisch starten.",
-    "manualDownload": "Der Download wurde nicht gestartet? Klicken Sie hier",
     "skipAndDownloadButton": "Überspringen und herunterladen"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Herunterladen",
       "roadmap": "Roadmap",
       "helpCenter": "Hilfecenter",
-      "manageBilling": "Abrechnung verwalten",
       "customerPortal": "Kundenportal",
       "olderVersions": "Ältere Versionen",
       "blog": "Blog",

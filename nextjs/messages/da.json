@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Funktioner",
-    "pricing": "Priser",
     "faq": "FAQ",
     "support": "Support",
     "download": "Download",
@@ -20,7 +19,6 @@
     "githubAria": "Se HyperWhisper på GitHub"
   },
   "hero": {
-    "openSourceBadge": "Open source · Apache-2.0",
     "logoAlt": "HyperWhisper-logo",
     "headline": "Skriv, komponer og skab",
     "headlineAccent": "5x hurtigere med AI",
@@ -97,57 +95,6 @@
     "accuracyRate": "Nøjagtighed",
     "languagesSupported": "Understøttede sprog",
     "providersSupported": "Understøttede udbydere"
-  },
-  "pricing": {
-    "title": "Ingen abonnementer. Nogensinde.",
-    "subtitle": "Betal én gang, brug for altid. Vi hader også abonnementer.",
-    "guarantee": "14 dages pengene-tilbage-garanti",
-    "guaranteeExtended": "hvis du ikke er helt tilfreds.",
-    "learnMore": "Læs mere",
-    "free": {
-      "name": "Gratis",
-      "price": "$0",
-      "period": "for altid",
-      "description": "Perfekt til at prøve HyperWhisper",
-      "cta": "Download gratis",
-      "features": {
-        "transcriptionLimit": "5 minutters transskription pr. dag",
-        "basicModes": "Grundlæggende transskriptionstilstande",
-        "offlineTranscription": "Offline-transskription",
-        "apiTranscription": "API-transskription (brug dine egne nøgler)",
-        "postProcessing": "Tekst-efterbehandling",
-        "providers": "9+ udbydere at vælge imellem",
-        "lifetimeUpdates": "Livstidsopdateringer",
-        "cloudLimited": "HyperWhisper Cloud (begrænset brug)",
-        "customVocabulary": "Brugerdefineret ordforråd",
-        "prioritySupport": "Prioriteret support"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "livstid",
-      "description": "Engangskøb, ubegrænset kraft for altid",
-      "cta": "Køb nu - Livstidsadgang",
-      "mostPopular": "Mest populær",
-      "features": {
-        "unlimitedTranscription": "Ubegrænset transskription",
-        "allModes": "Alle transskriptionstilstande",
-        "offlineTranscription": "Offline-transskription",
-        "apiTranscription": "API-transskription (brug dine egne nøgler)",
-        "postProcessing": "Tekst-efterbehandling",
-        "providers": "9+ udbydere at vælge imellem",
-        "lifetimeUpdates": "Livstidsopdateringer",
-        "cloudCredits": "HyperWhisper Cloud ($5 i credits)",
-        "customVocabulary": "Brugerdefineret ordforråd",
-        "prioritySupport": "Prioriteret support"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise og tilpasset pris",
-      "description": "Mængderabatter, SSO, prioriteret support, intern hosting og tilpassede integrationer",
-      "cta": "Kontakt salg"
-    }
   },
   "faq": {
     "title": "Ofte stillede spørgsmål",
@@ -252,10 +199,7 @@
     "downloadButton": "Download HyperWhisper",
     "errorGeneric": "Noget gik galt. Prøv igen.",
     "errorEmail": "Indtast en gyldig e-mailadresse.",
-    "errorNetwork": "Netværksfejl. Tjek din forbindelse og prøv igen.",
-    "thankYouTitle": "Tak!",
     "downloadStarted": "Din download bør starte automatisk.",
-    "manualDownload": "Startede download ikke? Klik her",
     "skipAndDownloadButton": "Spring over og download"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Download",
       "roadmap": "Roadmap",
       "helpCenter": "Hjælpecenter",
-      "manageBilling": "Administrer betaling",
       "customerPortal": "Kundeportal",
       "olderVersions": "Ældre versioner",
       "blog": "Blog",

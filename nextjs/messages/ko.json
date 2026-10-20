@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "기능",
-    "pricing": "요금",
     "faq": "FAQ",
     "support": "지원",
     "download": "다운로드",
@@ -20,7 +19,6 @@
     "githubAria": "GitHub에서 HyperWhisper 보기"
   },
   "hero": {
-    "openSourceBadge": "오픈 소스 · Apache-2.0",
     "logoAlt": "HyperWhisper 로고",
     "headline": "더 빠르게 쓰고, 만들고, 창작하세요",
     "headlineAccent": "AI로 5배 더 빠르게",
@@ -97,57 +95,6 @@
     "accuracyRate": "정확도",
     "languagesSupported": "지원 언어",
     "providersSupported": "지원 제공업체"
-  },
-  "pricing": {
-    "title": "구독 없음. 영구 사용.",
-    "subtitle": "한 번 결제하고 평생 사용하세요. 저희도 구독을 싫어합니다.",
-    "guarantee": "14일 환불 보장",
-    "guaranteeExtended": "완전히 만족하지 못하시면 환불해 드립니다.",
-    "learnMore": "자세히 보기",
-    "free": {
-      "name": "무료",
-      "price": "$0",
-      "period": "영구",
-      "description": "HyperWhisper를 체험하기에 적합",
-      "cta": "무료 다운로드",
-      "features": {
-        "transcriptionLimit": "하루 5분 전사",
-        "basicModes": "기본 전사 모드",
-        "offlineTranscription": "오프라인 전사",
-        "apiTranscription": "API 전사(자체 키 사용)",
-        "postProcessing": "텍스트 후처리",
-        "providers": "9개 이상의 제공업체 선택 가능",
-        "lifetimeUpdates": "평생 업데이트",
-        "cloudLimited": "HyperWhisper Cloud(제한된 사용량)",
-        "customVocabulary": "사용자 지정 용어",
-        "prioritySupport": "우선 지원"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "평생",
-      "description": "일회성 구매로 영구적인 무제한 성능",
-      "cta": "지금 구매 - 평생 이용",
-      "mostPopular": "가장 인기",
-      "features": {
-        "unlimitedTranscription": "무제한 전사",
-        "allModes": "모든 전사 모드",
-        "offlineTranscription": "오프라인 전사",
-        "apiTranscription": "API 전사(자체 키 사용)",
-        "postProcessing": "텍스트 후처리",
-        "providers": "9개 이상의 제공업체 선택 가능",
-        "lifetimeUpdates": "평생 업데이트",
-        "cloudCredits": "HyperWhisper Cloud($5 크레딧)",
-        "customVocabulary": "사용자 지정 용어",
-        "prioritySupport": "우선 지원"
-      }
-    },
-    "enterprise": {
-      "title": "엔터프라이즈 및 맞춤 요금",
-      "description": "볼륨 할인, SSO, 우선 지원, 사내 호스팅, 맞춤 통합",
-      "cta": "영업 문의"
-    }
   },
   "faq": {
     "title": "자주 묻는 질문",
@@ -252,10 +199,7 @@
     "downloadButton": "HyperWhisper 다운로드",
     "errorGeneric": "문제가 발생했습니다. 다시 시도해 주세요.",
     "errorEmail": "유효한 이메일 주소를 입력해 주세요.",
-    "errorNetwork": "네트워크 오류입니다. 연결을 확인한 뒤 다시 시도해 주세요.",
-    "thankYouTitle": "감사합니다!",
     "downloadStarted": "다운로드가 자동으로 시작됩니다.",
-    "manualDownload": "다운로드가 시작되지 않았나요? 여기를 클릭하세요",
     "skipAndDownloadButton": "건너뛰고 다운로드"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "다운로드",
       "roadmap": "로드맵",
       "helpCenter": "도움말 센터",
-      "manageBilling": "결제 관리",
       "customerPortal": "고객 포털",
       "olderVersions": "이전 버전",
       "blog": "블로그",
