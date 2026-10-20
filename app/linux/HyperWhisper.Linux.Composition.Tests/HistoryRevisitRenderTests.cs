@@ -57,30 +57,34 @@ static class HistoryRevisitRenderTests
 
     private static async Task Run(MainWindow window, ApplicationShellViewModel shell, LinuxDesktopServices services, List<string> failures)
     {
-        // A row written the way the workflow writes one: through its own repository, with no
-        // History reload. The first visit has to show it.
-        var writer = new HistoryRepository(new ApplicationDb(services.Paths), services.Paths);
-        await writer.AddAsync(new Transcript { Text = "seeded", Status = TranscriptStatus.Completed, Date = DateTime.UtcNow });
-        // The rest of the Opened handler (recovery, storage maintenance) finishes first.
-        await Settle(1500);
-
         var loads = 0;
         NotifyCollectionChangedEventHandler count = (_, e) =>
         { if (e.Action == NotifyCollectionChangedAction.Reset) loads++; };
         shell.History.Items.CollectionChanged += count;
         try
         {
-            await Expect("first History visit after a write", expectedLoads: 1, () => Visit(shell));
-            await Expect("Home -> History, nothing changed", expectedLoads: 0, () => Visit(shell));
-            await Expect("Home -> History again, nothing changed", expectedLoads: 0, () => Visit(shell));
-            await Expect("choosing Today", expectedLoads: 1, () =>
+            // The rest of the Opened handler (recovery, a startup History reload, storage
+            // maintenance) runs on its own schedule; on a slow runner it outlasted a fixed wait and
+            // its reload swallowed the write below. Visit once, then wait until loads stop.
+            await Visit(shell);
+            await Quiet(() => loads);
+
+            await Expect("Home -> History, nothing changed", expectedLoads: 0, rows: 0, () => Visit(shell));
+            // A row written the way the workflow writes one: through its own repository, with no
+            // History reload. The next visit has to show it.
+            var writer = new HistoryRepository(new ApplicationDb(services.Paths), services.Paths);
+            await writer.AddAsync(new Transcript { Text = "seeded", Status = TranscriptStatus.Completed, Date = DateTime.UtcNow });
+            await Expect("first History visit after a write", expectedLoads: 1, rows: 1, () => Visit(shell));
+            await Expect("Home -> History, nothing changed since the write", expectedLoads: 0, rows: 1, () => Visit(shell));
+            await Expect("Home -> History again, nothing changed", expectedLoads: 0, rows: 1, () => Visit(shell));
+            await Expect("choosing Today", expectedLoads: 1, rows: 1, () =>
             {
                 Named<ComboBox>(window, "HistoryPeriod").SelectedIndex = 1;
                 return Task.CompletedTask;
             });
-            await Expect("Home -> History from Today (the combo shows All again)", expectedLoads: 1, () => Visit(shell));
-            await Expect("Home -> History after that", expectedLoads: 0, () => Visit(shell));
-            await Expect("Home -> History after MarkStale (storage cleanup)", expectedLoads: 1, () =>
+            await Expect("Home -> History from Today (the combo shows All again)", expectedLoads: 1, rows: 1, () => Visit(shell));
+            await Expect("Home -> History after that", expectedLoads: 0, rows: 1, () => Visit(shell));
+            await Expect("Home -> History after MarkStale (storage cleanup)", expectedLoads: 1, rows: 1, () =>
             {
                 shell.History.MarkStale();
                 return Visit(shell);
@@ -88,7 +92,7 @@ static class HistoryRevisitRenderTests
         }
         finally { shell.History.Items.CollectionChanged -= count; }
 
-        async Task Expect(string step, int expectedLoads, Func<Task> act)
+        async Task Expect(string step, int expectedLoads, int rows, Func<Task> act)
         {
             var before = loads;
             await act();
@@ -99,8 +103,21 @@ static class HistoryRevisitRenderTests
             Console.WriteLine($"{step}: {ran} History loads, {shell.History.Items.Count} rows, status \"{shell.History.Status.Message}\"");
             if (ran != expectedLoads) failures.Add($"{step}: {ran} History loads, expected {expectedLoads}");
             if (!shown) failures.Add($"{step}: the History page is not on screen");
-            if (shell.History.Items.Count != 1 || shell.History.Selected?.Text != "seeded")
+            if (shell.History.Items.Count != rows || (rows > 0 && shell.History.Selected?.Text != "seeded"))
                 failures.Add($"{step}: History shows {shell.History.Items.Count} rows, selected \"{shell.History.Selected?.Text}\"");
+        }
+    }
+
+    /// <summary>Waits until no History load has landed for a full second, at most 20 s.</summary>
+    private static async Task Quiet(Func<int> loads)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(20);
+        var seen = loads();
+        while (DateTime.UtcNow < deadline)
+        {
+            await Settle(1000);
+            if (loads() == seen) return;
+            seen = loads();
         }
     }
 
