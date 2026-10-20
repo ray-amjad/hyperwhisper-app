@@ -571,7 +571,7 @@ describe('transcribeWithGoogleChirp — GCS + batchRecognize path', () => {
     };
 
     await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav'))
-      .rejects.toThrow('Google Speech batchRecognize failed (3): bad audio');
+      .rejects.toThrow('Google Speech batchRecognize failed (3)');
     expect(cancelled).toBe(true);
     expect(deleteCalls.length).toBe(1);
   });
@@ -683,7 +683,7 @@ describe('transcribeWithGoogleChirp — GCS + batchRecognize path', () => {
     };
 
     await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav'))
-      .rejects.toThrow('Google Speech batchRecognize failed (3): invalid audio');
+      .rejects.toThrow('Google Speech batchRecognize failed (3)');
     expect((globalThis.fetch as any).mock.calls.some(
       ([input]: [RequestInfo | URL]) => String(input).endsWith('operations/cancel-fails:cancel'),
     )).toBe(true);
@@ -767,7 +767,7 @@ describe('transcribeWithGoogleChirp — explicit network timeout budgets', () =>
       };
 
       await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav'))
-        .rejects.toThrow('Google Speech batchRecognize failed (3): bad audio');
+        .rejects.toThrow('Google Speech batchRecognize failed (3)');
     });
 
     expect(requestTimeouts).toEqual({ poll: [8_000], cancel: [8_000] });

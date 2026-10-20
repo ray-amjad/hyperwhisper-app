@@ -938,6 +938,7 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "transcription.error.modelNotDownloaded" = "Pirmiausia atsisiųskite modelį";
 "transcription.error.modelNotDownloaded.modelAndMode" = "Režimas %1$@ naudoja modelį %2$@, kuris neatsisiųstas. Atsisiųskite jį Modelių bibliotekoje.";
 "transcription.error.modelNotDownloaded.model" = "Modelis %1$@ neatsisiųstas. Atsisiųskite jį Modelių bibliotekoje.";
+"transcription.error.openModelLibrary" = "Atidaryti Modelių biblioteką";
 "transcription.error.modelProtected" = "Šis modelis negali būti ištrintas";
 "transcription.error.audioFileNotFound" = "Audio failas nerastas";
 "transcription.error.network.detail" = "Tinklo klaida: %@";

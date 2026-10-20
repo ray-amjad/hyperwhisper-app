@@ -938,6 +938,7 @@
 "transcription.error.modelNotDownloaded" = "Будь ласка, спочатку завантажте модель";
 "transcription.error.modelNotDownloaded.modelAndMode" = "Режим %1$@ використовує модель %2$@, яку не завантажено. Завантажте її в Бібліотеці моделей.";
 "transcription.error.modelNotDownloaded.model" = "Модель %1$@ не завантажено. Завантажте її в Бібліотеці моделей.";
+"transcription.error.openModelLibrary" = "Відкрити Бібліотеку моделей";
 "transcription.error.modelProtected" = "Цю модель не можна видалити";
 "transcription.error.audioFileNotFound" = "Аудіо файл не знайдено";
 "transcription.error.network.detail" = "Помилка мережі: %@";

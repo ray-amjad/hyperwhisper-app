@@ -9,7 +9,8 @@ import { computeSonioxTranscriptionCost, estimateSonioxContextTokens } from '../
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson } from './utils';
+import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson } from './utils';
+import { readUpstreamError, safeErrorToken, upstreamErrorLogFields, upstreamErrorReason, type UpstreamErrorRead } from './upstream-error';
 
 const SONIOX_BASE = 'https://api.soniox.com';
 // v5 is canonical; v4 remains accepted only as an old-caller compatibility alias.
@@ -52,7 +53,8 @@ function toContextTerms(initialPrompt: string): string[] {
   });
 }
 
-function throwForStatus(status: number, bodyPreview: string): never {
+function throwForStatus({ fields, classifierText }: UpstreamErrorRead): never {
+  const { status } = fields;
   if (status === 401 || status === 403) {
     throw new Error('Soniox API key is invalid or unauthorized');
   }
@@ -68,7 +70,9 @@ function throwForStatus(status: number, bodyPreview: string): never {
   if (status >= 500) {
     throw new ProviderUnavailableError('Soniox', `upstream 5xx: ${status}`);
   }
-  throw new ProviderInputError('Soniox', status, bodyPreview || `HTTP ${status}`);
+  // The message (logged) names the error code only; the body preview stays
+  // in the client's 400, as before (#2163).
+  throw new ProviderInputError('Soniox', status, upstreamErrorReason(fields), classifierText || `HTTP ${status}`);
 }
 
 async function bestEffortDelete(
@@ -144,9 +148,9 @@ export async function transcribeWithSoniox(
     }, context, computeUploadTimeoutMs(audio.byteLength));
 
     if (!uploadResp.ok) {
-      const bodyPreview = await readErrorBodyPreview(uploadResp);
-      logProviderEvent(provider, 'http_error', { phase: 'upload', status: uploadResp.status, bodyPreview }, context);
-      throwForStatus(uploadResp.status, bodyPreview);
+      const upstreamError = await readUpstreamError(uploadResp);
+      logProviderEvent(provider, 'http_error', { phase: 'upload', ...upstreamErrorLogFields(upstreamError.fields) }, context);
+      throwForStatus(upstreamError);
     }
     fileId = await readRequiredJsonString(uploadResp, {
       provider: 'Soniox',
@@ -180,9 +184,9 @@ export async function transcribeWithSoniox(
     }, context);
 
     if (!createResp.ok) {
-      const bodyPreview = await readErrorBodyPreview(createResp);
-      logProviderEvent(provider, 'http_error', { phase: 'create', status: createResp.status, bodyPreview }, context);
-      throwForStatus(createResp.status, bodyPreview);
+      const upstreamError = await readUpstreamError(createResp);
+      logProviderEvent(provider, 'http_error', { phase: 'create', ...upstreamErrorLogFields(upstreamError.fields) }, context);
+      throwForStatus(upstreamError);
     }
     transcriptionId = await readRequiredJsonString(createResp, {
       provider: 'Soniox',
@@ -214,8 +218,8 @@ export async function transcribeWithSoniox(
         if (jobResp.status === 401 || jobResp.status === 403) {
           throw new Error('Soniox API key is invalid or unauthorized');
         }
-        const bodyPreview = await readErrorBodyPreview(jobResp);
-        logProviderEvent(provider, 'poll_http_error', { status: jobResp.status, bodyPreview, polls }, context);
+        const { fields } = await readUpstreamError(jobResp);
+        logProviderEvent(provider, 'poll_http_error', { ...upstreamErrorLogFields(fields), polls }, context);
         continue;
       }
 
@@ -239,11 +243,19 @@ export async function transcribeWithSoniox(
       // (502); only genuine bad-input types stay a 422 the caller could fix.
       if (job.status === 'failed' || job.status === 'error') {
         const errorType = (job.error_type || '').toLowerCase();
-        logProviderEvent(provider, 'job_error', { model, polls, errorType, message: job.error_message }, context);
+        // `error_message` is Soniox's free text and is never logged (#2163):
+        // the slug and the message's length only. `safeType` is the slug when
+        // it is an identifier, which every documented one is.
+        const safeType = safeErrorToken(errorType);
+        logProviderEvent(provider, 'job_error', {
+          model, polls, errorType: safeType ?? null, errorMessageLength: job.error_message?.length ?? 0,
+        }, context);
         if (errorType && !SONIOX_INPUT_ERROR_TYPES.has(errorType)) {
-          throw new ProviderUnavailableError('Soniox', job.error_message || `async job failed: ${errorType}`);
+          throw new ProviderUnavailableError('Soniox', `async job failed: ${safeType ?? 'unknown'}`);
         }
-        throw new ProviderInputError('Soniox', 422, job.error_message || 'transcription failed');
+        throw new ProviderInputError(
+          'Soniox', 422, safeType ?? 'transcription failed', job.error_message || 'transcription failed',
+        );
       }
       if (job.status === 'completed') {
         completed = true;
@@ -264,9 +276,9 @@ export async function transcribeWithSoniox(
     }, context);
 
     if (!transcriptResp.ok) {
-      const bodyPreview = await readErrorBodyPreview(transcriptResp);
-      logProviderEvent(provider, 'http_error', { phase: 'transcript', status: transcriptResp.status, bodyPreview }, context);
-      throwForStatus(transcriptResp.status, bodyPreview);
+      const upstreamError = await readUpstreamError(transcriptResp);
+      logProviderEvent(provider, 'http_error', { phase: 'transcript', ...upstreamErrorLogFields(upstreamError.fields) }, context);
+      throwForStatus(upstreamError);
     }
 
     let transcriptData: { text?: string; tokens?: Array<{ language?: string }> };

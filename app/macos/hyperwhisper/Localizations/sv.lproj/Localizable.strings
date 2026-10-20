@@ -938,6 +938,7 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "transcription.error.modelNotDownloaded" = "Ladda ner en modell först";
 "transcription.error.modelNotDownloaded.modelAndMode" = "%1$@ använder %2$@, som inte är nedladdad. Ladda ner den i Modellbibliotek.";
 "transcription.error.modelNotDownloaded.model" = "%1$@ är inte nedladdad. Ladda ner den i Modellbibliotek.";
+"transcription.error.openModelLibrary" = "Öppna Modellbibliotek";
 "transcription.error.modelProtected" = "Denna modell kan inte tas bort";
 "transcription.error.audioFileNotFound" = "Ljudfilen hittades inte";
 "transcription.error.network.detail" = "Nätverksfel: %@";

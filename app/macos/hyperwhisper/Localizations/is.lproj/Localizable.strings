@@ -938,6 +938,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcription.error.modelNotDownloaded" = "Vinsamlegast sæktu líkan fyrst";
 "transcription.error.modelNotDownloaded.modelAndMode" = "Hamurinn %1$@ notar líkanið %2$@, sem hefur ekki verið sótt. Sæktu það í Líkanaasafni.";
 "transcription.error.modelNotDownloaded.model" = "Líkanið %1$@ hefur ekki verið sótt. Sæktu það í Líkanaasafni.";
+"transcription.error.openModelLibrary" = "Opna Líkanaasafn";
 "transcription.error.modelProtected" = "Þessu líkani er ekki hægt að eyða";
 "transcription.error.audioFileNotFound" = "Hljóðskrá fannst ekki";
 "transcription.error.network.detail" = "Netvilla: %@";

@@ -295,6 +295,28 @@ describe('transcribeWithElevenLabs — upstream error mapping', () => {
     expect((error as Error).message).not.toContain('socket');
   });
 
+  for (const [label, body] of [
+    ['a JSON null', 'null'],
+    ['a bare number', '7'],
+    ['a bare string', '"hello"'],
+    ['a JSON array', '[]'],
+    ['a non-string text', '{"text":1}'],
+  ] as const) {
+    test(`a 200 with ${label} body is ProviderUnavailableError (bad_response), not a TypeError (#2151)`, async () => {
+      mockFetchOnce(() => new Response(body, { status: 200, headers: { 'content-type': 'application/json' } }));
+      const error = await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US').catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(ProviderUnavailableError);
+      expect((error as ProviderUnavailableError).kind).toBe('bad_response');
+      expect((error as ProviderUnavailableError).status).toBe(200);
+    });
+  }
+
+  test('a 200 with an odd words field still parses, with duration 0 (#2151)', async () => {
+    mockFetchOnce(() => Response.json({ text: 'hello', words: [{ start: 0, end: 'x' }] }));
+    const result = await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US');
+    expect(result.text).toBe('hello');
+  });
+
   test('a truncated 200 JSON body logs no part of the transcript, only its shape (issue #1069)', async () => {
     const marker = 'zebracanary';
     mockFetchOnce(() => new Response(`{"language_code":"eng","text":"my password is ${marker}","words":[{"start":0,"end"`, {

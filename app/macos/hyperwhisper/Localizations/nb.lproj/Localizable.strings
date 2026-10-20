@@ -938,6 +938,7 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "transcription.error.modelNotDownloaded" = "Vennligst last ned en modell først";
 "transcription.error.modelNotDownloaded.modelAndMode" = "%1$@ bruker %2$@, som ikke er lastet ned. Last den ned i Modellbibliotek.";
 "transcription.error.modelNotDownloaded.model" = "%1$@ er ikke lastet ned. Last den ned i Modellbibliotek.";
+"transcription.error.openModelLibrary" = "Åpne Modellbibliotek";
 "transcription.error.modelProtected" = "Denne modellen kan ikke slettes";
 "transcription.error.audioFileNotFound" = "Lydfil ikke funnet";
 "transcription.error.network.detail" = "Nettverksfeil: %@";

@@ -838,7 +838,9 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
         return;
       }
       case 'error': {
-        log('upstream_error', { message: event.message, terminal: event.terminal === true });
+        // The message goes to the client (macOS classifies on its text), never
+        // to the log: a vendor's error text can quote what it rejected (#2163).
+        log('upstream_error', { messageLength: event.message.length, terminal: event.terminal === true });
         sendToClient(ws, { type: 'error', message: event.message });
         if (event.terminal) {
           // 1011 so .NET's `IStreamingProviderStrategy.IsTerminalCloseCode`
@@ -946,8 +948,9 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
       upstreamWs.addEventListener('close', async (event) => {
         const { code, reason } = (event ?? {}) as { code?: number; reason?: string };
         // Logged for every vendor, hook or no hook: the close code is how an
-        // upstream fault is diagnosed after the fact.
-        log('upstream_close', { code: code ?? null, reason: reason || null });
+        // upstream fault is diagnosed after the fact. The reason is vendor
+        // text, so only its length is logged (#2163).
+        log('upstream_close', { code: code ?? null, reasonLength: reason ? reason.length : 0 });
         if (vendor.parseUpstreamClose) {
           for (const decoded of vendor.parseUpstreamClose(code ?? 1000, reason ?? '')) {
             handleUpstreamEvent(decoded, ws);

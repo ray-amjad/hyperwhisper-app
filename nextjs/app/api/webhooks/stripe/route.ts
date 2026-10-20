@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { stripe } from "@/lib/clients/stripe";
+import { env } from "@/src/env/server.mjs";
 import { describeDbError } from "@/lib/shared/db-error";
 import {
   handleCreditPurchase,
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No signature" }, { status: 400 });
   }
 
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const webhookSecret = env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
     console.error("Stripe webhook: STRIPE_WEBHOOK_SECRET not configured");
     return NextResponse.json(
