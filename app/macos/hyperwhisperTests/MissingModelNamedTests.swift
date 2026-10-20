@@ -377,6 +377,27 @@ struct MissingModelNamedTests {
         #expect((row.value(forKey: "failedReason") as? String)?.contains("W15") == true)
     }
 
+    /// With no failed row left to update, the new row stores the engine too.
+    @MainActor
+    @Test func aFailedPillRetryWithNoRowStoresTheEngineOnTheNewRow() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let thrown = TranscriptionError.modelNotDownloaded(model: LibWhisperProvider.modelDisplayName(for: "tiny.en"))
+
+        let saved = await RecordingTranscriptionFlow.savePendingRetryFailure(
+            TranscriptionError.attachingMode("W15", to: thrown),
+            failedRowWrite: nil,
+            audioURL: URL(fileURLWithPath: "/tmp/hw-1518-pending-none.wav"),
+            modeName: "W15",
+            transcriptionProvider: FileTranscriptionFlow.failedRowProvider(for: thrown, modelId: "tiny.en"),
+            persistence: persistence
+        )
+
+        let row = try reload(try #require(saved), in: persistence)
+        #expect(row.value(forKey: "status") as? String == "failed")
+        #expect(row.value(forKey: "transcriptionProvider") as? String == WhisperModel.tinyEn.name)
+        #expect(row.value(forKey: "retryCount") as? Int16 ?? 0 == 0, "the new row must not count a retry twice")
+    }
+
     /// A file import whose model is missing: the row's reason names the mode
     /// and the model, and the row stores the engine — the same composition the
     /// import's catch makes.

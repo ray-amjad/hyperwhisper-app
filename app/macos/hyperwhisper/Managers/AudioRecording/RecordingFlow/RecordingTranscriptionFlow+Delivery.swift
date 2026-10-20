@@ -288,13 +288,24 @@ extension RecordingTranscriptionFlow {
         } else {
             rowDuration = await audioDurationSeconds(of: audioURL)
         }
-        return await persistence.createFailedTranscriptInBackground(
+        let newID = await persistence.createFailedTranscriptInBackground(
             duration: rowDuration,
             mode: modeName,
             audioFilePath: audioURL.path,
             failedReason: failure.failedReason,
             errorText: failure.text
         )
+        // The create writer takes no engine, so the new row gets it from the
+        // failed-row writer, with the same reason and text (#1518).
+        if let newID, let transcriptionProvider {
+            await persistence.markTranscriptFailedInBackground(
+                transcriptID: newID,
+                failedReason: failure.failedReason,
+                errorText: failure.text,
+                transcriptionProvider: transcriptionProvider
+            )
+        }
+        return newID
     }
 
     /// The length of the audio file in seconds, or 0 when it cannot be read.
