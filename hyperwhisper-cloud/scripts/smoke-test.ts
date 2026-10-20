@@ -259,7 +259,12 @@ async function checkPostProcess(provider: string, expectedModel: string): Promis
         license_key: LICENSE_KEY,
         device_id: DEVICE_ID,
         text: 'hello world this is a ci smoke test',
-        prompt: 'Fix capitalization and punctuation. Return only the corrected text.',
+        // The route wraps `text` in --TRANSCRIPT-- … --ENDTRANSCRIPT--
+        // (buildTranscriptUserContent), and every real client prompt names that
+        // wrapper. A prompt that does not lets gpt-5.6-luna echo the markers, the
+        // leakage guard rightly rejects the output, and the request is served by
+        // the fallback (#1114) — which, below, now fails the deploy.
+        prompt: 'Fix capitalization and punctuation of the dictated text between the --TRANSCRIPT-- and --ENDTRANSCRIPT-- markers. Return only the corrected text, without the markers.',
       }),
     });
     if (res.status !== 200) {
@@ -267,10 +272,14 @@ async function checkPostProcess(provider: string, expectedModel: string): Promis
       return fail(name, `expected 200, got ${res.status} ${text.slice(0, 200)}`);
     }
     // X-LLM-Provider echoes the model name actually used; a mismatch means the
-    // requested provider was unhealthy and the chain fell back.
+    // requested provider was unhealthy (or its output was rejected) and the
+    // chain fell back. That FAILS the run for /post-process (Ray, #1114,
+    // 2026-10-19): a fallback here hid a broken tier on every deploy. The
+    // /transcribe fallback above stays a warning, so one STT vendor's bad minute
+    // cannot block a prod deploy.
     const served = res.headers.get('X-LLM-Provider') || '?';
     if (served !== expectedModel) {
-      warn(name, `fell back — requested ${provider} (${expectedModel}), served ${served}`);
+      return fail(name, `fell back — requested ${provider} (${expectedModel}), served ${served}`);
     }
     pass(name, `via ${served}`);
   } catch (err) {
