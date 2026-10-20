@@ -5962,8 +5962,8 @@ internal static class Program
 
             Run("Model Library search: every word must match, each in any field (#2169)", () =>
             {
-                // Windows ships one Nemotron row, so these rows mirror the macOS
-                // test (#1447) to pin the AND rule itself.
+                // Windows ships one Nemotron row, so these rows mirror the macOS PR #2168
+                // test for #1447 to pin the AND rule itself.
                 LibraryModel Row(string id, string name, string? tag) => new()
                 {
                     Id = $"parakeet-{id}",

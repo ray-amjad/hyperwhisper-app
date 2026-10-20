@@ -1,8 +1,8 @@
 namespace HyperWhisper.Models;
 
 /// <summary>
-/// The Model Library search box. Mirror of macOS <c>ModelLibrarySearch</c>
-/// (ModelLibraryView.swift, #1447); this head is #2169.
+/// The Model Library search box (#2169). The same rule as the macOS fix for
+/// #1447 (PR #2168), on Ray's decisions there.
 ///
 /// Every whitespace-separated word must match (AND), case-insensitively, as a
 /// substring of the display name, the provider name, the detail line, the tag
