@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 
 const originalFetch = globalThis.fetch;
 
-const cacheWrites: Array<{ licenseKey: string; license: { isValid: boolean; credits: number; cachedAt: string } }> = [];
+const cacheWrites: Array<{ licenseKey: string; license: { isValid: boolean; credits: number; cachedAt: string; creditPoolId?: string } }> = [];
 // Every key the route looked up in Redis, in order. The route accepts the
 // credential under three query-param names, so this is how a test proves which
 // one won and whether it was trimmed before the lookup.
@@ -24,7 +24,7 @@ mock.module('../lib/redis', () => ({
     cacheReads.push(licenseKey);
     return cachedLicense;
   },
-  cacheLicense: async (licenseKey: string, license: { isValid: boolean; credits: number; cachedAt: string }) => {
+  cacheLicense: async (licenseKey: string, license: { isValid: boolean; credits: number; cachedAt: string; creditPoolId?: string }) => {
     cacheWrites.push({ licenseKey, license });
   },
   isIPBlocked: async () => ipBlocked,
@@ -178,6 +178,29 @@ describe('usageRoute force refresh', () => {
     expect(body.credits_remaining).toBe(42);
     expect(cacheWrites).toHaveLength(1);
     expect(cacheWrites[0]?.license).toMatchObject({ isValid: true, credits: 42 });
+  });
+
+  // #2026: holds are keyed by the cached pool id, so the balance rewrite has
+  // to carry it or this key's next holds count apart from the user's others.
+  test('keeps the credit pool id from the balance reply in the cache', async () => {
+    const pool = 'a'.repeat(64);
+    withLicenseApi({ credits: () => Response.json({ credits: 7, credit_pool_id: pool }) });
+
+    const response = await buildApp().request('/usage?license_key=test-license&force_refresh=true');
+
+    expect(response.status).toBe(200);
+    expect(cacheWrites).toHaveLength(1);
+    expect(cacheWrites[0]?.license).toMatchObject({ isValid: true, credits: 7, creditPoolId: pool });
+  });
+
+  test('drops a malformed credit pool id and caches no pool', async () => {
+    withLicenseApi({ credits: () => Response.json({ credits: 7, credit_pool_id: 'not a pool id!' }) });
+
+    const response = await buildApp().request('/usage?license_key=test-license&force_refresh=true');
+
+    expect(response.status).toBe(200);
+    expect(cacheWrites).toHaveLength(1);
+    expect(cacheWrites[0]?.license).not.toHaveProperty('creditPoolId');
   });
 });
 
