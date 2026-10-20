@@ -5960,6 +5960,89 @@ internal static class Program
                 Assert(MainViewModel.LocalLibraryModelId(cloudMode) == null, "a cloud mode has no local model row");
             });
 
+            Run("Model Library search: every word must match, each in any field (#2169)", () =>
+            {
+                // Windows ships one Nemotron row, so these rows mirror the macOS PR #2168
+                // test for #1447 to pin the AND rule itself.
+                LibraryModel Row(string id, string name, string? tag) => new()
+                {
+                    Id = $"parakeet-{id}",
+                    DisplayName = name,
+                    ProviderName = "Nemotron",
+                    ProviderAssetName = "row",
+                    Kind = LibraryModelKind.Voice,
+                    LocationKind = LibraryModelLocationKind.Offline,
+                    StatusKind = LibraryModelStatusKind.Downloadable,
+                    Source = LibraryModelSource.Parakeet,
+                    Tag = tag,
+                    SupportsCustomVocabulary = false,
+                    AvailableViaHyperWhisperCloud = false
+                };
+                var rows = new[]
+                {
+                    Row("nemotron-3.5-latin", "Nemotron 3.5 (Latin)", "Latin"),
+                    Row("nemotron-3.5-ml", "Nemotron 3.5 (Multilingual)", "Multilingual"),
+                };
+                string[] Hits(string query) => rows
+                    .Where(r => LibraryModelSearch.Matches(r, query))
+                    .Select(r => r.DisplayName).ToArray();
+
+                Assert(Hits("nemotron latin").SequenceEqual(new[] { "Nemotron 3.5 (Latin)" }),
+                    $"'nemotron latin' found [{string.Join(", ", Hits("nemotron latin"))}]");
+                Assert(Hits("  LATIN   nemotron ").SequenceEqual(new[] { "Nemotron 3.5 (Latin)" }),
+                    "word order, case and extra spaces must not matter");
+                Assert(Hits("nemotron").Length == 2, "one word still matches both rows");
+                Assert(Hits("nemotron zzz").Length == 0, "one unmatched word must hide the row");
+            });
+
+            Run("Model Library search: model ids match, and one-word, empty and junk queries keep their rows (#2169)", () =>
+            {
+                var library = new ModelLibraryManager(
+                    new WhisperModelService(),
+                    new ParakeetModelService(),
+                    new LocalLlmModelService(),
+                    ApiKeyService.Instance,
+                    CloudProviderHealthService.Instance);
+                var rows = library.Rebuild().ToList();
+                string[] Hits(string query) => rows
+                    .Where(r => LibraryModelSearch.Matches(r, query))
+                    .Select(r => r.Id).ToArray();
+
+                // The model id, local and cloud alike.
+                Assert(Hits("base.en").SequenceEqual(new[] { "whisper-base.en" }),
+                    $"'base.en' found [{string.Join(", ", Hits("base.en"))}]");
+                Assert(Hits("small.en").SequenceEqual(new[] { "whisper-small.en" }),
+                    $"'small.en' found [{string.Join(", ", Hits("small.en"))}]");
+                Assert(Hits("gpt-4o-transcribe").Contains("cloud-tx-openai-gpt-4o-transcribe"),
+                    $"'gpt-4o-transcribe' found [{string.Join(", ", Hits("gpt-4o-transcribe"))}]");
+                Assert(Hits("nemotron multilingual").Length == 1
+                        && Hits("nemotron multilingual")[0].StartsWith("parakeet-nemotron", StringComparison.Ordinal),
+                    $"'nemotron multilingual' found [{string.Join(", ", Hits("nemotron multilingual"))}]");
+                // The row-id prefix is not searchable: "pp" and "tx" are not
+                // words the user sees.
+                Assert(Hits("cloud-tx").Length == 0, "the row-id prefix must not be searchable");
+
+                // Empty and junk queries.
+                Assert(Hits("").Length == rows.Count && Hits("   ").Length == rows.Count,
+                    "an empty query must keep every row");
+                Assert(Hits("qqzzxx").Length == 0 && Hits("whisper qqzzxx").Length == 0,
+                    "a junk word must match nothing");
+
+                // One word: every row the old whole-string match kept is still kept.
+                static bool OldMatch(LibraryModel m, string s)
+                    => m.DisplayName.Contains(s, StringComparison.OrdinalIgnoreCase)
+                        || m.ProviderName.Contains(s, StringComparison.OrdinalIgnoreCase)
+                        || (m.Detail?.Contains(s, StringComparison.OrdinalIgnoreCase) ?? false)
+                        || (m.Tag?.Contains(s, StringComparison.OrdinalIgnoreCase) ?? false);
+                foreach (var word in new[] { "whisper", "Base", "en", "openai", "deepgram", "Multilingual", "VRAM", "gemini", "large" })
+                {
+                    var old = rows.Where(r => OldMatch(r, word)).Select(r => r.Id).ToArray();
+                    Assert(old.Length > 0, $"'{word}' matched no row before the change; pick another word");
+                    var lost = old.Except(Hits(word)).ToArray();
+                    Assert(lost.Length == 0, $"'{word}' lost rows: {string.Join(", ", lost)}");
+                }
+            });
+
             Run("TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech skips exactly at the low-signal threshold boundary (inclusive <=)", () =>
             {
                 // The gate's comparisons are inclusive (<=), so a reading sitting exactly on
@@ -23788,6 +23871,96 @@ internal static class Program
                     }, settings);
                     Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Alt+S",
                         $"a legal universal streaming.shortcut must import, got '{settings.StreamingShortcut}'");
+                }
+                finally
+                {
+                    File.WriteAllText(settingsFile, original);
+                    settings.Reload();
+                }
+            });
+
+            Run("shortcuts: a stored bare typing key as the push-to-talk custom key turns push-to-talk off at load - issue #2139", () =>
+            {
+                // #2139, the push-to-talk sibling of #2114. A profile that saved a bare
+                // Tab as the custom push-to-talk key on an older build kept it, and the
+                // hook started push-to-talk on every Tab the user typed. Ray (inbox
+                // #1811): turn push-to-talk OFF (a fresh PushToTalkSettings), never
+                // LeftAlt. Driven end to end: settings.json -> Reload -> the monitor's hook.
+                EnsureSmokeApplication();
+
+                var settings = SettingsService.Instance;
+                var settingsFile = Path.Combine(AppPaths.AppDataRoot, "settings.json");
+                // Two real changes, so settings.json exists whatever ran before this case.
+                var cancelBefore = settings.CancelShortcut;
+                settings.CancelShortcut = KeyboardShortcut.FromPersistedString("F14");
+                settings.CancelShortcut = cancelBefore;
+                var original = File.ReadAllText(settingsFile);
+
+                void SeedAndReload(PushToTalkMode mode, string custom)
+                {
+                    var node = JsonNode.Parse(original)!.AsObject();
+                    node["PushToTalk"] = JsonSerializer.SerializeToNode(new PushToTalkSettings
+                    {
+                        Mode = mode,
+                        Modifier = "RightAlt",
+                        DoublePressLock = true,
+                        CustomShortcut = KeyboardShortcut.FromPersistedString(custom),
+                    });
+                    File.WriteAllText(settingsFile, node.ToJsonString());
+                    settings.Reload();
+                }
+
+                HyperWhisper.SharedCore.PortablePttState StateAfterKeyDown(int vk)
+                {
+                    using var monitor = new PushToTalkMonitor();
+                    monitor.Configure(settings.PushToTalk);
+                    monitor.Hook.HandleKeyEvent(LowLevelKeyboardHook.WM_KEYDOWN, vk, 0, IntPtr.Zero);
+                    return monitor.State;
+                }
+
+                const int VkTab = 0x09, VkK = 0x4B, VkF13 = 0x7C;
+                try
+                {
+                    // THE DONE-WHEN: a stored Custom bare Tab loads as push-to-talk off,
+                    // and a Tab key-down no longer starts it.
+                    SeedAndReload(PushToTalkMode.Custom, "Tab");
+                    var ptt = settings.PushToTalk;
+                    Assert(ptt.Mode == PushToTalkMode.Disabled, $"a stored Custom bare Tab must load as Disabled, got {ptt.Mode}");
+                    Assert(ptt.CustomShortcut == null, $"the unsafe custom key must be cleared, got '{ptt.CustomShortcut}'");
+                    Assert(ptt.Modifier == "LeftAlt" && !ptt.DoublePressLock, "a fresh PushToTalkSettings, not LeftAlt armed or the old lock flag");
+                    Assert(StateAfterKeyDown(VkTab) == HyperWhisper.SharedCore.PortablePttState.Idle,
+                        "a Tab key-down started push-to-talk from a stored bare Tab custom key");
+
+                    // Bare K and a single bare modifier get the same treatment.
+                    foreach (var unsafeValue in new[] { "K", "Shift+Tab", "Alt" })
+                    {
+                        SeedAndReload(PushToTalkMode.Custom, unsafeValue);
+                        Assert(settings.PushToTalk.Mode == PushToTalkMode.Disabled && settings.PushToTalk.CustomShortcut == null,
+                            $"a stored Custom '{unsafeValue}' must load as push-to-talk off, got {settings.PushToTalk.Mode} '{settings.PushToTalk.CustomShortcut}'");
+                    }
+                    SeedAndReload(PushToTalkMode.Custom, "K");
+                    Assert(StateAfterKeyDown(VkK) == HyperWhisper.SharedCore.PortablePttState.Idle,
+                        "a K key-down started push-to-talk from a stored bare K custom key");
+
+                    // A stale unsafe custom key under Modifier mode is not live: clear it,
+                    // keep the user's working Modifier push-to-talk as it was.
+                    SeedAndReload(PushToTalkMode.Modifier, "Tab");
+                    ptt = settings.PushToTalk;
+                    Assert(ptt.Mode == PushToTalkMode.Modifier && ptt.Modifier == "RightAlt" && ptt.DoublePressLock,
+                        $"Modifier push-to-talk must survive a stale custom Tab, got {ptt.Mode} {ptt.Modifier} lock={ptt.DoublePressLock}");
+                    Assert(ptt.CustomShortcut == null, $"the stale unsafe custom key must be cleared, got '{ptt.CustomShortcut}'");
+
+                    // A legal custom key loads as it is and still drives the hook.
+                    foreach (var legalValue in new[] { "F13", "Ctrl+Shift+K", "Ctrl+Alt" })
+                    {
+                        SeedAndReload(PushToTalkMode.Custom, legalValue);
+                        Assert(settings.PushToTalk.Mode == PushToTalkMode.Custom
+                            && settings.PushToTalk.CustomShortcut?.ToPersistedString() == legalValue,
+                            $"a legal custom '{legalValue}' must survive load, got {settings.PushToTalk.Mode} '{settings.PushToTalk.CustomShortcut}'");
+                    }
+                    SeedAndReload(PushToTalkMode.Custom, "F13");
+                    Assert(StateAfterKeyDown(VkF13) == HyperWhisper.SharedCore.PortablePttState.WaitingForActivation,
+                        "a legal F13 custom key must still start push-to-talk");
                 }
                 finally
                 {
