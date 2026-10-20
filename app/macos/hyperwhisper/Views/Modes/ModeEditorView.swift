@@ -34,30 +34,30 @@ struct ModeEditorView: View {
 
     // MARK: - State Properties
 
-    @State private var name: String
-    @State private var preset: String
-    @State private var language: String
-    @State private var model: String
-    @State private var provider: ProviderType
-    @State private var punctuation: Bool
-    @State private var capitalization: Bool
-    @State private var profanityFilter: Bool
-    @State private var customInstructions: String
-    @State private var languageModel: String
-    @State private var postProcessingMode: PostProcessingMode
-    @State private var postProcessingProvider: String
-    @State private var showCloudModelInfo = false
-    @State private var cloudProvider: String
-    @State private var cloudAccuracyTier: String
-    @State private var cloudPostProcessingModel: String
-    @State private var cloudTranscriptionModel: String
-    @State private var cloudTranscriptionDomain: String?
-    @State private var showAllCloudTranscriptionModels: Bool
-    @State private var englishSpelling: EnglishSpelling
-    @State private var userSystemPrompt: String
-    @State private var removeTrailingPeriod: Bool
-    @State private var enableScreenOCR: Bool
-    @State private var geminiCustomPrompt: String
+    @State var name: String
+    @State var preset: String
+    @State var language: String
+    @State var model: String
+    @State var provider: ProviderType
+    @State var punctuation: Bool
+    @State var capitalization: Bool
+    @State var profanityFilter: Bool
+    @State var customInstructions: String
+    @State var languageModel: String
+    @State var postProcessingMode: PostProcessingMode
+    @State var postProcessingProvider: String
+    @State var showCloudModelInfo = false
+    @State var cloudProvider: String
+    @State var cloudAccuracyTier: String
+    @State var cloudPostProcessingModel: String
+    @State var cloudTranscriptionModel: String
+    @State var cloudTranscriptionDomain: String?
+    @State var showAllCloudTranscriptionModels: Bool
+    @State var englishSpelling: EnglishSpelling
+    @State var userSystemPrompt: String
+    @State var removeTrailingPeriod: Bool
+    @State var enableScreenOCR: Bool
+    @State var geminiCustomPrompt: String
 
     private var normalizedName: String? {
         ModeNamePolicy.normalized(name)
@@ -115,14 +115,14 @@ struct ModeEditorView: View {
     // edit.
 
     /// This sheet's registration with AppState's page guard.
-    @State private var editorSession = UUID()
+    @State var editorSession = UUID()
 
     /// The values a clean editor holds; nil until the editor appears.
-    @State private var settledSnapshot: ModeEditorSnapshot?
+    @State var settledSnapshot: ModeEditorSnapshot?
 
     /// Set by the first key press, click or menu in the app while the editor
     /// is open; it freezes `settledSnapshot`.
-    @State private var userHasInteracted = false
+    @State var userHasInteracted = false
 
     /// Watches for that first input; removed once it comes or on close.
     @State private var userInputMonitor: Any?
@@ -130,54 +130,6 @@ struct ModeEditorView: View {
     /// Escape → Keep Editing while the discard prompt is up. A button holds
     /// one key: Keep Editing holds Return, so the alert gives Escape to no one.
     @State private var discardPromptEscapeMonitor: Any?
-
-    /// Every value Save writes, as the editor holds it now.
-    private var currentSnapshot: ModeEditorSnapshot {
-        ModeEditorSnapshot(
-            name: name,
-            preset: preset,
-            language: language,
-            model: model,
-            provider: provider,
-            punctuation: punctuation,
-            capitalization: capitalization,
-            profanityFilter: profanityFilter,
-            customInstructions: customInstructions,
-            languageModel: languageModel,
-            postProcessingMode: postProcessingMode,
-            postProcessingProvider: postProcessingProvider,
-            cloudProvider: cloudProvider,
-            cloudAccuracyTier: cloudAccuracyTier,
-            cloudPostProcessingModel: cloudPostProcessingModel,
-            cloudTranscriptionModel: cloudTranscriptionModel,
-            cloudTranscriptionDomain: cloudTranscriptionDomain,
-            englishSpelling: englishSpelling,
-            userSystemPrompt: userSystemPrompt,
-            removeTrailingPeriod: removeTrailingPeriod,
-            enableScreenOCR: enableScreenOCR,
-            geminiCustomPrompt: geminiCustomPrompt
-        )
-    }
-
-    private var hasUnsavedChanges: Bool {
-        ModeEditorSnapshot.hasUnsavedChanges(
-            settled: settledSnapshot,
-            current: currentSnapshot,
-            userHasInteracted: userHasInteracted
-        )
-    }
-
-    /// Shown while AppState holds a menu-bar page for THIS editor's prompt.
-    /// The buttons clear it; the setter has nothing to do.
-    private var discardPromptIsPresented: Binding<Bool> {
-        Binding(
-            get: {
-                appState.pendingModeEditorNavigation != nil
-                    && appState.openModeEditorSession == editorSession
-            },
-            set: { _ in }
-        )
-    }
 
     // MARK: - Initialization
 
@@ -304,51 +256,10 @@ struct ModeEditorView: View {
         return "modes.model.notInstalledFormat".localized(arguments: name)
     }
 
-    /// Get display name for a model ID
-    private func displayName(for id: String) -> String {
-        TranscriptionModelCatalog(whisper: whisperModelManager, parakeet: parakeetModelManager)
-            .displayName(for: id)
-    }
-
-    /// Current cloud provider enum
-    private var currentCloudProvider: CloudProvider {
-        CloudProvider.forMode(cloudProvider)
-    }
-
-    /// Cloud transcription providers shown in the picker. Always
-    /// includes providers that don't require an API key (HyperWhisper
-    /// Cloud) and any provider with a healthy probe; preserves the
-    /// currently-selected provider so the saved selection isn't yanked
-    /// away even when its key has gone bad.
-    private var availableCloudProviders: [CloudProvider] {
-        let current = currentCloudProvider
-        return CloudProvider.allCases.filter { provider in
-            // Azure MAI + Google Chirp are HyperWhisper-Cloud-routed only and
-            // surfaced via the Accuracy tier picker; don't list them as
-            // standalone provider choices.
-            if provider == .microsoftAzureSpeech || provider == .googleSpeech {
-                return false
-            }
-            // Meta follows the shared cross-platform BYOK rollout gate.
-            if provider == .meta && !CloudTranscriptionModels.isMetaBYOKCatalogEnabled {
-                return false
-            }
-            if !provider.requiresAPIKey { return true }
-            if provider == current { return true }
-            return cloudHealth.status(for: provider).isHealthy
-        }
-    }
-
-    /// BYOK ("Your provider") transcription providers — `availableCloudProviders`
-    /// minus HyperWhisper Cloud, which is its own Source segment.
-    private var availableDirectCloudProviders: [CloudProvider] {
-        availableCloudProviders.filter { $0 != .hyperwhisper }
-    }
-
     /// 3-way Source axis derived from the persisted `provider`/`cloudProvider`
     /// fields. The setter re-applies the choice and seeds dependent fields
     /// (mirrors the old `cloudProvider` onChange seeding logic).
-    private var transcriptionSource: Binding<TranscriptionSource> {
+    var transcriptionSource: Binding<TranscriptionSource> {
         Binding(
             get: {
                 if provider == .local { return .onDevice }
@@ -425,304 +336,7 @@ struct ModeEditorView: View {
         }
     }
 
-    /// True when the currently-selected provider's key is missing or
-    /// unhealthy. Drives the inline "Reconnect" affordance.
-    private var currentProviderNeedsAttention: Bool {
-        let provider = currentCloudProvider
-        guard provider.requiresAPIKey else { return false }
-        return !cloudHealth.status(for: provider).isHealthy
-    }
-
-    private var cloudTranscriptionModelsForPicker: [CloudTranscriptionModel] {
-        showAllCloudTranscriptionModels
-            ? CloudTranscriptionModels.models(for: currentCloudProvider)
-            : CloudTranscriptionModels.popularModels(for: currentCloudProvider)
-    }
-
-    private var canShowAllCloudTranscriptionModels: Bool {
-        CloudTranscriptionModels.models(for: currentCloudProvider).count >
-            CloudTranscriptionModels.popularModels(for: currentCloudProvider).count
-    }
-
-    private var selectedCloudTranscriptionModelSummary: String? {
-        guard let model = CloudTranscriptionModels.model(
-            withId: cloudTranscriptionModel,
-            provider: currentCloudProvider
-        ) else {
-            return nil
-        }
-
-        if let pricePerMinute = model.pricePerMinute {
-            let formattedPrice = String(format: "$%.4f/min", pricePerMinute)
-            return "\(model.description) - \(formattedPrice)"
-        }
-
-        return model.description
-    }
-
-    /// Whether the current cloud provider has an API key configured
-    private var hasAPIKey: Bool {
-        settingsManager.hasAPIKey(for: currentCloudProvider)
-    }
-
-    /// Returns true if the selected provider/model does NOT support custom vocabulary.
-    /// Cloud-tier vocab support is driven by `shared-app-classification/cloud-stt-catalog.json`
-    /// (consumed via `CloudAccuracyTier.supportsCustomVocabulary`). BYOK (your own provider)
-    /// support is read per model from `shared-models/models-catalog.json` through
-    /// `byokVocabularyUnsupported(provider:modelId:)` — no model ids are hard-coded here (#681).
-    ///
-    /// DEEPGRAM VOCABULARY SUPPORT:
-    /// - Nova-3: ONLY supports 'keyterm' (monolingual, 90% KRR improvement when language is explicitly specified)
-    ///           Does NOT support 'keywords' parameter - will return 400 error if used
-    /// - Nova-2, Nova-1, Enhanced: Support 'keywords' only
-    /// - Base models: NO vocabulary support
-    /// - Whisper models: NO vocabulary support
-    ///
-    /// ELEVENLABS VOCABULARY SUPPORT:
-    /// - Scribe v2: Supports 'keyterms' (up to 100 terms, each ≤50 characters)
-    /// - Scribe v1: NO vocabulary support
-    private var showVocabularyUnsupportedNotice: Bool {
-        // Parakeet supports vocabulary via phonetic matching (Beider-Morse) + exact replacement
-        // Qwen3 ASR doesn't support custom vocabulary
-        let isQwen3Asr = provider == .local && model == Qwen3AsrModelManager.Constants.modelId
-        // Cloud accuracy tiers under HyperWhisper Cloud where the shared
-        // catalog flags vocabulary as unsupported for the selected model.
-        let isUnsupportedCloudTier: Bool = {
-            guard provider == .cloud, currentCloudProvider == .hyperwhisper else { return false }
-            // Model-aware: follows the SELECTED model's catalog vocab flag.
-            return hyperwhisperCloudVocabularyUnsupported
-        }()
-        // Your own provider (BYOK): the shared models catalog says per model.
-        let isUnsupportedByokModel = provider == .cloud
-            && Self.byokVocabularyUnsupported(provider: currentCloudProvider, modelId: cloudTranscriptionModel)
-        return isQwen3Asr || isUnsupportedCloudTier || isUnsupportedByokModel
-    }
-
-    /// Whether a BYOK (your own provider) transcription model does NOT support
-    /// custom vocabulary, read from `shared-models/models-catalog.json` (#681).
-    ///
-    /// True only when the catalog HAS a voice row for `(provider, modelId)` and
-    /// that row says vocabulary is unsupported. `supportsCustomVocabulary`
-    /// answers false on a catalog MISS, so asking it alone would warn on an
-    /// empty or uncatalogued id; this suppresses the warning instead of
-    /// guessing, the same rule the HyperWhisper Cloud branch follows. HyperWhisper
-    /// Cloud is never BYOK and always answers false here.
-    ///
-    /// Static so hyperwhisperTests can check it against the catalog without
-    /// standing up the view.
-    static func byokVocabularyUnsupported(provider: CloudProvider, modelId: String) -> Bool {
-        guard provider != .hyperwhisper, !modelId.isEmpty else { return false }
-        let key = SharedModelsCatalog.providerKey(provider)
-        guard SharedModelsCatalog.entry(provider: key, kind: .voice, id: modelId) != nil else {
-            return false
-        }
-        return !SharedModelsCatalog.supportsCustomVocabulary(provider: key, kind: .voice, id: modelId)
-    }
-
-    /// Returns true when Deepgram Nova-3 is selected with auto-detect language.
-    /// Nova-3 doesn't support the 'keywords' parameter (returns 400 error), and 'keyterm' is silently ignored
-    /// when using detect_language=true. Users must set a specific language to enable vocabulary boosting.
-    private var showDeepgramNova3AutoDetectNotice: Bool {
-        let isDeepgramNova3 = provider == .cloud && currentCloudProvider == .deepgram && cloudTranscriptionModel.hasPrefix("nova-3")
-        let isHyperWhisperDeepgramTier = provider == .cloud && currentCloudProvider == .hyperwhisper && cloudAccuracyTier == CloudAccuracyTier.deepgramNova3.rawValue
-        let isAutoDetect = language.isEmpty || language.lowercased() == "auto"
-        return (isDeepgramNova3 || isHyperWhisperDeepgramTier) && isAutoDetect
-    }
-
-    private var hasValidDictationLanguage: Bool {
-        guard provider == .cloud,
-              languageFilterCloudProviderId == "assemblyai",
-              languageFilterCloudModelId == "dictation" else { return true }
-        return AssemblyAIDictationAudio.languages.contains(language)
-    }
-
-    // MARK: - HyperWhisper Cloud provider→model helpers
-
-    /// The currently-selected HyperWhisper Cloud tier (Provider axis), resolved
-    /// from the persisted `cloudAccuracyTier` storage string.
-    private var selectedCloudTier: CloudAccuracyTier {
-        CloudAccuracyTier.fromStorageValue(cloudAccuracyTier)
-    }
-
-    /// Provider id used to look up the supported-language set in `STTCapabilities`
-    /// for the language picker. For a BYOK cloud provider this is the literal
-    /// `cloudProvider` (e.g. "deepgram", "assemblyai"). For HyperWhisper Cloud the
-    /// outer `cloudProvider` is "hyperwhisper" — which STTCapabilities does not register — so we
-    /// resolve the SELECTED accuracy tier's routed upstream provider id instead (the
-    /// same value sent in the X-STT-Provider header). A model with no
-    /// `STTCapabilities` row falls back to the tier's catalog set
-    /// (`languageFilterCloudTierId`), then to the full list when the catalog
-    /// leaves the tier unverified.
-    private var languageFilterCloudProviderId: String {
-        currentCloudProvider == .hyperwhisper ? selectedCloudTier.sttProvider : cloudProvider
-    }
-
-    /// Shared-catalog entry id for the language picker: the selected tier on
-    /// HyperWhisper Cloud, and for BYOK the catalog entry that lists this
-    /// provider's model (nil when the catalog does not list it). The picker
-    /// uses that entry's catalog set when `STTCapabilities` has no row for the
-    /// model (`gpt-transcribe`: #831 on Cloud, #1942 on BYOK).
-    private var languageFilterCloudTierId: String? {
-        Self.languageFilterCatalogEntryId(
-            cloudProvider: currentCloudProvider,
-            cloudTier: selectedCloudTier,
-            modelId: cloudTranscriptionModel
-        )
-    }
-
-    /// `languageFilterCloudTierId` without the view state, so a test drives
-    /// the exact entry id the picker receives.
-    static func languageFilterCatalogEntryId(
-        cloudProvider: CloudProvider,
-        cloudTier: CloudAccuracyTier,
-        modelId: String
-    ) -> String? {
-        if cloudProvider == .hyperwhisper {
-            return cloudTier.rawValue
-        }
-        return CloudSTTCatalog.shared.byokEntryId(cloudProvider: cloudProvider.rawValue, modelId: modelId)
-    }
-
-    /// Model id used to look up the supported-language set for the language picker.
-    /// Normally the selected `cloudTranscriptionModel`, BUT when the AssemblyAI
-    /// Medical Mode add-on is active the domain narrows transcription to EN/ES/DE/FR
-    /// — represented in `STTCapabilities` by the `-medical` model variants
-    /// (`universal-2-medical` / `universal-3-5-pro-medical`). Resolve that variant so
-    /// the picker restricts to the medical language set instead of offering the base
-    /// model's full list (e.g. pt/it). Depends on `cloudTranscriptionDomain`, so the
-    /// picker re-filters reactively when the Medical toggle flips (LanguageSelectionView
-    /// runs `enforceAllowedLanguage()` on `cloudModelId` change, resetting any stale
-    /// out-of-set selection like "pt" to the first allowed code, i.e. "auto").
-    private var languageFilterCloudModelId: String {
-        if showsMedicalDomainToggle && cloudTranscriptionDomain == "medical" {
-            return "\(cloudTranscriptionModel)-medical"
-        }
-        return cloudTranscriptionModel
-    }
-
-    /// Models offered by the selected Provider row. That row is a *company*, so
-    /// the list spans every tier the company owns — "Google" lists Transcribe and
-    /// Gemini models together.
-    ///
-    /// Live-only models are excluded: this dropdown picks a DICTATION model, and
-    /// `gemini-3.5-transcribe-live` is served by the WebSocket route alone, so
-    /// choosing it here makes every dictation in the mode fail with an HTTP 400.
-    /// The live picker lives in Streaming settings and is fed separately from
-    /// `CloudAccuracyTier.streamingEligibleTiers`.
-    private var hyperwhisperCloudModels: [CloudSTTCatalog.Model] {
-        selectedCloudTier.vendorGroupDictationModels
-    }
-
-    /// What the Model dropdown must be showing for a stored (tier, model) pair —
-    /// the stored id when the dropdown offers it, the tier default otherwise.
-    ///
-    /// Reads the same list the picker is built from (`vendorGroupDictationModels`,
-    /// via `hyperwhisperCloudModels`). A clamp keyed on `tier.models` instead
-    /// disagreed with the picker in both directions: it reset a perfectly valid
-    /// model belonging to a sibling tier of the same company row, and it ACCEPTED
-    /// a live-only id the picker refuses to list — leaving a blank menu button on
-    /// a mode whose every dictation fails with HTTP 400.
-    ///
-    /// Static and pure so the repair is testable without a SwiftUI environment.
-    static func clampedCloudTranscriptionModel(
-        tier: CloudAccuracyTier,
-        storedModelId: String
-    ) -> String {
-        tier.vendorGroupDictationModels.contains { $0.id == storedModelId }
-            ? storedModelId
-            : tier.defaultModelId
-    }
-
-    /// Provider dropdown selection — the catalog `vendor` key rather than the
-    /// tier, so a company with several tiers occupies one row. Picking a company
-    /// lands on its first tier and that tier's default model.
-    private var hyperwhisperCloudVendorBinding: Binding<String> {
-        Binding(
-            get: { selectedCloudTier.vendorKey },
-            set: { newVendor in
-                guard let tier = CloudAccuracyTier.defaultTier(forVendorKey: newVendor) else { return }
-                cloudAccuracyTier = tier.rawValue
-                cloudTranscriptionModel = tier.defaultModelId
-                cloudTranscriptionDomain = nil
-            }
-        )
-    }
-
-    /// Model dropdown selection. The tier is what becomes the `X-STT-Provider`
-    /// header, so choosing a model also moves the tier to whichever one owns
-    /// that model — the only way a merged company row can route correctly.
-    private var hyperwhisperCloudModelBinding: Binding<String> {
-        Binding(
-            get: { cloudTranscriptionModel },
-            set: { newModel in
-                let owner = selectedCloudTier.tierOwningModel(newModel)
-                if owner != selectedCloudTier {
-                    cloudAccuracyTier = owner.rawValue
-                    cloudTranscriptionDomain = nil
-                }
-                cloudTranscriptionModel = newModel
-                if newModel == "dictation" { cloudTranscriptionDomain = nil }
-            }
-        )
-    }
-
-    /// Whether the Medical domain toggle should be shown. Only assemblyAI uses a
-    /// domain-based medical mode; Deepgram medical is a model selection instead.
-    private var showsMedicalDomainToggle: Bool {
-        currentCloudProvider == .hyperwhisper && selectedCloudTier == .assemblyAI && cloudTranscriptionModel != "dictation"
-    }
-
-    /// Binding for the Medical toggle → maps the nullable domain string to a Bool.
-    private var medicalDomainBinding: Binding<Bool> {
-        Binding(
-            get: { cloudTranscriptionDomain == "medical" },
-            set: { cloudTranscriptionDomain = $0 ? "medical" : nil }
-        )
-    }
-
-    /// Custom-vocabulary visibility for the HyperWhisper Cloud path follows the
-    /// SELECTED model's catalog flag (e.g. ElevenLabs Scribe v1 unsupported).
-    private var hyperwhisperCloudVocabularyUnsupported: Bool {
-        guard currentCloudProvider == .hyperwhisper else { return false }
-        return !selectedCloudTier.supportsCustomVocabulary(forModelId: cloudTranscriptionModel)
-    }
-
     // MARK: - Sheet sizing
-
-    /// Shortest the sheet may be drawn. Below this the form is unusable, and a
-    /// `maxHeight` under a `minHeight` is an invalid frame range — which is why
-    /// the clamp below is a `max(...)` and not a bare `min(700, available)`.
-    static let sheetMinHeight: CGFloat = 420
-    /// The height the sheet has always used where there is room for it.
-    static let sheetDesignHeight: CGFloat = 700
-    /// Room left for the window chrome above the sheet and for clearance below
-    /// it, taken out of the screen's visible height.
-    static let sheetScreenInset: CGFloat = 80
-
-    /// Static so hyperwhisperTests can assert the clamp without standing up the
-    /// view. The bound is the screen's VISIBLE height — what is left between the
-    /// menu bar and the Dock — less the inset. It is deliberately a function of
-    /// SIZES only, never of the window's position, and the reason is measured:
-    ///
-    /// On macOS 26.3.1, AppKit MOVES THE PARENT WINDOW UP when a sheet does not
-    /// fit below its content top (measured lifts, by window content top:
-    /// 250 → 192, 150 → 143, and with the old fixed 700pt sheet 75 → 31). So a
-    /// clamp that samples the window position is stale by the time the sheet
-    /// lands: a position-aware version of this function overshot by 3pt at a
-    /// content top of 150 and by 28pt at 250, and clipped the footer again. A
-    /// height that does not depend on the position is a fixed input to that
-    /// lift instead of a moving target of it.
-    ///
-    /// The other rejected shape was a parent-content-HEIGHT clamp. The app has
-    /// exactly one sheet parent — a fixed 1000x600 window — so that limit bound
-    /// on every display and cost every user about 100pt of form height, even on
-    /// displays where #711 cannot happen. This one only ever binds on a short
-    /// screen. A nil input means no limit is known, so it falls back to the
-    /// design height rather than narrowing the clamp.
-    static func sheetMaxHeight(visibleScreenHeight: CGFloat?) -> CGFloat {
-        guard let visibleScreenHeight else { return sheetDesignHeight }
-        return max(sheetMinHeight, min(sheetDesignHeight, visibleScreenHeight - sheetScreenInset))
-    }
 
     /// The visible height of the screen the sheet's parent window is on.
     ///
@@ -783,48 +397,7 @@ struct ModeEditorView: View {
                 }
             }
 
-            if ModeEditorSeed.shouldShowAllCloudTranscriptionModels(
-                provider: currentCloudProvider,
-                selectedModelId: cloudTranscriptionModel
-            ) {
-                showAllCloudTranscriptionModels = true
-            }
-
-            // HyperWhisper Cloud back-compat: existing modes have an accuracy
-            // tier set but an empty (or BYOK-leftover) cloudTranscriptionModel.
-            // Resolve it to the tier's catalog default so the Model dropdown has
-            // a valid selection (avoids a SwiftUI Picker selection warning).
-            if currentCloudProvider == .hyperwhisper {
-                let tier = selectedCloudTier
-                // Validate against exactly what the Model dropdown OFFERS
-                // (`hyperwhisperCloudModels`), not against `tier.models`. The two
-                // disagreed in both directions: the dropdown spans the whole
-                // vendor group, so a valid sibling-tier model was being reset to
-                // the tier default, and it excludes the live-only ids, so
-                // `gemini-3.5-transcribe-live` passed the clamp and then matched
-                // no tag — a blank menu button on a mode whose every dictation
-                // 400s. A clamp that accepts what the picker refuses to show is
-                // not a clamp.
-                cloudTranscriptionModel = Self.clampedCloudTranscriptionModel(
-                    tier: tier,
-                    storedModelId: cloudTranscriptionModel
-                )
-                // A domain only makes sense for assemblyAI; clear stale values.
-                if !showsMedicalDomainToggle {
-                    cloudTranscriptionDomain = nil
-                }
-            } else if provider == .cloud,
-                      !CloudTranscriptionModels.models(for: currentCloudProvider)
-                          .contains(where: { $0.id == cloudTranscriptionModel }) {
-                // Same repair for the BYOK path: a stored model that this provider
-                // doesn't offer (retired id, leftover from another provider, or the
-                // "whisper-1" default landing on Grok, whose only model id is "")
-                // matches no picker tag, so SwiftUI logs "Picker: the selection is
-                // invalid" and renders an empty menu button. Checking the FULL model
-                // list — not the popular subset — so a valid but non-popular
-                // selection is left alone.
-                cloudTranscriptionModel = CloudTranscriptionModels.defaultModel(for: currentCloudProvider)
-            }
+            repairCloudSelectionOnAppear()
         }
         .onChange(of: postProcessingMode) { _, newValue in
             switch newValue {
@@ -974,111 +547,9 @@ struct ModeEditorView: View {
         .background(Color(NSColor.controlBackgroundColor))
     }
 
-    // MARK: - Content
-
-    private var editorContent: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                editorBasicSettings
-
-                editorTranscriptionModel
-
-                LanguageProcessingSettingsView(
-                    activeCloudProvider: provider == .cloud ? currentCloudProvider : nil,
-                    preset: $preset,
-                    customInstructions: $customInstructions,
-                    postProcessingMode: $postProcessingMode,
-                    postProcessingProvider: $postProcessingProvider,
-                    languageModel: $languageModel,
-                    profanityFilter: $profanityFilter,
-                    userSystemPrompt: $userSystemPrompt,
-                    language: $language,
-                    englishSpelling: $englishSpelling,
-                    enableScreenOCR: $enableScreenOCR,
-                    cloudPostProcessingModel: $cloudPostProcessingModel
-                )
-
-                // Punctuation card
-                GroupBox {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Label(LocalizedStringKey("modes.section.punctuation"), systemImage: "textformat")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-
-                        VStack(spacing: 12) {
-                            // Punctuation & capitalization are LLM instructions — only show when post-processing is enabled
-                            if postProcessingMode != .off {
-                                SettingsToggleRow(
-                                    title: LocalizedStringKey("modes.toggle.punctuation.title"),
-                                    subtitle: LocalizedStringKey("modes.toggle.punctuation.subtitle"),
-                                    isOn: $punctuation,
-                                    standalone: false
-                                )
-
-                                if punctuation {
-                                    Divider()
-
-                                    SettingsToggleRow(
-                                        title: LocalizedStringKey("modes.toggle.removeTrailingPeriod.title"),
-                                        subtitle: LocalizedStringKey("modes.toggle.removeTrailingPeriod.subtitle"),
-                                        isOn: $removeTrailingPeriod,
-                                        standalone: false
-                                    )
-                                }
-
-                                Divider()
-
-                                SettingsToggleRow(
-                                    title: LocalizedStringKey("modes.toggle.capitalization.title"),
-                                    subtitle: LocalizedStringKey("modes.toggle.capitalization.subtitle"),
-                                    isOn: $capitalization,
-                                    standalone: false
-                                )
-                            } else {
-                                // When post-processing is off, only show remove trailing period (string operation, works independently)
-                                SettingsToggleRow(
-                                    title: LocalizedStringKey("modes.toggle.removeTrailingPeriod.title"),
-                                    subtitle: LocalizedStringKey("modes.toggle.removeTrailingPeriod.subtitle"),
-                                    isOn: $removeTrailingPeriod,
-                                    standalone: false
-                                )
-                            }
-                        }
-                    }
-                    .padding(12)
-                }
-            }
-            .padding(20)
-        }
-    }
-
     // MARK: - Basic Settings
 
-    /// Whether this editor is open on the one mode whose name is fixed.
-    ///
-    /// The FLAG, not the name. This used to read `mode?.name == "Default"`, which is
-    /// the mode's label rather than its identity, and got both directions wrong: a
-    /// mode the user named "Default" themselves was locked, and the real default
-    /// stopped being locked as soon as a restored backup carried another name
-    /// (`PersistenceController` sets `isDefault` on a restored mode without
-    /// constraining what it is called). Windows has always keyed the same rule on
-    /// `IsDefault`; issue #494 was the two platforms disagreeing about it.
-    ///
-    /// #285 is the third reason the string compare cannot come back: the shared
-    /// first-run seed (`hw_catalog::mode_seed`) names the mode `"Hyper"`, so
-    /// `== "Default"` would now lock nothing at all on a fresh install. The seed
-    /// writes `is_default: true`, so the flag still identifies that row.
-    private var isDefaultMode: Bool {
-        Self.isNameLocked(configuration.mode)
-    }
-
-    /// Static so hyperwhisperTests can assert the rule without standing up the view;
-    /// the regression it guards is precisely a return to the string compare.
-    static func isNameLocked(_ mode: Mode?) -> Bool {
-        mode?.isDefault == true
-    }
-
-    private var editorBasicSettings: some View {
+    var editorBasicSettings: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 16) {
                 Label(LocalizedStringKey("modes.section.basic"), systemImage: "gear")
@@ -1125,61 +596,12 @@ struct ModeEditorView: View {
         }
     }
 
-    // MARK: - Transcription Model
-
-    private var editorTranscriptionModel: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 16) {
-                Label(LocalizedStringKey("modes.section.transcription"), systemImage: "cpu")
-                    .font(.headline)
-                    .foregroundColor(.secondary)
-
-                // 3-way Source segmented control:
-                // On-device / HyperWhisper Cloud / Your provider.
-                Picker("", selection: transcriptionSource) {
-                    ForEach(TranscriptionSource.allCases) { source in
-                        Text(source.label).tag(source)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-
-                switch transcriptionSource.wrappedValue {
-                case .onDevice:
-                    editorLocalTranscription
-                case .hyperwhisperCloud:
-                    hyperwhisperCloudTranscriptionSection
-                case .yourProvider:
-                    yourProviderTranscriptionSection
-                }
-            }
-            .padding(12)
-        }
-    }
-
     // MARK: - On-device transcription
 
     @ViewBuilder
-    private var editorLocalTranscription: some View {
+    var editorLocalTranscription: some View {
         if localPickerModelIds().isEmpty {
-            HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundColor(.orange)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(localized: "modes.notice.noLocalModels.title")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                    Text(localized: "modes.notice.noLocalModels.subtitle")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
-            }
-            .padding(10)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.orange.opacity(0.1))
-            )
+            noLocalModelsNotice
         } else {
             VStack(alignment: .leading, spacing: 12) {
                 // Model selection
@@ -1199,20 +621,7 @@ struct ModeEditorView: View {
                 // The mode's stored model is not installed (issue #1434). Save
                 // keeps it; the user can download it or pick another model.
                 if isShowingMissingLocalModel {
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
-                        Text(localized: "modes.notice.modelNotInstalled")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Spacer()
-                    }
-                    .padding(10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.orange.opacity(0.1))
-                    )
+                    missingLocalModelNotice
                 }
 
                 // Language selection for local
@@ -1229,357 +638,36 @@ struct ModeEditorView: View {
         }
     }
 
-    // MARK: - HyperWhisper Cloud transcription
+    // MARK: - Your provider (BYOK) key notice
 
-    @ViewBuilder
-    private var hyperwhisperCloudTranscriptionSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Two-level Engine → Model picker. Engine (L1) is the accuracy tier
-            // (X-STT-Provider); Model (L2) is the selected model within that
-            // engine (X-STT-Model). Credits caption reflects the selected model.
-            hyperwhisperCloudProviderModelPicker
-
-            Divider()
-
-            cloudTranscriptionLanguageAndNotices
+    /// Shown under the BYOK section while the selected provider's key is
+    /// missing or unhealthy; Manage in Library closes the sheet first.
+    var yourProviderNeedsKeyNotice: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.caption)
+                .foregroundColor(.orange)
+            Text("modes.provider.needsKey".localized(arguments: currentCloudProvider.displayName))
+                .font(.caption)
+                .foregroundColor(.primary)
+            Spacer()
+            Button {
+                dismiss()
+                DispatchQueue.main.async {
+                    appState.navigateToModelLibraryAPIKeys(trigger: .fromModeEditor)
+                }
+            } label: {
+                Text(localized: "modes.provider.manageInLibrary")
+            }
+            .buttonStyle(.link)
+            .font(.caption)
         }
-    }
-
-    // MARK: - Your provider (BYOK) transcription
-
-    @ViewBuilder
-    private var yourProviderTranscriptionSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Provider picker — BYOK providers only (HyperWhisper Cloud is its
-            // own Source segment).
-            HStack {
-                Text(localized: "modes.field.provider")
-                    .frame(width: 80, alignment: .leading)
-                Picker("", selection: $cloudProvider) {
-                    ForEach(availableDirectCloudProviders, id: \.id) { provider in
-                        Text(provider.displayName).tag(provider.rawValue)
-                    }
-                }
-                .pickerStyle(.menu)
-                .labelsHidden()
-                .onChange(of: cloudProvider) { _, newProvider in
-                    guard let provider = CloudProvider.parse(newProvider) else { return }
-                    showAllCloudTranscriptionModels = false
-                    cloudTranscriptionModel = CloudTranscriptionModels.defaultModel(for: provider)
-                    cloudTranscriptionDomain = nil
-
-                    guard postProcessingMode == .cloud else { return }
-
-                    // Compare through the enum: a mode seeded or restored from
-                    // another head stores "hyperwhispercloud" for this provider,
-                    // and a raw-string match would leave post-processing pointed
-                    // at HyperWhisper Cloud after the user moved transcription
-                    // to a BYOK provider.
-                    let currentPostProvider = PostProcessingProvider(rawValue: postProcessingProvider)
-                    if currentPostProvider == .hyperwhisper {
-                        postProcessingProvider = PostProcessingProvider.openai.rawValue
-                    }
-                }
-                Spacer()
-            }
-
-            // Cloud transcription model row. Always a dropdown — a provider
-            // with one model (Grok) lists that one entry rather than
-            // degrading to a read-only label.
-            HStack {
-                Text(localized: "modes.field.model")
-                    .frame(width: 80, alignment: .leading)
-                Picker("", selection: $cloudTranscriptionModel) {
-                    ForEach(cloudTranscriptionModelsForPicker, id: \.id) { model in
-                        Text(model.displayName)
-                            .tag(model.id)
-                    }
-                }
-                .pickerStyle(.menu)
-                .labelsHidden()
-
-                Button { showCloudModelInfo.toggle() } label: {
-                    Image(systemName: "info.circle")
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .popover(isPresented: $showCloudModelInfo, arrowEdge: .trailing) {
-                    if let modelInfo = CloudTranscriptionModels.model(
-                        withId: cloudTranscriptionModel,
-                        provider: currentCloudProvider
-                    ) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(modelInfo.displayName)
-                                .font(.headline)
-                            Text(modelInfo.description)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                            if let perSecond = modelInfo.pricePerSecond {
-                                let perMinute = perSecond * 60.0
-                                HStack(spacing: 6) {
-                                    Image(systemName: "dollarsign.circle")
-                                        .foregroundColor(.green)
-                                    Text(String(format: "modes.model.pricing".localized, perMinute))
-                                        .font(.caption)
-                                }
-                            }
-                        }
-                        .padding()
-                        .frame(width: 350)
-                    }
-                }
-                .help("modes.help.model".localized)
-
-                Spacer()
-            }
-
-            if let modelSummary = selectedCloudTranscriptionModelSummary {
-                HStack(alignment: .top) {
-                    Text("")
-                        .frame(width: 80, alignment: .leading)
-                    Text(modelSummary)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .lineLimit(3)
-                    Spacer()
-                }
-            }
-
-            if canShowAllCloudTranscriptionModels {
-                HStack {
-                    Text("")
-                        .frame(width: 80, alignment: .leading)
-                    Toggle(isOn: $showAllCloudTranscriptionModels) {
-                        Text("Show all models")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .toggleStyle(.checkbox)
-
-                    Spacer()
-                }
-            }
-
-            Divider()
-
-            cloudTranscriptionLanguageAndNotices
-
-            // Gemini custom transcription instructions
-            if currentCloudProvider == .gemini {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(localized: "modes.gemini.customPrompt.title")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-
-                    TextEditor(text: $geminiCustomPrompt)
-                        .font(.body)
-                        .frame(height: 80)
-                        .padding(6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(Color(NSColor.textBackgroundColor))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(Color(NSColor.separatorColor), lineWidth: 1)
-                        )
-                        .onChange(of: geminiCustomPrompt) { _, newValue in
-                            if newValue.count > geminiCustomPromptCharacterLimit {
-                                geminiCustomPrompt = String(newValue.prefix(geminiCustomPromptCharacterLimit))
-                            }
-                        }
-
-                    Text(localized: "modes.gemini.customPrompt.helper")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            if currentProviderNeedsAttention {
-                HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.caption)
-                        .foregroundColor(.orange)
-                    Text("modes.provider.needsKey".localized(arguments: currentCloudProvider.displayName))
-                        .font(.caption)
-                        .foregroundColor(.primary)
-                    Spacer()
-                    Button {
-                        dismiss()
-                        DispatchQueue.main.async {
-                            appState.navigateToModelLibraryAPIKeys(trigger: .fromModeEditor)
-                        }
-                    } label: {
-                        Text(localized: "modes.provider.manageInLibrary")
-                    }
-                    .buttonStyle(.link)
-                    .font(.caption)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(10)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.orange.opacity(0.15))
-                )
-            }
-        }
-    }
-
-    // MARK: - Shared cloud language + notices
-
-    /// Language picker + vocabulary / Deepgram notices shared by both cloud
-    /// Source branches. For HyperWhisper Cloud the language context is derived
-    /// from the SELECTED tier's routed upstream provider id (X-STT-Provider) and
-    /// model id rather than the literal "hyperwhisper" wrapper, which
-    /// STTCapabilities does not register.
-    @ViewBuilder
-    private var cloudTranscriptionLanguageAndNotices: some View {
-        LanguageSelectionView(
-            language: $language,
-            provider: .cloud,
-            model: cloudTranscriptionModel,
-            cloudProviderId: languageFilterCloudProviderId,
-            cloudModelId: languageFilterCloudModelId,
-            cloudTierId: languageFilterCloudTierId
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.orange.opacity(0.15))
         )
-
-        // Show vocabulary warning for providers that don't support it
-        if showVocabularyUnsupportedNotice {
-            VocabularyUnsupportedNotice()
-        }
-
-        // Show warning when Deepgram Nova-3 is used with auto-detect language
-        if showDeepgramNova3AutoDetectNotice {
-            DeepgramNova3AutoDetectNotice()
-        }
-    }
-
-    // MARK: - HyperWhisper Cloud Provider → Model picker
-
-    @ViewBuilder
-    private var hyperwhisperCloudProviderModelPicker: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Level 1 — Provider, i.e. the company. One row per vendor, so the
-            // two Google tiers (Transcribe + Gemini) share a row. The selection is
-            // the vendor key; the binding maps it back to a tier for storage.
-            HStack {
-                Text(localized: "modes.field.provider")
-                    .frame(width: 80, alignment: .leading)
-                Picker("", selection: hyperwhisperCloudVendorBinding) {
-                    ForEach(CloudAccuracyTier.pickerVendorGroups) { group in
-                        Text(hyperwhisperCloudVendorLabel(group)).tag(group.id)
-                    }
-                }
-                .pickerStyle(.menu)
-                .labelsHidden()
-                Spacer()
-            }
-
-            // Level 2 — Model. Always a dropdown, including for a company with a
-            // single model, so the row keeps its shape as you switch provider.
-            let models = hyperwhisperCloudModels
-            HStack(alignment: .top) {
-                Text(localized: "modes.field.model")
-                    .frame(width: 80, alignment: .leading)
-                Picker("", selection: hyperwhisperCloudModelBinding) {
-                    ForEach(models) { model in
-                        Text(model.displayName).tag(model.id)
-                    }
-                }
-                .pickerStyle(.menu)
-                .labelsHidden()
-                Spacer()
-            }
-
-            // Badges for the selected model (Preview / No custom vocabulary).
-            // Only render the row when a badge actually applies — otherwise the
-            // empty HStack adds a blank line and a double gap above the credits
-            // caption (e.g. for models with neither a preview nor a vocab flag).
-            if let selected = models.first(where: { $0.id == cloudTranscriptionModel }) ?? models.first,
-               selected.previewStatus == true || selected.supportsCustomVocabulary == false {
-                HStack(spacing: 6) {
-                    if selected.previewStatus == true {
-                        hyperwhisperCloudBadge(text: "mode.editor.cloudModel.previewHint".localized, color: .orange)
-                    }
-                    if selected.supportsCustomVocabulary == false {
-                        hyperwhisperCloudBadge(text: "mode.editor.cloudModel.noVocabularyHint".localized, color: .secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.leading, 88)
-            }
-
-            // Credits caption for the SELECTED model.
-            let tier = selectedCloudTier
-            let perMinute = tier.creditsPerMinute(forModelId: cloudTranscriptionModel)
-            if perMinute > 0 {
-                // Gate on > 0 so a catalog load failure hides the caption
-                // instead of showing a misleading "~0.0 credits/min".
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(Color.green)
-                        .frame(width: 4, height: 4)
-                    Text(tier.creditsPerMinuteLabel(forModelId: cloudTranscriptionModel))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .monospacedDigit()
-                    // When the Medical Mode add-on is enabled it bills separately
-                    // on top of the per-minute model rate — note it in the caption.
-                    if showsMedicalDomainToggle && cloudTranscriptionDomain == "medical" {
-                        Text(localized: "mode.editor.cloudModel.medicalAddOnNote")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .padding(.leading, 88)
-                .help(tier.description)
-            }
-
-            // Medical domain toggle — assemblyAI only (Deepgram medical is a
-            // model selection, handled by the Model dropdown above).
-            if showsMedicalDomainToggle {
-                HStack {
-                    Text("")
-                        .frame(width: 80, alignment: .leading)
-                    Toggle(isOn: medicalDomainBinding) {
-                        Text(localized: "mode.editor.cloudDomain.medical")
-                            .font(.caption)
-                    }
-                    .toggleStyle(.checkbox)
-                    Spacer()
-                }
-            }
-        }
-    }
-
-    /// Label for a Provider row — the plain company name, tagged
-    /// "(Recommended)" for the company that owns the recommended engine
-    /// (ElevenLabs Scribe v2). "(Recommended)" appears on this row only: on the
-    /// Model row it used to mean "this provider's default", which read as a
-    /// second, conflicting recommendation.
-    private func hyperwhisperCloudVendorLabel(_ group: CloudSTTCatalog.VendorGroup) -> String {
-        let recommended = group.entries.contains {
-            CloudAccuracyTier(rawValue: $0.id)?.isRecommended == true
-        }
-        return recommended
-            ? "\(group.displayName) (\("modes.badge.recommended".localized))"
-            : group.displayName
-    }
-
-    /// Small pill badge used in the HyperWhisper Cloud model picker.
-    private func hyperwhisperCloudBadge(text: String, color: Color) -> some View {
-        Text(text)
-            .font(.caption2)
-            .foregroundColor(color)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(color.opacity(0.12))
-            )
     }
 
     // MARK: - Footer
