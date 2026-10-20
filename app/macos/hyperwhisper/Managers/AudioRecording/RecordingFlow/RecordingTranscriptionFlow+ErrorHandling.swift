@@ -244,7 +244,11 @@ extension RecordingTranscriptionFlow {
                     failure,
                     failedRowWrite: failedRowWrite,
                     audioURL: audioURL,
-                    modeName: transcriptionMode.name
+                    modeName: transcriptionMode.name,
+                    transcriptionProvider: FileTranscriptionFlow.failedRowProvider(
+                        for: error,
+                        modelId: transcriptionMode.model
+                    )
                 )
 
                 // The save suspends; a newer flow may own the dialog now.

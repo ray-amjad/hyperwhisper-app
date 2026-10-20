@@ -247,8 +247,12 @@ extension RecordingTranscriptionFlow {
     /// (#1643). With no such row (its write failed, or the user deleted it),
     /// a new failed row records the attempt, worded the same.
     ///
-    /// - Parameter failedRowWrite: the failed row's write
-    ///   (`AppState.pendingRetryFailedRowWrite`), landed or not.
+    /// - Parameters:
+    ///   - failedRowWrite: the failed row's write
+    ///     (`AppState.pendingRetryFailedRowWrite`), landed or not.
+    ///   - transcriptionProvider: the engine that failed
+    ///     (`FileTranscriptionFlow.failedRowProvider(for:modelId:)`, #1518),
+    ///     written to the failed row. `nil` leaves the column as it is.
     /// - Returns: the id of the failed row, or `nil` when no write was saved.
     @discardableResult
     static func savePendingRetryFailure(
@@ -256,6 +260,7 @@ extension RecordingTranscriptionFlow {
         failedRowWrite: Task<NSManagedObjectID?, Never>?,
         audioURL: URL,
         modeName: String?,
+        transcriptionProvider: String? = nil,
         persistence: PersistenceController = .shared
     ) async -> NSManagedObjectID? {
         // Only a too-short file's wording reads the length, so only it opens
@@ -270,7 +275,8 @@ extension RecordingTranscriptionFlow {
                transcriptID: failedTranscriptID,
                failedReason: failure.failedReason,
                errorText: failure.text,
-               countsRetry: true
+               countsRetry: true,
+               transcriptionProvider: transcriptionProvider
            ) {
             return failedTranscriptID
         }

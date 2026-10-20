@@ -347,6 +347,36 @@ struct MissingModelNamedTests {
         #expect(reloaded.value(forKey: "transcriptionProvider") as? String == nil)
     }
 
+    /// A failed pill Retry (pending-file retry) stores the engine on the row
+    /// it fails, as dictation and file import do (review round 1).
+    @MainActor
+    @Test func aFailedPillRetryStoresTheEngine() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let failedID = try #require(await persistence.createFailedTranscriptInBackground(
+            duration: 2,
+            mode: "W15",
+            audioFilePath: "/tmp/hw-1518-pending.wav",
+            failedReason: "Audio file could not be read",
+            errorText: "Error: Audio file could not be read"
+        ))
+        let thrown = TranscriptionError.modelNotDownloaded(model: LibWhisperProvider.modelDisplayName(for: "tiny.en"))
+
+        let saved = await RecordingTranscriptionFlow.savePendingRetryFailure(
+            TranscriptionError.attachingMode("W15", to: thrown),
+            failedRowWrite: Task { failedID },
+            audioURL: URL(fileURLWithPath: "/tmp/hw-1518-pending.wav"),
+            modeName: "W15",
+            transcriptionProvider: FileTranscriptionFlow.failedRowProvider(for: thrown, modelId: "tiny.en"),
+            persistence: persistence
+        )
+
+        #expect(saved == failedID)
+        let row = try reload(failedID, in: persistence)
+        #expect(row.value(forKey: "status") as? String == "failed")
+        #expect(row.value(forKey: "transcriptionProvider") as? String == WhisperModel.tinyEn.name)
+        #expect((row.value(forKey: "failedReason") as? String)?.contains("W15") == true)
+    }
+
     /// A file import whose model is missing: the row's reason names the mode
     /// and the model, and the row stores the engine — the same composition the
     /// import's catch makes.
@@ -416,6 +446,8 @@ struct MissingModelNamedTests {
         let save = try #require(afterCatch.range(of: "Self.savePendingRetryFailure("))
         let firstArgument = afterCatch[save.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(firstArgument.hasPrefix("failure,"), "the retry's failed row must get the error with its mode")
+        #expect(afterCatch.contains("transcriptionProvider: FileTranscriptionFlow.failedRowProvider("))
+        #expect(afterCatch.contains("modelId: transcriptionMode.model"))
         #expect(afterCatch.contains("appState.lastTranscription = \"Error: \\(failure.localizedDescription)\""))
     }
 }
