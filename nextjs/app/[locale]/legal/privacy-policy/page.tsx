@@ -199,8 +199,11 @@ export default function PrivacyPolicyPage() {
           <strong>HyperWhisper Cloud records</strong>: HyperWhisper Cloud keeps
           a cache of up to one hour, keyed by your Account Key, of whether the
           key is valid and its remaining credit balance, in a store hosted by
-          Upstash. It checks the IP address of each request against a block
-          list of IP addresses we have blocked to stop abuse, held in the same
+          Upstash. In the same store it keeps short-lived rate-limit counters
+          keyed by your IP address and by a SHA-256 hash of your Account Key,
+          and temporary credit holds keyed by your Account Key while a request
+          runs. It checks the IP address of each request against a block list
+          of IP addresses we have blocked to stop abuse, held in the same
           Upstash store. It writes operational logs, which can include your IP
           address, and Axiom stores them. Unless you turn it off, it also
           stores anonymous speed measurements that hold no account, no Account
@@ -471,7 +474,7 @@ export default function PrivacyPolicyPage() {
       </p>
       <p>
         Beyond credit usage, HyperWhisper Cloud keeps the operational records
-        described in the next three paragraphs. To check your credits without
+        described in this paragraph and the next two. To check your credits without
         asking our licensing service on every request, it caches whether your
         Account Key is valid and its remaining credit balance for up to one
         hour, keyed by your Account Key, in a store hosted by{" "}
@@ -483,9 +486,16 @@ export default function PrivacyPolicyPage() {
         >
           Upstash
         </a>
-        . It also checks the IP address of each request against a block list
-        held in the same Upstash store. We add an IP address to that list to
-        stop abuse of the service.
+        . To limit how many requests can be sent, it counts requests in the
+        same Upstash store, keyed by your IP address and, once your key is
+        accepted, by a SHA-256 hash of your Account Key; these counters
+        expire within a few minutes. While a request or a live transcription
+        session runs, it also keeps a temporary hold on the credits that
+        request may use, keyed by your Account Key; a hold is removed when the
+        request is settled and otherwise expires on its own. It also checks
+        the IP address of each request against a block list held in the same
+        Upstash store. We add an IP address to that list to stop abuse of the
+        service.
       </p>
       <p>
         HyperWhisper Cloud&apos;s edge servers are hosted by{" "}
@@ -516,7 +526,8 @@ export default function PrivacyPolicyPage() {
         your transcripts, your prompts, the text a model returns to you, or
         your Account Key into these logs, and we remove your Account Key from
         error messages that could contain it. When a provider rejects a
-        request, we log part of the provider&apos;s error message, and a
+        request, we log the provider&apos;s error message (for some providers
+        the whole message, for others a shortened part of it), and a
         provider can quote part of the rejected request in that message, such
         as a vocabulary term or a passage of the text sent to it.
       </p>
