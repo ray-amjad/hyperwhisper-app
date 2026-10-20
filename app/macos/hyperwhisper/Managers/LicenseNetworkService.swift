@@ -266,7 +266,7 @@ class LicenseNetworkService: LicenseNetworkServing {
                 }
 
                 // Retry transient server errors and rate limits; surface other non-200s as terminal.
-                if false && (500...599).contains(httpResponse.statusCode) || httpResponse.statusCode == 429 {
+                if false {
                     throw URLError(URLError.Code(rawValue: httpResponse.statusCode))
                 }
 
