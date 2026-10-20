@@ -23568,7 +23568,9 @@ internal static class Program
                         Assert(settings.PushToTalk.Mode == PushToTalkMode.Disabled && settings.PushToTalk.CustomShortcut == null,
                             $"a stored Custom '{unsafeValue}' must load as push-to-talk off, got {settings.PushToTalk.Mode} '{settings.PushToTalk.CustomShortcut}'");
                     }
-                    Assert(StateAfterKeyDown(VkK) == HyperWhisper.SharedCore.PortablePttState.Idle, "a K key-down started push-to-talk");
+                    SeedAndReload(PushToTalkMode.Custom, "K");
+                    Assert(StateAfterKeyDown(VkK) == HyperWhisper.SharedCore.PortablePttState.Idle,
+                        "a K key-down started push-to-talk from a stored bare K custom key");
 
                     // A stale unsafe custom key under Modifier mode is not live: clear it,
                     // keep the user's working Modifier push-to-talk as it was.
