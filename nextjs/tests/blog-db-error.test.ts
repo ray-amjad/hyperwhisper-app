@@ -82,7 +82,7 @@ afterEach(() => {
   else process.env.NEXT_PHASE = originalPhase;
 });
 
-const blogUrl = "https://hyperwhisper.com/en/blog/a-real-post";
+const blogUrl = "https://www.hyperwhisper.com/en/blog/a-real-post";
 
 describe("at runtime (a background revalidation)", () => {
   beforeEach(() => {
@@ -128,7 +128,7 @@ describe("during next build", () => {
     assert.deepEqual(await blog.getBlogPosts(), []);
     assert.equal(await blog.getBlogPost("a-real-post"), null);
     const entries = await sitemap();
-    assert.ok(entries.some((entry) => entry.url === "https://hyperwhisper.com/en/blog"));
+    assert.ok(entries.some((entry) => entry.url === "https://www.hyperwhisper.com/en/blog"));
     assert.ok(!entries.some((entry) => entry.url === blogUrl));
     assert.ok(logged.some((args) => String(args[0]).startsWith("[blog]")));
   });
