@@ -46,10 +46,6 @@ extension BackupManager {
             return .failure(message)
         }
 
-        var modesImported = 0
-        var modesSkipped = 0
-        var vocabImported = 0
-        var vocabSkipped = 0
         var settingsApplied = false
 
         // 2. SETTINGS (only when selected AND present): REJOIN -> core inverse map -> MERGE over the
@@ -58,70 +54,18 @@ extension BackupManager {
         // DEFENSE IN DEPTH: the entire settings step is wrapped in do/catch. A Windows backup (or any
         // file) that can't produce a complete macOS-settings object must NOT abort the import — we log
         // and continue to modes/vocab/keys. `settingsApplied` records whether settings actually applied.
-        // Preserve the foreign TOP-LEVEL platformExtensions slices before anything
-        // else touches them, so the next export re-emits them (#288). Gated on
-        // importSettings for symmetry with the export, which only writes the
-        // top-level map when settings are included — and so a vocabulary-only
-        // interchange file cannot wipe the store.
-        //
-        // Snapshot both first: a failed store step below puts them back (#1627).
-        // Launch-at-login is a cached value, so `current()` re-reads it (off the
-        // main thread, #853) — the snapshot is also the baseline the settings
-        // merge below fills missing fields from.
-        var settingsBefore: ImportSettingsSnapshot?
-        if options.importSettings {
-            let liveSettings = await settingsStore.current()
-            settingsBefore = ImportSettingsSnapshot(
-                settings: liveSettings,
-                writesForeignTopLevelExtensions: true,
-                foreignTopLevelExtensions: settingsStore.foreignTopLevelExtensions
-            )
-            let foreign = Self.foreignTopLevelExtensions(from: dto.platformExtensions)
-            // REPLACE, not merge: the store describes the LAST IMPORTED file.
-            settingsStore.foreignTopLevelExtensions = foreign
-        }
+        // The snapshot (and the foreign top-level extensions it replaces, #288) comes first: see
+        // snapshotSettingsForV2Import.
+        let settingsBefore = await snapshotSettingsForV2Import(dto, options: options)
 
         if options.importSettings, let settingsBefore, let settingsValue = dto.settings {
             do {
-                // Reconstruct the SettingsRecord JSON: the 5 universal categories from the top-level
-                // `settings`, plus the backup TOP-LEVEL `platformExtensions` RE-INJECTED as the
-                // record-level `platformExtensions` (exact inverse of the export hoist). Without this,
-                // `universal_to_macos_settings` finds no `platformExtensions.macos.settings` and returns
-                // ALL macOS-only fields blank.
-                var recordObj: [String: JSONValue] = settingsValue.objectValue ?? [:]
-                if let ext = dto.platformExtensions {
-                    recordObj["platformExtensions"] = ext
-                }
-                let recordValue = JSONValue.object(recordObj)
-                let encoder = JSONEncoder()
-                guard let recordData = try? encoder.encode(recordValue),
-                      let recordJson = String(data: recordData, encoding: .utf8) else {
-                    throw BackupV2Error.settingsEncodeFailed
-                }
-
-                // Core inverse mapping: universal SettingsRecord -> macOS 7-category settings JSON.
-                // For a Windows backup this is missing macOS-only required fields (shortcuts/aiModel/…).
-                let importedMacosJson = try universalSettingsToMacosSettingsJson(recordJson: recordJson)
-                guard let importedData = importedMacosJson.data(using: .utf8),
-                      let importedValue = try? JSONDecoder().decode(JSONValue.self, from: importedData) else {
-                    throw BackupV2Error.settingsDecodeFailed
-                }
-
-                // Build the CURRENT macOS settings JSON as a baseline (the same BackupSettings the v1
-                // path would produce from the live settings), so any macOS-only field the backup
-                // lacks decodes successfully with the user's current value. The snapshot above
-                // re-read launch-at-login, so a backup without the field never applies a stale one.
-                let baselineValue = try Self.settingsBaseline(settingsBefore.settings)
-
-                // DEEP-MERGE imported OVER baseline: imported values win where present; baseline fills
-                // every field the backup didn't carry.
-                let mergedValue = importedValue.deepMerged(over: baselineValue)
-
-                guard let mergedData = try? encoder.encode(mergedValue) else {
-                    throw BackupV2Error.settingsEncodeFailed
-                }
-                // Decode the MERGED 7-category macOS settings into BackupSettings and apply UNCHANGED.
-                let backupSettings = try JSONDecoder().decode(BackupSettings.self, from: mergedData)
+                // The snapshot is also the baseline the merge fills missing fields from.
+                let backupSettings = try Self.macosSettings(
+                    fromV2: settingsValue,
+                    platformExtensions: dto.platformExtensions,
+                    baseline: settingsBefore.settings
+                )
                 await settingsStore.apply(backupSettings)
                 settingsApplied = true
             } catch {
@@ -134,174 +78,175 @@ extension BackupManager {
         //    Built here, written in step 4 together with the vocabulary.
         var modesToImport: [BackupMode]?
         if options.importModes, let modeDTOs = dto.modes {
-            let backupModes: [BackupMode] = modeDTOs.compactMap { modeDTO in
-                guard let mode = Self.backupMode(fromV2: modeDTO) else {
-                    // Malformed/unparseable id — skip but make it VISIBLE (real producers emit
-                    // valid UUIDs/GUIDs; we do not invent a replacement id).
-                    // PRIVACY (issue #795): neither the Mode's `name` NOR its `id` is
-                    // reported. `backupMode(fromV2:)` returns nil ONLY when
-                    // `UUID(uuidString: dto.id)` fails, so on this branch the id is
-                    // provably NOT a UUID — it is arbitrary text out of the backup
-                    // file, which a hand-edited or third-party file can fill with
-                    // anything, including a name. This line is `.warning`, and
-                    // `AppLogger.getRecentLogs` DOES capture `.warning` records into
-                    // the `recent_logs` extra that `SentryService.capture` attaches.
-                    // The LENGTH is reported instead: it is not user content, and it
-                    // separates every failure a real producer can hit — 0 is an absent
-                    // or empty id, 36 is the right shape with bad characters (a
-                    // truncated or altered UUID), 38 is a Windows brace-wrapped
-                    // `{GUID}`, and anything else is arbitrary text. One line is
-                    // emitted per skipped row, so the count stays visible too.
-                    let invalidIdLength = modeDTO.id.count
-                    AppLogger.settings.warning("v2 import: skipping mode whose id is not a UUID · idLength=\(invalidIdLength, privacy: .public)")
-                    return nil
-                }
-                return mode
-            }
-            modesToImport = backupModes
+            modesToImport = Self.backupModes(fromV2: modeDTOs)
         }
 
         // 4. VOCABULARY (merge only — never a wipe), reusing the existing universal-vocab logic.
         var vocabToImport: [BackupVocabularyItem]?
         if options.importVocabulary, let vocabArray = topLevel["vocabulary"] as? [[String: Any]] {
-            let items: [BackupVocabularyItem] = vocabArray.compactMap { entry in
-                guard let word = entry["word"] as? String,
-                      !word.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
-                let id = (entry["id"] as? String).flatMap(UUID.init) ?? UUID()
-                let sortOrder = entry["sortOrder"] as? Int ?? 0
-                return BackupVocabularyItem(
-                    id: id,
-                    word: word,
-                    replacement: entry["replacement"] as? String,
-                    sortOrder: Int16(clamping: sortOrder),
-                    source: entry["source"] as? String
-                )
-            }
-            vocabToImport = items
+            vocabToImport = Self.backupVocabularyItems(fromUniversal: vocabArray)
         }
 
         // Steps 3 + 4 are written one section per store transaction (#1613): modes first,
         // then vocabulary only if the modes saved; a failed section is left as it was.
         // Step 5 still runs, as it always did; the result then says which section failed.
-        var storeFailure: PersistenceController.BackupStoreImportError?
-        if modesToImport != nil || vocabToImport != nil {
-            let storeResult: PersistenceController.BackupStoreImportResult
-            do {
-                storeResult = try importPersistence.importBackupStore(
-                    modes: modesToImport,
-                    modeResolution: options.modeConflict,
-                    vocabulary: vocabToImport,
-                    vocabularyResolution: options.vocabularyConflict
-                )
-            } catch {
-                let failure = Self.backupStoreImportFailure(from: error, modesSelected: modesToImport != nil)
-                storeFailure = failure
-                storeResult = failure.committed
-            }
-            modesImported = storeResult.modesImported
-            modesSkipped = storeResult.modesSkipped
-            vocabImported = storeResult.vocabularyImported
-            vocabSkipped = storeResult.vocabularySkipped
+        // Per-mode default model selections are parked under
+        // platformExtensions.macos.settings.defaultModelByMode in v2 (NOT top-level settings).
+        // Only applied when Settings import was chosen (mirrors the v1 guard).
+        let store = importBackupStoreSections(
+            modes: modesToImport,
+            vocabulary: vocabToImport,
+            options: options,
+            defaultModelByModeToApply: { Self.defaultModelByModeFromExtensions(dto.platformExtensions) }
+        )
 
-            // Per-mode default model selections are parked under
-            // platformExtensions.macos.settings.defaultModelByMode in v2 (NOT top-level settings).
-            // Only apply when Settings import was chosen (mirrors the v1 guard).
-            // A failed store step applies no settings (#1627), so not these either.
-            if storeFailure == nil, modesToImport != nil, options.importSettings, let map = Self.defaultModelByModeFromExtensions(dto.platformExtensions) {
-                applyDefaultModelByMode(map, idRemap: storeResult.modeIdRemap)
-            }
-        }
-
-        // A failed store step puts the settings (and the foreign extensions) back as
-        // they were before the import — see the v1 path.
-        var settingsRestored = false
-        if storeFailure != nil, let settingsBefore {
-            settingsRestored = await restoreSettingsAfterFailedStoreImport(settingsBefore, settingsApplied: settingsApplied)
-            settingsApplied = false
-        }
-
+        // A failed store step puts the settings (and the foreign extensions) back, then
         // 5. API keys + license (reuse the existing flat-lowercase logic + license write).
-        //    Success is read off the Keychain writes, not off the file.
-        var apiKeysImported = false
-        var apiKeysFailedProviders: [KeychainManager.APIKeyType] = []
-        if options.importAPIKeys, let apiKeys = dto.apiKeys, !apiKeys.isEmpty {
-            let outcome = importUniversalAPIKeys(apiKeys)
-            apiKeysImported = outcome.anySaved
-            apiKeysFailedProviders = outcome.failed
-        }
-
-        // Trim + revalidate — see the v1 license-key import above.
-        var licenseKeyImported = false
-        if options.importLicenseKey,
-           let licenseKey = dto.licenseKey?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !licenseKey.isEmpty {
-            guard await importLicenseKeySecurely(licenseKey) else {
-                // The rolled-back store section (#1613) must be reported too.
-                if let storeFailure {
-                    return storeImportFailureResult(
-                        storeFailure,
-                        modesSelected: modesToImport != nil,
-                        vocabularySelected: vocabToImport != nil,
-                        settingsApplied: settingsApplied,
-                        settingsRestored: settingsRestored,
-                        apiKeysImported: apiKeysImported,
-                        licenseKeyImported: false,
-                        licenseImportFailed: true,
-                        repairImportedModes: options.importModes,
-                        apiKeysFailedProviders: apiKeysFailedProviders
-                    )
-                }
-                return licenseImportFailureResult(
-                    modesImported: modesImported,
-                    modesSkipped: modesSkipped,
-                    vocabularyImported: vocabImported,
-                    vocabularySkipped: vocabSkipped,
-                    apiKeysImported: apiKeysImported,
-                    earlierSectionsApplied: Self.earlierBackupSectionsWereApplied(
-                        settingsApplied: settingsApplied,
-                        modesImported: modesImported,
-                        vocabularyImported: vocabImported,
-                        apiKeysImported: apiKeysImported
-                    ),
-                    repairImportedModes: options.importModes,
-                    apiKeysFailedProviders: apiKeysFailedProviders
-                )
+        //    Success is read off the Keychain writes, not off the file. See finishBackupImport.
+        return await finishBackupImport(
+            .universalV2,
+            store: store,
+            settingsBefore: settingsBefore,
+            settingsApplied: settingsApplied,
+            licenseKey: dto.licenseKey,
+            options: options,
+            apiKeysStep: {
+                guard options.importAPIKeys, let apiKeys = dto.apiKeys, !apiKeys.isEmpty else { return nil }
+                return importUniversalAPIKeys(apiKeys)
             }
-            licenseKeyImported = true
+        )
+    }
+
+    /// Step 2 setup of a v2 import, only when Settings import was chosen: snapshots the
+    /// live settings and the stored foreign top-level `platformExtensions`, then stores
+    /// this file's foreign slices. Returns nil (and changes nothing) otherwise.
+    ///
+    /// Preserve the foreign TOP-LEVEL platformExtensions slices before anything
+    /// else touches them, so the next export re-emits them (#288). Gated on
+    /// importSettings for symmetry with the export, which only writes the
+    /// top-level map when settings are included — and so a vocabulary-only
+    /// interchange file cannot wipe the store.
+    ///
+    /// Snapshot both first: a failed store step puts them back (#1627).
+    /// Launch-at-login is a cached value, so `current()` re-reads it (off the
+    /// main thread, #853) — the snapshot is also the baseline the settings
+    /// merge fills missing fields from.
+    func snapshotSettingsForV2Import(_ dto: UniversalBackupDTO, options: ImportOptions) async -> ImportSettingsSnapshot? {
+        var settingsBefore: ImportSettingsSnapshot?
+        if options.importSettings {
+            let liveSettings = await settingsStore.current()
+            settingsBefore = ImportSettingsSnapshot(
+                settings: liveSettings,
+                writesForeignTopLevelExtensions: true,
+                foreignTopLevelExtensions: settingsStore.foreignTopLevelExtensions
+            )
+            let foreign = Self.foreignTopLevelExtensions(from: dto.platformExtensions)
+            // REPLACE, not merge: the store describes the LAST IMPORTED file.
+            settingsStore.foreignTopLevelExtensions = foreign
+        }
+        return settingsBefore
+    }
+
+    /// The macOS settings a v2 file's `settings` section restores: the 5 universal
+    /// categories plus the top-level `platformExtensions` (the macOS-only fields),
+    /// mapped back by the core and deep-merged over `baseline`, so any field the
+    /// file lacks (a Windows backup has no macOS-only fields) keeps its `baseline`
+    /// value. Pure; throws when the result is not a complete macOS settings object.
+    nonisolated static func macosSettings(
+        fromV2 settingsValue: JSONValue,
+        platformExtensions: JSONValue?,
+        baseline: BackupSettings
+    ) throws -> BackupSettings {
+        // Reconstruct the SettingsRecord JSON: the 5 universal categories from the top-level
+        // `settings`, plus the backup TOP-LEVEL `platformExtensions` RE-INJECTED as the
+        // record-level `platformExtensions` (exact inverse of the export hoist). Without this,
+        // `universal_to_macos_settings` finds no `platformExtensions.macos.settings` and returns
+        // ALL macOS-only fields blank.
+        var recordObj: [String: JSONValue] = settingsValue.objectValue ?? [:]
+        if let ext = platformExtensions {
+            recordObj["platformExtensions"] = ext
+        }
+        let recordValue = JSONValue.object(recordObj)
+        let encoder = JSONEncoder()
+        guard let recordData = try? encoder.encode(recordValue),
+              let recordJson = String(data: recordData, encoding: .utf8) else {
+            throw BackupV2Error.settingsEncodeFailed
         }
 
-        AppLogger.settings.info("Universal v2 backup imported: settingsApplied=\(settingsApplied, privacy: .public), \(modesImported) modes, \(vocabImported) vocabulary items")
+        // Core inverse mapping: universal SettingsRecord -> macOS 7-category settings JSON.
+        // For a Windows backup this is missing macOS-only required fields (shortcuts/aiModel/…).
+        let importedMacosJson = try universalSettingsToMacosSettingsJson(recordJson: recordJson)
+        guard let importedData = importedMacosJson.data(using: .utf8),
+              let importedValue = try? JSONDecoder().decode(JSONValue.self, from: importedData) else {
+            throw BackupV2Error.settingsDecodeFailed
+        }
 
-        // Post-restore local-mode repair + re-download collection (see v1 path).
-        // A failed store section (#1613) is reported instead of a summary; the
-        // repair runs there only when the modes saved (see storeImportFailureResult).
-        if let storeFailure {
-            return storeImportFailureResult(
-                storeFailure,
-                modesSelected: modesToImport != nil,
-                vocabularySelected: vocabToImport != nil,
-                settingsApplied: settingsApplied,
-                settingsRestored: settingsRestored,
-                apiKeysImported: apiKeysImported,
-                licenseKeyImported: licenseKeyImported,
-                repairImportedModes: options.importModes,
-                apiKeysFailedProviders: apiKeysFailedProviders
+        // Build the CURRENT macOS settings JSON as a baseline (the same BackupSettings the v1
+        // path would produce from the live settings), so any macOS-only field the backup
+        // lacks decodes successfully with the user's current value. The import's snapshot
+        // re-read launch-at-login, so a backup without the field never applies a stale one.
+        let baselineValue = try Self.settingsBaseline(baseline)
+
+        // DEEP-MERGE imported OVER baseline: imported values win where present; baseline fills
+        // every field the backup didn't carry.
+        let mergedValue = importedValue.deepMerged(over: baselineValue)
+
+        guard let mergedData = try? encoder.encode(mergedValue) else {
+            throw BackupV2Error.settingsEncodeFailed
+        }
+        // Decode the MERGED 7-category macOS settings into BackupSettings (applied UNCHANGED).
+        return try JSONDecoder().decode(BackupSettings.self, from: mergedData)
+    }
+
+    /// The modes a v2 file's `modes` section restores, in file order, each through
+    /// `backupMode(fromV2:)`. A mode whose id is not a UUID is skipped and logged. Pure
+    /// apart from that log line.
+    nonisolated static func backupModes(fromV2 modeDTOs: [UniversalModeDTO]) -> [BackupMode] {
+        let backupModes: [BackupMode] = modeDTOs.compactMap { modeDTO in
+            guard let mode = Self.backupMode(fromV2: modeDTO) else {
+                // Malformed/unparseable id — skip but make it VISIBLE (real producers emit
+                // valid UUIDs/GUIDs; we do not invent a replacement id).
+                // PRIVACY (issue #795): neither the Mode's `name` NOR its `id` is
+                // reported. `backupMode(fromV2:)` returns nil ONLY when
+                // `UUID(uuidString: dto.id)` fails, so on this branch the id is
+                // provably NOT a UUID — it is arbitrary text out of the backup
+                // file, which a hand-edited or third-party file can fill with
+                // anything, including a name. This line is `.warning`, and
+                // `AppLogger.getRecentLogs` DOES capture `.warning` records into
+                // the `recent_logs` extra that `SentryService.capture` attaches.
+                // The LENGTH is reported instead: it is not user content, and it
+                // separates every failure a real producer can hit — 0 is an absent
+                // or empty id, 36 is the right shape with bad characters (a
+                // truncated or altered UUID), 38 is a Windows brace-wrapped
+                // `{GUID}`, and anything else is arbitrary text. One line is
+                // emitted per skipped row, so the count stays visible too.
+                let invalidIdLength = modeDTO.id.count
+                AppLogger.settings.warning("v2 import: skipping mode whose id is not a UUID · idLength=\(invalidIdLength, privacy: .public)")
+                return nil
+            }
+            return mode
+        }
+        return backupModes
+    }
+
+    /// The vocabulary a universal file's raw `vocabulary` array restores, read
+    /// leniently: an entry without a usable word is skipped, a missing or bad id
+    /// gets a fresh one, a missing sortOrder is 0. Pure.
+    nonisolated static func backupVocabularyItems(fromUniversal vocabArray: [[String: Any]]) -> [BackupVocabularyItem] {
+        let items: [BackupVocabularyItem] = vocabArray.compactMap { entry in
+            guard let word = entry["word"] as? String,
+                  !word.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+            let id = (entry["id"] as? String).flatMap(UUID.init) ?? UUID()
+            let sortOrder = entry["sortOrder"] as? Int ?? 0
+            return BackupVocabularyItem(
+                id: id,
+                word: word,
+                replacement: entry["replacement"] as? String,
+                sortOrder: Int16(clamping: sortOrder),
+                source: entry["source"] as? String
             )
         }
-        let pendingLocalDownloads = options.importModes ? repairRestoredLocalModes() : []
-
-        var result = ImportResult.success(
-            modesImported: modesImported,
-            modesSkipped: modesSkipped,
-            vocabularyImported: vocabImported,
-            vocabularySkipped: vocabSkipped,
-            apiKeysImported: apiKeysImported,
-            licenseKeyImported: licenseKeyImported
-        )
-        result.pendingLocalDownloadModelIds = pendingLocalDownloads
-        result.apiKeysFailedProviders = apiKeysFailedProviders
-        result.settingsApplied = settingsApplied
-        return result
+        return items
     }
 
     /// Internal errors thrown by the v2 import settings step (caught locally so the step can fail
@@ -316,7 +261,7 @@ extension BackupManager {
     /// builds (`liveBackupSettings`, via the import's snapshot), so the baseline is always a
     /// complete, decodable object — guaranteeing a Windows backup (missing macOS-only fields) still
     /// decodes after the merge.
-    private static func settingsBaseline(_ settings: BackupSettings) throws -> JSONValue {
+    nonisolated private static func settingsBaseline(_ settings: BackupSettings) throws -> JSONValue {
         let data = try JSONEncoder().encode(settings)
         return try JSONDecoder().decode(JSONValue.self, from: data)
     }
@@ -398,7 +343,7 @@ extension BackupManager {
 
     /// Extracts `defaultModelByMode` from the parked `platformExtensions.macos.settings` blob
     /// (where v2 stores it). Returns nil when absent/empty.
-    nonisolated private static func defaultModelByModeFromExtensions(_ ext: JSONValue?) -> [String: String]? {
+    nonisolated static func defaultModelByModeFromExtensions(_ ext: JSONValue?) -> [String: String]? {
         guard let macos = ext?.objectValue?["macos"]?.objectValue,
               let settings = macos["settings"]?.objectValue,
               case .object(let map)? = settings["defaultModelByMode"] else {

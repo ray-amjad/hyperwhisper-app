@@ -154,19 +154,7 @@ extension BackupManager {
         }
 
         // Build import items from the raw entries, skipping any without a usable word.
-        let items: [BackupVocabularyItem] = vocabArray.compactMap { entry in
-            guard let word = entry["word"] as? String,
-                  !word.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
-            let id = (entry["id"] as? String).flatMap(UUID.init) ?? UUID()
-            let sortOrder = entry["sortOrder"] as? Int ?? 0
-            return BackupVocabularyItem(
-                id: id,
-                word: word,
-                replacement: entry["replacement"] as? String,
-                sortOrder: Int16(clamping: sortOrder),
-                source: entry["source"] as? String
-            )
-        }
+        let items = Self.backupVocabularyItems(fromUniversal: vocabArray)
         // One store transaction (#1613): all of the vocabulary or none of it.
         let vocabResult: PersistenceController.BackupStoreImportResult
         do {
