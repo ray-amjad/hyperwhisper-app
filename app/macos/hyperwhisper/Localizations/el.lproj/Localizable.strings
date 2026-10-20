@@ -936,6 +936,7 @@
 "transcription.error.providerNotAvailable.provider" = "Ο %@ δεν είναι διαθέσιμος. Ελέγξτε τις ρυθμίσεις σας και δοκιμάστε ξανά.";
 "transcription.error.providerNotAvailable.detail" = "Ο %@ δεν είναι διαθέσιμος: %@";
 "transcription.error.modelNotDownloaded" = "Παρακαλώ κάντε λήψη ενός μοντέλου πρώτα";
+"transcription.error.openModelLibrary" = "Άνοιγμα Βιβλιοθήκης μοντέλων";
 "transcription.error.modelProtected" = "Αυτό το μοντέλο δεν μπορεί να διαγραφεί";
 "transcription.error.audioFileNotFound" = "Το αρχείο ήχου δεν βρέθηκε";
 "transcription.error.network.detail" = "Σφάλμα δικτύου: %@";

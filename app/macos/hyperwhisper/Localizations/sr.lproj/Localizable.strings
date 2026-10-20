@@ -936,6 +936,7 @@ Pre brisanja ažurirajte ove režime da koriste drugi model.";
 "transcription.error.providerNotAvailable.provider" = "%@ није доступан. Провери своје поставке и покушај поново.";
 "transcription.error.providerNotAvailable.detail" = "%@ није доступан: %@";
 "transcription.error.modelNotDownloaded" = "Молимо прво преузми модел";
+"transcription.error.openModelLibrary" = "Отвори Библиотеку модела";
 "transcription.error.modelProtected" = "Овај модел не може бити обрисан";
 "transcription.error.audioFileNotFound" = "Звучна датотека није пронађена";
 "transcription.error.network.detail" = "Грешка мреже: %@";

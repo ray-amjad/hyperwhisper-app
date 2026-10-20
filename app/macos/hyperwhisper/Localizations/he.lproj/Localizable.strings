@@ -936,6 +936,7 @@
 "transcription.error.providerNotAvailable.provider" = "%@ אינו זמין. בדוק את ההגדרות שלך ונסה שוב.";
 "transcription.error.providerNotAvailable.detail" = "%@ אינו זמין: %@";
 "transcription.error.modelNotDownloaded" = "אנא הורד מודל תחילה";
+"transcription.error.openModelLibrary" = "פתח את ספריית המודלים";
 "transcription.error.modelProtected" = "לא ניתן למחוק מודל זה";
 "transcription.error.audioFileNotFound" = "קובץ אודיו לא נמצא";
 "transcription.error.network.detail" = "שגיאת רשת: %@";

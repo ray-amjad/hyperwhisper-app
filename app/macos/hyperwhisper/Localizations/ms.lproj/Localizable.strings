@@ -936,6 +936,7 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "transcription.error.providerNotAvailable.provider" = "%@ tidak tersedia. Periksa tetapan anda dan cuba lagi.";
 "transcription.error.providerNotAvailable.detail" = "%@ tidak tersedia: %@";
 "transcription.error.modelNotDownloaded" = "Sila muat turun model dahulu";
+"transcription.error.openModelLibrary" = "Buka Pustaka Model";
 "transcription.error.modelProtected" = "Model ini tidak boleh dipadam";
 "transcription.error.audioFileNotFound" = "Fail audio tidak dijumpai";
 "transcription.error.network.detail" = "Ralat rangkaian: %@";

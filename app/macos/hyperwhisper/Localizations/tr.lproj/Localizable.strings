@@ -936,6 +936,7 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "transcription.error.providerNotAvailable.provider" = "%@ kullanılamaz. Ayarlarınızı kontrol edin ve tekrar deneyin.";
 "transcription.error.providerNotAvailable.detail" = "%@ kullanılamaz: %@";
 "transcription.error.modelNotDownloaded" = "Lütfen önce bir model indirin";
+"transcription.error.openModelLibrary" = "Model Kütüphanesini Aç";
 "transcription.error.modelProtected" = "Bu model silinemez";
 "transcription.error.audioFileNotFound" = "Ses dosyası bulunamadı";
 "transcription.error.network.detail" = "Ağ hatası: %@";

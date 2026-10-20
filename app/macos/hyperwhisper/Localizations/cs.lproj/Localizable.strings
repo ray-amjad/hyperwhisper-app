@@ -936,6 +936,7 @@ Před smazáním aktualizujte tyto režimy, aby používaly jiný model.";
 "transcription.error.providerNotAvailable.provider" = "%@ neni k dispozici. Zkontrolujte nastaveni a zkuste to znovu.";
 "transcription.error.providerNotAvailable.detail" = "%@ neni k dispozici: %@";
 "transcription.error.modelNotDownloaded" = "Nejdrive prosim stahnnete model";
+"transcription.error.openModelLibrary" = "Otevřít Knihovnu modelů";
 "transcription.error.modelProtected" = "Tento model nelze smazat";
 "transcription.error.audioFileNotFound" = "Zvukovy soubor nenalezen";
 "transcription.error.network.detail" = "Sitova chyba: %@";

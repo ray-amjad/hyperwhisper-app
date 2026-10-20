@@ -937,6 +937,7 @@
 "transcription.error.providerNotAvailable.provider" = "%@ を利用できません。設定を確認して再試行してください。";
 "transcription.error.providerNotAvailable.detail" = "%@ を利用できません: %@";
 "transcription.error.modelNotDownloaded" = "まずモデルをダウンロードしてください";
+"transcription.error.openModelLibrary" = "モデルライブラリを開く";
 "transcription.error.modelProtected" = "このモデルは削除できません";
 "transcription.error.audioFileNotFound" = "音声ファイルが見つかりません";
 "transcription.error.network.detail" = "ネットワークエラー: %@";

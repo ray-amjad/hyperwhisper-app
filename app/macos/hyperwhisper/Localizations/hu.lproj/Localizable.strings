@@ -936,6 +936,7 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "transcription.error.providerNotAvailable.provider" = "%@ nem elérhető. Ellenőrizd a beállításokat és próbáld újra.";
 "transcription.error.providerNotAvailable.detail" = "%@ nem elérhető: %@";
 "transcription.error.modelNotDownloaded" = "Kérlek töltsd le először a modellt";
+"transcription.error.openModelLibrary" = "Modellkönyvtár megnyitása";
 "transcription.error.modelProtected" = "Ez a modell nem törölhető";
 "transcription.error.audioFileNotFound" = "Audio fájl nem található";
 "transcription.error.network.detail" = "Hálózati hiba: %@";

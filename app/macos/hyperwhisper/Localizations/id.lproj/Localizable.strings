@@ -936,6 +936,7 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "transcription.error.providerNotAvailable.provider" = "%@ tidak tersedia. Periksa pengaturan Anda dan coba lagi.";
 "transcription.error.providerNotAvailable.detail" = "%@ tidak tersedia: %@";
 "transcription.error.modelNotDownloaded" = "Silakan unduh model terlebih dahulu";
+"transcription.error.openModelLibrary" = "Buka Perpustakaan Model";
 "transcription.error.modelProtected" = "Model ini tidak dapat dihapus";
 "transcription.error.audioFileNotFound" = "File audio tidak ditemukan";
 "transcription.error.network.detail" = "Kesalahan jaringan: %@";

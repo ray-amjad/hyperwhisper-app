@@ -936,6 +936,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcription.error.providerNotAvailable.provider" = "%@ er ekki tiltækt. Athugaðu stillingarnar þínar og reyndu aftur.";
 "transcription.error.providerNotAvailable.detail" = "%@ er ekki tiltækt: %@";
 "transcription.error.modelNotDownloaded" = "Vinsamlegast sæktu líkan fyrst";
+"transcription.error.openModelLibrary" = "Opna Líkanaasafn";
 "transcription.error.modelProtected" = "Þessu líkani er ekki hægt að eyða";
 "transcription.error.audioFileNotFound" = "Hljóðskrá fannst ekki";
 "transcription.error.network.detail" = "Netvilla: %@";

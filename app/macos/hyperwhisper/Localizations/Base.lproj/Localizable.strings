@@ -974,6 +974,7 @@
 "transcription.error.providerNotAvailable.provider" = "%@ is not available. Check your settings and try again.";
 "transcription.error.providerNotAvailable.detail" = "%@ is not available: %@";
 "transcription.error.modelNotDownloaded" = "Please download a model first";
+"transcription.error.openModelLibrary" = "Open Model Library";
 "transcription.error.modelProtected" = "This model cannot be deleted";
 "transcription.error.audioFileNotFound" = "Audio file not found";
 "transcription.error.network.detail" = "Network error: %@";

@@ -936,6 +936,7 @@
 "transcription.error.providerNotAvailable.provider" = "%@ 不可用。檢查您的設定並再試一次。";
 "transcription.error.providerNotAvailable.detail" = "%@ 不可用：%@";
 "transcription.error.modelNotDownloaded" = "請先下載模型";
+"transcription.error.openModelLibrary" = "開啟模型庫";
 "transcription.error.modelProtected" = "此模型無法刪除";
 "transcription.error.audioFileNotFound" = "找不到音頻檔案";
 "transcription.error.network.detail" = "網路錯誤：%@";

@@ -936,6 +936,7 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "transcription.error.providerNotAvailable.provider" = "%@ is niet beschikbaar. Controleer je instellingen en probeer het opnieuw.";
 "transcription.error.providerNotAvailable.detail" = "%@ is niet beschikbaar: %@";
 "transcription.error.modelNotDownloaded" = "Download eerst een model";
+"transcription.error.openModelLibrary" = "Modellenbibliotheek openen";
 "transcription.error.modelProtected" = "Dit model kan niet worden verwijderd";
 "transcription.error.audioFileNotFound" = "Audiobestand niet gevonden";
 "transcription.error.network.detail" = "Netwerkfout: %@";
