@@ -23,7 +23,9 @@ import {
  *
  * REQUEST BODY:
  * - amount: whole dollars, 5..500 (1000 credits per $1)
- * - licenseKey (optional): when present, top up that key instead of minting
+ * - licenseKey (optional): when present, top up that key instead of minting.
+ *   A present key that is not a string (null included) is refused with a 400,
+ *   never treated as absent: that would sell the buyer a second wallet (#2081).
  * - email (optional): mint path only. Prefills the Stripe checkout email so the
  *   minted key is emailed to that address; ignored when topping up a key.
  *
@@ -82,6 +84,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "amount must be a finite number" },
         { status: 400 }
+      );
+    }
+
+    // A present licenseKey must be a string. Anything else (a number, null, an
+    // object) used to fall through to the mint path, so the buyer paid for a
+    // brand-new wallet instead of topping up theirs (#2081). Refuse it before
+    // any database or Stripe call. Never coerce it with String(): that would
+    // look up a key the buyer never typed.
+    if (licenseKey !== undefined && typeof licenseKey !== "string") {
+      return NextResponse.json(
+        { error: "licenseKey must be a string" },
+        { status: 400 },
       );
     }
 
