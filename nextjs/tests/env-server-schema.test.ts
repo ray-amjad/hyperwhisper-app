@@ -199,7 +199,7 @@ describe("no raw process.env read of a validated variable", () => {
 
   /**
    * Known reads left in files #682 does not own. Each is `file : variable`.
-     * - checkout/credits: credits code is out of #682's scope; follow-up.
+   * - checkout/credits: credits code is out of #682's scope; follow-up.
    */
   const ALLOWED = new Set([
     "app/api/checkout/credits/route.ts : NEXT_PUBLIC_SITE_URL",
