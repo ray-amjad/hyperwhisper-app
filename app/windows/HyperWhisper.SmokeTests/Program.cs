@@ -5960,6 +5960,89 @@ internal static class Program
                 Assert(MainViewModel.LocalLibraryModelId(cloudMode) == null, "a cloud mode has no local model row");
             });
 
+            Run("Model Library search: every word must match, each in any field (#2169)", () =>
+            {
+                // Windows ships one Nemotron row, so these rows mirror the macOS
+                // test (#1447) to pin the AND rule itself.
+                LibraryModel Row(string id, string name, string? tag) => new()
+                {
+                    Id = $"parakeet-{id}",
+                    DisplayName = name,
+                    ProviderName = "Nemotron",
+                    ProviderAssetName = "row",
+                    Kind = LibraryModelKind.Voice,
+                    LocationKind = LibraryModelLocationKind.Offline,
+                    StatusKind = LibraryModelStatusKind.Downloadable,
+                    Source = LibraryModelSource.Parakeet,
+                    Tag = tag,
+                    SupportsCustomVocabulary = false,
+                    AvailableViaHyperWhisperCloud = false
+                };
+                var rows = new[]
+                {
+                    Row("nemotron-3.5-latin", "Nemotron 3.5 (Latin)", "Latin"),
+                    Row("nemotron-3.5-ml", "Nemotron 3.5 (Multilingual)", "Multilingual"),
+                };
+                string[] Hits(string query) => rows
+                    .Where(r => LibraryModelSearch.Matches(r, query))
+                    .Select(r => r.DisplayName).ToArray();
+
+                Assert(Hits("nemotron latin").SequenceEqual(new[] { "Nemotron 3.5 (Latin)" }),
+                    $"'nemotron latin' found [{string.Join(", ", Hits("nemotron latin"))}]");
+                Assert(Hits("  LATIN   nemotron ").SequenceEqual(new[] { "Nemotron 3.5 (Latin)" }),
+                    "word order, case and extra spaces must not matter");
+                Assert(Hits("nemotron").Length == 2, "one word still matches both rows");
+                Assert(Hits("nemotron zzz").Length == 0, "one unmatched word must hide the row");
+            });
+
+            Run("Model Library search: model ids match, and one-word, empty and junk queries keep their rows (#2169)", () =>
+            {
+                var library = new ModelLibraryManager(
+                    new WhisperModelService(),
+                    new ParakeetModelService(),
+                    new LocalLlmModelService(),
+                    ApiKeyService.Instance,
+                    CloudProviderHealthService.Instance);
+                var rows = library.Rebuild().ToList();
+                string[] Hits(string query) => rows
+                    .Where(r => LibraryModelSearch.Matches(r, query))
+                    .Select(r => r.Id).ToArray();
+
+                // The model id, local and cloud alike.
+                Assert(Hits("base.en").SequenceEqual(new[] { "whisper-base.en" }),
+                    $"'base.en' found [{string.Join(", ", Hits("base.en"))}]");
+                Assert(Hits("small.en").SequenceEqual(new[] { "whisper-small.en" }),
+                    $"'small.en' found [{string.Join(", ", Hits("small.en"))}]");
+                Assert(Hits("gpt-4o-transcribe").Contains("cloud-tx-openai-gpt-4o-transcribe"),
+                    $"'gpt-4o-transcribe' found [{string.Join(", ", Hits("gpt-4o-transcribe"))}]");
+                Assert(Hits("nemotron multilingual").Length == 1
+                        && Hits("nemotron multilingual")[0].StartsWith("parakeet-nemotron", StringComparison.Ordinal),
+                    $"'nemotron multilingual' found [{string.Join(", ", Hits("nemotron multilingual"))}]");
+                // The row-id prefix is not searchable: "pp" and "tx" are not
+                // words the user sees.
+                Assert(Hits("cloud-tx").Length == 0, "the row-id prefix must not be searchable");
+
+                // Empty and junk queries.
+                Assert(Hits("").Length == rows.Count && Hits("   ").Length == rows.Count,
+                    "an empty query must keep every row");
+                Assert(Hits("qqzzxx").Length == 0 && Hits("whisper qqzzxx").Length == 0,
+                    "a junk word must match nothing");
+
+                // One word: every row the old whole-string match kept is still kept.
+                static bool OldMatch(LibraryModel m, string s)
+                    => m.DisplayName.Contains(s, StringComparison.OrdinalIgnoreCase)
+                        || m.ProviderName.Contains(s, StringComparison.OrdinalIgnoreCase)
+                        || (m.Detail?.Contains(s, StringComparison.OrdinalIgnoreCase) ?? false)
+                        || (m.Tag?.Contains(s, StringComparison.OrdinalIgnoreCase) ?? false);
+                foreach (var word in new[] { "whisper", "Base", "en", "openai", "deepgram", "Multilingual", "VRAM", "gemini", "large" })
+                {
+                    var old = rows.Where(r => OldMatch(r, word)).Select(r => r.Id).ToArray();
+                    Assert(old.Length > 0, $"'{word}' matched no row before the change; pick another word");
+                    var lost = old.Except(Hits(word)).ToArray();
+                    Assert(lost.Length == 0, $"'{word}' lost rows: {string.Join(", ", lost)}");
+                }
+            });
+
             Run("TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech skips exactly at the low-signal threshold boundary (inclusive <=)", () =>
             {
                 // The gate's comparisons are inclusive (<=), so a reading sitting exactly on
