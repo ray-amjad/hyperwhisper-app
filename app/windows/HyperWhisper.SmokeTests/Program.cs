@@ -21321,14 +21321,15 @@ internal static class Program
                     held.Dispose();
                     held = null;
 
-                    // The database refuses its part: the pending row it already dropped comes back.
+                    // The database refuses its part inside SaveChanges, before the pending file is touched:
+                    // nothing is deleted, and the pending row stays in memory and in its file.
                     ExecSql(dbPath, "CREATE TRIGGER IF NOT EXISTS percy2126_refuse BEFORE DELETE ON Transcripts " +
                         "WHEN OLD.Mode = 'percy2126saved' BEGIN SELECT RAISE(ABORT, 'percy2126 refused delete'); END;");
                     deleteRefused = true;
                     bulkDeleted = history.DeleteTranscripts(selection);
                     Assert(!bulkDeleted.IsSuccess, "a bulk delete the database refused was reported as done");
                     Assert(history.GetTranscript(bulkId.Value) != null && File.ReadAllText(storePath).Contains(bulkId.Value.ToString()),
-                        "a bulk delete the database refused still dropped the pending row");
+                        "a bulk delete the database refused dropped the pending row");
                     Assert(File.Exists(bulkAudio) && File.Exists(savedAudio), "the audio of a row kept by a refused bulk delete was deleted");
                     ExecSql(dbPath, "DROP TRIGGER IF EXISTS percy2126_refuse;");
                     deleteRefused = false;
