@@ -1087,6 +1087,9 @@ En az bir modunuz olmalıdır.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Ctrl, Alt, Shift veya Win gibi tek değiştirici tuştan oluşan kısayollar desteklenmez. Değiştiricilerle birlikte bir tuş ya da Ctrl+Win gibi çok değiştiricili bir kısayol kullanın.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Değiştirici tuşu olmayan bir kısayol, bir işlev tuşu veya Esc olmalıdır. Başka herhangi bir tuş, siz yazarken tetiklenir.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Bu kısayol zaten {0} için kullanılıyor ({1})</value>
   </data>

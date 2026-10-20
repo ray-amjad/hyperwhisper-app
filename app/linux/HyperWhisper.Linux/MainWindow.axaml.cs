@@ -5876,12 +5876,12 @@ internal enum ShortcutRecorderVerdict { Accept, Ignore, SingleModifier, TypingKe
 /// F13 toggle and the shipped bare Escape cancel (SettingsViewModel.cs:348) stay recordable for
 /// every role, exactly as on main.
 ///
-/// This is NOT Windows parity. <c>ShortcutValidationService.ValidateActionShortcut</c> carries no
-/// such rule -- it refuses a single bare modifier and nothing else -- and the Windows recorder DOES
-/// commit a bare letter (ShortcutRecorderBox.xaml.cs:228-243). The reason the same chord is safe
-/// there and unsafe here is the platform asymmetry: Windows routes a bare key through a
-/// NON-CONSUMING low-level keyboard hook (KeyboardShortcutService.cs:321-326), so the press still
-/// reaches the focused application, whereas X11's <c>XGrabKey</c> has no non-consuming equivalent.
+/// Windows has the same rule since #1631: <c>ShortcutValidationService.ValidateActionShortcut</c>
+/// refuses a bare key unless it is F1-F24 or Escape, with the same sentence. There the reason is the
+/// ACTION, not the keystroke -- Windows routes a bare key through a NON-CONSUMING low-level keyboard
+/// hook (KeyboardShortcutService.cs), so the press still reaches the focused application, but the
+/// action still fires on every press of that key while the user types (#1631 saved a bare Tab as
+/// the global Toggle shortcut). Keep the two key sets in step.
 /// </summary>
 internal static class LinuxShortcutRecorderRules
 {

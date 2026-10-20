@@ -1087,6 +1087,9 @@
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Сочетания из одной клавиши-модификатора, таких как Ctrl, Alt, Shift или Win, не поддерживаются. Используйте клавишу с модификаторами или сочетание из нескольких модификаторов, например Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Сочетание клавиш без модификатора должно быть функциональной клавишей или Esc. Любая другая клавиша срабатывала бы во время набора текста.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Это сочетание уже используется для действия «{0}» ({1})</value>
   </data>

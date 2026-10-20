@@ -99,4 +99,24 @@ mod tests {
         let out = serialize_backup(&b).unwrap();
         assert!(out.contains("\"schemaVersion\": 2"));
     }
+
+    #[test]
+    fn schema_version_2_0_parses_and_serializes_as_2() {
+        let json = r#"{"schemaVersion":2.0,"exportDate":"2026-01-01T00:00:00Z","appVersion":"1.0","platform":"macos"}"#;
+        assert!(validate_str(json).is_empty());
+        let b = parse_backup(json).unwrap();
+        assert_eq!(b.schema_version, 2);
+        let out = serialize_backup(&b).unwrap();
+        assert!(out.contains("\"schemaVersion\": 2,"), "got {out}");
+    }
+
+    #[test]
+    fn parse_rejects_a_fractional_schema_version() {
+        let json = r#"{"schemaVersion":2.5,"exportDate":"2026-01-01T00:00:00Z","appVersion":"1.0","platform":"macos"}"#;
+        let err = parse_backup(json).unwrap_err().to_string();
+        assert!(
+            err.contains("schemaVersion must be an integer, got 2.5"),
+            "got {err}"
+        );
+    }
 }

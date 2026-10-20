@@ -1087,6 +1087,9 @@
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>不支援僅使用 Ctrl、Alt、Shift 或 Win 等單一修飾鍵的快速鍵。請使用搭配修飾鍵的按鍵，或 Ctrl+Win 這類多修飾鍵的快速鍵。</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>不含輔助鍵的快速鍵只能是功能鍵或 Esc。其他任何按鍵都會在您打字時觸發。</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>此快速鍵已用於{0}（{1}）</value>
   </data>

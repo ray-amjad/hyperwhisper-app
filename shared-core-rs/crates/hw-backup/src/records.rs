@@ -10,6 +10,27 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
+/// A JSON number as an `i64` when its value is a whole number, so `2.0` reads as
+/// `2`. JSON Schema compares numbers by value, which makes `2.0` a valid
+/// `"const": 2`; `serde_json`'s own `as_i64` rejects every float.
+pub fn integral_i64(v: &Value) -> Option<i64> {
+    v.as_i64().or_else(|| {
+        v.as_f64()
+            .filter(|f| f.fract() == 0.0 && *f >= i64::MIN as f64 && *f < i64::MAX as f64)
+            .map(|f| f as i64)
+    })
+}
+
+fn deserialize_integral_i64<'de, D>(deserializer: D) -> Result<i64, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let v = Value::deserialize(deserializer)?;
+    integral_i64(&v).ok_or_else(|| {
+        serde::de::Error::custom(format!("schemaVersion must be an integer, got {v}"))
+    })
+}
+
 // ============================================================================
 // Universal v2 wire format (parsed 1:1 from the .hwbackup.json file)
 // ============================================================================
@@ -21,7 +42,10 @@ use std::collections::BTreeMap;
 /// round-trip is lossless — the requirement the golden tests enforce.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UniversalBackup {
-    #[serde(rename = "schemaVersion")]
+    #[serde(
+        rename = "schemaVersion",
+        deserialize_with = "deserialize_integral_i64"
+    )]
     pub schema_version: i64,
     #[serde(rename = "exportDate")]
     pub export_date: String,

@@ -1087,6 +1087,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Scurtăturile cu un singur modificator, precum Ctrl, Alt, Shift sau Win, nu sunt acceptate. Folosește o tastă cu modificatori sau o scurtătură cu mai mulți modificatori, de exemplu Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>O comandă rapidă fără tastă modificatoare trebuie să fie o tastă funcțională sau Esc. Orice altă tastă s-ar declanșa în timp ce tastați.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Această scurtătură este deja folosită pentru {0} ({1})</value>
   </data>

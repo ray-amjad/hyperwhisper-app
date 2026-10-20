@@ -1087,6 +1087,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Genveje med kun én modifikatortast som Ctrl, Alt, Shift eller Win understøttes ikke. Brug en tast med modifikatorer eller en genvej med flere modifikatorer, f.eks. Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>En genvej uden ændringstast skal være en funktionstast eller Esc. Enhver anden tast ville blive udløst, mens du skriver.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Denne genvej bruges allerede til {0} ({1})</value>
   </data>

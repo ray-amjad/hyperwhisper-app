@@ -1087,6 +1087,9 @@ Vous devez conserver au moins un mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Les raccourcis à modificateur unique comme Ctrl, Alt, Shift ou Win ne sont pas pris en charge. Utilisez une touche avec des modificateurs ou un raccourci à plusieurs modificateurs, par exemple Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Un raccourci sans touche de modification doit être une touche de fonction ou Échap (Esc). Toute autre touche se déclencherait pendant que vous tapez.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Ce raccourci est déjà utilisé pour {0} ({1})</value>
   </data>

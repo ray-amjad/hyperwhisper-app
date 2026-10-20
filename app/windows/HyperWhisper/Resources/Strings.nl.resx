@@ -1087,6 +1087,9 @@ Je hebt minstens één modus nodig.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Sneltoetsen met slechts één modificatietoets zoals Ctrl, Alt, Shift of Win worden niet ondersteund. Gebruik een toets met modificatietoetsen of een sneltoets met meerdere modificatietoetsen, bijvoorbeeld Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Een sneltoets zonder modificatietoets moet een functietoets of Esc zijn. Elke andere toets zou afgaan terwijl je typt.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Deze sneltoets wordt al gebruikt voor {0} ({1})</value>
   </data>

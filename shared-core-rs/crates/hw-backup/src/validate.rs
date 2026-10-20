@@ -10,7 +10,8 @@
 //! - the document is a JSON object,
 //! - the four schema-`required` top-level fields are present
 //!   (`schemaVersion`, `exportDate`, `appVersion`, `platform`),
-//! - `schemaVersion` is exactly `2` (the schema `const`),
+//! - `schemaVersion` is exactly `2` (the schema `const`; `2.0` is the same
+//!   number, so it passes too),
 //! - `platform` is one of the enum values,
 //! - `modes`/`vocabulary`, when present, are arrays, and each item carries the
 //!   required `id` (+ `name` for modes / `word` for vocabulary).
@@ -21,6 +22,7 @@
 //! documents it rejects are guaranteed to violate a required-field/version
 //! invariant. Anything stricter is the platform's responsibility.
 
+use crate::records::integral_i64;
 use serde_json::Value;
 
 /// A single validation failure, with a JSON-ish path to the offending field.
@@ -69,7 +71,7 @@ pub fn validate_value(doc: &Value) -> Vec<ValidationError> {
 
     // schemaVersion == 2.
     if let Some(v) = obj.get("schemaVersion") {
-        match v.as_i64() {
+        match integral_i64(v) {
             Some(n) if n == UNIVERSAL_SCHEMA_VERSION => {}
             Some(n) => errors.push(ValidationError {
                 path: "schemaVersion".to_string(),
@@ -249,5 +251,31 @@ mod tests {
             "vocabulary": [ { "id": "a" } ]
         }));
         assert!(errs.iter().any(|e| e.path == "vocabulary[0].word"));
+    }
+
+    #[test]
+    fn schema_version_is_compared_by_value() {
+        let doc = |v: Value| {
+            json!({
+                "schemaVersion": v,
+                "exportDate": "2026-01-01T00:00:00Z",
+                "appVersion": "1.0.0",
+                "platform": "macos"
+            })
+        };
+        assert!(validate_value(&doc(json!(2.0))).is_empty());
+        let messages = |v: Value| -> Vec<String> {
+            validate_value(&doc(v))
+                .into_iter()
+                .map(|e| e.to_string())
+                .collect()
+        };
+        assert_eq!(messages(json!(3.0)), ["schemaVersion: must be 2, got 3"]);
+        assert_eq!(messages(json!(2.5)), ["schemaVersion: must be an integer"]);
+        assert_eq!(messages(json!("2")), ["schemaVersion: must be an integer"]);
+        assert_eq!(
+            messages(json!(1e300)),
+            ["schemaVersion: must be an integer"]
+        );
     }
 }
