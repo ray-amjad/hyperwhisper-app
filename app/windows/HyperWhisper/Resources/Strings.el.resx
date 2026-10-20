@@ -1087,6 +1087,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Οι συντομεύσεις με ένα μόνο πλήκτρο τροποποίησης, όπως Ctrl, Alt, Shift ή Win, δεν υποστηρίζονται. Χρησιμοποιήστε ένα πλήκτρο με τροποποιητές ή μια συντόμευση με πολλούς τροποποιητές, όπως Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Μια συντόμευση χωρίς πλήκτρο τροποποίησης πρέπει να είναι πλήκτρο λειτουργίας ή Esc. Οποιοδήποτε άλλο πλήκτρο θα ενεργοποιούνταν ενώ πληκτρολογείτε.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Αυτή η συντόμευση χρησιμοποιείται ήδη για {0} ({1})</value>
   </data>

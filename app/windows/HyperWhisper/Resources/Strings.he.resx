@@ -1087,6 +1087,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>קיצורי דרך עם מקש החלפה יחיד כמו Ctrl, Alt, Shift או Win אינם נתמכים. השתמש במקש עם מקשי החלפה או בקיצור עם כמה מקשי החלפה, כגון Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>קיצור דרך ללא מקש צירוף חייב להיות מקש פונקציה או Esc. כל מקש אחר יופעל בזמן ההקלדה.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>קיצור הדרך הזה כבר משמש עבור {0} ({1})</value>
   </data>

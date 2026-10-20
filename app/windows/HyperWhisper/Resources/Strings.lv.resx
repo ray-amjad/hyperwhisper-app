@@ -1087,6 +1087,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Īsinājumtaustiņi ar vienu modifikatora taustiņu, piemēram, Ctrl, Alt, Shift vai Win, netiek atbalstīti. Izmantojiet taustiņu ar modifikatoriem vai vairāku modifikatoru kombināciju, piemēram, Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Īsinājumtaustiņam bez modifikatora jābūt funkciju taustiņam vai Esc. Jebkurš cits taustiņš nostrādātu rakstīšanas laikā.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Šis īsinājumtaustiņš jau tiek izmantots šeit: {0} ({1})</value>
   </data>

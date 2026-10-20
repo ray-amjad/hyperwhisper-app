@@ -1087,6 +1087,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>ไม่รองรับทางลัดที่ใช้ปุ่มปรับแต่งเพียงปุ่มเดียว เช่น Ctrl, Alt, Shift หรือ Win กรุณาใช้ปุ่มร่วมกับปุ่มปรับแต่ง หรือทางลัดที่มีปุ่มปรับแต่งหลายปุ่ม เช่น Ctrl+Win</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>ปุ่มลัดที่ไม่มีปุ่มปรับแต่งต้องเป็นปุ่มฟังก์ชันหรือ Esc ปุ่มอื่นใดจะทำงานขณะที่คุณพิมพ์</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>ทางลัดนี้ถูกใช้สำหรับ {0} แล้ว ({1})</value>
   </data>

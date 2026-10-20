@@ -1087,6 +1087,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Skratky s jediným modifikátorom, ako sú Ctrl, Alt, Shift alebo Win, nie sú podporované. Použite kláves s modifikátormi alebo skratku s viacerými modifikátormi, napríklad Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Skratka bez modifikátora musí byť funkčný kláves alebo Esc. Akýkoľvek iný kláves by sa spúšťal počas písania.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Táto skratka sa už používa pre {0} ({1})</value>
   </data>

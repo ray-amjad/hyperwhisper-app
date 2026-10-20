@@ -22537,6 +22537,234 @@ internal static class Program
                 }
             });
 
+            Run("shortcuts: Esc cancels, Tab navigates, a bare typing key is refused - issue #1631", () =>
+            {
+                // #1631. The recorder marked EVERY key-down handled and took it as a
+                // chord. Esc over the Streaming box was refused as Cancel's duplicate
+                // and left the box capturing, with no keyboard way out; Tab and
+                // Shift+Tab were saved as global shortcuts ("ToggleShortcut": "Tab"),
+                // and focus never left the field. Ray's decisions on the issue: a bare
+                // key follows the Linux rule (#628 / PR #661) - F1-F24 and Esc only;
+                // Esc cancels capture in every box; Tab / Shift+Tab navigate, while
+                // Ctrl/Alt/Win+Tab still record.
+                EnsureSmokeApplication();
+
+                var typingKey = HyperWhisper.Localization.Loc.S("settings.shortcuts.error.typingKey");
+                Assert(!string.IsNullOrWhiteSpace(typingKey)
+                       && !typingKey.StartsWith("settings.", StringComparison.Ordinal),
+                    $"the typing-key refusal '{typingKey}' is missing from the base catalogue");
+
+                // THE RULE, on the service every box validates through.
+                foreach (var key in new[] { Key.Tab, Key.A, Key.Z, Key.D1, Key.NumPad5, Key.Space,
+                             Key.Enter, Key.Back, Key.Delete, Key.Home, Key.Left, Key.OemPeriod })
+                {
+                    var bare = new KeyboardShortcut { Key = key };
+                    Assert(ShortcutValidationService.ValidateActionShortcut(bare) == typingKey,
+                        $"a bare {key} fires on every press while the user types, so it must be refused "
+                        + $"with the typing-key sentence - got '{ShortcutValidationService.ValidateActionShortcut(bare) ?? "null"}'");
+                    Assert(ShortcutValidationService.ValidateDuplicate(bare, "Toggle",
+                            new KeyboardShortcut(), new KeyboardShortcut(), new KeyboardShortcut(), new KeyboardShortcut())
+                        == typingKey, $"and the duplicate check, which leads with the same rule, refuses bare {key} too");
+                }
+
+                foreach (var key in new[] { Key.F1, Key.F8, Key.F12, Key.F13, Key.F24, Key.Escape })
+                {
+                    Assert(ShortcutValidationService.ValidateActionShortcut(new KeyboardShortcut { Key = key }) is null,
+                        $"a bare {key} is never typed, so it stays a legal shortcut (the Cancel default is bare Esc)");
+                }
+
+                foreach (var chord in new[] { "Ctrl+Tab", "Alt+Tab", "Win+Tab", "Ctrl+Shift+Tab", "Ctrl+Esc",
+                             "Shift+Esc", "Shift+A", "Ctrl+Shift+Space", "Ctrl+Alt" })
+                {
+                    Assert(ShortcutValidationService.ValidateActionShortcut(KeyboardShortcut.FromPersistedString(chord)) is null,
+                        $"{chord} holds a modifier, so the bare-key rule does not touch it");
+                }
+
+                // The ROUTING decision, as a pure function - a real KeyDown needs a
+                // PresentationSource this suite does not have.
+                Assert(ShortcutRecorderBox.ClassifyKeyDown(Key.Tab, false, false, false, false)
+                       == ShortcutRecorderBox.RecorderKeyAction.PassThrough, "bare Tab is focus navigation");
+                Assert(ShortcutRecorderBox.ClassifyKeyDown(Key.Tab, false, false, true, false)
+                       == ShortcutRecorderBox.RecorderKeyAction.PassThrough, "Shift+Tab is backward focus navigation");
+                Assert(ShortcutRecorderBox.ClassifyKeyDown(Key.Tab, true, false, false, false)
+                       == ShortcutRecorderBox.RecorderKeyAction.Record, "Ctrl+Tab still records");
+                Assert(ShortcutRecorderBox.ClassifyKeyDown(Key.Tab, false, true, false, false)
+                       == ShortcutRecorderBox.RecorderKeyAction.Record, "Alt+Tab still records");
+                Assert(ShortcutRecorderBox.ClassifyKeyDown(Key.Tab, false, false, false, true)
+                       == ShortcutRecorderBox.RecorderKeyAction.Record, "Win+Tab still records");
+                Assert(ShortcutRecorderBox.ClassifyKeyDown(Key.Escape, false, false, false, false)
+                       == ShortcutRecorderBox.RecorderKeyAction.Cancel, "bare Esc cancels capture");
+                Assert(ShortcutRecorderBox.ClassifyKeyDown(Key.Escape, true, false, false, false)
+                       == ShortcutRecorderBox.RecorderKeyAction.Record, "Ctrl+Esc is a chord, not a cancel");
+                Assert(ShortcutRecorderBox.ClassifyKeyDown(Key.Escape, false, false, true, false)
+                       == ShortcutRecorderBox.RecorderKeyAction.Record, "Shift+Esc is a chord, not a cancel");
+                Assert(ShortcutRecorderBox.ClassifyKeyDown(Key.A, false, false, false, false)
+                       == ShortcutRecorderBox.RecorderKeyAction.Record,
+                    "a bare letter goes through the gesture, where validation refuses it with a reason");
+
+                // OnboardingWindow swallows Esc in its own PreviewKeyDown, which runs
+                // before the field's; it must leave a recorder's Esc alone.
+                var probe = new ShortcutRecorderBox();
+                Assert(ShortcutRecorderBox.IsInsideRecorder(probe.Field), "the capture field is inside its recorder");
+                Assert(!ShortcutRecorderBox.IsInsideRecorder(new System.Windows.Controls.TextBox()),
+                    "an ordinary text box is not");
+                Assert(!ShortcutRecorderBox.IsInsideRecorder(null), "and no source is not");
+
+                var settings = SettingsService.Instance;
+                var savedToggle = settings.ToggleShortcut;
+                var savedCancel = settings.CancelShortcut;
+                var savedChangeMode = settings.ChangeModeShortcut;
+                var savedStreaming = settings.StreamingShortcut;
+                var savedStreamingEnabled = settings.StreamingEnabled;
+                try
+                {
+                    settings.ToggleShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
+                    settings.CancelShortcut = KeyboardShortcut.FromPersistedString("Esc");
+                    settings.ChangeModeShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+.");
+                    settings.StreamingShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+Space");
+                    settings.StreamingEnabled = true;
+
+                    var captured = new List<string>();
+
+                    // Step 3/5 of the issue: bare Tab over Toggle.
+                    var toggle = new ShortcutRecorderBox { Role = "Toggle", DisplayText = "Ctrl+Alt" };
+                    toggle.ShortcutCaptured += (_, args) => captured.Add(args.Persisted);
+                    Assert(!toggle.HandleKeyDown(Key.Tab, control: false, alt: false, shift: false, win: false),
+                        "bare Tab is NOT marked handled, so WPF moves focus out of the box");
+                    toggle.HandleKeyUp(Key.Tab);
+                    Assert(captured.Count == 0 && toggle.Field.Text == "Ctrl+Alt" && toggle.ErrorMessage is null,
+                        $"and it is not recorded - got [{string.Join(", ", captured)}], field '{toggle.Field.Text}'");
+
+                    // Shift held for Shift+Tab is a pending modifier. If the Tab left it
+                    // behind, the Shift key-up would end the gesture and paint the
+                    // single-modifier refusal (or worse) - here, or on a box focus
+                    // never actually left.
+                    toggle.HandleKeyDown(Key.LeftShift, control: false, alt: false, shift: true, win: false);
+                    Assert(toggle.Field.Text == "Shift", "precondition: Shift is previewed while held");
+                    Assert(!toggle.HandleKeyDown(Key.Tab, control: false, alt: false, shift: true, win: false),
+                        "Shift+Tab is NOT marked handled either");
+                    Assert(toggle.Field.Text == "Ctrl+Alt", "the Shift preview goes with the abandoned attempt");
+                    toggle.HandleKeyUp(Key.LeftShift);
+                    toggle.HandleKeyUp(Key.Tab);
+                    Assert(captured.Count == 0 && toggle.ErrorMessage is null && toggle.Field.Text == "Ctrl+Alt",
+                        $"releasing the Shift afterwards commits nothing and refuses nothing - got [{string.Join(", ", captured)}], "
+                        + $"error '{toggle.ErrorMessage ?? "null"}'");
+                    Assert(settings.ToggleShortcut.ToPersistedString() == "Ctrl+Alt", "Toggle is untouched");
+
+                    // Ctrl+Tab is deliberate, and records.
+                    toggle.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    Assert(toggle.HandleKeyDown(Key.Tab, control: true, alt: false, shift: false, win: false),
+                        "Ctrl+Tab is the recorder's, so it IS handled");
+                    toggle.HandleKeyUp(Key.Tab);
+                    toggle.HandleKeyUp(Key.LeftCtrl);
+                    Assert(captured.Count == 1 && captured[0] == "Ctrl+Tab",
+                        $"Ctrl+Tab records - got [{string.Join(", ", captured)}]");
+
+                    // A bare typing key goes through the gesture and is REFUSED, on the
+                    // same path as a lone modifier: reason shown, field restored,
+                    // nothing raised.
+                    foreach (var key in new[] { Key.A, Key.D7, Key.Space, Key.Enter })
+                    {
+                        captured.Clear();
+                        var box = new ShortcutRecorderBox { Role = "Streaming", DisplayText = "Ctrl+Shift+Space" };
+                        box.ShortcutCaptured += (_, args) => captured.Add(args.Persisted);
+                        Assert(box.HandleKeyDown(key, control: false, alt: false, shift: false, win: false),
+                            $"a bare {key} is consumed by the recorder");
+                        box.HandleKeyUp(key);
+                        Assert(captured.Count == 0, $"a bare {key} is not captured - got [{string.Join(", ", captured)}]");
+                        Assert(box.ErrorMessage == typingKey,
+                            $"a bare {key} says why, in the catalogue's words - got '{box.ErrorMessage ?? "null"}'");
+                        Assert(box.Field.Text == "Ctrl+Shift+Space", $"and the field goes back after a bare {key}");
+                    }
+
+                    // A bare F-key still commits.
+                    captured.Clear();
+                    var fkey = new ShortcutRecorderBox { Role = "Toggle", DisplayText = "Ctrl+Alt" };
+                    fkey.ShortcutCaptured += (_, args) => captured.Add(args.Persisted);
+                    fkey.HandleKeyDown(Key.F24, control: false, alt: false, shift: false, win: false);
+                    fkey.HandleKeyUp(Key.F24);
+                    Assert(captured.Count == 1 && captured[0] == "F24" && fkey.ErrorMessage is null,
+                        $"a bare F24 is a legal shortcut - got [{string.Join(", ", captured)}]");
+
+                    // Step 2 of the issue: Esc over Streaming. It used to be refused as
+                    // Cancel's duplicate and leave the box capturing.
+                    captured.Clear();
+                    var streaming = new ShortcutRecorderBox { Role = "Streaming", DisplayText = "Ctrl+Shift+Space" };
+                    streaming.ShortcutCaptured += (_, args) => captured.Add(args.Persisted);
+                    Assert(streaming.HandleKeyDown(Key.Escape, control: false, alt: false, shift: false, win: false),
+                        "Esc is consumed - it must not reach anything that would close the window");
+                    streaming.HandleKeyUp(Key.Escape);
+                    Assert(captured.Count == 0 && streaming.ErrorMessage is null && streaming.Field.Text == "Ctrl+Shift+Space",
+                        $"Esc cancels: nothing captured, no duplicate refusal, the stored chord shown - got "
+                        + $"[{string.Join(", ", captured)}], error '{streaming.ErrorMessage ?? "null"}', field '{streaming.Field.Text}'");
+
+                    // Esc MID-gesture: a refused attempt's sentence and a half-typed
+                    // preview both go, and the pending modifier cannot commit later.
+                    streaming.HandleKeyDown(Key.A, control: false, alt: false, shift: false, win: false);
+                    streaming.HandleKeyUp(Key.A);
+                    Assert(streaming.ErrorMessage == typingKey, "precondition: a refused attempt is on screen");
+                    streaming.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    Assert(streaming.Field.Text == "Ctrl", "precondition: Ctrl is previewed while held");
+                    streaming.HandleKeyDown(Key.Escape, control: false, alt: false, shift: false, win: false);
+                    Assert(streaming.Field.Text == "Ctrl+Shift+Space" && streaming.ErrorMessage is null,
+                        $"Esc restores the field and clears the verdict - field '{streaming.Field.Text}', "
+                        + $"error '{streaming.ErrorMessage ?? "null"}'");
+                    streaming.HandleKeyUp(Key.LeftCtrl);
+                    streaming.HandleKeyUp(Key.Escape);
+                    Assert(captured.Count == 0 && streaming.ErrorMessage is null,
+                        $"the abandoned Ctrl does not commit, or get refused, on release - got "
+                        + $"[{string.Join(", ", captured)}], error '{streaming.ErrorMessage ?? "null"}'");
+                    Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Shift+Space", "Streaming is untouched");
+
+                    // The host's standing verdict is about the STORED chord, so Esc
+                    // leaves it showing.
+                    streaming.StandingError = "standing";
+                    streaming.HandleKeyDown(Key.Escape, control: false, alt: false, shift: false, win: false);
+                    Assert(streaming.ErrorMessage == "standing", "Esc does not erase the host's standing error");
+                    streaming.StandingError = null;
+
+                    // Cancel Recording's own box too: bare Esc cancels there, Ctrl+Esc records.
+                    captured.Clear();
+                    var cancel = new ShortcutRecorderBox { Role = "Cancel", DisplayText = "Esc" };
+                    cancel.ShortcutCaptured += (_, args) => captured.Add(args.Persisted);
+                    cancel.HandleKeyDown(Key.Escape, control: false, alt: false, shift: false, win: false);
+                    cancel.HandleKeyUp(Key.Escape);
+                    Assert(captured.Count == 0 && cancel.Field.Text == "Esc",
+                        $"bare Esc cancels in the Cancel box as well - got [{string.Join(", ", captured)}]");
+                    cancel.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    cancel.HandleKeyDown(Key.Escape, control: true, alt: false, shift: false, win: false);
+                    cancel.HandleKeyUp(Key.Escape);
+                    cancel.HandleKeyUp(Key.LeftCtrl);
+                    Assert(captured.Count == 1 && captured[0] == "Ctrl+Esc" && cancel.ErrorMessage is null,
+                        $"Ctrl+Esc is an ordinary chord - got [{string.Join(", ", captured)}], error '{cancel.ErrorMessage ?? "null"}'");
+                }
+                finally
+                {
+                    settings.ToggleShortcut = savedToggle;
+                    settings.CancelShortcut = savedCancel;
+                    settings.ChangeModeShortcut = savedChangeMode;
+                    settings.StreamingShortcut = savedStreaming;
+                    settings.StreamingEnabled = savedStreamingEnabled;
+                }
+
+                // The sentence is translated, like every other refusal (#516).
+                var previousCulture = HyperWhisper.Resources.Strings.Culture;
+                try
+                {
+                    foreach (var culture in new[] { "de", "ja", "ru" })
+                    {
+                        HyperWhisper.Resources.Strings.Culture = CultureInfo.GetCultureInfo(culture);
+                        var translated = HyperWhisper.Localization.Loc.S("settings.shortcuts.error.typingKey");
+                        Assert(translated != typingKey && !translated.StartsWith("settings.", StringComparison.Ordinal),
+                            $"{culture}: the typing-key refusal is '{translated}'");
+                    }
+                }
+                finally
+                {
+                    HyperWhisper.Resources.Strings.Culture = previousCulture;
+                }
+            });
+
             Run("shortcuts: Settings > Streaming stores nothing until the gesture closes", () =>
             {
                 // #794. The SAME setting had two editors and only one was fixed:
