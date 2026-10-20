@@ -176,7 +176,7 @@ const MUTANTS = [
   {
     file: CUSTOMER,
     name: "send the customer back to the wrong site after billing",
-    from: '      process.env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";',
+    from: '      env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";',
     to: '      "https://hyperwhisper.com";',
   },
   {

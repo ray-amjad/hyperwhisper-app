@@ -207,13 +207,14 @@ describe('transcribeWithMistral — HTTP error classification', () => {
     expect(upstream.message).toContain('upstream 5xx: 504');
   });
 
-  test('other 4xx becomes ProviderInputError carrying the status and body preview', async () => {
+  test('other 4xx becomes ProviderInputError carrying the status, the body preview for the client only', async () => {
     errorResponse(422, 'unsupported container');
 
     const thrown = await transcribeWithMistral(audio(), 'audio/wav').catch((e) => e);
     expect(thrown).toBeInstanceOf(ProviderInputError);
     expect(thrown.status).toBe(422);
-    expect(thrown.message).toContain('unsupported container');
+    expect(thrown.message).not.toContain('unsupported container');
+    expect(thrown.clientMessage).toContain('unsupported container');
   });
 
   test('a 200 with an unparsable body fails over instead of 500ing the request', async () => {

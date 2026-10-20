@@ -299,7 +299,12 @@ final class ParakeetProvider: TranscriptionProvider {
         }
     }
 
-    let name: String = "Parakeet TDT"
+    /// The engine name `name` returns, which a completed History row stores as
+    /// its `transcriptionProvider`. Static so a failed row can store the same
+    /// value without an instance (issue #1518).
+    static let engineName = "Parakeet TDT"
+
+    let name: String = ParakeetProvider.engineName
 
     private let runtime = Runtime()
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "ParakeetProvider")
@@ -391,6 +396,12 @@ final class ParakeetProvider: TranscriptionProvider {
         }
     }
 
+    /// The name Model Library shows for a Parakeet version, used to name a
+    /// missing model (issue #1518). Same V2-or-V3 rule as `modelId(for:)`.
+    static func modelDisplayName(for version: AsrModelVersion) -> String {
+        version == .v2 ? ParakeetModelManager.Constants.v2DisplayName : ParakeetModelManager.Constants.v3DisplayName
+    }
+
     private static func modelId(for version: AsrModelVersion) -> String {
         version == .v2 ? ParakeetModelManager.Constants.v2ModelId : ParakeetModelManager.Constants.v3ModelId
     }
@@ -425,7 +436,7 @@ final class ParakeetProvider: TranscriptionProvider {
         let directory = AsrModels.defaultCacheDirectory(for: targetVersion)
         guard AsrModels.modelsExist(at: directory) else {
             logger.error("Parakeet \(String(describing: targetVersion)) not downloaded")
-            throw TranscriptionError.modelNotDownloaded
+            throw TranscriptionError.modelNotDownloaded(model: Self.modelDisplayName(for: targetVersion))
         }
 
         // Load the runtime for this version
@@ -463,7 +474,7 @@ final class ParakeetProvider: TranscriptionProvider {
         let directory = AsrModels.defaultCacheDirectory(for: targetVersion)
         guard AsrModels.modelsExist(at: directory) else {
             logger.error("Parakeet \(String(describing: targetVersion)) transcription requested without model installed")
-            throw TranscriptionError.modelNotDownloaded
+            throw TranscriptionError.modelNotDownloaded(model: Self.modelDisplayName(for: targetVersion))
         }
 
         // STEP 2.5: PRE-FLIGHT AUDIO FILE VALIDATION

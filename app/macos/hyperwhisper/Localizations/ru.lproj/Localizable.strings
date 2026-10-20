@@ -936,6 +936,9 @@
 "transcription.error.providerNotAvailable.provider" = "%@ недоступен. Проверьте параметры и повторите попытку.";
 "transcription.error.providerNotAvailable.detail" = "%@ недоступен: %@";
 "transcription.error.modelNotDownloaded" = "Пожалуйста, сначала загрузите модель";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Режим %1$@ использует модель %2$@, которая не загружена. Загрузите её в Библиотеке моделей.";
+"transcription.error.modelNotDownloaded.model" = "Модель %1$@ не загружена. Загрузите её в Библиотеке моделей.";
+"transcription.error.openModelLibrary" = "Открыть Библиотеку моделей";
 "transcription.error.modelProtected" = "Эта модель не может быть удалена";
 "transcription.error.audioFileNotFound" = "Аудиофайл не найден";
 "transcription.error.network.detail" = "Ошибка сети: %@";

@@ -11,6 +11,8 @@ import {
   buyCreditsAndRedirect,
   createBuyCreditsHandler,
   type BuyCreditsFetch,
+  type BuyCreditsHandlerIdentity,
+  type BuyCreditsIdentity,
   type BuyCreditsRequestInit,
   type BuyCreditsTier,
 } from "../src/lib/buy-credits";
@@ -821,4 +823,255 @@ test("no licence key means no request, no spinner and no message", async () => {
   assert.deepEqual(busy, []);
   assert.deepEqual(errors, []);
   assert.deepEqual(navigated, []);
+});
+
+/**
+ * #949: the public `/credits` form calls the same seam with an EMAIL instead
+ * of a licence key (Ray, 2026-10-19: widen the helper; the public form takes
+ * the 5xx policy too). Every rule above applies unchanged; the cases below pin
+ * what is new — the body, the guard, and that the address never reaches a
+ * report or a console line.
+ */
+
+/** Stand-in for a buyer's address. Never allowed into a report or a log. */
+const EMAIL = "buyer-949@example.com";
+
+function emailHarness(
+  fetchImpl: BuyCreditsFetch,
+  email: string = EMAIL,
+  overrides: HandlerOverrides = {},
+) {
+  const busy: Array<BuyCreditsTier | null> = [];
+  const errors: Array<string | null> = [];
+  const logged: unknown[][] = [];
+  const navigated: string[] = [];
+  const reported: ReportedCall[] = [];
+  const requests: Array<{ input: string; init: BuyCreditsRequestInit }> = [];
+  const releases: Array<() => void> = [];
+
+  const handler = createBuyCreditsHandler({
+    email,
+    fetchImpl: (input, init) => {
+      requests.push({ input, init });
+
+      return fetchImpl(input, init);
+    },
+    navigate:
+      overrides.navigate ?? ((destination) => navigated.push(destination)),
+    reportError:
+      overrides.reportError ??
+      ((error, properties) => reported.push({ error, properties })),
+    setBusy: (tier) => busy.push(tier),
+    setError: (message) => errors.push(message),
+    onRedirectScheduled:
+      overrides.onRedirectScheduled ?? ((release) => releases.push(release)),
+    checkoutErrorMessage: CHECKOUT_ERROR,
+    genericErrorMessage: GENERIC_ERROR,
+  });
+
+  async function run(amount = 5) {
+    const quiet = console.error;
+
+    console.error = (...args: unknown[]) => {
+      logged.push(args);
+    };
+    try {
+      await handler(amount);
+    } finally {
+      console.error = quiet;
+    }
+  }
+
+  return { busy, errors, logged, navigated, releases, reported, requests, run };
+}
+
+/** Everything a report or a console line carried, as one searchable string. */
+function leakSurface(reported: ReportedCall[], logged: unknown[][]): string {
+  return JSON.stringify({
+    reports: reported.map((call) => ({
+      message:
+        call.error instanceof Error ? call.error.message : String(call.error),
+      properties: call.properties,
+    })),
+    logs: logged.map((args) =>
+      args.map((arg) => (arg instanceof Error ? arg.message : String(arg))),
+    ),
+  });
+}
+
+test("#949: the email identity posts exactly { email, amount }", async () => {
+  const { requests, run } = emailHarness(CHECKOUT_OK);
+
+  await run(25);
+
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0]?.input, "/api/checkout/credits");
+  assert.equal(requests[0]?.init.method, "POST");
+  assert.deepEqual(requests[0]?.init.headers, {
+    "Content-Type": "application/json",
+  });
+  // Exact bytes: no `licenseKey` key at all, not even `undefined`/`null`.
+  assert.equal(
+    requests[0]?.init.body,
+    JSON.stringify({ email: EMAIL, amount: 25 }),
+  );
+});
+
+test("#949: the licence identity still posts exactly { licenseKey, amount }", async () => {
+  // The dashboard half of Ray's decision: its body does not change.
+  const { requests, run } = handlerHarness(CHECKOUT_OK);
+
+  await run(25);
+
+  assert.equal(
+    requests[0]?.init.body,
+    JSON.stringify({ licenseKey: LICENSE_KEY, amount: 25 }),
+  );
+  assert.equal(requests[0]?.init.body.includes("email"), false);
+});
+
+test("#949: a non-JSON body on the email path shows the checkout copy, not the network copy", async () => {
+  // `CreditsPurchase.tsx`'s old `response.json()` sat inside its network
+  // `try`, so a proxy's HTML 502 told the buyer the network had failed.
+  const { busy, errors, navigated, reported, run } = emailHarness(
+    responds({
+      ok: false,
+      status: 502,
+      json: () => {
+        throw new SyntaxError("Unexpected token '<'");
+      },
+    }),
+  );
+
+  await run(5);
+
+  assert.deepEqual(navigated, []);
+  assert.deepEqual(errors, [null, CHECKOUT_ERROR]);
+  assert.equal(errors.includes(GENERIC_ERROR), false);
+  assert.deepEqual(busy, [5, null]);
+  assert.deepEqual(reported[0]?.properties, {
+    operation: BUY_CREDITS_OPERATION,
+    status: 502,
+  });
+});
+
+test("#949: an empty-string error on the email path shows translated copy, never an empty alert", async () => {
+  const { errors, run } = emailHarness(
+    responds({ ok: false, status: 400, json: () => ({ error: "" }) }),
+  );
+
+  await run(5);
+
+  assert.deepEqual(errors, [null, CHECKOUT_ERROR]);
+  assert.equal(errors.includes(""), false);
+});
+
+test("#949: a 5xx on the email path shows translated copy, not the server's body", async () => {
+  const { errors, run } = emailHarness(
+    responds({ ok: false, status: 500, json: () => ROUTE_500_BODY }),
+  );
+
+  await run(5);
+
+  assert.deepEqual(errors, [null, CHECKOUT_ERROR]);
+});
+
+test("#949: a 4xx on the email path still shows the route's own sentence", async () => {
+  const { errors, run } = emailHarness(
+    responds({
+      ok: false,
+      status: 400,
+      json: () => ({ error: "Amount too large" }),
+    }),
+  );
+
+  await run(5);
+
+  assert.deepEqual(errors, [null, "Amount too large"]);
+});
+
+test("#949: a scheduled redirect on the email path hands the release over and stays busy", async () => {
+  const { busy, errors, navigated, releases, run } = emailHarness(CHECKOUT_OK);
+
+  await run(10);
+
+  assert.deepEqual(navigated, ["https://checkout.stripe.com/c/pay/ok"]);
+  // Not cleared: the old form returned with `loading` still true and nothing
+  // owning it; now the release is handed to the abandoned-redirect watcher.
+  assert.deepEqual(busy, [10]);
+  assert.deepEqual(errors, [null]);
+  assert.equal(releases.length, 1);
+  releases[0]?.();
+  assert.deepEqual(busy, [10, null]);
+});
+
+test("#949: the email never reaches a report or a console line, on any exit", async () => {
+  const exits: BuyCreditsFetch[] = [
+    responds({ ok: false, status: 400, json: () => ({ error: "Nope" }) }),
+    responds({ ok: false, status: 500, json: () => ROUTE_500_BODY }),
+    responds({
+      ok: false,
+      status: 502,
+      json: () => {
+        throw new SyntaxError("Unexpected token '<'");
+      },
+    }),
+    responds({ ok: true, status: 200, json: () => ({ ok: true }) }),
+    () => Promise.reject(new TypeError("Failed to fetch")),
+  ];
+
+  for (const fetchImpl of exits) {
+    const { logged, reported, run } = emailHarness(fetchImpl);
+
+    await run(5);
+
+    // A positive control: every exit above DOES report and log.
+    assert.equal(reported.length, 1);
+    assert.equal(logged.length >= 1, true);
+
+    const surface = leakSurface(reported, logged);
+
+    assert.equal(surface.includes(EMAIL), false);
+    assert.equal(surface.includes("buyer-949"), false);
+    assert.equal(surface.includes("example.com"), false);
+  }
+
+  // …and a collaborator fault, the other reporting path.
+  const { logged, reported, run } = emailHarness(CHECKOUT_OK, EMAIL, {
+    navigate: () => {
+      throw new Error("The navigation was refused");
+    },
+  });
+
+  await run(5);
+  assert.equal(reported.length, 1);
+  assert.equal(leakSurface(reported, logged).includes(EMAIL), false);
+});
+
+test("#949: an empty email means no request, no spinner and no message", async () => {
+  // The factory's "no identity" guard, on the email side. The form validates
+  // the address first; this is the backstop.
+  const { busy, errors, requests, run } = emailHarness(CHECKOUT_OK, "");
+
+  await run(5);
+
+  assert.deepEqual(requests, []);
+  assert.deepEqual(busy, []);
+  assert.deepEqual(errors, []);
+});
+
+test("#949: an identity is exactly one of a licence key or an email", () => {
+  // Compile-time half: `npx tsc --noEmit` fails if either directive below
+  // stops being needed, i.e. if the union ever accepts both or neither.
+  const both = { licenseKey: LICENSE_KEY, email: EMAIL };
+  // @ts-expect-error: both identities at once is not an identity
+  const request: BuyCreditsIdentity = both;
+  // @ts-expect-error: no identity at all is not one either
+  const neither: BuyCreditsIdentity = {};
+  // The factory's nullable licence key is still accepted (the dashboard's
+  // no-licence case), and an email alone is too.
+  const dashboard: BuyCreditsHandlerIdentity = { licenseKey: null };
+  const guest: BuyCreditsHandlerIdentity = { email: EMAIL };
+
+  assert.ok(request && neither && dashboard && guest);
 });
