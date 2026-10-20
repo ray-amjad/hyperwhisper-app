@@ -936,6 +936,8 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "transcription.error.providerNotAvailable.provider" = "%@ nie jest dostępny. Sprawdź ustawienia i spróbuj ponownie.";
 "transcription.error.providerNotAvailable.detail" = "%@ nie jest dostępny: %@";
 "transcription.error.modelNotDownloaded" = "Najpierw pobierz model";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Tryb %1$@ używa modelu %2$@, który nie jest pobrany. Pobierz go w Bibliotece modeli.";
+"transcription.error.modelNotDownloaded.model" = "Model %1$@ nie jest pobrany. Pobierz go w Bibliotece modeli.";
 "transcription.error.openModelLibrary" = "Otwórz Bibliotekę modeli";
 "transcription.error.modelProtected" = "Tego modelu nie można usunąć";
 "transcription.error.audioFileNotFound" = "Plik audio nie znaleziony";

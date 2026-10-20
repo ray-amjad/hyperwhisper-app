@@ -936,6 +936,8 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "transcription.error.providerNotAvailable.provider" = "%@ nije dostupan. Provjerite svoje postavke i pokušajte ponovno.";
 "transcription.error.providerNotAvailable.detail" = "%@ nije dostupan: %@";
 "transcription.error.modelNotDownloaded" = "Molimo prvo preuzmite model";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Način %1$@ koristi model %2$@, koji nije preuzet. Preuzmite ga u Knjižnici modela.";
+"transcription.error.modelNotDownloaded.model" = "Model %1$@ nije preuzet. Preuzmite ga u Knjižnici modela.";
 "transcription.error.openModelLibrary" = "Otvori Knjižnicu modela";
 "transcription.error.modelProtected" = "Ovaj model se ne može izbrisati";
 "transcription.error.audioFileNotFound" = "Audio datoteka nije pronađena";

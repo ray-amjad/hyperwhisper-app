@@ -936,6 +936,8 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "transcription.error.providerNotAvailable.provider" = "%@ er ikke tilgængelig. Kontroller dine indstillinger, og prøv igen.";
 "transcription.error.providerNotAvailable.detail" = "%@ er ikke tilgængelig: %@";
 "transcription.error.modelNotDownloaded" = "Download venligst en model først";
+"transcription.error.modelNotDownloaded.modelAndMode" = "%1$@ bruger %2$@, som ikke er downloadet. Download den i Modelbibliotek.";
+"transcription.error.modelNotDownloaded.model" = "%1$@ er ikke downloadet. Download den i Modelbibliotek.";
 "transcription.error.openModelLibrary" = "Åbn Modelbibliotek";
 "transcription.error.modelProtected" = "Denne model kan ikke slettes";
 "transcription.error.audioFileNotFound" = "Lydfil ikke fundet";

@@ -44,7 +44,7 @@ struct PostProcessingPreflightFailureTests {
     private static let cloudHealthCheckErrors: [TranscriptionError] = [
         .unauthorized(provider: "OpenAI"),
         .transientNetwork(details: "Provider unreachable"),
-        .modelNotDownloaded,
+        .modelNotDownloaded(),
         .providerNotAvailable(provider: "OpenAI", reason: "Provider health check failed"),
         .providerNotAvailable(provider: "OpenAI", reason: "Unexpected health status")
     ]
@@ -301,7 +301,7 @@ struct PostProcessingPreflightFailureTests {
              "Anthropic rejected your API key — your raw transcript was kept."),
             (.transientNetwork(details: "Provider unreachable"),
              "Couldn't reach Anthropic — your raw transcript was kept."),
-            (.modelNotDownloaded,
+            (.modelNotDownloaded(),
              "Anthropic isn't installed — your raw transcript was kept."),
             (.providerNotAvailable(provider: "Anthropic", reason: "Provider health check failed"),
              "Anthropic is unavailable — your raw transcript was kept."),
@@ -349,7 +349,7 @@ struct PostProcessingPreflightFailureTests {
     @Test func onlyTheRejectedKeyOffersSettings() {
         #expect(TranscriptionError.unauthorized(provider: "Anthropic").showSettingsButton)
         #expect(!TranscriptionError.transientNetwork(details: "Provider unreachable").showSettingsButton)
-        #expect(!TranscriptionError.modelNotDownloaded.showSettingsButton)
+        #expect(!TranscriptionError.modelNotDownloaded().showSettingsButton)
         #expect(!TranscriptionError.providerNotAvailable(provider: "Anthropic", reason: "x").showSettingsButton)
     }
 

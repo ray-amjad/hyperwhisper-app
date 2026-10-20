@@ -693,7 +693,7 @@ test("harness: dbErrorOn with no dbError still trips the unexpected-call alarm",
 });
 
 test("download.recordDownload logs an unexpected DB error in its outer catch redacted (#1049)", async () => {
-  behaviour.downloadLimitError = leakyDbError();
+  behaviour.downloadOuterError = leakyDbError();
 
   const result = await httpMutation("download.recordDownload", { email: LEAKY_EMAIL }, null);
 

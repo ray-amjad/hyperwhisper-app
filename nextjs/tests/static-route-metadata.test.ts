@@ -3,7 +3,7 @@
  * `og:url`, and `/en/blog` also sent it as its canonical and its `og:title`.
  *
  * Under `force-static` the layout's `headers()` is empty, so the layout falls
- * back to `https://hyperwhisper.com/en`. Each page now states its own canonical
+ * back to `https://www.hyperwhisper.com/en`. Each page now states its own canonical
  * and `openGraph`. Next merges metadata SHALLOWLY per top-level key, so a page
  * `openGraph` replaces the layout's whole object: this file also checks the
  * page still sends the og:image list, site name, type and locale. The same
@@ -85,7 +85,7 @@ const ROUTES = [
   },
 ];
 
-const HOME = "https://hyperwhisper.com/en";
+const HOME = "https://www.hyperwhisper.com/en";
 
 for (const { route, title } of ROUTES) {
   test(`/en/${route} states its own canonical and og:url, and keeps the layout's og fields`, async () => {
@@ -118,7 +118,7 @@ for (const { route, title } of ROUTES) {
     assert.deepEqual(
       Array.from(metadata.openGraph.images, (image) => image.url),
       [1024, 512, 256, 128].map(
-        (size) => `https://hyperwhisper.com/icon/${size}.png`,
+        (size) => `https://www.hyperwhisper.com/icon/${size}.png`,
       ),
     );
 
@@ -129,7 +129,7 @@ for (const { route, title } of ROUTES) {
     assert.equal(metadata.twitter.card, "summary");
     assert.equal(metadata.twitter.creator, "@theramjad");
     assert.deepEqual(metadata.twitter.images, [
-      "https://hyperwhisper.com/icon/256.png",
+      "https://www.hyperwhisper.com/icon/256.png",
     ]);
   });
 }

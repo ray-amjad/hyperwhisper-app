@@ -31,8 +31,13 @@ struct FileTranscriptionOpenModelLibraryTests {
     // MARK: - Buttons
 
     @Test func aMissingModelOffersOpenModelLibraryThenOK() {
-        let buttons = FileTranscriptionFlow.errorAlertButtons(for: TranscriptionError.modelNotDownloaded)
+        let buttons = FileTranscriptionFlow.errorAlertButtons(for: TranscriptionError.modelNotDownloaded())
         #expect(buttons == [.openModelLibrary, .ok])
+    }
+
+    @Test func aNamedMissingModelAlsoOffersOpenModelLibrary() {
+        let named = TranscriptionError.modelNotDownloaded(model: "Tiny (Multilingual)", mode: "Dictation")
+        #expect(FileTranscriptionFlow.errorAlertButtons(for: named) == [.openModelLibrary, .ok])
     }
 
     @Test func everyOtherErrorKeepsOKAlone() {
@@ -57,7 +62,7 @@ struct FileTranscriptionOpenModelLibraryTests {
     // MARK: - Clicks
 
     @Test func openModelLibraryRunsTheActionAndOKDoesNot() {
-        let buttons = FileTranscriptionFlow.errorAlertButtons(for: TranscriptionError.modelNotDownloaded)
+        let buttons = FileTranscriptionFlow.errorAlertButtons(for: TranscriptionError.modelNotDownloaded())
         var opened = 0
 
         FileTranscriptionFlow.performErrorAlertAction(for: .alertSecondButtonReturn, buttons: buttons) { opened += 1 }
@@ -114,7 +119,7 @@ struct FileTranscriptionOpenModelLibraryTests {
             to: "releaseRecordingState()"
         )
         #expect(catchAll.contains("showErrorAlert("))
-        #expect(catchAll.contains("error: error"))
+        #expect(catchAll.contains("error: failure"))
 
         let source = try ProductionSource.code(of: Self.fileFlowPath)
         #expect(source.contains("Self.errorAlertButtons(for: error)"))
@@ -142,8 +147,8 @@ struct FileTranscriptionOpenModelLibraryTests {
             #expect(line.trimmingCharacters(in: .whitespaces).hasSuffix("\";"), "\(locale.lastPathComponent)")
             #expect(!line.contains("%"), "\(locale.lastPathComponent) takes no format arguments")
             #expect(line != "\"\(Self.key)\" = \"\";", "\(locale.lastPathComponent) is empty")
-            #expect(index > 0 && lines[index - 1].hasPrefix("\"transcription.error.modelNotDownloaded\" = "),
-                    "\(locale.lastPathComponent) places it after transcription.error.modelNotDownloaded")
+            #expect(index > 0 && lines[index - 1].hasPrefix("\"transcription.error.modelNotDownloaded"),
+                    "\(locale.lastPathComponent) places it after transcription.error.modelNotDownloaded and its variants")
         }
     }
 }

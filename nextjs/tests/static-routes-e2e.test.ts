@@ -144,7 +144,7 @@ test("a deep localized page states its own lang, canonical and 41 hreflang links
   // The hreflang map used to come from the proxy's x-pathname header in the
   // [locale] layout; the page states it now. Deep path on purpose (#816).
   const { status, body } = await get("/de/legal/refund-policy");
-  const url = "https://hyperwhisper.com/de/legal/refund-policy";
+  const url = "https://www.hyperwhisper.com/de/legal/refund-policy";
 
   assert.equal(status, 200);
   assert.match(body, /<html[^>]*\blang="de"/);
@@ -168,7 +168,7 @@ test("a deep localized page states its own lang, canonical and 41 hreflang links
   for (const [, lang, href] of hreflangs) {
     const locale = lang === "x-default" ? "en" : lang;
 
-    assert.equal(href, `https://hyperwhisper.com/${locale}/legal/refund-policy`);
+    assert.equal(href, `https://www.hyperwhisper.com/${locale}/legal/refund-policy`);
   }
 });
 
@@ -178,7 +178,7 @@ test("a right-to-left locale's home page is served dir=rtl", { skip }, async () 
   assert.equal(status, 200);
   assert.match(body, /<html[^>]*\blang="ar"/);
   assert.match(body, /<html[^>]*\bdir="rtl"/);
-  assert.match(body, /hrefLang="x-default" href="https:\/\/hyperwhisper.com\/en"/);
+  assert.match(body, /hrefLang="x-default" href="https:\/\/www.hyperwhisper.com\/en"/);
 });
 
 test("an unmatched URL is a server-rendered 404 in its locale", { skip }, async () => {

@@ -1,4 +1,5 @@
 import { MetadataRoute } from "next";
+import { SITE_URL } from "@/lib/site-metadata";
 import { getAllBlogPosts } from "@/src/content/blog";
 import {
   buildAlternateLanguageMap,
@@ -6,7 +7,7 @@ import {
 } from "@/src/i18n/locales";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = "https://hyperwhisper.com";
+  const baseUrl = SITE_URL;
 
   // Each path must be app/[locale]<path>/page.tsx and render on every locale;
   // tests/sitemap-routes.test.ts fails nextjs-ci when one does not.

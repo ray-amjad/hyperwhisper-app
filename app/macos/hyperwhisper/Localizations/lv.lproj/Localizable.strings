@@ -936,6 +936,8 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "transcription.error.providerNotAvailable.provider" = "%@ nav pieejams. Pārbaudiet iestatījumus un mēģiniet vēlreiz.";
 "transcription.error.providerNotAvailable.detail" = "%@ nav pieejams: %@";
 "transcription.error.modelNotDownloaded" = "Lūdzu lejupielādējiet modeli vispirms";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Režīms %1$@ izmanto modeli %2$@, kas nav lejupielādēts. Lejupielādējiet to Modeļu bibliotēkā.";
+"transcription.error.modelNotDownloaded.model" = "Modelis %1$@ nav lejupielādēts. Lejupielādējiet to Modeļu bibliotēkā.";
 "transcription.error.openModelLibrary" = "Atvērt Modeļu bibliotēku";
 "transcription.error.modelProtected" = "Šis modelis nevar tikt dzēsts";
 "transcription.error.audioFileNotFound" = "Audio fails nav atrasts";
