@@ -845,10 +845,11 @@ public class HistoryService
                 // the pending rows go only when their file is rewritten without them, and
                 // only then does the database part commit. A refusal on either side
                 // deletes nothing; only a failed commit has rows to put back. No database
-                // rows, no transaction: it would take the write lock (BEGIN IMMEDIATE), and
-                // pending rows exist because another process may hold that lock (#1589).
-                using var transaction = deletedTranscripts.Count > 0 ? context.Database.BeginTransaction() : null;
-                if (deletedTranscripts.Count > 0)
+                // rows, no transaction: pending rows exist because another process may hold
+                // the write lock (#1589). Deferred, so the lock is taken by the DELETE itself
+                // and a refusal is still SaveChanges' DbUpdateException (#974).
+                using var transaction = deletedTranscripts.Count > 0 ? BeginDeferredTransaction(context) : null;
+                if (transaction != null)
                 {
                     context.Transcripts.RemoveRange(deletedTranscripts);
                     context.SaveChanges();
@@ -916,6 +917,20 @@ public class HistoryService
     /// (<see cref="Microsoft.Data.Sqlite.SqliteException"/>). Both are expected
     /// runtime failures, so they become a failed Result rather than a throw.
     /// </summary>
+    /// <summary>
+    /// BEGIN DEFERRED on the context's connection. EF's own BeginTransaction is BEGIN
+    /// IMMEDIATE on SQLite: it would wait for the write lock before any statement runs,
+    /// and a refusal would surface there as a bare SqliteException.
+    /// </summary>
+    private static Microsoft.Data.Sqlite.SqliteTransaction BeginDeferredTransaction(HyperWhisperDbContext context)
+    {
+        context.Database.OpenConnection();
+        var transaction = ((Microsoft.Data.Sqlite.SqliteConnection)context.Database.GetDbConnection())
+            .BeginTransaction(deferred: true);
+        context.Database.UseTransaction(transaction);
+        return transaction;
+    }
+
     private static bool IsRefusedWrite(Exception ex) =>
         ex is DbUpdateException or Microsoft.Data.Sqlite.SqliteException;
 
