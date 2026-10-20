@@ -8,7 +8,7 @@
 import { computeOpenAITranscriptionCost } from '../lib/cost-calculator';
 import { OPENAI_INLINE_MAX_BYTES } from '../lib/constants';
 import { resolveProviderLanguage } from '../lib/language-codes';
-import { AudioTooLargeError, ProviderUnavailableError } from './types';
+import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
@@ -22,9 +22,12 @@ import {
 
 const OPENAI_URL = 'https://api.openai.com/v1/audio/transcriptions';
 const DEFAULT_MODEL = 'gpt-4o-transcribe';
+// OpenAI serves this model only over a Realtime WebSocket session, not on
+// v1/audio/transcriptions. It stays registered (stt-models.ts), so the adapter
+// refuses it before the key check or any upstream call.
+const LIVE_ONLY_MODEL = 'gpt-live-transcribe';
 
-// Models that accept a structured keyword list. gpt-live-transcribe is
-// realtime-only and never reaches this synchronous adapter.
+// Models that accept a structured keyword list.
 const KEYWORDS_MODELS = new Set(['gpt-transcribe']);
 // Models OpenAI bills per audio minute rather than per token
 // (cost-calculator.ts). Each one is billed on the duration OpenAI reports
@@ -74,6 +77,17 @@ export async function transcribeWithOpenAI(
   const startedAt = performance.now();
   const provider = 'openai';
   const model = context.model || DEFAULT_MODEL;
+
+  if (model === LIVE_ONLY_MODEL) {
+    // Fail before spending a round trip, and name the reason. A
+    // ProviderInputError on this self-only chain surfaces as a 400.
+    throw new ProviderInputError(
+      'OpenAI',
+      400,
+      `${LIVE_ONLY_MODEL} is a WebSocket-only model and is not served by /transcribe`,
+    );
+  }
+
   const isWhisper = model === 'whisper-1';
 
   const apiKey = process.env.OPENAI_API_KEY;
