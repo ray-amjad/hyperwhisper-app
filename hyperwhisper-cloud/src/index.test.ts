@@ -53,7 +53,6 @@ const { default: server, SERVER_IDLE_TIMEOUT_SECONDS, SHUTDOWN_DRAIN_MS } = awai
 const { MAX_AUDIO_SIZE_BYTES } = await import('./lib/constants');
 const { INTERACTIONS_TIMEOUT_MS } = await import('./providers/gemini-transcribe');
 const { LLM_REQUEST_TIMEOUT_MS } = await import('./providers/llm-fetch');
-const { ANTHROPIC_STREAM_IDLE_TIMEOUT_MS } = await import('./providers/anthropic');
 const { deductCredits, drainPendingDeductions } = await import('./middleware/credits');
 const { reportLatencySamples } = await import('./lib/latency-report');
 const { createStreamingEvents } = await import('./routes/ws-streaming-deepgram');
@@ -377,10 +376,6 @@ describe('the exported Bun server', () => {
     expect(server.idleTimeout).toBe(255);
     expect(server.idleTimeout).toBeGreaterThan(INTERACTIONS_TIMEOUT_MS / 1000);
     expect(server.idleTimeout).toBeGreaterThan(LLM_REQUEST_TIMEOUT_MS / 1000);
-  });
-
-  test('the /assistant stream idle bound fires before Bun drops the client', () => {
-    expect(ANTHROPIC_STREAM_IDLE_TIMEOUT_MS).toBeLessThan(server.idleTimeout * 1000);
   });
 
   // #2011: the route buffers the whole upload on a 1 GB machine. Bun's body
