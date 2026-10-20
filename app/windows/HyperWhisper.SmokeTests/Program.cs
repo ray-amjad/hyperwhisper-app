@@ -17045,6 +17045,115 @@ internal static class Program
                 }), "a BYOK cloud mode must not read as HyperWhisper Cloud");
             });
 
+            RunAsync("Local API POST/PATCH /modes (#1624): a mode made local stores what the editor stores", async () =>
+            {
+                // #1624, the Local API sibling of #1477. The editor stores an
+                // on-device mode as Model = its local id and CloudProvider = null
+                // (LocalModeModel.ApplyOnDevice); the Local API kept the caller's
+                // cloudProvider and could leave Model = "cloud". Ray (inbox #450):
+                // store what the editor stores, and refuse a PATCH that makes a
+                // Model = "cloud" mode local without naming the model. Driven over
+                // the REAL host: POST / PATCH / GET on a loopback port, then the row.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                const string Prefix = "percy1624-";
+                var (app, port, token) = await StartRealLocalApiAsync();
+                using var client = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}") };
+                client.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+                async Task<JsonElement> Send(HttpMethod method, string path, string? json)
+                {
+                    using var request = new HttpRequestMessage(method, path);
+                    if (json is not null)
+                        request.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+                    using var response = await client.SendAsync(request);
+                    var text = await response.Content.ReadAsStringAsync();
+                    Assert((int)response.StatusCode == 200, $"{method} {path} answered HTTP {(int)response.StatusCode}: {text}");
+                    return JsonDocument.Parse(text).RootElement.Clone();
+                }
+
+                async Task<(string Id, JsonElement Mode)> Create(string name, string extra)
+                {
+                    var root = await Send(HttpMethod.Post, "/modes",
+                        $$"""{"name":"{{Prefix}}{{name}}","preset":"hyper","language":"en","punctuation":true,"capitalization":true,"profanityFilter":false,{{extra}}}""");
+                    Assert(root.TryGetProperty("mode", out var mode), $"POST {name} failed: {root}");
+                    return (mode.GetProperty("id").GetString()!, mode);
+                }
+
+                static string? Str(JsonElement mode, string key)
+                    => mode.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+
+                Mode Row(string id) => ModeService.Instance.GetMode(Guid.Parse(id))
+                    ?? throw new InvalidOperationException($"mode {id} is not in the database");
+
+                try
+                {
+                    // POST: a local Whisper mode sent with a cloud provider.
+                    var (whisperId, whisperWire) = await Create("whisper",
+                        """ "model":"base","providerType":"local","cloudProvider":"deepgram" """);
+                    var whisper = Row(whisperId);
+                    Assert(whisper.ProviderType == "local" && whisper.Model == "base" && whisper.CloudProvider is null,
+                        $"POST local+deepgram stored ProviderType {whisper.ProviderType}, Model {whisper.Model}, CloudProvider {whisper.CloudProvider ?? "<null>"}");
+                    Assert(Str(whisperWire, "cloudProvider") is null, $"POST answered cloudProvider {Str(whisperWire, "cloudProvider")}");
+
+                    // POST: a local Parakeet mode with a null model stores its Parakeet id.
+                    var (parakeetId, _) = await Create("parakeet",
+                        """ "model":null,"providerType":"local","localEngine":"parakeet","localParakeetModel":"parakeet-v3","cloudProvider":"openai" """);
+                    var parakeet = Row(parakeetId);
+                    Assert(parakeet.Model == "parakeet-v3" && parakeet.CloudProvider is null,
+                        $"POST Parakeet stored Model {parakeet.Model ?? "<null>"}, CloudProvider {parakeet.CloudProvider ?? "<null>"}");
+
+                    // A CLOUD mode keeps its provider: the rule is for local modes only.
+                    var (cloudId, cloudWire) = await Create("cloud", """ "model":"cloud","cloudProvider":"deepgram" """);
+                    Assert(Row(cloudId).ProviderType == "cloud" && Row(cloudId).Model == "cloud" && Row(cloudId).CloudProvider == "deepgram",
+                        $"a cloud mode lost its fields: {Row(cloudId).ProviderType} {Row(cloudId).Model} {Row(cloudId).CloudProvider}");
+                    Assert(Str(cloudWire, "cloudProvider") == "deepgram", "a cloud mode must still answer its cloudProvider");
+
+                    // PATCH providerType:"local" alone on a Model = "cloud" mode: refused,
+                    // asking for model, and the row is untouched.
+                    var refused = await Send(HttpMethod.Patch, $"/modes/{cloudId}", """{"providerType":"local"}""");
+                    Assert(refused.TryGetProperty("error", out var error)
+                            && error.GetProperty("code").GetString() == "INVALID_REQUEST"
+                            && error.GetProperty("message").GetString()!.Contains("'model'", StringComparison.Ordinal),
+                        $"PATCH providerType:local alone must be INVALID_REQUEST asking for model, got {refused}");
+                    Assert(Row(cloudId).ProviderType == "cloud" && Row(cloudId).Model == "cloud" && Row(cloudId).CloudProvider == "deepgram",
+                        "a refused PATCH changed the row");
+
+                    // PATCH providerType:"local" + model: local, Model = the id, provider cleared.
+                    var flipped = await Send(HttpMethod.Patch, $"/modes/{cloudId}", """{"providerType":"local","model":"small"}""");
+                    Assert(Str(flipped.GetProperty("mode"), "cloudProvider") is null,
+                        $"PATCH to local answered cloudProvider {Str(flipped.GetProperty("mode"), "cloudProvider")}");
+                    Assert(Row(cloudId).ProviderType == "local" && Row(cloudId).Model == "small" && Row(cloudId).CloudProvider is null,
+                        $"PATCH to local stored {Row(cloudId).ProviderType} {Row(cloudId).Model} {Row(cloudId).CloudProvider ?? "<null>"}");
+
+                    // PATCH model:<local id> alone on a cloud mode flips it local and
+                    // clears the provider too (the issue's second PATCH bullet).
+                    var (cloud2Id, _) = await Create("cloud2", """ "model":"cloud","cloudProvider":"openai" """);
+                    await Send(HttpMethod.Patch, $"/modes/{cloud2Id}", """{"model":"base"}""");
+                    Assert(Row(cloud2Id).ProviderType == "local" && Row(cloud2Id).Model == "base" && Row(cloud2Id).CloudProvider is null,
+                        $"PATCH model:base stored {Row(cloud2Id).ProviderType} {Row(cloud2Id).Model} {Row(cloud2Id).CloudProvider ?? "<null>"}");
+
+                    // GET /modes agrees with the rows.
+                    var listed = (await Send(HttpMethod.Get, "/modes", null)).GetProperty("modes").EnumerateArray()
+                        .Where(m => Str(m, "name")?.StartsWith(Prefix, StringComparison.Ordinal) == true).ToList();
+                    Assert(listed.Count == 4, $"GET /modes listed {listed.Count} test modes");
+                    foreach (var mode in listed)
+                    {
+                        var isCloud = Str(mode, "providerType") == "cloud";
+                        Assert(isCloud || Str(mode, "cloudProvider") is null,
+                            $"GET /modes answered cloudProvider {Str(mode, "cloudProvider")} for local mode {Str(mode, "name")}");
+                    }
+                }
+                finally
+                {
+                    await app.StopAsync();
+                    await app.DisposeAsync();
+                    using var ctx = new HyperWhisperDbContext();
+                    ctx.Modes.RemoveRange(ctx.Modes.Where(m => m.Name.StartsWith(Prefix)));
+                    ctx.SaveChanges();
+                }
+            });
+
             Run("backup export (#1477): an On-device mode switched back to Cloud exports model cloud", () =>
             {
                 // Saved On-device (Model now holds the local id), then a later save
