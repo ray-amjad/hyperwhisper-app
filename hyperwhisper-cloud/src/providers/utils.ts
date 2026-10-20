@@ -389,6 +389,66 @@ export async function readPollJson<T>(
   }
 }
 
+/**
+ * Read a 200 body that must be a JSON object, or throw the retryable
+ * `ProviderUnavailableError` (`kind: 'bad_response'`) so the route fails over
+ * instead of answering a 500. A speech vendor's 200 body IS the transcript, so
+ * like `readPollJson` this never logs body content or a read error's message
+ * (#1069): a read failure logs only the error's name; an empty, non-JSON or
+ * non-object body logs only its length and shape. (#2064, #2151)
+ *
+ * `null`, a bare number or string, and an array all parse as JSON and then
+ * fail on the first field read, so they are refused here too.
+ */
+export async function readJson200<T extends object>(
+  provider: string,
+  label: string,
+  response: Response,
+  startTime: number,
+  context: ProviderRequestContext = {},
+): Promise<Partial<T>> {
+  const elapsedMs = () => Math.round(performance.now() - startTime);
+  const shape = {
+    contentType: response.headers.get('content-type') ?? 'unknown',
+    contentEncoding: response.headers.get('content-encoding') ?? 'none',
+  };
+  const badResponse = (event: string, details: Record<string, unknown>) => {
+    logProviderEvent(provider, event, { elapsedMs: elapsedMs(), ...shape, ...details }, context);
+    return new ProviderUnavailableError(label, 'malformed 200 response body', {
+      kind: 'bad_response',
+      status: response.status,
+      elapsedMs: elapsedMs(),
+    });
+  };
+
+  let raw: string;
+  try {
+    raw = await response.text();
+  } catch (readError) {
+    // A reset connection or a cut chunked transfer. Only the name: the
+    // message can quote what was read so far.
+    throw badResponse('body_read_error', {
+      errorName: readError instanceof Error ? readError.name : typeof readError,
+    });
+  }
+  if (!raw) {
+    throw badResponse('empty_body', {});
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw badResponse('parse_error', { bodyLength: raw.length, bodyKind: unparsedBodyKind(raw) });
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw badResponse('parse_error', {
+      bodyLength: raw.length,
+      bodyKind: Array.isArray(parsed) ? 'json_array' : parsed === null ? 'json_null' : `json_${typeof parsed}`,
+    });
+  }
+  return parsed as Partial<T>;
+}
+
 export async function fetchWithTimeout(
   provider: string,
   url: string,
