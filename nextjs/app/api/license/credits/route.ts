@@ -176,9 +176,16 @@ export async function POST(req: NextRequest) {
       metadata,
     });
 
+    // The cloud rewrites its licence cache from this reply, so it carries the
+    // pool id too: a key cached without one (or under a rotated secret) gets
+    // the current one at its next charge, not only when its cache expires
+    // (#2026). Omitted when unset.
+    const creditPoolId = creditPoolIdFor(license.userId);
+
     return NextResponse.json({
       credits_remaining: newCredits,
       credits_deducted: amount,
+      ...(creditPoolId ? { credit_pool_id: creditPoolId } : {}),
     });
   } catch (error) {
     console.error("Credits deduction error:", describeDbError(error));

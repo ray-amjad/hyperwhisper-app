@@ -1,7 +1,7 @@
 // CREDIT VALIDATION + DEDUCTION
 // Handles preflight credit checks and post-usage deduction
 
-import type { AuthContext } from './auth';
+import { readCreditPoolId, type AuthContext } from './auth';
 import { CREDITS_PER_MINUTE, DEFAULT_API_BASE_URL, LICENSE_API_TIMEOUT_MS } from '../lib/constants';
 import { estimateAudioSecondsFromSize } from '../lib/audio-duration';
 import { isRecord, roundToTenth, roundUpToTenth } from '../lib/utils';
@@ -131,11 +131,10 @@ export function logDeductionFailure(
 }
 
 async function recordLicenseUsage(
-  auth: AuthContext,
+  licenseKey: string,
   creditsUsed: number,
   metadata: Record<string, unknown>
 ): Promise<DeductionFailure | undefined> {
-  const licenseKey = auth.identifier;
   const apiBase = (process.env.NEXTJS_LICENSE_API_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
   // Set once the license API accepts the write. A later throw (a 2xx with a
   // malformed body, a failed cache write) means the charge landed, so it is
@@ -170,13 +169,17 @@ async function recordLicenseUsage(
     const data: unknown = await response.json();
     const creditsRemaining = isRecord(data) ? data.credits_remaining : undefined;
     if (typeof creditsRemaining === 'number') {
+      // The pool id comes from THIS reply, never from `auth`: the rewrite
+      // renews the TTL, so carrying the auth context's id forward would keep a
+      // missing one (a cache older than the pool) or a stale one (a rotated
+      // secret) alive for as long as the key stays busy (#2026). None in the
+      // reply: the site has no secret, so holds go per key.
+      const creditPoolId = isRecord(data) ? readCreditPoolId(data.credit_pool_id) : undefined;
       await cacheLicense(licenseKey, {
         isValid: true,
         credits: creditsRemaining,
         cachedAt: new Date().toISOString(),
-        // Kept, or the next request on this key would hold per key until the
-        // cache expires (#2026).
-        ...(auth.creditPoolId ? { creditPoolId: auth.creditPoolId } : {}),
+        ...(creditPoolId ? { creditPoolId } : {}),
       });
     }
   } catch (error) {
@@ -261,7 +264,7 @@ async function performDeduction(
       }
     }
 
-    const failure = await recordLicenseUsage(auth, creditsUsed, metadata);
+    const failure = await recordLicenseUsage(auth.identifier, creditsUsed, metadata);
     if (failure && options.onFailure) {
       try {
         options.onFailure(failure, creditsUsed);
