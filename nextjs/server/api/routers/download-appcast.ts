@@ -90,6 +90,8 @@ export interface DownloadRecordSource {
   /** The site origin, read once at the router edge. */
   origin: string;
   supportEmail: string;
+  /** The Loom walkthrough linked from the welcome email. */
+  welcomeVideoUrl: string;
 }
 
 export interface DownloadRecordResult {
@@ -156,8 +158,7 @@ export function createDownloadRecorder(
         customerEmail: input.email,
         productName: "HyperWhisper",
         downloadUrl: `${origin}/download`,
-        loomVideoUrl:
-          "https://www.loom.com/share/fd73e59755f9473b8bde341845c402e9?sid=e1892b2e-3ce6-4542-b512-31777a400909",
+        loomVideoUrl: source.welcomeVideoUrl,
         loomThumbnailUrl:
           "https://www.hyperwhisper.com/email-assets/welcome-email-thumbnail.png",
         supportEmail: source.supportEmail,

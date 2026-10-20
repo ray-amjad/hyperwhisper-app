@@ -38,6 +38,9 @@ import { env } from "@/src/env/server.mjs";
 
 const origin = env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";
 
+const WELCOME_VIDEO_URL =
+  "https://www.loom.com/share/fd73e59755f9473b8bde341845c402e9?sid=e1892b2e-3ce6-4542-b512-31777a400909";
+
 // `fetch` is looked up on each call, not bound here.
 const getLatestDownloadUrl = createAppcastReader({
   fetch: (input, init) => fetch(input, init),
@@ -57,6 +60,7 @@ const recordDownload = createDownloadRecorder({
   latestDownloadUrl: getLatestDownloadUrl,
   origin,
   supportEmail: env.SUPPORT_EMAIL ?? "hi@support.hyperwhisper.com",
+  welcomeVideoUrl: WELCOME_VIDEO_URL,
 });
 
 // ============================================================================

@@ -79,6 +79,7 @@ function recorder(
     }),
     origin: ORIGIN,
     supportEmail: "support@example.test",
+    welcomeVideoUrl: "https://video.example.test/welcome",
     ...source,
   });
   return { calls, record: (email: string) => record({ email, headers: new Headers({ "x-real-ip": "203.0.113.9" }) }) };
@@ -235,8 +236,16 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
 moduleMock.module(moduleUrl("../lib/services/email.ts"), {
   namedExports: {
     emailService: {
-      sendWelcomeEmail: async (data: { customerEmail: string; supportEmail: string; downloadUrl: string }) => {
-        routerCalls.welcomeEmails.push(`${data.customerEmail} ${data.supportEmail} ${data.downloadUrl}`);
+      sendWelcomeEmail: async (data: {
+        customerEmail: string;
+        supportEmail: string;
+        downloadUrl: string;
+        loomVideoUrl: string;
+      }) => {
+        const video = new URL(data.loomVideoUrl);
+        routerCalls.welcomeEmails.push(
+          `${data.customerEmail} ${data.supportEmail} ${data.downloadUrl} ${video.origin}${video.pathname.split("/").slice(0, 2).join("/")}`,
+        );
         return { success: true };
       },
     },
@@ -311,7 +320,7 @@ describe("download router wiring (#774)", () => {
     });
     assert.equal(routerCalls.upserts, 1);
     assert.deepEqual(routerCalls.welcomeEmails, [
-      `visitor@example.org help@example.test ${ORIGIN}/download`,
+      `visitor@example.org help@example.test ${ORIGIN}/download https://www.loom.com/share`,
     ]);
 
     assert.deepEqual(await callRouter("getLatestUrl", "query"), { downloadUrl: FIRST_DMG });
