@@ -443,5 +443,9 @@
     "description": "Der Link ist möglicherweise defekt oder die Seite wurde verschoben.",
     "home": "Zur Startseite",
     "download": "HyperWhisper herunterladen"
+  },
+  "signIn": {
+    "magicLinkExpired": "Dieser Anmeldelink ist abgelaufen oder wurde bereits verwendet. Geben Sie Ihre E-Mail-Adresse ein, um einen neuen zu erhalten.",
+    "magicLinkFailed": "Wir konnten Sie mit diesem Link nicht anmelden. Geben Sie Ihre E-Mail-Adresse ein, um einen neuen zu erhalten."
   }
 }

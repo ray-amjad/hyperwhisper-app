@@ -95,6 +95,19 @@ describe('transcribeWithOpenAI — gates that run before any upstream call', () 
     expect(thrown.message).toBe('OPENAI_API_KEY not configured');
     expect(wasCalled()).toBe(false);
   });
+
+  test('refuses the WebSocket-only gpt-live-transcribe with a 400 ProviderInputError and never calls fetch', async () => {
+    const wasCalled = errorResponse(200);
+
+    const thrown = await transcribeWithOpenAI(audio(), 'audio/wav', undefined, undefined, {
+      model: 'gpt-live-transcribe',
+    }).catch((e) => e);
+    expect(thrown).toBeInstanceOf(ProviderInputError);
+    expect(thrown.status).toBe(400);
+    expect(thrown.message).toContain('gpt-live-transcribe');
+    expect(thrown.message).toContain('WebSocket-only');
+    expect(wasCalled()).toBe(false);
+  });
 });
 
 describe('transcribeWithOpenAI — multipart request shape', () => {

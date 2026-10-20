@@ -443,5 +443,9 @@
     "description": "Tengillinn gæti verið bilaður eða síðan hefur verið færð.",
     "home": "Fara á forsíðuna",
     "download": "Sækja HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Þessi innskráningartengill er útrunninn eða hefur þegar verið notaður. Sláðu inn netfangið þitt til að fá nýjan.",
+    "magicLinkFailed": "Við gátum ekki skráð þig inn með þessum tengli. Sláðu inn netfangið þitt til að fá nýjan."
   }
 }

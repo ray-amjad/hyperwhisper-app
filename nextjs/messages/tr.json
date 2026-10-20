@@ -443,5 +443,9 @@
     "description": "Bağlantı bozuk olabilir veya sayfa taşınmış olabilir.",
     "home": "Ana sayfaya git",
     "download": "HyperWhisper'ı indir"
+  },
+  "signIn": {
+    "magicLinkExpired": "Bu giriş bağlantısının süresi dolmuş veya bağlantı zaten kullanılmış. Yeni bir bağlantı almak için e-posta adresinizi girin.",
+    "magicLinkFailed": "Bu bağlantıyla giriş yapmanızı sağlayamadık. Yeni bir bağlantı almak için e-posta adresinizi girin."
   }
 }

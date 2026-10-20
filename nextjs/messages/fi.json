@@ -443,5 +443,9 @@
     "description": "Linkki voi olla rikki, tai sivu on ehkä siirretty.",
     "home": "Siirry etusivulle",
     "download": "Lataa HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Tämä kirjautumislinkki on vanhentunut tai jo käytetty. Anna sähköpostiosoitteesi saadaksesi uuden.",
+    "magicLinkFailed": "Emme voineet kirjata sinua sisään tällä linkillä. Anna sähköpostiosoitteesi saadaksesi uuden."
   }
 }

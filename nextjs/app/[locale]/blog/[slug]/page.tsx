@@ -6,8 +6,7 @@ import { getBlogPost, getBlogPosts } from "@/src/content/blog";
 import { formatLongUTCDate } from "@/lib/format-date";
 import { PROSE_TEXT_LINK } from "@/components/text-link";
 import { serializeJsonLd } from "@/lib/security/json-ld";
-
-const BASE_URL = "https://hyperwhisper.com";
+import { SITE_URL } from "@/lib/site-metadata";
 
 export const dynamic = "force-static";
 export const dynamicParams = true;
@@ -19,7 +18,7 @@ type Props = {
 
 function toAbsoluteUrl(url: string) {
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  return `${BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+  return `${SITE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
 }
 
 export async function generateMetadata({ params }: Props) {
@@ -33,7 +32,7 @@ export async function generateMetadata({ params }: Props) {
 
   const title = post.frontMatter.title;
   const description = post.frontMatter.description;
-  const canonical = `${BASE_URL}/en/blog/${post.slug}`;
+  const canonical = `${SITE_URL}/en/blog/${post.slug}`;
   const image = post.frontMatter.image
     ? {
         url: toAbsoluteUrl(post.frontMatter.image),
@@ -81,7 +80,7 @@ export default async function BlogPostPage({ params }: Props) {
   }
 
   const publishedDate = formatLongUTCDate(post.frontMatter.date);
-  const canonicalUrl = `${BASE_URL}/en/blog/${post.slug}`;
+  const canonicalUrl = `${SITE_URL}/en/blog/${post.slug}`;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -98,7 +97,7 @@ export default async function BlogPostPage({ params }: Props) {
       name: "HyperWhisper",
       logo: {
         "@type": "ImageObject",
-        url: `${BASE_URL}/icon/512.png`,
+        url: `${SITE_URL}/icon/512.png`,
       },
     },
     mainEntityOfPage: {

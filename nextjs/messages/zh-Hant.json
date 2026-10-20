@@ -443,5 +443,9 @@
     "description": "連結可能已失效，或頁面可能已移動。",
     "home": "前往首頁",
     "download": "下載 HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "此登入連結已過期或已被使用。請輸入你的電子郵件以取得新的連結。",
+    "magicLinkFailed": "無法使用該連結為你登入。請輸入你的電子郵件以取得新的連結。"
   }
 }

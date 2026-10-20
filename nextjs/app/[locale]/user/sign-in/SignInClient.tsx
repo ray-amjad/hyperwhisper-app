@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { authClient } from "@/src/lib/auth-client";
 import { withoutAccountKeyParams } from "@/src/lib/account-key-redaction";
@@ -10,6 +11,14 @@ import { isRecord } from "@/src/lib/type-guards";
 import { reportClientError } from "@/lib/shared/report-client-error";
 
 type Tab = "license-key" | "email";
+
+/**
+ * The codes Better Auth's `/magic-link/verify` puts on `?error=` when the link
+ * itself is dead: already used (by the user, or by an email scanner that opened
+ * it first), expired, or never issued. Every other code it can send there is a
+ * server-side failure, which gets the generic message.
+ */
+const DEAD_MAGIC_LINK_ERRORS = new Set(["INVALID_TOKEN", "EXPIRED_TOKEN"]);
 
 // Shared by every submit button. The hover gradient is a ::before overlay that
 // fades in by opacity, because a gradient background-image cannot transition.
@@ -35,8 +44,16 @@ export default function SignInClient() {
   const searchParams = useSearchParams();
   const params = useParams();
   const locale = typeof params.locale === "string" ? params.locale : "en";
+  const t = useTranslations("signIn");
 
-  const [activeTab, setActiveTab] = useState<Tab>("license-key");
+  // #2070: a magic link that failed to verify lands here with `?error=`, sent by
+  // the `errorCallbackURL` below. Open on the Email tab, which is where the
+  // message is and where a new link is requested.
+  const magicLinkErrorCode = searchParams.get("error");
+
+  const [activeTab, setActiveTab] = useState<Tab>(
+    magicLinkErrorCode ? "email" : "license-key",
+  );
   const [autoSigningIn, setAutoSigningIn] = useState(false);
 
   // License key tab state
@@ -49,10 +66,29 @@ export default function SignInClient() {
   const [emailSubmitting, setEmailSubmitting] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [magicLinkErrorDismissed, setMagicLinkErrorDismissed] = useState(false);
+
+  const magicLinkError =
+    magicLinkErrorCode && !magicLinkErrorDismissed
+      ? DEAD_MAGIC_LINK_ERRORS.has(magicLinkErrorCode)
+        ? t("magicLinkExpired")
+        : t("magicLinkFailed")
+      : null;
 
   function getCallbackURL() {
     const returnTo = searchParams.get("returnTo");
     return sanitizeReturnTo(returnTo, `/${locale}/user/dashboard`);
+  }
+
+  // Where Better Auth sends a link that fails to verify, with `error=<code>`
+  // added. Without it the failure went to `callbackURL` (the dashboard), the
+  // proxy bounced the signed-out visitor back here and dropped the query, and
+  // the user saw a plain form (#2070). `returnTo` rides along so the new link
+  // still lands where the first one would have.
+  function getErrorCallbackURL(callbackURL: string) {
+    const query = new URLSearchParams({ returnTo: callbackURL });
+
+    return `/${locale}/user/sign-in?${query.toString()}`;
   }
 
   const licenseKeyParam = searchParams.get("licenseKey");
@@ -119,6 +155,8 @@ export default function SignInClient() {
   async function handleSendMagicLink(e?: React.FormEvent) {
     e?.preventDefault();
     setEmailError(null);
+    // The dead link's message has done its job once a new link is asked for.
+    setMagicLinkErrorDismissed(true);
     setEmailSubmitting(true);
 
     try {
@@ -126,6 +164,7 @@ export default function SignInClient() {
       const { error: authError } = await authClient.signIn.magicLink({
         email,
         callbackURL,
+        errorCallbackURL: getErrorCallbackURL(callbackURL),
       });
 
       if (authError) {
@@ -168,6 +207,20 @@ export default function SignInClient() {
     >
       <p className="text-red-300 text-sm text-center" id="email-error">
         {emailError}
+      </p>
+    </div>
+  ) : null;
+
+  // #2070: shown above the email form on arrival from a link that failed to
+  // verify. `role="alert"` like the banner above, and `aria-describedby` on
+  // `#email` points at it while it shows, since the field is where the fix is.
+  const magicLinkErrorBanner = magicLinkError ? (
+    <div
+      className="p-4 bg-amber-500/20 border border-amber-500/30 rounded-lg"
+      role="alert"
+    >
+      <p className="text-amber-200 text-sm text-center" id="magic-link-error">
+        {magicLinkError}
       </p>
     </div>
   ) : null;
@@ -314,6 +367,7 @@ export default function SignInClient() {
             <>
               {!magicLinkSent ? (
                 <form onSubmit={handleSendMagicLink} className="space-y-6">
+                  {magicLinkErrorBanner}
                   {emailErrorBanner}
 
                   <div>
@@ -321,7 +375,13 @@ export default function SignInClient() {
                       Email address
                     </label>
                     <input
-                      aria-describedby={emailError ? "email-error" : undefined}
+                      aria-describedby={
+                        emailError
+                          ? "email-error"
+                          : magicLinkError
+                            ? "magic-link-error"
+                            : undefined
+                      }
                       aria-invalid={emailError ? true : undefined}
                       autoComplete="email"
                       id="email"

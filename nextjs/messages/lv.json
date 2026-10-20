@@ -443,5 +443,9 @@
     "description": "Iespējams, saite ir bojāta vai lapa ir pārvietota.",
     "home": "Doties uz sākumlapu",
     "download": "Lejupielādēt HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Šīs pierakstīšanās saites derīguma termiņš ir beidzies vai tā jau ir izmantota. Ievadiet savu e-pastu, lai saņemtu jaunu.",
+    "magicLinkFailed": "Ar šo saiti mēs nevarējām jūs pierakstīt. Ievadiet savu e-pastu, lai saņemtu jaunu."
   }
 }

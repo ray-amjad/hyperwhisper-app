@@ -443,5 +443,9 @@
     "description": "Povezava je morda okvarjena ali pa je bila stran premaknjena.",
     "home": "Pojdi na domačo stran",
     "download": "Prenesi HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Ta povezava za prijavo je potekla ali je bila že uporabljena. Vnesite svoj e-poštni naslov, da prejmete novo.",
+    "magicLinkFailed": "S to povezavo vas nismo mogli prijaviti. Vnesite svoj e-poštni naslov, da prejmete novo."
   }
 }
