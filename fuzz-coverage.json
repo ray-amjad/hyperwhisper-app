@@ -564,6 +564,23 @@
       ],
       "licensed": false,
       "note": "Unlicensed (no HYPERWHISPER_ACCOUNT_KEY). Codex reported 0 defects on all 3; my own probe of backup export with Include API keys found #2153 (0644 file holding plaintext keys). History needs seeding: insert Transcripts rows via sqlite3 (Status 1=completed, 2=failed) then --relaunch. Local API port 0/1/80/70000/abc/empty all handled truthfully; auth 401 + Origin 403 clean. Empty mode name disables Save. xdotool cannot type non-ASCII (only 'R' of 'Réunion'), not an app bug. Import shows no success status = #2124."
+    },
+    {
+      "at": "2026-10-20T16:17:01Z",
+      "platform": "linux",
+      "commit": "3c858fb8",
+      "routes": [
+        "updates",
+        "streaming",
+        "onboarding"
+      ],
+      "status": "1-filed",
+      "issues": [
+        2226,
+        1348
+      ],
+      "licensed": false,
+      "note": "unlicensed. Codex 0 defects on all 3; #2226 = Home stays :selected after first sidebar nav every launch (the recurring 'Home and Settings both highlighted' — reproduced by hand, pixel-proved selected brush). #1348 commented (Nova 3 Medical + Spanish saved). Updates: version 1.14.0 = csproj, check shows honest 'not system package', autoUpdate toggle persists."
     }
   ]
 }
