@@ -1165,3 +1165,4 @@
 "settings.storage.maxRecordingDuration.hour" = "1 घंटा";
 "settings.storage.maxRecordingDuration.hours" = "%d घंटे";
 "settings.storage.maxRecordingDuration.off" = "बंद";
+"settings.api_server.status.stopping" = "रोका जा रहा है…";

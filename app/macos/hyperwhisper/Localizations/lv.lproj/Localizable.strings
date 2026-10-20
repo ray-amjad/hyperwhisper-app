@@ -1165,3 +1165,4 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "settings.storage.maxRecordingDuration.hour" = "1 stunda";
 "settings.storage.maxRecordingDuration.hours" = "%d stundas";
 "settings.storage.maxRecordingDuration.off" = "Izslēgts";
+"settings.api_server.status.stopping" = "Aptur…";

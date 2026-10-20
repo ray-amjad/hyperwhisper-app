@@ -1165,3 +1165,4 @@
 "settings.storage.maxRecordingDuration.hour" = "1 година";
 "settings.storage.maxRecordingDuration.hours" = "%d годин";
 "settings.storage.maxRecordingDuration.off" = "Вимкнено";
+"settings.api_server.status.stopping" = "Зупинка…";

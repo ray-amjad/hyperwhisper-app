@@ -1165,3 +1165,4 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "settings.storage.maxRecordingDuration.hour" = "1 godzina";
 "settings.storage.maxRecordingDuration.hours" = "%d godzin";
 "settings.storage.maxRecordingDuration.off" = "Wyłączone";
+"settings.api_server.status.stopping" = "Zatrzymywanie…";

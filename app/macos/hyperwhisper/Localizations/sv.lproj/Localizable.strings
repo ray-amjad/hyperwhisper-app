@@ -1165,3 +1165,4 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "settings.storage.maxRecordingDuration.hour" = "1 timme";
 "settings.storage.maxRecordingDuration.hours" = "%d timmar";
 "settings.storage.maxRecordingDuration.off" = "Av";
+"settings.api_server.status.stopping" = "Stoppar…";

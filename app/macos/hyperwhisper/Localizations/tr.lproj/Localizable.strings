@@ -1165,3 +1165,4 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "settings.storage.maxRecordingDuration.hour" = "1 saat";
 "settings.storage.maxRecordingDuration.hours" = "%d saat";
 "settings.storage.maxRecordingDuration.off" = "Kapalı";
+"settings.api_server.status.stopping" = "Durduruluyor…";

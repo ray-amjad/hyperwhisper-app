@@ -1165,3 +1165,4 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "settings.storage.maxRecordingDuration.hour" = "1 uur";
 "settings.storage.maxRecordingDuration.hours" = "%d uur";
 "settings.storage.maxRecordingDuration.off" = "Uit";
+"settings.api_server.status.stopping" = "Bezig met stoppen…";

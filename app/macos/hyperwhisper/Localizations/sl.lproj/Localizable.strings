@@ -1165,3 +1165,4 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "settings.storage.maxRecordingDuration.hour" = "1 ura";
 "settings.storage.maxRecordingDuration.hours" = "%d ur";
 "settings.storage.maxRecordingDuration.off" = "Izklopljeno";
+"settings.api_server.status.stopping" = "Ustavljanje…";

@@ -1165,3 +1165,4 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "settings.storage.maxRecordingDuration.hour" = "1 klukkustund";
 "settings.storage.maxRecordingDuration.hours" = "%d klukkustundir";
 "settings.storage.maxRecordingDuration.off" = "Slökkt";
+"settings.api_server.status.stopping" = "Stöðvar…";

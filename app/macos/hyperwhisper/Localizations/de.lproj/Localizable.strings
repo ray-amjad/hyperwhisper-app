@@ -1165,3 +1165,4 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "settings.storage.maxRecordingDuration.hour" = "1 Stunde";
 "settings.storage.maxRecordingDuration.hours" = "%d Stunden";
 "settings.storage.maxRecordingDuration.off" = "Aus";
+"settings.api_server.status.stopping" = "Wird beendet…";

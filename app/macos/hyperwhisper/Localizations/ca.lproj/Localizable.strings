@@ -1165,3 +1165,4 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "settings.storage.maxRecordingDuration.hour" = "1 hora";
 "settings.storage.maxRecordingDuration.hours" = "%d hores";
 "settings.storage.maxRecordingDuration.off" = "Desactivat";
+"settings.api_server.status.stopping" = "S'està aturant…";

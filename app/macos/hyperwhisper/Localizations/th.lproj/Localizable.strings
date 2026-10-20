@@ -1165,3 +1165,4 @@
 "settings.storage.maxRecordingDuration.hour" = "1 ชั่วโมง";
 "settings.storage.maxRecordingDuration.hours" = "%d ชั่วโมง";
 "settings.storage.maxRecordingDuration.off" = "ปิด";
+"settings.api_server.status.stopping" = "กำลังหยุด…";

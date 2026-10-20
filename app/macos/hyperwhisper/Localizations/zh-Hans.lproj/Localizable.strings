@@ -1166,3 +1166,4 @@
 "settings.storage.maxRecordingDuration.hour" = "1 小时";
 "settings.storage.maxRecordingDuration.hours" = "%d 小时";
 "settings.storage.maxRecordingDuration.off" = "关闭";
+"settings.api_server.status.stopping" = "正在停止…";

@@ -127,7 +127,12 @@ struct APIServerSettingsSection: View {
             if !closingPorts.isEmpty {
                 let bound = closingPorts.filter { $0 > 0 }.sorted()
                 let detail = bound.isEmpty ? "127.0.0.1" : bound.map { "127.0.0.1:\($0)" }.joined(separator: ", ")
-                return ("Stopping…", detail)
+                let title = NSLocalizedString(
+                    "settings.api_server.status.stopping",
+                    value: "Stopping…",
+                    comment: "Local API status while the old server still holds its port"
+                )
+                return (title, detail)
             }
             return ("Server disabled", "No network sockets bound.")
         }

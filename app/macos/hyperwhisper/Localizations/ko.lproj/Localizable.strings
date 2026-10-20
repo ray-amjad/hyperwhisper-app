@@ -1165,3 +1165,4 @@
 "settings.storage.maxRecordingDuration.hour" = "1시간";
 "settings.storage.maxRecordingDuration.hours" = "%d시간";
 "settings.storage.maxRecordingDuration.off" = "끄기";
+"settings.api_server.status.stopping" = "중지 중…";

@@ -1165,3 +1165,4 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "settings.storage.maxRecordingDuration.hour" = "1 tund";
 "settings.storage.maxRecordingDuration.hours" = "%d tundi";
 "settings.storage.maxRecordingDuration.off" = "Väljas";
+"settings.api_server.status.stopping" = "Peatamine…";
