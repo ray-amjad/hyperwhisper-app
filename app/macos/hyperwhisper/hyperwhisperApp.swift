@@ -424,8 +424,12 @@ struct MenuBarIconView: View {
             // Remove "Edit" menu items
             CommandGroup(replacing: .undoRedo) { }
 
-            // Remove "Window" menu items (Show All Tabs)
-            CommandGroup(replacing: .windowList) { }
+            // Settings… (cmd+,) in the app menu, and the Window menu's window
+            // list replaced by one item that reopens the main window (#1526)
+            MainWindowCommands(
+                appState: appState,
+                windowTitle: licenseManager.licenseStatus == .active ? "app.title.pro".localized : "app.title".localized
+            )
 
             // Clean up View menu
             // Remove "Show Tab Bar" / Toolbar items
@@ -1430,5 +1434,61 @@ struct MenuBarIconView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Main Window Commands
+
+/// The menu-bar-menu way back to the main window after cmd+W (issue #1526).
+///
+/// Ray's decisions (inbox ask #333): the app menu gets Settings… with cmd+,
+/// that opens the main window on its Settings page (no SwiftUI `Settings`
+/// scene), and the Window menu's system window list stays replaced, now by one
+/// item that reopens the main window (cmd+0) instead of nothing.
+struct MainWindowCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+
+    let appState: AppState
+    /// The main window's own title, so the Window menu item reads as it.
+    let windowTitle: String
+
+    var body: some Commands {
+        CommandGroup(replacing: .appSettings) {
+            Button("menu.settings".localized) {
+                Self.openSettings(appState: appState, showMainWindow: showMainWindow)
+            }
+            .keyboardShortcut(",", modifiers: .command)
+        }
+
+        CommandGroup(replacing: .windowList) {
+            Button(windowTitle) {
+                showMainWindow()
+            }
+            .keyboardShortcut("0", modifiers: .command)
+        }
+    }
+
+    /// Settings… is a user-chosen jump, as the menu bar's Settings… is: an
+    /// open mode editor with unsaved changes asks first (issue #1525).
+    @MainActor
+    static func openSettings(appState: AppState, showMainWindow: () -> Void) {
+        showMainWindow()
+        appState.requestNavigation(to: .settings, trigger: .userChosen)
+    }
+
+    /// Brings the main window forward, or opens it when it was closed: the
+    /// same steps as the menu bar's `MainAppView.openMainWindow()`.
+    @MainActor
+    private func showMainWindow() {
+        // The user asked for this window, so `launchMinimized` must not hide it.
+        HyperWhisperApp.suppressLaunchMinimizedHide()
+        NSApp.activate(ignoringOtherApps: true)
+
+        if let mainWindow = MainWindowStore.window
+            ?? NSApp.windows.first(where: { $0.identifier == .hyperwhisperMainWindow }) {
+            mainWindow.makeKeyAndOrderFront(nil)
+            return
+        }
+        openWindow(id: "mainWindow")
     }
 }
