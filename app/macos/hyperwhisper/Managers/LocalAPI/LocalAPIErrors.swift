@@ -238,10 +238,12 @@ enum LocalAPIResponder {
             // billing prose, and the shared row carries the action in its hint.
             return (.quotaExceeded, slots(provider: provider))
         case .insufficientCredits:
-            // Same row. The `remaining`/`required` counts are dropped for the
-            // same reason the provider message is: the shared row's hint says
-            // what to do, and no other head has the numbers to render.
-            return (.quotaExceeded, slots())
+            // HyperWhisper Cloud's 402: its own row, because the BYOK row's
+            // hint points at a provider billing page Cloud does not have
+            // (#2089). The `remaining`/`required` counts are dropped: the
+            // shared row's hint says what to do, and no other head has the
+            // numbers to render.
+            return (.insufficientCredits, slots())
         default:
             // Five cases stay here on purpose, and each would need a wording
             // decision no head has made:

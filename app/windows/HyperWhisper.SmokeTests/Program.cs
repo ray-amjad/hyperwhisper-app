@@ -13432,6 +13432,57 @@ internal static class Program
                     $"the generic row lost this head's own detail text: \"{generic.message}\"");
             });
 
+            Run("a Cloud 402 reaches the Local API as out of credits, not a provider billing page", () =>
+            {
+                // ISSUE #2089. Cloud's and the routed path's 402 are the account
+                // being out of credits, and both became QuotaExceeded, whose
+                // Local API hint says "Add credits in the provider's billing
+                // page." Cloud has no such page. A real 402 goes through the
+                // core's parser and the shipping RustCoreMapping, which flags it.
+                HwTranscriptionException parsed;
+                try
+                {
+                    HyperwhisperCoreMethods.HyperwhisperCloudParseTranscribeResponse(
+                        new uniffi.hyperwhisper_core.HttpResponse(
+                            402,
+                            new List<Header>(),
+                            System.Text.Encoding.UTF8.GetBytes(
+                                "{\"error\":\"Insufficient credits\",\"creditsRemaining\":0,\"creditsRequired\":3}")));
+                    throw new InvalidOperationException("the core accepted a 402 as a transcript");
+                }
+                catch (HwTranscriptionException ex)
+                {
+                    parsed = ex;
+                }
+                Assert(parsed is HwTranscriptionException.QuotaExceeded,
+                    $"the core parsed a Cloud 402 as {parsed.GetType().Name}, not QuotaExceeded");
+
+                foreach (var provider in new[] { "HyperWhisper Cloud", "OpenAI via HyperWhisper Cloud" })
+                {
+                    var mapped = RustCoreMapping.MapTranscriptionError(
+                        parsed, provider, httpStatusCode: 402, insufficientCredits: true);
+                    // The toast still sees the code it always saw.
+                    Assert(mapped.Code == TranscriptionErrorCode.QuotaExceeded,
+                        $"{provider}: the app code moved to {mapped.Code}");
+                    Assert(mapped.IsInsufficientCredits, $"{provider}: the 402 is not flagged");
+
+                    var credits = LocalApiResponder.MapTranscriptionException(mapped);
+                    Assert(credits.code == "RATE_LIMITED", $"{provider}: code is {credits.code}");
+                    Assert(credits.message == "Out of HyperWhisper Cloud credits.",
+                        $"{provider}: message is \"{credits.message}\"");
+                    Assert(credits.hint == "Add credits in Settings.",
+                        $"{provider}: hint is \"{credits.hint}\"");
+                }
+
+                // A BYOK provider's quota, 402 included, keeps its billing-page row.
+                var byok = LocalApiResponder.MapTranscriptionException(
+                    RustCoreMapping.MapTranscriptionError(parsed, "OpenAI", httpStatusCode: 402));
+                Assert(byok.code == "RATE_LIMITED", $"BYOK code is {byok.code}");
+                Assert(byok.message == "OpenAI quota exceeded.", $"BYOK message is \"{byok.message}\"");
+                Assert(byok.hint == "Add credits in the provider's billing page.",
+                    $"BYOK hint is \"{byok.hint}\"");
+            });
+
             RunAsync("an oversized audio_base64 body is refused before it is decoded", async () =>
             {
                 // Since issue #356 item 6 the two decode guards (encoded length,

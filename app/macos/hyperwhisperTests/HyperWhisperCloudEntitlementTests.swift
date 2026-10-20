@@ -661,4 +661,23 @@ struct HyperWhisperCloudEntitlementTests {
         #expect(message.localizedCaseInsensitiveContains(Self.toastSettingsMarker))
         #expect(hint != nil)
     }
+
+    /// #2089: Cloud's 402 told a Local API client to "add credits in the
+    /// provider's billing page", which Cloud does not have.
+    @Test func localAPIMapsCloudInsufficientCreditsToTheAppsOwnWording() {
+        let (code, message, hint) = LocalAPIResponder.mapTranscriptionError(
+            TranscriptionError.insufficientCredits(remaining: 0, required: 3)
+        )
+        #expect(code == .rateLimited)
+        #expect(message == "Out of HyperWhisper Cloud credits.")
+        #expect(hint == "Add credits in Settings.")
+
+        // A BYOK provider's quota keeps its billing-page row.
+        let (byokCode, byokMessage, byokHint) = LocalAPIResponder.mapTranscriptionError(
+            TranscriptionError.quotaExceeded(provider: "OpenAI", message: nil)
+        )
+        #expect(byokCode == .rateLimited)
+        #expect(byokMessage == "OpenAI quota exceeded.")
+        #expect(byokHint == "Add credits in the provider's billing page.")
+    }
 }
