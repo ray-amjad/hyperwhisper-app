@@ -30,18 +30,25 @@ public static class DatabaseInitializer
             if (staleLocks > 0)
                 LoggingService.Warn($"DatabaseInitializer: Cleared {staleLocks} stale EF migration lock row(s)");
 
-            // Apply any pending migrations automatically
-            LoggingService.Debug("DatabaseInitializer: Applying migrations...");
-            await context.Database.MigrateAsync();
-            LoggingService.Info("DatabaseInitializer: Migrations applied successfully");
+            // MigrateAsync costs about 230 ms on the UI thread even with nothing
+            // to apply (#979), so ask first. A new database lists every migration.
+            var pending = (await context.Database.GetPendingMigrationsAsync()).ToList();
+            if (pending.Count > 0)
+            {
+                LoggingService.Debug($"DatabaseInitializer: Applying {pending.Count} migration(s)...");
+                await context.Database.MigrateAsync();
+                LoggingService.Info("DatabaseInitializer: Migrations applied successfully");
+            }
+            else
+            {
+                LoggingService.Debug("DatabaseInitializer: No pending migrations");
+            }
 
             // Ensure default modes exist
             await EnsureDefaultModesAsync(context);
 
-            // Normalize legacy cloud provider/tier/model identifiers after
-            // schema migration/default seeding so existing rows match the
-            // current Mode Editor and macOS startup migrations.
-            ModeService.NormalizeLegacyCloudModeValues();
+            // Legacy cloud tier/model values are normalized by the ModeService
+            // constructor, before anything reads a mode (#979).
 
             LoggingService.Info("DatabaseInitializer: Database initialization complete");
         }

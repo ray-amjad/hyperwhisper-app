@@ -255,7 +255,8 @@ describe('transcribeWithSoniox — upstream error mapping', () => {
     const error = await transcribeWithSoniox(SMALL_AUDIO, 'audio/wav').catch((e) => e);
     expect(error).toBeInstanceOf(ProviderInputError);
     expect((error as ProviderInputError).status).toBe(400);
-    expect((error as Error).message).toContain('bad container');
+    expect((error as Error).message).not.toContain('bad container');
+    expect((error as ProviderInputError).clientMessage).toContain('bad container');
   });
 
   test('a malformed (non-JSON) upload response is provider-unavailable, not a client error', async () => {
@@ -408,7 +409,9 @@ describe('transcribeWithSoniox — failed-job classification', () => {
       mockSonioxFlow({ pollBodies: [{ status: 200, body: { status: 'failed', error_type: errorType, error_message: 'upstream said no' } }] });
       const error = await transcribeWithSoniox(SMALL_AUDIO, 'audio/wav').catch((e) => e);
       expect(error).toBeInstanceOf(ProviderUnavailableError);
-      expect((error as Error).message).toContain('upstream said no');
+      // The slug, never Soniox's free-text error_message (#2163).
+      expect((error as Error).message).toContain(`async job failed: ${errorType}`);
+      expect((error as Error).message).not.toContain('upstream said no');
     },
     10_000,
   );

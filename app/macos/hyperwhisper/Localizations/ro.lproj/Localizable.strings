@@ -938,6 +938,7 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "transcription.error.modelNotDownloaded" = "Vă rugăm descărcați mai întâi un model";
 "transcription.error.modelNotDownloaded.modelAndMode" = "Modul %1$@ folosește %2$@, care nu este descărcat. Descărcați-l din Biblioteca de modele.";
 "transcription.error.modelNotDownloaded.model" = "%1$@ nu este descărcat. Descărcați-l din Biblioteca de modele.";
+"transcription.error.openModelLibrary" = "Deschideți Biblioteca de modele";
 "transcription.error.modelProtected" = "Acest model nu poate fi șters";
 "transcription.error.audioFileNotFound" = "Fișier audio nu a fost găsit";
 "transcription.error.network.detail" = "Eroare de rețea: %@";

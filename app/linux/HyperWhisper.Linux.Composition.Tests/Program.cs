@@ -48,6 +48,10 @@ if (args is [AutoDeleteDaysCommitRenderTests.ProbeArgument])
 {
     Environment.Exit(AutoDeleteDaysCommitRenderTests.RunProbe());
 }
+if (args is [HistoryRevisitRenderTests.ProbeArgument])
+{
+    Environment.Exit(HistoryRevisitRenderTests.RunProbe());
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -118,6 +122,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("leaving Model Library keeps the Whisper and LLM backend picks in the view model and settings.json (#1967)", BackendPickerPageLeaveRenderTests.RunAsync),
     ("the Storage auto-delete days box applies nothing until it loses focus (#2199)", AutoDeleteDaysCommitRenderTests.RunAsync),
     ("the Backup page shows an inspect failure and clears it on a good file (#2124)", BackupErrorRenderTests.RunAsync),
+    ("a History revisit with nothing changed does not reload the list; a period change or a write still does (#2099)", HistoryRevisitRenderTests.RunAsync),
 };
 
 foreach (var test in tests)

@@ -76,7 +76,6 @@ function authed(extra: Record<string, string> = {}): Record<string, string> {
   return { "x-internal-secret": INTERNAL_SECRET, ...extra };
 }
 
-const realInternalSecret = process.env.HYPERWHISPER_INTERNAL_SECRET;
 const realDateNow = Date.now;
 
 before(async () => {
@@ -94,16 +93,12 @@ beforeEach(() => {
   resetHarness();
   logLines.length = 0;
   Date.now = () => NOW;
-  process.env.HYPERWHISPER_INTERNAL_SECRET = INTERNAL_SECRET;
+  // The ingest route reads the validated env (#682), which the harness fakes.
+  fakeEnv.HYPERWHISPER_INTERNAL_SECRET = INTERNAL_SECRET;
 });
 
 afterEach(() => {
   Date.now = realDateNow;
-  if (realInternalSecret === undefined) {
-    delete process.env.HYPERWHISPER_INTERNAL_SECRET;
-  } else {
-    process.env.HYPERWHISPER_INTERNAL_SECRET = realInternalSecret;
-  }
 });
 
 describe("POST /api/internal/latency — the secret gate", () => {
@@ -129,7 +124,7 @@ describe("POST /api/internal/latency — the secret gate", () => {
   });
 
   test("answers 401 when the server has no secret configured", async () => {
-    delete process.env.HYPERWHISPER_INTERNAL_SECRET;
+    delete fakeEnv.HYPERWHISPER_INTERNAL_SECRET;
     const { POST } = await loadLatencyIngestRoute();
     const res = await POST(
       postRequest(INGEST_PATH, { samples: [sample()] }, { "x-internal-secret": "" }),

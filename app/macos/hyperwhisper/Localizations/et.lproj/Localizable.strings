@@ -938,6 +938,7 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "transcription.error.modelNotDownloaded" = "Palun laadige mudel alla esmalt";
 "transcription.error.modelNotDownloaded.modelAndMode" = "Režiim %1$@ kasutab mudelit %2$@, mis pole alla laaditud. Laadige see alla Mudelikogust.";
 "transcription.error.modelNotDownloaded.model" = "Mudel %1$@ pole alla laaditud. Laadige see alla Mudelikogust.";
+"transcription.error.openModelLibrary" = "Ava Mudelikogu";
 "transcription.error.modelProtected" = "Seda mudelit ei saa kustutada";
 "transcription.error.audioFileNotFound" = "Helifaili ei leitud";
 "transcription.error.network.detail" = "Võrgu viga: %@";

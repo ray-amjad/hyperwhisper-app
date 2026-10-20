@@ -79,6 +79,10 @@ before(async () => {
   process.env.UPSTASH_REDIS_SITE_TOKEN = SITE_TOKEN;
   process.env.UPSTASH_REDIS_CLOUD_URL = await listen(cloud);
   process.env.UPSTASH_REDIS_CLOUD_TOKEN = CLOUD_TOKEN;
+  // The Redis client reads the SITE pair through `src/env/server.mjs`, which
+  // snapshots process.env on this first import (#682). The other required
+  // secrets are absent here, so its format check is skipped.
+  process.env.SKIP_ENV_VALIDATION = "1";
   limiters = await import("../lib/rate-limit");
 });
 
