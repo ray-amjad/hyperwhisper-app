@@ -1,11 +1,27 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { mock } from "node:test";
 import { inspect } from "node:util";
 import { NextRequest } from "next/server";
 
-import { parseInternalEmailRequest } from "../app/api/internal/email-request";
-
 const INTERNAL_SECRET = "test-internal-secret";
+
+/** `mock.module` is untyped under the pinned `@types/node@20`; see the harnesses. */
+interface ModuleMocker {
+  module(specifier: string, options: { namedExports: Record<string, unknown> }): void;
+}
+
+// The secret gate reads the validated env (#682). Fake that module, then load
+// the real helper after the mock is in place.
+(mock as unknown as ModuleMocker).module(
+  new URL("../src/env/server.mjs", import.meta.url).href,
+  { namedExports: { env: { HYPERWHISPER_INTERNAL_SECRET: INTERNAL_SECRET } } },
+);
+
+let parseInternalEmailRequest: typeof import("../app/api/internal/email-request").parseInternalEmailRequest;
+
+test.before(async () => {
+  ({ parseInternalEmailRequest } = await import("../app/api/internal/email-request"));
+});
 
 function request(body: string, secret = INTERNAL_SECRET): NextRequest {
   return new NextRequest("http://localhost/api/internal/test", {
@@ -26,10 +42,6 @@ async function errorFrom(body: string, secret = INTERNAL_SECRET) {
     body: await result.response.json(),
   };
 }
-
-test.before(() => {
-  process.env.HYPERWHISPER_INTERNAL_SECRET = INTERNAL_SECRET;
-});
 
 test("normalizes a valid mixed-case email", async () => {
   const result = await parseInternalEmailRequest(

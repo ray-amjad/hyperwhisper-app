@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 
+import { firstParam } from "./first-param";
+
 import CreditsPurchase from "@/components/credits/CreditsPurchase";
 import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
@@ -24,11 +26,11 @@ export default async function CreditsPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ id?: string; license_key?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await params;
   const { id, license_key } = await searchParams;
-  const raw = id ?? license_key ?? "";
+  const raw = firstParam(id) ?? firstParam(license_key) ?? "";
 
   if (raw.startsWith("HW-")) {
     redirect(

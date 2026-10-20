@@ -8,9 +8,10 @@
  * procedure at all; `customer.ts` turns pooled credit grants into the balance
  * and the minutes a customer reads.
  *
- * Three collaborators are replaced here with `mock.module`: Better Auth
- * (`src/lib/auth.ts`), the database layer (`src/lib/db-layer.ts`) and the
- * Stripe client (`lib/clients/stripe.ts`). The tests then run the REAL
+ * Four collaborators are replaced here with `mock.module`: Better Auth
+ * (`src/lib/auth.ts`), the database layer (`src/lib/db-layer.ts`), the
+ * Stripe client (`lib/clients/stripe.ts`) and the validated server env
+ * (`src/env/server.mjs`, for `NEXT_PUBLIC_SITE_URL`, #682). The tests then run the REAL
  * middleware chain and the REAL router — no session server, no database and
  * no Stripe account.
  *
@@ -113,7 +114,15 @@ export function resetHarness(): void {
   behaviour.balances = new Map();
   behaviour.grants = [];
   behaviour.portalUrl = "https://billing.stripe.test/session/bps_1";
+
+  for (const key of Object.keys(fakeEnv)) delete fakeEnv[key];
 }
+
+/**
+ * The fake validated env the router reads `NEXT_PUBLIC_SITE_URL` from. It is
+ * read per call, so a test may set it before calling a procedure.
+ */
+export const fakeEnv: Record<string, string | undefined> = {};
 
 function moduleUrl(relative: string): string {
   return new URL(relative, import.meta.url).href;
@@ -172,6 +181,10 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
       return behaviour.grants.filter((g) => wanted.has(g.userId));
     },
   },
+});
+
+moduleMock.module(moduleUrl("../src/env/server.mjs"), {
+  namedExports: { env: fakeEnv },
 });
 
 moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {

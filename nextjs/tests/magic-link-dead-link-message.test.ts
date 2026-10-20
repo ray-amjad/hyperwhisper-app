@@ -55,6 +55,10 @@ const EMAIL = "dead-link-probe@example.com";
 const RETURN_TO = "/en/user/licenses";
 
 // `auth.ts` reads these once, when `betterAuth()` runs at import time.
+// BETTER_AUTH_URL arrives through `src/env/server.mjs`, which snapshots
+// process.env on its first import (#682); the other required secrets are
+// absent here, so its format check is skipped.
+process.env.SKIP_ENV_VALIDATION = "1";
 process.env.BETTER_AUTH_URL = ORIGIN;
 process.env.BETTER_AUTH_SECRET =
   "test-secret-for-2070-dead-magic-link-0123456789";

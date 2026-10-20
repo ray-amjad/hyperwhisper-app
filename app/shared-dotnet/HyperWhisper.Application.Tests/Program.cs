@@ -320,6 +320,36 @@ try
         && !exported.Contains("selectedModeId", StringComparison.Ordinal),
         "Linux backup did not map shortcut settings or exported device-local mode selection");
     Assert(!exported.Contains("apiKeys", StringComparison.Ordinal), "backup exported an API-key container without explicit opt-in");
+    // #2153: an export with plaintext API keys is owner-only (0600), new file or overwrite.
+    if (!OperatingSystem.IsWindows())
+    {
+        var keyStore = new MemoryCredentialStore();
+        keyStore.Write("HyperWhisper", "OpenAIApiKey", "sk-test-backup-mode"u8);
+        var keyBackup = new BackupViewModel(new ApplicationBackupService(database, reloadedSettings, keyStore))
+        {
+            ExportCredentials = true,
+            PlaintextCredentialExportAcknowledged = true
+        };
+        const UnixFileMode ownerOnly = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        var newBackupPath = Path.Combine(root, "keys-new.hwbackup");
+        keyBackup.Path = newBackupPath;
+        await keyBackup.ExportAsync();
+        Assert(!keyBackup.Status.HasError && File.ReadAllText(newBackupPath).Contains("sk-test-backup-mode", StringComparison.Ordinal),
+            $"API-key backup export to a new file failed: {keyBackup.Status.ErrorCode}");
+        Assert(File.GetUnixFileMode(newBackupPath) == ownerOnly,
+            $"new API-key backup was written {File.GetUnixFileMode(newBackupPath)}, not owner-only");
+        var existingBackupPath = Path.Combine(root, "keys-existing.hwbackup");
+        await File.WriteAllTextAsync(existingBackupPath, new string('x', 64 * 1024));
+        File.SetUnixFileMode(existingBackupPath, ownerOnly | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+        keyBackup.Path = existingBackupPath;
+        await keyBackup.ExportAsync();
+        Assert(File.GetUnixFileMode(existingBackupPath) == ownerOnly,
+            $"overwritten API-key backup stayed {File.GetUnixFileMode(existingBackupPath)}, not owner-only");
+        var overwritten = File.ReadAllText(existingBackupPath);
+        Assert(!overwritten.Contains("xxxx", StringComparison.Ordinal)
+            && JsonNode.Parse(overwritten)?["apiKeys"]?["openai"]?.GetValue<string>() == "sk-test-backup-mode",
+            "overwriting a longer existing backup left stale bytes behind");
+    }
     var nonIntegerVersion = JsonNode.Parse(exported)!.AsObject();
     nonIntegerVersion["schemaVersion"] = "2";
     Assert((await backupService.ImportAsync(nonIntegerVersion.ToJsonString())).Error?.Code == "backup.unsupported_version",

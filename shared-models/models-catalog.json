@@ -588,7 +588,7 @@
     },
     {
       "provider": "mistral",
-      "id": "mistral-medium-3.5",
+      "id": "mistral-medium-3-5",
       "kind": "text",
       "displayName": "Mistral Medium 3.5",
       "supportsCustomVocabulary": false,

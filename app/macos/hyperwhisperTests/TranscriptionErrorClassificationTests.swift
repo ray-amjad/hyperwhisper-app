@@ -236,7 +236,7 @@ struct TranscriptionErrorClassificationTests {
         (.providerNotAvailable(provider: "p", reason: "unreachable"), false),
         (.providerNotAvailable(provider: "p", reason: "Provider health check failed"), false),
         (.providerNotAvailable(provider: "p", reason: "Unexpected health status"), false),
-        (.modelNotDownloaded, true),
+        (.modelNotDownloaded(), true),
         (.modelProtected, true),
         (.audioFileNotFound, true),
         (.transientNetwork(details: "offline"), false),
