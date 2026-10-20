@@ -2044,6 +2044,9 @@
   <data name="settings.sound.microphone.fallback" xml:space="preserve">
     <value>{1}이(가) 다시 연결될 때까지 {0}을(를) 사용합니다.</value>
   </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>연결된 마이크가 없습니다. {0}이(가) 다시 연결되면 HyperWhisper가 사용합니다.</value>
+  </data>
   <data name="settings.sound.microphone.test" xml:space="preserve">
     <value>테스트</value>
   </data>

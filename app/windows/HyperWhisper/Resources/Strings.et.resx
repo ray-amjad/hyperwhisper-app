@@ -2044,6 +2044,9 @@ You can re-download it later.</value>
   <data name="settings.sound.microphone.fallback" xml:space="preserve">
     <value>Kasutatakse seadet {0}, kuni {1} uuesti ühendatakse.</value>
   </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Ühtegi mikrofoni pole ühendatud. HyperWhisper kasutab seadet {0}, kui see uuesti ühendatakse.</value>
+  </data>
   <data name="settings.sound.microphone.test" xml:space="preserve">
     <value>Testi</value>
   </data>

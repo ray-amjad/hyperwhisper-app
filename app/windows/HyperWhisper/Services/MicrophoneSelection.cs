@@ -40,6 +40,13 @@ public enum MicrophoneSource
 
     /// <summary>The saved choice is not connected; the Windows default stands in.</summary>
     SavedMissingUsingDefault,
+
+    /// <summary>
+    /// The saved choice is not connected and no other input is either, so
+    /// nothing records until a microphone comes back. The choice is still kept
+    /// and shown "(not connected)".
+    /// </summary>
+    SavedMissingNoDevice,
 }
 
 /// <summary>The resolved microphone, and why.</summary>
@@ -49,7 +56,8 @@ public sealed record MicrophoneResolution(
     string? SavedName,
     AudioDeviceService.AudioDevice? DefaultDevice)
 {
-    public bool IsSavedMissing => Source == MicrophoneSource.SavedMissingUsingDefault;
+    public bool IsSavedMissing =>
+        Source is MicrophoneSource.SavedMissingUsingDefault or MicrophoneSource.SavedMissingNoDevice;
 }
 
 /// <summary>
@@ -179,8 +187,15 @@ public static class MicrophoneSelection
     {
         var saved = string.IsNullOrWhiteSpace(savedName) ? null : savedName;
 
+        // No input at all. A saved choice is still a choice: it is reported
+        // missing (so Settings shows "<name> (not connected)" and says why),
+        // not dropped to None, which reads as "nothing was ever chosen".
         if (devices.Count == 0)
-            return new MicrophoneResolution(null, MicrophoneSource.None, saved, null);
+            return new MicrophoneResolution(
+                null,
+                saved == null ? MicrophoneSource.None : MicrophoneSource.SavedMissingNoDevice,
+                saved,
+                null);
 
         if (saved != null)
         {
@@ -237,12 +252,17 @@ public static class MicrophoneSelection
 
     /// <summary>
     /// The amber line under a disconnected choice, or null when there is none:
-    /// "Using &lt;fallback&gt; until &lt;device&gt; is reconnected."
+    /// "Using &lt;fallback&gt; until &lt;device&gt; is reconnected.", or, when no
+    /// microphone is connected at all, "No microphone is connected. HyperWhisper
+    /// will use &lt;device&gt; when it is reconnected."
     /// </summary>
     public static string? FallbackMessage(MicrophoneResolution resolution)
     {
         if (!resolution.IsSavedMissing || resolution.SavedName == null)
             return null;
+
+        if (resolution.Source == MicrophoneSource.SavedMissingNoDevice)
+            return Localization.Loc.S("settings.sound.microphone.fallbackNoDevice", resolution.SavedName);
 
         var fallback = resolution.Device?.Name;
         if (string.IsNullOrWhiteSpace(fallback))

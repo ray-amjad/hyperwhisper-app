@@ -2043,6 +2043,9 @@ You can re-download it later.</value>
   <data name="settings.sound.microphone.fallback" xml:space="preserve">
     <value>Використовується {0}, доки {1} не буде знову підключено.</value>
   </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Мікрофон не підключено. HyperWhisper використовуватиме {0}, коли його знову буде підключено.</value>
+  </data>
   <data name="settings.sound.microphone.test" xml:space="preserve">
     <value>Перевірити</value>
   </data>

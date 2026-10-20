@@ -2044,6 +2044,9 @@ You can re-download it later.</value>
   <data name="settings.sound.microphone.fallback" xml:space="preserve">
     <value>A(z) {0} van használatban, amíg a(z) {1} újra nem csatlakozik.</value>
   </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Nincs csatlakoztatott mikrofon. A HyperWhisper a(z) {0} eszközt fogja használni, amikor újra csatlakozik.</value>
+  </data>
   <data name="settings.sound.microphone.test" xml:space="preserve">
     <value>Teszt indítása</value>
   </data>

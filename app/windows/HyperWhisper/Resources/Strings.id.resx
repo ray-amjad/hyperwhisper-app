@@ -2044,6 +2044,9 @@ Anda dapat mengunduhnya lagi nanti.</value>
   <data name="settings.sound.microphone.fallback" xml:space="preserve">
     <value>Menggunakan {0} hingga {1} terhubung kembali.</value>
   </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Tidak ada mikrofon yang terhubung. HyperWhisper akan menggunakan {0} saat terhubung kembali.</value>
+  </data>
   <data name="settings.sound.microphone.test" xml:space="preserve">
     <value>Uji</value>
   </data>

@@ -2044,6 +2044,9 @@ You can re-download it later.</value>
   <data name="settings.sound.microphone.fallback" xml:space="preserve">
     <value>Käytetään laitetta {0}, kunnes {1} yhdistetään uudelleen.</value>
   </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Mikrofonia ei ole yhdistetty. HyperWhisper käyttää laitetta {0}, kun se yhdistetään uudelleen.</value>
+  </data>
   <data name="settings.sound.microphone.test" xml:space="preserve">
     <value>Testaa</value>
   </data>

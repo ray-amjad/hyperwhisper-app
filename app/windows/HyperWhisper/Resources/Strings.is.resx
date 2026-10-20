@@ -2044,6 +2044,9 @@ You can re-download it later.</value>
   <data name="settings.sound.microphone.fallback" xml:space="preserve">
     <value>Notar {0} þar til {1} er tengt aftur.</value>
   </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Enginn hljóðnemi er tengdur. HyperWhisper notar {0} þegar það er tengt aftur.</value>
+  </data>
   <data name="settings.sound.microphone.test" xml:space="preserve">
     <value>Prófa</value>
   </data>

@@ -157,7 +157,9 @@ static void AllCatalogsLoad()
     // 867 -> 873: the Windows Settings -> Sound microphone picker adds
     // `settings.sound.microphone.subtitle`, `.default`, `.notConnected`, `.fallback`,
     // `.test` and `.stop` (its title reuses `menu.microphone`).
-    Equal(873, PortableLocalizer.BaseKeyCount, "base key count");
+    // 873 -> 874: `settings.sound.microphone.fallbackNoDevice` is new (the Windows picker's
+    // amber line when the saved microphone is unplugged and no other input is connected).
+    Equal(874,PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

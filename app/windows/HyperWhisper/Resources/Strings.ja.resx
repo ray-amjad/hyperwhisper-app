@@ -1905,6 +1905,9 @@
   <data name="settings.sound.microphone.fallback" xml:space="preserve">
     <value>{1} が再接続されるまで {0} を使用します。</value>
   </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>マイクが接続されていません。{0} が再接続されると、HyperWhisper はそれを使用します。</value>
+  </data>
   <data name="settings.sound.microphone.test" xml:space="preserve">
     <value>テスト</value>
   </data>

@@ -2044,6 +2044,9 @@ You can re-download it later.</value>
   <data name="settings.sound.microphone.fallback" xml:space="preserve">
     <value>S'utilitza {0} fins que es torni a connectar {1}.</value>
   </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>No hi ha cap micròfon connectat. HyperWhisper utilitzarà {0} quan es torni a connectar.</value>
+  </data>
   <data name="settings.sound.microphone.test" xml:space="preserve">
     <value>Prova</value>
   </data>

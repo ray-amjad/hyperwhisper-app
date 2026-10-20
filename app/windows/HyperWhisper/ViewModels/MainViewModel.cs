@@ -755,7 +755,13 @@ public partial class MainViewModel : ViewModelBase
             _pickedDeviceNumber,
             SelectedAudioDevice?.DeviceNumber);
 
-        if (resolution.IsSavedMissing)
+        if (resolution.Source == MicrophoneSource.SavedMissingNoDevice)
+        {
+            LoggingService.Info(
+                $"MainViewModel: Saved microphone '{resolution.SavedName}' is not connected and no other input is; " +
+                "keeping the choice until it is");
+        }
+        else if (resolution.IsSavedMissing)
         {
             LoggingService.Info(
                 $"MainViewModel: Saved microphone '{resolution.SavedName}' is not connected; " +

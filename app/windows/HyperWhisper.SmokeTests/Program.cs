@@ -1815,12 +1815,17 @@ internal static class Program
                 Assert(back.Source == MicrophoneSource.Saved && back.Device == usb, "re-plugged, the next resolve uses it again");
 
                 var none = MicrophoneSelection.Resolve(new List<AudioDeviceService.AudioDevice>(), "Scarlett 2i2 USB", null);
-                Assert(none.Source == MicrophoneSource.None && none.Device is null && none.SavedName == "Scarlett 2i2 USB",
-                    "no devices: nothing to open, the choice still kept");
+                Assert(none.Source == MicrophoneSource.SavedMissingNoDevice && none.Device is null && none.SavedName == "Scarlett 2i2 USB",
+                    "no devices: nothing to open, the choice still kept and reported missing");
+                var nothingAtAll = MicrophoneSelection.Resolve(new List<AudioDeviceService.AudioDevice>(), null, null);
+                Assert(nothingAtAll.Source == MicrophoneSource.None && !nothingAtAll.IsSavedMissing,
+                    "no devices and nothing saved is None");
 
                 Assert(AudioDeviceSelectionReason.For(AudioDeviceSelectionReason.Phase.Startup, MicrophoneSource.Saved) == AudioDeviceSelectionReason.StartupSaved, "startup saved slug");
                 Assert(AudioDeviceSelectionReason.For(AudioDeviceSelectionReason.Phase.Refresh, MicrophoneSource.SavedMissingUsingDefault) == AudioDeviceSelectionReason.RefreshSavedMissing, "refresh missing slug");
                 Assert(AudioDeviceSelectionReason.For(AudioDeviceSelectionReason.Phase.Startup, MicrophoneSource.None) == AudioDeviceSelectionReason.StartupNoDevices, "startup none slug");
+                Assert(AudioDeviceSelectionReason.For(AudioDeviceSelectionReason.Phase.Startup, MicrophoneSource.SavedMissingNoDevice) == AudioDeviceSelectionReason.StartupNoDevices, "startup saved-missing-no-device slug");
+                Assert(AudioDeviceSelectionReason.For(AudioDeviceSelectionReason.Phase.Refresh, MicrophoneSource.SavedMissingNoDevice) == AudioDeviceSelectionReason.RefreshNoDevices, "refresh saved-missing-no-device slug");
                 foreach (var slug in new[]
                 {
                     AudioDeviceSelectionReason.StartupSaved, AudioDeviceSelectionReason.StartupSystemDefault,
@@ -1866,6 +1871,41 @@ internal static class Program
                 var nameless = MicrophoneSelection.DefaultLabel(null);
                 Assert(nameless == HyperWhisper.Localization.Loc.S("onboarding.mic.device.systemDefault"),
                     "with no named Windows default the row reads System Default");
+            });
+
+            Run("Microphone picker, zero devices + saved name: (not connected) row and the no-device amber line (W3)", () =>
+            {
+                // The saved microphone was the ONLY capture device and is unplugged.
+                var empty = new List<AudioDeviceService.AudioDevice>();
+                const string savedName = "Scarlett 2i2 USB";
+
+                var resolution = MicrophoneSelection.Resolve(empty, savedName, null);
+                Assert(resolution.Source == MicrophoneSource.SavedMissingNoDevice, $"saved but missing with no fallback, got {resolution.Source}");
+                Assert(resolution.IsSavedMissing, "IsSavedMissing is true, so the picker shows the missing row");
+                Assert(resolution.Device is null && resolution.DefaultDevice is null, "nothing to record from");
+                Assert(resolution.SavedName == savedName, "the choice is kept");
+
+                var (rows, selected) = MicrophoneSelection.BuildOptions(empty, resolution);
+                Assert(rows.Count == 2, $"Default + the missing saved one, got {rows.Count}");
+                Assert(rows[0].IsDefault && rows[0].Name is null, "Default stays first so the choice can be cleared");
+                Assert(rows[0].Label == HyperWhisper.Localization.Loc.S("onboarding.mic.device.systemDefault"),
+                    "with no device the Default row reads System Default");
+                Assert(selected == rows[1] && selected.IsMissing && selected.Name == savedName, "the missing saved row is selected");
+                Assert(selected.Label == MicrophoneSelection.NotConnectedLabel(savedName), "labelled (not connected)");
+
+                var message = MicrophoneSelection.FallbackMessage(resolution);
+                Assert(message == HyperWhisper.Localization.Loc.S("settings.sound.microphone.fallbackNoDevice", savedName),
+                    $"the amber line uses the no-device wording, got '{message}'");
+                Assert(message!.Contains(savedName), "and names the saved device");
+                Assert(!message.Contains(HyperWhisper.Localization.Loc.S("onboarding.mic.device.systemDefault")),
+                    "it does not claim System Default is being used");
+
+                // Cleared via Default: nothing saved, nothing missing, no amber line.
+                var cleared = MicrophoneSelection.Resolve(empty, null, null);
+                Assert(cleared.Source == MicrophoneSource.None && MicrophoneSelection.FallbackMessage(cleared) is null,
+                    "after picking Default with no device there is no amber line");
+                (rows, selected) = MicrophoneSelection.BuildOptions(empty, cleared);
+                Assert(rows.Count == 1 && selected.IsDefault, "only the Default row remains, selected");
             });
 
             Run("Microphone picker: same-named devices keep the exact device picked", () =>

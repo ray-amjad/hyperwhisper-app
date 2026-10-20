@@ -101,7 +101,7 @@
                                       ItemsSource="{Binding Options}"
                                       SelectedItem="{Binding SelectedOption, Mode=TwoWay}"
                                       DisplayMemberPath="Label"
-                                      IsEnabled="{Binding HasDevices}"/>
+                                      IsEnabled="{Binding CanPick}"/>
                         </Grid>
 
                         <!-- Saved device unplugged: one amber line, the choice is kept. -->

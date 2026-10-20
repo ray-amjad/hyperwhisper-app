@@ -40,6 +40,13 @@ public sealed partial class MicrophonePickerViewModel : ObservableObject, IDispo
     [ObservableProperty] private IReadOnlyList<MicrophoneOption> _options = Array.Empty<MicrophoneOption>();
     [ObservableProperty] private string? _fallbackMessage;
     [ObservableProperty] private bool _hasDevices;
+
+    /// <summary>
+    /// Whether the picker opens. True with devices, and also with none while a
+    /// saved choice is "(not connected)": the row must stay readable rather
+    /// than greyed, and "Default" stays pickable so the choice can be cleared.
+    /// </summary>
+    [ObservableProperty] private bool _canPick;
     [ObservableProperty] private float _level;
     [ObservableProperty] private bool _isTesting;
 
@@ -263,6 +270,7 @@ public sealed partial class MicrophonePickerViewModel : ObservableObject, IDispo
         }
 
         HasDevices = devices.Count > 0;
+        CanPick = HasDevices || resolution.IsSavedMissing;
         FallbackMessage = MicrophoneSelection.FallbackMessage(resolution);
     }
 }

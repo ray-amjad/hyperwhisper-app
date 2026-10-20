@@ -2043,6 +2043,9 @@
   <data name="settings.sound.microphone.fallback" xml:space="preserve">
     <value>正在使用 {0}，直到 {1} 重新連線。</value>
   </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>未連接麥克風。{0} 重新連線後，HyperWhisper 將使用它。</value>
+  </data>
   <data name="settings.sound.microphone.test" xml:space="preserve">
     <value>測試</value>
   </data>

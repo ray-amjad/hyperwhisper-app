@@ -2044,6 +2044,9 @@ You can re-download it later.</value>
   <data name="settings.sound.microphone.fallback" xml:space="preserve">
     <value>Tiek izmantots {0}, līdz {1} tiks pievienots atkārtoti.</value>
   </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Nav pievienots neviens mikrofons. HyperWhisper izmantos {0}, kad tas tiks pievienots atkārtoti.</value>
+  </data>
   <data name="settings.sound.microphone.test" xml:space="preserve">
     <value>Pārbaudīt</value>
   </data>

@@ -2044,6 +2044,9 @@ Daha sonra yeniden indirebilirsiniz.</value>
   <data name="settings.sound.microphone.fallback" xml:space="preserve">
     <value>{1} yeniden bağlanana kadar {0} kullanılıyor.</value>
   </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Bağlı mikrofon yok. HyperWhisper, {0} yeniden bağlandığında onu kullanacak.</value>
+  </data>
   <data name="settings.sound.microphone.test" xml:space="preserve">
     <value>Test et</value>
   </data>

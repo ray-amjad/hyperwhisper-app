@@ -2044,6 +2044,9 @@ You can re-download it later.</value>
   <data name="settings.sound.microphone.fallback" xml:space="preserve">
     <value>נעשה שימוש ב-{0} עד ש-{1} יחובר מחדש.</value>
   </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>אין מיקרופון מחובר. HyperWhisper ישתמש ב-{0} כשיחובר מחדש.</value>
+  </data>
   <data name="settings.sound.microphone.test" xml:space="preserve">
     <value>בדיקה</value>
   </data>
