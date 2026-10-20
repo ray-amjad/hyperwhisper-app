@@ -1,0 +1,186 @@
+name: zz-probe-2052-ffmpeg (throwaway, do not merge)
+on:
+  pull_request: null
+permissions:
+  contents: read
+jobs:
+  good:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: "Pre-check: is ffmpeg on the image PATH?"
+        shell: pwsh
+        run: Get-Command ffmpeg -ErrorAction SilentlyContinue | Format-List Source; exit 0
+      - name: Install ffmpeg for the shared Local API server tests
+        id: install
+        continue-on-error: true
+        shell: pwsh
+        env:
+          FFMPEG_VERSION: 9.0.2
+          FFMPEG_SHA256: 60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $name = "ffmpeg-$env:FFMPEG_VERSION-essentials_build"
+          $url = "https://github.com/GyanD/codexffmpeg/releases/download/$env:FFMPEG_VERSION/$name.zip"
+          $zip = Join-Path $env:RUNNER_TEMP "$name.zip"
+          for ($attempt = 1; ; $attempt++) {
+            try {
+              Invoke-WebRequest -Uri $url -OutFile $zip
+              break
+            } catch {
+              if ($attempt -ge 5) { throw "ffmpeg download failed after $attempt attempts: $_" }
+              $delay = 5 * [math]::Pow(2, $attempt - 1)
+              Write-Warning "ffmpeg download attempt $attempt failed: $_; retrying in $delay s"
+              Start-Sleep -Seconds $delay
+            }
+          }
+          $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash
+          if ($hash -ne $env:FFMPEG_SHA256) { throw "ffmpeg zip SHA-256 $hash does not match the pinned $env:FFMPEG_SHA256" }
+          Expand-Archive -Path $zip -DestinationPath $env:RUNNER_TEMP -Force
+          $bin = Join-Path $env:RUNNER_TEMP "$name\bin"
+          $env:PATH = "$bin;$env:PATH"
+          Add-Content -Path $env:GITHUB_PATH -Value $bin
+          $resolved = (Get-Command ffmpeg -CommandType Application).Source
+          Write-Host "ffmpeg resolves to $resolved"
+          ffmpeg -hide_banner -version
+          if ($LASTEXITCODE -ne 0) { throw "ffmpeg -version exited $LASTEXITCODE" }
+      - name: Assert install outcome is success
+        shell: pwsh
+        run: "Write-Host 'install outcome: ${{ steps.install.outcome }}'; if ('${{ steps.install.outcome }}' -ne 'success') { exit 1 }"
+      - name: Next step finds ffmpeg by name (GITHUB_PATH)
+        shell: pwsh
+        run: (Get-Command ffmpeg -CommandType Application).Source; ffmpeg -hide_banner -version | Select-Object -First 1; if ($LASTEXITCODE -ne 0) { exit 1 }
+  bad_sha:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: "Pre-check: is ffmpeg on the image PATH?"
+        shell: pwsh
+        run: Get-Command ffmpeg -ErrorAction SilentlyContinue | Format-List Source; exit 0
+      - name: Install ffmpeg for the shared Local API server tests
+        id: install
+        continue-on-error: true
+        shell: pwsh
+        env:
+          FFMPEG_VERSION: 9.0.2
+          FFMPEG_SHA256: "0000000000000000000000000000000000000000000000000000000000000000"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $name = "ffmpeg-$env:FFMPEG_VERSION-essentials_build"
+          $url = "https://github.com/GyanD/codexffmpeg/releases/download/$env:FFMPEG_VERSION/$name.zip"
+          $zip = Join-Path $env:RUNNER_TEMP "$name.zip"
+          for ($attempt = 1; ; $attempt++) {
+            try {
+              Invoke-WebRequest -Uri $url -OutFile $zip
+              break
+            } catch {
+              if ($attempt -ge 5) { throw "ffmpeg download failed after $attempt attempts: $_" }
+              $delay = 5 * [math]::Pow(2, $attempt - 1)
+              Write-Warning "ffmpeg download attempt $attempt failed: $_; retrying in $delay s"
+              Start-Sleep -Seconds $delay
+            }
+          }
+          $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash
+          if ($hash -ne $env:FFMPEG_SHA256) { throw "ffmpeg zip SHA-256 $hash does not match the pinned $env:FFMPEG_SHA256" }
+          Expand-Archive -Path $zip -DestinationPath $env:RUNNER_TEMP -Force
+          $bin = Join-Path $env:RUNNER_TEMP "$name\bin"
+          $env:PATH = "$bin;$env:PATH"
+          Add-Content -Path $env:GITHUB_PATH -Value $bin
+          $resolved = (Get-Command ffmpeg -CommandType Application).Source
+          Write-Host "ffmpeg resolves to $resolved"
+          ffmpeg -hide_banner -version
+          if ($LASTEXITCODE -ne 0) { throw "ffmpeg -version exited $LASTEXITCODE" }
+      - name: Assert install outcome is failure
+        shell: pwsh
+        run: "Write-Host 'install outcome: ${{ steps.install.outcome }}'; if ('${{ steps.install.outcome }}' -ne 'failure') { exit 1 }"
+  missing_release:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: "Pre-check: is ffmpeg on the image PATH?"
+        shell: pwsh
+        run: Get-Command ffmpeg -ErrorAction SilentlyContinue | Format-List Source; exit 0
+      - name: Install ffmpeg for the shared Local API server tests
+        id: install
+        continue-on-error: true
+        shell: pwsh
+        env:
+          FFMPEG_VERSION: 0.0.0-does-not-exist
+          FFMPEG_SHA256: 60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $name = "ffmpeg-$env:FFMPEG_VERSION-essentials_build"
+          $url = "https://github.com/GyanD/codexffmpeg/releases/download/$env:FFMPEG_VERSION/$name.zip"
+          $zip = Join-Path $env:RUNNER_TEMP "$name.zip"
+          for ($attempt = 1; ; $attempt++) {
+            try {
+              Invoke-WebRequest -Uri $url -OutFile $zip
+              break
+            } catch {
+              if ($attempt -ge 5) { throw "ffmpeg download failed after $attempt attempts: $_" }
+              $delay = 5 * [math]::Pow(2, $attempt - 1)
+              Write-Warning "ffmpeg download attempt $attempt failed: $_; retrying in $delay s"
+              Start-Sleep -Seconds $delay
+            }
+          }
+          $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash
+          if ($hash -ne $env:FFMPEG_SHA256) { throw "ffmpeg zip SHA-256 $hash does not match the pinned $env:FFMPEG_SHA256" }
+          Expand-Archive -Path $zip -DestinationPath $env:RUNNER_TEMP -Force
+          $bin = Join-Path $env:RUNNER_TEMP "$name\bin"
+          $env:PATH = "$bin;$env:PATH"
+          Add-Content -Path $env:GITHUB_PATH -Value $bin
+          $resolved = (Get-Command ffmpeg -CommandType Application).Source
+          Write-Host "ffmpeg resolves to $resolved"
+          ffmpeg -hide_banner -version
+          if ($LASTEXITCODE -ne 0) { throw "ffmpeg -version exited $LASTEXITCODE" }
+      - name: Assert install outcome is failure
+        shell: pwsh
+        run: "Write-Host 'install outcome: ${{ steps.install.outcome }}'; if ('${{ steps.install.outcome }}' -ne 'failure') { exit 1 }"
+  no_ffmpeg_in_bin:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: "Pre-check: is ffmpeg on the image PATH?"
+        shell: pwsh
+        run: Get-Command ffmpeg -ErrorAction SilentlyContinue | Format-List Source; exit 0
+      - name: Install ffmpeg for the shared Local API server tests
+        id: install
+        continue-on-error: true
+        shell: pwsh
+        env:
+          FFMPEG_VERSION: 9.0.2
+          FFMPEG_SHA256: 60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $name = "ffmpeg-$env:FFMPEG_VERSION-essentials_build"
+          $url = "https://github.com/GyanD/codexffmpeg/releases/download/$env:FFMPEG_VERSION/$name.zip"
+          $zip = Join-Path $env:RUNNER_TEMP "$name.zip"
+          for ($attempt = 1; ; $attempt++) {
+            try {
+              Invoke-WebRequest -Uri $url -OutFile $zip
+              break
+            } catch {
+              if ($attempt -ge 5) { throw "ffmpeg download failed after $attempt attempts: $_" }
+              $delay = 5 * [math]::Pow(2, $attempt - 1)
+              Write-Warning "ffmpeg download attempt $attempt failed: $_; retrying in $delay s"
+              Start-Sleep -Seconds $delay
+            }
+          }
+          $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash
+          if ($hash -ne $env:FFMPEG_SHA256) { throw "ffmpeg zip SHA-256 $hash does not match the pinned $env:FFMPEG_SHA256" }
+          Expand-Archive -Path $zip -DestinationPath $env:RUNNER_TEMP -Force
+          Remove-Item (Join-Path $env:RUNNER_TEMP "$name\bin\ffmpeg.exe") # PROBE MUTATION
+          $bin = Join-Path $env:RUNNER_TEMP "$name\bin"
+          $env:PATH = "$bin;$env:PATH"
+          Add-Content -Path $env:GITHUB_PATH -Value $bin
+          $resolved = (Get-Command ffmpeg -CommandType Application).Source
+          Write-Host "ffmpeg resolves to $resolved"
+          ffmpeg -hide_banner -version
+          if ($LASTEXITCODE -ne 0) { throw "ffmpeg -version exited $LASTEXITCODE" }
+      - name: Assert install outcome is failure
+        shell: pwsh
+        run: "Write-Host 'install outcome: ${{ steps.install.outcome }}'; if ('${{ steps.install.outcome }}' -ne 'failure') { exit 1 }"
