@@ -284,6 +284,74 @@ describe("POST /api/checkout/credits — the mint path", () => {
   });
 });
 
+describe("POST /api/checkout/credits — a licenseKey that is not a string (#2081)", () => {
+  // A present key that is not a string used to fall through to the mint path:
+  // the buyer paid and got a second wallet instead of a top-up. Each of these
+  // is now a 400 before the database or Stripe is touched.
+  const wrongTypedKeys: Array<[string, unknown]> = [
+    ["a number", 123],
+    ["null", null],
+    ["an object", { key: GRANTED_KEY }],
+    ["an array", [GRANTED_KEY]],
+    ["a boolean", true],
+  ];
+
+  for (const [label, licenseKey] of wrongTypedKeys) {
+    test(`refuses ${label}, and creates no checkout session`, async () => {
+      storeRow(accountKeyRow({ key: GRANTED_KEY, stripeCustomerId: "cus_cached" }));
+      const { POST } = await loadCheckoutCreditsRoute();
+
+      const response = await POST(
+        postRequest(CHECKOUT_PATH, { amount: 5, licenseKey }),
+      );
+      const body = await readJson(response);
+
+      assert.equal(response.status, 400);
+      assert.deepEqual(body, { error: "licenseKey must be a string" });
+      assert.deepEqual(calls.sessionCreate, []);
+      assert.deepEqual(calls.findAccountByKey, []);
+      assert.deepEqual(calls.customerList, []);
+      assert.deepEqual(calls.customerCreate, []);
+    });
+  }
+
+  test("still tops up the key when it is a string", async () => {
+    storeRow(accountKeyRow({ key: GRANTED_KEY, stripeCustomerId: "cus_cached" }));
+    const { POST } = await loadCheckoutCreditsRoute();
+
+    const response = await POST(
+      postRequest(CHECKOUT_PATH, { amount: 5, licenseKey: GRANTED_KEY }),
+    );
+    const metadata = onlySessionCreate().metadata as Record<string, string>;
+
+    assert.equal(response.status, 200);
+    assert.equal(metadata.license_key, GRANTED_KEY);
+  });
+
+  test("still mints when the key is absent", async () => {
+    const { POST } = await loadCheckoutCreditsRoute();
+
+    const response = await POST(postRequest(CHECKOUT_PATH, { amount: 5 }));
+    const metadata = onlySessionCreate().metadata as Record<string, string>;
+
+    assert.equal(response.status, 200);
+    assert.equal("license_key" in metadata, false);
+  });
+
+  test("still mints when the key is an empty string", async () => {
+    const { POST } = await loadCheckoutCreditsRoute();
+
+    const response = await POST(
+      postRequest(CHECKOUT_PATH, { amount: 5, licenseKey: "" }),
+    );
+    const metadata = onlySessionCreate().metadata as Record<string, string>;
+
+    assert.equal(response.status, 200);
+    assert.equal("license_key" in metadata, false);
+    assert.deepEqual(calls.findAccountByKey, []);
+  });
+});
+
 describe("POST /api/checkout/credits — the top-up path", () => {
   test("refuses a key the database does not hold", async () => {
     const { POST } = await loadCheckoutCreditsRoute();
