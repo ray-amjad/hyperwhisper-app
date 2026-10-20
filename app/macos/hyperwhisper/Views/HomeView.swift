@@ -19,6 +19,7 @@ import KeyboardShortcuts
 import AppKit
 import Foundation
 import os
+import CoreData
 
 /// Logger for HomeView (static to work with SwiftUI structs)
 private let homeViewLogger = Logger(subsystem: "com.hyperwhisper.app", category: "HomeView")
@@ -42,23 +43,18 @@ struct HomeView: View {
     
     // MARK: - State
     
-    /// Track which getting started items are completed (persisted via UserDefaults)
-    @AppStorage("gettingStartedCompletedSteps") private var completedStepsRaw: String = ""
+    /// Which Get started steps are really done, read from the app's own state
+    /// (issue #652). `nil` until the first read, so the section never flashes
+    /// in on an install that has done all four. The old click-toggled
+    /// `gettingStartedCompletedSteps` default is not read any more.
+    @State private var gettingStarted: GettingStartedProgress?
 
-    private var completedSteps: Set<String> {
-        Set(completedStepsRaw.split(separator: ",").map(String.init))
-    }
+    /// Bumped by every read, so an older read that finishes late is dropped.
+    @State private var gettingStartedGeneration = 0
 
-    private func toggleStep(_ step: String) {
-        var steps = completedSteps
-        if steps.contains(step) {
-            steps.remove(step)
-        } else {
-            steps.insert(step)
-        }
-        completedStepsRaw = steps.sorted().joined(separator: ",")
-    }
-    
+    /// Whether the Start recording row's shortcut explanation is showing.
+    @State private var showRecordingShortcutHelp = false
+
     /// Track the current shortcut to trigger updates
     @State private var currentShortcut: String? = nil
     
@@ -149,8 +145,8 @@ struct HomeView: View {
                     accessibilityPrompt
                 }
                 // MARK: Getting Started Section
-                if completedSteps.count < 4 {
-                    gettingStartedSection
+                if let gettingStarted, !gettingStarted.isAllDone {
+                    gettingStartedSection(gettingStarted)
                 }
 
                 // MARK: Home Stats Bar
@@ -172,6 +168,7 @@ struct HomeView: View {
             
             // Start periodic check timer (every 2 seconds)
             startAccessibilityCheckTimer()
+            refreshGettingStarted()
         }
         .onDisappear {
             // Clean up timer when view disappears
@@ -180,6 +177,15 @@ struct HomeView: View {
         .onReceive(NotificationCenter.default.publisher(for: .shortcutDidChange)) { _ in
             // Update when shortcuts change
             currentShortcut = toggleRecordingShortcutString
+            refreshGettingStarted()
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
+                .filter { GettingStartedLoader.saveTouchesSteps($0) }
+                .receive(on: RunLoop.main)
+        ) { _ in
+            // A dictation finished, or a Mode or a word was added or removed.
+            refreshGettingStarted()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             // PERFORMANCE FIX: Skip redundant accessibility checks
@@ -218,8 +224,9 @@ struct HomeView: View {
 
     // MARK: - Getting Started Section
 
-    /// Interactive getting started checklist
-    private var gettingStartedSection: some View {
+    /// Getting started checklist. A row's tick comes only from `progress`; a
+    /// click on a row opens its page and never changes the tick (issue #652).
+    private func gettingStartedSection(_ progress: GettingStartedProgress) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             // Section title
             HStack {
@@ -239,13 +246,22 @@ struct HomeView: View {
                     title: "home.getting.started.recording.title".localized,
                     description: "home.getting.started.recording.description".localized,
                     shortcut: toggleRecordingShortcutString,
-                    isCompleted: completedSteps.contains("recording")
+                    isCompleted: progress.isCompleted(.recording)
                 ) {
-                    // Disabled button action to avoid macOS 26.1 crash
-                    // Users can use the keyboard shortcut displayed on the card
-                    toggleStep("recording")
+                    // The row does not start a recording: that action was
+                    // disabled to avoid a macOS 26.1 crash. It explains the
+                    // shortcut instead, and with no shortcut set it opens the
+                    // page that sets one.
+                    if toggleRecordingShortcutString != nil {
+                        showRecordingShortcutHelp = true
+                    } else {
+                        appState.navigateToSettings(section: "shortcuts")
+                    }
                 }
-                
+                .popover(isPresented: $showRecordingShortcutHelp, arrowEdge: .trailing) {
+                    recordingShortcutHelp
+                }
+
                 // Customize shortcuts card
                 GettingStartedCard(
                     icon: "keyboard",
@@ -253,13 +269,12 @@ struct HomeView: View {
                     title: "home.getting.started.shortcuts.title".localized,
                     description: "home.getting.started.shortcuts.description".localized,
                     shortcut: nil,
-                    isCompleted: completedSteps.contains("shortcuts")
+                    isCompleted: progress.isCompleted(.shortcuts)
                 ) {
                     // Navigate to shortcuts section in settings
                     appState.navigateToSettings(section: "shortcuts")
-                    toggleStep("shortcuts")
                 }
-                
+
                 // Create mode card
                 GettingStartedCard(
                     icon: "plus.app",
@@ -267,13 +282,12 @@ struct HomeView: View {
                     title: "home.getting.started.mode.title".localized,
                     description: "home.getting.started.mode.description".localized,
                     shortcut: nil,
-                    isCompleted: completedSteps.contains("mode")
+                    isCompleted: progress.isCompleted(.mode)
                 ) {
                     // Navigate to modes
                     appState.selectedNavigationItem = .modes
-                    toggleStep("mode")
                 }
-                
+
                 // Add vocabulary card
                 GettingStartedCard(
                     icon: "text.book.closed",
@@ -281,16 +295,58 @@ struct HomeView: View {
                     title: "home.getting.started.vocabulary.title".localized,
                     description: "home.getting.started.vocabulary.description".localized,
                     shortcut: nil,
-                    isCompleted: completedSteps.contains("vocabulary")
+                    isCompleted: progress.isCompleted(.vocabulary)
                 ) {
                     // Navigate to vocabulary
                     appState.selectedNavigationItem = .vocabulary
-                    toggleStep("vocabulary")
                 }
             }
         }
     }
-    
+
+    /// How to record from the keyboard, shown from the Start recording row.
+    private var recordingShortcutHelp: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("onboarding.done.detail".localized)
+                .font(.headline)
+            if let shortcut = toggleRecordingShortcutString {
+                KeyboardShortcutBadge(keys: shortcut)
+            }
+            Text("onboarding.tryIt.shortcutHint".localized)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
+        .padding(16)
+        .frame(maxWidth: 280, alignment: .leading)
+    }
+
+    /// Re-reads the Get started steps off the main thread. A newer read always
+    /// wins: each one carries the generation it started in.
+    private func refreshGettingStarted() {
+        let hasCustomShortcut = GettingStartedProgress.hasCustomShortcut(
+            pushToTalkMode: settingsManager.pushToTalkMode,
+            shortcut: { KeyboardShortcuts.getShortcut(for: $0) }
+        )
+        let container = PersistenceController.shared.container
+        gettingStartedGeneration += 1
+        let generation = gettingStartedGeneration
+        Task.detached(priority: .userInitiated) {
+            do {
+                let progress = try GettingStartedLoader.load(
+                    container: container,
+                    hasCustomShortcut: hasCustomShortcut
+                )
+                await MainActor.run {
+                    guard generation == gettingStartedGeneration else { return }
+                    gettingStarted = progress
+                }
+            } catch {
+                // Keep what is showing; the next appear or save reads again.
+                homeViewLogger.error("Get started read failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
     // MARK: - API Key Prompt
     private var apiKeyPrompt: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -552,6 +608,148 @@ struct KeyboardShortcutBadge: View {
             case .space: return "keyboard.space".localized
             case .key(let key): return key.uppercased()
             }
+        }
+    }
+}
+
+// MARK: - Getting Started Progress
+
+/// One row of the Home Get started checklist.
+enum GettingStartedStep: CaseIterable {
+    case recording
+    case shortcuts
+    case mode
+    case vocabulary
+}
+
+/// Which Get started steps are really done (issue #652).
+///
+/// Each row used to be a click toggle stored in `gettingStartedCompletedSteps`:
+/// a click marked it Completed whether or not the user had done anything, and a
+/// second click took the tick away. Now a step is done only when the app's own
+/// state says so, and nothing a click does can change it.
+struct GettingStartedProgress: Equatable {
+    /// At least one transcription finished (`status == "completed"`).
+    var hasFinishedRecording = false
+    /// A recording shortcut differs from its default, or Push to Talk is on.
+    var hasCustomShortcut = false
+    /// At least one Mode the user made: not the seeded default, and not a
+    /// per-request row the Local API leaked.
+    var hasUserMode = false
+    /// At least one vocabulary word.
+    var hasVocabularyWord = false
+
+    func isCompleted(_ step: GettingStartedStep) -> Bool {
+        switch step {
+        case .recording: return hasFinishedRecording
+        case .shortcuts: return hasCustomShortcut
+        case .mode: return hasUserMode
+        case .vocabulary: return hasVocabularyWord
+        }
+    }
+
+    var isAllDone: Bool {
+        GettingStartedStep.allCases.allSatisfy(isCompleted)
+    }
+
+    /// The shortcuts that start, stop or cancel a recording.
+    static let recordingShortcuts: [KeyboardShortcuts.Name] = [
+        .toggleRecordingWithTranscription,
+        .cancelRecording,
+        .pushToTalk,
+        .startStreaming,
+    ]
+
+    /// Whether the user changed how they record from the keyboard: a recording
+    /// shortcut that is not its default (a cleared one counts), or a Push to
+    /// Talk mode other than the default `.disabled`.
+    static func hasCustomShortcut(
+        pushToTalkMode: PushToTalkMode,
+        shortcut: (KeyboardShortcuts.Name) -> KeyboardShortcuts.Shortcut?
+    ) -> Bool {
+        pushToTalkMode != .disabled
+            || recordingShortcuts.contains { shortcut($0) != $0.defaultShortcut }
+    }
+}
+
+enum GettingStartedLoader {
+
+    /// Reads the three Core Data steps on a fresh background context. Never
+    /// call it on the main thread.
+    nonisolated static func load(
+        container: NSPersistentContainer,
+        hasCustomShortcut: Bool
+    ) throws -> GettingStartedProgress {
+        let context = container.newBackgroundContext()
+        var progress = GettingStartedProgress(hasCustomShortcut: hasCustomShortcut)
+        var loadError: Error?
+
+        context.performAndWait {
+            do {
+                progress.hasFinishedRecording = try exists(
+                    "Transcript",
+                    NSPredicate(format: "status == %@", "completed"),
+                    in: context
+                )
+                progress.hasVocabularyWord = try exists(
+                    "Vocabulary",
+                    NSPredicate(format: "word != nil AND word != %@", ""),
+                    in: context
+                )
+                progress.hasUserMode = try hasUserMode(in: context)
+            } catch {
+                loadError = error
+            }
+        }
+        if let loadError { throw loadError }
+        return progress
+    }
+
+    /// True when a save inserted, changed or deleted a row a step reads.
+    nonisolated static func saveTouchesSteps(_ note: Notification) -> Bool {
+        guard let info = note.userInfo else { return false }
+        if info[NSInvalidatedAllObjectsKey] != nil { return true }
+        for key in [NSInsertedObjectsKey, NSUpdatedObjectsKey, NSDeletedObjectsKey] {
+            if let objects = info[key] as? Set<NSManagedObject>,
+               objects.contains(where: { stepEntities.contains($0.entity.name ?? "") }) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private static let stepEntities: Set<String> = ["Transcript", "Mode", "Vocabulary"]
+
+    private nonisolated static func exists(
+        _ entityName: String,
+        _ predicate: NSPredicate,
+        in context: NSManagedObjectContext
+    ) throws -> Bool {
+        let request = NSFetchRequest<NSManagedObjectID>(entityName: entityName)
+        request.resultType = .managedObjectIDResultType
+        request.predicate = predicate
+        request.fetchLimit = 1
+        return try !context.fetch(request).isEmpty
+    }
+
+    /// Modes are few, so this reads the identity columns of every one and
+    /// applies the same tests the rest of the app uses for "built in"
+    /// (`Mode.isSeededDefault`) and "leaked by the Local API"
+    /// (`LocalAPITransientModeMarker.isLeakedRow`).
+    private nonisolated static func hasUserMode(in context: NSManagedObjectContext) throws -> Bool {
+        let request = NSFetchRequest<NSDictionary>(entityName: "Mode")
+        request.resultType = .dictionaryResultType
+        request.propertiesToFetch = ["id", "name", "sortOrder", "isDefault", "isSystemProvided"]
+        return try context.fetch(request).contains { row in
+            let id = row["id"] as? UUID
+            let isSystemProvided = (row["isSystemProvided"] as? NSNumber)?.boolValue ?? false
+            if isSystemProvided || id == SeededModeValues.seededID { return false }
+            return !LocalAPITransientModeMarker.isLeakedRow(
+                name: row["name"] as? String,
+                sortOrder: (row["sortOrder"] as? NSNumber)?.int16Value ?? 0,
+                isDefault: (row["isDefault"] as? NSNumber)?.boolValue ?? false,
+                isSystemProvided: isSystemProvided
+            )
         }
     }
 }
