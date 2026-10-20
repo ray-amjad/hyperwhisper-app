@@ -12632,7 +12632,7 @@ extension HwLocalApiTokenError: Foundation.LocalizedError {
  * `TranscriptionErrorCode` and the portable head's
  * `PortableTranscriptionErrorCode`. Every variant maps onto one of the closed
  * fourteen [`HwLocalApiErrorCode`]s, so #356 item 4 adds no error code —
- * `transcription.rs` says so and a unit test walks all 25 to prove it.
+ * `transcription.rs` says so and a unit test walks all 26 to prove it.
  *
  * Each head keeps its own error type and maps it onto this on the way to the
  * wire. Nothing here replaces `TranscriptionError` or `TranscriptionException`.
@@ -12693,10 +12693,14 @@ public enum HwLocalApiTranscriptionFailureReason {
      */
     case rateLimited
     /**
-     * macOS `.quotaExceeded` / `.insufficientCredits`; Windows
-     * `QuotaExceeded`.
+     * macOS `.quotaExceeded`; Windows `QuotaExceeded` from a BYOK provider.
      */
     case quotaExceeded
+    /**
+     * macOS `.insufficientCredits`; Windows `QuotaExceeded` with
+     * `IsInsufficientCredits` set — the HyperWhisper Cloud 402.
+     */
+    case insufficientCredits
     /**
      * macOS `.timeout`.
      */
@@ -12787,29 +12791,31 @@ public struct FfiConverterTypeHwLocalApiTranscriptionFailureReason: FfiConverter
         
         case 13: return .quotaExceeded
         
-        case 14: return .timeout
+        case 14: return .insufficientCredits
         
-        case 15: return .cancelled
+        case 15: return .timeout
         
-        case 16: return .engineUnavailable
+        case 16: return .cancelled
         
-        case 17: return .networkUnavailable
+        case 17: return .engineUnavailable
         
-        case 18: return .engineStartFailed
+        case 18: return .networkUnavailable
         
-        case 19: return .engineCrashed
+        case 19: return .engineStartFailed
         
-        case 20: return .engineTimeout
+        case 20: return .engineCrashed
         
-        case 21: return .localModelEvicted
+        case 21: return .engineTimeout
         
-        case 22: return .invalidProviderResponse
+        case 22: return .localModelEvicted
         
-        case 23: return .providerServerError
+        case 23: return .invalidProviderResponse
         
-        case 24: return .noSpeechDetected
+        case 24: return .providerServerError
         
-        case 25: return .transcriptionFailed
+        case 25: return .noSpeechDetected
+        
+        case 26: return .transcriptionFailed
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -12871,52 +12877,56 @@ public struct FfiConverterTypeHwLocalApiTranscriptionFailureReason: FfiConverter
             writeInt(&buf, Int32(13))
         
         
-        case .timeout:
+        case .insufficientCredits:
             writeInt(&buf, Int32(14))
         
         
-        case .cancelled:
+        case .timeout:
             writeInt(&buf, Int32(15))
         
         
-        case .engineUnavailable:
+        case .cancelled:
             writeInt(&buf, Int32(16))
         
         
-        case .networkUnavailable:
+        case .engineUnavailable:
             writeInt(&buf, Int32(17))
         
         
-        case .engineStartFailed:
+        case .networkUnavailable:
             writeInt(&buf, Int32(18))
         
         
-        case .engineCrashed:
+        case .engineStartFailed:
             writeInt(&buf, Int32(19))
         
         
-        case .engineTimeout:
+        case .engineCrashed:
             writeInt(&buf, Int32(20))
         
         
-        case .localModelEvicted:
+        case .engineTimeout:
             writeInt(&buf, Int32(21))
         
         
-        case .invalidProviderResponse:
+        case .localModelEvicted:
             writeInt(&buf, Int32(22))
         
         
-        case .providerServerError:
+        case .invalidProviderResponse:
             writeInt(&buf, Int32(23))
         
         
-        case .noSpeechDetected:
+        case .providerServerError:
             writeInt(&buf, Int32(24))
         
         
-        case .transcriptionFailed:
+        case .noSpeechDetected:
             writeInt(&buf, Int32(25))
+        
+        
+        case .transcriptionFailed:
+            writeInt(&buf, Int32(26))
         
         }
     }

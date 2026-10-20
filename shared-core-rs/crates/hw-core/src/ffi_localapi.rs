@@ -54,11 +54,11 @@
 //! comes back, so a separate code getter or an enumeration would be an export
 //! with no call site — the `lib.rs:36-42` rule again.
 //!
-//! Its hint is a parameter on three of its twenty-five rows, for the same
+//! Its hint is a parameter on three of its twenty-six rows, for the same
 //! reason [`local_api_unauthorized_failure`]'s is: the string names the
 //! platform's own product surface (`Settings → API Keys` on macOS, the
 //! `Model Library API keys manager` on Windows) and no shared string is right
-//! on both. On the other twenty-two the wording is the crate's and the
+//! on both. On the other twenty-three the wording is the crate's and the
 //! parameter is ignored.
 
 /// The three request headers the DNS-rebind guard reads. Mirrors
@@ -804,7 +804,7 @@ pub fn local_api_mode_name_taken_failure(
 /// `TranscriptionErrorCode` and the portable head's
 /// `PortableTranscriptionErrorCode`. Every variant maps onto one of the closed
 /// fourteen [`HwLocalApiErrorCode`]s, so #356 item 4 adds no error code —
-/// `transcription.rs` says so and a unit test walks all 25 to prove it.
+/// `transcription.rs` says so and a unit test walks all 26 to prove it.
 ///
 /// Each head keeps its own error type and maps it onto this on the way to the
 /// wire. Nothing here replaces `TranscriptionError` or `TranscriptionException`.
@@ -838,9 +838,11 @@ pub enum HwLocalApiTranscriptionFailureReason {
     InvalidRequest,
     /// macOS `.rateLimited`; Windows `RateLimited`.
     RateLimited,
-    /// macOS `.quotaExceeded` / `.insufficientCredits`; Windows
-    /// `QuotaExceeded`.
+    /// macOS `.quotaExceeded`; Windows `QuotaExceeded` from a BYOK provider.
     QuotaExceeded,
+    /// macOS `.insufficientCredits`; Windows `QuotaExceeded` with
+    /// `IsInsufficientCredits` set — the HyperWhisper Cloud 402.
+    InsufficientCredits,
     /// macOS `.timeout`.
     Timeout,
     /// Windows `Cancelled`; portable `Cancelled`.
@@ -891,6 +893,9 @@ impl From<HwLocalApiTranscriptionFailureReason> for hw_localapi::TranscriptionFa
             HwLocalApiTranscriptionFailureReason::InvalidRequest => Reason::InvalidRequest,
             HwLocalApiTranscriptionFailureReason::RateLimited => Reason::RateLimited,
             HwLocalApiTranscriptionFailureReason::QuotaExceeded => Reason::QuotaExceeded,
+            HwLocalApiTranscriptionFailureReason::InsufficientCredits => {
+                Reason::InsufficientCredits
+            }
             HwLocalApiTranscriptionFailureReason::Timeout => Reason::Timeout,
             HwLocalApiTranscriptionFailureReason::Cancelled => Reason::Cancelled,
             HwLocalApiTranscriptionFailureReason::EngineUnavailable => Reason::EngineUnavailable,
@@ -1502,7 +1507,7 @@ mod tests {
 
     /// The transcription table crosses the boundary with its status, its code
     /// and its interpolated text intact — including the hint slot the head
-    /// fills and the twenty-two rows where it does not.
+    /// fills and the twenty-three rows where it does not.
     #[test]
     fn the_transcription_table_crosses_the_boundary() {
         fn params() -> HwLocalApiTranscriptionFailureParams {

@@ -40,6 +40,12 @@ import { withCreditHoldScope } from '../middleware/credit-holds';
 // Supported providers (mirror the server-side registry in lib/stt-models.ts).
 export type Provider = SttProviderId;
 
+// The one message a client sees for a non-retryable failure. A failure's own
+// text can carry an upstream provider's error body or a server env-var name
+// (#2106), so it goes to the `transcribe.request_fail` log only; the client
+// keeps the requestId to find that log line. Same shape as /post-process (#2066).
+const TRANSCRIPTION_FAILURE_MESSAGE = 'The transcription request failed. Please try again.';
+
 export { estimateCreditsForProviderFallbacks };
 
 export { isLatencyOptOut };
@@ -473,7 +479,14 @@ async function handleTranscribe(c: Context) {
           kind: 'non_retryable',
           message: error instanceof Error ? error.message : String(error),
         });
-        return errorResponse(500, 'Transcription failed', error instanceof Error ? error.message : String(error), { requestId });
+        // A rejected key on the last provider keeps its curated text (`<Provider>
+        // API key is invalid`, our own words, the same text transcribe-failure.ts
+        // sends for a key rejected earlier in the chain). Any other error's text
+        // stays in the log line above. (#2106)
+        return errorResponse(500, 'Transcription failed',
+          error instanceof ProviderAuthError ? error.message : TRANSCRIPTION_FAILURE_MESSAGE,
+          { requestId },
+        );
       }
     }
   } finally {
