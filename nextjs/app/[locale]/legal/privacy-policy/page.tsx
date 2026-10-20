@@ -470,7 +470,8 @@ export default function PrivacyPolicyPage() {
         <strong>HyperWhisper Cloud</strong> is our built-in cloud transcription
         service. It routes your audio through our edge servers to one of the
         providers listed below. We do not store your audio or transcripts — we
-        only track credit usage — with one exception. {CHIRP_BUCKET_EXCEPTION}
+        track credit usage and keep the operational records described below —
+        with one exception. {CHIRP_BUCKET_EXCEPTION}
       </p>
       <p>
         Beyond credit usage, HyperWhisper Cloud keeps the operational records
@@ -487,8 +488,8 @@ export default function PrivacyPolicyPage() {
           Upstash
         </a>
         . To limit how many requests can be sent, it counts requests in the
-        same Upstash store, keyed by your IP address and, once your key is
-        accepted, by a SHA-256 hash of your Account Key; these counters
+        same Upstash store, keyed by your IP address and by a SHA-256 hash of
+        the Account Key the request sends; these counters
         expire within a few minutes. While a request or a live transcription
         session runs, it also keeps a temporary hold on the credits that
         request may use, keyed by your Account Key; a hold is removed when the
@@ -517,19 +518,21 @@ export default function PrivacyPolicyPage() {
         >
           Axiom
         </a>
-        , which stores them for us. A log line can include a request
-        identifier, timing, byte and character counts, the provider and model
-        used, the language, your app&apos;s platform and version, credit
-        amounts, and your IP address. We use these logs to find and fix
+        , which stores them for us. A log line can include request
+        identifiers (ours, Fly.io&apos;s, and the provider&apos;s), the server
+        machine and region, timing, byte and character counts, the provider
+        and model used, the language, the identifier of the mode you used,
+        whether a specialised transcription domain such as medical was
+        requested, your app&apos;s platform and version, credit amounts, and
+        your IP address. We use these logs to find and fix
         faults, to prevent abuse, including deciding which IP addresses to
         block, and to keep the service running. We do not write your audio,
         your transcripts, your prompts, the text a model returns to you, or
-        your Account Key into these logs, and we remove your Account Key from
-        error messages that could contain it. When a provider rejects a
-        request, we log the provider&apos;s error message (for some providers
-        the whole message, for others a shortened part of it), and a
-        provider can quote part of the rejected request in that message, such
-        as a vocabulary term or a passage of the text sent to it.
+        your Account Key into these logs. When a provider returns an error, we
+        log the provider&apos;s error message (for some providers the whole
+        message, for others a shortened part of it), and a provider can quote
+        part of the request in that message, such as a vocabulary term or a
+        passage of the text sent to it.
       </p>
       <p>
         Unless you turn it off, HyperWhisper Cloud also stores an anonymous
@@ -543,7 +546,8 @@ export default function PrivacyPolicyPage() {
         </a>
         . A measurement holds the provider and model, the server region, a
         clip-length group, the provider&apos;s place in the fallback order, how
-        long the provider took, whether the call worked, and the hour it
+        long the provider took, whether the call worked and, if it did not,
+        the kind of failure (for example a timeout), and the hour it
         happened. It holds no account, no Account Key, no IP address, no
         audio, and no text. We delete these measurements after 1 year. Sharing
         is on by default. To turn it off, use the switch labelled &quot;Share
@@ -1142,8 +1146,10 @@ export default function PrivacyPolicyPage() {
           Fly.io
         </a>
         . Fly.io runs the code that handles each HyperWhisper Cloud request, so
-        it receives the request&apos;s IP address and what the request carries:
-        your audio or text, your Account Key, and your custom vocabulary. Its
+        it receives the request&apos;s IP address and everything the request
+        carries: for example your audio or text, your mode&apos;s instructions,
+        your Account Key, your custom vocabulary, the language and mode you
+        chose, and your app&apos;s platform and version. Its
         operational logs are stored by Axiom, as described under HyperWhisper
         Cloud above.
       </p>
