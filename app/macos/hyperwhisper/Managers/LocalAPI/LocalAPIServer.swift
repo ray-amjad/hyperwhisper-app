@@ -1100,7 +1100,10 @@ final class LocalAPISwitchProbe {
         }
         self.server = server
         self.runTask = runTask
-        try await server.waitUntilListening()
+        // `run()` starts on the main actor, which another suite in the test
+        // host can hold for seconds (synchronous Core Data tests); FlyingFox's
+        // default 5 s wait then times out before the server has begun.
+        try await server.waitUntilListening(timeout: 30)
         guard let bound = await server.listeningAddress, case .ip4(_, let port) = bound, port > 0 else {
             throw ProbeError.noPort
         }
