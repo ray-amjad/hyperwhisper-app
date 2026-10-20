@@ -16,6 +16,7 @@
 // which says why a raw Upstash error is a credential leak.
 
 import { LICENSE_CACHE_TTL_SECONDS } from './constants';
+import { creditPoolBalanceKey } from './credit-hold-store';
 import { toRedactedLogLine } from './log-redaction';
 import { isRecord } from './utils';
 
@@ -109,7 +110,21 @@ export async function cacheLicense(
   license: CachedLicense
 ): Promise<void> {
   try {
-    await store().set(`license:${licenseKey}`, license, { ex: LICENSE_CACHE_TTL_SECONDS });
+    const redis = store();
+    const writes = [redis.set(`license:${licenseKey}`, license, { ex: LICENSE_CACHE_TTL_SECONDS })];
+    // A pooled key's balance is the USER's (#2026), so it is also the latest
+    // word on every other key of that user. The credit-hold script caps a
+    // pooled reservation by this entry too, or a key whose own cache predates
+    // a sibling's spend would reserve the spent credits again. Latest write
+    // wins, so a top-up seen on any key lifts it.
+    if (license.creditPoolId) {
+      writes.push(redis.set(
+        creditPoolBalanceKey(license.creditPoolId),
+        { credits: license.credits, cachedAt: license.cachedAt },
+        { ex: LICENSE_CACHE_TTL_SECONDS },
+      ));
+    }
+    await Promise.all(writes);
   } catch (error) {
     console.error('Failed to cache license:', toRedactedLogLine(error, { licenseKey }));
   }

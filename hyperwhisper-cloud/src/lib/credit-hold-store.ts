@@ -77,7 +77,23 @@ export interface CreditHoldStore {
   release(account: string, holdId: string): Promise<void>;
 }
 
-export function holdKeys(account: string, licenseKey: string = account): { holds: string; expiry: string; license: string } {
+/** The hold account of a credit pool: `pool:<credit_pool_id>`. */
+export const CREDIT_POOL_ACCOUNT_PREFIX = 'pool:';
+
+/**
+ * Where `cacheLicense` keeps the latest balance the licence API reported for
+ * ANY key of one credit pool (#2026). Same `{ credits, cachedAt }` JSON and TTL
+ * as the `license:<key>` entry it is written next to.
+ */
+export function creditPoolBalanceKey(creditPoolId: string): string {
+  return `credit_pool_balance:${creditPoolId}`;
+}
+
+export function holdKeys(
+  account: string,
+  licenseKey: string = account,
+): { holds: string; expiry: string; license: string; poolBalance: string } {
+  const license = `license:${licenseKey}`;
   return {
     holds: `credit_holds:${account}`,
     expiry: `credit_holds_expiry:${account}`,
@@ -85,18 +101,30 @@ export function holdKeys(account: string, licenseKey: string = account): { holds
     // so a settle that lowered the cached balance after this request authed is
     // still seen: auth can read the balance seconds before the reservation runs
     // (a long upload sits between them on /transcribe).
-    // Per KEY even when the holds are per pool: each of a user's keys caches
-    // the same pooled balance, and this request's key has the freshest.
-    license: `license:${licenseKey}`,
+    license,
+    // A key's own cache is not enough on a pool: a settle on key A rewrites
+    // only `license:A`, so key B's entry keeps the balance from before A spent.
+    // The pool entry is the latest balance any of the user's keys was told, so
+    // the script caps by it too. An unpooled hold has no pool entry; it reads
+    // its own licence entry twice instead, which changes nothing.
+    poolBalance: account.startsWith(CREDIT_POOL_ACCOUNT_PREFIX)
+      ? creditPoolBalanceKey(account.slice(CREDIT_POOL_ACCOUNT_PREFIX.length))
+      : license,
   };
 }
 
-// KEYS: holds hash, expiry zset, license cache
+// KEYS: holds hash, expiry zset, license cache, pool balance cache
 // ARGV: holdId, minMilli, maxMilli, balanceMilli, nowMs, ttlMs
 // Returns {granted 0|1, holdMilli, availableMilli}.
 //
-// `cjson` is read under pcall: if the runtime lacks it, or the cache entry is
-// not the JSON `cacheLicense` writes, the caller's balance stands alone.
+// The balance is the LOWEST of the caller's, the key's cached one and the
+// pool's cached one. `cjson` is read under pcall: if the runtime lacks it, or a
+// cache entry is not the JSON `cacheLicense` writes, that entry is skipped.
+//
+// The minimum does not strand a top-up: every write of a pooled key's cache
+// rewrites the pool entry too, latest write wins, so a higher balance reported
+// on any key replaces a lower one. (A key's own stale entry still caps that
+// key until it refreshes, exactly as before pools.)
 export const RESERVE_HOLD_SCRIPT = `
 local holds = KEYS[1]
 local expiry = KEYS[2]
@@ -115,12 +143,14 @@ if #expired > 0 then
   redis.call('ZREMRANGEBYSCORE', expiry, '-inf', now)
 end
 
-local raw = redis.call('GET', KEYS[3])
-if raw then
-  local ok, decoded = pcall(function() return cjson.decode(raw) end)
-  if ok and type(decoded) == 'table' and type(decoded.credits) == 'number' then
-    local cached = math.floor(decoded.credits * 1000 + 0.5)
-    if cached < balance then balance = cached end
+for k = 3, 4 do
+  local raw = redis.call('GET', KEYS[k])
+  if raw then
+    local ok, decoded = pcall(function() return cjson.decode(raw) end)
+    if ok and type(decoded) == 'table' and type(decoded.credits) == 'number' then
+      local cached = math.floor(decoded.credits * 1000 + 0.5)
+      if cached < balance then balance = cached end
+    end
   end
 end
 
@@ -183,7 +213,7 @@ export function createUpstashCreditHoldStore(client: () => EvalClient): CreditHo
       const keys = holdKeys(request.account, request.licenseKey);
       const reply = await client().eval(
         RESERVE_HOLD_SCRIPT,
-        [keys.holds, keys.expiry, keys.license],
+        [keys.holds, keys.expiry, keys.license, keys.poolBalance],
         [
           request.holdId,
           String(Math.round(request.minMilli)),

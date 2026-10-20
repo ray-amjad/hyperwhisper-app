@@ -739,6 +739,31 @@ describe('cacheLicense', () => {
     expect(LICENSE_CACHE_TTL_SECONDS).toBe(3600);
   });
 
+  test('a pooled licence also writes the pool balance, same shape and TTL (#2026)', async () => {
+    const store = recordingStore();
+    const poolId = 'e'.repeat(64);
+    const pooled: CachedLicense = { ...validLicense, creditPoolId: poolId };
+
+    await cacheLicense(() => store, 'KEY-123', pooled);
+
+    expect(store.sets).toEqual([
+      { key: 'license:KEY-123', value: pooled, opts: { ex: LICENSE_CACHE_TTL_SECONDS } },
+      {
+        key: `credit_pool_balance:${poolId}`,
+        value: { credits: pooled.credits, cachedAt: pooled.cachedAt },
+        opts: { ex: LICENSE_CACHE_TTL_SECONDS },
+      },
+    ]);
+  });
+
+  test('an unpooled licence writes only license:<key>', async () => {
+    const store = recordingStore();
+
+    await cacheLicense(() => store, 'KEY-123', validLicense);
+
+    expect(store.sets.map((write) => write.key)).toEqual(['license:KEY-123']);
+  });
+
   test('caches an INVALID license too, so a bad key is not revalidated every request', async () => {
     const store = recordingStore();
     const invalid: CachedLicense = { isValid: false, credits: 0, cachedAt: '2026-09-01T00:00:00Z' };

@@ -14,6 +14,7 @@ import {
   type ReserveHoldRequest,
 } from './credit-hold-store';
 import { createMemoryCreditHoldStore } from './credit-hold-store-memory';
+import { cacheLicense, type RedisStore } from './redis-core';
 
 const redisServerPath = Bun.which('redis-server');
 const PORT = 20_000 + Math.floor(Math.random() * 20_000);
@@ -25,6 +26,19 @@ function evalClient(): EvalClient {
   return {
     async eval<TArgs extends unknown[], TData = unknown>(script: string, keys: string[], args: TArgs): Promise<TData> {
       return await client!.send('EVAL', [script, String(keys.length), ...keys, ...args.map(String)]) as TData;
+    },
+  };
+}
+
+/** `redis-core`'s store over the same redis-server, serialising as Upstash does. */
+function cacheStore(): RedisStore {
+  return {
+    async get<TData = unknown>(key: string): Promise<TData | null> {
+      const raw = await client!.send('GET', [key]) as string | null;
+      return raw === null ? null : JSON.parse(raw) as TData;
+    },
+    async set(key: string, value: unknown, opts: { ex: number }): Promise<unknown> {
+      return await client!.send('SET', [key, JSON.stringify(value), 'EX', String(opts.ex)]);
     },
   };
 }
@@ -213,6 +227,60 @@ describe.skipIf(!redisServerPath)('credit hold keys on redis-server', () => {
     expect(Number(await client!.send('EXISTS', ['credit_holds:key-a']))).toBe(0);
     await store.release(pool, 'a');
     expect(Number(await client!.send('EXISTS', [holdKeys(pool).holds]))).toBe(0);
+  });
+
+  test('a pool balance below the key\'s own cached balance caps the grant (#2026)', async () => {
+    await client!.send('FLUSHALL', []);
+    const pool = 'pool:' + 'c'.repeat(64);
+    const keys = holdKeys(pool, 'key-b');
+    expect(keys.poolBalance).toBe('credit_pool_balance:' + 'c'.repeat(64));
+    await client!.send('SET', [keys.license, JSON.stringify({ isValid: true, credits: 10, cachedAt: 'x' })]);
+    await client!.send('SET', [keys.poolBalance, JSON.stringify({ credits: 6, cachedAt: 'y' })]);
+
+    const store = createUpstashCreditHoldStore(evalClient);
+    const refused = await store.reserve(request({ account: pool, licenseKey: 'key-b', holdId: 'b', minMilli: 7000, maxMilli: 7000, balanceMilli: 10_000 }));
+    expect(refused).toEqual({ granted: false, holdMilli: 0, availableMilli: 6000 });
+    const clamped = await store.reserve(request({ account: pool, licenseKey: 'key-b', holdId: 'b', minMilli: 1000, maxMilli: 7000, balanceMilli: 10_000 }));
+    expect(clamped).toEqual({ granted: true, holdMilli: 6000, availableMilli: 6000 });
+  });
+
+  test('key A spends and settles, then key B on the same pool cannot reserve the spent credits (#2026)', async () => {
+    await client!.send('FLUSHALL', []);
+    const poolId = 'd'.repeat(64);
+    const pool = 'pool:' + poolId;
+    const store = createUpstashCreditHoldStore(evalClient);
+    // Both keys authed while the user had 10 credits.
+    await cacheLicense(cacheStore, 'key-a', { isValid: true, credits: 10, cachedAt: 't0', creditPoolId: poolId });
+    await cacheLicense(cacheStore, 'key-b', { isValid: true, credits: 10, cachedAt: 't0', creditPoolId: poolId });
+
+    // A holds 4, is charged 4, and the post-charge rewrite caches 6 for A.
+    expect((await store.reserve(request({ account: pool, licenseKey: 'key-a', holdId: 'a', minMilli: 4000, maxMilli: 4000, balanceMilli: 10_000 }))).granted).toBe(true);
+    await cacheLicense(cacheStore, 'key-a', { isValid: true, credits: 6, cachedAt: 't1', creditPoolId: poolId });
+    await store.release(pool, 'a');
+
+    // B's own entry still says 10, and so does the balance it authed with.
+    const b = await store.reserve(request({ account: pool, licenseKey: 'key-b', holdId: 'b', minMilli: 7000, maxMilli: 7000, balanceMilli: 10_000 }));
+    expect(b).toEqual({ granted: false, holdMilli: 0, availableMilli: 6000 });
+
+    // A top-up seen on B lifts the pool again: the minimum does not strand it.
+    await cacheLicense(cacheStore, 'key-b', { isValid: true, credits: 20, cachedAt: 't2', creditPoolId: poolId });
+    const afterTopUp = await store.reserve(request({ account: pool, licenseKey: 'key-b', holdId: 'b', minMilli: 7000, maxMilli: 7000, balanceMilli: 20_000 }));
+    expect(afterTopUp.granted).toBe(true);
+  });
+
+  test('an unpooled hold reads no pool entry', async () => {
+    await client!.send('FLUSHALL', []);
+    expect(holdKeys(ACCOUNT).poolBalance).toBe(holdKeys(ACCOUNT).license);
+    const result = await createUpstashCreditHoldStore(evalClient).reserve(request({}));
+    expect(result.granted).toBe(true);
+  });
+
+  test('an unparseable pool entry is ignored, not fatal', async () => {
+    await client!.send('FLUSHALL', []);
+    const pool = 'pool:' + 'e'.repeat(64);
+    await client!.send('SET', [holdKeys(pool, 'key-a').poolBalance, 'not json']);
+    const result = await createUpstashCreditHoldStore(evalClient).reserve(request({ account: pool, licenseKey: 'key-a' }));
+    expect(result.granted).toBe(true);
   });
 
   test('an unparseable cache entry is ignored, not fatal', async () => {

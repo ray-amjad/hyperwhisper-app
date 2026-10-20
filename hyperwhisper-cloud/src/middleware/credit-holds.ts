@@ -31,7 +31,7 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { AuthContext } from './auth';
-import { createUpstashCreditHoldStore, fromMilliCredits, toMilliCredits, type CreditHoldStore } from '../lib/credit-hold-store';
+import { CREDIT_POOL_ACCOUNT_PREFIX, createUpstashCreditHoldStore, fromMilliCredits, toMilliCredits, type CreditHoldStore } from '../lib/credit-hold-store';
 import { createRedisGetter } from '../lib/redis-client';
 import { toRedactedLogLine } from '../lib/log-redaction';
 import { roundToTenth } from '../lib/utils';
@@ -122,7 +122,7 @@ export async function drainPendingHoldReleases(timeoutMs: number): Promise<numbe
 
 /** The pool a hold on `auth` is counted against (see the file header). */
 export function holdAccountFor(auth: AuthContext): string {
-  return auth.creditPoolId ? `pool:${auth.creditPoolId}` : auth.identifier;
+  return auth.creditPoolId ? `${CREDIT_POOL_ACCOUNT_PREFIX}${auth.creditPoolId}` : auth.identifier;
 }
 
 // The hold a request or session took, by the auth context it was taken for.
