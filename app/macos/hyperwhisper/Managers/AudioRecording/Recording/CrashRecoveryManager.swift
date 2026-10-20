@@ -70,7 +70,7 @@ struct CrashRecoveryWAVCandidate: Sendable {
 /// recovery loop's file I/O still runs on the main actor — inside
 /// `recoverAndConvertRecording` (`attributesOfItem`, `createDirectory`, a second
 /// `AVAudioFile(forReading:)`, `moveItem`) and the `FileManager.removeItem` calls
-/// in the delete paths of `recoverOrphanedRecordings`. A slow volume can still
+/// in the delete paths of `recoverOne`. A slow volume can still
 /// hang launch from those frames until they move off the main actor too.
 @MainActor
 class CrashRecoveryManager {
@@ -233,41 +233,22 @@ class CrashRecoveryManager {
         defer { isRecovering = false }
 
         let recoveryStart = Date()
-        // Sessions older than this 60s wall-clock window are always safe to recover.
-        // The window only exists to avoid racing an *active* recording (see below).
-        let wallClockCutoff = recoveryStart.addingTimeInterval(-60)
-        // A session that started before THIS process launched cannot belong to the
-        // current process, so it can never be a live in-progress recording — it is
-        // always safe to recover regardless of how recently it started. This lets a
-        // short recording that crashed and was relaunched immediately recover on the
-        // first pass instead of waiting for a later recovery invocation. Taking the
-        // later of the two cutoffs preserves the anti-race guarantee for sessions that
-        // *were* started within this process (which is also covered by currentSessionID).
-        let staleSessionCutoff = Self.processLaunchDate.map { max(wallClockCutoff, $0) } ?? wallClockCutoff
+        let staleSessionCutoff = Self.staleSessionCutoff(recoveryStart: recoveryStart, processLaunchDate: Self.processLaunchDate)
         AppLogger.audio.info("Starting orphaned recording recovery scan")
 
         let context = PersistenceController.shared.container.viewContext
 
         // STEP 1: Find incomplete sessions (endTime == nil means recording never finished)
-        let request = RecordingSession.fetchRequest()
-        request.predicate = NSPredicate(format: "endTime == nil")
-
-        guard var orphans = try? await context.perform({ try context.fetch(request) }) else {
+        guard var orphans = await fetchIncompleteSessions(context: context) else {
             AppLogger.audio.warning("Failed to fetch orphaned sessions")
             return
         }
 
-        // STEP 1b: ORPHAN-WAV SWEEP. The record-start session insert is deferred
-        // off the record-start hot path, so a crash in the first ~100ms of a
-        // recording can leave an `.incomplete_*.wav` on disk with NO session row
-        // — invisible to the fetch above and never recovered or cleaned up.
-        // Synthesize a stub session for each unclaimed, stale incomplete WAV and
-        // let the existing validation/recovery/quarantine loop below handle it
-        // unchanged.
+        // STEP 1b: ORPHAN-WAV SWEEP. A crash before the deferred record-start
+        // insert leaves an `.incomplete_*.wav` with NO session row; give each
+        // unclaimed, stale one a stub session for the loop below (see the method).
         orphans += await synthesizeStubSessionsForUnclaimedWAVs(
-            existingOrphans: orphans,
-            context: context,
-            staleSessionCutoff: staleSessionCutoff
+            existingOrphans: orphans, context: context, staleSessionCutoff: staleSessionCutoff
         )
 
         guard !orphans.isEmpty else {
@@ -292,202 +273,278 @@ class CrashRecoveryManager {
         // remove that guard without replacing this with a merge on write.
         var attemptCounts = getAttemptCounts()
 
-        // STEP 2: Attempt to recover each session
+        // STEP 2: Attempt to recover each session. `recoverOne` mutates only this
+        // in-memory `attemptCounts`, never UserDefaults, so the snapshot above and
+        // the write in STEP 4 stay the only two ends of the read-modify-write.
         for session in orphans {
-            let attemptStart = Date()
-            let sessionId = session.id?.uuidString ?? "unknown"
-            var outcome = "skipped"
-            defer {
-                let elapsedMs = Int(Date().timeIntervalSince(attemptStart) * 1000)
-                if elapsedMs > 750 {
-                    AppLogger.audio.warning("⚠️ Recovery attempt for session \(sessionId) \(outcome) in \(elapsedMs)ms")
-                    if AppLogger.isErrorLoggingEnabled {
-                        SentryService.addBreadcrumb(
-                            message: "Slow crash recovery attempt",
-                            category: "audio.recovery",
-                            level: .warning,
-                            data: [
-                                "sessionId": sessionId,
-                                "durationMs": elapsedMs,
-                                "outcome": outcome
-                            ]
-                        )
-                    }
-                } else {
-                    AppLogger.audio.debug("Recovery attempt for session \(sessionId) \(outcome) in \(elapsedMs)ms")
-                }
-            }
-
-            // RACE CONDITION FIX: Skip the currently active recording session.
-            // Without this, the recovery manager can move the .incomplete_ WAV file
-            // out from under a live AVAudioRecorder, causing finalization to fail with
-            // "Raw audio file does not exist" when the recording stops.
-            if session.id == currentSessionID {
-                outcome = "skipped_active_session"
-                AppLogger.audio.debug("Skipping crash recovery for active recording session \(sessionId)")
-                continue
-            }
-
-            // STALENESS FILTER: Skip sessions that may still be a live, in-process
-            // recording. A session is only "live" if it started AFTER this process
-            // launched and within the last 60 seconds — that's what `staleSessionCutoff`
-            // (the later of the 60s wall-clock window and this process's launch time)
-            // encodes. Sessions from a previous (crashed) process always predate the
-            // launch time, so a short recording that crashed and relaunched immediately
-            // is recovered on the first pass instead of being deferred. This guards
-            // against the query picking up a genuinely active session that started
-            // between the query fetch and the iteration reaching it.
-            guard let startTime = session.startTime, startTime <= staleSessionCutoff else {
-                outcome = "skipped_recent_session"
-                AppLogger.audio.debug("Skipping crash recovery for recent session \(sessionId)")
-                continue
-            }
-
-            // QUARANTINE CHECK: Skip sessions that have failed recovery too many times.
-            // Instead of retrying forever (which triggers the polling loop on every launch),
-            // quarantine the session by setting endTime so it's no longer an "orphan".
-            if let priorAttempts = attemptCounts[sessionId], priorAttempts >= Self.maxRecoveryAttempts {
-                AppLogger.audio.warning("Quarantining session \(sessionId) after \(priorAttempts) failed recovery attempts")
-                session.endTime = Date()
-                removeAttemptCount(for: sessionId, from: &attemptCounts)
-                outcome = "quarantined"
-                if AppLogger.isErrorLoggingEnabled {
-                    SentryService.addBreadcrumb(
-                        message: "Quarantined unrecoverable orphaned session",
-                        category: "audio.recovery",
-                        level: .warning,
-                        data: [
-                            "sessionId": sessionId,
-                            "attempts": priorAttempts
-                        ]
-                    )
-                }
-                continue
-            }
-
-            guard let path = session.audioFilePath else {
-                // No file path stored, delete the session
-                await MainActor.run {
-                    context.delete(session)
-                }
-                removeAttemptCount(for: sessionId, from: &attemptCounts)
-                outcome = "deleted_missing_path"
-                if AppLogger.isErrorLoggingEnabled {
-                    SentryService.addBreadcrumb(
-                        message: "Deleted orphaned session without audio path",
-                        category: "audio.recovery",
-                        level: .warning,
-                        data: [
-                            "sessionId": session.id?.uuidString ?? "unknown"
-                        ]
-                    )
-                }
-                continue
-            }
-
-            let url = URL(fileURLWithPath: path)
-            let fileExtension = url.pathExtension.lowercased()
-
-            // STEP 2a: Check for deprecated CAF format - auto-delete these
-            // CAF files are from the old AVAudioEngine tap implementation (pre-November 2025)
-            // They often have format issues and should not be recovered
-            if fileExtension == "caf" {
-                AppLogger.audio.info("Session \(sessionId) uses deprecated CAF format, deleting")
-                // Delete both the session and the file
-                try? FileManager.default.removeItem(at: url)
-                await MainActor.run {
-                    context.delete(session)
-                }
-                removeAttemptCount(for: sessionId, from: &attemptCounts)
-                outcome = "deleted_deprecated_caf"
-                if AppLogger.isErrorLoggingEnabled {
-                    SentryService.addBreadcrumb(
-                        message: "Deleted orphaned session with deprecated CAF format",
-                        category: "audio.recovery",
-                        level: .info,
-                        data: [
-                            "sessionId": sessionId,
-                            "path": path
-                        ]
-                    )
-                }
-                continue
-            }
-
-            // STEP 2b: Only recover WAV files (current format)
-            guard fileExtension == "wav" else {
-                AppLogger.audio.warning("Session \(sessionId) has unsupported format: \(fileExtension), deleting")
-                try? FileManager.default.removeItem(at: url)
-                await MainActor.run {
-                    context.delete(session)
-                }
-                removeAttemptCount(for: sessionId, from: &attemptCounts)
-                outcome = "deleted_unsupported_format"
-                continue
-            }
-
-            // Check if WAV file exists and is recoverable. The probe is blocking
-            // file I/O (stat + `AVAudioFile` open), so it runs on a detached task
-            // rather than inline on this MainActor-isolated loop.
-            guard await Self.isRecoverableWAV(url) else {
-                // File missing or corrupted: delete the session AND the file —
-                // leaving the file behind accumulates junk `.incomplete_` WAVs
-                // (and the orphan-WAV sweep would re-synthesize a stub for it
-                // on every launch).
-                AppLogger.audio.warning("Session \(sessionId) has unrecoverable audio, deleting")
-                try? FileManager.default.removeItem(at: url)
-                await MainActor.run {
-                    context.delete(session)
-                }
-                removeAttemptCount(for: sessionId, from: &attemptCounts)
-                outcome = "deleted_unrecoverable"
-                if AppLogger.isErrorLoggingEnabled {
-                    SentryService.addBreadcrumb(
-                        message: "Deleted orphaned session with unrecoverable audio",
-                        category: "audio.recovery",
-                        level: .warning,
-                        data: [
-                            "sessionId": sessionId,
-                            "path": path
-                        ]
-                    )
-                }
-                continue
-            }
-
-            // Attempt recovery and conversion
-            AppLogger.audio.info("Attempting to recover session \(sessionId, privacy: .public)")
-            if let recoveredURL = await recoverAndConvertRecording(session: session, rawURL: url) {
+            if let recoveredURL = await recoverOne(
+                session, currentSessionID: currentSessionID, staleSessionCutoff: staleSessionCutoff,
+                context: context, attemptCounts: &attemptCounts
+            ) {
                 recoveredSessions.append((session: session, audioURL: recoveredURL))
-                removeAttemptCount(for: sessionId, from: &attemptCounts)
-                outcome = "recovered"
-            } else {
-                let newCount = incrementAttemptCount(for: sessionId, in: &attemptCounts)
-                outcome = "conversion_failed"
-                AppLogger.audio.warning("Recovery failed for session \(sessionId) (attempt \(newCount)/\(Self.maxRecoveryAttempts))")
-                if AppLogger.isErrorLoggingEnabled {
-                    SentryService.addBreadcrumb(
-                        message: "Recovery conversion failed",
-                        category: "audio.recovery",
-                        level: .error,
-                        data: [
-                            "sessionId": sessionId,
-                            "rawPath": path,
-                            "attemptNumber": newCount,
-                            "willQuarantineNext": newCount >= Self.maxRecoveryAttempts
-                        ]
-                    )
-                }
             }
         }
 
         // STEP 3: BATCH SAVE - Save all changes at once instead of per-session
+        await finishPass(orphanCount: orphans.count, recoveredCount: recoveredSessions.count, recoveryStart: recoveryStart)
+
+        // STEP 4: Prune attempt counts for sessions that no longer exist in Core Data, then flush
+        pruneAttemptCounts(&attemptCounts, keepingOnly: orphans)
+        // Closes the read-modify-write opened by `getAttemptCounts()` above: a
+        // whole-dictionary overwrite with no merge, which also makes the prune
+        // above effective. Correct only under the in-flight guard, which is what
+        // guarantees no other pass wrote to this key since the snapshot.
+        saveAttemptCounts(attemptCounts)
+        // Transcription is NOT auto-triggered: users transcribe recovered sessions from History.
+    }
+
+    // MARK: - Recovery Pass Stages
+    //
+    // The stages of `recoverOrphanedRecordings`, in the order it runs them. None
+    // of them owns the in-flight guard or the attempt-count snapshot and write:
+    // those two stay in the entry point, because the guard must sit above every
+    // `await` of the pass and the snapshot is only safe under it.
+
+    /// The staleness cutoff for one recovery pass: the later of a 60 s
+    /// wall-clock window before `recoveryStart` and `processLaunchDate`.
+    ///
+    /// Sessions older than the 60 s window are always safe to recover. The window
+    /// only exists to avoid racing an *active* recording. A session that started
+    /// before THIS process launched cannot belong to the current process, so it
+    /// can never be a live in-progress recording — it is always safe to recover
+    /// regardless of how recently it started. This lets a short recording that
+    /// crashed and was relaunched immediately recover on the first pass instead
+    /// of waiting for a later recovery invocation. Taking the later of the two
+    /// cutoffs preserves the anti-race guarantee for sessions that *were* started
+    /// within this process (which is also covered by `currentSessionID`).
+    ///
+    /// A nil `processLaunchDate` (the kernel lookup failed) leaves the plain
+    /// wall-clock cutoff. Pure: no clock read, no state.
+    nonisolated static func staleSessionCutoff(recoveryStart: Date, processLaunchDate: Date?) -> Date {
+        let wallClockCutoff = recoveryStart.addingTimeInterval(-60)
+        return processLaunchDate.map { max(wallClockCutoff, $0) } ?? wallClockCutoff
+    }
+
+    /// STEP 1: fetch every session that never finished (`endTime == nil`).
+    /// Returns nil when the fetch fails, so the caller can end the pass.
+    private func fetchIncompleteSessions(context: NSManagedObjectContext) async -> [RecordingSession]? {
+        let request = RecordingSession.fetchRequest()
+        request.predicate = NSPredicate(format: "endTime == nil")
+        return try? await context.perform({ try context.fetch(request) })
+    }
+
+    /// STEP 2, one orphan: skip it, quarantine it, delete it, or recover it.
+    ///
+    /// Mutates only the in-memory `attemptCounts` of the pass (increment on a
+    /// failed recovery, removal on success, deletion or quarantine); the caller
+    /// owns the snapshot and the write-back. Deletions and quarantines are left
+    /// in `context` for the caller's batch save.
+    ///
+    /// Returns the recovered audio URL, or nil when the session was skipped,
+    /// quarantined, deleted, or failed to recover.
+    private func recoverOne(
+        _ session: RecordingSession,
+        currentSessionID: UUID?,
+        staleSessionCutoff: Date,
+        context: NSManagedObjectContext,
+        attemptCounts: inout [String: Int]
+    ) async -> URL? {
+        let attemptStart = Date()
+        let sessionId = session.id?.uuidString ?? "unknown"
+        var outcome = "skipped"
+        defer {
+            let elapsedMs = Int(Date().timeIntervalSince(attemptStart) * 1000)
+            if elapsedMs > 750 {
+                AppLogger.audio.warning("⚠️ Recovery attempt for session \(sessionId) \(outcome) in \(elapsedMs)ms")
+                if AppLogger.isErrorLoggingEnabled {
+                    SentryService.addBreadcrumb(
+                        message: "Slow crash recovery attempt",
+                        category: "audio.recovery",
+                        level: .warning,
+                        data: [
+                            "sessionId": sessionId,
+                            "durationMs": elapsedMs,
+                            "outcome": outcome
+                        ]
+                    )
+                }
+            } else {
+                AppLogger.audio.debug("Recovery attempt for session \(sessionId) \(outcome) in \(elapsedMs)ms")
+            }
+        }
+
+        // RACE CONDITION FIX: Skip the currently active recording session.
+        // Without this, the recovery manager can move the .incomplete_ WAV file
+        // out from under a live AVAudioRecorder, causing finalization to fail with
+        // "Raw audio file does not exist" when the recording stops.
+        if session.id == currentSessionID {
+            outcome = "skipped_active_session"
+            AppLogger.audio.debug("Skipping crash recovery for active recording session \(sessionId)")
+            return nil
+        }
+
+        // STALENESS FILTER: Skip sessions that may still be a live, in-process
+        // recording. A session is only "live" if it started AFTER this process
+        // launched and within the last 60 seconds — that's what `staleSessionCutoff`
+        // (the later of the 60s wall-clock window and this process's launch time)
+        // encodes. Sessions from a previous (crashed) process always predate the
+        // launch time, so a short recording that crashed and relaunched immediately
+        // is recovered on the first pass instead of being deferred. This guards
+        // against the query picking up a genuinely active session that started
+        // between the query fetch and the iteration reaching it.
+        guard let startTime = session.startTime, startTime <= staleSessionCutoff else {
+            outcome = "skipped_recent_session"
+            AppLogger.audio.debug("Skipping crash recovery for recent session \(sessionId)")
+            return nil
+        }
+
+        // QUARANTINE CHECK: Skip sessions that have failed recovery too many times.
+        // Instead of retrying forever (which triggers the polling loop on every launch),
+        // quarantine the session by setting endTime so it's no longer an "orphan".
+        if let priorAttempts = attemptCounts[sessionId], priorAttempts >= Self.maxRecoveryAttempts {
+            AppLogger.audio.warning("Quarantining session \(sessionId) after \(priorAttempts) failed recovery attempts")
+            session.endTime = Date()
+            removeAttemptCount(for: sessionId, from: &attemptCounts)
+            outcome = "quarantined"
+            if AppLogger.isErrorLoggingEnabled {
+                SentryService.addBreadcrumb(
+                    message: "Quarantined unrecoverable orphaned session",
+                    category: "audio.recovery",
+                    level: .warning,
+                    data: [
+                        "sessionId": sessionId,
+                        "attempts": priorAttempts
+                    ]
+                )
+            }
+            return nil
+        }
+
+        guard let path = session.audioFilePath else {
+            // No file path stored, delete the session
+            await MainActor.run {
+                context.delete(session)
+            }
+            removeAttemptCount(for: sessionId, from: &attemptCounts)
+            outcome = "deleted_missing_path"
+            if AppLogger.isErrorLoggingEnabled {
+                SentryService.addBreadcrumb(
+                    message: "Deleted orphaned session without audio path",
+                    category: "audio.recovery",
+                    level: .warning,
+                    data: [
+                        "sessionId": session.id?.uuidString ?? "unknown"
+                    ]
+                )
+            }
+            return nil
+        }
+
+        let url = URL(fileURLWithPath: path)
+        let fileExtension = url.pathExtension.lowercased()
+
+        // STEP 2a: Check for deprecated CAF format - auto-delete these
+        // CAF files are from the old AVAudioEngine tap implementation (pre-November 2025)
+        // They often have format issues and should not be recovered
+        if fileExtension == "caf" {
+            AppLogger.audio.info("Session \(sessionId) uses deprecated CAF format, deleting")
+            // Delete both the session and the file
+            try? FileManager.default.removeItem(at: url)
+            await MainActor.run {
+                context.delete(session)
+            }
+            removeAttemptCount(for: sessionId, from: &attemptCounts)
+            outcome = "deleted_deprecated_caf"
+            if AppLogger.isErrorLoggingEnabled {
+                SentryService.addBreadcrumb(
+                    message: "Deleted orphaned session with deprecated CAF format",
+                    category: "audio.recovery",
+                    level: .info,
+                    data: [
+                        "sessionId": sessionId,
+                        "path": path
+                    ]
+                )
+            }
+            return nil
+        }
+
+        // STEP 2b: Only recover WAV files (current format)
+        guard fileExtension == "wav" else {
+            AppLogger.audio.warning("Session \(sessionId) has unsupported format: \(fileExtension), deleting")
+            try? FileManager.default.removeItem(at: url)
+            await MainActor.run {
+                context.delete(session)
+            }
+            removeAttemptCount(for: sessionId, from: &attemptCounts)
+            outcome = "deleted_unsupported_format"
+            return nil
+        }
+
+        // Check if WAV file exists and is recoverable. The probe is blocking
+        // file I/O (stat + `AVAudioFile` open), so it runs on a detached task
+        // rather than inline on this MainActor-isolated loop.
+        guard await Self.isRecoverableWAV(url) else {
+            // File missing or corrupted: delete the session AND the file —
+            // leaving the file behind accumulates junk `.incomplete_` WAVs
+            // (and the orphan-WAV sweep would re-synthesize a stub for it
+            // on every launch).
+            AppLogger.audio.warning("Session \(sessionId) has unrecoverable audio, deleting")
+            try? FileManager.default.removeItem(at: url)
+            await MainActor.run {
+                context.delete(session)
+            }
+            removeAttemptCount(for: sessionId, from: &attemptCounts)
+            outcome = "deleted_unrecoverable"
+            if AppLogger.isErrorLoggingEnabled {
+                SentryService.addBreadcrumb(
+                    message: "Deleted orphaned session with unrecoverable audio",
+                    category: "audio.recovery",
+                    level: .warning,
+                    data: [
+                        "sessionId": sessionId,
+                        "path": path
+                    ]
+                )
+            }
+            return nil
+        }
+
+        // Attempt recovery and conversion
+        AppLogger.audio.info("Attempting to recover session \(sessionId, privacy: .public)")
+        if let recoveredURL = await recoverAndConvertRecording(session: session, rawURL: url) {
+            removeAttemptCount(for: sessionId, from: &attemptCounts)
+            outcome = "recovered"
+            return recoveredURL
+        } else {
+            let newCount = incrementAttemptCount(for: sessionId, in: &attemptCounts)
+            outcome = "conversion_failed"
+            AppLogger.audio.warning("Recovery failed for session \(sessionId) (attempt \(newCount)/\(Self.maxRecoveryAttempts))")
+            if AppLogger.isErrorLoggingEnabled {
+                SentryService.addBreadcrumb(
+                    message: "Recovery conversion failed",
+                    category: "audio.recovery",
+                    level: .error,
+                    data: [
+                        "sessionId": sessionId,
+                        "rawPath": path,
+                        "attemptNumber": newCount,
+                        "willQuarantineNext": newCount >= Self.maxRecoveryAttempts
+                    ]
+                )
+            }
+            return nil
+        }
+    }
+
+    /// STEP 3: batch-save every change the pass made, then log how it went.
+    private func finishPass(orphanCount: Int, recoveredCount: Int, recoveryStart: Date) async {
         await MainActor.run {
             PersistenceController.shared.save()
         }
 
         let totalDurationMs = Int(Date().timeIntervalSince(recoveryStart) * 1000)
-        AppLogger.audio.info("Orphaned recording recovery complete: \(recoveredSessions.count) recovered, \(orphans.count - recoveredSessions.count) failed/deleted in \(totalDurationMs)ms")
+        AppLogger.audio.info("Orphaned recording recovery complete: \(recoveredCount) recovered, \(orphanCount - recoveredCount) failed/deleted in \(totalDurationMs)ms")
         if totalDurationMs > 2000, AppLogger.isErrorLoggingEnabled {
             SentryService.addBreadcrumb(
                 message: "Slow orphan recovery scan",
@@ -495,13 +552,16 @@ class CrashRecoveryManager {
                 level: .warning,
                 data: [
                     "durationMs": totalDurationMs,
-                    "recovered": recoveredSessions.count,
-                    "failed": orphans.count - recoveredSessions.count
+                    "recovered": recoveredCount,
+                    "failed": orphanCount - recoveredCount
                 ]
             )
         }
+    }
 
-        // STEP 4: Prune attempt counts for sessions that no longer exist in Core Data, then flush
+    /// STEP 4, in memory: drop the count of every session that is not one of
+    /// this pass's orphans. The caller writes the result back.
+    private func pruneAttemptCounts(_ attemptCounts: inout [String: Int], keepingOnly orphans: [RecordingSession]) {
         let orphanIds = Set(orphans.compactMap { $0.id?.uuidString })
         let staleKeys = attemptCounts.keys.filter { !orphanIds.contains($0) }
         if !staleKeys.isEmpty {
@@ -510,14 +570,6 @@ class CrashRecoveryManager {
             }
             AppLogger.audio.debug("Pruned \(staleKeys.count) stale recovery attempt count(s)")
         }
-        // Closes the read-modify-write opened by `getAttemptCounts()` above: a
-        // whole-dictionary overwrite with no merge, which also makes the prune
-        // above effective. Correct only under the in-flight guard, which is what
-        // guarantees no other pass wrote to this key since the snapshot.
-        saveAttemptCounts(attemptCounts)
-
-        // NOTE: Transcription is NOT auto-triggered here.
-        // Users can manually transcribe recovered sessions from the History page.
     }
 
     // MARK: - Orphan-WAV Sweep
