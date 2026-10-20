@@ -54,11 +54,11 @@
 //! comes back, so a separate code getter or an enumeration would be an export
 //! with no call site — the `lib.rs:36-42` rule again.
 //!
-//! Its hint is a parameter on three of its twenty-five rows, for the same
+//! Its hint is a parameter on three of its twenty-six rows, for the same
 //! reason [`local_api_unauthorized_failure`]'s is: the string names the
 //! platform's own product surface (`Settings → API Keys` on macOS, the
 //! `Model Library API keys manager` on Windows) and no shared string is right
-//! on both. On the other twenty-two the wording is the crate's and the
+//! on both. On the other twenty-three the wording is the crate's and the
 //! parameter is ignored.
 
 /// The three request headers the DNS-rebind guard reads. Mirrors
@@ -1507,7 +1507,7 @@ mod tests {
 
     /// The transcription table crosses the boundary with its status, its code
     /// and its interpolated text intact — including the hint slot the head
-    /// fills and the twenty-two rows where it does not.
+    /// fills and the twenty-three rows where it does not.
     #[test]
     fn the_transcription_table_crosses_the_boundary() {
         fn params() -> HwLocalApiTranscriptionFailureParams {

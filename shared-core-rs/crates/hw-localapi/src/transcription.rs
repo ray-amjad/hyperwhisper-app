@@ -109,10 +109,9 @@ use crate::failure::{Failure, LocalApiErrorCode};
 ///
 /// The union of the three heads' own error types, and nothing more:
 ///
-/// * macOS `TranscriptionError` (24 cases). Six of them —
+/// * macOS `TranscriptionError` (24 cases). Some of them —
 ///   `.maxRetriesExceeded`, `.streamingInterrupted`, `.busy`,
-///   `.localRuntimeUnavailable`, `.insufficientCredits` and any case added
-///   later — have no arm in `mapTranscriptionError` today and reach the wire
+///   `.localRuntimeUnavailable` and any case added later — have no arm in `mapTranscriptionError` today and reach the wire
 ///   through its `default:` as `TRANSCRIPTION_FAILED` plus
 ///   `localizedDescription`. They map onto [`Self::TranscriptionFailed`] with
 ///   that text in [`TranscriptionFailureParams::detail`], which is the same
