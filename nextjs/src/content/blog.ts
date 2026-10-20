@@ -4,7 +4,10 @@ import { desc } from "drizzle-orm";
 
 import { db } from "@/src/db";
 import { blogPosts, type BlogPostRow } from "@/src/db/schema/blog-posts";
-import { lazyLoadBodyImages } from "@/src/content/blog-html";
+import {
+  lazyLoadBodyImages,
+  scrollableBodyTables,
+} from "@/src/content/blog-html";
 import { sanitizeBlogHtml } from "@/src/content/sanitize-blog-html";
 
 const BLOG_LOCALE = "en";
@@ -88,8 +91,8 @@ export async function getBlogPost(slug: string): Promise<BlogPost | null> {
   // added below are never stripped.
   const post = { ...stored, html: sanitizeBlogHtml(stored.html) };
 
-  // Only the post being shown needs its stored body rewritten (#919).
-  return { ...post, html: lazyLoadBodyImages(post.html) };
+  // Only the post being shown needs its stored body rewritten (#919, #2112).
+  return { ...post, html: scrollableBodyTables(lazyLoadBodyImages(post.html)) };
 }
 
 export async function getAllBlogPosts(): Promise<BlogPostSummary[]> {

@@ -54,5 +54,5 @@ test("HTML with no image is returned unchanged", () => {
 
 test("src/content/blog.ts sends the stored body through the transform", async () => {
   const source = await readFile(new URL("../src/content/blog.ts", import.meta.url), "utf8");
-  assert.match(source, /html:\s*lazyLoadBodyImages\(post\.html\)/);
+  assert.match(source, /lazyLoadBodyImages\(post\.html\)/);
 });
