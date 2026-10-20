@@ -332,7 +332,8 @@ export function makeStreamingPreflight(
     }
 
     const requiredCredits = minimumCredits();
-    const creditCheck = await validateCredits(authResult.value, requiredCredits, clientIP);
+    // A floor check only: the session's real hold is `reserveSessionHold` below.
+    const creditCheck = await validateCredits(authResult.value, requiredCredits, clientIP, { hold: false });
     if (!creditCheck.ok) {
       logRejected('insufficient_credits', creditCheck.response.status, {
         // The rounded balance validateCredits compared, which the 402 body reports too.

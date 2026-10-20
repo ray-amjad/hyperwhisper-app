@@ -39,6 +39,18 @@ function auth(credits: number): AuthContext {
   return { identifier: ACCOUNT, licenseKey: ACCOUNT, credits };
 }
 
+async function captureErrors(run: () => Promise<void>): Promise<string[]> {
+  const lines: string[] = [];
+  const originalError = console.error;
+  console.error = (...args: unknown[]) => { lines.push(args.map(String).join(' ')); };
+  try {
+    await run();
+  } finally {
+    console.error = originalError;
+  }
+  return lines;
+}
+
 async function settle(): Promise<void> {
   await drainPendingDeductions(2000);
   await drainPendingHoldReleases(2000);
@@ -108,9 +120,32 @@ describe('withCreditHoldScope', () => {
     });
   });
 
-  test('outside a scope, validateCredits checks the balance and holds nothing', async () => {
-    expect((await validateCredits(auth(10), 4, 'ip')).ok).toBe(true);
+  test('outside a scope, validateCredits fails open, holds nothing, and logs credits_hold.no_scope once (#2043)', async () => {
+    const lines = await captureErrors(async () => {
+      expect((await validateCredits(auth(10), 4, 'ip')).ok).toBe(true);
+    });
     expect(store.calls).toEqual([]);
+    const noScope = lines.filter((line) => line.includes('credits_hold.no_scope'));
+    expect(noScope).toHaveLength(1);
+    expect(JSON.parse(noScope[0]!)).toEqual({ event: 'credits_hold.no_scope', failOpen: true, estimatedCredits: 4 });
+    expect(noScope[0]).not.toContain(ACCOUNT);
+  });
+
+  test('outside a scope, `hold: false` logs nothing', async () => {
+    const lines = await captureErrors(async () => {
+      expect((await validateCredits(auth(10), 4, 'ip', { hold: false })).ok).toBe(true);
+    });
+    expect(store.calls).toEqual([]);
+    expect(lines).toEqual([]);
+  });
+
+  test('inside a scope, a holding call logs no credits_hold.no_scope', async () => {
+    const lines = await captureErrors(async () => {
+      await withCreditHoldScope(async () => {
+        expect((await validateCredits(auth(10), 4, 'ip')).ok).toBe(true);
+      });
+    });
+    expect(lines.filter((line) => line.includes('credits_hold.no_scope'))).toEqual([]);
   });
 
   test('a detached hold outlives the handler until its owner releases it', async () => {
