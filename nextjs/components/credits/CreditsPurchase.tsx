@@ -46,17 +46,6 @@ function reportContext(
 }
 
 /**
- * Guest buy-credits UI for /credits.
- *
- * Visitor enters an email, picks a preset ($5 / $10) or a custom whole-dollar
- * amount, and we POST to /api/checkout/credits (mint path — no license key)
- * through the shared seam in `src/lib/buy-credits.ts` (#949), the same one the
- * dashboard's `CloudCreditsCard` uses. Stripe collects payment, the webhook
- * mints a key and emails it to them.
- *
- * Copy lives under the `buyCredits` namespace in messages/*.json.
- */
-/**
  * #768: a summary value that pops in, one character at a time, when it
  * changes. The first render is the plain text, so the server markup and the
  * first paint are as before. Each later change remounts the characters (the
@@ -93,6 +82,17 @@ function PopValue({ text, delay = 0 }: { text: string; delay?: number }) {
   );
 }
 
+/**
+ * Guest buy-credits UI for /credits.
+ *
+ * Visitor enters an email, picks a preset ($5 / $10) or a custom whole-dollar
+ * amount, and we POST to /api/checkout/credits (mint path — no license key)
+ * through the shared seam in `src/lib/buy-credits.ts` (#949), the same one the
+ * dashboard's `CloudCreditsCard` uses. Stripe collects payment, the webhook
+ * mints a key and emails it to them.
+ *
+ * Copy lives under the `buyCredits` namespace in messages/*.json.
+ */
 export default function CreditsPurchase({ locale }: { locale: string }) {
   const t = useTranslations("buyCredits");
   const [email, setEmail] = useState("");
