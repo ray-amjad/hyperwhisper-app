@@ -837,16 +837,17 @@ public class HistoryService
             try
             {
                 using var context = new HyperWhisperDbContext();
-                // One transaction around both parts (#2126): the database delete is staged,
-                // the pending rows go only when their file is rewritten without them, and
-                // only then does the database part commit. A refusal on either side
-                // deletes nothing; only a failed commit has rows to put back.
-                using var transaction = context.Database.BeginTransaction();
-
                 deletedTranscripts = context.Transcripts
                     .Where(t => idSet.Contains(t.Id))
                     .ToList();
 
+                // One transaction around both parts (#2126): the database delete is staged,
+                // the pending rows go only when their file is rewritten without them, and
+                // only then does the database part commit. A refusal on either side
+                // deletes nothing; only a failed commit has rows to put back. No database
+                // rows, no transaction: it would take the write lock (BEGIN IMMEDIATE), and
+                // pending rows exist because another process may hold that lock (#1589).
+                using var transaction = deletedTranscripts.Count > 0 ? context.Database.BeginTransaction() : null;
                 if (deletedTranscripts.Count > 0)
                 {
                     context.Transcripts.RemoveRange(deletedTranscripts);
@@ -864,7 +865,7 @@ public class HistoryService
 
                 try
                 {
-                    transaction.Commit();
+                    transaction?.Commit();
                 }
                 catch
                 {
