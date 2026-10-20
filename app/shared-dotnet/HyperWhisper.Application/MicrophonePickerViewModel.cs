@@ -38,6 +38,11 @@ public sealed record MicrophoneChoice(MicrophoneChoiceKind Kind, string Label, s
 /// moves the selection there. So an unplugged saved device falls back to the default without
 /// losing the choice, and its return is picked up by the next device refresh with no restart.
 ///
+/// Two devices can share a name (two identical USB microphones). The saved value stays the name,
+/// but within a session the exact device picked (its id) is remembered, so that device stays
+/// selected and is what records. A name matching several devices resolves to the picked one, else
+/// to the one currently selected, else to the first.
+///
 /// Warning: <see cref="Choices"/> is reconciled in place, never cleared and refilled, for the same
 /// reason <c>TranscriptionWorkflowViewModel.SyncAudioDevices</c> is: a bound ComboBox drops its
 /// selection when its list empties, and a TwoWay binding writes null when its view is torn down.
@@ -56,6 +61,9 @@ public sealed class MicrophonePickerViewModel : ViewModelBase, IDisposable
     private bool _reconcileAgain;
     private bool _disposed;
     private string? _resolvedDeviceId;
+    /// <summary>The id of the device the user picked this session, to tell same-named devices
+    /// apart. Not saved: ids are not stable across replugs and reboots, names are.</summary>
+    private string? _pickedDeviceId;
 
     public MicrophonePickerViewModel(
         TranscriptionWorkflowViewModel recording,
@@ -110,8 +118,8 @@ public sealed class MicrophonePickerViewModel : ViewModelBase, IDisposable
             if (!Choices.Contains(value)) return;
             switch (value.Kind)
             {
-                case MicrophoneChoiceKind.SystemDefault: Save(null); break;
-                case MicrophoneChoiceKind.Device: Save(value.DeviceName); break;
+                case MicrophoneChoiceKind.SystemDefault: _pickedDeviceId = null; Save(null); break;
+                case MicrophoneChoiceKind.Device: _pickedDeviceId = value.DeviceId; Save(value.DeviceName); break;
                 // Picking the "(not connected)" row is keeping the choice already made.
                 case MicrophoneChoiceKind.Disconnected: break;
             }
@@ -140,6 +148,7 @@ public sealed class MicrophonePickerViewModel : ViewModelBase, IDisposable
     /// <summary>The onboarding and tray path: a null device follows the OS default.</summary>
     public void ChooseDevice(AudioInputDevice? device)
     {
+        _pickedDeviceId = device?.Id;
         Save(device?.Name);
         Reconcile();
     }
@@ -150,11 +159,22 @@ public sealed class MicrophonePickerViewModel : ViewModelBase, IDisposable
     public void Reload() => Reconcile();
 
     /// <summary>The device a saved <paramref name="savedName"/> resolves to on <paramref name="devices"/>:
-    /// the first device of that name, else the OS default, else the first device.</summary>
-    public static AudioInputDevice? Resolve(IReadOnlyList<AudioInputDevice> devices, string? savedName)
+    /// a device of that name, else the OS default, else the first device. When several devices
+    /// carry the name, the first of <paramref name="preferredIds"/> among them wins, else the first.</summary>
+    public static AudioInputDevice? Resolve(IReadOnlyList<AudioInputDevice> devices, string? savedName, params string?[] preferredIds)
     {
         ArgumentNullException.ThrowIfNull(devices);
-        return (savedName is null ? null : devices.FirstOrDefault(device => string.Equals(device.Name, savedName, StringComparison.Ordinal)))
+        AudioInputDevice? named = null;
+        if (savedName is not null)
+        {
+            var matches = devices.Where(device => string.Equals(device.Name, savedName, StringComparison.Ordinal)).ToArray();
+            named = preferredIds
+                .Where(id => id is not null)
+                .Select(id => matches.FirstOrDefault(device => string.Equals(device.Id, id, StringComparison.Ordinal)))
+                .FirstOrDefault(device => device is not null)
+                ?? matches.FirstOrDefault();
+        }
+        return named
             ?? devices.FirstOrDefault(device => device.IsDefault)
             ?? devices.FirstOrDefault();
     }
@@ -199,7 +219,7 @@ public sealed class MicrophonePickerViewModel : ViewModelBase, IDisposable
     {
         var devices = _recording.AudioDevices.ToArray();
         var saved = SavedDeviceName;
-        var resolved = Resolve(devices, saved);
+        var resolved = Resolve(devices, saved, _pickedDeviceId, _recording.SelectedAudioDevice?.Id);
         var savedConnected = saved is not null && devices.Any(device => string.Equals(device.Name, saved, StringComparison.Ordinal));
 
         // Steer the recording selection. The setter discards a null while the list is not empty,

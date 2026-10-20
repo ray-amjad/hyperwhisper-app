@@ -24,6 +24,7 @@ static class MicrophonePickerTests
         await UnplugFallsBackAndReplugReturnsAsync(Path.Combine(root, "unplug"));
         await HomeAndSettingsShareOneChoiceAsync(Path.Combine(root, "shell"));
         await PickerIgnoresNullAndKeepsSelectionAcrossRefillsAsync(Path.Combine(root, "refill"));
+        await SameNamedDevicesKeepTheExactPickAsync(Path.Combine(root, "same-name"));
         await LevelTestStateMachineAsync(Path.Combine(root, "level-test"));
         await BackupDoesNotCarryTheDeviceAsync(Path.Combine(root, "backup"));
         LevelTestSurvivesASwappedUiContext();
@@ -167,6 +168,34 @@ static class MicrophonePickerTests
         Check(app.Picker.SavedDeviceName is null, "picking the listed Default row did not clear the choice");
     }
 
+    // Review r1: with two microphones of the same name, picking the second snapped back to the
+    // first, so it could never be chosen. The NAME is still what is saved, but the exact device
+    // picked stays selected and records for the session.
+    private static async Task SameNamedDevicesKeepTheExactPickAsync(string root)
+    {
+        var left = new AudioInputDevice("alsa_input.usb-Generic_USB_Mic-00.mono-fallback", "USB Microphone");
+        var right = new AudioInputDevice("alsa_input.usb-Generic_USB_Mic-01.mono-fallback", "USB Microphone");
+        await using var app = await Harness.CreateAsync(root, [BuiltIn, left, right]);
+
+        app.Picker.SelectedChoice = app.Picker.Choices.Single(choice => choice.DeviceId == right.Id);
+        Check(app.Picker.SelectedChoice?.DeviceId == right.Id, $"picking the second same-named device snapped back to '{app.Picker.SelectedChoice?.DeviceId}'");
+        Check(app.Recording.SelectedAudioDevice == right, "the second same-named device is not the recording device");
+        Check(app.Picker.SavedDeviceName == right.Name, "the choice was not saved by name");
+        app.Workflow.RefreshDevices();
+        Check(app.Picker.SelectedChoice?.DeviceId == right.Id, "a refresh moved the pick to the first same-named device");
+        Check(await app.RecordOnceAsync() == right.Id, "the recording did not open the exact device picked");
+
+        // The tray and onboarding pick a device object: that exact one too, either way round.
+        app.Picker.ChooseDevice(left);
+        Check(app.Picker.SelectedChoice?.DeviceId == left.Id && app.Recording.SelectedAudioDevice == left, "ChooseDevice did not select the first same-named device");
+        app.Picker.ChooseDevice(right);
+        Check(app.Picker.SelectedChoice?.DeviceId == right.Id && app.Recording.SelectedAudioDevice == right, "ChooseDevice did not select the second same-named device");
+
+        // With no pick this session (a relaunch), the name resolves to the first.
+        Check(MicrophonePickerViewModel.Resolve([BuiltIn, left, right], right.Name) == left, "an unpicked same name did not resolve to the first");
+        Check(MicrophonePickerViewModel.Resolve([BuiltIn, left, right], right.Name, null, right.Id) == right, "the current selection did not win among same-named devices");
+    }
+
     private static async Task LevelTestStateMachineAsync(string root)
     {
         await using var app = await Harness.CreateAsync(root, [BuiltIn, Scarlett], withShell: true);
@@ -188,6 +217,7 @@ static class MicrophonePickerTests
         app.Time.Advance(TimeSpan.FromSeconds(0.2));
         Check(!test.IsTesting && test.Level == 0 && first.Stopped && first.Disposed && test.ButtonText == "Test",
             "the test did not stop and empty the bar after 10 s");
+        Check(!test.HasError, "the test's own timeout was reported as an error");
         first.RaiseLevel(0.5f);
         Check(test.Level == 0, "a late level from a stopped capture lit the bar");
 
@@ -220,6 +250,13 @@ static class MicrophonePickerTests
         test.Start();
         app.Captures[^1].RaiseStopped(new PlatformError("audio_capture_failed", "gone"));
         Check(!test.IsTesting && test.HasError, "a capture that died left the test running, or said nothing");
+
+        // Review r1: parec on a stale source id exits cleanly (0 bytes, no error). An exit the test
+        // did not ask for still says the microphone could not be opened, not nothing.
+        test.Start();
+        Check(test.IsTesting && !test.HasError, "a new test did not clear the previous error");
+        app.Captures[^1].RaiseStopped(null);
+        Check(!test.IsTesting && test.HasError, "a capture that ended by itself without an error showed nothing");
 
         // A capture that cannot start says so and does not claim to be testing.
         app.FailNextStart = true;

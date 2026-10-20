@@ -183,7 +183,10 @@ public sealed class MicrophoneLevelTestViewModel : ViewModelBase, IDisposable
         {
             if (!IsCurrent(session)) return;
             Stop();
-            if (error is not null) ErrorMessage = OpenFailedText();
+            // Only a stop the test did not ask for gets here: Release unsubscribes before the
+            // test's own stop, timeout or restart. So even a clean exit with no error (parec on a
+            // stale source id reads 0 bytes and ends) means the microphone could not be used.
+            ErrorMessage = OpenFailedText();
         });
     }
 
