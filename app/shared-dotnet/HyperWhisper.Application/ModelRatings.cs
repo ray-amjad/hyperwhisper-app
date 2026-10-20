@@ -65,6 +65,7 @@ public static class ModelRatings
             // ElevenLabs
             ["scribe_v1"] = new(3, 5),
             ["scribe_v2"] = new(3, 5),
+            ["scribe_v2_medical"] = new(3, 5),
             // Mistral
             ["voxtral-mini-latest"] = new(4, 2),
             // Soniox
