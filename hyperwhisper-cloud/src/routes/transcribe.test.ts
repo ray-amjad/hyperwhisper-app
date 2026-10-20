@@ -227,6 +227,39 @@ describe('transcribeRoute provider fallback', () => {
     expect(body.message).toBe('Groq API key is invalid');
   });
 
+  test("a non-retryable failure's own text stays in the log, not the 500 (#2106)", async () => {
+    // A missing key is a plain Error naming the server's env var: the text the
+    // non-retryable arm used to copy into the reply.
+    delete process.env.ELEVENLABS_API_KEY;
+    const logged: string[] = [];
+    const originalLog = console.log;
+    console.log = ((...args: unknown[]) => { logged.push(args.map(String).join(' ')); }) as typeof console.log;
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      throw new Error(`Unexpected fetch: ${String(input)}`);
+    }) as unknown as typeof fetch;
+
+    let response: Response;
+    try {
+      response = await buildApp().fetch(transcribeRequest('elevenlabs'));
+    } finally {
+      console.log = originalLog;
+    }
+    const raw = await response.text();
+    const body = JSON.parse(raw) as { error: string; message: string; requestId: string };
+
+    expect(response.status).toBe(500);
+    expect(body.error).toBe('Transcription failed');
+    expect(body.message).toBe('The transcription request failed. Please try again.');
+    expect(raw).not.toContain('ELEVENLABS_API_KEY');
+    // The full text is still in the request_fail line, under the same requestId.
+    const fail = logged
+      .filter((line) => line.startsWith('{'))
+      .map((line) => JSON.parse(line) as { event: string; requestId: string; kind?: string; message?: string })
+      .find((event) => event.event === 'transcribe.request_fail');
+    expect(fail).toMatchObject({ requestId: body.requestId, kind: 'non_retryable' });
+    expect(fail?.message).toContain('ELEVENLABS_API_KEY not configured');
+  });
+
   for (const [sibling, siblingAnswer] of [
     ['a 400 input rejection', () => new Response('{"detail":"bad input"}', { status: 400 })],
     ['an outage', () => new Response('boom', { status: 503 })],
