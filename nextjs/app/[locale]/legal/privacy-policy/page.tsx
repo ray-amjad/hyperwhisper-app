@@ -4,7 +4,7 @@ export const generateMetadata = localizedPageMetadata({
   path: "/legal/privacy-policy",
   title: "Privacy Policy | HyperWhisper",
   description:
-    "HyperWhisper Privacy Policy - Local-first, no cloud storage of your audio or transcripts, except brief storage of recordings over about 55 seconds or 9.5 MB on the HyperWhisper Cloud Chirp route.",
+    "HyperWhisper Privacy Policy - Local-first, no cloud storage of your audio or transcripts, except brief storage of recordings over about 55 seconds or 9.5 MB on the HyperWhisper Cloud Chirp route and provider error messages in HyperWhisper Cloud logs, which can quote request text.",
 });
 
 // The one storage exception, written once and rendered after every
@@ -1143,8 +1143,9 @@ export default function PrivacyPolicyPage() {
       <p>
         If you dictated patient information with the Medical Mode options
         described above, through HyperWhisper Cloud or your own API key, we hold
-        neither the audio nor the transcript, apart from any part of it that a
-        provider&apos;s error message quotes in our logs, so delete them on
+        neither the audio nor the transcript, apart from any part of a
+        HyperWhisper Cloud request that a provider&apos;s error message quotes
+        in our logs, so delete them on
         your device as
         described above. Any copy a provider keeps is governed by that
         provider&apos;s terms.
