@@ -119,12 +119,11 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
     },
     // Never the email address: the seam builds these properties and keeps the
     // address out of them, and only the failure goes to the report.
+    // `credits.checkout` is the operation name #739 pins for this form.
     reportError: (thrown, properties) => {
-      void reportClientError(
-        "credits.checkout",
-        thrown,
-        reportContext(properties),
-      );
+      const context = reportContext(properties);
+
+      void reportClientError("credits.checkout", thrown, context);
     },
     // The seam's busy tier is a dollar amount or "custom"; this form has one
     // button, so any tier is just "loading".
