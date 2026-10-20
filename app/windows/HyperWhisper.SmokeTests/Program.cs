@@ -24078,6 +24078,12 @@ internal static class Program
                 };
                 vm.GettingStartedItems = items;
                 vm.ShowGettingStarted = true;
+                // GetUninitializedObject skips field initialisers: give the refused
+                // start the empty device list a machine with no microphone has.
+                typeof(MainViewModel).GetField("_audioDevices", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(vm, new List<AudioDeviceService.AudioDevice>());
+                var toasts = 0;
+                vm.ShowErrorToastRequested += (_, _) => toasts++;
 
                 var navigations = new List<(MainViewModel.NavigationPage Page, string? Section)>();
                 vm.PropertyChanged += (_, e) =>
@@ -24099,6 +24105,7 @@ internal static class Program
                 vm.OpenGettingStartedStepCommand.ExecuteAsync("recording").GetAwaiter().GetResult();
                 Assert(!items[0].IsCompleted, "Start Recording must not tick itself on a click");
                 Assert(!vm.IsRecording, "with no microphone the refused start leaves no recording behind");
+                Assert(toasts == 1, $"the click reaches the real start, which refuses with the no-microphone toast - got {toasts} toast(s)");
 
                 // The other two rows navigate on every click and tick nothing.
                 navigations.Clear();
