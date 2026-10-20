@@ -176,6 +176,12 @@ struct HyperWhisperCloudPostProcessingErrorTests {
 
     /// A whitespace-only `corrected` is no correction: the user keeps the
     /// original transcript and the run is not reported as a mutation.
+    ///
+    /// This pins the OUTCOME, not one guard. Today the shared core's
+    /// `parse_hw_cloud_post_process` rejects blank text first, so the call
+    /// throws `.invalidResponse` (retried, then caught) and Swift's own
+    /// empty-text check after the parse is never reached. Either layer
+    /// rejecting it must keep this result.
     @Test func aWhitespaceCorrectionReturnsTheOriginalTextAndDoesNotMutate() async throws {
         let persistence = PersistenceController(inMemory: true)
         let mode = makeCloudMode(persistence, model: "groq:openai/gpt-oss-120b")
