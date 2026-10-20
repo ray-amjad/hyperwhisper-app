@@ -4,7 +4,6 @@
  * Customer management for the admin dashboard.
  * All procedures require admin authentication.
  */
-import { createHash } from "node:crypto";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { getHTTPStatusCodeFromError } from "@trpc/server/http";
@@ -29,7 +28,13 @@ import {
   updateCustomerEmail,
 } from "@/src/lib/db-layer";
 import { generateLicenseKey } from "@/lib/services/license-key";
-import { dbErrorCode, describeDbError, isDbError } from "@/lib/shared/db-error";
+import {
+  dbErrorCode,
+  dbErrorConstraint,
+  describeDbError,
+  isDbError,
+} from "@/lib/shared/db-error";
+import { emailTag } from "@/lib/shared/redact";
 import { emailService } from "@/lib/services/email";
 import { createCustomerPaymentRefunder } from "./customer-refund";
 import { createCustomerSpendReader } from "./customer-spend";
@@ -55,24 +60,13 @@ type AdminLogFields = Record<
 >;
 
 /**
- * A log-safe stand-in for an email address (#2177): the first 12 hex chars of
- * the sha256 of the lower-cased, trimmed address. Enough to match a line to a
- * customer someone already knows; never the address itself.
- */
-function emailHash(email: string): string {
-  return createHash("sha256")
-    .update(email.toLowerCase().trim())
-    .digest("hex")
-    .slice(0, 12);
-}
-
-/**
  * Runs one admin money or access mutation and writes ONE structured line for
  * its outcome (#2177), so "who refunded, revoked or granted this, and when" can
  * be read from the logs: `ok` on success, `rejected` with the tRPC code on a
  * 4xx refusal, `failed` on anything else. `fields` is filled in as the
  * mutation goes, so a failed line shows how far it got. Ids only: never an
- * email address, a licence key or an error message.
+ * email address (only its `emailTag`, the same tag `sendMagicLink` logs), a
+ * licence key or an error message.
  */
 async function withAdminLog<T>(
   name: string,
@@ -100,16 +94,23 @@ async function withAdminLog<T>(
           event,
           outcome: "failed",
           reason: error instanceof TRPCError ? error.code : "UNEXPECTED",
-          // A TRPCError's own `.code` is the tRPC code, not a SQLSTATE.
-          dbCode: dbErrorCode(
-            error instanceof TRPCError ? error.cause : error,
-          ),
+          ...dbErrorFields(error instanceof TRPCError ? error.cause : error),
           ...fields,
         }),
       );
     }
     throw error;
   }
+}
+
+/**
+ * The SQLSTATE and constraint of a database error, for an outcome line. Only a
+ * real DB error: a TRPCError's or a Stripe error's own `.code` is not a SQLSTATE.
+ * Identifiers only, never the error's text (#1039).
+ */
+function dbErrorFields(error: unknown): AdminLogFields {
+  if (!isDbError(error)) return {};
+  return { dbCode: dbErrorCode(error), dbConstraint: dbErrorConstraint(error) };
 }
 
 // Distinct customers (by userId) per page of the admin Customers list.
@@ -359,7 +360,7 @@ export const customersRouter = createTRPCRouter({
       const log: AdminLogFields = {
         adminId: ctx.user.id,
         userId: input.userId,
-        newEmailHash: emailHash(email),
+        newEmailHash: emailTag(email),
       };
 
       return withAdminLog("updateEmail", log, async () => {
@@ -367,7 +368,7 @@ export const customersRouter = createTRPCRouter({
         if (!target) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Customer not found" });
         }
-        log.oldEmailHash = emailHash(target.email);
+        log.oldEmailHash = emailTag(target.email);
 
         // No-op when the email is unchanged: skip the collision check and the
         // (multi-row) write entirely.
@@ -400,7 +401,9 @@ export const customersRouter = createTRPCRouter({
               message: "That email already belongs to another account",
             });
           }
-          console.error("Update customer email error:", describeDbError(error));
+          // The outcome line `withAdminLog` writes carries the SQLSTATE: the
+          // TRPCError below has no cause (#1039: its response stays fixed).
+          Object.assign(log, dbErrorFields(error));
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
             message:
@@ -427,7 +430,7 @@ export const customersRouter = createTRPCRouter({
       const name = email.split("@")[0];
       const log: AdminLogFields = {
         adminId: ctx.user.id,
-        emailHash: emailHash(email),
+        emailHash: emailTag(email),
       };
 
       return withAdminLog("grant", log, async () => {

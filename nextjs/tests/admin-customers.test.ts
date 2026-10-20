@@ -677,10 +677,10 @@ describe("a drizzle error (#1039)", () => {
       "INTERNAL_SERVER_ERROR",
       "Failed to update email",
     );
-    // The SQLSTATE line, then the mutation's own `failed` outcome line (#2177).
-    assert.equal(errorLines.length, 2);
-    assert.match(errorLines[0], /22P02/);
-    assert.match(errorLines[1], /"event":"admin\.customers\.updateEmail","outcome":"failed"/);
+    // ONE line: the mutation's `failed` outcome line, carrying the SQLSTATE (#2177).
+    assert.equal(errorLines.length, 1);
+    assert.match(errorLines[0], /"event":"admin\.customers\.updateEmail","outcome":"failed"/);
+    assert.match(errorLines[0], /"dbCode":"22P02"/);
     assert.deepEqual(leakyLines(errorLines), []);
   });
 
@@ -857,9 +857,7 @@ describe("one log line per admin mutation outcome (#2177)", () => {
   });
 
   test("refund logs failed AFTER the payment was refunded when the credit reversal throws", async () => {
-    behaviour.refundCreditGrantError = Object.assign(new Error("connection reset"), {
-      code: "57P01",
-    });
+    behaviour.refundCreditGrantError = leakyDbError("57P01");
 
     await assert.rejects(
       callCustomers("refund", "mutation", { licenseKeyId: LICENSE_ID, revokeLicense: true }),
@@ -948,6 +946,39 @@ describe("one log line per admin mutation outcome (#2177)", () => {
       "CONFLICT",
     );
     assert.equal(onlyOutcome("updateEmail").reason, "CONFLICT");
+  });
+
+  test("a Stripe error's own code is not logged as a SQLSTATE", async () => {
+    behaviour.paymentIntent = "pi_1";
+    behaviour.refundCreditGrantError = Object.assign(new Error("Stripe said no"), {
+      code: "charge_already_refunded",
+    });
+
+    await assert.rejects(
+      callCustomers("refund", "mutation", { licenseKeyId: LICENSE_ID, revokeLicense: false }),
+    );
+    const line = onlyOutcome("refund");
+    assert.equal(line.outcome, "failed");
+    assert.equal(line.dbCode, undefined);
+  });
+
+  test("updateEmail logs ONE failed line with the SQLSTATE for a database failure", async () => {
+    behaviour.userById = { id: "user_1", email: "old@example.com" };
+    behaviour.updateEmailError = leakyDbError("40001");
+
+    await rejects(
+      callCustomers("updateEmail", "mutation", {
+        userId: "user_1",
+        newEmail: "moved@example.com",
+      }),
+      "INTERNAL_SERVER_ERROR",
+      "Failed to update email",
+    );
+    assert.equal(lines.length, 1);
+    const line = onlyOutcome("updateEmail");
+    assert.equal(line.method, "error");
+    assert.equal(line.reason, "INTERNAL_SERVER_ERROR");
+    assert.equal(line.dbCode, "40001");
   });
 
   test("an admin-gate refusal writes no outcome line (nothing ran)", async () => {
