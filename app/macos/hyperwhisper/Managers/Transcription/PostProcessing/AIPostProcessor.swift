@@ -1186,7 +1186,7 @@ class AIPostProcessor: ObservableObject {
                     // MODEL ID separately, a backend-side reroute stays invisible
                     // in this field; `openapi.yaml` says so.
                     signal.resolvedProvider = PostProcessingProvider.hyperwhisper.rawValue
-                    signal.resolvedModel = cloudPPModel.llmModelHeader ?? cloudPPModel.modelId
+                    signal.resolvedModel = httpResponse.value(forHTTPHeaderField: "X-LLM-Provider") ?? cloudPPModel.modelId
                     return trimmedCorrected
                 }
 
@@ -1230,9 +1230,6 @@ class AIPostProcessor: ObservableObject {
             switch statusCode {
             case 402:
                 let denial = HyperWhisperCloudCreditDenial(errorJson: errorJson, message: errorMessage)
-                if let invalidMessage = denial.invalidExhaustedBalanceMessage {
-                    throw TranscriptionError.invalidResponse(details: invalidMessage)
-                }
                 throw TranscriptionError.insufficientCredits(
                     remaining: denial.remainingForTranscriptionError,
                     required: denial.requiredForTranscriptionError
@@ -1242,7 +1239,7 @@ class AIPostProcessor: ObservableObject {
             case 401, 403:
                 throw TranscriptionError.unauthorized(provider: "HyperWhisper Cloud", statusCode: statusCode)
             case 400:
-                throw TranscriptionError.invalidRequest
+                throw TranscriptionError.invalidResponse(details: "HTTP 400")
             case 500...599:
                 throw TranscriptionError.serverError(statusCode: statusCode, message: errorMessage)
             default:
@@ -1256,7 +1253,7 @@ class AIPostProcessor: ObservableObject {
 
         switch statusCode {
         case 402:
-            throw TranscriptionError.insufficientCredits(remaining: 0, required: 0)
+            throw TranscriptionError.insufficientCredits(remaining: 1, required: 0)
         case 429:
             throw TranscriptionError.rateLimited(retryAfter: nil)
         case 401, 403:
