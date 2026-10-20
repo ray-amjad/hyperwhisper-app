@@ -11,13 +11,13 @@ import {
   isExplicitLanguage,
   providerHttpError,
   quotaExhaustedReason,
-  readErrorBodyPreview,
   readRequiredJsonString,
   readPollJson,
   splitVocabularyTerms,
   upstreamDurationOrNull,
 } from './utils';
 import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
+import { readUpstreamError } from './upstream-error';
 import type { TranscriptionResult } from './types';
 
 describe('computeUploadTimeoutMs (size-scaled audio-upload budget)', () => {
@@ -250,21 +250,23 @@ describe('fetchWithTimeout', () => {
   });
 });
 
-describe('readErrorBodyPreview', () => {
+// The classifier text replaced readErrorBodyPreview (#2163) with the same
+// truncation, so the quota and adaptation classifiers see the same text.
+describe('readUpstreamError classifierText', () => {
   test('returns the full body when at or under the 500-char preview limit', async () => {
     const body = 'x'.repeat(500);
-    expect(await readErrorBodyPreview(new Response(body))).toBe(body);
+    expect((await readUpstreamError(new Response(body))).classifierText).toBe(body);
   });
 
   test('truncates bodies over 500 chars and appends an ellipsis', async () => {
     const body = 'y'.repeat(600);
-    const preview = await readErrorBodyPreview(new Response(body));
-    expect(preview).toBe(`${'y'.repeat(500)}...`);
+    const { classifierText } = await readUpstreamError(new Response(body));
+    expect(classifierText).toBe(`${'y'.repeat(500)}...`);
   });
 
   test('returns a placeholder when the body cannot be read', async () => {
     const unreadable = { text: () => { throw new Error('stream already used'); } } as unknown as Response;
-    expect(await readErrorBodyPreview(unreadable)).toBe('<unreadable>');
+    expect((await readUpstreamError(unreadable)).classifierText).toBe('<unreadable>');
   });
 });
 

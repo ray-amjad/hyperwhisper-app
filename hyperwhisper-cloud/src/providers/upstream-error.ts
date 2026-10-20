@@ -17,7 +17,7 @@
 //
 // Pure apart from reading the response body once. No imports.
 
-/** Same truncation `readErrorBodyPreview` always used, so classifiers see the same text. */
+/** The 500-character truncation the old error-body preview used, so classifiers see the same text. */
 const CLASSIFIER_TEXT_LIMIT = 500;
 
 /**

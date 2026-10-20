@@ -715,16 +715,6 @@ export function emptyTranscriptOutcome(
 }
 
 /**
- * The first 500 characters of an error body, for regex CLASSIFICATION only.
- * Never log it and never put it in an Error message that a route logs: an
- * upstream error body can quote the user's input (#2163). To log an upstream
- * error, use `readUpstreamError` from `./upstream-error` and log its `fields`.
- */
-export async function readErrorBodyPreview(response: Response): Promise<string> {
-  return (await readUpstreamError(response)).classifierText;
-}
-
-/**
  * Read a required string field from a successful upstream JSON response.
  *
  * Async job providers use the same two failure modes: unreadable JSON is a
