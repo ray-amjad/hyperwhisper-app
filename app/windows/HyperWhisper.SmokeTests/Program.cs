@@ -21361,7 +21361,7 @@ internal static class Program
                     history.ReplacePendingStoreForTests(previous);
                     if (saved != null) history.DeleteTranscript(saved.Id);
                     if (other != null) history.DeleteTranscript(other.Id);
-                    foreach (var path in new[] { singleAudio, bulkAudio, savedAudio, storePath })
+                    foreach (var path in new[] { singleAudio, bulkAudio, savedAudio, storePath, storePath + ".tmp" })
                     {
                         try { File.Delete(path); } catch { }
                     }
