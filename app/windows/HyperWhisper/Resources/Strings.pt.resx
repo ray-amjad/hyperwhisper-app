@@ -799,6 +799,12 @@ Esta ação não pode ser desfeita.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (pronto)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (não ativado)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (sem chave de API)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Falha ao carregar</value>
   </data>

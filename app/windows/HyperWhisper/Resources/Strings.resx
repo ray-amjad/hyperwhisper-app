@@ -1062,6 +1062,12 @@ Do you want to restart now?</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Not activated)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (No API key)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>

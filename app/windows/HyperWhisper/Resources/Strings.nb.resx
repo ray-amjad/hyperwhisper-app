@@ -799,6 +799,12 @@ Denne handlingen kan ikke angres.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Ikke aktivert)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (Ingen API-nøkkel)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>

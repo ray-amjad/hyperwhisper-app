@@ -13958,6 +13958,101 @@ internal static class Program
                 }
             });
 
+            Run("issue #649: the status bar says (Not activated) / (No API key) instead of (Ready), and follows the licence with no restart", () =>
+            {
+                const BindingFlags all = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+                string L(string key, string arg) => HyperWhisper.Localization.Loc.S(key, arg);
+
+                // The pure decision first: which credential each provider needs.
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, false, false) == "status.model.notActivated"
+                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, true, false) == "status.model.ready",
+                    "HyperWhisper Cloud reads the account key");
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.MicrosoftAzureSpeech, false, true) == "status.model.notActivated"
+                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.GoogleSpeech, false, true) == "status.model.notActivated",
+                    "the HW-Cloud-routed Azure MAI / Chirp rows need the account key, not a BYOK key (as /transcribe and #650)");
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.OpenAI, true, false) == "status.model.noApiKey"
+                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.Deepgram, false, true) == "status.model.ready",
+                    "a BYOK provider reads its own key, whatever the licence");
+                foreach (var key in new[] { "status.model.notActivated", "status.model.noApiKey" })
+                    Assert(L(key, "X") != key && L(key, "X").Contains('X'), $"{key} is missing from Strings.resx or lost its {{0}}");
+
+                // Then the real status bar, on a MainViewModel with no model loaded.
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(MainViewModel));
+                foreach (var (name, value) in new (string, object)[]
+                {
+                    ("_settingsService", SettingsService.Instance),
+                    ("_modelService", new WhisperModelService()),
+                    ("_transcriptionService", new TranscriptionService()),
+                    ("_parakeetTranscriptionService", new ParakeetTranscriptionService()),
+                    ("_localLlmModelService", new LocalLlmModelService()),
+                })
+                {
+                    (typeof(MainViewModel).GetField(name, all)
+                        ?? throw new InvalidOperationException($"MainViewModel.{name} is gone; update this test"))
+                        .SetValue(vm, value);
+                }
+                var selectedMode = typeof(MainViewModel).GetField("_selectedMode", all)
+                    ?? throw new InvalidOperationException("MainViewModel._selectedMode is gone; update this test");
+                var updateModelStatus = typeof(MainViewModel).GetMethod("UpdateModelStatus", all, Type.EmptyTypes)
+                    ?? throw new InvalidOperationException("MainViewModel.UpdateModelStatus() is gone; update this test");
+                // No BYOK key anywhere, and never the machine's Credential Manager.
+                vm.ApiKeyServiceOverride = new ApiKeyService(new InMemoryCredentialBackend());
+
+                var hyper = ModeDefaults.GetDefaultModes().Single();
+                Assert(hyper.ProviderType == "cloud"
+                       && CloudTranscriptionProviderExtensions.FromModeCloudProvider(hyper.CloudProvider) == CloudTranscriptionProvider.HyperWhisperCloud,
+                    "precondition: the stock Hyper mode is a HyperWhisper Cloud mode");
+                var cloudName = CloudTranscriptionProvider.HyperWhisperCloud.GetDisplayName();
+
+                // Fresh profile: this process has never loaded or activated a licence.
+                Assert(!WindowsLocalApiBackend.CloudAccountKeyPresent(), "precondition: the smoke process is unlicensed");
+                selectedMode.SetValue(vm, hyper);
+                updateModelStatus.Invoke(vm, null);
+                Assert(!vm.ModelStatus.Contains(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                    $"no account key, yet the status bar says Ready: '{vm.ModelStatus}'");
+                Assert(vm.ModelStatus == L("status.model.notActivated", cloudName),
+                    $"expected '{L("status.model.notActivated", cloudName)}', got '{vm.ModelStatus}'");
+
+                // Activation, through LicenseManager and its LicenseStatusChanged, no
+                // restart. A smoke run has no account key and must never store one in
+                // the machine's Credential Manager, so the stored-key half of the
+                // production predicate is stood in for; the status flip is real.
+                var manager = LicenseManager.Instance;
+                var statusSetter = typeof(LicenseManager).GetProperty(nameof(LicenseManager.LicenseStatus))!.GetSetMethod(nonPublic: true)
+                    ?? throw new InvalidOperationException("LicenseManager.LicenseStatus has no setter; update this test");
+                var statusBefore = manager.LicenseStatus;
+                vm.CloudAccountKeyPresentOverride = () => LicenseManager.Instance.IsLicensed;
+                vm.AttachModelStatusSources();
+                try
+                {
+                    statusSetter.Invoke(manager, new object[] { LicenseStatus.Trial });
+                    updateModelStatus.Invoke(vm, null);
+                    Assert(vm.ModelStatus == L("status.model.notActivated", cloudName), "still not activated before the licence lands");
+
+                    statusSetter.Invoke(manager, new object[] { LicenseStatus.Active });
+                    Assert(vm.ModelStatus == L("status.model.ready", cloudName),
+                        $"LicenseStatusChanged did not refresh the status bar to Ready: '{vm.ModelStatus}'");
+
+                    statusSetter.Invoke(manager, new object[] { LicenseStatus.Trial });
+                    Assert(vm.ModelStatus == L("status.model.notActivated", cloudName),
+                        $"a deactivated licence left the status bar on Ready: '{vm.ModelStatus}'");
+                }
+                finally
+                {
+                    vm.DetachModelStatusSources();
+                    statusSetter.Invoke(manager, new object[] { statusBefore });
+                }
+
+                // A BYOK mode with no key: (No API key), licence or not.
+                vm.CloudAccountKeyPresentOverride = () => true;
+                selectedMode.SetValue(vm, new Mode { Name = "OpenAI", ProviderType = "cloud", CloudProvider = "openai" });
+                updateModelStatus.Invoke(vm, null);
+                Assert(vm.ModelStatus.EndsWith(L("status.model.noApiKey", "").Trim(), StringComparison.Ordinal)
+                       && !vm.ModelStatus.Contains(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                    $"an OpenAI mode with no key must say No API key, got '{vm.ModelStatus}'");
+            });
+
             Run("issue #742: a failed Credential Manager write is reported, and the log holds no ApiKeys: Saved for it", () =>
             {
                 // Not a real credential: a placeholder whose only job is to prove it
