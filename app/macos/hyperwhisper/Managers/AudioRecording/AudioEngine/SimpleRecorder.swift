@@ -141,6 +141,12 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// Whether recording is currently active
     @Published var isRecording: Bool = false
 
+    /// Called on the main actor when the installed recorder stops capturing on its
+    /// own: a `DeviceAudioRecorder` whose device went away and that could not reopen
+    /// the chosen microphone or the macOS default. The owner ends the recording
+    /// through its error path; the file holds what was captured until then.
+    var onCaptureLost: (() -> Void)?
+
     // MARK: - Recording Settings
 
     /// Whisper-optimized recording format
@@ -511,6 +517,16 @@ class SimpleRecorder: NSObject, ObservableObject {
         recorder = startedRecorder
         isRecording = true
         startMeterUpdates()
+        if let deviceRecorder = startedRecorder as? DeviceAudioRecorder {
+            deviceRecorder.setCaptureLostHandler { [weak self, weak deviceRecorder] in
+                guard let self, let deviceRecorder else { return }
+                Task { @MainActor in
+                    // Only the recorder still installed may end the recording.
+                    guard let installed = self.recorder, installed === deviceRecorder else { return }
+                    self.onCaptureLost?()
+                }
+            }
+        }
 
         AppLogger.audio.info("SimpleRecorder started recording to: \(url.lastPathComponent, privacy: .public)")
         return .started

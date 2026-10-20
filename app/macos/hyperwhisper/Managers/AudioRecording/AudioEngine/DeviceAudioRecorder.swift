@@ -82,11 +82,18 @@ enum DeviceAudioRecorderError: Error, CustomStringConvertible {
 ///
 /// **Configuration changes** (`AVAudioEngineConfigurationChange`): a Bluetooth headset
 /// switching profile, a sample-rate change, or the device going away stops the engine.
-/// The recorder logs it, re-selects the device and restarts into the same file, up to
-/// `maxRestarts` times. If the device is gone or the restart fails, it stops cleanly:
-/// the file keeps what was captured, and nothing crashes.
+/// The recorder rebuilds the engine and keeps writing the SAME file: on the chosen
+/// device if it still opens, else on the macOS default input (the spec: an unplugged
+/// choice records from the default). The converter already handles any input format.
+/// A restart that opens neither is retried shortly after, and only
+/// `maxConsecutiveRestartFailures` failures IN A ROW give up; any successful restart
+/// resets the count, so repeated benign changes (a Bluetooth profile flipping back and
+/// forth) never end a long recording. Giving up stops cleanly (the file keeps what
+/// was captured) and calls the capture-lost handler, so the owner ends the recording
+/// through its error path instead of treating a truncated file as a success.
 ///
-/// `@unchecked Sendable`: all mutable state is behind the two locks above.
+/// `@unchecked Sendable`: all mutable state is behind the locks above (and
+/// `handlerLock` for the capture-lost handler).
 final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendable {
 
     // MARK: Format
@@ -113,8 +120,13 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     /// The level reported while nothing has been heard, matching `AVAudioRecorder`.
     static let silentPowerDb: Float = -160
 
-    /// Restarts allowed after configuration changes before the recorder gives up.
-    static let maxRestarts = 3
+    /// Restart attempts that may fail IN A ROW (neither the chosen device nor the
+    /// default opens) before the recorder gives up. A successful restart resets it.
+    static let maxConsecutiveRestartFailures = 3
+
+    /// Wait before retrying a restart that failed: a device mid-reconfiguration (a
+    /// Bluetooth profile switch) briefly reports no format.
+    static let restartRetryDelay: DispatchTimeInterval = .milliseconds(500)
 
     /// Open the WAV the recorder writes. Static so a test can check the file shape.
     static func makeOutputFile(url: URL) throws -> AVAudioFile {
@@ -161,6 +173,11 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         // device switch the output side can briefly lag behind the hardware side.
         if hardware.sampleRate > 0, hardware.sampleRate != output.sampleRate {
             AppLogger.audio.notice("Input node output rate \(output.sampleRate, privacy: .public) Hz differs from the device's \(hardware.sampleRate, privacy: .public) Hz - tapping at the device rate")
+            // `init(standardFormatWithSampleRate:channels:)` returns nil above two
+            // channels, so a multi-channel device keeps its layout.
+            if let layout = output.channelLayout {
+                return AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate, channelLayout: layout)
+            }
             return AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate, channels: output.channelCount)
         }
         return output
@@ -194,16 +211,28 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
 
     // MARK: Properties
 
+    /// The chosen device. Restarts try it first, so capture returns to it when it can.
     let deviceID: AudioDeviceID
 
     /// Where the WAV goes, or `nil` to meter only.
     let url: URL?
 
+    /// The macOS default input, the fallback when the chosen device stops opening.
+    /// Injected so a test never has to read real hardware.
+    private let defaultInputDeviceID: @Sendable () -> AudioDeviceID?
+
     private let controlLock = NSLock()
     private var engine: AVAudioEngine?               // controlLock
     private var configObserver: NSObjectProtocol?   // controlLock
     private var isRunning = false                    // controlLock
-    private var restartCount = 0                     // controlLock
+    private var restartBudget = CaptureRestartBudget(maxConsecutiveFailures: DeviceAudioRecorder.maxConsecutiveRestartFailures) // controlLock
+    private var restartRetryPending = false          // controlLock
+
+    /// Separate from `controlLock` so the main actor can install the handler without
+    /// waiting on a CoreAudio restart that holds `controlLock`.
+    private let handlerLock = NSLock()
+    private var captureLostHandler: (@Sendable () -> Void)?  // handlerLock
+    private var captureLost = false                          // handlerLock
 
     private let tapLock = NSLock()
     private var file: AVAudioFile?                   // tapLock
@@ -219,10 +248,32 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         qos: .userInitiated
     )
 
-    init(deviceID: AudioDeviceID, url: URL?) {
+    init(
+        deviceID: AudioDeviceID,
+        url: URL?,
+        defaultInputDeviceID: @escaping @Sendable () -> AudioDeviceID? = {
+            CoreAudioDeviceHelper.getSystemDefaultInputDeviceID()
+        }
+    ) {
         self.deviceID = deviceID
         self.url = url
+        self.defaultInputDeviceID = defaultInputDeviceID
         super.init()
+    }
+
+    /// Called once, on a background queue, if capture stops on its own because no input
+    /// device could be reopened after a configuration change. If that already
+    /// happened, `handler` runs at once. Never called after a normal `stop()`.
+    func setCaptureLostHandler(_ handler: @escaping @Sendable () -> Void) {
+        handlerLock.lock()
+        let alreadyLost = captureLost
+        if !alreadyLost {
+            captureLostHandler = handler
+        }
+        handlerLock.unlock()
+        if alreadyLost {
+            handler()
+        }
     }
 
     deinit {
@@ -267,7 +318,7 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
 
         let newEngine = AVAudioEngine()
         do {
-            try startEngine(newEngine)
+            try startEngine(newEngine, deviceID: deviceID)
         } catch {
             AppLogger.audio.error("Could not start capture on the chosen microphone (device \(self.deviceID, privacy: .public)): \(String(describing: error), privacy: .public)")
             tapLock.lock()
@@ -279,7 +330,7 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         }
 
         engine = newEngine
-        restartCount = 0
+        restartBudget.recordSuccess()
         isRunning = true
         observeConfigurationChanges(of: newEngine)
         return true
@@ -310,7 +361,7 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
 
     /// Select the device, build the converter for its format, tap it and start.
     /// Caller holds `controlLock`.
-    private func startEngine(_ engine: AVAudioEngine) throws {
+    private func startEngine(_ engine: AVAudioEngine, deviceID: AudioDeviceID) throws {
         let input = engine.inputNode
         try Self.setInputDevice(deviceID, on: input)
 
@@ -341,8 +392,8 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         }
     }
 
-    /// Caller holds `controlLock`.
-    private func stopLocked() {
+    /// Stop and drop the engine, keeping the file open. Caller holds `controlLock`.
+    private func tearDownEngineLocked() {
         if let configObserver {
             NotificationCenter.default.removeObserver(configObserver)
             self.configObserver = nil
@@ -352,11 +403,20 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
             engine.stop()
         }
         engine = nil
-        isRunning = false
 
         tapLock.lock()
         flushPipelineLocked()
         pipeline = nil
+        tapLock.unlock()
+    }
+
+    /// Caller holds `controlLock`.
+    private func stopLocked() {
+        tearDownEngineLocked()
+        isRunning = false
+        restartRetryPending = false
+
+        tapLock.lock()
         // Releasing the last reference closes the file and writes the final WAV
         // header. Nothing else holds one: the tap only reads `file` under this lock.
         file = nil
@@ -432,44 +492,128 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
 
     private func handleConfigurationChange() {
         controlLock.lock()
-        defer { controlLock.unlock() }
-        guard isRunning, let engine else { return }
-
-        restartCount += 1
-        let attempt = restartCount
-        AppLogger.audio.notice("Chosen microphone changed configuration mid-capture (attempt \(attempt, privacy: .public) of \(Self.maxRestarts, privacy: .public)) - restarting capture")
+        guard isRunning, engine != nil else {
+            controlLock.unlock()
+            return
+        }
+        AppLogger.audio.notice("Chosen microphone changed configuration mid-capture - restarting capture")
         SentryService.addBreadcrumb(
             message: "Chosen microphone configuration changed mid-capture",
             category: "audio.recording",
-            level: .warning,
-            data: ["attempt": attempt]
+            level: .warning
         )
+        tearDownEngineLocked()
+        let lostHandler = restartLocked()
+        controlLock.unlock()
+        lostHandler?()
+    }
 
-        guard attempt <= Self.maxRestarts else {
-            AppLogger.audio.error("Chosen microphone kept changing configuration - stopping capture; the file keeps what was recorded")
-            stopLocked()
+    private func retryRestart() {
+        controlLock.lock()
+        guard restartRetryPending else {
+            controlLock.unlock()
             return
         }
+        restartRetryPending = false
+        let lostHandler = restartLocked()
+        controlLock.unlock()
+        lostHandler?()
+    }
 
-        engine.inputNode.removeTap(onBus: 0)
-        engine.stop()
-        tapLock.lock()
-        flushPipelineLocked()
-        pipeline = nil
-        tapLock.unlock()
+    /// Reopen capture into the same file. Returns the capture-lost handler to call
+    /// (after `controlLock` is released) when the recorder gives up, else `nil`.
+    /// Caller holds `controlLock`; the engine is already torn down.
+    private func restartLocked() -> (@Sendable () -> Void)? {
+        guard isRunning, engine == nil else { return nil }
 
-        do {
-            try startEngine(engine)
-            AppLogger.audio.info("Chosen microphone capture restarted after a configuration change")
-        } catch {
-            AppLogger.audio.error("Chosen microphone could not restart after a configuration change (\(String(describing: error), privacy: .public)) - stopping capture; the file keeps what was recorded")
-            SentryService.addBreadcrumb(
-                message: "Chosen microphone capture stopped after a configuration change",
-                category: "audio.recording",
-                level: .warning
-            )
-            stopLocked()
+        if startOnAnyInputLocked() {
+            restartBudget.recordSuccess()
+            return nil
         }
+
+        guard restartBudget.recordFailure() else {
+            AppLogger.audio.notice("Capture restart failed (\(self.restartBudget.consecutiveFailures, privacy: .public) in a row) - retrying shortly")
+            restartRetryPending = true
+            restartQueue.asyncAfter(deadline: .now() + Self.restartRetryDelay) { [weak self] in
+                self?.retryRestart()
+            }
+            return nil
+        }
+
+        AppLogger.audio.error("No input device could be reopened after a configuration change - stopping capture; the file keeps what was recorded")
+        SentryService.addBreadcrumb(
+            message: "Chosen microphone capture lost after a configuration change",
+            category: "audio.recording",
+            level: .warning
+        )
+        stopLocked()
+        return takeCaptureLostHandler()
+    }
+
+    /// Start a fresh engine on the chosen device, else on the macOS default input.
+    /// Caller holds `controlLock`.
+    private func startOnAnyInputLocked() -> Bool {
+        var candidates: [AudioDeviceID] = [deviceID]
+        if let fallback = defaultInputDeviceID(),
+           fallback != kAudioObjectUnknown,
+           fallback != deviceID {
+            candidates.append(fallback)
+        }
+
+        for candidate in candidates {
+            // A fresh engine: the old one's input unit may still point at a device
+            // that is gone.
+            let newEngine = AVAudioEngine()
+            do {
+                try startEngine(newEngine, deviceID: candidate)
+            } catch {
+                AppLogger.audio.notice("Could not reopen capture on device \(candidate, privacy: .public): \(String(describing: error), privacy: .public)")
+                continue
+            }
+            engine = newEngine
+            observeConfigurationChanges(of: newEngine)
+            if candidate == deviceID {
+                AppLogger.audio.info("Chosen microphone capture restarted after a configuration change")
+            } else {
+                AppLogger.audio.notice("Chosen microphone is unavailable - continuing the recording from the macOS default input (device \(candidate, privacy: .public))")
+            }
+            return true
+        }
+        return false
+    }
+
+    /// Mark capture as lost and hand back the handler, at most once.
+    private func takeCaptureLostHandler() -> (@Sendable () -> Void)? {
+        handlerLock.lock()
+        defer { handlerLock.unlock() }
+        captureLost = true
+        let handler = captureLostHandler
+        captureLostHandler = nil
+        return handler
+    }
+}
+
+// MARK: - Restart Budget
+
+/// Counts restart attempts that failed in a row. A success resets the count, so only
+/// a device that keeps failing ends the capture, never a long recording that simply
+/// sees many configuration changes.
+struct CaptureRestartBudget: Equatable, Sendable {
+    let maxConsecutiveFailures: Int
+    private(set) var consecutiveFailures = 0
+
+    init(maxConsecutiveFailures: Int) {
+        self.maxConsecutiveFailures = maxConsecutiveFailures
+    }
+
+    mutating func recordSuccess() {
+        consecutiveFailures = 0
+    }
+
+    /// Count one failure. Returns `true` when the capture should give up.
+    mutating func recordFailure() -> Bool {
+        consecutiveFailures += 1
+        return consecutiveFailures >= maxConsecutiveFailures
     }
 }
 

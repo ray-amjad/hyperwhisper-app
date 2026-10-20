@@ -139,6 +139,10 @@ class RecordingLifecycle {
     /// Reset at the start of every `stopRecording()`.
     private(set) var lastStopTimedOut = false
 
+    /// Called on the main actor when the live recorder lost its input device and
+    /// could not continue on any other (see `SimpleRecorder.onCaptureLost`).
+    var onCaptureLost: (() -> Void)?
+
     /// Recordings directory URL from the shared resolver.
     private var recordingsDirectory: URL {
         RecordingsDirectory.resolve(configuredPath: settingsManager?.recordingsFolder)
@@ -162,6 +166,10 @@ class RecordingLifecycle {
         // Bind SimpleRecorder's audioLevel to our published property
         simpleRecorder.$audioLevel
             .assign(to: &$audioLevel)
+
+        simpleRecorder.onCaptureLost = { [weak self] in
+            self?.onCaptureLost?()
+        }
     }
 
     /// Configure with settings manager after initialization
