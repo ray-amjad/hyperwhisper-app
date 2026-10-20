@@ -148,7 +148,10 @@ internal static class ScriptGuardPorts
             const string emphasis = "yes yes yes yes yes yes yes yes yes";
             Assert(TranscriptionService.CollapseRepetitionLoops(emphasis) == emphasis, "single-word emphasis was collapsed");
             const string shortText = "one two three one two";
-            Assert(TranscriptionService.CollapseRepetitionLoops(shortText) == shortText, "text with fewer than three repeats changed");
+            Assert(TranscriptionService.CollapseRepetitionLoops(shortText) == shortText, "text too short to hold a loop changed");
+            // Long enough to reach the loop scan (9 tokens), but the phrase repeats only twice.
+            const string twoRepeats = "alpha beta gamma alpha beta gamma delta epsilon zeta";
+            Assert(TranscriptionService.CollapseRepetitionLoops(twoRepeats) == twoRepeats, "a phrase said only twice was collapsed");
         });
 
         run("streaming: a multi-channel mic downmixes at 1/sqrt(n) and clamps (#830)", () =>
