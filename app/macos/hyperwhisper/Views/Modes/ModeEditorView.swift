@@ -223,104 +223,35 @@ struct ModeEditorView: View {
         self.onSave = onSave
 
         if let mode = configuration.mode {
-            // EDIT MODE: Initialize from existing Mode object
-            _name = State(initialValue: mode.name ?? "Default")
-            // Migrate removed "voiceToText" preset → post-processing off
-            let rawPreset = mode.preset ?? "hyper"
-            let isLegacyVoiceToText = rawPreset == "voiceToText"
-            _preset = State(initialValue: isLegacyVoiceToText ? "hyper" : rawPreset)
-            _language = State(initialValue: LanguageData.canonicalLanguageCode(mode.language))
-
-            // Open on the STORED model and provider, installed or not. A missing
-            // local model is listed in the picker as not installed, with a
-            // warning, so Save with no change keeps it (issue #1434).
-            let selection = ModeEditorDefaults.editModelSelection(
-                storedModel: mode.model,
-                availableModelIds: availableModelIds
-            )
-            self.missingLocalModelId = selection.missingLocalModelId
-            _model = State(initialValue: selection.model)
-            _provider = State(initialValue: selection.provider)
-            _punctuation = State(initialValue: mode.punctuation)
-            _capitalization = State(initialValue: mode.capitalization)
-            _profanityFilter = State(initialValue: mode.profanityFilter)
-            _customInstructions = State(initialValue: mode.customInstructions ?? "")
-            _languageModel = State(initialValue: mode.languageModel ?? "gpt-5.6-luna")
-            let processingMode = isLegacyVoiceToText ? PostProcessingMode.off : (PostProcessingMode(rawValue: mode.postProcessingMode) ?? .cloud)
-            _postProcessingMode = State(initialValue: processingMode)
-
-            // A mode can carry no transcription model at all (backup restore, or a
-            // ModesEndpoint PATCH that sets only cloudProvider). Seed the SAVED
-            // provider's own default rather than a blanket "whisper-1": Grok's
-            // single implicit model has the empty-string id, so "whisper-1" would
-            // match no picker tag and render the Model row as a blank menu button.
-            // Only fall back to "whisper-1" when the provider itself is unknown.
-            let savedCloudProviderEnum = CloudProvider.parse(mode.cloudProvider)
-            let savedCloudModel = mode.cloudTranscriptionModel?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            let seededCloudModel: String = {
-                if let savedCloudModel, !savedCloudModel.isEmpty { return savedCloudModel }
-                guard let savedCloudProviderEnum else { return "whisper-1" }
-                return CloudTranscriptionModels.defaultModel(for: savedCloudProviderEnum)
-            }()
-            let initialCloudTranscriptionModel = CloudTranscriptionModels.resolveModelAlias(
-                seededCloudModel,
-                provider: savedCloudProviderEnum
-            )
-
-            // Azure MAI / Google Chirp legacy provider values are folded into
-            // HyperWhisper Cloud accuracy tiers via the catalog. If the saved
-            // cloudProvider is a legacy standalone-provider alias, surface that
-            // entry as the accuracy tier and snap cloudProvider to "hyperwhisper".
-            let savedCloudProvider = mode.cloudProvider
-            let normalizedCloudProvider = CloudSTTCatalog.shared.normalizeCloudProvider(savedCloudProvider)
-            let legacyProviderTier: CloudAccuracyTier? = normalizedCloudProvider.accuracyTier
-                .flatMap { CloudAccuracyTier(rawValue: $0) }
-            // Canonicalised, because this value is seeded straight into
-            // `_cloudProvider` and the provider Picker tags its rows with
-            // `CloudProvider.rawValue`. A camelCase id restored from a
-            // Windows/Linux backup matches no tag and renders a BLANK menu.
-            let migratedCloudProviderRaw = legacyProviderTier != nil
-                ? CloudProvider.hyperwhisper.rawValue
-                : (CloudProvider.canonicalStorageValue(savedCloudProvider) ?? "hyperwhisper")
-            let migratedAccuracyTierRaw = legacyProviderTier?.rawValue
-                ?? CloudAccuracyTier.fromStorageValue(mode.cloudAccuracyTier).rawValue
-            let initialCloudProvider = CloudProvider.parse(migratedCloudProviderRaw) ?? .hyperwhisper
-
-            // Resolve post-processing provider — compute against the migrated
-            // cloudProvider so legacy Azure/Google modes get the HW Cloud
-            // post-processing default after migration.
-            let providerValue = mode.postProcessingProvider
-                ?? processingMode.defaultProvider?.storageValue
-                ?? PostProcessingProvider.hyperwhisper.storageValue
-            let resolvedPostProvider: String = {
-                if initialCloudProvider == .hyperwhisper,
-                   processingMode == .cloud,
-                   mode.postProcessingProvider == nil {
-                    return PostProcessingProvider.hyperwhisper.storageValue
-                }
-                return providerValue
-            }()
-
-            _postProcessingProvider = State(initialValue: resolvedPostProvider)
-            _cloudProvider = State(initialValue: migratedCloudProviderRaw)
-            _cloudTranscriptionModel = State(initialValue: initialCloudTranscriptionModel)
-            _showAllCloudTranscriptionModels = State(initialValue: Self.shouldShowAllCloudTranscriptionModels(
-                provider: initialCloudProvider,
-                selectedModelId: initialCloudTranscriptionModel
-            ))
-            // An existing mode with no stored value has never had one chosen, so
-            // it opens on the region's variant too. A stored value is kept as is.
-            _englishSpelling = State(initialValue: EnglishSpelling(rawValue: mode.englishSpelling ?? "")
-                ?? .defaultForCurrentRegion)
-            _userSystemPrompt = State(initialValue: mode.userSystemPrompt ?? "")
-            _cloudAccuracyTier = State(initialValue: migratedAccuracyTierRaw)
-            _cloudPostProcessingModel = State(initialValue: CloudPostProcessingModel.fromStorageValue(mode.cloudPostProcessingModel).rawValue)
-            _removeTrailingPeriod = State(initialValue: mode.removeTrailingPeriod)
-            _enableScreenOCR = State(initialValue: mode.enableScreenOCR)
-            _geminiCustomPrompt = State(initialValue: mode.geminiCustomPrompt ?? "")
-            let storedDomain = mode.cloudTranscriptionDomain?.trimmingCharacters(in: .whitespacesAndNewlines)
-            _cloudTranscriptionDomain = State(initialValue: (storedDomain?.isEmpty == false) ? storedDomain : nil)
+            // EDIT MODE: Initialize from existing Mode object. The values, and
+            // every migration they need (legacy preset, language code, stored
+            // model, legacy Azure/Google provider), come from the pure
+            // ModeEditorSeed resolver (issue #730).
+            let seed = ModeEditorSeed.make(mode: mode, availableModelIds: availableModelIds)
+            _name = State(initialValue: seed.name)
+            _preset = State(initialValue: seed.preset)
+            _language = State(initialValue: seed.language)
+            self.missingLocalModelId = seed.missingLocalModelId
+            _model = State(initialValue: seed.model)
+            _provider = State(initialValue: seed.provider)
+            _punctuation = State(initialValue: seed.punctuation)
+            _capitalization = State(initialValue: seed.capitalization)
+            _profanityFilter = State(initialValue: seed.profanityFilter)
+            _customInstructions = State(initialValue: seed.customInstructions)
+            _languageModel = State(initialValue: seed.languageModel)
+            _postProcessingMode = State(initialValue: seed.postProcessingMode)
+            _postProcessingProvider = State(initialValue: seed.postProcessingProvider)
+            _cloudProvider = State(initialValue: seed.cloudProvider)
+            _cloudTranscriptionModel = State(initialValue: seed.cloudTranscriptionModel)
+            _showAllCloudTranscriptionModels = State(initialValue: seed.showAllCloudTranscriptionModels)
+            _englishSpelling = State(initialValue: seed.englishSpelling)
+            _userSystemPrompt = State(initialValue: seed.userSystemPrompt)
+            _cloudAccuracyTier = State(initialValue: seed.cloudAccuracyTier)
+            _cloudPostProcessingModel = State(initialValue: seed.cloudPostProcessingModel)
+            _removeTrailingPeriod = State(initialValue: seed.removeTrailingPeriod)
+            _enableScreenOCR = State(initialValue: seed.enableScreenOCR)
+            _geminiCustomPrompt = State(initialValue: seed.geminiCustomPrompt)
+            _cloudTranscriptionDomain = State(initialValue: seed.cloudTranscriptionDomain)
         } else {
             // CREATE MODE: Initialize with defaults
             // The seeds that depend on the licence and the installed models come
@@ -554,19 +485,6 @@ struct ModeEditorView: View {
         }
 
         return model.description
-    }
-
-    private static func shouldShowAllCloudTranscriptionModels(
-        provider: CloudProvider,
-        selectedModelId: String
-    ) -> Bool {
-        guard !selectedModelId.isEmpty,
-              CloudTranscriptionModels.models(for: provider).contains(where: { $0.id == selectedModelId })
-        else {
-            return false
-        }
-
-        return !CloudTranscriptionModels.popularModels(for: provider).contains { $0.id == selectedModelId }
     }
 
     /// Whether the current cloud provider has an API key configured
@@ -892,7 +810,7 @@ struct ModeEditorView: View {
                 }
             }
 
-            if Self.shouldShowAllCloudTranscriptionModels(
+            if ModeEditorSeed.shouldShowAllCloudTranscriptionModels(
                 provider: currentCloudProvider,
                 selectedModelId: cloudTranscriptionModel
             ) {
