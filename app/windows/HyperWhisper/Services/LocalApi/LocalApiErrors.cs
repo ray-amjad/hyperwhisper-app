@@ -51,7 +51,12 @@ internal static class LocalApiResponder
     public static (string code, string message, string? hint) MapTranscriptionException(TranscriptionException ex)
     {
         ArgumentNullException.ThrowIfNull(ex);
-        var reason = ReasonFor(ex.Code);
+        // Cloud's out-of-credits 402 rides on QuotaExceeded (the app has no
+        // code of its own for it), so the flag, not the code, picks the row
+        // whose hint points at Settings rather than a provider billing page.
+        var reason = ex.IsInsufficientCredits
+            ? HwLocalApiTranscriptionFailureReason.InsufficientCredits
+            : ReasonFor(ex.Code);
         var failure = HyperwhisperCoreMethods.LocalApiMapTranscriptionError(
             reason,
             new HwLocalApiTranscriptionFailureParams(
@@ -126,7 +131,7 @@ internal static class LocalApiResponder
     /// `Settings → API Keys`.
     /// </summary>
     /// <remarks>
-    /// The crate ignores this slot on the other twenty-two reasons — a head
+    /// The crate ignores this slot on the other twenty-three reasons — a head
     /// that could override any hint would put the wording back where item 4
     /// found it — so returning <c>null</c> for them is the honest answer and
     /// not a lost hint.
