@@ -938,6 +938,7 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "transcription.error.modelNotDownloaded" = "Descarregueu primer un model";
 "transcription.error.modelNotDownloaded.modelAndMode" = "El mode %1$@ utilitza %2$@, que no està descarregat. Descarregueu-lo a Biblioteca de models.";
 "transcription.error.modelNotDownloaded.model" = "%1$@ no està descarregat. Descarregueu-lo a Biblioteca de models.";
+"transcription.error.openModelLibrary" = "Obrir la Biblioteca de models";
 "transcription.error.modelProtected" = "Aquest model no es pot eliminar";
 "transcription.error.audioFileNotFound" = "Fitxer d'àudio no trobat";
 "transcription.error.network.detail" = "Error de xarxa: %@";
