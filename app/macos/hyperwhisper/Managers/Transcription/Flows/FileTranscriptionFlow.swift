@@ -1227,9 +1227,14 @@ class FileTranscriptionFlow {
             // AppKit maps Escape only to a button titled "Cancel".
             alert.buttons[okIndex].keyEquivalent = "\u{1b}"
         }
-        ModelessAlert.show(alert) { [weak self] response in
+        // Strong on purpose: the import task ends, and its caller drops the
+        // flow, while the modeless alert is still open. A weak capture is nil
+        // by the click and the button would do nothing. `ModelessAlert` drops
+        // the completion once the alert closes, so the flow lives only as
+        // long as its alert.
+        ModelessAlert.show(alert) { response in
             Self.performErrorAlertAction(for: response, buttons: buttons) {
-                self?.openModelLibrary()
+                self.openModelLibrary()
             }
         }
     }
@@ -1288,8 +1293,8 @@ class FileTranscriptionFlow {
     /// "Open Model Library" on the error alert: show the main window, then go
     /// to Model Library as the menu bar's History and Settings items do.
     private func openModelLibrary() {
-        Self.openModelLibrary(appState: appState) { [weak self] in
-            self?.openMainWindowWithHistory()
+        Self.openModelLibrary(appState: appState) {
+            self.openMainWindowWithHistory()
         }
     }
 
