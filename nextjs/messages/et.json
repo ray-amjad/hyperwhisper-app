@@ -443,5 +443,9 @@
     "description": "Link võib olla katki või leht on teisaldatud.",
     "home": "Mine avalehele",
     "download": "Laadi alla HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "See sisselogimislink on aegunud või juba kasutatud. Sisesta oma e-posti aadress, et saada uus.",
+    "magicLinkFailed": "Selle lingiga ei õnnestunud sind sisse logida. Sisesta oma e-posti aadress, et saada uus."
   }
 }
