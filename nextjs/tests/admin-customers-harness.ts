@@ -93,6 +93,7 @@ export const behaviour = {
   userByEmail: null as { id: string; email: string } | null,
   updateEmailError: null as unknown,
   customerPageError: null as unknown,
+  refundCreditGrantError: null as unknown,
   /** Charges per Stripe customer id. An Error value makes the list throw. */
   charges: new Map<string, ChargeFixture[] | Error>(),
   disputeStatus: new Map<string, string>(),
@@ -156,6 +157,7 @@ export function resetHarness(): void {
   behaviour.userByEmail = null;
   behaviour.updateEmailError = null;
   behaviour.customerPageError = null;
+  behaviour.refundCreditGrantError = null;
   behaviour.charges = new Map();
   behaviour.disputeStatus = new Map();
   behaviour.paymentIntent = "pi_1";
@@ -246,6 +248,7 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
     },
     refundCreditGrant: async (data: Record<string, unknown>) => {
       calls.refundCreditGrant.push(data);
+      if (behaviour.refundCreditGrantError) throw behaviour.refundCreditGrantError;
       return { status: "processed", refundedAmount: 0 };
     },
     revokeAccountKey: async (

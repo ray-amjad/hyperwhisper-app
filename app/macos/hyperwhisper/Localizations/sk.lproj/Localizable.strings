@@ -938,6 +938,7 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "transcription.error.modelNotDownloaded" = "Najprv si stiahnite model";
 "transcription.error.modelNotDownloaded.modelAndMode" = "Režim %1$@ používa model %2$@, ktorý nie je stiahnutý. Stiahnite si ho v Knižnici modelov.";
 "transcription.error.modelNotDownloaded.model" = "Model %1$@ nie je stiahnutý. Stiahnite si ho v Knižnici modelov.";
+"transcription.error.openModelLibrary" = "Otvoriť Knižnicu modelov";
 "transcription.error.modelProtected" = "Tento model sa nedá vymazať";
 "transcription.error.audioFileNotFound" = "Zvukový súbor sa nenašiel";
 "transcription.error.network.detail" = "Chyba siete: %@";

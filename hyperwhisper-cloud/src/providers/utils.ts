@@ -2,9 +2,9 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, ProviderUnavailableKind, TranscriptionResult } from './types';
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
+import { readUpstreamError, upstreamErrorLogFields, upstreamErrorReason } from './upstream-error';
 
 const DEFAULT_PROVIDER_TIMEOUT_MS = 15_000;
-const ERROR_BODY_PREVIEW_LIMIT = 500;
 
 // Audio-upload timeout budget, scaled with payload size. The default 15s is fine
 // for the small create/poll/transcript calls, but an upload that re-sends the
@@ -389,6 +389,66 @@ export async function readPollJson<T>(
   }
 }
 
+/**
+ * Read a 200 body that must be a JSON object, or throw the retryable
+ * `ProviderUnavailableError` (`kind: 'bad_response'`) so the route fails over
+ * instead of answering a 500. A speech vendor's 200 body IS the transcript, so
+ * like `readPollJson` this never logs body content or a read error's message
+ * (#1069): a read failure logs only the error's name; an empty, non-JSON or
+ * non-object body logs only its length and shape. (#2064, #2151)
+ *
+ * `null`, a bare number or string, and an array all parse as JSON and then
+ * fail on the first field read, so they are refused here too.
+ */
+export async function readJson200<T extends object>(
+  provider: string,
+  label: string,
+  response: Response,
+  startTime: number,
+  context: ProviderRequestContext = {},
+): Promise<Partial<T>> {
+  const elapsedMs = () => Math.round(performance.now() - startTime);
+  const shape = {
+    contentType: response.headers.get('content-type') ?? 'unknown',
+    contentEncoding: response.headers.get('content-encoding') ?? 'none',
+  };
+  const badResponse = (event: string, details: Record<string, unknown>) => {
+    logProviderEvent(provider, event, { elapsedMs: elapsedMs(), ...shape, ...details }, context);
+    return new ProviderUnavailableError(label, 'malformed 200 response body', {
+      kind: 'bad_response',
+      status: response.status,
+      elapsedMs: elapsedMs(),
+    });
+  };
+
+  let raw: string;
+  try {
+    raw = await response.text();
+  } catch (readError) {
+    // A reset connection or a cut chunked transfer. Only the name: the
+    // message can quote what was read so far.
+    throw badResponse('body_read_error', {
+      errorName: readError instanceof Error ? readError.name : typeof readError,
+    });
+  }
+  if (!raw) {
+    throw badResponse('empty_body', {});
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw badResponse('parse_error', { bodyLength: raw.length, bodyKind: unparsedBodyKind(raw) });
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw badResponse('parse_error', {
+      bodyLength: raw.length,
+      bodyKind: Array.isArray(parsed) ? 'json_array' : parsed === null ? 'json_null' : `json_${typeof parsed}`,
+    });
+  }
+  return parsed as Partial<T>;
+}
+
 export async function fetchWithTimeout(
   provider: string,
   url: string,
@@ -550,7 +610,9 @@ export async function providerHttpError(
 ): Promise<Error> {
   const { label } = policy;
   const status = response.status;
-  const errorText = await readErrorBodyPreview(response);
+  // `classifierText` is for the quota test only. The body can quote the
+  // user's input, so the log line carries content-free fields (#2163).
+  const { fields, classifierText: errorText } = await readUpstreamError(response);
   const elapsedMs = Math.round(performance.now() - startedAt);
   const kind = status >= 500 ? 'upstream_5xx' : status === 429 ? 'rate_limit' : 'http_error';
   const quotaReason = quotaExhaustedReason(status, errorText);
@@ -558,10 +620,9 @@ export async function providerHttpError(
   logProviderEvent(provider, 'http_error', {
     ...policy.logDetails,
     elapsedMs,
-    status,
+    ...upstreamErrorLogFields(fields),
     kind,
     ...(quotaReason ? { quotaExhausted: quotaReason } : {}),
-    bodyPreview: errorText,
   }, context);
 
   // Only the failover branches below carry details, and each knows its own
@@ -590,8 +651,10 @@ export async function providerHttpError(
   }
 
   // Other 4xx (e.g. 400 on an unaccepted language code/format) — a sibling
-  // provider may accept this input, so let the chain fall through.
-  return new ProviderInputError(label, status, errorText || `HTTP ${status}`);
+  // provider may accept this input, so let the chain fall through. The
+  // message (logged) names only the code; the body preview goes to the
+  // client's 400 alone, as it always did.
+  return new ProviderInputError(label, status, upstreamErrorReason(fields), errorText || `HTTP ${status}`);
 }
 
 /**
@@ -709,19 +772,6 @@ export function emptyTranscriptOutcome(
     });
   }
   return opts.noSpeechResult;
-}
-
-export async function readErrorBodyPreview(response: Response): Promise<string> {
-  try {
-    const body = await response.text();
-    if (body.length <= ERROR_BODY_PREVIEW_LIMIT) {
-      return body;
-    }
-
-    return `${body.slice(0, ERROR_BODY_PREVIEW_LIMIT)}...`;
-  } catch {
-    return '<unreadable>';
-  }
 }
 
 /**

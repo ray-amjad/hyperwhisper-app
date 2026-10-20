@@ -938,6 +938,7 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "transcription.error.modelNotDownloaded" = "Sila muat turun model dahulu";
 "transcription.error.modelNotDownloaded.modelAndMode" = "Mod %1$@ menggunakan %2$@, yang belum dimuat turun. Muat turunnya dalam Pustaka Model.";
 "transcription.error.modelNotDownloaded.model" = "%1$@ belum dimuat turun. Muat turunnya dalam Pustaka Model.";
+"transcription.error.openModelLibrary" = "Buka Pustaka Model";
 "transcription.error.modelProtected" = "Model ini tidak boleh dipadam";
 "transcription.error.audioFileNotFound" = "Fail audio tidak dijumpai";
 "transcription.error.network.detail" = "Ralat rangkaian: %@";

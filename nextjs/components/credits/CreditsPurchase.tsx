@@ -15,8 +15,9 @@ import {
   validateCreditPurchaseAmount,
   computeCreditPurchase,
 } from "@/app/api/checkout/credits/validation";
-import { isRecord } from "@/src/lib/type-guards";
 import { showEmailError } from "@/src/lib/credits-email";
+import { watchForAbandonedRedirect } from "@/src/lib/abandoned-redirect";
+import { createBuyCreditsHandler } from "@/src/lib/buy-credits";
 import { reportClientError } from "@/lib/shared/report-client-error";
 
 const PRESETS = [5, 10] as const;
@@ -24,11 +25,34 @@ const PRESETS = [5, 10] as const;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
+ * The seam's report properties, narrowed to what `reportClientError` takes.
+ * The seam builds them and keeps the email (and any licence key) out of them;
+ * this only drops values that are not a string or a number, and drops the
+ * seam's own `operation`, which `reportClientError` overwrites anyway.
+ */
+function reportContext(
+  properties: Record<string, unknown>,
+): Record<string, string | number> {
+  const context: Record<string, string | number> = {};
+
+  for (const [key, value] of Object.entries(properties)) {
+    if (key === "operation") continue;
+    if (typeof value === "string" || typeof value === "number") {
+      context[key] = value;
+    }
+  }
+
+  return context;
+}
+
+/**
  * Guest buy-credits UI for /credits.
  *
  * Visitor enters an email, picks a preset ($5 / $10) or a custom whole-dollar
- * amount, and we POST to /api/checkout/credits (mint path — no license key).
- * Stripe collects payment, the webhook mints a key and emails it to them.
+ * amount, and we POST to /api/checkout/credits (mint path — no license key)
+ * through the shared seam in `src/lib/buy-credits.ts` (#949), the same one the
+ * dashboard's `CloudCreditsCard` uses. Stripe collects payment, the webhook
+ * mints a key and emails it to them.
  *
  * Copy lives under the `buyCredits` namespace in messages/*.json.
  */
@@ -79,6 +103,41 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
     setError(null);
   };
 
+  // Built in the render body, as `CloudCreditsCard.tsx` does it, so a test that
+  // can render this form but cannot click it still sees the wiring. Every rule
+  // about when to navigate, what to show and when to clear `loading` lives in
+  // the seam (#949): a non-JSON body and an empty or 5xx server `error` show
+  // the translated checkout copy, and a scheduled redirect hands the release
+  // of `loading` to the abandoned-redirect watcher instead of dropping it.
+  const handleBuyCredits = createBuyCreditsHandler({
+    email: email.trim(),
+    // NOT the bare global `fetch`: passed as a value it loses its `this` and
+    // throws `Illegal invocation` in the browser.
+    fetchImpl: (input, init) => fetch(input, init),
+    navigate: (destination) => {
+      window.location.href = destination;
+    },
+    // Never the email address: the seam builds these properties and keeps the
+    // address out of them, and only the failure goes to the report.
+    // `credits.checkout` is the operation name #739 pins for this form.
+    reportError: (thrown, properties) => {
+      const context = reportContext(properties);
+
+      void reportClientError("credits.checkout", thrown, context);
+    },
+    // The seam's busy tier is a dollar amount or "custom"; this form has one
+    // button, so any tier is just "loading".
+    setBusy: (tier) => setLoading(tier !== null),
+    setError,
+    // Back from Stripe out of the bfcache re-arms the button. See
+    // `src/lib/abandoned-redirect.ts` before adding a timer here.
+    onRedirectScheduled: (release) => {
+      watchForAbandonedRedirect(window, release);
+    },
+    checkoutErrorMessage: t("errorCheckout"),
+    genericErrorMessage: t("errorGeneric"),
+  });
+
   const handleCheckout = async () => {
     // Guard against double-submit (rapid clicks create duplicate checkout
     // sessions / charges); the button is also disabled while loading.
@@ -99,36 +158,8 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
       return;
     }
 
-    setLoading(true);
-    try {
-      const response = await fetch("/api/checkout/credits", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), amount: effectiveAmount }),
-      });
-      const data: unknown = await response.json();
-
-      if (
-        response.ok &&
-        isRecord(data) &&
-        typeof data.checkoutUrl === "string"
-      ) {
-        window.location.href = data.checkoutUrl;
-        return;
-      }
-
-      setError(
-        isRecord(data) && typeof data.error === "string"
-          ? data.error
-          : t("errorCheckout"),
-      );
-      setLoading(false);
-    } catch (error) {
-      // Never the email address: only the failure goes to the report.
-      void reportClientError("credits.checkout", error);
-      setError(t("errorGeneric"));
-      setLoading(false);
-    }
+    // The seam never rejects; it sets and releases `loading` itself.
+    await handleBuyCredits(effectiveAmount);
   };
 
   return (

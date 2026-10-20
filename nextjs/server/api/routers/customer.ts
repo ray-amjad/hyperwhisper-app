@@ -18,6 +18,7 @@ import {
   getPaidCreditGrantsForUsers,
 } from "@/src/lib/db-layer";
 import { stripe } from "@/lib/clients/stripe";
+import { env } from "@/src/env/server.mjs";
 import { CREDITS_PER_MINUTE } from "@/lib/credits-per-minute";
 import { createCreditHistoryPresenter } from "./customer-credit-history";
 
@@ -194,7 +195,7 @@ export const customerRouter = createTRPCRouter({
     }
 
     const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";
+      env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";
 
     // Create Stripe billing portal session
     const session = await stripe.billingPortal.sessions.create({
