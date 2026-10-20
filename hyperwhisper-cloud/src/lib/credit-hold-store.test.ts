@@ -64,21 +64,22 @@ interface StoreUnderTest {
   name: string;
   store: () => CreditHoldStore;
   reset: () => Promise<void>;
-  setCachedBalance?: (credits: number) => Promise<void>;
+  /** Store a cached balance under one Redis key, the JSON `cacheLicense` writes. */
+  setCached: (redisKey: string, credits: number) => Promise<void>;
 }
 
 let memory = createMemoryCreditHoldStore();
-let memoryCachedBalance: number | undefined;
+const memoryCache = new Map<string, number>();
 
 const stores: StoreUnderTest[] = [
   {
     name: 'in-memory twin',
     store: () => memory,
     reset: async () => {
-      memoryCachedBalance = undefined;
-      memory = createMemoryCreditHoldStore({ cachedBalanceMilli: () => memoryCachedBalance });
+      memoryCache.clear();
+      memory = createMemoryCreditHoldStore({ cachedCredits: (key) => memoryCache.get(key) });
     },
-    setCachedBalance: async (credits) => { memoryCachedBalance = Math.round(credits * 1000); },
+    setCached: async (key, credits) => { memoryCache.set(key, credits); },
   },
 ];
 
@@ -88,8 +89,8 @@ if (redisServerPath) {
     store: () => createUpstashCreditHoldStore(evalClient),
     reset: async () => { await client!.send('FLUSHALL', []); },
     // The shape `cacheLicense` writes: Upstash serialises the object to JSON.
-    setCachedBalance: async (credits) => {
-      await client!.send('SET', [holdKeys(ACCOUNT).license, JSON.stringify({ isValid: true, credits, cachedAt: 'x' })]);
+    setCached: async (key, credits) => {
+      await client!.send('SET', [key, JSON.stringify({ isValid: true, credits, cachedAt: 'x' })]);
     },
   });
 }
@@ -179,16 +180,44 @@ for (const target of stores) {
     });
 
     test('a cached balance below the one the caller authed with wins', async () => {
-      await target.setCachedBalance!(0.5);
+      await target.setCached(holdKeys(ACCOUNT).license, 0.5);
       const refused = await target.store().reserve(request({ minMilli: 1000, maxMilli: 1000, balanceMilli: 1000 }));
       expect(refused).toEqual({ granted: false, holdMilli: 0, availableMilli: 500 });
     });
 
     test('a cached balance above it does not raise it', async () => {
-      await target.setCachedBalance!(50);
+      await target.setCached(holdKeys(ACCOUNT).license, 50);
       const refused = await target.store().reserve(request({ minMilli: 2000, maxMilli: 2000, balanceMilli: 1000 }));
       expect(refused.granted).toBe(false);
       expect(refused.availableMilli).toBe(1000);
+    });
+
+    test('a pooled hold is capped by the ASKING key\'s cached balance and by the pool\'s (#2026)', async () => {
+      const pool = 'pool:' + '9'.repeat(64);
+      const keyA = holdKeys(pool, 'key-a');
+      const keyB = holdKeys(pool, 'key-b');
+      // A's own cache is low; B's is high; the pool says 6.
+      await target.setCached(keyA.license, 1.5);
+      await target.setCached(keyB.license, 10);
+      await target.setCached(keyA.poolBalance, 6);
+      const store = target.store();
+
+      // A is capped by its own entry, not B's, and not by the hold account.
+      const a = await store.reserve(request({ account: pool, licenseKey: 'key-a', holdId: 'a', minMilli: 2000, maxMilli: 2000, balanceMilli: 10_000 }));
+      expect(a).toEqual({ granted: false, holdMilli: 0, availableMilli: 1500 });
+      // B's own entry says 10, the pool says 6: the pool wins.
+      const b = await store.reserve(request({ account: pool, licenseKey: 'key-b', holdId: 'b', minMilli: 1000, maxMilli: 7000, balanceMilli: 10_000 }));
+      expect(b).toEqual({ granted: true, holdMilli: 6000, availableMilli: 6000 });
+      // Nothing is read under the hold account itself.
+      await target.setCached(`license:${pool}`, 0);
+      const again = await store.reserve(request({ account: pool, licenseKey: 'key-b', holdId: 'b', minMilli: 1000, maxMilli: 7000, balanceMilli: 10_000 }));
+      expect(again.granted).toBe(true);
+    });
+
+    test('an unpooled hold reads only its own key\'s cache', async () => {
+      await target.setCached(holdKeys('key-x').license, 2);
+      const result = await target.store().reserve(request({ account: 'key-x', holdId: 'x', minMilli: 1000, maxMilli: 5000, balanceMilli: 10_000 }));
+      expect(result).toEqual({ granted: true, holdMilli: 2000, availableMilli: 2000 });
     });
 
     test('holds are per account', async () => {
