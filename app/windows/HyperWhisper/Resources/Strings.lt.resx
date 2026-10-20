@@ -1093,6 +1093,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Spartieji klavišai su vienu modifikavimo klavišu, pvz., Ctrl, Alt, Shift ar Win, nepalaikomi. Naudokite klavišą su modifikavimo klavišais arba kelių modifikatorių derinį, pvz., Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Spartusis klavišas be modifikatoriaus turi būti funkcinis klavišas arba Esc. Bet kuris kitas klavišas suveiktų jums rašant.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Šis spartusis klavišas jau naudojamas: {0} ({1})</value>
   </data>

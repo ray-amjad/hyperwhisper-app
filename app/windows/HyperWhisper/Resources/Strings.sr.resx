@@ -1093,6 +1093,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Пречице са само једним модификатором, као што су Ctrl, Alt, Shift или Win, нису подржане. Користите тастер са модификаторима или пречицу са више модификатора, на пример Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Пречица без модификатора мора бити функцијски тастер или Esc. Било који други тастер би се активирао док куцате.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Ова пречица се већ користи за {0} ({1})</value>
   </data>

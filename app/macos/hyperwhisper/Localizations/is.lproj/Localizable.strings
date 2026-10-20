@@ -1126,6 +1126,10 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcribe.file.error.format.message" = ".%@ skrár eru ekki studdar af %@. Studd form: %@";
 "transcribe.file.error.read" = "Get ekki lesið valda skrá.";
 "transcribe.file.error.webm" = "WebM er ekki stutt. Umbreyttu skránni í MP3, M4A eða WAV og reyndu aftur.";
+"transcribe.file.busy.title" = "Verið er að umrita skrá nú þegar.";
+"transcribe.file.busy.message" = "Hætta við hana og byrja á þessari?";
+"transcribe.file.busy.keepRunning" = "Halda áfram";
+"transcribe.file.busy.cancelAndStart" = "Hætta við og byrja";
 "transcribe.file.error.notAudio" = "Skráin „%@“ er ekki gilt hljóð. Hún gæti verið skemmd eða á sniði sem macOS getur ekki afkóðað.";
 "transcribe.file.error.empty" = "Skráin „%@“ er tóm. Hún inniheldur ekkert hljóð til að umrita.";
 "transcribe.file.error.permission" = "HyperWhisper getur ekki lesið skrána „%@“. Athugaðu heimildir skrárinnar.";

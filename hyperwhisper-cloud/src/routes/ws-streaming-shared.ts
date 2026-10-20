@@ -945,8 +945,7 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
       upstreamWs.addEventListener('close', async (event) => {
         const { code, reason } = (event ?? {}) as { code?: number; reason?: string };
         // Logged for every vendor, hook or no hook: the close code is how an
-        // upstream fault is diagnosed after the fact, and the vendor that
-        // carries most of the revenue (Deepgram) defines no `parseUpstreamClose`.
+        // upstream fault is diagnosed after the fact.
         log('upstream_close', { code: code ?? null, reason: reason || null });
         if (vendor.parseUpstreamClose) {
           for (const decoded of vendor.parseUpstreamClose(code ?? 1000, reason ?? '')) {

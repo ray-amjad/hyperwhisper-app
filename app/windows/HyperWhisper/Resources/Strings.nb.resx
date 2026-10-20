@@ -1093,6 +1093,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Snarveier med bare én modifikatortast som Ctrl, Alt, Shift eller Win støttes ikke. Bruk en tast med modifikatorer eller en snarvei med flere modifikatorer, for eksempel Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>En snarvei uten modifikatortast må være en funksjonstast eller Esc. Alle andre taster ville blitt utløst mens du skriver.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Denne snarveien brukes allerede til {0} ({1})</value>
   </data>

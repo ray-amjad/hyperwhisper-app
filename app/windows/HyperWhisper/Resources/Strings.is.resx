@@ -1093,6 +1093,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Flýtilyklar með aðeins einum breytilykli á borð við Ctrl, Alt, Shift eða Win eru ekki studdir. Notaðu lykil með breytilyklum eða flýtilykil með fleiri en einum breytilykli, til dæmis Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Flýtilykill án breytilykils verður að vera aðgerðarlykill eða Esc. Hver annar lykill myndi virkjast á meðan þú skrifar.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Þessi flýtilykill er þegar notaður fyrir {0} ({1})</value>
   </data>

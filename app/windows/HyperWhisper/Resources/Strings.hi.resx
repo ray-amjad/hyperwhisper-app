@@ -1093,6 +1093,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Ctrl, Alt, Shift या Win जैसे एकल मॉडिफ़ायर शॉर्टकट समर्थित नहीं हैं। मॉडिफ़ायर के साथ कोई कुंजी या Ctrl+Win जैसा बहु-मॉडिफ़ायर शॉर्टकट इस्तेमाल करें।</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>बिना मॉडिफ़ायर वाला शॉर्टकट कोई फ़ंक्शन कुंजी या Esc होना चाहिए। कोई भी अन्य कुंजी टाइप करते समय सक्रिय हो जाएगी।</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>यह शॉर्टकट पहले से {0} के लिए इस्तेमाल हो रहा है ({1})</value>
   </data>

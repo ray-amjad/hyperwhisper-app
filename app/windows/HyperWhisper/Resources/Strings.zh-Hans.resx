@@ -1184,6 +1184,9 @@
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>不支持仅使用 Ctrl、Alt、Shift 或 Win 等单个修饰键的快捷键。请使用带修饰键的按键，或 Ctrl+Win 这样的多修饰键快捷键。</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>不含修饰键的快捷键只能是功能键或 Esc。其他任何键都会在您打字时触发。</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>该快捷键已用于{0}（{1}）</value>
   </data>

@@ -37,6 +37,7 @@ await CheckAsync("protocol: every command builds and parses back", () =>
         new WhisperWorkerLoadCommand(2, "/m.bin", 0, false, null),
         new WhisperWorkerTranscribeCommand(3, @"C:\Temp\a ""b"".wav", null, new WhisperWorkerTranscribeOptions(false, true, 15)),
         new WhisperWorkerTranscribeCommand(4, "/a.wav", "ja", new WhisperWorkerTranscribeOptions(true, false, null)),
+        new WhisperWorkerTranscribeCommand(6, "/p.wav", null, new WhisperWorkerTranscribeOptions(true, false, 4, "Xylofex Quarnby \"Priya\"\nZoë 東京")),
         new WhisperWorkerCancelCommand(5, 4),
         new WhisperWorkerShutdownCommand(),
     ];
@@ -94,6 +95,83 @@ await CheckAsync("protocol: worker messages parse; other stdout lines do not", (
     {
         Assert(!WhisperWorkerProtocol.TryParseMessage(junk, out _), $"'{junk}' parsed as a message");
     }
+    return Task.CompletedTask;
+});
+
+await CheckAsync("protocol: the vocabulary prompt survives the worker JSON, and a line without it means none (#1564)", () =>
+{
+    var prompt = "Xylofex Quarnby Priya Quarnby \"quoted\" back\\slash\nZoë 東京";
+    var sent = new WhisperWorkerTranscribeCommand(3, "/a.wav", "en", new(SingleSegment: true, MaxLastTextTokensZero: false, Threads: 2, Prompt: prompt));
+    var line = WhisperWorkerProtocol.BuildCommand(sent);
+    Assert(!line.Contains('\n') && !line.Contains('\r'), $"the prompt put a raw newline on the line: {line}");
+    Assert(line.Contains("\"prompt\":"), $"no prompt field: {line}");
+    Assert(WhisperWorkerProtocol.TryParseCommand(line, out var parsed, out _, out var error), $"did not parse: {error}");
+    Assert(parsed is WhisperWorkerTranscribeCommand { Options: { Prompt: var back, MaxLastTextTokensZero: false } } && back == prompt,
+        $"the prompt came back as {parsed}");
+    // No prompt: no field, so the line is byte-for-byte what it was before #1564.
+    var bare = WhisperWorkerProtocol.BuildCommand(new WhisperWorkerTranscribeCommand(8, "w", null, new(true, true, 3)));
+    Assert(!bare.Contains("prompt"), $"a request with no prompt wrote one: {bare}");
+    // An older app's line (no prompt field) parses with no prompt; a non-string one is ignored.
+    Assert(WhisperWorkerProtocol.TryParseCommand(
+            "{\"id\":1,\"cmd\":\"transcribe\",\"wav\":\"a\",\"options\":{\"singleSegment\":true,\"maxLastTextTokensZero\":true}}",
+            out var old, out _, out _)
+        && old is WhisperWorkerTranscribeCommand { Options: { Prompt: null, MaxLastTextTokensZero: true } }, $"old line {old}");
+    Assert(WhisperWorkerProtocol.TryParseCommand(
+            "{\"id\":1,\"cmd\":\"transcribe\",\"wav\":\"a\",\"options\":{\"prompt\":42}}",
+            out var odd, out _, out _)
+        && odd is WhisperWorkerTranscribeCommand { Options.Prompt: null }, $"numeric prompt {odd}");
+    return Task.CompletedTask;
+});
+
+// =========================================================================
+// VOCABULARY PROMPT RULE (#1564: up to 30 s the prompt, above it the #1560 guard)
+// =========================================================================
+
+await CheckAsync("vocabulary: up to 30 s with vocabulary sets the prompt and leaves MaxLastTextTokens alone", () =>
+{
+    string[] words = ["Xylofex", "Quarnby", "Priya Quarnby"];
+    foreach (var samples in new long[] { 1, 16000 * 5, 16000 * 15 + 1, WhisperVocabularyPrompt.CarryOverSampleLimit })
+    {
+        var decision = WhisperVocabularyPrompt.Decide(samples, words);
+        Assert(decision == new WhisperPromptDecision("Xylofex Quarnby Priya Quarnby", MaxLastTextTokensZero: false),
+            $"{samples} samples: {decision}");
+    }
+    Assert(WhisperVocabularyPrompt.CarryOverSampleLimit == 30 * 16000, "the limit is not 30 s at 16 kHz");
+    return Task.CompletedTask;
+});
+
+await CheckAsync("vocabulary: over 30 s keeps MaxLastTextTokens(0) and sends no prompt", () =>
+{
+    string[] words = ["Xylofex", "Quarnby"];
+    foreach (var samples in new long[] { WhisperVocabularyPrompt.CarryOverSampleLimit + 1, 16000 * 31, 16000 * 132, 16000L * 3 * 3600 })
+    {
+        var decision = WhisperVocabularyPrompt.Decide(samples, words);
+        Assert(decision == new WhisperPromptDecision(null, MaxLastTextTokensZero: true), $"{samples} samples: {decision}");
+    }
+    return Task.CompletedTask;
+});
+
+await CheckAsync("vocabulary: no vocabulary keeps MaxLastTextTokens(0) and no prompt, at any length", () =>
+{
+    IEnumerable<string?>?[] none = [null, [], [""], ["  ", "\t\n"], [null]];
+    foreach (var vocabulary in none)
+    {
+        foreach (var samples in new long[] { 16000 * 3, WhisperVocabularyPrompt.CarryOverSampleLimit, 16000 * 600 })
+        {
+            var decision = WhisperVocabularyPrompt.Decide(samples, vocabulary);
+            Assert(decision == new WhisperPromptDecision(null, MaxLastTextTokensZero: true),
+                $"{samples} samples, [{string.Join("|", vocabulary ?? Array.Empty<string?>())}]: {decision}");
+        }
+    }
+    return Task.CompletedTask;
+});
+
+await CheckAsync("vocabulary: the prompt is the words trimmed, without empty ones, space-joined (the macOS vocabularyPrompt)", () =>
+{
+    Assert(WhisperVocabularyPrompt.Build([" Xylofex ", "", "  ", null, "Priya Quarnby\n", "東京"]) == "Xylofex Priya Quarnby 東京",
+        $"built {WhisperVocabularyPrompt.Build([" Xylofex ", "", "  ", null, "Priya Quarnby\n", "東京"])}");
+    Assert(WhisperVocabularyPrompt.Build(["one"]) == "one", "one word");
+    Assert(WhisperVocabularyPrompt.Build(null) is null && WhisperVocabularyPrompt.Build([]) is null, "no words gave a prompt");
     return Task.CompletedTask;
 });
 
@@ -765,6 +843,34 @@ await CheckAsync("worker: transcribe passes the decoding switches and returns ra
         MaxLastTextTokensZero: true, CreateFactoryOnRequestThread: true), $"request {request}");
     // ARM64: the load makes the one factory on the rule's thread (one model copy).
     Assert(service.Loads.Single().FactoryOnOwnThread, "the ARM64 load did not use the factory thread");
+});
+
+await CheckAsync("worker: the vocabulary prompt reaches the Whisper request, and no prompt stays none (#1564)", async () =>
+{
+    var service = new FakeWhisperService();
+    await using var worker = WorkerPipe.Start(service, requestThreadFactory: false);
+    await worker.ReadMessageAsync();
+    await worker.SendAsync(new WhisperWorkerLoadCommand(1, "/m.bin", 0, true, null));
+    await worker.ReadMessageAsync();
+    await worker.SendAsync(new WhisperWorkerTranscribeCommand(2, "/a.wav", null, new(true, false, 3, "Xylofex Quarnby")));
+    var reply = (WhisperWorkerReply)(await worker.ReadMessageAsync())!;
+    Assert(reply is { Id: 2, Ok: true }, $"reply {reply}");
+    await worker.SendAsync(new WhisperWorkerTranscribeCommand(3, "/b.wav", null, new(true, true, 3)));
+    await worker.ReadMessageAsync();
+    Assert(service.Requests.Count == 2, $"{service.Requests.Count} requests");
+    Assert(service.Requests[0] is { Prompt: "Xylofex Quarnby", MaxLastTextTokensZero: false }, $"prompted request {service.Requests[0]}");
+    Assert(service.Requests[1] is { Prompt: null, MaxLastTextTokensZero: true }, $"plain request {service.Requests[1]}");
+});
+
+await CheckAsync("client: the prompt is sent with the transcribe", async () =>
+{
+    var launcher = new FakeLauncher();
+    await using var client = new WhisperWorkerClient(launcher, timings: fast with { IdleTimeout = TimeSpan.FromMinutes(1) });
+    await client.SelectModelAsync(model);
+    var prompted = options with { MaxLastTextTokensZero = false, Prompt = "Xylofex" };
+    await client.TranscribeAsync("/tmp/a.wav", null, prompted);
+    var sent = launcher[0].Commands.OfType<WhisperWorkerTranscribeCommand>().Single();
+    Assert(sent.Options == prompted, $"sent {sent.Options}");
 });
 
 await CheckAsync("worker: failure codes keep the model-file / runtime split", async () =>

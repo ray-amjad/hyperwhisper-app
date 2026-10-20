@@ -1093,6 +1093,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Không hỗ trợ phím tắt chỉ gồm một phím bổ trợ như Ctrl, Alt, Shift hoặc Win. Hãy dùng một phím kèm phím bổ trợ hoặc phím tắt nhiều phím bổ trợ như Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Phím tắt không có phím bổ trợ phải là phím chức năng hoặc Esc. Bất kỳ phím nào khác sẽ bị kích hoạt khi bạn gõ.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Phím tắt này đã được dùng cho {0} ({1})</value>
   </data>

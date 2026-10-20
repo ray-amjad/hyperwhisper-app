@@ -1184,6 +1184,9 @@ Debe tener al menos un modo.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Los atajos con un solo modificador como Ctrl, Alt, Shift o Win no son compatibles. Usa una tecla con modificadores o un atajo con varios modificadores, como Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Un atajo sin modificador debe ser una tecla de función o Esc. Cualquier otra tecla se activaría mientras escribes.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Este atajo ya se usa para {0} ({1})</value>
   </data>

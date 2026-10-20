@@ -20,6 +20,10 @@ import { evaluateCompletionResponse } from '../lib/llm-completion';
 
 const MAX_TEXT_LENGTH = 100000;
 const ESTIMATED_POST_PROCESS_CREDITS = 1.0;
+// The one 500 message a client sees. A failure's own text can carry an
+// upstream provider's error body or a server env-var name (#2066), so it goes
+// to the logs only; the client keeps the requestId to find that log line.
+const LLM_FAILURE_MESSAGE = 'The language model request failed. Please try again.';
 
 interface PostProcessBody {
   text?: string;
@@ -178,7 +182,7 @@ async function handlePostProcess(c: Context) {
           provider: providerUsed,
           error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
         });
-        return errorResponse(500, 'Post-processing failed', fallbackError instanceof Error ? fallbackError.message : String(fallbackError), { requestId });
+        return errorResponse(500, 'Post-processing failed', LLM_FAILURE_MESSAGE, { requestId });
       }
     } else {
       logEvent(requestId, startTime, 'post_process.request_fail', {
@@ -186,7 +190,7 @@ async function handlePostProcess(c: Context) {
         provider,
         error: error instanceof Error ? error.message : String(error),
       });
-      return errorResponse(500, 'Post-processing failed', error instanceof Error ? error.message : String(error), { requestId });
+      return errorResponse(500, 'Post-processing failed', LLM_FAILURE_MESSAGE, { requestId });
     }
   }
 
@@ -290,7 +294,7 @@ async function handlePostProcess(c: Context) {
       costUsd,
       error: extractError instanceof Error ? extractError.message : String(extractError),
     });
-    return errorResponse(500, 'Post-processing failed', extractError instanceof Error ? extractError.message : String(extractError), { requestId });
+    return errorResponse(500, 'Post-processing failed', LLM_FAILURE_MESSAGE, { requestId });
   }
 
   const creditsUsed = creditsForCost(costUsd);

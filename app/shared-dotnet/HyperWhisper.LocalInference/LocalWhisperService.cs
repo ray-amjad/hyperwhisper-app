@@ -166,6 +166,7 @@ public sealed class LocalWhisperService : ILocalWhisperService
                 builder.WithEntropyThreshold(2.4f);
                 builder.WithNoContext();
                 if (request.MaxLastTextTokensZero) builder.WithMaxLastTextTokens(0);
+                if (!string.IsNullOrEmpty(request.Prompt)) builder.WithPrompt(request.Prompt);
                 if (request.IncludeWordTimestamps) builder.WithTokenTimestamps();
                 builder.WithSegmentEventHandler(segment =>
                 {

@@ -1093,6 +1093,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Kortkommandon med bara en modifierartangent som Ctrl, Alt, Shift eller Win stöds inte. Använd en tangent med modifierare eller ett kortkommando med flera modifierare, till exempel Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Ett kortkommando utan modifierartangent måste vara en funktionstangent eller Esc. Alla andra tangenter skulle utlösas medan du skriver.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Det här kortkommandot används redan för {0} ({1})</value>
   </data>

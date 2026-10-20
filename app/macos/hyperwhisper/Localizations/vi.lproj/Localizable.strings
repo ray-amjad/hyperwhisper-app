@@ -1126,6 +1126,10 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "transcribe.file.error.format.message" = "Tệp .%@ không được %@ hỗ trợ. Định dạng được hỗ trợ: %@";
 "transcribe.file.error.read" = "Không thể đọc tệp được chọn.";
 "transcribe.file.error.webm" = "Không hỗ trợ WebM. Hãy chuyển tệp sang MP3, M4A hoặc WAV rồi thử lại.";
+"transcribe.file.busy.title" = "Một tệp đang được chép lời.";
+"transcribe.file.busy.message" = "Hủy tệp đó và bắt đầu tệp này?";
+"transcribe.file.busy.keepRunning" = "Tiếp tục chạy";
+"transcribe.file.busy.cancelAndStart" = "Hủy và bắt đầu";
 "transcribe.file.error.notAudio" = "Tệp “%@” không phải là âm thanh hợp lệ. Tệp có thể bị hỏng hoặc ở định dạng mà macOS không giải mã được.";
 "transcribe.file.error.empty" = "Tệp “%@” trống. Không có âm thanh để chép lời.";
 "transcribe.file.error.permission" = "HyperWhisper không thể đọc tệp “%@”. Hãy kiểm tra quyền của tệp.";

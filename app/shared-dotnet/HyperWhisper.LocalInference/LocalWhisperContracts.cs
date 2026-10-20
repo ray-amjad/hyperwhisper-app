@@ -47,8 +47,8 @@ public sealed record LocalWhisperLoadOptions(
 /// </summary>
 /// <param name="MaxLastTextTokensZero">
 /// Adds <c>WithMaxLastTextTokens(0)</c>: no window of a long recording is primed
-/// with the text decoded before it (a repetition-loop guard). Windows (#1560) and
-/// Linux (#1559) both set it on every request.
+/// with the text decoded before it (a repetition-loop guard). Linux (#1559) sets it
+/// on every request; Windows (#1560) on every request that carries no prompt.
 /// </param>
 /// <param name="CreateFactoryOnRequestThread">
 /// The Windows ARM64 thread rule: Whisper.net's <c>CreateBuilder()</c> failed on
@@ -60,6 +60,13 @@ public sealed record LocalWhisperLoadOptions(
 /// thread; without it, the first such request makes it and drops the load's
 /// factory, so the model is never held twice.
 /// </param>
+/// <param name="Prompt">
+/// Adds <c>WithPrompt(...)</c>: the Whisper initial prompt, null or empty for none.
+/// It rides the same carried-text channel as past windows' text, so a request that
+/// sets it must not also set <paramref name="MaxLastTextTokensZero"/>, which would
+/// drop it. Windows sets it for recordings up to 30 s with vocabulary (#1564);
+/// Linux never sets it.
+/// </param>
 public sealed record LocalWhisperRequest(
     string AudioPath,
     string? Language = null,
@@ -67,7 +74,8 @@ public sealed record LocalWhisperRequest(
     bool SingleSegment = true,
     bool IncludeWordTimestamps = false,
     bool MaxLastTextTokensZero = false,
-    bool CreateFactoryOnRequestThread = false);
+    bool CreateFactoryOnRequestThread = false,
+    string? Prompt = null);
 
 public sealed record LocalWhisperWordTimestamp(
     string Word,

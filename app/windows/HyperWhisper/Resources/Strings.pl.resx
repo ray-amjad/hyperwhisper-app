@@ -1093,6 +1093,9 @@ Musisz mieć co najmniej jeden tryb.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Skróty z jednym klawiszem modyfikującym, takim jak Ctrl, Alt, Shift lub Win, nie są obsługiwane. Użyj klawisza z modyfikatorami albo skrótu z kilkoma modyfikatorami, na przykład Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Skrót bez modyfikatora musi być klawiszem funkcyjnym lub Esc. Każdy inny klawisz uruchamiałby się podczas pisania.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Ten skrót jest już używany dla: {0} ({1})</value>
   </data>

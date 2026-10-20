@@ -820,7 +820,7 @@ struct RecordingDialog: View {
 
         if isLoading {
             // Cancel during transcription - actively cancel the task to avoid late updates
-            audioManager.transcriptionPipeline?.cancelTranscription()
+            audioManager.transcriptionPipeline?.cancelTranscription(.dictation)
             closeDialog()
         } else {
             // Cancel during recording

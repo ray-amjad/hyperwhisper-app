@@ -82,6 +82,15 @@ class FileTranscriptionFlow {
     @MainActor
     private static var isFilePickerOpen = false
 
+    /// This import's claim on the pipeline's file-job gate (#1425). A second
+    /// file job asks before it cancels this one through it.
+    private var fileJob: FileJobTicket?
+
+    /// The `recordingState` session this import took, if it took one. A
+    /// dictation started meanwhile takes the state over (it begins a newer
+    /// session), and this import then leaves the state alone (#1425).
+    private var ownedSessionGeneration: UInt64?
+
     /// Path to the copied file (for cleanup on cancellation)
     private var currentCopiedFilePath: String?
 
@@ -232,7 +241,35 @@ class FileTranscriptionFlow {
         progressState.reset()
 
         // Reset app state
-        appState?.recordingState = .idle
+        releaseRecordingState()
+        endFileJob()
+    }
+
+    /// Claims the pipeline's file-job gate for this import, asking first when
+    /// another file job runs (#1425). `false`: the user kept that one, and
+    /// this import must do nothing at all (no popup, no copy, no row).
+    func beginFileJob() async -> Bool {
+        guard let gate = transcriptionPipeline?.fileJobs else { return true }
+        guard let ticket = await gate.begin() else { return false }
+        fileJob = ticket
+        ticket.onCancel { [weak self] in
+            self?.cancelTranscription()
+        }
+        return true
+    }
+
+    private func endFileJob() {
+        transcriptionPipeline?.fileJobs.end(fileJob)
+        fileJob = nil
+    }
+
+    /// Sets `recordingState` back to idle, only while this import still owns it.
+    private func releaseRecordingState() {
+        guard let generation = ownedSessionGeneration else { return }
+        ownedSessionGeneration = nil
+        if appState?.transcriptionSessionGeneration == generation {
+            appState?.recordingState = .idle
+        }
     }
 
     /// Opens file picker and starts transcription for the selected file with the given mode
@@ -324,11 +361,20 @@ class FileTranscriptionFlow {
                 return
             }
 
-            // STEP 2-8: Process the file
+            // STEP 2-8: Process the file, once no other file job is in the way:
+            // a running one is asked about first (#1425).
             // Store the task in currentTranscriptionTask so cancelTranscription() has a
             // handle on the running transcription.
-            self.currentTranscriptionTask = Task {
-                await self.processSelectedFile(selectedURL, mode: mode)
+            Task { @MainActor in
+                guard await self.beginFileJob() else { return }
+                guard !mode.isDeleted, mode.managedObjectContext != nil else {
+                    AppLogger.transcription.error("❌ Mode was deleted while the busy question was up — aborting import")
+                    self.endFileJob()
+                    return
+                }
+                self.currentTranscriptionTask = Task {
+                    await self.processSelectedFile(selectedURL, mode: mode)
+                }
             }
         }
     }
@@ -362,6 +408,13 @@ class FileTranscriptionFlow {
 
         AppLogger.transcription.info("📂 Importing opened file: \(fileURL.lastPathComponent) · modeId=\(mode.id?.uuidString ?? "nil", privacy: .public) · preset=\(PresetType.reportingValue(for: mode), privacy: .public)")
 
+        // Another file job may be running: ask before this one replaces it (#1425).
+        guard await beginFileJob() else { return }
+        guard !mode.isDeleted, mode.managedObjectContext != nil else {
+            endFileJob()
+            return
+        }
+
         let task: Task<Void, Error> = Task {
             await self.processSelectedFile(fileURL, mode: mode)
         }
@@ -389,6 +442,11 @@ class FileTranscriptionFlow {
     ///   - fileURL: URL of the selected audio file
     ///   - mode: The transcription mode to use
     private func processSelectedFile(_ fileURL: URL, mode: Mode) async {
+        // However this import ends, the next file job no longer has to ask.
+        defer { endFileJob() }
+        // Replaced before it began (#1425): show nothing.
+        guard fileJob?.isCancelled != true, !Task.isCancelled else { return }
+
         // STEP 1: Show progress popup
         progressState.beginTranscription(
             fileName: fileURL.lastPathComponent,
@@ -579,9 +637,12 @@ class FileTranscriptionFlow {
 
             // Update app state to show transcribing status. This flow now owns
             // `recordingState`, so an in-flight pending-file retry must not write
-            // its outcome over it (#1276).
-            appState?.beginTranscriptionSession()
-            appState?.recordingState = .transcribing
+            // its outcome over it (#1276). Only when nothing else shows in it:
+            // a dictation recording or transcribing keeps it (#1425).
+            if appState?.recordingState == .idle {
+                ownedSessionGeneration = appState?.beginTranscriptionSession()
+                appState?.recordingState = .transcribing
+            }
 
             // Use finalAudioURL which may be VAD-trimmed if VAD was enabled
             let result = try await transcriptionPipeline.transcribeWithDetails(
@@ -589,7 +650,8 @@ class FileTranscriptionFlow {
                 mode: mode,
                 recordingSession: nil,
                 applicationContext: nil,
-                audioDurationSeconds: uploadDuration
+                audioDurationSeconds: uploadDuration,
+                jobKind: .fileJob
             )
 
             // Check for cancellation after transcription. `cancelTranscription()`
@@ -639,7 +701,7 @@ class FileTranscriptionFlow {
             openMainWindowWithHistory()
 
             // Reset state after completion
-            appState?.recordingState = .idle
+            releaseRecordingState()
 
         } catch where Self.isCancel(error, taskCancelled: Task.isCancelled) {
             // User cancelled - cleanup was already done by cancelTranscription(),
@@ -647,6 +709,7 @@ class FileTranscriptionFlow {
             // cancelled some other way.
             AppLogger.transcription.info("📂 File transcription cancelled")
             currentTranscriptionTask = nil
+            releaseRecordingState()
             await markProcessingTranscriptFailed(after: CancellationError())
         } catch let error as FileTranscriptionError {
             // Handle known errors with appropriate UI
@@ -654,7 +717,7 @@ class FileTranscriptionFlow {
             progressState.reset()
             cleanupImportArtifacts(reason: "import error")
             currentTranscriptionTask = nil
-            appState?.recordingState = .idle
+            releaseRecordingState()
             await markProcessingTranscriptFailed(after: error)
             handleError(error)
         } catch {
@@ -671,7 +734,7 @@ class FileTranscriptionFlow {
                 title: "transcribe.file.error.title".localized,
                 message: Self.failureMessage(for: error, audioDuration: importDuration)
             )
-            appState?.recordingState = .idle
+            releaseRecordingState()
         }
     }
 
@@ -1045,7 +1108,7 @@ class FileTranscriptionFlow {
     ///
     /// - Parameter error: The error to handle
     private func handleError(_ error: FileTranscriptionError) {
-        appState?.recordingState = .idle
+        releaseRecordingState()
 
         switch error {
         case .fileTooLarge(let fileSize, let limit, let providerName):

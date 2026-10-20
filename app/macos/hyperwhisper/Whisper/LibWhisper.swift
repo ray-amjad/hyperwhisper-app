@@ -104,8 +104,9 @@ actor WhisperContext {
     
     // MARK: - Initialization
     
-    /// Private initializer to enforce factory method usage
-    private init() {}
+    /// Use `createContext(path:)` to get a loaded context. Internal, not
+    /// private, so a test can hold an unloaded one (#2048).
+    init() {}
     
     /// Initialize with an existing context
     init(context: OpaquePointer) {
@@ -185,6 +186,9 @@ actor WhisperContext {
     func setPrompt(_ prompt: String?) {
         self.prompt = prompt
     }
+
+    /// The prompt the next `fullTranscribe` binds as `initial_prompt`.
+    var currentPrompt: String? { prompt }
     
     // MARK: - Transcription
     

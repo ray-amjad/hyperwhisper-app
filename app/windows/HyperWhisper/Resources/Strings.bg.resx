@@ -1093,6 +1093,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Клавишни комбинации с един модификатор като Ctrl, Alt, Shift или Win не се поддържат. Използвайте клавиш с модификатори или комбинация с няколко модификатора, например Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Клавишна комбинация без модификатор трябва да е функционален клавиш или Esc. Всеки друг клавиш би се задействал, докато пишете.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Тази клавишна комбинация вече се използва за {0} ({1})</value>
   </data>

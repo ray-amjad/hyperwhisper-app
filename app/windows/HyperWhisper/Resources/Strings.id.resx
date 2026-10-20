@@ -1093,6 +1093,9 @@ Anda harus memiliki setidaknya satu mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Pintasan dengan satu tombol pengubah seperti Ctrl, Alt, Shift, atau Win tidak didukung. Gunakan tombol dengan pengubah atau pintasan multi-pengubah seperti Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Pintasan tanpa tombol pengubah harus berupa tombol fungsi atau Esc. Tombol lain akan terpicu saat Anda mengetik.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Pintasan ini sudah digunakan untuk {0} ({1})</value>
   </data>

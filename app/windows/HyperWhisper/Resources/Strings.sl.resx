@@ -1093,6 +1093,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Bližnjice z eno samo pomožno tipko, kot so Ctrl, Alt, Shift ali Win, niso podprte. Uporabite tipko s pomožnimi tipkami ali bližnjico z več pomožnimi tipkami, na primer Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Bližnjica brez spremenilne tipke mora biti funkcijska tipka ali Esc. Vsaka druga tipka bi se sprožila med tipkanjem.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Ta bližnjica je že uporabljena za {0} ({1})</value>
   </data>

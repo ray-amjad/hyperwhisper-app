@@ -33,6 +33,9 @@
 import Foundation
 
 class GeminiTranscriptionProvider: TranscriptionProvider {
+    /// A stateless HTTP call: nothing per call is kept on the instance (#1425).
+    var supportsConcurrentPasses: Bool { true }
+
     private enum Constants {
         /// File-active poll interval / cap. Identical to native.
         static let filePollIntervalNanoseconds: UInt64 = 300_000_000

@@ -1093,6 +1093,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Az egyetlen módosítóbillentyűből álló gyorsbillentyűk, például a Ctrl, az Alt, a Shift vagy a Win, nem támogatottak. Használjon módosítókkal ellátott billentyűt vagy több módosítós gyorsbillentyűt, például Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Módosítóbillentyű nélküli billentyűparancs csak funkcióbillentyű vagy Esc lehet. Bármely más billentyű gépelés közben is aktiválódna.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Ez a gyorsbillentyű már foglalt: {0} ({1})</value>
   </data>

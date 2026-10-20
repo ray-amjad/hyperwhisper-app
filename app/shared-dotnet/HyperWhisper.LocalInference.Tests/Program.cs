@@ -107,6 +107,7 @@ await CheckAsync("Windows-only load and request options default off (issue #1194
     var request = new LocalWhisperRequest("audio.wav");
     Assert(!request.MaxLastTextTokensZero, "WithMaxLastTextTokens(0) is on by default");
     Assert(!request.CreateFactoryOnRequestThread, "the ARM64 thread rule is on by default");
+    Assert(request.Prompt is null, "a Whisper prompt is set by default (Linux must send none)");
     // The Linux transcriber compares load options by value to skip a reload.
     Assert(load == new LocalWhisperLoadOptions("model.bin", LocalWhisperBackend.Vulkan),
         "default load options no longer compare equal");

@@ -37,29 +37,36 @@ extension TranscriptionPipeline {
         recordingSession: RecordingSession? = nil,
         applicationContext: ApplicationContext? = nil,
         audioDurationSeconds: TimeInterval? = nil,
-        refuseDeletedMode: Bool = false
+        refuseDeletedMode: Bool = false,
+        jobKind: TranscriptionJobKind = .dictation
     ) async throws -> TranscriptionResult {
         lastFailedAttemptDiagnostics = nil
 
-        // If a transcription is already running, cancel it so the latest request wins.
-        // This guards against rapid hotkey presses and intentional re-records.
-        if !state_isReadyForTranscription() {
-            AppLogger.transcription.info("Cancelling previous transcription to start new one (was in state: \(self.state))")
+        // If a run of the SAME kind is in flight, cancel it so the latest
+        // request wins: rapid hotkey presses and re-records. A run of the other
+        // kind is left alone: a dictation during a file job runs beside it, and
+        // a file job never gets here over another one without the user's say
+        // (`FileJobGate`, Ray #1425).
+        if let previous = runningTasks[jobKind] {
+            AppLogger.transcription.info("Cancelling previous \(jobKind.rawValue, privacy: .public) transcription to start new one (was in state: \(self.jobStates[jobKind]?.description ?? "idle", privacy: .public))")
 
-            currentTask?.cancel()
-            localProvider.cancelTranscription()
+            previous.cancel()
+            // The engine-wide cancel would also stop the other kind's pass.
+            // Without it the task cancel above still reaches the engine.
+            if !hasRunningJob(otherThan: jobKind) {
+                localProvider?.cancelTranscription()
+            }
 
             // Brief wait for cancellation to propagate through async boundaries.
             try await Task.sleep(nanoseconds: 100_000_000) // 100ms
 
-            await MainActor.run { state = .idle }
-            currentTask = nil
+            if runningTasks[jobKind] == previous {
+                runningTasks[jobKind] = nil
+                setJobState(.idle, for: jobKind)
+            }
         }
 
-        // Cancel any lingering previous task (safety net).
-        currentTask?.cancel()
-
-        await MainActor.run { state = .transcribing(provider: "Starting...", progress: 0.0) }
+        setJobState(.transcribing(provider: "Starting...", progress: 0.0), for: jobKind)
 
         // Capture metadata for error reporting.
         //
@@ -137,22 +144,51 @@ extension TranscriptionPipeline {
             markStage("fetch_vocabulary")
             let vocabulary = PersistenceController.shared.fetchAllVocabularyItems()
 
+            // A retry's mode can be deleted while this run waited (the cancel
+            // sleep, the engine wait, the MainActor hops). Its nil model would
+            // route the audio to Cloud (#1620), so check right before the
+            // router reads it (no suspension in between, both on the
+            // MainActor), and again after a slow local model load, before
+            // anything else reads the mode.
+            func refuseIfModeDeleted() throws {
+                if refuseDeletedMode, let mode, !RetryModeChoices.isLive(mode) {
+                    throw TranscriptionRetryError.modeDeletedDuringRetry
+                }
+            }
+
+            // An engine that runs one pass at a time serves one kind at a time:
+            // a dictation waits for a file job on it, and the other way round,
+            // instead of cancelling it (#1425). Taken BEFORE provider selection,
+            // because selecting stages this run's model or key on the shared
+            // instance (Whisper `setModel`, Parakeet/Qwen3 `prepareIfNeeded`,
+            // OpenAI/Groq `configure`): staged while the other kind holds the
+            // engine, it could be overwritten before this run starts. Held
+            // through the reads of the provider's per-call state below,
+            // released right after them.
+            var heldEngine: ObjectIdentifier?
+            @MainActor func releaseEngine() {
+                if let key = heldEngine {
+                    heldEngine = nil
+                    engineAccess.release(key, for: jobKind)
+                }
+            }
+            @MainActor func holdEngine(_ key: ObjectIdentifier) async throws {
+                markStage("wait_for_engine")
+                try await engineAccess.acquire(key, for: jobKind)
+                heldEngine = key
+            }
+            defer { releaseEngine() }
+            try refuseIfModeDeleted()
+            if let engine = providerCoordinator.serializedEngine(for: mode) {
+                try await holdEngine(TranscriptionEngineAccess.key(for: engine))
+            }
+
             // Select provider using the coordinator (local/cloud routing + health checks).
             markStage("select_provider")
             // Capture before provider selection reads a credential. A key edit
             // while this request is in flight makes its later outcome stale.
             let healthManager = providerCoordinator.providerHealthManager
             let credentialGeneration = healthManager?.captureTranscriptionCredentialGeneration()
-            // A retry's mode can be deleted while this run waited (the cancel
-            // sleep, the MainActor hops). Its nil model would route the audio
-            // to Cloud (#1620), so check right before the router reads it (no
-            // suspension in between, both on the MainActor), and again after
-            // a slow local model load, before anything else reads the mode.
-            func refuseIfModeDeleted() throws {
-                if refuseDeletedMode, let mode, !RetryModeChoices.isLive(mode) {
-                    throw TranscriptionRetryError.modeDeletedDuringRetry
-                }
-            }
             try refuseIfModeDeleted()
             let selection = try await providerCoordinator.selectProvider(for: mode, vocabulary: vocabulary)
             try refuseIfModeDeleted()
@@ -167,7 +203,19 @@ extension TranscriptionPipeline {
             capturedModelString = mode?.model ?? "base"
             capturedUseCloud = (mode?.model ?? "base").lowercased() == "cloud"
 
-            await MainActor.run { state = .transcribing(provider: provider.name, progress: 0.1) }
+            // The peek above and the selection route the same way. Should they
+            // ever disagree, hold the engine that actually runs this pass.
+            let engineKey = TranscriptionEngineAccess.key(for: provider)
+            if heldEngine != nil, heldEngine != engineKey {
+                releaseEngine()
+            }
+            if !provider.supportsConcurrentPasses, heldEngine == nil {
+                AppLogger.transcription.warning("Engine peek missed \(provider.name, privacy: .public); holding it after selection")
+                try await holdEngine(engineKey)
+                try refuseIfModeDeleted()
+            }
+
+            setJobState(.transcribing(provider: provider.name, progress: 0.1), for: jobKind)
 
             // Convert "auto" to nil for provider auto-detection — through the
             // one shared copy of that rule (#318).
@@ -313,6 +361,8 @@ extension TranscriptionPipeline {
             } else {
                 hyperwhisperCloudAIText = nil
             }
+            // Every read of the provider's per-call state is done.
+            releaseEngine()
 
             // Decide whether to run client-side AI post-processing.
             // We run it when post-processing is enabled AND:
@@ -425,9 +475,12 @@ extension TranscriptionPipeline {
                 AppLogger.transcription.info("✅ Using HyperWhisper Cloud AI-enhanced text with vocabulary replacements applied")
             } else if runClientPostProcessing {
                 // Branch: client-side AI post-processing.
-                await MainActor.run { state = .postProcessing }
-                await MainActor.run { [weak self] in
-                    self?.appState?.recordingState = .postProcessing
+                setJobState(.postProcessing, for: jobKind)
+                // A file job moves the shared `recordingState` only while it is
+                // the one showing it, so it never relabels a dictation (#1425).
+                if jobKind == .dictation
+                    || (runningTasks[.dictation] == nil && appState?.recordingState == .transcribing) {
+                    appState?.recordingState = .postProcessing
                 }
                 markStage("post_processing")
 
@@ -528,14 +581,15 @@ extension TranscriptionPipeline {
             return result
         }
 
-        currentTask = task
+        runningTasks[jobKind] = task
 
         do {
             let result = try await Self.value(of: task)
             // As in the cancel branch below: a superseded run that still
             // finishes must not idle the pipeline under the newer run (#1743).
-            if currentTask == task {
-                await MainActor.run { state = .idle }
+            if runningTasks[jobKind] == task {
+                runningTasks[jobKind] = nil
+                setJobState(.idle, for: jobKind)
             }
 
             let now = Date()
@@ -605,15 +659,21 @@ extension TranscriptionPipeline {
                 // newer dictation took over (#1425) now aborts within a window,
                 // so its cancel lands while the newer run is transcribing, and
                 // `.idle` there would let a third request skip the takeover.
-                if currentTask == task {
-                    await MainActor.run { state = .idle }
+                if runningTasks[jobKind] == task {
+                    runningTasks[jobKind] = nil
+                    setJobState(.idle, for: jobKind)
                 }
             } else {
                 // The phase the run was in when it failed, read before the
                 // `.error` overwrite below. Read after it, the Sentry extra
                 // would always say `error` (issue #805).
-                let stateAtFailure = state
-                await MainActor.run { state = .error(message: error.localizedDescription) }
+                let stateAtFailure = jobStates[jobKind] ?? state
+                // Only the run that still owns its kind reports the failure:
+                // a superseded run must not show its error over the newer run.
+                if runningTasks[jobKind] == task {
+                    runningTasks[jobKind] = nil
+                    setJobState(.error(message: error.localizedDescription), for: jobKind)
+                }
                 if AppLogger.isErrorLoggingEnabled {
                     // Include audio + provider context for diagnostics.
                     let fileExists = FileManager.default.fileExists(atPath: audioURL.path)
@@ -683,6 +743,17 @@ extension TranscriptionPipeline {
             }
             throw error
         }
+    }
+
+    /// Records `kind`'s state and publishes the merged one (#1425).
+    func setJobState(_ newState: TranscriptionState, for kind: TranscriptionJobKind) {
+        jobStates[kind] = newState
+        state = TranscriptionState.merged(written: newState, perKind: jobStates)
+    }
+
+    /// True while a run of a kind other than `kind` is in flight.
+    func hasRunningJob(otherThan kind: TranscriptionJobKind) -> Bool {
+        runningTasks.contains { $0.key != kind }
     }
 
     /// True when the manager can accept a new transcription request.

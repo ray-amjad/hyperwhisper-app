@@ -1093,6 +1093,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Prečaci s jednim modifikatorom kao što su Ctrl, Alt, Shift ili Win nisu podržani. Upotrijebite tipku s modifikatorima ili prečac s više modifikatora, primjerice Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Prečac bez modifikatora mora biti funkcijska tipka ili Esc. Bilo koja druga tipka aktivirala bi se dok tipkate.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Ovaj se prečac već koristi za {0} ({1})</value>
   </data>

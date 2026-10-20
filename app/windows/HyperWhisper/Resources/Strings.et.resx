@@ -1093,6 +1093,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Ühe muuteklahviga kiirklahve, nagu Ctrl, Alt, Shift või Win, ei toetata. Kasuta muuteklahvidega klahvi või mitme muuteklahviga kiirklahvi, näiteks Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Muuteklahvita otsetee peab olema funktsiooniklahv või Esc. Iga muu klahv käivituks trükkimise ajal.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>See kiirklahv on juba kasutusel: {0} ({1})</value>
   </data>

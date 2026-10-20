@@ -1126,6 +1126,10 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "transcribe.file.error.format.message" = ".%@-Dateien werden von %@ nicht unterstützt. Unterstützte Formate: %@";
 "transcribe.file.error.read" = "Die ausgewählte Datei kann nicht gelesen werden.";
 "transcribe.file.error.webm" = "WebM wird nicht unterstützt. Konvertiere die Datei in MP3, M4A oder WAV und versuche es erneut.";
+"transcribe.file.busy.title" = "Es wird bereits eine Datei transkribiert.";
+"transcribe.file.busy.message" = "Abbrechen und diese starten?";
+"transcribe.file.busy.keepRunning" = "Weiterlaufen lassen";
+"transcribe.file.busy.cancelAndStart" = "Abbrechen und starten";
 "transcribe.file.error.notAudio" = "Die Datei „%@“ ist kein gültiges Audio. Sie ist möglicherweise beschädigt oder in einem Format, das macOS nicht dekodieren kann.";
 "transcribe.file.error.empty" = "Die Datei „%@“ ist leer. Sie enthält kein Audio zum Transkribieren.";
 "transcribe.file.error.permission" = "HyperWhisper kann die Datei „%@“ nicht lesen. Prüfe die Zugriffsrechte der Datei.";

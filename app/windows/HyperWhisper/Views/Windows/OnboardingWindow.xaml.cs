@@ -145,9 +145,15 @@ public partial class OnboardingWindow : Window
         // Mirrors macOS's .interactiveDismissDisabled(). The only two exits are the
         // footer's "Set Up Later" and, on the last step, "Done Onboarding"; Escape
         // must not throw away a half finished setup by accident.
+        //
+        // Except inside the Permissions step's shortcut recorder, where Esc cancels
+        // capture (#1631). This handler runs FIRST - preview events tunnel from the
+        // window down - so swallowing Esc here meant the recorder never saw it. The
+        // recorder marks it handled itself, so it still cannot reach anything that
+        // would dismiss the window.
         PreviewKeyDown += (_, e) =>
         {
-            if (e.Key == Key.Escape)
+            if (e.Key == Key.Escape && !HyperWhisper.Views.Controls.ShortcutRecorderBox.IsInsideRecorder(e.OriginalSource))
                 e.Handled = true;
         };
     }

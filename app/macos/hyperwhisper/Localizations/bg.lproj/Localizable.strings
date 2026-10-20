@@ -1126,6 +1126,10 @@
 "transcribe.file.error.format.message" = ".%@ файлове не се поддържат от %@. Поддържани формати: %@";
 "transcribe.file.error.read" = "Избраният файл не може да бъде прочетен.";
 "transcribe.file.error.webm" = "WebM не се поддържа. Конвертирайте файла в MP3, M4A или WAV и опитайте отново.";
+"transcribe.file.busy.title" = "Вече се транскрибира файл.";
+"transcribe.file.busy.message" = "Да го отменя ли и да започна този?";
+"transcribe.file.busy.keepRunning" = "Продължи";
+"transcribe.file.busy.cancelAndStart" = "Отмени и започни";
 "transcribe.file.error.notAudio" = "Файлът „%@“ не е валидно аудио. Възможно е да е повреден или във формат, който macOS не може да декодира.";
 "transcribe.file.error.empty" = "Файлът „%@“ е празен. В него няма аудио за транскрибиране.";
 "transcribe.file.error.permission" = "HyperWhisper не може да прочете файла „%@“. Проверете правата за достъп до файла.";

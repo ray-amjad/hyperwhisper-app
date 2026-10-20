@@ -18,6 +18,9 @@ import os
 // Requires macOS 26+ and on-device speech assets to be downloaded
 @available(macOS 26.0, *)
 final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
+    /// Each call builds its own SpeechAnalyzer, and keeps no per-call state here (#1425).
+    var supportsConcurrentPasses: Bool { true }
+
 
     let name: String = "Apple Speech"
 

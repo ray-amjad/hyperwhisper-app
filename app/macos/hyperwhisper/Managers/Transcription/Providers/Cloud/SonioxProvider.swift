@@ -23,6 +23,9 @@
 import Foundation
 
 class SonioxProvider: TranscriptionProvider {
+    /// A stateless HTTP call: nothing per call is kept on the instance (#1425).
+    var supportsConcurrentPasses: Bool { true }
+
     private enum Constants {
         static let maxPollAttempts = 180
         /// Total wall-clock budget for the status-poll loop, decoupled from the

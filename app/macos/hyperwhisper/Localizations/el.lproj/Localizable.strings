@@ -1126,6 +1126,10 @@
 "transcribe.file.error.format.message" = "Τα αρχεία .%@ δεν υποστηρίζονται από %@. Υποστηριζόμενες μορφές: %@";
 "transcribe.file.error.read" = "Δεν είναι δυνατή η ανάγνωση του επιλεγμένου αρχείου.";
 "transcribe.file.error.webm" = "Το WebM δεν υποστηρίζεται. Μετατρέψτε το αρχείο σε MP3, M4A ή WAV και δοκιμάστε ξανά.";
+"transcribe.file.busy.title" = "Ήδη γίνεται απομαγνητοφώνηση ενός αρχείου.";
+"transcribe.file.busy.message" = "Να ακυρωθεί και να ξεκινήσει αυτό;";
+"transcribe.file.busy.keepRunning" = "Συνέχιση";
+"transcribe.file.busy.cancelAndStart" = "Ακύρωση και έναρξη";
 "transcribe.file.error.notAudio" = "Το αρχείο «%@» δεν είναι έγκυρος ήχος. Μπορεί να είναι κατεστραμμένο ή σε μορφή που το macOS δεν μπορεί να αποκωδικοποιήσει.";
 "transcribe.file.error.empty" = "Το αρχείο «%@» είναι κενό. Δεν περιέχει ήχο για μεταγραφή.";
 "transcribe.file.error.permission" = "Το HyperWhisper δεν μπορεί να διαβάσει το αρχείο «%@». Ελέγξτε τα δικαιώματα του αρχείου.";

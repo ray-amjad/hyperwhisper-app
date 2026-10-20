@@ -1093,6 +1093,9 @@ Es muss mindestens ein Modus vorhanden sein.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Tastenkürzel mit nur einer Modifikatortaste wie Ctrl, Alt, Shift oder Win werden nicht unterstützt. Verwenden Sie eine Taste mit Modifikatoren oder ein Kürzel mit mehreren Modifikatoren, zum Beispiel Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Ein Tastenkürzel ohne Modifikatortaste muss eine Funktionstaste oder Esc sein. Jede andere Taste würde beim Tippen auslösen.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Dieses Tastenkürzel wird bereits für {0} verwendet ({1})</value>
   </data>

@@ -43,10 +43,15 @@ public static class WhisperWorkerErrorCodes
 }
 
 /// <summary>The decoding switches the app sends with each transcribe.</summary>
+/// <param name="Prompt">
+/// The Whisper initial prompt (the vocabulary words, #1564), or null for none.
+/// Optional on the wire: a line without it, from an older app, decodes with no prompt.
+/// </param>
 public sealed record WhisperWorkerTranscribeOptions(
     bool SingleSegment,
     bool MaxLastTextTokensZero,
-    int? Threads);
+    int? Threads,
+    string? Prompt = null);
 
 /// <summary>A command the app sends to the worker, one JSON object per line.</summary>
 public abstract record WhisperWorkerCommand;
@@ -122,6 +127,7 @@ public static class WhisperWorkerProtocol
                 writer.WriteBoolean("singleSegment", transcribe.Options.SingleSegment);
                 writer.WriteBoolean("maxLastTextTokensZero", transcribe.Options.MaxLastTextTokensZero);
                 if (transcribe.Options.Threads is { } threads) writer.WriteNumber("threads", threads);
+                if (transcribe.Options.Prompt is { } prompt) writer.WriteString("prompt", prompt);
                 writer.WriteEndObject();
                 break;
             case WhisperWorkerCancelCommand cancel:
@@ -206,17 +212,19 @@ public static class WhisperWorkerProtocol
                     bool singleSegment = true;
                     bool maxLastTextTokensZero = false;
                     int? threads = null;
+                    string? prompt = null;
                     if (root.TryGetProperty("options", out var options) && options.ValueKind == JsonValueKind.Object)
                     {
                         singleSegment = GetBool(options, "singleSegment") ?? true;
                         maxLastTextTokensZero = GetBool(options, "maxLastTextTokensZero") ?? false;
                         threads = GetInt(options, "threads");
+                        prompt = GetString(options, "prompt");
                     }
                     command = new WhisperWorkerTranscribeCommand(
                         id.Value,
                         wav,
                         GetString(root, "language"),
-                        new WhisperWorkerTranscribeOptions(singleSegment, maxLastTextTokensZero, threads));
+                        new WhisperWorkerTranscribeOptions(singleSegment, maxLastTextTokensZero, threads, prompt));
                     return true;
                 }
                 case "cancel":
