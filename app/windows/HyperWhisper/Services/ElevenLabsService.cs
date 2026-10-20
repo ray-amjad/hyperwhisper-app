@@ -5,9 +5,9 @@
 //
 // REQUEST FORMAT: multipart/form-data
 // - file: Audio file
-// - model_id: Model ID (scribe_v2, scribe_v1)
+// - model_id: Model ID (scribe_v2, scribe_v2_medical)
 // - language_code: ISO 639-1 language code (optional, auto-detect if not specified)
-// - keyterms: Array of strings for vocabulary boosting (scribe_v2 only, up to 100 terms)
+// - keyterms: Array of strings for vocabulary boosting (scribe_v2 and scribe_v2_medical, up to 100 terms)
 //
 // RESPONSE FORMAT: { "text": "transcribed text", ... }
 //
@@ -18,7 +18,7 @@
 // - Keyterms: max 100 terms, each < 50 characters, max 5 words per term
 //
 // VOCABULARY SUPPORT:
-// - scribe_v2: Supports keyterms for custom vocabulary boosting
+// - scribe_v2, scribe_v2_medical: Support keyterms for custom vocabulary boosting
 // - scribe_v1: Does NOT support custom vocabulary
 //
 // scribe_v1 was retired by ElevenLabs 2026-07-09. Legacy "scribe_v1" IDs are resolved
@@ -44,7 +44,7 @@ namespace HyperWhisper.Services;
 
 /// <summary>
 /// Cloud transcription service using ElevenLabs' Scribe API.
-/// Scribe V2 supports custom vocabulary via keyterms (up to 100 terms).
+/// Scribe V2 and V2 Medical support custom vocabulary via keyterms (up to 100 terms).
 /// Scribe V1 does NOT support custom vocabulary.
 /// </summary>
 public class ElevenLabsService : ApiKeyTranscriptionServiceBase
@@ -96,7 +96,7 @@ public class ElevenLabsService : ApiKeyTranscriptionServiceBase
 
     /// <summary>
     /// Transcribes audio using ElevenLabs' Scribe API.
-    /// Scribe V2: vocabulary is sent as keyterms (up to 100 terms, each &lt; 50 chars).
+    /// Scribe V2 and V2 Medical: vocabulary is sent as keyterms (up to 100 terms, each &lt; 50 chars).
     /// Scribe V1: vocabulary is ignored (not supported).
     /// </summary>
     protected override async Task<string> TranscribeCoreAsync(
@@ -132,7 +132,7 @@ public class ElevenLabsService : ApiKeyTranscriptionServiceBase
 
         // STEP 3: Build the request via the Rust shared core, then drive it
         // through the shared executor + core retry loop. The core owns language
-        // normalization, keyterms (scribe_v2), tag_audio_events, and the
+        // normalization, keyterms (scribe_v2, scribe_v2_medical), tag_audio_events, and the
         // multi-format ({text} / {transcripts} / {words}) response parsing.
         // TODO-verify (Windows/CI): Rust shared-core swap.
         var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "audio/wav");
