@@ -45,11 +45,13 @@ export function lazyLoadBodyImages(html: string): string {
 // horizontal scroller at read time, so stored posts need no rewrite. A CSS
 // rule alone (`display: block` on the table) would shrink narrow tables to
 // their content and lose the table role in some screen readers. The wrapper
-// is a focusable region so a keyboard can scroll it too.
+// is a focusable region so a keyboard can scroll it too. It takes over the
+// table's 2em margin (28 px at the table's 0.875em), because a scroll container
+// stops the table's own margin collapsing with the paragraphs around it.
 const TABLE_OPEN = /<table\b/gi;
 const TABLE_CLOSE = /<\/table\s*>/gi;
 const TABLE_SCROLLER =
-  '<div class="overflow-x-auto" role="region" aria-label="Table" tabindex="0">';
+  '<div class="my-[1.75em] overflow-x-auto [&>table]:my-0" role="region" aria-label="Table" tabindex="0">';
 
 export function scrollableBodyTables(html: string): string {
   return html

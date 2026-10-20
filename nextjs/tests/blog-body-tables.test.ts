@@ -11,7 +11,7 @@ import { scrollableBodyTables } from "../src/content/blog-html";
 import { sanitizeBlogHtml } from "../src/content/sanitize-blog-html";
 
 const SCROLLER =
-  '<div class="overflow-x-auto" role="region" aria-label="Table" tabindex="0">';
+  '<div class="my-[1.75em] overflow-x-auto [&>table]:my-0" role="region" aria-label="Table" tabindex="0">';
 
 test("every table is wrapped in its own scroller, and nothing else moves", () => {
   const html = [
@@ -46,7 +46,7 @@ test("a sanitised body keeps its tables, so the wrapper has something to wrap", 
   );
   assert.match(
     scrollableBodyTables(html),
-    /^<div class="overflow-x-auto"[^>]*><table>.*<\/table><\/div>$/,
+    /^<div class="[^"]*overflow-x-auto[^"]*"[^>]*><table>.*<\/table><\/div>$/,
   );
 });
 
