@@ -86,12 +86,17 @@ public sealed class MicrophoneLevelTestViewModel : ViewModelBase, IDisposable
     public void Start()
     {
         if (_disposed || _captureFactory is null) return;
-        Stop();
-        if (_isRecordingActive?.Invoke() == true) return;
+        // Release the previous test directly, not through Stop: Stop may POST its idle reset (it
+        // cannot always tell the UI thread, Avalonia swapping context instances), and that reset
+        // would land after this test started and turn it straight back off.
+        int previous;
+        lock (_gate) previous = _session;
+        Release(previous);
+        if (_isRecordingActive?.Invoke() == true) { ResetIdle(); return; }
         ErrorMessage = null;
         IStreamingAudioCapture capture;
         try { capture = _captureFactory(); }
-        catch (Exception) { ErrorMessage = OpenFailedText(); return; }
+        catch (Exception) { ResetIdle(); ErrorMessage = OpenFailedText(); return; }
         int session;
         lock (_gate) { session = ++_session; _capture = capture; }
         capture.AudioLevelChanged += OnAudioLevelChanged;
@@ -103,6 +108,7 @@ public sealed class MicrophoneLevelTestViewModel : ViewModelBase, IDisposable
         if (started.IsFailure)
         {
             Release(session);
+            ResetIdle();
             ErrorMessage = OpenFailedText();
             return;
         }
@@ -122,7 +128,13 @@ public sealed class MicrophoneLevelTestViewModel : ViewModelBase, IDisposable
         lock (_gate) session = _session;
         Release(session);
         if (_context is null || SynchronizationContext.Current == _context) ResetIdle();
-        else _context.Post(_ => ResetIdle(), null);
+        // A late reset must not end a test started after this Stop.
+        else _context.Post(_ => { if (!IsActive()) ResetIdle(); }, null);
+    }
+
+    private bool IsActive()
+    {
+        lock (_gate) return _capture is not null;
     }
 
     private void ResetIdle()

@@ -105,6 +105,9 @@ public sealed class MicrophonePickerViewModel : ViewModelBase, IDisposable
         set
         {
             if (value is null || _reconciling || Equals(value, _selectedChoice)) return;
+            // A ComboBox catching up on a refill can write back a row the list no longer holds
+            // (the "Default" row before the OS default was known, say). Only a listed row is a pick.
+            if (!Choices.Contains(value)) return;
             switch (value.Kind)
             {
                 case MicrophoneChoiceKind.SystemDefault: Save(null); break;
@@ -112,7 +115,12 @@ public sealed class MicrophonePickerViewModel : ViewModelBase, IDisposable
                 // Picking the "(not connected)" row is keeping the choice already made.
                 case MicrophoneChoiceKind.Disconnected: break;
             }
-            Reconcile();
+            // This setter runs inside the ComboBox's own selection commit, and the reconcile can
+            // remove a row (the "(not connected)" one, when a connected device is picked). Changing
+            // the list under that commit throws ArgumentOutOfRange in Avalonia's SelectedItems, so
+            // on a UI context the reconcile runs just after the commit. The choice is saved already.
+            if (SynchronizationContext.Current is { } context) context.Post(_ => Reconcile(), null);
+            else Reconcile();
         }
     }
 

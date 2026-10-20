@@ -26,6 +26,7 @@ static class MicrophonePickerTests
         await PickerIgnoresNullAndKeepsSelectionAcrossRefillsAsync(Path.Combine(root, "refill"));
         await LevelTestStateMachineAsync(Path.Combine(root, "level-test"));
         await BackupDoesNotCarryTheDeviceAsync(Path.Combine(root, "backup"));
+        LevelTestSurvivesASwappedUiContext();
         Console.WriteLine("Microphone picker tests passed.");
     }
 
@@ -154,6 +155,16 @@ static class MicrophonePickerTests
         var before = published.Count;
         app.Workflow.RefreshDevices();
         Check(published.Count == before, "an unchanged device list re-published the selection");
+
+        // A ComboBox catching up on a refill writes back a row the list no longer holds: the
+        // "Default" row from before the OS default was known. That is not a pick of Default.
+        var staleDefault = new MicrophoneChoice(MicrophoneChoiceKind.SystemDefault, "Default", null, null);
+        Check(!app.Picker.Choices.Contains(staleDefault), "the stale Default row is still listed");
+        app.Picker.SelectedChoice = staleDefault;
+        Check(app.Picker.SavedDeviceName == Scarlett.Name && app.Picker.SelectedChoice?.DeviceId == Scarlett.Id,
+            "writing back a row the list no longer holds cleared the saved choice");
+        app.Picker.SelectedChoice = app.Picker.Choices[0];
+        Check(app.Picker.SavedDeviceName is null, "picking the listed Default row did not clear the choice");
     }
 
     private static async Task LevelTestStateMachineAsync(string root)
@@ -226,6 +237,48 @@ static class MicrophonePickerTests
         var backup = await new ApplicationBackupService(app.Database, app.Settings).ExportAsync();
         Check(!backup.Contains(Scarlett.Name, StringComparison.Ordinal) && !backup.Contains(MicrophonePickerViewModel.SettingKey, StringComparison.Ordinal),
             "the backup export carries the machine-specific microphone");
+    }
+
+    // Found in the real window: Avalonia's UI thread can carry a different SynchronizationContext
+    // instance from the one the view model captured, so Stop posted its idle reset, and the reset
+    // Start's own leading Stop queued landed after the test began and switched it straight off.
+    private static void LevelTestSurvivesASwappedUiContext()
+    {
+        var previous = SynchronizationContext.Current;
+        var captured = new QueueContext();
+        var current = new QueueContext();
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(captured);
+            var captures = new List<FakeCapture>();
+            using var test = new MicrophoneLevelTestViewModel(
+                () => { var capture = new FakeCapture(false); captures.Add(capture); return capture; },
+                () => "usb_mic", new ManualTimeProvider());
+            SynchronizationContext.SetSynchronizationContext(current);
+            test.Start();
+            captured.Drain();
+            current.Drain();
+            Check(test.IsTesting && test.ButtonText == "Stop", "a test started on a swapped UI context turned itself off");
+            test.Start();   // a restart, as a device change does
+            captured.Drain();
+            current.Drain();
+            Check(test.IsTesting && captures.Count == 2 && !captures[0].IsCapturing, "a restarted test did not keep running on the new capture");
+            test.Stop();
+            captured.Drain();
+            current.Drain();
+            Check(!test.IsTesting && test.Level == 0, "Stop on a swapped UI context did not return to idle");
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+    }
+
+    private sealed class QueueContext : SynchronizationContext
+    {
+        private readonly Queue<(SendOrPostCallback Callback, object? State)> _queue = new();
+        public override void Post(SendOrPostCallback d, object? state) => _queue.Enqueue((d, state));
+        public void Drain()
+        {
+            while (_queue.TryDequeue(out var item)) item.Callback(item.State);
+        }
     }
 
     private static void Check(bool condition, string message)
