@@ -17061,7 +17061,7 @@ internal static class Program
                 client.DefaultRequestHeaders.Authorization =
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-                async Task<JsonElement> Send(HttpMethod method, string path, string? json)
+                async Task<JsonElement> Send(System.Net.Http.HttpMethod method, string path, string? json)
                 {
                     using var request = new HttpRequestMessage(method, path);
                     if (json is not null)
@@ -17074,7 +17074,7 @@ internal static class Program
 
                 async Task<(string Id, JsonElement Mode)> Create(string name, string extra)
                 {
-                    var root = await Send(HttpMethod.Post, "/modes",
+                    var root = await Send(System.Net.Http.HttpMethod.Post, "/modes",
                         $$"""{"name":"{{Prefix}}{{name}}","preset":"hyper","language":"en","punctuation":true,"capitalization":true,"profanityFilter":false,{{extra}}}""");
                     Assert(root.TryGetProperty("mode", out var mode), $"POST {name} failed: {root}");
                     return (mode.GetProperty("id").GetString()!, mode);
@@ -17111,7 +17111,7 @@ internal static class Program
 
                     // PATCH providerType:"local" alone on a Model = "cloud" mode: refused,
                     // asking for model, and the row is untouched.
-                    var refused = await Send(HttpMethod.Patch, $"/modes/{cloudId}", """{"providerType":"local"}""");
+                    var refused = await Send(System.Net.Http.HttpMethod.Patch, $"/modes/{cloudId}", """{"providerType":"local"}""");
                     Assert(refused.TryGetProperty("error", out var error)
                             && error.GetProperty("code").GetString() == "INVALID_REQUEST"
                             && error.GetProperty("message").GetString()!.Contains("'model'", StringComparison.Ordinal),
@@ -17120,7 +17120,7 @@ internal static class Program
                         "a refused PATCH changed the row");
 
                     // PATCH providerType:"local" + model: local, Model = the id, provider cleared.
-                    var flipped = await Send(HttpMethod.Patch, $"/modes/{cloudId}", """{"providerType":"local","model":"small"}""");
+                    var flipped = await Send(System.Net.Http.HttpMethod.Patch, $"/modes/{cloudId}", """{"providerType":"local","model":"small"}""");
                     Assert(Str(flipped.GetProperty("mode"), "cloudProvider") is null,
                         $"PATCH to local answered cloudProvider {Str(flipped.GetProperty("mode"), "cloudProvider")}");
                     Assert(Row(cloudId).ProviderType == "local" && Row(cloudId).Model == "small" && Row(cloudId).CloudProvider is null,
@@ -17129,12 +17129,12 @@ internal static class Program
                     // PATCH model:<local id> alone on a cloud mode flips it local and
                     // clears the provider too (the issue's second PATCH bullet).
                     var (cloud2Id, _) = await Create("cloud2", """ "model":"cloud","cloudProvider":"openai" """);
-                    await Send(HttpMethod.Patch, $"/modes/{cloud2Id}", """{"model":"base"}""");
+                    await Send(System.Net.Http.HttpMethod.Patch, $"/modes/{cloud2Id}", """{"model":"base"}""");
                     Assert(Row(cloud2Id).ProviderType == "local" && Row(cloud2Id).Model == "base" && Row(cloud2Id).CloudProvider is null,
                         $"PATCH model:base stored {Row(cloud2Id).ProviderType} {Row(cloud2Id).Model} {Row(cloud2Id).CloudProvider ?? "<null>"}");
 
                     // GET /modes agrees with the rows.
-                    var listed = (await Send(HttpMethod.Get, "/modes", null)).GetProperty("modes").EnumerateArray()
+                    var listed = (await Send(System.Net.Http.HttpMethod.Get, "/modes", null)).GetProperty("modes").EnumerateArray()
                         .Where(m => Str(m, "name")?.StartsWith(Prefix, StringComparison.Ordinal) == true).ToList();
                     Assert(listed.Count == 4, $"GET /modes listed {listed.Count} test modes");
                     foreach (var mode in listed)
