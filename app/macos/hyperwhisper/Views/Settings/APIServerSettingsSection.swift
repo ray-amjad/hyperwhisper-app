@@ -125,7 +125,7 @@ struct APIServerSettingsSection: View {
     ) -> (title: String, detail: String) {
         if !enabled {
             if !closingPorts.isEmpty {
-                let bound = closingPorts.filter { $0 > 0 }
+                let bound = closingPorts.filter { $0 > 0 }.sorted()
                 let detail = bound.isEmpty ? "127.0.0.1" : bound.map { "127.0.0.1:\($0)" }.joined(separator: ", ")
                 return ("Stopping…", detail)
             }
