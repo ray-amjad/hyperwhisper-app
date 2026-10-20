@@ -1714,15 +1714,21 @@ class PersistenceController: ObservableObject {
 
     /// Mark a transcript failed on the serial writer.
     ///
-    /// - Parameter countsRetry: a retry failed this row (#1815). Counts it
-    ///   (`retryCount` + 1, `lastRetryDate`) as History's own Retry does.
+    /// - Parameters:
+    ///   - countsRetry: a retry failed this row (#1815). Counts it
+    ///     (`retryCount` + 1, `lastRetryDate`) as History's own Retry does.
+    ///   - transcriptionProvider: the engine that failed, the same kind of
+    ///     value a completed row stores ("Tiny (Multilingual)", "Parakeet TDT"),
+    ///     so History can show which engine failed (#1518). `nil` leaves the
+    ///     column as it is, as the completed-row writes do.
     /// - Returns: whether the row was found and the write was saved.
     @discardableResult
     func markTranscriptFailedInBackground(
         transcriptID: NSManagedObjectID,
         failedReason: String,
         errorText: String,
-        countsRetry: Bool = false
+        countsRetry: Bool = false,
+        transcriptionProvider: String? = nil
     ) async -> Bool {
         let result = await performWriteReportingSave { context -> Bool in
             guard let transcript = try? context.existingObject(with: transcriptID) as? Transcript else {
@@ -1736,6 +1742,9 @@ class PersistenceController: ObservableObject {
                 let currentRetryCount = transcript.value(forKey: "retryCount") as? Int16 ?? 0
                 transcript.setValue(currentRetryCount + 1, forKey: "retryCount")
                 transcript.setValue(Date(), forKey: "lastRetryDate")
+            }
+            if let transcriptionProvider {
+                transcript.setValue(transcriptionProvider, forKey: "transcriptionProvider")
             }
             return true
         }
