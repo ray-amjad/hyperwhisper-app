@@ -45,7 +45,7 @@ export default async function BlogPage({ params }: Props) {
         <div className="mb-6 flex justify-center">
           <img
             alt="HyperWhisper"
-            className="h-16 w-16 rounded-lg shadow-2xl shadow-purple-900/30 outline-1 -outline-offset-1 outline-white/10"
+            className="h-16 w-16 rounded-[20%] shadow-2xl shadow-purple-900/30 outline-1 -outline-offset-1 outline-white/10"
             src="/icon/128.png"
           />
         </div>

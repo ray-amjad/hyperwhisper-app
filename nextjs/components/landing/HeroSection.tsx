@@ -53,7 +53,7 @@ export default function HeroSection() {
         <m.div className="mb-8 flex justify-center" variants={chunk}>
           <img
             alt={t("logoAlt")}
-            className="w-40 h-40 rounded-2xl shadow-2xl outline-1 -outline-offset-1 outline-white/10"
+            className="w-40 h-40 rounded-[20%] shadow-2xl outline-1 -outline-offset-1 outline-white/10"
             src="/icon/512.png"
           />
         </m.div>
