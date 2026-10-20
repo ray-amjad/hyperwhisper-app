@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
-using System.Runtime.InteropServices;
 using System.Windows.Media;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Localization;
