@@ -95,7 +95,7 @@ function firstToken(candidates: unknown[], pattern: RegExp = SAFE_TOKEN): string
  * The content-free fields of an upstream error, from its status, headers and
  * body text. The body is parsed as JSON only to pick out the vendors' known
  * identifier fields; free-text fields (`message`, `err_msg`, `detail` as a
- * string, `error` as a sentence) are never read into the result.
+ * string, `error` as a string) are never read into the result.
  *
  * Shapes covered: OpenAI-compatible and Mistral
  * (`{error:{type,code}}` / `{type,code}`), Anthropic (`{type:'error',error:{type}}`),
@@ -122,8 +122,9 @@ export function summarizeUpstreamError(
   if (isRecord(json)) {
     const error = isRecord(json.error) ? json.error : {};
     const detail = isRecord(json.detail) ? json.detail : {};
-    // `json.error` as a bare string is AssemblyAI's / xAI's sentence; it is
-    // only kept when it is itself an identifier, which `firstToken` decides.
+    // `json.error` as a bare string is AssemblyAI's / xAI's free-text field,
+    // so it is never read, even when it looks like one word: a one-word
+    // transcript echoed there passes any token check (#2163 review).
     const errorCode = firstToken([error.code, json.code, json.err_code, json.error_code, detail.code]);
     const errorType = firstToken([
       error.type,
@@ -132,7 +133,6 @@ export function summarizeUpstreamError(
       json.type === 'error' ? undefined : json.type,
       detail.status,
       json.status,
-      json.error,
     ]);
     if (errorCode !== undefined) fields.errorCode = errorCode;
     if (errorType !== undefined && errorType !== errorCode) fields.errorType = errorType;

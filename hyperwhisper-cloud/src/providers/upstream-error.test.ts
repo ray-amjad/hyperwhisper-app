@@ -53,6 +53,9 @@ describe('summarizeUpstreamError', () => {
     ['AssemblyAI (free-text error)',
       JSON.stringify({ error: `language ${MARKER} is not supported` }),
       {}],
+    ['a bare-string error that is one token (an echoed one-word transcript)',
+      JSON.stringify({ error: MARKER }),
+      {}],
   ];
 
   test.each(cases)('%s: keeps identifiers, never the message', (_label, body, expected) => {
