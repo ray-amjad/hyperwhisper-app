@@ -92,6 +92,10 @@ enum DeviceAudioRecorderError: Error, CustomStringConvertible {
 /// was captured) and calls the capture-lost handler, so the owner ends the recording
 /// through its error path instead of treating a truncated file as a success.
 ///
+/// **Write failures** (a full disk): the first failed WAV write ends the capture the
+/// same way, through the capture-lost handler, so a truncated file is never handed
+/// back as a successful recording.
+///
 /// `@unchecked Sendable`: all mutable state is behind the locks above (and
 /// `handlerLock` for the capture-lost handler).
 final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendable {
@@ -239,7 +243,7 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     private var pipeline: DeviceCapturePipeline?     // tapLock
     private var lastPowerDb: Float = DeviceAudioRecorder.silentPowerDb  // tapLock
     private var meteringEnabled = true               // tapLock
-    private var loggedWriteError = false             // tapLock
+    private var writeFailed = false                  // tapLock
 
     /// Restarts run here, never on the thread that posted the notification: that can
     /// be a thread inside `record()` that already holds `controlLock`.
@@ -262,7 +266,8 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     }
 
     /// Called once, on a background queue, if capture stops on its own because no input
-    /// device could be reopened after a configuration change. If that already
+    /// device could be reopened after a configuration change, or because writing the
+    /// WAV failed. If that already
     /// happened, `handler` runs at once. Never called after a normal `stop()`.
     func setCaptureLostHandler(_ handler: @escaping @Sendable () -> Void) {
         handlerLock.lock()
@@ -309,6 +314,7 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
                 let newFile = try Self.makeOutputFile(url: url)
                 tapLock.lock()
                 file = newFile
+                writeFailed = false
                 tapLock.unlock()
             } catch {
                 AppLogger.audio.error("Could not create the WAV for the chosen microphone: \(error.localizedDescription, privacy: .public)")
@@ -455,7 +461,7 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         if meteringEnabled {
             lastPowerDb = Self.powerDb(of: source)
         }
-        guard file != nil else { return }
+        guard file != nil, !writeFailed else { return }
         pipeline.convert(source) { converted in
             self.writeLocked(converted)
         }
@@ -463,15 +469,41 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
 
     /// Caller holds `tapLock`.
     private func writeLocked(_ buffer: AVAudioPCMBuffer) {
+        guard !writeFailed, let file else { return }
         do {
-            try file?.write(from: buffer)
+            try file.write(from: buffer)
         } catch {
-            // Once per recording: a full disk would otherwise log at buffer rate.
-            if !loggedWriteError {
-                loggedWriteError = true
-                AppLogger.audio.error("Writing the chosen microphone's audio failed: \(error.localizedDescription, privacy: .public)")
+            // The first failure (a full disk) ends the capture: carrying on would hand
+            // back a truncated file as a success. Later buffers are dropped, so this
+            // logs once rather than at buffer rate.
+            writeFailed = true
+            AppLogger.audio.error("Writing the chosen microphone's audio failed - stopping capture: \(error.localizedDescription, privacy: .public)")
+            // The tap thread holds `tapLock` here (and `flushPipelineLocked` may also
+            // hold `controlLock`), so the stop runs on the restart queue, which takes
+            // `controlLock` before `tapLock` like every other path.
+            restartQueue.async { [weak self] in
+                self?.endCaptureAfterWriteFailure()
             }
         }
+    }
+
+    /// Stop capture after a failed write and notify the owner, unless a normal
+    /// `stop()` already ended it.
+    private func endCaptureAfterWriteFailure() {
+        controlLock.lock()
+        guard isRunning else {
+            controlLock.unlock()
+            return
+        }
+        SentryService.addBreadcrumb(
+            message: "Chosen microphone capture stopped after a WAV write failure",
+            category: "audio.recording",
+            level: .warning
+        )
+        stopLocked()
+        let lostHandler = takeCaptureLostHandler()
+        controlLock.unlock()
+        lostHandler?()
     }
 
     // MARK: Configuration Changes
