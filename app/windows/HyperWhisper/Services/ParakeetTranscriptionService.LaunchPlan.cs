@@ -141,30 +141,7 @@ internal static class ParakeetDaemonLaunchPlan
             LoggingService.Info($"  Requested language '{loadedLanguage}' is auto-detected by Parakeet TDT (not applied)");
         }
 
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = paths.DaemonPath,
-            // Pin the daemon's working directory to its own folder. The child inherits
-            // HyperWhisper.exe's CWD by default (often C:\Users\<user> when launched from
-            // the Start Menu), and the Windows DLL search order probes the CWD before %PATH%.
-            // Pinning it to the engine folder — where the legit ONNX Runtime / DirectML
-            // native DLLs are installed — prevents DLL planting from a user-writable CWD.
-            WorkingDirectory = Path.GetDirectoryName(paths.DaemonPath)!,
-            UseShellExecute = false,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            // The daemon speaks raw UTF-8 on stdin/stdout (it puts both in _O_BINARY and
-            // passes non-ASCII bytes through unescaped). Without these, redirected-stream
-            // encoding defaults to the console code page — a legacy ANSI/OEM page on most
-            // non-US Windows locales — which mojibakes accented/Cyrillic/Greek/CJK output
-            // from multilingual Parakeet. UTF8Encoding(false) suppresses the BOM so the
-            // stdin writer never prepends EF BB BF to the first JSON request line.
-            StandardInputEncoding = new UTF8Encoding(false),
-            StandardOutputEncoding = new UTF8Encoding(false),
-            StandardErrorEncoding = new UTF8Encoding(false),
-            CreateNoWindow = true
-        };
+        var startInfo = CreateStartInfo(paths.DaemonPath);
 
         // Build arguments via ArgumentList so .NET applies correct Windows
         // quoting/escaping. String concatenation corrupts paths containing a
@@ -211,5 +188,37 @@ internal static class ParakeetDaemonLaunchPlan
             $"arg_count={startInfo.ArgumentList.Count})");
 
         return new LaunchSpec(startInfo, engine, supportsLanguageHint, loadedLanguage, daemonLanguage);
+    }
+
+    /// <summary>
+    /// The daemon's process shape, without arguments: its working directory and its
+    /// redirected, UTF-8 stdio.
+    /// </summary>
+    private static ProcessStartInfo CreateStartInfo(string daemonPath)
+    {
+        return new ProcessStartInfo
+        {
+            FileName = daemonPath,
+            // Pin the daemon's working directory to its own folder. The child inherits
+            // HyperWhisper.exe's CWD by default (often C:\Users\<user> when launched from
+            // the Start Menu), and the Windows DLL search order probes the CWD before %PATH%.
+            // Pinning it to the engine folder — where the legit ONNX Runtime / DirectML
+            // native DLLs are installed — prevents DLL planting from a user-writable CWD.
+            WorkingDirectory = Path.GetDirectoryName(daemonPath)!,
+            UseShellExecute = false,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            // The daemon speaks raw UTF-8 on stdin/stdout (it puts both in _O_BINARY and
+            // passes non-ASCII bytes through unescaped). Without these, redirected-stream
+            // encoding defaults to the console code page — a legacy ANSI/OEM page on most
+            // non-US Windows locales — which mojibakes accented/Cyrillic/Greek/CJK output
+            // from multilingual Parakeet. UTF8Encoding(false) suppresses the BOM so the
+            // stdin writer never prepends EF BB BF to the first JSON request line.
+            StandardInputEncoding = new UTF8Encoding(false),
+            StandardOutputEncoding = new UTF8Encoding(false),
+            StandardErrorEncoding = new UTF8Encoding(false),
+            CreateNoWindow = true
+        };
     }
 }
