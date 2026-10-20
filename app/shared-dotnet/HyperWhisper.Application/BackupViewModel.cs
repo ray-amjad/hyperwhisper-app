@@ -237,8 +237,10 @@ public sealed class BackupViewModel : ViewModelBase
     // #2153: a backup can hold plaintext API keys, so on Unix it is owner-only (0600) like the
     // credential store it is read from. UnixCreateMode covers a new file; an existing file is
     // opened without truncation and tightened on the handle first, so the secret is never written
-    // into a world-readable file. A filesystem that cannot hold Unix modes (vfat/exFAT USB sticks,
-    // some SMB shares) refuses the chmod with EPERM; the export is still written there (Ray, #2165).
+    // into a world-readable file. vfat and exfat cannot hold 0600 and refuse that chmod with EPERM,
+    // but accept a chmod to the mode the file already has; that second chmod passing means we own
+    // the file and only the filesystem refused, so the export is still written (Ray, #2165). A file
+    // owned by someone else refuses both, and the export fails with the file left as it was.
     internal static async Task WriteOwnerOnlyAsync(string path, string contents, CancellationToken cancellationToken,
         Action<SafeFileHandle, UnixFileMode>? setUnixFileMode = null)
     {
@@ -255,8 +257,12 @@ public sealed class BackupViewModel : ViewModelBase
         await using var output = new FileStream(path, options);
         if (!OperatingSystem.IsWindows())
         {
-            try { (setUnixFileMode ?? File.SetUnixFileMode)(output.SafeFileHandle, ownerOnly); }
-            catch (UnauthorizedAccessException) { }
+            var setMode = setUnixFileMode ?? File.SetUnixFileMode;
+            try { setMode(output.SafeFileHandle, ownerOnly); }
+            catch (UnauthorizedAccessException)
+            {
+                setMode(output.SafeFileHandle, File.GetUnixFileMode(output.SafeFileHandle));
+            }
         }
         output.SetLength(0);
         await output.WriteAsync(Encoding.UTF8.GetBytes(contents), cancellationToken);

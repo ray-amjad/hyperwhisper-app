@@ -348,13 +348,29 @@ try
         Assert(!overwritten.Contains("xxxx", StringComparison.Ordinal)
             && JsonNode.Parse(overwritten)?["apiKeys"]?["openai"]?.GetValue<string>() == "sk-test-backup-mode",
             "overwriting a longer existing backup left stale bytes behind");
-        // A filesystem that refuses chmod (vfat/exFAT, EPERM) still gets the backup written.
+        // vfat/exfat refuse chmod 0600 (EPERM) but accept the file's current mode: still written.
         var refusedBackupPath = Path.Combine(root, "keys-chmod-refused.hwbackup");
         await File.WriteAllTextAsync(refusedBackupPath, new string('x', 64 * 1024));
         await BackupViewModel.WriteOwnerOnlyAsync(refusedBackupPath, overwritten, CancellationToken.None,
-            (_, _) => throw new UnauthorizedAccessException("simulated EPERM from a filesystem without Unix modes"));
+            (handle, mode) =>
+            {
+                if (mode == ownerOnly) throw new UnauthorizedAccessException("simulated vfat EPERM");
+                if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(handle, mode);
+            });
         Assert(File.ReadAllText(refusedBackupPath) == overwritten,
-            "a backup was not written to a filesystem that refuses chmod");
+            "a backup was not written to a filesystem that cannot hold owner-only modes");
+        // A file owned by someone else refuses every chmod: no keys written, file left as it was.
+        var foreignBackupPath = Path.Combine(root, "keys-foreign-owner.hwbackup");
+        await File.WriteAllTextAsync(foreignBackupPath, "someone else's file");
+        var foreignWriteRefused = false;
+        try
+        {
+            await BackupViewModel.WriteOwnerOnlyAsync(foreignBackupPath, overwritten, CancellationToken.None,
+                (_, _) => throw new UnauthorizedAccessException("simulated EPERM: not the owner"));
+        }
+        catch (UnauthorizedAccessException) { foreignWriteRefused = true; }
+        Assert(foreignWriteRefused && File.ReadAllText(foreignBackupPath) == "someone else's file",
+            "API keys were written into a file whose mode could not be changed by its non-owner");
     }
     var nonIntegerVersion = JsonNode.Parse(exported)!.AsObject();
     nonIntegerVersion["schemaVersion"] = "2";
