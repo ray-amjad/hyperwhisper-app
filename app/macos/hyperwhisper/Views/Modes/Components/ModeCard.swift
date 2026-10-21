@@ -37,16 +37,16 @@ struct ModeCard: View {
     }
 
     private func isModelDownloaded(_ rawId: String) -> Bool {
-        // Read the id as the router does (trimmed, lowercased, legacy
-        // Parakeet/Nemotron aliases), so a mode that transcribes is never
-        // flagged "Model missing" (#2036).
+        // Read the id as the router does (trimmed, lowercased, Whisper
+        // aliases first, legacy Parakeet/Nemotron aliases), so a mode that
+        // transcribes is never flagged "Model missing" (#2036).
         let id = rawId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if let whisper = mapModelIdToWhisperModel(id) {
+            return whisperModelManager.downloadedModels.contains(where: { $0.name == whisper.rawValue })
+        }
         if id == "apple-speech-analyzer" { return true }
         if id == Qwen3AsrModelManager.Constants.modelId {
             return qwen3AsrModelManager.isDownloaded
-        }
-        if whisperModelManager.downloadedModels.contains(where: { $0.name == id }) {
-            return true
         }
         let parakeetId = ParakeetModelManager.Constants.canonicalModelId(for: id) ?? id
         if let parakeet = parakeetModelManager.availableModels.first(where: { $0.name == parakeetId }) {
