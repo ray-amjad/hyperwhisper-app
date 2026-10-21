@@ -134,7 +134,32 @@ final class LocalAPIServer: ObservableObject {
     /// not finished by then is stuck, not slow.
     nonisolated static let releaseWait: Duration = .seconds(2)
 
-    private init() {
+    // MARK: - Environment (issue #1838)
+
+    /// Where the enabled switch and the persisted port live.
+    private let defaults: UserDefaults
+    /// The discovery file this instance writes and deletes.
+    private let portFileURL: URL
+    /// Replaces the Keychain read in `start()`. `nil` in the app, so `start()`
+    /// still reads through `LocalAPIAuth.loadOrCreateTokenOffMainActor()`.
+    private let tokenLoader: (@Sendable () async -> String)?
+
+    private convenience init() {
+        self.init(defaults: .standard, portFileURL: Self.portFileURL, tokenLoader: nil)
+    }
+
+    /// The app has one server, `shared`, on the real defaults, discovery file
+    /// and Keychain item. Tests make their own on a scratch suite, a temp file
+    /// and a fixed token, so the port-preference rules can run against a real
+    /// socket (issue #1838).
+    init(
+        defaults: UserDefaults,
+        portFileURL: URL,
+        tokenLoader: (@Sendable () async -> String)?
+    ) {
+        self.defaults = defaults
+        self.portFileURL = portFileURL
+        self.tokenLoader = tokenLoader
         listenerShutdown.onChange = { [weak self] ports in
             self?.closingPorts = ports
         }
@@ -291,10 +316,16 @@ final class LocalAPIServer: ObservableObject {
         // then returns having touched nothing.
         let owner = claimTokenOwnership()
         pendingBindOwner = owner
+        let tokenLoader = self.tokenLoader
         // Its own task, never the regeneration chain: a start must not inherit
         // an earlier Keychain call's wait. See `enqueueRegeneration`.
         Task { [weak self] in
-            let token = await LocalAPIAuth.loadOrCreateTokenOffMainActor()
+            let token: String
+            if let tokenLoader {
+                token = await tokenLoader()
+            } else {
+                token = await LocalAPIAuth.loadOrCreateTokenOffMainActor()
+            }
             guard let self, self.tokenOwner == owner else { return }
             self.bearerToken = token
             guard self.pendingBindOwner == owner else { return }
@@ -306,7 +337,7 @@ final class LocalAPIServer: ObservableObject {
             let released = await self.listenerShutdown.awaitRelease(within: Self.releaseWait)
             if !released {
                 guard self.pendingBindOwner == owner else { return }
-                UserDefaults.standard.removeObject(forKey: LocalAPIServerPersistedPortKey)
+                self.defaults.removeObject(forKey: LocalAPIServerPersistedPortKey)
                 AppLogger.network.info("LocalAPI server: the stopped server still holds its port; binding an ephemeral port")
             }
             guard self.pendingBindOwner == owner else { return }
@@ -327,7 +358,7 @@ final class LocalAPIServer: ObservableObject {
         // Prefer the previously-persisted port so scripts that hard-code
         // `localhost:39201` keep working across launches; fall back to a
         // kernel-assigned ephemeral port if the persisted one is taken.
-        let preferredPort = UInt16(UserDefaults.standard.integer(forKey: LocalAPIServerPersistedPortKey))
+        let preferredPort = UInt16(defaults.integer(forKey: LocalAPIServerPersistedPortKey))
         let address: sockaddr_in
         do {
             address = try .inet(ip4: "127.0.0.1", port: preferredPort)
@@ -387,7 +418,7 @@ final class LocalAPIServer: ObservableObject {
                         self.lastError = nil
                     }
                     self.writePortFile(port: port)
-                    UserDefaults.standard.set(Int(port), forKey: LocalAPIServerPersistedPortKey)
+                    self.defaults.set(Int(port), forKey: LocalAPIServerPersistedPortKey)
                     AppLogger.network.info("LocalAPI server listening on 127.0.0.1:\(port, privacy: .public)")
                 }
             } catch {
@@ -396,7 +427,7 @@ final class LocalAPIServer: ObservableObject {
                 // an ephemeral port.
                 let preferred = await MainActor.run { self.preferredPort }
                 if preferred != 0 {
-                    UserDefaults.standard.removeObject(forKey: LocalAPIServerPersistedPortKey)
+                    self.defaults.removeObject(forKey: LocalAPIServerPersistedPortKey)
                     AppLogger.network.info("LocalAPI server: persisted port \(preferred, privacy: .public) unavailable; clearing preference and retrying with ephemeral port")
                     await MainActor.run {
                         // Reset state then re-enter the bind step so the next
@@ -543,7 +574,7 @@ final class LocalAPIServer: ObservableObject {
     }
 
     func handleSystemDidWake() {
-        let enabled = UserDefaults.standard.bool(forKey: LocalAPIServerEnabledKey)
+        let enabled = defaults.bool(forKey: LocalAPIServerEnabledKey)
         guard enabled, !isLiveOrStarting else { return }
         AppLogger.network.info("LocalAPI server resuming after system wake")
         start()
@@ -796,7 +827,7 @@ final class LocalAPIServer: ObservableObject {
     }
 
     private func writePortFile(port: UInt16) {
-        let url = Self.portFileURL
+        let url = portFileURL
         let dir = url.deletingLastPathComponent()
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -868,7 +899,7 @@ final class LocalAPIServer: ObservableObject {
     }
 
     private func deleteExistingPortFileIfStale(expectedPort: UInt16, expectedToken: String) {
-        let url = Self.portFileURL
+        let url = portFileURL
         guard Self.existingPortFileIsStale(at: url, expectedPort: expectedPort, expectedToken: expectedToken) else {
             AppLogger.network.warning("LocalAPI portfile: leaving existing discovery file after write failure because it still matches this server")
             return
@@ -904,7 +935,7 @@ final class LocalAPIServer: ObservableObject {
     }
 
     private func deletePortFile() {
-        Self.deletePortFileIfOwned(at: Self.portFileURL, ownerPID: ProcessInfo.processInfo.processIdentifier)
+        Self.deletePortFileIfOwned(at: portFileURL, ownerPID: ProcessInfo.processInfo.processIdentifier)
     }
 
     /// Delete the discovery file unless it names another LIVE process (issue #1483).
