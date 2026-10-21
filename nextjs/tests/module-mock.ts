@@ -7,6 +7,7 @@
  * still registers its `moduleMock.module(...)` calls in its own body, before
  * its dynamic `import()` of the module under test.
  */
+/* eslint-disable no-console -- the capture swaps console methods by design */
 import { mock } from "node:test";
 import { inspect } from "node:util";
 
@@ -44,7 +45,9 @@ export function moduleUrl(relative: string): string {
  * does not load `pg` and `drizzle-orm` through that fixture.
  */
 export function formatLogArgs(args: unknown[]): string {
-  return args.map((a) => (typeof a === "string" ? a : inspect(a, { depth: 6 }))).join(" ");
+  return args
+    .map((a) => (typeof a === "string" ? a : inspect(a, { depth: 6 })))
+    .join(" ");
 }
 
 export type ConsoleLevel = "log" | "warn" | "error";
@@ -61,15 +64,22 @@ export interface ConsoleCapture {
  * call and pushes a {@link formatLogArgs} line onto `lines` (a new array unless
  * the caller passes one it already exports).
  */
-export function captureConsole(levels: ConsoleLevel[], lines: string[] = []): ConsoleCapture {
+export function captureConsole(
+  levels: ConsoleLevel[],
+  lines: string[] = [],
+): ConsoleCapture {
   const prefixed = levels.length > 1;
   const originals = levels.map((level) => [level, console[level]] as const);
+
   for (const level of levels) {
     console[level] = (...args: unknown[]): void => {
-      lines.push(prefixed ? `${level} ${formatLogArgs(args)}` : formatLogArgs(args));
+      lines.push(
+        prefixed ? `${level} ${formatLogArgs(args)}` : formatLogArgs(args),
+      );
     };
   }
   let restored = false;
+
   return {
     lines,
     restore(): void {
@@ -90,6 +100,7 @@ export function consoleSilencer(
   lines: string[],
 ): { silence(): void; restore(): void } {
   let active: ConsoleCapture | null = null;
+
   return {
     silence(): void {
       active ??= captureConsole(levels, lines);
