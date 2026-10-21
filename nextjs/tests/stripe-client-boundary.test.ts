@@ -121,9 +121,21 @@ function boundNames(source: ts.SourceFile): string[] {
   });
 }
 
-/** Is this node inside a type: an annotation, `Stripe.Event`, `typeof Stripe` in a type, … */
+/**
+ * Is this node inside a type: an annotation, `Stripe.Event`, `typeof Stripe`
+ * in a type, `implements`, … The parser files `class C extends Stripe` and the
+ * instantiation `Stripe<T>` under a type node too, but there the expression is
+ * a runtime value; only `implements` and an interface's `extends` are types.
+ */
 function inType(node: ts.Node): boolean {
-  for (let at: ts.Node | undefined = node.parent; at; at = at.parent) {
+  for (let child = node, at = node.parent; at; child = at, at = at.parent) {
+    if (ts.isExpressionWithTypeArguments(at) && at.expression === child) {
+      const heritage = at.parent;
+      return (
+        ts.isHeritageClause(heritage) &&
+        (heritage.token === ts.SyntaxKind.ImplementsKeyword || ts.isInterfaceDeclaration(heritage.parent))
+      );
+    }
     if (ts.isTypeNode(at)) return true;
   }
   return false;
@@ -254,6 +266,9 @@ describe("the Stripe client boundary", () => {
       "import S from 'stripe';\nnew (S as any)('x');",
       "import * as NS from 'stripe';\nNS.default('x');",
       "import { Stripe as S } from 'stripe';\nS('x');",
+      "import S from 'stripe';\nclass C extends S {}",
+      "import S from 'stripe';\nconst T = S<never>;",
+      "import S from 'stripe';\nconst C = class extends S.Stripe {};",
     ]) {
       assert.equal(uses(code), 1, code);
     }
@@ -264,6 +279,9 @@ describe("the Stripe client boundary", () => {
       "import S from 'stripe';\n// S('x') in a comment, S (the SDK) in prose",
       "import S from 'stripe';\nconst o = { S: 1 }; o.S;",
       "import type S from 'stripe';\nS;",
+      "import S from 'stripe';\nclass C implements S.Charge {}",
+      "import S from 'stripe';\ninterface I extends S.Charge {}",
+      "import S from 'stripe';\nlet m: Map<string, S.Charge>;",
     ]) {
       assert.equal(uses(code), 0, code);
     }
