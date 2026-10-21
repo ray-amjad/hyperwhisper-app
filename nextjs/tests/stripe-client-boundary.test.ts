@@ -11,10 +11,9 @@
  *
  * The SDK builds a client without `new` too (it calls itself with `new` when
  * `this` is not an instance), and a default import can take any name. So
- * (#2287) only the three files that need the SDK's runtime value may import
- * the `stripe` package as a value; every other file uses `import type`. In
- * those three, the imported name is never constructed or called, except in
- * the boundary itself.
+ * (#2287) only three files may import the `stripe` package as a value;
+ * every other file uses `import type`. In those three, the imported name is
+ * never constructed or called, except in the boundary itself.
  *
  * Skipped: `node_modules` and the generated build and tool output that
  * `.gitignore` already keeps out of the repo, plus one file named below.
@@ -33,7 +32,9 @@ const CONSTRUCTS = /\bnew\s+Stripe\s*\(/;
 
 /**
  * The files that may import the `stripe` package as a value: the boundary,
- * and the webhook route and service, which verify and read Stripe events.
+ * and the webhook route and service, which held a default import when #2287
+ * set this list. Both use it only in type positions today, so either can move
+ * to `import type` and leave this list.
  */
 const VALUE_IMPORTERS: readonly string[] = [
   BOUNDARY,
@@ -52,7 +53,7 @@ const PACKAGE = String.raw`['"\`]stripe(?:/[^'"\`]*)?['"\`]`;
  */
 const VALUE_IMPORT = new RegExp(
   [
-    String.raw`^\s*(?:import|export)\s+(?!type\b)[^;'"\`]*?\bfrom\s*${PACKAGE}`,
+    String.raw`^\s*(?:import|export)(?!\s+type\b)\s+[^;'"\`]*?\bfrom\s*${PACKAGE}`,
     String.raw`^\s*import\s*${PACKAGE}`,
     String.raw`\brequire\s*\(\s*${PACKAGE}\s*\)`,
     String.raw`\bimport\s*\(\s*${PACKAGE}`,
@@ -62,7 +63,7 @@ const VALUE_IMPORT = new RegExp(
 
 /** The binding list of a static value import of the package: `X`, `* as X`, `{ a as X }`, or a mix. */
 const IMPORT_CLAUSE = new RegExp(
-  String.raw`^\s*import\s+(?!type\b)([^;'"\`]*?)\s*\bfrom\s*${PACKAGE}`,
+  String.raw`^\s*import(?!\s+type\b)\s+([^;'"\`]*?)\s*\bfrom\s*${PACKAGE}`,
   "gm",
 );
 
@@ -166,6 +167,9 @@ describe("the Stripe client boundary", () => {
     }
     for (const code of [
       "import type Stripe from 'PKG';",
+      "import  type Stripe from 'PKG';",
+      "import\n  type Stripe from 'PKG';",
+      "export  type { Charge } from 'PKG';",
       "import type { Checkout } from 'PKG';",
       "export type { Charge } from 'PKG';",
       "// its `import Stripe from 'PKG'` requires the package's CJS entry.",
@@ -184,6 +188,7 @@ describe("the Stripe client boundary", () => {
       ["S", "X"],
     );
     assert.deepEqual(boundNames(sample("import type Stripe from 'PKG';")), []);
+    assert.deepEqual(boundNames(sample("import\n  type Stripe from 'PKG';")), []);
     assert.match("S('x')", callsOrConstructs("S"));
     assert.match("new S('x')", callsOrConstructs("S"));
     assert.doesNotMatch("S.Checkout.Session", callsOrConstructs("S"));
