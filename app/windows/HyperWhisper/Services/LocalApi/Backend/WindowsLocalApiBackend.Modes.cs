@@ -170,6 +170,9 @@ internal sealed partial class WindowsLocalApiBackend
                 : "local";
         }
 
+        // A local mode stores what the mode editor stores (#1624, Ray inbox #450).
+        if (!LocalModeModel.IsCloud(mode)) LocalModeModel.ApplyOnDevice(mode);
+
         if (ValidatePostProcessingSelection(mode) is { } validationError)
         {
             throw WindowsLocalApiFailure.Business(LocalApiErrorCode.InvalidRequest, validationError);
@@ -264,6 +267,14 @@ internal sealed partial class WindowsLocalApiBackend
                 LocalApiErrorCode.InvalidRequest,
                 "At least one mode must be the default",
                 "Set 'isDefault' on another mode instead — that clears this one.");
+        }
+
+        if (SwitchesToLocalWithoutModel(patch, existing))
+        {
+            throw WindowsLocalApiFailure.Business(
+                LocalApiErrorCode.InvalidRequest,
+                "Switching this mode to on-device needs a 'model'",
+                "Send 'model' with the on-device model id (for example 'base') together with providerType 'local'.");
         }
 
         ApplyPatch(patch, existing);
@@ -465,7 +476,33 @@ internal sealed partial class WindowsLocalApiBackend
         if (patch.LocalPostProcessingModel is { } v21) mode.LocalPostProcessingModel = v21;
         if (patch.CustomVocabulary is { } v22) mode.CustomVocabulary = v22;
         if (patch.ProviderType is { } v23) mode.ProviderType = v23;
+
+        // A local mode stores what the mode editor stores: Model = its local id,
+        // CloudProvider = null (#1624, Ray inbox #450). `GET /modes` then
+        // answers `cloudProvider: null` for it.
+        if (!LocalModeModel.IsCloud(mode)) LocalModeModel.ApplyOnDevice(mode);
     }
+
+    /// <summary>
+    /// A PATCH that makes a mode on-device without naming the local model, on a
+    /// mode whose <see cref="Mode.Model"/> is <c>"cloud"</c> (#1624). Ray (inbox
+    /// #450): refuse it and ask for <c>model</c>; never pick a default local
+    /// model, which could start a download the caller did not ask for.
+    /// </summary>
+    internal static bool SwitchesToLocalWithoutModel(ModePatchDto patch, Mode mode)
+    {
+        if (patch.ProviderType != "local") return false;
+        if (!string.Equals(mode.Model?.Trim(), LocalModeModel.CloudModel, StringComparison.OrdinalIgnoreCase)) return false;
+        if (NamesLocalModel(patch.Model)) return false;
+        // `localParakeetModel` names the model only for the Parakeet engine.
+        var engine = patch.LocalEngine ?? mode.LocalEngine;
+        return !(string.Equals(engine, "parakeet", StringComparison.OrdinalIgnoreCase)
+                 && NamesLocalModel(patch.LocalParakeetModel));
+    }
+
+    private static bool NamesLocalModel(string? id)
+        => !string.IsNullOrWhiteSpace(id)
+           && !string.Equals(id.Trim(), LocalModeModel.CloudModel, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Fold a caller's <c>providerType</c> onto the two values this head routes

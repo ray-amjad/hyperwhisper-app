@@ -460,13 +460,7 @@ public partial class ModelsSettingsPage : Page
     }
 
     private static bool MatchesSearch(LibraryModel model, string search)
-    {
-        if (string.IsNullOrWhiteSpace(search)) return true;
-        return model.DisplayName.Contains(search, StringComparison.OrdinalIgnoreCase)
-            || model.ProviderName.Contains(search, StringComparison.OrdinalIgnoreCase)
-            || (model.Detail?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
-            || (model.Tag?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false);
-    }
+        => LibraryModelSearch.Matches(model, search);
 
     private static bool MatchesProvider(LibraryModel model, string provider) => provider switch
     {

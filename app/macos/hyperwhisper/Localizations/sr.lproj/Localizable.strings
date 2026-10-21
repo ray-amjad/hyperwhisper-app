@@ -938,6 +938,7 @@ Pre brisanja ažurirajte ove režime da koriste drugi model.";
 "transcription.error.modelNotDownloaded" = "Молимо прво преузми модел";
 "transcription.error.modelNotDownloaded.modelAndMode" = "Режим %1$@ користи модел %2$@, који није преузет. Преузми га у Библиотеци модела.";
 "transcription.error.modelNotDownloaded.model" = "Модел %1$@ није преузет. Преузми га у Библиотеци модела.";
+"transcription.error.openModelLibrary" = "Отвори Библиотеку модела";
 "transcription.error.modelProtected" = "Овај модел не може бити обрисан";
 "transcription.error.audioFileNotFound" = "Звучна датотека није пронађена";
 "transcription.error.network.detail" = "Грешка мреже: %@";

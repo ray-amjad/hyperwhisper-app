@@ -938,6 +938,7 @@
 "transcription.error.modelNotDownloaded" = "請先下載模型";
 "transcription.error.modelNotDownloaded.modelAndMode" = "模式「%1$@」使用的 %2$@ 尚未下載。請在模型庫中下載。";
 "transcription.error.modelNotDownloaded.model" = "%1$@ 尚未下載。請在模型庫中下載。";
+"transcription.error.openModelLibrary" = "開啟模型庫";
 "transcription.error.modelProtected" = "此模型無法刪除";
 "transcription.error.audioFileNotFound" = "找不到音頻檔案";
 "transcription.error.network.detail" = "網路錯誤：%@";

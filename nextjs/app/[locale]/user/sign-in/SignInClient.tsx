@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
@@ -11,6 +11,41 @@ import { isRecord } from "@/src/lib/type-guards";
 import { reportClientError } from "@/lib/shared/report-client-error";
 
 type Tab = "license-key" | "email";
+
+/**
+ * #749: a form error reveals instead of mounting at full size in one frame.
+ * The wrapper is always in the DOM (`.t-error-reveal` in globals.css); the
+ * `role="alert"` banner inside it still mounts with its message, so the
+ * screen-reader path is the one #760 built. `gap` is the space the parent's
+ * `space-y-*` gave the banner: the wrapper drops that margin (`mb-0`) and
+ * carries it as padding inside the clip, so a closed wrapper takes no space.
+ */
+function ErrorReveal({ gap, children }: { gap: string; children: ReactNode }) {
+  return (
+    <div className="t-error-reveal mb-0" data-open={children ? "" : undefined}>
+      <div>
+        <div className={gap}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * #749: shake the field a failed submit is about. Removing the class and
+ * forcing a reflow before adding it back is what replays the shake on a
+ * second failure; the class goes when the animation ends.
+ */
+function shake(element: HTMLElement | null) {
+  if (!element) return;
+  element.classList.remove("is-shaking");
+  void element.offsetWidth;
+  element.classList.add("is-shaking");
+  element.addEventListener(
+    "animationend",
+    () => element.classList.remove("is-shaking"),
+    { once: true },
+  );
+}
 
 /**
  * The codes Better Auth's `/magic-link/verify` puts on `?error=` when the link
@@ -67,6 +102,18 @@ export default function SignInClient() {
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [magicLinkErrorDismissed, setMagicLinkErrorDismissed] = useState(false);
+
+  const licenseKeyInput = useRef<HTMLInputElement>(null);
+  const emailInput = useRef<HTMLInputElement>(null);
+
+  // Every failure sets a fresh message after the submit cleared the old one,
+  // so each one shakes, even when the text repeats.
+  useEffect(() => {
+    if (licenseError) shake(licenseKeyInput.current);
+  }, [licenseError]);
+  useEffect(() => {
+    if (emailError) shake(emailInput.current);
+  }, [emailError]);
 
   const magicLinkError =
     magicLinkErrorCode && !magicLinkErrorDismissed
@@ -296,16 +343,18 @@ export default function SignInClient() {
             <form onSubmit={handleLicenseKeySignIn} className="space-y-6">
               {/* #760: announced like `emailErrorBanner`, and described-by
                   target of the `#license-key` input below. No focus move. */}
-              {licenseError && (
-                <div
-                  className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg"
-                  role="alert"
-                >
-                  <p className="text-red-300 text-sm text-center" id="license-key-error">
-                    {licenseError}
-                  </p>
-                </div>
-              )}
+              <ErrorReveal gap="pb-6">
+                {licenseError && (
+                  <div
+                    className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg"
+                    role="alert"
+                  >
+                    <p className="text-red-300 text-sm text-center" id="license-key-error">
+                      {licenseError}
+                    </p>
+                  </div>
+                )}
+              </ErrorReveal>
 
               <div>
                 <label htmlFor="license-key" className="block text-sm font-medium text-gray-300 mb-2">
@@ -314,12 +363,13 @@ export default function SignInClient() {
                 <input
                   aria-describedby={licenseError ? "license-key-error" : undefined}
                   aria-invalid={licenseError ? true : undefined}
+                  ref={licenseKeyInput}
                   id="license-key"
                   type="text"
                   required
                   value={licenseKey}
                   onChange={(e) => setLicenseKey(e.target.value)}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all font-mono tracking-wide"
+                  className="t-input w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all font-mono tracking-wide"
                   placeholder="HW-XXXX-XXXX-XXXX-XXXX"
                   /*
                     `off` is deliberate: the Account Key is a credential and we do not want a
@@ -368,7 +418,7 @@ export default function SignInClient() {
               {!magicLinkSent ? (
                 <form onSubmit={handleSendMagicLink} className="space-y-6">
                   {magicLinkErrorBanner}
-                  {emailErrorBanner}
+                  <ErrorReveal gap="pb-6">{emailErrorBanner}</ErrorReveal>
 
                   <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
@@ -384,12 +434,13 @@ export default function SignInClient() {
                       }
                       aria-invalid={emailError ? true : undefined}
                       autoComplete="email"
+                      ref={emailInput}
                       id="email"
                       type="email"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      className="t-input w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       placeholder="your@email.com"
                     />
                     <p className="text-gray-400 text-xs mt-2">
@@ -442,7 +493,7 @@ export default function SignInClient() {
                       a magic link" text: the earlier send really did succeed,
                       and it is this resend that just failed. */}
                   <div className="space-y-3">
-                    {emailErrorBanner}
+                    <ErrorReveal gap="pb-3">{emailErrorBanner}</ErrorReveal>
 
                     <button
                       type="button"

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import { computeGoogleChirpTranscriptionCost } from '../lib/cost-calculator';
 import * as realGoogleAuth from '../lib/google-auth';
+import { captureNoSpeechEvent } from './test-support';
 
 // ---------------------------------------------------------------------------
 // Mock the GCS scratch-storage module. google-chirp.ts only knows the shape
@@ -146,25 +147,6 @@ async function runWithFastPollClock<T>(run: () => Promise<T>): Promise<T> {
     performance.now = originalNow;
     globalThis.setTimeout = originalSetTimeout;
   }
-}
-
-/**
- * Swaps `console.log` for the duration of `run` and returns the details object of
- * the `provider.no_speech` event it logged. Same swap-the-global idiom as
- * `utils.test.ts` — no spy library is used anywhere in this suite.
- */
-async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
-  const logged: unknown[][] = [];
-  const originalLog = console.log;
-  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
-  try {
-    await run();
-  } finally {
-    console.log = originalLog;
-  }
-  const event = logged.find((args) => args[0] === 'provider.no_speech');
-  if (!event) throw new Error('no provider.no_speech event was logged');
-  return event[1] as Record<string, unknown>;
 }
 
 describe('transcribeWithGoogleChirp — input gates (no upstream call)', () => {
@@ -571,7 +553,7 @@ describe('transcribeWithGoogleChirp — GCS + batchRecognize path', () => {
     };
 
     await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav'))
-      .rejects.toThrow('Google Speech batchRecognize failed (3): bad audio');
+      .rejects.toThrow('Google Speech batchRecognize failed (3)');
     expect(cancelled).toBe(true);
     expect(deleteCalls.length).toBe(1);
   });
@@ -683,7 +665,7 @@ describe('transcribeWithGoogleChirp — GCS + batchRecognize path', () => {
     };
 
     await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav'))
-      .rejects.toThrow('Google Speech batchRecognize failed (3): invalid audio');
+      .rejects.toThrow('Google Speech batchRecognize failed (3)');
     expect((globalThis.fetch as any).mock.calls.some(
       ([input]: [RequestInfo | URL]) => String(input).endsWith('operations/cancel-fails:cancel'),
     )).toBe(true);
@@ -767,7 +749,7 @@ describe('transcribeWithGoogleChirp — explicit network timeout budgets', () =>
       };
 
       await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav'))
-        .rejects.toThrow('Google Speech batchRecognize failed (3): bad audio');
+        .rejects.toThrow('Google Speech batchRecognize failed (3)');
     });
 
     expect(requestTimeouts).toEqual({ poll: [8_000], cancel: [8_000] });

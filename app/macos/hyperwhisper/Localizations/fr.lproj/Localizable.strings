@@ -938,6 +938,7 @@ Mettez à jour ces modes pour utiliser un autre modèle avant de supprimer.";
 "transcription.error.modelNotDownloaded" = "Veuillez d'abord télécharger un modèle";
 "transcription.error.modelNotDownloaded.modelAndMode" = "Le mode %1$@ utilise %2$@, qui n'est pas téléchargé. Téléchargez-le dans la Bibliothèque de modèles.";
 "transcription.error.modelNotDownloaded.model" = "%1$@ n'est pas téléchargé. Téléchargez-le dans la Bibliothèque de modèles.";
+"transcription.error.openModelLibrary" = "Ouvrir la Bibliothèque de modèles";
 "transcription.error.modelProtected" = "Ce modèle ne peut pas être supprimé";
 "transcription.error.audioFileNotFound" = "Fichier audio introuvable";
 "transcription.error.network.detail" = "Erreur réseau : %@";
