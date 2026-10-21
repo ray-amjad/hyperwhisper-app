@@ -11,6 +11,7 @@ import type { WSMessageReceive } from 'hono/ws';
 import { computeDeepgramTranscriptionCost, creditsForCost } from '../lib/cost-calculator';
 import { createMemoryCreditHoldStore, type MemoryCreditHoldStore } from '../lib/credit-hold-store-memory';
 import type { AuthContext } from '../middleware/auth';
+import { FakeClientSocket, FakeUpstreamSocketBase, fakeContext } from './ws-streaming-test-support';
 
 let cachedLicenseValue: { isValid: boolean; credits: number; cachedAt: string } | null = null;
 
@@ -47,52 +48,17 @@ let logLines: Array<{ event: string; details: Record<string, unknown> }>;
 let shortfalls: Array<Record<string, unknown>>;
 const upstreamSockets: FakeUpstreamSocket[] = [];
 
-class FakeUpstreamSocket {
-  static readonly CONNECTING = 0;
-  static readonly OPEN = 1;
-  static readonly CLOSING = 2;
-  static readonly CLOSED = 3;
-
-  readyState = 0;
-  bufferedAmount = 0;
-  readonly closes: Array<{ code?: number; reason?: string }> = [];
-  private readonly listeners = new Map<string, Array<(evt: unknown) => void>>();
-
-  constructor(readonly url: string) {
+class FakeUpstreamSocket extends FakeUpstreamSocketBase {
+  constructor(url: string, protocols?: string | string[]) {
+    super(url, protocols);
     upstreamSockets.push(this);
-  }
-
-  addEventListener(type: string, handler: (evt: unknown) => void): void {
-    this.listeners.set(type, [...(this.listeners.get(type) ?? []), handler]);
-  }
-
-  send(): void {}
-
-  close(code?: number, reason?: string): void {
-    this.readyState = FakeUpstreamSocket.CLOSED;
-    this.closes.push({ code, reason });
-  }
-
-  handshake(): void {
-    this.readyState = FakeUpstreamSocket.OPEN;
-    for (const handler of this.listeners.get('open') ?? []) handler({});
   }
 }
 
-class FakeClientSocket {
-  readyState = 1;
-  readonly sent: string[] = [];
-
-  send(data: string | ArrayBuffer | Uint8Array): void {
-    this.sent.push(typeof data === 'string' ? data : '<binary>');
-  }
-
-  close(): void {
-    this.readyState = 3;
-  }
-
+/** The shared client fake plus the error frames these tests assert on. */
+class HoldsClientSocket extends FakeClientSocket {
   errors(): unknown[] {
-    return this.sent.map((raw) => JSON.parse(raw) as { type: string }).filter((message) => message.type === 'error');
+    return this.messagesOfType('error');
   }
 }
 
@@ -100,12 +66,8 @@ function auth(credits: number): AuthContext {
   return { identifier: ACCOUNT, licenseKey: ACCOUNT, credits };
 }
 
-function fakeContext(sessionAuth: AuthContext, hold: CreditHold | undefined): Context {
-  const vars: Record<string, unknown> = { wsAuth: sessionAuth, wsClientIP: '203.0.113.7', wsCreditHold: hold };
-  return {
-    get: (key: string) => vars[key],
-    req: { url: `https://transcribe.example/ws/streaming-deepgram?account_key=${ACCOUNT}` },
-  } as unknown as Context;
+function holdContext(sessionAuth: AuthContext, hold: CreditHold | undefined): Context {
+  return fakeContext(sessionAuth, `https://transcribe.example/ws/streaming-deepgram?account_key=${ACCOUNT}`, { wsCreditHold: hold });
 }
 
 function second(): MessageEvent<WSMessageReceive> {
@@ -119,8 +81,8 @@ async function tick(): Promise<void> {
 }
 
 async function openSession(sessionAuth: AuthContext, hold: CreditHold) {
-  const events = createStreamingEvents(fakeContext(sessionAuth, hold));
-  const client = new FakeClientSocket();
+  const events = createStreamingEvents(holdContext(sessionAuth, hold));
+  const client = new HoldsClientSocket();
   events.onOpen(new Event('open'), client);
   const upstream = upstreamSockets[upstreamSockets.length - 1]!;
   upstream.handshake();
@@ -297,8 +259,8 @@ describe('a live session tops its hold up', () => {
   test('a session that never reached the vendor bills nothing and releases its hold', async () => {
     const sessionAuth = auth(100);
     const { hold } = await reserveSessionHold(sessionAuth, 1, BLOCK);
-    const events = createStreamingEvents(fakeContext(sessionAuth, hold));
-    events.onOpen(new Event('open'), new FakeClientSocket());
+    const events = createStreamingEvents(holdContext(sessionAuth, hold));
+    events.onOpen(new Event('open'), new HoldsClientSocket());
     // No handshake.
     await events.onClose();
     await settle();
@@ -357,8 +319,8 @@ describe('a dropped session charge logs credits.deduction_failed (#820)', () => 
   async function streamTenSeconds(withHold: boolean) {
     const sessionAuth = auth(100);
     const hold = withHold ? (await reserveSessionHold(sessionAuth, 1, BLOCK)).hold : undefined;
-    const events = createStreamingEvents(fakeContext(sessionAuth, hold));
-    const client = new FakeClientSocket();
+    const events = createStreamingEvents(holdContext(sessionAuth, hold));
+    const client = new HoldsClientSocket();
     events.onOpen(new Event('open'), client);
     upstreamSockets[upstreamSockets.length - 1]!.handshake();
     for (let s = 0; s < 10; s += 1) events.onMessage(second());

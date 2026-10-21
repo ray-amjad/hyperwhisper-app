@@ -43,6 +43,15 @@ export const serverSchema = z.object({
   // /api/internal/grant-license and /api/internal/licenses-for-email with it)
   HYPERWHISPER_INTERNAL_SECRET: z.string().optional(),
 
+  // HMAC key for `credit_pool_id` (src/lib/credit-pool-id.ts, #2026): the
+  // opaque per-user id the licence routes hand HyperWhisper Cloud so it counts
+  // credit holds per user, not per key. Optional so the site deploys before the
+  // secret exists; unset, the field is omitted and the cloud holds per key.
+  // At least 32 characters: it is the only thing between the id and the user id.
+  // An empty value is accepted and means unset, as `creditPoolIdFor` reads it
+  // (a blank Vercel/Infisical entry must not fail the build).
+  CREDIT_POOL_ID_SECRET: z.union([z.string().min(32), z.literal("")]).optional(),
+
   // Vercel cron bearer token. Vercel sends `Authorization: Bearer $CRON_SECRET`
   // and cannot set a custom header, so the scheduled jobs in vercel.json
   // (/api/internal/latency/prune) accept it alongside the internal secret.
@@ -103,6 +112,9 @@ export const serverEnv = {
   // Shared secret for internal license endpoints (Agentic Coding School calls
   // /api/internal/grant-license and /api/internal/licenses-for-email with it)
   HYPERWHISPER_INTERNAL_SECRET: process.env.HYPERWHISPER_INTERNAL_SECRET,
+
+  // HMAC key for `credit_pool_id` (see the schema above)
+  CREDIT_POOL_ID_SECRET: process.env.CREDIT_POOL_ID_SECRET,
 
   // Vercel cron bearer token (see the schema above)
   CRON_SECRET: process.env.CRON_SECRET,
