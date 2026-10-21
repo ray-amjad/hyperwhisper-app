@@ -80,7 +80,7 @@ export default function DownloadModal() {
           <div className="w-24 h-24 mb-6 relative">
             <Image
               alt={t("logoAlt")}
-              className="w-24 h-24"
+              className="w-24 h-24 rounded-[20%] outline-1 -outline-offset-1 outline-white/10"
               height={96}
               src="/icon/256.png"
               width={96}

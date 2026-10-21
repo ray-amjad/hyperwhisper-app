@@ -127,7 +127,8 @@ body {
   }
 }
 
-/* Inline editor that replaces a table cell's content (#914). A <td> with
+/* Inline editor that replaces a table cell's content (#914), and the
+   disclosures that open below a control (#702). A <td> with
    height auto never tweens its height, so the wrapper animates its one grid
    row 0fr -> 1fr instead: the row grows through real intermediate heights.
    The child clips (overflow: clip, not hidden, so autoFocus cannot scroll it).
@@ -239,5 +240,158 @@ body {
     opacity: 1;
     transform: none;
     filter: none;
+  }
+}
+
+/* A box whose content changes height (#702): the script sets an explicit
+   height from the measured content, and the height tweens to it. The box
+   must clip its overflow itself, or the new content spills out mid-tween. */
+.t-resize {
+  transition: height 300ms ease-out;
+}
+
+/* Reduce motion: the box lands at its new size in one frame. */
+@media (prefers-reduced-motion: reduce) {
+  .t-resize {
+    transition: none;
+  }
+}
+
+/* A form error (#749). The wrapper stays mounted and the message reveals in
+   it: its one grid row tweens 0fr -> 1fr while it fades in, so the form below
+   moves down over 280 ms instead of in one frame. The alert itself still
+   mounts with its text, so what a screen reader hears is unchanged. Spacing
+   that a parent's space-y-* would give sits inside the clip, so a closed
+   wrapper takes no space. */
+.t-error-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 280ms var(--motion-ease-smooth-out),
+    opacity 280ms var(--motion-ease-smooth-out);
+}
+
+.t-error-reveal[data-open] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.t-error-reveal > * {
+  min-height: 0;
+  overflow: clip;
+}
+
+/* The field the error belongs to shakes once, and its border takes the error
+   colour while it is marked aria-invalid. The script removes .is-shaking,
+   forces a reflow and adds it again, so a second failure replays the shake. */
+@keyframes error-shake {
+  0% {
+    transform: translateX(0);
+  }
+  24% {
+    transform: translateX(-6px);
+  }
+  47% {
+    transform: translateX(6px);
+  }
+  65% {
+    transform: translateX(-4px);
+  }
+  82% {
+    transform: translateX(4px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.t-input[aria-invalid="true"] {
+  border-color: rgb(239 68 68 / 0.6);
+}
+
+.t-input.is-shaking {
+  animation: error-shake 340ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Reduce motion: the message is shown in one frame and nothing shakes. */
+@media (prefers-reduced-motion: reduce) {
+  .t-error-reveal {
+    transition: none;
+  }
+
+  .t-input.is-shaking {
+    animation: none;
+  }
+}
+
+/* The magic-link confirmation icon (#752): it fades in and rotates up out of
+   a blur, settles with a small overshoot, and its stroke draws. The path sets
+   pathLength="1", so a dash of 1 is the whole outline. */
+@keyframes success-check-in {
+  0% {
+    opacity: 0;
+    transform: rotate(80deg) scale(0.6);
+    filter: blur(10px);
+  }
+  60% {
+    opacity: 1;
+    transform: rotate(-6deg) scale(1.06);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes success-check-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.t-success-check {
+  animation: success-check-in 500ms var(--motion-ease-smooth-out) both;
+}
+
+.t-success-check path {
+  stroke-dasharray: 1;
+  animation: success-check-draw 600ms var(--motion-ease-in-out) 100ms both;
+}
+
+/* Reduce motion: the icon is shown whole, with no spin, blur or draw. */
+@media (prefers-reduced-motion: reduce) {
+  .t-success-check,
+  .t-success-check path {
+    animation: none;
+  }
+}
+
+/* A /credits summary value that changes (#768): each character re-enters
+   from a small blurred offset, 40 ms after the one before it. Inline-block so
+   the transform applies; pre so a grouping space keeps its width. */
+@keyframes number-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance-small));
+    filter: blur(var(--motion-blur-small));
+  }
+}
+
+.t-number-pop-char {
+  display: inline-block;
+  white-space: pre;
+  animation: number-pop-in 500ms var(--motion-ease-in-out) both;
+}
+
+/* Reduce motion: the new value is shown in one frame. */
+@media (prefers-reduced-motion: reduce) {
+  .t-number-pop-char {
+    animation: none;
   }
 }

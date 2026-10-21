@@ -192,22 +192,30 @@ pub fn mode_seed_default(region: Option<&str>) -> ModeSeed {
     }
 }
 
-/// The catalog's default model id for [`CLOUD_ACCURACY_TIER`], or the fallback.
+/// The seeded cloud-STT model id, resolved from a parsed catalog, or `None`
+/// when the catalog names no usable default for [`CLOUD_ACCURACY_TIER`].
 ///
 /// An empty id is treated as unresolved: the cloud-STT catalog allows `""` as a
 /// legitimate model id, but seeding it here would
 /// send an empty `X-STT-Model`.
+///
+/// Taking a `&CloudSttCatalog` rather than reading the embedded one keeps that
+/// guard testable against a catalog whose default really is `""` — the same
+/// split as [`resolve_cloud_post_processing_model`].
+fn resolve_cloud_transcription_model(catalog: &CloudSttCatalog) -> Option<String> {
+    catalog
+        .default_model_id(CLOUD_ACCURACY_TIER)
+        .filter(|id| !id.is_empty())
+        .map(str::to_string)
+}
+
+/// The catalog's default model id for [`CLOUD_ACCURACY_TIER`], or the fallback.
 fn cloud_transcription_model() -> &'static str {
     static RESOLVED: OnceLock<String> = OnceLock::new();
     RESOLVED.get_or_init(|| {
         CloudSttCatalog::embedded()
             .ok()
-            .and_then(|catalog| {
-                catalog
-                    .default_model_id(CLOUD_ACCURACY_TIER)
-                    .filter(|id| !id.is_empty())
-                    .map(str::to_string)
-            })
+            .and_then(|catalog| resolve_cloud_transcription_model(&catalog))
             .unwrap_or_else(|| FALLBACK_CLOUD_TRANSCRIPTION_MODEL.to_string())
     })
 }
@@ -407,6 +415,77 @@ mod tests {
             resolve_cloud_post_processing_model(&catalog).as_deref(),
             Some("shown:visible-model"),
             "the seed resolved a gated-off engine"
+        );
+    }
+
+    /// A synthetic cloud-STT catalog whose [`CLOUD_ACCURACY_TIER`] row lists
+    /// `models` (a JSON array), next to an unrelated row that always names a
+    /// real default — so a resolver that read the wrong row would show it.
+    fn stt_catalog_with_seed_tier_models(models: &str) -> CloudSttCatalog {
+        let json = format!(
+            r#"{{
+                "version": 1, "updated": "x",
+                "providers": [
+                    {{"id":"other","displayName":"O","vendor":"o",
+                      "models":[{{"id":"other-model","displayName":"O","isDefault":true}}]}},
+                    {{"id":"{CLOUD_ACCURACY_TIER}","displayName":"S","vendor":"s",
+                      "models":{models}}}
+                ]
+            }}"#
+        );
+        CloudSttCatalog::parse(&json).expect("synthetic catalog must parse")
+    }
+
+    /// The empty-id guard, with the empty id actually in the catalog.
+    ///
+    /// `catalog_resolution_matches_the_fallback_literals` cannot see this guard:
+    /// the shipped catalog never names `""`, so a resolver with the guard
+    /// deleted or inverted resolves the shipped catalog the same way.
+    #[test]
+    fn an_empty_stt_model_id_is_never_seeded() {
+        let catalog =
+            stt_catalog_with_seed_tier_models(r#"[{"id":"","displayName":"E","isDefault":true}]"#);
+
+        // `""` is a legitimate catalog answer ("provider default") — that is the
+        // trap, and the plain lookup is right to return it.
+        assert_eq!(
+            catalog.default_model_id(CLOUD_ACCURACY_TIER),
+            Some(""),
+            "the plain catalog lookup is expected to return the empty id; if that \
+             changed, this test no longer proves the seed does its own filtering"
+        );
+
+        // The seed does not take it: it would send an empty `X-STT-Model`.
+        assert_eq!(resolve_cloud_transcription_model(&catalog), None);
+    }
+
+    /// No row for the seed's tier → resolve to nothing, and the caller falls
+    /// back to the pinned literal rather than panicking.
+    #[test]
+    fn a_missing_stt_tier_resolves_to_nothing() {
+        let json = r#"{
+            "version": 1, "updated": "x",
+            "providers": [
+                {"id":"other","displayName":"O","vendor":"o",
+                 "models":[{"id":"other-model","displayName":"O","isDefault":true}]}
+            ]
+        }"#;
+        let catalog = CloudSttCatalog::parse(json).expect("synthetic catalog must parse");
+        assert_eq!(resolve_cloud_transcription_model(&catalog), None);
+    }
+
+    /// A non-empty default that is NOT the literal resolves to itself — proof
+    /// the resolver reads the catalog rather than short-circuiting to
+    /// [`FALLBACK_CLOUD_TRANSCRIPTION_MODEL`].
+    #[test]
+    fn the_stt_model_is_read_from_the_catalog() {
+        let catalog = stt_catalog_with_seed_tier_models(
+            r#"[{"id":"not-default","displayName":"N"},
+                {"id":"synthetic-model","displayName":"S","isDefault":true}]"#,
+        );
+        assert_eq!(
+            resolve_cloud_transcription_model(&catalog).as_deref(),
+            Some("synthetic-model")
         );
     }
 

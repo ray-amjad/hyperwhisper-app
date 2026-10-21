@@ -342,6 +342,11 @@ class SettingsManager: ObservableObject {
         set { audio.selectedMicrophoneId = newValue }
     }
 
+    var selectedMicrophoneName: String {
+        get { audio.selectedMicrophoneName }
+        set { audio.selectedMicrophoneName = newValue }
+    }
+
     var autoIncreaseMicVolume: Bool {
         get { audio.autoIncreaseMicVolume }
         set { audio.autoIncreaseMicVolume = newValue }
