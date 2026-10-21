@@ -799,6 +799,12 @@ Esta ação não pode ser desfeita.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (pronto)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (não ativado)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (sem chave de API)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Falha ao carregar</value>
   </data>
@@ -2031,6 +2037,27 @@ Pode voltar a descarregá-lo mais tarde.</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Manter um fluxo de entrada silencioso aberto entre gravações, para reduzir o atraso de arranque, sobretudo com microfones Bluetooth.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Utilizado apenas pelo HyperWhisper. Memorizado após reiniciar.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Predefinição · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (não ligado)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>A utilizar {0} até {1} ser novamente ligado.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Nenhum microfone está ligado. O HyperWhisper utilizará {0} quando for novamente ligado.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Testar</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Parar</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Velocidade média</value>

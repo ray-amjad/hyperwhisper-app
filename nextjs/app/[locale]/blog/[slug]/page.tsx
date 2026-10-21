@@ -152,14 +152,14 @@ export default async function BlogPostPage({ params }: Props) {
         <div className="mt-10 overflow-hidden rounded-lg border border-gray-800 bg-gray-900">
           <img
             alt={post.frontMatter.imageAlt ?? post.frontMatter.title}
-            className="max-h-[480px] w-full object-cover"
+            className="max-h-[480px] w-full object-cover outline-1 -outline-offset-1 outline-white/10"
             src={post.frontMatter.image}
           />
         </div>
       ) : null}
 
       <div
-        className={`prose prose-invert mx-auto mt-10 max-w-3xl prose-headings:text-white prose-strong:text-white [&_iframe]:aspect-video [&_:not(pre)>code]:break-words ${PROSE_TEXT_LINK}`}
+        className={`prose prose-invert mx-auto mt-10 max-w-3xl prose-headings:text-white prose-strong:text-white [&_iframe]:aspect-video [&_img]:outline-1 [&_img]:-outline-offset-1 [&_img]:outline-white/10 [&_:not(pre)>code]:break-words ${PROSE_TEXT_LINK}`}
         dangerouslySetInnerHTML={{ __html: post.html }}
       />
     </article>

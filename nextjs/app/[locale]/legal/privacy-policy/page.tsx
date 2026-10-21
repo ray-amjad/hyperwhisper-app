@@ -2,7 +2,7 @@ import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
 export const generateMetadata = localizedPageMetadata({
   path: "/legal/privacy-policy",
-  title: "Privacy Policy | HyperWhisper",
+  title: "Privacy Policy",
   description:
     "HyperWhisper Privacy Policy - Local-first, no cloud storage of your audio or transcripts, except brief storage of recordings over about 55 seconds or 9.5 MB on the HyperWhisper Cloud Chirp route and provider error messages in HyperWhisper Cloud logs, which can quote request text.",
 });
@@ -42,7 +42,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none prose-invert">
       <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: October 20, 2026
+        Last Updated: October 21, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -925,7 +925,10 @@ export default function PrivacyPolicyPage() {
         Deepgram&apos;s Nova-3 Medical or Nova-2 Medical model (Nova-3 Medical
         also for live streaming); your audio then goes from your device
         directly to that provider, under your own account, and not through our
-        servers. If post-processing is on, the
+        servers. With your own ElevenLabs API key, you can also choose
+        ElevenLabs&apos; Scribe v2 Medical model; your audio and your custom
+        vocabulary then go from your device directly to ElevenLabs, under your
+        own account, and not through our servers. If post-processing is on, the
         transcript also goes to the post-processing provider you use. Each
         provider processes your data under its own terms, and you must review
         them before you dictate about a patient.

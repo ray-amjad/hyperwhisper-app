@@ -17247,15 +17247,6 @@ public func licenseOfflineFallbackOutcome(store: KeyValueStore, nowUnixSecs: Int
 })
 }
 /**
- * 7-day offline grace period (seconds).
- */
-public func licenseOfflineGraceSecs() -> Int64 {
-    return try!  FfiConverterInt64.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_offline_grace_secs($0
-    )
-})
-}
-/**
  * Parse a 200-OK validate response body to a `ValidationOutcome`.
  */
 public func licenseParseValidateResponse(body: Data) -> ValidationOutcome {
@@ -17268,10 +17259,10 @@ public func licenseParseValidateResponse(body: Data) -> ValidationOutcome {
 /**
  * Persist a server validation verdict for the attempted key: stores the key on
  * a valid (`Active`) verdict, and updates the validation cache only when the
- * verdict is valid or the attempted key matches the stored key. Prefer this
- * over the raw `license_update_validation_cache` after a validate response —
- * it prevents a rejected *replacement* key from clobbering the stored key's
- * cached status (a 24h lockout for a valid user).
+ * verdict is valid or the attempted key matches the stored key. This is the
+ * only FFI write path for a validate response: it prevents a rejected
+ * *replacement* key from clobbering the stored key's cached status (a 24h
+ * lockout for a valid user).
  */
 public func licensePersistValidationVerdict(store: KeyValueStore, status: HwLicenseStatus, attemptedKey: String, nowUnixSecs: Int64) {try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_license_persist_validation_verdict(
@@ -17321,13 +17312,6 @@ public func licenseShouldRevalidate(store: KeyValueStore, nowUnixSecs: Int64) ->
     )
 })
 }
-public func licenseStoreLicenseKey(store: KeyValueStore, key: String) {try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_store_license_key(
-        FfiConverterTypeKeyValueStore.lower(store),
-        FfiConverterString.lower(key),$0
-    )
-}
-}
 public func licenseStoreRemoteOverride(store: KeyValueStore, limits: TrialLimits, nowUnixSecs: Int64) {try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_license_store_remote_override(
         FfiConverterTypeKeyValueStore.lower(store),
@@ -17340,32 +17324,6 @@ public func licenseStoredLicenseKey(store: KeyValueStore) -> String? {
     return try!  FfiConverterOptionString.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_license_stored_license_key(
         FfiConverterTypeKeyValueStore.lower(store),$0
-    )
-})
-}
-public func licenseUpdateValidationCache(store: KeyValueStore, status: HwLicenseStatus, nowUnixSecs: Int64) {try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_update_validation_cache(
-        FfiConverterTypeKeyValueStore.lower(store),
-        FfiConverterTypeHwLicenseStatus.lower(status),
-        FfiConverterInt64.lower(nowUnixSecs),$0
-    )
-}
-}
-/**
- * The `/api/license/validate` endpoint URL.
- */
-public func licenseValidateUrl() -> String {
-    return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_validate_url($0
-    )
-})
-}
-/**
- * 24h validation cache TTL (seconds).
- */
-public func licenseValidationCacheSecs() -> Int64 {
-    return try!  FfiConverterInt64.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_validation_cache_secs($0
     )
 })
 }
@@ -17724,6 +17682,11 @@ public func llmWrapTranscript(systemInfo: String, transcript: String) -> String 
 }
 /**
  * Every engine id, in the order `openapi.yaml` lists them.
+ *
+ * **Call site: the macOS test target**, not a head's runtime code.
+ * `LocalEngineNeverRoutesToCloudTests` drives its "no local engine routes to
+ * Cloud" properties off this table, so an engine added here is covered there
+ * without anyone widening a list.
  */
 public func localApiAllEngineIds() -> [HwLocalApiEngineId] {
     return try!  FfiConverterSequenceTypeHwLocalApiEngineId.lift(try! rustCall() {
@@ -17953,23 +17916,6 @@ public func localApiMaxUploadBytes() -> UInt64 {
 })
 }
 /**
- * Which required keys a create body did not carry, in the documented order.
- *
- * **Call sites: the portable head and Windows only, deliberately.** The portable
- * head already walks `document.EnumerateObject()`. Windows needs a new
- * `ReadJsonBodyWithKeysAsync<T>` because it cannot infer presence from
- * `ModeDto` — `Punctuation`/`Capitalization`/`ProfanityFilter` are non-nullable
- * `bool`, so an absent key and `false` are the same value. macOS needs neither:
- * its decoder *is* this check.
- */
-public func localApiMissingRequiredModeKeys(present: [String]) -> [String] {
-    return try!  FfiConverterSequenceString.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_local_api_missing_required_mode_keys(
-        FfiConverterSequenceString.lower(present),$0
-    )
-})
-}
-/**
  * Classify one top-level key of a mode body. Exact, case-sensitive.
  *
  * **Call sites: the portable head and Windows. Not macOS** — see the module
@@ -17982,27 +17928,6 @@ public func localApiModeKeyClassification(key: String) -> HwLocalApiModeKeyClass
     return try!  FfiConverterTypeHwLocalApiModeKeyClass.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_local_api_mode_key_classification(
         FfiConverterString.lower(key),$0
-    )
-})
-}
-/**
- * The key a mode name is compared *by*: trim Unicode whitespace, then
- * lowercase. `None` when nothing is left.
- *
- * **This is the definition of "the same name"**, replacing .NET's
- * `OrdinalIgnoreCase` and Core Data's `==[c]`. It is not a storage name — each
- * head still writes whatever its own pre-normalisation produced.
- *
- * **Call sites: all three heads.** On macOS it sits *behind*
- * `ModeNamePolicy.normalized`, which keeps NFC and the Unicode general-category
- * boundary trim. That half stays native because it needs
- * `unicode-normalization` and a category table, and `hw-localapi` takes no
- * dependency — it runs under `panic = "abort"` in front of a loopback socket.
- */
-public func localApiModeNameComparisonKey(name: String) -> String? {
-    return try!  FfiConverterOptionString.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_local_api_mode_name_comparison_key(
-        FfiConverterString.lower(name),$0
     )
 })
 }
@@ -18124,17 +18049,6 @@ public func localApiResolveEngineAlias(alias: String) -> HwLocalApiEngineId? {
 public func localApiTokenEntropyBytes() -> UInt32 {
     return try!  FfiConverterUInt32.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_local_api_token_entropy_bytes($0
-    )
-})
-}
-/**
- * The SHA-256 fingerprint of a token, hex-encoded — for a log line that has to
- * identify a credential without carrying it.
- */
-public func localApiTokenFingerprint(token: String) -> String {
-    return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_local_api_token_fingerprint(
-        FfiConverterString.lower(token),$0
     )
 })
 }
@@ -19425,13 +19339,10 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_license_offline_fallback_outcome() != 40676) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_license_offline_grace_secs() != 31552) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_license_parse_validate_response() != 51801) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict() != 58908) {
+    if (uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict() != 1585) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_license_record_model_download() != 39727) {
@@ -19449,22 +19360,10 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_license_should_revalidate() != 37174) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_license_store_license_key() != 61053) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_license_store_remote_override() != 47949) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_license_stored_license_key() != 31347) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_license_update_validation_cache() != 39510) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_license_validate_url() != 54229) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_license_validation_cache_secs() != 34885) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_linux_settings_to_universal_settings_json() != 10501) {
@@ -19554,7 +19453,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_llm_wrap_transcript() != 44003) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_local_api_all_engine_ids() != 63651) {
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_all_engine_ids() != 39863) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_all_error_codes() != 35889) {
@@ -19602,13 +19501,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_local_api_max_upload_bytes() != 24328) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_local_api_missing_required_mode_keys() != 39725) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_mode_key_classification() != 12705) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_comparison_key() != 44521) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_conflict() != 32568) {
@@ -19630,9 +19523,6 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_token_entropy_bytes() != 13421) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_local_api_token_fingerprint() != 55514) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_unauthorized_failure() != 22025) {

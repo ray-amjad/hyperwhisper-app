@@ -799,6 +799,12 @@
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (готова)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (не активирован)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (нет API-ключа)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Не удалось загрузить</value>
   </data>
@@ -2031,6 +2037,27 @@
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Держать тихий фоновый входной поток открытым между записями, чтобы уменьшить задержку старта — особенно с Bluetooth-микрофонами.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Используется только HyperWhisper. Сохраняется после перезапуска.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>По умолчанию · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (не подключено)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Используется {0}, пока {1} не будет снова подключено.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Микрофон не подключён. HyperWhisper будет использовать {0}, когда оно снова будет подключено.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Проверить</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Остановить</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Средняя скорость</value>
