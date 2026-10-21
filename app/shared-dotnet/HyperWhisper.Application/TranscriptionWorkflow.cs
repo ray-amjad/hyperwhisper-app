@@ -284,9 +284,7 @@ public sealed class TranscriptionWorkflow : IDisposable
         {
             var metadata = await new StreamingFileAudioMetadataSource()
                 .ReadAsync(audioPath, cancellationToken).ConfigureAwait(false);
-            return metadata?.Duration is { } duration
-                   && duration > TimeSpan.Zero
-                   && !double.IsInfinity(duration.TotalSeconds)
+            return metadata?.Duration is { } duration && duration > TimeSpan.Zero
                 ? duration
                 : TimeSpan.Zero;
         }

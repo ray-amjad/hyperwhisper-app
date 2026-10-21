@@ -1650,9 +1650,6 @@ static async Task RunLocalEngineVocabularyOnceTestsAsync(string root)
     }
 }
 
-// #633: adding a word another row already holds (any case) was merged into that row by the
-// store: the row moved to the bottom, lost its replacement or took the new spelling. It is now
-// refused with an error, the list unchanged and the input kept.
 // #1573: a Transcribe File History row recorded a duration of 0 s whatever the
 // file's length. It must record the WAV's real length, as a recording does.
 static async Task RunFileTranscriptionDurationTestsAsync(string root)
@@ -1729,6 +1726,9 @@ static async Task RunFileTranscriptionDurationTestsAsync(string root)
     Assert(broken.Duration == 0, $"a truncated WAV wrote a History duration of {broken.Duration} s");
 }
 
+// #633: adding a word another row already holds (any case) was merged into that row by the
+// store: the row moved to the bottom, lost its replacement or took the new spelling. It is now
+// refused with an error, the list unchanged and the input kept.
 static async Task RunVocabularyDuplicateTestsAsync(string root)
 {
     Directory.CreateDirectory(root);
