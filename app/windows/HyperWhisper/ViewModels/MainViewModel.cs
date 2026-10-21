@@ -336,6 +336,8 @@ public partial class MainViewModel : ViewModelBase
         // After, not before: RegisterShortcutsFromSettings is what refreshes HotkeyText,
         // and the Start Recording badge shows the same chord the status bar does.
         RefreshGettingStartedShortcuts();
+        // A shortcut or Push to Talk change can tick the Customize Shortcuts row (#638).
+        RefreshGettingStartedProgress();
         UpdateMicrophoneKeepWarm();
     }
 
@@ -403,7 +405,7 @@ public partial class MainViewModel : ViewModelBase
             InitializeLocalModelHealthMonitoring();
             _pasteService = new SmartPasteService();
             await AutoLoadModelAsync();
-            InitializeGettingStarted();
+            await InitializeGettingStartedAsync();
             _ = LoadRecentReleasesAsync();
             IsInitialized = true;
         }
@@ -813,6 +815,9 @@ public partial class MainViewModel : ViewModelBase
             "MainViewModel: Selected mode " +
             $"(present={SelectedMode != null}, preset={SelectedMode?.Preset ?? "unknown"}, " +
             $"provider_type={SelectedMode?.ProviderType ?? "unknown"})");
+
+        // A Mode the user made ticks the Create a Mode row (#638).
+        RefreshGettingStartedProgress();
     }
 
     private void InitializeShortcuts()
@@ -3185,6 +3190,7 @@ public partial class MainViewModel : ViewModelBase
         LocalModelHealth.Changed -= OnLocalModelHealthChanged;
         ModelDownloadService.Instance.DownloadChanged -= OnModelDownloadChanged;
         _transcriptionOrchestrator.PostProcessingWarning -= _orchestratorWarningHandler;
+        DetachGettingStartedEvents();
 
         // Use try-finally to ensure device service cleanup happens
         // even if other Dispose calls throw exceptions
