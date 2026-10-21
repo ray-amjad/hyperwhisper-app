@@ -277,14 +277,16 @@ public partial class BackupExportSettingsPage : Page
     /// counts appear only when the user picked one of those sections, so a
     /// settings-only import says the settings were restored instead of reading
     /// "Modes: 0, vocabulary added: 0" as if nothing happened (#1415, the Windows
-    /// twin of macOS #1406). With no selection, the counts are always shown.
+    /// twin of macOS #1406). With no selection, or when nothing else would be said
+    /// (the settings step failed, or only API keys were picked), the counts are
+    /// shown as before, so the line never reads as a bare success.
     /// </summary>
     internal static string BuildImportSummary(ImportSummary result, ImportSelection? selection)
     {
         var parts = new List<string>();
         if (result.SettingsImported)
             parts.Add(Loc.S("settings.backup.import.summary.settings"));
-        if (selection is null || selection.IncludeModes || selection.IncludeVocabulary)
+        if (selection is null || selection.IncludeModes || selection.IncludeVocabulary || parts.Count == 0)
             parts.Add(Loc.S("settings.backup.import.summary",
                 result.ModesImported, result.VocabularyAdded, result.VocabularyConflicts));
         return string.Join(" ", parts);

@@ -20696,6 +20696,14 @@ internal static class Program
                 Assert(both == settingsRestored + " " + counts,
                     $"a settings + modes import reads '{both}', expected '{settingsRestored} {counts}'");
 
+                // Settings picked but the settings step failed (SettingsImported false):
+                // never a bare "imported successfully" — the counts stay, as on main.
+                var failed = BackupExportSettingsPage.BuildImportSummary(
+                    new ImportSummary { SettingsImported = false },
+                    new ImportSelection { IncludeSettings = true });
+                Assert(failed == zeroCounts,
+                    $"a settings-only import whose settings step failed reads '{failed}', expected '{zeroCounts}'");
+
                 // No selection (an older caller) keeps the counts.
                 var legacy = BackupExportSettingsPage.BuildImportSummary(
                     new ImportSummary { ModesImported = 2, VocabularyAdded = 1 }, null);
