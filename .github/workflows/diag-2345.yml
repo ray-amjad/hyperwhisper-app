@@ -31,30 +31,28 @@ jobs:
             -project app/macos/hyperwhisper.xcodeproj -scheme hyperwhisper \
             -configuration Debug -destination "platform=macOS" \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS=""
-      - name: Full unit suite, with a result bundle
+      - name: Full unit suite x8, with a result bundle
         continue-on-error: true
         run: |
-          xcodebuild test-without-building \
+          xcodebuild test-without-building -test-iterations 8 \
             -project app/macos/hyperwhisper.xcodeproj -scheme hyperwhisper \
             -configuration Debug -destination "platform=macOS" \
             -only-testing:hyperwhisperTests \
             -resultBundlePath "$RUNNER_TEMP/full.xcresult" \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS="" \
-            | grep -E "' (failed|passed) on|Executed|TEST (SUCCEEDED|FAILED)" | grep -E "failed|Executed|TEST" || true
-      - name: The two suites x20 under CPU load
+            | grep -E "' failed on|TEST (SUCCEEDED|FAILED)" || true
+      - name: Full unit suite x4 under CPU load
         continue-on-error: true
         run: |
           n=$(sysctl -n hw.ncpu)
           for i in $(seq "$n"); do (yes > /dev/null &) ; done
-          xcodebuild test-without-building \
+          xcodebuild test-without-building -test-iterations 4 \
             -project app/macos/hyperwhisper.xcodeproj -scheme hyperwhisper \
             -configuration Debug -destination "platform=macOS" \
-            -only-testing:hyperwhisperTests/BackupImportSQLiteRefusalTests \
-            -only-testing:hyperwhisperTests/LocalAPIServerPortPreferenceTests \
-            -test-iterations 20 \
+            -only-testing:hyperwhisperTests \
             -resultBundlePath "$RUNNER_TEMP/load.xcresult" \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS="" \
-            | grep -E "' (failed|passed) on|Executed|TEST (SUCCEEDED|FAILED)" | grep -cE "passed on" || true
+            | grep -E "' failed on|TEST (SUCCEEDED|FAILED)" || true
           killall yes || true
       - name: Failure text
         if: always()
