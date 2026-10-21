@@ -79,6 +79,16 @@ struct ModeCardModelMissingChipTests {
         #expect(source.contains("modeData.cardStatusChip(isLocalModelDownloaded: isModelDownloaded(modeData.model))"))
         #expect(source.contains("key: \"modes.badge.modelMissing\", color: .orange"))
         #expect(source.contains("key: \"modes.badge.offline\", color: .green"))
+        // The lookup reads the id like the router: trimmed, lowercased, and
+        // through the legacy Parakeet / Nemotron aliases.
+        let lookup = try ProductionSource.slice(
+            of: Self.cardPath,
+            from: "private func isModelDownloaded(_ rawId: String) -> Bool {",
+            to: "@State private var isHovered"
+        )
+        #expect(lookup.contains("rawId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()"))
+        #expect(lookup.contains("ParakeetModelManager.Constants.canonicalModelId(for: id)"))
+        #expect(lookup.contains("NemotronModelManager.Constants.canonicalModelId(for: id)"))
         // The old unconditional gate is gone.
         #expect(!source.contains("if modeData.isOfflineCapable {"))
     }

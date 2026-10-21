@@ -36,7 +36,11 @@ struct ModeCard: View {
             .displayName(for: id)
     }
 
-    private func isModelDownloaded(_ id: String) -> Bool {
+    private func isModelDownloaded(_ rawId: String) -> Bool {
+        // Read the id as the router does (trimmed, lowercased, legacy
+        // Parakeet/Nemotron aliases), so a mode that transcribes is never
+        // flagged "Model missing" (#2036).
+        let id = rawId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if id == "apple-speech-analyzer" { return true }
         if id == Qwen3AsrModelManager.Constants.modelId {
             return qwen3AsrModelManager.isDownloaded
@@ -44,10 +48,12 @@ struct ModeCard: View {
         if whisperModelManager.downloadedModels.contains(where: { $0.name == id }) {
             return true
         }
-        if let parakeet = parakeetModelManager.availableModels.first(where: { $0.name == id }) {
+        let parakeetId = ParakeetModelManager.Constants.canonicalModelId(for: id) ?? id
+        if let parakeet = parakeetModelManager.availableModels.first(where: { $0.name == parakeetId }) {
             return parakeet.isDownloaded
         }
-        if let nemotron = nemotronModelManager.availableModels.first(where: { $0.name == id }) {
+        let nemotronId = NemotronModelManager.Constants.canonicalModelId(for: id) ?? id
+        if let nemotron = nemotronModelManager.availableModels.first(where: { $0.name == nemotronId }) {
             return nemotron.isDownloaded
         }
         return false
