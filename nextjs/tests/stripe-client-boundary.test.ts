@@ -11,9 +11,10 @@
  *
  * The SDK builds a client without `new` too (it calls itself with `new` when
  * `this` is not an instance), and a default import can take any name. So
- * (#2287) only three files may import the `stripe` package as a value;
- * every other file uses `import type`. In those three, the imported name is
- * never constructed or called, except in the boundary itself.
+ * (#2287) only three files may load the `stripe` package at runtime; every
+ * other file uses `import type`. Two of those three may use what they import
+ * only as a type. Code files are read with the TypeScript parser (already a
+ * dev dependency), so no spelling, comment or alias changes what counts.
  *
  * Skipped: `node_modules` and the generated build and tool output that
  * `.gitignore` already keeps out of the repo, plus one file named below.
@@ -23,6 +24,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, test } from "node:test";
+import ts from "typescript";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const BOUNDARY = "lib/clients/stripe.ts";
@@ -31,9 +33,9 @@ const BOUNDARY = "lib/clients/stripe.ts";
 const CONSTRUCTS = /\bnew\s+Stripe\s*\(/;
 
 /**
- * The files that may import the `stripe` package as a value: the boundary,
- * and the webhook route and service, which held a default import when #2287
- * set this list. Both use it only in type positions today, so either can move
+ * The files that may load the `stripe` package at runtime: the boundary, and
+ * the webhook route and service, which held a default import when #2287 set
+ * this list. Those two use it only in type positions today, so either can move
  * to `import type` and leave this list.
  */
 const VALUE_IMPORTERS: readonly string[] = [
@@ -42,57 +44,110 @@ const VALUE_IMPORTERS: readonly string[] = [
   "app/api/webhooks/stripe/route.ts",
 ];
 
-/** `stripe`, or a path inside the package, in quotes. No capture group, so the patterns below can share it. */
-const PACKAGE = String.raw`['"\`]stripe(?:/[^'"\`]*)?['"\`]`;
+/** Files the TypeScript parser reads: TypeScript and JavaScript of every module flavour. */
+const CODE = /\.[cm]?[jt]sx?$/;
+
+/** `stripe`, or a path inside the package. */
+const isStripe = (specifier: string) => /^stripe(?:\/|$)/.test(specifier);
+
+const isStripeLiteral = (node: ts.Node | undefined) =>
+  node !== undefined && ts.isStringLiteralLike(node) && isStripe(node.text);
+
+function parse(file: string, text: string): ts.SourceFile {
+  return ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
+}
+
+function visit(node: ts.Node, each: (node: ts.Node) => void): void {
+  each(node);
+  ts.forEachChild(node, (child) => visit(child, each));
+}
+
+/** True when an `import { … }` or `export { … }` list names types only. */
+function onlyTypes(elements: ts.NodeArray<ts.ImportSpecifier | ts.ExportSpecifier>): boolean {
+  return elements.length > 0 && elements.every((element) => element.isTypeOnly);
+}
 
 /**
- * Every way a file can load the package at runtime: a static `import` or
- * `export … from` that is not `import type` / `export type`, a bare side-effect
- * import, `require(…)` and a dynamic `import(…)`. Static forms are anchored to
- * the start of a line so a comment that quotes one does not count.
+ * Every node that loads the package at runtime: an `import` or `export … from`
+ * that is not type-only, `import x = require(…)`, and any call that is handed
+ * the package name (`require`, a `createRequire` result, a dynamic `import()`),
+ * except `….resolve(…)`, which returns a path and loads nothing.
  */
-const VALUE_IMPORT = new RegExp(
-  [
-    String.raw`^\s*(?:import|export)(?!\s+type\b)\s+[^;'"\`]*?\bfrom\s*${PACKAGE}`,
-    String.raw`^\s*import\s*${PACKAGE}`,
-    String.raw`\brequire\s*\(\s*${PACKAGE}\s*\)`,
-    String.raw`\bimport\s*\(\s*${PACKAGE}`,
-  ].join("|"),
-  "m",
-);
+function stripeLoads(source: ts.SourceFile): ts.Node[] {
+  const loads: ts.Node[] = [];
+  visit(source, (node) => {
+    if (ts.isImportDeclaration(node) && isStripeLiteral(node.moduleSpecifier)) {
+      const clause = node.importClause;
+      const typeOnly =
+        clause !== undefined &&
+        (clause.isTypeOnly ||
+          (clause.name === undefined &&
+            clause.namedBindings !== undefined &&
+            ts.isNamedImports(clause.namedBindings) &&
+            onlyTypes(clause.namedBindings.elements)));
+      if (!typeOnly) loads.push(node);
+    } else if (ts.isExportDeclaration(node) && isStripeLiteral(node.moduleSpecifier)) {
+      const clause = node.exportClause;
+      const typeOnly =
+        node.isTypeOnly || (clause !== undefined && ts.isNamedExports(clause) && onlyTypes(clause.elements));
+      if (!typeOnly) loads.push(node);
+    } else if (
+      ts.isImportEqualsDeclaration(node) &&
+      !node.isTypeOnly &&
+      ts.isExternalModuleReference(node.moduleReference) &&
+      isStripeLiteral(node.moduleReference.expression)
+    ) {
+      loads.push(node);
+    } else if (ts.isCallExpression(node) && node.arguments.some(isStripeLiteral)) {
+      const resolves =
+        ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === "resolve";
+      if (!resolves) loads.push(node);
+    }
+  });
+  return loads;
+}
 
-/** The binding list of a static value import of the package: `X`, `* as X`, `{ a as X }`, or a mix. */
-const IMPORT_CLAUSE = new RegExp(
-  String.raw`^\s*import(?!\s+type\b)\s+([^;'"\`]*?)\s*\bfrom\s*${PACKAGE}`,
-  "gm",
-);
-
-/** Every local name a file binds to the package's runtime value (`import type` binds none). */
-function boundNames(text: string): string[] {
-  return Array.from(text.matchAll(IMPORT_CLAUSE)).flatMap(([, clause]) => {
-    const braces = /\{([^}]*)\}/.exec(clause);
-    const named = (braces?.[1] ?? "")
-      .split(",")
-      .map((spec) => spec.trim())
-      .filter((spec) => spec && !/^type\s/.test(spec))
-      .map((spec) =>
-        spec
-          .split(/\s+as\s+/)
-          .pop()!
-          .trim(),
-      );
-    const outside = clause.replace(/\{[^}]*\}/, "").replace(/\*\s*as\s+/, "");
-    const plain = outside
-      .split(",")
-      .map((part: string) => part.trim())
-      .filter(Boolean);
-    return [...plain, ...named];
+/** The local names a static import of the package binds to its runtime value. */
+function boundNames(source: ts.SourceFile): string[] {
+  return stripeLoads(source).flatMap((load) => {
+    if (!ts.isImportDeclaration(load) || load.importClause === undefined) return [];
+    const { name, namedBindings } = load.importClause;
+    const names = name ? [name.text] : [];
+    if (namedBindings && ts.isNamespaceImport(namedBindings)) names.push(namedBindings.name.text);
+    if (namedBindings && ts.isNamedImports(namedBindings)) {
+      names.push(...namedBindings.elements.filter((e) => !e.isTypeOnly).map((e) => e.name.text));
+    }
+    return names;
   });
 }
 
-/** `name(` or `new name(`, where `name` is not a property (`x.name(`) or part of a longer word. */
-function callsOrConstructs(name: string): RegExp {
-  return new RegExp(String.raw`(?<![\w$.])${name.replace(/\$/g, "\\$")}\s*\(`);
+/** Is this node inside a type: an annotation, `Stripe.Event`, `typeof Stripe` in a type, … */
+function inType(node: ts.Node): boolean {
+  for (let at: ts.Node | undefined = node.parent; at; at = at.parent) {
+    if (ts.isTypeNode(at)) return true;
+  }
+  return false;
+}
+
+/**
+ * Every use of a runtime name the file's `stripe` imports bind, outside a type
+ * and outside the import itself: a call, `new`, `X.Stripe`, `X.call`, an alias.
+ * A property named the same (`a.Stripe`, `{ Stripe: … }`) is not a use.
+ */
+function valueUses(source: ts.SourceFile): string[] {
+  const names = new Set(boundNames(source));
+  const uses: string[] = [];
+  visit(source, (node) => {
+    if (!ts.isIdentifier(node) || !names.has(node.text)) return;
+    const parent = node.parent;
+    if (ts.isImportClause(parent) || ts.isNamespaceImport(parent) || ts.isImportSpecifier(parent)) return;
+    if (ts.isPropertyAccessExpression(parent) && parent.name === node) return;
+    if (ts.isPropertyAssignment(parent) && parent.name === node) return;
+    if (inType(node)) return;
+    const { line } = source.getLineAndCharacterOfPosition(node.getStart());
+    uses.push(`${source.fileName}:${line + 1} ${node.parent.getText()}`);
+  });
+  return uses;
 }
 
 /** Generated or installed, never authored: the walk does not enter them. */
@@ -105,9 +160,6 @@ const SKIP_DIRS = new Set(["node_modules", ".next", ".vercel", "out", "build", "
  * literals. It builds no client.
  */
 const SKIP_FILES = new Set(["tests/mutate-stripe-client.mjs"]);
-
-/** The test's own samples name the package as `PKG`, so this file does not match them. */
-const sample = (code: string) => code.split("PKG").join("stripe");
 
 function walk(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -146,77 +198,95 @@ describe("the Stripe client boundary", () => {
     );
   });
 
-  test("the import patterns catch every runtime load of the package and no type import", () => {
+  test("the parser finds every runtime load of the package and no type import", () => {
+    const loads = (code: string) => stripeLoads(parse("sample.ts", code)).length;
     for (const code of [
-      "import S from 'PKG';\nS('x');",
-      'import StripeSDK from "PKG";',
-      "import { Stripe as S } from 'PKG';",
-      "import {\n  Stripe,\n} from 'PKG';",
-      "import * as S from 'PKG';",
-      "import S, { type Stripe as T } from 'PKG';",
-      "import 'PKG';",
-      "import S from 'PKG/cjs/stripe.cjs.node.js';",
-      "export { default } from 'PKG';",
-      "export * from 'PKG';",
-      "const S = require('PKG');",
-      "require('PKG')('x');",
-      "import S = require('PKG');",
-      "const { default: S } = await import('PKG');",
-    ].map(sample)) {
-      assert.match(code, VALUE_IMPORT, code);
+      "import S from 'stripe';\nS('x');",
+      'import StripeSDK from "stripe";',
+      "import{default as S}from'stripe'",
+      "import { Stripe as S } from 'stripe';",
+      "import * as S from 'stripe';",
+      "import S, { type Charge } from 'stripe';",
+      "import { type Charge, Stripe } from 'stripe';",
+      "import 'stripe';",
+      "x(); import S from 'stripe';",
+      "import S from 'stripe/cjs/stripe.cjs.node.js';",
+      "export { default } from 'stripe';",
+      "export * from 'stripe';",
+      "const S = require('stripe');",
+      "require('stripe')('x');",
+      "createRequire(import.meta.url)('stripe');",
+      "import S = require('stripe');",
+      "const { default: S } = await import(/* webpackChunkName: 'x' */ 'stripe');",
+      "await import(`stripe`);",
+    ]) {
+      assert.equal(loads(code), 1, code);
     }
     for (const code of [
-      "import type Stripe from 'PKG';",
-      "import  type Stripe from 'PKG';",
-      "import\n  type Stripe from 'PKG';",
-      "export  type { Charge } from 'PKG';",
-      "import type { Checkout } from 'PKG';",
-      "export type { Charge } from 'PKG';",
-      "// its `import Stripe from 'PKG'` requires the package's CJS entry.",
-      "createRequire(import.meta.url).resolve('PKG');",
-      "import S from 'PKG-js';",
-    ].map(sample)) {
-      assert.doesNotMatch(code, VALUE_IMPORT, code);
+      "import type Stripe from 'stripe';",
+      "import  type Stripe from 'stripe';",
+      "import\n  type Stripe from 'stripe';",
+      "import type { Checkout } from 'stripe';",
+      "import { type Checkout, type Charge } from 'stripe';",
+      "export type { Charge } from 'stripe';",
+      "export { type Charge } from 'stripe';",
+      "type T = import('stripe').Stripe;",
+      "// its `import Stripe from 'stripe'` requires the package's CJS entry.",
+      "/* require('stripe') */",
+      "createRequire(import.meta.url).resolve('stripe');",
+      "import S from 'stripe-js';",
+      "const name = 'stripe';",
+    ]) {
+      assert.equal(loads(code), 0, code);
     }
-
-    assert.deepEqual(boundNames(sample("import S, * as NS from 'PKG';")), [
-      "S",
-      "NS",
-    ]);
-    assert.deepEqual(
-      boundNames(sample("import { Stripe as S, type Charge, X } from 'PKG';")),
-      ["S", "X"],
-    );
-    assert.deepEqual(boundNames(sample("import type Stripe from 'PKG';")), []);
-    assert.deepEqual(boundNames(sample("import\n  type Stripe from 'PKG';")), []);
-    assert.match("S('x')", callsOrConstructs("S"));
-    assert.match("new S('x')", callsOrConstructs("S"));
-    assert.doesNotMatch("S.Checkout.Session", callsOrConstructs("S"));
-    assert.doesNotMatch(
-      "stripe.webhooks.constructEvent(",
-      callsOrConstructs("constructEvent"),
-    );
   });
 
-  test(`only ${VALUE_IMPORTERS.join(", ")} import the stripe package as a value`, () => {
-    const files = walk(ROOT).map((path) => relative(ROOT, path).split("\\").join("/"));
+  test("the parser finds every runtime use of the imported name and no type use", () => {
+    const uses = (code: string) => valueUses(parse("sample.ts", code)).length;
+    for (const code of [
+      "import S from 'stripe';\nS('x');",
+      "import S from 'stripe';\nnew S('x');",
+      "import S from 'stripe';\nnew S.Stripe('x');",
+      "import S from 'stripe';\nS.default('x');",
+      "import S from 'stripe';\nS.call(null, 'x');",
+      "import S from 'stripe';\nReflect.construct(S, ['x']);",
+      "import S from 'stripe';\nconst T = S;",
+      "import S from 'stripe';\nnew (S as any)('x');",
+      "import * as NS from 'stripe';\nNS.default('x');",
+      "import { Stripe as S } from 'stripe';\nS('x');",
+    ]) {
+      assert.equal(uses(code), 1, code);
+    }
+    for (const code of [
+      "import S from 'stripe';\nlet e: S.Event;",
+      "import S from 'stripe';\nfunction f(s: S.Checkout.Session): S.Charge['id'] { return ''; }",
+      "import S from 'stripe';\ntype C = typeof S;",
+      "import S from 'stripe';\n// S('x') in a comment, S (the SDK) in prose",
+      "import S from 'stripe';\nconst o = { S: 1 }; o.S;",
+      "import type S from 'stripe';\nS;",
+    ]) {
+      assert.equal(uses(code), 0, code);
+    }
+  });
 
-    // Not vacuous: each allowed file holds a value import the pattern sees,
-    // and a type-only import elsewhere is left alone.
+  test(`only ${VALUE_IMPORTERS.join(", ")} load the stripe package at runtime`, () => {
+    const files = walk(ROOT).map((path) => relative(ROOT, path).split("\\").join("/"));
+    const code = files.filter((file) => CODE.test(file));
+
+    // Not vacuous: each allowed file loads the package, and a type-only
+    // import elsewhere is left alone.
     for (const file of VALUE_IMPORTERS) {
-      assert.match(readFileSync(join(ROOT, file), "utf8"), VALUE_IMPORT, file);
+      const source = parse(file, readFileSync(join(ROOT, file), "utf8"));
+      assert.equal(stripeLoads(source).length, 1, `${file} must load stripe once, through its import`);
     }
     const typeOnly = "server/api/routers/admin/customer-spend.ts";
-    assert.ok(files.includes(typeOnly), `the scan must cover ${typeOnly}`);
-    assert.doesNotMatch(
-      readFileSync(join(ROOT, typeOnly), "utf8"),
-      VALUE_IMPORT,
-    );
+    assert.ok(code.includes(typeOnly), `the scan must cover ${typeOnly}`);
+    assert.deepEqual(stripeLoads(parse(typeOnly, readFileSync(join(ROOT, typeOnly), "utf8"))), []);
 
-    const offenders = files.filter(
+    const offenders = code.filter(
       (file) =>
         !VALUE_IMPORTERS.includes(file) &&
-        VALUE_IMPORT.test(readFileSync(join(ROOT, file), "utf8")),
+        stripeLoads(parse(file, readFileSync(join(ROOT, file), "utf8"))).length > 0,
     );
     assert.deepEqual(
       offenders,
@@ -225,29 +295,20 @@ describe("the Stripe client boundary", () => {
     );
   });
 
-  test(`the webhook files never call or construct the stripe import; ${BOUNDARY} does`, () => {
-    const builds = (file: string) => {
-      const text = readFileSync(join(ROOT, file), "utf8");
-      const names = boundNames(text);
-      assert.ok(
-        names.length > 0,
-        `${file} must bind the stripe import to a name`,
-      );
-      return names.filter((name) => callsOrConstructs(name).test(text));
-    };
+  test(`the webhook files use their stripe import only as a type; ${BOUNDARY} constructs with it`, () => {
+    const read = (file: string) => parse(file, readFileSync(join(ROOT, file), "utf8"));
 
     // Not vacuous: the check sees the boundary's own constructors.
-    assert.ok(
-      builds(BOUNDARY).length > 0,
-      `${BOUNDARY} constructs its clients`,
-    );
+    assert.ok(valueUses(read(BOUNDARY)).length > 0, `${BOUNDARY} constructs its clients`);
 
     for (const file of VALUE_IMPORTERS) {
       if (file === BOUNDARY) continue;
+      const source = read(file);
+      assert.ok(boundNames(source).length > 0, `${file} must bind the stripe import to a name`);
       assert.deepEqual(
-        builds(file),
+        valueUses(source),
         [],
-        `${file} builds a Stripe client; import it from "@/lib/clients/stripe"`,
+        `${file} uses the Stripe SDK as a value; import the client from "@/lib/clients/stripe"`,
       );
     }
   });
