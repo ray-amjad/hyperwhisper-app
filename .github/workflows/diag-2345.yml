@@ -1,0 +1,61 @@
+# THROWAWAY probe for issue #2345 (never merged): reads the Swift Testing
+# failure text that macos-ci does not print, and runs the two flaky suites
+# 20 times under CPU load.
+name: diag-2345
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/diag-2345.yml"
+
+jobs:
+  probe:
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Select Xcode 26.3
+        run: |
+          XCODE_PATH=$(ls -d /Applications/Xcode_26.3*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$XCODE_PATH" ] || XCODE_PATH=$(ls -d /Applications/Xcode_26*.app | grep -v -i beta | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE_PATH"
+          xcodebuild -version
+          sysctl -n hw.ncpu
+      - name: Rebuild shared Rust core
+        working-directory: shared-core-rs
+        run: ./build-apple.sh
+      - name: Build for testing
+        run: |
+          xcodebuild build-for-testing -quiet \
+            -project app/macos/hyperwhisper.xcodeproj -scheme hyperwhisper \
+            -configuration Debug -destination "platform=macOS" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS=""
+      - name: Full unit suite x6, with a result bundle
+        continue-on-error: true
+        run: |
+          xcodebuild test-without-building -test-iterations 6 \
+            -project app/macos/hyperwhisper.xcodeproj -scheme hyperwhisper \
+            -configuration Debug -destination "platform=macOS" \
+            -only-testing:hyperwhisperTests \
+            -resultBundlePath "$RUNNER_TEMP/full.xcresult" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS="" \
+            | grep -E "' failed on|TEST (SUCCEEDED|FAILED)" || true
+      - name: Failure text
+        if: always()
+        run: |
+          for b in full load; do
+            p="$RUNNER_TEMP/$b.xcresult"
+            [ -d "$p" ] || { echo "no $b bundle"; continue; }
+            echo "===== $b summary"
+            xcrun xcresulttool get test-results summary --path "$p" | jq '{result, totalTestCount, passedTests, failedTests, skippedTests}'
+            echo "===== $b failures"
+            xcrun xcresulttool get test-results tests --path "$p" \
+              | jq -r '.. | objects | select(.nodeType? == "Test Case" and .result? == "Failed") | "\(.nodeIdentifier // .name)\n" + ([.. | objects | select(.nodeType? == "Failure Message") | "    " + .name] | unique | join("\n"))'
+          done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: xcresults
+          path: ${{ runner.temp }}/*.xcresult
+          retention-days: 3
