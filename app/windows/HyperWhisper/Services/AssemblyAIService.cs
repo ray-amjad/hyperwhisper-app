@@ -300,7 +300,7 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
                 LoggingService.Info("========== ASSEMBLYAI TRANSCRIPTION COMPLETE (sync) ==========");
                 LoggingService.Info($"  Characters: {syncText.Length}");
                 LoggingService.Info($"  Total time: {totalSw.ElapsedMilliseconds}ms");
-                return syncText;
+                return null; // MUTANT #886: drop the sync transcript
             }
             LoggingService.Info("  Sync fast path unavailable — falling back to async upload/create/poll");
             return null;
