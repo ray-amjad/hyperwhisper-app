@@ -276,7 +276,7 @@ public sealed class TranscriptionWorkflow : IDisposable
     /// <summary>
     /// The length a file's History row records. A WAV's length comes from its RIFF
     /// header; any other container, or a file that cannot be read, records zero, as
-    /// every file did before.
+    /// every file did before. It never throws.
     /// </summary>
     private static async Task<TimeSpan> ReadFileDurationAsync(string audioPath, CancellationToken cancellationToken)
     {
@@ -288,9 +288,10 @@ public sealed class TranscriptionWorkflow : IDisposable
                 ? duration
                 : TimeSpan.Zero;
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
-                                              or OperationCanceledException)
+        catch (Exception)
         {
+            // Anything the probe throws (a FIFO's NotSupportedException included) must not
+            // escape here: the state is already Transcribing, and nothing would reset it.
             return TimeSpan.Zero;
         }
     }
