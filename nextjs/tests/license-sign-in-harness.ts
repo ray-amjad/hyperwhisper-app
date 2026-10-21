@@ -21,7 +21,7 @@
  */
 import type { AccountKeyRow } from "@/src/lib/db-layer";
 
-import { moduleMock, moduleUrl } from "./module-mock";
+import { consoleSilencer, moduleMock, moduleUrl } from "./module-mock";
 
 export interface SessionRow {
   token: string;
@@ -133,17 +133,10 @@ export function resetHarness(): void {
  */
 export const logLines: string[] = [];
 
-const realConsole = { log: console.log };
+const endpointLogging = consoleSilencer(["log"], logLines);
 
-export function silenceEndpointLogging(): void {
-  console.log = (...args: unknown[]): void => {
-    logLines.push(args.map((a) => String(a)).join(" "));
-  };
-}
-
-export function restoreEndpointLogging(): void {
-  console.log = realConsole.log;
-}
+export const silenceEndpointLogging = endpointLogging.silence;
+export const restoreEndpointLogging = endpointLogging.restore;
 
 moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
   namedExports: {

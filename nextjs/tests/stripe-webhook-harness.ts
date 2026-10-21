@@ -13,8 +13,7 @@
  * is the only way the tests reach the source. A test file that imports the
  * webhook path itself would bind to the real collaborators, so do not.
  */
-import { formatLogArgs } from "./db-error-fixture";
-import { moduleMock, moduleUrl } from "./module-mock";
+import { consoleSilencer, moduleMock, moduleUrl } from "./module-mock";
 
 import type { AccountKeyInsert, AccountKeyRow } from "@/src/lib/db-layer";
 
@@ -131,28 +130,10 @@ export function resetHarness(): void {
  */
 export const logLines: string[] = [];
 
-const realConsole = {
-  log: console.log,
-  warn: console.warn,
-  error: console.error,
-};
+const webhookLogging = consoleSilencer(["log", "warn", "error"], logLines);
 
-export function silenceWebhookLogging(): void {
-  const capture =
-    (level: string) =>
-    (...args: unknown[]): void => {
-      logLines.push(`${level} ${formatLogArgs(args)}`);
-    };
-  console.log = capture("log");
-  console.warn = capture("warn");
-  console.error = capture("error");
-}
-
-export function restoreWebhookLogging(): void {
-  console.log = realConsole.log;
-  console.warn = realConsole.warn;
-  console.error = realConsole.error;
-}
+export const silenceWebhookLogging = webhookLogging.silence;
+export const restoreWebhookLogging = webhookLogging.restore;
 
 const emailOutcome = () =>
   behaviour.emailSuccess

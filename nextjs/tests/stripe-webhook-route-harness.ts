@@ -28,8 +28,7 @@
  */
 import { NextRequest } from "next/server";
 
-import { formatLogArgs } from "./db-error-fixture";
-import { moduleMock, moduleUrl } from "./module-mock";
+import { consoleSilencer, moduleMock, moduleUrl } from "./module-mock";
 
 export interface ConstructEventCall {
   body: string;
@@ -137,22 +136,10 @@ export function refundEvent(
  */
 export const logLines: string[] = [];
 
-const realConsole = { error: console.error, log: console.log };
+const routeLogging = consoleSilencer(["error", "log"], logLines);
 
-export function silenceRouteLogging(): void {
-  const capture =
-    (level: string) =>
-    (...args: unknown[]): void => {
-      logLines.push(`${level} ${formatLogArgs(args)}`);
-    };
-  console.error = capture("error");
-  console.log = capture("log");
-}
-
-export function restoreRouteLogging(): void {
-  console.error = realConsole.error;
-  console.log = realConsole.log;
-}
+export const silenceRouteLogging = routeLogging.silence;
+export const restoreRouteLogging = routeLogging.restore;
 
 moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
   namedExports: {

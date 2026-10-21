@@ -22,8 +22,7 @@
  */
 import { NextRequest } from "next/server";
 
-import { formatLogArgs } from "./db-error-fixture";
-import { moduleMock, moduleUrl } from "./module-mock";
+import { consoleSilencer, moduleMock, moduleUrl } from "./module-mock";
 
 import type { AccountKeyRow } from "@/src/lib/db-layer";
 
@@ -104,20 +103,17 @@ export const logLines: string[] = [];
 /** `console.warn` lines, kept apart: the fail-open limiter warns, it does not error. */
 export const warnLines: string[] = [];
 
-const realConsole = { error: console.error, warn: console.warn };
+const errorLogging = consoleSilencer(["error"], logLines);
+const warnLogging = consoleSilencer(["warn"], warnLines);
 
 export function silenceRouteLogging(): void {
-  console.error = (...args: unknown[]): void => {
-    logLines.push(formatLogArgs(args));
-  };
-  console.warn = (...args: unknown[]): void => {
-    warnLines.push(formatLogArgs(args));
-  };
+  errorLogging.silence();
+  warnLogging.silence();
 }
 
 export function restoreRouteLogging(): void {
-  console.error = realConsole.error;
-  console.warn = realConsole.warn;
+  errorLogging.restore();
+  warnLogging.restore();
 }
 
 moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {

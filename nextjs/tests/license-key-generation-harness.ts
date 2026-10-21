@@ -15,7 +15,7 @@
  */
 import realCrypto from "node:crypto";
 
-import { moduleMock } from "./module-mock";
+import { consoleSilencer, moduleMock } from "./module-mock";
 
 export interface RandomIntCall {
   max: number;
@@ -49,17 +49,10 @@ export function resetHarness(): void {
 /** The generator warns between retries. Capture the lines rather than print them. */
 export const warnLines: string[] = [];
 
-const realConsole = { warn: console.warn };
+const retryWarnings = consoleSilencer(["warn"], warnLines);
 
-export function silenceRetryWarnings(): void {
-  console.warn = (...args: unknown[]): void => {
-    warnLines.push(args.map((a) => String(a)).join(" "));
-  };
-}
-
-export function restoreRetryWarnings(): void {
-  console.warn = realConsole.warn;
-}
+export const silenceRetryWarnings = retryWarnings.silence;
+export const restoreRetryWarnings = retryWarnings.restore;
 
 function scriptedRandomInt(max: number): number {
   calls.randomInt.push({ max });

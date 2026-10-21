@@ -28,8 +28,7 @@
  */
 import { NextRequest } from "next/server";
 
-import { formatLogArgs } from "./db-error-fixture";
-import { moduleMock, moduleUrl } from "./module-mock";
+import { consoleSilencer, moduleMock, moduleUrl } from "./module-mock";
 
 import type { AccountKeyRow } from "@/src/lib/db-layer";
 
@@ -104,17 +103,10 @@ export function resetHarness(): void {
  */
 export const logLines: string[] = [];
 
-const realConsole = { error: console.error };
+const routeLogging = consoleSilencer(["error"], logLines);
 
-export function silenceRouteLogging(): void {
-  console.error = (...args: unknown[]): void => {
-    logLines.push(formatLogArgs(args));
-  };
-}
-
-export function restoreRouteLogging(): void {
-  console.error = realConsole.error;
-}
+export const silenceRouteLogging = routeLogging.silence;
+export const restoreRouteLogging = routeLogging.restore;
 
 moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
   namedExports: {

@@ -24,8 +24,7 @@
  */
 import { NextRequest } from "next/server";
 
-import { formatLogArgs } from "./db-error-fixture";
-import { moduleMock, moduleUrl } from "./module-mock";
+import { consoleSilencer, moduleMock, moduleUrl } from "./module-mock";
 
 import type { AccountKeyRow } from "@/src/lib/db-layer";
 
@@ -159,28 +158,10 @@ export function storeRow(row: AccountKeyRow): AccountKeyRow {
  */
 export const logLines: string[] = [];
 
-const realConsole = {
-  error: console.error,
-  log: console.log,
-  warn: console.warn,
-};
+const routeLogging = consoleSilencer(["error", "log", "warn"], logLines);
 
-export function silenceRouteLogging(): void {
-  const capture =
-    (level: string) =>
-    (...args: unknown[]): void => {
-      logLines.push(`${level} ${formatLogArgs(args)}`);
-    };
-  console.error = capture("error");
-  console.log = capture("log");
-  console.warn = capture("warn");
-}
-
-export function restoreRouteLogging(): void {
-  console.error = realConsole.error;
-  console.log = realConsole.log;
-  console.warn = realConsole.warn;
-}
+export const silenceRouteLogging = routeLogging.silence;
+export const restoreRouteLogging = routeLogging.restore;
 
 moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
   namedExports: {
