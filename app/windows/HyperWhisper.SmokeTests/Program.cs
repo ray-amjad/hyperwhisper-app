@@ -3824,6 +3824,51 @@ internal static class Program
                     $"a local mode with no cloudProvider restored as {restored["Local, no provider"].ProviderType} / '{restored["Local, no provider"].CloudProvider}'");
             });
 
+            // #2041: a windows slice with no providerType key (an older or hand-edited
+            // Windows backup) falls back to the same inference as a sliceless mode, as
+            // Linux ParseMode does. It restored ProviderType = null before.
+            Run("backup import (#2041): a windows slice with no providerType infers Cloud or local", () =>
+            {
+                const string windowsBackupJson = """
+                {
+                  "schemaVersion": 2,
+                  "exportDate": "2026-10-21T00:00:00Z",
+                  "appVersion": "3.0.0",
+                  "platform": "windows",
+                  "modes": [
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e2041", "name": "Slice, cloud model", "preset": "custom",
+                      "language": "en", "model": "cloud", "isDefault": true, "sortOrder": 0,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": { "windows": { "modelType": "cloud" } } },
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e2042", "name": "Slice, openai provider", "preset": "custom",
+                      "language": "en", "model": "base", "cloudProvider": "openai", "isDefault": false, "sortOrder": 1,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": { "windows": { "modelType": "base" } } },
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e2043", "name": "Slice, local", "preset": "custom",
+                      "language": "en", "model": "base", "isDefault": false, "sortOrder": 2,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": { "windows": { "modelType": "base" } } },
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e2044", "name": "Slice says local", "preset": "custom",
+                      "language": "en", "model": "cloud", "isDefault": false, "sortOrder": 3,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": { "windows": { "modelType": "base", "providerType": "local" } } }
+                  ]
+                }
+                """;
+                var backup = JsonSerializer.Deserialize<UniversalBackup>(windowsBackupJson)
+                    ?? throw new InvalidOperationException("the windows no-providerType backup did not deserialize");
+                var restored = backup.Modes!.Select(UniversalBackupMapper.MapToMode).ToDictionary(mode => mode.Name);
+
+                Assert(restored["Slice, cloud model"].ProviderType == "cloud" && restored["Slice, cloud model"].CloudProvider == "hyperwhisper",
+                    $"a windows-slice mode with model cloud and no providerType restored as {restored["Slice, cloud model"].ProviderType ?? "null"} / '{restored["Slice, cloud model"].CloudProvider}', not cloud / hyperwhisper");
+                Assert(restored["Slice, openai provider"].ProviderType == "cloud" && restored["Slice, openai provider"].CloudProvider == "openai",
+                    $"a windows-slice mode with cloudProvider openai and no providerType restored as {restored["Slice, openai provider"].ProviderType ?? "null"} / '{restored["Slice, openai provider"].CloudProvider}'");
+                Assert(restored["Slice, local"].ProviderType == "local",
+                    $"a windows-slice local mode with no providerType restored as {restored["Slice, local"].ProviderType ?? "null"}, not local");
+                Assert(restored["Slice says local"].ProviderType == "local",
+                    $"a windows slice's own providerType local was overridden to {restored["Slice says local"].ProviderType ?? "null"}");
+            });
+
             // #1712: both .NET heads write a mode's vocabulary and local-engine fields
             // in their OWN slice under the same names. A Linux v2 backup restored on
             // Windows must keep them; a present windows slice stays the whole record.
