@@ -581,6 +581,22 @@
       ],
       "licensed": false,
       "note": "unlicensed. Codex 0 defects on all 3; #2226 = Home stays :selected after first sidebar nav every launch (the recurring 'Home and Settings both highlighted' — reproduced by hand, pixel-proved selected brush). #1348 commented (Nova 3 Medical + Spanish saved). Updates: version 1.14.0 = csproj, check shows honest 'not system package', autoUpdate toggle persists."
+    },
+    {
+      "at": "2026-10-21T02:36:51Z",
+      "platform": "win",
+      "commit": "75a754ff",
+      "routes": [
+        "core-settings",
+        "licence",
+        "home-and-tray"
+      ],
+      "status": "nothing-found",
+      "issues": [
+        0
+      ],
+      "licensed": false,
+      "note": "Unlicensed (no HYPERWHISPER_ACCOUNT_KEY). Core DLL from 93e0532d (no shared-core-rs change since). core-settings: sound/auto-paste/theme/hotkey all persist + logged; theme switch gives Restart prompt, No reverts to System (by design). licence: fake keys -> server 400 'License key not found', unicode/emoji -> client 'That doesn't look like an account key', empty -> Activate disabled; mined. home-and-tray: Home hotkey chips follow Settings, mode switch updates status bar, minimize/relaunch keeps mode; tray not covered. Did not enter a real key: scratch profile shares the Windows PasswordVault with Ray's installed app."
     }
   ]
 }
