@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { Fragment, useId, useMemo, useState } from "react";
 import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
@@ -43,6 +43,43 @@ function reportContext(
   }
 
   return context;
+}
+
+/**
+ * #768: a summary value that pops in, one character at a time, when it
+ * changes. The first render is the plain text, so the server markup and the
+ * first paint are as before. Each later change remounts the characters (the
+ * key), which replays their `.t-number-pop-char` animation with no reflow
+ * trick. A screen reader reads the whole value from the `sr-only` copy; the
+ * split characters are hidden from it.
+ */
+function PopValue({ text, delay = 0 }: { text: string; delay?: number }) {
+  const [shown, setShown] = useState(text);
+  const [changes, setChanges] = useState(0);
+
+  // The "adjust state while rendering" pattern from the React docs: no effect,
+  // so the new value never paints once without its animation.
+  if (text !== shown) {
+    setShown(text);
+    setChanges(changes + 1);
+  }
+  if (changes === 0) return text;
+
+  return (
+    <Fragment key={changes}>
+      <span className="sr-only">{text}</span>
+      {Array.from(text).map((char, index) => (
+        <span
+          key={index}
+          aria-hidden="true"
+          className="t-number-pop-char"
+          style={{ animationDelay: `${delay + index * 40}ms` }}
+        >
+          {char}
+        </span>
+      ))}
+    </Fragment>
+  );
 }
 
 /**
@@ -326,16 +363,21 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
               <div className="flex justify-between text-gray-400 mb-2">
                 <span>{t("summaryCredits")}</span>
                 <span className="text-gray-200">
-                  {credits.toLocaleString()}
+                  <PopValue text={credits.toLocaleString()} />
                 </span>
               </div>
               <div className="flex justify-between text-gray-400 mb-2">
                 <span>{t("summaryFee")}</span>
-                <span className="text-gray-200">${feeUsd.toFixed(2)}</span>
+                <span className="text-gray-200">
+                  <PopValue text={`$${feeUsd.toFixed(2)}`} />
+                </span>
               </div>
               <div className="flex justify-between font-semibold text-white border-t border-gray-800 pt-2 mt-2">
                 <span>{t("summaryTotal")}</span>
-                <span>${totalUsd.toFixed(2)}</span>
+                {/* Last in the stagger, so the eye lands on the charge. */}
+                <span>
+                  <PopValue delay={120} text={`$${totalUsd.toFixed(2)}`} />
+                </span>
               </div>
             </div>
 
