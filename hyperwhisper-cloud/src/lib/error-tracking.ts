@@ -31,10 +31,13 @@ const ACCOUNT_KEY = /HW-[A-Z0-9]{4}(?:-[A-Z0-9]{4}){3}(?![A-Z0-9])/gi;
 const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 // An HTTP auth header value echoed into a message.
 const BEARER = /\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/gi;
+// A double-quoted value, such as a provider's text echoed into a message
+// (`provider said "<transcript>"`): not serialized, so the log redaction keeps it.
+const DOUBLE_QUOTED = /"[^"]*"/g;
 
 /**
- * An exception message as it may leave the machine: Account Keys and email
- * addresses replaced by format first, then the log redaction every
+ * An exception message as it may leave the machine: Account Keys, email
+ * addresses and double-quoted values replaced first, then the log redaction every
  * `console.error` here already uses (secrets, credentials in URLs, serialized
  * payloads such as a provider body that could quote a transcript, and a
  * 200-character cap).
@@ -43,7 +46,8 @@ export function scrubMessage(message: string): string {
   const keyed = message
     .replace(ACCOUNT_KEY, '<redacted-license-key>')
     .replace(EMAIL, '<redacted-email>')
-    .replace(BEARER, '$1 <redacted>');
+    .replace(BEARER, '$1 <redacted>')
+    .replace(DOUBLE_QUOTED, '"<redacted>"');
   return toRedactedLogLine(keyed);
 }
 

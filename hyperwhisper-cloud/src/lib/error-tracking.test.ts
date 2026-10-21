@@ -168,6 +168,11 @@ describe('scrubMessage', () => {
     expect(out).toBe('key <redacted-license-key> for <redacted-email> with Bearer <redacted>');
   });
 
+  test('cuts a double-quoted value, such as a transcript a provider echoed', () => {
+    const out = scrubMessage(`provider said "${TRANSCRIPT}"`);
+    expect(out).toBe('provider said "<redacted>"');
+  });
+
   test('cuts a serialized provider body that could quote a transcript', () => {
     expect(scrubMessage(`Deepgram 500: {"results":"${TRANSCRIPT}"}`)).not.toContain(TRANSCRIPT);
   });
