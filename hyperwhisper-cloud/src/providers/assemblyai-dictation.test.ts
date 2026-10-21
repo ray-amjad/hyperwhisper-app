@@ -6,6 +6,7 @@ import { computeAssemblyAITranscriptionCost } from '../lib/cost-calculator';
 import { estimatedUsdPerMinute, resolveModel } from '../lib/stt-models';
 import { maxReservationUsdPerMinute } from './reservation';
 import { providerAudioReservation } from './audio-reservation';
+import { pcm16Wav, wav } from '../test-support/wav';
 
 const originalFetch = globalThis.fetch;
 const originalKey = process.env.ASSEMBLYAI_API_KEY;
@@ -16,25 +17,7 @@ afterEach(() => {
   else process.env.ASSEMBLYAI_API_KEY = originalKey;
 });
 
-function wav(seconds = 1, rate = 16000, channels = 1): ArrayBuffer {
-  const bytes = Math.round(seconds * rate) * channels * 2;
-  const audio = new ArrayBuffer(44 + bytes);
-  const view = new DataView(audio);
-  for (const [offset, value] of [[0, 'RIFF'], [8, 'WAVE'], [12, 'fmt '], [36, 'data']] as const) {
-    [...value].forEach((char, index) => view.setUint8(offset + index, char.charCodeAt(0)));
-  }
-  view.setUint32(4, audio.byteLength - 8, true);
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, channels, true);
-  view.setUint32(24, rate, true);
-  view.setUint32(28, rate * channels * 2, true);
-  view.setUint16(32, channels * 2, true);
-  view.setUint16(34, 16, true);
-  view.setUint32(40, bytes, true);
-  return audio;
-}
-const transcribe = (audio = wav(), language: string | undefined = 'en', domain?: string) =>
+const transcribe = (audio = pcm16Wav(), language: string | undefined = 'en', domain?: string) =>
   transcribeWithAssemblyAI(audio, 'audio/vnd.wave', language, 'HyperWhisper, a long phrase with more than six words', { model: 'dictation', domain });
 
 describe('Dictation transport', () => {
@@ -59,7 +42,7 @@ describe('Dictation transport', () => {
       });
       return Response.json({ text: 'raw', llm_response: 'Cleaned.', audio_duration_ms: 900000, session_id: 'id' });
     }) as unknown as typeof fetch;
-    const result = await transcribe(wav(60), 'ja-JP');
+    const result = await transcribe(pcm16Wav(60), 'ja-JP');
     expect(result).toMatchObject({ text: 'Cleaned.', durationSeconds: 60, costUsd: 0.010333, model: 'dictation', requestId: 'id' });
     expect(calls).toBe(1);
   });
@@ -115,16 +98,21 @@ describe('Dictation transport', () => {
 describe('Dictation validation and billing', () => {
   for (const seconds of [1, 120]) test(`actual ${seconds}s accepted across PCM rates`, () => {
     for (const rate of [8000, 16000, 24000, 44100, 48000]) {
-      expect(parseDictationWav(wav(seconds, rate, 2), 'audio/wav').durationSeconds).toBe(seconds);
+      expect(parseDictationWav(pcm16Wav(seconds, rate, 2), 'audio/wav').durationSeconds).toBe(seconds);
+    }
+  });
+  test('an unknown chunk before data is skipped, odd sizes with their pad byte', () => {
+    for (const junkBytes of [7, 8]) {
+      expect(parseDictationWav(wav({ junkBytes }), 'audio/wav').durationSeconds).toBe(1);
     }
   });
   test('over 120 seconds fails even at a low byte rate', () => {
-    expect(() => parseDictationWav(wav(120.001, 8000), 'audio/wav')).toThrow('120 seconds');
+    expect(() => parseDictationWav(pcm16Wav(120.001, 8000), 'audio/wav')).toThrow('120 seconds');
   });
   test('truncated, mismatched, empty and compressed WAV fail', () => {
-    const invalid = [new ArrayBuffer(0), wav().slice(0, -1), wav(0)];
+    const invalid = [new ArrayBuffer(0), pcm16Wav().slice(0, -1), pcm16Wav(0)];
     for (const [offset, value, short] of [[20, 3, true], [22, 0, true], [24, 0, false], [28, 1, false], [32, 1, true], [34, 24, true], [40, 999999, false]] as const) {
-      const buffer = wav(); const view = new DataView(buffer);
+      const buffer = pcm16Wav(); const view = new DataView(buffer);
       if (short) view.setUint16(offset, value, true); else view.setUint32(offset, value, true);
       invalid.push(buffer);
     }
@@ -133,9 +121,9 @@ describe('Dictation validation and billing', () => {
   test('unsupported language and domain fail before fetch', async () => {
     const fetchMock = mock(async () => Response.json({ text: 'wrong' }));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
-    for (const lang of ['', 'auto', 'pl']) await expect(transcribe(wav(), lang)).rejects.toBeInstanceOf(ProviderInputError);
+    for (const lang of ['', 'auto', 'pl']) await expect(transcribe(pcm16Wav(), lang)).rejects.toBeInstanceOf(ProviderInputError);
     expect(() => validateDictationOptions(undefined)).toThrow('explicit');
-    await expect(transcribe(wav(), 'en', 'medical')).rejects.toThrow('Medical Mode');
+    await expect(transcribe(pcm16Wav(), 'en', 'medical')).rejects.toThrow('Medical Mode');
     expect(fetchMock).not.toHaveBeenCalled();
     expect(validateDictationOptions(' nb-NO ')).toBe('no');
   });
@@ -155,7 +143,7 @@ describe('Dictation validation and billing', () => {
     expect(estimatedUsdPerMinute('assemblyai', 'dictation', true, true)).toBe(rate);
     expect(computeAssemblyAITranscriptionCost(3600, 'dictation', true, true)).toBe(0.62);
     expect(maxReservationUsdPerMinute({ provider: 'assemblyai', model: 'dictation', medical: false, hasInitialPrompt: true, language: 'en', estimatedSeconds: 1 })).toBe(rate);
-    const audio = wav(60, 8000);
+    const audio = pcm16Wav(60, 8000);
     const reservation = providerAudioReservation('assemblyai', audio.byteLength, 'dictation');
     expect(reservation.requiresBufferedBody).toBe(true);
     expect(reservation.resolveBufferedAudio(audio, 'audio/wav')).toEqual({ kind: 'duration', audioSeconds: 60 });

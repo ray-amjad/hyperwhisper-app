@@ -5,6 +5,7 @@ import {
   estimateCreditsForProviderFallbacks,
   prepareTranscriptionAudio,
 } from './transcribe-audio';
+import { pcm16Wav } from '../test-support/wav';
 
 const BASE_INPUT = {
   requestId: 'request-credit-test',
@@ -31,29 +32,6 @@ function contextWithBody(body: ArrayBuffer, onRead?: () => void): Context {
       },
     },
   } as unknown as Context;
-}
-
-function pcm16Wav(seconds: number, sampleRate: 16_000 | 24_000): ArrayBuffer {
-  const dataBytes = sampleRate * 2 * seconds;
-  const audio = new ArrayBuffer(44 + dataBytes);
-  const view = new DataView(audio);
-
-  for (const [offset, value] of [[0, 'RIFF'], [8, 'WAVE'], [12, 'fmt '], [36, 'data']] as const) {
-    for (let index = 0; index < value.length; index++) {
-      view.setUint8(offset + index, value.charCodeAt(index));
-    }
-  }
-
-  view.setUint32(4, audio.byteLength - 8, true);
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  view.setUint32(40, dataBytes, true);
-  return audio;
 }
 
 describe('prepareTranscriptionAudio credit enforcement', () => {

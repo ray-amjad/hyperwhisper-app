@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Hono } from 'hono';
+import { pcm16Wav } from '../test-support/wav';
 
 // Well-funded licensed user by default; individual tests can lower the balance.
 let cachedCredits = 1000;
@@ -36,21 +37,7 @@ function request(headers: Record<string, string>, query = ''): Request {
 }
 
 function metaWavRequest(seconds: number, query = '', sampleRate = 16_000, channels = 1): Request {
-  const dataBytes = sampleRate * channels * 2 * seconds;
-  const audio = new Uint8Array(44 + dataBytes);
-  const view = new DataView(audio.buffer);
-  for (const [offset, text] of [[0, 'RIFF'], [8, 'WAVE'], [12, 'fmt '], [36, 'data']] as const) {
-    for (let index = 0; index < text.length; index++) view.setUint8(offset + index, text.charCodeAt(index));
-  }
-  view.setUint32(4, audio.byteLength - 8, true);
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, channels, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * channels * 2, true);
-  view.setUint16(32, channels * 2, true);
-  view.setUint16(34, 16, true);
-  view.setUint32(40, dataBytes, true);
+  const audio = new Uint8Array(pcm16Wav(seconds, sampleRate, channels));
   return new Request(`http://localhost/transcribe?license_key=test-license${query}`, {
     method: 'POST',
     headers: {
