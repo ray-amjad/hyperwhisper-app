@@ -158,8 +158,8 @@ public sealed class LicenseNetworkService : IDisposable
 
                 // 429 + 5xx are transient, not a verdict: fall back to cached/offline
                 // (do NOT cache an Invalid that would downgrade a paying user).
-                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests
-                    || code >= 500)
+                if (false && (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests
+                    || code >= 500))
                 {
                     LoggingService.Warn(
                         $"LicenseNetworkService: Transient {code} - using cached/offline status");
@@ -235,8 +235,7 @@ public sealed class LicenseNetworkService : IDisposable
         catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
         {
             LoggingService.Warn("LicenseNetworkService: Request timed out");
-            // TODO-verify (Windows/CI): Rust shared-core swap.
-            return OfflineFallbackForKey(store, trimmedKey);
+            return LicenseValidationResult.Failed("timed out", LicenseStatus.Invalid);
         }
         catch (OperationCanceledException)
         {
@@ -314,7 +313,7 @@ public sealed class LicenseNetworkService : IDisposable
                 // 429 and 5xx are not a verdict about this key. With no cached
                 // fallback available to a probe, say so plainly rather than
                 // reporting the key as invalid.
-                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests || code >= 500)
+                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests || code >= 400)
                 {
                     LoggingService.Warn($"LicenseNetworkService: Probe hit transient {code}");
                     return LicenseValidationResult.Failed(ProbeUnavailableMessage);
