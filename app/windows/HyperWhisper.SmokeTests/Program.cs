@@ -24916,6 +24916,14 @@ internal static class Program
             const string licenceSeamOfflineMessage = "Unable to verify license while offline";
             const string licenceSeamProbeKey = "HW-AAAA-BBBB-CCCC-DDDD";
 
+            // RunAsync blocks on GetAwaiter().GetResult(), and an earlier case leaves a
+            // DispatcherSynchronizationContext on this thread that no loop pumps. The
+            // timeout reply completes truly asynchronously, so its continuation would
+            // never run and the suite would hang. Detach for the block, as the
+            // onboarding and limits blocks do.
+            var licenceSeamPreviousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+
             RunAsync("probe: a 429 reports unavailable, not an invalid key", async () =>
             {
                 var handler = new LicenceSeamReplyHandler(HttpStatusCode.TooManyRequests, "{\"valid\":false,\"error\":\"rate limited\"}");
@@ -25043,6 +25051,7 @@ internal static class Program
             }
             finally
             {
+                SynchronizationContext.SetSynchronizationContext(licenceSeamPreviousContext);
                 using var cleanup = new LicenseNetworkService(new HttpClient());
                 if (cleanup.GetStoredLicenseKey() == licenceSeamStoredKey)
                 {
