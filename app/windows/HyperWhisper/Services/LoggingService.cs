@@ -123,11 +123,13 @@ public static class LoggingService
     }
 
     /// <summary>
-    /// Logs a WARN level message with exception details.
+    /// Logs a WARN level message with exception details. The exception message and
+    /// stack trace go through <see cref="SentryService.RedactUserIdentifiers(string?)"/>:
+    /// a .NET IO exception names the full path, which sits under the user's profile.
     /// </summary>
     public static void Warn(string message, Exception ex)
     {
-        WriteLog("WARN", $"{message}\n  Exception: {ex.GetType().Name}: {ex.Message}\n  StackTrace: {ex.StackTrace}");
+        WriteLog("WARN", $"{message}\n  Exception: {ex.GetType().Name}: {SentryService.RedactUserIdentifiers(ex.Message)}\n  StackTrace: {SentryService.RedactUserIdentifiers(ex.StackTrace)}");
     }
 
     /// <summary>
@@ -140,15 +142,16 @@ public static class LoggingService
 
     /// <summary>
     /// Logs an ERROR level message with full exception details.
-    /// Includes inner exceptions for complete debugging information.
+    /// Includes inner exceptions for complete debugging information. Each message and
+    /// stack trace is redacted the way <see cref="Warn(string, Exception)"/> does it.
     /// </summary>
     public static void Error(string message, Exception ex)
     {
         var sb = new StringBuilder();
         sb.AppendLine(message);
         sb.AppendLine($"  Exception Type: {ex.GetType().FullName}");
-        sb.AppendLine($"  Message: {ex.Message}");
-        sb.AppendLine($"  StackTrace: {ex.StackTrace}");
+        sb.AppendLine($"  Message: {SentryService.RedactUserIdentifiers(ex.Message)}");
+        sb.AppendLine($"  StackTrace: {SentryService.RedactUserIdentifiers(ex.StackTrace)}");
 
         // Log inner exceptions for complete picture
         var inner = ex.InnerException;
@@ -156,8 +159,8 @@ public static class LoggingService
         while (inner != null)
         {
             sb.AppendLine($"  Inner Exception [{depth}]: {inner.GetType().FullName}");
-            sb.AppendLine($"    Message: {inner.Message}");
-            sb.AppendLine($"    StackTrace: {inner.StackTrace}");
+            sb.AppendLine($"    Message: {SentryService.RedactUserIdentifiers(inner.Message)}");
+            sb.AppendLine($"    StackTrace: {SentryService.RedactUserIdentifiers(inner.StackTrace)}");
             inner = inner.InnerException;
             depth++;
         }
