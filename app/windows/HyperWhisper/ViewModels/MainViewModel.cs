@@ -22,6 +22,7 @@ using HyperWhisper.FileTranscription;
 using HyperWhisper.Models;
 using HyperWhisper.Localization;
 using HyperWhisper.Services;
+using HyperWhisper.Services.LocalApi;
 using HyperWhisper.Services.Streaming;
 using HyperWhisper.Services.Transcription;
 using HyperWhisper.Utilities;
@@ -326,6 +327,101 @@ public partial class MainViewModel : ViewModelBase
         ModeService.Instance.ModeSelected += _modeSelectedHandler;
 
         HotkeyText = _settingsService.ToggleShortcut.ToDisplayString();
+
+        AttachModelStatusSources();
+    }
+
+    // =========================================================================
+    // MODEL STATUS SOURCES (#649)
+    // The cloud half of the status bar depends on the HyperWhisper Cloud licence
+    // and on the BYOK keys, so it has to be recomputed when either changes, with
+    // no restart.
+    // =========================================================================
+
+    /// <summary>
+    /// Test seam: the smoke suite substitutes its own predicate. Null in the app,
+    /// which reads <see cref="WindowsLocalApiBackend.CloudAccountKeyPresent"/>, the
+    /// predicate the transcription path refuses on with MISSING_API_KEY.
+    /// </summary>
+    internal Func<bool>? CloudAccountKeyPresentOverride { get; set; }
+
+    /// <summary>Test seam: null in the app, which uses <see cref="ApiKeyService.Instance"/>.</summary>
+    internal ApiKeyService? ApiKeyServiceOverride { get; set; }
+
+    private ApiKeyService? _subscribedApiKeyService;
+
+    private ApiKeyService ModelStatusApiKeys => ApiKeyServiceOverride ?? ApiKeyService.Instance;
+
+    private bool CloudAccountKeyPresent() =>
+        (CloudAccountKeyPresentOverride ?? WindowsLocalApiBackend.CloudAccountKeyPresent)();
+
+    internal void AttachModelStatusSources()
+    {
+        DetachModelStatusSources();
+        LicenseManager.Instance.LicenseStatusChanged += OnModelStatusSourceChanged;
+        _subscribedApiKeyService = ModelStatusApiKeys;
+        _subscribedApiKeyService.ApiKeysChanged += OnModelStatusSourceChanged;
+    }
+
+    internal void DetachModelStatusSources()
+    {
+        LicenseManager.Instance.LicenseStatusChanged -= OnModelStatusSourceChanged;
+        if (_subscribedApiKeyService != null)
+        {
+            _subscribedApiKeyService.ApiKeysChanged -= OnModelStatusSourceChanged;
+            _subscribedApiKeyService = null;
+        }
+    }
+
+    /// <summary>
+    /// A licence activation/deactivation or a BYOK key save/removal: refresh the
+    /// model status on the UI thread. LicenseManager raises from whichever thread
+    /// finished the validation, and a fault here must not escape into it.
+    /// </summary>
+    private void OnModelStatusSourceChanged(object? sender, EventArgs e)
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null || dispatcher.CheckAccess())
+        {
+            RefreshModelStatusSafely();
+            return;
+        }
+        if (dispatcher.HasShutdownStarted) return;
+
+        dispatcher.BeginInvoke(RefreshModelStatusSafely);
+    }
+
+    private void RefreshModelStatusSafely()
+    {
+        try
+        {
+            UpdateModelStatus();
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Error("MainViewModel: Failed to refresh the model status after a licence or API key change", ex);
+        }
+    }
+
+    /// <summary>
+    /// The status-bar key for a cloud mode (#649). The HyperWhisper-Cloud-routed
+    /// providers (HyperWhisper Cloud, and the Azure MAI / Google Chirp models it
+    /// serves) need the account key the transcription path refuses on with
+    /// MISSING_API_KEY; every other provider needs its own BYOK key. Only a
+    /// provider that can transcribe right now reads "(Ready)".
+    /// </summary>
+    internal static string CloudModelStatusKey(
+        CloudTranscriptionProvider provider, bool cloudAccountKeyPresent, bool hasApiKey)
+    {
+        if (WindowsLocalApiBackend.UsesCloudAccountKey(provider))
+            return cloudAccountKeyPresent ? "status.model.ready" : "status.model.notActivated";
+
+        // None has no key slot; it is not a provider this can judge, so it keeps
+        // the old wording rather than inventing a missing key.
+        if (provider == CloudTranscriptionProvider.None)
+            return "status.model.ready";
+
+        return hasApiKey ? "status.model.ready" : "status.model.noApiKey";
     }
 
     /// <summary>
@@ -1699,7 +1795,15 @@ public partial class MainViewModel : ViewModelBase
             var cloudStatus = provider == CloudTranscriptionProvider.HyperWhisperCloud || string.IsNullOrWhiteSpace(model?.DisplayName)
                 ? providerName
                 : $"{providerName} - {model.DisplayName}";
-            ModelStatus = Loc.S("status.model.ready", cloudStatus);
+            // Read only the credential this provider needs (#649).
+            var usesAccountKey = WindowsLocalApiBackend.UsesCloudAccountKey(provider);
+            var statusKey = CloudModelStatusKey(
+                provider,
+                cloudAccountKeyPresent: usesAccountKey && CloudAccountKeyPresent(),
+                hasApiKey: !usesAccountKey
+                    && provider != CloudTranscriptionProvider.None
+                    && ModelStatusApiKeys.HasApiKey(provider));
+            ModelStatus = Loc.S(statusKey, cloudStatus);
             return;
         }
 
@@ -3246,6 +3350,7 @@ public partial class MainViewModel : ViewModelBase
         ModelDownloadService.Instance.DownloadChanged -= OnModelDownloadChanged;
         _transcriptionOrchestrator.PostProcessingWarning -= _orchestratorWarningHandler;
         DetachGettingStartedEvents();
+        DetachModelStatusSources();
 
         // Use try-finally to ensure device service cleanup happens
         // even if other Dispose calls throw exceptions

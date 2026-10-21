@@ -799,6 +799,12 @@
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (준비됨)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (활성화되지 않음)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (API 키 없음)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>로드 실패</value>
   </data>

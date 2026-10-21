@@ -887,6 +887,12 @@
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (準備完了)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (未有効化)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (APIキーなし)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>読み込み失敗</value>
   </data>

@@ -799,6 +799,12 @@ Dit kan niet ongedaan worden gemaakt.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (gereed)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (niet geactiveerd)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (geen API-sleutel)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Laden mislukt</value>
   </data>
