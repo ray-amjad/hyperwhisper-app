@@ -58,12 +58,18 @@ struct ModeCardModelMissingChipTests {
         #expect(data.cardStatusChip(isLocalModelDownloaded: true) == ModeCardStatusChip.none)
     }
 
-    @Test(arguments: [PostProcessingMode.off, .local, .cloud])
-    func aCloudModeNeverShowsModelMissing(_ postProcessing: PostProcessingMode) {
-        // The card's local-model lookup returns false for "cloud"; that must
-        // not read as a missing model.
-        let data = mode(model: "cloud", postProcessing: postProcessing)
-        #expect(data.cardStatusChip(isLocalModelDownloaded: false) == ModeCardStatusChip.none)
+    @Test(arguments: ["cloud", "Cloud", " CLOUD ", "", "  "])
+    func aCloudModeShowsNoChip(_ model: String) {
+        // The card's local-model lookup returns false for a cloud id; that
+        // must not read as a missing model, nor as Offline. The router reads
+        // any casing, and an empty id, as cloud.
+        for postProcessing in [PostProcessingMode.off, .local, .cloud] {
+            for downloaded in [false, true] {
+                let data = mode(model: model, postProcessing: postProcessing)
+                #expect(data.cardStatusChip(isLocalModelDownloaded: downloaded) == ModeCardStatusChip.none,
+                        "\(model) \(postProcessing) \(downloaded)")
+            }
+        }
     }
 
     // MARK: - Wiring
