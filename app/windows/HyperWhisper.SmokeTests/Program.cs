@@ -25063,6 +25063,7 @@ internal static class Program
                     try { File.Delete(audioPath); } catch (IOException) { }
                 }
             });
+            ScriptGuardPorts.RunAll(Run);
 
             Console.WriteLine(_failures == 0
                 ? "All smoke tests passed."
