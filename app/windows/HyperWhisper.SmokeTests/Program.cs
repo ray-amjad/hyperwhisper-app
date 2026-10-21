@@ -24908,6 +24908,13 @@ internal static class Program
 
             ScriptGuardPorts.RunAll(Run);
 
+            // RunAsync blocks on GetAwaiter().GetResult(), and an earlier WPF case
+            // has left a DispatcherSynchronizationContext on this thread that
+            // nothing pumps. AssemblyAIService awaits without ConfigureAwait(false),
+            // so detach for the #886 cases, as the onboarding block does.
+            var assemblyAiPreviousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+
             // Issue #886 PROBE: the head's end-to-end case, run against main unchanged.
             RunAsync("AssemblyAI TranscribeAsync runs sync, async fallback, skip and error exits against a fake vendor (#886)", async () =>
             {
@@ -25012,6 +25019,7 @@ internal static class Program
                     try { File.Delete(audioPath); } catch (IOException) { }
                 }
             });
+            SynchronizationContext.SetSynchronizationContext(assemblyAiPreviousContext);
 
             Console.WriteLine(_failures == 0
                 ? "All smoke tests passed."
