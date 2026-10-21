@@ -2248,6 +2248,9 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>Режими: {0}, добавени думи: {1}, конфликти: {2}.</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>Настройките са възстановени.</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Ако думата вече съществува:</value>
   </data>

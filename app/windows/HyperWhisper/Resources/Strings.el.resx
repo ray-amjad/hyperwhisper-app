@@ -2248,6 +2248,9 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>Λειτουργίες: {0}, λεξιλόγιο προστέθηκε: {1}, συγκρούσεις: {2}.</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>Οι ρυθμίσεις επαναφέρθηκαν.</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Εάν μια λέξη υπάρχει ήδη:</value>
   </data>

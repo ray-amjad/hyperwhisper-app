@@ -2248,6 +2248,9 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>Módok: {0}, hozzáadott szótár: {1}, ütközések: {2}.</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>Beállítások visszaállítva.</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Ha egy szó már létezik:</value>
   </data>

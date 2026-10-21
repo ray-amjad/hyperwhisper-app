@@ -2247,6 +2247,9 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>Chế độ: {0}, từ vựng đã thêm: {1}, xung đột: {2}.</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>Đã khôi phục cài đặt.</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Nếu từ đã tồn tại:</value>
   </data>

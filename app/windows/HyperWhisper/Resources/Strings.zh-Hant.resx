@@ -2247,6 +2247,9 @@
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>模式: {0}，已新增詞彙: {1}，衝突: {2}。</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>已還原設定。</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>如果詞語已經存在：</value>
   </data>

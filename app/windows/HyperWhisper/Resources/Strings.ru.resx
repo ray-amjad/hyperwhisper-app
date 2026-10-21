@@ -2248,6 +2248,9 @@
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>Режимы: {0}, добавлено в словарь: {1}, конфликты: {2}.</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>Настройки восстановлены.</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Если слово уже существует:</value>
   </data>

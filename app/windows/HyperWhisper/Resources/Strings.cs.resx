@@ -2248,6 +2248,9 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>Režimy: {0}, přidaná slova: {1}, konflikty: {2}.</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>Nastavení obnoveno.</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Pokud slovo již existuje:</value>
   </data>

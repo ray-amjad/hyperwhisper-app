@@ -2248,6 +2248,9 @@ Je kunt het later opnieuw downloaden.</value>
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>Modi: {0}, woordenschat toegevoegd: {1}, conflicten: {2}.</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>Instellingen hersteld.</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Als een woord al bestaat:</value>
   </data>

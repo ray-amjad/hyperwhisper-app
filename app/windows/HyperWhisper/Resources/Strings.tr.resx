@@ -2248,6 +2248,9 @@ Daha sonra yeniden indirebilirsiniz.</value>
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>Modlar: {0}, eklenen kelimeler: {1}, çakışmalar: {2}.</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>Ayarlar geri yüklendi.</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Bir kelime zaten mevcutsa:</value>
   </data>

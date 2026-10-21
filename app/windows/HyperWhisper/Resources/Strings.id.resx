@@ -2248,6 +2248,9 @@ Anda dapat mengunduhnya lagi nanti.</value>
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>Mode: {0}, kosakata ditambahkan: {1}, konflik: {2}.</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>Pengaturan dipulihkan.</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Jika kata sudah ada:</value>
   </data>

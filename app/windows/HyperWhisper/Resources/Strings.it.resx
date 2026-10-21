@@ -2248,6 +2248,9 @@ Potrai scaricarlo di nuovo in seguito.</value>
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>Modalità: {0}, vocabolario aggiunto: {1}, conflitti: {2}.</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>Impostazioni ripristinate.</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Se una parola esiste già:</value>
   </data>

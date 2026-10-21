@@ -2248,6 +2248,9 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>โหมด: {0}, คำศัพท์ที่เพิ่ม: {1}, ข้อขัดแย้ง: {2}.</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>กู้คืนการตั้งค่าแล้ว</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>หากคำนั้นมีอยู่แล้ว:</value>
   </data>

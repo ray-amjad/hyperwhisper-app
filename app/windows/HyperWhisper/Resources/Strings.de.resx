@@ -2248,6 +2248,9 @@ Sie können es später erneut herunterladen.</value>
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>Modi: {0}, Vokabular hinzugefügt: {1}, Konflikte: {2}.</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>Einstellungen wiederhergestellt.</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Wenn ein Wort bereits vorhanden ist:</value>
   </data>

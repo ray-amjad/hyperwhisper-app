@@ -2248,6 +2248,9 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>मोड: {0}, जोड़ी गई शब्दावली: {1}, विरोध: {2}.</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>सेटिंग्स पुनर्स्थापित की गईं।</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>यदि कोई शब्द पहले से मौजूद है:</value>
   </data>

@@ -2248,6 +2248,9 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>الأوضاع: {0}، المفردات المضافة: {1}، التعارضات: {2}.</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>تمت استعادة الإعدادات.</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>إذا كانت الكلمة موجودة بالفعل:</value>
   </data>

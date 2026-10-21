@@ -236,7 +236,7 @@ public partial class BackupExportSettingsPage : Page
 
         if (result.IsSuccess)
         {
-            ApplyImportSuccess(result.Value!);
+            ApplyImportSuccess(result.Value!, selection);
         }
         else
         {
@@ -258,12 +258,11 @@ public partial class BackupExportSettingsPage : Page
     // internal (not private): test seam for HyperWhisper.SmokeTests via
     // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
     // change is intended.
-    internal void ApplyImportSuccess(ImportSummary result)
+    internal void ApplyImportSuccess(ImportSummary result, ImportSelection? selection = null)
     {
-        var summary = Loc.S("settings.backup.import.summary",
-            result.ModesImported, result.VocabularyAdded, result.VocabularyConflicts);
         ShowStatus(ImportStatusText,
-            Loc.S("settings.backup.import.success", summary), isError: false);
+            Loc.S("settings.backup.import.success", BuildImportSummary(result, selection)).TrimEnd(),
+            isError: false);
         ImportSelectionPanel.Visibility = Visibility.Collapsed;
         _pendingImportPath = null;
 
@@ -271,6 +270,24 @@ public partial class BackupExportSettingsPage : Page
         // label is on this same screen. Without this it keeps the number the page was
         // constructed with until the user navigates away and back.
         RefreshVocabularyExportLabel();
+    }
+
+    /// <summary>
+    /// The part of the success line that says what landed. The mode and vocabulary
+    /// counts appear only when the user picked one of those sections, so a
+    /// settings-only import says the settings were restored instead of reading
+    /// "Modes: 0, vocabulary added: 0" as if nothing happened (#1415, the Windows
+    /// twin of macOS #1406). With no selection, the counts are always shown.
+    /// </summary>
+    internal static string BuildImportSummary(ImportSummary result, ImportSelection? selection)
+    {
+        var parts = new List<string>();
+        if (result.SettingsImported)
+            parts.Add(Loc.S("settings.backup.import.summary.settings"));
+        if (selection is null || selection.IncludeModes || selection.IncludeVocabulary)
+            parts.Add(Loc.S("settings.backup.import.summary",
+                result.ModesImported, result.VocabularyAdded, result.VocabularyConflicts));
+        return string.Join(" ", parts);
     }
 
     private static void ShowStatus(TextBlock textBlock, string message, bool isError)

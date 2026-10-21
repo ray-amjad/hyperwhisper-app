@@ -2248,6 +2248,9 @@ Możesz pobrać go ponownie później.</value>
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>Tryby: {0}, dodane słownictwo: {1}, konflikty: {2}.</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>Przywrócono ustawienia.</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Jeśli słowo już istnieje:</value>
   </data>
