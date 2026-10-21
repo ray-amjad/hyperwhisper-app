@@ -3,8 +3,9 @@
 //
 // CREDIT SYSTEM:
 // - 1 credit = $0.001 USD (micro-dollar precision)
-// - Default transcription cost: ~5.5 credits per audio minute (Deepgram Nova-3)
-// - Trial users: 100 credits (~18 minutes on the default tier) + IP rate limiting
+// - Minutes are estimated at 1.67 credits per audio minute, the default Cloud STT
+//   rate (CREDITS_PER_MINUTE in hyperwhisper-cloud/src/lib/constants.ts, #1657)
+// - Trial users: 100 credits + IP rate limiting
 // - Licensed users: Credits purchased via Polar meters (pay-as-you-go)
 //
 // API ENDPOINT: GET /usage?identifier=<device_id_or_license_key>
@@ -13,7 +14,7 @@
 // {
 //   "credits_remaining": 150.5,
 //   "minutes_remaining": 24,
-//   "credits_per_minute": 6.3,
+//   "credits_per_minute": 1.67,
 //   "is_licensed": false,
 //   "is_anonymous": true,
 //   "resets_at": "2024-01-16T00:00:00Z",
@@ -57,7 +58,7 @@ public class HyperWhisperCloudCredits
     /// <summary>
     /// Current cost per audio minute in credits.
     /// Varies based on backend provider costs.
-    /// Default Deepgram Nova-3 pricing is ~5.5 credits/minute.
+    /// The server sends 1.67, the default Cloud STT rate (#1657).
     /// </summary>
     [JsonPropertyName("credits_per_minute")]
     public double CreditsPerMinute { get; set; }
@@ -178,7 +179,7 @@ public class HyperWhisperCloudCredits
         {
             CreditsRemaining = 0,
             MinutesRemaining = 0,
-            CreditsPerMinute = 6.3, // Default estimate
+            CreditsPerMinute = 1.67, // The server's rate (#1657)
             IsLicensed = false,
             IsAnonymous = false
         };
