@@ -253,6 +253,8 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     private var isRunning = false                    // controlLock
     private var restartBudget = CaptureRestartBudget(maxConsecutiveFailures: DeviceAudioRecorder.maxConsecutiveRestartFailures) // controlLock
     private var restartRetryPending = false          // controlLock
+    /// Why the pending retry restarts capture, so its logs name the same cause.
+    private var restartRetryCause: RestartCause = .configurationChange // controlLock
     /// The tap format the running engine was built for. A configuration change that
     /// leaves the engine running on this format needs no restart.
     private var captureFormat: AVAudioFormat?        // controlLock
@@ -260,6 +262,12 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     /// after a fallback. A removal of this device restarts capture.
     private var activeDeviceID: AudioDeviceID?       // controlLock
     private var deviceWatchers: [DeviceWatcher] = [] // controlLock
+
+    /// What made capture restart. Only the logs and breadcrumbs differ.
+    private enum RestartCause {
+        case configurationChange
+        case deviceRemoved
+    }
 
     /// Separate from `controlLock` so the main actor can install the handler without
     /// waiting on a CoreAudio restart that holds `controlLock`.
@@ -307,9 +315,9 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     }
 
     /// Called once, on a background queue, if capture stops on its own because no input
-    /// device could be reopened after a configuration change, or because writing the
-    /// WAV failed. If that already
-    /// happened, `handler` runs at once. Never called after a normal `stop()`.
+    /// device could be reopened after a configuration change or a device removal, or
+    /// because writing the WAV failed. If that already happened, `handler` runs at
+    /// once. Never called after a normal `stop()`.
     func setCaptureLostHandler(_ handler: @escaping @Sendable () -> Void) {
         handlerLock.lock()
         let alreadyLost = captureLost
@@ -383,7 +391,6 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         restartBudget.recordSuccess()
         isRunning = true
         observeConfigurationChanges(of: newEngine)
-        watchDeviceLocked(deviceID)
         return true
     }
 
@@ -485,6 +492,8 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     }
 
     /// Select the device, build the converter for its format, tap it and start.
+    /// Every start goes through here, so every engine that starts watches its device
+    /// for removal (issue #2284); `tearDownEngineLocked` removes the watchers.
     /// Caller holds `controlLock`.
     private func startEngine(_ engine: AVAudioEngine, deviceID: AudioDeviceID) throws {
         let input = engine.inputNode
@@ -516,6 +525,7 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
             throw error
         }
         captureFormat = format
+        watchDeviceLocked(deviceID)
     }
 
     /// Stop and drop the engine, keeping the file open. Caller holds `controlLock`.
@@ -673,12 +683,25 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
             level: .warning
         )
         tearDownEngineLocked()
-        let lostHandler = restartLocked()
+        let lostHandler = restartLocked(cause: .configurationChange)
         controlLock.unlock()
         lostHandler?()
     }
 
     // MARK: Device Removal
+
+    /// Whether a device-availability change needs capture restarted: only while
+    /// capture runs, and only when the device the engine captures from right now (the
+    /// chosen one, or the default after a fallback) is gone.
+    static func deviceRemovalNeedsRestart(
+        isRunning: Bool,
+        hasEngine: Bool,
+        activeDeviceID: AudioDeviceID?,
+        isGone: (AudioDeviceID) -> Bool
+    ) -> Bool {
+        guard isRunning, hasEngine, let activeDeviceID else { return false }
+        return isGone(activeDeviceID)
+    }
 
     /// Watch `deviceID`, the device capture just opened, for removal. Caller holds
     /// `controlLock`; the previous engine's watchers are already removed.
@@ -707,18 +730,23 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     /// runs on: the engine itself may never notice (issue #2284).
     private func handleDeviceAvailabilityChange() {
         controlLock.lock()
-        guard isRunning, engine != nil, let activeDeviceID, deviceIsGone(activeDeviceID) else {
+        guard Self.deviceRemovalNeedsRestart(
+            isRunning: isRunning,
+            hasEngine: engine != nil,
+            activeDeviceID: activeDeviceID,
+            isGone: deviceIsGone
+        ), let removedDeviceID = activeDeviceID else {
             controlLock.unlock()
             return
         }
-        AppLogger.audio.notice("The microphone being recorded (device \(activeDeviceID, privacy: .public)) was removed mid-capture - restarting capture")
+        AppLogger.audio.notice("The microphone being recorded (device \(removedDeviceID, privacy: .public)) was removed mid-capture - restarting capture")
         SentryService.addBreadcrumb(
             message: "Microphone removed mid-capture",
             category: "audio.recording",
             level: .warning
         )
         tearDownEngineLocked()
-        let lostHandler = restartLocked()
+        let lostHandler = restartLocked(cause: .deviceRemoved)
         controlLock.unlock()
         lostHandler?()
     }
@@ -730,18 +758,19 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
             return
         }
         restartRetryPending = false
-        let lostHandler = restartLocked()
+        let lostHandler = restartLocked(cause: restartRetryCause)
         controlLock.unlock()
         lostHandler?()
     }
 
     /// Reopen capture into the same file. Returns the capture-lost handler to call
     /// (after `controlLock` is released) when the recorder gives up, else `nil`.
+    /// `cause` only picks the log and breadcrumb wording.
     /// Caller holds `controlLock`; the engine is already torn down.
-    private func restartLocked() -> (@Sendable () -> Void)? {
+    private func restartLocked(cause: RestartCause) -> (@Sendable () -> Void)? {
         guard isRunning, engine == nil else { return nil }
 
-        if startOnAnyInputLocked() {
+        if startOnAnyInputLocked(cause: cause) {
             restartBudget.recordSuccess()
             return nil
         }
@@ -749,25 +778,37 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         guard restartBudget.recordFailure() else {
             AppLogger.audio.notice("Capture restart failed (\(self.restartBudget.consecutiveFailures, privacy: .public) in a row) - retrying shortly")
             restartRetryPending = true
+            restartRetryCause = cause
             restartQueue.asyncAfter(deadline: .now() + Self.restartRetryDelay) { [weak self] in
                 self?.retryRestart()
             }
             return nil
         }
 
-        AppLogger.audio.error("No input device could be reopened after a configuration change - stopping capture; the file keeps what was recorded")
-        SentryService.addBreadcrumb(
-            message: "Chosen microphone capture lost after a configuration change",
-            category: "audio.recording",
-            level: .warning
-        )
+        switch cause {
+        case .configurationChange:
+            AppLogger.audio.error("No input device could be reopened after a configuration change - stopping capture; the file keeps what was recorded")
+            SentryService.addBreadcrumb(
+                message: "Chosen microphone capture lost after a configuration change",
+                category: "audio.recording",
+                level: .warning
+            )
+        case .deviceRemoved:
+            AppLogger.audio.error("No input device could be reopened after the microphone being recorded was removed - stopping capture; the file keeps what was recorded")
+            SentryService.addBreadcrumb(
+                message: "Chosen microphone capture lost after the microphone was removed",
+                category: "audio.recording",
+                level: .warning
+            )
+        }
         stopLocked()
         return takeCaptureLostHandler()
     }
 
     /// Start a fresh engine on the chosen device, else on the macOS default input.
+    /// `startEngine` makes the new engine watch the device it opened.
     /// Caller holds `controlLock`.
-    private func startOnAnyInputLocked() -> Bool {
+    private func startOnAnyInputLocked(cause: RestartCause) -> Bool {
         let candidates = Self.restartCandidates(
             chosen: deviceID,
             fallback: defaultInputDeviceID(),
@@ -786,9 +827,13 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
             }
             engine = newEngine
             observeConfigurationChanges(of: newEngine)
-            watchDeviceLocked(candidate)
             if candidate == deviceID {
-                AppLogger.audio.info("Chosen microphone capture restarted after a configuration change")
+                switch cause {
+                case .configurationChange:
+                    AppLogger.audio.info("Chosen microphone capture restarted after a configuration change")
+                case .deviceRemoved:
+                    AppLogger.audio.info("Chosen microphone capture restarted after the microphone being recorded was removed")
+                }
             } else {
                 AppLogger.audio.notice("Chosen microphone is unavailable - continuing the recording from the macOS default input (device \(candidate, privacy: .public))")
             }

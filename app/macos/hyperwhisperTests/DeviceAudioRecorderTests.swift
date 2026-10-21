@@ -185,6 +185,33 @@ struct DeviceAudioRecorderTests {
         #expect(!DeviceAudioRecorder.isGone(aliveFlag: nil, isListed: nil))
     }
 
+    @Test func aRemovedActiveDeviceRestartsCapture() {
+        #expect(DeviceAudioRecorder.deviceRemovalNeedsRestart(isRunning: true, hasEngine: true, activeDeviceID: 41, isGone: { $0 == 41 }))
+    }
+
+    @Test func aLiveActiveDeviceKeepsCapture() {
+        // Another device coming or going fires the same listener: no restart for it.
+        #expect(!DeviceAudioRecorder.deviceRemovalNeedsRestart(isRunning: true, hasEngine: true, activeDeviceID: 41, isGone: { _ in false }))
+        #expect(!DeviceAudioRecorder.deviceRemovalNeedsRestart(isRunning: true, hasEngine: true, activeDeviceID: 41, isGone: { $0 == 99 }))
+    }
+
+    @Test func noRunningCaptureMeansNoRestart() {
+        let allGone: (AudioDeviceID) -> Bool = { _ in true }
+        #expect(!DeviceAudioRecorder.deviceRemovalNeedsRestart(isRunning: false, hasEngine: true, activeDeviceID: 41, isGone: allGone))
+        // Torn down, or a retry pending: the restart path owns capture already.
+        #expect(!DeviceAudioRecorder.deviceRemovalNeedsRestart(isRunning: true, hasEngine: false, activeDeviceID: 41, isGone: allGone))
+        // Teardown clears the active device, so a stale listener block does nothing.
+        #expect(!DeviceAudioRecorder.deviceRemovalNeedsRestart(isRunning: true, hasEngine: true, activeDeviceID: nil, isGone: allGone))
+    }
+
+    @Test func afterAFallbackTheDecisionFollowsTheDefaultDevice() {
+        // Capture fell back from the chosen device 41 to the default 73.
+        let chosenGone: (AudioDeviceID) -> Bool = { $0 == 41 }
+        #expect(!DeviceAudioRecorder.deviceRemovalNeedsRestart(isRunning: true, hasEngine: true, activeDeviceID: 73, isGone: chosenGone))
+        let defaultGone: (AudioDeviceID) -> Bool = { $0 == 41 || $0 == 73 }
+        #expect(DeviceAudioRecorder.deviceRemovalNeedsRestart(isRunning: true, hasEngine: true, activeDeviceID: 73, isGone: defaultGone))
+    }
+
     // MARK: - File Shape
 
     @Test func outputFileIs16kMonoInt16WAV() throws {
