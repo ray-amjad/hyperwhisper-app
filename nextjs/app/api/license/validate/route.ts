@@ -11,6 +11,7 @@ import { licenseValidateRateLimiter } from "@/lib/rate-limit";
 import { countFailOpen } from "@/lib/rate-limit-gate";
 import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
 import { describeDbError } from "@/lib/shared/db-error";
+import { creditPoolIdFor } from "@/src/lib/credit-pool-id";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -34,6 +35,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * EXTENDED RESPONSE (when include_credits=true):
  * - Returns credit balance for CF Workers to cache
  * - Used by HyperWhisper Cloud for usage-based billing
+ * - `credit_pool_id` (#2026): an opaque HMAC of the owning user, the same for
+ *   every key that user holds, so the cloud counts their credit holds against
+ *   one balance. Absent when CREDIT_POOL_ID_SECRET is unset; the raw user id
+ *   never leaves the site.
  *
  * CHECKS:
  * 1. License key exists in database
@@ -158,11 +163,13 @@ export async function POST(req: NextRequest) {
     // License is valid - return extended info if requested
     if (include_credits) {
       const credits = await getCreditBalance(license.userId);
+      const creditPoolId = creditPoolIdFor(license.userId);
 
       return NextResponse.json({
         valid: true,
         credits,
         stripe_customer_id: license.stripeCustomerId || null,
+        ...(creditPoolId ? { credit_pool_id: creditPoolId } : {}),
       });
     }
 
