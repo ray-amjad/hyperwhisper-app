@@ -31,11 +31,10 @@ function ctx(headers: Record<string, string>) {
 }
 
 describe('validateStreamingHeaders Content-Type case', () => {
-  test('Audio/WAV is accepted like audio/wav', async () => {
+  test('Audio/WAV is accepted like audio/wav', () => {
     const lowerResult = validateStreamingHeaders(ctx({ 'Content-Type': 'audio/wav', 'Content-Length': '2048' }), 'deepgram');
     expect(lowerResult.ok).toBe(true);
     const upper = validateStreamingHeaders(ctx({ 'Content-Type': 'Audio/WAV', 'Content-Length': '2048' }), 'deepgram');
-    if (!upper.ok) console.log('status', upper.response.status, await upper.response.clone().text());
     expect(upper.ok).toBe(true);
   });
 
