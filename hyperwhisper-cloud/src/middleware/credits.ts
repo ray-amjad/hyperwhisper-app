@@ -182,11 +182,13 @@ async function recordLicenseUsage(
         // alone it admits the key for the rest of its TTL (#1899). Cache the
         // refusal so the next request stops at `cached_invalid`. A 5xx, 429 or
         // network failure says nothing about the key and leaves the cache be.
+        // No pool id and no `issuedAtMs`: only the key's own entry changes,
+        // and that write is last-write-wins: a late success reply to a charge
+        // sent before the revoke can still rewrite it as valid.
         await cacheLicense(licenseKey, {
           isValid: false,
           credits: 0,
           cachedAt: new Date().toISOString(),
-          issuedAtMs,
         });
       }
       return { kind: 'http', status: response.status };
