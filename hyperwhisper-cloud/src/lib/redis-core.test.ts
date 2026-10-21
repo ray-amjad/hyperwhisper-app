@@ -23,6 +23,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, spyOn, test } from '
 // package.
 import { errors } from '@upstash/redis';
 import { LICENSE_CACHE_TTL_SECONDS } from './constants';
+import { WRITE_POOL_BALANCE_SCRIPT } from './credit-hold-store';
 import {
   cacheLicense,
   getCachedLicense,
@@ -37,15 +38,19 @@ interface RecordingStore extends RedisStore {
   readonly gets: string[];
   /** Every write, with the TTL option it carried. */
   readonly sets: Array<{ key: string; value: unknown; opts: { ex: number } }>;
+  /** Every script run, with its keys and args. */
+  readonly evals: Array<{ script: string; keys: string[]; args: unknown[] }>;
 }
 
 /** A store that answers every read with `stored` and records every call. */
 function recordingStore(stored: unknown = null): RecordingStore {
   const gets: string[] = [];
   const sets: Array<{ key: string; value: unknown; opts: { ex: number } }> = [];
+  const evals: Array<{ script: string; keys: string[]; args: unknown[] }> = [];
   return {
     gets,
     sets,
+    evals,
     async get<TData = unknown>(key: string): Promise<TData | null> {
       gets.push(key);
       return stored as TData | null;
@@ -53,6 +58,10 @@ function recordingStore(stored: unknown = null): RecordingStore {
     async set(key: string, value: unknown, opts: { ex: number }): Promise<unknown> {
       sets.push({ key, value, opts });
       return 'OK';
+    },
+    async eval<TArgs extends unknown[], TData = unknown>(script: string, keys: string[], args: TArgs): Promise<TData> {
+      evals.push({ script, keys, args });
+      return 1 as TData;
     },
   };
 }
@@ -74,6 +83,9 @@ function failingStore(): RedisStore {
     async set(): Promise<never> {
       throw new Error('upstash write failed');
     },
+    async eval(): Promise<never> {
+      throw new Error('upstash script failed');
+    },
   };
 }
 
@@ -84,6 +96,9 @@ function throwingStore(thrown: unknown): RedisStore {
       throw thrown;
     },
     async set(): Promise<never> {
+      throw thrown;
+    },
+    async eval(): Promise<never> {
       throw thrown;
     },
   };
@@ -567,6 +582,12 @@ describe('getCachedLicense', () => {
     expect(await getCachedLicense(() => store, 'KEY-123')).toEqual(validLicense);
   });
 
+  test('returns the credit pool id an entry carries (#2026)', async () => {
+    const pooled = { ...validLicense, creditPoolId: 'e'.repeat(64) };
+
+    expect(await getCachedLicense(() => recordingStore(pooled), 'KEY-123')).toEqual(pooled);
+  });
+
   test('treats an entry missing isValid as a MISS, not as an invalid license', async () => {
     // This is the paying-user lockout guard. An entry written by an older
     // schema comes back with `isValid` undefined; middleware/auth.ts reads that
@@ -582,6 +603,7 @@ describe('getCachedLicense', () => {
       { isValid: 'true', credits: 1000, cachedAt: 'x' }, // isValid not a boolean
       { isValid: true, credits: '1000', cachedAt: 'x' }, // credits not a number
       { isValid: true, credits: 1000 }, // cachedAt absent
+      { isValid: true, credits: 1000, cachedAt: 'x', creditPoolId: 42 }, // pool id not a string
       'not json at all',
       42,
       [],
@@ -730,6 +752,64 @@ describe('cacheLicense', () => {
       { key: 'license:KEY-123', value: validLicense, opts: { ex: LICENSE_CACHE_TTL_SECONDS } },
     ]);
     expect(LICENSE_CACHE_TTL_SECONDS).toBe(3600);
+  });
+
+  test('a pooled licence also writes the pool balance through the ordered compare-and-set, same TTL (#2026)', async () => {
+    const store = recordingStore();
+    const poolId = 'e'.repeat(64);
+    const pooled: CachedLicense = { ...validLicense, creditPoolId: poolId, issuedAtMs: 1_000 };
+
+    await cacheLicense(() => store, 'KEY-123', pooled, 1_250);
+
+    expect(store.sets).toEqual([
+      { key: 'license:KEY-123', value: pooled, opts: { ex: LICENSE_CACHE_TTL_SECONDS } },
+    ]);
+    expect(store.evals).toEqual([
+      {
+        script: WRITE_POOL_BALANCE_SCRIPT,
+        keys: [`credit_pool_balance:${poolId}`],
+        args: [
+          JSON.stringify({ credits: pooled.credits, cachedAt: pooled.cachedAt, issuedAtMs: 1_000, receivedAtMs: 1_250 }),
+          String(LICENSE_CACHE_TTL_SECONDS),
+          String(pooled.credits),
+          '1000',
+          '1250',
+        ],
+      },
+    ]);
+  });
+
+  test('an unstamped pooled licence passes an empty issuedAt, so the script never lets it replace a stamped entry', async () => {
+    const store = recordingStore();
+    const pooled: CachedLicense = { ...validLicense, creditPoolId: 'e'.repeat(64) };
+
+    await cacheLicense(() => store, 'KEY-123', pooled, 1_250);
+
+    expect(store.evals[0]?.args).toEqual([
+      JSON.stringify({ credits: pooled.credits, cachedAt: pooled.cachedAt }),
+      String(LICENSE_CACHE_TTL_SECONDS),
+      String(pooled.credits),
+      '',
+      '1250',
+    ]);
+  });
+
+  test('a failed pool balance write is logged and swallowed', async () => {
+    const store = recordingStore();
+    store.eval = async () => { throw new Error('upstash script failed'); };
+
+    expect(await cacheLicense(() => store, 'KEY-123', { ...validLicense, creditPoolId: 'e'.repeat(64), issuedAtMs: 1 })).toBeUndefined();
+    expect(consoleError()).toHaveBeenCalledTimes(1);
+    expect(loggedLine()).toBe('Error: upstash script failed');
+  });
+
+  test('an unpooled licence writes only license:<key>', async () => {
+    const store = recordingStore();
+
+    await cacheLicense(() => store, 'KEY-123', validLicense);
+
+    expect(store.sets.map((write) => write.key)).toEqual(['license:KEY-123']);
+    expect(store.evals).toEqual([]);
   });
 
   test('caches an INVALID license too, so a bad key is not revalidated every request', async () => {
@@ -913,6 +993,9 @@ describe('the round trip a request actually makes', () => {
       async set(_key: string, value: unknown): Promise<unknown> {
         stored = value;
         return 'OK';
+      },
+      async eval<TArgs extends unknown[], TData = unknown>(): Promise<TData> {
+        return 1 as TData;
       },
     };
 

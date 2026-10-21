@@ -41,6 +41,11 @@ const CREDITS_PATH = "/api/license/credits";
 
 /** A made-up key string. Only the fake database in the harness knows it. */
 const GRANTED_KEY = "HW-TEST-0000-0001";
+const SECOND_KEY = "HW-TEST-0000-0002";
+const OTHER_USER_KEY = "HW-TEST-0000-0003";
+/** A made-up HMAC key, set only inside the credit_pool_id tests. */
+const POOL_SECRET = "test-only-credit-pool-secret-0123456789abcdef";
+const realPoolSecret = process.env.CREDIT_POOL_ID_SECRET;
 
 type JsonBody = Record<string, unknown>;
 
@@ -79,6 +84,8 @@ beforeEach(() => {
 afterEach(() => {
   if (realSiteUrl === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
   else process.env.NEXT_PUBLIC_SITE_URL = realSiteUrl;
+  if (realPoolSecret === undefined) delete process.env.CREDIT_POOL_ID_SECRET;
+  else process.env.CREDIT_POOL_ID_SECRET = realPoolSecret;
 });
 
 describe("POST /api/checkout/credits — amount validation", () => {
@@ -610,6 +617,40 @@ describe("GET /api/license/credits", () => {
     assert.deepEqual(calls.getCreditBalance, ["user_42"]);
   });
 
+  test("reports one opaque credit_pool_id for every key a user owns (#2026)", async () => {
+    process.env.CREDIT_POOL_ID_SECRET = POOL_SECRET;
+    storeRow(accountKeyRow({ id: "key_a", key: GRANTED_KEY, userId: "user_42" }));
+    storeRow(accountKeyRow({ id: "key_b", key: SECOND_KEY, userId: "user_42" }));
+    storeRow(accountKeyRow({ id: "key_c", key: OTHER_USER_KEY, userId: "user_43" }));
+    const { GET } = await loadLicenseCreditsRoute();
+
+    const poolOf = async (key: string) =>
+      (await readJson(await GET(getRequest(`${CREDITS_PATH}?license_key=${key}`))))
+        .credit_pool_id;
+    const first = await poolOf(GRANTED_KEY);
+    const second = await poolOf(SECOND_KEY);
+    const other = await poolOf(OTHER_USER_KEY);
+
+    assert.match(String(first), /^[0-9a-f]{64}$/);
+    assert.equal(second, first);
+    assert.notEqual(other, first);
+    assert.ok(!String(first).includes("user_42"));
+  });
+
+  test("leaves credit_pool_id out when its secret is not set (#2026)", async () => {
+    delete process.env.CREDIT_POOL_ID_SECRET;
+    storeRow(accountKeyRow({ key: GRANTED_KEY, userId: "user_42" }));
+    const { GET } = await loadLicenseCreditsRoute();
+
+    const response = await GET(
+      getRequest(`${CREDITS_PATH}?license_key=${GRANTED_KEY}`),
+    );
+    const body = await readJson(response);
+
+    assert.equal(response.status, 200);
+    assert.ok(!("credit_pool_id" in body));
+  });
+
   test("refuses a key the database does not hold", async () => {
     const { GET } = await loadLicenseCreditsRoute();
 
@@ -748,6 +789,41 @@ describe("POST /api/license/credits", () => {
     assert.deepEqual(calls.deductCreditBalance, [
       { userId: "user_42", amount: 109.5 },
     ]);
+  });
+
+  test("names the same credit_pool_id as GET on the deduction reply (#2026)", async () => {
+    process.env.CREDIT_POOL_ID_SECRET = POOL_SECRET;
+    storeRow(accountKeyRow({ id: "key_a", key: GRANTED_KEY, userId: "user_42" }));
+    storeRow(accountKeyRow({ id: "key_b", key: SECOND_KEY, userId: "user_42" }));
+    const { GET, POST } = await loadLicenseCreditsRoute();
+
+    const charged = await readJson(
+      await POST(postRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 1 })),
+    );
+    const sibling = await readJson(
+      await POST(postRequest(CREDITS_PATH, { license_key: SECOND_KEY, amount: 1 })),
+    );
+    const balance = await readJson(
+      await GET(getRequest(`${CREDITS_PATH}?license_key=${GRANTED_KEY}`)),
+    );
+
+    assert.match(String(charged.credit_pool_id), /^[0-9a-f]{64}$/);
+    assert.equal(sibling.credit_pool_id, charged.credit_pool_id);
+    assert.equal(balance.credit_pool_id, charged.credit_pool_id);
+  });
+
+  test("leaves credit_pool_id off the deduction reply when its secret is not set (#2026)", async () => {
+    delete process.env.CREDIT_POOL_ID_SECRET;
+    storeRow(accountKeyRow({ key: GRANTED_KEY, userId: "user_42" }));
+    const { POST } = await loadLicenseCreditsRoute();
+
+    const response = await POST(
+      postRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 1 }),
+    );
+    const body = await readJson(response);
+
+    assert.equal(response.status, 200);
+    assert.ok(!("credit_pool_id" in body));
   });
 
   test("refuses a key the database does not hold", async () => {

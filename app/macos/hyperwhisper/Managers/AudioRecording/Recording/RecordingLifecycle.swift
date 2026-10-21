@@ -139,6 +139,10 @@ class RecordingLifecycle {
     /// Reset at the start of every `stopRecording()`.
     private(set) var lastStopTimedOut = false
 
+    /// Called on the main actor when the live recorder lost its input device and
+    /// could not continue on any other (see `SimpleRecorder.onCaptureLost`).
+    var onCaptureLost: (() -> Void)?
+
     /// Recordings directory URL from the shared resolver.
     private var recordingsDirectory: URL {
         RecordingsDirectory.resolve(configuredPath: settingsManager?.recordingsFolder)
@@ -162,6 +166,10 @@ class RecordingLifecycle {
         // Bind SimpleRecorder's audioLevel to our published property
         simpleRecorder.$audioLevel
             .assign(to: &$audioLevel)
+
+        simpleRecorder.onCaptureLost = { [weak self] in
+            self?.onCaptureLost?()
+        }
     }
 
     /// Configure with settings manager after initialization
@@ -392,24 +400,28 @@ class RecordingLifecycle {
             throw AudioError.noMicrophoneAvailable
         }
 
-        // STEP 4: Apply selected audio input device
-        // This temporarily changes system default if user selected specific device
+        // STEP 4: Resolve which microphone this recording opens
+        // HyperWhisper's own microphone choice is opened DIRECTLY by the recorder in
+        // STEP 6; the macOS default input is never changed (it used to be, which moved
+        // every other app's microphone too). `captureDeviceID` is nil — record from the
+        // macOS default — when there is no choice, when the chosen device is unplugged
+        // (it is used again once it reappears), or when it already IS the default, in
+        // which case the long-proven AVAudioRecorder path records it.
         //
-        // STILL SYNCHRONOUS, AND STILL ON THE MAIN ACTOR. Its CoreAudio writes are a
-        // known contributor to HYPERWHISPER-HP, but moving them off is the device-manager
-        // rework that was descoped from this PR after review; it lands with its own review
-        // budget. Do not make this `await` without moving the whole of
-        // `AudioDeviceManager` with it — the recorder opened in STEP 6 captures whatever
-        // the system default is at that moment, so a fire-and-forget hop here records
-        // from the wrong microphone.
-        let deviceApplySpan = SentryService.startSpan(operation: "audio.device", description: "apply selected input device")
-        deviceManager.applySelectedInputDeviceIfNeeded()
+        // The lookup is blocking CoreAudio reads, so it runs off the main actor. Nothing
+        // here writes CoreAudio state any more, so the old "must stay synchronous" rule
+        // for this step no longer applies.
+        let deviceApplySpan = SentryService.startSpan(operation: "audio.device", description: "resolve chosen input device")
+        let preferredDeviceUID = deviceManager.preferredDevice?.uid
+        let captureDeviceID = await offMainActor {
+            MicrophoneCaptureRouting.captureDeviceID(preferredUID: preferredDeviceUID)
+        }
         SentryService.finishSpan(deviceApplySpan, status: .ok)
 
         // STEP 4.5: Auto-increase microphone volume if enabled
-        // Sets the active input device's volume to maximum for optimal recording levels.
-        // Works with both system default and explicitly selected devices.
-        // The original volume is saved and will be restored after recording stops.
+        // Raises the volume of the device THIS recording opens — the chosen microphone
+        // when it is pinned, else the macOS default — and restores it after recording
+        // stops. A device with no settable volume is skipped silently.
         //
         // FIRE-AND-FORGET FIX FOR MAIN THREAD BLOCKING
         // ---------------------------------------------------------------------------------
@@ -442,8 +454,8 @@ class RecordingLifecycle {
         // it undoes its own boost, so no device is ever left raised with nobody holding its
         // true original.
         if settingsManager?.autoIncreaseMicVolume == true {
-            // Capture device UID before launching background task (if a specific device is selected)
-            let selectedDeviceUID = deviceManager.selectedDevice?.uid
+            // The device the recorder opens in STEP 6 (nil = the macOS default input).
+            let boostDeviceID = captureDeviceID
 
             Task.detached(priority: .userInitiated) { [weak self] in
                 AppLogger.audio.info("🎚️ [ASYNC] Auto-increase mic volume task STARTED on background thread")
@@ -453,29 +465,15 @@ class RecordingLifecycle {
                     return
                 }
 
-                // Get device ID - either from selected device or system default
-                let deviceID: AudioDeviceID?
-                if let uid = selectedDeviceUID {
-                    // User selected a specific device - find its ID by UID
-                    deviceID = CoreAudioDeviceHelper.findAudioDeviceID(byUID: uid)
-                    if deviceID == nil {
-                        AppLogger.audio.warning("🎚️ [ASYNC] Failed - unable to find device with UID: \(uid, privacy: .public)")
-                        return
-                    }
-                } else {
-                    // Using system default
-                    deviceID = CoreAudioDeviceHelper.getSystemDefaultInputDeviceID()
-                    if deviceID == nil {
-                        AppLogger.audio.warning("🎚️ [ASYNC] Failed - unable to get system default device ID")
-                        return
-                    }
+                // The chosen device the recorder opens, or the system default
+                guard let deviceID = boostDeviceID ?? CoreAudioDeviceHelper.getSystemDefaultInputDeviceID() else {
+                    AppLogger.audio.warning("🎚️ [ASYNC] Failed - unable to get system default device ID")
+                    return
                 }
-
-                guard let deviceID = deviceID else { return }
 
                 // Log device info for debugging
                 let deviceName = CoreAudioDeviceHelper.copyDeviceName(for: deviceID) ?? "unknown"
-                let deviceType = selectedDeviceUID != nil ? "selected" : "system default"
+                let deviceType = boostDeviceID != nil ? "chosen" : "system default"
                 AppLogger.audio.info("🎚️ [ASYNC] Target device (\(deviceType, privacy: .public)): \(deviceName, privacy: .public) (ID: \(deviceID))")
 
                 // Save original volume for restoration
@@ -577,13 +575,16 @@ class RecordingLifecycle {
         let finalURL = recordingsDirectory.appendingPathComponent("recording_\(sessionID.uuidString).wav")
 
         // STEP 6: Start recording with SimpleRecorder
-        // AVAudioRecorder handles all buffer management and format conversion internally
+        // On the macOS default input AVAudioRecorder handles all buffer management and
+        // format conversion internally; on a pinned chosen microphone (`captureDeviceID`)
+        // SimpleRecorder uses DeviceAudioRecorder, which writes the same 16 kHz mono WAV and
+        // falls back to the default input if the device cannot be opened.
         // The recorder is constructed and started off the main actor (HYPERWHISPER-F7);
         // the span still measures exactly that work, so the fix stays measurable.
         let recorderStartSpan = SentryService.startSpan(operation: "audio.recorder", description: "start AVAudioRecorder")
         let outcome: RecorderStartOutcome
         do {
-            outcome = try await simpleRecorder.startRecording(to: wavURL)
+            outcome = try await simpleRecorder.startRecording(to: wavURL, inputDeviceID: captureDeviceID)
         } catch {
             SentryService.finishSpan(recorderStartSpan, status: .internalError)
             throw error

@@ -42,6 +42,37 @@ try
             .Where(group => group.Count() > 1).Select(group => group.Key).ToArray();
         Assert(duplicateIds.Length == 0,
             "the library table repeats a local model id: " + string.Join(", ", duplicateIds));
+
+        // #2203: a multi-word query matches when EVERY word matches some searched field, as on
+        // macOS (#1447) and Windows (#2169). Before, the whole query had to sit in one field.
+        string Found(string query)
+        {
+            bundled.SearchText = query;
+            return string.Join(", ", bundled.Items.Select(item => $"{item.DisplayName} [{item.ModelId}]"));
+        }
+        var allRows = bundled.Items.Count;
+        bundled.SearchText = "nemotron multilingual";
+        Assert(bundled.Items.Count == 1 && bundled.Items[0].ModelId.StartsWith("nemotron-", StringComparison.Ordinal),
+            "\"nemotron multilingual\" did not find the Nemotron row only: " + Found("nemotron multilingual"));
+        bundled.SearchText = "whisper base.en";
+        Assert(bundled.Items.Count == 1 && bundled.Items[0].ModelId == "base.en" && bundled.Items[0].IsLocal,
+            "\"whisper base.en\" did not find the Whisper Base English row only: " + Found("whisper base.en"));
+        bundled.SearchText = "  WHISPER   Base.EN ";
+        Assert(bundled.Items.Count == 1 && bundled.Items[0].ModelId == "base.en",
+            "search words were not trimmed, split on runs of whitespace and matched case-insensitively");
+        bundled.SearchText = "base.en";
+        Assert(bundled.Items.Any(item => item.ModelId == "base.en")
+            && bundled.Items.All(item => item.ModelId.Contains("base.en", StringComparison.OrdinalIgnoreCase)
+                || item.DisplayName.Contains("base.en", StringComparison.OrdinalIgnoreCase)),
+            "a one-word query no longer matches a single field: " + Found("base.en"));
+        bundled.SearchText = "nemotron zzqx";
+        Assert(bundled.Items.Count == 0, "a query with a junk word still matched rows: " + Found("nemotron zzqx"));
+        bundled.SearchText = "zzqx";
+        Assert(bundled.Items.Count == 0, "a junk query matched rows");
+        bundled.SearchText = "   ";
+        Assert(bundled.Items.Count == allRows, "a blank query filtered rows");
+        bundled.SearchText = string.Empty;
+        Assert(bundled.Items.Count == allRows, "clearing the search did not restore every row");
     }
     var capabilities = new ModelCapability[]
     {

@@ -55,6 +55,12 @@ final class LocalAPIServer: ObservableObject {
     /// into local-api.json (chmod 600) for MCP/curl auto-discovery.
     @Published private(set) var bearerToken: String = ""
 
+    /// Ports still bound by a server `stop()` has let go of, while it closes
+    /// (issue #1464). Empty once every old listening socket is really gone, so
+    /// Settings says "Stopping…" until then, never "No network sockets bound".
+    /// A port of 0 is a server that was still on its way to listening.
+    @Published private(set) var closingPorts: [UInt16] = []
+
     // MARK: - Dependencies (injected by hyperwhisperApp at first window appear)
 
     private weak var transcriptionPipeline: TranscriptionPipeline?
@@ -119,8 +125,20 @@ final class LocalAPIServer: ObservableObject {
     ///
     /// `start()` is deliberately NOT on this chain; see `enqueueRegeneration`.
     private var regenerationWork: Task<Void, Never>?
+    /// The close of every server `stop()` has let go of (issue #1464).
+    private let listenerShutdown = LocalAPIListenerShutdown()
 
-    private init() {}
+    /// How long a start waits for a stopped server to release its port before
+    /// it gives the port up and binds an ephemeral one (issue #1464). Short
+    /// enough that a switch back On still listens within 5 s; a close that has
+    /// not finished by then is stuck, not slow.
+    nonisolated static let releaseWait: Duration = .seconds(2)
+
+    private init() {
+        listenerShutdown.onChange = { [weak self] ports in
+            self?.closingPorts = ports
+        }
+    }
 
     // MARK: - Lifecycle predicate
 
@@ -280,6 +298,18 @@ final class LocalAPIServer: ObservableObject {
             guard let self, self.tokenOwner == owner else { return }
             self.bearerToken = token
             guard self.pendingBindOwner == owner else { return }
+            // A server switched off a moment ago may still hold the port this
+            // start is about to ask for (issue #1464). Wait for it to let go;
+            // if it has not by `releaseWait`, give the port up for an
+            // ephemeral one, as the EADDRINUSE fallback in bindAndRun() would.
+            // A stop() or a newer claim during the wait withdraws the bind.
+            let released = await self.listenerShutdown.awaitRelease(within: Self.releaseWait)
+            if !released {
+                guard self.pendingBindOwner == owner else { return }
+                UserDefaults.standard.removeObject(forKey: LocalAPIServerPersistedPortKey)
+                AppLogger.network.info("LocalAPI server: the stopped server still holds its port; binding an ephemeral port")
+            }
+            guard self.pendingBindOwner == owner else { return }
             self.pendingBindOwner = nil
             self.bindAndRun()
         }
@@ -417,10 +447,13 @@ final class LocalAPIServer: ObservableObject {
         // publish what it finds — it simply has nothing left to bind.
         pendingBindOwner = nil
 
-        Task { [server, runTask] in
-            await server?.stop(timeout: 1.0)
-            runTask?.cancel()
-        }
+        // The close outlives this call, so it is tracked rather than fired and
+        // forgotten: Settings reads "Stopping…" until the old listening socket
+        // is really gone, and the next start() waits for it before it binds
+        // (issue #1464). Before, nothing waited: the row said "No network
+        // sockets bound" before the close had even begun, and a start rebinding
+        // the same port raced it.
+        listenerShutdown.begin(server: server, runTask: runTask, port: listeningPort)
 
         self.server = nil
         self.runTask = nil
@@ -437,7 +470,7 @@ final class LocalAPIServer: ObservableObject {
     /// not use it — it already holds the fresh token, and coming back through
     /// `start()` would read the same Keychain item a second time; and regeneration
     /// never rebinds a live server (issue #641). `stop()` returns before the old socket
-    /// closes, so an immediate rebind of the same port can fail.
+    /// closes; `start()` waits for that close before it binds (issue #1464).
     func restart() {
         stop()
         start()
@@ -933,5 +966,156 @@ final class LocalAPIServer: ObservableObject {
             AppLogger.network.error("LocalAPI portfile: failed to delete · \(error.localizedDescription, privacy: .public)")
             return false
         }
+    }
+}
+
+// MARK: - Stopping (issue #1464)
+
+/// The close of every Local API server `stop()` has let go of.
+///
+/// `stop()` returns at once, and the switch it serves must too, but the old
+/// server's listening socket closes later, on FlyingFox's actor. Until #1464
+/// that close was fired and forgotten: Settings said "No network sockets bound"
+/// before it had even begun, and a start that came straight after rebound the
+/// same port while the old socket still held it. This keeps every close in
+/// flight in view, so the row can say "Stopping…" for exactly as long as an
+/// old socket is bound, and a start can wait for the port to come free.
+@MainActor
+final class LocalAPIListenerShutdown {
+
+    /// Ports of the servers still closing, keyed by close. 0 is a server that
+    /// had not reported listening when it was stopped.
+    private var closing: [UUID: UInt16] = [:]
+
+    /// Called with `closingPorts` whenever a close begins or ends.
+    var onChange: (([UInt16]) -> Void)?
+
+    /// Ports still bound by a server that is closing, sorted. Empty when every
+    /// server handed to `begin` has released its listening socket.
+    var closingPorts: [UInt16] { closing.values.sorted() }
+
+    /// Start closing `server` and report it closing until its listening socket
+    /// is gone. A stop with nothing bound or running is a no-op.
+    func begin(server: HTTPServer?, runTask: Task<Void, Never>?, port: UInt16) {
+        guard server != nil || runTask != nil else { return }
+        let id = UUID()
+        closing[id] = port
+        onChange?(closingPorts)
+        Task { [weak self] in
+            await Self.closeListeningSocket(server: server, runTask: runTask)
+            guard let self else { return }
+            self.closing[id] = nil
+            self.onChange?(self.closingPorts)
+        }
+    }
+
+    /// Wait until every close begun before this call has released its port,
+    /// or `timeout` has passed. True when they all did.
+    ///
+    /// A poll rather than an await on the close itself: a close that never
+    /// finishes must still let the waiter go at the deadline.
+    func awaitRelease(within timeout: Duration) async -> Bool {
+        let waitingFor = Set(closing.keys)
+        let deadline = ContinuousClock.now.advanced(by: timeout)
+        while !waitingFor.isDisjoint(with: closing.keys) {
+            guard ContinuousClock.now < deadline, !Task.isCancelled else { return false }
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        return true
+    }
+
+    /// Return once `server` no longer holds its listening socket.
+    ///
+    /// FlyingFox's `stop(timeout:)` closes the listening socket in its first
+    /// lines, then waits for every open connection to finish and up to
+    /// `timeout` more for the server task. Only the first part decides whether
+    /// the port is bound, and a request still running (a 10-minute transcription)
+    /// can hold the rest for minutes. So a server that was listening is stopped
+    /// on its own task, and this returns as soon as it stops reporting a
+    /// listening address.
+    ///
+    /// A server that was not listening yet may still be on its way there. It
+    /// is cancelled, and this waits for `run()` to return: it closes whatever
+    /// socket it opened on the way out.
+    nonisolated static func closeListeningSocket(server: HTTPServer?, runTask: Task<Void, Never>?) async {
+        guard let server else {
+            runTask?.cancel()
+            await runTask?.value
+            return
+        }
+        if await server.listeningAddress != nil {
+            Task {
+                await server.stop(timeout: 1.0)
+                runTask?.cancel()
+            }
+            while await server.listeningAddress != nil {
+                try? await Task.sleep(for: .milliseconds(10))
+            }
+            return
+        }
+        await server.stop(timeout: 1.0)
+        runTask?.cancel()
+        await runTask?.value
+    }
+}
+
+/// The Local API's Off/On switch over a real socket, for `hyperwhisperTests`
+/// (`LocalAPIStopRestartTests`, issue #1464).
+///
+/// Like `LocalAPIWireProbe`: a FlyingFox server built from the production
+/// `serverConfiguration`, because the test target links no FlyingFox and
+/// `LocalAPIServer.start()` reads the Keychain. It has no routes, no token, no
+/// discovery file and no UserDefaults. Off hands the server to the same
+/// `LocalAPIListenerShutdown` `stop()` does; On waits for it for the same
+/// `releaseWait` `start()` does, then binds the port it was asked for, or an
+/// ephemeral one when the old socket has not let go. The app never makes one.
+@MainActor
+final class LocalAPISwitchProbe {
+
+    enum ProbeError: Error {
+        case noPort
+    }
+
+    let shutdown = LocalAPIListenerShutdown()
+    let headReadDeadline: TimeInterval
+    /// The bound port while on, else 0.
+    private(set) var port: UInt16 = 0
+    private var server: HTTPServer?
+    private var runTask: Task<Void, Never>?
+
+    init(headReadDeadline: TimeInterval = LocalAPIRequestHeadLimit.readDeadline) {
+        self.headReadDeadline = headReadDeadline
+    }
+
+    /// Switch on, asking for `preferredPort` (0 for any). Returns the bound port.
+    @discardableResult
+    func switchOn(preferredPort: UInt16 = 0) async throws -> UInt16 {
+        let released = await shutdown.awaitRelease(within: LocalAPIServer.releaseWait)
+        let address = try sockaddr_in.inet(ip4: "127.0.0.1", port: released ? preferredPort : 0)
+        let server = HTTPServer(
+            config: LocalAPIServer.serverConfiguration(address: address, headReadDeadline: headReadDeadline)
+        )
+        let runTask = Task<Void, Never> {
+            try? await server.run()
+        }
+        self.server = server
+        self.runTask = runTask
+        // `run()` starts on the main actor, which another suite in the test
+        // host can hold for seconds (synchronous Core Data tests); FlyingFox's
+        // default 5 s wait then times out before the server has begun.
+        try await server.waitUntilListening(timeout: 30)
+        guard let bound = await server.listeningAddress, case .ip4(_, let port) = bound, port > 0 else {
+            throw ProbeError.noPort
+        }
+        self.port = port
+        return port
+    }
+
+    /// Switch off, as `stop()` does: returns at once, the close runs on.
+    func switchOff() {
+        shutdown.begin(server: server, runTask: runTask, port: port)
+        server = nil
+        runTask = nil
+        port = 0
     }
 }

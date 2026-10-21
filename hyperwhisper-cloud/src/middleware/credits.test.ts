@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 import {
   BYTES_PER_MINUTE_ESTIMATE,
   CREDITS_PER_MINUTE,
@@ -209,6 +209,64 @@ describe('deductCredits / drainPendingDeductions', () => {
     );
     expect(cacheWrites).toHaveLength(1);
     expect(cacheWrites[0]?.license).toMatchObject({ isValid: true, credits: 12.3 });
+    await expectNoPendingDeductions();
+  });
+
+  test('the cache rewrite after a charge is stamped with the time taken BEFORE the charge went out (#2026)', async () => {
+    const pool = 'f'.repeat(64);
+    const clock = spyOn(Date, 'now').mockReturnValue(1_000);
+    try {
+      captureFetch(() => {
+        // The reply arrives later: a stamp taken after the fetch reads 9000.
+        clock.mockReturnValue(9_000);
+        return Response.json({ credits_remaining: 8, credit_pool_id: pool });
+      });
+
+      await deductCredits(auth(20), 0.05, { provider: 'test-provider' }, '1.2.3.4');
+
+      expect(cacheWrites).toHaveLength(1);
+      expect(cacheWrites[0]?.license).toMatchObject({ credits: 8, creditPoolId: pool, issuedAtMs: 1_000 });
+    } finally {
+      clock.mockRestore();
+    }
+    await expectNoPendingDeductions();
+  });
+
+  test('the cache rewrite after a charge caches the credit pool id the reply names (#2026)', async () => {
+    const pool = 'f'.repeat(64);
+    captureFetch(() => Response.json({ credits_remaining: 8, credit_pool_id: pool }));
+
+    // A key whose cache predates the pool: the charge's reply supplies it.
+    await deductCredits(auth(20), 0.05, { provider: 'test-provider' }, '1.2.3.4');
+
+    expect(cacheWrites).toHaveLength(1);
+    expect(cacheWrites[0]?.license).toMatchObject({ isValid: true, credits: 8, creditPoolId: pool });
+    await expectNoPendingDeductions();
+  });
+
+  test('the reply\'s pool id replaces a stale one in the auth context (#2026)', async () => {
+    const rotated = 'a'.repeat(64);
+    captureFetch(() => Response.json({ credits_remaining: 8, credit_pool_id: rotated }));
+    const stale: AuthContext = { ...auth(20), creditPoolId: 'f'.repeat(64) };
+
+    await deductCredits(stale, 0.05, { provider: 'test-provider' }, '1.2.3.4');
+
+    expect(cacheWrites[0]?.license).toMatchObject({ creditPoolId: rotated });
+    await expectNoPendingDeductions();
+  });
+
+  test('a reply with no (or a malformed) pool id caches none, whatever auth carried (#2026)', async () => {
+    for (const creditPoolId of [undefined, 'not a pool id!']) {
+      cacheWrites.length = 0;
+      captureFetch(() => Response.json({ credits_remaining: 8, credit_pool_id: creditPoolId }));
+      const stale: AuthContext = { ...auth(20), creditPoolId: 'f'.repeat(64) };
+
+      await deductCredits(stale, 0.05, { provider: 'test-provider' }, '1.2.3.4');
+
+      expect(cacheWrites).toHaveLength(1);
+      expect(cacheWrites[0]?.license).toMatchObject({ isValid: true, credits: 8 });
+      expect(cacheWrites[0]?.license).not.toHaveProperty('creditPoolId');
+    }
     await expectNoPendingDeductions();
   });
 
