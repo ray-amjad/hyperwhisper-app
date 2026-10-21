@@ -25020,6 +25020,156 @@ internal static class Program
                 }
             });
             SynchronizationContext.SetSynchronizationContext(assemblyAiPreviousContext);
+            // Issue #738: LicenseNetworkService over a scripted HttpClient (its internal
+            // seam), so the rules that ACT on a server reply run without the backend.
+            // The store is the suite's scratch profile: AppPaths scopes kvstore.json and
+            // the Credential Manager resource to the temp root set at the top of Main.
+            // The probe and the transient-validate rules both answer with this text.
+            const string licenceSeamOfflineMessage = "Unable to verify license while offline";
+            const string licenceSeamProbeKey = "HW-AAAA-BBBB-CCCC-DDDD";
+
+            // RunAsync blocks on GetAwaiter().GetResult(), and an earlier case leaves a
+            // DispatcherSynchronizationContext on this thread that no loop pumps. The
+            // timeout reply completes truly asynchronously, so its continuation would
+            // never run and the suite would hang. Detach for the block, as the
+            // onboarding and limits blocks do.
+            var licenceSeamPreviousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+
+            RunAsync("probe: a 429 reports unavailable, not an invalid key", async () =>
+            {
+                var handler = new LicenceSeamReplyHandler(HttpStatusCode.TooManyRequests, "{\"valid\":false,\"error\":\"rate limited\"}");
+                using var service = new LicenseNetworkService(new HttpClient(handler));
+                var result = await service.ProbeLicenseAsync(licenceSeamProbeKey);
+                Assert(handler.Bodies.Count == 1, $"the probe must reach the scripted server once, sent {handler.Bodies.Count}");
+                Assert(!result.IsValid && result.ErrorMessage == licenceSeamOfflineMessage,
+                    $"a 429 is not a verdict about the key, got valid={result.IsValid} message='{result.ErrorMessage}'");
+            });
+
+            RunAsync("probe: a 503 reports unavailable, not an invalid key", async () =>
+            {
+                var handler = new LicenceSeamReplyHandler(HttpStatusCode.ServiceUnavailable, "{\"valid\":false,\"error\":\"maintenance\"}");
+                using var service = new LicenseNetworkService(new HttpClient(handler));
+                var result = await service.ProbeLicenseAsync(licenceSeamProbeKey);
+                Assert(handler.Bodies.Count == 1, $"the probe must reach the scripted server once, sent {handler.Bodies.Count}");
+                Assert(!result.IsValid && result.ErrorMessage == licenceSeamOfflineMessage,
+                    $"a 503 is not a verdict about the key, got valid={result.IsValid} message='{result.ErrorMessage}'");
+            });
+
+            RunAsync("probe: a 400 not_entitled reply is a real Invalid verdict", async () =>
+            {
+                var handler = new LicenceSeamReplyHandler(HttpStatusCode.BadRequest,
+                    "{\"valid\":false,\"error\":\"License key not found\",\"reason\":\"not_entitled\"}");
+                using var service = new LicenseNetworkService(new HttpClient(handler));
+                var result = await service.ProbeLicenseAsync(licenceSeamProbeKey);
+                Assert(!result.IsValid && result.Status == LicenseStatus.Invalid,
+                    $"a not_entitled reply must be Invalid, got valid={result.IsValid} status={result.Status}");
+                Assert(result.ErrorMessage == "License key not found",
+                    $"the server's own message must reach the user, not the offline text, got '{result.ErrorMessage}'");
+            });
+
+            RunAsync("probe: a valid key is NOT stored by a probe", async () =>
+            {
+                var handler = new LicenceSeamReplyHandler(HttpStatusCode.OK,
+                    "{\"valid\":true,\"status\":\"active\",\"customer_id\":\"cus_seam_0738\"}");
+                using var service = new LicenseNetworkService(new HttpClient(handler));
+                var keyBefore = service.GetStoredLicenseKey();
+                var cachedBefore = service.GetCachedStatus();
+                Assert(keyBefore != licenceSeamProbeKey, "the probe key is already stored; this check would prove nothing");
+
+                var result = await service.ProbeLicenseAsync(licenceSeamProbeKey);
+                Assert(result.IsValid && result.Status == LicenseStatus.Active,
+                    $"the scripted valid reply must read as Active, got valid={result.IsValid} status={result.Status}");
+                Assert(service.GetStoredLicenseKey() == keyBefore,
+                    "a probe stored the key it checked; only an activation may");
+                Assert(service.GetCachedStatus() == cachedBefore,
+                    $"a probe wrote the validation cache ({cachedBefore} -> {service.GetCachedStatus()})");
+            });
+
+            RunAsync("probe: the request body carries probe_only and no device_id", async () =>
+            {
+                var handler = new LicenceSeamReplyHandler(HttpStatusCode.OK, "{\"valid\":true}");
+                using var service = new LicenseNetworkService(new HttpClient(handler));
+                await service.ProbeLicenseAsync("  " + licenceSeamProbeKey + "\n");
+                Assert(handler.Bodies.Count == 1, $"expected one request, sent {handler.Bodies.Count}");
+
+                using var body = JsonDocument.Parse(handler.Bodies[0]);
+                var root = body.RootElement;
+                Assert(root.TryGetProperty("probe_only", out var probeOnly) && probeOnly.ValueKind == JsonValueKind.True,
+                    $"the body must carry probe_only=true: {handler.Bodies[0]}");
+                Assert(root.TryGetProperty("license_key", out var sentKey) && sentKey.GetString() == licenceSeamProbeKey,
+                    $"the body must carry the trimmed key: {handler.Bodies[0]}");
+                Assert(!root.EnumerateObject().Any(p => p.Name.StartsWith("device", StringComparison.Ordinal)),
+                    $"a probe must send no device identity: {handler.Bodies[0]}");
+            });
+
+            // ValidateLicenseAsync's transient rule. This half needs a stored key with a
+            // cached verdict, so the first check seeds one through the real persist path
+            // and the finally clears it again.
+            const string licenceSeamStoredKey = "HW-EEEE-FFFF-GGGG-HHHH";
+            try
+            {
+                RunAsync("validate: a 200 valid reply stores the key and caches Active (seed for the transient checks)", async () =>
+                {
+                    var handler = new LicenceSeamReplyHandler(HttpStatusCode.OK,
+                        "{\"valid\":true,\"status\":\"active\",\"customer_id\":\"cus_seam_0738\"}");
+                    using var service = new LicenseNetworkService(new HttpClient(handler));
+                    var result = await service.ValidateLicenseAsync(licenceSeamStoredKey);
+                    Assert(result.IsValid && result.Status == LicenseStatus.Active,
+                        $"the scripted valid reply must read as Active, got valid={result.IsValid} status={result.Status}");
+                    Assert(service.GetStoredLicenseKey() == licenceSeamStoredKey, "an Active verdict must store the key");
+                    Assert(service.GetCachedStatus() == LicenseStatus.Active, "an Active verdict must be cached");
+                });
+
+                RunAsync("validate: a 429, a 500 and a timeout fall back to the stored key's cached verdict", async () =>
+                {
+                    var replies = new (string Label, LicenceSeamReplyHandler Handler)[]
+                    {
+                        ("429", new LicenceSeamReplyHandler(HttpStatusCode.TooManyRequests, "{\"valid\":false,\"error\":\"rate limited\"}")),
+                        ("500", new LicenceSeamReplyHandler(HttpStatusCode.InternalServerError, "{\"valid\":false,\"error\":\"boom\"}")),
+                        ("timeout", new LicenceSeamReplyHandler(async ct =>
+                        {
+                            await Task.Delay(Timeout.Infinite, ct);
+                            throw new InvalidOperationException("unreachable");
+                        })),
+                    };
+
+                    foreach (var (label, handler) in replies)
+                    {
+                        using var service = new LicenseNetworkService(
+                            new HttpClient(handler) { Timeout = TimeSpan.FromMilliseconds(200) });
+                        var result = await service.ValidateLicenseAsync(licenceSeamStoredKey);
+                        Assert(handler.Bodies.Count == 1, $"{label}: expected one request, sent {handler.Bodies.Count}");
+                        Assert(result.IsValid && result.Status == LicenseStatus.Active,
+                            $"{label}: a transient failure downgraded a paying user, got valid={result.IsValid} status={result.Status} message='{result.ErrorMessage}'");
+                        Assert(result.ErrorMessage == "Using cached license (offline)",
+                            $"{label}: expected the cached-offline verdict, got '{result.ErrorMessage}'");
+                        Assert(service.GetStoredLicenseKey() == licenceSeamStoredKey && service.GetCachedStatus() == LicenseStatus.Active,
+                            $"{label}: a transient failure must leave the stored key and its cache alone");
+                    }
+                });
+
+                RunAsync("validate: offline, a key that is not the stored one gets no cached verdict", async () =>
+                {
+                    var handler = new LicenceSeamReplyHandler(HttpStatusCode.TooManyRequests, "{\"valid\":false,\"error\":\"rate limited\"}");
+                    using var service = new LicenseNetworkService(new HttpClient(handler));
+                    var result = await service.ValidateLicenseAsync(licenceSeamProbeKey);
+                    Assert(handler.Bodies.Count == 1, $"expected one request, sent {handler.Bodies.Count}");
+                    Assert(!result.IsValid && result.Status == LicenseStatus.Invalid && result.ErrorMessage == licenceSeamOfflineMessage,
+                        $"a different key inherited the stored key's verdict: valid={result.IsValid} status={result.Status} message='{result.ErrorMessage}'");
+                    Assert(service.GetStoredLicenseKey() == licenceSeamStoredKey && service.GetCachedStatus() == LicenseStatus.Active,
+                        "an unverified replacement key must leave the stored key and its cache alone");
+                });
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(licenceSeamPreviousContext);
+                using var cleanup = new LicenseNetworkService(new HttpClient());
+                if (cleanup.GetStoredLicenseKey() == licenceSeamStoredKey)
+                {
+                    cleanup.ClearStoredLicense();
+                }
+            }
 
             Console.WriteLine(_failures == 0
                 ? "All smoke tests passed."
@@ -28023,4 +28173,31 @@ internal static class Win32ManifestReader
     [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
     [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
     private static extern bool FreeLibrary(IntPtr hModule);
+}
+
+/// <summary>
+/// Issue #738: the scripted server behind LicenseNetworkService's HttpClient seam.
+/// Records every request body it is sent, then answers with the scripted reply,
+/// which may also hang on the token so the client's own timeout fires.
+/// </summary>
+internal sealed class LicenceSeamReplyHandler : HttpMessageHandler
+{
+    private readonly Func<CancellationToken, Task<HttpResponseMessage>> _reply;
+    public readonly List<string> Bodies = new();
+
+    public LicenceSeamReplyHandler(Func<CancellationToken, Task<HttpResponseMessage>> reply) => _reply = reply;
+
+    public LicenceSeamReplyHandler(HttpStatusCode status, string json)
+        : this(_ => Task.FromResult(new HttpResponseMessage(status)
+        {
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
+        }))
+    {
+    }
+
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        Bodies.Add(request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken));
+        return await _reply(cancellationToken);
+    }
 }
