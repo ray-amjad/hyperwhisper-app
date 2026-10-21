@@ -8,6 +8,7 @@
 
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Hono } from 'hono';
+import { pcm16Wav } from '../test-support/wav';
 import { createMemoryCreditHoldStore, type MemoryCreditHoldStore } from '../lib/credit-hold-store-memory';
 import type { CreditHoldStore } from '../lib/credit-hold-store';
 
@@ -49,22 +50,7 @@ function buildApp(): Hono {
 }
 
 function metaMinuteRequest(accountKey: string = ACCOUNT): Request {
-  const seconds = 60;
-  const dataBytes = 16_000 * 2 * seconds;
-  const audio = new Uint8Array(44 + dataBytes);
-  const view = new DataView(audio.buffer);
-  for (const [offset, text] of [[0, 'RIFF'], [8, 'WAVE'], [12, 'fmt '], [36, 'data']] as const) {
-    for (let index = 0; index < text.length; index++) view.setUint8(offset + index, text.charCodeAt(index));
-  }
-  view.setUint32(4, audio.byteLength - 8, true);
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, 16_000, true);
-  view.setUint32(28, 16_000 * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  view.setUint32(40, dataBytes, true);
+  const audio = new Uint8Array(pcm16Wav(60));
   return new Request(`http://localhost/transcribe?account_key=${accountKey}&language=en`, {
     method: 'POST',
     headers: {
