@@ -13,7 +13,7 @@
 // RESPONSE FORMAT:
 // {
 //   "credits_remaining": 150.5,
-//   "minutes_remaining": 24,
+//   "minutes_remaining": 90,
 //   "credits_per_minute": 1.67,
 //   "is_licensed": false,
 //   "is_anonymous": true,
@@ -107,7 +107,7 @@ public class HyperWhisperCloudCredits
 
     /// <summary>
     /// Formatted balance string for display.
-    /// Example: "$0.15 remaining (~24 minutes)"
+    /// Example: "$0.15 remaining (~90 minutes)"
     /// </summary>
     [JsonIgnore]
     public string FormattedBalance
@@ -164,24 +164,5 @@ public class HyperWhisperCloudCredits
             var local = ResetsAt.Value.ToLocalTime();
             return $"Resets at {local:h:mm tt}";
         }
-    }
-
-    // =========================================================================
-    // FACTORY METHODS
-    // =========================================================================
-
-    /// <summary>
-    /// Creates an empty/unknown credits object for error states.
-    /// </summary>
-    public static HyperWhisperCloudCredits Empty()
-    {
-        return new HyperWhisperCloudCredits
-        {
-            CreditsRemaining = 0,
-            MinutesRemaining = 0,
-            CreditsPerMinute = 1.67, // The server's rate (#1657)
-            IsLicensed = false,
-            IsAnonymous = false
-        };
     }
 }
