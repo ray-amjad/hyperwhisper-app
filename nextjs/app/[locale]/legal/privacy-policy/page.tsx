@@ -196,10 +196,10 @@ export default function PrivacyPolicyPage() {
           places in our code where it happened, the route that failed (such as
           &quot;/api/license/validate&quot;, without the address or query you
           requested), the request method, and, for the Cloud service, the
-          server region. Before a report is sent, Account Keys, email addresses,
-          and quoted or structured values, such as the data in a database query
-          or a provider&apos;s response where a transcript could appear, are
-          removed from the error message. A report does not include your IP
+          server region. Before a report is sent, we remove Account Keys and
+          email addresses from the error message, along with the values in a
+          database query and structured data such as a provider&apos;s JSON
+          response, where a transcript could appear. A report does not include your IP
           address, your request&apos;s headers, cookies, or body, or your audio.
           These reports come from our servers, not your device, so there is no
           setting to turn them off.
