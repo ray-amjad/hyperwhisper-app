@@ -1064,7 +1064,10 @@ public static class UniversalBackupMapper
             mode.ModelType = shared.ModelType;
             mode.LocalEngine = shared.LocalEngine ?? "whisper";
             mode.LocalParakeetModel = shared.LocalParakeetModel;
-            mode.ProviderType = shared.ProviderType;
+            // A slice with no providerType (an older or hand-edited Windows backup)
+            // falls back to the same inference as a sliceless mode, as Linux
+            // ParseMode does (#2041), rather than restoring ProviderType = null.
+            mode.ProviderType = shared.ProviderType ?? InferProviderType(universal);
             // winExt.CloudAccuracyTier / .CloudPostProcessingModel are NOT read here:
             // the core already folded them in with the right precedence (a present
             // Windows-extension value wins over the universal one, an absent one keeps
@@ -1094,9 +1097,7 @@ public static class UniversalBackupMapper
             // No slice says: a Cloud mode is `model == "cloud"` OR a set
             // cloudProvider. macOS may omit the provider on a HyperWhisper Cloud
             // mode, so the provider alone turned it into local Whisper (#1690).
-            mode.ProviderType = peerExt?.ProviderType
-                ?? (universal.Model == LocalModeModel.CloudModel
-                    || !string.IsNullOrWhiteSpace(universal.CloudProvider) ? "cloud" : "local");
+            mode.ProviderType = peerExt?.ProviderType ?? InferProviderType(universal);
             // Tier / post-processing model already resolved by the core above.
             // A macOS or Linux backup carries screen OCR in ITS slice (#1498).
             mode.EnableScreenOCR =
@@ -1132,6 +1133,15 @@ public static class UniversalBackupMapper
 
         return mode;
     }
+
+    /// <summary>
+    /// The provider type of a mode whose winning slice does not say: a Cloud mode is
+    /// <c>model == "cloud"</c> OR a set cloudProvider (#1690). Linux
+    /// ApplicationBackupExport.ParseMode applies the same rule.
+    /// </summary>
+    private static string InferProviderType(UniversalMode universal) =>
+        universal.Model == LocalModeModel.CloudModel
+            || !string.IsNullOrWhiteSpace(universal.CloudProvider) ? "cloud" : "local";
 
     /// <summary>
     /// Maps a universal vocabulary item to a Windows VocabularyItem (adds CreatedDate).
