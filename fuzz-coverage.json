@@ -597,6 +597,23 @@
       ],
       "licensed": false,
       "note": "Unlicensed (no HYPERWHISPER_ACCOUNT_KEY). Core DLL from 93e0532d (no shared-core-rs change since). core-settings: sound/auto-paste/theme/hotkey all persist + logged; theme switch gives Restart prompt, No reverts to System (by design). licence: fake keys -> server 400 'License key not found', unicode/emoji -> client 'That doesn't look like an account key', empty -> Activate disabled; mined. home-and-tray: Home hotkey chips follow Settings, mode switch updates status bar, minimize/relaunch keeps mode; tray not covered. Did not enter a real key: scratch profile shares the Windows PasswordVault with Ray's installed app."
+    },
+    {
+      "at": "2026-10-21T04:18:48Z",
+      "platform": "linux",
+      "commit": "7b50b6b6",
+      "routes": [
+        "vocabulary",
+        "provider-settings",
+        "home-and-tray"
+      ],
+      "status": "2-filed",
+      "issues": [
+        2323,
+        2324
+      ],
+      "licensed": false,
+      "note": "unlicensed. Both finds came from MY re-drive, not Codex: vocab pencil→nav away→back→Add overwrites hidden row (#2323); API Keys Refresh() resets Selected to OpenAI so 2nd Delete erases OpenAI (#2324). Codex's 'trims spaces' vocab defect = by design. home-and-tray clean."
     }
   ]
 }
