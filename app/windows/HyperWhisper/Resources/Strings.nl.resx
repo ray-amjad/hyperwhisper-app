@@ -2032,6 +2032,27 @@ Je kunt het later opnieuw downloaden.</value>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Houd tussen opnamen door een stille invoerstroom open, zodat het starten minder vertraging heeft, vooral bij Bluetooth-microfoons.</value>
   </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Alleen gebruikt door HyperWhisper. Blijft bewaard na een herstart.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Standaard · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (niet verbonden)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>{0} wordt gebruikt totdat {1} opnieuw is verbonden.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Er is geen microfoon verbonden. HyperWhisper gebruikt {0} zodra die opnieuw is verbonden.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Testen</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Stoppen</value>
+  </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Gemiddelde snelheid</value>
   </data>

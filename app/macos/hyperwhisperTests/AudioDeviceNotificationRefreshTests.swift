@@ -398,4 +398,52 @@ struct AudioDeviceNotificationRefreshTests {
         #expect(manager.activeInputDeviceName == initialActiveName)
         #expect(invalidationCount == 0)
     }
+
+    /// Spec: the choice is kept while its device is unplugged (recording uses the
+    /// default meanwhile) and is used again as soon as the device reappears.
+    @Test func chosenDeviceIsKeptWhileUnpluggedAndReusedWhenItReturns() async {
+        let secondConnected = OSAllocatedUnfairLock(initialState: true)
+        let manager = AudioDeviceManager(
+            registerNotificationListeners: false,
+            notificationSnapshotProvider: { selectedUID in
+                let devices = secondConnected.withLock { $0 }
+                    ? [notificationFirstDevice, notificationSecondDevice]
+                    : [notificationFirstDevice]
+                return notificationSnapshot(devices: devices, selectedDeviceUID: selectedUID)
+            }
+        )
+        let choice = MicrophoneChoice(uid: notificationSecondDevice.uid, name: notificationSecondDevice.name)
+        manager.restorePreferredDevice(choice)
+        defer { manager.restorePreferredDevice(nil) }
+        #expect(MicrophoneRoutingStore.shared.preferredDeviceUID == choice.uid)
+
+        // First scan: the chosen device is connected, so it becomes the selected one.
+        await manager.refreshAvailableDevicesFromNotificationForTesting(reason: .coreAudioDeviceList)
+        #expect(manager.selectedDevice == notificationSecondDevice)
+
+        // Unplugged: recording falls back to the default, the choice stays.
+        var invalidated: [AudioDevice] = []
+        manager.onSelectedDeviceInvalidated = { invalidated.append($0) }
+        secondConnected.withLock { $0 = false }
+        await manager.refreshAvailableDevicesFromNotificationForTesting(reason: .coreAudioDeviceList)
+        #expect(manager.selectedDevice == nil)
+        #expect(manager.preferredDevice == choice)
+        #expect(invalidated == [notificationSecondDevice])
+
+        // Plugged back in: used again, with no restart and no user action.
+        secondConnected.withLock { $0 = true }
+        await manager.refreshAvailableDevicesFromNotificationForTesting(reason: .coreAudioDeviceList)
+        #expect(manager.selectedDevice == notificationSecondDevice)
+        #expect(manager.preferredDevice == choice)
+    }
+
+    @Test func choosingDefaultClearsTheChoice() {
+        let manager = AudioDeviceManager(registerNotificationListeners: false)
+        manager.selectDevice(notificationFirstDevice)
+        #expect(manager.preferredDevice == MicrophoneChoice(uid: "first", name: "First"))
+        manager.selectDevice(nil)
+        #expect(manager.preferredDevice == nil)
+        #expect(manager.selectedDevice == nil)
+        #expect(MicrophoneRoutingStore.shared.preferredDeviceUID == nil)
+    }
 }

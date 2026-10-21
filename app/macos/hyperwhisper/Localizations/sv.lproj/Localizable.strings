@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "Spela upp ljudsignaler när inspelningen startar och stoppar.";
 "settings.sound.mediaControl.title" = "Mediakontroll vid inspelning";
 "settings.sound.mediaControl.info" = "Välj hur HyperWhisper hanterar annan ljud under inspelning. 'Av' lämnar ljud oförändrat, 'Stäng av ljud' tystnar systemutgång under inspelning och återställer den efteråt, och 'Dämpa ljud' låter det spelas svagt, som från rummet bredvid.";
+"settings.sound.microphone.title" = "Mikrofon";
+"settings.sound.microphone.subtitle" = "Används bara av HyperWhisper. Sparas efter omstart.";
+"microphone.picker.default" = "Standard · %@";
+"microphone.picker.notConnected" = "%@ (inte ansluten)";
+"microphone.picker.fallback" = "Använder %1$@ tills %2$@ ansluts igen.";
+"settings.sound.microphone.test" = "Testa";
+"settings.sound.microphone.stop" = "Stoppa";
+"settings.sound.microphone.level" = "Ingångsnivå";
 "settings.sound.autoIncreaseMicVolume.title" = "Öka automatiskt mikrofonvolym";
-"settings.sound.autoIncreaseMicVolume.info" = "Ställer automatiskt in mikrofoningångsvolymen på max när inspelningen startar, sedan återställs den ursprungliga nivån när inspelningen stoppas. Gäller endast när systemets standardingångsenhet används.";
+"settings.sound.autoIncreaseMicVolume.info" = "Ställer automatiskt in ingångsvolymen för mikrofonen som HyperWhisper spelar in från på max när inspelningen startar och återställer den ursprungliga nivån när inspelningen stoppas. Mikrofoner utan mjukvarustyrd volym lämnas oförändrade.";
 "settings.sound.vad.title" = "Ta bort tystnad innan transkription";
 "settings.sound.vad.info" = "Upptäcker och tar bort automatiskt ledande och avslutande tystnad med AI-röstidentifiering. Detta kan förbättra transkriptionsnoggrannheten och minska bearbetningstiden.";
 

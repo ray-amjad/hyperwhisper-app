@@ -63,6 +63,14 @@ public sealed class PortableSettingsService
         _values[key] = JsonSerializer.SerializeToElement(value, SerializerOptions);
     }
 
+    /// <summary>Forgets <paramref name="key"/>, so a later <see cref="Get{T}"/> returns its default.
+    /// Returns whether the key was present.</summary>
+    public bool Remove(string key)
+    {
+        ValidateKey(key);
+        return _values.Remove(key);
+    }
+
     public IReadOnlyDictionary<string, JsonElement> Snapshot()
         => _values.ToDictionary(item => item.Key, item => item.Value.Clone(), StringComparer.Ordinal);
 

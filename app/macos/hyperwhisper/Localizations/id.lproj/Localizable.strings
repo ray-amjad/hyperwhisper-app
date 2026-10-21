@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "Putar isyarat audio saat perekaman dimulai dan berhenti.";
 "settings.sound.mediaControl.title" = "Kontrol media saat merekam";
 "settings.sound.mediaControl.info" = "Pilih bagaimana HyperWhisper menangani audio lain saat Anda merekam. 'Nonaktif' membiarkan audio tidak berubah, 'Bisukan Audio' membungkam output sistem saat merekam dan memulihkannya setelahnya, dan 'Redam Audio' tetap memutarnya dengan lembut, seolah dari ruangan sebelah.";
+"settings.sound.microphone.title" = "Mikrofon";
+"settings.sound.microphone.subtitle" = "Hanya digunakan oleh HyperWhisper. Tetap diingat setelah dimulai ulang.";
+"microphone.picker.default" = "Default · %@";
+"microphone.picker.notConnected" = "%@ (tidak terhubung)";
+"microphone.picker.fallback" = "Menggunakan %1$@ hingga %2$@ terhubung kembali.";
+"settings.sound.microphone.test" = "Uji";
+"settings.sound.microphone.stop" = "Hentikan";
+"settings.sound.microphone.level" = "Level input";
 "settings.sound.autoIncreaseMicVolume.title" = "Tingkatkan volume mikrofon secara otomatis";
-"settings.sound.autoIncreaseMicVolume.info" = "Secara otomatis menyetel volume input mikrofon ke maksimum saat perekaman dimulai, kemudian mengembalikan level asli saat perekaman berhenti. Hanya berlaku saat menggunakan perangkat input default sistem.";
+"settings.sound.autoIncreaseMicVolume.info" = "Secara otomatis mengatur volume input mikrofon yang digunakan HyperWhisper untuk merekam ke maksimum saat perekaman dimulai, lalu memulihkan level aslinya saat perekaman berhenti. Mikrofon tanpa kontrol volume perangkat lunak tidak diubah.";
 "settings.sound.vad.title" = "Hapus keheningan sebelum transkripsi";
 "settings.sound.vad.info" = "Secara otomatis mendeteksi dan menghapus keheningan awal dan akhir menggunakan deteksi suara AI. Ini dapat meningkatkan akurasi transkripsi dan mengurangi waktu pemrosesan.";
 

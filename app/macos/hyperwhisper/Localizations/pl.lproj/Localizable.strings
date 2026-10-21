@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "Odtwarzaj sygnały dźwiękowe po rozpoczęciu i zakończeniu nagrywania.";
 "settings.sound.mediaControl.title" = "Kontrola mediów podczas nagrywania";
 "settings.sound.mediaControl.info" = "Wybierz sposób, w jaki HyperWhisper obsługuje inne audio podczas nagrywania. 'Wyłączone' pozostawia audio bez zmian, 'Wycisz audio' wycisza wyjście systemowe podczas nagrywania i przywraca je potem, a 'Przytłum audio' odtwarza je cicho, jakby z sąsiedniego pokoju.";
+"settings.sound.microphone.title" = "Mikrofon";
+"settings.sound.microphone.subtitle" = "Używany tylko przez HyperWhisper. Zapamiętywany po ponownym uruchomieniu.";
+"microphone.picker.default" = "Domyślny · %@";
+"microphone.picker.notConnected" = "%@ (niepodłączony)";
+"microphone.picker.fallback" = "Używany jest %1$@, dopóki %2$@ nie zostanie ponownie podłączony.";
+"settings.sound.microphone.test" = "Testuj";
+"settings.sound.microphone.stop" = "Zatrzymaj";
+"settings.sound.microphone.level" = "Poziom wejścia";
 "settings.sound.autoIncreaseMicVolume.title" = "Automatycznie zwiększ głośność mikrofonu";
-"settings.sound.autoIncreaseMicVolume.info" = "Automatycznie ustawia głośność wejścia mikrofonu na maksimum, gdy nagrywanie się zaczyna, a następnie przywraca oryginalny poziom po zatrzymaniu nagrywania. Dotyczy tylko domyślnego urządzenia wejściowego.";
+"settings.sound.autoIncreaseMicVolume.info" = "Automatycznie ustawia maksymalną głośność wejściową mikrofonu, z którego nagrywa HyperWhisper, po rozpoczęciu nagrywania i przywraca pierwotny poziom po jego zatrzymaniu. Mikrofony bez programowej regulacji głośności pozostają bez zmian.";
 "settings.sound.vad.title" = "Usuń ciszę przed transkrypcją";
 "settings.sound.vad.info" = "Automatycznie wykrywa i usuwa wiodącą i końcową ciszę przy użyciu sztucznej inteligencji wykrywania głosu. Może to poprawić dokładność transkrypcji i zmniejszyć czas przetwarzania.";
 

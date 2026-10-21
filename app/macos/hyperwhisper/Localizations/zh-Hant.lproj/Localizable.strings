@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "在錄音開始和停止時播放音訊提示。";
 "settings.sound.mediaControl.title" = "錄音時的媒體控制";
 "settings.sound.mediaControl.info" = "選擇 HyperWhisper 在您錄音時如何處理其他音頻。「關閉」保持音頻不變，「靜音」會在錄音期間將系統輸出靜音并在之後恢復，「柔化音頻」則讓音頻繼續輕聲播放，彷彿來自隔壁房間。";
+"settings.sound.microphone.title" = "麥克風";
+"settings.sound.microphone.subtitle" = "僅供 HyperWhisper 使用。重新啟動後仍會保留。";
+"microphone.picker.default" = "預設 · %@";
+"microphone.picker.notConnected" = "%@（未連線）";
+"microphone.picker.fallback" = "正在使用 %1$@，直到 %2$@ 重新連線。";
+"settings.sound.microphone.test" = "測試";
+"settings.sound.microphone.stop" = "停止";
+"settings.sound.microphone.level" = "輸入音量";
 "settings.sound.autoIncreaseMicVolume.title" = "自動增加麥克風音量";
-"settings.sound.autoIncreaseMicVolume.info" = "錄音開始時自動將麥克風輸入音量設定為最大，錄音停止時恢復原始等級。僅在使用系統預設輸入裝置時適用。";
+"settings.sound.autoIncreaseMicVolume.info" = "開始錄音時，自動將 HyperWhisper 錄音所用麥克風的輸入音量調到最大，並在錄音停止後恢復原本的音量。沒有軟體音量控制的麥克風將維持不變。";
 "settings.sound.vad.title" = "在轉錄前移除靜音";
 "settings.sound.vad.info" = "使用 AI 語音偵測自動偵測並移除前導和尾隨靜音。這可以提高轉錄準確性並減少處理時間。";
 

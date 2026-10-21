@@ -2032,6 +2032,27 @@ Anda dapat mengunduhnya lagi nanti.</value>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Biarkan aliran input senyap tetap terbuka di antara rekaman untuk mengurangi jeda saat mulai, terutama dengan mikrofon Bluetooth.</value>
   </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Hanya digunakan oleh HyperWhisper. Tetap diingat setelah dimulai ulang.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Bawaan · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (tidak terhubung)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Menggunakan {0} hingga {1} terhubung kembali.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Tidak ada mikrofon yang terhubung. HyperWhisper akan menggunakan {0} saat terhubung kembali.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Uji</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Hentikan</value>
+  </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Kecepatan rata-rata</value>
   </data>
