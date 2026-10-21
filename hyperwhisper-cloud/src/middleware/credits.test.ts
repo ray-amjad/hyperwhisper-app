@@ -11,7 +11,7 @@ const originalFetch = globalThis.fetch;
 const originalConsoleWarn = console.warn;
 const originalLicenseApiUrl = process.env.NEXTJS_LICENSE_API_URL;
 
-type CachedLicense = { isValid: boolean; credits: number; cachedAt: string };
+type CachedLicense = { isValid: boolean; credits: number; cachedAt: string; issuedAtMs?: number };
 const cacheWrites: Array<{ licenseKey: string; license: CachedLicense }> = [];
 // What `getCachedLicense` reads back, so a charge's cache write can be followed
 // through to the next request's `validateAuth`.
@@ -409,6 +409,45 @@ describe('deductCredits / drainPendingDeductions', () => {
       await expectNoPendingDeductions();
     });
   }
+
+  // The per-key entry is ordered by when the site was asked, so a slow reply
+  // to an older charge cannot undo a newer verdict (#1899).
+  test('a success reply to a charge asked before a cached refusal leaves the refusal in place (#1899)', async () => {
+    const refusal = { isValid: false, credits: 0, cachedAt: new Date().toISOString(), issuedAtMs: Date.now() + 60_000 };
+    cachedLicenses.set('lic_test', refusal);
+    captureFetch(() => Response.json({ credits_remaining: 12 }));
+
+    await deductCredits(auth(20), 0.05, { provider: 'p' }, '1.2.3.4');
+
+    expect(cacheWrites).toHaveLength(0);
+    expect(await getCachedLicense('lic_test')).toEqual(refusal);
+    const next = await validateAuth({ licenseKey: 'lic_test' });
+    expect(next.diagnostics.outcome).toBe('cached_invalid');
+    await expectNoPendingDeductions();
+  });
+
+  test('a refusal to a charge asked before a newer valid entry leaves the valid entry in place (#1899)', async () => {
+    const regranted = { isValid: true, credits: 20, cachedAt: new Date().toISOString(), issuedAtMs: Date.now() + 60_000 };
+    cachedLicenses.set('lic_test', regranted);
+    captureFetch(() => Response.json({ error: 'License is revoked' }, { status: 400 }));
+    captureWarnings();
+
+    await deductCredits(auth(20), 0.05, { provider: 'p' }, '1.2.3.4');
+
+    expect(cacheWrites).toHaveLength(0);
+    expect(await getCachedLicense('lic_test')).toEqual(regranted);
+    await expectNoPendingDeductions();
+  });
+
+  test('a success reply to a charge asked after an older refusal re-validates the key (#1899)', async () => {
+    cachedLicenses.set('lic_test', { isValid: false, credits: 0, cachedAt: new Date().toISOString(), issuedAtMs: Date.now() - 60_000 });
+    captureFetch(() => Response.json({ credits_remaining: 12 }));
+
+    await deductCredits(auth(20), 0.05, { provider: 'p' }, '1.2.3.4');
+
+    expect(await getCachedLicense('lic_test')).toMatchObject({ isValid: true, credits: 12 });
+    await expectNoPendingDeductions();
+  });
 
   const nonKeyFailures: Array<{ label: string; respond: () => Response }> = [
     { label: 'a 503', respond: () => Response.json({ error: 'License is revoked' }, { status: 503 }) },
