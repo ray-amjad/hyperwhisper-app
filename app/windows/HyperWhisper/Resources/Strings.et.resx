@@ -2032,6 +2032,27 @@ You can re-download it later.</value>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
   </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Kasutab ainult HyperWhisper. Jäetakse meelde ka pärast taaskäivitust.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Vaikimisi · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (pole ühendatud)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Kasutatakse seadet {0}, kuni {1} uuesti ühendatakse.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Ühtegi mikrofoni pole ühendatud. HyperWhisper kasutab seadet {0}, kui see uuesti ühendatakse.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Testi</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Peata</value>
+  </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>
   </data>

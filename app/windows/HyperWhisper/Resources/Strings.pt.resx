@@ -2032,6 +2032,27 @@ Pode voltar a descarregá-lo mais tarde.</value>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Manter um fluxo de entrada silencioso aberto entre gravações, para reduzir o atraso de arranque, sobretudo com microfones Bluetooth.</value>
   </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Utilizado apenas pelo HyperWhisper. Memorizado após reiniciar.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Predefinição · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (não ligado)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>A utilizar {0} até {1} ser novamente ligado.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Nenhum microfone está ligado. O HyperWhisper utilizará {0} quando for novamente ligado.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Testar</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Parar</value>
+  </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Velocidade média</value>
   </data>

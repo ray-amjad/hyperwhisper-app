@@ -2032,6 +2032,27 @@ You can re-download it later.</value>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
   </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Користи га само HyperWhisper. Памти се и након поновног покретања.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Подразумевано · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (није повезано)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Користи се {0} док се {1} поново не повеже.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Ниједан микрофон није повезан. HyperWhisper ће користити {0} када се поново повеже.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Тестирај</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Заустави</value>
+  </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>
   </data>

@@ -2032,6 +2032,27 @@ You can re-download it later.</value>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
   </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Používá jen HyperWhisper. Zůstane zapamatováno i po restartu.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Výchozí · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (nepřipojeno)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Používá se {0}, dokud nebude znovu připojeno {1}.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Není připojen žádný mikrofon. HyperWhisper použije {0}, až bude znovu připojeno.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Vyzkoušet</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Zastavit</value>
+  </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>
   </data>

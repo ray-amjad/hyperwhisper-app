@@ -179,7 +179,10 @@ public partial class MainWindow : Window
             CreateAboutViewModel(diagnosticDirectory),
             L,
             // Read at each navigation; the session is built below, after the shell it writes to.
-            () => _recordingSession?.IsRecordingOrFinishing == true);
+            () => _recordingSession?.IsRecordingOrFinishing == true,
+            // Settings → Sound's Test opens the chosen microphone on the live-capture path (parec
+            // or pw-record), and only while the test runs.
+            () => new PulseStreamingAudioCapture());
         var history = new HistoryRepository(_database, _platformServices.Paths);
         var contextCapture = new LinuxContextCaptureCoordinator(
             _platformServices.ApplicationContext, _platformServices.ScreenOcr);
@@ -270,6 +273,7 @@ public partial class MainWindow : Window
             }
             var initializesHere = _initialization is null;
             await EnsureInitializedAsync();
+            StartDeviceWatch();
             PrewarmSelectedParakeetMode();
             var recovery = await new CrashAudioRecoveryService(
                 _platformServices.Paths,
@@ -335,6 +339,7 @@ public partial class MainWindow : Window
         if (_viewModel.Settings.MinimizeToTray && _trayAvailable)
         {
             e.Cancel = true;
+            _viewModel.Microphone?.LevelTest.Stop();
             Hide();
             return;
         }
@@ -382,6 +387,8 @@ public partial class MainWindow : Window
         _shuttingDown = true;
         _lifetime.Cancel();
         if (_viewModel.Recording is { } recording) recording.DevicesChanged -= OnRecordingDevicesChanged;
+        _platformServices.AudioDeviceWatcher.DevicesMayHaveChanged -= OnAudioDevicesMayHaveChanged;
+        if (_viewModel.Microphone is { } microphone) microphone.ResolvedDeviceChanged -= OnMicrophoneResolvedDeviceChanged;
         _viewModel.Settings.LocalApiSettingsChanged -= OnLocalApiSettingsChanged;
         _viewModel.Settings.PropertyChanged -= OnLocalApiEnabledChanged;
         _viewModel.Settings.DesktopSettingsChanged -= OnDesktopSettingsChanged;
@@ -852,7 +859,12 @@ public partial class MainWindow : Window
             selectedModeAvailable,
             PersistOnboardingDecision,
             mode => _viewModel.Modes.Selected = mode,
-            device => { if (_viewModel.Recording is not null) _viewModel.Recording.SelectedAudioDevice = device; },
+            // Onboarding's pick is the saved choice too, so Home and Settings show it at once.
+            device =>
+            {
+                if (_viewModel.Microphone is { } microphone) microphone.ChooseDevice(device);
+                else if (_viewModel.Recording is not null) _viewModel.Recording.SelectedAudioDevice = device;
+            },
             L);
         // The list above is a snapshot, and it is normally taken before the first enumeration
         // lands — the shell enumerates on a background thread and posts the result here. Track
@@ -1472,7 +1484,41 @@ public partial class MainWindow : Window
 
     private void HideFromTray()
     {
-        if (_trayAvailable) Hide();
+        if (!_trayAvailable) return;
+        _viewModel.Microphone?.LevelTest.Stop();
+        Hide();
+    }
+
+    /// <summary>
+    /// Plug and unplug follow the pickers without "Refresh devices" (spec: mic picker in Settings).
+    /// The watcher raises on a pool thread and the refresh stays there, because enumerating runs
+    /// pactl; the workflow view model posts the new list to the UI thread itself.
+    /// </summary>
+    private void StartDeviceWatch()
+    {
+        if (_deviceWatchStarted) return;
+        _deviceWatchStarted = true;
+        _platformServices.AudioDeviceWatcher.DevicesMayHaveChanged += OnAudioDevicesMayHaveChanged;
+        if (_viewModel.Microphone is { } microphone) microphone.ResolvedDeviceChanged += OnMicrophoneResolvedDeviceChanged;
+        _platformServices.AudioDeviceWatcher.Start();
+    }
+
+    private bool _deviceWatchStarted;
+
+    private void OnAudioDevicesMayHaveChanged(object? sender, EventArgs e)
+    {
+        if (_closing || _shuttingDown) return;
+        try { _viewModel.Recording?.RefreshDevices(); }
+        catch (ObjectDisposedException) { }
+        catch (InvalidOperationException) { }
+    }
+
+    /// <summary>Keep-warm holds the device the next recording opens, so it moves with a fallback
+    /// or a reconnect too, not only with a pick.</summary>
+    private void OnMicrophoneResolvedDeviceChanged(object? sender, EventArgs e)
+    {
+        if (_closing || _shuttingDown || !_viewModel.Settings.KeepMicrophoneWarm) return;
+        _platformServices.MicrophoneKeepWarm.Configure(true, _viewModel.Recording?.SelectedAudioDevice?.Id);
     }
 
     /// <summary>The tray's Quit, and a SIGTERM/SIGINT/SIGQUIT (#1038). A second request while OnClosing
@@ -1495,7 +1541,9 @@ public partial class MainWindow : Window
         var recording = _viewModel.Recording;
         if (recording is null) return;
         recording.RefreshDevices();
-        recording.SelectedAudioDevice = LinuxTrayMicrophoneSelector.SelectDefault(recording.AudioDevices);
+        // The ONE saved choice (spec: mic picker in Settings): the tray's Default follows the OS.
+        if (_viewModel.Microphone is { } microphone) microphone.ChooseSystemDefault();
+        else recording.SelectedAudioDevice = LinuxTrayMicrophoneSelector.SelectDefault(recording.AudioDevices);
     }
 
     private void SelectAdjacentMicrophone(int direction)
@@ -1503,8 +1551,10 @@ public partial class MainWindow : Window
         var recording = _viewModel.Recording;
         if (recording is null) return;
         recording.RefreshDevices();
-        recording.SelectedAudioDevice = LinuxTrayMicrophoneSelector.SelectAdjacent(
+        var next = LinuxTrayMicrophoneSelector.SelectAdjacent(
             recording.AudioDevices, recording.SelectedAudioDevice?.Id, direction);
+        if (_viewModel.Microphone is { } microphone) { if (next is not null) microphone.ChooseDevice(next); }
+        else recording.SelectedAudioDevice = next;
     }
 
     private static readonly Uri TrayHelpUri = new("https://hyperwhisper.com/docs");

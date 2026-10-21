@@ -339,11 +339,21 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
               </div>
             </div>
 
-            {error && (
-              <p className="text-sm text-red-400 mt-4" role="alert">
-                {error}
-              </p>
-            )}
+            {/* #749: the wrapper stays mounted and the message reveals in it
+                (.t-error-reveal), so the button below moves down over 280 ms
+                instead of in one frame. The alert still mounts with its text.
+                No field shakes here: the button is disarmed while the email or
+                the amount is invalid, so the only error a buyer can reach is
+                the server refusing the checkout, which no field caused. */}
+            <div className="t-error-reveal" data-open={error ? "" : undefined}>
+              <div>
+                {error && (
+                  <p className="text-sm text-red-400 mt-4" role="alert">
+                    {error}
+                  </p>
+                )}
+              </div>
+            </div>
 
             <Button
               className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold mt-6"

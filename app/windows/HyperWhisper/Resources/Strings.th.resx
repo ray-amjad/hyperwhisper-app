@@ -2032,6 +2032,27 @@ You can re-download it later.</value>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
   </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>ใช้โดย HyperWhisper เท่านั้น จดจำไว้แม้รีสตาร์ท</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>ค่าเริ่มต้น · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (ไม่ได้เชื่อมต่อ)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>กำลังใช้ {0} จนกว่า {1} จะเชื่อมต่ออีกครั้ง</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>ไม่มีไมโครโฟนที่เชื่อมต่ออยู่ HyperWhisper จะใช้ {0} เมื่อเชื่อมต่ออีกครั้ง</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>ทดสอบ</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>หยุด</value>
+  </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>
   </data>
