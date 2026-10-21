@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "Hangjelzések lejátszása a felvétel indításakor és leállításakor.";
 "settings.sound.mediaControl.title" = "Média vezérlés felvétel közben";
 "settings.sound.mediaControl.info" = "Válaszd ki, hogyan kezelje a HyperWhisper a többi audio-t felvétel közben. 'Ki' változatlanul hagyja az audio-t, 'Audio némítás' elnémítja a rendszer kimenetét felvétel közben és utána visszallítja, a 'Audio tompítás' halkan szólva hagyja, mintha a szomszéd szobából szólna.";
+"settings.sound.microphone.title" = "Mikrofon";
+"settings.sound.microphone.subtitle" = "Csak a HyperWhisper használja. Újraindítás után is megmarad.";
+"microphone.picker.default" = "Alapértelmezett · %@";
+"microphone.picker.notConnected" = "%@ (nincs csatlakoztatva)";
+"microphone.picker.fallback" = "%1$@ használatban, amíg a(z) %2$@ újra nem csatlakozik.";
+"settings.sound.microphone.test" = "Teszt";
+"settings.sound.microphone.stop" = "Leállítás";
+"settings.sound.microphone.level" = "Bemeneti szint";
 "settings.sound.autoIncreaseMicVolume.title" = "Mikrofon hangerő automatikus növelése";
-"settings.sound.autoIncreaseMicVolume.info" = "Automatikusan maximumra állítja a mikrofon bemeneti hangerejét felvétel indításakor, majd visszaállítja az eredeti szintet felvétel leállásakor. Csak a rendszer alapértelmezett bemeneti eszköz használatakor érvényes.";
+"settings.sound.autoIncreaseMicVolume.info" = "A felvétel indításakor automatikusan maximumra állítja annak a mikrofonnak a bemeneti hangerejét, amelyről a HyperWhisper rögzít, majd a felvétel leállításakor visszaállítja az eredeti szintet. A szoftveres hangerő-szabályozás nélküli mikrofonok változatlanok maradnak.";
 "settings.sound.vad.title" = "Csend eltávolítása átírás előtt";
 "settings.sound.vad.info" = "Automatikusan érzékeli és eltávolítja a kezdő és záró csendet AI hang érzékelés használatával. Ez javíthatja az átírás pontosságát és csökkentheti a feldolgozási időt.";
 
@@ -938,6 +946,7 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "transcription.error.modelNotDownloaded" = "Kérlek töltsd le először a modellt";
 "transcription.error.modelNotDownloaded.modelAndMode" = "A(z) %1$@ mód a(z) %2$@ modellt használja, amely nincs letöltve. Töltsd le a Modellkönyvtárban.";
 "transcription.error.modelNotDownloaded.model" = "A(z) %1$@ modell nincs letöltve. Töltsd le a Modellkönyvtárban.";
+"transcription.error.openModelLibrary" = "Modellkönyvtár megnyitása";
 "transcription.error.modelProtected" = "Ez a modell nem törölhető";
 "transcription.error.audioFileNotFound" = "Audio fájl nem található";
 "transcription.error.network.detail" = "Hálózati hiba: %@";
@@ -1164,3 +1173,4 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "settings.storage.maxRecordingDuration.hour" = "1 óra";
 "settings.storage.maxRecordingDuration.hours" = "%d óra";
 "settings.storage.maxRecordingDuration.off" = "Kikapcsolva";
+"settings.api_server.status.stopping" = "Leállítás…";

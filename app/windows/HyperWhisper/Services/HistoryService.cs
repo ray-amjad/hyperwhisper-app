@@ -758,9 +758,9 @@ public class HistoryService
     /// <summary>
     /// Deletes a single transcript and its associated audio file.
     /// Success(true): deleted. Success(false): no transcript has that id (not an
-    /// error). Failure: SQLite refused the delete, so the row is still there; the
-    /// Error is the localized <c>transcripts.delete.failed</c> copy and Exception
-    /// holds the cause (#974).
+    /// error). Failure: SQLite refused the delete, or a pending row's file could not be
+    /// rewritten (#2126), so the row and its audio are still there; the Error is the
+    /// localized <c>transcripts.delete.failed</c> copy and Exception holds the cause (#974).
     /// </summary>
     public Result<bool> DeleteTranscript(Guid id)
     {
@@ -771,7 +771,14 @@ public class HistoryService
             if (Pending.Get(id) is { } pending)
             {
                 // Never written (#1589): dropping the pending record is the whole delete.
-                Pending.Remove(id);
+                // A pending file that could not be rewritten still holds it, and the next
+                // launch would save it again (#2126): keep the record and its audio.
+                if (!Pending.Delete(new[] { id }))
+                {
+                    LoggingService.Error($"HistoryService: Failed to delete pending transcript {id}; the pending file could not be written");
+                    return Result<bool>.Failure(Loc.S("transcripts.delete.failed"),
+                        new IOException($"Could not rewrite {PendingHistoryStore.FileName}"));
+                }
                 transcript = pending;
                 LoggingService.Info($"HistoryService: Deleted pending transcript {id}");
             }
@@ -816,7 +823,8 @@ public class HistoryService
     /// Deletes multiple transcripts and their associated audio files.
     /// More efficient than calling DeleteTranscript multiple times.
     /// Success(n): n rows deleted (0 when none of the ids exist). Failure: SQLite
-    /// refused the delete. It is one SaveChanges, so then nothing was deleted (#974).
+    /// refused the delete, or the pending file could not be rewritten without the
+    /// pending rows among them (#2126). Either way nothing was deleted (#974).
     /// </summary>
     public Result<int> DeleteTranscripts(IEnumerable<Guid> ids)
     {
@@ -825,20 +833,52 @@ public class HistoryService
 
         lock (_lock)
         {
+            var pending = Pending.GetAll().Where(t => idSet.Contains(t.Id)).ToList();
             try
             {
                 using var context = new HyperWhisperDbContext();
-
                 deletedTranscripts = context.Transcripts
                     .Where(t => idSet.Contains(t.Id))
                     .ToList();
 
-                if (deletedTranscripts.Count > 0)
+                // One transaction around both parts (#2126): the database delete is staged,
+                // the pending rows go only when their file is rewritten without them, and
+                // only then does the database part commit. A refusal on either side
+                // deletes nothing; only a failed commit has rows to put back. No database
+                // rows, no transaction: pending rows exist because another process may hold
+                // the write lock (#1589). Deferred, so the lock is taken by the DELETE itself
+                // and a refusal is still SaveChanges' DbUpdateException (#974).
+                using var transaction = deletedTranscripts.Count > 0 ? BeginDeferredTransaction(context) : null;
+                if (transaction != null)
                 {
                     context.Transcripts.RemoveRange(deletedTranscripts);
                     context.SaveChanges();
-                    LoggingService.Info($"HistoryService: Deleted {deletedTranscripts.Count} transcripts");
                 }
+
+                // Rows the database never took (#1589): the old file would bring them
+                // back at the next launch, after their audio was deleted.
+                if (pending.Count > 0 && !Pending.Delete(pending.Select(t => t.Id)))
+                {
+                    LoggingService.Error($"HistoryService: Failed to delete {pending.Count} pending transcripts; the pending file could not be written");
+                    return Result<int>.Failure(Loc.S("transcripts.delete.failed"),
+                        new IOException($"Could not rewrite {PendingHistoryStore.FileName}"));
+                }
+
+                try
+                {
+                    transaction?.Commit();
+                }
+                catch
+                {
+                    // The pending rows already left the file; the database rows are still
+                    // there, so they come back too and the sweep deletes nothing.
+                    if (pending.Count > 0 && !Pending.Restore(pending))
+                        LoggingService.Error($"HistoryService: {pending.Count} pending transcripts are held in memory only; the pending file could not be written");
+                    throw;
+                }
+
+                if (deletedTranscripts.Count > 0)
+                    LoggingService.Info($"HistoryService: Deleted {deletedTranscripts.Count} transcripts");
             }
             catch (Exception ex) when (IsRefusedWrite(ex))
             {
@@ -849,12 +889,8 @@ public class HistoryService
                 return Result<int>.Failure(Loc.S("transcripts.delete.failed"), ex);
             }
 
-            // Rows the database never took (#1589) go only once the database part
-            // committed, so a refused sweep still deletes nothing.
-            var pending = Pending.GetAll().Where(t => idSet.Contains(t.Id)).ToList();
             if (pending.Count > 0)
             {
-                Pending.Remove(pending.Select(t => t.Id));
                 deletedTranscripts.AddRange(pending);
                 LoggingService.Info($"HistoryService: Deleted {pending.Count} pending transcripts");
             }
@@ -881,6 +917,20 @@ public class HistoryService
     /// (<see cref="Microsoft.Data.Sqlite.SqliteException"/>). Both are expected
     /// runtime failures, so they become a failed Result rather than a throw.
     /// </summary>
+    /// <summary>
+    /// BEGIN DEFERRED on the context's connection. EF's own BeginTransaction is BEGIN
+    /// IMMEDIATE on SQLite: it would wait for the write lock before any statement runs,
+    /// and a refusal would surface there as a bare SqliteException.
+    /// </summary>
+    private static Microsoft.Data.Sqlite.SqliteTransaction BeginDeferredTransaction(HyperWhisperDbContext context)
+    {
+        context.Database.OpenConnection();
+        var transaction = ((Microsoft.Data.Sqlite.SqliteConnection)context.Database.GetDbConnection())
+            .BeginTransaction(deferred: true);
+        context.Database.UseTransaction(transaction);
+        return transaction;
+    }
+
     private static bool IsRefusedWrite(Exception ex) =>
         ex is DbUpdateException or Microsoft.Data.Sqlite.SqliteException;
 

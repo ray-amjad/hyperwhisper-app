@@ -332,7 +332,7 @@ describe('unhandled errors', () => {
     expect(raw).not.toContain(LEAKY);
   });
 
-  test('logs the full cause server-side under the same id the client was given', async () => {
+  test('logs the cause server-side under the same id the client was given', async () => {
     ipBlockedError = new Error(LEAKY);
 
     const body = await (await send('/usage?license_key=HW-ROUTINE-FIXTURE')).json() as { error_id: string };
@@ -340,7 +340,26 @@ describe('unhandled errors', () => {
     const logged = logPayloads.find((entry) => entry.event.startsWith('Unhandled error'));
     expect(logged).toBeDefined();
     expect(logged!.event).toContain(body.error_id);
-    expect(logged!.args[1]).toBe(ipBlockedError);
+    // One JSON line (#2163): name, redacted + capped message, stack frames.
+    const fields = JSON.parse(logged!.args[1] as string) as { errorName: string; message: string; stack: string[] };
+    expect(fields.errorName).toBe('Error');
+    expect(fields.message).toBe(`Error: ${LEAKY}`);
+    expect(fields.stack.length).toBeGreaterThan(0);
+    expect(fields.stack.every((frame) => frame.startsWith('at '))).toBe(true);
+  });
+
+  test('never logs a serialized upstream payload or more than 200 characters of message (#2163)', async () => {
+    const MARKER = 'SECRET_TRANSCRIPT_MARKER_2163';
+    ipBlockedError = new Error(`upstream said {"error":{"message":"${MARKER}"}} ${'x'.repeat(400)}`);
+
+    await send('/usage?license_key=HW-ROUTINE-FIXTURE');
+
+    const logged = logPayloads.find((entry) => entry.event.startsWith('Unhandled error'));
+    expect(logged).toBeDefined();
+    const line = JSON.stringify(logged!.args);
+    expect(line).not.toContain(MARKER);
+    const fields = JSON.parse(logged!.args[1] as string) as { message: string };
+    expect(fields.message.length).toBeLessThanOrEqual(200 + '<truncated>'.length);
   });
 
   test('gives each failure its own id so two reports are distinguishable', async () => {

@@ -25,6 +25,7 @@ import { disposableDomains } from "@/lib/disposable_domains";
 import { emailService } from "@/lib/services/email";
 import { downloadEmailRateLimiter } from "@/lib/rate-limit";
 import { countFailOpen } from "@/lib/rate-limit-gate";
+import { env } from "@/src/env/server.mjs";
 import { getClientIPFromHeaders } from "./download-ip";
 import { createDisposableDomainCache } from "./download-disposable-domains";
 
@@ -102,7 +103,7 @@ export const downloadRouter = createTRPCRouter({
    */
   getLatestUrl: publicProcedure.query(async () => {
     // Use production URL as default since we don't have request context
-    const origin = process.env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";
+    const origin = env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";
     const downloadUrl = await getLatestDownloadUrl(origin);
 
     if (!downloadUrl) {
@@ -173,7 +174,7 @@ export const downloadRouter = createTRPCRouter({
         const requesterTag = emailTag(input.email);
         console.log("Download requested by:", requesterTag);
 
-        const origin = process.env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";
+        const origin = env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";
         const emailDownloadUrl = `${origin}/api/download`;
 
         const welcomeEmailPayload: WelcomeEmailData = {
@@ -185,7 +186,7 @@ export const downloadRouter = createTRPCRouter({
             "https://www.loom.com/share/fd73e59755f9473b8bde341845c402e9?sid=e1892b2e-3ce6-4542-b512-31777a400909",
           loomThumbnailUrl:
             "https://www.hyperwhisper.com/email-assets/welcome-email-thumbnail.png",
-          supportEmail: process.env.SUPPORT_EMAIL ?? "hi@support.hyperwhisper.com",
+          supportEmail: env.SUPPORT_EMAIL ?? "hi@support.hyperwhisper.com",
         };
 
         try {

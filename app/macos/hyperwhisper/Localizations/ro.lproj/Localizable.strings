@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "Redă indicii audio la începerea și oprirea înregistrării.";
 "settings.sound.mediaControl.title" = "Control media în timp ce înregistrați";
 "settings.sound.mediaControl.info" = "Aleţeţi cum gestionează HyperWhisper alt audio în timp ce înregistraţi. 'Oprit' lasă audio neschimbat, 'Asmuţiţi audio' taie ieşirea sistemului în timp ce înregistraţi şi o restaurează după aceea, iar 'Estompați audio' îl menține redat încet, ca din camera alăturată.";
+"settings.sound.microphone.title" = "Microfon";
+"settings.sound.microphone.subtitle" = "Folosit doar de HyperWhisper. Este reținut după repornire.";
+"microphone.picker.default" = "Implicit · %@";
+"microphone.picker.notConnected" = "%@ (neconectat)";
+"microphone.picker.fallback" = "Se folosește %1$@ până când %2$@ este reconectat.";
+"settings.sound.microphone.test" = "Testează";
+"settings.sound.microphone.stop" = "Oprește";
+"settings.sound.microphone.level" = "Nivel de intrare";
 "settings.sound.autoIncreaseMicVolume.title" = "Măriți automat volumul microfonului";
-"settings.sound.autoIncreaseMicVolume.info" = "Setează automat volumul de intrare al microfonului la maxim la pornirea înregistrării, apoi restabilește nivelul inițial la oprire. Se aplică doar la utilizarea dispozitivului implicit de intrare al sistemului.";
+"settings.sound.autoIncreaseMicVolume.info" = "Setează automat la maximum volumul de intrare al microfonului de pe care înregistrează HyperWhisper când începe înregistrarea și restabilește nivelul inițial când aceasta se oprește. Microfoanele fără control software al volumului rămân neschimbate.";
 "settings.sound.vad.title" = "Eliminați tăcerea înainte de transcriere";
 "settings.sound.vad.info" = "Detectează și elimină automat tăcerea din față și din spate utilizând detectarea vocii AI. Aceasta poate îmbunătăți precizia transcrierii și reduce timpul de procesare.";
 
@@ -938,6 +946,7 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "transcription.error.modelNotDownloaded" = "Vă rugăm descărcați mai întâi un model";
 "transcription.error.modelNotDownloaded.modelAndMode" = "Modul %1$@ folosește %2$@, care nu este descărcat. Descărcați-l din Biblioteca de modele.";
 "transcription.error.modelNotDownloaded.model" = "%1$@ nu este descărcat. Descărcați-l din Biblioteca de modele.";
+"transcription.error.openModelLibrary" = "Deschideți Biblioteca de modele";
 "transcription.error.modelProtected" = "Acest model nu poate fi șters";
 "transcription.error.audioFileNotFound" = "Fișier audio nu a fost găsit";
 "transcription.error.network.detail" = "Eroare de rețea: %@";
@@ -1164,3 +1173,4 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "settings.storage.maxRecordingDuration.hour" = "1 oră";
 "settings.storage.maxRecordingDuration.hours" = "%d ore";
 "settings.storage.maxRecordingDuration.off" = "Dezactivat";
+"settings.api_server.status.stopping" = "Se oprește…";

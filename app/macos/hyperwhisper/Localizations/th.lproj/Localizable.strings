@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "เล่นสัญญาณเสียงเมื่อเริ่มและหยุดการบันทึก";
 "settings.sound.mediaControl.title" = "การควบคุมมีเดียขณะบันทึก";
 "settings.sound.mediaControl.info" = "เลือกวิธีจัดการเสียงอื่นขณะบันทึก 'Off' ปล่อยเสียงไม่เปลี่ยนแปลง 'Mute Audio' ปิดเสียงเอาต์พุตระบบขณะบันทึกและเรียกคืนหลังจากนั้น 'ทำให้เสียงอู้อี้' เล่นเสียงเบา ๆ เหมือนมาจากห้องข้าง ๆ";
+"settings.sound.microphone.title" = "ไมโครโฟน";
+"settings.sound.microphone.subtitle" = "ใช้โดย HyperWhisper เท่านั้น จดจำไว้แม้รีสตาร์ท";
+"microphone.picker.default" = "ค่าเริ่มต้น · %@";
+"microphone.picker.notConnected" = "%@ (ไม่ได้เชื่อมต่อ)";
+"microphone.picker.fallback" = "กำลังใช้ %1$@ จนกว่า %2$@ จะเชื่อมต่ออีกครั้ง";
+"settings.sound.microphone.test" = "ทดสอบ";
+"settings.sound.microphone.stop" = "หยุด";
+"settings.sound.microphone.level" = "ระดับอินพุต";
 "settings.sound.autoIncreaseMicVolume.title" = "เพิ่มระดับเสียงไมโครโฟนโดยอัตโนมัติ";
-"settings.sound.autoIncreaseMicVolume.info" = "โดยอัตโนมัติตั้งค่าระดับเสียงอินพุตไมโครโฟนเป็นสูงสุดเมื่อเริ่มการบันทึก จากนั้นคืนค่าระดับต้นฉบับเมื่อหยุดการบันทึก ใช้ได้เฉพาะเมื่อใช้อุปกรณ์อินพุตเริ่มต้นของระบบเท่านั้น";
+"settings.sound.autoIncreaseMicVolume.info" = "ตั้งระดับเสียงอินพุตของไมโครโฟนที่ HyperWhisper ใช้บันทึกให้สูงสุดโดยอัตโนมัติเมื่อเริ่มบันทึก แล้วคืนค่าระดับเดิมเมื่อหยุดบันทึก ไมโครโฟนที่ไม่มีการควบคุมระดับเสียงด้วยซอฟต์แวร์จะไม่ถูกเปลี่ยนแปลง";
 "settings.sound.vad.title" = "ลบความเงียบก่อนการสัญลักษณ์";
 "settings.sound.vad.info" = "โดยอัตโนมัติตรวจสอบและลบความเงียบด้านหน้าและด้านหลังโดยใช้การตรวจจับเสียงพูด AI สิ่งนี้สามารถปรับปรุงความแม่นยำของการสัญลักษณ์และลดเวลาการประมวลผล";
 
@@ -938,6 +946,7 @@
 "transcription.error.modelNotDownloaded" = "โปรดดาวน์โหลดโมเดลก่อน";
 "transcription.error.modelNotDownloaded.modelAndMode" = "โหมด %1$@ ใช้โมเดล %2$@ ซึ่งยังไม่ได้ดาวน์โหลด ดาวน์โหลดได้ในคลังโมเดล";
 "transcription.error.modelNotDownloaded.model" = "โมเดล %1$@ ยังไม่ได้ดาวน์โหลด ดาวน์โหลดได้ในคลังโมเดล";
+"transcription.error.openModelLibrary" = "เปิดคลังโมเดล";
 "transcription.error.modelProtected" = "ไม่สามารถลบโมเดลนี้ได้";
 "transcription.error.audioFileNotFound" = "ไม่พบไฟล์เสียง";
 "transcription.error.network.detail" = "ข้อผิดพลาดเครือข่าย: %@";
@@ -1164,3 +1173,4 @@
 "settings.storage.maxRecordingDuration.hour" = "1 ชั่วโมง";
 "settings.storage.maxRecordingDuration.hours" = "%d ชั่วโมง";
 "settings.storage.maxRecordingDuration.off" = "ปิด";
+"settings.api_server.status.stopping" = "กำลังหยุด…";

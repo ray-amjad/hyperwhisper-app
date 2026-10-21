@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "השמעת צלילים בעת תחילת ההקלטה ועצירתה.";
 "settings.sound.mediaControl.title" = "בקרת מדיה בזמן הקלטה";
 "settings.sound.mediaControl.info" = "בחר כיצד HyperWhisper מטפל באודיו אחר בזמן שאתה מקליט. 'כבוי' משאיר את האודיו ללא שינוי, 'השתק אודיו' משתיק את פלט המערכת בזמן ההקלטה ומשחזיר אותו לאחר מכן, ו'עמעם אודיו' משאיר אותו מתנגן בשקט, כאילו מהחדר השכן.";
+"settings.sound.microphone.title" = "מיקרופון";
+"settings.sound.microphone.subtitle" = "בשימוש HyperWhisper בלבד. נשמר גם לאחר הפעלה מחדש.";
+"microphone.picker.default" = "ברירת מחדל · %@";
+"microphone.picker.notConnected" = "%@ (לא מחובר)";
+"microphone.picker.fallback" = "נעשה שימוש ב-%1$@ עד ש-%2$@ יחובר מחדש.";
+"settings.sound.microphone.test" = "בדיקה";
+"settings.sound.microphone.stop" = "עצירה";
+"settings.sound.microphone.level" = "רמת קלט";
 "settings.sound.autoIncreaseMicVolume.title" = "הגבר עוצמת מיקרופון אוטומטית";
-"settings.sound.autoIncreaseMicVolume.info" = "מגדיר אוטומטית את עוצמת קלט המיקרופון למקסימום כשההקלטה מתחילה, ואז משחזר את הרמה המקורית כשההקלטה מסתיימת. חל רק בעת שימוש בהתקן קלט ברירת מחדל של המערכת.";
+"settings.sound.autoIncreaseMicVolume.info" = "מגדיר אוטומטית למקסימום את עוצמת הקלט של המיקרופון ש-HyperWhisper מקליט ממנו כשההקלטה מתחילה, ומשחזר את הרמה המקורית כשההקלטה נעצרת. מיקרופונים ללא בקרת עוצמה בתוכנה נשארים ללא שינוי.";
 "settings.sound.vad.title" = "הסר שקט לפני תמלול";
 "settings.sound.vad.info" = "מזהה ומסיר אוטומטית שקט מוביל ומסיים באמצעות זיהוי קול AI. זה יכול לשפר את דיוק התמלול ולהפחית את זמן העיבוד.";
 
@@ -938,6 +946,7 @@
 "transcription.error.modelNotDownloaded" = "אנא הורד מודל תחילה";
 "transcription.error.modelNotDownloaded.modelAndMode" = "המצב %1$@ משתמש במודל %2$@, שלא הורד. הורד אותו בספריית מודלים.";
 "transcription.error.modelNotDownloaded.model" = "המודל %1$@ לא הורד. הורד אותו בספריית מודלים.";
+"transcription.error.openModelLibrary" = "פתח את ספריית המודלים";
 "transcription.error.modelProtected" = "לא ניתן למחוק מודל זה";
 "transcription.error.audioFileNotFound" = "קובץ אודיו לא נמצא";
 "transcription.error.network.detail" = "שגיאת רשת: %@";
@@ -1164,3 +1173,4 @@
 "settings.storage.maxRecordingDuration.hour" = "שעה אחת";
 "settings.storage.maxRecordingDuration.hours" = "%d שעות";
 "settings.storage.maxRecordingDuration.off" = "כבוי";
+"settings.api_server.status.stopping" = "עוצר…";
