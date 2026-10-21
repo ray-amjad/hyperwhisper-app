@@ -24906,6 +24906,8 @@ internal static class Program
                 }
             });
 
+            ScriptGuardPorts.RunAll(Run);
+
             Console.WriteLine(_failures == 0
                 ? "All smoke tests passed."
                 : $"{_failures} smoke test(s) FAILED.");
