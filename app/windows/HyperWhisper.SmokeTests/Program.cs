@@ -24908,6 +24908,111 @@ internal static class Program
 
             ScriptGuardPorts.RunAll(Run);
 
+            // Issue #886 PROBE: the head's end-to-end case, run against main unchanged.
+            RunAsync("AssemblyAI TranscribeAsync runs sync, async fallback, skip and error exits against a fake vendor (#886)", async () =>
+            {
+                var cap = HyperwhisperCoreMethods.AssemblyaiSyncMaxDurationSecs();
+                var audioPath = Path.Combine(Path.GetTempPath(), $"hw-886-{Guid.NewGuid():N}.wav");
+                await File.WriteAllBytesAsync(audioPath, new byte[] { 0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0 });
+                try
+                {
+                    // Each scenario: the model, the known duration, and a script of
+                    // (status, body) answers keyed by the request's host + path.
+                    async Task<(string? Text, TranscriptionException? Error, List<string> Calls)> Drive(
+                        string modelId, double? knownSeconds, Func<string, int, (HttpStatusCode, string)> answer)
+                    {
+                        var calls = new List<string>();
+                        RoutedCaptureHandler handler = null!;
+                        handler = new RoutedCaptureHandler(() =>
+                        {
+                            var uri = handler.LastRequestUri!;
+                            var key = uri.Host + uri.AbsolutePath;
+                            var seen = calls.Count(c => c == key);
+                            calls.Add(key);
+                            var (status, body) = answer(key, seen);
+                            return new HttpResponseMessage(status) { Content = new StringContent(body) };
+                        });
+                        var service = new AssemblyAIService(handler);
+                        service.Configure("placeholder");
+                        var request = new TranscriptionRequest(audioPath, Language: "en", Vocabulary: null, ModelId: modelId, CustomPrompt: null);
+                        try
+                        {
+                            var text = await service.TranscribeAsync(request, knownSeconds, CancellationToken.None)
+                                .WaitAsync(TimeSpan.FromSeconds(60));
+                            return (text, null, calls);
+                        }
+                        catch (TranscriptionException ex)
+                        {
+                            return (null, ex, calls);
+                        }
+                    }
+
+                    const string sync = "sync.assemblyai.com/v1/transcribe";
+                    const string upload = "api.assemblyai.com/v2/upload";
+                    const string create = "api.assemblyai.com/v2/transcript";
+                    const string poll = "api.assemblyai.com/v2/transcript/t-886";
+                    (HttpStatusCode, string) Async(string key, int seen, string pollAnswer) => key switch
+                    {
+                        upload => (HttpStatusCode.OK, "{\"upload_url\":\"https://cdn.example.invalid/a\"}"),
+                        create => (HttpStatusCode.OK, "{\"id\":\"t-886\",\"status\":\"queued\"}"),
+                        poll => (HttpStatusCode.OK, pollAnswer),
+                        _ => (HttpStatusCode.NotFound, "{}"),
+                    };
+                    const string completed = "{\"status\":\"completed\",\"text\":\"async words\"}";
+
+                    // 1. A short clip: one sync call, and nothing else.
+                    var r1 = await Drive("universal-2", 5, (key, _) => key == sync
+                        ? (HttpStatusCode.OK, "{\"text\":\"sync words\"}")
+                        : (HttpStatusCode.NotFound, "{}"));
+                    Assert(r1.Text == "sync words", $"sync: text '{r1.Text}', error {r1.Error?.Message}");
+                    Assert(string.Join(",", r1.Calls) == sync, $"sync: calls {string.Join(",", r1.Calls)}");
+
+                    // 2. The sync call fails: the async workflow runs, and one pending
+                    // poll is waited out before the completed one.
+                    var r2 = await Drive("universal-2", 5, (key, seen) => key == sync
+                        ? (HttpStatusCode.InternalServerError, "{\"error\":\"down\"}")
+                        : Async(key, seen, seen == 0 ? "{\"status\":\"processing\"}" : completed));
+                    Assert(r2.Text == "async words", $"fallback: text '{r2.Text}', error {r2.Error?.Message}");
+                    Assert(string.Join(",", r2.Calls) == string.Join(",", new[] { sync, upload, create, poll, poll }),
+                        $"fallback: calls {string.Join(",", r2.Calls)}");
+
+                    // 3. Over the cap, and 4. a medical model: no sync call at all.
+                    foreach (var (model, seconds) in new[] { ("universal-2", cap + 10), ("universal-3-5-pro-medical", 5.0) })
+                    {
+                        var r = await Drive(model, seconds, (key, seen) => Async(key, seen, completed));
+                        Assert(r.Text == "async words", $"{model} {seconds}s: text '{r.Text}', error {r.Error?.Message}");
+                        Assert(string.Join(",", r.Calls) == string.Join(",", new[] { upload, create, poll }),
+                            $"{model} {seconds}s: calls {string.Join(",", r.Calls)}");
+                    }
+
+                    // 5. A sync answer with no speech is terminal: no async fallback.
+                    var r5 = await Drive("universal-2", 5, (key, _) => key == sync
+                        ? (HttpStatusCode.OK, "{\"text\":\"  \"}")
+                        : (HttpStatusCode.NotFound, "{}"));
+                    Assert(r5.Error?.Code == TranscriptionErrorCode.NoSpeechDetected, $"no speech: code {r5.Error?.Code}, text '{r5.Text}'");
+                    Assert(string.Join(",", r5.Calls) == sync, $"no speech: calls {string.Join(",", r5.Calls)}");
+
+                    // 6. The upload is refused: mapped to Unauthorized, nothing created.
+                    var r6 = await Drive("universal-2", cap + 10, (key, _) => key == upload
+                        ? (HttpStatusCode.Unauthorized, "{\"error\":\"bad key\"}")
+                        : (HttpStatusCode.NotFound, "{}"));
+                    Assert(r6.Error?.Code == TranscriptionErrorCode.Unauthorized, $"upload 401: code {r6.Error?.Code}");
+                    Assert(string.Join(",", r6.Calls) == upload, $"upload 401: calls {string.Join(",", r6.Calls)}");
+
+                    // 7. The job itself fails: the poll's error message reaches the caller.
+                    var r7 = await Drive("universal-2", cap + 10, (key, seen) =>
+                        Async(key, seen, "{\"status\":\"error\",\"error\":\"audio too short\"}"));
+                    Assert(r7.Error != null && r7.Error.Message.Contains("audio too short", StringComparison.Ordinal),
+                        $"poll error: '{r7.Error?.Message}', text '{r7.Text}'");
+                    Assert(string.Join(",", r7.Calls) == string.Join(",", new[] { upload, create, poll }),
+                        $"poll error: calls {string.Join(",", r7.Calls)}");
+                }
+                finally
+                {
+                    try { File.Delete(audioPath); } catch (IOException) { }
+                }
+            });
+
             Console.WriteLine(_failures == 0
                 ? "All smoke tests passed."
                 : $"{_failures} smoke test(s) FAILED.");
