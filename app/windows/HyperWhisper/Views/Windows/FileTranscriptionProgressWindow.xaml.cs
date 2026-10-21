@@ -222,9 +222,15 @@ public partial class FileTranscriptionProgressWindow : Window
     {
         // The primary monitor's work area in its own DIP, not
         // SystemParameters.WorkArea, which keeps the DPI the app started at.
-        MonitorWorkArea.Place(this, MonitorWorkArea.Primary, screen =>
-            new System.Windows.Point((screen.Width - Width) / 2, (screen.Height - Height) / 2));
+        MonitorWorkArea.Place(this, MonitorWorkArea.Primary, screen => CentredIn(screen, Width, Height));
     }
+
+    /// <summary>
+    /// Centred in the work area, offset by its Left/Top: a taskbar docked left or
+    /// top moves the work area's origin off the screen's (#1940).
+    /// </summary>
+    internal static System.Windows.Point CentredIn(Rect workArea, double width, double height) =>
+        new(workArea.Left + (workArea.Width - width) / 2, workArea.Top + (workArea.Height - height) / 2);
 
     private void MakeNonActivating()
     {

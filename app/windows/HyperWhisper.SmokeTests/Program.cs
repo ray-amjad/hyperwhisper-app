@@ -18782,6 +18782,31 @@ internal static class Program
                 }
             });
 
+            // Issue #1940. With no recording overlay, the mode-change toast and the
+            // Transcribe File window centred on the work area's width alone, so a
+            // taskbar docked left (or top) pushed them off centre by its own size.
+            Run("the mode-change toast and the file progress window centre on a work area offset by a left or top taskbar (#1940)", () =>
+            {
+                // A 1920x1080 screen with a 200 DIP bar docked left, then a 48 DIP bar docked top.
+                var leftBar = new Rect(200, 0, 1720, 1080);
+                var topBar = new Rect(0, 48, 1920, 1032);
+                const double w = 300, h = 60;
+
+                var toast = HyperWhisper.Views.Windows.ModeChangeToastWindow.FallbackPosition(leftBar, w, h);
+                Assert(Math.Abs(toast.X + w / 2 - (leftBar.Left + leftBar.Width / 2)) < 0.01,
+                    $"the toast's centre is x={toast.X + w / 2}, not the work area's {leftBar.Left + leftBar.Width / 2}");
+                Assert(toast.Y == leftBar.Bottom - h - 80, $"the toast moved off its bottom slot (y={toast.Y})");
+
+                foreach (var area in new[] { leftBar, topBar })
+                {
+                    var p = HyperWhisper.Views.Windows.FileTranscriptionProgressWindow.CentredIn(area, w, h);
+                    Assert(Math.Abs(p.X + w / 2 - (area.Left + area.Width / 2)) < 0.01
+                            && Math.Abs(p.Y + h / 2 - (area.Top + area.Height / 2)) < 0.01,
+                        $"the progress window's centre is ({p.X + w / 2}, {p.Y + h / 2}) in work area {area}, " +
+                        $"not ({area.Left + area.Width / 2}, {area.Top + area.Height / 2})");
+                }
+            });
+
             Run("work-area fit: a refit while minimised runs on restore (#1500)", () =>
             {
                 // A display change while the window sits minimised in the taskbar
