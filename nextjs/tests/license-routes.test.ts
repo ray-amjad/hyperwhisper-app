@@ -148,6 +148,38 @@ describe("POST /api/license/validate", () => {
     assert.deepEqual(calls.findAccountByKey, []);
   });
 
+  test("rejects a whitespace-only license_key as required, not as unknown (#2080)", async () => {
+    const { POST } = await loadValidateRoute();
+
+    for (const body of [
+      { license_key: "   " },
+      { license_key: " \t\n " },
+      { license_key: "   ", probe_only: true },
+    ]) {
+      const response = await POST(postRequest(VALIDATE_PATH, body));
+      const json = await readJson(response);
+
+      assert.equal(response.status, 400, `body ${JSON.stringify(body)}`);
+      assert.equal(json.valid, false);
+      assert.equal(json.error, "License key is required");
+      assert.equal(json.reason, "bad_request");
+    }
+    assert.deepEqual(calls.findAccountByKey, []);
+  });
+
+  test("still accepts a granted key sent with surrounding whitespace", async () => {
+    storeRow(accountKeyRow({ key: GRANTED_KEY }));
+    const { POST } = await loadValidateRoute();
+
+    const response = await POST(
+      postRequest(VALIDATE_PATH, { license_key: `  ${GRANTED_KEY}\n` }),
+    );
+    const body = await readJson(response);
+
+    assert.equal(response.status, 200);
+    assert.equal(body.valid, true);
+  });
+
   test("rejects a key the database does not hold", async () => {
     const { POST } = await loadValidateRoute();
 
@@ -567,6 +599,39 @@ describe("POST /api/license/activate", () => {
     assert.equal(body.valid, false);
     assert.equal(body.reason, "not_entitled");
     assert.ok(!("activation_id" in body));
+  });
+
+  test("rejects an empty or whitespace-only key as required without a lookup (#2080)", async () => {
+    for (const [load, path] of [
+      [loadActivateRoute, ACTIVATE_PATH],
+      [loadAccountActivateRoute, "/api/account/activate"],
+    ] as const) {
+      const { POST } = await load();
+      for (const license_key of ["", "   ", " \t\n "]) {
+        const response = await POST(postRequest(path, { license_key }));
+        const body = await readJson(response);
+
+        assert.deepEqual(
+          { status: response.status, reason: body.reason, error: body.error },
+          { status: 400, reason: "bad_request", error: "License key is required" },
+          `${path} ${JSON.stringify(license_key)}`,
+        );
+        assert.ok(!("activation_id" in body));
+      }
+    }
+    assert.deepEqual(calls.findAccountByKey, []);
+  });
+
+  test("activates a granted key sent with surrounding whitespace", async () => {
+    storeRow(accountKeyRow({ key: GRANTED_KEY }));
+    const { POST } = await loadActivateRoute();
+
+    const body = await readJson(
+      await POST(postRequest(ACTIVATE_PATH, { license_key: ` ${GRANTED_KEY} ` })),
+    );
+
+    assert.equal(body.valid, true);
+    assert.ok(typeof body.activation_id === "string");
   });
 
   test("fails closed for a key the database does not hold", async () => {

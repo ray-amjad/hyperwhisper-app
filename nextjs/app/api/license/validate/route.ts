@@ -120,7 +120,9 @@ export async function POST(req: NextRequest) {
 
   const payload = isRecord(body) ? body : {};
   const license_key =
-    typeof payload.license_key === "string" ? payload.license_key : undefined;
+    typeof payload.license_key === "string"
+      ? payload.license_key.trim()
+      : undefined;
   const include_credits = payload.include_credits === true;
   const device_id =
     typeof payload.device_id === "string" ? payload.device_id : undefined;
