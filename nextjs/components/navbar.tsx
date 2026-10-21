@@ -206,10 +206,15 @@ export const Navbar = () => {
         NavbarContent renders a <ul>, so the toggle sits in a NavbarItem (an <li>); a bare
         <button> here was a list with no items (axe `list`, #866). The li needs no classes: the
         toggle measured the same box (x, y, width, height) with the li as without it.
+
+        HeroUI's toggle is `w-6 h-full`, but the wrapper above is `h-auto`, so `h-full` resolved
+        against a list with no content of its own and the button was 24x2 px: a tap 8 px off the
+        icon missed it (#1140, WCAG 2.2 SC 2.5.8). `size-12` gives it the wrapper's whole 48 px
+        content row; `-mr-3` takes back the extra width so the icon stays where it was.
       */}
       <NavbarContent className="lg:hidden pl-4 grow-0!" justify="end">
         <NavbarItem>
-          <NavbarMenuToggle className="text-gray-400" />
+          <NavbarMenuToggle className="text-gray-400 size-12 -mr-3" />
         </NavbarItem>
       </NavbarContent>
 
