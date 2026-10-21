@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "Воспроизводить звуковые сигналы при начале и остановке записи.";
 "settings.sound.mediaControl.title" = "Управление медиа при записи";
 "settings.sound.mediaControl.info" = "Выберите, как HyperWhisper обрабатывает другой звук при записи. 'Выключено' оставляет звук без изменений, 'Отключить звук' отключает системный вывод во время записи и восстанавливает его после, а 'Приглушить звук' оставляет его тихо играть, как из соседней комнаты.";
+"settings.sound.microphone.title" = "Микрофон";
+"settings.sound.microphone.subtitle" = "Используется только HyperWhisper. Сохраняется после перезапуска.";
+"microphone.picker.default" = "По умолчанию · %@";
+"microphone.picker.notConnected" = "%@ (не подключён)";
+"microphone.picker.fallback" = "Используется %1$@, пока %2$@ не будет снова подключён.";
+"settings.sound.microphone.test" = "Проверить";
+"settings.sound.microphone.stop" = "Стоп";
+"settings.sound.microphone.level" = "Уровень входа";
 "settings.sound.autoIncreaseMicVolume.title" = "Автоматически увеличивать громкость микрофона";
-"settings.sound.autoIncreaseMicVolume.info" = "Автоматически устанавливает громкость входного сигнала микрофона на максимум при начале записи, а затем восстанавливает исходный уровень при остановке. Применяется только при использовании устройства ввода по умолчанию системы.";
+"settings.sound.autoIncreaseMicVolume.info" = "Автоматически устанавливает максимальную громкость входа микрофона, с которого записывает HyperWhisper, при начале записи и восстанавливает исходный уровень после её остановки. Микрофоны без программной регулировки громкости не изменяются.";
 "settings.sound.vad.title" = "Удалить тишину перед транскрипцией";
 "settings.sound.vad.info" = "Автоматически определяет и удаляет начальную и конечную тишину с помощью ИИ для определения голоса. Это может улучшить точность транскрипции и сократить время обработки.";
 
@@ -936,6 +944,9 @@
 "transcription.error.providerNotAvailable.provider" = "%@ недоступен. Проверьте параметры и повторите попытку.";
 "transcription.error.providerNotAvailable.detail" = "%@ недоступен: %@";
 "transcription.error.modelNotDownloaded" = "Пожалуйста, сначала загрузите модель";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Режим %1$@ использует модель %2$@, которая не загружена. Загрузите её в Библиотеке моделей.";
+"transcription.error.modelNotDownloaded.model" = "Модель %1$@ не загружена. Загрузите её в Библиотеке моделей.";
+"transcription.error.openModelLibrary" = "Открыть Библиотеку моделей";
 "transcription.error.modelProtected" = "Эта модель не может быть удалена";
 "transcription.error.audioFileNotFound" = "Аудиофайл не найден";
 "transcription.error.network.detail" = "Ошибка сети: %@";
@@ -1162,3 +1173,4 @@
 "settings.storage.maxRecordingDuration.hour" = "1 час";
 "settings.storage.maxRecordingDuration.hours" = "%d часов";
 "settings.storage.maxRecordingDuration.off" = "Выключено";
+"settings.api_server.status.stopping" = "Остановка…";

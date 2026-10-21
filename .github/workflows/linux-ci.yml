@@ -327,11 +327,14 @@ jobs:
           app/linux/scripts/run-ui-smoke.sh
           app/linux/scripts/run-ui-smoke-xwayland.sh
 
+          # Same ReadyToRun publish as linux-release.yml, so CI builds and
+          # package-tests the binaries that ship (#999).
           dotnet publish \
             app/linux/HyperWhisper.Linux/HyperWhisper.Linux.csproj \
             --configuration Release \
             --runtime linux-x64 \
             --self-contained true \
+            -p:PublishReadyToRun=true \
             --output artifacts/hyperwhisper-linux
 
           dotnet publish \
@@ -339,6 +342,7 @@ jobs:
             --configuration Release \
             --runtime linux-x64 \
             --self-contained true \
+            -p:PublishReadyToRun=true \
             --output artifacts/hyperwhisper-linux/parakeet-engine
 
           test -x artifacts/hyperwhisper-linux/HyperWhisper

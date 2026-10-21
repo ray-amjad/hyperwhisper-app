@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "在录音开始和停止时播放音频提示。";
 "settings.sound.mediaControl.title" = "录音时媒体控制";
 "settings.sound.mediaControl.info" = "选择录音时 HyperWhisper 对其他音频的处理方式。“关闭”保持原样，“静音音频”会在录音时静音系统输出并在之后恢复，“柔化音频”则让音频继续轻声播放，仿佛来自隔壁房间。";
+"settings.sound.microphone.title" = "麦克风";
+"settings.sound.microphone.subtitle" = "仅供 HyperWhisper 使用。重启后仍会保留。";
+"microphone.picker.default" = "默认 · %@";
+"microphone.picker.notConnected" = "%@（未连接）";
+"microphone.picker.fallback" = "正在使用 %1$@，直到 %2$@ 重新连接。";
+"settings.sound.microphone.test" = "测试";
+"settings.sound.microphone.stop" = "停止";
+"settings.sound.microphone.level" = "输入电平";
 "settings.sound.autoIncreaseMicVolume.title" = "自动提高麦克风音量";
-"settings.sound.autoIncreaseMicVolume.info" = "录音开始时自动将麦克风输入音量调到最大，停止后恢复原值。仅适用于系统默认输入设备。";
+"settings.sound.autoIncreaseMicVolume.info" = "开始录音时，自动将 HyperWhisper 录音所用麦克风的输入音量调到最大，并在录音停止后恢复原来的音量。没有软件音量控制的麦克风将保持不变。";
 "settings.sound.vad.title" = "转写前移除静音";
 "settings.sound.vad.info" = "使用 AI 语音检测自动去除前后静音，可提高转写准确度并缩短处理时间。";
 
@@ -937,6 +945,9 @@
 "transcription.error.providerNotAvailable.provider" = "%@ 不可用。请检查设置并重试。";
 "transcription.error.providerNotAvailable.detail" = "%@ 不可用：%@";
 "transcription.error.modelNotDownloaded" = "请先下载模型";
+"transcription.error.modelNotDownloaded.modelAndMode" = "模式“%1$@”使用的 %2$@ 尚未下载。请在模型库中下载。";
+"transcription.error.modelNotDownloaded.model" = "%1$@ 尚未下载。请在模型库中下载。";
+"transcription.error.openModelLibrary" = "打开模型库";
 "transcription.error.modelProtected" = "此模型无法删除";
 "transcription.error.audioFileNotFound" = "未找到音频文件";
 "transcription.error.network.detail" = "网络错误：%@";
@@ -1163,3 +1174,4 @@
 "settings.storage.maxRecordingDuration.hour" = "1 小时";
 "settings.storage.maxRecordingDuration.hours" = "%d 小时";
 "settings.storage.maxRecordingDuration.off" = "关闭";
+"settings.api_server.status.stopping" = "正在停止…";

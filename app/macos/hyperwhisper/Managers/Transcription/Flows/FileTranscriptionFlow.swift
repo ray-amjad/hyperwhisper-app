@@ -726,13 +726,24 @@ class FileTranscriptionFlow {
             progressState.reset()
             cleanupImportArtifacts(reason: "unexpected error")
             currentTranscriptionTask = nil
+            // A missing model names the mode that uses it in the row's reason
+            // and the alert (#1518). The log keeps the engine's error: a mode
+            // name is user-typed text.
+            let failure = TranscriptionError.attachingMode(mode.name, to: error)
             // Before the alert, so History already shows the failed row with
             // Retry behind it.
-            await markProcessingTranscriptFailed(after: error, audioDuration: importDuration)
+            await markProcessingTranscriptFailed(
+                after: failure,
+                audioDuration: importDuration,
+                transcriptionProvider: Self.failedRowProvider(for: error, modelId: mode.model)
+            )
             AppLogger.transcription.error("❌ File transcription failed: \(error.localizedDescription)")
+            // The error decides the buttons: a missing local model also
+            // offers "Open Model Library" (issue #2035).
             showErrorAlert(
                 title: "transcribe.file.error.title".localized,
-                message: Self.failureMessage(for: error, audioDuration: importDuration)
+                message: Self.failureMessage(for: failure, audioDuration: importDuration),
+                error: failure
             )
             releaseRecordingState()
         }
@@ -1026,10 +1037,21 @@ class FileTranscriptionFlow {
     /// - Parameters:
     ///   - error: Why the import stopped. `CancellationError` is a cancel.
     ///   - audioDuration: The file's length, when the import read it.
-    func markProcessingTranscriptFailed(after error: Error, audioDuration: TimeInterval? = nil) async {
+    ///   - transcriptionProvider: The engine that failed, from
+    ///     `failedRowProvider(for:modelId:)` (#1518). `nil` writes none.
+    func markProcessingTranscriptFailed(
+        after error: Error,
+        audioDuration: TimeInterval? = nil,
+        transcriptionProvider: String? = nil
+    ) async {
         guard let transcriptID = processingTranscriptID else { return }
         processingTranscriptID = nil
-        await writeFailedStatus(transcriptID, after: error, audioDuration: audioDuration)
+        await writeFailedStatus(
+            transcriptID,
+            after: error,
+            audioDuration: audioDuration,
+            transcriptionProvider: transcriptionProvider
+        )
     }
 
     /// Writes the failed status, so HistoryView shows the row as failed and
@@ -1037,13 +1059,15 @@ class FileTranscriptionFlow {
     private func writeFailedStatus(
         _ transcriptID: NSManagedObjectID,
         after error: Error,
-        audioDuration: TimeInterval? = nil
+        audioDuration: TimeInterval? = nil,
+        transcriptionProvider: String? = nil
     ) async {
         let outcome = Self.failureOutcome(for: error, audioDuration: audioDuration)
         await persistence.markTranscriptFailedInBackground(
             transcriptID: transcriptID,
             failedReason: outcome.failedReason,
-            errorText: outcome.errorText
+            errorText: outcome.errorText,
+            transcriptionProvider: transcriptionProvider
         )
         let kind = error is CancellationError ? "cancelled" : "error"
         AppLogger.transcription.info("📝 [FileImport] Marked processing transcript failed (\(kind, privacy: .public))")
@@ -1092,6 +1116,62 @@ class FileTranscriptionFlow {
     nonisolated static func isTooShort(_ error: Error) -> Bool {
         if case .audioTooShort? = error as? TranscriptionError { return true }
         return false
+    }
+
+    // MARK: - Failed row's engine (issue #1518)
+
+    /// The `transcriptionProvider` a failed History row stores, so History
+    /// shows which engine failed, or `nil` to leave the column empty.
+    ///
+    /// Only a `TranscriptionError` (an engine or pipeline failure) names an
+    /// engine; a cancel, an import error or any other failure does not. The
+    /// engine is the one the mode's model id routes to, worded as a completed
+    /// row words it (`localEngineName(forModelId:)`). When the id names no
+    /// local engine, a missing model's own name is used.
+    ///
+    /// - Parameter modelId: the mode's `model` (`Mode.model`). Empty or
+    ///   `"cloud"` is a cloud mode, which this does not name.
+    nonisolated static func failedRowProvider(for error: Error, modelId: String?) -> String? {
+        guard let transcriptionError = error as? TranscriptionError else { return nil }
+        return localEngineName(forModelId: modelId) ?? transcriptionError.missingModelName
+    }
+
+    /// The name a completed row stores as `transcriptionProvider` for a local
+    /// model id, which is the engine's `TranscriptionProvider.name`: the
+    /// whisper.cpp model's display name ("Tiny (Multilingual)"), else the
+    /// engine's name ("Parakeet TDT"). `nil` for a cloud mode or an id no
+    /// engine takes.
+    ///
+    /// Same order and the same tests as
+    /// `TranscriptionProviderRouter.selectLocalProvider`, so it names the
+    /// engine that id reaches.
+    nonisolated static func localEngineName(forModelId modelId: String?) -> String? {
+        let id = (modelId ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !id.isEmpty, id != "cloud" else { return nil }
+        if let whisper = mapModelIdToWhisperModel(id) {
+            return LibWhisperProvider.modelDisplayName(for: whisper.rawValue)
+        }
+        if id == "apple-speech-analyzer" {
+            #if canImport(Speech)
+            if #available(macOS 26.0, *) {
+                return AppleSpeechAnalyzerProvider.engineName
+            }
+            #endif
+            return nil
+        }
+        if id == Qwen3AsrModelManager.Constants.modelId {
+            if #available(macOS 15.0, *) {
+                return Qwen3AsrProvider.engineName
+            }
+            return nil
+        }
+        if id.hasPrefix("nemotron-asr-3.5-") {
+            return NemotronProvider.engineName
+        }
+        if id.hasPrefix("parakeet-tdt-") {
+            return ParakeetProvider.engineName
+        }
+        return nil
     }
 
     /// Handles file transcription errors with appropriate UI
@@ -1200,16 +1280,112 @@ class FileTranscriptionFlow {
     /// `/health` — for as long as the alert stayed open. Same hazard as the open panel
     /// above (HYPERWHISPER-SZ).
     ///
+    /// **Open Model Library (issue #2035):** when `error` is a missing local model,
+    /// the alert also offers "Open Model Library", which brings the main window
+    /// forward on that page, where the fix is one download click. Every other
+    /// error keeps the single OK button.
+    ///
     /// - Parameters:
     ///   - title: Alert title
     ///   - message: Alert message
-    private func showErrorAlert(title: String, message: String) {
+    ///   - error: The error behind the alert, when the caller has one. It
+    ///     decides the buttons (`errorAlertButtons(for:)`).
+    private func showErrorAlert(title: String, message: String, error: Error? = nil) {
         let alert = NSAlert()
         alert.messageText = title
         alert.informativeText = message
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "common.ok".localized)
-        ModelessAlert.show(alert)
+        let buttons = Self.errorAlertButtons(for: error)
+        for button in buttons {
+            alert.addButton(withTitle: button.title)
+        }
+        if buttons.count > 1, let okIndex = buttons.firstIndex(of: .ok) {
+            // OK is not the first (Return) button here, so give it Escape:
+            // AppKit maps Escape only to a button titled "Cancel".
+            alert.buttons[okIndex].keyEquivalent = "\u{1b}"
+        }
+        // Strong on purpose: the import task ends, and its caller drops the
+        // flow, while the modeless alert is still open. A weak capture is nil
+        // by the click and the button would do nothing. `ModelessAlert` drops
+        // the completion once the alert closes, so the flow lives only as
+        // long as its alert.
+        ModelessAlert.show(alert) { response in
+            Self.performErrorAlertAction(for: response, buttons: buttons) {
+                self.openModelLibrary()
+            }
+        }
+    }
+
+    /// A button on the Transcription Error alert (issue #2035).
+    enum ErrorAlertButton: Equatable {
+        case openModelLibrary
+        case ok
+
+        var title: String {
+            switch self {
+            case .openModelLibrary: return "transcription.error.openModelLibrary".localized
+            case .ok: return "common.ok".localized
+            }
+        }
+    }
+
+    /// The alert's buttons for `error`, in the order they are added (the first
+    /// is the default, Return button).
+    ///
+    /// A missing local model gets "Open Model Library" first, then OK: the
+    /// codebase's other action alerts (Accessibility "Open Settings" / Cancel)
+    /// put the action first, and the fix is the likely next step. Anything
+    /// else, or no error, gets OK alone, as before.
+    nonisolated static func errorAlertButtons(for error: Error?) -> [ErrorAlertButton] {
+        // Matched with no payload binding: the model and mode names (#1518)
+        // do not change the buttons.
+        if case .modelNotDownloaded? = error as? TranscriptionError {
+            return [.openModelLibrary, .ok]
+        }
+        return [.ok]
+    }
+
+    /// Runs the action of the button the user clicked. OK only closes the
+    /// alert, which `ModelessAlert` has already done.
+    ///
+    /// - Parameters:
+    ///   - response: `.alertFirstButtonReturn`, … for the clicked button.
+    ///   - buttons: The buttons as `errorAlertButtons(for:)` returned them.
+    ///   - openModelLibrary: What "Open Model Library" does; tests pass a spy.
+    static func performErrorAlertAction(
+        for response: NSApplication.ModalResponse,
+        buttons: [ErrorAlertButton],
+        openModelLibrary: () -> Void
+    ) {
+        let index = response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+        guard buttons.indices.contains(index) else { return }
+        switch buttons[index] {
+        case .openModelLibrary:
+            openModelLibrary()
+        case .ok:
+            break
+        }
+    }
+
+    /// "Open Model Library" on the error alert: show the main window, then go
+    /// to Model Library as the menu bar's History and Settings items do.
+    private func openModelLibrary() {
+        Self.openModelLibrary(appState: appState) {
+            self.openMainWindowWithHistory()
+        }
+    }
+
+    /// The click is the user's own choice of page, so it is `.userChosen`: an
+    /// open mode editor with unsaved changes asks "Discard unsaved changes?"
+    /// first, exactly as a sidebar or menu-bar pick does (issue #1525).
+    ///
+    /// - Parameters:
+    ///   - appState: Where the page lives.
+    ///   - bringMainWindowForward: Activates the app and orders the main window
+    ///     front (or creates it); tests pass a spy.
+    static func openModelLibrary(appState: AppState?, bringMainWindowForward: () -> Void) {
+        bringMainWindowForward()
+        appState?.requestNavigation(to: .modelLibrary, trigger: .userChosen)
     }
 
     /// Opens the main window and navigates to History view

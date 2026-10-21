@@ -479,8 +479,16 @@
 "settings.sound.soundEffects.info" = "Play audio cues when recording starts and stops.";
 "settings.sound.mediaControl.title" = "Media control while recording";
 "settings.sound.mediaControl.info" = "Choose how HyperWhisper handles other audio while you record. 'Off' leaves audio unchanged, 'Mute Audio' silences your system output while recording and restores it afterward, and 'Muffle Audio' keeps it playing softly, as if from the next room.";
+"settings.sound.microphone.title" = "Microphone";
+"settings.sound.microphone.subtitle" = "Used by HyperWhisper only. Remembered across restarts.";
+"microphone.picker.default" = "Default · %@";
+"microphone.picker.notConnected" = "%@ (not connected)";
+"microphone.picker.fallback" = "Using %1$@ until %2$@ is reconnected.";
+"settings.sound.microphone.test" = "Test";
+"settings.sound.microphone.stop" = "Stop";
+"settings.sound.microphone.level" = "Input level";
 "settings.sound.autoIncreaseMicVolume.title" = "Automatically increase microphone volume";
-"settings.sound.autoIncreaseMicVolume.info" = "Automatically sets microphone input volume to max when recording starts, then restores the original level when recording stops. Only applies when using the system default input device.";
+"settings.sound.autoIncreaseMicVolume.info" = "Automatically sets the input volume of the microphone HyperWhisper records from to max when recording starts, then restores the original level when recording stops. Microphones without a software volume control are left unchanged.";
 "settings.sound.keepWarmMicrophone.title" = "Keep microphone warm between recordings";
 "settings.sound.keepWarmMicrophone.info" = "Reduces push-to-talk startup delay by keeping the microphone session open while HyperWhisper is idle. macOS will show the orange microphone indicator continuously, and Bluetooth headsets may stay in lower-quality call mode while this is enabled.";
 "settings.sound.vad.title" = "Remove silence before transcription";
@@ -974,6 +982,9 @@
 "transcription.error.providerNotAvailable.provider" = "%@ is not available. Check your settings and try again.";
 "transcription.error.providerNotAvailable.detail" = "%@ is not available: %@";
 "transcription.error.modelNotDownloaded" = "Please download a model first";
+"transcription.error.modelNotDownloaded.modelAndMode" = "%1$@ uses %2$@, which is not downloaded. Download it in Model Library.";
+"transcription.error.modelNotDownloaded.model" = "%1$@ is not downloaded. Download it in Model Library.";
+"transcription.error.openModelLibrary" = "Open Model Library";
 "transcription.error.modelProtected" = "This model cannot be deleted";
 "transcription.error.audioFileNotFound" = "Audio file not found";
 "transcription.error.network.detail" = "Network error: %@";
@@ -1198,3 +1209,4 @@
 "history.autoDelete.status.enabled" = "Delete recordings older than %d %@";
 "history.autoDelete.cleanup.noItems" = "No recordings to delete";
 "history.autoDelete.cleanup.summary" = "Deleted %d recording(s) and freed %@";
+"settings.api_server.status.stopping" = "Stopping…";

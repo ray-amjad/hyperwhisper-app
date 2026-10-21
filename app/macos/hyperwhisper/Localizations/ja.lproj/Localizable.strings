@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "録音の開始時と停止時にオーディオキューを再生します。";
 "settings.sound.mediaControl.title" = "録音中のメディア制御";
 "settings.sound.mediaControl.info" = "録音中HyperWhisperが他のオーディオをどのように処理するかを選択します。「オフ」はオーディオを変更せず、「オーディオをミュート」は録音中にシステム出力をミュートし、その後復元します。「オーディオをこもらせる」は、隣の部屋から聞こえるように静かに再生し続けます。";
+"settings.sound.microphone.title" = "マイク";
+"settings.sound.microphone.subtitle" = "HyperWhisperでのみ使用されます。再起動後も保持されます。";
+"microphone.picker.default" = "デフォルト · %@";
+"microphone.picker.notConnected" = "%@（未接続）";
+"microphone.picker.fallback" = "%2$@が再接続されるまで%1$@を使用しています。";
+"settings.sound.microphone.test" = "テスト";
+"settings.sound.microphone.stop" = "停止";
+"settings.sound.microphone.level" = "入力レベル";
 "settings.sound.autoIncreaseMicVolume.title" = "録音開始時にマイク音量を自動で最大化";
-"settings.sound.autoIncreaseMicVolume.info" = "録音開始時にマイクの入力音量を自動的に最大に設定し、録音終了時に元の音量に戻します。システムのデフォルト入力デバイスを使用している場合のみ適用されます。";
+"settings.sound.autoIncreaseMicVolume.info" = "録音開始時に、HyperWhisperが録音に使用するマイクの入力音量を自動で最大に設定し、録音停止時に元のレベルに戻します。ソフトウェアで音量を調整できないマイクは変更されません。";
 "settings.sound.vad.title" = "文字起こし前に無音を除去";
 "settings.sound.vad.info" = "AI音声検出を使用して、音声の前後の無音部分を自動的に検出し除去します。これにより、文字起こしの精度が向上し、処理時間が短縮される場合があります。";
 
@@ -937,6 +945,9 @@
 "transcription.error.providerNotAvailable.provider" = "%@ を利用できません。設定を確認して再試行してください。";
 "transcription.error.providerNotAvailable.detail" = "%@ を利用できません: %@";
 "transcription.error.modelNotDownloaded" = "まずモデルをダウンロードしてください";
+"transcription.error.modelNotDownloaded.modelAndMode" = "モード「%1$@」はモデル「%2$@」を使用しますが、ダウンロードされていません。モデルライブラリでダウンロードしてください。";
+"transcription.error.modelNotDownloaded.model" = "モデル「%1$@」はダウンロードされていません。モデルライブラリでダウンロードしてください。";
+"transcription.error.openModelLibrary" = "モデルライブラリを開く";
 "transcription.error.modelProtected" = "このモデルは削除できません";
 "transcription.error.audioFileNotFound" = "音声ファイルが見つかりません";
 "transcription.error.network.detail" = "ネットワークエラー: %@";
@@ -1163,3 +1174,4 @@
 "settings.storage.maxRecordingDuration.hour" = "1時間";
 "settings.storage.maxRecordingDuration.hours" = "%d時間";
 "settings.storage.maxRecordingDuration.off" = "オフ";
+"settings.api_server.status.stopping" = "停止中…";

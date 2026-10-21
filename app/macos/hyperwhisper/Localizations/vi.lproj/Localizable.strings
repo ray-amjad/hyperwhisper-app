@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "Phát tín hiệu âm thanh khi bắt đầu và dừng ghi âm.";
 "settings.sound.mediaControl.title" = "Kiểm soát phương tiện trong khi ghi âm";
 "settings.sound.mediaControl.info" = "Chọn cách HyperWhisper xử lý âm thanh khác trong khi bạn ghi âm. 'Tắt' để giữ âm thanh không thay đổi, 'Tắt tiếng Âm thanh' để tắt tiếng đầu ra hệ thống khi ghi âm và khôi phục sau đó, và 'Làm nghẹt Âm thanh' để âm thanh phát nhẹ nhàng, như từ phòng bên cạnh.";
+"settings.sound.microphone.title" = "Micrô";
+"settings.sound.microphone.subtitle" = "Chỉ HyperWhisper sử dụng. Được ghi nhớ sau khi khởi động lại.";
+"microphone.picker.default" = "Mặc định · %@";
+"microphone.picker.notConnected" = "%@ (chưa kết nối)";
+"microphone.picker.fallback" = "Đang dùng %1$@ cho đến khi %2$@ được kết nối lại.";
+"settings.sound.microphone.test" = "Kiểm tra";
+"settings.sound.microphone.stop" = "Dừng";
+"settings.sound.microphone.level" = "Mức đầu vào";
 "settings.sound.autoIncreaseMicVolume.title" = "Tự động tăng âm lượng micrô";
-"settings.sound.autoIncreaseMicVolume.info" = "Tự động đặt âm lượng nhập liệu micrô ở mức tối đa khi ghi âm bắt đầu, sau đó khôi phục mức ban đầu khi ghi âm dừng. Chỉ áp dụng khi sử dụng thiết bị nhập liệu mặc định của hệ thống.";
+"settings.sound.autoIncreaseMicVolume.info" = "Tự động đặt âm lượng đầu vào của micrô mà HyperWhisper dùng để ghi âm lên mức tối đa khi bắt đầu ghi, sau đó khôi phục mức ban đầu khi dừng ghi. Micrô không có điều khiển âm lượng bằng phần mềm sẽ được giữ nguyên.";
 "settings.sound.vad.title" = "Loại bỏ Im lặng trước khi chuyển đổi";
 "settings.sound.vad.info" = "Tự động phát hiện và loại bỏ im lặng ở đầu và cuối bằng cách sử dụng phát hiện thoại AI. Điều này có thể cải thiện độ chính xác của bản chuyển đổi và giảm thời gian xử lý.";
 
@@ -936,6 +944,9 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "transcription.error.providerNotAvailable.provider" = "%@ không có sẵn. Kiểm tra cài đặt của bạn và thử lại.";
 "transcription.error.providerNotAvailable.detail" = "%@ không có sẵn: %@";
 "transcription.error.modelNotDownloaded" = "Vui lòng tải xuống một mô hình trước tiên";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Chế độ %1$@ dùng %2$@, mô hình này chưa được tải xuống. Hãy tải xuống trong Thư viện mô hình.";
+"transcription.error.modelNotDownloaded.model" = "%1$@ chưa được tải xuống. Hãy tải xuống trong Thư viện mô hình.";
+"transcription.error.openModelLibrary" = "Mở Thư viện mô hình";
 "transcription.error.modelProtected" = "Mô hình này không thể xóa được";
 "transcription.error.audioFileNotFound" = "Tệp âm thanh không tìm thấy";
 "transcription.error.network.detail" = "Lỗi mạng: %@";
@@ -1162,3 +1173,4 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "settings.storage.maxRecordingDuration.hour" = "1 giờ";
 "settings.storage.maxRecordingDuration.hours" = "%d giờ";
 "settings.storage.maxRecordingDuration.off" = "Tắt";
+"settings.api_server.status.stopping" = "Đang dừng…";

@@ -18,10 +18,15 @@ import {
   getPaidCreditGrantsForUsers,
 } from "@/src/lib/db-layer";
 import { stripe } from "@/lib/clients/stripe";
+import { env } from "@/src/env/server.mjs";
 import { CREDITS_PER_MINUTE } from "@/lib/credits-per-minute";
 import { createCreditHistoryPresenter } from "./customer-credit-history";
 
 const presentCreditHistory = createCreditHistoryPresenter();
+
+/** What the dashboard shows when Stripe will not open the billing portal. */
+export const STRIPE_PORTAL_ERROR_MESSAGE =
+  "Could not open the billing portal. Please try again.";
 
 export const customerRouter = createTRPCRouter({
   /**
@@ -194,14 +199,25 @@ export const customerRouter = createTRPCRouter({
     }
 
     const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";
+      env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";
 
-    // Create Stripe billing portal session
-    const session = await stripe.billingPortal.sessions.create({
-      customer: licenseWithStripe.stripeCustomerId,
-      return_url: `${siteUrl}/user`,
-    });
+    // Create Stripe billing portal session. A Stripe error's message is
+    // written for developers (it can name the customer id and the key mode),
+    // and BillingCard prints error.message as is, so it is logged here and
+    // the customer gets fixed copy instead (#2082).
+    try {
+      const session = await stripe.billingPortal.sessions.create({
+        customer: licenseWithStripe.stripeCustomerId,
+        return_url: `${siteUrl}/user`,
+      });
 
-    return { url: session.url };
+      return { url: session.url };
+    } catch (error) {
+      console.error("Stripe billing portal session failed:", error);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: STRIPE_PORTAL_ERROR_MESSAGE,
+      });
+    }
   }),
 });

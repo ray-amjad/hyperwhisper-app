@@ -7,7 +7,7 @@
  *
  * Both routes reach three collaborators at import time: the Drizzle client
  * (`src/db/index.ts`), the Upstash-backed rate limiter (`lib/rate-limit.ts`)
- * and, for the prune route, the validated server env (`src/env/server.mjs`).
+ * and the validated server env (`src/env/server.mjs`), which holds the secrets.
  * All three are replaced here with `mock.module`, so the tests run the REAL
  * route modules — the secret gate, the body-size guard, the batch validation,
  * the bucketing, the coarse timestamp, the batched delete loop and the reply
@@ -40,6 +40,8 @@ export const calls = {
 export const behaviour = {
   /** What the rate limiter answers. */
   rateLimitSuccess: true,
+  /** Thrown by the rate limiter when set — models Upstash being unreachable. */
+  rateLimitError: null as unknown,
   /** Thrown by `insert().values()` when set — models a database fault. */
   insertError: null as unknown,
   /** Thrown by `delete().where()` when set — models a database fault. */
@@ -53,8 +55,8 @@ export const behaviour = {
 };
 
 /**
- * The fake validated env the prune route reads. The route reads it per
- * request, so a test may change it between calls.
+ * The fake validated env both routes read their secrets from. They read it
+ * per request, so a test may change it between calls.
  */
 export const fakeEnv: Record<string, string | undefined> = {};
 
@@ -64,6 +66,7 @@ export function resetHarness(): void {
   calls.rateLimit.length = 0;
 
   behaviour.rateLimitSuccess = true;
+  behaviour.rateLimitError = null;
   behaviour.insertError = null;
   behaviour.deleteError = null;
   behaviour.deleteRowCounts = [];
@@ -147,6 +150,7 @@ moduleMock.module(moduleUrl("../lib/rate-limit.ts"), {
     latencyIngestRateLimiter: {
       limit: async (identifier: string) => {
         calls.rateLimit.push(identifier);
+        if (behaviour.rateLimitError) throw behaviour.rateLimitError;
         return { success: behaviour.rateLimitSuccess };
       },
     },

@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "Spila hljóðmerki þegar upptaka hefst og hættir.";
 "settings.sound.mediaControl.title" = "Miðilstjórnun á meðan á upptöku stendur";
 "settings.sound.mediaControl.info" = "Veldu hvernig HyperWhisper meðhöndlar annað hljóð á meðan þu tekur upp. 'Af' lætur hljóð óbreytt, 'Þögga hljóð' þöggar niður kerfisúttaki meðan á upptokt stendur og endurheimtir þeð á eftir, og 'Deyfa hljóð' lætur það spila lágt, eins og úr næsta herbergi.";
+"settings.sound.microphone.title" = "Hljóðnemi";
+"settings.sound.microphone.subtitle" = "Aðeins notaður af HyperWhisper. Munað eftir endurræsingu.";
+"microphone.picker.default" = "Sjálfgefið · %@";
+"microphone.picker.notConnected" = "%@ (ekki tengdur)";
+"microphone.picker.fallback" = "Notar %1$@ þar til %2$@ er tengdur aftur.";
+"settings.sound.microphone.test" = "Prófa";
+"settings.sound.microphone.stop" = "Stöðva";
+"settings.sound.microphone.level" = "Inntaksstyrkur";
 "settings.sound.autoIncreaseMicVolume.title" = "Hækka sjálfkrafa hljóðnemahljóðstyrk";
-"settings.sound.autoIncreaseMicVolume.info" = "Stillir sjálfkrafa hljóðnemainntakshljóðstyrk á hámark þegar upptaka byrjar, endurheimtir síðan upprunalegt stig þegar upptöku lýkur. Gildir aðeins þegar sjálfgefið kerfisinntak tæki er notað.";
+"settings.sound.autoIncreaseMicVolume.info" = "Stillir sjálfkrafa inntaksstyrk hljóðnemans sem HyperWhisper tekur upp úr á hámark þegar upptaka hefst og endurheimtir upprunalegan styrk þegar henni lýkur. Hljóðnemum án hugbúnaðarstýringar á styrk er ekki breytt.";
 "settings.sound.vad.title" = "Fjarlægja þögn fyrir afritun";
 "settings.sound.vad.info" = "Greinir sjálfkrafa og fjarlægir fremsta og aftasta þögn með gervigreindar raddgreining. Þetta getur bætt afritunarárangur og minnkað vinnslutíma.";
 
@@ -936,6 +944,9 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcription.error.providerNotAvailable.provider" = "%@ er ekki tiltækt. Athugaðu stillingarnar þínar og reyndu aftur.";
 "transcription.error.providerNotAvailable.detail" = "%@ er ekki tiltækt: %@";
 "transcription.error.modelNotDownloaded" = "Vinsamlegast sæktu líkan fyrst";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Hamurinn %1$@ notar líkanið %2$@, sem hefur ekki verið sótt. Sæktu það í Líkanaasafni.";
+"transcription.error.modelNotDownloaded.model" = "Líkanið %1$@ hefur ekki verið sótt. Sæktu það í Líkanaasafni.";
+"transcription.error.openModelLibrary" = "Opna Líkanaasafn";
 "transcription.error.modelProtected" = "Þessu líkani er ekki hægt að eyða";
 "transcription.error.audioFileNotFound" = "Hljóðskrá fannst ekki";
 "transcription.error.network.detail" = "Netvilla: %@";
@@ -1162,3 +1173,4 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "settings.storage.maxRecordingDuration.hour" = "1 klukkustund";
 "settings.storage.maxRecordingDuration.hours" = "%d klukkustundir";
 "settings.storage.maxRecordingDuration.off" = "Slökkt";
+"settings.api_server.status.stopping" = "Stöðvar…";

@@ -7,11 +7,11 @@
  * payment (and optionally revoke the key), to move a customer to a new email,
  * and to read every customer's credits and net Stripe spend.
  *
- * Six collaborators are replaced here with `mock.module`: Better Auth
- * (`src/lib/auth.ts`), the database layer (`src/lib/db-layer.ts`), the shared
- * Stripe client (`lib/clients/stripe.ts`), the `stripe` package itself (the
- * router builds its own pinned refund client from it), the email service
- * (`lib/services/email.ts`) and nothing else. The license-key generator, the
+ * Four collaborators are replaced here with `mock.module`: Better Auth
+ * (`src/lib/auth.ts`), the database layer (`src/lib/db-layer.ts`), the Stripe
+ * clients (`lib/clients/stripe.ts`: the shared `stripe` and the pinned refund
+ * client `stripeRefundApi`), the email service (`lib/services/email.ts`) and
+ * nothing else. The license-key generator, the
  * refund flow (`customer-refund.ts`) and the spend reader (`customer-spend.ts`)
  * stay REAL, so the tests run the router the way production does.
  *
@@ -24,9 +24,7 @@
  * helpers are the only way the tests reach the source. A test file that
  * imports the router itself would bind to the real collaborators, so do not.
  */
-import { createRequire } from "node:module";
 import { mock } from "node:test";
-import { pathToFileURL } from "node:url";
 
 import { callTRPCProcedure, type AnyRouter } from "@trpc/server";
 
@@ -71,7 +69,6 @@ export const calls = {
   listDisputes: [] as string[],
   retrieveSession: [] as string[],
   createRefund: [] as Array<{ paymentIntent: string; idempotencyKey: string }>,
-  stripeConstructed: [] as Array<{ key: unknown; apiVersion: unknown }>,
 };
 
 /** What the collaborators answer. Each test sets only what it cares about. */
@@ -93,6 +90,7 @@ export const behaviour = {
   userByEmail: null as { id: string; email: string } | null,
   updateEmailError: null as unknown,
   customerPageError: null as unknown,
+  refundCreditGrantError: null as unknown,
   /** Charges per Stripe customer id. An Error value makes the list throw. */
   charges: new Map<string, ChargeFixture[] | Error>(),
   disputeStatus: new Map<string, string>(),
@@ -136,11 +134,7 @@ export function charge(overrides: Partial<ChargeFixture> = {}): ChargeFixture {
 }
 
 export function resetHarness(): void {
-  // `stripeConstructed` is kept: the router builds its refund client once, at
-  // module load, and a test reads that one construction later.
-  for (const [name, list] of Object.entries(calls)) {
-    if (name !== "stripeConstructed") list.length = 0;
-  }
+  for (const list of Object.values(calls)) list.length = 0;
 
   behaviour.session = null;
   behaviour.customerPage = { userIds: [], totalCustomers: 0, page: 1 };
@@ -156,6 +150,7 @@ export function resetHarness(): void {
   behaviour.userByEmail = null;
   behaviour.updateEmailError = null;
   behaviour.customerPageError = null;
+  behaviour.refundCreditGrantError = null;
   behaviour.charges = new Map();
   behaviour.disputeStatus = new Map();
   behaviour.paymentIntent = "pi_1";
@@ -246,6 +241,7 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
     },
     refundCreditGrant: async (data: Record<string, unknown>) => {
       calls.refundCreditGrant.push(data);
+      if (behaviour.refundCreditGrantError) throw behaviour.refundCreditGrantError;
       return { status: "processed", refundedAmount: 0 };
     },
     revokeAccountKey: async (
@@ -295,45 +291,32 @@ moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
         },
       },
     },
-  },
-});
-
-/** Stands in for the `stripe` package's default export: the pinned refund client. */
-class FakeStripe {
-  constructor(key: unknown, config: { apiVersion?: unknown } = {}) {
-    calls.stripeConstructed.push({ key, apiVersion: config.apiVersion });
-  }
-
-  checkout = {
-    sessions: {
-      retrieve: async (id: string) => {
-        calls.retrieveSession.push(id);
-        return { id, payment_intent: behaviour.paymentIntent };
+    // The refund flow's pinned client. The shared `stripe` above has no
+    // checkout or refunds, so a refund that ran on it would throw here.
+    stripeRefundApi: {
+      checkout: {
+        sessions: {
+          retrieve: async (id: string) => {
+            calls.retrieveSession.push(id);
+            return { id, payment_intent: behaviour.paymentIntent };
+          },
+        },
+      },
+      refunds: {
+        create: async (
+          params: { payment_intent: string },
+          options: { idempotencyKey: string },
+        ) => {
+          calls.createRefund.push({
+            paymentIntent: params.payment_intent,
+            idempotencyKey: options.idempotencyKey,
+          });
+          return { id: "re_1" };
+        },
       },
     },
-  };
-
-  refunds = {
-    create: async (
-      params: { payment_intent: string },
-      options: { idempotencyKey: string },
-    ) => {
-      calls.createRefund.push({
-        paymentIntent: params.payment_intent,
-        idempotencyKey: options.idempotencyKey,
-      });
-      return { id: "re_1" };
-    },
-  };
-}
-
-// nextjs has no `"type": "module"`, so tsx loads the router as CommonJS and
-// its `import Stripe from "stripe"` becomes a `require`. That resolves to the
-// package's CJS entry, not the ESM one a bare "stripe" specifier would mock.
-moduleMock.module(
-  pathToFileURL(createRequire(import.meta.url).resolve("stripe")).href,
-  { defaultExport: FakeStripe },
-);
+  },
+});
 
 moduleMock.module(moduleUrl("../lib/services/email.ts"), {
   namedExports: {
