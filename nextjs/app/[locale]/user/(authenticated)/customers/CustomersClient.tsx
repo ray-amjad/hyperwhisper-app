@@ -316,49 +316,54 @@ export default function CustomersClient() {
 
       {/* Grant License Form. It grows open from 0fr (#2285, as #702 did for
           the other disclosure panels) instead of arriving at full height in
-          one frame, so the rows under it slide down. */}
+          one frame, so the rows under it slide down. The parent's space-y-6
+          gap is dropped from the wrapper (mb-0) and carried as padding inside
+          the clip, so the gap grows with the tween instead of landing in the
+          first frame. */}
       {showGrant && (
-        <div className="t-cell-reveal">
+        <div className="t-cell-reveal mb-0">
           <div>
-            <div className="p-4 bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 space-y-3">
-              <h3 className="text-white font-medium">Grant Account Key by Email</h3>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (grantEmail.trim()) {
-                    setGrantResult(null);
-                    grantMutation.mutate({ email: grantEmail.trim() });
-                  }
-                }}
-                className="flex items-center gap-3"
-              >
-                <input
-                  type="email"
-                  value={grantEmail}
-                  onChange={(e) => setGrantEmail(e.target.value)}
-                  placeholder="user@example.com"
-                  required
-                  className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
-                />
-                <button
-                  type="submit"
-                  disabled={grantMutation.isPending}
-                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors disabled:opacity-50"
+            <div className="pb-6">
+              <div className="p-4 bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 space-y-3">
+                <h3 className="text-white font-medium">Grant Account Key by Email</h3>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (grantEmail.trim()) {
+                      setGrantResult(null);
+                      grantMutation.mutate({ email: grantEmail.trim() });
+                    }
+                  }}
+                  className="flex items-center gap-3"
                 >
-                  {grantMutation.isPending ? "Granting..." : "Grant"}
-                </button>
-              </form>
-              {grantMutation.error && (
-                <p className="text-red-300 text-sm" role="alert">
-                  {errorSentence(grantMutation.error, INVALID_EMAIL)}
-                </p>
-              )}
-              {grantResult && (
-                <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg space-y-1">
-                  <p className="text-emerald-300 text-sm">Account Key granted to <span className="font-medium">{grantResult.email}</span></p>
-                  <p className="text-white font-mono text-sm select-all">{grantResult.licenseKey}</p>
-                </div>
-              )}
+                  <input
+                    type="email"
+                    value={grantEmail}
+                    onChange={(e) => setGrantEmail(e.target.value)}
+                    placeholder="user@example.com"
+                    required
+                    className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
+                  />
+                  <button
+                    type="submit"
+                    disabled={grantMutation.isPending}
+                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {grantMutation.isPending ? "Granting..." : "Grant"}
+                  </button>
+                </form>
+                {grantMutation.error && (
+                  <p className="text-red-300 text-sm" role="alert">
+                    {errorSentence(grantMutation.error, INVALID_EMAIL)}
+                  </p>
+                )}
+                {grantResult && (
+                  <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg space-y-1">
+                    <p className="text-emerald-300 text-sm">Account Key granted to <span className="font-medium">{grantResult.email}</span></p>
+                    <p className="text-white font-mono text-sm select-all">{grantResult.licenseKey}</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
