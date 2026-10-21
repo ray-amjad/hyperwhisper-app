@@ -1173,3 +1173,4 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "settings.storage.maxRecordingDuration.hour" = "1 óra";
 "settings.storage.maxRecordingDuration.hours" = "%d óra";
 "settings.storage.maxRecordingDuration.off" = "Kikapcsolva";
+"settings.api_server.status.stopping" = "Leállítás…";

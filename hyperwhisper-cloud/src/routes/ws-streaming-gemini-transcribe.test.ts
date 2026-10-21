@@ -6,6 +6,7 @@ import type { AuthContext } from '../middleware/auth';
 import { captureRejectionLogs, captureStreamingLogs } from './ws-streaming-test-logs';
 import {
   FakeClientSocket,
+  FakeStreamingTimers,
   FakeUpstreamSocketBase,
   binaryMessage,
   fakeContext,
@@ -40,7 +41,12 @@ const {
   parseGeminiLiveFrame,
   wsStreamingGeminiTranscribePreflight,
 } = await import('./ws-streaming-gemini-transcribe');
-const { endActiveStreamingSessions, resetStreamingShutdownForTests, routePathFor } = await import('./ws-streaming-shared');
+const {
+  createStreamingEventsFor,
+  endActiveStreamingSessions,
+  resetStreamingShutdownForTests,
+  routePathFor,
+} = await import('./ws-streaming-shared');
 
 const originalFetch = globalThis.fetch;
 const originalWebSocket = globalThis.WebSocket;
@@ -360,14 +366,18 @@ interface Harness {
 }
 
 /** Open a session and (unless told otherwise) complete the setup handshake. */
-function openSession(options: { credits?: number; query?: string; skipSetup?: boolean } = {}): Harness {
+function openSession(
+  options: { credits?: number; query?: string; skipSetup?: boolean; timers?: FakeStreamingTimers } = {},
+): Harness {
   const auth: AuthContext = {
     identifier: 'key-1234-abcd',
     licenseKey: 'key-1234-abcd',
     credits: options.credits ?? 1000,
   };
   const url = `https://transcribe.example/ws/streaming-gemini-transcribe?account_key=key-1234-abcd${options.query ?? ''}`;
-  const events = createGeminiTranscribeStreamingEvents(fakeContext(auth, url));
+  const events = options.timers
+    ? createStreamingEventsFor(GEMINI_TRANSCRIBE_VENDOR, fakeContext(auth, url), options.timers.timers)
+    : createGeminiTranscribeStreamingEvents(fakeContext(auth, url));
   const client = new FakeClientSocket();
 
   events.onOpen(new Event('open'), client);
@@ -700,6 +710,24 @@ describe('gemini live socket lifecycle', () => {
       expect(harness.upstream.closes).toEqual([{ code: 1000, reason: 'Client requested stop' }]);
       await harness.endSession();
     }, 10_000);
+
+    test('pings the client every 30 s only while its socket is open (#801)', async () => {
+      const clock = new FakeStreamingTimers();
+      const harness = openSession({ timers: clock });
+      expect(clock.intervals.map((timer) => timer.ms)).toEqual([30_000]);
+      const before = harness.client.sent.length;
+
+      clock.tickInterval();
+      expect(harness.client.sent.slice(before)).toEqual(['{"type":"ping"}']);
+      harness.client.readyState = 2;
+      clock.tickInterval();
+      expect(harness.client.messagesOfType('ping')).toHaveLength(1);
+      expect(harness.upstream.jsonFrames).toHaveLength(1); // the ping never goes upstream
+
+      harness.client.readyState = 1;
+      await harness.endSession();
+      expect(clock.intervals[0]!.cleared).toBe(true);
+    });
 
     test('ignores a pong and any non-JSON text frame', async () => {
       const harness = openSession();

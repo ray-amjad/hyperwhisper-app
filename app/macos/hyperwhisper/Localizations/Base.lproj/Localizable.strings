@@ -1209,3 +1209,4 @@
 "history.autoDelete.status.enabled" = "Delete recordings older than %d %@";
 "history.autoDelete.cleanup.noItems" = "No recordings to delete";
 "history.autoDelete.cleanup.summary" = "Deleted %d recording(s) and freed %@";
+"settings.api_server.status.stopping" = "Stopping…";

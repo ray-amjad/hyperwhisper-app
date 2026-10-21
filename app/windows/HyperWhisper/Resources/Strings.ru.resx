@@ -799,6 +799,12 @@
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (готова)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (не активирован)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (нет API-ключа)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Не удалось загрузить</value>
   </data>

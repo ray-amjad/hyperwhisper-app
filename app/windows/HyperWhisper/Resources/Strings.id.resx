@@ -799,6 +799,12 @@ Tindakan ini tidak dapat dibatalkan.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Siap)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Belum diaktifkan)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (Tidak ada kunci API)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Gagal memuat</value>
   </data>

@@ -1173,3 +1173,4 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "settings.storage.maxRecordingDuration.hour" = "1 jam";
 "settings.storage.maxRecordingDuration.hours" = "%d jam";
 "settings.storage.maxRecordingDuration.off" = "Mati";
+"settings.api_server.status.stopping" = "Menghentikan…";

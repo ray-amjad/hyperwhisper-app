@@ -1173,3 +1173,4 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "settings.storage.maxRecordingDuration.hour" = "1 time";
 "settings.storage.maxRecordingDuration.hours" = "%d timer";
 "settings.storage.maxRecordingDuration.off" = "Fra";
+"settings.api_server.status.stopping" = "Stopper…";

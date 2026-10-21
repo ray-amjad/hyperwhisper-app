@@ -1173,3 +1173,4 @@
 "settings.storage.maxRecordingDuration.hour" = "שעה אחת";
 "settings.storage.maxRecordingDuration.hours" = "%d שעות";
 "settings.storage.maxRecordingDuration.off" = "כבוי";
+"settings.api_server.status.stopping" = "עוצר…";

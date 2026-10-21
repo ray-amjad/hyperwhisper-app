@@ -799,6 +799,12 @@
   <data name="status.model.ready" xml:space="preserve">
     <value>{0}（已就緒）</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0}（未啟用）</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0}（無 API 金鑰）</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>載入失敗</value>
   </data>
