@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
+using HyperWhisper.Models;
+using HyperWhisper.Utilities;
 
 namespace HyperWhisper.Services.Streaming;
 

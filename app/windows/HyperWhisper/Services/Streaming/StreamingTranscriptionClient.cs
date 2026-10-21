@@ -115,14 +115,15 @@ public sealed partial class StreamingTranscriptionClient : IAsyncDisposable, IDi
 
     private async Task<bool> ConnectAndStartSessionAsync(ClientWebSocket webSocket, Uri uri)
     {
-        await webSocket.ConnectAsync(uri, _sessionCts.Token);
+        // StartAsync assigns _sessionCts and _sessionStartedTcs right before it calls this.
+    await webSocket.ConnectAsync(uri, _sessionCts!.Token);
         _webSocket = webSocket;
 
         if (_strategy.SessionStartsOnWebSocketOpen)
         {
             _receiveTask = Task.Run(() => RunReceiveLoopAsync(webSocket, _sessionCts.Token), CancellationToken.None);
             await SendStartMessagesAsync(_sessionCts.Token);
-            _sessionStartedTcs.TrySetResult();
+            _sessionStartedTcs!.TrySetResult();
 
             // The receive loop (background thread) can concurrently observe a terminal
             // close/error and call HandleCloseResult -> Error while this await was in

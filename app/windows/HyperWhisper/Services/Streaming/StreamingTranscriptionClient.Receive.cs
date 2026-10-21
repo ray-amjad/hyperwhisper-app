@@ -5,6 +5,8 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using HyperWhisper.Models;
+using HyperWhisper.Utilities;
 // Aliased, not imported: HyperWhisper.SharedCore also declares
 // CloudTranscriptionProvider, which would clash with HyperWhisper.Models.
 using PortableLiveUpgradeRefusal = HyperWhisper.SharedCore.PortableLiveUpgradeRefusal;
