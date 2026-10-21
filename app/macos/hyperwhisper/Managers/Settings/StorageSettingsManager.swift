@@ -114,6 +114,10 @@ class StorageSettingsManager: ObservableObject {
     /// an answer to the Documents question must not show a second one.
     private var folderWaitsInFlight = 0
 
+    /// Whether the last `fallbackToBestAvailableLocation()` found no folder.
+    /// The async prepare reads it so a chain that just failed is not run again.
+    private var lastFallbackChainFailed = false
+
     /// Asks the user to choose a folder after the Documents question was
     /// answered and no fallback could be created (#773). The real prompt is a
     /// modal NSAlert, so a test swaps in a recorder.
@@ -317,6 +321,7 @@ class StorageSettingsManager: ObservableObject {
     func prepareRecordingsFolderIfNeededAsync(timeoutSeconds: Double = 120) async -> Bool {
         folderWaitsInFlight += 1
         defer { folderWaitsInFlight -= 1 }
+        lastFallbackChainFailed = false
         prepareRecordingsFolderIfNeeded()
         let start = Date()
         while Date().timeIntervalSince(start) < timeoutSeconds {
@@ -358,7 +363,9 @@ class StorageSettingsManager: ObservableObject {
             // If we aren't showing an alert and not writable, try fallbacks.
             // When all of them fail, waiting will not change that: report
             // not-ready now so the caller can ask (#773), instead of retrying
-            // (and logging the failure) every 300ms until the timeout.
+            // (and logging the failure) every 300ms until the timeout. A chain
+            // that already failed since this wait began is not run again.
+            if lastFallbackChainFailed { return false }
             return fallbackToBestAvailableLocation()
         }
         return false
@@ -416,9 +423,11 @@ class StorageSettingsManager: ObservableObject {
     /// 3. Temp (last resort, cleared on reboot)
     @discardableResult
     func fallbackToBestAvailableLocation() -> Bool {
+        lastFallbackChainFailed = false
         if fallbackRecordingsLocationToAppSupport() { return true }
         if fallbackRecordingsLocationToDownloads() { return true }
         if fallbackRecordingsLocationToTemp() { return true }
+        lastFallbackChainFailed = true
         logger.error("❌ No recordings folder fallback could be created; recordings folder is still: \(self.recordingsFolder, privacy: .public)")
         if AppLogger.isErrorLoggingEnabled {
             SentryService.addBreadcrumb(

@@ -154,6 +154,9 @@ extension RecordingsFolderRefusalTests {
         let ready = await storage.prepareRecordingsFolderIfNeededAsync(timeoutSeconds: 30)
 
         #expect(ready == false)
+        // The Documents create, then the 3 fallbacks, each once: the wait does
+        // not run the chain the prepare step just saw fail.
+        #expect(fm.refusedCreations.count == 4)
         // It used to retry every 300ms until the timeout; its caller asks now.
         #expect(Date().timeIntervalSince(start) < 5)
         #expect(prompts() == 0, "the caller shows the recovery prompt, not the manager")
