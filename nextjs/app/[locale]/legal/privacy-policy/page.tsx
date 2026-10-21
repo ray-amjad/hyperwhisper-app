@@ -181,6 +181,30 @@ export default function PrivacyPolicyPage() {
           and some text that looks like transcript content.
         </li>
         <li>
+          <strong>Server error reports</strong>: When our website or the
+          HyperWhisper Cloud service hits an unexpected error on our servers, it
+          sends an error report to{" "}
+          <a
+            className="text-blue-400 hover:underline"
+            href="https://sentry.io/privacy/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Sentry
+          </a>
+          . A report contains the type of error, a shortened error message, the
+          places in our code where it happened, the route that failed (such as
+          &quot;/api/license/validate&quot;, without the address or query you
+          requested), the request method, and, for the Cloud service, the
+          server region. Before a report is sent, we remove Account Keys and
+          email addresses from the error message, along with the values in a
+          database query and structured data such as a provider&apos;s JSON
+          response, where a transcript could appear. A report does not include your IP
+          address, your request&apos;s headers, cookies, or body, or your audio.
+          These reports come from our servers, not your device, so there is no
+          setting to turn them off.
+        </li>
+        <li>
           <strong>License information</strong>: The app contacts our licensing
           service to activate and validate your license. During this process, we
           receive your Account Key, a SHA-256 hash of your device&apos;s
@@ -1072,7 +1096,8 @@ export default function PrivacyPolicyPage() {
         </a>
         , our error-monitoring provider, for crash and performance diagnostics,
         as described under What We Collect. You can turn it off in Settings →
-        General.
+        General. Our website and the HyperWhisper Cloud service also send
+        server error reports to Sentry, as described under What We Collect.
       </p>
       <p>
         Our website pages embed an AI support chat widget served by{" "}
