@@ -155,6 +155,9 @@ internal static class ApplicationControlDiagnostics
     private static readonly Regex SafeFileName =
         new(@"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", RegexOptions.CultureInvariant);
 
+    private static readonly Regex QuotedExecutableName =
+        new(@"[\\/]([^\\/']{1,128}\.exe)'", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+
     private static readonly Regex QuotedLibraryName =
         new(@"'([^']{1,260})'", RegexOptions.CultureInvariant);
 
@@ -207,8 +210,9 @@ internal static class ApplicationControlDiagnostics
                 // after the colon is.
                 DllNotFoundException dllNotFound => ReadQuotedLibraryName(dllNotFound.Message),
                 // "An error occurred trying to start process '<path>' with working
-                // directory '<dir>'. ..." The first quoted part is the executable.
-                Win32Exception win32 => ReadQuotedLibraryName(win32.Message),
+                // directory '<dir>'. ..." Only the .exe's own name, read back from its
+                // closing quote: a directory can hold an apostrophe (O'Brien).
+                Win32Exception win32 => ReadQuotedExecutableName(win32.Message),
                 _ => null,
             };
 
@@ -416,6 +420,17 @@ internal static class ApplicationControlDiagnostics
                 pending.Enqueue(next);
             }
         }
+    }
+
+    private static string? ReadQuotedExecutableName(string? message)
+    {
+        if (string.IsNullOrEmpty(message))
+        {
+            return null;
+        }
+
+        var match = QuotedExecutableName.Match(message);
+        return match.Success ? match.Groups[1].Value : null;
     }
 
     private static string? ReadQuotedLibraryName(string? message)

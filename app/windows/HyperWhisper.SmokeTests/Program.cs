@@ -6086,7 +6086,9 @@ internal static class Program
 
                 // What Process.Start threw on the user's machine (HYPERWHISPER-113):
                 // ERROR_SYSTEM_INTEGRITY_POLICY_VIOLATION, with the install path in the message.
-                var blockedPath = @"C:\Users\Jane Doe\AppData\Local\Programs\HyperWhisper\parakeet-engine\parakeet-engine.exe";
+                // The apostrophe pins the file-name parse: it must not stop at "O".
+                var blockedPath = @"C:\Users\Jane O'Doe\AppData\Local\Programs\HyperWhisper\parakeet-engine\parakeet-engine.exe";
+                var expectedNotice = ApplicationControlDiagnostics.BuildBlockedNotice("parakeet-engine.exe", static key => Loc.S(key)).Message;
                 var starts = 0;
                 var service = new ParakeetTranscriptionService
                 {
@@ -6118,13 +6120,11 @@ internal static class Program
 
                         Assert(failure != null, $"load {attempt} must fail as a TranscriptionException");
                         Assert(failure!.Code == TranscriptionErrorCode.DaemonStartFailed, $"load {attempt}: code {failure.Code}");
-                        Assert(failure.Message.Contains("Application Control", StringComparison.Ordinal),
-                            $"load {attempt}: the status bar must name Application Control, got: {failure.Message}");
-                        Assert(failure.Message.Contains("parakeet-engine.exe", StringComparison.Ordinal),
-                            $"load {attempt}: the message must name the blocked file, got: {failure.Message}");
+                        Assert(failure.Message == expectedNotice,
+                            $"load {attempt}: the status bar must show the Application Control notice for parakeet-engine.exe, got: {failure.Message}");
                         Assert(failure.GetUserMessage() == failure.Message,
                             $"load {attempt}: a dictation toast must show the same notice, got: {failure.GetUserMessage()}");
-                        Assert(!failure.Message.Contains("Jane Doe", StringComparison.Ordinal) && !failure.Message.Contains(@"C:\", StringComparison.Ordinal),
+                        Assert(!failure.Message.Contains("Doe", StringComparison.Ordinal) && !failure.Message.Contains(@"C:\", StringComparison.Ordinal),
                             $"load {attempt}: the message must carry no path, got: {failure.Message}");
                         Assert(failure.InnerException == null, $"load {attempt}: the raw Win32Exception (with its path) must not ride along");
                         Assert(!service.IsAvailable, $"load {attempt}: IsAvailable must be false, and must not throw");
