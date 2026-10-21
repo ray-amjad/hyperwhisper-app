@@ -13,9 +13,8 @@
  * is the only way the tests reach the source. A test file that imports the
  * webhook path itself would bind to the real collaborators, so do not.
  */
-import { mock } from "node:test";
-
 import { formatLogArgs } from "./db-error-fixture";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 import type { AccountKeyInsert, AccountKeyRow } from "@/src/lib/db-layer";
 
@@ -154,25 +153,6 @@ export function restoreWebhookLogging(): void {
   console.warn = realConsole.warn;
   console.error = realConsole.error;
 }
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
-
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrow the tracker to the one method used here rather
- * than bumping the types in a test-only change.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports: Record<string, unknown> },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
 
 const emailOutcome = () =>
   behaviour.emailSuccess

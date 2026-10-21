@@ -14,8 +14,6 @@
  * is the only way the tests reach the module. A test file that imports
  * `src/lib/db-layer.ts` itself would bind to the real `pg` pool, so do not.
  */
-import { mock } from "node:test";
-
 import { PGlite } from "@electric-sql/pglite";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
@@ -23,24 +21,12 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 
 import * as schema from "../src/db/schema";
 
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: {
-      namedExports?: Record<string, unknown>;
-      defaultExport?: unknown;
-    },
-  ): void;
-}
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const client = new PGlite();
 export const db = drizzle(client, { schema });
 
-(mock as unknown as ModuleMocker).module(moduleUrl("../src/db/index.ts"), {
+moduleMock.module(moduleUrl("../src/db/index.ts"), {
   namedExports: { db },
 });
 

@@ -14,7 +14,8 @@
  * binds to the real `crypto` and the fault branches stay unreachable.
  */
 import realCrypto from "node:crypto";
-import { mock } from "node:test";
+
+import { moduleMock } from "./module-mock";
 
 export interface RandomIntCall {
   max: number;
@@ -59,24 +60,6 @@ export function silenceRetryWarnings(): void {
 export function restoreRetryWarnings(): void {
   console.warn = realConsole.warn;
 }
-
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrow the tracker to the one method used here rather
- * than bumping the types in a test-only change.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: {
-      namedExports?: Record<string, unknown>;
-      defaultExport?: unknown;
-    },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
 
 function scriptedRandomInt(max: number): number {
   calls.randomInt.push({ max });
