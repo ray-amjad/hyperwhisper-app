@@ -1,4 +1,5 @@
 using HyperWhisper.Data.Entities;
+using HyperWhisper.FileTranscription;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.SpeechOutput;
@@ -265,10 +266,35 @@ public sealed class TranscriptionWorkflow : IDisposable
             if (ownsAudio) DeleteRecording(fullAudioPath);
             return immediateFailure;
         }
+        var duration = await ReadFileDurationAsync(fullAudioPath, operation.Token).ConfigureAwait(false);
         return await TranscribeAndPersistAsync(
-            fullAudioPath, TimeSpan.Zero, request, operation,
+            fullAudioPath, duration, request, operation,
             ownsAudio, deleteOwnedAudioOnTerminalFailure: ownsAudio,
             injectText: false, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The length a file's History row records. A WAV's length comes from its RIFF
+    /// header; any other container, or a file that cannot be read, records zero, as
+    /// every file did before.
+    /// </summary>
+    private static async Task<TimeSpan> ReadFileDurationAsync(string audioPath, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var metadata = await new StreamingFileAudioMetadataSource()
+                .ReadAsync(audioPath, cancellationToken).ConfigureAwait(false);
+            return metadata?.Duration is { } duration
+                   && duration > TimeSpan.Zero
+                   && !double.IsInfinity(duration.TotalSeconds)
+                ? duration
+                : TimeSpan.Zero;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+                                              or OperationCanceledException)
+        {
+            return TimeSpan.Zero;
+        }
     }
 
     public async Task<PortableTranscriptionResult> RetryTranscriptAsync(

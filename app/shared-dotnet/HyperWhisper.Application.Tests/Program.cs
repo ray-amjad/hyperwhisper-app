@@ -79,6 +79,7 @@ try
     await RunShellMissingLocalModelStatusTestsAsync(Path.Combine(root, "shell-missing-model"));
     RunShellDatabaseOffUiThreadTests(Path.Combine(root, "shell-db-off-ui"));
     await RunLocalEngineVocabularyOnceTestsAsync(Path.Combine(root, "local-vocabulary-once"));
+    await RunFileTranscriptionDurationTestsAsync(Path.Combine(root, "file-duration"));
     await RunVocabularyDuplicateTestsAsync(Path.Combine(root, "vocabulary-duplicate"));
 
     var history = new HistoryRepository(database);
@@ -1652,6 +1653,82 @@ static async Task RunLocalEngineVocabularyOnceTestsAsync(string root)
 // #633: adding a word another row already holds (any case) was merged into that row by the
 // store: the row moved to the bottom, lost its replacement or took the new spelling. It is now
 // refused with an error, the list unchanged and the input kept.
+// #1573: a Transcribe File History row recorded a duration of 0 s whatever the
+// file's length. It must record the WAV's real length, as a recording does.
+static async Task RunFileTranscriptionDurationTestsAsync(string root)
+{
+    Directory.CreateDirectory(root);
+    var paths = new TestPaths(root);
+    var database = new ApplicationDb(paths);
+    await database.MigrateAsync();
+    var history = new HistoryRepository(database);
+
+    // 20 s of 16 kHz mono 16-bit silence: the shape the import normalizer writes.
+    var canonical = Path.Combine(root, "twenty-seconds.wav");
+    await using (var stream = File.Create(canonical))
+    {
+        PcmWaveHeader.Write(stream, 16_000, 1, 16, 20 * 16_000 * 2);
+        stream.Write(new byte[20 * 16_000 * 2]);
+    }
+
+    // ffmpeg's own WAV output puts a LIST chunk between `fmt ` and `data`.
+    var withList = Path.Combine(root, "with-list-chunk.wav");
+    await using (var stream = File.Create(withList))
+    {
+        var listPayload = "INFOISFT\u000e\0\0\0Lavf61.7.100\0\0"u8.ToArray();
+        var data = 12 * 24_000 * 2 * 2;
+        using var writer = new BinaryWriter(stream);
+        writer.Write("RIFF"u8);
+        writer.Write(4 + 24 + 8 + listPayload.Length + 8 + data);
+        writer.Write("WAVEfmt "u8);
+        writer.Write(16);
+        writer.Write((short)1);
+        writer.Write((short)2);
+        writer.Write(24_000);
+        writer.Write(24_000 * 2 * 2);
+        writer.Write((short)4);
+        writer.Write((short)16);
+        writer.Write("LIST"u8);
+        writer.Write(listPayload.Length);
+        writer.Write(listPayload);
+        writer.Write("data"u8);
+        writer.Write(data);
+        writer.Write(new byte[data]);
+    }
+
+    // A container the RIFF reader cannot measure keeps the old zero.
+    var notWave = Path.Combine(root, "clip.mp3");
+    await File.WriteAllBytesAsync(notWave, [0xFF, 0xFB, 0x90, 0x00, 1, 2, 3, 4, 5, 6, 7, 8]);
+    // A `.wav` that is not RIFF at all must not fail the transcription.
+    var brokenWave = Path.Combine(root, "broken.wav");
+    await File.WriteAllBytesAsync(brokenWave, [1, 2, 3]);
+
+    async Task<Transcript> Run(string audio)
+    {
+        var engine = new FakeTranscriber((_, _, _) => Task.FromResult(
+            PortableTranscriptionResult.Success("file text", "Test Whisper")));
+        using var recorder = new FakeRecorder(audio);
+        using var devices = new FakeDevices();
+        using var workflow = new TranscriptionWorkflow(recorder, devices, engine, history);
+        var result = await workflow.TranscribeFileAsync(audio, new TranscriptionWorkflowRequest());
+        Assert(result.IsSuccess, $"{Path.GetFileName(audio)}: the file transcription failed");
+        var saved = (await history.ListAsync()).Single(item => item.AudioFilePath == Path.GetFullPath(audio));
+        Assert(saved.Status == TranscriptStatus.Completed, $"{Path.GetFileName(audio)}: the History row did not complete");
+        return saved;
+    }
+
+    var twenty = await Run(canonical);
+    Assert(Math.Abs(twenty.Duration - 20.0) < 0.001,
+        $"a 20 s WAV wrote a History duration of {twenty.Duration} s");
+    var twelve = await Run(withList);
+    Assert(Math.Abs(twelve.Duration - 12.0) < 0.001,
+        $"a 12 s WAV with a LIST chunk wrote a History duration of {twelve.Duration} s");
+    var mp3 = await Run(notWave);
+    Assert(mp3.Duration == 0, $"an unmeasurable file wrote a History duration of {mp3.Duration} s");
+    var broken = await Run(brokenWave);
+    Assert(broken.Duration == 0, $"a truncated WAV wrote a History duration of {broken.Duration} s");
+}
+
 static async Task RunVocabularyDuplicateTestsAsync(string root)
 {
     Directory.CreateDirectory(root);
