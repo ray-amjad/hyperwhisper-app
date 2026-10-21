@@ -261,7 +261,7 @@ public partial class BackupExportSettingsPage : Page
     internal void ApplyImportSuccess(ImportSummary result, ImportSelection? selection = null)
     {
         ShowStatus(ImportStatusText,
-            Loc.S("settings.backup.import.success", BuildImportSummary(result, selection)).TrimEnd(),
+            Loc.S("settings.backup.import.success", BuildImportSummary(result, selection)),
             isError: false);
         ImportSelectionPanel.Visibility = Visibility.Collapsed;
         _pendingImportPath = null;
