@@ -495,7 +495,7 @@ public partial class SettingsService
             }
             catch (Exception ex)
             {
-                LoggingService.Warn($"SettingsService: Failed to load settings: {ex.Message}");
+                LoggingService.Warn($"SettingsService: Failed to load settings: {SentryService.RedactUserIdentifiers(ex.Message)}");
 
                 // settings.json is corrupt (e.g. truncated by a crash/force-kill
                 // mid-write). Try the previous-good .bak left by File.Replace before
@@ -578,7 +578,7 @@ public partial class SettingsService
         }
         catch (Exception ex)
         {
-            LoggingService.Warn($"SettingsService: Failed to recover settings from backup: {ex.Message}");
+            LoggingService.Warn($"SettingsService: Failed to recover settings from backup: {SentryService.RedactUserIdentifiers(ex.Message)}");
             return false;
         }
     }
@@ -643,7 +643,7 @@ public partial class SettingsService
             }
             catch (Exception ex)
             {
-                LoggingService.Error($"SettingsService: Failed to save settings: {ex.Message}");
+                LoggingService.Error($"SettingsService: Failed to save settings: {SentryService.RedactUserIdentifiers(ex.Message)}");
                 return false;
             }
         }

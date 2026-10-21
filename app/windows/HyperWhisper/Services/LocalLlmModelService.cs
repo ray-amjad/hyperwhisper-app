@@ -169,7 +169,7 @@ public class LocalLlmModelService
         {
             if (File.Exists(path))
             {
-                LoggingService.Info($"LocalLlmModelService: Deleting model at {path}");
+                LoggingService.Info($"LocalLlmModelService: Deleting model at {SentryService.RedactUserIdentifiers(path)}");
                 File.Delete(path);
             }
 

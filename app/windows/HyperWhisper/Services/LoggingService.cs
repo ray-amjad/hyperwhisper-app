@@ -563,7 +563,7 @@ public static class LoggingService
             Machine Name: {Environment.MachineName}
             Processor Count: {Environment.ProcessorCount}
             Working Set MB: {process.WorkingSet64 / 1024 / 1024}
-            Log Directory: {LogDirectory}
+            Log Directory: {SentryService.RedactUserIdentifiers(LogDirectory)}
 
             Included Files:
             - logs/hyperwhisper-*.log

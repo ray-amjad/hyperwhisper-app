@@ -257,7 +257,7 @@ public class WhisperModelService
         {
             if (File.Exists(path))
             {
-                LoggingService.Info($"WhisperModelService: Deleting model at {path}");
+                LoggingService.Info($"WhisperModelService: Deleting model at {SentryService.RedactUserIdentifiers(path)}");
                 File.Delete(path);
             }
 
