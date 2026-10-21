@@ -652,8 +652,8 @@ export async function providerHttpError(
 
   // Other 4xx (e.g. 400 on an unaccepted language code/format) — a sibling
   // provider may accept this input, so let the chain fall through. The
-  // message (logged) names only the code; the body preview goes to the
-  // client's 400 alone, as it always did.
+  // message (logged) names only the code; the body preview is kept in
+  // clientMessage, which no route sends (#2131): the client's 400 is fixed.
   return new ProviderInputError(label, status, upstreamErrorReason(fields), errorText || `HTTP ${status}`);
 }
 

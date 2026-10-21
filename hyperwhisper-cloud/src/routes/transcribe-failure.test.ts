@@ -225,6 +225,24 @@ describe('transcribeRoute chain failure keeps provider text out of the reply (#2
     expect(JSON.stringify(fail)).not.toContain(MARKER);
   });
 
+  test('every provider 400s with an empty body: still the fixed 400, not "HTTP 400"', async () => {
+    // reason and clientReason are both `HTTP 400` here; the provider flag, not
+    // text equality, decides who wrote the rejection (#2131 review).
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.elevenlabs.io') || url.includes('api.deepgram.com') || url.includes('api.groq.com')) {
+        return new Response('', { status: 400 });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const { response, body, fail } = await run('elevenlabs');
+
+    expect(response.status).toBe(400);
+    expect(body.message).toBe('No transcription provider accepted this audio or its settings (for example the language).');
+    expect(fail).toMatchObject({ kind: 'all_providers_rejected_input', status: 400 });
+  });
+
   test('a self-only provider whose fetch rejects: fixed 502, marker only in the log', async () => {
     const called: string[] = [];
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
