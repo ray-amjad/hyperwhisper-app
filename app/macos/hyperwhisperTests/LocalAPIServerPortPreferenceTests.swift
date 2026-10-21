@@ -86,6 +86,7 @@ struct LocalAPIServerPortPreferenceTests {
         #expect(fixture.persistedPort == bound)
         #expect(try fixture.portFilePort() == bound)
         await fixture.stop()
+        #expect(!FileManager.default.fileExists(atPath: fixture.portFile.path), "stop() must delete this server's own discovery file")
     }
 
     // MARK: - 4. Wake starts the server only when it is switched on

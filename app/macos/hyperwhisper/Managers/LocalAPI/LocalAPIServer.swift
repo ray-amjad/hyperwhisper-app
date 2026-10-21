@@ -935,7 +935,7 @@ final class LocalAPIServer: ObservableObject {
     }
 
     private func deletePortFile() {
-        Self.deletePortFileIfOwned(at: Self.portFileURL, ownerPID: ProcessInfo.processInfo.processIdentifier)
+        Self.deletePortFileIfOwned(at: portFileURL, ownerPID: ProcessInfo.processInfo.processIdentifier)
     }
 
     /// Delete the discovery file unless it names another LIVE process (issue #1483).
