@@ -13,16 +13,20 @@ const originalLicenseApiUrl = process.env.NEXTJS_LICENSE_API_URL;
 
 type CachedLicense = { isValid: boolean; credits: number; cachedAt: string };
 const cacheWrites: Array<{ licenseKey: string; license: CachedLicense }> = [];
+// What `getCachedLicense` reads back, so a charge's cache write can be followed
+// through to the next request's `validateAuth`.
+const cachedLicenses = new Map<string, CachedLicense>();
 type CacheLicense = (licenseKey: string, license: CachedLicense) => Promise<void>;
 const defaultCacheLicense: CacheLicense = async (licenseKey, license) => {
   cacheWrites.push({ licenseKey, license });
+  cachedLicenses.set(licenseKey, license);
 };
 let cacheLicenseImplementation: CacheLicense = defaultCacheLicense;
 
 mock.module('../lib/redis', () => ({
   redis: { get: () => { throw new Error('redis client should not be constructed in this test'); } },
   isIPBlocked: async () => false,
-  getCachedLicense: async () => null,
+  getCachedLicense: async (licenseKey: string) => cachedLicenses.get(licenseKey) ?? null,
   cacheLicense: (licenseKey: string, license: CachedLicense) => (
     cacheLicenseImplementation(licenseKey, license)
   ),
@@ -35,6 +39,8 @@ const {
   deductCredits,
   drainPendingDeductions,
 } = await import('./credits');
+const { getCachedLicense } = await import('../lib/redis');
+const { validateAuth } = await import('./auth');
 
 function auth(credits: number): AuthContext {
   return { identifier: 'lic_test', credits, licenseKey: 'lic_test' };
@@ -108,6 +114,7 @@ beforeEach(() => {
 afterEach(async () => {
   await drainPendingDeductions(2000);
   cacheWrites.length = 0;
+  cachedLicenses.clear();
   cacheLicenseImplementation = defaultCacheLicense;
   globalThis.fetch = originalFetch;
   console.warn = originalConsoleWarn;
@@ -373,6 +380,61 @@ describe('deductCredits / drainPendingDeductions', () => {
     ]]);
     await expectNoPendingDeductions();
   });
+
+  const keyRefusals = ['License is revoked', 'License is refunded', 'License key not found'];
+
+  for (const error of keyRefusals) {
+    test(`a 400 "${error}" caches the key as invalid, so the next request is refused from the cache (#1899)`, async () => {
+      cachedLicenses.set('lic_test', { isValid: true, credits: 20, cachedAt: new Date().toISOString() });
+      const requests = captureFetch(() => Response.json({ error }, { status: 400 }));
+      captureWarnings();
+      const failures: unknown[] = [];
+
+      const creditsUsed = await deductCredits(auth(20), 0.05, { provider: 'p' }, '1.2.3.4', {
+        onFailure: (failure) => failures.push(failure),
+      });
+
+      expect(creditsUsed).toBe(creditsForCost(0.05));
+      expectBillingPost(requests, creditsForCost(0.05), { provider: 'p' });
+      // Still reported as a dropped charge (#820).
+      expect(failures).toEqual([{ kind: 'http', status: 400 }]);
+      expect(await getCachedLicense('lic_test')).toMatchObject({ isValid: false, credits: 0 });
+
+      globalThis.fetch = mock(async () => {
+        throw new Error('validateAuth must answer from the cache');
+      }) as unknown as typeof fetch;
+      const next = await validateAuth({ licenseKey: 'lic_test' });
+      expect(next.ok).toBe(false);
+      expect(next.diagnostics.outcome).toBe('cached_invalid');
+      await expectNoPendingDeductions();
+    });
+  }
+
+  const nonKeyFailures: Array<{ label: string; respond: () => Response }> = [
+    { label: 'a 503', respond: () => Response.json({ error: 'License is revoked' }, { status: 503 }) },
+    { label: 'a 429', respond: () => Response.json({ error: 'Too many requests' }, { status: 429 }) },
+    { label: 'a 409 retry', respond: () => Response.json({ error: 'Failed to deduct credits. Please retry.' }, { status: 409 }) },
+    { label: 'a 400 about the amount', respond: () => Response.json({ error: 'amount must be a finite positive number' }, { status: 400 }) },
+    { label: 'a 400 with no error text', respond: () => new Response('nope', { status: 400 }) },
+  ];
+
+  for (const { label, respond } of nonKeyFailures) {
+    test(`${label} leaves a valid cached entry unchanged (#1899)`, async () => {
+      const cached = { isValid: true, credits: 20, cachedAt: new Date().toISOString() };
+      cachedLicenses.set('lic_test', cached);
+      captureFetch(respond);
+      captureWarnings();
+
+      await deductCredits(auth(20), 0.05, { provider: 'p' }, '1.2.3.4');
+
+      expect(cacheWrites).toHaveLength(0);
+      expect(await getCachedLicense('lic_test')).toEqual(cached);
+      const next = await validateAuth({ licenseKey: 'lic_test' });
+      expect(next.ok).toBe(true);
+      expect(next.diagnostics.outcome).toBe('accepted');
+      await expectNoPendingDeductions();
+    });
+  }
 
   const onFailureCases: Array<{ label: string; respond: () => Response; expected: unknown }> = [
     {
