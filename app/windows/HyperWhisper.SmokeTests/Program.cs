@@ -24906,6 +24906,13 @@ internal static class Program
                 }
             });
 
+            // RunAsync blocks on GetAwaiter().GetResult(), and an earlier WPF case
+            // has left a DispatcherSynchronizationContext on this thread that
+            // nothing pumps. AssemblyAIService awaits without ConfigureAwait(false),
+            // so detach for the #886 cases, as the onboarding block does.
+            var assemblyAiPreviousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+
             // Issue #886: AssemblyAIService.TranscribeResolvedAsync was one
             // 187-line method running five flows. These cases pin the two
             // statics it was split into, and then drive the whole method through
@@ -25063,6 +25070,7 @@ internal static class Program
                     try { File.Delete(audioPath); } catch (IOException) { }
                 }
             });
+            SynchronizationContext.SetSynchronizationContext(assemblyAiPreviousContext);
             ScriptGuardPorts.RunAll(Run);
 
             Console.WriteLine(_failures == 0
