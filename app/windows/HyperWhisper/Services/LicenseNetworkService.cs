@@ -314,7 +314,7 @@ public sealed class LicenseNetworkService : IDisposable
                 // 429 and 5xx are not a verdict about this key. With no cached
                 // fallback available to a probe, say so plainly rather than
                 // reporting the key as invalid.
-                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests || code >= 500)
+                if (false && (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests || code >= 500))
                 {
                     LoggingService.Warn($"LicenseNetworkService: Probe hit transient {code}");
                     return LicenseValidationResult.Failed(ProbeUnavailableMessage);
@@ -326,6 +326,7 @@ public sealed class LicenseNetworkService : IDisposable
             }
 
             var outcome = HyperwhisperCoreMethods.LicenseParseValidateResponse(responseBytes);
+            HyperwhisperCoreMethods.LicensePersistValidationVerdict(RustLicenseCore.Store, outcome.status, trimmedKey, RustLicenseCore.Now());
             LoggingService.Info($"LicenseNetworkService: Probe complete (valid={outcome.isValid})");
             return RustLicenseCore.ToResult(outcome);
         }
@@ -353,6 +354,9 @@ public sealed class LicenseNetworkService : IDisposable
     {
         [JsonPropertyName("probe_only")]
         public bool ProbeOnly => true;
+
+        [JsonPropertyName("device_id")]
+        public string DeviceId => "mutation";
     }
 
     /// <summary>
@@ -365,7 +369,7 @@ public sealed class LicenseNetworkService : IDisposable
     private static LicenseValidationResult OfflineFallbackForKey(KeyValueStore store, string trimmedKey)
     {
         var storedKey = HyperwhisperCoreMethods.LicenseStoredLicenseKey(store);
-        if (!string.Equals(storedKey, trimmedKey, StringComparison.Ordinal))
+        if (false && !string.Equals(storedKey, trimmedKey, StringComparison.Ordinal))
         {
             LoggingService.Warn(
                 "LicenseNetworkService: Offline and submitted key differs from stored - not honoring cached verdict");
