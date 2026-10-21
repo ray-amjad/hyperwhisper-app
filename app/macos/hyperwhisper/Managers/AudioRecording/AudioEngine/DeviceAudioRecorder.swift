@@ -101,6 +101,16 @@ enum DeviceAudioRecorderError: Error, CustomStringConvertible {
 /// was captured) and calls the capture-lost handler, so the owner ends the recording
 /// through its error path instead of treating a truncated file as a success.
 ///
+/// **Device removal**: unplugging the device mid-capture does not always stop the
+/// engine. Measured on the Mac (issue #2284): the engine posted only the start
+/// notification above, kept running, and delivered silent buffers to the end, so the
+/// configuration-change path never ran. So the recorder also watches CoreAudio for
+/// the device it is capturing from (`kAudioDevicePropertyDeviceIsAlive` on it, and the
+/// system's device list), and when that device is gone it runs the same restart: the
+/// chosen device if it is back, else the default, else capture lost. A device that is
+/// gone is never a restart candidate (`restartCandidates`), so a restart never reopens
+/// the removed device into more silence.
+///
 /// **Write failures** (a full disk): the first failed WAV write ends the capture the
 /// same way, through the capture-lost handler, so a truncated file is never handed
 /// back as a successful recording.
@@ -234,6 +244,9 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     /// Injected so a test never has to read real hardware.
     private let defaultInputDeviceID: @Sendable () -> AudioDeviceID?
 
+    /// Whether a device has been removed from the system. Injected for the same reason.
+    private let deviceIsGone: @Sendable (AudioDeviceID) -> Bool
+
     private let controlLock = NSLock()
     private var engine: AVAudioEngine?               // controlLock
     private var configObserver: NSObjectProtocol?   // controlLock
@@ -243,6 +256,10 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     /// The tap format the running engine was built for. A configuration change that
     /// leaves the engine running on this format needs no restart.
     private var captureFormat: AVAudioFormat?        // controlLock
+    /// The device the running engine captures from: the chosen one, or the default
+    /// after a fallback. A removal of this device restarts capture.
+    private var activeDeviceID: AudioDeviceID?       // controlLock
+    private var deviceWatchers: [DeviceWatcher] = [] // controlLock
 
     /// Separate from `controlLock` so the main actor can install the handler without
     /// waiting on a CoreAudio restart that holds `controlLock`.
@@ -264,16 +281,28 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         qos: .userInitiated
     )
 
+    /// Where CoreAudio runs the device watchers' blocks. They only hop to
+    /// `restartQueue` and never take a lock, so removing a watcher under `controlLock`
+    /// can never wait on a block that is waiting on that lock.
+    private let listenerQueue = DispatchQueue(
+        label: "com.hyperwhisper.audio.device-recorder.listener",
+        qos: .userInitiated
+    )
+
     init(
         deviceID: AudioDeviceID,
         url: URL?,
         defaultInputDeviceID: @escaping @Sendable () -> AudioDeviceID? = {
             CoreAudioDeviceHelper.getSystemDefaultInputDeviceID()
+        },
+        deviceIsGone: @escaping @Sendable (AudioDeviceID) -> Bool = { id in
+            DeviceAudioRecorder.isDeviceGone(id)
         }
     ) {
         self.deviceID = deviceID
         self.url = url
         self.defaultInputDeviceID = defaultInputDeviceID
+        self.deviceIsGone = deviceIsGone
         super.init()
     }
 
@@ -296,6 +325,9 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     deinit {
         if let configObserver {
             NotificationCenter.default.removeObserver(configObserver)
+        }
+        for watcher in deviceWatchers {
+            watcher.remove()
         }
     }
 
@@ -351,6 +383,7 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         restartBudget.recordSuccess()
         isRunning = true
         observeConfigurationChanges(of: newEngine)
+        watchDeviceLocked(deviceID)
         return true
     }
 
@@ -391,6 +424,64 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     ) -> Bool {
         guard engineIsRunning, let captureFormat, let currentFormat else { return true }
         return !captureFormat.isEqual(currentFormat)
+    }
+
+    /// The devices a restart tries, in order: the chosen device, then the macOS
+    /// default. A device that is gone is left out: the engine opens a removed device
+    /// without an error and records silence from it (issue #2284).
+    static func restartCandidates(
+        chosen: AudioDeviceID,
+        fallback: AudioDeviceID?,
+        isGone: (AudioDeviceID) -> Bool
+    ) -> [AudioDeviceID] {
+        var candidates: [AudioDeviceID] = [chosen]
+        if let fallback, fallback != kAudioObjectUnknown, fallback != chosen {
+            candidates.append(fallback)
+        }
+        return candidates.filter { !isGone($0) }
+    }
+
+    /// Whether a device has been removed, from its `kAudioDevicePropertyDeviceIsAlive`
+    /// flag (`nil` when the read failed) and whether it is in the system's device list
+    /// (`nil` when the list could not be read). Only positive evidence counts: a failed
+    /// read of a device that is still listed is not a removal, so one flaky read never
+    /// moves a recording off the chosen microphone.
+    static func isGone(aliveFlag: UInt32?, isListed: Bool?) -> Bool {
+        if let aliveFlag {
+            return aliveFlag == 0
+        }
+        return isListed == false
+    }
+
+    /// Read CoreAudio for `isGone(aliveFlag:isListed:)`.
+    static func isDeviceGone(_ deviceID: AudioDeviceID) -> Bool {
+        var aliveAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyDeviceIsAlive,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var alive: UInt32 = 0
+        var aliveSize = UInt32(MemoryLayout<UInt32>.size)
+        let aliveStatus = AudioObjectGetPropertyData(deviceID, &aliveAddress, 0, nil, &aliveSize, &alive)
+        if aliveStatus == noErr {
+            return isGone(aliveFlag: alive, isListed: nil)
+        }
+        return isGone(aliveFlag: nil, isListed: systemDeviceIDs()?.contains(deviceID))
+    }
+
+    /// Every device on the system, or `nil` when the list cannot be read.
+    private static func systemDeviceIDs() -> [AudioDeviceID]? {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        let system = AudioObjectID(kAudioObjectSystemObject)
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(system, &address, 0, nil, &size) == noErr else { return nil }
+        var ids = [AudioDeviceID](repeating: 0, count: Int(size) / MemoryLayout<AudioDeviceID>.size)
+        guard AudioObjectGetPropertyData(system, &address, 0, nil, &size, &ids) == noErr else { return nil }
+        return Array(ids.prefix(Int(size) / MemoryLayout<AudioDeviceID>.size))
     }
 
     /// Select the device, build the converter for its format, tap it and start.
@@ -439,6 +530,11 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         }
         engine = nil
         captureFormat = nil
+        for watcher in deviceWatchers {
+            watcher.remove()
+        }
+        deviceWatchers = []
+        activeDeviceID = nil
 
         tapLock.lock()
         flushPipelineLocked()
@@ -582,6 +678,51 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         lostHandler?()
     }
 
+    // MARK: Device Removal
+
+    /// Watch `deviceID`, the device capture just opened, for removal. Caller holds
+    /// `controlLock`; the previous engine's watchers are already removed.
+    private func watchDeviceLocked(_ deviceID: AudioDeviceID) {
+        activeDeviceID = deviceID
+        let onChange: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+            guard let self else { return }
+            self.restartQueue.async { [weak self] in
+                self?.handleDeviceAvailabilityChange()
+            }
+        }
+        let watched: [(AudioObjectID, AudioObjectPropertySelector)] = [
+            (deviceID, kAudioDevicePropertyDeviceIsAlive),
+            (AudioObjectID(kAudioObjectSystemObject), kAudioHardwarePropertyDevices)
+        ]
+        for (object, selector) in watched {
+            if let watcher = DeviceWatcher(object: object, selector: selector, queue: listenerQueue, block: onChange) {
+                deviceWatchers.append(watcher)
+            } else {
+                AppLogger.audio.notice("Could not watch device \(object, privacy: .public) for removal")
+            }
+        }
+    }
+
+    /// A device appeared, disappeared or died. Restart only when it is the one capture
+    /// runs on: the engine itself may never notice (issue #2284).
+    private func handleDeviceAvailabilityChange() {
+        controlLock.lock()
+        guard isRunning, engine != nil, let activeDeviceID, deviceIsGone(activeDeviceID) else {
+            controlLock.unlock()
+            return
+        }
+        AppLogger.audio.notice("The microphone being recorded (device \(activeDeviceID, privacy: .public)) was removed mid-capture - restarting capture")
+        SentryService.addBreadcrumb(
+            message: "Microphone removed mid-capture",
+            category: "audio.recording",
+            level: .warning
+        )
+        tearDownEngineLocked()
+        let lostHandler = restartLocked()
+        controlLock.unlock()
+        lostHandler?()
+    }
+
     private func retryRestart() {
         controlLock.lock()
         guard restartRetryPending else {
@@ -627,12 +768,11 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     /// Start a fresh engine on the chosen device, else on the macOS default input.
     /// Caller holds `controlLock`.
     private func startOnAnyInputLocked() -> Bool {
-        var candidates: [AudioDeviceID] = [deviceID]
-        if let fallback = defaultInputDeviceID(),
-           fallback != kAudioObjectUnknown,
-           fallback != deviceID {
-            candidates.append(fallback)
-        }
+        let candidates = Self.restartCandidates(
+            chosen: deviceID,
+            fallback: defaultInputDeviceID(),
+            isGone: deviceIsGone
+        )
 
         for candidate in candidates {
             // A fresh engine: the old one's input unit may still point at a device
@@ -646,6 +786,7 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
             }
             engine = newEngine
             observeConfigurationChanges(of: newEngine)
+            watchDeviceLocked(candidate)
             if candidate == deviceID {
                 AppLogger.audio.info("Chosen microphone capture restarted after a configuration change")
             } else {
@@ -664,6 +805,33 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         let handler = captureLostHandler
         captureLostHandler = nil
         return handler
+    }
+}
+
+// MARK: - Device Watcher
+
+/// One CoreAudio property listener, removed with exactly the address and block it
+/// was added with (CoreAudio matches both).
+private final class DeviceWatcher {
+    private let object: AudioObjectID
+    private var address: AudioObjectPropertyAddress
+    private let queue: DispatchQueue
+    private let block: AudioObjectPropertyListenerBlock
+
+    init?(object: AudioObjectID, selector: AudioObjectPropertySelector, queue: DispatchQueue, block: @escaping AudioObjectPropertyListenerBlock) {
+        self.object = object
+        self.address = AudioObjectPropertyAddress(
+            mSelector: selector,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        self.queue = queue
+        self.block = block
+        guard AudioObjectAddPropertyListenerBlock(object, &address, queue, block) == noErr else { return nil }
+    }
+
+    func remove() {
+        AudioObjectRemovePropertyListenerBlock(object, &address, queue, block)
     }
 }
 
