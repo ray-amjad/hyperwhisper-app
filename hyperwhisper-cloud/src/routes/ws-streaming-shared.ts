@@ -536,6 +536,13 @@ export function createStreamingEventsFor(
   let stopTimer: ReturnType<typeof setTimeout> | null = null;
   /** Set when a terminal upstream fault should close the client with 1011. */
   let clientCloseCode: number | null = null;
+  /**
+   * The upstream socket errored before the vendor accepted the handshake. Its
+   * bare error frame is held for the `close` that always follows, whose mapping
+   * carries the vendor's own reason; sent from there only if that mapping
+   * reports no error itself, so the client is told once (#1410).
+   */
+  let handshakeErrorPending = false;
   const pendingAudio: ArrayBuffer[] = [];
   let pendingAudioBytes = 0;
 
@@ -971,6 +978,10 @@ export function createStreamingEventsFor(
           eventType: typeof event?.type === 'string' ? event.type.slice(0, 32) : null,
           errorName: cause === undefined ? null : errorName(cause),
         });
+        if (!upstreamReached) {
+          handshakeErrorPending = true;
+          return;
+        }
         sendToClient(ws, { type: 'error', message: 'Transcription service error' });
       });
 
@@ -980,10 +991,15 @@ export function createStreamingEventsFor(
         // upstream fault is diagnosed after the fact. The reason is vendor
         // text, so only its length is logged (#2163).
         log('upstream_close', { code: code ?? null, reasonLength: reason ? reason.length : 0 });
+        let closeReportedError = false;
         if (vendor.parseUpstreamClose) {
           for (const decoded of vendor.parseUpstreamClose(code ?? 1000, reason ?? '')) {
+            if (decoded.kind === 'error') closeReportedError = true;
             handleUpstreamEvent(decoded, ws);
           }
+        }
+        if (handshakeErrorPending && !closeReportedError) {
+          sendToClient(ws, { type: 'error', message: 'Transcription service error' });
         }
         await endSession();
         if (ws.readyState === 1) {
