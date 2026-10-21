@@ -15,7 +15,7 @@ import clsx from "clsx";
 import { Link as HeroUILink } from "@heroui/link";
 import { Download, Github } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 
 import { Link as LocaleLink } from "@/src/i18n/navigation";
 import { useDownloadModal } from "@/contexts/DownloadModalContext";
@@ -41,6 +41,38 @@ export const Navbar = () => {
   */
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const closeMenu = () => setIsMenuOpen(false);
+
+  /*
+    HeroUI pins the open menu at `top: var(--navbar-height)` (64px) and sizes it
+    `100vh - var(--navbar-height)`, which is right only when the navbar is the
+    first 64px of the viewport. The "Now open source" banner sits above it in the
+    sticky header, so the navbar ends at 112px and its row covered the first menu
+    item (#1139); a navbar that wraps at a large text size ends lower still. So,
+    while the menu is open, the menu's own --navbar-height is the navbar's real
+    bottom edge. It is re-measured when the navbar or the header around it
+    resizes: a dismissed banner shrinks the header and moves the navbar up.
+  */
+  const navRef = useRef<HTMLElement>(null);
+  const [menuTop, setMenuTop] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+
+    if (!isMenuOpen || !nav) return;
+    const measure = () => setMenuTop(nav.getBoundingClientRect().bottom);
+
+    measure();
+    const observer = new ResizeObserver(measure);
+
+    observer.observe(nav);
+    if (nav.parentElement) observer.observe(nav.parentElement);
+    window.addEventListener("resize", measure);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [isMenuOpen]);
 
   /*
     The latency and model-chooser pages are English-only — they 404 on every
@@ -90,6 +122,11 @@ export const Navbar = () => {
 
   return (
     <HeroUINavbar
+      ref={navRef}
+      isMenuOpen={isMenuOpen}
+      maxWidth="xl"
+      position="static"
+      onMenuOpenChange={setIsMenuOpen}
       className="bg-black/50 backdrop-blur-xl border-b border-gray-800"
       /*
         HeroUI's navbar wrapper is `flex-nowrap` with a fixed `h-[var(--navbar-height)]`, so at a
@@ -104,10 +141,6 @@ export const Navbar = () => {
         // shrank it to its content and made the bar 16px shorter on every page.
         wrapper: "flex-wrap h-auto min-h-[var(--navbar-height)] gap-y-2 py-2",
       }}
-      isMenuOpen={isMenuOpen}
-      maxWidth="xl"
-      position="static"
-      onMenuOpenChange={setIsMenuOpen}
     >
       {/*
         HeroUI gives this content `flex-basis: 0`, so the word mark's box could end up narrower
@@ -220,7 +253,14 @@ export const Navbar = () => {
         menu's own `px-6 pt-2` as padding (24+16 = px-10, 8+8 = pt-4). It is not added as margin:
         the menu is a fixed, full-width `w-screen` overlay, and a margin would shift and overflow it.
       */}
-      <NavbarMenu className="bg-black/95 backdrop-blur-xl px-10 pt-4">
+      <NavbarMenu
+        className="bg-black/95 backdrop-blur-xl px-10 pt-4"
+        style={
+          menuTop === null
+            ? undefined
+            : ({ "--navbar-height": `${menuTop}px` } as CSSProperties)
+        }
+      >
         {/* Use native <a> for anchor links and already-localed hrefs, LocaleLink for page routes */}
         {navMenuItems.map((item, index) => (
           <NavbarMenuItem key={`${item}-${index}`}>
