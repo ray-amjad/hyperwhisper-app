@@ -161,7 +161,9 @@ static void AllCatalogsLoad()
     // amber line when the saved microphone is unplugged and no other input is connected).
     // 874 -> 876 (#2219, #2294): `status.model.notActivated` and `status.model.noApiKey` are
     // new (the Windows status bar with no licence or no API key instead of Ready).
-    Equal(876,PortableLocalizer.BaseKeyCount, "base key count");
+    // 876 -> 877 (#1415): `settings.backup.import.summary.settings` is new (the Windows
+    // backup import says "Settings restored." instead of zero mode/vocabulary counts).
+    Equal(877,PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

@@ -20669,6 +20669,40 @@ internal static class Program
                 }
             });
 
+            Run("backup: a settings-only import says the settings were restored, not 'Modes: 0' — issue #1415", () =>
+            {
+                // The success line used to name modes and vocabulary whatever was picked,
+                // so a Settings-only import read "Modes: 0, vocabulary added: 0" as if
+                // nothing had landed. Driven through the same method the click handler calls.
+                EnsureSmokeApplication();
+                var settingsRestored = HyperWhisper.Localization.Loc.S("settings.backup.import.summary.settings");
+                var zeroCounts = HyperWhisper.Localization.Loc.S("settings.backup.import.summary", 0, 0, 0);
+
+                var page = new BackupExportSettingsPage();
+                page.ApplyImportSuccess(
+                    new ImportSummary { SettingsImported = true },
+                    new ImportSelection { IncludeSettings = true });
+                var text = page.ImportStatusText.Text;
+                Assert(text.Contains(settingsRestored),
+                    $"a settings-only import reads '{text}', which does not say the settings were restored");
+                Assert(!text.Contains(zeroCounts),
+                    $"a settings-only import still reports the zero counts: '{text}'");
+
+                // Settings + modes keeps the counts, after the settings sentence.
+                var both = BackupExportSettingsPage.BuildImportSummary(
+                    new ImportSummary { SettingsImported = true, ModesImported = 3 },
+                    new ImportSelection { IncludeSettings = true, IncludeModes = true });
+                var counts = HyperWhisper.Localization.Loc.S("settings.backup.import.summary", 3, 0, 0);
+                Assert(both == settingsRestored + " " + counts,
+                    $"a settings + modes import reads '{both}', expected '{settingsRestored} {counts}'");
+
+                // No selection (an older caller) keeps the counts.
+                var legacy = BackupExportSettingsPage.BuildImportSummary(
+                    new ImportSummary { ModesImported = 2, VocabularyAdded = 1 }, null);
+                Assert(legacy == HyperWhisper.Localization.Loc.S("settings.backup.import.summary", 2, 1, 0),
+                    $"an import with no selection reads '{legacy}' instead of the counts");
+            });
+
             Run("backup: a merge import that fails on a later batch leaves the modes as they were — issue #1605", () =>
             {
                 // ImportEntities committed every batch of 200 modes with its own
