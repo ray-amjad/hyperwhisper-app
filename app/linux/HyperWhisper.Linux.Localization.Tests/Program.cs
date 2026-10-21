@@ -266,7 +266,7 @@ static void SettingsPagesMatchWindowsSurface()
 /// The cheap half of #692's guard: is every commit path still WIRED. The numbers a commit produces
 /// are not asserted here and the name does not claim they are — they are pinned for real by
 /// LocalApiPortEntry's own test in the composition harness, which calls the rules, and by the smoke
-/// probe, which TYPES into the field in a real window (MainWindow.axaml.cs, exit codes 26 and 27).
+/// probe, which TYPES into the field in a real window (MainWindow.Smoke.cs, exit codes 26 and 27).
 /// This one costs nothing, runs in CI without an X server, and names the piece of wiring that went
 /// missing.
 ///
