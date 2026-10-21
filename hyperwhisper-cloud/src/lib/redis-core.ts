@@ -121,17 +121,19 @@ export async function getCachedLicense(
 // sent before a revoke would otherwise rewrite the refusal as "valid" and admit
 // the key for a whole TTL (and a request that never charges, such as silent
 // audio, never corrects it). A slow refusal to a call sent before a re-grant is
-// dropped the same way. A tie is written. A stored entry with no stamp, or one
-// that does not parse, is replaced. One script, so no reply can land between
-// the read and the write.
+// dropped the same way. A tie (two calls asked in the same millisecond, so
+// either could be the later verdict) never replaces a stored refusal: the safe
+// side, as a revoke beats a charge sent the same instant. Any other tie is
+// written. A stored entry with no stamp, or one that does not parse, is
+// replaced. One script, so no reply can land between the read and the write.
 export const WRITE_LICENSE_SCRIPT = `
 local incomingIssued = tonumber(ARGV[3])
 local raw = redis.call('GET', KEYS[1])
 if raw and incomingIssued then
   local ok, stored = pcall(function() return cjson.decode(raw) end)
-  if ok and type(stored) == 'table' and type(stored.issuedAtMs) == 'number'
-    and stored.issuedAtMs > incomingIssued then
-    return 0
+  if ok and type(stored) == 'table' and type(stored.issuedAtMs) == 'number' then
+    if stored.issuedAtMs > incomingIssued then return 0 end
+    if stored.issuedAtMs == incomingIssued and stored.isValid == false then return 0 end
   end
 end
 redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2])

@@ -1110,9 +1110,14 @@ describe.skipIf(!redisServerPath)('the licence entry on redis-server (#1899)', (
     expect(await read()).toEqual(validAt(3_000, 5));
   });
 
-  test('a tie is written', async () => {
+  test('a tie replaces a valid entry, but never a refusal', async () => {
     await write(validAt(1_000));
+    await write(validAt(1_000, 7));
+    expect(await read()).toEqual(validAt(1_000, 7));
     await write(refusalAt(1_000));
+    expect(await read()).toEqual(refusalAt(1_000));
+    // A success to a charge sent the same millisecond as the revoke, landing last.
+    await write(validAt(1_000));
     expect(await read()).toEqual(refusalAt(1_000));
   });
 
