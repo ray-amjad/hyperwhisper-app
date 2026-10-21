@@ -10,12 +10,13 @@
  * imports). Every `console.*` line is captured while a case runs.
  */
 import assert from "node:assert/strict";
-import test, { afterEach, beforeEach, mock } from "node:test";
+import test, { afterEach, beforeEach } from "node:test";
 
 import { callTRPCProcedure, type AnyRouter } from "@trpc/server";
 
 import { emailTag } from "../lib/shared/redact";
 import { formatLogArgs, leakyDbError, leakyLines } from "./db-error-fixture";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 /** As Stripe or a form hands it over: mixed case, trailing space. */
 const RAW = "Alice.Smith@Acme-Widgets.com ";
@@ -31,16 +32,6 @@ const behaviour = {
   dbError: null as unknown,
 };
 const sentEmailRows: Array<Record<string, unknown>> = [];
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
-
-/** `mock.module` is untyped under the pinned `@types/node@20`; see the harnesses. */
-interface ModuleMocker {
-  module(specifier: string, options: { namedExports: Record<string, unknown> }): void;
-}
-const moduleMock = mock as unknown as ModuleMocker;
 
 moduleMock.module(moduleUrl("../lib/clients/resend.ts"), {
   namedExports: {

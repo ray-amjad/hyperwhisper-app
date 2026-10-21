@@ -12,7 +12,7 @@
  * never more than the pack has left unrefunded.
  */
 import assert from "node:assert/strict";
-import { after, before, beforeEach, describe, mock, test } from "node:test";
+import { after, before, beforeEach, describe, test } from "node:test";
 
 import type Stripe from "stripe";
 
@@ -23,17 +23,12 @@ import {
   resetDatabase,
   seedUser,
 } from "./credit-ledger-harness";
-
-interface ModuleMocker {
-  module(specifier: string, options: { namedExports: Record<string, unknown> }): void;
-}
-
-const moduleUrl = (relative: string) => new URL(relative, import.meta.url).href;
+import { moduleMock, moduleUrl } from "./module-mock";
 
 /** Checkout Sessions Stripe would return, keyed by payment intent. */
 const sessionsByIntent = new Map<string, unknown>();
 
-(mock as unknown as ModuleMocker).module(moduleUrl("../lib/clients/stripe.ts"), {
+moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
   namedExports: {
     stripe: {
       checkout: {
@@ -47,10 +42,10 @@ const sessionsByIntent = new Map<string, unknown>();
     },
   },
 });
-(mock as unknown as ModuleMocker).module(moduleUrl("../lib/services/email.ts"), {
+moduleMock.module(moduleUrl("../lib/services/email.ts"), {
   namedExports: { emailService: {} },
 });
-(mock as unknown as ModuleMocker).module(moduleUrl("../lib/services/license-key.ts"), {
+moduleMock.module(moduleUrl("../lib/services/license-key.ts"), {
   namedExports: { generateLicenseKey: () => "HW-TEST-0000-0000" },
 });
 

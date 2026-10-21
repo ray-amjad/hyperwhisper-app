@@ -9,9 +9,11 @@
  * service and Better Auth (which `server/api/trpc.ts` imports).
  */
 import assert from "node:assert/strict";
-import test, { afterEach, beforeEach, mock } from "node:test";
+import test, { afterEach, beforeEach } from "node:test";
 
 import { TRPCError, callTRPCProcedure, type AnyRouter } from "@trpc/server";
+
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const behaviour = {
   /** Thrown by the limiter when set: Upstash unreachable. */
@@ -20,16 +22,6 @@ const behaviour = {
   limitSuccess: true,
 };
 const calls = { limit: [] as string[], upserts: 0, welcomeEmails: 0 };
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
-
-/** `mock.module` is untyped under the pinned `@types/node@20`; see the harnesses. */
-interface ModuleMocker {
-  module(specifier: string, options: { namedExports: Record<string, unknown> }): void;
-}
-const moduleMock = mock as unknown as ModuleMocker;
 
 moduleMock.module(moduleUrl("../lib/rate-limit.ts"), {
   namedExports: {

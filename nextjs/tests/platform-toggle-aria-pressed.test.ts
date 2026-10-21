@@ -16,24 +16,10 @@
  */
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import test, { mock } from "node:test";
+import test from "node:test";
 
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrowed to the one option used here.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: {
-      namedExports?: Record<string, unknown>;
-      defaultExport?: unknown;
-    },
-  ): void;
-}
+import { moduleMock } from "./module-mock";
 
-const moduleMock = mock as unknown as ModuleMocker;
 const require = createRequire(import.meta.url);
 
 const realReact = require("react") as typeof import("react");

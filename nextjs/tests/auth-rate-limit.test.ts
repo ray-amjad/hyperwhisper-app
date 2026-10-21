@@ -21,32 +21,22 @@
  */
 import assert from "node:assert/strict";
 import http from "node:http";
-import { after, before, beforeEach, describe, mock, test } from "node:test";
+import { after, before, beforeEach, describe, test } from "node:test";
 
 import { Redis } from "@upstash/redis";
 
 import { listen, store, upstashRestServer } from "./fake-upstash-server";
+import { moduleMock } from "./module-mock";
 
 import type { auth as AuthInstance } from "@/src/lib/auth";
 import type * as StorageModule from "@/src/lib/auth-rate-limit-storage";
 
-/** See credit-routes-harness.ts: @types/node@20 has no `mock.module`. */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports: Record<string, unknown> },
-  ): void;
-}
-
-(mock as unknown as ModuleMocker).module(
-  new URL("../lib/clients/resend.ts", import.meta.url).href,
-  {
-    namedExports: {
-      resend: { emails: { send: async () => ({ data: null, error: null }) } },
-      DEFAULT_FROM_EMAIL: "HyperWhisper <support@hyperwhisper.com>",
-    },
+moduleMock.module(new URL("../lib/clients/resend.ts", import.meta.url).href, {
+  namedExports: {
+    resend: { emails: { send: async () => ({ data: null, error: null }) } },
+    DEFAULT_FROM_EMAIL: "HyperWhisper <support@hyperwhisper.com>",
   },
-);
+});
 
 /**
  * The validated env every module here reads (auth.ts, the rate-limit storage,
@@ -54,10 +44,9 @@ interface ModuleMocker {
  */
 const fakeEnv: Record<string, string | undefined> = {};
 
-(mock as unknown as ModuleMocker).module(
-  new URL("../src/env/server.mjs", import.meta.url).href,
-  { namedExports: { env: fakeEnv } },
-);
+moduleMock.module(new URL("../src/env/server.mjs", import.meta.url).href, {
+  namedExports: { env: fakeEnv },
+});
 
 const ORIGIN = "http://localhost:3000";
 const BASE = `${ORIGIN}/api/auth`;

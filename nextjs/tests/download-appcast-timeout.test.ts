@@ -15,23 +15,15 @@
  * only settles when the caller aborts it.
  */
 import assert from "node:assert/strict";
-import test, { afterEach, beforeEach, mock } from "node:test";
+import test, { afterEach, beforeEach } from "node:test";
 
 import { callTRPCProcedure, type AnyRouter } from "@trpc/server";
 
 import { APPCAST_FETCH_TIMEOUT_MS } from "../lib/shared/appcast";
 
+import { moduleMock, moduleUrl } from "./module-mock";
+
 const sideEffects: string[] = [];
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
-
-/** `mock.module` is untyped under the pinned `@types/node@20`; see the harnesses. */
-interface ModuleMocker {
-  module(specifier: string, options: { namedExports: Record<string, unknown> }): void;
-}
-const moduleMock = mock as unknown as ModuleMocker;
 
 moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
   namedExports: {

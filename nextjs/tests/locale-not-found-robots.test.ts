@@ -20,23 +20,11 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import test, { mock } from "node:test";
+import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-// See tests/root-layout-direction.test.ts: @types/node@20 has no declaration
-// for mock.module, so it is narrowed to the one method used here.
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: {
-      defaultExport?: unknown;
-      namedExports?: Record<string, unknown>;
-    },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+import { moduleMock } from "./module-mock";
 
 const MESSAGES_DIR = path.join(__dirname, "..", "messages");
 

@@ -18,9 +18,11 @@
  * instance and switches the stub's answer through `behaviour.result`.
  */
 import assert from "node:assert/strict";
-import test, { after, mock } from "node:test";
+import test, { after } from "node:test";
 
 import { sha256Hex } from "../lib/shared/sha256";
+
+import { moduleMock, moduleUrl } from "./module-mock";
 
 process.env.SKIP_ENV_VALIDATION = "1";
 
@@ -142,25 +144,6 @@ console.error = (...args: unknown[]): void => {
 after(() => {
   console.error = realConsoleError;
 });
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
-
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrow the tracker to the one method used here rather
- * than bumping the types in a test-only change.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports: Record<string, unknown> },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
 
 // Keyed on the REAL file, so the registry key matches even though `auth.ts`
 // imports it as `@/lib/clients/resend` — the same trick

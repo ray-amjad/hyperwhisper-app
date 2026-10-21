@@ -25,11 +25,13 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import test, { describe, mock } from "node:test";
+import test, { describe } from "node:test";
 
 import { sql } from "drizzle-orm";
 
 import { serverSchema } from "../src/env/schema.server.mjs";
+
+import { moduleMock } from "./module-mock";
 
 /** A complete, valid server env. Each case changes one key. */
 const VALID: Record<string, string> = {
@@ -150,21 +152,12 @@ describe("src/env/server.mjs at import (what the build runs)", () => {
   });
 });
 
-/** `mock.module` is untyped under the pinned `@types/node@20`; see the harnesses. */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports: Record<string, unknown> },
-  ): void;
-}
-
 describe("src/db without PLANETSCALE_DATABASE_URL", () => {
   test("imports, then fails every query with a clear message", async () => {
     // The validated env as Preview has it: no database URL.
-    (mock as unknown as ModuleMocker).module(
-      new URL("../src/env/server.mjs", import.meta.url).href,
-      { namedExports: { env: {} } },
-    );
+    moduleMock.module(new URL("../src/env/server.mjs", import.meta.url).href, {
+      namedExports: { env: {} },
+    });
     // A variable specifier, so the import binds to the mock above.
     const dbPath = "../src/db/index.ts";
     const { db, DATABASE_URL_NOT_SET } = (await import(

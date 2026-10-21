@@ -17,28 +17,9 @@
  * a screen reader announces. A static render cannot fire events.
  */
 import assert from "node:assert/strict";
-import test, { mock } from "node:test";
+import test from "node:test";
 
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrowed to the one option used here.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: {
-      namedExports?: Record<string, unknown>;
-      defaultExport?: unknown;
-    },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const LICENCE_ROWS = [
   {

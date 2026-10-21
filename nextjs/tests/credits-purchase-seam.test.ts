@@ -28,7 +28,7 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import test, { afterEach, beforeEach, mock } from "node:test";
+import test, { afterEach, beforeEach } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createElement, type ReactElement, type ReactNode } from "react";
 import * as realJsxRuntime from "react/jsx-runtime";
@@ -40,19 +40,7 @@ import type {
   BuyCreditsTier,
 } from "../src/lib/buy-credits";
 
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Same narrowed shape the other mock.module tests here use.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports?: Record<string, unknown> },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+import { moduleMock } from "./module-mock";
 
 /** The address the buyer types, with the stray spaces a real paste carries. */
 const TYPED_EMAIL = "  buyer-949@example.com ";
