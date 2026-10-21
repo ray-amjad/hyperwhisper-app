@@ -5,11 +5,11 @@
 //
 //   - `ip`         120 requests / 60 s per client IP, BEFORE auth. A Hono
 //                  middleware (`ipRateLimit`) that `index.ts` puts in front of
-//                  `/transcribe`, `/post-process`, `/assistant`, `/usage` and
-//                  every `/ws/streaming-*` upgrade, so a flood costs no body
-//                  parse and no licence lookup.
+//                  `/transcribe`, `/post-process`, `/usage` and every
+//                  `/ws/streaming-*` upgrade, so a flood costs no body parse
+//                  and no licence lookup.
 //   - `key`        60 requests / 60 s per account key, AFTER auth. Each of the
-//                  five route families calls `keyRateLimitResponse` right after
+//                  four route families calls `keyRateLimitResponse` right after
 //                  `validateAuth` accepts the key and before any credit hold, so
 //                  a junk key never gets a bucket and a 429 holds no credits.
 //   - `ws_upgrade` 10 `/ws/streaming-*` upgrades / 60 s per account key, on top
