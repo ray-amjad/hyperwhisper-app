@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useId } from "react";
+import { useState, useEffect, useId, useRef } from "react";
 import {
   Modal,
   ModalContent,
@@ -17,6 +17,7 @@ import { useRouter } from "@/src/i18n/navigation";
 import { useDownloadModal } from "@/contexts/DownloadModalContext";
 import { api } from "@/lib/trpc/client";
 import { isInputValidationError } from "@/lib/trpc/input-error";
+import { ErrorReveal, shake } from "@/components/ErrorReveal";
 
 export default function DownloadModal() {
   const { isOpen, closeModal } = useDownloadModal();
@@ -27,6 +28,8 @@ export default function DownloadModal() {
   // #968: the field points at whichever line below is on screen.
   const descriptionId = useId();
   const errorId = useId();
+  // #2286: the field shakes when the address itself is what was refused.
+  const field = useRef<HTMLDivElement>(null);
 
   const recordDownload = api.download.recordDownload.useMutation({
     onSuccess: () => {
@@ -36,6 +39,7 @@ export default function DownloadModal() {
     onError: (err) => {
       if (isInputValidationError(err)) {
         setError(t("errorEmail"));
+        shake(field.current);
 
         return;
       }
@@ -91,41 +95,52 @@ export default function DownloadModal() {
         </ModalHeader>
 
         <ModalBody className="py-4 space-y-2 text-center">
-          <Input
-            aria-describedby={error ? errorId : descriptionId}
-            aria-label={t("emailPlaceholder")}
-            autoComplete="email"
-            classNames={{
-              base: "w-full",
-              inputWrapper:
-                "bg-black border-2 border-blue-500/50 hover:border-blue-500 focus-within:!border-blue-500",
-              input: "text-white placeholder:text-gray-400",
-            }}
-            placeholder={t("emailPlaceholder")}
-            size="lg"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && email) {
-                handleDownload();
-              }
-            }}
-          />
-          {error ? (
-            <p
-              aria-live="polite"
-              className="text-sm text-red-500"
-              id={errorId}
-              role="alert"
-            >
-              {error}
-            </p>
-          ) : (
-            <p className="text-sm text-gray-400" id={descriptionId}>
-              {t("description")}
-            </p>
-          )}
+          <div ref={field} className="t-input">
+            <Input
+              aria-describedby={error ? errorId : descriptionId}
+              aria-label={t("emailPlaceholder")}
+              autoComplete="email"
+              classNames={{
+                base: "w-full",
+                inputWrapper:
+                  "bg-black border-2 border-blue-500/50 hover:border-blue-500 focus-within:!border-blue-500",
+                input: "text-white placeholder:text-gray-400",
+              }}
+              placeholder={t("emailPlaceholder")}
+              size="lg"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && email) {
+                  handleDownload();
+                }
+              }}
+            />
+          </div>
+          {/* #2286: the error reveals in place of the description instead of
+              arriving in one frame. The description still unmounts while the
+              error shows; min-h-5 (one text-sm line) holds its space, so the
+              footer does not jump up before the error grows. */}
+          <div className="min-h-5">
+            <ErrorReveal>
+              {error ? (
+                <p
+                  aria-live="polite"
+                  className="text-sm text-red-500"
+                  id={errorId}
+                  role="alert"
+                >
+                  {error}
+                </p>
+              ) : null}
+            </ErrorReveal>
+            {error ? null : (
+              <p className="text-sm text-gray-400" id={descriptionId}>
+                {t("description")}
+              </p>
+            )}
+          </div>
         </ModalBody>
 
         <ModalFooter className="pt-4 pb-6 flex-col gap-3">
