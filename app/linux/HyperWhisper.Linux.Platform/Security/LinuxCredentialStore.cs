@@ -48,9 +48,16 @@ internal sealed class SecretToolCredentialBackend(IDesktopCommandRunner runner, 
     {
         try
         {
-            var result = runner.RunAsync(tool, ["lookup", "resource", resource, "account", account], null,
+            var result = runner.RunCapturingErrorAsync(tool, ["lookup", "resource", resource, "account", account], null,
                 CancellationToken.None, TimeSpan.FromSeconds(8)).GetAwaiter().GetResult();
-            if (result.ExitCode != 0) return PlatformResult<byte[]?>.Success(null);
+            // secret-tool lookup exits 1 both when no item matches (it prints nothing) and on an error
+            // such as a D-Bus failure or a dismissed unlock prompt (it prints the reason on stderr).
+            // Only the silent exit means "nothing stored"; anything else is a failed read, so a caller
+            // never deletes a key that exists because the lookup failed (#2300).
+            if (result.ExitCode != 0)
+                return result is { ExitCode: 1, Output.Length: 0, Error.Length: 0 }
+                    ? PlatformResult<byte[]?>.Success(null)
+                    : PlatformResult<byte[]?>.Failure("credential.read_failed", "Secret Service could not read the credential.");
             var encoded = Encoding.UTF8.GetString(result.Output).TrimEnd('\r', '\n');
             if (!encoded.StartsWith(Prefix, StringComparison.Ordinal)) return PlatformResult<byte[]?>.Failure("credential.invalid_encoding", "The stored credential has an invalid encoding.");
             return PlatformResult<byte[]?>.Success(Convert.FromBase64String(encoded[Prefix.Length..]));

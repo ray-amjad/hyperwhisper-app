@@ -167,6 +167,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("streaming audio level survives a clipped -32768 sample", StreamingAudioLevelSurvivesClipping),
     ("private credential fallback is owner-only", PrivateCredentialFallback),
     ("Secret Service keeps credential out of argv", SecretServiceArgvPrivacy),
+    ("Secret Service tells a failed lookup from no stored credential", SecretServiceLookupFailure),
+    ("external process runner keeps stderr only when asked", ExternalProcessCapturesErrorOnlyWhenAsked),
     ("single-instance socket signals primary safely", SingleInstanceSocket),
     ("XDG autostart is atomic and owner-only", XdgAutostart),
     ("push-to-talk emits only configured logical action", PushToTalkPrivacy),
@@ -3151,6 +3153,54 @@ static Task SecretServiceArgvPrivacy()
     Assert.True(!string.Join(' ', runner.Calls[0].Arguments).Contains("private-value", StringComparison.Ordinal));
     Assert.True(runner.Calls[0].Input is { Length: > 0 });
     return Task.CompletedTask;
+}
+
+// secret-tool lookup exits 1 both for "no item matches" (it prints nothing) and for an error such as
+// a D-Bus failure (it prints the reason on stderr). Only the silent exit is "nothing stored"; an
+// error read as "nothing stored" let a rollback delete a key that exists (#2300).
+static Task SecretServiceLookupFailure()
+{
+    var runner = new FakeDesktopCommandRunner(
+        new ExternalProcessResult(1, [], []),
+        new ExternalProcessResult(1, [], "secret-tool: Cannot autolaunch D-Bus without X11 $DISPLAY\n"u8.ToArray()),
+        new ExternalProcessResult(1, []),
+        new ExternalProcessResult(2, [], []),
+        new ExternalProcessResult(0, "hyperwhisper-bytes-v1:AQID\n"u8.ToArray(), []));
+    var backend = new SecretToolCredentialBackend(runner, "/usr/bin/secret-tool");
+    var missing = backend.Read("resource", "account");
+    Assert.True(missing.IsSuccess && missing.Value is null, "a silent exit 1 is no stored credential");
+    foreach (var because in new[] { "an error on stderr", "a runner that could not read stderr", "an exit code other than 1" })
+    {
+        var failed = backend.Read("resource", "account");
+        Assert.True(failed.IsFailure && failed.Error!.Code == "credential.read_failed", $"{because} must fail the read");
+    }
+    var stored = backend.Read("resource", "account");
+    Assert.True(stored.IsSuccess);
+    Assert.SequenceEqual([1, 2, 3], stored.Value!);
+    Assert.Equal("lookup", runner.Calls[0].Arguments[0]);
+    return Task.CompletedTask;
+}
+
+static async Task ExternalProcessCapturesErrorOnlyWhenAsked()
+{
+    string[] script = ["-c", "printf out; printf 'lookup failed\\n' >&2; exit 1"];
+    var captured = await ExternalProcessRunner.RunAsync("/bin/sh", script, null, CancellationToken.None, captureError: true);
+    Assert.Equal(1, captured.ExitCode);
+    Assert.SequenceEqual("out"u8.ToArray(), captured.Output);
+    Assert.SequenceEqual("lookup failed\n"u8.ToArray(), captured.Error!);
+    var silent = await ExternalProcessRunner.RunAsync("/bin/sh", ["-c", "exit 1"], null, CancellationToken.None, captureError: true);
+    Assert.True(silent.Error is { Length: 0 }, "a silent helper must report an empty stderr, not null");
+    var plain = await ExternalProcessRunner.RunAsync("/bin/sh", script, null, CancellationToken.None);
+    Assert.True(plain.Error is null, "stderr must stay unread unless the caller asks for it");
+    Assert.SequenceEqual("out"u8.ToArray(), plain.Output);
+    // A helper that floods stderr is drained to the end (it never blocks on a full pipe) and kept capped.
+    var flood = await ExternalProcessRunner.RunAsync("/bin/sh", ["-c", "head -c 200000 /dev/zero >&2; printf done"], null,
+        CancellationToken.None, captureError: true);
+    Assert.Equal(ExternalProcessRunner.MaximumErrorBytes, flood.Error!.Length);
+    Assert.SequenceEqual("done"u8.ToArray(), flood.Output);
+    var real = new DesktopCommandRunner();
+    var viaRunner = await real.RunCapturingErrorAsync("/bin/sh", script, null, CancellationToken.None, TimeSpan.FromSeconds(5));
+    Assert.SequenceEqual("lookup failed\n"u8.ToArray(), viaRunner.Error!);
 }
 
 static Task SingleInstanceSocket() => WithTemporaryDirectoryAsync(async directory =>
