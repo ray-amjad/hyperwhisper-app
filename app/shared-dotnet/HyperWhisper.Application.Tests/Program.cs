@@ -1372,6 +1372,24 @@ try
         && !(await new ModeRepository(database).ListAsync()).Any(item => item.Name == "Rejected custom endpoint"),
         "failed custom endpoint save left partial settings or mode persistence");
 
+    // Issue #2236: when the stored key cannot be read, the save fails and the rollback must leave
+    // that key alone. It used to take "nothing read" for "nothing stored" and delete it.
+    var storedAccount = $"CustomEndpoint_{customEndpoint.Id:D}";
+    foreach (var throws in new[] { false, true })
+    {
+        var readFailingModes = new HyperWhisper.PortableApplication.ViewModels.ModesViewModel(
+            new ModeRepository(database), reloadedSettings, new FailReadCredentialStore(credentialStore, throws));
+        await readFailingModes.RefreshAsync();
+        readFailingModes.Selected = readFailingModes.Items.Single(item => item.Name == "Custom endpoint");
+        readFailingModes.CustomEndpointApiKey = "custom-secret-replacement";
+        await readFailingModes.SaveAsync();
+        var kept = credentialStore.Read("HyperWhisper", storedAccount);
+        Assert(readFailingModes.Status.ErrorCode == "modes.save_failed"
+            && kept.IsSuccess && kept.Value is { } keptBytes
+            && Encoding.UTF8.GetString(keptBytes) == "custom-secret-never-export",
+            $"a failed credential read (throws={throws}) deleted or replaced the stored custom endpoint key");
+    }
+
     var delayedModels = new DelayedHttpHandler();
     using (var modelHttp = new HttpClient(delayedModels))
     {
@@ -4367,6 +4385,16 @@ file sealed class MemoryCredentialStore : ICredentialStore
     public PlatformResult Delete(string resource, string account)
     { _values.Remove((resource, account)); return PlatformResult.Success(); }
     public bool HasAccount(string account) => _values.ContainsKey(("HyperWhisper", account));
+}
+
+/// <summary>Fails every read, as a transient keyring error would; writes and deletes reach <c>inner</c>.</summary>
+file sealed class FailReadCredentialStore(ICredentialStore inner, bool throws) : ICredentialStore
+{
+    public PlatformResult<byte[]?> Read(string resource, string account) => throws
+        ? throw new InvalidOperationException("simulated keyring exception")
+        : PlatformResult<byte[]?>.Failure("credentials.read_failed", "simulated secure store read failure");
+    public PlatformResult Write(string resource, string account, ReadOnlySpan<byte> value) => inner.Write(resource, account, value);
+    public PlatformResult Delete(string resource, string account) => inner.Delete(resource, account);
 }
 
 file sealed class FailWriteCredentialStore : ICredentialStore
