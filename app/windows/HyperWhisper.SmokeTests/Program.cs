@@ -6088,7 +6088,7 @@ internal static class Program
                 // ERROR_SYSTEM_INTEGRITY_POLICY_VIOLATION, with the install path in the message.
                 // The apostrophe pins the file-name parse: it must not stop at "O".
                 var blockedPath = @"C:\Users\Jane O'Doe\AppData\Local\Programs\HyperWhisper\parakeet-engine\parakeet-engine.exe";
-                var expectedNotice = ApplicationControlDiagnostics.BuildBlockedNotice("parakeet-engine.exe", static key => Loc.S(key)).Message;
+                var expectedNotice = ApplicationControlDiagnostics.BuildBlockedNotice("parakeet-engine.exe", static key => HyperWhisper.Localization.Loc.S(key)).Message;
                 var starts = 0;
                 var service = new ParakeetTranscriptionService
                 {
