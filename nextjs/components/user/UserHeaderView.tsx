@@ -76,8 +76,15 @@ export default function UserHeaderView({
             {user.email}
           </span>
 
+          {/* #2286: the message fades in (@starting-style) instead of
+              arriving in one frame. Not a .t-error-reveal height reveal: this
+              is a row in a fixed h-14 header, and a width reveal would wrap
+              the text mid-tween. */}
           {signOutError && (
-            <span className="text-red-300 text-sm" role="alert">
+            <span
+              className="text-red-300 text-sm transition-opacity duration-[280ms] ease-[var(--motion-ease-smooth-out)] starting:opacity-0 motion-reduce:transition-none"
+              role="alert"
+            >
               {signOutError}
             </span>
           )}
