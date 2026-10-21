@@ -634,7 +634,8 @@ struct DeleteCancelsPlainRetryTests {
             #expect(window.contains { $0.contains("stopRetries(ofDeleted:") }, "no stopRetries next to: \(line)")
             checked += 1
         }
-        // 5 since #909 wrote each de-duplication rule once (was 6, two copies).
-        #expect(checked >= 5)
+        // 4 since #909 wrote each de-duplication rule once (was 6: both rules'
+        // deletes were copied for the writer and for viewContext).
+        #expect(checked >= 4)
     }
 }
