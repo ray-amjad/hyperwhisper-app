@@ -152,21 +152,8 @@ public partial class MainWindow : Window
         });
         _viewModel.UpdateFileProgressRequested += (s, progress) => Dispatcher.Invoke(() =>
         {
-            // Smart animation duration based on progress delta
-            float progressDelta = Math.Abs(progress - (_fileProgressWindow?.CurrentProgress ?? 0f));
-
-            double duration = progressDelta switch
-            {
-                < 0.05f => 0.3,  // Small jumps: quick (0.3s)
-                < 0.20f => 1.0,  // Medium jumps: moderate (1s)
-                _ => 60.0        // Large jumps (transcribing): slow (60s)
-            };
-
-            // Only the transcribing ramp waits on a job with no real progress, so a job
-            // that outlasts it turns the bar indeterminate instead of sitting at 80% (#1911)
-            bool thenIndeterminate = progress == MainViewModel.FileTranscribingRampTarget;
-
-            _fileProgressWindow?.AnimateProgress(progress, duration, thenIndeterminate);
+            // The window picks the duration: a slow ramp only while transcribing (#1911, #1924)
+            _fileProgressWindow?.AnimateStep(progress);
         });
 
         InitializeSystemTray();

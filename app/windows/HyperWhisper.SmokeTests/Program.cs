@@ -4698,6 +4698,61 @@ internal static class Program
                 }
             });
 
+            // Issue #1924. Each frame eased from the LAST frame's value instead of the
+            // ramp's start, so the easing compounded: the 60 s transcribing ramp read
+            // 80% after ~5 s. And every jump of 20% or more got 60 s, so on a short job
+            // the 85/95/100% steps barely moved before the window hid near 32%.
+            Run("the Transcribe File ramp follows its curve for 60 s and a short job reaches 100% - issue #1924", () =>
+            {
+                EnsureSmokeApplication();
+                var window = new HyperWhisper.Views.Windows.FileTranscriptionProgressWindow();
+                var percent = (System.Windows.Controls.TextBlock)window.FindName("PercentageText")!;
+                const float rampStart = 0.15f;
+                float ramp = HyperWhisper.ViewModels.MainViewModel.FileTranscribingRampTarget;
+                static double EaseOutCubic(double t) => 1.0 - Math.Pow(1.0 - t, 3);
+                try
+                {
+                    // A long job: frames every few seconds, driven with a clock.
+                    window.AnimateStep(rampStart);
+                    window.AdvanceAnimation(DateTime.Now.AddSeconds(1));
+                    window.AnimateStep(ramp);
+                    var start = DateTime.Now;
+                    window.AdvanceAnimation(start.AddSeconds(5));
+                    Assert(window.CurrentProgress < 0.5f,
+                        $"5 s into the 60 s ramp the bar already reads {window.CurrentProgress:P0}");
+                    window.AdvanceAnimation(start.AddSeconds(30));
+                    double halfway = rampStart + (ramp - rampStart) * EaseOutCubic(0.5);
+                    Assert(Math.Abs(window.CurrentProgress - halfway) < 0.01,
+                        $"30 s into the ramp the bar reads {window.CurrentProgress:F3}, not {halfway:F3} on the ease curve");
+                    window.AdvanceAnimation(start.AddSeconds(55));
+                    Assert(window.CurrentProgress < ramp - 0.001f && !window.IsIndeterminate,
+                        $"the ramp reached its target before 60 s ({window.CurrentProgress:F3})");
+                    window.AdvanceAnimation(start.AddSeconds(60.5));
+                    Assert(window.CurrentProgress == ramp && window.IsIndeterminate,
+                        $"the ramp did not end at {ramp:P0} at 60 s ({window.CurrentProgress:F3})");
+
+                    // A short job: the transcription returns 2 s into the ramp, then
+                    // the finishing steps come back to back and the window hides 500 ms
+                    // after 100% (MainViewModel.TranscribeFileAsync).
+                    window.SetProgress(0f);
+                    window.AnimateStep(rampStart);
+                    window.AdvanceAnimation(DateTime.Now.AddSeconds(1));
+                    window.AnimateStep(ramp);
+                    window.AdvanceAnimation(DateTime.Now.AddSeconds(2));
+                    window.AnimateStep(0.85f);
+                    window.AdvanceAnimation(DateTime.Now.AddMilliseconds(50));
+                    window.AnimateStep(0.95f);
+                    window.AnimateStep(1.0f);
+                    window.AdvanceAnimation(DateTime.Now.AddMilliseconds(500));
+                    Assert(percent.Text == "100%",
+                        $"the bar reads {percent.Text} when a short job's window hides, not 100%");
+                }
+                finally
+                {
+                    window.Close();
+                }
+            });
+
             // Issue #511. "Your license key is no longer valid. Enter a new key
             // below, or get credits to create one." is a statement about a licence
             // this device once had. A fresh install that mistyped its first-ever
