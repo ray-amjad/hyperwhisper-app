@@ -1,7 +1,7 @@
 // CREDIT VALIDATION + DEDUCTION
 // Handles preflight credit checks and post-usage deduction
 
-import type { AuthContext } from './auth';
+import { readCreditPoolId, type AuthContext } from './auth';
 import { CREDITS_PER_MINUTE, DEFAULT_API_BASE_URL, LICENSE_API_TIMEOUT_MS } from '../lib/constants';
 import { estimateAudioSecondsFromSize } from '../lib/audio-duration';
 import { isRecord, roundToTenth, roundUpToTenth } from '../lib/utils';
@@ -142,6 +142,9 @@ async function recordLicenseUsage(
   let accepted = false;
 
   try {
+    // Taken BEFORE the request goes out: the pool balance cache orders replies
+    // by when the site was asked (#2026), see `WRITE_POOL_BALANCE_SCRIPT`.
+    const issuedAtMs = Date.now();
     const response = await fetch(`${apiBase}/api/license/credits`, {
       method: 'POST',
       headers: {
@@ -169,10 +172,18 @@ async function recordLicenseUsage(
     const data: unknown = await response.json();
     const creditsRemaining = isRecord(data) ? data.credits_remaining : undefined;
     if (typeof creditsRemaining === 'number') {
+      // The pool id comes from THIS reply, never from `auth`: the rewrite
+      // renews the TTL, so carrying the auth context's id forward would keep a
+      // missing one (a cache older than the pool) or a stale one (a rotated
+      // secret) alive for as long as the key stays busy (#2026). None in the
+      // reply: the site has no secret, so holds go per key.
+      const creditPoolId = isRecord(data) ? readCreditPoolId(data.credit_pool_id) : undefined;
       await cacheLicense(licenseKey, {
         isValid: true,
         credits: creditsRemaining,
         cachedAt: new Date().toISOString(),
+        ...(creditPoolId ? { creditPoolId } : {}),
+        issuedAtMs,
       });
     }
   } catch (error) {
