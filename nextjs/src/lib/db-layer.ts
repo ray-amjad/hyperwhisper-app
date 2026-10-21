@@ -924,7 +924,8 @@ export async function getAccountKeysWithCreditsForUserIds(
  * admin Customers list. An optional email search filters the underlying
  * license rows before grouping (same `ilike` semantics as the old
  * searchAccountKeysByEmail), so a customer only appears in the page if at
- * least one of their licenses matches.
+ * least one of their licenses matches. `%`, `_` and `\` in the search match
+ * themselves, not as wildcards (#1949).
  *
  * Ordered by each customer's most recent license (MAX(created_at) DESC),
  * matching the order the router's in-memory grouping already produces from
@@ -946,7 +947,9 @@ export async function getAccountKeyCustomerPage({
   page: number;
   pageSize: number;
 }): Promise<{ userIds: string[]; totalCustomers: number; page: number }> {
-  const emailFilter = search ? ilike(accountKeys.email, `%${search}%`) : undefined;
+  const emailFilter = search
+    ? ilike(accountKeys.email, `%${escapeLikePattern(search)}%`)
+    : undefined;
 
   const countRows = await db
     .select({ total: countDistinct(accountKeys.userId) })
