@@ -1173,3 +1173,4 @@ Před smazáním aktualizujte tyto režimy, aby používaly jiný model.";
 "settings.storage.maxRecordingDuration.hour" = "1 hodina";
 "settings.storage.maxRecordingDuration.hours" = "%d hodin";
 "settings.storage.maxRecordingDuration.off" = "Vypnuto";
+"settings.api_server.status.stopping" = "Zastavování…";

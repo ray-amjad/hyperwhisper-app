@@ -1173,3 +1173,4 @@
 "settings.storage.maxRecordingDuration.hour" = "ساعة واحدة";
 "settings.storage.maxRecordingDuration.hours" = "%d ساعات";
 "settings.storage.maxRecordingDuration.off" = "إيقاف";
+"settings.api_server.status.stopping" = "جارٍ الإيقاف…";

@@ -1173,3 +1173,4 @@ Pre brisanja ažurirajte ove režime da koriste drugi model.";
 "settings.storage.maxRecordingDuration.hour" = "1 сат";
 "settings.storage.maxRecordingDuration.hours" = "%d сати";
 "settings.storage.maxRecordingDuration.off" = "Искључено";
+"settings.api_server.status.stopping" = "Заустављање…";

@@ -1173,3 +1173,4 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "settings.storage.maxRecordingDuration.hour" = "1 sat";
 "settings.storage.maxRecordingDuration.hours" = "%d sati";
 "settings.storage.maxRecordingDuration.off" = "Isključeno";
+"settings.api_server.status.stopping" = "Zaustavljanje…";
