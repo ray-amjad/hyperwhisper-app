@@ -24906,6 +24906,8 @@ internal static class Program
                 }
             });
 
+            ScriptGuardPorts.RunAll(Run);
+
             // Issue #738: LicenseNetworkService over a scripted HttpClient (its internal
             // seam), so the rules that ACT on a server reply run without the backend.
             // The store is the suite's scratch profile: AppPaths scopes kvstore.json and
