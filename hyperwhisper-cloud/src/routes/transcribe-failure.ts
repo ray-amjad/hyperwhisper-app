@@ -59,8 +59,13 @@ export function providerChainFailureResponse({
 
   // Every provider rejected the input with a non-auth 4xx and none was merely
   // unavailable. The input itself is the problem, so a retry will not help.
-  // The provider's own text is its raw response body, so it goes only in the
-  // log; the client gets a fixed message (#2131).
+  //
+  // A provider-sourced rejection carries the upstream's own wording in
+  // `clientMessage`: that text never reaches the client, which gets a fixed
+  // message instead (#2131). A rejection the server wrote itself (no
+  // clientReason, so `clientMessage === message`: a WebSocket-only model, a
+  // missing explicit language, audio over a cap) is our own hint and is sent
+  // as before. `message` is content-free either way (#2163), so the log keeps it.
   if (lastInputError && !sawUnavailable) {
     logEvent(requestId, startTime, 'transcribe.request_fail', {
       kind: 'all_providers_rejected_input',
@@ -70,7 +75,9 @@ export function providerChainFailureResponse({
       message: lastInputError.message,
     });
     return errorResponse(400, 'Transcription input rejected',
-      'No transcription provider accepted this audio or its settings (for example the language).',
+      lastInputError.clientMessage === lastInputError.message
+        ? `No transcription provider accepted this request: ${lastInputError.message}`
+        : 'No transcription provider accepted this audio or its settings (for example the language).',
       { requestId, provider },
     );
   }

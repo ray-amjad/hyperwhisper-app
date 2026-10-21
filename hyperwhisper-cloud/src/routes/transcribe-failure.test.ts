@@ -32,8 +32,9 @@ async function body(response: Response) {
 }
 
 describe('providerChainFailureResponse', () => {
-  test('returns 400 when every provider rejects the request input', async () => {
-    const inputError = new ProviderInputError('ElevenLabs', 422, 'invalid language');
+  test('returns a fixed 400 when every provider rejects the request input', async () => {
+    // A provider-sourced rejection: the upstream's wording is the clientReason.
+    const inputError = new ProviderInputError('ElevenLabs', 422, 'invalid_language', 'language xx is not supported');
     const response = providerChainFailureResponse({
       ...baseInput(),
       provider: 'elevenlabs',
@@ -49,6 +50,22 @@ describe('providerChainFailureResponse', () => {
       requestId: 'request-123',
       provider: 'elevenlabs',
     });
+  });
+
+  test("keeps a server-written rejection's own hint in the 400", async () => {
+    // No clientReason: the server wrote this text itself, so it is safe to send.
+    const inputError = new ProviderInputError('OpenAI', 400, 'gpt-live-transcribe is a WebSocket-only model and is not served by /transcribe');
+    const response = providerChainFailureResponse({
+      ...baseInput(),
+      provider: 'openai',
+      lastError: inputError,
+      lastInputError: inputError,
+    });
+
+    expect(response.status).toBe(400);
+    expect((await body(response)).message).toBe(
+      'No transcription provider accepted this request: OpenAI rejected input (400): gpt-live-transcribe is a WebSocket-only model and is not served by /transcribe',
+    );
   });
 
   test('does not report a request error when any provider was unavailable', async () => {
