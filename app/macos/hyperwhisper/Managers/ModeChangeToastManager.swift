@@ -173,7 +173,6 @@ final class ModeChangeToastManager {
             logger.debug("📍 Positioned mode change toast at fallback position (\(placement.frame.origin.x), \(placement.frame.origin.y)) - recording dialog not found")
         }
     }
-    }
 
     /// Start the auto-dismiss timer
     private func startDismissTimer() {

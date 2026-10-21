@@ -188,7 +188,6 @@ final class InlineErrorToastManager {
             logger.debug("📍 Positioned toast at fallback position (\(placement.frame.origin.x), \(placement.frame.origin.y)) - recording dialog not found")
         }
     }
-    }
 
     // MARK: - Space/Screen Change Handling
 
