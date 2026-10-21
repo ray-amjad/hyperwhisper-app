@@ -9,7 +9,7 @@ import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
 export const generateMetadata = localizedPageMetadata({
   path: "/legal/refund-policy",
-  title: "Refund Policy | HyperWhisper",
+  title: "Refund Policy",
   description:
     "HyperWhisper refund policy for HyperWhisper Cloud credits, including the 14-day money back guarantee",
 });
