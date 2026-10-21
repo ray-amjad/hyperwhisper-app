@@ -175,12 +175,15 @@ describe('transcribeRoute chain failure keeps provider text out of the reply (#2
     const raw = await response.text();
     const fail = logged
       .filter((line) => line.startsWith('{'))
-      .map((line) => JSON.parse(line) as { event: string; requestId?: string; kind?: string; message?: string })
+      .map((line) => JSON.parse(line) as { event: string; requestId?: string; kind?: string; status?: number; message?: string })
       .find((event) => event.event === 'transcribe.request_fail');
     return { response, raw, body: JSON.parse(raw) as Record<string, unknown>, fail };
   }
 
-  test('every provider 400s with a marker body: fixed 400, marker only in the log', async () => {
+  // Deliberately departs from the issue's Done-when ("the marker is in the
+  // log"): since #2163 the request_fail line is content-free, so the provider's
+  // body reaches neither the client nor the log; the log keeps the status.
+  test('every provider 400s with a marker body: fixed 400, marker in neither the reply nor the log', async () => {
     const called: string[] = [];
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -201,8 +204,8 @@ describe('transcribeRoute chain failure keeps provider text out of the reply (#2
       provider: 'elevenlabs',
     });
     expect(raw).not.toContain(MARKER);
-    expect(fail).toMatchObject({ requestId: body.requestId, kind: 'all_providers_rejected_input' });
-    expect(fail?.message).toContain(MARKER);
+    expect(fail).toMatchObject({ requestId: body.requestId, kind: 'all_providers_rejected_input', status: 400 });
+    expect(JSON.stringify(fail)).not.toContain(MARKER);
   });
 
   test('a self-only provider whose fetch rejects: fixed 502, marker only in the log', async () => {
