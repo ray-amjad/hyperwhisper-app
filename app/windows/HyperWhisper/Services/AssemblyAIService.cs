@@ -175,7 +175,8 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
 
     /// <summary>
     /// The transcription itself. <paramref name="request"/>'s model id is
-    /// already resolved.
+    /// already resolved. Runs the dictation path, or the sync fast path, then
+    /// the async upload -> create -> poll workflow.
     /// </summary>
     private async Task<string> TranscribeResolvedAsync(
         TranscriptionRequest request,
@@ -213,26 +214,64 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
 
         if (request.ModelId is "dictation" or "dictation-medical")
         {
-            try
-            {
-                var transcript = await HyperWhisper.SharedCore.AssemblyAiDictation.TranscribeAsync(
-                    coreParams, Http, cancellationToken);
-                return transcript.text;
-            }
-            catch (HwTranscriptionException error)
-            {
-                throw RustCoreMapping.MapTranscriptionError(error, "AssemblyAI");
-            }
-            catch (InvalidDataException error)
-            {
-                throw new TranscriptionException(TranscriptionErrorCode.InvalidRequest, error.Message, "AssemblyAI");
-            }
-            catch (TimeoutException error)
-            {
-                throw new TranscriptionException(TranscriptionErrorCode.ProviderUnavailable, error.Message, "AssemblyAI");
-            }
+            return await TranscribeDictationAsync(coreParams, cancellationToken);
         }
 
+        var syncText = await TrySyncFastPathAsync(request, coreParams, knownDurationSeconds, totalSw, cancellationToken);
+        if (syncText != null)
+        {
+            return syncText;
+        }
+
+        var transcriptId = await UploadAndCreateAsync(coreParams, cancellationToken);
+
+        // STEP 6: Poll for completion. The poll loop is driven natively and does
+        // NOT go through the retry wrapper — the core build/parse is invoked per
+        // poll, switching on AssemblyaiPollOutcome (.Pending -> sleep+continue;
+        // .Done(transcript) -> return). Mirrors macOS: 120 attempts @ 1s.
+        return await PollUntilDoneAsync(coreParams, transcriptId, totalSw, cancellationToken);
+    }
+
+    /// <summary>
+    /// AssemblyAI Dictation (and its medical variant): one call through the
+    /// shared core, with its own error map.
+    /// </summary>
+    private async Task<string> TranscribeDictationAsync(
+        uniffi.hyperwhisper_core.TranscribeParams coreParams,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var transcript = await HyperWhisper.SharedCore.AssemblyAiDictation.TranscribeAsync(
+                coreParams, Http, cancellationToken);
+            return transcript.text;
+        }
+        catch (HwTranscriptionException error)
+        {
+            throw RustCoreMapping.MapTranscriptionError(error, "AssemblyAI");
+        }
+        catch (InvalidDataException error)
+        {
+            throw new TranscriptionException(TranscriptionErrorCode.InvalidRequest, error.Message, "AssemblyAI");
+        }
+        catch (TimeoutException error)
+        {
+            throw new TranscriptionException(TranscriptionErrorCode.ProviderUnavailable, error.Message, "AssemblyAI");
+        }
+    }
+
+    /// <summary>
+    /// STEP 3.5: the sync fast path. Returns the transcript, or <c>null</c> when
+    /// the clip is not eligible or the sync call fell back, so the caller runs
+    /// the async workflow.
+    /// </summary>
+    private async Task<string?> TrySyncFastPathAsync(
+        TranscriptionRequest request,
+        uniffi.hyperwhisper_core.TranscribeParams coreParams,
+        double? knownDurationSeconds,
+        Stopwatch totalSw,
+        CancellationToken cancellationToken)
+    {
         // STEP 3.5: Try the sync fast path for short clips. Uses the EXACT NAudio
         // duration (not a byte-size estimate) since we have the file on disk.
         // Unknown duration, >= the sync cap, or a medical model (the sync API
@@ -249,7 +288,7 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
         // comment above for why this isn't a shared instance field.
         var durationResult = knownDurationSeconds.HasValue
             ? Result<double>.Success(knownDurationSeconds.Value)
-            : FileTranscriptionService.GetAudioDuration(audioPath);
+            : FileTranscriptionService.GetAudioDuration(request.AudioPath);
         var syncMaxDurationSeconds = HyperwhisperCoreMethods.AssemblyaiSyncMaxDurationSecs();
         var isMedicalModel = CloudTranscriptionModels.GetAssemblyAIRequestParams(request.ModelId).Medical;
         if (IsSyncEligible(durationResult, syncMaxDurationSeconds, isMedicalModel))
@@ -264,17 +303,18 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
                 return syncText;
             }
             LoggingService.Info("  Sync fast path unavailable — falling back to async upload/create/poll");
-        }
-        else
-        {
-            var reason = isMedicalModel
-                ? "medical model (sync has no medical/domain concept)"
-                : durationResult.IsSuccess
-                    ? $"duration {durationResult.Value:F1}s >= {syncMaxDurationSeconds:F0}s sync cap"
-                    : $"duration unknown ({durationResult.Error})";
-            LoggingService.Debug($"  Skipping sync fast path: {reason}");
+            return null;
         }
 
+        LoggingService.Debug($"  Skipping sync fast path: {DescribeSyncSkipReason(durationResult, syncMaxDurationSeconds, isMedicalModel)}");
+        return null;
+    }
+
+    /// <summary>STEP 4 + 5: upload the audio, then create the transcript job. Returns its id.</summary>
+    private async Task<string> UploadAndCreateAsync(
+        uniffi.hyperwhisper_core.TranscribeParams coreParams,
+        CancellationToken cancellationToken)
+    {
         // STEP 4: Upload (through retry) -> parse upload URL.
         LoggingService.Info("  Step 1: Uploading audio...");
         var uploadResp = await PerformAsync(
@@ -292,11 +332,19 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
             cancellationToken);
         var transcriptId = ParseStep(() => HyperwhisperCoreMethods.AssemblyaiParseCreateResponse(createResp));
         LoggingService.Info($"  Transcript ID: {transcriptId}");
+        return transcriptId;
+    }
 
-        // STEP 6: Poll for completion. The poll loop is driven natively and does
-        // NOT go through the retry wrapper — the core build/parse is invoked per
-        // poll, switching on AssemblyaiPollOutcome (.Pending -> sleep+continue;
-        // .Done(transcript) -> return). Mirrors macOS: 120 attempts @ 1s.
+    /// <summary>
+    /// STEP 6: poll the transcript job until it is done, or throw once
+    /// <see cref="MaxPollAttempts"/> polls have all come back pending.
+    /// </summary>
+    private async Task<string> PollUntilDoneAsync(
+        uniffi.hyperwhisper_core.TranscribeParams coreParams,
+        string transcriptId,
+        Stopwatch totalSw,
+        CancellationToken cancellationToken)
+    {
         LoggingService.Info("  Step 3: Polling for completion...");
         var pollSw = Stopwatch.StartNew();
         for (int attempt = 0; attempt < MaxPollAttempts; attempt++)
@@ -336,15 +384,7 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
                 continue;
             }
 
-            AssemblyaiPollOutcome outcome;
-            try
-            {
-                outcome = HyperwhisperCoreMethods.AssemblyaiParsePollResponse(pollResp);
-            }
-            catch (HwTranscriptionException ex)
-            {
-                throw RustCoreMapping.MapTranscriptionError(ex, "AssemblyAI", (int)pollResp.@status);
-            }
+            var outcome = ParsePollOutcome(pollResp);
 
             if (outcome is AssemblyaiPollOutcome.Done done)
             {
@@ -383,6 +423,35 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
     internal static bool IsSyncEligible(Result<double> durationResult, double syncMaxDurationSeconds, bool isMedicalModel)
     {
         return !isMedicalModel && durationResult.IsSuccess && durationResult.Value < syncMaxDurationSeconds;
+    }
+
+    /// <summary>
+    /// Why <see cref="IsSyncEligible"/> said no, for the debug log. Checked in
+    /// the same order the log always used: a medical model first, then a
+    /// duration at/over the cap, then a failed duration probe.
+    /// </summary>
+    // internal for SmokeTests.
+    internal static string DescribeSyncSkipReason(Result<double> durationResult, double syncMaxDurationSeconds, bool isMedicalModel)
+    {
+        return isMedicalModel
+            ? "medical model (sync has no medical/domain concept)"
+            : durationResult.IsSuccess
+                ? $"duration {durationResult.Value:F1}s >= {syncMaxDurationSeconds:F0}s sync cap"
+                : $"duration unknown ({durationResult.Error})";
+    }
+
+    /// <summary>Parse one poll response, mapping a classified error with the poll's HTTP status.</summary>
+    // internal for SmokeTests.
+    internal static AssemblyaiPollOutcome ParsePollOutcome(uniffi.hyperwhisper_core.HttpResponse pollResp)
+    {
+        try
+        {
+            return HyperwhisperCoreMethods.AssemblyaiParsePollResponse(pollResp);
+        }
+        catch (HwTranscriptionException ex)
+        {
+            throw RustCoreMapping.MapTranscriptionError(ex, "AssemblyAI", (int)pollResp.@status);
+        }
     }
 
     /// <summary>
