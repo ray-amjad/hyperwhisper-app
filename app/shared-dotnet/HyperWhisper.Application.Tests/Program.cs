@@ -1084,6 +1084,22 @@ try
     await credentialViewModel.SaveAsync();
     Assert(credentialViewModel.Items.Single(item => item.Account == "OpenAIApiKey").IsPresent
         && credentialViewModel.Secret.Length == 0, "credential UI did not save securely or clear its input");
+    credentialViewModel.SelectAccount("GroqApiKey");
+    credentialViewModel.Secret = "groq-test-secret-never-export";
+    await credentialViewModel.SaveAsync();
+    Assert(credentialViewModel.Selected?.Account == "GroqApiKey"
+        && credentialViewModel.Selected.IsPresent,
+        "saving a credential moved the selection off the account it saved (#2324)");
+    await credentialViewModel.DeleteAsync();
+    Assert(credentialViewModel.Selected?.Account == "GroqApiKey"
+        && !credentialViewModel.Selected.IsPresent
+        && credentialStore.HasAccount("OpenAIApiKey"),
+        "deleting a credential moved the selection off the account it deleted (#2324)");
+    await credentialViewModel.DeleteAsync();
+    Assert(credentialViewModel.Selected?.Account == "GroqApiKey"
+        && credentialStore.HasAccount("OpenAIApiKey")
+        && credentialViewModel.Items.Single(item => item.Account == "OpenAIApiKey").IsPresent,
+        "a second Delete erased another provider's stored credential (#2324)");
     var failingCredentialViewModel = new HyperWhisper.PortableApplication.ViewModels.CredentialManagementViewModel(
         new FailWriteCredentialStore());
     failingCredentialViewModel.Selected = failingCredentialViewModel.Items.Single(item => item.Account == "OpenAIApiKey");
@@ -1098,6 +1114,7 @@ try
     failingCredentialViewModel.SelectAccount("AnthropicApiKey");
     Assert(failingCredentialViewModel.Secret.Length == 0,
         "a secret typed for one credential stayed in the field after selecting another");
+    credentialViewModel.SelectAccount("OpenAIApiKey");
     await credentialViewModel.DeleteAsync();
     Assert(!credentialViewModel.Items.Single(item => item.Account == "OpenAIApiKey").IsPresent,
         "credential UI did not delete the stored credential");
