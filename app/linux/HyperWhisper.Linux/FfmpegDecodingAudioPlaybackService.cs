@@ -10,7 +10,8 @@ namespace HyperWhisper.Linux;
 /// the window for ~190 ms per selection (#1004). The decode now runs on the thread pool. While it
 /// runs the service reports itself loaded, holds a Play, Pause or Seek until the decoded file is
 /// in the player, and reports a decode that fails through <see cref="PlaybackFailed"/>. A second
-/// Load, a Stop of the selection, or Dispose kills the ffmpeg it no longer needs.
+/// Load, or Dispose, kills the ffmpeg it no longer needs. Stop keeps the decode running: the
+/// selection stays loaded, so a later Play still has a file to play.
 /// </remarks>
 internal sealed class FfmpegDecodingAudioPlaybackService : IAudioPlaybackService
 {
