@@ -109,10 +109,10 @@ export interface DeductCreditsOptions {
 }
 
 /**
- * The `onFailure` for every charge site but `/assistant`, which keeps its own
- * event (#820). A dropped charge writes one `credits.deduction_failed` line
- * against the request: why it failed, the credits that were not recorded and
- * the caller's endpoint, never the license key, the IP or the request content.
+ * The `onFailure` for every charge site (#820). A dropped charge writes one
+ * `credits.deduction_failed` line against the request: why it failed, the
+ * credits that were not recorded and the caller's endpoint, never the license
+ * key, the IP or the request content.
  */
 export function logDeductionFailure(
   requestId: string,

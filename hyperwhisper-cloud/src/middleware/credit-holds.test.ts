@@ -19,7 +19,6 @@ mock.module('../lib/redis', () => ({
 const { deductCredits, drainPendingDeductions, validateCredits } = await import('./credits');
 const {
   CreditHold,
-  detachCreditHold,
   drainPendingHoldReleases,
   requestHoldFor,
   reserveSessionHold,
@@ -164,18 +163,6 @@ describe('withCreditHoldScope', () => {
     await settle();
     expect(store.outstandingMilli(`pool:${pool}`)).toBe(0);
     expect(store.calls.filter((call) => call.op === 'release').map((call) => call.account)).toEqual([`pool:${pool}`]);
-  });
-
-  test('a detached hold outlives the handler until its owner releases it', async () => {
-    const a = auth(10);
-    const detached = await withCreditHoldScope(async () => {
-      await validateCredits(a, 4, 'ip');
-      return detachCreditHold(a);
-    });
-    await settle();
-    expect(store.outstandingMilli(ACCOUNT)).toBe(4000);
-    await detached!.release();
-    expect(store.outstandingMilli(ACCOUNT)).toBe(0);
   });
 });
 
