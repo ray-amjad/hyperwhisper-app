@@ -8,6 +8,7 @@ import { errorSentence } from "@/lib/trpc/input-error";
 import { formatDate } from "@/lib/format-date";
 import { ICON_SWAP } from "@/lib/icon-swap";
 import { CREDITS_PER_MINUTE } from "@/lib/credits-per-minute";
+import { ErrorReveal } from "@/components/ErrorReveal";
 
 /**
  * Windowed list of page numbers to render in the pager: always page 1,
@@ -352,11 +353,17 @@ export default function CustomersClient() {
                     {grantMutation.isPending ? "Granting..." : "Grant"}
                   </button>
                 </form>
-                {grantMutation.error && (
-                  <p className="text-red-300 text-sm" role="alert">
-                    {errorSentence(grantMutation.error, INVALID_EMAIL)}
-                  </p>
-                )}
+                {/* #2286: the error reveals. The wrapper is always mounted, so
+                    the form above is never the card's last child and keeps
+                    its space-y-3 margin: -mt-3 cancels that while closed, and
+                    pt-3 inside the clip carries the gap when open. */}
+                <ErrorReveal className="-mt-3" gap="pt-3">
+                  {grantMutation.error && (
+                    <p className="text-red-300 text-sm" role="alert">
+                      {errorSentence(grantMutation.error, INVALID_EMAIL)}
+                    </p>
+                  )}
+                </ErrorReveal>
                 {grantResult && (
                   <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg space-y-1">
                     <p className="text-emerald-300 text-sm">Account Key granted to <span className="font-medium">{grantResult.email}</span></p>
@@ -369,12 +376,15 @@ export default function CustomersClient() {
         </div>
       )}
 
-      {/* Error Message */}
-      {error && (
-        <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg" role="alert">
-          <p className="text-red-300">{error}</p>
-        </div>
-      )}
+      {/* Error Message. It reveals (#2286) instead of arriving at full height
+          in one frame; the space-y-6 gap rides inside the clip as pb-6. */}
+      <ErrorReveal gap="pb-6">
+        {error && (
+          <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg" role="alert">
+            <p className="text-red-300">{error}</p>
+          </div>
+        )}
+      </ErrorReveal>
 
       {/* Customers Table */}
       <div
@@ -488,14 +498,19 @@ export default function CustomersClient() {
                                 {" "}
                                 to the new address.
                               </p>
-                              {updateEmailMutation.error && (
-                                <p
-                                  className="text-red-300 text-xs"
-                                  role="alert"
-                                >
-                                  {errorSentence(updateEmailMutation.error, INVALID_EMAIL)}
-                                </p>
-                              )}
+                              {/* #2286: the error reveals. A closed wrapper
+                                  still takes the form's gap-2, so -mt-2 cancels
+                                  it and pt-2 inside the clip carries it open. */}
+                              <ErrorReveal className="-mt-2" gap="pt-2">
+                                {updateEmailMutation.error && (
+                                  <p
+                                    className="text-red-300 text-xs"
+                                    role="alert"
+                                  >
+                                    {errorSentence(updateEmailMutation.error, INVALID_EMAIL)}
+                                  </p>
+                                )}
+                              </ErrorReveal>
                             </form>
                           </div>
                         ) : (
@@ -851,14 +866,18 @@ export default function CustomersClient() {
               </div>
             ) : (
               <>
-                {refundMutation.error && (
-                  <div
-                    className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg"
-                    role="alert"
-                  >
-                    <p className="text-red-300 text-sm">{errorSentence(refundMutation.error, INVALID_INPUT)}</p>
-                  </div>
-                )}
+                {/* #2286: the error reveals; the space-y-5 gap rides inside
+                    the clip as pb-5. */}
+                <ErrorReveal gap="pb-5">
+                  {refundMutation.error && (
+                    <div
+                      className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg"
+                      role="alert"
+                    >
+                      <p className="text-red-300 text-sm">{errorSentence(refundMutation.error, INVALID_INPUT)}</p>
+                    </div>
+                  )}
+                </ErrorReveal>
                 <div className="flex gap-3 pt-2">
                   <button
                     onClick={() =>
@@ -962,12 +981,15 @@ export default function CustomersClient() {
                 ))}
               </div>
 
-              {/* Error */}
-              {addCreditsMutation.error && (
-                <p className="text-red-300 text-sm" role="alert">
-                  {errorSentence(addCreditsMutation.error, INVALID_AMOUNT)}
-                </p>
-              )}
+              {/* Error. It reveals (#2286); the space-y-4 gap rides inside
+                  the clip as pb-4. */}
+              <ErrorReveal gap="pb-4">
+                {addCreditsMutation.error && (
+                  <p className="text-red-300 text-sm" role="alert">
+                    {errorSentence(addCreditsMutation.error, INVALID_AMOUNT)}
+                  </p>
+                )}
+              </ErrorReveal>
 
               {/* Actions */}
               <div className="flex gap-3 pt-2">
