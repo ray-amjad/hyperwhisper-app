@@ -7,12 +7,14 @@
 //!
 //! `model_id` (default `scribe_v2`), `tag_audio_events=false`, `language_code`
 //! (omitted when absent / empty / `"auto"`; normalized to the primary subtag,
-//! e.g. `en-US` → `en`), repeated `keyterms` (Scribe v2 only — see below),
+//! e.g. `en-US` → `en`), repeated `keyterms` (Scribe v2 and Scribe v2 Medical
+//! only — see below),
 //! then `file`.
 //!
-//! ## Vocabulary (Scribe v2 only)
+//! ## Vocabulary (Scribe v2 and Scribe v2 Medical only)
 //!
-//! Scribe **v2** accepts vocabulary as repeated `keyterms` form fields, capped at
+//! Scribe **v2** and **v2 Medical** (`scribe_v2_medical`, same endpoint and
+//! request shape, #2201) accept vocabulary as repeated `keyterms` form fields, capped at
 //! [`ELEVENLABS_MAX_TERMS`] (100) terms, each dropped if longer than
 //! [`ELEVENLABS_MAX_TERM_CHARS`] (50) chars. Scribe **v1** does not support
 //! vocabulary, so terms are silently dropped. Mirrors `ElevenLabsProvider.swift`
@@ -52,8 +54,17 @@ pub fn default_model() -> &'static str {
     super::defaults::default_model(CATALOG_ENTRY_ID)
 }
 
-/// The Scribe v2 model id (the only one that supports keyterm vocabulary).
+/// The Scribe v2 model id.
 pub const SCRIBE_V2: &str = "scribe_v2";
+
+/// Scribe v2 Medical: the clinical variant of Scribe v2, on the same endpoint
+/// and request shape, keyterms included (#2201).
+pub const SCRIBE_V2_MEDICAL: &str = "scribe_v2_medical";
+
+/// Whether `model_id` accepts `keyterms` vocabulary.
+fn supports_keyterms(model_id: &str) -> bool {
+    model_id == SCRIBE_V2 || model_id == SCRIBE_V2_MEDICAL
+}
 
 /// Build the ElevenLabs Scribe transcription request.
 pub fn build_transcribe_request(
@@ -80,8 +91,8 @@ pub fn build_transcribe_request(
         parts.push(multipart_field("language_code", lang));
     }
 
-    // keyterms — Scribe v2 only, capped 100 terms, drop terms > 50 chars.
-    if model_id == SCRIBE_V2 {
+    // keyterms — Scribe v2 and v2 Medical only, capped 100 terms, drop terms > 50 chars.
+    if supports_keyterms(&model_id) {
         for term in keyterms(&params.vocabulary) {
             parts.push(multipart_field("keyterms", term));
         }
@@ -269,6 +280,22 @@ mod tests {
                 vec!["Rust", "APIscript", ok.as_str()]
             );
         }
+    }
+
+    #[test]
+    fn scribe_v2_medical_emits_keyterms() {
+        let mut p = params();
+        p.model = SCRIBE_V2_MEDICAL.to_string();
+        p.vocabulary = vec!["metoprolol".to_string(), "atrial fibrillation".to_string()];
+        let req = build_transcribe_request(&p).unwrap();
+        let Body::Multipart { parts, .. } = &req.body else {
+            panic!("ElevenLabs request is not multipart");
+        };
+        assert_eq!(fields(parts, "model_id"), vec!["scribe_v2_medical"]);
+        assert_eq!(
+            fields(parts, "keyterms"),
+            vec!["metoprolol", "atrial fibrillation"]
+        );
     }
 
     #[test]

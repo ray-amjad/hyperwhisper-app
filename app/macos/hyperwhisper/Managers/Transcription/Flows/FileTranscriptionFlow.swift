@@ -738,9 +738,12 @@ class FileTranscriptionFlow {
                 transcriptionProvider: Self.failedRowProvider(for: error, modelId: mode.model)
             )
             AppLogger.transcription.error("❌ File transcription failed: \(error.localizedDescription)")
+            // The error decides the buttons: a missing local model also
+            // offers "Open Model Library" (issue #2035).
             showErrorAlert(
                 title: "transcribe.file.error.title".localized,
-                message: Self.failureMessage(for: failure, audioDuration: importDuration)
+                message: Self.failureMessage(for: failure, audioDuration: importDuration),
+                error: failure
             )
             releaseRecordingState()
         }
@@ -1277,16 +1280,112 @@ class FileTranscriptionFlow {
     /// `/health` — for as long as the alert stayed open. Same hazard as the open panel
     /// above (HYPERWHISPER-SZ).
     ///
+    /// **Open Model Library (issue #2035):** when `error` is a missing local model,
+    /// the alert also offers "Open Model Library", which brings the main window
+    /// forward on that page, where the fix is one download click. Every other
+    /// error keeps the single OK button.
+    ///
     /// - Parameters:
     ///   - title: Alert title
     ///   - message: Alert message
-    private func showErrorAlert(title: String, message: String) {
+    ///   - error: The error behind the alert, when the caller has one. It
+    ///     decides the buttons (`errorAlertButtons(for:)`).
+    private func showErrorAlert(title: String, message: String, error: Error? = nil) {
         let alert = NSAlert()
         alert.messageText = title
         alert.informativeText = message
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "common.ok".localized)
-        ModelessAlert.show(alert)
+        let buttons = Self.errorAlertButtons(for: error)
+        for button in buttons {
+            alert.addButton(withTitle: button.title)
+        }
+        if buttons.count > 1, let okIndex = buttons.firstIndex(of: .ok) {
+            // OK is not the first (Return) button here, so give it Escape:
+            // AppKit maps Escape only to a button titled "Cancel".
+            alert.buttons[okIndex].keyEquivalent = "\u{1b}"
+        }
+        // Strong on purpose: the import task ends, and its caller drops the
+        // flow, while the modeless alert is still open. A weak capture is nil
+        // by the click and the button would do nothing. `ModelessAlert` drops
+        // the completion once the alert closes, so the flow lives only as
+        // long as its alert.
+        ModelessAlert.show(alert) { response in
+            Self.performErrorAlertAction(for: response, buttons: buttons) {
+                self.openModelLibrary()
+            }
+        }
+    }
+
+    /// A button on the Transcription Error alert (issue #2035).
+    enum ErrorAlertButton: Equatable {
+        case openModelLibrary
+        case ok
+
+        var title: String {
+            switch self {
+            case .openModelLibrary: return "transcription.error.openModelLibrary".localized
+            case .ok: return "common.ok".localized
+            }
+        }
+    }
+
+    /// The alert's buttons for `error`, in the order they are added (the first
+    /// is the default, Return button).
+    ///
+    /// A missing local model gets "Open Model Library" first, then OK: the
+    /// codebase's other action alerts (Accessibility "Open Settings" / Cancel)
+    /// put the action first, and the fix is the likely next step. Anything
+    /// else, or no error, gets OK alone, as before.
+    nonisolated static func errorAlertButtons(for error: Error?) -> [ErrorAlertButton] {
+        // Matched with no payload binding: the model and mode names (#1518)
+        // do not change the buttons.
+        if case .modelNotDownloaded? = error as? TranscriptionError {
+            return [.openModelLibrary, .ok]
+        }
+        return [.ok]
+    }
+
+    /// Runs the action of the button the user clicked. OK only closes the
+    /// alert, which `ModelessAlert` has already done.
+    ///
+    /// - Parameters:
+    ///   - response: `.alertFirstButtonReturn`, … for the clicked button.
+    ///   - buttons: The buttons as `errorAlertButtons(for:)` returned them.
+    ///   - openModelLibrary: What "Open Model Library" does; tests pass a spy.
+    static func performErrorAlertAction(
+        for response: NSApplication.ModalResponse,
+        buttons: [ErrorAlertButton],
+        openModelLibrary: () -> Void
+    ) {
+        let index = response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+        guard buttons.indices.contains(index) else { return }
+        switch buttons[index] {
+        case .openModelLibrary:
+            openModelLibrary()
+        case .ok:
+            break
+        }
+    }
+
+    /// "Open Model Library" on the error alert: show the main window, then go
+    /// to Model Library as the menu bar's History and Settings items do.
+    private func openModelLibrary() {
+        Self.openModelLibrary(appState: appState) {
+            self.openMainWindowWithHistory()
+        }
+    }
+
+    /// The click is the user's own choice of page, so it is `.userChosen`: an
+    /// open mode editor with unsaved changes asks "Discard unsaved changes?"
+    /// first, exactly as a sidebar or menu-bar pick does (issue #1525).
+    ///
+    /// - Parameters:
+    ///   - appState: Where the page lives.
+    ///   - bringMainWindowForward: Activates the app and orders the main window
+    ///     front (or creates it); tests pass a spy.
+    static func openModelLibrary(appState: AppState?, bringMainWindowForward: () -> Void) {
+        bringMainWindowForward()
+        appState?.requestNavigation(to: .modelLibrary, trigger: .userChosen)
     }
 
     /// Opens the main window and navigates to History view

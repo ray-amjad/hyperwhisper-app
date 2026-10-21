@@ -24,4 +24,28 @@
   <data name="linux.ui.start.recording" xml:space="preserve">
     <value>녹음 시작</value>
   </data>
+  <data name="linux.settings.sound.microphone.default" xml:space="preserve">
+    <value>기본값 · {0}</value>
+  </data>
+  <data name="linux.settings.sound.microphone.defaultNone" xml:space="preserve">
+    <value>기본값</value>
+  </data>
+  <data name="linux.settings.sound.microphone.fallback" xml:space="preserve">
+    <value>{1}이(가) 다시 연결될 때까지 {0}을(를) 사용합니다.</value>
+  </data>
+  <data name="linux.settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (연결 안 됨)</value>
+  </data>
+  <data name="linux.settings.sound.microphone.stop" xml:space="preserve">
+    <value>중지</value>
+  </data>
+  <data name="linux.settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>HyperWhisper에서만 사용됩니다. 다시 시작해도 유지됩니다.</value>
+  </data>
+  <data name="linux.settings.sound.microphone.test" xml:space="preserve">
+    <value>테스트</value>
+  </data>
+  <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve">
+    <value>마이크를 열 수 없습니다.</value>
+  </data>
 </root>
