@@ -284,8 +284,8 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
         // when available instead of re-probing the same file a second time —
         // e.g. the file-import flow (MainViewModel.TranscribeFileAsync)
         // already reads it via NAudio moments earlier for the same audio
-        // content. Scoped to this call's parameter — see the parameter doc
-        // comment above for why this isn't a shared instance field.
+        // content. Scoped to this call's parameter — see the knownDurationSeconds
+        // doc comment on TranscribeAsync for why this isn't a shared instance field.
         var durationResult = knownDurationSeconds.HasValue
             ? Result<double>.Success(knownDurationSeconds.Value)
             : FileTranscriptionService.GetAudioDuration(request.AudioPath);
