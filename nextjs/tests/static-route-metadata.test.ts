@@ -122,8 +122,8 @@ for (const { route, title } of ROUTES) {
       ),
     );
 
-    // The layout sets twitter.title, so without a page `twitter` object X
-    // previews the link with the home title; same shallow-merge rule applies.
+    // The page sends its whole `twitter` object, so the shallow merge keeps
+    // the card, creator and images and X previews the link with this title.
     assert.equal(metadata.twitter.title, title);
     assert.equal(metadata.twitter.description, metadata.openGraph.description);
     assert.equal(metadata.twitter.card, "summary");
