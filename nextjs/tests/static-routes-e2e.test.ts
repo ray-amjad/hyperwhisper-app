@@ -152,7 +152,7 @@ test("a deep localized page states its own lang, canonical and 41 hreflang links
   assert.ok(body.includes(`<link rel="canonical" href="${url}"/>`), "canonical");
   assert.ok(body.includes(`<meta property="og:url" content="${url}"/>`), "og:url");
   // The page's own title and description reach the head with its path fields.
-  assert.match(body, /<title>Refund Policy \| HyperWhisper - HyperWhisper<\/title>/);
+  assert.match(body, /<title>Refund Policy - HyperWhisper<\/title>/);
   assert.match(body, /<meta name="description" content="HyperWhisper refund policy for/);
   assert.match(body, /<meta property="og:image"/);
   // The client provider must hydrate with the same locale: Providers writes its

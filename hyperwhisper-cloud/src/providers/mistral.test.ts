@@ -6,6 +6,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithMistral } from './mistral';
 import { ProviderInputError, ProviderUnavailableError } from './types';
+import { captureNoSpeechEvent } from './test-support';
 
 const originalFetch = globalThis.fetch;
 let savedKey: string | undefined;
@@ -34,25 +35,6 @@ function captureRequest(body: unknown) {
     return typeof body === 'string' ? new Response(body, { status: 200 }) : Response.json(body);
   }) as unknown as typeof fetch;
   return captured;
-}
-
-/**
- * Swaps `console.log` for the duration of `run` and returns the details object of
- * the `provider.no_speech` event it logged. Same swap-the-global idiom as
- * `utils.test.ts` — no spy library is used anywhere in this suite.
- */
-async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
-  const logged: unknown[][] = [];
-  const originalLog = console.log;
-  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
-  try {
-    await run();
-  } finally {
-    console.log = originalLog;
-  }
-  const event = logged.find((args) => args[0] === 'provider.no_speech');
-  if (!event) throw new Error('no provider.no_speech event was logged');
-  return event[1] as Record<string, unknown>;
 }
 
 function errorResponse(status: number, text = 'upstream said no') {

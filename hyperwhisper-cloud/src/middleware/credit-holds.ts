@@ -18,6 +18,11 @@
 //   - none of those ran (a crashed machine, a lost release call): the hold's
 //     TTL, swept by the next reservation on the key.
 //
+// WHO SHARES A HOLD BUDGET: every key of one user (#2026). Credits belong to the
+// user, so holds are counted per credit pool: `pool:<credit_pool_id>` when the
+// licence API sent one (cached with the licence), else the Account Key, as
+// before. A user's keys then cannot together hold more than the one balance.
+//
 // REDIS UNAVAILABLE FAILS OPEN. A store error (or an unconfigured store) marks
 // the hold `degraded`, logs `credits_hold.unavailable`, and the request runs on
 // the pre-hold rules — the cached-balance compare and the clamp at the balance
@@ -26,7 +31,7 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { AuthContext } from './auth';
-import { createUpstashCreditHoldStore, fromMilliCredits, toMilliCredits, type CreditHoldStore } from '../lib/credit-hold-store';
+import { CREDIT_POOL_ACCOUNT_PREFIX, createUpstashCreditHoldStore, fromMilliCredits, toMilliCredits, type CreditHoldStore } from '../lib/credit-hold-store';
 import { createRedisGetter } from '../lib/redis-client';
 import { toRedactedLogLine } from '../lib/log-redaction';
 import { roundToTenth } from '../lib/utils';
@@ -115,12 +120,19 @@ export async function drainPendingHoldReleases(timeoutMs: number): Promise<numbe
   return pending;
 }
 
+/** The pool a hold on `auth` is counted against (see the file header). */
+export function holdAccountFor(auth: AuthContext): string {
+  return auth.creditPoolId ? `${CREDIT_POOL_ACCOUNT_PREFIX}${auth.creditPoolId}` : auth.identifier;
+}
+
 // The hold a request or session took, by the auth context it was taken for.
 // `validateAuth` builds a fresh context per request, so this is per request.
 const holdsByAuth = new WeakMap<AuthContext, CreditHold>();
 
 export class CreditHold {
   readonly id = crypto.randomUUID();
+  /** The pool this hold counts against, fixed for its life so a release finds it. */
+  readonly account: string;
   /** What this hold has in Redis right now, in credits. */
   heldCredits = 0;
   /**
@@ -135,6 +147,7 @@ export class CreditHold {
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(readonly auth: AuthContext, private readonly ttlMs: number) {
+    this.account = holdAccountFor(auth);
     holdsByAuth.set(auth, this);
   }
 
@@ -177,7 +190,8 @@ export class CreditHold {
       if (this.degraded) return { kind: 'unavailable' };
       try {
         const result = await currentStore().reserve({
-          account: this.auth.identifier,
+          account: this.account,
+          licenseKey: this.auth.identifier,
           holdId: this.id,
           minMilli: toMilliCredits(minCredits),
           maxMilli: toMilliCredits(Math.max(minCredits, maxCredits)),
@@ -233,7 +247,7 @@ export class CreditHold {
     const releasing = this.enqueue(async () => {
       if (!this.everGranted) return;
       try {
-        await currentStore().release(this.auth.identifier, this.id);
+        await currentStore().release(this.account, this.id);
         this.heldCredits = 0;
       } catch (error) {
         // The TTL frees it. Logged, because until then it narrows the balance.

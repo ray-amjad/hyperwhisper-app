@@ -282,35 +282,41 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
                 </button>
               </div>
 
+              {/* The field grows open from 0fr (#702) instead of arriving at
+                  full height in one frame. */}
               {isCustom && (
-                <div className="mt-3">
-                  {/* HeroUI still sets aria-label to the placeholder, but a
-                      caller's aria-labelledby reaches the <input> as given and
-                      wins over aria-label in the accessible name. */}
-                  <Input
-                    aria-labelledby={`${amountLabelId} ${customTitleId}`}
-                    type="number"
-                    value={customAmount}
-                    onChange={(e) => {
-                      setCustomAmount(e.target.value);
-                      setError(null);
-                    }}
-                    placeholder={t("customPlaceholder", {
-                      min: MIN_CREDIT_DOLLARS,
-                      max: MAX_CREDIT_DOLLARS,
-                    })}
-                    variant="bordered"
-                    size="lg"
-                    min={MIN_CREDIT_DOLLARS}
-                    max={MAX_CREDIT_DOLLARS}
-                    step={1}
-                    startContent={<span className="text-gray-400">$</span>}
-                    classNames={{
-                      inputWrapper:
-                        "bg-gray-900/60 border-gray-700 data-[hover=true]:border-gray-600 group-data-[focus=true]:border-purple-500",
-                      input: "text-white",
-                    }}
-                  />
+                <div className="t-cell-reveal">
+                  <div>
+                    <div className="mt-3">
+                      {/* HeroUI still sets aria-label to the placeholder, but a
+                          caller's aria-labelledby reaches the <input> as given and
+                          wins over aria-label in the accessible name. */}
+                      <Input
+                        aria-labelledby={`${amountLabelId} ${customTitleId}`}
+                        type="number"
+                        value={customAmount}
+                        onChange={(e) => {
+                          setCustomAmount(e.target.value);
+                          setError(null);
+                        }}
+                        placeholder={t("customPlaceholder", {
+                          min: MIN_CREDIT_DOLLARS,
+                          max: MAX_CREDIT_DOLLARS,
+                        })}
+                        variant="bordered"
+                        size="lg"
+                        min={MIN_CREDIT_DOLLARS}
+                        max={MAX_CREDIT_DOLLARS}
+                        step={1}
+                        startContent={<span className="text-gray-400">$</span>}
+                        classNames={{
+                          inputWrapper:
+                            "bg-gray-900/60 border-gray-700 data-[hover=true]:border-gray-600 group-data-[focus=true]:border-purple-500",
+                          input: "text-white",
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
