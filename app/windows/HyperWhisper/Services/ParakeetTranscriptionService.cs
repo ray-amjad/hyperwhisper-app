@@ -348,6 +348,15 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
         _isShared = isShared;
     }
 
+    /// <summary>Test seam: the daemon binary to start. Null is the shipped engine.</summary>
+    internal string? DaemonPathOverride { get; set; }
+
+    /// <summary>
+    /// Test seam: starts the daemon process. A test throws the Win32Exception that
+    /// Application Control raises (#2379), which no test machine can raise for real.
+    /// </summary>
+    internal Func<Process, bool> StartDaemonProcess { get; set; } = static process => process.Start();
+
     // =========================================================================
     // ITranscriptionProvider IMPLEMENTATION
     // =========================================================================
@@ -950,7 +959,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
         DisposeModelCore(advanceTeardownGeneration, transcriptionLockHeld, idleReloadCancellation);
         idleReloadCancellation.ThrowIfCancellationRequested();
 
-        var daemonPath = GetDaemonPath();
+        var daemonPath = DaemonPathOverride ?? GetDaemonPath();
         var vadModelPath = GetVadModelPath();
 
         // Guard: validate daemon binary exists
@@ -1093,7 +1102,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
             // Register crash detection before starting
             process.Exited += OnDaemonExited;
 
-            if (!process.Start())
+            if (!StartDaemonProcess(process))
             {
                 LoggingService.Error("ParakeetTranscriptionService: Failed to start daemon process");
                 throw new TranscriptionException(

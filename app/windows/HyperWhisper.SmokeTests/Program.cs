@@ -6074,6 +6074,111 @@ internal static class Program
                     "no stderr capture must not mark the model broken");
             });
 
+            RunAsync("Parakeet: a daemon start Application Control blocks is a clear error, and the next load does not throw on the unstarted Process (#2379)", async () =>
+            {
+                var root = Path.Combine(Path.GetTempPath(), "hw-2379-" + Guid.NewGuid().ToString("N"));
+                var engineDir = Path.Combine(root, "parakeet-engine");
+                var modelDir = Path.Combine(root, "parakeet-tdt-0.6b-v2");
+                Directory.CreateDirectory(engineDir);
+                Directory.CreateDirectory(modelDir);
+                var daemonPath = Path.Combine(engineDir, "parakeet-engine.exe");
+                File.WriteAllText(daemonPath, "not an executable");
+
+                // What Process.Start threw on the user's machine (HYPERWHISPER-113):
+                // ERROR_SYSTEM_INTEGRITY_POLICY_VIOLATION, with the install path in the message.
+                var blockedPath = @"C:\Users\Jane Doe\AppData\Local\Programs\HyperWhisper\parakeet-engine\parakeet-engine.exe";
+                var starts = 0;
+                var service = new ParakeetTranscriptionService
+                {
+                    DaemonPathOverride = daemonPath,
+                    StartDaemonProcess = _ =>
+                    {
+                        starts++;
+                        throw new System.ComponentModel.Win32Exception(
+                            4551,
+                            $"An error occurred trying to start process '{blockedPath}' with working directory '{Path.GetDirectoryName(blockedPath)}'. An Application Control policy has blocked this file.");
+                    },
+                };
+
+                try
+                {
+                    for (var attempt = 1; attempt <= 2; attempt++)
+                    {
+                        // The second load is the production crash (HYPERWHISPER-112): its
+                        // DisposeModel read HasExited on the first load's never-started Process.
+                        TranscriptionException? failure = null;
+                        try
+                        {
+                            await service.InitializeAsync(modelDir, null);
+                        }
+                        catch (TranscriptionException ex)
+                        {
+                            failure = ex;
+                        }
+
+                        Assert(failure != null, $"load {attempt} must fail as a TranscriptionException");
+                        Assert(failure!.Code == TranscriptionErrorCode.DaemonStartFailed, $"load {attempt}: code {failure.Code}");
+                        Assert(failure.Message.Contains("Application Control", StringComparison.Ordinal),
+                            $"load {attempt}: the status bar must name Application Control, got: {failure.Message}");
+                        Assert(failure.Message.Contains("parakeet-engine.exe", StringComparison.Ordinal),
+                            $"load {attempt}: the message must name the blocked file, got: {failure.Message}");
+                        Assert(failure.GetUserMessage() == failure.Message,
+                            $"load {attempt}: a dictation toast must show the same notice, got: {failure.GetUserMessage()}");
+                        Assert(!failure.Message.Contains("Jane Doe", StringComparison.Ordinal) && !failure.Message.Contains(@"C:\", StringComparison.Ordinal),
+                            $"load {attempt}: the message must carry no path, got: {failure.Message}");
+                        Assert(failure.InnerException == null, $"load {attempt}: the raw Win32Exception (with its path) must not ride along");
+                        Assert(!service.IsAvailable, $"load {attempt}: IsAvailable must be false, and must not throw");
+                    }
+
+                    Assert(starts == 2, $"each load must try the daemon once, tried {starts}");
+                    service.DisposeModel();
+                }
+                finally
+                {
+                    try { Directory.Delete(root, recursive: true); } catch { }
+                }
+            });
+
+            RunAsync("Parakeet: any other daemon start failure leaves no unstarted Process and puts no path in the message (#2379)", async () =>
+            {
+                var root = Path.Combine(Path.GetTempPath(), "hw-2379-" + Guid.NewGuid().ToString("N"));
+                var modelDir = Path.Combine(root, "parakeet-tdt-0.6b-v2");
+                Directory.CreateDirectory(modelDir);
+                var daemonPath = Path.Combine(root, "parakeet-engine.exe");
+                // A file that exists and is not a program: the REAL Process.Start throws
+                // a Win32Exception (ERROR_BAD_EXE_FORMAT) with the path in its message.
+                File.WriteAllText(daemonPath, "not an executable");
+                var service = new ParakeetTranscriptionService { DaemonPathOverride = daemonPath };
+
+                try
+                {
+                    for (var attempt = 1; attempt <= 2; attempt++)
+                    {
+                        TranscriptionException? failure = null;
+                        try
+                        {
+                            await service.InitializeAsync(modelDir, null);
+                        }
+                        catch (TranscriptionException ex)
+                        {
+                            failure = ex;
+                        }
+
+                        Assert(failure != null, $"load {attempt} must fail as a TranscriptionException");
+                        Assert(failure!.Code == TranscriptionErrorCode.DaemonStartFailed, $"load {attempt}: code {failure.Code}");
+                        Assert(!failure.Message.Contains(root, StringComparison.OrdinalIgnoreCase),
+                            $"load {attempt}: the message must carry no path, got: {failure.Message}");
+                        Assert(!service.IsAvailable, $"load {attempt}: IsAvailable must be false, and must not throw");
+                    }
+
+                    service.DisposeModel();
+                }
+                finally
+                {
+                    try { Directory.Delete(root, recursive: true); } catch { }
+                }
+            });
+
             Run("Parakeet start-failure stderr tail drops the user's identifiers and is capped (#854)", () =>
             {
                 // The Parakeet scrub IS SentryService.RedactUserIdentifiers (no second
