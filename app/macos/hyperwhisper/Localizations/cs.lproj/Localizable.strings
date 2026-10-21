@@ -938,6 +938,7 @@ Před smazáním aktualizujte tyto režimy, aby používaly jiný model.";
 "transcription.error.modelNotDownloaded" = "Nejdrive prosim stahnnete model";
 "transcription.error.modelNotDownloaded.modelAndMode" = "Režim %1$@ používá model %2$@, který není stažený. Stáhněte ho v Knihovně modelů.";
 "transcription.error.modelNotDownloaded.model" = "Model %1$@ není stažený. Stáhněte ho v Knihovně modelů.";
+"transcription.error.openModelLibrary" = "Otevřít Knihovnu modelů";
 "transcription.error.modelProtected" = "Tento model nelze smazat";
 "transcription.error.audioFileNotFound" = "Zvukovy soubor nenalezen";
 "transcription.error.network.detail" = "Sitova chyba: %@";

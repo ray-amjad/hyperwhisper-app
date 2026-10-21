@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithElevenLabs } from './elevenlabs';
 import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
+import { captureNoSpeechEvent } from './test-support';
 
 const originalFetch = globalThis.fetch;
 
@@ -33,25 +34,6 @@ function mockFetchOnce(handler: (url: string, init?: RequestInit) => Response | 
     init: () => capturedInit,
     formData: () => capturedInit!.body as FormData,
   };
-}
-
-/**
- * Swaps `console.log` for the duration of `run` and returns the details object of
- * the `provider.no_speech` event it logged. Same swap-the-global idiom as
- * `utils.test.ts` — no spy library is used anywhere in this suite.
- */
-async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
-  const logged: unknown[][] = [];
-  const originalLog = console.log;
-  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
-  try {
-    await run();
-  } finally {
-    console.log = originalLog;
-  }
-  const event = logged.find((args) => args[0] === 'provider.no_speech');
-  if (!event) throw new Error('no provider.no_speech event was logged');
-  return event[1] as Record<string, unknown>;
 }
 
 describe('transcribeWithElevenLabs — configuration', () => {
@@ -293,6 +275,28 @@ describe('transcribeWithElevenLabs — upstream error mapping', () => {
     expect((error as ProviderUnavailableError).status).toBe(200);
     // The socket's own text stays in the provider log line, out of the error.
     expect((error as Error).message).not.toContain('socket');
+  });
+
+  for (const [label, body] of [
+    ['a JSON null', 'null'],
+    ['a bare number', '7'],
+    ['a bare string', '"hello"'],
+    ['a JSON array', '[]'],
+    ['a non-string text', '{"text":1}'],
+  ] as const) {
+    test(`a 200 with ${label} body is ProviderUnavailableError (bad_response), not a TypeError (#2151)`, async () => {
+      mockFetchOnce(() => new Response(body, { status: 200, headers: { 'content-type': 'application/json' } }));
+      const error = await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US').catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(ProviderUnavailableError);
+      expect((error as ProviderUnavailableError).kind).toBe('bad_response');
+      expect((error as ProviderUnavailableError).status).toBe(200);
+    });
+  }
+
+  test('a 200 with an odd words field still parses, with duration 0 (#2151)', async () => {
+    mockFetchOnce(() => Response.json({ text: 'hello', words: [{ start: 0, end: 'x' }] }));
+    const result = await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US');
+    expect(result.text).toBe('hello');
   });
 
   test('a truncated 200 JSON body logs no part of the transcript, only its shape (issue #1069)', async () => {

@@ -938,6 +938,7 @@ Atualize esses modos para usar um modelo diferente antes de excluir.";
 "transcription.error.modelNotDownloaded" = "Baixe um modelo primeiro";
 "transcription.error.modelNotDownloaded.modelAndMode" = "O modo %1$@ usa %2$@, que não foi baixado. Baixe-o na Biblioteca de modelos.";
 "transcription.error.modelNotDownloaded.model" = "%1$@ não foi baixado. Baixe-o na Biblioteca de modelos.";
+"transcription.error.openModelLibrary" = "Abrir Biblioteca de modelos";
 "transcription.error.modelProtected" = "Este modelo não pode ser excluído";
 "transcription.error.audioFileNotFound" = "Arquivo de áudio não encontrado";
 "transcription.error.network.detail" = "Erro de rede: %@";

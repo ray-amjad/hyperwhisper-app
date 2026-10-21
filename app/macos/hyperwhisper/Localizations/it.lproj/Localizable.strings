@@ -938,6 +938,7 @@ Aggiorna queste modalità per usare un modello diverso prima di eliminarlo.";
 "transcription.error.modelNotDownloaded" = "Scarica prima un modello";
 "transcription.error.modelNotDownloaded.modelAndMode" = "La modalità %1$@ usa %2$@, che non è scaricato. Scaricalo in Libreria modelli.";
 "transcription.error.modelNotDownloaded.model" = "%1$@ non è scaricato. Scaricalo in Libreria modelli.";
+"transcription.error.openModelLibrary" = "Apri Libreria modelli";
 "transcription.error.modelProtected" = "Questo modello non può essere eliminato";
 "transcription.error.audioFileNotFound" = "File audio non trovato";
 "transcription.error.network.detail" = "Errore di rete: %@";

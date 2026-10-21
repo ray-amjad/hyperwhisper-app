@@ -5,6 +5,7 @@ import { computeAnthropicCost, type GroqUsage } from '../lib/cost-calculator';
 import { ANTHROPIC_MAX_TOKENS } from '../lib/llm-token-limits';
 import type { CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError } from './llm-errors';
+import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
 import { computeLLMRequestTimeoutMs, fetchLLMWithTimeout, LLM_REQUEST_TIMEOUT_MS, readLLMJson, transcriptCharCount } from './llm-fetch';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
@@ -131,9 +132,13 @@ export async function requestAnthropicChat(
     },
     async (response) => {
       if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
+        // The message is logged by post-process.ts and llm-provider.ts, so it
+        // names the status and Anthropic's error type, never the body: an
+        // Anthropic 400 can quote the transcript it rejected (#2163).
+        const { fields } = await readUpstreamError(response);
+        const errorType = fields.errorType ?? fields.errorCode;
         throw new LLMRequestError(
-          `Anthropic API error: ${response.status} ${errorText.slice(0, 500)}`,
+          `Anthropic API error: ${response.status}${errorType ? ` ${errorType}` : ''}`,
           response.status,
         );
       }
@@ -256,8 +261,9 @@ export function streamAnthropicChat(
         });
 
         if (!response.ok) {
-          const errorText = await response.text().catch(() => '');
-          console.error(`[${requestId}] Anthropic API error: ${response.status} ${errorText.slice(0, 500)}`);
+          // Never the body (#2163): status, error type and request id only.
+          const { fields } = await readUpstreamError(response);
+          console.error(`[${requestId}] Anthropic API error: ${response.status}`, upstreamErrorLogFields(fields));
           const errorChunk = JSON.stringify({
             choices: [{ delta: { content: '' }, finish_reason: 'error' }],
             error: `Anthropic API error: ${response.status}`,

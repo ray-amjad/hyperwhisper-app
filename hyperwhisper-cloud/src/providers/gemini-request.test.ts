@@ -18,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithGemini } from './gemini';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import { GEMINI_INLINE_MAX_BYTES } from '../lib/constants';
+import { captureNoSpeechEvent } from './test-support';
 
 const originalFetch = globalThis.fetch;
 const ENV_KEYS = ['GEMINI_API_KEY', 'GOOGLE_GEMINI_API_KEY', 'STT_PROVIDER_TIMEOUT_MS'] as const;
@@ -77,25 +78,6 @@ function generateContentResponse(text: string, usageMetadata?: Record<string, un
     candidates: [{ content: { parts: [{ text }] } }],
     ...(usageMetadata ? { usageMetadata } : {}),
   };
-}
-
-/**
- * Swaps `console.log` for the duration of `run` and returns the details object of
- * the `provider.no_speech` event it logged. Same swap-the-global idiom as
- * `utils.test.ts` — no spy library is used anywhere in this suite.
- */
-async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
-  const logged: unknown[][] = [];
-  const originalLog = console.log;
-  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
-  try {
-    await run();
-  } finally {
-    console.log = originalLog;
-  }
-  const event = logged.find((args) => args[0] === 'provider.no_speech');
-  if (!event) throw new Error('no provider.no_speech event was logged');
-  return event[1] as Record<string, unknown>;
 }
 
 function promptTextOf(captured: Captured): string {
@@ -291,7 +273,9 @@ describe('transcribeWithGemini — upstream error mapping', () => {
     const thrown = await transcribeWithGemini(audio(), 'audio/wav').catch((e) => e);
     expect(thrown).toBeInstanceOf(ProviderInputError);
     expect(thrown.status).toBe(400);
-    expect(thrown.message).toContain('unsupported audio mime type');
+    // The body reaches the client's text only, never the logged message (#2163).
+    expect(thrown.message).not.toContain('unsupported audio mime type');
+    expect(thrown.clientMessage).toContain('unsupported audio mime type');
   });
 
   test('a 200 with a body that is not JSON fails over rather than throwing a parse error', async () => {

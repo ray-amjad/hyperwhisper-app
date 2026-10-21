@@ -1330,16 +1330,6 @@ static class _UniFFILib {
     
     
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1961,10 +1951,6 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern long uniffi_hyperwhisper_core_fn_func_license_offline_grace_secs(ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_license_parse_validate_response(RustBuffer @body,ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -1993,27 +1979,11 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern void uniffi_hyperwhisper_core_fn_func_license_store_license_key(IntPtr @store,RustBuffer @key,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern void uniffi_hyperwhisper_core_fn_func_license_store_remote_override(IntPtr @store,RustBuffer @limits,long @nowUnixSecs,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_license_stored_license_key(IntPtr @store,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern void uniffi_hyperwhisper_core_fn_func_license_update_validation_cache(IntPtr @store,RustBuffer @status,long @nowUnixSecs,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_license_validate_url(ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern long uniffi_hyperwhisper_core_fn_func_license_validation_cache_secs(ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3253,10 +3223,6 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_offline_grace_secs(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_parse_validate_response(
     );
 
@@ -3285,27 +3251,11 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_store_license_key(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_store_remote_override(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_stored_license_key(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_update_validation_cache(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_validate_url(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_validation_cache_secs(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -4661,12 +4611,6 @@ static class _UniFFILib {
             }
         }
         {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_offline_grace_secs();
-            if (checksum != 31552) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_offline_grace_secs` checksum `31552`, library returned `{checksum}`");
-            }
-        }
-        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_parse_validate_response();
             if (checksum != 51801) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_parse_validate_response` checksum `51801`, library returned `{checksum}`");
@@ -4674,8 +4618,8 @@ static class _UniFFILib {
         }
         {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict();
-            if (checksum != 58908) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict` checksum `58908`, library returned `{checksum}`");
+            if (checksum != 1585) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict` checksum `1585`, library returned `{checksum}`");
             }
         }
         {
@@ -4709,12 +4653,6 @@ static class _UniFFILib {
             }
         }
         {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_store_license_key();
-            if (checksum != 61053) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_store_license_key` checksum `61053`, library returned `{checksum}`");
-            }
-        }
-        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_store_remote_override();
             if (checksum != 47949) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_store_remote_override` checksum `47949`, library returned `{checksum}`");
@@ -4724,24 +4662,6 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_stored_license_key();
             if (checksum != 31347) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_stored_license_key` checksum `31347`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_update_validation_cache();
-            if (checksum != 39510) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_update_validation_cache` checksum `39510`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_validate_url();
-            if (checksum != 54229) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_validate_url` checksum `54229`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_validation_cache_secs();
-            if (checksum != 34885) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_validation_cache_secs` checksum `34885`, library returned `{checksum}`");
             }
         }
         {
@@ -18159,17 +18079,6 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
-    /// 7-day offline grace period (seconds).
-    /// </summary>
-    public static long LicenseOfflineGraceSecs() {
-        return FfiConverterInt64.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_offline_grace_secs( ref _status)
-));
-    }
-
-
-    /// <summary>
     /// Parse a 200-OK validate response body to a `ValidationOutcome`.
     /// </summary>
     public static ValidationOutcome LicenseParseValidateResponse(byte[] @body) {
@@ -18183,10 +18092,10 @@ internal static class HyperwhisperCoreMethods {
     /// <summary>
     /// Persist a server validation verdict for the attempted key: stores the key on
     /// a valid (`Active`) verdict, and updates the validation cache only when the
-    /// verdict is valid or the attempted key matches the stored key. Prefer this
-    /// over the raw `license_update_validation_cache` after a validate response —
-    /// it prevents a rejected *replacement* key from clobbering the stored key's
-    /// cached status (a 24h lockout for a valid user).
+    /// verdict is valid or the attempted key matches the stored key. This is the
+    /// only FFI write path for a validate response: it prevents a rejected
+    /// *replacement* key from clobbering the stored key's cached status (a 24h
+    /// lockout for a valid user).
     /// </summary>
     public static void LicensePersistValidationVerdict(KeyValueStore @store, HwLicenseStatus @status, string @attemptedKey, long @nowUnixSecs) {
         
@@ -18239,14 +18148,6 @@ internal static class HyperwhisperCoreMethods {
     }
 
 
-    public static void LicenseStoreLicenseKey(KeyValueStore @store, string @key) {
-        
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_store_license_key(FfiConverterTypeKeyValueStore.INSTANCE.Lower(@store), FfiConverterString.INSTANCE.Lower(@key), ref _status)
-);
-    }
-
-
     public static void LicenseStoreRemoteOverride(KeyValueStore @store, TrialLimits @limits, long @nowUnixSecs) {
         
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
@@ -18259,36 +18160,6 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterOptionalString.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_stored_license_key(FfiConverterTypeKeyValueStore.INSTANCE.Lower(@store), ref _status)
-));
-    }
-
-
-    public static void LicenseUpdateValidationCache(KeyValueStore @store, HwLicenseStatus @status, long @nowUnixSecs) {
-        
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_update_validation_cache(FfiConverterTypeKeyValueStore.INSTANCE.Lower(@store), FfiConverterTypeHwLicenseStatus.INSTANCE.Lower(@status), FfiConverterInt64.INSTANCE.Lower(@nowUnixSecs), ref _status)
-);
-    }
-
-
-    /// <summary>
-    /// The `/api/license/validate` endpoint URL.
-    /// </summary>
-    public static string LicenseValidateUrl() {
-        return FfiConverterString.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_validate_url( ref _status)
-));
-    }
-
-
-    /// <summary>
-    /// 24h validation cache TTL (seconds).
-    /// </summary>
-    public static long LicenseValidationCacheSecs() {
-        return FfiConverterInt64.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_validation_cache_secs( ref _status)
 ));
     }
 

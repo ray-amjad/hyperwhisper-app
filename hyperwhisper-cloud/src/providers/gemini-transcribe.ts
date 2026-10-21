@@ -50,9 +50,9 @@ import {
   isExplicitLanguage,
   logProviderEvent,
   providerHttpError,
-  readErrorBodyPreview,
   splitVocabularyTerms,
 } from './utils';
+import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
 
 const INTERACTIONS_URL = 'https://generativelanguage.googleapis.com/v1beta/interactions';
 // Google versions this endpoint by date. Omitting the header selects whatever
@@ -287,10 +287,11 @@ export async function transcribeWithGeminiTranscribe(
   if (!response.ok) {
     if (response.status === 400) {
       // Peek at a clone so providerHttpError below still owns the body it logs.
-      const preview = await readErrorBodyPreview(response.clone());
-      if (looksLikeAuthFailure(preview)) {
+      // `classifierText` is for the auth test only; never logged (#2163).
+      const { fields, classifierText } = await readUpstreamError(response.clone());
+      if (looksLikeAuthFailure(classifierText)) {
         logProviderEvent(provider, 'http_error', {
-          model, status: 400, kind: 'auth', bodyPreview: preview,
+          model, ...upstreamErrorLogFields(fields), kind: 'auth',
         }, context);
         throw new Error('Gemini API key is invalid or unauthorized');
       }

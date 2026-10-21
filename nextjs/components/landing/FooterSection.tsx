@@ -66,7 +66,7 @@ export default function FooterSection() {
             <div className="flex items-center gap-2 mb-4">
               <img
                 alt="HyperWhisper Logo"
-                className="w-10 h-10 rounded-xl"
+                className="w-10 h-10 rounded-xl outline-1 -outline-offset-1 outline-white/10"
                 src="/icon/128.png"
               />
               <span className="text-xl font-bold text-white">HyperWhisper</span>

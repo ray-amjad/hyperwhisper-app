@@ -62,6 +62,12 @@ moduleMock.module(moduleUrl("../src/lib/auth.ts"), {
   },
 });
 
+/** The validated env the download router reads its origin from (#682). */
+const fakeEnv: Record<string, string | undefined> = {};
+moduleMock.module(moduleUrl("../src/env/server.mjs"), {
+  namedExports: { env: fakeEnv },
+});
+
 // A variable specifier, loaded after the mocks above so it binds to them.
 const DOWNLOAD_PATH = "../server/api/routers/download.ts";
 
@@ -71,13 +77,12 @@ const SETTLE_BUDGET_MS = APPCAST_FETCH_TIMEOUT_MS + 2000;
 
 const realFetch = globalThis.fetch;
 const realConsoleError = console.error;
-const realSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 let fetchedUrls: string[] = [];
 
 beforeEach(() => {
   sideEffects.length = 0;
   fetchedUrls = [];
-  process.env.NEXT_PUBLIC_SITE_URL = ORIGIN;
+  fakeEnv.NEXT_PUBLIC_SITE_URL = ORIGIN;
   console.error = () => {};
   globalThis.fetch = ((input: unknown, init?: RequestInit) => {
     fetchedUrls.push(String(input));
@@ -90,8 +95,6 @@ beforeEach(() => {
 afterEach(() => {
   globalThis.fetch = realFetch;
   console.error = realConsoleError;
-  if (realSiteUrl === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
-  else process.env.NEXT_PUBLIC_SITE_URL = realSiteUrl;
 });
 
 async function call(path: string, type: "query" | "mutation", input?: unknown): Promise<unknown> {
