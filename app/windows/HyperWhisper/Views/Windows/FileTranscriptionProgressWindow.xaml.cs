@@ -48,6 +48,9 @@ public partial class FileTranscriptionProgressWindow : Window
     private readonly DispatcherTimer _animationTimer;
     private float _currentProgress = 0f;
     private float _targetProgress = 0f;
+    // Where the running ramp started: each frame eases from here, not from the
+    // last frame's value, or the easing compounds and a 60 s ramp ends in ~5 s (#1924)
+    private float _animationStartProgress = 0f;
     private DateTime _animationStartTime;
     private double _animationDuration = 0;
     private double _progressBarWidth = 0;
@@ -169,6 +172,7 @@ public partial class FileTranscriptionProgressWindow : Window
         _becomesIndeterminateAtTarget = thenIndeterminate;
         _targetProgress = Math.Clamp(targetProgress, 0f, 1f);
         _animationDuration = duration;
+        _animationStartProgress = _currentProgress;
         _animationStartTime = DateTime.Now;
 
         if (_animationTimer.IsEnabled)
@@ -222,8 +226,11 @@ public partial class FileTranscriptionProgressWindow : Window
     {
         // The primary monitor's work area in its own DIP, not
         // SystemParameters.WorkArea, which keeps the DPI the app started at.
+        // Offset by its Left/Top, which a taskbar docked left or top moves (#1940).
         MonitorWorkArea.Place(this, MonitorWorkArea.Primary, screen =>
-            new System.Windows.Point((screen.Width - Width) / 2, (screen.Height - Height) / 2));
+            new System.Windows.Point(
+                screen.Left + (screen.Width - Width) / 2,
+                screen.Top + (screen.Height - Height) / 2));
     }
 
     private void MakeNonActivating()
@@ -247,7 +254,7 @@ public partial class FileTranscriptionProgressWindow : Window
         double normalizedTime = Math.Min(elapsed / _animationDuration, 1.0);
         double easedTime = EaseOutCubic(normalizedTime);
 
-        float newProgress = _currentProgress + (float)((_targetProgress - _currentProgress) * easedTime);
+        float newProgress = _animationStartProgress + (float)((_targetProgress - _animationStartProgress) * easedTime);
         UpdateProgressUI(newProgress);
 
         if (normalizedTime >= 1.0)
