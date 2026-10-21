@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Runtime.ExceptionServices;
@@ -126,6 +127,9 @@ internal static class ApplicationControlDiagnostics
     /// <summary>ERROR_SYSTEM_INTEGRITY_POLICY_VIOLATION as an HRESULT.</summary>
     internal const int ApplicationControlBlockedHResult = unchecked((int)0x800711C7);
 
+    /// <summary>ERROR_SYSTEM_INTEGRITY_POLICY_VIOLATION, as a Win32Exception carries it.</summary>
+    internal const int ApplicationControlBlockedWin32Error = 0x11C7;
+
     /// <summary>The resource key of the notice the user sees.</summary>
     internal const string BlockedNoticeKey = "errors.applicationControl.blocked";
 
@@ -202,6 +206,9 @@ internal static class ApplicationControlDiagnostics
                 // The runtime part of the message is not localized; the OS sentence
                 // after the colon is.
                 DllNotFoundException dllNotFound => ReadQuotedLibraryName(dllNotFound.Message),
+                // "An error occurred trying to start process '<path>' with working
+                // directory '<dir>'. ..." The first quoted part is the executable.
+                Win32Exception win32 => ReadQuotedLibraryName(win32.Message),
                 _ => null,
             };
 
@@ -223,7 +230,9 @@ internal static class ApplicationControlDiagnostics
         var blocked = FindApplicationControlBlock(exception) ?? exception;
         var fileName = DescribeBlockedAssembly(exception);
         var hresult = OptionalAssemblyGuard.DescribeHResult(ApplicationControlBlockedHResult);
-        var matchedBy = blocked.HResult == ApplicationControlBlockedHResult ? "hresult" : "message_code";
+        var matchedBy = blocked is Win32Exception
+            ? "win32_error"
+            : blocked.HResult == ApplicationControlBlockedHResult ? "hresult" : "message_code";
 
         return new(
             "Application Control blocked a required file",
@@ -346,6 +355,13 @@ internal static class ApplicationControlDiagnostics
     {
         try
         {
+            // Process.Start on a blocked executable (parakeet-engine.exe, #2379): the
+            // Win32 error is the block itself, whatever the message's language.
+            if (exception is Win32Exception win32)
+            {
+                return win32.NativeErrorCode == ApplicationControlBlockedWin32Error;
+            }
+
             if (!OptionalAssemblyGuard.IsLoadFailure(exception))
             {
                 return false;
