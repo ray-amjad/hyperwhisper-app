@@ -41,8 +41,11 @@ const URL_CREDENTIALS = /([a-z][a-z0-9+.-]*:\/\/)[^@\s"'/?#\]]*@/gi;
 // customer's email or licence key (lib/shared/db-error.ts). Cut to the end.
 const QUERY_PARAMS = /\bparams:[\s\S]*$/;
 // pg quotes the offending value: `invalid input syntax for type uuid: "…"`,
-// `Key (email)=(…) already exists`.
+// `Key (email)=(…) already exists`. Not applied to drizzle's own
+// `Failed query:` text, whose double quotes are column names and whose values
+// are `$n` placeholders until `params:`.
 const DOUBLE_QUOTED = /"[^"]*"/g;
+const FAILED_QUERY = /^Failed query: /;
 const KEY_VALUE = /(Key \([^)]*\)=\()[^)]*\)/g;
 
 /**
@@ -52,11 +55,13 @@ const KEY_VALUE = /(Key \([^)]*\)=\()[^)]*\)/g;
  */
 export function scrubMessage(message: string): string {
   try {
+    const withoutParams = message.replace(QUERY_PARAMS, "params: [redacted]");
+    const withoutValues = FAILED_QUERY.test(withoutParams)
+      ? withoutParams
+      : withoutParams.replace(DOUBLE_QUOTED, '"[redacted]"');
     const line = redactAccountKeyFromUrl(
-      message
-        .replace(QUERY_PARAMS, "params: [redacted]")
+      withoutValues
         .replace(KEY_VALUE, "$1[redacted])")
-        .replace(DOUBLE_QUOTED, '"[redacted]"')
         .replace(URL_CREDENTIALS, "$1[redacted]@")
         .replace(BEARER, "$1 [redacted]")
         .replace(STRIPE_SECRET, "[redacted]"),

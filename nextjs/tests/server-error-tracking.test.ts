@@ -12,7 +12,12 @@ import { after, before, test } from "node:test";
 
 import * as Sentry from "@sentry/nextjs";
 
-import { LEAKY_EMAIL, LEAKY_KEY, leakyDbError } from "./db-error-fixture";
+import {
+  LEAKY_EMAIL,
+  LEAKY_KEY,
+  LEAKY_SQL,
+  leakyDbError,
+} from "./db-error-fixture";
 
 const COOKIE = "better-auth.session_token=s3ss10n-c00k1e";
 const CLIENT_IP = "203.0.113.7";
@@ -157,7 +162,9 @@ test("a route-handler error sends exactly one event, with nothing private in it"
   ).values;
   const top = values[values.length - 1]!;
 
-  assert.match(top.value, /^Failed query: /);
+  // The SQL (column names, `$n` placeholders) stays readable; the bound
+  // values after `params:` do not.
+  assert.ok(top.value.startsWith(`Failed query: ${LEAKY_SQL}`), top.value);
   assert.match(top.value, /params: \[redacted\]/);
   assert.ok((top.stacktrace?.frames.length ?? 0) > 0);
 });
