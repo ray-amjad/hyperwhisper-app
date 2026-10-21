@@ -4724,9 +4724,11 @@ internal static class Program
                     double halfway = rampStart + (ramp - rampStart) * EaseOutCubic(0.5);
                     Assert(Math.Abs(window.CurrentProgress - halfway) < 0.01,
                         $"30 s into the ramp the bar reads {window.CurrentProgress:F3}, not {halfway:F3} on the ease curve");
-                    window.AdvanceAnimation(start.AddSeconds(55));
-                    Assert(window.CurrentProgress < ramp - 0.001f && !window.IsIndeterminate,
-                        $"the ramp reached its target before 60 s ({window.CurrentProgress:F3})");
+                    // At 45 s the curve is at ~0.790: still short of the target.
+                    window.AdvanceAnimation(start.AddSeconds(45));
+                    double late = rampStart + (ramp - rampStart) * EaseOutCubic(0.75);
+                    Assert(Math.Abs(window.CurrentProgress - late) < 0.003 && !window.IsIndeterminate,
+                        $"45 s into the ramp the bar reads {window.CurrentProgress:F3}, not {late:F3}");
                     window.AdvanceAnimation(start.AddSeconds(60.5));
                     Assert(window.CurrentProgress == ramp && window.IsIndeterminate,
                         $"the ramp did not end at {ramp:P0} at 60 s ({window.CurrentProgress:F3})");
