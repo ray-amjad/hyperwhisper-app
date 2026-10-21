@@ -614,6 +614,22 @@
       ],
       "licensed": false,
       "note": "unlicensed. Both finds came from MY re-drive, not Codex: vocab pencil→nav away→back→Add overwrites hidden row (#2323); API Keys Refresh() resets Selected to OpenAI so 2nd Delete erases OpenAI (#2324). Codex's 'trims spaces' vocab defect = by design. home-and-tray clean."
+    },
+    {
+      "at": "2026-10-21T16:29:44Z",
+      "platform": "linux",
+      "commit": "5eb71209",
+      "routes": [
+        "core-settings",
+        "licence",
+        "modes"
+      ],
+      "status": "1-filed",
+      "issues": [
+        2382
+      ],
+      "licensed": false,
+      "note": "Unlicensed (no HYPERWHISPER_ACCOUNT_KEY). core-settings: toggles in General/Sound/Text Output OK, persistence-after-restart not checked (step cap). licence: Codex stopped at step 7 'no JSON from codex'; manual: empty key disables Activate, garbage key 'License key not found', 400-char key 'That doesn't look like an account key' - all fine. modes: create/rename long name/switch/delete active/delete last all fine; filed #2382 (new mode no English Spelling). Not covered: emoji/duplicate names, Cloud transcription."
     }
   ]
 }
