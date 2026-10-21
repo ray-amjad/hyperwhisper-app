@@ -1,24 +1,61 @@
 // SOUND SETTINGS PAGE
-// Handles sound effect preferences for recording start/stop audio feedback.
+// Handles sound effect preferences for recording start/stop audio feedback,
+// and the Microphone picker + Test meter (MicrophonePickerViewModel).
 
 using System.Windows;
 using System.Windows.Controls;
 using HyperWhisper.Localization;
 using HyperWhisper.Services;
+using HyperWhisper.ViewModels;
 
 namespace HyperWhisper.Views.Pages.Settings;
 
 public partial class SoundSettingsPage : Page
 {
+    private MicrophonePickerViewModel? _microphonePicker;
+
     public SoundSettingsPage()
     {
         InitializeComponent();
         Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         InitializeSettings();
+        AttachMicrophonePicker();
+    }
+
+    /// <summary>
+    /// Leaving the page disposes the picker: it stops a running Test, releases
+    /// the tester and drops the subscription to MainViewModel, so a cached page
+    /// does not rebuild behind the user's back. Loaded makes a fresh one.
+    /// </summary>
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        var picker = _microphonePicker;
+        _microphonePicker = null;
+        MicrophonePickerRow.DataContext = null;
+        picker?.Dispose();
+    }
+
+    private void AttachMicrophonePicker()
+    {
+        if (_microphonePicker == null)
+        {
+            if (Window.GetWindow(this)?.DataContext is not MainViewModel main)
+            {
+                // No main view model (a design-time host): the row cannot work.
+                MicrophonePickerRow.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            _microphonePicker = new MicrophonePickerViewModel(main);
+            MicrophonePickerRow.DataContext = _microphonePicker;
+        }
+
+        _microphonePicker.Attach();
     }
 
     private void InitializeSettings()

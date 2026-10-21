@@ -9,6 +9,7 @@ import {
 } from "@/src/lib/db-layer";
 import { isRecord } from "@/src/lib/type-guards";
 import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
+import { creditPoolIdFor } from "@/src/lib/credit-pool-id";
 import { describeDbError } from "@/lib/shared/db-error";
 import { licenseCreditsRateLimiter } from "@/lib/rate-limit";
 import { rateLimitGate } from "@/lib/rate-limit-gate";
@@ -75,10 +76,13 @@ export async function GET(req: NextRequest) {
     }
 
     const credits = await getCreditBalance(license.userId);
+    // Opaque and per user, never the user id (#2026). Omitted when unset.
+    const creditPoolId = creditPoolIdFor(license.userId);
 
     return NextResponse.json({
       credits,
       stripe_customer_id: license.stripeCustomerId,
+      ...(creditPoolId ? { credit_pool_id: creditPoolId } : {}),
     });
   } catch (error) {
     console.error("Credits balance error:", describeDbError(error));
@@ -172,9 +176,16 @@ export async function POST(req: NextRequest) {
       metadata,
     });
 
+    // The cloud rewrites its licence cache from this reply, so it carries the
+    // pool id too: a key cached without one (or under a rotated secret) gets
+    // the current one at its next charge, not only when its cache expires
+    // (#2026). Omitted when unset.
+    const creditPoolId = creditPoolIdFor(license.userId);
+
     return NextResponse.json({
       credits_remaining: newCredits,
       credits_deducted: amount,
+      ...(creditPoolId ? { credit_pool_id: creditPoolId } : {}),
     });
   } catch (error) {
     console.error("Credits deduction error:", describeDbError(error));
