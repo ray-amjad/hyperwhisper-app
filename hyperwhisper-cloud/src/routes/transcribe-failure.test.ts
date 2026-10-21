@@ -1,6 +1,19 @@
-import { describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { Hono } from 'hono';
 import { ProviderInputError } from '../providers/types';
 import { providerChainFailureResponse } from './transcribe-failure';
+
+// A valid, well-funded licensed user so the route reaches the provider chain.
+// mock.module is process-wide in bun: keep the `redis` export (see
+// transcribe.test.ts) or other files fail to load.
+mock.module('../lib/redis', () => ({
+  redis: {},
+  isIPBlocked: async () => false,
+  getCachedLicense: async () => ({ isValid: true, credits: 1000, cachedAt: 'cached' }),
+  cacheLicense: async () => {},
+}));
+
+const { transcribeRoute } = await import('./transcribe');
 
 function baseInput() {
   return {
@@ -32,7 +45,7 @@ describe('providerChainFailureResponse', () => {
     expect(response.status).toBe(400);
     expect(await body(response)).toEqual({
       error: 'Transcription input rejected',
-      message: 'No transcription provider accepted this request: ElevenLabs rejected input (422): invalid language',
+      message: 'No transcription provider accepted this audio or its settings (for example the language).',
       requestId: 'request-123',
       provider: 'elevenlabs',
     });
@@ -56,7 +69,7 @@ describe('providerChainFailureResponse', () => {
     });
   });
 
-  test('returns 502 for a self-only provider and preserves the upstream error', async () => {
+  test('returns 502 for a self-only provider without echoing the upstream error', async () => {
     const response = providerChainFailureResponse({
       ...baseInput(),
       provider: 'google-chirp',
@@ -67,7 +80,7 @@ describe('providerChainFailureResponse', () => {
     expect(response.status).toBe(502);
     expect(await body(response)).toEqual({
       error: 'google-chirp unavailable',
-      message: 'Google Speech deadline exceeded',
+      message: 'google-chirp is currently unavailable. Please try again shortly.',
       requestId: 'request-123',
       provider: 'google-chirp',
     });
@@ -109,5 +122,111 @@ describe('providerChainFailureResponse', () => {
       message: 'All transcription providers are currently rate-limited. Please try again shortly.',
       requestId: 'request-123',
     });
+  });
+});
+
+// #2131: drive the real /transcribe route so the provider's own failure text
+// comes from a real adapter, and check it reaches the log but not the reply.
+describe('transcribeRoute chain failure keeps provider text out of the reply (#2131)', () => {
+  const MARKER = 'MARKER-2131-provider-text';
+  const originalFetch = globalThis.fetch;
+  const savedEnv: Record<string, string | undefined> = {};
+  const keys = ['ELEVENLABS_API_KEY', 'DEEPGRAM_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY'];
+
+  beforeEach(() => {
+    for (const key of keys) {
+      savedEnv[key] = process.env[key];
+      process.env[key] = `test-${key}`;
+    }
+  });
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    for (const key of keys) {
+      if (savedEnv[key] === undefined) delete process.env[key];
+      else process.env[key] = savedEnv[key];
+    }
+  });
+
+  function transcribeRequest(provider: string): Request {
+    const audio = new Uint8Array(2048);
+    return new Request('http://localhost/transcribe?license_key=test-license&language=en-US', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'audio/wav',
+        'Content-Length': String(audio.byteLength),
+        'X-STT-Provider': provider,
+      },
+      body: audio,
+    });
+  }
+
+  async function run(provider: string) {
+    const app = new Hono();
+    app.post('/transcribe', transcribeRoute);
+    const logged: string[] = [];
+    const originalLog = console.log;
+    console.log = ((...args: unknown[]) => { logged.push(args.map(String).join(' ')); }) as typeof console.log;
+    let response: Response;
+    try {
+      response = await app.fetch(transcribeRequest(provider));
+    } finally {
+      console.log = originalLog;
+    }
+    const raw = await response.text();
+    const fail = logged
+      .filter((line) => line.startsWith('{'))
+      .map((line) => JSON.parse(line) as { event: string; requestId?: string; kind?: string; message?: string })
+      .find((event) => event.event === 'transcribe.request_fail');
+    return { response, raw, body: JSON.parse(raw) as Record<string, unknown>, fail };
+  }
+
+  test('every provider 400s with a marker body: fixed 400, marker only in the log', async () => {
+    const called: string[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.elevenlabs.io') || url.includes('api.deepgram.com') || url.includes('api.groq.com')) {
+        called.push(new URL(url).hostname);
+        return new Response(JSON.stringify({ detail: MARKER }), { status: 400 });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const { response, raw, body, fail } = await run('elevenlabs');
+
+    expect(called).toEqual(['api.elevenlabs.io', 'api.deepgram.com', 'api.groq.com']);
+    expect(response.status).toBe(400);
+    expect(body).toMatchObject({
+      error: 'Transcription input rejected',
+      message: 'No transcription provider accepted this audio or its settings (for example the language).',
+      provider: 'elevenlabs',
+    });
+    expect(raw).not.toContain(MARKER);
+    expect(fail).toMatchObject({ requestId: body.requestId, kind: 'all_providers_rejected_input' });
+    expect(fail?.message).toContain(MARKER);
+  });
+
+  test('a self-only provider whose fetch rejects: fixed 502, marker only in the log', async () => {
+    const called: string[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.openai.com')) {
+        called.push('openai');
+        throw new TypeError(MARKER);
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const { response, raw, body, fail } = await run('openai');
+
+    expect(called.length).toBeGreaterThan(0);
+    expect(response.status).toBe(502);
+    expect(body).toMatchObject({
+      error: 'openai unavailable',
+      message: 'openai is currently unavailable. Please try again shortly.',
+      provider: 'openai',
+    });
+    expect(raw).not.toContain(MARKER);
+    expect(fail).toMatchObject({ requestId: body.requestId, kind: 'self_only_chain_failed' });
+    expect(fail?.message).toContain(MARKER);
   });
 });
