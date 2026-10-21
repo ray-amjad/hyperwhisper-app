@@ -127,7 +127,8 @@ body {
   }
 }
 
-/* Inline editor that replaces a table cell's content (#914). A <td> with
+/* Inline editor that replaces a table cell's content (#914), and the
+   disclosures that open below a control (#702). A <td> with
    height auto never tweens its height, so the wrapper animates its one grid
    row 0fr -> 1fr instead: the row grows through real intermediate heights.
    The child clips (overflow: clip, not hidden, so autoFocus cannot scroll it).
@@ -239,5 +240,19 @@ body {
     opacity: 1;
     transform: none;
     filter: none;
+  }
+}
+
+/* A box whose content changes height (#702): the script sets an explicit
+   height from the measured content, and the height tweens to it. The box
+   must clip its overflow itself, or the new content spills out mid-tween. */
+.t-resize {
+  transition: height 300ms ease-out;
+}
+
+/* Reduce motion: the box lands at its new size in one frame. */
+@media (prefers-reduced-motion: reduce) {
+  .t-resize {
+    transition: none;
   }
 }
