@@ -191,9 +191,9 @@ public static class LoggingService
         sb.AppendLine($"  64-bit Process: {Environment.Is64BitProcess}");
         sb.AppendLine($"  Machine Name: {Environment.MachineName}");
         sb.AppendLine($"  Processor Count: {Environment.ProcessorCount}");
-        sb.AppendLine($"  Working Directory: {Environment.CurrentDirectory}");
-        sb.AppendLine($"  Executable Path: {Environment.ProcessPath}");
-        sb.AppendLine($"  AppDomain Base Directory: {AppDomain.CurrentDomain.BaseDirectory}");
+        sb.AppendLine($"  Working Directory: {SentryService.RedactUserIdentifiers(Environment.CurrentDirectory)}");
+        sb.AppendLine($"  Executable Path: {SentryService.RedactUserIdentifiers(Environment.ProcessPath)}");
+        sb.AppendLine($"  AppDomain Base Directory: {SentryService.RedactUserIdentifiers(AppDomain.CurrentDomain.BaseDirectory)}");
         sb.AppendLine("=========================================");
 
         Info(sb.ToString());
@@ -223,8 +223,8 @@ public static class LoggingService
         var baseDir = AppDomain.CurrentDomain.BaseDirectory;
         var runtimesDir = Path.Combine(baseDir, "runtimes");
 
-        sb.AppendLine($"  Base Directory: {baseDir}");
-        sb.AppendLine($"  Runtimes Directory: {runtimesDir}");
+        sb.AppendLine($"  Base Directory: {SentryService.RedactUserIdentifiers(baseDir)}");
+        sb.AppendLine($"  Runtimes Directory: {SentryService.RedactUserIdentifiers(runtimesDir)}");
         sb.AppendLine($"  Runtimes Exists: {Directory.Exists(runtimesDir)}");
 
         if (Directory.Exists(runtimesDir))
@@ -527,7 +527,7 @@ public static class LoggingService
             }
 
             ZipFile.CreateFromDirectory(tempRoot, destinationPath, CompressionLevel.Optimal, includeBaseDirectory: false);
-            Info($"LoggingService: Exported diagnostics to {destinationPath}");
+            Info($"LoggingService: Exported diagnostics to {SentryService.RedactUserIdentifiers(destinationPath)}");
             return destinationPath;
         }
         finally

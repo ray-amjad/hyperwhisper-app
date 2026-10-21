@@ -76,7 +76,7 @@ public class LocalLlmModelService
         LoggingService.Info("========== STARTING LOCAL LLM MODEL DOWNLOAD ==========");
         LoggingService.Info($"  Model: {model.DisplayName}");
         LoggingService.Info($"  URL: {model.DownloadUrl}");
-        LoggingService.Info($"  Destination: {finalPath}");
+        LoggingService.Info($"  Destination: {SentryService.RedactUserIdentifiers(finalPath)}");
         LoggingService.Info($"  Expected size: {model.Size}");
 
         using var httpClient = new HttpClient();

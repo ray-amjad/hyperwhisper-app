@@ -159,7 +159,7 @@ public class WhisperModelService
         LoggingService.Info($"  Model: {model.DisplayName}");
         LoggingService.Info($"  Type: {model.Type}");
         LoggingService.Info($"  URL: {downloadUrl}");
-        LoggingService.Info($"  Destination: {modelPath}");
+        LoggingService.Info($"  Destination: {SentryService.RedactUserIdentifiers(modelPath)}");
         LoggingService.Info($"  Expected size: {model.Size}");
 
         using var httpClient = new HttpClient();
