@@ -26,7 +26,7 @@ import { after, before, beforeEach, describe, test } from "node:test";
 import { Redis } from "@upstash/redis";
 
 import { listen, store, upstashRestServer } from "./fake-upstash-server";
-import { moduleMock } from "./module-mock";
+import { captureConsole, moduleMock } from "./module-mock";
 
 import type { auth as AuthInstance } from "@/src/lib/auth";
 import type * as StorageModule from "@/src/lib/auth-rate-limit-storage";
@@ -99,15 +99,11 @@ function licenseSignIn(ip: string): Request {
 
 /** Swallows console.warn for one call and returns what was warned. */
 async function captureWarnings<T>(run: () => Promise<T>): Promise<{ result: T; warnings: string[] }> {
-  const warnings: string[] = [];
-  const realWarn = console.warn;
-  console.warn = (...args: unknown[]) => {
-    warnings.push(args.map(String).join(" "));
-  };
+  const capture = captureConsole(["warn"]);
   try {
-    return { result: await run(), warnings };
+    return { result: await run(), warnings: capture.lines };
   } finally {
-    console.warn = realWarn;
+    capture.restore();
   }
 }
 

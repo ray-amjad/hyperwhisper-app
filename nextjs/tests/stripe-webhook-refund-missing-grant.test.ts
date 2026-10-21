@@ -29,8 +29,7 @@ import {
   seedGrant,
   seedUser,
 } from "./credit-ledger-harness";
-import { formatLogArgs } from "./db-error-fixture";
-import { moduleMock, moduleUrl } from "./module-mock";
+import { captureConsole, type ConsoleCapture, moduleMock, moduleUrl } from "./module-mock";
 
 /** Checkout Sessions Stripe would return, keyed by payment intent. */
 const sessionsByIntent = new Map<string, unknown>();
@@ -74,7 +73,7 @@ let L: Awaited<ReturnType<typeof loadDbLayer>>;
 let POST: PostHandler;
 
 const logLines: string[] = [];
-const realConsole = { log: console.log, warn: console.warn, error: console.error };
+let consoleCapture: ConsoleCapture | null = null;
 
 /** 2026-06-16T06:55:05.796Z, the journal `when` of 0006_fat_husk. */
 const LEDGER_STARTED_S = Math.floor(1781592905796 / 1000);
@@ -85,19 +84,10 @@ before(async () => {
   ({ POST } = (await import("@/app/api/webhooks/stripe/route")) as unknown as {
     POST: PostHandler;
   });
-  const capture =
-    (level: string) =>
-    (...args: unknown[]): void => {
-      logLines.push(`${level} ${formatLogArgs(args)}`);
-    };
-  console.log = capture("log");
-  console.warn = capture("warn");
-  console.error = capture("error");
+  consoleCapture = captureConsole(["log", "warn", "error"], logLines);
 });
 after(() => {
-  console.log = realConsole.log;
-  console.warn = realConsole.warn;
-  console.error = realConsole.error;
+  consoleCapture?.restore();
 });
 beforeEach(async () => {
   await resetDatabase();

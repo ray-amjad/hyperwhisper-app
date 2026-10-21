@@ -23,6 +23,7 @@ import {
   resetHarness,
 } from "./admin-customers-harness";
 import { formatLogArgs, leakyDbError, leakyLines } from "./db-error-fixture";
+import { captureConsole, type ConsoleCapture } from "./module-mock";
 
 const LICENSE_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -637,17 +638,16 @@ describe("list", () => {
 
 describe("a drizzle error (#1039)", () => {
   let errorLines: string[] = [];
-  const realError = console.error;
+  let errorCapture: ConsoleCapture | null = null;
 
   beforeEach(() => {
-    errorLines = [];
-    console.error = (...args: unknown[]): void => {
-      errorLines.push(formatLogArgs(args));
-    };
+    errorCapture = captureConsole(["error"]);
+    errorLines = errorCapture.lines;
   });
 
   afterEach(() => {
-    console.error = realError;
+    errorCapture?.restore();
+    errorCapture = null;
   });
 
   test("updateEmail turns drizzle's 23505 on .cause into CONFLICT", async () => {

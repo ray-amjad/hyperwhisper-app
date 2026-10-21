@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { captureConsole } from "./module-mock";
+
 // Imported through a variable specifier inside each test, the way the other
 // tests in this folder do: a static `.ts` import path is a type error under this
 // tsconfig, but `node --test --experimental-strip-types` needs the extension.
@@ -134,14 +136,7 @@ test("the OpenAI filter drops dated snapshots and excluded families", async () =
 });
 
 /** Swap console.error for a recorder; the caller restores it in `finally`. */
-function captureConsoleError() {
-  const original = console.error;
-  const lines: string[] = [];
-  console.error = (...args: unknown[]) => {
-    lines.push(args.map(String).join(" "));
-  };
-  return { lines, restore: () => (console.error = original) };
-}
+const captureConsoleError = () => captureConsole(["error"]);
 
 test("a rejected provider fetch logs the provider and the cause, and keeps the result shape", async () => {
   const { createModelList } = await load();

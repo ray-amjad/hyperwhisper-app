@@ -15,8 +15,8 @@ import test, { afterEach, beforeEach } from "node:test";
 import { callTRPCProcedure, type AnyRouter } from "@trpc/server";
 
 import { emailTag } from "../lib/shared/redact";
-import { formatLogArgs, leakyDbError, leakyLines } from "./db-error-fixture";
-import { moduleMock, moduleUrl } from "./module-mock";
+import { leakyDbError, leakyLines } from "./db-error-fixture";
+import { captureConsole, type ConsoleCapture, moduleMock, moduleUrl } from "./module-mock";
 
 /** As Stripe or a form hands it over: mixed case, trailing space. */
 const RAW = "Alice.Smith@Acme-Widgets.com ";
@@ -73,31 +73,23 @@ const EMAIL_PATH = "../lib/services/email.ts";
 const DOWNLOAD_PATH = "../server/api/routers/download.ts";
 
 let lines: string[] = [];
-const realConsole = { log: console.log, warn: console.warn, error: console.error };
+let consoleCapture: ConsoleCapture | null = null;
 const realFetch = globalThis.fetch;
 
 beforeEach(() => {
-  lines = [];
+  // Rendered as Node's console does: `util.inspect` keeps stack, params, cause.
+  consoleCapture = captureConsole(["log", "warn", "error"]);
+  lines = consoleCapture.lines;
   sentEmailRows.length = 0;
   behaviour.result = { data: { id: "msg_1" }, error: null };
   behaviour.dbError = null;
-  const capture =
-    (level: string) =>
-    (...args: unknown[]): void => {
-      // Rendered as Node's console does: `util.inspect` keeps stack, params, cause.
-      lines.push(`${level} ${formatLogArgs(args)}`);
-    };
-  console.log = capture("log");
-  console.warn = capture("warn");
-  console.error = capture("error");
   // `recordDownload` fetches the appcast; answer "not found" with no network.
   globalThis.fetch = (async () => new Response("", { status: 404 })) as typeof fetch;
 });
 
 afterEach(() => {
-  console.log = realConsole.log;
-  console.warn = realConsole.warn;
-  console.error = realConsole.error;
+  consoleCapture?.restore();
+  consoleCapture = null;
   globalThis.fetch = realFetch;
 });
 

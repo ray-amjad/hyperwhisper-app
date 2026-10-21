@@ -22,7 +22,7 @@ import test, { after } from "node:test";
 
 import { sha256Hex } from "../lib/shared/sha256";
 
-import { moduleMock, moduleUrl } from "./module-mock";
+import { captureConsole, moduleMock, moduleUrl } from "./module-mock";
 
 process.env.SKIP_ENV_VALIDATION = "1";
 
@@ -134,15 +134,11 @@ const behaviour = {
  * process) and zero `console.error`, so the count below belongs to the
  * callback alone — but do not start recording `warn` here or it will not.
  */
-const logLines: string[] = [];
-const realConsoleError = console.error;
-
-console.error = (...args: unknown[]): void => {
-  logLines.push(args.map((a) => String(a)).join(" "));
-};
+const errorCapture = captureConsole(["error"]);
+const logLines = errorCapture.lines;
 
 after(() => {
-  console.error = realConsoleError;
+  errorCapture.restore();
 });
 
 // Keyed on the REAL file, so the registry key matches even though `auth.ts`

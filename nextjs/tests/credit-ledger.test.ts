@@ -20,6 +20,7 @@ import {
   setCachedBalance,
   stripeEventCount,
 } from "./credit-ledger-harness";
+import { captureConsole } from "./module-mock";
 import * as schema from "../src/db/schema";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -252,12 +253,7 @@ describe("spendCreditGrantsByProvenance", () => {
 });
 
 describe("deductCreditBalance shortfall log (#2008)", () => {
-  function captureWarn(): { lines: string[]; restore: () => void } {
-    const lines: string[] = [];
-    const original = console.warn;
-    console.warn = (...args: unknown[]) => { lines.push(args.map(String).join(" ")); };
-    return { lines, restore: () => { console.warn = original; } };
-  }
+  const captureWarn = () => captureConsole(["warn"]);
 
   test("an overspend the floor swallows is logged as one credits_shortfall line, and the balance stays at zero", async () => {
     await seedUser("u1");
