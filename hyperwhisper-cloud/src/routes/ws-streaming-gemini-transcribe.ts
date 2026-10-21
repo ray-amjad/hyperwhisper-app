@@ -248,6 +248,13 @@ export function parseGeminiLiveClose(code: number, reason: string): UpstreamEven
     return [{ kind: 'error', message: 'Transcription service rejected the session setup', terminal: true }];
   }
 
+  if (code === 1002) {
+    // The upgrade was refused (Bun: "Expected 101 status code"), whatever the
+    // HTTP status, a vendor 503 included. Terminal so the client closes 1011
+    // and neither app reconnects into the same refusal (Ray, 2026-10-19, #1410).
+    return [{ kind: 'error', message: 'Transcription service error', terminal: true }];
+  }
+
   return [{ kind: 'error', message: 'Transcription service error', terminal: false }];
 }
 

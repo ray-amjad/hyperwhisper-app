@@ -850,6 +850,63 @@ describe('gemini live socket lifecycle', () => {
       expect(sessionEnds[0]!.details).toMatchObject({ creditsUsed: 0, upstreamReached: false });
     });
 
+    /** A session whose upstream socket was dialled but never opened. */
+    function openUnhandshakedSession(): { client: FakeClientSocket; upstream: FakeUpstreamSocket } {
+      const account = 'key-1234-abcd';
+      const auth: AuthContext = { identifier: account, licenseKey: account, credits: 100 };
+      const events = createGeminiTranscribeStreamingEvents(
+        fakeContext(auth, `https://transcribe.example/ws/streaming-gemini-transcribe?account_key=${auth.licenseKey}`),
+      );
+      const client = new FakeClientSocket();
+      events.onOpen(new Event('open'), client);
+      return { client, upstream: upstreamSockets[upstreamSockets.length - 1]! };
+    }
+
+    // #1410: the client was told twice (the socket `error` listener, then the
+    // close mapping) and then closed 1000, which reads as a clean end.
+    test('a refused upgrade sends exactly one error frame and closes the client 1011 (#1410)', async () => {
+      const { client, upstream } = openUnhandshakedSession();
+
+      // What Bun fires when Google answers the upgrade with an HTTP 400 or 503.
+      upstream.emit('error', {});
+      upstream.emit('close', { code: 1002, reason: 'Expected 101 status code' });
+      await drainPendingDeductions(2000);
+
+      expect(client.messagesOfType('error')).toEqual([
+        { type: 'error', message: 'Transcription service error' },
+      ]);
+      expect(client.messages().map((message) => message.type)).toEqual(['error', 'session_complete']);
+      expect(client.closes).toEqual([{ code: 1011, reason: 'Upstream error' }]);
+      expect(licenseCharges).toEqual([]);
+    });
+
+    test('a handshake error whose close maps to no error still tells the client once', async () => {
+      const { client, upstream } = openUnhandshakedSession();
+
+      upstream.emit('error', {});
+      expect(client.messagesOfType('error')).toHaveLength(0);
+      upstream.emit('close', { code: 1005, reason: '' });
+      await drainPendingDeductions(2000);
+
+      expect(client.messagesOfType('error')).toEqual([
+        { type: 'error', message: 'Transcription service error' },
+      ]);
+      expect(client.closes).toEqual([{ code: 1000, reason: 'Session ended' }]);
+    });
+
+    test('a handshake error followed by a transient close is reported once and stays transient', async () => {
+      const { client, upstream } = openUnhandshakedSession();
+
+      upstream.emit('error', {});
+      upstream.emit('close', { code: 1006, reason: '' });
+      await drainPendingDeductions(2000);
+
+      expect(client.messagesOfType('error')).toEqual([
+        { type: 'error', message: 'Transcription service error' },
+      ]);
+      expect(client.closes).toEqual([{ code: 1000, reason: 'Session ended' }]);
+    });
+
     test('no Gemini key: the session deducts 0 credits (#1191)', async () => {
       delete process.env.GEMINI_API_KEY;
       const account = 'key-1234-abcd';
@@ -893,6 +950,12 @@ describe('gemini live socket lifecycle', () => {
     test('an unexpected close code stays transient so the client may reconnect', () => {
       expect(parseGeminiLiveClose(1006, '')).toEqual([
         { kind: 'error', message: 'Transcription service error', terminal: false },
+      ]);
+    });
+
+    test('a 1002 close (a refused upgrade, any HTTP status) is terminal (#1410)', () => {
+      expect(parseGeminiLiveClose(1002, 'Expected 101 status code')).toEqual([
+        { kind: 'error', message: 'Transcription service error', terminal: true },
       ]);
     });
 
