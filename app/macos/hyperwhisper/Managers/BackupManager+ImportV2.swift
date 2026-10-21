@@ -91,7 +91,7 @@ extension BackupManager {
         // then vocabulary only if the modes saved; a failed section is left as it was.
         // Step 5 still runs, as it always did; the result then says which section failed.
         // Per-mode default model selections are parked under
-        // platformExtensions.macos.settings.aiModel.defaultModelByMode in v2 (NOT top-level settings).
+        // platformExtensions.macos.settings.defaultModelByMode in v2 (NOT top-level settings).
         // Only applied when Settings import was chosen (mirrors the v1 guard).
         let store = importBackupStoreSections(
             modes: modesToImport,
@@ -341,17 +341,12 @@ extension BackupManager {
         )
     }
 
-    /// Extracts `defaultModelByMode` from the parked `platformExtensions.macos.settings` blob.
-    /// The macOS v2 export nests it under the `aiModel` category (#2207); a flat
-    /// `settings.defaultModelByMode`, which the core also reads back into `aiModel`, is the
-    /// fallback. Returns nil when absent/empty.
+    /// Extracts `defaultModelByMode` from the parked `platformExtensions.macos.settings` blob
+    /// (where v2 stores it). Returns nil when absent/empty.
     nonisolated static func defaultModelByModeFromExtensions(_ ext: JSONValue?) -> [String: String]? {
         guard let macos = ext?.objectValue?["macos"]?.objectValue,
-              let settings = macos["settings"]?.objectValue else {
-            return nil
-        }
-        let nested = settings["aiModel"]?.objectValue?["defaultModelByMode"]
-        guard case .object(let map)? = nested ?? settings["defaultModelByMode"] else {
+              let settings = macos["settings"]?.objectValue,
+              case .object(let map)? = settings["defaultModelByMode"] else {
             return nil
         }
         var result: [String: String] = [:]
