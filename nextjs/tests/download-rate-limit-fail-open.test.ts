@@ -13,7 +13,7 @@ import test, { afterEach, beforeEach } from "node:test";
 
 import { TRPCError, callTRPCProcedure, type AnyRouter } from "@trpc/server";
 
-import { moduleMock, moduleUrl } from "./module-mock";
+import { captureConsole, moduleMock, moduleUrl, type ConsoleCapture } from "./module-mock";
 
 const behaviour = {
   /** Thrown by the limiter when set: Upstash unreachable. */
@@ -69,7 +69,7 @@ const DOWNLOAD_PATH = "../server/api/routers/download.ts";
 const CLIENT_IP = "203.0.113.7";
 
 let warnings: string[] = [];
-const realConsole = { log: console.log, warn: console.warn, error: console.error };
+let captures: ConsoleCapture[] = [];
 const realFetch = globalThis.fetch;
 
 beforeEach(() => {
@@ -79,19 +79,13 @@ beforeEach(() => {
   calls.upserts = 0;
   calls.welcomeEmails = 0;
   warnings = [];
-  console.log = () => {};
-  console.error = () => {};
-  console.warn = (...args: unknown[]) => {
-    warnings.push(args.map(String).join(" "));
-  };
+  captures = [captureConsole(["log", "error"]), captureConsole(["warn"], warnings)];
   // `recordDownload` fetches the appcast; answer "not found" with no network.
   globalThis.fetch = (async () => new Response("", { status: 404 })) as typeof fetch;
 });
 
 afterEach(() => {
-  console.log = realConsole.log;
-  console.warn = realConsole.warn;
-  console.error = realConsole.error;
+  for (const capture of captures) capture.restore();
   globalThis.fetch = realFetch;
 });
 
