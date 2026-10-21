@@ -169,6 +169,18 @@ test("a route-handler error sends exactly one event, with nothing private in it"
   assert.ok((top.stacktrace?.frames.length ?? 0) > 0);
 });
 
+test("the same route error twice sends two events, one per request", async () => {
+  const before = events().length;
+  // Built side by side, so both carry the same message AND the same stack.
+  const errors = [1, 2].map(() => new Error("upstream failed"));
+
+  for (const error of errors) {
+    await instrumentation.onRequestError(error, leakyRequest(), routeContext);
+  }
+  await Sentry.flush(2_000);
+  assert.equal(events().length - before, 2);
+});
+
 test("scrubMessage cuts keys, emails, quoted values, auth and Stripe secrets", () => {
   const out = config.scrubMessage(
     `user ${LEAKY_EMAIL} key hw-ab12-cd34-ef56-gh78 Bearer abc.def ` +

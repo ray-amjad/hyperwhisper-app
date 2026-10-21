@@ -132,7 +132,9 @@ export function initErrorTracking(
     integrations: [
       Sentry.functionToStringIntegration(),
       Sentry.linkedErrorsIntegration(),
-      Sentry.dedupeIntegration(),
+      // No dedupe: it drops an error identical to the one before it, so a
+      // route failing on every request would show as one event and never trip
+      // a rate alert. The SDK already skips an error object captured twice.
       Sentry.onUncaughtExceptionIntegration(),
       // `strict` keeps Bun's own behaviour: an unhandled rejection still ends
       // the process (after the event is sent), as it does with no DSN.

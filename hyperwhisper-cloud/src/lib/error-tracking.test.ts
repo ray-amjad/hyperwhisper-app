@@ -154,6 +154,18 @@ describe('with SENTRY_DSN set', () => {
     expect(exception.stacktrace?.frames.length).toBeGreaterThan(0);
   });
 
+  test('the same route error twice sends two events, one per request', async () => {
+    const fail = () =>
+      server.fetch(new Request('http://localhost/usage', { headers: { 'X-Forwarded-For': '203.0.113.7' } }));
+    // Built side by side, so both carry the same message AND the same stack.
+    for (const error of [1, 2].map(() => new Error('upstream failed'))) {
+      ipBlockedError = error;
+      expect((await fail()).status).toBe(500);
+    }
+    await Sentry.flush(2_000);
+    expect(capturedEvents()).toHaveLength(2);
+  });
+
   test('a request that succeeds sends nothing', async () => {
     const res = await server.fetch(new Request('http://localhost/health'));
     expect(res.status).toBe(200);

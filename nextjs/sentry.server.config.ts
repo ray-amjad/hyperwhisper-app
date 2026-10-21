@@ -205,7 +205,9 @@ export function initServerErrorTracking(
     integrations: [
       Sentry.functionToStringIntegration(),
       Sentry.linkedErrorsIntegration(),
-      Sentry.dedupeIntegration(),
+      // No dedupe: it drops an error identical to the one before it, so a
+      // route failing on every request would show as one event and never trip
+      // a rate alert. The SDK already skips an error object captured twice.
     ],
     beforeSend: scrubEvent,
     ...(options.transport ? { transport: options.transport } : {}),
