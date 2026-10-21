@@ -18,6 +18,14 @@ final class RecordingWindowManager {
     private(set) var panel: NSPanel?
     private var obsTokens: [NSObjectProtocol] = []
 
+    /// The recording dialog's size. The toasts and the streaming preview that
+    /// sit above the dialog read it to place themselves when it is not visible.
+    static let dialogSize = NSSize(width: 200, height: 40)
+
+    /// Gap between the bottom of the screen's visible frame and the dialog
+    /// when it opens at its default position.
+    static let defaultBottomMargin: CGFloat = 40
+
     // MARK: - Position Persistence
 
 
@@ -124,24 +132,20 @@ final class RecordingWindowManager {
         panel.title = windowTitle
 
         // Non-activating floating panel that can appear over fullscreen apps
-        panel.styleMask = [.nonactivatingPanel]
+        // and across all Spaces; the user drags it by its background. No
+        // shadow, so the SwiftUI shadow keeps the corners perfectly rounded.
+        let dialogSize = Self.dialogSize
+        FloatingPanelStyle.apply(
+            to: panel,
+            contentSize: dialogSize,
+            dragging: .byWindowBackground,
+            becomesKeyOnlyIfNeeded: true
+        )
+
+        // Make sure it truly stays on top, even over fullscreen apps.
         panel.isFloatingPanel = true
-
-        // Make sure it truly stays on top, even over fullscreen apps
-        // and across all Spaces.
         panel.level = .screenSaver
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
 
-        // Visuals / interactions
-        panel.isMovableByWindowBackground = true
-        panel.backgroundColor = .clear
-        panel.isOpaque = false
-        panel.hasShadow = false  // Use SwiftUI shadow so corners stay perfectly rounded
-        panel.hidesOnDeactivate = false
-        panel.becomesKeyOnlyIfNeeded = true
-
-        let dialogSize = NSSize(width: 200, height: 40)
-        panel.setContentSize(dialogSize)
         applyRoundedHostingMask(for: panel, cornerRadius: dialogSize.height / 2)
 
         // Restore saved position (ratios) or fall back to bottom-center
@@ -209,11 +213,21 @@ final class RecordingWindowManager {
         }
 
         let screenFrame = screen.visibleFrame
-        let bottomMargin: CGFloat = 40
 
         return NSPoint(
             x: screenFrame.origin.x + (screenFrame.width - panelSize.width) / 2,
-            y: screenFrame.origin.y + bottomMargin
+            y: screenFrame.origin.y + Self.defaultBottomMargin
+        )
+    }
+
+    /// The frame the dialog opens at by default: bottom-center of `visibleFrame`.
+    /// Panels that sit above the dialog use it when the dialog is not visible.
+    static func defaultDialogFrame(in visibleFrame: NSRect) -> NSRect {
+        NSRect(
+            x: visibleFrame.origin.x + (visibleFrame.width - dialogSize.width) / 2,
+            y: visibleFrame.origin.y + defaultBottomMargin,
+            width: dialogSize.width,
+            height: dialogSize.height
         )
     }
 

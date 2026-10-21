@@ -145,96 +145,34 @@ final class ModeChangeToastManager {
 
     /// Configure the panel appearance for floating, non-activating behavior
     ///
-    /// **Panel Configuration:**
-    /// - Non-activating: Doesn't steal focus from other apps
-    /// - Screen saver level: Appears above fullscreen apps
-    /// - Can join all spaces: Visible on all virtual desktops
-    /// - Transparent: SwiftUI handles the visual style
+    /// Same level as the recording dialog (`.screenSaver`), so it appears above
+    /// fullscreen apps. The rest is the shared floating-panel style.
     private func configurePanelAppearance(_ panel: NSPanel) {
-        // Non-activating panel that doesn't become key
-        panel.styleMask = [.nonactivatingPanel]
-
-        // Same level as recording dialog - appears above fullscreen apps
+        FloatingPanelStyle.apply(
+            to: panel,
+            contentSize: NSSize(width: panelWidth, height: panelHeight),
+            dragging: .fixed,
+            becomesKeyOnlyIfNeeded: false
+        )
         panel.level = .screenSaver
-
-        // Collection behavior for multi-space and fullscreen support
-        panel.collectionBehavior = [
-            .canJoinAllSpaces,      // Visible on all virtual desktops
-            .fullScreenAuxiliary,   // Can appear over fullscreen apps
-            .stationary,            // Doesn't move with spaces
-            .ignoresCycle           // Not included in Cmd+Tab cycle
-        ]
-
-        // Visual appearance
-        panel.backgroundColor = .clear
-        panel.isOpaque = false
-        panel.hasShadow = false  // SwiftUI shadow is used instead
-        panel.isMovable = false
-        panel.hidesOnDeactivate = false
-        panel.becomesKeyOnlyIfNeeded = false
-
-        // Set content size
-        panel.setContentSize(NSSize(width: panelWidth, height: panelHeight))
-
-        // Ensure content view is transparent
-        panel.contentView?.wantsLayer = true
-        panel.contentView?.layer?.backgroundColor = NSColor.clear.cgColor
     }
 
     /// Position the panel above the recording dialog
     ///
-    /// **Positioning Logic:**
-    /// 1. Find the recording dialog window by title
-    /// 2. Calculate position centered above it with a fixed gap
-    /// 3. If recording dialog not found, center on screen with default offset
+    /// Centred above the visible recording dialog with a fixed gap, or above
+    /// where the dialog opens by default when it is not visible
+    /// (`RecordingDialogAnchor`).
     private func positionPanelAboveRecordingDialog(_ panel: NSPanel) {
-        // Try to find the recording dialog window
-        let recordingDialogTitle = "recording.dialog.window.title".localized
-        let recordingDialog = NSApplication.shared.windows.first { window in
-            window.title == recordingDialogTitle && window.isVisible
+        let size = NSSize(width: panelWidth, height: panelHeight)
+        guard let placement = RecordingDialogAnchor.place(panel, size: size, gap: gapAboveRecordingDialog) else {
+            return
         }
-
-        if let recordingDialog = recordingDialog {
-            // FOUND: Position above the recording dialog
-            let dialogFrame = recordingDialog.frame
-
-            // Center the toast horizontally relative to the dialog
-            let xOffset = (panelWidth - dialogFrame.width) / 2
-            let x = dialogFrame.origin.x - xOffset
-
-            // Position above the dialog with gap
-            let y = dialogFrame.origin.y + dialogFrame.height + gapAboveRecordingDialog
-
-            panel.setFrame(
-                NSRect(x: x, y: y, width: panelWidth, height: panelHeight),
-                display: true
-            )
-
-            logger.debug("📍 Positioned mode change toast above recording dialog at (\(x), \(y))")
-
+        if placement.isAboveVisibleDialog {
+            logger.debug("📍 Positioned mode change toast above recording dialog at (\(placement.frame.origin.x), \(placement.frame.origin.y))")
         } else {
-            // FALLBACK: Center on screen, above where dialog would be
-            guard let screen = NSScreen.main else {
-                panel.center()
-                return
-            }
-
-            let visible = screen.visibleFrame
-
-            // Recording dialog defaults to bottom-center, 40px from bottom
-            let recordingDialogY: CGFloat = visible.origin.y + 40
-            let recordingDialogHeight: CGFloat = 40
-
-            let x = visible.origin.x + (visible.width - panelWidth) / 2
-            let y = recordingDialogY + recordingDialogHeight + gapAboveRecordingDialog
-
-            panel.setFrame(
-                NSRect(x: x, y: y, width: panelWidth, height: panelHeight),
-                display: true
-            )
-
-            logger.debug("📍 Positioned mode change toast at fallback position (\(x), \(y)) - recording dialog not found")
+            logger.debug("📍 Positioned mode change toast at fallback position (\(placement.frame.origin.x), \(placement.frame.origin.y)) - recording dialog not found")
         }
+    }
     }
 
     /// Start the auto-dismiss timer
@@ -248,16 +186,9 @@ final class ModeChangeToastManager {
 
     // MARK: - Space/Screen Change Handling
 
-    /// Install observers for space and screen changes
-    ///
-    /// **Why This Is Needed:**
-    /// When user switches Spaces or screen resolution changes, the panel's z-order
-    /// can be lost. These observers detect such changes and re-assert the panel's
-    /// position in the z-order stack.
-    ///
-    /// **Events Tracked:**
-    /// - `activeSpaceDidChangeNotification`: User switches virtual desktops (Spaces)
-    /// - `didChangeScreenParametersNotification`: Display connect/disconnect, resolution changes
+    /// Observe Space and screen-parameter changes for as long as the mode
+    /// toast is up: the first re-asserts its z-order, the second moves it back
+    /// above the recording dialog (`FloatingPanelSpaceObserver`).
     private func installSpaceChangeObserver() {
         FloatingPanelSpaceObserver.install(
             into: &obsTokens,
@@ -268,11 +199,7 @@ final class ModeChangeToastManager {
         )
     }
 
-    /// Remove space/screen change observers
-    ///
-    /// **What This Does:**
-    /// Cleans up notification observers to prevent memory leaks and stale callbacks.
-    /// Called during dismiss() and before installing new observers.
+    /// Stop observing; `dismiss()` calls this before the panel goes.
     private func removeSpaceChangeObserver() {
         FloatingPanelSpaceObserver.remove(&obsTokens)
     }
