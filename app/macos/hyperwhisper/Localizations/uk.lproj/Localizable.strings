@@ -709,6 +709,7 @@
 "modes.header.create" = "Створити режим";
 "modes.name.unnamed" = "Без назви";
 "modes.badge.offline" = "Автономно";
+"modes.badge.modelMissing" = "Модель відсутня";
 "modes.context.select" = "Виберіть";
 "modes.help.edit" = "Редагувати параметри режиму";
 "modes.help.preset" = "Дізнайтеся більше про цей шаблон";

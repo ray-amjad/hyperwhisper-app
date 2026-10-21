@@ -709,6 +709,7 @@ Uredi te načine rada kako bi odabrao drugi model prije uklanjanja.";
 "modes.header.create" = "Stvori način";
 "modes.name.unnamed" = "Neimenovano";
 "modes.badge.offline" = "Offline";
+"modes.badge.modelMissing" = "Model nedostaje";
 "modes.context.select" = "Odaberi";
 "modes.help.edit" = "Uredi postavke načina";
 "modes.help.preset" = "Saznajte više o ovom stilu oblikovanja";

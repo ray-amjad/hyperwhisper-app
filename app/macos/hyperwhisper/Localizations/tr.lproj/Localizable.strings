@@ -709,6 +709,7 @@ Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
 "modes.header.create" = "Mod Oluştur";
 "modes.name.unnamed" = "Adsız";
 "modes.badge.offline" = "Çevrimdışı";
+"modes.badge.modelMissing" = "Model eksik";
 "modes.context.select" = "Seç";
 "modes.help.edit" = "Mod ayarlarını düzenle";
 "modes.help.preset" = "Bu hazır ayar hakkında daha fazla bilgi öğren";

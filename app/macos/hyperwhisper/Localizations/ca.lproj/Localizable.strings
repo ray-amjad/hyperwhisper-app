@@ -709,6 +709,7 @@ Edita aquests modes per seleccionar un model diferent abans de eliminar-lo.";
 "modes.header.create" = "Crear mode";
 "modes.name.unnamed" = "Sense nom";
 "modes.badge.offline" = "Fora de línia";
+"modes.badge.modelMissing" = "Falta el model";
 "modes.context.select" = "Seleccionar";
 "modes.help.edit" = "Editar la configuració del mode";
 "modes.help.preset" = "Més informació sobre aquest estil de format";

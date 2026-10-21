@@ -709,6 +709,7 @@ Edit mod tersebut untuk memilih model yang berbeza sebelum mengalihkannya.";
 "modes.header.create" = "Cipta Mod";
 "modes.name.unnamed" = "Tanpa Nama";
 "modes.badge.offline" = "Luar Talian";
+"modes.badge.modelMissing" = "Model tiada";
 "modes.context.select" = "Pilih";
 "modes.help.edit" = "Edit tetapan mod";
 "modes.help.preset" = "Ketahui lebih lanjut tentang praset ini";

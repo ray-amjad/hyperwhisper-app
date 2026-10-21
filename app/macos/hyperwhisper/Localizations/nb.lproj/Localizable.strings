@@ -709,6 +709,7 @@ Rediger disse modusene for å velge en annen modell før du fjerner den.";
 "modes.header.create" = "Opprett modus";
 "modes.name.unnamed" = "Uten navn";
 "modes.badge.offline" = "Frakoblet";
+"modes.badge.modelMissing" = "Modell mangler";
 "modes.context.select" = "Velg";
 "modes.help.edit" = "Rediger modusinnstillinger";
 "modes.help.preset" = "Lær mer om denne forhåndsinnstillingen";

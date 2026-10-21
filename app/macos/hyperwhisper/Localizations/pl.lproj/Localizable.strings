@@ -709,6 +709,7 @@ Edytuj te tryby, aby wybrać inny model przed jego usunięciem.";
 "modes.header.create" = "Utwórz tryb";
 "modes.name.unnamed" = "Bez nazwy";
 "modes.badge.offline" = "Offline";
+"modes.badge.modelMissing" = "Brak modelu";
 "modes.context.select" = "Wybierz";
 "modes.help.edit" = "Edytuj ustawienia trybu";
 "modes.help.preset" = "Dowiedz się więcej o tym gotowym szablonie";

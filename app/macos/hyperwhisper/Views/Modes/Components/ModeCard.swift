@@ -54,6 +54,21 @@ struct ModeCard: View {
     }
 
 
+    private func statusChip(symbol: String, key: String, color: Color) -> some View {
+        HStack(spacing: 2) {
+            Image(systemName: symbol)
+                .font(.system(size: 10))
+                .foregroundColor(color)
+            Text(localized: key)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundColor(color)
+        }
+        .padding(.horizontal, 5)
+        .padding(.vertical, 2)
+        .background(color.opacity(0.1))
+        .cornerRadius(4)
+    }
+
     @State private var isHovered = false
     @State private var isPressed = false
 
@@ -74,22 +89,17 @@ struct ModeCard: View {
                             // NO WARM-UP NEEDED with libwhisper.cpp!
                             // Models load instantly (2-5 seconds)
 
-                            // Offline indicator if mode is offline-capable
+                            // Offline indicator if mode is offline-capable; a
+                            // missing local model replaces it (#2036)
                             let modeData = ModeData(from: mode)
-                            if modeData.isOfflineCapable {
-                                HStack(spacing: 2) {
-                                    // Use a widely available symbol; avoid missing 'cloud.slash.fill'
-                                    Image(systemName: "icloud.slash")
-                                        .font(.system(size: 10))
-                                        .foregroundColor(.green)
-                                    Text(localized: "modes.badge.offline")
-                                        .font(.system(size: 9, weight: .medium))
-                                        .foregroundColor(.green)
-                                }
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 2)
-                                .background(Color.green.opacity(0.1))
-                                .cornerRadius(4)
+                            switch modeData.cardStatusChip(isLocalModelDownloaded: isModelDownloaded(modeData.model)) {
+                            case .offline:
+                                // Use a widely available symbol; avoid missing 'cloud.slash.fill'
+                                statusChip(symbol: "icloud.slash", key: "modes.badge.offline", color: .green)
+                            case .modelMissing:
+                                statusChip(symbol: "exclamationmark.triangle", key: "modes.badge.modelMissing", color: .orange)
+                            case .none:
+                                EmptyView()
                             }
 
                             Spacer()

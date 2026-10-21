@@ -709,6 +709,7 @@ Modifiez ces modes pour sélectionner un modèle différent avant de le supprime
 "modes.header.create" = "Créer un mode";
 "modes.name.unnamed" = "Sans nom";
 "modes.badge.offline" = "Hors ligne";
+"modes.badge.modelMissing" = "Modèle manquant";
 "modes.context.select" = "Sélectionner";
 "modes.help.edit" = "Modifier les réglages du mode";
 "modes.help.preset" = "En savoir plus sur ce style de mise en forme";

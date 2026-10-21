@@ -709,6 +709,7 @@
 "modes.header.create" = "建立模式";
 "modes.name.unnamed" = "未命名";
 "modes.badge.offline" = "離線";
+"modes.badge.modelMissing" = "缺少模型";
 "modes.context.select" = "選擇";
 "modes.help.edit" = "編輯模式設定";
 "modes.help.preset" = "深入瞭解此預設";

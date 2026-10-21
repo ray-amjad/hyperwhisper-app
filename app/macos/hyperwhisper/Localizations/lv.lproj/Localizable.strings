@@ -709,6 +709,7 @@ Rediģē šos režīmus, lai pirms noņemšanas atlasītu citu modeli.";
 "modes.header.create" = "Izveidot režīmu";
 "modes.name.unnamed" = "Bez nosaukuma";
 "modes.badge.offline" = "Bezsaiste";
+"modes.badge.modelMissing" = "Trūkst modeļa";
 "modes.context.select" = "Atlasīt";
 "modes.help.edit" = "Rediģēt režīma iestatījumus";
 "modes.help.preset" = "Uzziniet vairāk par šo priekšnoregulējumu";

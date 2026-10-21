@@ -709,6 +709,7 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 "modes.header.create" = "Mód létrehozása";
 "modes.name.unnamed" = "Névtelen";
 "modes.badge.offline" = "Offline";
+"modes.badge.modelMissing" = "Hiányzó modell";
 "modes.context.select" = "Kiválasztás";
 "modes.help.edit" = "Mód beállítások szerkesztése";
 "modes.help.preset" = "Többet tudj meg erről a formázási stílusról";

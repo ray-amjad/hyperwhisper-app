@@ -709,6 +709,7 @@
 "modes.header.create" = "สร้างโหมด";
 "modes.name.unnamed" = "ไม่มีชื่อ";
 "modes.badge.offline" = "ออฟไลน์";
+"modes.badge.modelMissing" = "ไม่มีโมเดล";
 "modes.context.select" = "เลือก";
 "modes.help.edit" = "แก้ไขการตั้งค่าโหมด";
 "modes.help.preset" = "เรียนรู้เพิ่มเติมเกี่ยวกับการตั้งค่านี้";

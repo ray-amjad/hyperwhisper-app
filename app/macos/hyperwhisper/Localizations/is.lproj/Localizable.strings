@@ -709,6 +709,7 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 "modes.header.create" = "Búa til ham";
 "modes.name.unnamed" = "Ónefnt";
 "modes.badge.offline" = "Ónettengdur";
+"modes.badge.modelMissing" = "Líkan vantar";
 "modes.context.select" = "Velja";
 "modes.help.edit" = "Breyta hamstillingum";
 "modes.help.preset" = "Lærðu meira um þessa forstillingu";

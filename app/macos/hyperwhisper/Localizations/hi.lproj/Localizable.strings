@@ -709,6 +709,7 @@
 "modes.header.create" = "मोड बनाएं";
 "modes.name.unnamed" = "अनाम";
 "modes.badge.offline" = "ऑफ़लाइन";
+"modes.badge.modelMissing" = "मॉडल गायब है";
 "modes.context.select" = "चुनें";
 "modes.help.edit" = "मोड सेटिंग्स संपादित करें";
 "modes.help.preset" = "इस फॉर्मेटिंग शैली के बारे में और जानें";

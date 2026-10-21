@@ -709,6 +709,7 @@
 "modes.header.create" = "Създаване на режим";
 "modes.name.unnamed" = "Без име";
 "modes.badge.offline" = "Офлайн";
+"modes.badge.modelMissing" = "Липсва модел";
 "modes.context.select" = "Избери";
 "modes.help.edit" = "Редактиране на настройките на режима";
 "modes.help.preset" = "Научете повече за този стил на форматиране";

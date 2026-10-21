@@ -751,6 +751,7 @@
 "modes.header.create" = "Create Mode";
 "modes.name.unnamed" = "Unnamed";
 "modes.badge.offline" = "Offline";
+"modes.badge.modelMissing" = "Model missing";
 "modes.context.select" = "Select";
 "modes.help.edit" = "Edit mode settings";
 "modes.help.preset" = "Learn more about this preset";

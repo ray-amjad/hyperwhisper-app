@@ -709,6 +709,7 @@ Uprav tieto režimy a vyber iný model pred jeho odstránením.";
 "modes.header.create" = "Vytvoriť režim";
 "modes.name.unnamed" = "Nepomenovaný";
 "modes.badge.offline" = "Offline";
+"modes.badge.modelMissing" = "Chýba model";
 "modes.context.select" = "Vybrať";
 "modes.help.edit" = "Upraviť nastavenia režimu";
 "modes.help.preset" = "Naučiť sa viac o tejto predvoľbe";
