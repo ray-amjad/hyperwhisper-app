@@ -43,6 +43,16 @@ jobs:
             -resultBundlePath "$RUNNER_TEMP/full.xcresult" \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS="" \
             | grep -E "' (failed|passed) on|TEST (SUCCEEDED|FAILED)" || true
+      - name: Main-actor block probe
+        continue-on-error: true
+        run: |
+          xcodebuild test-without-building \
+            -project app/macos/hyperwhisper.xcodeproj -scheme hyperwhisper \
+            -configuration Debug -destination "platform=macOS" \
+            -only-testing:hyperwhisperTests/Diag2345MainBlockTests \
+            -resultBundlePath "$RUNNER_TEMP/load.xcresult" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS="" \
+            | grep -E "' (failed|passed) on|TEST (SUCCEEDED|FAILED)" || true
       - name: Failure text
         if: always()
         run: |
