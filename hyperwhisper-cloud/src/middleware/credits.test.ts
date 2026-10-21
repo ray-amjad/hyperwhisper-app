@@ -410,34 +410,35 @@ describe('deductCredits / drainPendingDeductions', () => {
     });
   }
 
-  // The per-key entry is ordered by when the site was asked, so a slow reply
-  // to an older charge cannot undo a newer verdict (#1899).
-  test('a success reply to a charge asked before a cached refusal leaves the refusal in place (#1899)', async () => {
-    const refusal = { isValid: false, credits: 0, cachedAt: new Date().toISOString(), issuedAtMs: Date.now() + 60_000 };
-    cachedLicenses.set('lic_test', refusal);
-    captureFetch(() => Response.json({ credits_remaining: 12 }));
+  // The per-key entry keeps whichever site call was ASKED last (#1899): the
+  // ordering itself is `cacheLicense`'s (`WRITE_LICENSE_SCRIPT`, run on a real
+  // redis-server in `lib/redis-core.test.ts`). What a charge owes it is the
+  // stamp: the time the charge was SENT, not when its reply came back.
+  for (const { label, respond } of [
+    { label: 'a refusal', respond: () => Response.json({ error: 'License is revoked' }, { status: 400 }) },
+    { label: 'a success', respond: () => Response.json({ credits_remaining: 12 }) },
+  ]) {
+    test(`${label} is cached stamped with when the charge was sent, not when its reply came back (#1899)`, async () => {
+      let sentAtMs = 0;
+      let repliedAtMs = 0;
+      captureFetch(async () => {
+        sentAtMs = Date.now();
+        await Bun.sleep(25);
+        repliedAtMs = Date.now();
+        return respond();
+      });
+      captureWarnings();
 
-    await deductCredits(auth(20), 0.05, { provider: 'p' }, '1.2.3.4');
+      await deductCredits(auth(20), 0.05, { provider: 'p' }, '1.2.3.4');
 
-    expect(cacheWrites).toHaveLength(0);
-    expect(await getCachedLicense('lic_test')).toEqual(refusal);
-    const next = await validateAuth({ licenseKey: 'lic_test' });
-    expect(next.diagnostics.outcome).toBe('cached_invalid');
-    await expectNoPendingDeductions();
-  });
-
-  test('a refusal to a charge asked before a newer valid entry leaves the valid entry in place (#1899)', async () => {
-    const regranted = { isValid: true, credits: 20, cachedAt: new Date().toISOString(), issuedAtMs: Date.now() + 60_000 };
-    cachedLicenses.set('lic_test', regranted);
-    captureFetch(() => Response.json({ error: 'License is revoked' }, { status: 400 }));
-    captureWarnings();
-
-    await deductCredits(auth(20), 0.05, { provider: 'p' }, '1.2.3.4');
-
-    expect(cacheWrites).toHaveLength(0);
-    expect(await getCachedLicense('lic_test')).toEqual(regranted);
-    await expectNoPendingDeductions();
-  });
+      expect(cacheWrites).toHaveLength(1);
+      const issuedAtMs = cacheWrites[0]?.license.issuedAtMs;
+      expect(typeof issuedAtMs).toBe('number');
+      expect(issuedAtMs!).toBeLessThanOrEqual(sentAtMs);
+      expect(issuedAtMs!).toBeLessThan(repliedAtMs);
+      await expectNoPendingDeductions();
+    });
+  }
 
   test('a success reply to a charge asked after an older refusal re-validates the key (#1899)', async () => {
     cachedLicenses.set('lic_test', { isValid: false, credits: 0, cachedAt: new Date().toISOString(), issuedAtMs: Date.now() - 60_000 });

@@ -7,7 +7,7 @@ import { estimateAudioSecondsFromSize } from '../lib/audio-duration';
 import { isRecord, roundToTenth, roundUpToTenth } from '../lib/utils';
 import { creditsForCost } from '../lib/cost-calculator';
 import { insufficientCreditsResponse } from '../lib/responses';
-import { cacheLicense, getCachedLicense } from '../lib/redis';
+import { cacheLicense } from '../lib/redis';
 import { logEvent } from '../lib/logging';
 import { logCreditsShortfall, requestHoldFor, takeHoldForSettle, type CreditHold } from './credit-holds';
 
@@ -140,22 +140,6 @@ function isLicenseRefusal(status: number, error: unknown): boolean {
   return error === 'License key not found' || error.startsWith('License is ');
 }
 
-/**
- * A charge reply's cache write, skipped when the cached entry came from a site
- * call asked AFTER this one. The per-key entry is otherwise last-write-wins, so
- * a slow success to a charge sent before a revoke would rewrite the refusal as
- * valid (and a slow refusal would undo a re-grant) (#1899). A read, then a
- * write: two replies landing in the same few milliseconds can still cross.
- */
-async function cacheLicenseUnlessNewer(
-  licenseKey: string,
-  license: Parameters<typeof cacheLicense>[1] & { issuedAtMs: number }
-): Promise<void> {
-  const cached = await getCachedLicense(licenseKey);
-  if (typeof cached?.issuedAtMs === 'number' && cached.issuedAtMs > license.issuedAtMs) return;
-  await cacheLicense(licenseKey, license);
-}
-
 async function recordLicenseUsage(
   licenseKey: string,
   creditsUsed: number,
@@ -168,8 +152,10 @@ async function recordLicenseUsage(
   let accepted = false;
 
   try {
-    // Taken BEFORE the request goes out: the pool balance cache orders replies
-    // by when the site was asked (#2026), see `WRITE_POOL_BALANCE_SCRIPT`.
+    // Taken BEFORE the request goes out: the licence cache orders replies by
+    // when the site was asked, the pool balance (#2026, see
+    // `WRITE_POOL_BALANCE_SCRIPT`) and the key's own entry (#1899, see
+    // `WRITE_LICENSE_SCRIPT`) alike.
     const issuedAtMs = Date.now();
     const response = await fetch(`${apiBase}/api/license/credits`, {
       method: 'POST',
@@ -199,7 +185,7 @@ async function recordLicenseUsage(
         // refusal so the next request stops at `cached_invalid`. A 5xx, 429 or
         // network failure says nothing about the key and leaves the cache be.
         // No pool id: only the key's own entry changes.
-        await cacheLicenseUnlessNewer(licenseKey, {
+        await cacheLicense(licenseKey, {
           isValid: false,
           credits: 0,
           cachedAt: new Date().toISOString(),
@@ -219,7 +205,7 @@ async function recordLicenseUsage(
       // secret) alive for as long as the key stays busy (#2026). None in the
       // reply: the site has no secret, so holds go per key.
       const creditPoolId = isRecord(data) ? readCreditPoolId(data.credit_pool_id) : undefined;
-      await cacheLicenseUnlessNewer(licenseKey, {
+      await cacheLicense(licenseKey, {
         isValid: true,
         credits: creditsRemaining,
         cachedAt: new Date().toISOString(),
