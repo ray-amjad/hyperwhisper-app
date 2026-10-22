@@ -472,12 +472,14 @@ public class WindowsSettingsExtensions
     public bool? HideFromClipboardHistory { get; set; }
 
     [JsonPropertyName("themeMode")]
+    [JsonConverter(typeof(IntegralNullableInt32JsonConverter))]
     public int? ThemeMode { get; set; }
 
     [JsonPropertyName("autoDeleteEnabled")]
     public bool? AutoDeleteEnabled { get; set; }
 
     [JsonPropertyName("autoDeleteDaysOld")]
+    [JsonConverter(typeof(IntegralNullableInt32JsonConverter))]
     public int? AutoDeleteDaysOld { get; set; }
 
     [JsonPropertyName("parakeetEnabled")]

@@ -157,6 +157,9 @@ public sealed partial class ApplicationBackupService(
             ?? new JsonObject();
     }
 
+    // The universal settings the schema types "integer" (shared-backup/hyperwhisper-backup.schema.json).
+    private static readonly string[] IntegerSettingKeys = ["advanced.maxRecordingDuration", "advanced.typingSpeedWPM"];
+
     /// <summary>
     /// Applies an imported universal-v2 shared <c>settings</c> block to the live
     /// settings store, through the shared core's Linux settings adapter
@@ -188,6 +191,11 @@ public sealed partial class ApplicationBackupService(
         var fromCore = JsonNode.Parse(
             SharedCoreBridge.UniversalSettingsToLinuxSettings(settings.ToJsonString())) as JsonObject
             ?? new JsonObject();
+        // The core copies these schema integers raw, so a valid `60.0` would be stored as a double
+        // and every later Get<int> of it would throw (#2115). Store the whole number instead.
+        foreach (var key in IntegerSettingKeys)
+            if (fromCore[key] is { } node && TryReadIntegralInt32(node, out var whole))
+                fromCore[key] = whole;
 
         var baseline = new JsonObject();
         foreach (var entry in _settings.Snapshot())
