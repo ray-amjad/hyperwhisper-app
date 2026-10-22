@@ -4511,6 +4511,99 @@ internal static class Program
                     $"probe went to '{handler.LastRequestUri}'");
             });
 
+            // Issue #741. PostProcessingService promises graceful degradation: when
+            // the clean-up fails, the user keeps the raw transcription, and the
+            // toast says why. The service built its own HttpClient, so none of its
+            // failure routes could run without a live provider. These drive the
+            // custom-endpoint route, the one that needs no stored API key, through
+            // the internal constructor and a scripted handler.
+            RunAsync("post-processing: a provider 500 keeps the original transcription", async () =>
+            {
+                const string Raw = "um so the meeting is at three";
+                var run = await ProcessThroughScriptedEndpointAsync(Raw,
+                    () => Respond(HttpStatusCode.InternalServerError, """{"error":{"message":"boom"}}"""));
+
+                Assert(run.Handler.Sends == 1, $"expected one upstream call, saw {run.Handler.Sends}");
+                Assert(!run.Result.WasApplied, "a 500 must not report the clean-up as applied");
+                Assert(run.Result.Text == Raw, $"a 500 must return the original text, got '{run.Result.Text}'");
+                Assert(run.Result.ResolvedProvider is null && run.Result.ResolvedModel is null,
+                    "a failed run must not name a provider or model that produced nothing");
+            });
+
+            RunAsync("post-processing: a provider 500 raises one plain failure toast", async () =>
+            {
+                var run = await ProcessThroughScriptedEndpointAsync("um so the meeting is at three",
+                    () => Respond(HttpStatusCode.InternalServerError, """{"error":{"message":"boom"}}"""));
+
+                Assert(run.Toasts.Count == 1, $"expected exactly one toast, saw {run.Toasts.Count}");
+                var toast = run.Toasts[0];
+                Assert(toast.Message == HyperWhisper.Localization.Loc.S("postprocessing.error.failed"),
+                    $"expected the plain failure message, got '{toast.Message}'");
+                Assert(!toast.ShowSettingsButton && toast.SettingsSection is null && !toast.OpenApiKeysManager,
+                    "a network failure toast must not send the user to Settings or the API keys manager");
+            });
+
+            RunAsync("post-processing: a rejected completion keeps the original transcription", async () =>
+            {
+                const string Raw = "um so the meeting is at three";
+                // A 200 the shared core refuses: the model hit its output limit, so
+                // the completion is cut short. Not a network failure, same outcome.
+                var run = await ProcessThroughScriptedEndpointAsync(Raw,
+                    () => Respond(HttpStatusCode.OK,
+                        """{"choices":[{"message":{"content":"<<CLEANED>>So the meet"},"finish_reason":"length"}]}"""));
+
+                Assert(run.Handler.Sends == 1, $"expected one upstream call, saw {run.Handler.Sends}");
+                Assert(!run.Result.WasApplied, "a truncated completion must not report the clean-up as applied");
+                Assert(run.Result.Text == Raw, $"a rejected completion must return the original text, got '{run.Result.Text}'");
+                Assert(run.Toasts.Count == 1 && run.Toasts[0].Message == HyperWhisper.Localization.Loc.S("postprocessing.error.failed")
+                        && !run.Toasts[0].ShowSettingsButton,
+                    $"a rejected completion must raise the plain failure toast once, saw {run.Toasts.Count}");
+            });
+
+            RunAsync("post-processing: a cancelled request keeps the text and raises no toast", async () =>
+            {
+                const string Raw = "um so the meeting is at three";
+                // The user cancels while the request is in flight. A scripted handler
+                // ignores the token, so it throws the way the socket handler does on a
+                // cancel; a token cancelled before the call never reached the service's
+                // catch, because HttpClient handed the canned 200 straight back.
+                using var cancel = new CancellationTokenSource();
+                var run = await ProcessThroughScriptedEndpointAsync(Raw,
+                    () =>
+                    {
+                        cancel.Cancel();
+                        cancel.Token.ThrowIfCancellationRequested();
+                        throw new InvalidOperationException("unreachable");
+                    },
+                    cancel.Token);
+
+                Assert(run.Handler.Sends == 1, $"expected one upstream call, saw {run.Handler.Sends}");
+                Assert(!run.Result.WasApplied, "a cancelled request must not report the clean-up as applied");
+                Assert(run.Result.Text == Raw, $"a cancelled request must return the original text, got '{run.Result.Text}'");
+                // The user cancelled; telling them it failed would be wrong. This is
+                // the one Skipped route with no toast.
+                Assert(run.Toasts.Count == 0, $"a cancelled request must raise no toast, saw {run.Toasts.Count}");
+            });
+
+            RunAsync("post-processing: an accepted completion reports the provider that ran", async () =>
+            {
+                var run = await ProcessThroughScriptedEndpointAsync("um so the meeting is at three",
+                    () => Respond(HttpStatusCode.OK,
+                        """{"choices":[{"message":{"content":"<<CLEANED>>So the meeting is at three.<<END>>"},"finish_reason":"stop"}]}"""));
+
+                Assert(run.Result.WasApplied, "an accepted completion must report the clean-up as applied");
+                Assert(run.Result.Text == "So the meeting is at three.",
+                    $"expected the cleaned text without wrapper markers, got '{run.Result.Text}'");
+                Assert(run.Result.ResolvedProvider == run.ProviderString,
+                    $"expected the endpoint's provider string '{run.ProviderString}', got '{run.Result.ResolvedProvider}'");
+                Assert(run.Result.ResolvedModel == ScriptedEndpointModel,
+                    $"expected model '{ScriptedEndpointModel}', got '{run.Result.ResolvedModel}'");
+                Assert(run.Toasts.Count == 0, $"a success must raise no toast, saw {run.Toasts.Count}");
+                Assert(run.Handler.LastRequestUri?.Host == "percy.example.com"
+                        && run.Handler.LastRequestUri?.AbsolutePath == "/v1/chat/completions",
+                    $"the request went to '{run.Handler.LastRequestUri}', not the configured endpoint");
+            });
+
             // Issue #509. The Model Library called a custom endpoint "Connected"
             // when nothing had ever connected to it. Two independent gaps, so
             // two independent groups of assertions: the outcome was never
@@ -27839,6 +27932,57 @@ internal static class Program
             foreach (var h in request.Headers.Concat(request.Content?.Headers ?? Enumerable.Empty<KeyValuePair<string, IEnumerable<string>>>()))
                 _headers[h.Key] = string.Join(",", h.Value);
             return Task.FromResult(_respond());
+        }
+    }
+
+    private const string ScriptedEndpointModel = "m-741";
+
+    /// <summary>
+    /// Issue #741. Runs one <see cref="PostProcessingService.ProcessAsync"/> on a
+    /// custom endpoint whose only reply is <paramref name="reply"/>, and returns
+    /// what came back plus every toast the service raised. The endpoint lives in
+    /// an empty endpoint list that is put back afterwards.
+    /// </summary>
+    private static async Task<(PostProcessingResult Result, List<ErrorToastEventArgs> Toasts, CapturingHandler Handler, string ProviderString)>
+        ProcessThroughScriptedEndpointAsync(
+            string transcript,
+            Func<HttpResponseMessage> reply,
+            CancellationToken cancellationToken = default)
+    {
+        // ProcessAsync reads the vocabulary table for the prompt, so the suite's
+        // scratch database must exist even when this runs before any DB check.
+        await DatabaseInitializer.InitializeAsync();
+
+        var settings = SettingsService.Instance;
+        var saved = settings.CustomEndpoints;
+        settings.CustomEndpoints = new List<CustomPostProcessingEndpoint>();
+        try
+        {
+            var endpoint = CustomEndpointManager.Instance.AddEndpoint(
+                "Percy #741", "https://percy.example.com/v1/chat/completions", ScriptedEndpointModel, out var error);
+            Assert(endpoint is not null, $"the fixture endpoint should save, got '{error}'");
+
+            var handler = new CapturingHandler { Next = reply };
+            var toasts = new List<ErrorToastEventArgs>();
+            // The service owns and disposes the client it is given.
+            using var service = new PostProcessingService(
+                new HttpClient(handler), new LocalLlmModelService(), new LocalLlmService());
+            service.WarningOccurred += (_, e) => toasts.Add(e);
+
+            var mode = new Mode
+            {
+                Name = "Smoke",
+                PostProcessingMode = 1,
+                PostProcessingProvider = endpoint!.ProviderString,
+            };
+            // A fixed context, so the prompt never reads the CI runner's foreground window.
+            var context = new ApplicationContext { ProcessName = "notepad", WindowTitle = "Untitled - Notepad" };
+            var result = await service.ProcessAsync(transcript, mode, context, cancellationToken);
+            return (result, toasts, handler, endpoint.ProviderString);
+        }
+        finally
+        {
+            settings.CustomEndpoints = saved;
         }
     }
 
