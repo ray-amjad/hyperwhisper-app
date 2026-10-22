@@ -17,16 +17,23 @@ import { toOpenGraphLocale } from "@/src/i18n/locales";
 export const SITE_URL = "https://www.hyperwhisper.com";
 export const SITE_NAME = "HyperWhisper";
 
-export const OG_IMAGES = [1024, 512, 256, 128].map((size) => ({
-  url: `${SITE_URL}/icon/${size}.png`,
-  width: size,
-  height: size,
-  alt: "HyperWhisper Logo",
-}));
+// One language-neutral 1200x630 share card for every page and locale: the
+// app icon and the wordmark on the brand gradient, no words to translate
+// (#844). Never list the square icons here: a crawler takes the first usable
+// image, and icon/1024.png is a 1.93 MB square that previews as a thumbnail.
+export const OG_IMAGE_URL = `${SITE_URL}/og-image.png`;
+export const OG_IMAGES = [
+  {
+    url: OG_IMAGE_URL,
+    width: 1200,
+    height: 630,
+    alt: "HyperWhisper",
+  },
+];
 
-export const TWITTER_CARD = "summary" as const;
+export const TWITTER_CARD = "summary_large_image" as const;
 export const TWITTER_CREATOR = "@theramjad";
-export const TWITTER_IMAGES = [`${SITE_URL}/icon/256.png`];
+export const TWITTER_IMAGES = [OG_IMAGE_URL];
 
 /**
  * The [locale] layout's Open Graph object, without a `url`. A layout cannot
