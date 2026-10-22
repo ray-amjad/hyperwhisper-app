@@ -39,6 +39,10 @@ protocol StreamingClientProtocol: AnyObject {
     /// Values are clamped to 0.0...1.0 and delivered at roughly 30 FPS.
     var onAudioLevel: ((Float) -> Void)? { get set }
 
+    /// Peak input level in dBFS (-infinity for digital silence), on the main
+    /// actor at roughly 30 FPS, for the live "mic hears nothing" warning (#2411).
+    var onInputPeakDbfs: ((Float) -> Void)? { get set }
+
     /// Human-readable label used for history entries
     /// (e.g. "Parakeet V3 (On-Device Streaming)").
     var transcriptionProviderLabel: String { get }
