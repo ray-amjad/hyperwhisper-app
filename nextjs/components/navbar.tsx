@@ -187,7 +187,7 @@ export const Navbar = () => {
             <a
               className={clsx(
                 linkStyles({ color: "foreground" }),
-                "text-gray-300 hover:text-white transition-colors",
+                "text-gray-300 hover:text-white transition-[color,opacity]",
                 /*
                   linkStyles() opens with `outline-solid outline-transparent` and restores the
                   ring only through `data-[focus-visible=true]:`, an attribute the HeroUI <Link>
@@ -216,7 +216,7 @@ export const Navbar = () => {
           <HeroUILink
             isExternal
             aria-label={t("githubAria")}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-gray-400 hover:text-white transition-[color,opacity]"
             href="https://github.com/ray-amjad/hyperwhisper-app"
           >
             <Github className="w-5 h-5" />
