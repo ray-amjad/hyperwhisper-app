@@ -1234,6 +1234,12 @@ export async function getUsersByIds(ids: string[]): Promise<Map<string, UserResu
  * sessions alone contradicted it. Pre-existing, but 90-day sessions raised the
  * blast radius from a week, and it goes through the same primitive as every
  * other revocation rather than growing a second mechanism.
+ *
+ * It also drops each key's cached `stripe_customer_id` (#2460). That Stripe
+ * customer was created for the OLD address: reusing it bills the old address,
+ * mails it the receipt, and opens its payment history in the billing portal.
+ * The next top-up finds or creates the customer for the new address. Past
+ * payments stay on the old customer; refunds key on the session, not on this.
  */
 export async function updateCustomerEmail(
   userId: string,
@@ -1251,7 +1257,7 @@ export async function updateCustomerEmail(
       .where(eq(user.id, userId));
     await tx
       .update(accountKeys)
-      .set({ email })
+      .set({ email, stripeCustomerId: null })
       .where(eq(accountKeys.userId, userId));
 
     await revokeWebAccess(userId, { ...options, tx });

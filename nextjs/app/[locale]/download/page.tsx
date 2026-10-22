@@ -451,7 +451,7 @@ export default function DownloadPage() {
                       : t("downloadLinux")}
                   </Button>
                   <a
-                    className="text-sm text-gray-400 underline hover:text-gray-200"
+                    className="text-sm text-gray-400 underline transition-colors hover:text-gray-200"
                     href={linuxLatest?.releasePage ?? LINUX_RELEASES_URL}
                     rel="noreferrer"
                     target="_blank"

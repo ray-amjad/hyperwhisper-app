@@ -9,23 +9,22 @@ import { transcribeWithOpenAI } from './openai';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import { OPENAI_INLINE_MAX_BYTES } from '../lib/constants';
 import { captureNoSpeechEvent } from './test-support';
+import { stubEnv } from '../test-support/env';
 
 const originalFetch = globalThis.fetch;
-let savedKey: string | undefined;
+let restoreKey: () => void;
 
 /** 960,000 bytes is exactly 120 s under the 64 kbps byte→seconds estimate. */
 const BYTES_FOR_120_SECONDS = 960_000;
 const audio = (bytes = 1_000) => new ArrayBuffer(bytes);
 
 beforeEach(() => {
-  savedKey = process.env.OPENAI_API_KEY;
-  process.env.OPENAI_API_KEY = 'test-key';
+  restoreKey = stubEnv('OPENAI_API_KEY', 'test-key');
 });
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  if (savedKey === undefined) delete process.env.OPENAI_API_KEY;
-  else process.env.OPENAI_API_KEY = savedKey;
+  restoreKey();
 });
 
 /** Intercepts the upstream call and exposes the multipart body it was sent. */

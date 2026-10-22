@@ -6,6 +6,7 @@
 
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Hono } from 'hono';
+import { stubEnv } from '../test-support/env';
 
 mock.module('../lib/redis', () => ({
   redis: {},
@@ -47,7 +48,7 @@ const ENV_KEYS = [
   'SONIOX_API_KEY', 'ASSEMBLYAI_API_KEY', 'OPENAI_API_KEY',
   'AZURE_SPEECH_KEY_EASTUS', 'AZURE_SPEECH_KEY_NORTHEUROPE', 'AZURE_SPEECH_KEY_SOUTHEASTASIA',
 ] as const;
-const savedEnv: Record<string, string | undefined> = {};
+let restoreEnv: Array<() => void> = [];
 const originalFetch = globalThis.fetch;
 const CONSOLE_METHODS = ['log', 'info', 'warn', 'error', 'debug'] as const;
 type ConsoleMethod = typeof CONSOLE_METHODS[number];
@@ -74,10 +75,7 @@ function allLogText(): string {
 beforeEach(() => {
   logged = [];
   upstreamCalls = [];
-  for (const key of ENV_KEYS) {
-    savedEnv[key] = process.env[key];
-    process.env[key] = `test-${key.toLowerCase()}`;
-  }
+  restoreEnv = ENV_KEYS.map((key) => stubEnv(key, `test-${key.toLowerCase()}`));
   for (const method of CONSOLE_METHODS) {
     console[method] = (...args: unknown[]) => {
       logged.push(args.map((arg) => (typeof arg === 'string' ? arg : Bun.inspect(arg))).join(' '));
@@ -90,10 +88,7 @@ afterEach(async () => {
   await drainPendingDeductions(2000);
   for (const method of CONSOLE_METHODS) console[method] = originalConsole[method];
   globalThis.fetch = originalFetch;
-  for (const key of ENV_KEYS) {
-    if (savedEnv[key] === undefined) delete process.env[key];
-    else process.env[key] = savedEnv[key];
-  }
+  for (const restore of restoreEnv) restore();
 });
 
 function postProcessApp(): Hono {

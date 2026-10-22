@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test';
+import { saveEnv } from '../test-support/env';
 
 const originalFetch = globalThis.fetch;
-const originalLicenseApiUrl = process.env.NEXTJS_LICENSE_API_URL;
+const restoreLicenseApiUrl = saveEnv('NEXTJS_LICENSE_API_URL');
 
 type CachedLicense = { isValid: boolean; credits: number; cachedAt: string; creditPoolId?: string; issuedAtMs?: number };
 
@@ -30,11 +31,7 @@ afterEach(() => {
   cacheWrites.length = 0;
   cachedLicenseValue = null;
   globalThis.fetch = originalFetch;
-  if (originalLicenseApiUrl === undefined) {
-    delete process.env.NEXTJS_LICENSE_API_URL;
-  } else {
-    process.env.NEXTJS_LICENSE_API_URL = originalLicenseApiUrl;
-  }
+  restoreLicenseApiUrl();
 });
 
 describe('validateAuth', () => {
