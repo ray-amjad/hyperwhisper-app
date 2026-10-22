@@ -23,6 +23,15 @@
 // selected: MainViewModel passes it, then the current device, as the preferred
 // device numbers, and the first match is used only when neither is among them.
 // What is SAVED stays the name.
+//
+// VIRTUAL INPUTS (#2408). BlackHole, VB-CABLE, VoiceMeeter, Teams/Zoom audio and
+// the like carry app audio, not the user's voice, and streaming and meeting
+// tools often make one the Windows default input. So the AUTOMATIC PICK (what
+// records when nothing is saved, and the stand-in while a saved device is
+// unplugged) skips a virtual Windows default when a non-virtual input is
+// connected: the first one in WaveIn order. With only virtual inputs the
+// Windows default is still used. A device the user CHOSE is never overridden,
+// virtual or not, and every device stays in every picker.
 
 namespace HyperWhisper.Services;
 
@@ -49,15 +58,26 @@ public enum MicrophoneSource
     SavedMissingNoDevice,
 }
 
-/// <summary>The resolved microphone, and why.</summary>
+/// <summary>
+/// The resolved microphone, and why. <see cref="DefaultDevice"/> is the
+/// AUTOMATIC PICK (what the Default row records from and names);
+/// <see cref="SystemDefaultDevice"/> is the Windows default input it was
+/// derived from, which differs only when that default is a virtual device
+/// that was skipped.
+/// </summary>
 public sealed record MicrophoneResolution(
     AudioDeviceService.AudioDevice? Device,
     MicrophoneSource Source,
     string? SavedName,
-    AudioDeviceService.AudioDevice? DefaultDevice)
+    AudioDeviceService.AudioDevice? DefaultDevice,
+    AudioDeviceService.AudioDevice? SystemDefaultDevice = null)
 {
     public bool IsSavedMissing =>
         Source is MicrophoneSource.SavedMissingUsingDefault or MicrophoneSource.SavedMissingNoDevice;
+
+    /// <summary>True when the automatic pick skipped a virtual Windows default.</summary>
+    public bool SkippedVirtualDefault =>
+        SystemDefaultDevice != null && DefaultDevice != null && SystemDefaultDevice != DefaultDevice;
 }
 
 /// <summary>
@@ -84,6 +104,68 @@ public static class MicrophoneSelection
 {
     /// <summary>WinMM's MAXPNAMELEN minus the terminator.</summary>
     public const int WaveInNameLimit = 31;
+
+    /// <summary>
+    /// Name fragments of virtual inputs that carry app audio, not a voice
+    /// (#2408). Case-insensitive substring match on the device NAME. Keep the
+    /// SAME list in the SAME order as the sibling heads:
+    /// app/macos/hyperwhisper/Managers/AudioRecording/DeviceManagement/MicrophoneSelection.swift
+    /// and the Linux head's list (app/linux, app/shared-dotnet). Every entry fits in the WaveIn 31-character
+    /// name ("CABLE Output (VB-Audio Virtual " still matches).
+    /// NOT here on purpose, because they carry the user's own processed voice:
+    /// Krisp, NVIDIA Broadcast, Elgato Wave Link, aggregate devices.
+    /// </summary>
+    public static readonly IReadOnlyList<string> VirtualInputNameFragments = new[]
+    {
+        "BlackHole",
+        "Soundflower",
+        "Loopback Audio",
+        "VB-Audio",
+        "VB-Cable",
+        "CABLE Output",
+        "CABLE-A Output",
+        "CABLE-B Output",
+        "VoiceMeeter",
+        "Virtual Audio Cable",
+        "ZoomAudioDevice",
+        "Microsoft Teams Audio",
+        "Background Music",
+        "eqMac",
+        "Stereo Mix",
+        "What U Hear",
+        "Wave Out Mix",
+    };
+
+    /// <summary>True when <paramref name="deviceName"/> names a virtual input (see <see cref="VirtualInputNameFragments"/>).</summary>
+    public static bool IsVirtualInput(string? deviceName)
+    {
+        if (string.IsNullOrWhiteSpace(deviceName))
+            return false;
+
+        foreach (var fragment in VirtualInputNameFragments)
+        {
+            if (deviceName.Contains(fragment, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// The automatic pick: <paramref name="systemDefault"/>, unless it is a
+    /// virtual input and a non-virtual one is connected, in which case the
+    /// first non-virtual device in <paramref name="devices"/> (WaveIn order).
+    /// An all-virtual machine keeps the Windows default: it still records.
+    /// </summary>
+    public static AudioDeviceService.AudioDevice? AutomaticPick(
+        IReadOnlyList<AudioDeviceService.AudioDevice> devices,
+        AudioDeviceService.AudioDevice? systemDefault)
+    {
+        if (systemDefault == null || !IsVirtualInput(systemDefault.Name))
+            return systemDefault;
+
+        return devices.FirstOrDefault(d => !IsVirtualInput(d.Name)) ?? systemDefault;
+    }
 
     /// <summary>
     /// True when <paramref name="a"/> and <paramref name="b"/> name the same
@@ -185,8 +267,10 @@ public static class MicrophoneSelection
     }
 
     /// <summary>
-    /// Saved device if connected, else the Windows default. The saved name is
-    /// passed through untouched so a disconnected choice is never forgotten.
+    /// Saved device if connected (virtual or not: a choice is never
+    /// overridden), else the <see cref="AutomaticPick"/> from the Windows
+    /// default <paramref name="defaultDevice"/>. The saved name is passed
+    /// through untouched so a disconnected choice is never forgotten.
     /// <paramref name="preferredDeviceNumbers"/> picks among devices that share
     /// the saved name (see <see cref="FindByName"/>).
     /// </summary>
@@ -196,6 +280,9 @@ public static class MicrophoneSelection
         AudioDeviceService.AudioDevice? defaultDevice,
         params int?[] preferredDeviceNumbers)
     {
+        var systemDefault = defaultDevice;
+        var automatic = AutomaticPick(devices, systemDefault);
+
         var saved = string.IsNullOrWhiteSpace(savedName) ? null : savedName;
 
         // No input at all. A saved choice is still a choice: it is reported
@@ -212,12 +299,12 @@ public static class MicrophoneSelection
         {
             var match = FindByName(devices, saved, preferredDeviceNumbers);
             if (match != null)
-                return new MicrophoneResolution(match, MicrophoneSource.Saved, saved, defaultDevice);
+                return new MicrophoneResolution(match, MicrophoneSource.Saved, saved, automatic, systemDefault);
 
-            return new MicrophoneResolution(defaultDevice, MicrophoneSource.SavedMissingUsingDefault, saved, defaultDevice);
+            return new MicrophoneResolution(automatic, MicrophoneSource.SavedMissingUsingDefault, saved, automatic, systemDefault);
         }
 
-        return new MicrophoneResolution(defaultDevice, MicrophoneSource.SystemDefault, null, defaultDevice);
+        return new MicrophoneResolution(automatic, MicrophoneSource.SystemDefault, null, automatic, systemDefault);
     }
 
     /// <summary>
@@ -257,7 +344,11 @@ public static class MicrophoneSelection
         return (options, selected);
     }
 
-    /// <summary>"Default · Microphone (Realtek)", or "System Default" when Windows names none.</summary>
+    /// <summary>
+    /// "Default · Microphone (Realtek)", or "System Default" when Windows names
+    /// none. Callers pass the AUTOMATIC PICK's name, so the row names the device
+    /// that really records (not a skipped virtual Windows default).
+    /// </summary>
     public static string DefaultLabel(string? defaultDeviceName) =>
         string.IsNullOrWhiteSpace(defaultDeviceName)
             ? Localization.Loc.S("onboarding.mic.device.systemDefault")
