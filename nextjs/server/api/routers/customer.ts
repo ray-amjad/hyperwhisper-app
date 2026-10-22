@@ -18,6 +18,7 @@ import {
   getPaidCreditGrantsForUsers,
 } from "@/src/lib/db-layer";
 import { stripe } from "@/lib/clients/stripe";
+import { stripeCustomerBelongsTo } from "@/lib/services/stripe-customer";
 import { env } from "@/src/env/server.mjs";
 import { CREDITS_PER_MINUTE } from "@/lib/credits-per-minute";
 import { createCreditHistoryPresenter } from "./customer-credit-history";
@@ -187,11 +188,30 @@ export const customerRouter = createTRPCRouter({
       });
     }
 
-    // Find license with Stripe customer ID
+    // Find a license whose cached Stripe customer still belongs to this
+    // email. After an admin email move the cached customer is the OLD
+    // address's, and its portal shows that holder's payments (#2460).
     const licenses = await getAccountKeysByEmail(userEmail);
-    const licenseWithStripe = licenses.find((l) => l.stripeCustomerId);
+    const cachedCustomerIds = Array.from(
+      new Set(licenses.flatMap((l) => l.stripeCustomerId ?? [])),
+    );
+    let stripeCustomerId: string | undefined;
+    try {
+      for (const id of cachedCustomerIds) {
+        if (await stripeCustomerBelongsTo(id, userEmail)) {
+          stripeCustomerId = id;
+          break;
+        }
+      }
+    } catch (error) {
+      console.error("Stripe customer lookup failed:", error);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: STRIPE_PORTAL_ERROR_MESSAGE,
+      });
+    }
 
-    if (!licenseWithStripe?.stripeCustomerId) {
+    if (!stripeCustomerId) {
       throw new TRPCError({
         code: "NOT_FOUND",
         message: "No Stripe billing history found",
@@ -207,7 +227,7 @@ export const customerRouter = createTRPCRouter({
     // the customer gets fixed copy instead (#2082).
     try {
       const session = await stripe.billingPortal.sessions.create({
-        customer: licenseWithStripe.stripeCustomerId,
+        customer: stripeCustomerId,
         return_url: `${siteUrl}/user`,
       });
 
