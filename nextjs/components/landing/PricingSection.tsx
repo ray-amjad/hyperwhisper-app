@@ -91,7 +91,7 @@ export default function PricingSection() {
                       className="flex items-start gap-3 text-sm"
                     >
                       {feature.included ? (
-                        <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                        <Check className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
                       ) : (
                         <X className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
                       )}
@@ -144,7 +144,7 @@ export default function PricingSection() {
                 <ul className="space-y-3 mb-8">
                   {cloudFeatures.map((text) => (
                     <li key={text} className="flex items-start gap-3 text-sm">
-                      <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      <Check className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
                       <span className="text-gray-200">{text}</span>
                     </li>
                   ))}
