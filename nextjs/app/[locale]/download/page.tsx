@@ -309,7 +309,7 @@ export default function DownloadPage() {
             <p className="text-lg text-gray-400">{t("linuxSubtitle")}</p>
           ) : currentState.started ? (
             <div className="flex items-center justify-center gap-2 text-gray-400">
-              <CheckCircle className="w-5 h-5 text-green-500" />
+              <CheckCircle className="w-5 h-5 text-emerald-400" />
               <span>{t("downloadStarted")}</span>
             </div>
           ) : isMobile === false ? (
@@ -427,14 +427,14 @@ export default function DownloadPage() {
                       {...ICON_SWAP}
                     >
                       {copied ? (
-                        <Check className="w-4 h-4 text-green-400" />
+                        <Check className="w-4 h-4 text-emerald-300" />
                       ) : (
                         <Copy className="w-4 h-4" />
                       )}
                     </m.span>
                   </AnimatePresence>
                   {copied ? (
-                    <span className="text-green-400 text-xs">
+                    <span className="text-emerald-300 text-xs">
                       {t("copied")}
                     </span>
                   ) : (

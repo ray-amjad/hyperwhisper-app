@@ -58,7 +58,7 @@ export default function FeaturesGrid() {
       icon: <Shield className="w-6 h-6" />,
       titleKey: "privacy.title",
       descriptionKey: "privacy.description",
-      gradient: "from-green-600 to-emerald-600",
+      gradient: "from-emerald-600 to-teal-600",
     },
     {
       icon: <Github className="w-6 h-6" />,
