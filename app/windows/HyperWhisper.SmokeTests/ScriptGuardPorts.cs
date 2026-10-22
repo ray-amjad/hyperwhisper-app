@@ -529,6 +529,8 @@ internal static class ScriptGuardPorts
                     $"{method}: no modes did not give one disabled '{Loc.S("menu.mode.none")}' item");
             }
         });
+
+        RunKeepWarm(run);
     }
 
     /// <summary>
@@ -538,7 +540,7 @@ internal static class ScriptGuardPorts
     /// matched source text and failed on moved code. The Linux head has the same
     /// rules (HyperWhisper.Linux.Platform.Tests, "microphone keep-warm ...").
     /// </summary>
-    public static void RunKeepWarm(Action<string, Action> run)
+    private static void RunKeepWarm(Action<string, Action> run)
     {
         run("keep-warm: re-selecting the warm device keeps the one capture (#2244)", () =>
         {
@@ -637,16 +639,18 @@ internal static class ScriptGuardPorts
             Assert(captures[1].Disposed && captures.Count == 3 && captures[2].Device == 1 && captures[2].Running,
                 "an unexpected capture stop did not reopen keep-warm");
 
-            // A stop raised by a capture keep-warm already let go of changes nothing.
-            captures[1].Fail();
-            Assert(captures.Count == 3 && captures[2].Running,
-                "a stale capture's stop event replaced the live capture");
+            // NAudio raises RecordingStopped on its capture thread, so a stop can land
+            // after keep-warm has unsubscribed and let that capture go. Such a late
+            // error stop from a replaced capture changes nothing.
+            captures[1].Fail(late: true);
+            Assert(captures.Count == 3 && captures[2].Running && !captures[2].Disposed,
+                "a replaced capture's late error stop tore down or replaced the live capture");
 
-            // During a recording, an error stop (raised late by the closed capture)
-            // must not reopen the microphone.
+            // During a recording, a late error stop from the capture keep-warm just
+            // closed must not reopen the microphone the recorder now holds.
             keepWarm.SuspendForRecording();
-            captures[2].Fail();
-            Assert(captures.Count == 3, "an error stop reopened keep-warm during a recording");
+            captures[2].Fail(late: true);
+            Assert(captures.Count == 3, "a late error stop reopened keep-warm during a recording");
             keepWarm.ResumeAfterRecording(1);
             Assert(captures.Count == 4 && captures[3].Running, "keep-warm did not resume after the recording");
 
@@ -657,7 +661,7 @@ internal static class ScriptGuardPorts
             Assert(captures.Count == 4, "keep-warm opened a capture after it was disposed");
         });
 
-        run("keep-warm: MainViewModel suspends it before recording and resumes it on stop, cancel and failed start (#2244)", () =>
+        run("keep-warm: MainViewModel suspends it for recordings, resumes it after, and follows setting and device changes (#2244)", () =>
         {
             const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
             MethodInfo Vm(string name) => typeof(MainViewModel).GetMethod(name, all)
@@ -672,13 +676,25 @@ internal static class ScriptGuardPorts
             Assert(Program.AsyncBodyCalls(Vm("UpdateMicrophoneKeepWarm"), KeepWarm(nameof(MicrophoneKeepWarmService.Configure))),
                 "UpdateMicrophoneKeepWarm no longer configures the keep-warm service");
 
-            Assert(Program.AsyncBodyCalls(Vm("StartRecordingAsync"), Vm("SuspendMicrophoneKeepWarm")),
-                "StartRecordingAsync no longer suspends keep-warm before opening the recorder");
-            foreach (var resumer in new[] { "StopRecordingAndTranscribeAsync", "CancelRecordingAsync", "CancelStreamingRecordingAsync", "CleanupFailedRecordingStart" })
+            // Presence only: the IL scan cannot see whether the suspend comes before
+            // the recorder opens.
+            foreach (var starter in new[] { "StartRecordingAsync", "StartStreamingRecordingAsync" })
+            {
+                Assert(Program.AsyncBodyCalls(Vm(starter), Vm("SuspendMicrophoneKeepWarm")),
+                    $"{starter} no longer suspends keep-warm, so the idle stream holds the microphone during the recording");
+            }
+            foreach (var resumer in new[] { "StopRecordingAndTranscribeAsync", "StopStreamingRecordingAsync", "CancelRecordingAsync", "CancelStreamingRecordingAsync", "CleanupFailedRecordingStart" })
             {
                 Assert(Program.AsyncBodyCalls(Vm(resumer), Vm("ResumeMicrophoneKeepWarm")),
                     $"{resumer} no longer resumes keep-warm, so the microphone stays cold after it");
             }
+            foreach (var listener in new[] { "OnSelectedAudioDeviceChanged", "OnSettingsChanged" })
+            {
+                Assert(Program.AsyncBodyCalls(Vm(listener), Vm("UpdateMicrophoneKeepWarm")),
+                    $"{listener} no longer reconfigures keep-warm, so a setting or device change waits for the next recording");
+            }
+            Assert(Program.AsyncBodyCalls(Vm("CleanupAsync"), KeepWarm(nameof(MicrophoneKeepWarmService.Dispose))),
+                "CleanupAsync no longer disposes keep-warm, so the microphone stays open at exit");
         });
     }
 
@@ -690,9 +706,17 @@ internal static class ScriptGuardPorts
             return capture;
         });
 
-    /// <summary>A capture that records what keep-warm did to it, and can fail like a pulled device.</summary>
+    /// <summary>
+    /// A capture that records what keep-warm did to it, and can fail like a pulled
+    /// device. Like WaveInEvent it raises RecordingStopped after StopRecording; and
+    /// because NAudio raises it on its capture thread, a "late" raise reaches every
+    /// handler ever attached, even one keep-warm has since removed.
+    /// </summary>
     private sealed class FakeCapture(int device, bool failStart = false) : NAudio.Wave.IWaveIn
     {
+        private readonly List<EventHandler<NAudio.Wave.StoppedEventArgs>> _everStopped = [];
+        private EventHandler<NAudio.Wave.StoppedEventArgs>? _stopped;
+
         public int Device { get; } = device;
         public bool Running { get; private set; }
         public bool Disposed { get; private set; }
@@ -700,7 +724,11 @@ internal static class ScriptGuardPorts
         public NAudio.Wave.WaveFormat WaveFormat { get; set; } = new(16000, 16, 1);
 
         public event EventHandler<NAudio.Wave.WaveInEventArgs>? DataAvailable;
-        public event EventHandler<NAudio.Wave.StoppedEventArgs>? RecordingStopped;
+        public event EventHandler<NAudio.Wave.StoppedEventArgs>? RecordingStopped
+        {
+            add { _stopped += value; if (value != null) _everStopped.Add(value); }
+            remove => _stopped -= value;
+        }
 
         public void StartRecording()
         {
@@ -715,12 +743,26 @@ internal static class ScriptGuardPorts
         {
             Stops++;
             Running = false;
+            RaiseStopped(null, late: true);
         }
 
-        public void Fail()
+        public void Fail(bool late = false)
         {
             Running = false;
-            RecordingStopped?.Invoke(this, new NAudio.Wave.StoppedEventArgs(new InvalidOperationException("device removed")));
+            RaiseStopped(new InvalidOperationException("device removed"), late);
+        }
+
+        private void RaiseStopped(Exception? error, bool late)
+        {
+            var args = new NAudio.Wave.StoppedEventArgs(error);
+            if (!late)
+            {
+                _stopped?.Invoke(this, args);
+                return;
+            }
+
+            foreach (var handler in _everStopped.ToArray())
+                handler(this, args);
         }
 
         public void Dispose()
