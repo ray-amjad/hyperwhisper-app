@@ -166,7 +166,9 @@ static void AllCatalogsLoad()
     // retired. The Windows and Linux key checks refuse only a blank key now, which closes
     // the dialog instead (Google's newer Gemini keys do not start with "AIza", and a
     // "should start with" rule refused them), so no invalid-key dialog is left.
-    Equal(860,PortableLocalizer.BaseKeyCount, "base key count");
+    // 860 -> 861 (#1415): `settings.backup.import.summary.settings` is new (the Windows
+    // backup import says "Settings restored." instead of zero mode/vocabulary counts).
+    Equal(861,PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");
