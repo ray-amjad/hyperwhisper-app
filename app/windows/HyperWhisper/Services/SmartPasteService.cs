@@ -9,6 +9,7 @@ using System.Windows.Automation;
 using System.Windows.Media.Imaging;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Platform;
+using static HyperWhisper.Services.SmartPasteNativeMethods;
 using PlatformContracts = HyperWhisper.Platform.Abstractions;
 
 // Alias WPF clipboard types to avoid ambiguity with WinForms
@@ -51,76 +52,6 @@ namespace HyperWhisper.Services;
 /// </summary>
 public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionService
 {
-    // =========================================================================
-    // WIN32 P/INVOKE DECLARATIONS
-    // =========================================================================
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetForegroundWindow();
-
-    [DllImport("user32.dll")]
-    private static extern bool SetForegroundWindow(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
-    private static extern bool AllowSetForegroundWindow(int dwProcessId);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-
-    [DllImport("user32.dll")]
-    private static extern bool GetGUIThreadInfo(uint idThread, ref GUITHREADINFO lpgui);
-
-    [DllImport("user32.dll")]
-    private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
-
-    [DllImport("user32.dll")]
-    private static extern bool BringWindowToTop(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr SetFocus(IntPtr hWnd);
-
-    [DllImport("kernel32.dll")]
-    private static extern uint GetCurrentThreadId();
-
-    [DllImport("user32.dll")]
-    private static extern bool IsWindow(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
-    private static extern bool IsIconic(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
-    private static extern short GetAsyncKeyState(int vKey);
-
-    /// <summary>
-    /// The clipboard's change counter: every write to the clipboard by any process
-    /// bumps it, and reading it does not. 0 when it cannot be read.
-    /// </summary>
-    [DllImport("user32.dll")]
-    private static extern uint GetClipboardSequenceNumber();
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct GUITHREADINFO
-    {
-        public int cbSize;
-        public int flags;
-        public IntPtr hwndActive;
-        public IntPtr hwndFocus;
-        public IntPtr hwndCapture;
-        public IntPtr hwndMenuOwner;
-        public IntPtr hwndMoveSize;
-        public IntPtr hwndCaret;
-        public RECT rcCaret;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct RECT
-    {
-        public int left, top, right, bottom;
-    }
-
-    // Special value to allow any process to set foreground window
-    private const int ASFW_ANY = -1;
-
     // =========================================================================
     // PROCESS-SPECIFIC PASTE DELAYS
     // =========================================================================
