@@ -1118,7 +1118,7 @@ class PersistenceController: ObservableObject {
 
     /// Create a processing transcript on the serial writer.
     ///
-    /// Mirrors `createProcessingTranscript`'s idempotency guard, and additionally
+    /// Shares `createProcessingTranscript`'s idempotency guard, and additionally
     /// accepts the VAD trimmed path so the separate `setTrimmedAudioPath` write
     /// collapses into this single create. Returns the permanent object ID **only if
     /// the row was actually saved** — a dangling ID after a failed save would make
@@ -1130,38 +1130,12 @@ class PersistenceController: ObservableObject {
         trimmedAudioPath: String?
     ) async -> NSManagedObjectID? {
         return await performWriteRequiringSave { context -> NSManagedObjectID? in
-            let normalizedPath = audioFilePath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-
-            var reused: Transcript?
-            if !normalizedPath.isEmpty {
-                let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
-                request.predicate = NSPredicate(
-                    format: "status == %@ AND audioFilePath == %@",
-                    "processing",
-                    normalizedPath
-                )
-                request.sortDescriptors = [NSSortDescriptor(keyPath: \Transcript.date, ascending: false)]
-
-                if let existing = try? context.fetch(request), let primary = existing.first {
-                    if existing.count > 1 {
-                        for duplicate in existing.dropFirst() {
-                            context.delete(duplicate)
-                        }
-                        Self.stopRetries(ofDeleted: existing.dropFirst().compactMap(\.id))
-                        AppLogger.coreData.warning(
-                            "Collapsed duplicate processing transcripts for audio path: \(normalizedPath, privacy: .public) (\(existing.count, privacy: .public) -> 1)"
-                        )
-                    }
-
-                    primary.text = "Processing transcription..."
-                    primary.date = Date()
-                    primary.duration = max(primary.duration, duration)
-                    primary.mode = mode
-                    primary.audioFilePath = normalizedPath
-                    primary.setValue("processing", forKey: "status")
-                    reused = primary
-                }
-            }
+            let reused = Self.reuseProcessingTranscript(
+                in: context,
+                audioFilePath: audioFilePath,
+                duration: duration,
+                mode: mode
+            )
 
             let transcript: Transcript
             if let reused {
@@ -1223,7 +1197,7 @@ class PersistenceController: ObservableObject {
     }
 
     /// Complete a processing transcript on the serial writer. Same field updates
-    /// and near-now dedup as the `@MainActor` variant, but no `processPendingChanges()`
+    /// and near-now dedup (`collapseTransientTwins`) as the `@MainActor` variant, but no `processPendingChanges()`
     /// and no view-context `refreshAllObjects()` — the merge notification refreshes
     /// HistoryView, and maintenance is debounced off the hot path.
     ///
@@ -1269,37 +1243,7 @@ class PersistenceController: ObservableObject {
             // Always overwrite (including clearing to nil) — see the @MainActor variant.
             transcript.setValue(wordTimestampsJSON, forKey: "wordTimestampsJSON")
 
-            // Collapse transient near-now duplicates for the same audio path.
-            if let rawPath = transcript.audioFilePath {
-                let audioPath = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !audioPath.isEmpty {
-                    let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
-                    request.predicate = NSPredicate(format: "SELF != %@ AND audioFilePath == %@", transcript.objectID, audioPath)
-
-                    if let candidates = try? context.fetch(request) {
-                        let anchorDate = transcript.date ?? Date()
-                        let anchorDuration = transcript.duration
-                        let anchorText = transcript.text ?? ""
-
-                        for candidate in candidates {
-                            let status = candidate.value(forKey: "status") as? String ?? ""
-                            guard status == "processing" || status == "completed" else { continue }
-
-                            let candidateDate = candidate.date ?? .distantPast
-                            let isNearInTime = abs(candidateDate.timeIntervalSince(anchorDate)) <= 20
-                            let isNearInDuration = abs(candidate.duration - anchorDuration) <= 0.5
-                            let candidateRawText = candidate.value(forKey: "transcribedText") as? String ?? ""
-                            let sameText = (candidate.text ?? "") == anchorText || candidateRawText == transcribedText
-
-                            if isNearInTime && (isNearInDuration || sameText) {
-                                context.delete(candidate)
-                                Self.stopRetries(ofDeleted: [candidate.id].compactMap { $0 })
-                                AppLogger.coreData.warning("Removed transient duplicate transcript for path: \(audioPath, privacy: .public)")
-                            }
-                        }
-                    }
-                }
-            }
+            Self.collapseTransientTwins(of: transcript, in: context, transcribedText: transcribedText)
             return true
         }
         return result.value && result.saved
@@ -1344,6 +1288,102 @@ class PersistenceController: ObservableObject {
         return result.value && result.saved
     }
 
+    // MARK: - Transcript De-duplication Rules
+
+    // Both rules delete transcript rows. The serial writer and the
+    // `viewContext` paths each pass their own context, so every rule lives
+    // here once (#909).
+
+    /// The only status the idempotency guard reuses.
+    static let reusableTranscriptStatus = "processing"
+    /// A twin row's date is at most this far from the anchor's, in seconds.
+    static let transientTwinDateWindow: TimeInterval = 20
+    /// A twin row's duration is at most this far from the anchor's, in seconds.
+    static let transientTwinDurationWindow: TimeInterval = 0.5
+
+    /// Idempotency guard: if a processing transcript already exists for the
+    /// same audio file, reset it for a new run and return it instead of
+    /// creating a duplicate. Any extra processing rows for that path are
+    /// collapsed, keeping the newest. Returns `nil` when the path is empty
+    /// or no processing row exists. Call on `context`'s queue.
+    static func reuseProcessingTranscript(
+        in context: NSManagedObjectContext,
+        audioFilePath: String?,
+        duration: TimeInterval,
+        mode: String?
+    ) -> Transcript? {
+        let normalizedPath = audioFilePath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !normalizedPath.isEmpty else { return nil }
+
+        let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
+        request.predicate = NSPredicate(
+            format: "status == %@ AND audioFilePath == %@",
+            reusableTranscriptStatus,
+            normalizedPath
+        )
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \Transcript.date, ascending: false)]
+
+        guard let existing = try? context.fetch(request), let primary = existing.first else { return nil }
+
+        if existing.count > 1 {
+            for duplicate in existing.dropFirst() {
+                context.delete(duplicate)
+            }
+            stopRetries(ofDeleted: existing.dropFirst().compactMap(\.id))
+            AppLogger.coreData.warning(
+                "Collapsed duplicate processing transcripts for audio path: \(normalizedPath, privacy: .public) (\(existing.count, privacy: .public) -> 1)"
+            )
+        }
+
+        primary.text = "Processing transcription..."
+        primary.date = Date()
+        primary.duration = max(primary.duration, duration)
+        primary.mode = mode
+        primary.audioFilePath = normalizedPath
+        primary.setValue("processing", forKey: "status")
+        return primary
+    }
+
+    /// Collapse transient duplicates: in rare stop/transcribe race
+    /// conditions, near-identical entries can be created for the same audio
+    /// path. Delete only "near-now" twins of the just-completed `transcript`,
+    /// so legitimate historical retranscriptions of the same file stay.
+    /// Call on `context`'s queue, after `transcript`'s text fields are set.
+    static func collapseTransientTwins(
+        of transcript: Transcript,
+        in context: NSManagedObjectContext,
+        transcribedText: String
+    ) {
+        guard let rawPath = transcript.audioFilePath else { return }
+        let audioPath = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !audioPath.isEmpty else { return }
+
+        let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
+        request.predicate = NSPredicate(format: "SELF != %@ AND audioFilePath == %@", transcript.objectID, audioPath)
+
+        guard let candidates = try? context.fetch(request) else { return }
+        let anchorDate = transcript.date ?? Date()
+        let anchorDuration = transcript.duration
+        let anchorText = transcript.text ?? ""
+
+        for candidate in candidates {
+            let status = candidate.value(forKey: "status") as? String ?? ""
+            guard status == "processing" || status == "completed" else { continue }
+
+            let candidateDate = candidate.date ?? .distantPast
+            let isNearInTime = abs(candidateDate.timeIntervalSince(anchorDate)) <= transientTwinDateWindow
+            let isNearInDuration = abs(candidate.duration - anchorDuration) <= transientTwinDurationWindow
+            let candidateRawText = candidate.value(forKey: "transcribedText") as? String ?? ""
+            let sameText = (candidate.text ?? "") == anchorText || candidateRawText == transcribedText
+
+            if isNearInTime && (isNearInDuration || sameText) {
+                context.delete(candidate)
+                stopRetries(ofDeleted: [candidate.id].compactMap { $0 })
+                AppLogger.coreData.warning("Removed transient duplicate transcript for path: \(audioPath, privacy: .public)")
+            }
+        }
+    }
+
     // MARK: - Transcript Operations
 
     /// Creates a new transcript in processing state
@@ -1369,40 +1409,16 @@ class PersistenceController: ObservableObject {
 
         var transcript: Transcript!
         context.performAndWait {
-            let normalizedPath = audioFilePath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-
-            // Idempotency guard:
-            // If a processing transcript already exists for the same audio file, reuse it
-            // instead of creating duplicates. Also collapse any accidental duplicates.
-            if !normalizedPath.isEmpty {
-                let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
-                request.predicate = NSPredicate(
-                    format: "status == %@ AND audioFilePath == %@",
-                    "processing",
-                    normalizedPath
-                )
-                request.sortDescriptors = [NSSortDescriptor(keyPath: \Transcript.date, ascending: false)]
-
-                if let existing = try? context.fetch(request), let primary = existing.first {
-                    if existing.count > 1 {
-                        for duplicate in existing.dropFirst() {
-                            context.delete(duplicate)
-                        }
-                        Self.stopRetries(ofDeleted: existing.dropFirst().compactMap(\.id))
-                        AppLogger.coreData.warning(
-                            "Collapsed duplicate processing transcripts for audio path: \(normalizedPath, privacy: .public) (\(existing.count, privacy: .public) -> 1)"
-                        )
-                    }
-
-                    primary.text = "Processing transcription..."
-                    primary.date = Date()
-                    primary.duration = max(primary.duration, duration)
-                    primary.mode = mode
-                    primary.audioFilePath = normalizedPath
-                    primary.setValue("processing", forKey: "status")
-                    transcript = primary
-                    return
-                }
+            // Idempotency guard: reuse a processing row for the same audio
+            // file instead of creating a duplicate.
+            if let reused = Self.reuseProcessingTranscript(
+                in: context,
+                audioFilePath: audioFilePath,
+                duration: duration,
+                mode: mode
+            ) {
+                transcript = reused
+                return
             }
 
             let created = Transcript(context: context)
@@ -1488,40 +1504,7 @@ class PersistenceController: ObservableObject {
         // it nil, which must clear the old one rather than preserve a mismatch.
         transcript.setValue(wordTimestampsJSON, forKey: "wordTimestampsJSON")
 
-        // Collapse transient duplicates:
-        // In rare stop/transcribe race conditions, near-identical entries can be created
-        // for the same audio path. Remove only "near-now" twins to avoid touching
-        // legitimate historical retranscriptions of the same file.
-        if let rawPath = transcript.audioFilePath {
-            let audioPath = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !audioPath.isEmpty {
-                let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
-                request.predicate = NSPredicate(format: "SELF != %@ AND audioFilePath == %@", transcript.objectID, audioPath)
-
-                if let candidates = try? container.viewContext.fetch(request) {
-                    let anchorDate = transcript.date ?? Date()
-                    let anchorDuration = transcript.duration
-                    let anchorText = transcript.text ?? ""
-
-                    for candidate in candidates {
-                        let status = candidate.value(forKey: "status") as? String ?? ""
-                        guard status == "processing" || status == "completed" else { continue }
-
-                        let candidateDate = candidate.date ?? .distantPast
-                        let isNearInTime = abs(candidateDate.timeIntervalSince(anchorDate)) <= 20
-                        let isNearInDuration = abs(candidate.duration - anchorDuration) <= 0.5
-                        let candidateRawText = candidate.value(forKey: "transcribedText") as? String ?? ""
-                        let sameText = (candidate.text ?? "") == anchorText || candidateRawText == transcribedText
-
-                        if isNearInTime && (isNearInDuration || sameText) {
-                            container.viewContext.delete(candidate)
-                            Self.stopRetries(ofDeleted: [candidate.id].compactMap { $0 })
-                            AppLogger.coreData.warning("Removed transient duplicate transcript for path: \(audioPath, privacy: .public)")
-                        }
-                    }
-                }
-            }
-        }
+        Self.collapseTransientTwins(of: transcript, in: container.viewContext, transcribedText: transcribedText)
 
         // Save changes and post notification for UI refresh
         save()

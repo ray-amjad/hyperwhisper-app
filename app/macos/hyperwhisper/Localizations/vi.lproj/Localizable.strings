@@ -709,6 +709,7 @@ Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi x�
 "modes.header.create" = "Tạo Chế độ";
 "modes.name.unnamed" = "Không đặt tên";
 "modes.badge.offline" = "Ngoại tuyến";
+"modes.badge.modelMissing" = "Thiếu mô hình";
 "modes.context.select" = "Chọn";
 "modes.help.edit" = "Chỉnh sửa cài đặt chế độ";
 "modes.help.preset" = "Tìm hiểu thêm về cài đặt này";

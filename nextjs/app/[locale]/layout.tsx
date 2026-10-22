@@ -89,10 +89,10 @@ export async function generateMetadata({ params }: Props) {
     authors: [{ name: "HyperWhisper" }],
     creator: "HyperWhisper",
     openGraph: localeOpenGraph(locale, t("title"), t("description")),
+    // No title or description: Next fills them from the page's og:title and
+    // og:description, so a page's shared link names the page, not home (#2265).
     twitter: {
       card: TWITTER_CARD,
-      title: t("title"),
-      description: t("description"),
       creator: TWITTER_CREATOR,
       images: TWITTER_IMAGES,
     },
