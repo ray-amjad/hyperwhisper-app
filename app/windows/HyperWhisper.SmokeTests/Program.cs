@@ -4865,6 +4865,10 @@ internal static class Program
                 // A theme switch re-resolves the trees of the app's windows, so
                 // the consumer sits in one (never shown) as a page would.
                 var host = new Window { Content = consumer };
+                // Closing it must not end the shared smoke Application when it is
+                // the only window (OnLastWindowClose), or every later case that
+                // needs App fails.
+                var shutdownMode = app.ShutdownMode;
 
                 try
                 {
@@ -4895,7 +4899,9 @@ internal static class Program
                 }
                 finally
                 {
+                    app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
                     host.Close();
+                    app.ShutdownMode = shutdownMode;
                     theme.ApplyTheme(wasDark ? HyperWhisper.Models.ThemeMode.Dark : HyperWhisper.Models.ThemeMode.Light);
                 }
             });

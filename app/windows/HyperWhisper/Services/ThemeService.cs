@@ -74,12 +74,14 @@ public class ThemeService
     /// <summary>
     /// URI for the light theme color ResourceDictionary.
     /// </summary>
-    private static readonly Uri LightThemeUri = new("pack://application:,,,/Themes/LightColors.xaml");
+    /// Component-qualified so it resolves to this assembly even when another
+    /// assembly is the entry point (the smoke-test host).
+    private static readonly Uri LightThemeUri = new("pack://application:,,,/HyperWhisper;component/Themes/LightColors.xaml");
 
     /// <summary>
     /// URI for the dark theme color ResourceDictionary.
     /// </summary>
-    private static readonly Uri DarkThemeUri = new("pack://application:,,,/Themes/DarkColors.xaml");
+    private static readonly Uri DarkThemeUri = new("pack://application:,,,/HyperWhisper;component/Themes/DarkColors.xaml");
 
     // =========================================================================
     // EVENTS
@@ -226,19 +228,21 @@ public class ThemeService
                 return;
             }
 
-            // Find and remove the current color dictionary
+            // Load the new color dictionary BEFORE removing the current one:
+            // it holds every theme brush too, so a load that throws must leave
+            // the old theme in place rather than no brushes at all.
+            var newColorDict = new ResourceDictionary
+            {
+                Source = dark ? DarkThemeUri : LightThemeUri
+            };
+
             var currentColorDict = FindColorDictionary();
             if (currentColorDict != null)
             {
                 app.Resources.MergedDictionaries.Remove(currentColorDict);
             }
 
-            // Load and insert the new color dictionary at the beginning,
-            // where App.xaml declares it
-            var newColorDict = new ResourceDictionary
-            {
-                Source = dark ? DarkThemeUri : LightThemeUri
-            };
+            // Insert at the beginning, where App.xaml declares it
             app.Resources.MergedDictionaries.Insert(0, newColorDict);
 
             LoggingService.Info($"ThemeService: Applied {(dark ? "dark" : "light")} theme");
