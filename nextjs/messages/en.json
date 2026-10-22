@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Features",
-    "pricing": "Pricing",
     "faq": "FAQ",
     "support": "Support",
     "download": "Download",
@@ -20,7 +19,6 @@
     "cloud": "Cloud"
   },
   "hero": {
-    "openSourceBadge": "Open source · Apache-2.0",
     "logoAlt": "HyperWhisper Logo",
     "headline": "Write, compose, and create",
     "headlineAccent": "5x faster with AI",
@@ -125,57 +123,6 @@
     "languagesSupported": "Languages supported",
     "providersSupported": "Providers supported"
   },
-  "pricing": {
-    "title": "No subscriptions. Ever.",
-    "subtitle": "Pay once, use forever. We hate subscriptions too.",
-    "guarantee": "14-day money back guarantee",
-    "guaranteeExtended": "if you're not completely satisfied.",
-    "learnMore": "Learn more",
-    "free": {
-      "name": "Free",
-      "price": "$0",
-      "period": "forever",
-      "description": "Perfect for trying out HyperWhisper",
-      "cta": "Download Free",
-      "features": {
-        "transcriptionLimit": "5 minutes of transcription per day",
-        "basicModes": "Basic transcription modes",
-        "offlineTranscription": "Offline transcription",
-        "apiTranscription": "API transcription (bring your own keys)",
-        "postProcessing": "Text post-processing",
-        "providers": "9+ providers to choose from",
-        "lifetimeUpdates": "Lifetime updates",
-        "cloudLimited": "HyperWhisper Cloud (limited usage)",
-        "customVocabulary": "Custom vocabulary",
-        "prioritySupport": "Priority support"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "lifetime",
-      "description": "One-time purchase, unlimited power forever",
-      "cta": "Buy Now - Lifetime Access",
-      "mostPopular": "Most Popular",
-      "features": {
-        "unlimitedTranscription": "Unlimited transcription",
-        "allModes": "All transcription modes",
-        "offlineTranscription": "Offline transcription",
-        "apiTranscription": "API transcription (bring your own keys)",
-        "postProcessing": "Text post-processing",
-        "providers": "9+ providers to choose from",
-        "lifetimeUpdates": "Lifetime updates",
-        "cloudCredits": "HyperWhisper Cloud ($5 in credits)",
-        "customVocabulary": "Custom vocabulary",
-        "prioritySupport": "Priority support"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise & Custom Pricing",
-      "description": "Volume discounts, SSO, priority support, in-house hosting, and custom integrations",
-      "cta": "Contact Sales"
-    }
-  },
   "faq": {
     "title": "Frequently asked questions",
     "subtitle": "Everything you need to know about HyperWhisper",
@@ -279,10 +226,7 @@
     "downloadButton": "Download HyperWhisper",
     "errorGeneric": "Something went wrong. Please try again.",
     "errorEmail": "Enter a valid email address.",
-    "errorNetwork": "Network error. Please check your connection and try again.",
-    "thankYouTitle": "Thanks!",
     "downloadStarted": "Your download should start automatically.",
-    "manualDownload": "Download hasn't started? Click here",
     "skipAndDownloadButton": "Skip and download"
   },
   "downloadPage": {
@@ -351,7 +295,6 @@
       "download": "Download",
       "roadmap": "Roadmap",
       "helpCenter": "Help Center",
-      "manageBilling": "Manage Billing",
       "customerPortal": "Customer Portal",
       "olderVersions": "Older Versions",
       "blog": "Blog",

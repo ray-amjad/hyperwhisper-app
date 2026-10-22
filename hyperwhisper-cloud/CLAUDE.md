@@ -64,7 +64,7 @@ Changes to query params (`account_key` / legacy `license_key`, `device_id`, `lan
 
 Every native request also carries `X-HyperWhisper-Platform` (`macos` / `windows`) and `X-HyperWhisper-Version` (app version). `src/lib/client-info.ts` reads them onto `transcribe.request_start`, `transcribe.request_done`, and `post_process.request_start` as `clientPlatform` / `clientVersion`, falling back to the `User-Agent` for builds shipped before the headers existed. They are caller-supplied labels for logs only — never gate auth, billing, or routing on them. Client side: `HyperWhisperClientInfo.swift` (macOS) and `ClientInfoHeaders.cs` (Windows).
 
-The auth credential is accepted under **two param names**: `account_key` (canonical, preferred) and `license_key` (legacy alias). Every entry point (`transcribe`, `assistant`, `post-process`, `usage`, and every `/ws/streaming-*` route via `makeStreamingPreflight`) reads `account_key` first, then falls back to `license_key`, so installed native apps that still send `license_key` keep working. Both carry the same key string — they're aliases, not different credentials.
+The auth credential is accepted under **two param names**: `account_key` (canonical, preferred) and `license_key` (legacy alias). Every entry point (`transcribe`, `post-process`, `usage`, and every `/ws/streaming-*` route via `makeStreamingPreflight`) reads `account_key` first, then falls back to `license_key`, so installed native apps that still send `license_key` keep working. Both carry the same key string — they're aliases, not different credentials.
 </important>
 
 <important if="you are touching rate limits, `src/middleware/rate-limit.ts`, or adding a key-accepting route">
@@ -77,7 +77,7 @@ The auth credential is accepted under **two param names**: `account_key` (canoni
 | `key` | 60 / min | SHA-256 of the account key (never the raw key) | `keyRateLimitResponse` inside each route, right AFTER `validateAuth` accepts the key and before any credit hold |
 | `ws_upgrade` | 10 / min | same key hash | `makeStreamingPreflight`, on top of `key` — an upgrade counts against both |
 
-Limited: `/transcribe`, `/post-process`, `/assistant`, `/usage` and every `/ws/streaming-*` upgrade. `/health`, `/warmup` and CORS preflights are not. A new key-accepting route needs `ipRateLimit` in `index.ts` and a `keyRateLimitResponse` call after its auth; a new `/ws/streaming-*` route gets the key buckets from `makeStreamingPreflight` but still needs `ipRateLimit` in `index.ts`.
+Limited: `/transcribe`, `/post-process`, `/usage` and every `/ws/streaming-*` upgrade. `/health`, `/warmup` and CORS preflights are not. A new key-accepting route needs `ipRateLimit` in `index.ts` and a `keyRateLimitResponse` call after its auth; a new `/ws/streaming-*` route gets the key buckets from `makeStreamingPreflight` but still needs `ipRateLimit` in `index.ts`.
 
 Over a limit: HTTP 429, a `Retry-After` header in whole seconds, and the usual `{ error: 'Too many requests', message, retry_after_seconds }` body; the log line is `rate_limit.rejected` (endpoint + bucket, never the IP or key). The native clients already treat 429 as rate limited.
 

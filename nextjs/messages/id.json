@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Fitur",
-    "pricing": "Harga",
     "faq": "FAQ",
     "support": "Dukungan",
     "download": "Unduh",
@@ -20,7 +19,6 @@
     "githubAria": "Lihat HyperWhisper di GitHub"
   },
   "hero": {
-    "openSourceBadge": "Sumber terbuka · Apache-2.0",
     "logoAlt": "Logo HyperWhisper",
     "headline": "Tulis, susun, dan ciptakan",
     "headlineAccent": "5x lebih cepat dengan AI",
@@ -97,57 +95,6 @@
     "accuracyRate": "Tingkat akurasi",
     "languagesSupported": "Bahasa didukung",
     "providersSupported": "Penyedia didukung"
-  },
-  "pricing": {
-    "title": "Tanpa langganan. Selamanya.",
-    "subtitle": "Bayar sekali, pakai selamanya. Kami juga benci langganan.",
-    "guarantee": "Jaminan uang kembali 14 hari",
-    "guaranteeExtended": "jika Anda tidak sepenuhnya puas.",
-    "learnMore": "Pelajari lebih lanjut",
-    "free": {
-      "name": "Gratis",
-      "price": "$0",
-      "period": "selamanya",
-      "description": "Cocok untuk mencoba HyperWhisper",
-      "cta": "Unduh Gratis",
-      "features": {
-        "transcriptionLimit": "5 menit transkripsi per hari",
-        "basicModes": "Mode transkripsi dasar",
-        "offlineTranscription": "Transkripsi offline",
-        "apiTranscription": "Transkripsi API (bawa kunci Anda sendiri)",
-        "postProcessing": "Pascapemrosesan teks",
-        "providers": "9+ penyedia untuk dipilih",
-        "lifetimeUpdates": "Pembaruan seumur hidup",
-        "cloudLimited": "HyperWhisper Cloud (pemakaian terbatas)",
-        "customVocabulary": "Kosakata kustom",
-        "prioritySupport": "Dukungan prioritas"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "seumur hidup",
-      "description": "Pembelian sekali, tenaga tanpa batas selamanya",
-      "cta": "Beli Sekarang - Akses Seumur Hidup",
-      "mostPopular": "Paling Populer",
-      "features": {
-        "unlimitedTranscription": "Transkripsi tanpa batas",
-        "allModes": "Semua mode transkripsi",
-        "offlineTranscription": "Transkripsi offline",
-        "apiTranscription": "Transkripsi API (bawa kunci Anda sendiri)",
-        "postProcessing": "Pascapemrosesan teks",
-        "providers": "9+ penyedia untuk dipilih",
-        "lifetimeUpdates": "Pembaruan seumur hidup",
-        "cloudCredits": "HyperWhisper Cloud ($5 kredit)",
-        "customVocabulary": "Kosakata kustom",
-        "prioritySupport": "Dukungan prioritas"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise & Harga Kustom",
-      "description": "Diskon volume, SSO, dukungan prioritas, hosting internal, dan integrasi kustom",
-      "cta": "Hubungi Sales"
-    }
   },
   "faq": {
     "title": "Pertanyaan yang sering diajukan",
@@ -252,10 +199,7 @@
     "downloadButton": "Unduh HyperWhisper",
     "errorGeneric": "Terjadi kesalahan. Silakan coba lagi.",
     "errorEmail": "Masukkan alamat email yang valid.",
-    "errorNetwork": "Kesalahan jaringan. Periksa koneksi Anda dan coba lagi.",
-    "thankYouTitle": "Terima kasih!",
     "downloadStarted": "Unduhan Anda seharusnya mulai secara otomatis.",
-    "manualDownload": "Unduhan belum mulai? Klik di sini",
     "skipAndDownloadButton": "Lewati dan unduh"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Unduh",
       "roadmap": "Peta jalan",
       "helpCenter": "Pusat bantuan",
-      "manageBilling": "Kelola Tagihan",
       "customerPortal": "Portal Pelanggan",
       "olderVersions": "Versi Lama",
       "blog": "Blog",

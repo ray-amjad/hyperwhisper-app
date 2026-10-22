@@ -12,9 +12,12 @@
 //  decodes it and fed to the import's decode arms (`macosSettings(fromV2:)`,
 //  `backupModes(fromV2:)`, `backupVocabularyItems(fromUniversal:)`,
 //  `universalAPIKeyAssignments`, `foreignTopLevelExtensions`). Nothing here
-//  touches the running test host's settings, store or Keychain.
+//  touches the running test host's settings, store or Keychain: the
+//  `importUniversalV2` tests (#2207) write to an in-memory store and a recording
+//  settings store, injected through `importPersistence` and `settingsStore`.
 //
 
+import CoreData
 import Foundation
 import Testing
 
@@ -368,18 +371,103 @@ struct BackupUniversalV2RoundTripTests {
         #expect(assignments.map { $0.key } == ["percy732-openai-value", "percy732-transcribe-value"])
     }
 
-    /// `defaultModelByModeFromExtensions` reads the flat
-    /// `platformExtensions.macos.settings.defaultModelByMode` shape. (The
-    /// current export nests it under `settings.aiModel`; see the #732 notes.)
-    @Test func theParkedDefaultModelMapIsRead() {
+    /// `defaultModelByModeFromExtensions` reads the map where the export parks
+    /// it, `platformExtensions.macos.settings.aiModel.defaultModelByMode`
+    /// (#2207), and falls back to a flat `settings.defaultModelByMode`.
+    @Test func theParkedDefaultModelMapIsRead() throws {
         let id = Self.richModeId.uuidString
-        let ext = JSONValue.object([
+        let fixture = try exportFixture()
+        #expect(BackupManager.defaultModelByModeFromExtensions(fixture.dto.platformExtensions) == [id: "large-v3"])
+
+        let flat = JSONValue.object([
             "macos": .object(["settings": .object([
                 "defaultModelByMode": .object([id: .string("large-v3"), "skipped": .number(1)]),
             ])]),
         ])
-        #expect(BackupManager.defaultModelByModeFromExtensions(ext) == [id: "large-v3"])
+        #expect(BackupManager.defaultModelByModeFromExtensions(flat) == [id: "large-v3"])
         #expect(BackupManager.defaultModelByModeFromExtensions(nil) == nil)
         #expect(BackupManager.defaultModelByModeFromExtensions(.object(["windows": .object([:])])) == nil)
+    }
+
+    // MARK: - importUniversalV2 restores the per-mode default models (#2207)
+
+    /// The settings as an import sees them. Like the live store, `apply` does
+    /// not write `defaultModelByMode`: only the import's remap step does.
+    @MainActor
+    private final class RecordingSettingsStore: BackupImportSettingsStore {
+        private(set) var live: BackupSettings
+        var defaultModelByMode: [String: String]
+        var foreignTopLevelExtensions: String?
+
+        init(live: BackupSettings) {
+            self.live = live
+            self.defaultModelByMode = live.aiModel.defaultModelByMode
+        }
+
+        func current() async -> BackupSettings { live }
+        func apply(_ settings: BackupSettings) async { live = settings }
+        func restore(_ settings: BackupSettings) async {
+            live = settings
+            defaultModelByMode = settings.aiModel.defaultModelByMode
+        }
+    }
+
+    private static let localModeId = UUID()
+
+    /// Imports the export fixture through `importUniversalV2` into an
+    /// in-memory store that already holds a mode named like the rich mode,
+    /// under another id.
+    private func importFixture(
+        modeConflict: ModeConflictResolution
+    ) async throws -> (result: ImportResult, store: RecordingSettingsStore, persistence: PersistenceController) {
+        let persistence = PersistenceController(inMemory: true)
+        _ = persistence.createOrUpdateMode(
+            id: Self.localModeId, name: "Percy 732 Rich", preset: "custom", language: "en", model: "base",
+            punctuation: true, capitalization: true, profanityFilter: false
+        )
+        try persistence.container.viewContext.save()
+
+        let store = RecordingSettingsStore(live: Self.settings(false))
+        // Own instance, never `.shared` — see `BackupManager.init`.
+        let backup = BackupManager()
+        backup.importPersistence = persistence
+        backup.settingsStore = store
+
+        var options = ImportOptions()
+        options.modeConflict = modeConflict
+        options.importAPIKeys = false
+        options.importLicenseKey = false
+
+        let fixture = try exportFixture()
+        let result = await backup.importUniversalV2(
+            jsonData: fixture.data,
+            rawString: String(decoding: fixture.data, as: UTF8.self),
+            topLevel: fixture.topLevel,
+            options: options
+        )
+        return (result, store, persistence)
+    }
+
+    /// The issue's "Done when": a v2 file built by the export steps, imported
+    /// with a mode-id remap (Keep Both gives the rich mode's copy a new id),
+    /// leaves the per-mode default model on the NEW id.
+    @Test func keepBothRemapsTheDefaultModelMapToTheNewModeId() async throws {
+        let (result, store, persistence) = try await importFixture(modeConflict: .keepBoth)
+        #expect(result.success)
+        #expect(result.settingsApplied)
+
+        let copy = try #require(persistence.fetchAllModes().first { $0.name == "Percy 732 Rich (imported)" })
+        let newId = try #require(copy.id)
+        #expect(newId != Self.richModeId)
+        #expect(newId != Self.localModeId)
+        #expect(store.defaultModelByMode == [newId.uuidString: "large-v3"])
+    }
+
+    /// Replace keeps the backup's ids, so the map is restored as written.
+    @Test func replaceRestoresTheDefaultModelMap() async throws {
+        let (result, store, persistence) = try await importFixture(modeConflict: .replace)
+        #expect(result.success)
+        #expect(persistence.fetchAllModes().contains { $0.id == Self.richModeId })
+        #expect(store.defaultModelByMode == [Self.richModeId.uuidString: "large-v3"])
     }
 }
