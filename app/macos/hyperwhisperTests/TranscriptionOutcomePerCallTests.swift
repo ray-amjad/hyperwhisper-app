@@ -399,12 +399,16 @@ struct TranscriptionOutcomePerCallTests {
         let callA = Task {
             try await shared.transcribeDetailed(audioURL: audio, language: "de", mode: mode, vocabulary: [])
         }
-        // A `#require` below that throws must not leave A running into the
-        // next test, which resets the shared backend.
-        defer { callA.cancel() }
-        // `#require`: if A never parked, B's /post-process would be the held
-        // one, and nothing would ever release it.
-        try #require(await Self.eventually { backend.heldCount == 1 }, "call A never reached its /post-process")
+        // Stop here if A never parked: B's /post-process would be the held
+        // one, and nothing would release it. End A first, so it cannot reach
+        // the shared backend after the next test resets it.
+        guard await Self.eventually({ backend.heldCount == 1 }) else {
+            Issue.record("call A never reached its /post-process")
+            backend.releaseHeld()
+            callA.cancel()
+            _ = try? await callA.value
+            return
+        }
 
         let outcomeB = try await shared.transcribeDetailed(audioURL: audio, language: "fr", mode: mode, vocabulary: [])
         #expect(backend.heldCount == 1, "call A must still be in flight while B finishes")
