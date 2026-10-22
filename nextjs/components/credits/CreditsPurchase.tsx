@@ -415,15 +415,15 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
         {/* Reassurance strip */}
         <div className="grid sm:grid-cols-3 gap-3 mt-6 text-sm">
           <div className="flex items-center gap-2 text-gray-400">
-            <Layers className="w-4 h-4 text-purple-300 shrink-0" />
+            <Layers className="w-4 h-4 text-purple-300 shrink-0" strokeWidth={1.5} />
             {t("stripProviders")}
           </div>
           <div className="flex items-center gap-2 text-gray-400">
-            <Wallet className="w-4 h-4 text-purple-300 shrink-0" />
+            <Wallet className="w-4 h-4 text-purple-300 shrink-0" strokeWidth={1.5} />
             {t("stripNoSub")}
           </div>
           <div className="flex items-center gap-2 text-gray-400">
-            <ShieldCheck className="w-4 h-4 text-purple-300 shrink-0" />
+            <ShieldCheck className="w-4 h-4 text-purple-300 shrink-0" strokeWidth={1.5} />
             {t("stripNoTraining")}
           </div>
         </div>
@@ -435,7 +435,7 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
           <Button
             variant="bordered"
             size="lg"
-            startContent={<LogIn className="w-4 h-4" />}
+            startContent={<LogIn className="w-4 h-4" strokeWidth={1.5} />}
             className="border-gray-700 text-gray-200 data-[hover=true]:border-gray-500"
             onPress={() => {
               window.location.href = `/${locale}/user/sign-in`;

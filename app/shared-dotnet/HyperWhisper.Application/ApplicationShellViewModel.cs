@@ -141,6 +141,9 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
     public BackupViewModel Backup { get; }
     public CredentialManagementViewModel? Credentials { get; }
     public CloudAccountViewModel? Account { get; }
+
+    /// <summary>The balance fetch startup starts after the account status loads (#2405).</summary>
+    internal Task? AccountBalanceLoad { get; private set; }
     public AboutViewModel? About { get; }
     public TranscriptionWorkflowViewModel? Recording { get; }
     public MicrophonePickerViewModel? Microphone { get; }
@@ -260,7 +263,14 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
             Microphone?.Reload();
             await Task.WhenAll(Home.RefreshAsync(_lifetime.Token), History.RefreshAsync(_lifetime.Token), Vocabulary.RefreshAsync(_lifetime.Token), Modes.RefreshAsync(_lifetime.Token));
             History.SetRetryModes(Modes.Items);
-            if (Account is not null) await Account.LoadAsync(_lifetime.Token);
+            if (Account is not null)
+            {
+                await Account.LoadAsync(_lifetime.Token);
+                // #2405: the status load brings no balance. It is fetched without being awaited,
+                // so an offline launch does not hold the window off Ready for the network
+                // timeout; LoadBalanceAsync reports its own failures on the account page.
+                AccountBalanceLoad = Account.LoadBalanceAsync(_lifetime.Token);
+            }
             if (Settings.Status.HasError || Home.Status.HasError || History.Status.HasError
                 || Vocabulary.Status.HasError || Modes.Status.HasError)
             {

@@ -64,7 +64,7 @@ struct DeviceAudioRecorderTests {
 
     @Test func meteringIsOnByDefaultAndIdleIsSilent() {
         // A fake default device: this test must never read real hardware.
-        let recorder = DeviceAudioRecorder(deviceID: 0, url: nil, defaultInputDeviceID: { nil })
+        let recorder = DeviceAudioRecorder(deviceID: 0, url: nil, fallbackInputDeviceIDs: { [] })
         #expect(recorder.isMeteringEnabled)
         #expect(recorder.averagePower(forChannel: 0) == DeviceAudioRecorder.silentPowerDb)
         // Stopping a recorder that never started is a no-op, and a meter-only one has no file.
@@ -160,19 +160,25 @@ struct DeviceAudioRecorderTests {
 
     @Test func aRemovedChosenDeviceFallsBackToTheDefault() {
         let gone: Set<AudioDeviceID> = [41]
-        #expect(DeviceAudioRecorder.restartCandidates(chosen: 41, fallback: 73, isGone: { gone.contains($0) }) == [73])
+        #expect(DeviceAudioRecorder.restartCandidates(chosen: 41, fallbacks: [73], isGone: { gone.contains($0) }) == [73])
     }
 
     @Test func aLiveChosenDeviceIsTriedBeforeTheDefault() {
-        #expect(DeviceAudioRecorder.restartCandidates(chosen: 41, fallback: 73, isGone: { _ in false }) == [41, 73])
-        #expect(DeviceAudioRecorder.restartCandidates(chosen: 41, fallback: 41, isGone: { _ in false }) == [41])
-        #expect(DeviceAudioRecorder.restartCandidates(chosen: 41, fallback: AudioDeviceID(kAudioObjectUnknown), isGone: { _ in false }) == [41])
-        #expect(DeviceAudioRecorder.restartCandidates(chosen: 41, fallback: nil, isGone: { _ in false }) == [41])
+        #expect(DeviceAudioRecorder.restartCandidates(chosen: 41, fallbacks: [73], isGone: { _ in false }) == [41, 73])
+        #expect(DeviceAudioRecorder.restartCandidates(chosen: 41, fallbacks: [41], isGone: { _ in false }) == [41])
+        #expect(DeviceAudioRecorder.restartCandidates(chosen: 41, fallbacks: [AudioDeviceID(kAudioObjectUnknown)], isGone: { _ in false }) == [41])
+        #expect(DeviceAudioRecorder.restartCandidates(chosen: 41, fallbacks: [], isGone: { _ in false }) == [41])
+    }
+
+    @Test func everyFallbackIsTriedOnceInOrder() {
+        // The non-virtual stand-ins for a skipped virtual default (#2408).
+        #expect(DeviceAudioRecorder.restartCandidates(chosen: 41, fallbacks: [41, 52, 73, 52], isGone: { _ in false }) == [41, 52, 73])
+        #expect(DeviceAudioRecorder.restartCandidates(chosen: 41, fallbacks: [52, 73], isGone: { $0 == 52 }) == [41, 73])
     }
 
     @Test func noLiveDeviceMeansNoCandidate() {
         // An empty list makes the restart fail, so the retry budget ends in capture lost.
-        #expect(DeviceAudioRecorder.restartCandidates(chosen: 41, fallback: 73, isGone: { _ in true }).isEmpty)
+        #expect(DeviceAudioRecorder.restartCandidates(chosen: 41, fallbacks: [73], isGone: { _ in true }).isEmpty)
     }
 
     @Test func onlyPositiveEvidenceMeansADeviceIsGone() {

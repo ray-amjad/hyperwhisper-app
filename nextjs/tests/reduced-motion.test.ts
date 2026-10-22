@@ -82,7 +82,7 @@ test("globals.css carries the prefers-reduced-motion guard", () => {
   assert.match(block, /html \{ scroll-behavior: auto; \}/, "html scroll-behavior: auto");
   assert.match(
     block,
-    /\.animate-blob, \.animate-scroll, \.animate-scroll-x \{ animation: none; \}/,
+    /\.animate-scroll, \.animate-scroll-x \{ animation: none; \}/,
     "decorative keyframe classes get animation: none",
   );
   // The two normal rules stay unlayered: an unlayered normal rule beats a

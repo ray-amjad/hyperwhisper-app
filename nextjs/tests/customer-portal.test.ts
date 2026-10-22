@@ -641,6 +641,40 @@ test("stripePortalUrl refuses when no key carries a Stripe customer", async () =
   assert.deepEqual(calls.portalSessionCreate, []);
 });
 
+test("stripePortalUrl skips a cached customer that belongs to another email (#2460)", async () => {
+  const ctx = await contextFor(customerUser());
+  // row_a still caches the customer of the address the account was moved
+  // away from; row_b's customer is at the account's current email.
+  behaviour.accountKeys = [
+    accountKeyRow({ id: "row_a", stripeCustomerId: "cus_old" }),
+    accountKeyRow({ id: "row_b", stripeCustomerId: "cus_current" }),
+  ];
+  behaviour.customerEmails = {
+    cus_old: "previous-holder@example.com",
+    cus_current: "buyer@example.com",
+  };
+
+  await callCustomer("stripePortalUrl", ctx, "mutation");
+  assert.equal(onlyPortalSession().customer, "cus_current");
+});
+
+test("stripePortalUrl refuses when every cached customer belongs to another email (#2460)", async () => {
+  const ctx = await contextFor(customerUser());
+  behaviour.accountKeys = [accountKeyRow({ stripeCustomerId: "cus_old" })];
+  behaviour.customerEmails = { cus_old: "previous-holder@example.com" };
+
+  await assert.rejects(
+    callCustomer("stripePortalUrl", ctx, "mutation"),
+    (error: unknown) => {
+      assert.ok(error instanceof TRPCError);
+      assert.equal(error.code, "NOT_FOUND");
+      return true;
+    },
+  );
+  // The old holder's payment history is never opened for the new owner.
+  assert.deepEqual(calls.portalSessionCreate, []);
+});
+
 test("stripePortalUrl refuses an account with no keys at all", async () => {
   const ctx = await contextFor(customerUser());
   behaviour.accountKeys = [];

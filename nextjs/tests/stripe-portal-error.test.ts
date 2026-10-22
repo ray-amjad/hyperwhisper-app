@@ -85,6 +85,13 @@ moduleMock.module(moduleUrl("../src/env/server.mjs"), {
 moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
   namedExports: {
     stripe: {
+      customers: {
+        // The cached customer still belongs to the signed-in address (#2460).
+        retrieve: async (id: string) => ({
+          id,
+          email: "portal-error@example.test",
+        }),
+      },
       billingPortal: {
         sessions: {
           create: async () => {

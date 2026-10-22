@@ -30,8 +30,15 @@ import {
   type ScoredModel,
   type Weights,
 } from "@/lib/choosing-a-model/scoring";
+import {
+  prefersReducedMotion,
+  slideRows,
+  snapshotRowTops,
+} from "@/lib/flip-rows";
 import { regionCity } from "@/lib/latency/fly-regions";
 import { isRecord } from "@/src/lib/type-guards";
+
+export { FLIP_DURATION_MS, FLIP_EASING } from "@/lib/flip-rows";
 
 type MeasuredLatencyByRegion = Record<string, Record<string, number>>;
 
@@ -159,34 +166,6 @@ function AccuracyNote({ model }: { model: Model }) {
 }
 
 /**
- * How far a re-ranked row may visibly travel (#766). A row that moves further
- * (one model jumps ~4,400 px on a single slider move) starts this far from its
- * new place and fades in, instead of flying across the whole table.
- */
-const FLIP_MAX_DISTANCE = 400;
-
-/**
- * The slide's timing: --motion-duration-fast and --motion-ease-smooth-out in
- * globals.css (a test pins the two together). The rows run on the Web
- * Animations API rather than an inline transition, so a re-rank writes no
- * inline style and needs no forced reflow to set a start state.
- */
-export const FLIP_DURATION_MS = 250;
-export const FLIP_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
-
-/**
- * Read at event time, never during render, so the server markup and the first
- * client render stay identical (no hydration mismatch).
- */
-function prefersReducedMotion(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
-
-/**
  * Weight changes closer together than this are one gesture: a slider drag, or
  * a held arrow key (#766). Only the first change of a gesture replays the
  * name swap and the stat pop; during the rest of it the text just updates, so
@@ -294,12 +273,7 @@ export default function ModelPicker({ measured, regions }: Props) {
   // FLIP the re-ranked rows (#766): each row is drawn back at the place it
   // held before the weight change, then let go so it slides to its new rank.
   // Runs after the DOM commit and before paint, so no frame shows the jump.
-  //
-  // One read pass, then writes that dirty nothing: offsetTop ignores the
-  // transform a slide in flight draws, so no slide has to be cancelled first,
-  // and a Web Animation needs no inline style and no reflow to start. Writing
-  // inline styles row by row and reading the next row forced a style + layout
-  // flush per row, about 50 per slider input, which made a drag stutter.
+  // The slide itself is lib/flip-rows, shared with the /latency matrix (#812).
   useLayoutEffect(() => {
     const before = pendingMotion.current;
 
@@ -309,59 +283,11 @@ export default function ModelPicker({ measured, regions }: Props) {
     const tbody = tbodyRef.current;
     const rows = rowRefs.current;
     const sameSet =
-      tbody !== null &&
       rows.size === before.rowTops.size &&
       Array.from(rows.keys()).every((id) => before.rowTops.has(id));
 
-    if (sameSet && typeof tbody.animate === "function") {
-      const base = tbody.offsetTop;
-      const viewTop = tbody.getBoundingClientRect().top;
-      const viewHeight = window.innerHeight;
-      const moved: {
-        id: string;
-        row: HTMLTableRowElement;
-        delta: number;
-        top: number;
-        height: number;
-      }[] = [];
-
-      rows.forEach((row, id) => {
-        const top = row.offsetTop - base;
-        const delta = (before.rowTops.get(id) ?? 0) - top;
-
-        if (Math.abs(delta) >= 1) {
-          moved.push({ id, row, delta, top, height: row.offsetHeight });
-        }
-      });
-      for (const { id, row, delta, top, height } of moved) {
-        const far = Math.abs(delta) > FLIP_MAX_DISTANCE;
-        const shown = far ? Math.sign(delta) * FLIP_MAX_DISTANCE : delta;
-        // A row whose whole slide is off screen is not animated: nobody
-        // sees it, and each running slide costs a style pass every frame.
-        const from = viewTop + top + Math.min(0, shown);
-        const to = viewTop + top + Math.max(0, shown) + height;
-
-        rowSlides.current.get(id)?.cancel();
-        if (to <= 0 || from >= viewHeight) {
-          rowSlides.current.delete(id);
-          continue;
-        }
-        rowSlides.current.set(
-          id,
-          row.animate(
-            far
-              ? [
-                  { transform: `translateY(${shown}px)`, opacity: 0 },
-                  { transform: "none", opacity: 1 },
-                ]
-              : [
-                  { transform: `translateY(${shown}px)` },
-                  { transform: "none" },
-                ],
-            { duration: FLIP_DURATION_MS, easing: FLIP_EASING },
-          ),
-        );
-      }
+    if (tbody !== null && sameSet) {
+      slideRows(tbody, rows, before.rowTops, rowSlides.current);
     }
 
     // The best-match name and its stats swap in place: replay only what
@@ -406,16 +332,8 @@ export default function ModelPicker({ measured, regions }: Props) {
     lastWeightChangeAt.current = at;
 
     if (tbody === null || prefersReducedMotion()) return;
-    const base = tbody.getBoundingClientRect().top;
-    const rowTops = new Map<string, number>();
-
-    // The visual top, mid-slide included, so a drag that re-ranks again
-    // before the last slide ends carries on from where the row is drawn.
-    rowRefs.current.forEach((row, id) => {
-      rowTops.set(id, row.getBoundingClientRect().top - base);
-    });
     pendingMotion.current = {
-      rowTops,
+      rowTops: snapshotRowTops(tbody, rowRefs.current),
       name: nameRef.current?.textContent ?? null,
       stats: Array.from(
         statsRef.current?.querySelectorAll("dd") ?? [],

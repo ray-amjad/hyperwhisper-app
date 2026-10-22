@@ -806,6 +806,19 @@ static Task TrayMicrophoneSelectionIsDeterministic()
         "unknown selection did not recover from the default microphone");
     Assert(LinuxTrayMicrophoneSelector.SelectAdjacent([], null, 1) is null,
         "empty microphone list produced a selection");
+    // #2408: a virtual OS default gives way to the first non-virtual input, in enumeration order.
+    var virtualDefault = new[]
+    {
+        new AudioInputDevice("a-cable", "VB-Cable Virtual Source", true),
+        new AudioInputDevice("z-mic", "Built-in Audio Analog Stereo"),
+        new AudioInputDevice("m-mic", "HD Pro Webcam C920"),
+    };
+    Assert(LinuxTrayMicrophoneSelector.SelectDefault(virtualDefault)?.Id == "z-mic",
+        "the tray's Default picked a virtual OS default over a physical input");
+    Assert(LinuxTrayMicrophoneSelector.SelectAdjacent(virtualDefault, null, 1)?.Id == "a-cable",
+        "unknown selection did not step on from the automatic pick (z-mic, then wraps to a-cable)");
+    Assert(LinuxTrayMicrophoneSelector.SelectDefault([new AudioInputDevice("a-cable", "VB-Cable Virtual Source", true)])?.Id == "a-cable",
+        "an all-virtual machine did not keep the OS default");
     return Task.CompletedTask;
 }
 
