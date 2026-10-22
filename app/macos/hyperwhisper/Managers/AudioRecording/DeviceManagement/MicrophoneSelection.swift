@@ -71,24 +71,6 @@ enum MicrophoneResolution: Equatable, Sendable {
         return .chosenNotConnected(MicrophoneChoice(uid: savedUID, name: name))
     }
 
-    /// The UID HyperWhisper must open itself, or `nil` to let macOS route the default.
-    ///
-    /// - A connected chosen device is always used, virtual or not. One that IS the
-    ///   current macOS default needs no pinning: the existing `AVAudioRecorder` path
-    ///   already records from the default, and keeping that path for it leaves the
-    ///   most-used configuration on the long-proven capture code.
-    /// - Otherwise (no choice, or the chosen device unplugged) the automatic pick is
-    ///   used, pinned only when it is not the default — that is, when a virtual default
-    ///   is skipped.
-    func pinnedDeviceUID(systemDefaultUID: String?, devices: [AudioDevice]) -> String? {
-        if case .chosen(let device) = self {
-            if let systemDefaultUID, device.uid == systemDefaultUID { return nil }
-            return device.uid
-        }
-        return AutomaticMicrophonePick.resolve(devices: devices, systemDefaultUID: systemDefaultUID)
-            .pinnedDeviceUID
-    }
-
     /// The saved choice whose device is missing, if that is the situation.
     var missingChoice: MicrophoneChoice? {
         if case .chosenNotConnected(let choice) = self { return choice }
@@ -181,12 +163,23 @@ struct MicrophoneCapturePlan: Equatable, Sendable {
     /// Whether the macOS default may be recorded when every input above fails to open
     /// (or when there is none).
     let fallsBackToSystemDefault: Bool
+    /// The automatic pick this plan was built from when it passed over a virtual
+    /// default, else `nil`. Kept so the capture logs the skip without resolving again.
+    let virtualDefaultSkip: AutomaticMicrophonePick?
+
+    init(deviceUIDs: [String], fallsBackToSystemDefault: Bool, virtualDefaultSkip: AutomaticMicrophonePick? = nil) {
+        self.deviceUIDs = deviceUIDs
+        self.fallsBackToSystemDefault = fallsBackToSystemDefault
+        self.virtualDefaultSkip = virtualDefaultSkip
+    }
 
     static let systemDefault = MicrophoneCapturePlan(deviceUIDs: [], fallsBackToSystemDefault: true)
 
     /// The plan for a saved choice: a connected chosen device first (none when it IS the
     /// macOS default — the default path records it, even a virtual one), then the
-    /// automatic pick. Its first UID is `MicrophoneResolution.pinnedDeviceUID`.
+    /// automatic pick. Its first UID is the device pinned instead of the default: a
+    /// chosen device that is not the default, else the automatic pick only when a
+    /// virtual default is skipped (`AutomaticMicrophonePick.pinnedDeviceUID`).
     static func resolve(
         _ resolution: MicrophoneResolution,
         devices: [AudioDevice],
@@ -230,7 +223,11 @@ struct MicrophoneCapturePlan: Equatable, Sendable {
         let defaultDevice = systemDefaultUID.flatMap { uid in devices.first(where: { $0.uid == uid }) }
         let defaultIsVirtualOrUnknown = defaultDevice.map { VirtualMicrophoneDetector.isVirtual(name: $0.name) } ?? true
         let fallsBack = !skipsVirtualDefault && !(avoidingVirtualDefault && defaultIsVirtualOrUnknown)
-        return MicrophoneCapturePlan(deviceUIDs: uids, fallsBackToSystemDefault: fallsBack)
+        return MicrophoneCapturePlan(
+            deviceUIDs: uids,
+            fallsBackToSystemDefault: fallsBack,
+            virtualDefaultSkip: skipsVirtualDefault ? pick : nil
+        )
     }
 }
 
@@ -325,7 +322,7 @@ enum MicrophoneCaptureRouting {
     /// What a capture should open for `preferredUID` (`MicrophoneCapturePlan`).
     ///
     /// - The chosen device while it is connected — `.systemDefault` when it is the
-    ///   current default (see `MicrophoneResolution.pinnedDeviceUID`).
+    ///   current default (see `MicrophoneCapturePlan.resolve(_:devices:systemDefaultUID:)`).
     /// - Otherwise (no choice, or the chosen device unplugged) the automatic pick: the
     ///   default, or the non-virtual inputs in order when the default is a virtual
     ///   device (`AutomaticMicrophonePick`) — and then never the default.
@@ -353,9 +350,7 @@ enum MicrophoneCaptureRouting {
             systemDefaultUID: systemDefaultUID
         )
         if chosen == nil {
-            logSkippedVirtualDefault(
-                AutomaticMicrophonePick.resolve(devices: enumeration.devices, systemDefaultUID: systemDefaultUID)
-            )
+            logSkippedVirtualDefault(plan.virtualDefaultSkip)
         }
         var deviceIDs: [AudioDeviceID] = []
         for uid in plan.deviceUIDs {
@@ -393,8 +388,8 @@ enum MicrophoneCaptureRouting {
     /// One line whenever the automatic pick passes over a virtual default. Device names
     /// are logged `.public`, as everywhere else in the audio log (`selectDevice`,
     /// keep-warm); they never go to Sentry from here.
-    nonisolated static func logSkippedVirtualDefault(_ pick: AutomaticMicrophonePick) {
-        guard let skipped = pick.skippedVirtualDefault, let device = pick.device else { return }
+    nonisolated static func logSkippedVirtualDefault(_ pick: AutomaticMicrophonePick?) {
+        guard let pick, let skipped = pick.skippedVirtualDefault, let device = pick.device else { return }
         let skippedName = skipped.name
         let usedName = device.name
         AppLogger.audio.notice("Default input \(skippedName, privacy: .public) looks like a virtual device - recording from \(usedName, privacy: .public) instead")

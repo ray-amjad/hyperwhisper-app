@@ -1136,9 +1136,7 @@ class AudioRecordingManager: NSObject, ObservableObject {
             return startDefaultInputLevelPreview()
         }
         if case .chosen = resolution {} else {
-            MicrophoneCaptureRouting.logSkippedVirtualDefault(
-                AutomaticMicrophonePick.resolve(devices: availableDevices, systemDefaultUID: systemDefaultDeviceUID)
-            )
+            MicrophoneCaptureRouting.logSkippedVirtualDefault(plan.virtualDefaultSkip)
         }
 
         let deviceUIDs = plan.deviceUIDs

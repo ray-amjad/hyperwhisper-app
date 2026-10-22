@@ -18,6 +18,11 @@ private let blackHole = AudioDevice(id: "BlackHole2ch_UID", name: "BlackHole 2ch
 private let loopback = AudioDevice(id: "com.rogueamoeba.Loopback:1", name: "Loopback Audio", uid: "com.rogueamoeba.Loopback:1")
 private let krisp = AudioDevice(id: "KrispMicrophone_UID", name: "Krisp Microphone", uid: "KrispMicrophone_UID")
 
+/// The device a capture opens first instead of the macOS default, or `nil` for the default.
+private func pinnedUID(_ resolution: MicrophoneResolution, systemDefaultUID: String?, devices: [AudioDevice]) -> String? {
+    MicrophoneCapturePlan.resolve(resolution, devices: devices, systemDefaultUID: systemDefaultUID).deviceUIDs.first
+}
+
 struct MicrophoneSelectionTests {
 
     // MARK: - Resolution
@@ -58,14 +63,14 @@ struct MicrophoneSelectionTests {
 
     @Test func onlyAChosenNonDefaultDeviceIsPinned() {
         let devices = [builtIn, scarlett]
-        #expect(MicrophoneResolution.chosen(scarlett).pinnedDeviceUID(systemDefaultUID: builtIn.uid, devices: devices) == scarlett.uid)
+        #expect(pinnedUID(MicrophoneResolution.chosen(scarlett), systemDefaultUID: builtIn.uid, devices: devices) == scarlett.uid)
         // The chosen device is the current default: the default path already records it.
-        #expect(MicrophoneResolution.chosen(builtIn).pinnedDeviceUID(systemDefaultUID: builtIn.uid, devices: devices) == nil)
+        #expect(pinnedUID(MicrophoneResolution.chosen(builtIn), systemDefaultUID: builtIn.uid, devices: devices) == nil)
         // An unknown default still pins the chosen device.
-        #expect(MicrophoneResolution.chosen(scarlett).pinnedDeviceUID(systemDefaultUID: nil, devices: devices) == scarlett.uid)
-        #expect(MicrophoneResolution.systemDefault.pinnedDeviceUID(systemDefaultUID: builtIn.uid, devices: devices) == nil)
+        #expect(pinnedUID(MicrophoneResolution.chosen(scarlett), systemDefaultUID: nil, devices: devices) == scarlett.uid)
+        #expect(pinnedUID(MicrophoneResolution.systemDefault, systemDefaultUID: builtIn.uid, devices: devices) == nil)
         let missing = MicrophoneResolution.chosenNotConnected(MicrophoneChoice(uid: scarlett.uid, name: scarlett.name))
-        #expect(missing.pinnedDeviceUID(systemDefaultUID: builtIn.uid, devices: [builtIn]) == nil)
+        #expect(pinnedUID(missing, systemDefaultUID: builtIn.uid, devices: [builtIn]) == nil)
     }
 
     // MARK: - Virtual inputs (#2408)
@@ -76,7 +81,7 @@ struct MicrophoneSelectionTests {
         let pick = AutomaticMicrophonePick.resolve(devices: devices, systemDefaultUID: blackHole.uid)
         #expect(pick.device == builtIn)
         #expect(pick.skippedVirtualDefault == blackHole)
-        #expect(MicrophoneResolution.systemDefault.pinnedDeviceUID(systemDefaultUID: blackHole.uid, devices: devices) == builtIn.uid)
+        #expect(pinnedUID(MicrophoneResolution.systemDefault, systemDefaultUID: blackHole.uid, devices: devices) == builtIn.uid)
     }
 
     @Test func onlyVirtualInputsKeepTheDefault() {
@@ -84,16 +89,16 @@ struct MicrophoneSelectionTests {
         let pick = AutomaticMicrophonePick.resolve(devices: devices, systemDefaultUID: loopback.uid)
         #expect(pick.device == loopback)
         #expect(pick.skippedVirtualDefault == nil)
-        #expect(MicrophoneResolution.systemDefault.pinnedDeviceUID(systemDefaultUID: loopback.uid, devices: devices) == nil)
+        #expect(pinnedUID(MicrophoneResolution.systemDefault, systemDefaultUID: loopback.uid, devices: devices) == nil)
     }
 
     @Test func aVirtualMicrophoneChosenByHandIsNeverOverridden() {
         let devices = [builtIn, blackHole]
         // Chosen while another device is the default: pinned.
         #expect(MicrophoneResolution.resolve(savedUID: blackHole.uid, savedName: nil, devices: devices) == .chosen(blackHole))
-        #expect(MicrophoneResolution.chosen(blackHole).pinnedDeviceUID(systemDefaultUID: builtIn.uid, devices: devices) == blackHole.uid)
+        #expect(pinnedUID(MicrophoneResolution.chosen(blackHole), systemDefaultUID: builtIn.uid, devices: devices) == blackHole.uid)
         // Chosen and also the default: the default path records it, nothing replaces it.
-        #expect(MicrophoneResolution.chosen(blackHole).pinnedDeviceUID(systemDefaultUID: blackHole.uid, devices: devices) == nil)
+        #expect(pinnedUID(MicrophoneResolution.chosen(blackHole), systemDefaultUID: blackHole.uid, devices: devices) == nil)
     }
 
     @Test func aPhysicalDefaultIsUnchanged() {
@@ -102,14 +107,14 @@ struct MicrophoneSelectionTests {
         #expect(pick.device == scarlett)
         #expect(pick.skippedVirtualDefault == nil)
         #expect(pick.pinnedDeviceUID == nil)
-        #expect(MicrophoneResolution.systemDefault.pinnedDeviceUID(systemDefaultUID: scarlett.uid, devices: devices) == nil)
+        #expect(pinnedUID(MicrophoneResolution.systemDefault, systemDefaultUID: scarlett.uid, devices: devices) == nil)
     }
 
     @Test func anUnpluggedChoiceWithAVirtualDefaultUsesAPhysicalStandIn() {
         let devices = [blackHole, builtIn]
         let resolution = MicrophoneResolution.resolve(savedUID: scarlett.uid, savedName: scarlett.name, devices: devices)
         #expect(resolution.missingChoice != nil)
-        #expect(resolution.pinnedDeviceUID(systemDefaultUID: blackHole.uid, devices: devices) == builtIn.uid)
+        #expect(pinnedUID(resolution, systemDefaultUID: blackHole.uid, devices: devices) == builtIn.uid)
         // The fallback notice names the stand-in, not the virtual default.
         #expect(MicrophonePickerLabels.defaultDeviceName(devices: devices, systemDefaultUID: blackHole.uid) == builtIn.name)
     }
@@ -255,14 +260,12 @@ struct MicrophoneSelectionTests {
         #expect(MicrophoneCapturePlan.resolve(chosenUID: nil, devices: [blackHole], systemDefaultUID: blackHole.uid) == .systemDefault)
     }
 
-    @Test func theFirstPlannedDeviceIsThePinnedDevice() {
+    @Test func thePlanCarriesTheVirtualDefaultItSkipped() {
         let devices = [blackHole, builtIn, scarlett]
-        for resolution in [MicrophoneResolution.systemDefault, .chosen(scarlett), .chosen(blackHole), .chosen(builtIn)] {
-            for defaultUID in [blackHole.uid, builtIn.uid, scarlett.uid] {
-                let plan = MicrophoneCapturePlan.resolve(resolution, devices: devices, systemDefaultUID: defaultUID)
-                #expect(plan.deviceUIDs.first == resolution.pinnedDeviceUID(systemDefaultUID: defaultUID, devices: devices))
-            }
-        }
+        let skipping = MicrophoneCapturePlan.resolve(.systemDefault, devices: devices, systemDefaultUID: blackHole.uid)
+        #expect(skipping.virtualDefaultSkip?.skippedVirtualDefault == blackHole)
+        #expect(skipping.virtualDefaultSkip?.device == builtIn)
+        #expect(MicrophoneCapturePlan.resolve(.systemDefault, devices: devices, systemDefaultUID: scarlett.uid).virtualDefaultSkip == nil)
     }
 
     @Test func routeFlagsFollowThePlan() {
