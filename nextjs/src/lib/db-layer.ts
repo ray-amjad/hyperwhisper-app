@@ -249,8 +249,11 @@ export async function revokeAccountKey(
   });
 }
 
-export async function findAccountByKey(key: string): Promise<AccountKeyRow | null> {
-  const row = await db.query.accountKeys.findFirst({
+export async function findAccountByKey(
+  key: string,
+  executor: DbExecutor = db
+): Promise<AccountKeyRow | null> {
+  const row = await executor.query.accountKeys.findFirst({
     where: eq(accountKeys.key, key.trim()),
   });
   return row ? drizzleAccountKeyToRow(row) : null;
@@ -270,8 +273,11 @@ export async function findAccountByStripeSession(sessionId: string): Promise<Acc
   return row ? drizzleAccountKeyToRow(row) : null;
 }
 
-export async function getAccountKeysByEmail(email: string): Promise<AccountKeyRow[]> {
-  const rows = await db.query.accountKeys.findMany({
+export async function getAccountKeysByEmail(
+  email: string,
+  executor: DbExecutor = db
+): Promise<AccountKeyRow[]> {
+  const rows = await executor.query.accountKeys.findMany({
     where: eq(accountKeys.email, email.toLowerCase()),
     orderBy: [desc(accountKeys.createdAt)],
   });
@@ -307,9 +313,11 @@ const INTERNAL_BUNDLE_CREDITS = 5000;
 const GRANT_LICENSE_LOCK_CLASS = 2481;
 
 /**
- * Mint a fresh internal-bundle license for an email: generate a collision-free
- * key, ensure the user exists, insert the license as "granted", and grant the
- * standard 5,000-credit ($5) internal bundle.
+ * Give an email its one granted license. If the email already holds a granted
+ * key (internal or paid), that key is returned and NOTHING is minted or
+ * granted. Otherwise mint a fresh internal-bundle license: generate a
+ * collision-free key, ensure the user exists, insert the license as "granted",
+ * and grant the standard 5,000-credit ($5) internal bundle.
  *
  * This is the single source of truth for the internal mint flow. Its only
  * caller is the grant-license endpoint (driven by the ACS claim flow), which
@@ -335,21 +343,17 @@ export async function provisionAccountKeyForEmail(email: string): Promise<Accoun
       sql`SELECT pg_advisory_xact_lock(${GRANT_LICENSE_LOCK_CLASS}, hashtext(${normalizedEmail}))`
     );
 
-    const [granted] = await tx
-      .select()
-      .from(accountKeys)
-      .where(and(eq(accountKeys.email, normalizedEmail), eq(accountKeys.status, "granted")))
-      .orderBy(desc(accountKeys.createdAt))
-      .limit(1);
-    if (granted) return drizzleAccountKeyToRow(granted);
+    // Newest first, the same rule the route's unlocked fast path applies.
+    const granted = (await getAccountKeysByEmail(normalizedEmail, tx)).find(
+      (l) => l.status === "granted"
+    );
+    if (granted) return granted;
 
     // Generate a unique license key with collision check
     let key = "";
     for (let i = 0; i < 5; i++) {
       key = generateLicenseKey();
-      const collision = await tx.query.accountKeys.findFirst({
-        where: eq(accountKeys.key, key),
-      });
+      const collision = await findAccountByKey(key, tx);
       if (!collision) break;
       if (i === 4) {
         throw new Error("Failed to generate unique license key");
