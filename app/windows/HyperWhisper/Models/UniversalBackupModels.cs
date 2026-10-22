@@ -12,13 +12,41 @@ namespace HyperWhisper.Models;
 /// These models are used for serializing/deserializing .hwbackup.json files
 /// that can be exchanged between macOS and Windows.
 /// </summary>
+/// <summary>
+/// Reads a JSON number whose value is a whole number (<c>2</c>, <c>2.0</c>, <c>2e0</c>) as an
+/// <see cref="int"/>, matching the shared core's <c>integral_i64</c>. A fractional number, a
+/// string or any other token throws <see cref="JsonException"/>, as the default converter does.
+/// Writes a plain integer.
+/// </summary>
+public sealed class IntegralInt32JsonConverter : JsonConverter<int>
+{
+    public override int Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.Number)
+            throw new JsonException($"Expected a whole number, got {reader.TokenType}.");
+        if (reader.TryGetInt32(out var value))
+            return value;
+        if (reader.TryGetDouble(out var number)
+            && Math.Floor(number) == number
+            && number >= int.MinValue && number <= int.MaxValue)
+            return (int)number;
+        throw new JsonException("Expected a whole number that fits in an Int32.");
+    }
+
+    public override void Write(Utf8JsonWriter writer, int value, JsonSerializerOptions options)
+        => writer.WriteNumberValue(value);
+}
+
 public class UniversalBackup
 {
     // Default 0 (not 2): a legacy macOS v1 backup has "version" but no "schemaVersion" key.
     // Defaulting to 2 would let such a file silently pass the `SchemaVersion != 2` guards and
     // be treated as a universal v2 bridge file. With 0 it's correctly rejected. Export always
     // sets this to 2 explicitly, so written files are unaffected.
+    // #2115: read by value, so `2.0` is 2 the way the shared core reads it (JSON Schema
+    // compares numbers by value). `2.5` and `"2"` still fail to parse.
     [JsonPropertyName("schemaVersion")]
+    [JsonConverter(typeof(IntegralInt32JsonConverter))]
     public int SchemaVersion { get; set; }
 
     [JsonPropertyName("exportDate")]

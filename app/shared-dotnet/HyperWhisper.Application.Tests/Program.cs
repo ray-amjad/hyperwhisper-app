@@ -358,6 +358,26 @@ try
     nonIntegerVersion["schemaVersion"] = "2";
     Assert((await backupService.ImportAsync(nonIntegerVersion.ToJsonString())).Error?.Code == "backup.unsupported_version",
         "non-integer schemaVersion escaped structured validation");
+    // #2115: `2.0` is schemaVersion 2 by value (the core's `integral_i64`); `2.5` and `3.0` are not.
+    string WithRawSchemaVersion(string raw)
+    {
+        var document = JsonNode.Parse(exported)!.AsObject();
+        document["schemaVersion"] = JsonNode.Parse(raw);
+        return document.ToJsonString();
+    }
+    var wholeFloatVersion = WithRawSchemaVersion("2.0");
+    Assert(wholeFloatVersion.Contains("\"schemaVersion\":2.0", StringComparison.Ordinal),
+        "the #2115 fixture lost its 2.0 literal");
+    var wholeFloatInspect = backupService.Inspect(wholeFloatVersion);
+    Assert(wholeFloatInspect.IsSuccess && wholeFloatInspect.Value!.SchemaVersion == 2,
+        $"a backup with schemaVersion 2.0 was refused by Inspect: {wholeFloatInspect.Error?.Code} {wholeFloatInspect.Error?.Message}");
+    var wholeFloatImport = await backupService.ImportAsync(wholeFloatVersion);
+    Assert(wholeFloatImport.IsSuccess,
+        $"a backup with schemaVersion 2.0 was refused by import: {wholeFloatImport.Error?.Code} {wholeFloatImport.Error?.Message}");
+    Assert(backupService.Inspect(WithRawSchemaVersion("2.5")).Error?.Code == "backup.unsupported_version",
+        "a fractional schemaVersion 2.5 was accepted");
+    Assert(backupService.Inspect(WithRawSchemaVersion("3.0")).Error?.Code == "backup.unsupported_version",
+        "schemaVersion 3.0 was accepted");
     var extendedBackup = JsonNode.Parse(exported)!.AsObject();
     var extensionSlices = extendedBackup["platformExtensions"]!.AsObject();
     extensionSlices["windows"] = new JsonObject { ["futureWindows"] = 17 };
