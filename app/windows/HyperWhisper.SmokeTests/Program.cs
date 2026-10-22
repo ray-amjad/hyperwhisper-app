@@ -14606,17 +14606,32 @@ internal static class Program
             {
                 // Google's newer Gemini keys do not start with "AIza". The prefix rule
                 // refused them with "Invalid API key format" on Windows and Linux; a
-                // wrong key fails at the provider anyway. Only a blank key is refused:
-                // no prefix and no length rule, for every provider.
+                // wrong key fails at the provider anyway. There is no prefix and no
+                // length rule for any provider (#2389): the store takes any non-blank text.
                 var newGeminiKey = "AQ." + new string('k', 37);
-                Assert(ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.GeminiTranscribe, newGeminiKey),
-                    "a Gemini 3.5 Transcribe key that does not start with AIza is refused");
-                Assert(ApiKeyService.IsValidKeyFormat(PostProcessingProvider.Gemini, newGeminiKey),
-                    "a Gemini post-processing key that does not start with AIza is refused");
-                Assert(ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.GeminiTranscribe, "AIza" + new string('k', 35)),
-                    "an AIza Gemini key is refused");
+                var apiKeys = new ApiKeyService(new InMemoryCredentialBackend());
+                Assert(apiKeys.SetApiKey(TranscriptionApiKeyType.GeminiTranscribe, newGeminiKey).IsSuccess,
+                    "the store refused a non-AIza Gemini 3.5 Transcribe key");
+                Assert(apiKeys.GetApiKey(TranscriptionApiKeyType.GeminiTranscribe) == newGeminiKey,
+                    "the stored Gemini 3.5 Transcribe key does not read back");
+                Assert(apiKeys.SetApiKey(PostProcessingProvider.Gemini, newGeminiKey).IsSuccess &&
+                       apiKeys.GetApiKey(PostProcessingProvider.Gemini) == newGeminiKey,
+                    "the store refused a non-AIza Gemini post-processing key");
+                Assert(apiKeys.SetApiKey(PostProcessingProvider.OpenAI, "k").IsSuccess &&
+                       apiKeys.GetApiKey(PostProcessingProvider.OpenAI) == "k",
+                    "the store refused a one-character key");
+                Assert(apiKeys.SetApiKey(PostProcessingProvider.HyperWhisperCloud, newGeminiKey).IsFailure,
+                    "a key for HyperWhisper Cloud, which takes none, was stored");
+            });
 
-                // The same for every vendor: any non-blank text, however short, is a key.
+            Run("issue #2410: every BYOK key write trims, from the store, onboarding and backup import", () =>
+            {
+                const string key = "sk-padded-key";
+                const string padded = "  sk-padded-key \r\n";
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                // The store itself: every slot kind trims, and whitespace alone clears.
                 foreach (var provider in new[]
                 {
                     PostProcessingProvider.OpenAI, PostProcessingProvider.Anthropic, PostProcessingProvider.Groq,
@@ -14624,27 +14639,54 @@ internal static class Program
                     PostProcessingProvider.Mistral,
                 })
                 {
-                    Assert(ApiKeyService.IsValidKeyFormat(provider, "k"), $"a short {provider} key is refused");
-                    Assert(!ApiKeyService.IsValidKeyFormat(provider, "   "), $"a blank {provider} key is accepted");
-                    Assert(!ApiKeyService.IsValidKeyFormat(provider, null), $"a null {provider} key is accepted");
+                    var backend = new InMemoryCredentialBackend();
+                    var store = new ApiKeyService(backend, health);
+                    Assert(store.SetApiKey(provider, padded).IsSuccess && backend.StoredValue == key,
+                        $"a padded {provider} key was stored as '{backend.StoredValue}'");
+                    Assert(store.SetApiKey(provider, " \t ").IsSuccess && backend.StoredValue == null,
+                        $"a whitespace-only {provider} key was stored instead of clearing the slot");
                 }
                 foreach (var type in Enum.GetValues<TranscriptionApiKeyType>())
                 {
-                    Assert(ApiKeyService.IsValidKeyFormat(type, "k"), $"a short {type} key is refused");
-                    Assert(!ApiKeyService.IsValidKeyFormat(type, " \t "), $"a blank {type} key is accepted");
-                    Assert(!ApiKeyService.IsValidKeyFormat(type, null), $"a null {type} key is accepted");
+                    var backend = new InMemoryCredentialBackend();
+                    var store = new ApiKeyService(backend, health);
+                    Assert(store.SetApiKey(type, padded).IsSuccess && backend.StoredValue == key,
+                        $"a padded {type} key was stored as '{backend.StoredValue}'");
+                    Assert(store.SetApiKey(type, "   ").IsSuccess && backend.StoredValue == null,
+                        $"a whitespace-only {type} key was stored instead of clearing the slot");
                 }
-                Assert(!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.None, newGeminiKey),
-                    "a key for no provider is accepted");
-                Assert(!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.HyperWhisperCloud, newGeminiKey),
-                    "a key for HyperWhisper Cloud, which takes none, is accepted");
+                var endpointBackend = new InMemoryCredentialBackend();
+                var endpointStore = new ApiKeyService(endpointBackend, health);
+                Assert(endpointStore.SetCustomEndpointApiKey(Guid.NewGuid(), padded).IsSuccess && endpointBackend.StoredValue == key,
+                    $"a padded custom endpoint key was stored as '{endpointBackend.StoredValue}'");
 
-                // And it reaches the store: what the Model Library modal does on Save.
-                var apiKeys = new ApiKeyService(new InMemoryCredentialBackend());
-                Assert(apiKeys.SetApiKey(TranscriptionApiKeyType.GeminiTranscribe, newGeminiKey).IsSuccess,
-                    "the store refused a non-AIza Gemini 3.5 Transcribe key");
-                Assert(apiKeys.GetApiKey(TranscriptionApiKeyType.GeminiTranscribe) == newGeminiKey,
-                    "the stored Gemini 3.5 Transcribe key does not read back");
+                // Onboarding: the gateway's write and its read-back agree on the trimmed
+                // key, so a padded key saves, and a restore point holding a key stored
+                // with padding before #2389 still counts as restored.
+                foreach (var provider in new[] { CloudTranscriptionProvider.OpenAI, CloudTranscriptionProvider.Deepgram })
+                {
+                    var backend = new InMemoryCredentialBackend();
+                    var gateway = new LiveOnboardingProviderKeyGateway(new ApiKeyService(backend, health), health);
+                    Assert(gateway.Persist(padded, provider), $"onboarding refused a padded {provider} key: {gateway.ValidationError}");
+                    Assert(backend.StoredValue == key, $"onboarding stored the {provider} key as '{backend.StoredValue}'");
+                    Assert(gateway.Persist("", provider) && backend.StoredValue == null,
+                        $"onboarding's empty-string restore did not clear the {provider} key");
+                }
+
+                // Backup import: a padded key is restored trimmed, and a whitespace-only
+                // entry leaves the stored key alone instead of clearing it.
+                var importBackend = new InMemoryCredentialBackend();
+                var importStore = new ApiKeyService(importBackend, health);
+                var importJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["deepgram"] = padded });
+                Assert(UniversalBackupMapper.ApplyApiKeys(JsonSerializer.Deserialize<UniversalApiKeys>(importJson)!, importStore),
+                    "the backup import reported a failed key write");
+                Assert(importStore.GetApiKey(TranscriptionApiKeyType.Deepgram) == key,
+                    $"the backup import stored the Deepgram key as '{importBackend.StoredValue}'");
+                var blankJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["deepgram"] = "   " });
+                Assert(UniversalBackupMapper.ApplyApiKeys(JsonSerializer.Deserialize<UniversalApiKeys>(blankJson)!, importStore),
+                    "the backup import reported a failed write for a blank key");
+                Assert(importStore.GetApiKey(TranscriptionApiKeyType.Deepgram) == key,
+                    "a whitespace-only key in a backup cleared the stored Deepgram key");
             });
 
             Run("issue #650: /health key_present for the HW-Cloud rows follows the account key /transcribe refuses on", () =>
