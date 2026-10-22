@@ -5118,13 +5118,21 @@ internal static class Program
 
             RunAsync("Cloud forced warmup sends inside the debounce window (#1036)", async () =>
             {
-                using var rig = new CloudConnectionRig(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
+                // The public entry returns void, so the 2nd send signals instead of being awaited.
+                var sends = 0;
+                var secondSend = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                using var rig = new CloudConnectionRig(_ =>
+                {
+                    if (Interlocked.Increment(ref sends) == 2) secondSend.TrySetResult();
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+                });
                 var t = rig.Now;
 
                 await rig.Service.PrewarmConnectionAsync();
                 rig.Now = t.AddSeconds(1);
-                await rig.Service.SendWarmup();
-                Assert(rig.Handler.Sends == 2, $"forced warmup at t+1s sends {rig.Handler.Sends}");
+                rig.Service.PrewarmConnectionForced();
+                try { await secondSend.Task.WaitAsync(TimeSpan.FromSeconds(5)); }
+                catch (TimeoutException) { throw new InvalidOperationException($"forced warmup at t+1s never sent ({sends} sends)"); }
             });
 
             RunAsync("Cloud warmup that fails clears the debounce, so the next prewarm retries (#1036)", async () =>
