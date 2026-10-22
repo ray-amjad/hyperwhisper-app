@@ -53,6 +53,11 @@ public partial class MainViewModel
     /// </summary>
     private void UpdateMicSilenceWatcher(bool recording)
     {
+        // Smoke tests build the view model with GetUninitializedObject, which
+        // skips field initializers, and then set IsRecording.
+        if (_micSilenceWatcher is null)
+            return;
+
         if (recording)
         {
             _micSilenceDeviceName = SelectedAudioDevice?.Name;
