@@ -1,8 +1,8 @@
 # verify_onboarding.ps1
 #
 # Reusable gate for the Windows onboarding flow. The port of
-# app/macos/scripts/verify-onboarding.sh, in the shape the 25 other verify_*.ps1
-# scripts in this folder use.
+# app/macos/scripts/verify-onboarding.sh, in the assert-and-throw shape the other
+# verify_*.ps1 scripts in this folder use.
 #
 #   1. Repo hygiene: no client-side entitlement bypass, no command-line trigger.
 #   2. Static design conformance over the onboarding XAML.

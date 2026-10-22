@@ -87,16 +87,23 @@ public sealed class LicenseNetworkService : IDisposable
     private bool _disposed;
 
     private LicenseNetworkService()
+        : this(new HttpClient { Timeout = TimeSpan.FromSeconds(ValidationTimeoutSeconds) })
     {
-        _httpClient = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(ValidationTimeoutSeconds)
-        };
-
         // One-shot legacy migration runs in the store's constructor.
         _ = RustCoreKeyValueStore.Instance;
 
         LoggingService.Info("LicenseNetworkService: Initialized");
+    }
+
+    /// <summary>
+    /// Test seam: builds a NON-singleton instance over the caller's HTTP client, so
+    /// HyperWhisper.SmokeTests can script the server's replies without real network
+    /// I/O. Visible to the tests via InternalsVisibleTo (see HyperWhisper.csproj).
+    /// Production always goes through <see cref="Instance"/>.
+    /// </summary>
+    internal LicenseNetworkService(HttpClient httpClient)
+    {
+        _httpClient = httpClient;
     }
 
     // =========================================================================

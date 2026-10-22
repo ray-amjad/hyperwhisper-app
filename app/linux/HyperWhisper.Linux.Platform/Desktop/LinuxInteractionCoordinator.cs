@@ -49,6 +49,10 @@ public interface IInteractionRecordingSession
     /// <summary>A session is held that only Stop or Cancel may end. Wider than IsActive: a live
     /// stream whose worker already ended (connection lost) is held but not active (#1246).</summary>
     bool HasOpenSession => IsActive;
+    /// <summary>A live stream ended by itself (the provider closed it, the connection failed) while no
+    /// Stop or Cancel had begun. The coordinator ends the held session at once through Stop, so the user
+    /// sees the failure now instead of on their next Stop (#2250).</summary>
+    event EventHandler? LiveSessionEnded { add { } remove { } }
     ValueTask<PlatformResult> StartAsync(
         InteractionRecordingKind kind,
         CancellationToken cancellationToken = default);
@@ -155,6 +159,7 @@ public sealed class LinuxInteractionCoordinator : IDisposable
         _pushToTalk.Pressed += OnPushToTalkPressed;
         _pushToTalk.Released += OnPushToTalkReleased;
         _pushToTalk.Interfered += OnPushToTalkInterfered;
+        _recording.LiveSessionEnded += OnLiveSessionEnded;
     }
 
     public event EventHandler<PlatformError>? OperationFailed;
@@ -381,6 +386,24 @@ public sealed class LinuxInteractionCoordinator : IDisposable
     {
         if (_started && !_heldActions.Contains(ToggleActionName) && _recording.IsActive && !_recording.IsStreaming)
             Dispatch(CancelCoreAsync);
+    }
+
+    // #2250: Windows stops the session as soon as the provider fails (MainViewModel.Streaming.cs,
+    // OnStreamingErrorReceived); Linux left the dead stream held until the user's next Stop.
+    private void OnLiveSessionEnded(object? sender, EventArgs args)
+    {
+        if (_disposed) return;
+        try { Dispatch(StopEndedStreamCoreAsync); }
+        catch { /* A failed UI dispatch leaves the stream held; the user's Stop still ends it. */ }
+    }
+
+    private ValueTask StopEndedStreamCoreAsync(CancellationToken cancellationToken)
+    {
+        // Only a held stream whose worker is gone. A user Stop or Cancel that ran first left nothing
+        // open, and a session started since then is active, so this never ends someone else's session.
+        if (!_recording.IsStreaming || !_recording.HasOpenSession || _recording.IsActive)
+            return ValueTask.CompletedTask;
+        return StopCoreAsync(cancellationToken);
     }
 
     private void Dispatch(Func<CancellationToken, ValueTask> operation)
@@ -758,6 +781,7 @@ public sealed class LinuxInteractionCoordinator : IDisposable
         _pushToTalk.Pressed -= OnPushToTalkPressed;
         _pushToTalk.Released -= OnPushToTalkReleased;
         _pushToTalk.Interfered -= OnPushToTalkInterfered;
+        _recording.LiveSessionEnded -= OnLiveSessionEnded;
         _shortcuts.Clear();
         _pushToTalk.Reset();
         _textInjection.EndSession();

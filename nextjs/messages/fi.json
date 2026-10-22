@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Ominaisuudet",
-    "pricing": "Hinnoittelu",
     "faq": "UKK",
     "support": "Tuki",
     "download": "Lataa",
@@ -20,7 +19,6 @@
     "githubAria": "Katso HyperWhisper GitHubissa"
   },
   "hero": {
-    "openSourceBadge": "Avoin lähdekoodi · Apache-2.0",
     "logoAlt": "HyperWhisper-logo",
     "headline": "Kirjoita, sommittele ja luo",
     "headlineAccent": "5x nopeammin AI:n avulla",
@@ -97,57 +95,6 @@
     "accuracyRate": "Tarkkuus",
     "languagesSupported": "Tuetut kielet",
     "providersSupported": "Tuetut palveluntarjoajat"
-  },
-  "pricing": {
-    "title": "Ei tilauksia. Koskaan.",
-    "subtitle": "Maksa kerran, käytä ikuisesti. Me vihaamme tilauksia myös.",
-    "guarantee": "14 päivän rahat takaisin -takuu",
-    "guaranteeExtended": "jos et ole täysin tyytyväinen.",
-    "learnMore": "Lue lisää",
-    "free": {
-      "name": "Ilmainen",
-      "price": "$0",
-      "period": "ikuisesti",
-      "description": "Täydellinen HyperWhisperin kokeiluun",
-      "cta": "Lataa ilmaiseksi",
-      "features": {
-        "transcriptionLimit": "5 minuuttia litterointia päivässä",
-        "basicModes": "Peruslitterointitilat",
-        "offlineTranscription": "Offline-litterointi",
-        "apiTranscription": "API-litterointi (käytä omia avaimia)",
-        "postProcessing": "Tekstin jälkikäsittely",
-        "providers": "Yli 9 palveluntarjoajaa valittavana",
-        "lifetimeUpdates": "Elinikäiset päivitykset",
-        "cloudLimited": "HyperWhisper Cloud (rajoitettu käyttö)",
-        "customVocabulary": "Mukautettu sanasto",
-        "prioritySupport": "Prioriteettituki"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "elinikäinen",
-      "description": "Kertamaksu, rajaton teho ikuisesti",
-      "cta": "Osta nyt - Elinikäinen käyttöoikeus",
-      "mostPopular": "Suosituin",
-      "features": {
-        "unlimitedTranscription": "Rajaton litterointi",
-        "allModes": "Kaikki litterointitilat",
-        "offlineTranscription": "Offline-litterointi",
-        "apiTranscription": "API-litterointi (käytä omia avaimia)",
-        "postProcessing": "Tekstin jälkikäsittely",
-        "providers": "Yli 9 palveluntarjoajaa valittavana",
-        "lifetimeUpdates": "Elinikäiset päivitykset",
-        "cloudCredits": "HyperWhisper Cloud ($5 krediittejä)",
-        "customVocabulary": "Mukautettu sanasto",
-        "prioritySupport": "Prioriteettituki"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise ja räätälöity hinnoittelu",
-      "description": "Volyymialennukset, SSO, prioriteettituki, sisäinen isännöinti ja räätälöidyt integraatiot",
-      "cta": "Ota yhteyttä myyntiin"
-    }
   },
   "faq": {
     "title": "Usein kysytyt kysymykset",
@@ -252,10 +199,7 @@
     "downloadButton": "Lataa HyperWhisper",
     "errorGeneric": "Jotain meni pieleen. Yritä uudelleen.",
     "errorEmail": "Anna kelvollinen sähköpostiosoite.",
-    "errorNetwork": "Verkkovirhe. Tarkista yhteytesi ja yritä uudelleen.",
-    "thankYouTitle": "Kiitos!",
     "downloadStarted": "Latauksen pitäisi käynnistyä automaattisesti.",
-    "manualDownload": "Eikö lataus käynnistynyt? Klikkaa tästä",
     "skipAndDownloadButton": "Ohita ja lataa"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Lataa",
       "roadmap": "Roadmap",
       "helpCenter": "Ohjekeskus",
-      "manageBilling": "Hallitse laskutusta",
       "customerPortal": "Asiakasportaali",
       "olderVersions": "Vanhemmat versiot",
       "blog": "Blogi",

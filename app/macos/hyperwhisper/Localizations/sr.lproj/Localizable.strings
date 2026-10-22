@@ -709,6 +709,7 @@
 "modes.header.create" = "Направи Режим";
 "modes.name.unnamed" = "Без Имена";
 "modes.badge.offline" = "Без Интернета";
+"modes.badge.modelMissing" = "Модел недостаје";
 "modes.context.select" = "Изабери";
 "modes.help.edit" = "Уреди поставке режима";
 "modes.help.preset" = "Научи више о овом предлогу";

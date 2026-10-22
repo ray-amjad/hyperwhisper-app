@@ -30,29 +30,17 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import test, { beforeEach, mock } from "node:test";
+import test, { beforeEach } from "node:test";
 import { NextIntlClientProvider } from "next-intl";
 import { createElement, type ReactElement } from "react";
 import * as realJsxRuntime from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { moduleMock } from "./module-mock";
+
 const enMessages = JSON.parse(
   readFileSync(new URL("../messages/en.json", import.meta.url), "utf8"),
 ) as Record<string, unknown>;
-
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Same narrowed shape the other mock.module tests here use.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports?: Record<string, unknown> },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
 
 /**
  * Which failure the next render drives. `null` renders the untouched form;
