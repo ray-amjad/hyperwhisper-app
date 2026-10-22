@@ -46,7 +46,9 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         ModelReadinessService? modelReadiness = null,
         AboutViewModel? about = null,
         Func<string, string>? localize = null,
-        Func<bool>? isRecordingActive = null)
+        Func<bool>? isRecordingActive = null,
+        Func<IStreamingAudioCapture>? microphoneTestCapture = null,
+        TimeProvider? timeProvider = null)
     {
         _database = database;
         _localize = localize;
@@ -91,7 +93,8 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         }, retryModes: Modes.Items, textInjection: historyTextInjection);
         Models = modelManager is null ? null : new ModelLibraryViewModel(
             modelManager, modelReadiness, streamingSettings: Settings);
-        Backup = new BackupViewModel(new ApplicationBackupService(database, settings, credentials));
+        Backup = new BackupViewModel(new ApplicationBackupService(
+            database, settings, credentials, about?.AppVersion ?? "unknown"));
         Credentials = credentials is null ? null : new CredentialManagementViewModel(credentials);
         Account = cloudAccount is not null && deviceIdentity is not null && openAccountUri is not null
             ? new CloudAccountViewModel(cloudAccount, deviceIdentity, deviceName, openAccountUri)
@@ -100,6 +103,11 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         Recording = transcriptionWorkflow is null ? null : new TranscriptionWorkflowViewModel(
             transcriptionWorkflow,
             () => CreateTranscriptionRequest(Modes.Selected), audioImport, filePreflight);
+        // The ONE microphone choice: the Home "Audio input" box, Settings → Sound, onboarding
+        // and the tray all read and write it through this view model.
+        Microphone = Recording is null ? null : new MicrophonePickerViewModel(
+            Recording, settings, microphoneTestCapture, timeProvider, localize, isRecordingActive);
+        Sound.Microphone = Microphone;
         Home = new HomeViewModel(
             historyRepository,
             vocabularyRepository,
@@ -135,6 +143,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
     public CloudAccountViewModel? Account { get; }
     public AboutViewModel? About { get; }
     public TranscriptionWorkflowViewModel? Recording { get; }
+    public MicrophonePickerViewModel? Microphone { get; }
     public UiStatus Status { get; } = new();
     public object? CurrentPage { get => _currentPage; private set => Set(ref _currentPage, value); }
     public string PageTitle { get => _pageTitle; private set => Set(ref _pageTitle, value); }
@@ -248,6 +257,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
                 await new HistoryRepository(_database).FailOrphanedProcessingAsync(token);
             }, token);
             Settings.Load();
+            Microphone?.Reload();
             await Task.WhenAll(Home.RefreshAsync(_lifetime.Token), History.RefreshAsync(_lifetime.Token), Vocabulary.RefreshAsync(_lifetime.Token), Modes.RefreshAsync(_lifetime.Token));
             History.SetRetryModes(Modes.Items);
             if (Account is not null) await Account.LoadAsync(_lifetime.Token);
@@ -290,6 +300,8 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
             _ => throw new ArgumentException("Unknown navigation page.", nameof(pageId))
         };
         PageTitle = selection.Title;
+        // Spec: leaving Settings → Sound stops a running microphone test.
+        if (!ReferenceEquals(selection.Page, Sound)) Microphone?.LevelTest.Stop();
         CurrentPage = selection.Page;
         // The status bar reads "Ready - Press Ctrl+Alt to record" on Windows, on every page.
         // Naming the page here made it "Storage ready - ...", which no other app does and which
@@ -329,6 +341,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         Modes.PropertyChanged -= OnModesPropertyChanged;
         if (Models is not null) Models.InstalledModelsChanged -= OnInstalledModelsChanged;
         Models?.Dispose();
+        Microphone?.Dispose();
         History.Dispose();
         Recording?.Dispose();
         _lifetime.Dispose();
@@ -339,6 +352,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         try
         {
             Settings.Load();
+            Microphone?.Reload();
             await Task.WhenAll(Home.RefreshAsync(_lifetime.Token), History.RefreshAsync(_lifetime.Token), Vocabulary.RefreshAsync(_lifetime.Token), Modes.RefreshAsync(_lifetime.Token));
         }
         catch (Exception) { Status.Failure("backup.refresh_failed", "Backup imported, but the views could not be refreshed."); }

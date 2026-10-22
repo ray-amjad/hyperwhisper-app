@@ -60,9 +60,22 @@ final class ModelessAlert: NSObject {
         window.makeKeyAndOrderFront(nil)
     }
 
+    /// Presents `alert` without a modal run loop and suspends until the user clicks a button.
+    ///
+    /// For a confirm dialog whose answer the caller needs before it can go on (issue #1734).
+    /// `await` gives the main actor back while the alert is open, so other main-actor work
+    /// (the Local API included) keeps running; `runModal()` held it until the click.
+    static func response(for alert: NSAlert) async -> NSApplication.ModalResponse {
+        await withCheckedContinuation { continuation in
+            show(alert) { continuation.resume(returning: $0) }
+        }
+    }
+
     @objc private func buttonClicked(_ sender: NSButton) {
+        // A second click before the window hides must not fire the completion again:
+        // `response(for:)` resumes a continuation from it, which may only happen once.
+        guard Self.open.remove(self) != nil else { return }
         alert.window.orderOut(nil)
-        Self.open.remove(self)
         completion?(NSApplication.ModalResponse(rawValue: sender.tag))
     }
 }

@@ -186,7 +186,9 @@ Microsoft MAI-Transcribe is the one engine with no bring-your-own-key route. It 
 <Note>
   Deepgram and AssemblyAI also expose medical-tuned model variants (Deepgram Nova-2 Medical and Nova-3 Medical, AssemblyAI Universal-2 Medical and Universal-3.5 Pro Medical) in the Model Library / Mode editor on both platforms, alongside their general-purpose models.
 
-  The medical models support fewer languages than the general models. The two Deepgram medical models transcribe **English only**. The AssemblyAI medical models support English, German, Spanish, and French. The language picker does not show this limit, because it filters the languages by tier. Read [Language & Detection](/language-detection#engine-availability).
+  ElevenLabs also exposes **Scribe v2 Medical**, a Scribe v2 variant tuned for clinical audio, on macOS and Windows. It works with your own ElevenLabs key only, not through HyperWhisper Cloud. It has the same rate and the same languages as Scribe v2, and it accepts custom vocabulary as keyterms.
+
+  The Deepgram and AssemblyAI medical models support fewer languages than the general models. The two Deepgram medical models transcribe **English only**. The AssemblyAI medical models support English, German, Spanish, and French. The language picker does not show this limit, because it filters the languages by tier. Read [Language & Detection](/language-detection#engine-availability).
 </Note>
 
 ## Retired speech models
@@ -390,7 +392,7 @@ The library holds every model: cloud and on-device, speech-to-text and post-proc
 
 | Control | What it does |
 | --- | --- |
-| Search box | Matches the model name, the provider name, and the tag of the model. On Windows it also matches the description line |
+| Search box | Every word that you type must match, in any order, and the case does not matter. Each word can match the model name, the provider name, the tag, or the model ID, so `base.en` finds the Whisper Base English model. On Windows it also matches the description line. On Linux it also matches the language label |
 | **Language** | Keeps the voice models that support the language that you select. The default is **Any language** |
 | **Voice models** / **Language models** | Keeps the speech-to-text models, or the post-processing models |
 | **Cloud** / **Offline** | Keeps the cloud models, or the on-device models |

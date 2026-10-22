@@ -19,7 +19,6 @@ mock.module('../lib/redis', () => ({
 const { deductCredits, drainPendingDeductions, validateCredits } = await import('./credits');
 const {
   CreditHold,
-  detachCreditHold,
   drainPendingHoldReleases,
   requestHoldFor,
   reserveSessionHold,
@@ -148,16 +147,22 @@ describe('withCreditHoldScope', () => {
     expect(lines.filter((line) => line.includes('credits_hold.no_scope'))).toEqual([]);
   });
 
-  test('a detached hold outlives the handler until its owner releases it', async () => {
-    const a = auth(10);
-    const detached = await withCreditHoldScope(async () => {
-      await validateCredits(a, 4, 'ip');
-      return detachCreditHold(a);
+  test('two keys on one credit pool hold against one balance, and release from the pool (#2026)', async () => {
+    const pool = 'b'.repeat(64);
+    const keyA: AuthContext = { identifier: 'key-a', licenseKey: 'key-a', credits: 10, creditPoolId: pool };
+    const keyB: AuthContext = { identifier: 'key-b', licenseKey: 'key-b', credits: 10, creditPoolId: pool };
+    await withCreditHoldScope(async () => {
+      expect((await validateCredits(keyA, 6, 'ip')).ok).toBe(true);
+      await withCreditHoldScope(async () => {
+        const refused = await validateCredits(keyB, 6, 'ip');
+        expect(refused.ok).toBe(false);
+      });
+      expect(store.outstandingMilli(`pool:${pool}`)).toBe(6000);
+      expect(store.outstandingMilli('key-a')).toBe(0);
     });
     await settle();
-    expect(store.outstandingMilli(ACCOUNT)).toBe(4000);
-    await detached!.release();
-    expect(store.outstandingMilli(ACCOUNT)).toBe(0);
+    expect(store.outstandingMilli(`pool:${pool}`)).toBe(0);
+    expect(store.calls.filter((call) => call.op === 'release').map((call) => call.account)).toEqual([`pool:${pool}`]);
   });
 });
 

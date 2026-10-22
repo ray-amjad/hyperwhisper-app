@@ -491,7 +491,26 @@ export async function transcribeWithAssemblyAI(
   logProviderEvent(provider, 'prepare', {
     model, medical, audioBytes: audio.byteLength, contentType, language: language || 'auto',
   }, context);
+  const uploadUrl = await uploadAudio(audio, apiKey, context);
 
+  // ── 2. Create the transcript job ──
+  const { createBody, keyterms } = buildTranscriptJob(uploadUrl, language, initialPrompt, medical, model);
+  const transcriptId = await createTranscriptJob(createBody, apiKey, context);
+
+  logProviderEvent(provider, 'job_created', { model, medical, transcriptId, keytermCount: keyterms.length }, context);
+
+  // ── 3. Poll until completed / error ──
+  return pollUntilTerminal(transcriptId, apiKey, context, { model, medical, keyterms, audio, startedAt });
+}
+
+/** Step 1 of the async flow: upload the raw audio bytes and return the
+ * `upload_url` AssemblyAI hands back. */
+async function uploadAudio(
+  audio: ArrayBuffer,
+  apiKey: string,
+  context: ProviderRequestContext,
+): Promise<string> {
+  const provider = 'assemblyai';
   const uploadResp = await fetchWithTimeout(provider, `${ASSEMBLYAI_BASE}/v2/upload`, {
     method: 'POST',
     headers: { ...authHeaders(apiKey), 'Content-Type': 'application/octet-stream' },
@@ -504,14 +523,25 @@ export async function transcribeWithAssemblyAI(
     throwForStatus(upstreamError);
   }
 
-  const uploadUrl = await readRequiredJsonString(uploadResp, {
+  return readRequiredJsonString(uploadResp, {
     provider: 'AssemblyAI',
     field: 'upload_url',
     malformedMessage: 'malformed upload response',
     missingMessage: 'upload returned no upload_url',
   });
+}
 
-  // ── 2. Create the transcript job ──
+/** Step 2a of the async flow: the transcript-job request body. Pure, so the
+ * `language_code` and `speech_models` rules can be tested without `fetch`.
+ * Also returns the keyterms it put in the body: the caller logs their count
+ * and bills the keyterms add-on on it. */
+export function buildTranscriptJob(
+  uploadUrl: string,
+  language: string | undefined,
+  initialPrompt: string | undefined,
+  medical: boolean,
+  model: string,
+): { createBody: Record<string, unknown>; keyterms: string[] } {
   // `speech_models` is a priority/fallback list: AssemblyAI tries each model in
   // order and falls back to the next for languages the prior one doesn't cover.
   // universal-3-5-pro natively supports 18 languages, so we append universal-2 to reach
@@ -553,6 +583,16 @@ export async function transcribeWithAssemblyAI(
     createBody.domain = MEDICAL_DOMAIN_VALUE;
   }
 
+  return { createBody, keyterms };
+}
+
+/** Step 2b of the async flow: create the transcript job and return its id. */
+async function createTranscriptJob(
+  createBody: Record<string, unknown>,
+  apiKey: string,
+  context: ProviderRequestContext,
+): Promise<string> {
+  const provider = 'assemblyai';
   const createResp = await fetchWithTimeout(provider, `${ASSEMBLYAI_BASE}/v2/transcript`, {
     method: 'POST',
     headers: { ...authHeaders(apiKey), 'Content-Type': 'application/json' },
@@ -565,16 +605,29 @@ export async function transcribeWithAssemblyAI(
     throwForStatus(upstreamError);
   }
 
-  const transcriptId = await readRequiredJsonString(createResp, {
+  return readRequiredJsonString(createResp, {
     provider: 'AssemblyAI',
     field: 'id',
     malformedMessage: 'malformed create response',
     missingMessage: 'create returned no transcript id',
   });
+}
 
-  logProviderEvent(provider, 'job_created', { model, medical, transcriptId, keytermCount: keyterms.length }, context);
-
-  // ── 3. Poll until completed / error ──
+/** Step 3 of the async flow: poll the transcript until it is completed or
+ * failed, then decode and bill the result. Always deletes the transcript. */
+async function pollUntilTerminal(
+  transcriptId: string,
+  apiKey: string,
+  context: ProviderRequestContext,
+  { model, medical, keyterms, audio, startedAt }: {
+    model: string;
+    medical: boolean;
+    keyterms: string[];
+    audio: ArrayBuffer;
+    startedAt: number;
+  },
+): Promise<TranscriptionResult> {
+  const provider = 'assemblyai';
   // Wrap polling in try/finally so the created transcript is deleted on ANY exit
   // path (success, throw, or poll-deadline) — otherwise a timeout/throw leaks the
   // job upstream. Best-effort; failures are logged but never mask the result.

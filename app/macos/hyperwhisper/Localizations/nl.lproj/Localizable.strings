@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "Geluidssignalen afspelen wanneer de opname start en stopt.";
 "settings.sound.mediaControl.title" = "Mediabesturing tijdens opnemen";
 "settings.sound.mediaControl.info" = "Kies hoe HyperWhisper andere audio afhandelt terwijl je opneemt. 'Uit' laat audio onveranderd, 'Audio dempen' zwijgt systeemuitvoer tijdens het opnemen en herstelt het daarna, en 'Audio smoren' laat het zacht doorspelen, alsof het uit de kamer ernaast komt.";
+"settings.sound.microphone.title" = "Microfoon";
+"settings.sound.microphone.subtitle" = "Alleen gebruikt door HyperWhisper. Blijft bewaard na een herstart.";
+"microphone.picker.default" = "Standaard · %@";
+"microphone.picker.notConnected" = "%@ (niet verbonden)";
+"microphone.picker.fallback" = "%1$@ wordt gebruikt totdat %2$@ opnieuw is verbonden.";
+"settings.sound.microphone.test" = "Test";
+"settings.sound.microphone.stop" = "Stop";
+"settings.sound.microphone.level" = "Invoerniveau";
 "settings.sound.autoIncreaseMicVolume.title" = "Volume microfoon automatisch verhogen";
-"settings.sound.autoIncreaseMicVolume.info" = "Stelt het microfooninvoervolume automatisch in op maximum wanneer opnamen wordt gestart, en herstelt vervolgens het originele niveau wanneer opnamen stopt. Geldt alleen bij gebruik van het standaardinvoerapparaat van het systeem.";
+"settings.sound.autoIncreaseMicVolume.info" = "Zet het invoervolume van de microfoon waarmee HyperWhisper opneemt automatisch op maximaal wanneer de opname start en herstelt het oorspronkelijke niveau wanneer de opname stopt. Microfoons zonder softwarematige volumeregeling blijven ongewijzigd.";
 "settings.sound.vad.title" = "Stilte voor transcriptie verwijderen";
 "settings.sound.vad.info" = "Detecteert en verwijdert automatisch vooraan- en achterliggende stilte met behulp van AI-stemdetectie. Dit kan de nauwkeurigheid van transcriptie verbeteren en verwerkingstijd verkorten.";
 
@@ -1165,3 +1173,4 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "settings.storage.maxRecordingDuration.hour" = "1 uur";
 "settings.storage.maxRecordingDuration.hours" = "%d uur";
 "settings.storage.maxRecordingDuration.off" = "Uit";
+"settings.api_server.status.stopping" = "Bezig met stoppen…";
