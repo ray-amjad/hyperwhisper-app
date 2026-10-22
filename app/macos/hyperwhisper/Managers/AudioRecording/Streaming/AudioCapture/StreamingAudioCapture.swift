@@ -204,19 +204,33 @@ class StreamingAudioCapture {
         let inputNode = engine.inputNode
 
         // Open the microphone chosen in HyperWhisper — the same device the WAV recording
-        // opens — without changing the macOS default input. nil (no choice, chosen device
-        // unplugged, or it is already the default) keeps the engine on the default input.
+        // opens — without changing the macOS default input. With no connected choice that
+        // is the automatic pick (a physical input when the default is virtual, #2408).
+        // `.systemDefault` (the device to use is already the default) keeps the engine on
+        // the default. The route's devices are tried in order; a route pinned to skip a
+        // virtual default never falls back to it — the start fails instead.
         // Blocking CoreAudio reads; `start()` is not on the main actor.
-        var pinnedDevice = false
-        if let deviceID = MicrophoneCaptureRouting.captureDeviceID(
+        let route = MicrophoneCaptureRouting.captureRoute(
             preferredUID: MicrophoneRoutingStore.shared.preferredDeviceUID
-        ) {
+        )
+        var pinnedDevice = false
+        for deviceID in route.deviceIDs {
             do {
                 try DeviceAudioRecorder.setInputDevice(deviceID, on: inputNode)
                 pinnedDevice = true
-                logger.info("Streaming capture opened the chosen microphone (device \(deviceID, privacy: .public))")
+                logger.info("Streaming capture opened the pinned microphone (device \(deviceID, privacy: .public))")
+                break
             } catch {
-                logger.warning("Streaming capture could not open the chosen microphone, using the default input: \(String(describing: error), privacy: .public)")
+                logger.warning("Streaming capture could not open the pinned microphone (device \(deviceID, privacy: .public)): \(String(describing: error), privacy: .public)")
+            }
+        }
+        if !pinnedDevice {
+            guard route.fallsBackToSystemDefault else {
+                logger.error("Streaming capture opened no non-virtual microphone - not falling back to the virtual macOS default input")
+                throw StreamingError.audioEngineError("No non-virtual microphone could be opened")
+            }
+            if !route.deviceIDs.isEmpty {
+                logger.warning("Streaming capture could not open the chosen microphone, using the default input")
             }
         }
 

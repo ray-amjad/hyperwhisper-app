@@ -6,10 +6,11 @@ import {
 } from '../lib/constants';
 import { creditsForCost } from '../lib/cost-calculator';
 import type { AuthContext } from './auth';
+import { stubEnv } from '../test-support/env';
 
 const originalFetch = globalThis.fetch;
 const originalConsoleWarn = console.warn;
-const originalLicenseApiUrl = process.env.NEXTJS_LICENSE_API_URL;
+let restoreLicenseApiUrl: () => void;
 
 type CachedLicense = { isValid: boolean; credits: number; cachedAt: string; issuedAtMs?: number };
 const cacheWrites: Array<{ licenseKey: string; license: CachedLicense }> = [];
@@ -108,7 +109,7 @@ async function expectNoPendingDeductions(): Promise<void> {
 }
 
 beforeEach(() => {
-  delete process.env.NEXTJS_LICENSE_API_URL;
+  restoreLicenseApiUrl = stubEnv('NEXTJS_LICENSE_API_URL', undefined);
 });
 
 afterEach(async () => {
@@ -118,11 +119,7 @@ afterEach(async () => {
   cacheLicenseImplementation = defaultCacheLicense;
   globalThis.fetch = originalFetch;
   console.warn = originalConsoleWarn;
-  if (originalLicenseApiUrl === undefined) {
-    delete process.env.NEXTJS_LICENSE_API_URL;
-  } else {
-    process.env.NEXTJS_LICENSE_API_URL = originalLicenseApiUrl;
-  }
+  restoreLicenseApiUrl();
 });
 
 describe('estimateAudioSecondsFromSize', () => {

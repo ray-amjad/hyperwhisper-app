@@ -800,7 +800,9 @@ public partial class MainViewModel : ViewModelBase
     /// Enumerates the WaveIn devices and applies
     /// <see cref="MicrophoneSelection.Resolve"/>: the saved
     /// <see cref="SettingsService.LastSelectedMicrophone"/> if it is connected,
-    /// else the Windows default input (asked of Core Audio, not the first row).
+    /// else the automatic pick: the Windows default input (asked of Core Audio,
+    /// not the first row), or the first non-virtual input when that default is
+    /// a virtual device (#2408).
     ///
     /// RESULT PATTERN:
     /// Handles Result&lt;List&lt;AudioDevice&gt;&gt; to distinguish between:
@@ -858,6 +860,13 @@ public partial class MainViewModel : ViewModelBase
             _pickedDeviceNumber,
             SelectedAudioDevice?.DeviceNumber);
 
+        if (resolution.SkippedVirtualDefault && resolution.Source != MicrophoneSource.Saved)
+        {
+            LoggingService.Info(
+                $"MainViewModel: Windows default input '{resolution.SystemDefaultDevice?.Name}' is a virtual device; " +
+                $"using '{resolution.DefaultDevice?.Name}' (#{resolution.DefaultDevice?.DeviceNumber}) instead");
+        }
+
         if (resolution.Source == MicrophoneSource.SavedMissingNoDevice)
         {
             LoggingService.Info(
@@ -868,7 +877,7 @@ public partial class MainViewModel : ViewModelBase
         {
             LoggingService.Info(
                 $"MainViewModel: Saved microphone '{resolution.SavedName}' is not connected; " +
-                $"using the Windows default '{defaultDevice?.Name ?? "(none)"}' until it is");
+                $"using '{resolution.Device?.Name ?? "(none)"}' until it is");
         }
 
         // A refresh that lands on the same saved device did not choose it: keep
