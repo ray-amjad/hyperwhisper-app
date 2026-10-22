@@ -274,7 +274,7 @@ function oggDuration(b: Uint8Array): number | undefined {
   let offset = 0;
   while (offset + 27 <= b.length) {
     if (u32be(b, offset) !== OGG_CAPTURE || u8(b, offset + 4) !== 0) {
-      // Lost sync: find the next capture pattern. indexOf keeps this linear.
+      // Lost sync: scan forward for the next capture pattern, so this stays linear.
       const next = findOggS(b, offset + 1);
       if (next < 0) break;
       offset = next;
@@ -343,10 +343,9 @@ function oggDuration(b: Uint8Array): number | undefined {
 }
 
 function findOggS(b: Uint8Array, from: number): number {
-  let index = b.indexOf(0x4F, from);
-  while (index >= 0 && index + 4 <= b.length) {
-    if (b[index + 1] === 0x67 && b[index + 2] === 0x67 && b[index + 3] === 0x53) return index;
-    index = b.indexOf(0x4F, index + 1);
+  // A plain loop, not indexOf: it stays cheap when the data is dense with 'O'.
+  for (let index = from; index + 4 <= b.length; index++) {
+    if (b[index] === 0x4F && b[index + 1] === 0x67 && b[index + 2] === 0x67 && b[index + 3] === 0x53) return index;
   }
   return -1;
 }
