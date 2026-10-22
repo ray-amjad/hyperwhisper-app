@@ -7,10 +7,9 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { getHTTPStatusCodeFromError } from "@trpc/server/http";
-import Stripe from "stripe";
 
 import { createTRPCRouter, adminProcedure } from "../../trpc";
-import { stripe } from "@/lib/clients/stripe";
+import { stripe, stripeRefundApi } from "@/lib/clients/stripe";
 import {
   getAccountKeyCustomerPage,
   getOrCreateUser,
@@ -38,19 +37,6 @@ import { emailTag } from "@/lib/shared/redact";
 import { emailService } from "@/lib/services/email";
 import { createCustomerPaymentRefunder } from "./customer-refund";
 import { createCustomerSpendReader } from "./customer-spend";
-
-// Pre-existing inline Stripe client, pinned to the API version the refund
-// flow (checkout.sessions.retrieve / refunds.create below) was built and
-// tested against. Deliberately kept separate from the shared client in
-// lib/clients/stripe.ts (which tracks a newer API version) so this PR's new
-// spend-fetching code doesn't change behavior for the existing, unrelated,
-// production money-handling refund flow. New code in this router should use
-// the shared `stripe` client instead.
-const legacyStripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  // @ts-expect-error - the SDK's types only admit the API version it ships
-  // with; this flow stays pinned to the older one it was tested against.
-  apiVersion: "2025-02-24.acacia",
-});
 
 const MAX_ADMIN_CREDIT_GRANT = 1_000_000;
 
@@ -128,15 +114,18 @@ const customerSpendReader = createCustomerSpendReader({
   },
 });
 
+// The refund flow runs on `stripeRefundApi`, pinned in lib/clients/stripe.ts
+// to the older API version it was tested against (#755). Everything else in
+// this router uses the shared `stripe`.
 const customerPaymentRefunder = createCustomerPaymentRefunder({
   retrievePaymentIntent: async (stripeSessionId) => {
     const session =
-      await legacyStripe.checkout.sessions.retrieve(stripeSessionId);
+      await stripeRefundApi.checkout.sessions.retrieve(stripeSessionId);
 
     return session.payment_intent;
   },
   createRefund: async (paymentIntentId, idempotencyKey) => {
-    await legacyStripe.refunds.create(
+    await stripeRefundApi.refunds.create(
       { payment_intent: paymentIntentId },
       { idempotencyKey },
     );

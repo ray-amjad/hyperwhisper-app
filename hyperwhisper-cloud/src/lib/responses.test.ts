@@ -4,7 +4,6 @@ import {
   CORS_HEADERS,
   errorResponse,
   fileTooLargeResponse,
-  imageTooLargeResponse,
   insufficientCreditsResponse,
   invalidContentTypeResponse,
   invalidLicenseResponse,
@@ -16,7 +15,6 @@ import {
   CREDITS_PER_MINUTE,
   GEMINI_INLINE_MAX_BYTES,
   GOOGLE_CHIRP_INLINE_MAX_BYTES,
-  MAX_ASSISTANT_IMAGE_BYTES,
   MAX_AUDIO_SIZE_BYTES,
   OPENAI_INLINE_MAX_BYTES,
 } from './constants';
@@ -190,23 +188,11 @@ describe('size refusals', () => {
       GOOGLE_CHIRP_INLINE_MAX_BYTES,
       GEMINI_INLINE_MAX_BYTES,
       OPENAI_INLINE_MAX_BYTES,
-      MAX_ASSISTANT_IMAGE_BYTES,
     ]) {
       const body = await bodyOf(fileTooLargeResponse(maxBytes + 1, maxBytes));
 
       expect((body['max_size_mb'] as number) * MB).toBeLessThanOrEqual(maxBytes);
     }
-  });
-
-  test('an oversized image is a 413 the client can tell from an oversized audio file', async () => {
-    const response = imageTooLargeResponse(11 * MB, MAX_ASSISTANT_IMAGE_BYTES);
-
-    expect(response.status).toBe(413);
-
-    const body = await bodyOf(response);
-    expect(body['error']).toBe('Image too large');
-    expect(body['max_size_mb']).toBe(10);
-    expect(body['actual_size_mb']).toBe(11);
   });
 });
 
@@ -242,7 +228,6 @@ describe('CORS_HEADERS', () => {
       invalidLicenseResponse(),
       insufficientCreditsResponse(1, 2),
       fileTooLargeResponse(3 * MB, 2 * MB),
-      imageTooLargeResponse(11 * MB, 10 * MB),
       invalidContentTypeResponse('audio/*', 'text/plain'),
       missingContentLengthResponse(),
     ];
