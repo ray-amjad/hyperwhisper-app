@@ -58,9 +58,9 @@ internal static class ParakeetDaemonLaunchPlan
     /// <see cref="TranscriptionErrorCode.OnnxModelFileMissing"/>; a missing VAD model is
     /// only logged, and the daemon runs without VAD.
     /// </summary>
-    internal static DaemonPaths ValidatePaths(string modelDirectory)
+    internal static DaemonPaths ValidatePaths(string modelDirectory, string? daemonPathOverride = null)
     {
-        var daemonPath = GetDaemonPath();
+        var daemonPath = daemonPathOverride ?? GetDaemonPath();
         var vadModelPath = GetVadModelPath();
 
         // Guard: validate daemon binary exists

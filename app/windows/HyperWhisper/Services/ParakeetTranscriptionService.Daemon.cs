@@ -5,6 +5,8 @@
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
+using HyperWhisper.Localization;
+using HyperWhisper.Models;
 
 namespace HyperWhisper.Services;
 
@@ -159,6 +161,61 @@ public partial class ParakeetTranscriptionService
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Forgets a daemon <see cref="Process"/> whose start threw or returned false, so
+    /// no teardown, IsAvailable or crash handler reads a process that never ran (#2379).
+    /// </summary>
+    private void ReleaseUnstartedDaemon(Process process)
+    {
+        process.Exited -= OnDaemonExited;
+        if (ReferenceEquals(_daemonProcess, process))
+        {
+            _daemonProcess = null;
+        }
+
+        try
+        {
+            process.Dispose();
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Debug($"ParakeetTranscriptionService: Failed to dispose unstarted daemon process: {ex.GetType().Name}");
+        }
+    }
+
+    /// <summary>
+    /// The error for a daemon that could not be spawned at all. Its message is what the
+    /// status bar shows, so it carries no path: a Win32Exception from Process.Start
+    /// names the full install path, which can hold the Windows account name. An
+    /// Application Control block (#2379) gets the same notice and the same one Sentry
+    /// report as a blocked DLL (#933), naming the file only.
+    /// </summary>
+    internal static TranscriptionException DaemonSpawnFailure(Exception startException)
+    {
+        if (ApplicationControlDiagnostics.TryReportBlock(
+                startException, "parakeet_daemon_start", ApplicationControlDiagnostics.SendBlockReport))
+        {
+            var (_, notice) = ApplicationControlDiagnostics.BuildBlockedNotice(
+                ApplicationControlDiagnostics.DescribeBlockedAssembly(startException),
+                static key => Loc.S(key));
+            return new TranscriptionException(TranscriptionErrorCode.DaemonStartFailed, notice, "Parakeet")
+            {
+                UserMessage = notice,
+            };
+        }
+
+        var nativeError = startException is System.ComponentModel.Win32Exception win32
+            ? win32.NativeErrorCode.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            : "n/a";
+        LoggingService.Error(
+            $"ParakeetTranscriptionService: Daemon process could not be started " +
+            $"(exception_type={startException.GetType().Name}, native_error={nativeError})");
+        return new TranscriptionException(
+            TranscriptionErrorCode.DaemonStartFailed,
+            $"Failed to start Parakeet daemon ({startException.GetType().Name}, native error {nativeError})",
+            "Parakeet");
     }
 
     private static void KillDaemonProcess(Process? process)

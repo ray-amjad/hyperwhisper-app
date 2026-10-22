@@ -44,7 +44,7 @@ public partial class ParakeetTranscriptionService
 
         // Guards: daemon binary, model directory, VAD model. Outside the try below, so a
         // missing file throws its own code, not "Unexpected error during initialization".
-        var paths = ParakeetDaemonLaunchPlan.ValidatePaths(modelDirectory);
+        var paths = ParakeetDaemonLaunchPlan.ValidatePaths(modelDirectory, DaemonPathOverride);
 
         // The daemon THIS load starts. Every kill below targets it, never whatever
         // _daemonProcess holds by then: a failed or cancelled load must not stop a
@@ -58,7 +58,7 @@ public partial class ParakeetTranscriptionService
 
             process = new Process { StartInfo = launch.StartInfo, EnableRaisingEvents = true };
             _daemonProcess = process;
-            var (sinceStart, stderrCapture) = StartDaemonProcess(process);
+            var (sinceStart, stderrCapture) = SpawnDaemonProcess(process);
 
             // STEP 3: Wait for the READY signal. ConfigureAwait(false), like every await
             // on this path: see WaitForDaemonReadyAsync (#1608).
@@ -118,13 +118,28 @@ public partial class ParakeetTranscriptionService
     /// Starts the daemon this load created (crash detection registered first), takes its
     /// stdio, and starts the stderr pump (STEP 2). Returns the clock started at the spawn.
     /// </summary>
-    private (Stopwatch SinceStart, StderrCapture StderrCapture) StartDaemonProcess(Process process)
+    private (Stopwatch SinceStart, StderrCapture StderrCapture) SpawnDaemonProcess(Process process)
     {
         // Register crash detection before starting
         process.Exited += OnDaemonExited;
 
-        if (!process.Start())
+        bool started;
+        try
         {
+            started = StartDaemonProcess(process);
+        }
+        catch (Exception startException)
+        {
+            // Nothing runs behind this Process: HasExited, Id and Kill all throw
+            // InvalidOperationException on it, and the next load's DisposeModel
+            // crashed on exactly that (#2379). Drop it before anything reads it.
+            ReleaseUnstartedDaemon(process);
+            throw DaemonSpawnFailure(startException);
+        }
+
+        if (!started)
+        {
+            ReleaseUnstartedDaemon(process);
             LoggingService.Error("ParakeetTranscriptionService: Failed to start daemon process");
             throw new TranscriptionException(
                 TranscriptionErrorCode.DaemonStartFailed,

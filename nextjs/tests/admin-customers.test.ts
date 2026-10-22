@@ -358,15 +358,14 @@ describe("refund", () => {
     assert.deepEqual(writes(), NO_WRITES);
   });
 
-  test("builds its refund client pinned to the 2025-02-24.acacia API version", async () => {
+  test("retrieves the session and refunds on the pinned refund client", async () => {
     await callCustomers("refund", "mutation", {
       licenseKeyId: LICENSE_ID,
       revokeLicense: false,
     });
-    // Built once, at module load, and every refund reuses it. A newer API
-    // version would change the refund flow this client was tested against.
-    assert.equal(calls.stripeConstructed.length, 1);
-    assert.equal(calls.stripeConstructed[0].apiVersion, "2025-02-24.acacia");
+    // Both calls reach `stripeRefundApi` from lib/clients/stripe.ts (#755).
+    // Its API version pin is proved on the wire in stripe-client.test.ts.
+    assert.deepEqual(calls.retrieveSession, ["cs_1"]);
     assert.equal(calls.createRefund.length, 1);
   });
 });

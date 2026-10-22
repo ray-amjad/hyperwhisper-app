@@ -83,7 +83,11 @@ public partial class ParakeetTranscriptionService
                     TranscriptionErrorCode.DaemonCrashed,
                     "Parakeet daemon crashed and auto-restart failed",
                     "Parakeet",
-                    restartEx);
+                    restartEx)
+                {
+                    // An Application Control block on the restart keeps its notice (#2379).
+                    UserMessage = (restartEx as TranscriptionException)?.UserMessage,
+                };
             }
         }
     }

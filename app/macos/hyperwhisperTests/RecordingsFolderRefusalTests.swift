@@ -98,7 +98,7 @@ struct RecordingsFolderRefusalTests {
     @Test func theRecoveryChooserShowsTheRefusalAndReportsIt() throws {
         let body = try ProductionSource.slice(
             of: Self.managerPath,
-            from: "func offerManualFolderSelection() -> Bool {",
+            from: "func offerManualFolderSelection() async -> Bool {",
             to: "func presentStorageRecoveryPrompt()"
         )
         #expect(body.contains("guard changeRecordingsFolder(to: url) else {"))
