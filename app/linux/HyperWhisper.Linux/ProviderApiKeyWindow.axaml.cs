@@ -132,9 +132,9 @@ public partial class ProviderApiKeyWindow : Window
     internal static bool IsValidKeyFormat(string account, string? key)
     {
         if (string.IsNullOrWhiteSpace(key)) return false;
+        // Soniox, Meta and any other account keep Windows' floor of 10.
         var minLength = account switch
         {
-            "SonioxApiKey" or "MetaApiKey" => 10,
             "OpenAIApiKey" or "AnthropicApiKey" or "GroqApiKey" or "CerebrasApiKey" or "GrokApiKey"
                 or "GeminiApiKey" or "GeminiTranscribeApiKey" or "DeepgramApiKey" or "AssemblyAIApiKey"
                 or "ElevenLabsApiKey" or "MistralApiKey" => 20,
