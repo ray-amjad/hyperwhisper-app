@@ -1954,6 +1954,76 @@ internal static class Program
                 Assert(rows[0].DeviceNumber is null, "the Default row names no device");
             });
 
+            // #2408: a virtual Windows default (BlackHole, VB-CABLE, VoiceMeeter...)
+            // is skipped by the automatic pick, never by a hand-made choice.
+            Run("Microphone virtual inputs: detected by name, incl. the 31-char WaveIn cut, Krisp is not", () =>
+            {
+                var truncatedCable = "CABLE Output (VB-Audio Virtual Cable)"[..MicrophoneSelection.WaveInNameLimit];
+                Assert(truncatedCable == "CABLE Output (VB-Audio Virtual ", $"the WaveIn cut, got '{truncatedCable}'");
+                Assert(MicrophoneSelection.IsVirtualInput(truncatedCable), "the 31-char VB-CABLE WaveIn name is virtual");
+                Assert(MicrophoneSelection.IsVirtualInput("CABLE-A Output (VB-Audio Cable A)"), "VB-CABLE A");
+                Assert(MicrophoneSelection.IsVirtualInput("VoiceMeeter Out B1 (VB-Audio Vo"), "VoiceMeeter");
+                Assert(MicrophoneSelection.IsVirtualInput("blackhole 2ch"), "case is ignored");
+                Assert(MicrophoneSelection.IsVirtualInput("Microsoft Teams Audio"), "Teams audio");
+                Assert(MicrophoneSelection.IsVirtualInput("Stereo Mix (Realtek(R) Audio)"), "Stereo Mix");
+                Assert(MicrophoneSelection.IsVirtualInput("Line 1 (Virtual Audio Cable)"), "Virtual Audio Cable");
+                Assert(!MicrophoneSelection.IsVirtualInput("Microphone (Krisp Microphone)"), "Krisp carries the user's voice: NOT virtual");
+                Assert(!MicrophoneSelection.IsVirtualInput("Microphone (NVIDIA Broadcast)"), "NVIDIA Broadcast is NOT virtual");
+                Assert(!MicrophoneSelection.IsVirtualInput("Wave Link MicrophoneFX (Elgato "), "Elgato Wave Link is NOT virtual");
+                Assert(!MicrophoneSelection.IsVirtualInput("Microphone (Realtek(R) Audio)"), "a built-in mic is not virtual");
+                Assert(!MicrophoneSelection.IsVirtualInput(null) && !MicrophoneSelection.IsVirtualInput("  "), "no name is not virtual");
+                Assert(HyperWhisper.PortableApplication.MicrophoneSelection.VirtualNameMarkers.Count == 17, "the list matches the sibling heads' 17 entries");
+            });
+
+            Run("Microphone automatic pick skips a virtual Windows default; a hand-made choice is never overridden", () =>
+            {
+                var cable = new AudioDeviceService.AudioDevice(0, "CABLE Output (VB-Audio Virtual ");
+                var builtin = new AudioDeviceService.AudioDevice(1, "Microphone (Realtek(R) Audio)");
+                var usb = new AudioDeviceService.AudioDevice(2, "Scarlett 2i2 USB");
+                var devices = new List<AudioDeviceService.AudioDevice> { cable, builtin, usb };
+
+                var auto = MicrophoneSelection.Resolve(devices, null, cable);
+                Assert(auto.Source == MicrophoneSource.SystemDefault && auto.Device == builtin,
+                    $"virtual default + physical present -> the first physical input, got '{auto.Device?.Name}'");
+                Assert(auto.DefaultDevice == builtin && auto.SystemDefaultDevice == cable && auto.SkippedVirtualDefault,
+                    "the resolution reports the skipped virtual default");
+                var (rows, selected) = MicrophoneSelection.BuildOptions(devices, auto);
+                Assert(rows[0].Label == HyperWhisper.Localization.Loc.S("settings.sound.microphone.default", builtin.Name),
+                    $"the Default row names the device that records, got '{rows[0].Label}'");
+                Assert(selected == rows[0], "and Default stays selected");
+                Assert(rows.Count == 4 && rows.Any(r => r.Name == cable.Name), "the virtual device stays in the picker");
+
+                var onlyVirtual = new List<AudioDeviceService.AudioDevice>
+                {
+                    cable,
+                    new(1, "VoiceMeeter Output (VB-Audio Vo"),
+                };
+                var allVirtual = MicrophoneSelection.Resolve(onlyVirtual, null, cable);
+                Assert(allVirtual.Device == cable && !allVirtual.SkippedVirtualDefault,
+                    "only virtual inputs -> the Windows default still records");
+
+                var chosen = MicrophoneSelection.Resolve(devices, cable.Name, cable);
+                Assert(chosen.Source == MicrophoneSource.Saved && chosen.Device == cable,
+                    "an explicit VB-CABLE choice, connected, is used as is");
+                chosen = MicrophoneSelection.Resolve(devices, cable.Name, builtin);
+                Assert(chosen.Device == cable, "also when the Windows default is physical");
+
+                var physical = MicrophoneSelection.Resolve(devices, null, usb);
+                Assert(physical.Device == usb && !physical.SkippedVirtualDefault,
+                    "a physical Windows default is unchanged, even when it is not the first input");
+
+                var unplugged = MicrophoneSelection.Resolve(
+                    new List<AudioDeviceService.AudioDevice> { cable, builtin }, usb.Name, cable);
+                Assert(unplugged.Source == MicrophoneSource.SavedMissingUsingDefault && unplugged.Device == builtin,
+                    $"chosen but unplugged + virtual default -> the physical stand-in, got '{unplugged.Device?.Name}'");
+                Assert(unplugged.SavedName == usb.Name, "and the choice is kept");
+                var message = MicrophoneSelection.FallbackMessage(unplugged);
+                Assert(message != null && message.Contains(builtin.Name) && !message.Contains(cable.Name),
+                    $"the amber line names the stand-in that records, got '{message}'");
+
+                Assert(MicrophoneSelection.AutomaticPick(devices, null) is null, "no Windows default, no pick");
+            });
+
             Run("Microphone Test meter: shared level maths, idle bar empty", () =>
             {
                 var silence = new byte[3200];
