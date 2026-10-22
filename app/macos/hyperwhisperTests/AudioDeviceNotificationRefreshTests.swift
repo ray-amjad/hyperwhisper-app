@@ -296,17 +296,21 @@ struct AudioDeviceNotificationRefreshTests {
         }
         await Self.waitUntil { probe.calls == 1 }
 
-        DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(20)) {
-            providerGate.release()
-        }
-        DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(150)) {
+        // Let the provider return at once, then hold the main actor. A duration that
+        // wrongly ran until the main actor resumed would be at least `mainActorBlockedMs`,
+        // because the provider started before the hold. The bound is relative, so a slow
+        // runner stretches both sides instead of failing a fixed wall-clock limit (#2401).
+        let blockStart = DispatchTime.now().uptimeNanoseconds
+        providerGate.release()
+        DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(300)) {
             mainActorGate.release()
         }
         mainActorGate.wait()
+        let mainActorBlockedMs = Int((DispatchTime.now().uptimeNanoseconds - blockStart) / 1_000_000)
         await refresh.value
 
         #expect(probe.reports.count == 1)
-        #expect(probe.reports[0].durationMs < 100)
+        #expect(probe.reports[0].durationMs < mainActorBlockedMs)
     }
 
     @Test func missingSelectedDeviceInvalidatesOnceWithoutCoreAudio() async {
