@@ -7,7 +7,7 @@
  * and `openGraph`. Next merges metadata SHALLOWLY per top-level key, so a page
  * `openGraph` replaces the layout's whole object: this file also checks the
  * page still sends the og:image list, site name, type and locale. The same
- * holds for `twitter`, whose title the layout pins to the home title.
+ * holds for `twitter`, whose card, creator and images the layout sets.
  *
  * It calls the REAL `generateMetadata` of each page. The three content modules
  * they import read the database (and import "server-only"), so those are
@@ -106,8 +106,8 @@ for (const { route, title } of ROUTES) {
       ),
     );
 
-    // The layout sets twitter.title, so without a page `twitter` object X
-    // previews the link with the home title; same shallow-merge rule applies.
+    // The page sends its whole `twitter` object, so the shallow merge keeps
+    // the card, creator and images and X previews the link with this title.
     assert.equal(metadata.twitter.title, title);
     assert.equal(metadata.twitter.description, metadata.openGraph.description);
     assert.equal(metadata.twitter.card, "summary");
