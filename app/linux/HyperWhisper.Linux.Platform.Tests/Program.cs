@@ -1121,6 +1121,9 @@ static async Task PulseRecorderWritesWave()
         using var recorder = new PulseAudioRecorder(api, new FakeAppPaths(directory));
         var levels = 0;
         recorder.AudioLevelChanged += (_, _) => levels++;
+        // #2411: each fragment's peak feeds the "No sound from {mic}" warning; 2/32768 is -84 dBFS.
+        var peaks = new List<double>();
+        ((HyperWhisper.Platform.Abstractions.Audio.IAudioBlockPeakSource)recorder).BlockPeakDbfs += (_, peak) => peaks.Add(peak);
         Assert.Success(recorder.Start(new AudioRecordingOptions("default")));
         await session.Completed.Task.WaitAsync(TimeSpan.FromSeconds(2));
         var stopped = recorder.Stop();
@@ -1128,6 +1131,7 @@ static async Task PulseRecorderWritesWave()
         Assert.Equal(48L, new FileInfo(stopped.Value!).Length);
         Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(stopped.Value!));
         Assert.Equal(1, levels);
+        Assert.True(peaks.Count == 1 && Math.Abs(peaks[0] - 20 * Math.Log10(2 / 32768.0)) < 1e-9);
     });
 }
 
@@ -3112,12 +3116,16 @@ static async Task StreamingAudioLevelSurvivesClipping()
     var stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
     capture.AudioChunkAvailable += (_, _) => chunks++;
     capture.AudioLevelChanged += (_, level) => levels.Add(level);
+    var peaks = new List<double>();
+    capture.BlockPeakDbfs += (_, peak) => peaks.Add(peak);
     capture.CaptureStopped += (_, value) => { error = value; stopped.TrySetResult(); };
     Assert.Success(capture.Start(new AudioRecordingOptions("default")));
     await stopped.Task.WaitAsync(TimeSpan.FromSeconds(2));
     Assert.True(error is null);
     Assert.Equal(2, chunks);
     Assert.True(levels.Count == 2 && levels.All(level => level == 1f));
+    // #2411: a clipped chunk peaks at exactly 0 dBFS, once per chunk.
+    Assert.True(peaks.Count == 2 && peaks.All(peak => peak == 0));
 }
 
 static async Task StreamingAudioBlockedStop()

@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace HyperWhisper.Linux.Overlay;
 
 /// <summary>
@@ -23,6 +25,9 @@ public sealed class LinuxRecordingOverlayController : IDisposable
     private LinuxOverlayModeLabel _recordingMode = LinuxOverlayModeLabel.Create(null);
     private LinuxStreamingOverlayConnectionState? _streamingConnection;
     private double _audioLevel;
+    // "No sound from {mic}" (#2411): the microphone the recording hears nothing from, else null.
+    // It replaces the live face's status line; the levels, stop target and duration stay.
+    private LinuxOverlayMicrophoneLabel? _micSilence;
     // What an active recording is showing, owned here under _gate (#1245). Ticks repaint only Live.
     private RecordingFace _face;
     private long _generation;
@@ -65,6 +70,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             CancelTransientLocked();
             _recordingMode = mode;
             _recordingStarted = _clock();
+            _micSilence = null;
             _face = RecordingFace.Live;
             _streamingConnection = null;
             _audioLevel = 0;
@@ -80,6 +86,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             CancelTransientLocked();
             _recordingMode = mode;
             _recordingStarted = _clock();
+            _micSilence = null;
             _face = RecordingFace.Live;
             _streamingConnection = LinuxStreamingOverlayConnectionState.Connecting;
             _audioLevel = 0;
@@ -109,6 +116,29 @@ public sealed class LinuxRecordingOverlayController : IDisposable
         }
     }
 
+    /// <summary>The recording has heard nothing from <paramref name="microphone"/> for 2 s (#2411).</summary>
+    public void ShowMicSilence(LinuxOverlayMicrophoneLabel microphone)
+    {
+        lock (_gate)
+        {
+            if (_disposed || _recordingStarted is null || _micSilence == microphone) return;
+            _micSilence = microphone;
+            // A cancel prompt or mode toast keeps its face; the warning shows when the live face resumes.
+            if (_face == RecordingFace.Live) ApplyLocked(RecordingSnapshotLocked());
+        }
+    }
+
+    /// <summary>The microphone was heard, or the recording ended: the live face's own status returns.</summary>
+    public void HideMicSilence()
+    {
+        lock (_gate)
+        {
+            if (_disposed || _micSilence is null) return;
+            _micSilence = null;
+            if (_recordingStarted is not null && _face == RecordingFace.Live) ApplyLocked(RecordingSnapshotLocked());
+        }
+    }
+
     public void ShowTranscribing()
     {
         lock (_gate)
@@ -116,6 +146,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             if (_disposed) return;
             CancelTransientLocked();
             _recordingStarted = null;
+            _micSilence = null;
             _face = RecordingFace.None;
             ApplyLocked(new(LinuxRecordingOverlayState.Transcribing, true, _text("recording.state.transcribing"),
                 string.Empty, ViewModel.DurationText));
@@ -139,6 +170,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             if (_disposed) return;
             CancelTransientLocked();
             _recordingStarted = null;
+            _micSilence = null;
             _face = RecordingFace.None;
             ApplyLocked(new(LinuxRecordingOverlayState.Error, true, message, string.Empty, ViewModel.DurationText));
             StartTransientLocked(ErrorDuration, HideLocked);
@@ -170,6 +202,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             if (_disposed) return;
             CancelTransientLocked();
             _recordingStarted = null;
+            _micSilence = null;
             _face = RecordingFace.None;
             ApplyLocked(new(LinuxRecordingOverlayState.Cancelled, true, _text("status.recordingCancelled"),
                 string.Empty, ViewModel.DurationText));
@@ -223,6 +256,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             if (_disposed) return;
             CancelTransientLocked();
             _recordingStarted = null;
+            _micSilence = null;
             _face = RecordingFace.None;
             _audioLevel = 0;
             ApplyLocked(new(state, true, text, string.Empty, ViewModel.DurationText));
@@ -253,6 +287,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
     {
         CancelTransientLocked();
         _recordingStarted = null;
+        _micSilence = null;
         _face = RecordingFace.None;
         ApplyLocked(LinuxRecordingOverlayViewModel.HiddenSnapshot);
     }
@@ -287,8 +322,14 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             LinuxStreamingOverlayConnectionState.Connected => _text("recording.state.streaming"),
             _ => _text("linux.overlay.recording"),
         };
+        if (_micSilence is { } microphone)
+        {
+            var name = microphone.Value.Length > 0 ? microphone.Value : _text("menu.microphone");
+            status = string.Format(CultureInfo.CurrentCulture, _text("recording.warning.micSilent"), name);
+        }
         return new(streaming ? LinuxRecordingOverlayState.Streaming : LinuxRecordingOverlayState.Recording,
-            true, status, _recordingMode.Value, duration, _audioLevel, _streamingConnection);
+            true, status, _recordingMode.Value, duration, _audioLevel, _streamingConnection,
+            MicSilent: _micSilence is not null);
     }
 
     private void StartTransientLocked(TimeSpan duration, Action completionLocked)
@@ -359,6 +400,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             _disposed = true;
             CancelTransientLocked();
             _recordingStarted = null;
+            _micSilence = null;
             _face = RecordingFace.None;
         }
         _durationTimer?.Dispose();

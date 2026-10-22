@@ -13,6 +13,8 @@ internal interface ILinuxRecordingOverlayFeedback : IDisposable
     void Cancelled();
     void Failed(LinuxRecordingOverlayError error);
     void ModeChanged(LinuxOverlayModeLabel mode);
+    /// <summary>"No sound from {mic}" shows for <paramref name="microphone"/>, or hides with null (#2411).</summary>
+    void MicSilenceChanged(LinuxOverlayMicrophoneLabel? microphone);
 }
 
 /// <summary>Creates and owns the Avalonia surface lazily on the UI dispatcher.</summary>
@@ -56,6 +58,11 @@ internal sealed class LazyLinuxRecordingOverlayFeedback : ILinuxRecordingOverlay
     public void Cancelled() => Post(controller => controller.Cancel());
     public void Failed(LinuxRecordingOverlayError error) => Post(controller => controller.ShowError(error));
     public void ModeChanged(LinuxOverlayModeLabel mode) => Post(controller => controller.ShowModeChanged(mode));
+    public void MicSilenceChanged(LinuxOverlayMicrophoneLabel? microphone) => Post(controller =>
+    {
+        if (microphone is { } shown) controller.ShowMicSilence(shown);
+        else controller.HideMicSilence();
+    });
     internal LinuxRecordingOverlaySnapshot? Snapshot => _controller?.ViewModel.Snapshot;
 
     private void Post(Action<LinuxRecordingOverlayController> action)

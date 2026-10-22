@@ -3,6 +3,8 @@ using HyperWhisper.Linux.Platform.Audio;
 using HyperWhisper.Linux.Platform.Desktop;
 using HyperWhisper.LiveStreaming;
 using HyperWhisper.Platform.Abstractions;
+using HyperWhisper.Platform.Abstractions.Audio;
+using HyperWhisper.PortableApplication.Audio;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.PortableApplication.ViewModels;
@@ -24,6 +26,8 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private readonly HistoryRepository _history;
     private readonly ILinuxRecordingOverlayFeedback _overlay;
     private readonly LinuxLifecycleDiagnostics? _diagnostics;
+    // The live "No sound from {mic}" rule (#2411), fed by both capture paths' block peaks.
+    private readonly MicSilenceWatcher _micSilence;
     private ApplicationContextSnapshot? _context;
     private Mode? _mode;
     private Transcript? _liveTranscript;
@@ -62,7 +66,8 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         ITranscriptionPostProcessor postProcessor,
         HistoryRepository history,
         ILinuxRecordingOverlayFeedback overlay,
-        LinuxLifecycleDiagnostics? diagnostics = null)
+        LinuxLifecycleDiagnostics? diagnostics = null,
+        MicSilenceWatcher? micSilence = null)
     {
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         _workflow = workflow ?? throw new ArgumentNullException(nameof(workflow));
@@ -77,7 +82,16 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         _services.LiveStreaming.AudioLevelChanged += OnAudioLevelChanged;
         _services.LiveStreaming.ConnectionStateChanged += OnStreamingConnectionStateChanged;
         _services.LiveTranscripts.TranscriptReceived += OnLiveTranscriptReceived;
+        _micSilence = micSilence ?? new MicSilenceWatcher();
+        _micSilence.WarningChanged += OnMicSilenceChanged;
+        if (_services.AudioRecorder is IAudioBlockPeakSource recorderPeaks)
+            recorderPeaks.BlockPeakDbfs += OnBlockPeakDbfs;
+        _services.LiveStreaming.BlockPeakDbfs += OnBlockPeakDbfs;
     }
+
+    /// <summary>The name of the device the current recording opened, for its "No sound from {mic}"
+    /// warning; snapshotted once capture started, so a picker change mid-recording cannot rename it.</summary>
+    public string? ActiveMicrophoneName { get; private set; }
 
     public bool IsActive => _streaming
         ? _services.LiveStreaming.IsRunning
@@ -128,6 +142,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         }
         catch
         {
+            _micSilence.Stop();
             await ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Failed);
             _overlay.Failed(LinuxRecordingOverlayError.RecordingFailed);
             throw;
@@ -206,6 +221,9 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             _overlay.Failed(LinuxRecordingOverlayErrorMapper.FromCode(started.Error?.Code, transcription: false));
             return started;
         }
+        // Capture is running now: the 2 s "No sound from {mic}" clock starts here, not at the hotkey (#2411).
+        ActiveMicrophoneName = _viewModel.Recording?.SelectedAudioDevice?.Name;
+        _micSilence.Start();
         await ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Succeeded);
         if (_viewModel.Settings.EnableSoundEffects) _ = _services.SoundEffects.Play(SoundEffect.RecordingStarted);
         _viewModel.Status.Success(_streaming ? LiveRecordingStatus : RecordingStatus);
@@ -291,6 +309,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     {
         var open = HasOpenSession;
         SetLiveCapture(false);
+        _micSilence.Stop();
         if (!open) return new(PlatformResult.Failure("interaction.not_recording", "No transcription is active."), false);
         await ReportAsync(DiagnosticComponent.Transcription, DiagnosticOutcome.Started);
         _overlay.Transcribing();
@@ -406,6 +425,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     public async ValueTask CancelAsync(CancellationToken cancellationToken = default)
     {
         SetLiveCapture(false);
+        _micSilence.Stop();
         await ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Cancelled);
         _overlay.Cancelled();
         try
@@ -473,6 +493,12 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     }
 
     private void OnAudioLevelChanged(object? sender, float level) => _overlay.AudioLevelChanged(level);
+
+    private void OnBlockPeakDbfs(object? sender, double peakDbfs) => _micSilence.ObserveBlockPeak(peakDbfs);
+
+    // Raised on a capture or timer thread; the overlay feedback only posts to the UI thread.
+    private void OnMicSilenceChanged(bool warning) => _overlay.MicSilenceChanged(
+        warning ? LinuxOverlayMicrophoneLabel.Create(ActiveMicrophoneName) : null);
 
     private void OnStreamingConnectionStateChanged(object? sender, LiveStreamingConnectionState state) =>
         _overlay.StreamingConnectionChanged(state switch
@@ -656,6 +682,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         }
         try { liveDelivery?.Cancel(); } catch (ObjectDisposedException) { }
         liveDelivery?.Dispose();
+        _micSilence.Stop();
         _streaming = false;
         SetLiveCapture(false);
         _liveTranscript = null;

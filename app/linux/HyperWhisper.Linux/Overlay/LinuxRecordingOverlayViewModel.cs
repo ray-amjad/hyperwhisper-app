@@ -22,6 +22,10 @@ public sealed class LinuxRecordingOverlayViewModel : INotifyPropertyChanged
         LinuxStreamingOverlayConnectionState.Error => "#FFFF3B30",
         _ => "#FF34C759",
     };
+    /// <summary>The live face's status line is the "No sound from {mic}" warning (#2411).</summary>
+    public bool IsMicSilent => _snapshot.MicSilent;
+    public string StatusForeground => _snapshot.MicSilent ? MicSilentForeground : "#F2FFFFFF";
+    internal const string MicSilentForeground = "#FFFFC107";
     public bool IsRecording => State == LinuxRecordingOverlayState.Recording;
     public bool IsStreaming => State == LinuxRecordingOverlayState.Streaming;
     public bool IsTranscribing => State == LinuxRecordingOverlayState.Transcribing;
@@ -48,6 +52,8 @@ public sealed class LinuxRecordingOverlayViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(DurationText));
         OnPropertyChanged(nameof(AudioLevel));
         OnPropertyChanged(nameof(StreamingIndicatorBrush));
+        OnPropertyChanged(nameof(IsMicSilent));
+        OnPropertyChanged(nameof(StatusForeground));
         OnPropertyChanged(nameof(IsRecording));
         OnPropertyChanged(nameof(IsStreaming));
         OnPropertyChanged(nameof(IsTranscribing));
