@@ -311,6 +311,39 @@
   <data name="vocabulary.replacement.field.placeholder" xml:space="preserve">
     <value>ข้อความแทนที่…</value>
   </data>
+  <data name="vocabulary.transfer.import" xml:space="preserve">
+    <value>นำเข้า...</value>
+  </data>
+  <data name="vocabulary.transfer.export" xml:space="preserve">
+    <value>ส่งออก...</value>
+  </data>
+  <data name="vocabulary.transfer.import.dialogTitle" xml:space="preserve">
+    <value>นำเข้าศัพท์เฉพาะ</value>
+  </data>
+  <data name="vocabulary.transfer.export.dialogTitle" xml:space="preserve">
+    <value>ส่งออกศัพท์เฉพาะ</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.any" xml:space="preserve">
+    <value>ไฟล์ศัพท์เฉพาะ (CSV หรือ TXT)</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.csv" xml:space="preserve">
+    <value>ไฟล์ CSV</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.txt" xml:space="preserve">
+    <value>ไฟล์ข้อความ</value>
+  </data>
+  <data name="vocabulary.transfer.imported" xml:space="preserve">
+    <value>นำเข้าศัพท์เฉพาะแล้ว เพิ่ม: {0}, อัปเดต: {1}, ข้าม (เกิน 1000 อักขระ): {2}</value>
+  </data>
+  <data name="vocabulary.transfer.exported" xml:space="preserve">
+    <value>ส่งออกศัพท์เฉพาะไปยัง {0} แล้ว</value>
+  </data>
+  <data name="vocabulary.transfer.importFailed" xml:space="preserve">
+    <value>ไม่สามารถอ่านไฟล์นี้ได้ โปรดเลือกไฟล์ CSV หรือ TXT ที่เป็น UTF-8</value>
+  </data>
+  <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
+    <value>ไม่สามารถส่งออกศัพท์เฉพาะได้</value>
+  </data>
 
   <!-- Settings Page -->
   <data name="settings.title" xml:space="preserve">

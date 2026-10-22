@@ -311,6 +311,39 @@
   <data name="vocabulary.replacement.field.placeholder" xml:space="preserve">
     <value>Korvaava teksti…</value>
   </data>
+  <data name="vocabulary.transfer.import" xml:space="preserve">
+    <value>Tuo...</value>
+  </data>
+  <data name="vocabulary.transfer.export" xml:space="preserve">
+    <value>Vie...</value>
+  </data>
+  <data name="vocabulary.transfer.import.dialogTitle" xml:space="preserve">
+    <value>Tuo sanasto</value>
+  </data>
+  <data name="vocabulary.transfer.export.dialogTitle" xml:space="preserve">
+    <value>Vie sanasto</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.any" xml:space="preserve">
+    <value>Sanastotiedosto (CSV tai TXT)</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.csv" xml:space="preserve">
+    <value>CSV-tiedosto</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.txt" xml:space="preserve">
+    <value>Tekstitiedosto</value>
+  </data>
+  <data name="vocabulary.transfer.imported" xml:space="preserve">
+    <value>Sanasto tuotiin. Lisätty: {0}, päivitetty: {1}, ohitettu (yli 1000 merkkiä): {2}.</value>
+  </data>
+  <data name="vocabulary.transfer.exported" xml:space="preserve">
+    <value>Sanasto vietiin tiedostoon {0}.</value>
+  </data>
+  <data name="vocabulary.transfer.importFailed" xml:space="preserve">
+    <value>Tiedostoa ei voitu lukea. Valitse UTF-8-muotoinen CSV- tai TXT-tiedosto.</value>
+  </data>
+  <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
+    <value>Sanastoa ei voitu viedä.</value>
+  </data>
 
   <!-- Settings Page -->
   <data name="settings.title" xml:space="preserve">

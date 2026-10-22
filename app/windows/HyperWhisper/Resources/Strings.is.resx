@@ -311,6 +311,39 @@
   <data name="vocabulary.replacement.field.placeholder" xml:space="preserve">
     <value>Staðgengill texti…</value>
   </data>
+  <data name="vocabulary.transfer.import" xml:space="preserve">
+    <value>Flytja inn...</value>
+  </data>
+  <data name="vocabulary.transfer.export" xml:space="preserve">
+    <value>Flytja út...</value>
+  </data>
+  <data name="vocabulary.transfer.import.dialogTitle" xml:space="preserve">
+    <value>Flytja inn orðaforða</value>
+  </data>
+  <data name="vocabulary.transfer.export.dialogTitle" xml:space="preserve">
+    <value>Flytja út orðaforða</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.any" xml:space="preserve">
+    <value>Orðaforðaskrá (CSV eða TXT)</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.csv" xml:space="preserve">
+    <value>CSV-skrá</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.txt" xml:space="preserve">
+    <value>Textaskrá</value>
+  </data>
+  <data name="vocabulary.transfer.imported" xml:space="preserve">
+    <value>Orðaforði fluttur inn. Bætt við: {0}, uppfært: {1}, sleppt (yfir 1000 stafir): {2}.</value>
+  </data>
+  <data name="vocabulary.transfer.exported" xml:space="preserve">
+    <value>Orðaforði fluttur út í {0}.</value>
+  </data>
+  <data name="vocabulary.transfer.importFailed" xml:space="preserve">
+    <value>Ekki tókst að lesa þessa skrá. Veldu CSV- eða TXT-skrá á UTF-8 sniði.</value>
+  </data>
+  <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
+    <value>Ekki tókst að flytja út orðaforðann.</value>
+  </data>
 
   <!-- Settings Page -->
   <data name="settings.title" xml:space="preserve">

@@ -311,6 +311,39 @@
   <data name="vocabulary.replacement.field.placeholder" xml:space="preserve">
     <value>Текст замене…</value>
   </data>
+  <data name="vocabulary.transfer.import" xml:space="preserve">
+    <value>Увези...</value>
+  </data>
+  <data name="vocabulary.transfer.export" xml:space="preserve">
+    <value>Извези...</value>
+  </data>
+  <data name="vocabulary.transfer.import.dialogTitle" xml:space="preserve">
+    <value>Увоз речника</value>
+  </data>
+  <data name="vocabulary.transfer.export.dialogTitle" xml:space="preserve">
+    <value>Извоз речника</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.any" xml:space="preserve">
+    <value>Датотека речника (CSV или TXT)</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.csv" xml:space="preserve">
+    <value>CSV датотека</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.txt" xml:space="preserve">
+    <value>Текстуална датотека</value>
+  </data>
+  <data name="vocabulary.transfer.imported" xml:space="preserve">
+    <value>Речник је увезен. Додато: {0}, ажурирано: {1}, прескочено (преко 1000 знакова): {2}.</value>
+  </data>
+  <data name="vocabulary.transfer.exported" xml:space="preserve">
+    <value>Речник је извезен у {0}.</value>
+  </data>
+  <data name="vocabulary.transfer.importFailed" xml:space="preserve">
+    <value>Ова датотека не може да се прочита. Изаберите CSV или TXT датотеку у UTF-8.</value>
+  </data>
+  <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
+    <value>Речник није могуће извести.</value>
+  </data>
 
   <!-- Settings Page -->
   <data name="settings.title" xml:space="preserve">

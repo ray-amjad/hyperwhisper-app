@@ -311,6 +311,39 @@
   <data name="vocabulary.replacement.field.placeholder" xml:space="preserve">
     <value>Texte de remplacement…</value>
   </data>
+  <data name="vocabulary.transfer.import" xml:space="preserve">
+    <value>Importer...</value>
+  </data>
+  <data name="vocabulary.transfer.export" xml:space="preserve">
+    <value>Exporter...</value>
+  </data>
+  <data name="vocabulary.transfer.import.dialogTitle" xml:space="preserve">
+    <value>Importer le vocabulaire</value>
+  </data>
+  <data name="vocabulary.transfer.export.dialogTitle" xml:space="preserve">
+    <value>Exporter le vocabulaire</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.any" xml:space="preserve">
+    <value>Fichier de vocabulaire (CSV ou TXT)</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.csv" xml:space="preserve">
+    <value>Fichier CSV</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.txt" xml:space="preserve">
+    <value>Fichier texte</value>
+  </data>
+  <data name="vocabulary.transfer.imported" xml:space="preserve">
+    <value>Vocabulaire importé. Ajoutés : {0}, mis à jour : {1}, ignorés (plus de 1000 caractères) : {2}.</value>
+  </data>
+  <data name="vocabulary.transfer.exported" xml:space="preserve">
+    <value>Vocabulaire exporté vers {0}.</value>
+  </data>
+  <data name="vocabulary.transfer.importFailed" xml:space="preserve">
+    <value>Impossible de lire ce fichier. Choisissez un fichier CSV ou TXT en UTF-8.</value>
+  </data>
+  <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
+    <value>Impossible d'exporter le vocabulaire.</value>
+  </data>
 
   <!-- Settings Page -->
   <data name="settings.title" xml:space="preserve">

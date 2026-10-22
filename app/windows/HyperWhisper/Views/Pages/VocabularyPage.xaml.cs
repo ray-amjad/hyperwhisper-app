@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -11,6 +13,9 @@ using VocabularyWords = HyperWhisper.PortableApplication.Persistence.VocabularyW
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
+using HyperWhisper.PortableApplication.Persistence;
+using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
+using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 
 namespace HyperWhisper.Views.Pages;
 
@@ -316,6 +321,94 @@ public partial class VocabularyPage : Page
         _vocabularyService.Delete(id);
         ClearError();
         RefreshList();
+    }
+
+    // =========================================================================
+    // IMPORT / EXPORT (#2409)
+    // =========================================================================
+
+    // CSV and TXT, picked by the extension; the patterns are not translated.
+    private static string ImportFilter() =>
+        $"{Loc.S("vocabulary.transfer.fileType.any")}|*.csv;*.txt|{Loc.S("vocabulary.transfer.fileType.csv")}|*.csv|{Loc.S("vocabulary.transfer.fileType.txt")}|*.txt";
+
+    private static string ExportFilter() =>
+        $"{Loc.S("vocabulary.transfer.fileType.csv")}|*.csv|{Loc.S("vocabulary.transfer.fileType.txt")}|*.txt";
+
+    private async void ImportButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = Loc.S("vocabulary.transfer.import.dialogTitle"),
+            Filter = ImportFilter(),
+            CheckFileExists = true,
+        };
+        if (dialog.ShowDialog() != true)
+            return;
+
+        var filePath = dialog.FileName;
+        SetTransferBusy(true);
+        ShowTransferStatus(null);
+        // The service raises VocabularyChanged, which reloads the list and the keyword banner.
+        var result = await Task.Run(() => _vocabularyService.ImportFile(filePath));
+        SetTransferBusy(false);
+
+        if (result.IsFailure)
+        {
+            ShowTransferError(Loc.S("vocabulary.transfer.importFailed"));
+            return;
+        }
+        var counts = result.Value!;
+        RefreshList();
+        ShowTransferStatus(Loc.S("vocabulary.transfer.imported", counts.Added, counts.Updated, counts.Skipped));
+    }
+
+    private async void ExportButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = Loc.S("vocabulary.transfer.export.dialogTitle"),
+            Filter = ExportFilter(),
+            FileName = VocabularyTransfer.DefaultFileName,
+            DefaultExt = ".csv",
+            AddExtension = true,
+            OverwritePrompt = true,
+        };
+        if (dialog.ShowDialog() != true)
+            return;
+
+        var filePath = dialog.FileName;
+        SetTransferBusy(true);
+        ShowTransferStatus(null);
+        var result = await Task.Run(() => _vocabularyService.ExportFile(filePath));
+        SetTransferBusy(false);
+
+        if (result.IsFailure)
+        {
+            ShowTransferError(Loc.S("vocabulary.transfer.exportFailed"));
+            return;
+        }
+        ShowTransferStatus(Loc.S("vocabulary.transfer.exported", Path.GetFileName(filePath)));
+    }
+
+    private void SetTransferBusy(bool busy)
+    {
+        ImportButton.IsEnabled = !busy;
+        ExportButton.IsEnabled = !busy;
+    }
+
+    private void ShowTransferStatus(string? message)
+    {
+        TransferStatusText.Text = message ?? string.Empty;
+        TransferStatusText.Visibility = string.IsNullOrEmpty(message) ? Visibility.Collapsed : Visibility.Visible;
+        if (!string.IsNullOrEmpty(message)) ClearError();
+    }
+
+    // The page's existing error line, as a refused add uses.
+    private void ShowTransferError(string message)
+    {
+        ShowTransferStatus(null);
+        ErrorText.Text = message;
+        ErrorText.Visibility = Visibility.Visible;
     }
 
     private sealed class VocabularyItemRow

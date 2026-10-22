@@ -311,6 +311,39 @@
   <data name="vocabulary.replacement.field.placeholder" xml:space="preserve">
     <value>Nadomestno besedilo…</value>
   </data>
+  <data name="vocabulary.transfer.import" xml:space="preserve">
+    <value>Uvozi...</value>
+  </data>
+  <data name="vocabulary.transfer.export" xml:space="preserve">
+    <value>Izvozi...</value>
+  </data>
+  <data name="vocabulary.transfer.import.dialogTitle" xml:space="preserve">
+    <value>Uvozi besednjak</value>
+  </data>
+  <data name="vocabulary.transfer.export.dialogTitle" xml:space="preserve">
+    <value>Izvozi besednjak</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.any" xml:space="preserve">
+    <value>Datoteka besednjaka (CSV ali TXT)</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.csv" xml:space="preserve">
+    <value>Datoteka CSV</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.txt" xml:space="preserve">
+    <value>Besedilna datoteka</value>
+  </data>
+  <data name="vocabulary.transfer.imported" xml:space="preserve">
+    <value>Besednjak je uvožen. Dodano: {0}, posodobljeno: {1}, preskočeno (več kot 1000 znakov): {2}.</value>
+  </data>
+  <data name="vocabulary.transfer.exported" xml:space="preserve">
+    <value>Besednjak je izvožen v {0}.</value>
+  </data>
+  <data name="vocabulary.transfer.importFailed" xml:space="preserve">
+    <value>Te datoteke ni mogoče prebrati. Izberite datoteko CSV ali TXT v UTF-8.</value>
+  </data>
+  <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
+    <value>Besednjaka ni bilo mogoče izvoziti.</value>
+  </data>
 
   <!-- Settings Page -->
   <data name="settings.title" xml:space="preserve">

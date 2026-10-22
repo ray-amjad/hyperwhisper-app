@@ -311,6 +311,39 @@
   <data name="vocabulary.replacement.field.placeholder" xml:space="preserve">
     <value>प्रतिस्थापन पाठ…</value>
   </data>
+  <data name="vocabulary.transfer.import" xml:space="preserve">
+    <value>आयात करें...</value>
+  </data>
+  <data name="vocabulary.transfer.export" xml:space="preserve">
+    <value>निर्यात करें...</value>
+  </data>
+  <data name="vocabulary.transfer.import.dialogTitle" xml:space="preserve">
+    <value>शब्दावली आयात करें</value>
+  </data>
+  <data name="vocabulary.transfer.export.dialogTitle" xml:space="preserve">
+    <value>शब्दावली निर्यात करें</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.any" xml:space="preserve">
+    <value>शब्दावली फ़ाइल (CSV या TXT)</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.csv" xml:space="preserve">
+    <value>CSV फ़ाइल</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.txt" xml:space="preserve">
+    <value>टेक्स्ट फ़ाइल</value>
+  </data>
+  <data name="vocabulary.transfer.imported" xml:space="preserve">
+    <value>शब्दावली आयात हुई। जोड़े गए: {0}, अपडेट किए गए: {1}, छोड़े गए (1000 से अधिक वर्ण): {2}.</value>
+  </data>
+  <data name="vocabulary.transfer.exported" xml:space="preserve">
+    <value>शब्दावली {0} में निर्यात हुई।</value>
+  </data>
+  <data name="vocabulary.transfer.importFailed" xml:space="preserve">
+    <value>यह फ़ाइल पढ़ी नहीं जा सकी। UTF-8 वाली CSV या TXT फ़ाइल चुनें।</value>
+  </data>
+  <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
+    <value>शब्दावली निर्यात नहीं की जा सकी।</value>
+  </data>
 
   <!-- Settings Page -->
   <data name="settings.title" xml:space="preserve">

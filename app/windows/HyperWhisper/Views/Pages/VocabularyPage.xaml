@@ -283,6 +283,29 @@
                            Visibility="Collapsed"/>
             </StackPanel>
 
+            <!-- Import / Export (#2409): CSV or TXT, picked by the file's extension. The
+                 result line sits beside the buttons; a failure uses ErrorText above. -->
+            <DockPanel x:Name="TransferRow" Margin="0,0,0,12" LastChildFill="True">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="ImportButton"
+                            Style="{StaticResource MacButtonStyle}"
+                            Content="{loc:Loc vocabulary.transfer.import}"
+                            Click="ImportButton_Click"/>
+                    <Button x:Name="ExportButton"
+                            Style="{StaticResource MacButtonStyle}"
+                            Content="{loc:Loc vocabulary.transfer.export}"
+                            Margin="8,0,0,0"
+                            Click="ExportButton_Click"/>
+                </StackPanel>
+                <TextBlock x:Name="TransferStatusText"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           FontSize="12"
+                           VerticalAlignment="Center"
+                           TextWrapping="Wrap"
+                           Margin="0,0,12,0"
+                           Visibility="Collapsed"/>
+            </DockPanel>
+
             <!-- Vocabulary List -->
             <Border Background="{DynamicResource CardBackgroundBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"

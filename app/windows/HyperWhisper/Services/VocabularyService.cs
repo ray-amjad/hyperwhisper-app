@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using HyperWhisper.Data;
 using HyperWhisper.Data.Entities;
+using HyperWhisper.Models;
+using HyperWhisper.PortableApplication.Persistence;
 using VocabularyWords = HyperWhisper.PortableApplication.Persistence.VocabularyWords;
 
 namespace HyperWhisper.Services;
@@ -239,6 +242,91 @@ public class VocabularyService
         // Fire event outside lock to prevent deadlock
         VocabularyChanged?.Invoke(this, EventArgs.Empty);
         return true;
+    }
+
+    // =========================================================================
+    // IMPORT / EXPORT (#2409)
+    // =========================================================================
+
+    /// <summary>
+    /// Reads a CSV or TXT vocabulary file (the extension picks the format) and merges it into
+    /// the list with the shared rules in <see cref="VocabularyTransfer.MergeInto"/>: new words are
+    /// appended in file order; a listed word keeps its spelling, position and source, and takes
+    /// the file's replacement only when the file gives one. A file that cannot be read or is not
+    /// UTF-8 fails before anything is written.
+    /// </summary>
+    public Result<VocabularyImportResult> ImportFile(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+            throw new ArgumentException("A file path is required.", nameof(filePath));
+
+        VocabularyTransferParse parsed;
+        try
+        {
+            var text = VocabularyTransfer.Decode(File.ReadAllBytes(filePath));
+            parsed = VocabularyTransfer.Read(VocabularyTransfer.FormatForPath(filePath), text);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or VocabularyTransferException or NotSupportedException)
+        {
+            LoggingService.Warn($"VocabularyService: Could not read the vocabulary file ({ex.GetType().Name})");
+            return Result<VocabularyImportResult>.Failure("The file could not be read as UTF-8 text.", ex);
+        }
+        return Import(parsed);
+    }
+
+    /// <summary>Merges already-parsed rows; see <see cref="ImportFile"/>.</summary>
+    public Result<VocabularyImportResult> Import(VocabularyTransferParse parsed)
+    {
+        ArgumentNullException.ThrowIfNull(parsed);
+        VocabularyImportResult result;
+        lock (_lock)
+        {
+            try
+            {
+                using var context = new HyperWhisperDbContext();
+                result = VocabularyTransfer.MergeInto(context, parsed.Entries, parsed.Skipped);
+                LoggingService.Info($"VocabularyService: Imported vocabulary (added={result.Added}, updated={result.Updated}, skipped={result.Skipped})");
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Error("VocabularyService: Vocabulary import failed", ex);
+                return Result<VocabularyImportResult>.Failure("The vocabulary could not be saved.", ex);
+            }
+        }
+
+        // Outside the lock, as the other writers do; the page, the keyword banner and the
+        // prompt/phonetic consumers all reload from this event.
+        if (result.Added > 0 || result.Updated > 0)
+            VocabularyChanged?.Invoke(this, EventArgs.Empty);
+        return Result<VocabularyImportResult>.Success(result);
+    }
+
+    /// <summary>
+    /// Writes the list in the page's display order (<see cref="GetAll"/>) as CSV, or as TXT when
+    /// the path ends in .txt. The file is written beside its target and moved over it, so a
+    /// failed export leaves any earlier file whole.
+    /// </summary>
+    public Result ExportFile(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+            throw new ArgumentException("A file path is required.", nameof(filePath));
+
+        var temporary = filePath + ".tmp-" + Guid.NewGuid().ToString("N");
+        try
+        {
+            var entries = VocabularyTransfer.ToEntries(GetAll());
+            var text = VocabularyTransfer.Write(VocabularyTransfer.FormatForPath(filePath), entries);
+            File.WriteAllBytes(temporary, VocabularyTransfer.Encode(text));
+            File.Move(temporary, filePath, overwrite: true);
+            LoggingService.Info($"VocabularyService: Exported {entries.Count} vocabulary terms");
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            try { File.Delete(temporary); } catch (Exception) { /* best effort */ }
+            LoggingService.Error("VocabularyService: Vocabulary export failed", ex);
+            return Result.Failure("The vocabulary could not be exported.", ex);
+        }
     }
 
 }
