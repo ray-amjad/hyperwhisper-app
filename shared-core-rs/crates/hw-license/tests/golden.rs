@@ -105,10 +105,10 @@ fn golden_offline_grace_window() {
     assert!(!past.is_valid);
 }
 
-/// The remote-override store/TTL machinery in `cache.rs` round-trips with a
-/// 24h TTL. Nothing reads the override any more: local usage is unlimited.
+/// The remote-override store/TTL machinery in `cache.rs` still round-trips and
+/// expires. Nothing reads the override through the FFI any more (#829).
 #[test]
-fn golden_remote_override_round_trips_with_24h_ttl() {
+fn golden_remote_override_round_trips_then_expires() {
     let store = MemoryStore::new();
     let t0 = 1_700_000_000i64;
     let day = t0.div_euclid(DAY);

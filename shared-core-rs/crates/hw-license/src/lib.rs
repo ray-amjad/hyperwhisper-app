@@ -9,8 +9,9 @@
 //! # Module layout
 //! - [`validate`] — build the `/api/license/validate` request, parse the
 //!   response, map it to a [`LicenseStatus`] / [`validate::ValidationOutcome`].
-//! - [`cache`] — 24h validation cache, 7-day offline grace, 24h remote
-//!   trial-limit override — all keyed off an injected `now_unix_secs`.
+//! - [`cache`] — 24h validation cache, 7-day offline grace, and the retired
+//!   remote trial-limit override store (no FFI caller since #829) — all keyed
+//!   off an injected `now_unix_secs`.
 //!
 //! # No clock, no I/O
 //! Nothing in this crate reads the wall clock or the network. Time-dependent

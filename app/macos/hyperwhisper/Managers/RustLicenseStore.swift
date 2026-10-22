@@ -103,7 +103,8 @@ final class RustLicenseStore: KeyValueStore {
         kLicenseCachedStatus,
     ]
 
-    // MARK: - Core usage keys (must match hw-license/src/usage.rs exactly)
+    // MARK: - Legacy core usage keys (the names the removed hw-license usage
+    // module read, #829; kept only for the one-shot seed below)
 
     private static let kUsageDailySeconds = "com.hyperwhisper.usage.dailySeconds"
     private static let kUsageDayIndex = "com.hyperwhisper.usage.dayIndex"
