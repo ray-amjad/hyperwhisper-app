@@ -46,7 +46,11 @@ export function estimateCreditsFromSize(sizeBytes: number, options: CreditEstima
  * actually have used. Redis unavailable fails open (see `credit-holds.ts`).
  *
  * Holding is the default. A caller that must not hold says so with
- * `{ hold: false }`; a holding call made outside `withCreditHoldScope` (a route
+ * `{ hold: false }`. `{ provisional: true }` takes a provisional hold: one that
+ * bounds how many requests a balance can have in flight before their cost is
+ * known (#2483), but that no other request's firm hold counts, so concurrent
+ * floors cannot starve each other's real reservation. The request's next
+ * (firm) call replaces it. A holding call made outside `withCreditHoldScope` (a route
  * that forgot the wrapper) still fails open on the cached balance, but logs
  * `credits_hold.no_scope` so the missing guard is visible (#2043).
  */
@@ -54,7 +58,7 @@ export async function validateCredits(
   auth: AuthContext,
   estimatedCredits: number,
   _clientIP: string,
-  options: { hold?: boolean } = {}
+  options: { hold?: boolean; provisional?: boolean } = {}
 ): Promise<CreditsResult> {
   const balance = roundToTenth(auth.credits);
   if (balance < estimatedCredits) {
@@ -73,7 +77,7 @@ export async function validateCredits(
     }));
     return { ok: true };
   }
-  const outcome = await hold.reserve(estimatedCredits, estimatedCredits);
+  const outcome = await hold.reserve(estimatedCredits, estimatedCredits, { provisional: options.provisional === true });
   if (outcome.kind === 'refused') {
     return {
       ok: false,

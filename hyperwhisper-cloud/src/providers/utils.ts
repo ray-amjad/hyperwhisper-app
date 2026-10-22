@@ -21,8 +21,9 @@ export function computeUploadTimeoutMs(byteLength: number): number {
 /**
  * Conservative audio-duration estimate (seconds) from the encoded byte length,
  * for fail-closed billing when an upstream returns a successful transcript but
- * omits the duration/usage we'd normally bill on. Mirrors the route's preflight
- * size→seconds heuristic (64 kbps encoded).
+ * omits the duration/usage we'd normally bill on (64 kbps encoded). The route's
+ * preflight reservation no longer uses this rate: it reads the container, or
+ * assumes 8 kbps (lib/audio-duration.ts, #2483).
  */
 export function estimateSecondsFromBytes(byteLength: number): number {
   return (byteLength / BYTES_PER_MINUTE_ESTIMATE) * 60;
