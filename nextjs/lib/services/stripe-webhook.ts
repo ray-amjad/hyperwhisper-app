@@ -355,10 +355,12 @@ async function handleCreditMint(
  * Charge -> PaymentIntent -> Checkout Session -> credit grant (source_id)
  *
  * IDEMPOTENCY:
- * A credit refund passes
- * the grant's cumulative refunded total (Stripe's amount_refunded is
- * cumulative) and the grant's refunded_amount records it, so a retried or
- * repeated charge.refunded event never double-deducts.
+ * A credit refund passes the grant's cumulative reversed total
+ * (`reversedCents`: Stripe's cumulative amount_refunded PLUS every lost
+ * dispute on the charge, #2482) and the grant's refunded_amount records it,
+ * so a retried or repeated charge.refunded event never double-deducts. Never
+ * pass bare amount_refunded: after a lost dispute it is below the recorded
+ * total, and the ledger would read a real refund as a duplicate.
  */
 export async function handleChargeRefunded(
   charge: Stripe.Charge
