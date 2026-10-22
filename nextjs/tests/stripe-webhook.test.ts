@@ -741,3 +741,76 @@ test("no webhook log line carries a drizzle error's bound email or licence key",
   assert.deepEqual(leakyLines(logLines.slice(from)), []);
   assert.ok(errors.every((line) => line.includes("22P02")), "the SQLSTATE survives");
 });
+
+// ---------------------------------------------------------------------------
+// handleDisputeClosed (#2482)
+// ---------------------------------------------------------------------------
+
+const handleDisputeClosed: Webhook["handleDisputeClosed"] = (...args) =>
+  webhook.handleDisputeClosed(...args);
+
+function dispute(overrides: Record<string, unknown> = {}): Stripe.Dispute {
+  return {
+    id: "dp_1",
+    object: "dispute",
+    charge: "ch_1",
+    status: "lost",
+    amount: 530,
+    ...overrides,
+  } as unknown as Stripe.Dispute;
+}
+
+test("a dispute that is not lost never queries Stripe or the ledger", async () => {
+  for (const status of ["won", "warning_closed", "needs_response", "under_review"]) {
+    await handleDisputeClosed(dispute({ status }));
+  }
+
+  assert.deepEqual(calls.stripeChargeRetrievals, []);
+  assert.deepEqual(calls.stripeSessionQueries, []);
+  assert.deepEqual(calls.refundCreditGrant, []);
+});
+
+test("a lost dispute fetches its charge and reverses the disputed pack", async () => {
+  behaviour.stripeCharges.set("ch_1", charge({ amount: 530, amount_refunded: 0 }));
+  behaviour.stripeSessions = [creditSession({ credits: 5000, feeCents: 30, amountTotal: 530 })];
+
+  await handleDisputeClosed(dispute({ amount: 530 }));
+
+  assert.deepEqual(calls.stripeChargeRetrievals, ["ch_1"]);
+  assert.deepEqual(calls.stripeSessionQueries, [{ payment_intent: "pi_1", limit: 1 }]);
+  assert.deepEqual(calls.refundCreditGrant, [
+    { sourceType: "stripe_credit_pack", sourceId: "cs_1", refundedCreditsTotal: 5000 },
+  ]);
+});
+
+test("a lost dispute adds to what was refunded before it, capped at the charge", async () => {
+  behaviour.stripeSessions = [creditSession({ credits: 5000, feeCents: 30, amountTotal: 530 })];
+
+  // $2.00 refunded, then the remaining $3.30 lost: the whole pack.
+  await handleDisputeClosed(
+    dispute({ amount: 330, charge: charge({ amount: 530, amount_refunded: 200 }) }),
+  );
+  // A dispute that overlaps a refund never counts more than the charge.
+  await handleDisputeClosed(
+    dispute({ amount: 530, charge: charge({ amount: 530, amount_refunded: 200 }) }),
+  );
+  // A partial lost dispute of $2.00 on an unrefunded charge.
+  await handleDisputeClosed(
+    dispute({ amount: 200, charge: charge({ amount: 530, amount_refunded: 0 }) }),
+  );
+
+  assert.deepEqual(calls.stripeChargeRetrievals, [], "an expanded charge is used as is");
+  assert.deepEqual(refundedTotals(), [5000, 5000, 2000]);
+});
+
+test("a lost dispute whose grant is not minted yet rejects so Stripe retries it", async () => {
+  behaviour.stripeSessions = [creditSession({ credits: 5000, feeCents: 0, amountTotal: 500 })];
+  behaviour.refundResult = { status: "not_found", refundedAmount: 0, removedAmount: 0 };
+
+  await assert.rejects(
+    handleDisputeClosed(
+      dispute({ amount: 500, charge: charge({ id: "ch_early", amount: 500, amount_refunded: 0 }) }),
+    ),
+    (err: Error) => err.message.includes("ch_early"),
+  );
+});

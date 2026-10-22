@@ -411,6 +411,51 @@ export async function handleChargeRefunded(
 }
 
 /**
+ * Process a closed dispute (chargeback) (#2482).
+ *
+ * Only a LOST dispute takes credits back: the bank returned the money to the
+ * buyer, so the pack is reversed exactly like a refund of the disputed amount.
+ * `won`, `warning_closed` and any other outcome leave the pack alone, and so
+ * does an open dispute (`charge.dispute.created` / `funds_withdrawn` are not
+ * routed here): the merchant may still win it.
+ *
+ * Stripe keeps a disputed amount out of `amount_refunded`, so the running
+ * total handed to the refund path is what was refunded plus what was lost,
+ * capped at the charge. It runs through `handleChargeRefunded`, so the trace
+ * (charge -> PaymentIntent -> Checkout Session -> grant), the missing-grant
+ * retry and the spent-credit shortfall are the refund's own.
+ *
+ * IDEMPOTENCY: `refundCreditGrant` records the grant's cumulative refunded
+ * credits, so a re-delivered `charge.dispute.closed`, or a `charge.refunded`
+ * whose smaller total arrives after it, takes nothing more.
+ */
+export async function handleDisputeClosed(
+  dispute: Stripe.Dispute
+): Promise<void> {
+  if (dispute.status !== "lost") {
+    console.log(
+      `Dispute ${dispute.id} closed as ${dispute.status}, no credits taken back`
+    );
+    return;
+  }
+
+  const charge =
+    typeof dispute.charge === "string"
+      ? await stripe.charges.retrieve(dispute.charge)
+      : dispute.charge;
+
+  const reversedCents = Math.min(
+    charge.amount,
+    (charge.amount_refunded ?? 0) + dispute.amount
+  );
+  console.log(
+    `Dispute ${dispute.id} lost on charge ${charge.id} (${dispute.amount}/${charge.amount}); reversing ${reversedCents} in total`
+  );
+
+  await handleChargeRefunded({ ...charge, amount_refunded: reversedCents });
+}
+
+/**
  * When the credit ledger (migration 0006_fat_husk, journal `when`) came in.
  * A credit pack bought before it has no `stripe_credit_pack` grant: its
  * credits were folded into the account's one `legacy_unknown` grant (#1834).

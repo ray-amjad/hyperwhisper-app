@@ -52,6 +52,7 @@ export const calls = {
   generateLicenseKey: 0,
   emails: [] as SentEmail[],
   stripeSessionQueries: [] as Array<{ payment_intent?: string; limit?: number }>,
+  stripeChargeRetrievals: [] as string[],
 };
 
 /** What the collaborators answer. Each test sets only what it cares about. */
@@ -74,6 +75,8 @@ export const behaviour = {
     removedAmount: number;
   },
   stripeSessions: [] as unknown[],
+  /** Charges `stripe.charges.retrieve` returns, by id. */
+  stripeCharges: new Map<string, unknown>(),
   /** Session ids `hasProcessedStripeObject` reports as already processed. */
   processedStripeObjects: new Set<string>(),
   emailSuccess: true,
@@ -107,6 +110,7 @@ export function resetHarness(): void {
   calls.getCreditBalance.length = 0;
   calls.emails.length = 0;
   calls.stripeSessionQueries.length = 0;
+  calls.stripeChargeRetrievals.length = 0;
   calls.generateLicenseKey = 0;
 
   behaviour.generatedKeys = [];
@@ -120,6 +124,7 @@ export function resetHarness(): void {
   behaviour.creditBalance = 12_345;
   behaviour.refundResult = { status: "processed", refundedAmount: 500, removedAmount: 500 };
   behaviour.stripeSessions = [];
+  behaviour.stripeCharges = new Map();
   behaviour.processedStripeObjects = new Set();
   behaviour.emailSuccess = true;
 }
@@ -200,6 +205,14 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
 moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
   namedExports: {
     stripe: {
+      charges: {
+        retrieve: async (id: string) => {
+          calls.stripeChargeRetrievals.push(id);
+          const found = behaviour.stripeCharges.get(id);
+          if (!found) throw new Error(`No such charge: '${id}'`);
+          return found;
+        },
+      },
       checkout: {
         sessions: {
           list: async (query: { payment_intent?: string; limit?: number }) => {

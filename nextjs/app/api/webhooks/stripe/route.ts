@@ -6,6 +6,7 @@ import { describeDbError } from "@/lib/shared/db-error";
 import {
   handleCreditPurchase,
   handleChargeRefunded,
+  handleDisputeClosed,
 } from "@/lib/services/stripe-webhook";
 
 /**
@@ -128,6 +129,25 @@ export async function POST(req: NextRequest) {
       // left in this log.
       return NextResponse.json(
         { error: "Failed to process refund" },
+        { status: 500 }
+      );
+    }
+  }
+
+  // A lost chargeback takes the pack back like a refund (#2482). An open
+  // dispute is not acted on: the merchant may still win it.
+  if (event.type === "charge.dispute.closed") {
+    const dispute = event.data.object;
+    try {
+      await handleDisputeClosed(dispute);
+    } catch (error) {
+      console.error(
+        "Stripe webhook: Error processing dispute:",
+        describeDbError(error),
+      );
+      // 500 so Stripe retries, as for a refund: the reversal is idempotent.
+      return NextResponse.json(
+        { error: "Failed to process dispute" },
         { status: 500 }
       );
     }
