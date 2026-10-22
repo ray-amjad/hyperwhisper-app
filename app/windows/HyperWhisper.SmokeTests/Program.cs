@@ -1751,6 +1751,252 @@ internal static class Program
                     "invalid WaveIn device ID was accepted");
             });
 
+            // Settings -> Sound microphone picker: ONE saved choice
+            // (SettingsService.LastSelectedMicrophone, a WaveIn NAME) resolved
+            // against the connected devices; unplugged falls back to the Windows
+            // default and keeps the choice.
+            Run("Microphone names match across the WaveIn 31-character truncation", () =>
+            {
+                const string full = "Microphone (Scarlett 2i2 USB Audio Interface)";
+                var truncated = full[..MicrophoneSelection.WaveInNameLimit];
+                Assert(MicrophoneSelection.NamesMatch(truncated, full), "a 31-char WaveIn name must match its full Core Audio name");
+                Assert(MicrophoneSelection.NamesMatch(full, truncated), "matching is symmetric");
+                Assert(MicrophoneSelection.NamesMatch("microphone (realtek(r) audio)", "Microphone (Realtek(R) Audio)"), "case is ignored");
+                Assert(!MicrophoneSelection.NamesMatch("Microphone", "Microphone (Realtek(R) Audio)"),
+                    "a SHORT name is never a prefix match: it was not truncated");
+                Assert(!MicrophoneSelection.NamesMatch(null, "Mic"), "null never matches");
+                Assert(!MicrophoneSelection.NamesMatch("  ", "  "), "blank never matches");
+
+                var devices = new List<AudioDeviceService.AudioDevice>
+                {
+                    new(0, "Microphone (Realtek(R) Audio)"),
+                    new(1, truncated),
+                };
+                Assert(MicrophoneSelection.FindByName(devices, full)?.DeviceNumber == 1, "a full name finds its truncated WaveIn row");
+                Assert(MicrophoneSelection.FindByName(devices, "Microphone (Realtek(R) Audio)")?.DeviceNumber == 0, "an exact name wins");
+                Assert(MicrophoneSelection.FindByName(devices, "Headset (Jabra)") is null, "an absent name finds nothing");
+
+                var twins = new List<AudioDeviceService.AudioDevice>
+                {
+                    new(0, truncated),
+                    new(1, "MICROPHONE (SCARLETT 2I2 USB AUDIO"[..MicrophoneSelection.WaveInNameLimit]),
+                };
+                Assert(MicrophoneSelection.FindByName(twins, full) is null,
+                    "two rows matching one full name is ambiguous: pick neither rather than guess");
+            });
+
+            Run("Microphone resolution: saved if connected, else the Windows default, choice kept", () =>
+            {
+                var builtin = new AudioDeviceService.AudioDevice(0, "Microphone (Realtek(R) Audio)");
+                var usb = new AudioDeviceService.AudioDevice(1, "Scarlett 2i2 USB");
+                var devices = new List<AudioDeviceService.AudioDevice> { builtin, usb };
+
+                // The Windows default, asked of Core Audio, mapped to a WaveIn row.
+                Assert(MicrophoneSelection.ResolveDefault(devices, "Scarlett 2i2 USB", -1) == usb, "default by name");
+                Assert(MicrophoneSelection.ResolveDefault(devices, "Renamed by the driver", 1) == usb, "default by endpoint ordinal when no name matches");
+                Assert(MicrophoneSelection.ResolveDefault(devices, null, -1) == builtin, "first row only when Windows names nothing");
+                Assert(MicrophoneSelection.ResolveDefault(new List<AudioDeviceService.AudioDevice>(), "x", 0) is null, "no devices, no default");
+
+                var saved = MicrophoneSelection.Resolve(devices, "Scarlett 2i2 USB", builtin);
+                Assert(saved.Source == MicrophoneSource.Saved && saved.Device == usb, "a connected saved device is used");
+                Assert(!saved.IsSavedMissing, "and it is not missing");
+
+                var followsDefault = MicrophoneSelection.Resolve(devices, null, usb);
+                Assert(followsDefault.Source == MicrophoneSource.SystemDefault && followsDefault.Device == usb,
+                    "nothing saved follows the Windows default, NOT the first device");
+                Assert(MicrophoneSelection.Resolve(devices, "  ", usb).Source == MicrophoneSource.SystemDefault, "a blank name is nothing saved");
+
+                var unplugged = MicrophoneSelection.Resolve(new List<AudioDeviceService.AudioDevice> { builtin }, "Scarlett 2i2 USB", builtin);
+                Assert(unplugged.Source == MicrophoneSource.SavedMissingUsingDefault, "an unplugged saved device falls back");
+                Assert(unplugged.Device == builtin, "to the Windows default");
+                Assert(unplugged.SavedName == "Scarlett 2i2 USB", "and the choice is KEPT for when it comes back");
+
+                var back = MicrophoneSelection.Resolve(devices, unplugged.SavedName, builtin);
+                Assert(back.Source == MicrophoneSource.Saved && back.Device == usb, "re-plugged, the next resolve uses it again");
+
+                var none = MicrophoneSelection.Resolve(new List<AudioDeviceService.AudioDevice>(), "Scarlett 2i2 USB", null);
+                Assert(none.Source == MicrophoneSource.SavedMissingNoDevice && none.Device is null && none.SavedName == "Scarlett 2i2 USB",
+                    "no devices: nothing to open, the choice still kept and reported missing");
+                var nothingAtAll = MicrophoneSelection.Resolve(new List<AudioDeviceService.AudioDevice>(), null, null);
+                Assert(nothingAtAll.Source == MicrophoneSource.None && !nothingAtAll.IsSavedMissing,
+                    "no devices and nothing saved is None");
+
+                Assert(AudioDeviceSelectionReason.For(AudioDeviceSelectionReason.Phase.Startup, MicrophoneSource.Saved) == AudioDeviceSelectionReason.StartupSaved, "startup saved slug");
+                Assert(AudioDeviceSelectionReason.For(AudioDeviceSelectionReason.Phase.Refresh, MicrophoneSource.SavedMissingUsingDefault) == AudioDeviceSelectionReason.RefreshSavedMissing, "refresh missing slug");
+                Assert(AudioDeviceSelectionReason.For(AudioDeviceSelectionReason.Phase.Startup, MicrophoneSource.None) == AudioDeviceSelectionReason.StartupNoDevices, "startup none slug");
+                Assert(AudioDeviceSelectionReason.For(AudioDeviceSelectionReason.Phase.Startup, MicrophoneSource.SavedMissingNoDevice) == AudioDeviceSelectionReason.StartupNoDevices, "startup saved-missing-no-device slug");
+                Assert(AudioDeviceSelectionReason.For(AudioDeviceSelectionReason.Phase.Refresh, MicrophoneSource.SavedMissingNoDevice) == AudioDeviceSelectionReason.RefreshNoDevices, "refresh saved-missing-no-device slug");
+                foreach (var slug in new[]
+                {
+                    AudioDeviceSelectionReason.StartupSaved, AudioDeviceSelectionReason.StartupSystemDefault,
+                    AudioDeviceSelectionReason.StartupSavedMissing, AudioDeviceSelectionReason.RefreshSaved,
+                    AudioDeviceSelectionReason.RefreshSystemDefault, AudioDeviceSelectionReason.RefreshSavedMissing,
+                })
+                {
+                    Assert(AudioDeviceSelectionReason.Normalize(slug) == slug, $"{slug} survives diagnostics normalisation");
+                }
+            });
+
+            Run("Microphone picker rows: Default first, (not connected) kept and selected", () =>
+            {
+                var builtin = new AudioDeviceService.AudioDevice(0, "Microphone (Realtek(R) Audio)");
+                var usb = new AudioDeviceService.AudioDevice(1, "Scarlett 2i2 USB");
+                var both = new List<AudioDeviceService.AudioDevice> { builtin, usb };
+
+                var (rows, selected) = MicrophoneSelection.BuildOptions(both, MicrophoneSelection.Resolve(both, null, builtin));
+                Assert(rows.Count == 3, $"Default + 2 devices, got {rows.Count}");
+                Assert(rows[0].IsDefault && rows[0].Name is null, "the Default row is first and saves nothing");
+                Assert(rows[0].Label == HyperWhisper.Localization.Loc.S("settings.sound.microphone.default", builtin.Name),
+                    "the Default row names the current Windows default");
+                Assert(rows[0].Label.Contains(builtin.Name), "with the device name in it");
+                Assert(selected == rows[0], "nothing saved selects Default");
+
+                (rows, selected) = MicrophoneSelection.BuildOptions(both, MicrophoneSelection.Resolve(both, usb.Name, builtin));
+                Assert(selected.Name == usb.Name && !selected.IsMissing, "a connected saved device selects its row");
+
+                var onlyBuiltin = new List<AudioDeviceService.AudioDevice> { builtin };
+                var unplugged = MicrophoneSelection.Resolve(onlyBuiltin, usb.Name, builtin);
+                (rows, selected) = MicrophoneSelection.BuildOptions(onlyBuiltin, unplugged);
+                Assert(rows.Count == 3, "Default + the connected device + the missing saved one");
+                Assert(selected.IsMissing && selected.Name == usb.Name, "the missing saved device stays selected");
+                Assert(selected.Label == MicrophoneSelection.NotConnectedLabel(usb.Name), "labelled (not connected)");
+                Assert(selected.Label.Contains(usb.Name) && selected.Label != usb.Name, "and the label adds to the name");
+
+                var message = MicrophoneSelection.FallbackMessage(unplugged);
+                Assert(message != null && message.Contains(builtin.Name) && message.Contains(usb.Name),
+                    $"the amber line names the fallback and the saved device, got '{message}'");
+                Assert(MicrophoneSelection.FallbackMessage(MicrophoneSelection.Resolve(both, usb.Name, builtin)) is null,
+                    "no amber line while the saved device is connected");
+
+                var nameless = MicrophoneSelection.DefaultLabel(null);
+                Assert(nameless == HyperWhisper.Localization.Loc.S("onboarding.mic.device.systemDefault"),
+                    "with no named Windows default the row reads System Default");
+            });
+
+            Run("Microphone picker, zero devices + saved name: (not connected) row and the no-device amber line (W3)", () =>
+            {
+                // The saved microphone was the ONLY capture device and is unplugged.
+                var empty = new List<AudioDeviceService.AudioDevice>();
+                const string savedName = "Scarlett 2i2 USB";
+
+                var resolution = MicrophoneSelection.Resolve(empty, savedName, null);
+                Assert(resolution.Source == MicrophoneSource.SavedMissingNoDevice, $"saved but missing with no fallback, got {resolution.Source}");
+                Assert(resolution.IsSavedMissing, "IsSavedMissing is true, so the picker shows the missing row");
+                Assert(resolution.Device is null && resolution.DefaultDevice is null, "nothing to record from");
+                Assert(resolution.SavedName == savedName, "the choice is kept");
+
+                var (rows, selected) = MicrophoneSelection.BuildOptions(empty, resolution);
+                Assert(rows.Count == 2, $"Default + the missing saved one, got {rows.Count}");
+                Assert(rows[0].IsDefault && rows[0].Name is null, "Default stays first so the choice can be cleared");
+                Assert(rows[0].Label == HyperWhisper.Localization.Loc.S("onboarding.mic.device.systemDefault"),
+                    "with no device the Default row reads System Default");
+                Assert(selected == rows[1] && selected.IsMissing && selected.Name == savedName, "the missing saved row is selected");
+                Assert(selected.Label == MicrophoneSelection.NotConnectedLabel(savedName), "labelled (not connected)");
+
+                var message = MicrophoneSelection.FallbackMessage(resolution);
+                Assert(message == HyperWhisper.Localization.Loc.S("settings.sound.microphone.fallbackNoDevice", savedName),
+                    $"the amber line uses the no-device wording, got '{message}'");
+                Assert(message!.Contains(savedName), "and names the saved device");
+                Assert(!message.Contains(HyperWhisper.Localization.Loc.S("onboarding.mic.device.systemDefault")),
+                    "it does not claim System Default is being used");
+
+                // Cleared via Default: nothing saved, nothing missing, no amber line.
+                var cleared = MicrophoneSelection.Resolve(empty, null, null);
+                Assert(cleared.Source == MicrophoneSource.None && MicrophoneSelection.FallbackMessage(cleared) is null,
+                    "after picking Default with no device there is no amber line");
+                (rows, selected) = MicrophoneSelection.BuildOptions(empty, cleared);
+                Assert(rows.Count == 1 && selected.IsDefault, "only the Default row remains, selected");
+            });
+
+            Run("Microphone picker, (not connected) row splits around the name so only the name is ellipsized", () =>
+            {
+                // A WaveIn name cut at 31 characters can end in a space.
+                const string savedName = "CABLE Output (VB-Audio Virtual ";
+                var resolution = MicrophoneSelection.Resolve(new List<AudioDeviceService.AudioDevice>(), savedName, null);
+                var (_, selected) = MicrophoneSelection.BuildOptions(new List<AudioDeviceService.AudioDevice>(), resolution);
+
+                Assert(selected.LabelName == savedName.Trim(), $"the name part is the trimmed name, got '{selected.LabelName}'");
+                Assert(selected.LabelSuffix.Length > 0, "the (not connected) text sits outside the ellipsized name");
+                Assert(selected.LabelPrefix + selected.LabelName + selected.LabelSuffix == selected.Label,
+                    $"the parts rebuild the label, got '{selected.LabelPrefix}|{selected.LabelName}|{selected.LabelSuffix}' for '{selected.Label}'");
+                Assert(!selected.Label.Contains("  "), $"no double space before the suffix, got '{selected.Label}'");
+
+                var row = new MicrophoneOption("USB Mic", "USB Mic", IsDefault: false, IsMissing: false, 0);
+                Assert(row.LabelPrefix == "" && row.LabelName == "USB Mic" && row.LabelSuffix == "",
+                    "a connected row carries its whole label as the name");
+            });
+
+            Run("Microphone picker: same-named devices keep the exact device picked", () =>
+            {
+                // Two identical USB microphones: one WaveIn name, two device numbers.
+                var builtin = new AudioDeviceService.AudioDevice(0, "Microphone (Realtek(R) Audio)");
+                var first = new AudioDeviceService.AudioDevice(1, "USB Microphone");
+                var second = new AudioDeviceService.AudioDevice(2, "USB Microphone");
+                var devices = new List<AudioDeviceService.AudioDevice> { builtin, first, second };
+
+                Assert(MicrophoneSelection.FindByName(devices, "USB Microphone") == first, "no preference: the first match");
+                Assert(MicrophoneSelection.FindByName(devices, "USB Microphone", 2) == second, "the preferred device wins among same-named ones");
+                Assert(MicrophoneSelection.FindByName(devices, "USB Microphone", 0) == first,
+                    "a preferred device with a different name is not a match");
+                Assert(MicrophoneSelection.FindByName(devices, "USB Microphone", null, 2) == second, "the next preference is used when the first is unset");
+
+                // MainViewModel passes (picked this session, currently recording).
+                var picked = MicrophoneSelection.Resolve(devices, "USB Microphone", builtin, 2, 1);
+                Assert(picked.Source == MicrophoneSource.Saved && picked.Device == second, "the device picked this session records");
+                var current = MicrophoneSelection.Resolve(devices, "USB Microphone", builtin, null, 2);
+                Assert(current.Device == second, "with no pick, the device already in use stays");
+
+                var (rows, selected) = MicrophoneSelection.BuildOptions(devices, picked);
+                Assert(rows.Count == 4, $"Default + 3 devices, got {rows.Count}");
+                Assert(rows[2] != rows[3], "two same-named devices are two different rows");
+                Assert(selected == rows[3] && selected.DeviceNumber == 2, "the exact picked device's row is selected, not the first same-named one");
+                Assert(selected.Name == "USB Microphone", "and what it saves is still the name");
+                Assert(rows[0].DeviceNumber is null, "the Default row names no device");
+            });
+
+            Run("Microphone Test meter: shared level maths, idle bar empty", () =>
+            {
+                var silence = new byte[3200];
+                Assert(AudioLevelMath.NextLevel(silence, silence.Length, 0f) == 0f, "silence from idle reads zero");
+                var decayed = AudioLevelMath.NextLevel(silence, silence.Length, 0.8f);
+                Assert(decayed > 0f && decayed < 0.8f, "silence after speech decays, it does not drop");
+
+                var loud = new byte[3200];
+                for (var i = 0; i + 1 < loud.Length; i += 2)
+                {
+                    BitConverter.GetBytes((short)(i % 4 == 0 ? 30000 : -30000)).CopyTo(loud, i);
+                }
+                Assert(AudioLevelMath.NextLevel(loud, loud.Length, 0f) > 0.9f, "a loud buffer attacks at once");
+                Assert(AudioLevelMath.NextLevel(loud, 1, 0f) == 0f, "a buffer with no whole sample is silence");
+
+                Assert(SegmentedLevelBar.LitSegments(0.9f, 24, active: false) == 0, "idle: every segment grey");
+                Assert(SegmentedLevelBar.LitSegments(0f, 24, active: true) == 0, "running and silent: none lit");
+                Assert(SegmentedLevelBar.LitSegments(0.5f, 24, active: true) == 12, "half lights half");
+                Assert(SegmentedLevelBar.LitSegments(7f, 24, active: true) == 24, "clamped at full");
+                Assert(SegmentedLevelBar.LitSegments(float.NaN, 24, active: true) == 0, "NaN lights nothing");
+                Assert(MicrophonePickerViewModel.TestDuration == TimeSpan.FromSeconds(10), "Test runs about 10 s");
+            });
+
+            Run("Every catalog translates the Settings microphone picker strings", () =>
+            {
+                foreach (var key in new[]
+                {
+                    "settings.sound.microphone.subtitle", "settings.sound.microphone.default",
+                    "settings.sound.microphone.notConnected", "settings.sound.microphone.fallback",
+                    "settings.sound.microphone.test", "settings.sound.microphone.stop",
+                })
+                {
+                    var neutral = HyperWhisper.Resources.Strings.ResourceManager.GetString(key, CultureInfo.InvariantCulture);
+                    Assert(!string.IsNullOrWhiteSpace(neutral), $"{key} is missing from Strings.resx");
+                    foreach (var name in ShippedSatelliteCultures())
+                    {
+                        var text = HyperWhisper.Resources.Strings.ResourceManager.GetString(key, new CultureInfo(name));
+                        Assert(!string.IsNullOrWhiteSpace(text) && text != neutral,
+                            $"Strings.{name}.resx does not translate {key}");
+                    }
+                }
+            });
+
             Run("Windows system seams preserve portable metadata", () =>
             {
                 var windowsGpu = new GpuInfoService.GpuInfo
@@ -5826,6 +6072,111 @@ internal static class Program
                     "the x64 engine's Nemotron validation error must not mark the model broken");
                 Assert(!ParakeetTranscriptionService.IsModelFileLoadFailure(fail, null, dir),
                     "no stderr capture must not mark the model broken");
+            });
+
+            RunAsync("Parakeet: a daemon start Application Control blocks is a clear error, and the next load does not throw on the unstarted Process (#2379)", async () =>
+            {
+                var root = Path.Combine(Path.GetTempPath(), "hw-2379-" + Guid.NewGuid().ToString("N"));
+                var engineDir = Path.Combine(root, "parakeet-engine");
+                var modelDir = Path.Combine(root, "parakeet-tdt-0.6b-v2");
+                Directory.CreateDirectory(engineDir);
+                Directory.CreateDirectory(modelDir);
+                var daemonPath = Path.Combine(engineDir, "parakeet-engine.exe");
+                File.WriteAllText(daemonPath, "not an executable");
+
+                // What Process.Start threw on the user's machine (HYPERWHISPER-113):
+                // ERROR_SYSTEM_INTEGRITY_POLICY_VIOLATION, with the install path in the message.
+                // The apostrophe pins the file-name parse: it must not stop at "O".
+                var blockedPath = @"C:\Users\Jane O'Doe\AppData\Local\Programs\HyperWhisper\parakeet-engine\parakeet-engine.exe";
+                var expectedNotice = ApplicationControlDiagnostics.BuildBlockedNotice("parakeet-engine.exe", static key => HyperWhisper.Localization.Loc.S(key)).Message;
+                var starts = 0;
+                var service = new ParakeetTranscriptionService
+                {
+                    DaemonPathOverride = daemonPath,
+                    StartDaemonProcess = _ =>
+                    {
+                        starts++;
+                        throw new System.ComponentModel.Win32Exception(
+                            4551,
+                            $"An error occurred trying to start process '{blockedPath}' with working directory '{Path.GetDirectoryName(blockedPath)}'. An Application Control policy has blocked this file.");
+                    },
+                };
+
+                try
+                {
+                    for (var attempt = 1; attempt <= 2; attempt++)
+                    {
+                        // The second load is the production crash (HYPERWHISPER-112): its
+                        // DisposeModel read HasExited on the first load's never-started Process.
+                        TranscriptionException? failure = null;
+                        try
+                        {
+                            await service.InitializeAsync(modelDir, null);
+                        }
+                        catch (TranscriptionException ex)
+                        {
+                            failure = ex;
+                        }
+
+                        Assert(failure != null, $"load {attempt} must fail as a TranscriptionException");
+                        Assert(failure!.Code == TranscriptionErrorCode.DaemonStartFailed, $"load {attempt}: code {failure.Code}");
+                        Assert(failure.Message == expectedNotice,
+                            $"load {attempt}: the status bar must show the Application Control notice for parakeet-engine.exe, got: {failure.Message}");
+                        Assert(failure.GetUserMessage() == failure.Message,
+                            $"load {attempt}: a dictation toast must show the same notice, got: {failure.GetUserMessage()}");
+                        Assert(!failure.Message.Contains("Doe", StringComparison.Ordinal) && !failure.Message.Contains(@"C:\", StringComparison.Ordinal),
+                            $"load {attempt}: the message must carry no path, got: {failure.Message}");
+                        Assert(failure.InnerException == null, $"load {attempt}: the raw Win32Exception (with its path) must not ride along");
+                        Assert(!service.IsAvailable, $"load {attempt}: IsAvailable must be false, and must not throw");
+                    }
+
+                    Assert(starts == 2, $"each load must try the daemon once, tried {starts}");
+                    service.DisposeModel();
+                }
+                finally
+                {
+                    try { Directory.Delete(root, recursive: true); } catch { }
+                }
+            });
+
+            RunAsync("Parakeet: any other daemon start failure leaves no unstarted Process and puts no path in the message (#2379)", async () =>
+            {
+                var root = Path.Combine(Path.GetTempPath(), "hw-2379-" + Guid.NewGuid().ToString("N"));
+                var modelDir = Path.Combine(root, "parakeet-tdt-0.6b-v2");
+                Directory.CreateDirectory(modelDir);
+                var daemonPath = Path.Combine(root, "parakeet-engine.exe");
+                // A file that exists and is not a program: the REAL Process.Start throws
+                // a Win32Exception (ERROR_BAD_EXE_FORMAT) with the path in its message.
+                File.WriteAllText(daemonPath, "not an executable");
+                var service = new ParakeetTranscriptionService { DaemonPathOverride = daemonPath };
+
+                try
+                {
+                    for (var attempt = 1; attempt <= 2; attempt++)
+                    {
+                        TranscriptionException? failure = null;
+                        try
+                        {
+                            await service.InitializeAsync(modelDir, null);
+                        }
+                        catch (TranscriptionException ex)
+                        {
+                            failure = ex;
+                        }
+
+                        Assert(failure != null, $"load {attempt} must fail as a TranscriptionException");
+                        Assert(failure!.Code == TranscriptionErrorCode.DaemonStartFailed, $"load {attempt}: code {failure.Code}");
+                        Assert(!failure.Message.Contains(root, StringComparison.OrdinalIgnoreCase),
+                            $"load {attempt}: the message must carry no path, got: {failure.Message}");
+                        Assert(!service.IsAvailable, $"load {attempt}: IsAvailable must be false, and must not throw");
+                    }
+
+                    service.DisposeModel();
+                }
+                finally
+                {
+                    try { Directory.Delete(root, recursive: true); } catch { }
+                }
             });
 
             Run("Parakeet start-failure stderr tail drops the user's identifiers and is capped (#854)", () =>
@@ -14039,6 +14390,101 @@ internal static class Program
                     Assert(WindowsLocalApiBackend.ToEntry(byokRow, keyPresent).Installed,
                         $"an Enabled BYOK row read as not installed with account key present={keyPresent}");
                 }
+            });
+
+            Run("issue #649: the status bar says (Not activated) / (No API key) instead of (Ready), and follows the licence with no restart", () =>
+            {
+                const BindingFlags all = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+                string L(string key, string arg) => HyperWhisper.Localization.Loc.S(key, arg);
+
+                // The pure decision first: which credential each provider needs.
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, false, false) == "status.model.notActivated"
+                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, true, false) == "status.model.ready",
+                    "HyperWhisper Cloud reads the account key");
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.MicrosoftAzureSpeech, false, true) == "status.model.notActivated"
+                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.GoogleSpeech, false, true) == "status.model.notActivated",
+                    "the HW-Cloud-routed Azure MAI / Chirp rows need the account key, not a BYOK key (as /transcribe and #650)");
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.OpenAI, true, false) == "status.model.noApiKey"
+                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.Deepgram, false, true) == "status.model.ready",
+                    "a BYOK provider reads its own key, whatever the licence");
+                foreach (var key in new[] { "status.model.notActivated", "status.model.noApiKey" })
+                    Assert(L(key, "X") != key && L(key, "X").Contains('X'), $"{key} is missing from Strings.resx or lost its {{0}}");
+
+                // Then the real status bar, on a MainViewModel with no model loaded.
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(MainViewModel));
+                foreach (var (name, value) in new (string, object)[]
+                {
+                    ("_settingsService", SettingsService.Instance),
+                    ("_modelService", new WhisperModelService()),
+                    ("_transcriptionService", new TranscriptionService()),
+                    ("_parakeetTranscriptionService", new ParakeetTranscriptionService()),
+                    ("_localLlmModelService", new LocalLlmModelService()),
+                })
+                {
+                    (typeof(MainViewModel).GetField(name, all)
+                        ?? throw new InvalidOperationException($"MainViewModel.{name} is gone; update this test"))
+                        .SetValue(vm, value);
+                }
+                var selectedMode = typeof(MainViewModel).GetField("_selectedMode", all)
+                    ?? throw new InvalidOperationException("MainViewModel._selectedMode is gone; update this test");
+                var updateModelStatus = typeof(MainViewModel).GetMethod("UpdateModelStatus", all, Type.EmptyTypes)
+                    ?? throw new InvalidOperationException("MainViewModel.UpdateModelStatus() is gone; update this test");
+                // No BYOK key anywhere, and never the machine's Credential Manager.
+                vm.ApiKeyServiceOverride = new ApiKeyService(new InMemoryCredentialBackend());
+
+                var hyper = ModeDefaults.GetDefaultModes().Single();
+                Assert(hyper.ProviderType == "cloud"
+                       && CloudTranscriptionProviderExtensions.FromModeCloudProvider(hyper.CloudProvider) == CloudTranscriptionProvider.HyperWhisperCloud,
+                    "precondition: the stock Hyper mode is a HyperWhisper Cloud mode");
+                var cloudName = CloudTranscriptionProvider.HyperWhisperCloud.GetDisplayName();
+
+                // Fresh profile: this process has never loaded or activated a licence.
+                Assert(!WindowsLocalApiBackend.CloudAccountKeyPresent(), "precondition: the smoke process is unlicensed");
+                selectedMode.SetValue(vm, hyper);
+                updateModelStatus.Invoke(vm, null);
+                Assert(!vm.ModelStatus.Contains(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                    $"no account key, yet the status bar says Ready: '{vm.ModelStatus}'");
+                Assert(vm.ModelStatus == L("status.model.notActivated", cloudName),
+                    $"expected '{L("status.model.notActivated", cloudName)}', got '{vm.ModelStatus}'");
+
+                // Activation, through LicenseManager and its LicenseStatusChanged, no
+                // restart. A smoke run has no account key and must never store one in
+                // the machine's Credential Manager, so the stored-key half of the
+                // production predicate is stood in for; the status flip is real.
+                var manager = LicenseManager.Instance;
+                var statusSetter = typeof(LicenseManager).GetProperty(nameof(LicenseManager.LicenseStatus))!.GetSetMethod(nonPublic: true)
+                    ?? throw new InvalidOperationException("LicenseManager.LicenseStatus has no setter; update this test");
+                var statusBefore = manager.LicenseStatus;
+                vm.CloudAccountKeyPresentOverride = () => LicenseManager.Instance.IsLicensed;
+                vm.AttachModelStatusSources();
+                try
+                {
+                    statusSetter.Invoke(manager, new object[] { LicenseStatus.Trial });
+                    updateModelStatus.Invoke(vm, null);
+                    Assert(vm.ModelStatus == L("status.model.notActivated", cloudName), "still not activated before the licence lands");
+
+                    statusSetter.Invoke(manager, new object[] { LicenseStatus.Active });
+                    Assert(vm.ModelStatus == L("status.model.ready", cloudName),
+                        $"LicenseStatusChanged did not refresh the status bar to Ready: '{vm.ModelStatus}'");
+
+                    statusSetter.Invoke(manager, new object[] { LicenseStatus.Trial });
+                    Assert(vm.ModelStatus == L("status.model.notActivated", cloudName),
+                        $"a deactivated licence left the status bar on Ready: '{vm.ModelStatus}'");
+                }
+                finally
+                {
+                    vm.DetachModelStatusSources();
+                    statusSetter.Invoke(manager, new object[] { statusBefore });
+                }
+
+                // A BYOK mode with no key: (No API key), licence or not.
+                vm.CloudAccountKeyPresentOverride = () => true;
+                selectedMode.SetValue(vm, new Mode { Name = "OpenAI", ProviderType = "cloud", CloudProvider = "openai" });
+                updateModelStatus.Invoke(vm, null);
+                Assert(vm.ModelStatus.EndsWith(L("status.model.noApiKey", "").Trim(), StringComparison.Ordinal)
+                       && !vm.ModelStatus.Contains(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                    $"an OpenAI mode with no key must say No API key, got '{vm.ModelStatus}'");
             });
 
             Run("issue #742: a failed Credential Manager write is reported, and the log holds no ApiKeys: Saved for it", () =>
@@ -24314,7 +24760,6 @@ internal static class Program
                 // rides on the one navigation. This stands in for MainWindow's
                 // subscription, which is the only reader of the pending section.
                 var settings = SettingsService.Instance;
-                var savedSteps = settings.GettingStartedCompletedSteps;
                 var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
                     .GetUninitializedObject(typeof(MainViewModel));
                 typeof(MainViewModel).GetField("_settingsService", BindingFlags.Instance | BindingFlags.NonPublic)!
@@ -24332,29 +24777,149 @@ internal static class Program
                         navigations.Add((vm.CurrentPage, vm.TakePendingSettingsSection()));
                 };
 
-                try
-                {
-                    settings.GettingStartedCompletedSteps = "";
-                    vm.ToggleGettingStartedStepCommand.Execute("shortcuts");
-                    Assert(navigations.Count == 1, $"the row makes one navigation, not {navigations.Count}");
-                    Assert(navigations[0] == (MainViewModel.NavigationPage.Settings, "Shortcuts"),
-                        $"the Customize Shortcuts row lands on Settings > Shortcuts, not {navigations[0]}");
+                vm.OpenGettingStartedStepCommand.Execute("shortcuts");
+                Assert(navigations.Count == 1, $"the row makes one navigation, not {navigations.Count}");
+                Assert(navigations[0] == (MainViewModel.NavigationPage.Settings, "Shortcuts"),
+                    $"the Customize Shortcuts row lands on Settings > Shortcuts, not {navigations[0]}");
 
-                    navigations.Clear();
-                    vm.OpenSettingsSection("License");
-                    Assert(navigations.Count == 1 && navigations[0] == (MainViewModel.NavigationPage.Settings, "License"),
-                        "already on Settings, a section request still navigates to that section");
+                navigations.Clear();
+                vm.OpenSettingsSection("License");
+                Assert(navigations.Count == 1 && navigations[0] == (MainViewModel.NavigationPage.Settings, "License"),
+                    "already on Settings, a section request still navigates to that section");
 
-                    navigations.Clear();
-                    vm.CurrentPage = MainViewModel.NavigationPage.Home;
-                    vm.CurrentPage = MainViewModel.NavigationPage.Settings;
-                    Assert(navigations.Count == 2 && navigations.All(n => n.Section is null),
-                        "a plain navigation carries no stale section from an earlier request");
-                }
-                finally
+                navigations.Clear();
+                vm.CurrentPage = MainViewModel.NavigationPage.Home;
+                vm.CurrentPage = MainViewModel.NavigationPage.Settings;
+                Assert(navigations.Count == 2 && navigations.All(n => n.Section is null),
+                    "a plain navigation carries no stale section from an earlier request");
+            });
+
+            Run("home: a Getting Started row click acts and never ticks or un-ticks it (#638)", () =>
+            {
+                // #638. The old row command flipped the row on every click: a
+                // second click on a done row took the tick away and skipped the
+                // navigation, a click on Start Recording ticked it with nothing
+                // recorded, and four clicks hid the whole section with no work done.
+                // A click now only acts; ticks come from real state alone.
+                var settings = SettingsService.Instance;
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(MainViewModel));
+                typeof(MainViewModel).GetField("_settingsService", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(vm, settings);
+                var items = new System.Collections.ObjectModel.ObservableCollection<GettingStartedItem>
                 {
-                    settings.GettingStartedCompletedSteps = savedSteps;
+                    new() { Id = "recording" },
+                    new() { Id = "shortcuts", IsCompleted = true },
+                    new() { Id = "mode" },
+                    new() { Id = "vocabulary" },
+                };
+                vm.GettingStartedItems = items;
+                vm.ShowGettingStarted = true;
+                // GetUninitializedObject skips field initialisers: give the refused
+                // start the empty device list a machine with no microphone has.
+                typeof(MainViewModel).GetField("_audioDevices", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(vm, new List<AudioDeviceService.AudioDevice>());
+                var toasts = 0;
+                vm.ShowErrorToastRequested += (_, _) => toasts++;
+
+                var navigations = new List<(MainViewModel.NavigationPage Page, string? Section)>();
+                vm.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(MainViewModel.CurrentPage))
+                        navigations.Add((vm.CurrentPage, vm.TakePendingSettingsSection()));
+                };
+
+                // A completed step, clicked twice: still complete, and BOTH clicks navigate.
+                vm.OpenGettingStartedStepCommand.Execute("shortcuts");
+                vm.OpenGettingStartedStepCommand.Execute("shortcuts");
+                Assert(items[1].IsCompleted, "a second click must not un-tick a completed row");
+                Assert(navigations.Count == 2
+                       && navigations.All(n => n == (MainViewModel.NavigationPage.Settings, "Shortcuts")),
+                    $"each click opens Settings > Shortcuts - got {navigations.Count} navigation(s)");
+
+                // Start Recording with no saved transcript: the start is attempted
+                // (and refused here, with no microphone), and the row stays unticked.
+                vm.OpenGettingStartedStepCommand.ExecuteAsync("recording").GetAwaiter().GetResult();
+                Assert(!items[0].IsCompleted, "Start Recording must not tick itself on a click");
+                Assert(!vm.IsRecording, "with no microphone the refused start leaves no recording behind");
+                Assert(toasts == 1, $"the click reaches the real start, which refuses with the no-microphone toast - got {toasts} toast(s)");
+
+                // The other two rows navigate on every click and tick nothing.
+                navigations.Clear();
+                vm.OpenGettingStartedStepCommand.Execute("mode");
+                vm.OpenGettingStartedStepCommand.Execute("vocabulary");
+                Assert(navigations.Count == 2
+                       && navigations[0].Page == MainViewModel.NavigationPage.Modes
+                       && navigations[1].Page == MainViewModel.NavigationPage.Vocabulary,
+                    "Create a Mode opens Modes and Add Vocabulary opens Vocabulary");
+                Assert(!items[2].IsCompleted && !items[3].IsCompleted,
+                    "opening the Modes or Vocabulary page is not making a Mode or a word");
+
+                // Four rows clicked, no work done: the section stays.
+                var section = MainViewModel.ApplyGettingStartedProgress(items, default);
+                Assert(section && vm.ShowGettingStarted,
+                    "four clicks with no work must leave Getting Started on Home");
+                Assert(items.All(i => !i.IsCompleted),
+                    "with no real state behind them, every row reads not done - including the "
+                    + "one a click marked under the old toggle");
+            });
+
+            Run("home: each Getting Started row ticks from its real-state signal (#638)", () =>
+            {
+                var items = new List<GettingStartedItem>
+                {
+                    new() { Id = "recording" },
+                    new() { Id = "shortcuts" },
+                    new() { Id = "mode" },
+                    new() { Id = "vocabulary" },
+                };
+
+                Assert(MainViewModel.ApplyGettingStartedProgress(items, default) && items.All(i => !i.IsCompleted),
+                    "a fresh profile: nothing done, the section shows");
+
+                var each = new (string Id, GettingStartedSignals Signal)[]
+                {
+                    ("recording", new GettingStartedSignals(HasCompletedTranscript: true, false, false, false)),
+                    ("shortcuts", new GettingStartedSignals(false, HasCustomShortcut: true, false, false)),
+                    ("mode", new GettingStartedSignals(false, false, HasUserMode: true, false)),
+                    ("vocabulary", new GettingStartedSignals(false, false, false, HasVocabularyWord: true)),
+                };
+                foreach (var (id, signal) in each)
+                {
+                    var show = MainViewModel.ApplyGettingStartedProgress(items, signal);
+                    Assert(show, $"one step done ({id}) leaves the section showing");
+                    Assert(items.Single(i => i.IsCompleted).Id == id,
+                        $"the {id} signal ticks the {id} row and no other");
                 }
+
+                var all = new GettingStartedSignals(true, true, true, true);
+                Assert(!MainViewModel.ApplyGettingStartedProgress(items, all) && items.All(i => i.IsCompleted),
+                    "all four really done: every row ticked and the section hides");
+                Assert(MainViewModel.ApplyGettingStartedProgress(items, all with { HasCompletedTranscript = false })
+                       && !items[0].IsCompleted,
+                    "the tick follows the state back down (the last transcript deleted)");
+
+                // shortcuts: any shortcut off its default, or Push to Talk on.
+                KeyboardShortcut D(string role) => SettingsService.DefaultActionShortcut(role);
+                Assert(!MainViewModel.HasCustomShortcut(D("Toggle"), D("Cancel"), D("ChangeMode"), D("Streaming"), PushToTalkMode.Disabled),
+                    "every shortcut at its default and Push to Talk off is not a customization");
+                Assert(MainViewModel.HasCustomShortcut(KeyboardShortcut.FromPersistedString("Alt+F9"), D("Cancel"), D("ChangeMode"), D("Streaming"), PushToTalkMode.Disabled),
+                    "a changed toggle shortcut counts");
+                Assert(MainViewModel.HasCustomShortcut(D("Toggle"), D("Cancel"), D("ChangeMode"), KeyboardShortcut.FromPersistedString("Ctrl+Shift+F8"), PushToTalkMode.Disabled),
+                    "a changed streaming shortcut counts");
+                Assert(MainViewModel.HasCustomShortcut(D("Toggle"), D("Cancel"), D("ChangeMode"), D("Streaming"), PushToTalkMode.Modifier),
+                    "Push to Talk switched on counts (Ray, 2026-10-20, #652/#2171)");
+
+                // mode: one the user made, not the seeded Hyper mode.
+                var seeded = new Mode { Id = ModeDefaults.DefaultModeId, Name = "Hyper", IsSystemProvided = true, IsDefault = true };
+                var restoredSeed = new Mode { Id = ModeDefaults.DefaultModeId, Name = "Hyper", IsSystemProvided = false };
+                var systemOther = new Mode { Name = "Stock", IsSystemProvided = true };
+                Assert(!MainViewModel.HasUserMode(new[] { seeded, systemOther }), "stock modes are not the user's");
+                Assert(!MainViewModel.HasUserMode(new[] { restoredSeed }),
+                    "the seeded id restored from a backup without its flag is not the user's either");
+                Assert(!MainViewModel.HasUserMode(null), "no modes loaded yet is not done");
+                Assert(MainViewModel.HasUserMode(new[] { seeded, new Mode { Name = "Email", IsSystemProvided = false } }),
+                    "a Mode the user made ticks the row");
             });
 
             // ------------------------------------------------------------------
@@ -24445,6 +25010,159 @@ internal static class Program
                     release.Dispose();
                 }
             });
+
+            ScriptGuardPorts.RunAll(Run);
+
+            // Issue #738: LicenseNetworkService over a scripted HttpClient (its internal
+            // seam), so the rules that ACT on a server reply run without the backend.
+            // The store is the suite's scratch profile: AppPaths scopes kvstore.json and
+            // the Credential Manager resource to the temp root set at the top of Main.
+            // The probe and the transient-validate rules both answer with this text.
+            const string licenceSeamOfflineMessage = "Unable to verify license while offline";
+            const string licenceSeamProbeKey = "HW-AAAA-BBBB-CCCC-DDDD";
+
+            // RunAsync blocks on GetAwaiter().GetResult(), and an earlier case leaves a
+            // DispatcherSynchronizationContext on this thread that no loop pumps. The
+            // timeout reply completes truly asynchronously, so its continuation would
+            // never run and the suite would hang. Detach for the block, as the
+            // onboarding and limits blocks do.
+            var licenceSeamPreviousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+
+            RunAsync("probe: a 429 reports unavailable, not an invalid key", async () =>
+            {
+                var handler = new LicenceSeamReplyHandler(HttpStatusCode.TooManyRequests, "{\"valid\":false,\"error\":\"rate limited\"}");
+                using var service = new LicenseNetworkService(new HttpClient(handler));
+                var result = await service.ProbeLicenseAsync(licenceSeamProbeKey);
+                Assert(handler.Bodies.Count == 1, $"the probe must reach the scripted server once, sent {handler.Bodies.Count}");
+                Assert(!result.IsValid && result.ErrorMessage == licenceSeamOfflineMessage,
+                    $"a 429 is not a verdict about the key, got valid={result.IsValid} message='{result.ErrorMessage}'");
+            });
+
+            RunAsync("probe: a 503 reports unavailable, not an invalid key", async () =>
+            {
+                var handler = new LicenceSeamReplyHandler(HttpStatusCode.ServiceUnavailable, "{\"valid\":false,\"error\":\"maintenance\"}");
+                using var service = new LicenseNetworkService(new HttpClient(handler));
+                var result = await service.ProbeLicenseAsync(licenceSeamProbeKey);
+                Assert(handler.Bodies.Count == 1, $"the probe must reach the scripted server once, sent {handler.Bodies.Count}");
+                Assert(!result.IsValid && result.ErrorMessage == licenceSeamOfflineMessage,
+                    $"a 503 is not a verdict about the key, got valid={result.IsValid} message='{result.ErrorMessage}'");
+            });
+
+            RunAsync("probe: a 400 not_entitled reply is a real Invalid verdict", async () =>
+            {
+                var handler = new LicenceSeamReplyHandler(HttpStatusCode.BadRequest,
+                    "{\"valid\":false,\"error\":\"License key not found\",\"reason\":\"not_entitled\"}");
+                using var service = new LicenseNetworkService(new HttpClient(handler));
+                var result = await service.ProbeLicenseAsync(licenceSeamProbeKey);
+                Assert(!result.IsValid && result.Status == LicenseStatus.Invalid,
+                    $"a not_entitled reply must be Invalid, got valid={result.IsValid} status={result.Status}");
+                Assert(result.ErrorMessage == "License key not found",
+                    $"the server's own message must reach the user, not the offline text, got '{result.ErrorMessage}'");
+            });
+
+            RunAsync("probe: a valid key is NOT stored by a probe", async () =>
+            {
+                var handler = new LicenceSeamReplyHandler(HttpStatusCode.OK,
+                    "{\"valid\":true,\"status\":\"active\",\"customer_id\":\"cus_seam_0738\"}");
+                using var service = new LicenseNetworkService(new HttpClient(handler));
+                var keyBefore = service.GetStoredLicenseKey();
+                var cachedBefore = service.GetCachedStatus();
+                Assert(keyBefore != licenceSeamProbeKey, "the probe key is already stored; this check would prove nothing");
+
+                var result = await service.ProbeLicenseAsync(licenceSeamProbeKey);
+                Assert(result.IsValid && result.Status == LicenseStatus.Active,
+                    $"the scripted valid reply must read as Active, got valid={result.IsValid} status={result.Status}");
+                Assert(service.GetStoredLicenseKey() == keyBefore,
+                    "a probe stored the key it checked; only an activation may");
+                Assert(service.GetCachedStatus() == cachedBefore,
+                    $"a probe wrote the validation cache ({cachedBefore} -> {service.GetCachedStatus()})");
+            });
+
+            RunAsync("probe: the request body carries probe_only and no device_id", async () =>
+            {
+                var handler = new LicenceSeamReplyHandler(HttpStatusCode.OK, "{\"valid\":true}");
+                using var service = new LicenseNetworkService(new HttpClient(handler));
+                await service.ProbeLicenseAsync("  " + licenceSeamProbeKey + "\n");
+                Assert(handler.Bodies.Count == 1, $"expected one request, sent {handler.Bodies.Count}");
+
+                using var body = JsonDocument.Parse(handler.Bodies[0]);
+                var root = body.RootElement;
+                Assert(root.TryGetProperty("probe_only", out var probeOnly) && probeOnly.ValueKind == JsonValueKind.True,
+                    $"the body must carry probe_only=true: {handler.Bodies[0]}");
+                Assert(root.TryGetProperty("license_key", out var sentKey) && sentKey.GetString() == licenceSeamProbeKey,
+                    $"the body must carry the trimmed key: {handler.Bodies[0]}");
+                Assert(!root.EnumerateObject().Any(p => p.Name.StartsWith("device", StringComparison.Ordinal)),
+                    $"a probe must send no device identity: {handler.Bodies[0]}");
+            });
+
+            // ValidateLicenseAsync's transient rule. This half needs a stored key with a
+            // cached verdict, so the first check seeds one through the real persist path
+            // and the finally clears it again.
+            const string licenceSeamStoredKey = "HW-EEEE-FFFF-GGGG-HHHH";
+            try
+            {
+                RunAsync("validate: a 200 valid reply stores the key and caches Active (seed for the transient checks)", async () =>
+                {
+                    var handler = new LicenceSeamReplyHandler(HttpStatusCode.OK,
+                        "{\"valid\":true,\"status\":\"active\",\"customer_id\":\"cus_seam_0738\"}");
+                    using var service = new LicenseNetworkService(new HttpClient(handler));
+                    var result = await service.ValidateLicenseAsync(licenceSeamStoredKey);
+                    Assert(result.IsValid && result.Status == LicenseStatus.Active,
+                        $"the scripted valid reply must read as Active, got valid={result.IsValid} status={result.Status}");
+                    Assert(service.GetStoredLicenseKey() == licenceSeamStoredKey, "an Active verdict must store the key");
+                    Assert(service.GetCachedStatus() == LicenseStatus.Active, "an Active verdict must be cached");
+                });
+
+                RunAsync("validate: a 429, a 500 and a timeout fall back to the stored key's cached verdict", async () =>
+                {
+                    var replies = new (string Label, LicenceSeamReplyHandler Handler)[]
+                    {
+                        ("429", new LicenceSeamReplyHandler(HttpStatusCode.TooManyRequests, "{\"valid\":false,\"error\":\"rate limited\"}")),
+                        ("500", new LicenceSeamReplyHandler(HttpStatusCode.InternalServerError, "{\"valid\":false,\"error\":\"boom\"}")),
+                        ("timeout", new LicenceSeamReplyHandler(async ct =>
+                        {
+                            await Task.Delay(Timeout.Infinite, ct);
+                            throw new InvalidOperationException("unreachable");
+                        })),
+                    };
+
+                    foreach (var (label, handler) in replies)
+                    {
+                        using var service = new LicenseNetworkService(
+                            new HttpClient(handler) { Timeout = TimeSpan.FromMilliseconds(200) });
+                        var result = await service.ValidateLicenseAsync(licenceSeamStoredKey);
+                        Assert(handler.Bodies.Count == 1, $"{label}: expected one request, sent {handler.Bodies.Count}");
+                        Assert(result.IsValid && result.Status == LicenseStatus.Active,
+                            $"{label}: a transient failure downgraded a paying user, got valid={result.IsValid} status={result.Status} message='{result.ErrorMessage}'");
+                        Assert(result.ErrorMessage == "Using cached license (offline)",
+                            $"{label}: expected the cached-offline verdict, got '{result.ErrorMessage}'");
+                        Assert(service.GetStoredLicenseKey() == licenceSeamStoredKey && service.GetCachedStatus() == LicenseStatus.Active,
+                            $"{label}: a transient failure must leave the stored key and its cache alone");
+                    }
+                });
+
+                RunAsync("validate: offline, a key that is not the stored one gets no cached verdict", async () =>
+                {
+                    var handler = new LicenceSeamReplyHandler(HttpStatusCode.TooManyRequests, "{\"valid\":false,\"error\":\"rate limited\"}");
+                    using var service = new LicenseNetworkService(new HttpClient(handler));
+                    var result = await service.ValidateLicenseAsync(licenceSeamProbeKey);
+                    Assert(handler.Bodies.Count == 1, $"expected one request, sent {handler.Bodies.Count}");
+                    Assert(!result.IsValid && result.Status == LicenseStatus.Invalid && result.ErrorMessage == licenceSeamOfflineMessage,
+                        $"a different key inherited the stored key's verdict: valid={result.IsValid} status={result.Status} message='{result.ErrorMessage}'");
+                    Assert(service.GetStoredLicenseKey() == licenceSeamStoredKey && service.GetCachedStatus() == LicenseStatus.Active,
+                        "an unverified replacement key must leave the stored key and its cache alone");
+                });
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(licenceSeamPreviousContext);
+                using var cleanup = new LicenseNetworkService(new HttpClient());
+                if (cleanup.GetStoredLicenseKey() == licenceSeamStoredKey)
+                {
+                    cleanup.ClearStoredLicense();
+                }
+            }
 
             Console.WriteLine(_failures == 0
                 ? "All smoke tests passed."
@@ -27448,4 +28166,31 @@ internal static class Win32ManifestReader
     [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
     [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
     private static extern bool FreeLibrary(IntPtr hModule);
+}
+
+/// <summary>
+/// Issue #738: the scripted server behind LicenseNetworkService's HttpClient seam.
+/// Records every request body it is sent, then answers with the scripted reply,
+/// which may also hang on the token so the client's own timeout fires.
+/// </summary>
+internal sealed class LicenceSeamReplyHandler : HttpMessageHandler
+{
+    private readonly Func<CancellationToken, Task<HttpResponseMessage>> _reply;
+    public readonly List<string> Bodies = new();
+
+    public LicenceSeamReplyHandler(Func<CancellationToken, Task<HttpResponseMessage>> reply) => _reply = reply;
+
+    public LicenceSeamReplyHandler(HttpStatusCode status, string json)
+        : this(_ => Task.FromResult(new HttpResponseMessage(status)
+        {
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
+        }))
+    {
+    }
+
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        Bodies.Add(request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken));
+        return await _reply(cancellationToken);
+    }
 }

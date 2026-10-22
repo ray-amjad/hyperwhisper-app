@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "Prehrávať zvukové signály pri spustení a zastavení nahrávania.";
 "settings.sound.mediaControl.title" = "Kontrola médií počas nahrávania";
 "settings.sound.mediaControl.info" = "Zvolte, ako HyperWhisper spracúva iný zvuk počas nahravánia. \"Vypnuté\" zvuk nechá nezmenený, \"Stíšiť zvuk\" stíšuje systémový výstup počas nahravánia a potom ho obnoví, a \"Tlmiť zvuk\" ho nechá tiho znieť, ako z vedľajšej izby.";
+"settings.sound.microphone.title" = "Mikrofón";
+"settings.sound.microphone.subtitle" = "Používa ho len HyperWhisper. Zostane uložený aj po reštarte.";
+"microphone.picker.default" = "Predvolený · %@";
+"microphone.picker.notConnected" = "%@ (nepripojený)";
+"microphone.picker.fallback" = "Používa sa %1$@, kým sa znova nepripojí %2$@.";
+"settings.sound.microphone.test" = "Test";
+"settings.sound.microphone.stop" = "Zastaviť";
+"settings.sound.microphone.level" = "Vstupná úroveň";
 "settings.sound.autoIncreaseMicVolume.title" = "Automaticky zvýšiť hlasitosť mikrofónu";
-"settings.sound.autoIncreaseMicVolume.info" = "Automaticky nastaví úroveň vstupu mikrofónu na maximum pri spustení nahrávania a potom obnoví pôvodnú úroveň pri zastavení nahrávania. Platí iba pri používaní predvoleného vstupného zariadenia systému.";
+"settings.sound.autoIncreaseMicVolume.info" = "Pri spustení nahrávania automaticky nastaví vstupnú hlasitosť mikrofónu, z ktorého HyperWhisper nahráva, na maximum a po zastavení obnoví pôvodnú úroveň. Mikrofóny bez softvérového ovládania hlasitosti zostanú nezmenené.";
 "settings.sound.vad.title" = "Odstrániť ticho pred prepisom";
 "settings.sound.vad.info" = "Automaticky detekuje a odstraňuje vodúce a koncové ticho pomocou detekcie hlasu AI. Toto môže zlepšiť presnosť prepisu a skrátiť čas spracúvania.";
 
@@ -1165,3 +1173,4 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "settings.storage.maxRecordingDuration.hour" = "1 hodina";
 "settings.storage.maxRecordingDuration.hours" = "%d hodín";
 "settings.storage.maxRecordingDuration.off" = "Vypnuté";
+"settings.api_server.status.stopping" = "Zastavuje sa…";

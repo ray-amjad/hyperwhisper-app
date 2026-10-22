@@ -29,26 +29,17 @@ import { reachableFromRegion } from '../providers/geo-availability';
 // or an adapter's internal routing gate. See providers/reservation.ts.
 import { errorResponse } from '../lib/responses';
 import { logEvent } from '../lib/logging';
-import { isLatencyOptOut } from './transcribe-request';
-import { estimateCreditsForProviderFallbacks } from './transcribe-audio';
 import { prepareTranscriptionRequest } from './transcribe-preparation';
 import { completeTranscription } from './transcribe-completion';
 import { providerChainFailureResponse } from './transcribe-failure';
 import { createTranscriptionLatencyRecorder } from './transcribe-latency';
 import { withCreditHoldScope } from '../middleware/credit-holds';
 
-// Supported providers (mirror the server-side registry in lib/stt-models.ts).
-export type Provider = SttProviderId;
-
 // The one message a client sees for a non-retryable failure. A failure's own
 // text can carry an upstream provider's error body or a server env-var name
 // (#2106), so it goes to the `transcribe.request_fail` log only; the client
 // keeps the requestId to find that log line. Same shape as /post-process (#2066).
 const TRANSCRIPTION_FAILURE_MESSAGE = 'The transcription request failed. Please try again.';
-
-export { estimateCreditsForProviderFallbacks };
-
-export { isLatencyOptOut };
 
 export async function transcribeRoute(c: Context) {
   // Every exit below, an early refusal, a failed chain, a `no_speech`, a throw,
@@ -76,7 +67,7 @@ async function handleTranscribe(c: Context) {
   } = preparation;
 
   let result: TranscriptionResult | undefined;
-  let fallbackFrom: Provider | undefined;
+  let fallbackFrom: SttProviderId | undefined;
   let fallbackCount = 0;
   // The model that actually produced the result. Defaults to the requested
   // model; on a cross-provider fallback it becomes that sibling's default model.
@@ -84,7 +75,7 @@ async function handleTranscribe(c: Context) {
   // The provider whose attempt produced `result`. `result.source` names it on a
   // transcript, but a `no_speech` result's source is the literal `'no_speech'`,
   // so the only record of who answered is this. (review r2)
-  let servedBy: Provider | undefined;
+  let servedBy: SttProviderId | undefined;
   // Whether the provider the caller ASKED for was ever actually attempted. It
   // is not always in the chain: an oversized upload from a region that geo-blocks
   // the chosen provider drops it, and the request is served by a sibling from
@@ -139,7 +130,7 @@ async function handleTranscribe(c: Context) {
   // line explains a degraded/failed request (which provider failed, why, how
   // long it hung) without correlating separate provider-level log events.
   const attemptFailures: Array<{
-    provider: Provider;
+    provider: SttProviderId;
     kind: string;
     status?: number;
     attemptMs?: number;
