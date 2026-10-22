@@ -695,6 +695,24 @@ describe('postProcessRoute request gates', () => {
     expect(body.error).toBe('Invalid JSON');
     expect(providerCalled).toBe(false);
   });
+
+  // #2085: `null` parses, and reading `.text` off it threw past the route into a 500.
+  test('rejects a JSON body that is not an object (null, number, string, array) with 400', async () => {
+    let providerCalled = false;
+    withProviders({
+      'api.cerebras.ai': () => {
+        providerCalled = true;
+        return Response.json(chatCompletion('should not be reached'));
+      },
+    });
+
+    for (const raw of ['null', '42', '"hello wrld"', '[]', '[{"text":"hello wrld","prompt":"fix grammar"}]']) {
+      const response = await buildApp().fetch(jsonRequest(raw));
+      const body = await response.json() as { error: string };
+      expect({ raw, status: response.status, error: body.error }).toEqual({ raw, status: 400, error: 'Invalid JSON' });
+    }
+    expect(providerCalled).toBe(false);
+  });
 });
 
 describe('postProcessRoute size gate', () => {

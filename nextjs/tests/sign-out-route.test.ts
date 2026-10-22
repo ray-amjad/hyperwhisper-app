@@ -16,45 +16,33 @@
  * so the route binds to the fake. Do not import the route path statically.
  */
 import assert from "node:assert/strict";
-import { beforeEach, mock, test } from "node:test";
+import { beforeEach, test } from "node:test";
 
 import { NextRequest } from "next/server";
 
-/** See credit-routes-harness.ts: @types/node@20 has no `mock.module`. */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports: Record<string, unknown> },
-  ): void;
-}
+import { moduleMock } from "./module-mock";
 
 const signOutCalls: { headers: Headers; asResponse: boolean }[] = [];
 let betterAuthSetCookies: string[] = [];
 
-(mock as unknown as ModuleMocker).module(
-  new URL("../src/lib/auth.ts", import.meta.url).href,
-  {
-    namedExports: {
-      auth: {
-        api: {
-          signOut: async (options: {
-            headers: Headers;
-            asResponse: boolean;
-          }) => {
-            signOutCalls.push(options);
-            const headers = new Headers();
-            // One Set-Cookie header per cookie, as Better Auth's
-            // deleteSessionCookie sends them.
-            for (const cookie of betterAuthSetCookies) {
-              headers.append("set-cookie", cookie);
-            }
-            return new Response(null, { status: 200, headers });
-          },
+moduleMock.module(new URL("../src/lib/auth.ts", import.meta.url).href, {
+  namedExports: {
+    auth: {
+      api: {
+        signOut: async (options: { headers: Headers; asResponse: boolean }) => {
+          signOutCalls.push(options);
+          const headers = new Headers();
+          // One Set-Cookie header per cookie, as Better Auth's
+          // deleteSessionCookie sends them.
+          for (const cookie of betterAuthSetCookies) {
+            headers.append("set-cookie", cookie);
+          }
+          return new Response(null, { status: 200, headers });
         },
       },
     },
   },
-);
+});
 
 const loadRoute = () => import("@/app/[locale]/user/auth/sign-out/route");
 

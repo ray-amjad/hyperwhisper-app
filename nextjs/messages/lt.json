@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Funkcijos",
-    "pricing": "Kainodara",
     "faq": "DUK",
     "support": "Pagalba",
     "download": "Atsisiųsti",
@@ -20,7 +19,6 @@
     "githubAria": "Peržiūrėti HyperWhisper svetainėje GitHub"
   },
   "hero": {
-    "openSourceBadge": "Atviras kodas · Apache-2.0",
     "logoAlt": "HyperWhisper logotipas",
     "headline": "Rašykite, kurkite ir komponuokite",
     "headlineAccent": "5x greičiau su AI",
@@ -97,57 +95,6 @@
     "accuracyRate": "Tikslumo rodiklis",
     "languagesSupported": "Palaikomos kalbos",
     "providersSupported": "Palaikomi tiekėjai"
-  },
-  "pricing": {
-    "title": "Jokių prenumeratų. Niekada.",
-    "subtitle": "Mokėkite kartą, naudokite visada. Mes taip pat nemėgstame prenumeratų.",
-    "guarantee": "14 dienų pinigų grąžinimo garantija",
-    "guaranteeExtended": "jei nebūsite visiškai patenkinti.",
-    "learnMore": "Sužinoti daugiau",
-    "free": {
-      "name": "Nemokama",
-      "price": "$0",
-      "period": "visam laikui",
-      "description": "Puikiai tinka išbandyti HyperWhisper",
-      "cta": "Atsisiųsti nemokamai",
-      "features": {
-        "transcriptionLimit": "5 minutės transkripcijos per dieną",
-        "basicModes": "Pagrindiniai transkripcijos režimai",
-        "offlineTranscription": "Transkripcija neprisijungus",
-        "apiTranscription": "API transkripcija (naudokite savo raktus)",
-        "postProcessing": "Teksto papildomas apdorojimas",
-        "providers": "9+ tiekėjų pasirinkimui",
-        "lifetimeUpdates": "Atnaujinimai visam laikui",
-        "cloudLimited": "HyperWhisper Cloud (ribotas naudojimas)",
-        "customVocabulary": "Pritaikytas žodynas",
-        "prioritySupport": "Prioritetinė pagalba"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "visam laikui",
-      "description": "Vienkartinis pirkimas, neribota galia visam laikui",
-      "cta": "Pirkti dabar - prieiga visam laikui",
-      "mostPopular": "Populiariausias",
-      "features": {
-        "unlimitedTranscription": "Neribota transkripcija",
-        "allModes": "Visi transkripcijos režimai",
-        "offlineTranscription": "Transkripcija neprisijungus",
-        "apiTranscription": "API transkripcija (naudokite savo raktus)",
-        "postProcessing": "Teksto papildomas apdorojimas",
-        "providers": "9+ tiekėjų pasirinkimui",
-        "lifetimeUpdates": "Atnaujinimai visam laikui",
-        "cloudCredits": "HyperWhisper Cloud ($5 kreditų)",
-        "customVocabulary": "Pritaikytas žodynas",
-        "prioritySupport": "Prioritetinė pagalba"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise ir individuali kainodara",
-      "description": "Kiekinės nuolaidos, SSO, prioritetinė pagalba, vidinė priegloba ir individualios integracijos",
-      "cta": "Susisiekti su pardavimais"
-    }
   },
   "faq": {
     "title": "Dažniausiai užduodami klausimai",
@@ -252,10 +199,7 @@
     "downloadButton": "Atsisiųsti HyperWhisper",
     "errorGeneric": "Kažkas nepavyko. Bandykite dar kartą.",
     "errorEmail": "Įveskite galiojantį el. pašto adresą.",
-    "errorNetwork": "Tinklo klaida. Patikrinkite ryšį ir bandykite dar kartą.",
-    "thankYouTitle": "Ačiū!",
     "downloadStarted": "Atsisiuntimas turėtų prasidėti automatiškai.",
-    "manualDownload": "Atsisiuntimas neprasidėjo? Spustelėkite čia",
     "skipAndDownloadButton": "Praleisti ir atsisiųsti"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Atsisiųsti",
       "roadmap": "Plėtros planas",
       "helpCenter": "Pagalbos centras",
-      "manageBilling": "Valdyti atsiskaitymą",
       "customerPortal": "Klientų portalas",
       "olderVersions": "Senesnės versijos",
       "blog": "Tinklaraštis",

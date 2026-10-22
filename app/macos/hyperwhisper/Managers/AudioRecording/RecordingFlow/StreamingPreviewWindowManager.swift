@@ -42,18 +42,16 @@ final class StreamingPreviewWindowManager {
         hostingController.view.layer?.backgroundColor = NSColor.clear.cgColor
 
         let panel = NSPanel(contentViewController: hostingController)
-        panel.styleMask = [.nonactivatingPanel, .borderless]
+        FloatingPanelStyle.apply(
+            to: panel,
+            contentSize: panelSize,
+            dragging: .appKitDefault,
+            becomesKeyOnlyIfNeeded: true
+        )
         panel.isFloatingPanel = true
         panel.level = .screenSaver
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
-        panel.backgroundColor = .clear
-        panel.isOpaque = false
-        panel.hasShadow = false
-        panel.hidesOnDeactivate = false
         panel.ignoresMouseEvents = true
-        panel.becomesKeyOnlyIfNeeded = true
 
-        panel.setContentSize(panelSize)
         panel.orderFrontRegardless()
 
         self.panel = panel
@@ -92,14 +90,7 @@ final class StreamingPreviewWindowManager {
         guard let screen = NSScreen.main else {
             return NSRect(origin: .zero, size: .zero)
         }
-        let fallbackSize = NSSize(width: 200, height: 40)
-        let frame = screen.visibleFrame
-        return NSRect(
-            x: frame.midX - fallbackSize.width / 2,
-            y: frame.minY + 40,
-            width: fallbackSize.width,
-            height: fallbackSize.height
-        )
+        return RecordingWindowManager.defaultDialogFrame(in: screen.visibleFrame)
     }
 
     // MARK: - Observers
