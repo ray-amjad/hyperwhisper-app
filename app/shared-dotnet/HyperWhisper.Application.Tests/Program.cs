@@ -81,6 +81,7 @@ try
     await RunLocalEngineVocabularyOnceTestsAsync(Path.Combine(root, "local-vocabulary-once"));
     await RunFileTranscriptionDurationTestsAsync(Path.Combine(root, "file-duration"));
     await RunVocabularyDuplicateTestsAsync(Path.Combine(root, "vocabulary-duplicate"));
+    await VocabularyTransferTests.RunAsync(Path.Combine(root, "vocabulary-transfer"));
 
     var history = new HistoryRepository(database);
     var transcript = new Transcript
@@ -1815,12 +1816,13 @@ static async Task RunVocabularyDuplicateTestsAsync(string root)
     await Add("gamma\ndelta", "");
     Assert(await Rows() == "openai -> Z, Beta, gamma, delta" && !page.Status.HasError, $"a clean paste was refused (#633): {await Rows()}");
 
-    // Import still merges duplicates into the existing row.
+    // Import still merges a duplicate into the existing row; since #2409 the row keeps its
+    // spelling and position and takes the file's replacement.
     var import = Path.Combine(root, "import.txt");
     await File.WriteAllLinesAsync(import, ["BETA\tb"]);
     page.TransferPath = import;
     await page.ImportAsync();
-    Assert((await repository.ListAsync()) is { Count: 4 } imported && imported.Any(item => item.Word == "BETA" && item.Replacement == "b"), $"import stopped merging a duplicate (#633 non-goal): {await Rows()}");
+    Assert(await Rows() == "openai -> Z, Beta -> b, gamma, delta", $"import stopped merging a duplicate into its row (#633 non-goal, #2409): {await Rows()}");
 }
 
 // #1632: the status bar must not say Ready while the selected mode's local model is missing or
