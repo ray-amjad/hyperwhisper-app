@@ -11,7 +11,8 @@ namespace HyperWhisper.PortableApplication.Persistence;
 public sealed partial class ApplicationBackupService(
     ApplicationDb database,
     PortableSettingsService settings,
-    ICredentialStore? credentialStore = null)
+    ICredentialStore? credentialStore = null,
+    string appVersion = "unknown")
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {
@@ -21,6 +22,9 @@ public sealed partial class ApplicationBackupService(
     private readonly ApplicationDb _database = database ?? throw new ArgumentNullException(nameof(database));
     private readonly PortableSettingsService _settings = settings ?? throw new ArgumentNullException(nameof(settings));
     private readonly ICredentialStore? _credentialStore = credentialStore;
+    private readonly string _appVersion = string.IsNullOrWhiteSpace(appVersion)
+        ? throw new ArgumentException("App version is required.", nameof(appVersion))
+        : appVersion;
 
     public Task<string> ExportAsync(CancellationToken cancellationToken = default)
         => ExportAsync(BackupExportSelection.All, cancellationToken);
@@ -56,7 +60,7 @@ public sealed partial class ApplicationBackupService(
         {
             ["schemaVersion"] = 2,
             ["exportDate"] = DateTimeOffset.UtcNow.ToString("O"),
-            ["appVersion"] = "1.0.0",
+            ["appVersion"] = _appVersion,
             ["platform"] = "linux",
         };
         if (selection.IncludeSettings)

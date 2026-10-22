@@ -68,7 +68,7 @@ Use Case: [Brief description]
 
             {/* Default email client */}
             <a
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-6 py-3 text-base font-semibold text-white transition-all hover:from-orange-500 hover:to-amber-500 hover:shadow-lg"
+              className="relative isolate flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-6 py-3 text-base font-semibold text-white transition-shadow hover:shadow-lg before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-orange-500 before:to-amber-500 before:opacity-0 before:transition-opacity hover:before:opacity-100"
               href={mailtoLink}
             >
               <Mail className="h-4 w-4" />

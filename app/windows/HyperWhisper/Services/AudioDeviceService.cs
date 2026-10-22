@@ -114,6 +114,77 @@ public class AudioDeviceService : IDisposable
     }
 
     /// <summary>
+    /// The Windows default capture endpoint: its Core Audio FriendlyName and its
+    /// position in the active capture endpoint list. Null when Windows has no
+    /// default input or Core Audio cannot be read.
+    ///
+    /// ROLE: <see cref="Role.Console"/>, the "Default Device" in the Sound
+    /// control panel and the one the Windows 11 quick-settings picker sets.
+    /// Dictation is not a call, so the "Default Communication Device" (a headset
+    /// a user keeps for Teams) is the wrong answer, and WinMM's WAVE_MAPPER
+    /// (WaveIn device -1, which onboarding's System Default row opens) follows
+    /// the console default too, so both paths open the same microphone.
+    ///
+    /// Map the result to a WaveIn row with <see cref="MicrophoneSelection.ResolveDefault"/>.
+    /// </summary>
+    public (string? FriendlyName, int Ordinal)? GetDefaultCaptureEndpoint()
+    {
+        try
+        {
+            using var enumerator = new MMDeviceEnumerator();
+            if (!enumerator.HasDefaultAudioEndpoint(DataFlow.Capture, Role.Console))
+                return null;
+
+            using var defaultDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Console);
+            var defaultId = defaultDevice.ID;
+
+            string? name = null;
+            try
+            {
+                name = CaptureDeviceNameCache.Shared.GetOrRead(defaultId, () => defaultDevice.FriendlyName);
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Debug($"AudioDeviceService: Could not read the default capture endpoint's name: {ex.Message}");
+            }
+
+            var ordinal = -1;
+            try
+            {
+                var endpoints = enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active);
+                var count = endpoints.Count;
+                for (var i = 0; i < count; i++)
+                {
+                    try
+                    {
+                        using var endpoint = endpoints[i];
+                        if (string.Equals(endpoint.ID, defaultId, StringComparison.Ordinal))
+                        {
+                            ordinal = i;
+                            break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        LoggingService.Debug($"AudioDeviceService: Skipping capture endpoint {i}: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Debug($"AudioDeviceService: Could not enumerate capture endpoints: {ex.Message}");
+            }
+
+            return (name, ordinal);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"AudioDeviceService: Could not read the default capture endpoint: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Raises the DevicesChanged event after a debounce delay.
     /// Called by DeviceNotificationClient when device changes are detected.
     ///

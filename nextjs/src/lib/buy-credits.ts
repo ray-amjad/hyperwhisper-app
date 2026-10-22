@@ -228,13 +228,12 @@ export async function buyCreditsAndRedirect(
   //
   // Its 5xx body is a different animal entirely. The route's outer `catch`
   // answers EVERY unhandled throw — a Stripe outage, a DB fault, a missing env
-  // var — with the same `{ error: "Failed to create checkout session",
-  // details: safeErrorMessage(error) }`: the throw's own message, except that
-  // a DB fault reads only "Database error" (its real message is the SQL plus
-  // the bound key and email, #1049; the redacted diagnosis is in the server
-  // log). Painting either verbatim into a 40-locale `role="alert"` region
-  // gives every non-English customer an untranslated English sentence that
-  // tells them nothing they can act on, and it is the one body on this route
+  // var — with the same `{ error: "Failed to create checkout session" }`. It
+  // carries no `details`: the throw's own message (a Stripe developer message
+  // naming the customer id, or a DB error's SQL with the bound key and email)
+  // stays in the server log only (#1049, #2311). Painting that `error` verbatim
+  // into a 40-locale `role="alert"` region gives every non-English customer
+  // an untranslated English sentence that tells them nothing they can act on, and it is the one body on this route
   // whose wording is an internal fault description rather than a message to a
   // customer. So a 5xx takes the translated `checkoutErrorMessage`; the
   // status goes to the report and the console line, and the body stays in the
