@@ -77,7 +77,7 @@ struct SpokenTextLogPrivacyTests {
     @Test func aCloudPostProcessErrorMessageIsNotPublic() throws {
         let body = try ProductionSource.slice(
             of: "app/macos/hyperwhisper/Managers/Transcription/PostProcessing/AIPostProcessor.swift",
-            from: "private func handleHyperWhisperCloudError(statusCode: Int, data: Data) throws {",
+            from: "static func handleHyperWhisperCloudError(statusCode: Int, data: Data) throws {",
             to: "let preview = responseString.prefix(200)"
         )
         #expect(body.contains("HyperWhisper Cloud API error"))
@@ -90,8 +90,8 @@ struct SpokenTextLogPrivacyTests {
     @Test func aCloudPostProcessFailureDescriptionIsNotPublic() throws {
         let body = try ProductionSource.slice(
             of: "app/macos/hyperwhisper/Managers/Transcription/PostProcessing/AIPostProcessor.swift",
-            from: "try self.handleHyperWhisperCloudError(statusCode: httpResponse.statusCode, data: data)",
-            to: "private func handleHyperWhisperCloudError(statusCode: Int, data: Data) throws {"
+            from: "try Self.handleHyperWhisperCloudError(statusCode: httpResponse.statusCode, data: data)",
+            to: "static func handleHyperWhisperCloudError(statusCode: Int, data: Data) throws {"
         )
         #expect(body.contains("HyperWhisper Cloud post-processing failed"))
         #expect(!body.contains("localizedDescription, privacy: .public"), "a serverError description carries the server message")
@@ -170,7 +170,7 @@ struct SpokenTextLogPrivacyTests {
         let body = try ProductionSource.slice(
             of: "app/macos/hyperwhisper/Managers/Transcription/Providers/Cloud/HyperWhisperCloudProvider.swift",
             from: "private func sendWarmup() {",
-            to: "private var lastDnsResetAt"
+            to: "private static let maxRetryAttempts = 4"
         )
         #expect(body.contains("Cloud warmup failed"))
         #expect(!body.contains("localizedDescription, privacy: .public"))

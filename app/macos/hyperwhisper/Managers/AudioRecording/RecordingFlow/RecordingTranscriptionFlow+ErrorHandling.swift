@@ -171,6 +171,16 @@ extension RecordingTranscriptionFlow {
             let failedRowWrite = appState.pendingRetryAudioPath == path
                 ? appState.pendingRetryFailedRowWrite
                 : nil
+            // #1643: a Quick Capture recording's Retry goes to Notes, like a
+            // Quick Capture dictation, never pasted (Ray, inbox ask #490).
+            // Read with the row write, before the path is cleared below.
+            let isQuickCaptureRetry = appState.pendingRetryAudioPath == path
+                && appState.pendingRetryIsQuickCapture
+
+            // A retry that hears no speech keeps the row failed, with the
+            // "no speech" reason, instead of a blank completed row (#1815).
+            // Nothing is delivered; the catch below saves and shows the error.
+            try transcriptionResult.throwIfNoSpeech()
 
             // Deliver like a dictation (paste, clipboard fallback, the pill's
             // "Pasted!" only after a real paste), then save. Before #1636 the
@@ -181,14 +191,15 @@ extension RecordingTranscriptionFlow {
                 appState.recordingState = .idle
                 appState.pendingRetryAudioPath = nil
                 // The recording's session ended at its stop: no onboarding
-                // gate or Quick Capture context of its own is left, and a
-                // newer session would have superseded this retry.
+                // gate of its own is left, and a newer session would have
+                // superseded this retry. Its Quick Capture routing was kept
+                // at the stop (#1643).
                 deliverBatchTranscript(
                     transcriptionResult,
                     transcriptionMode: transcriptionMode,
                     sessionStartedSuppressed: false,
                     trigger: .unknown,
-                    isQuickCaptureRouting: false,
+                    isQuickCaptureRouting: isQuickCaptureRetry,
                     pasteStart: pasteStart
                 )
             }
@@ -218,9 +229,41 @@ extension RecordingTranscriptionFlow {
             // failed while the newer flow ran). Its error is not the user's.
             guard !isPendingRetrySuperseded(identity) else { return }
 
+            // A missing model names the mode that uses it, in the row's
+            // reason and the dialog (#1518).
+            let failure = TranscriptionError.attachingMode(transcriptionMode.name, to: error)
+
+            // Every failure, an empty result or an engine that threw (Whisper
+            // throws `.noSpeechDetected` itself), fails the History row with
+            // its reason and counts the retry (#1815).
+            if !(error is CancellationError) {
+                let failedRowWrite = appState.pendingRetryAudioPath == path
+                    ? appState.pendingRetryFailedRowWrite
+                    : nil
+                let failedTranscriptID = await Self.savePendingRetryFailure(
+                    failure,
+                    failedRowWrite: failedRowWrite,
+                    audioURL: audioURL,
+                    modeName: transcriptionMode.name,
+                    transcriptionProvider: FileTranscriptionFlow.failedRowProvider(
+                        for: error,
+                        modelId: transcriptionMode.model
+                    )
+                )
+
+                // The save suspends; a newer flow may own the dialog now.
+                guard !isPendingRetrySuperseded(identity) else { return }
+
+                // The next Retry of this file updates the row just saved, not
+                // a new one per attempt.
+                if let failedTranscriptID, appState.pendingRetryAudioPath == path {
+                    appState.pendingRetryFailedRowWrite = Task { failedTranscriptID }
+                }
+            }
+
             await MainActor.run {
                 appState.recordingState = .idle
-                appState.lastTranscription = "Error: \(error.localizedDescription)"
+                appState.lastTranscription = "Error: \(failure.localizedDescription)"
                 appState.showRecordingDialog = true
             }
         }
@@ -513,6 +556,14 @@ extension RecordingTranscriptionFlow {
             }
         }
 
+        // Issue #1518: a missing model names the mode that uses it, in the alert,
+        // the dialog and the row's reason. Read now, before the session mode is
+        // cleared below. The logs keep `error`: a mode name is user-typed text.
+        let failure = TranscriptionError.attachingMode(appState?.currentSessionModeName, to: error)
+        // The engine the mode routes to, so the failed row shows which one
+        // failed, worded as a completed row words it.
+        let failedRowProvider = FileTranscriptionFlow.failedRowProvider(for: error, modelId: modeIdentity?.localEngine)
+
         let isNetworkOutage: Bool
         if let transcriptionError = error as? TranscriptionError, case .transientNetwork = transcriptionError {
             isNetworkOutage = true
@@ -545,7 +596,8 @@ extension RecordingTranscriptionFlow {
                     await PersistenceController.shared.markTranscriptFailedInBackground(
                         transcriptID: processingTranscriptID,
                         failedReason: te.localizedDescription,
-                        errorText: "Transcription failed: \(te.localizedDescription)"
+                        errorText: "Transcription failed: \(te.localizedDescription)",
+                        transcriptionProvider: failedRowProvider
                     )
                 }
             }
@@ -558,10 +610,10 @@ extension RecordingTranscriptionFlow {
                         appState?.errorMessage = ""
                         appState?.showErrorAlert = false
                     } else {
-                        appState?.showError(error.localizedDescription)
+                        appState?.showError(failure.localizedDescription)
                     }
                     appState?.recordingState = .idle
-                    appState?.lastTranscription = "Error: \(error.localizedDescription)"
+                    appState?.lastTranscription = "Error: \(failure.localizedDescription)"
 
                     // CRITICAL: Disable cancel shortcut on error
                     KeyboardShortcuts.disable(.cancelRecording)
@@ -574,8 +626,9 @@ extension RecordingTranscriptionFlow {
                 if let processingTranscriptID {
                     await PersistenceController.shared.markTranscriptFailedInBackground(
                         transcriptID: processingTranscriptID,
-                        failedReason: error.localizedDescription,
-                        errorText: "Transcription failed: \(error.localizedDescription)"
+                        failedReason: failure.localizedDescription,
+                        errorText: "Transcription failed: \(failure.localizedDescription)",
+                        transcriptionProvider: failedRowProvider
                     )
                 }
                 if !isNetworkOutage, let processingTranscriptID {

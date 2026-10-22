@@ -4,6 +4,7 @@ using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using HyperWhisper.Data;
 using HyperWhisper.Data.Entities;
+using VocabularyWords = HyperWhisper.PortableApplication.Persistence.VocabularyWords;
 
 namespace HyperWhisper.Services;
 
@@ -119,6 +120,16 @@ public class VocabularyService
         }
 
         var trimmedWord = word.Trim();
+
+        // A word is one line (issue #1777). Callers split a multi-line value with
+        // VocabularyWords.SplitLines first. The replacement may keep its line breaks:
+        // a multi-line snippet is allowed.
+        if (VocabularyWords.HasLineBreak(trimmedWord))
+        {
+            error = "A word must be one line.";
+            return false;
+        }
+
         var trimmedReplacement = string.IsNullOrWhiteSpace(replacement)
             ? null
             : replacement!.Trim();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
@@ -11,6 +11,7 @@ import { useTranslations } from "next-intl";
 import { ICON_SWAP } from "@/lib/icon-swap";
 import { isMobileDevice } from "@/src/lib/mobile-device";
 import { isRecord } from "@/src/lib/type-guards";
+import { reportClientError } from "@/lib/shared/report-client-error";
 
 type Platform = "mac" | "windows" | "linux";
 
@@ -51,9 +52,26 @@ const LINUX_RELEASES_URL =
 const GRADIENT_CTA_CLASS_NAME =
   "isolate bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold transition-[transform,scale,opacity,box-shadow,outline-color,outline-width,outline-offset] hover:shadow-lg px-8 before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-purple-500 before:to-blue-500 before:opacity-0 before:transition-opacity hover:before:opacity-100 motion-reduce:before:transition-none";
 
+// #843: the page is prerendered, and a useSearchParams() with no Suspense
+// boundary above it fails `next build`. Only the platform choice reads the
+// query, so only this null-rendering child sits in the boundary and the rest of
+// the page stays in the static HTML.
+function PlatformFromQuery({
+  onPlatform,
+}: {
+  onPlatform: (platformParam: string | null) => void;
+}) {
+  const platformParam = useSearchParams().get("platform");
+
+  useEffect(() => {
+    onPlatform(platformParam);
+  }, [platformParam, onPlatform]);
+
+  return null;
+}
+
 export default function DownloadPage() {
   const t = useTranslations("downloadPage");
-  const searchParams = useSearchParams();
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>("mac");
   const [downloadState, setDownloadState] = useState<
     Record<Platform, { countdown: number; started: boolean }>
@@ -85,10 +103,8 @@ export default function DownloadPage() {
 
   // Detect user's OS on mount and set platform accordingly
   // URL query param takes precedence over OS detection
-  useEffect(() => {
+  const applyPlatform = useCallback((platformParam: string | null) => {
     // Check URL param first
-    const platformParam = searchParams.get("platform");
-
     if (platformParam === "windows") {
       setSelectedPlatform("windows");
 
@@ -115,7 +131,7 @@ export default function DownloadPage() {
       setSelectedPlatform("linux");
     }
     // macOS is default, no change needed
-  }, [searchParams]);
+  }, []);
 
   // Read the current Linux version once the user is on the Linux tab. A failure
   // is not an error state: the button falls back to the releases list, so the
@@ -130,7 +146,9 @@ export default function DownloadPage() {
         const response = await fetch("/linux-latest.json");
         const data: unknown = response.ok ? await response.json() : null;
         if (!cancelled && isLinuxLatest(data)) setLinuxLatest(data);
-      } catch {
+      } catch (error) {
+        // A fetch the cleanup abandoned is nobody's failure.
+        if (!cancelled) void reportClientError("download.linux_latest", error);
         // Fall back to LINUX_RELEASES_URL below.
       }
     };
@@ -220,15 +238,18 @@ export default function DownloadPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900/10 to-gray-900 px-6 py-20">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900/10 to-gray-900 py-20">
+      <Suspense fallback={null}>
+        <PlatformFromQuery onPlatform={applyPlatform} />
+      </Suspense>
+      <div className="mx-auto lg:max-w-2xl">
         {/* Header */}
         <div className="text-center mb-6">
           {/* App Icon */}
           <div className="w-24 h-24 mx-auto mb-8">
             <img
               alt="HyperWhisper Logo"
-              className="w-24 h-24"
+              className="w-24 h-24 rounded-[20%] outline-1 -outline-offset-1 outline-white/10"
               src="/icon/256.png"
             />
           </div>
@@ -285,9 +306,7 @@ export default function DownloadPage() {
           ) : selectedPlatform === "windows" ? (
             <p className="text-lg text-gray-400">{t("selectArchitecture")}</p>
           ) : selectedPlatform === "linux" ? (
-            <p className="text-lg text-gray-400">
-              Debian package for 64-bit Intel/AMD systems
-            </p>
+            <p className="text-lg text-gray-400">{t("linuxSubtitle")}</p>
           ) : currentState.started ? (
             <div className="flex items-center justify-center gap-2 text-gray-400">
               <CheckCircle className="w-5 h-5 text-green-500" />
@@ -340,8 +359,8 @@ export default function DownloadPage() {
                 target="_blank"
               >
                 {linuxLatest
-                  ? `Download Linux v${linuxLatest.version}`
-                  : "Download Linux"}
+                  ? t("downloadLinuxVersion", { version: linuxLatest.version })
+                  : t("downloadLinux")}
               </Button>
               <a
                 className="text-sm text-gray-400 underline hover:text-gray-200"
@@ -349,7 +368,7 @@ export default function DownloadPage() {
                 rel="noreferrer"
                 target="_blank"
               >
-                Checksums and release notes
+                {t("linuxReleaseNotes")}
               </a>
             </div>
           ) : (
@@ -368,7 +387,7 @@ export default function DownloadPage() {
         {selectedPlatform === "mac" && (
           <div className="flex items-center gap-4 mb-10">
             <div className="flex-1 h-px bg-gray-700" />
-            <span className="text-gray-500 text-sm font-medium uppercase tracking-wider">
+            <span className="text-gray-400 text-sm font-medium uppercase tracking-wider">
               {t("orDivider")}
             </span>
             <div className="flex-1 h-px bg-gray-700" />
@@ -436,16 +455,15 @@ export default function DownloadPage() {
                     <Terminal className="w-5 h-5 text-purple-300" />
                   </div>
                   <h2 className="text-lg font-semibold text-white">
-                    Install the Debian package
+                    {t("linuxInstallTitle")}
                   </h2>
                 </div>
                 <p className="text-sm text-gray-400 mb-4">
-                  Linux v1 targets Ubuntu 22.04+ and Debian 12+ on amd64.
-                  {!linuxLatest &&
-                    " Replace VERSION with the version you downloaded."}
+                  {t("linuxTargets")}
+                  {!linuxLatest && ` ${t("linuxReplaceVersion")}`}
                 </p>
                 <div
-                  aria-label="Debian install command"
+                  aria-label={t("linuxInstallCommandLabel")}
                   className="rounded-lg border border-gray-700 bg-gray-800/80 p-3 overflow-x-auto focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                   role="region"
                   // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
@@ -457,8 +475,7 @@ sudo usermod -aG hyperwhisper-input "$USER"`}
                   </code>
                 </div>
                 <p className="text-sm text-gray-400 mt-4">
-                  Log out and back in after joining the input group. Membership
-                  is optional, but global shortcuts and automatic paste need it.
+                  {t("linuxInputGroupNote")}
                 </p>
               </CardBody>
             </Card>
@@ -466,14 +483,9 @@ sudo usermod -aG hyperwhisper-input "$USER"`}
             <Card className="bg-gray-900/50 backdrop-blur-xl border border-gray-800">
               <CardBody className="p-6">
                 <h2 className="text-lg font-semibold text-white mb-2">
-                  Self-host an APT repository
+                  {t("aptTitle")}
                 </h2>
-                <p className="text-sm text-gray-400">
-                  Linux releases also include a static APT repository archive.
-                  HyperWhisper does not currently operate a public APT endpoint;
-                  see the Linux installation guide for signed, self-hosted
-                  setup, desktop companions, privacy details, and removal.
-                </p>
+                <p className="text-sm text-gray-400">{t("aptBody")}</p>
                 <Button
                   as="a"
                   className="mt-4 bg-gray-800 text-gray-200"
@@ -482,7 +494,7 @@ sudo usermod -aG hyperwhisper-input "$USER"`}
                   target="_blank"
                   variant="flat"
                 >
-                  Read the Linux installation guide
+                  {t("linuxGuideCta")}
                 </Button>
               </CardBody>
             </Card>

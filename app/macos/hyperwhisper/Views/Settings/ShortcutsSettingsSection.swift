@@ -255,7 +255,7 @@ struct ShortcutsSettingsSection: View {
                 Text("settings.shortcuts.quickCapture.mode.current")
                     .tag(Self.currentModeTag)
                 ForEach(modes, id: \.objectID) { mode in
-                    Text(mode.name ?? "—")
+                    Text(MenuItemText.bounded(mode.name ?? "—")) // #1436
                         .tag(mode.id?.uuidString ?? "")
                 }
             } label: {

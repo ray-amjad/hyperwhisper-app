@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Wird wiederholt...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Ein anderes Programm hat die Verlaufsdatenbank gesperrt. Die Aufnahme wurde behalten und wird im Verlauf gespeichert, sobald die Datenbank wieder frei ist.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Diese Aufnahme konnte noch nicht im Verlauf gespeichert werden. Die Aufnahme wurde behalten und wird später im Verlauf gespeichert.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -793,6 +799,12 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (bereit)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (nicht aktiviert)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (kein API-Schlüssel)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Laden fehlgeschlagen</value>
   </data>
@@ -822,6 +834,9 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value>
   </data>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Dateitranskription abgebrochen</value>
+  </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Datei wird transkribiert...</value>
   </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unbekannt</value>
@@ -1084,6 +1099,9 @@ Es muss mindestens ein Modus vorhanden sein.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Tastenkürzel mit nur einer Modifikatortaste wie Ctrl, Alt, Shift oder Win werden nicht unterstützt. Verwenden Sie eine Taste mit Modifikatoren oder ein Kürzel mit mehreren Modifikatoren, zum Beispiel Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Ein Tastenkürzel ohne Modifikatortaste muss eine Funktionstaste oder Esc sein. Jede andere Taste würde beim Tippen auslösen.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Dieses Tastenkürzel wird bereits für {0} verwendet ({1})</value>
   </data>
@@ -1158,6 +1176,12 @@ Sie können es später erneut herunterladen.</value>
     <value>Fehler beim Löschen von {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Modell wird verwendet</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} wird vom Modus „{1}“ verwendet. Stellen Sie diesen Modus auf ein anderes Modell um, bevor Sie es löschen.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1292,6 +1316,9 @@ Sie können es später erneut herunterladen.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Bitte geben Sie einen Lizenzschlüssel ein.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Das sieht nicht wie ein Kontoschlüssel aus.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1317,6 +1344,12 @@ Sie können es später erneut herunterladen.</value>
   </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>Die Datei ist für diesen Anbieter zu groß. Maximale Größe: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Diese Datei ist leer, daher gibt es keine Audiodaten zum Transkribieren.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Diese Datei ist beschädigt oder keine Audiodatei, die HyperWhisper lesen kann.</value>
   </data>
 
 
@@ -1699,6 +1732,9 @@ Sie können es später erneut herunterladen.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unbenannt</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Mehr...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Datei transkribieren</value>
   </data>
@@ -1993,11 +2029,35 @@ Sie können es später erneut herunterladen.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Ton stummschalten</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Ton dämpfen</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Mikrofon bereithalten</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Zwischen den Aufnahmen einen stillen Eingabestrom offen halten, um die Startverzögerung zu verringern, besonders bei Bluetooth-Mikrofonen.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Wird nur von HyperWhisper verwendet. Bleibt nach einem Neustart erhalten.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Standard · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (nicht verbunden)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>{0} wird verwendet, bis {1} wieder verbunden ist.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Kein Mikrofon ist verbunden. HyperWhisper verwendet {0}, sobald es wieder verbunden ist.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Testen</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Stoppen</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Durchschnittliche Geschwindigkeit</value>

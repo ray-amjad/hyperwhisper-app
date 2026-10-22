@@ -60,6 +60,7 @@ public partial class LocalApiSettingsPage : Page
     private void EnabledToggle_Checked(object sender, RoutedEventArgs e)
     {
         if (_suppressToggleEvent) return;
+        ClearActionStatus();
         SettingsService.Instance.LocalApiServerEnabled = true;
         LocalApiServer.Instance.Start();
         Refresh();
@@ -68,6 +69,7 @@ public partial class LocalApiSettingsPage : Page
     private void EnabledToggle_Unchecked(object sender, RoutedEventArgs e)
     {
         if (_suppressToggleEvent) return;
+        ClearActionStatus();
         SettingsService.Instance.LocalApiServerEnabled = false;
         LocalApiServer.Instance.Stop();
         Refresh();
@@ -171,6 +173,9 @@ public partial class LocalApiSettingsPage : Page
 
         PortValue.Text = server.ListeningPort > 0 ? server.ListeningPort.ToString() : "—";
         TokenValue.Text = FormatTokenDisplay(server.BearerToken, _tokenRevealed);
+        // #643: a revealed token wraps onto as many lines as it needs, so all of it can be read.
+        TokenValue.TextWrapping = _tokenRevealed ? TextWrapping.Wrap : TextWrapping.NoWrap;
+        TokenValue.TextTrimming = _tokenRevealed ? TextTrimming.None : TextTrimming.CharacterEllipsis;
         RevealTokenButton.Content = _tokenRevealed
             ? Loc.S("settings.localApi.hide")
             : Loc.S("settings.localApi.reveal");
@@ -304,5 +309,13 @@ public partial class LocalApiSettingsPage : Page
             : TryFindResource("TextSecondaryBrush") as Brush
               ?? System.Windows.Media.Brushes.Gray;
         ActionStatusText.Visibility = Visibility.Visible;
+    }
+
+    // A server toggle starts a fresh state, so a Copy or Regenerate line from
+    // before it no longer describes anything on screen.
+    private void ClearActionStatus()
+    {
+        ActionStatusText.Text = string.Empty;
+        ActionStatusText.Visibility = Visibility.Collapsed;
     }
 }

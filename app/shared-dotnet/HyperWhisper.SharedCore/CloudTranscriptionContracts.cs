@@ -88,6 +88,13 @@ public enum CloudTranscriptionErrorCode
     Cancelled,
     Unsupported,
     Unknown,
+    /// <summary>
+    /// A HyperWhisper Cloud-routed provider with no account key stored, refused
+    /// before any request goes out. Kept apart from <see cref="Unauthorized"/>
+    /// so the Local API can answer <c>MISSING_API_KEY</c> for it, as macOS and
+    /// Windows do (issue #1487).
+    /// </summary>
+    CloudAccountRequired,
 }
 
 public sealed record CloudTranscriptionFailure(

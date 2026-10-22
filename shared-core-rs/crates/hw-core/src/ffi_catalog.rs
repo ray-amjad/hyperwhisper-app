@@ -744,6 +744,16 @@ pub fn cloud_stt_normalize_cloud_provider(value: Option<String>) -> NormalizedCl
         .into()
 }
 
+/// The STT provider a CLOUD mode runs on, given its stored `cloudProvider`:
+/// null, empty or whitespace means `"hyperwhisper"` (HyperWhisper Cloud);
+/// anything else is `cloud_stt_normalize_cloud_provider`'s folded, lowercased
+/// provider. A read rule only: storage and `GET /modes` keep the blank value.
+/// Call it only for a cloud mode — a local mode's null is deliberate.
+#[uniffi::export]
+pub fn cloud_stt_effective_mode_cloud_provider(value: Option<String>) -> String {
+    cloud_stt().effective_mode_cloud_provider(value.as_deref())
+}
+
 /// Resolve a legacy cloud-STT model id onto its current catalog id.
 ///
 /// `provider` is the persisted `cloudProvider` identifier (`"deepgram"`,
@@ -1506,6 +1516,21 @@ mod tests {
         let absent = cloud_stt_normalize_cloud_provider(None);
         assert_eq!(absent.provider, None);
         assert_eq!(absent.accuracy_tier, None);
+    }
+
+    /// #1709: the read rule across the FFI boundary. Blank means HyperWhisper
+    /// Cloud; a non-blank value is what the storage rule stores.
+    #[test]
+    fn cloud_stt_effective_mode_cloud_provider_defaults_blank_to_hyperwhisper() {
+        for blank in [None, Some(""), Some("  ")] {
+            assert_eq!(
+                cloud_stt_effective_mode_cloud_provider(blank.map(str::to_string)),
+                "hyperwhisper"
+            );
+        }
+        assert_eq!(cloud_stt_effective_mode_cloud_provider(Some("Deepgram".into())), "deepgram");
+        assert_eq!(cloud_stt_effective_mode_cloud_provider(Some("googleSpeech".into())), "hyperwhisper");
+        assert_eq!(cloud_stt_effective_mode_cloud_provider(Some("not-a-provider".into())), "not-a-provider");
     }
 
     /// The FFI boundary the platforms actually cross. Windows persists

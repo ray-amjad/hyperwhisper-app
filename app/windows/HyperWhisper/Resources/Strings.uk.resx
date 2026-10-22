@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Інша програма заблокувала базу даних історії. Запис збережено, і його буде записано до історії, щойно база даних звільниться.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Цей запис поки не вдалося записати до історії. Запис збережено, і його буде записано до історії пізніше.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -793,6 +799,12 @@
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Не активовано)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (Немає ключа API)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -822,6 +834,9 @@
   </data>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Транскрибування файлу скасовано</value>
+  </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Розшифрування файлу...</value>
   </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
@@ -1084,6 +1099,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Комбінації з однієї клавіші-модифікатора, як-от Ctrl, Alt, Shift або Win, не підтримуються. Використайте клавішу з модифікаторами або комбінацію з кількох модифікаторів, наприклад Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Сполучення клавіш без модифікатора має бути функціональною клавішею або Esc. Будь-яка інша клавіша спрацьовувала б під час набору тексту.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Ця комбінація вже використовується для дії «{0}» ({1})</value>
   </data>
@@ -1158,6 +1176,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Модель використовується</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} використовується режимом «{1}». Перемкніть цей режим на іншу модель, перш ніж видаляти її.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1292,6 +1316,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Це не схоже на ключ облікового запису.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1317,6 +1344,12 @@ You can re-download it later.</value>
   </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Цей файл порожній, тому в ньому немає аудіо для транскрибування.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Цей файл пошкоджений або не є аудіофайлом, який може прочитати HyperWhisper.</value>
   </data>
 
   <!-- Mode Change Toast -->
@@ -1698,6 +1731,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Ще...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1992,11 +2028,35 @@ You can re-download it later.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Приглушити звук</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Використовується лише HyperWhisper. Зберігається після перезапуску.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>За замовчуванням · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (не підключено)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Використовується {0}, доки {1} не буде знову підключено.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Мікрофон не підключено. HyperWhisper використовуватиме {0}, коли його знову буде підключено.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Перевірити</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Зупинити</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

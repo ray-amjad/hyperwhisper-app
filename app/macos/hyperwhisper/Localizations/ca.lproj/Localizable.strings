@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnòstics exportats";
 "alerts.export.diagnostics.success.message" = "Tots els registres de diagnòstic s'han exportat correctament.";
 "alerts.export.diagnostics.saveFailed.message" = "No s'han pogut desar els diagnòstics a la ubicació seleccionada: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnòstics exportats sense registres del sistema";
+"alerts.export.diagnostics.noSystemLogs.message" = "S'ha desat el fitxer de diagnòstics, però no s'han pogut llegir els registres del sistema de l'aplicació, així que system-logs.txt només conté el motiu. Motiu: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Exportar registres d'actualització per a suport";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Incorporació completada";
 
 "onboarding.setupLater.button" = "Configura-ho més tard";
-"onboarding.error.microphone.denied" = "Permís de micròfon denegat. Concediu el permís a la Configuració del sistema.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Iniciar en iniciar sessió";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Desactivat";
 "settings.general.mediaControl.mode.mute" = "Silenciar àudio";
+"settings.general.mediaControl.mode.muffle" = "Esmorteir àudio";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,9 +324,17 @@
 "settings.sound.soundEffects.title" = "Reproduir efectes de so";
 "settings.sound.soundEffects.info" = "Reprodueix senyals sonors quan la gravació comença i s'atura.";
 "settings.sound.mediaControl.title" = "Control de mitjans durant la gravació";
-"settings.sound.mediaControl.info" = "Trieu com HyperWhisper gestiona altres àudios mentre graveu. 'Desactivat' deixa l'àudio sense canvis, 'Silenciar àudio' silencia la sortida del sistema mentre graveu i la restaura posteriorment.";
+"settings.sound.mediaControl.info" = "Trieu com HyperWhisper gestiona altres àudios mentre graveu. 'Desactivat' deixa l'àudio sense canvis, 'Silenciar àudio' silencia la sortida del sistema mentre graveu i la restaura posteriorment, i 'Esmorteir àudio' el manté sonant suaument, com si vingués de l'habitació del costat.";
+"settings.sound.microphone.title" = "Micròfon";
+"settings.sound.microphone.subtitle" = "Només l'utilitza HyperWhisper. Es recorda després de reiniciar.";
+"microphone.picker.default" = "Per defecte · %@";
+"microphone.picker.notConnected" = "%@ (no connectat)";
+"microphone.picker.fallback" = "S'utilitza %1$@ fins que es torni a connectar %2$@.";
+"settings.sound.microphone.test" = "Prova";
+"settings.sound.microphone.stop" = "Atura";
+"settings.sound.microphone.level" = "Nivell d'entrada";
 "settings.sound.autoIncreaseMicVolume.title" = "Augmentar automàticament el volum del micròfon";
-"settings.sound.autoIncreaseMicVolume.info" = "Estableix automàticament el volum d'entrada del micròfon al màxim quan comença la gravació i restaura el nivell original quan s'atura. Només s'aplica quan s'utilitza el dispositiu d'entrada predeterminat del sistema.";
+"settings.sound.autoIncreaseMicVolume.info" = "Posa automàticament al màxim el volum d'entrada del micròfon des del qual enregistra HyperWhisper quan comença l'enregistrament i restaura el nivell original quan s'atura. Els micròfons sense control de volum per programari no es modifiquen.";
 "settings.sound.vad.title" = "Eliminar silenci abans de la transcripció";
 "settings.sound.vad.info" = "Detecta i elimina automàticament el silenci inicial i final mitjançant la detecció de veu per IA. Això pot millorar la precisió de la transcripció i reduir el temps de processament.";
 
@@ -336,6 +346,9 @@
 "settings.storage.choose.button" = "Triar...";
 "settings.storage.dialog.select" = "Seleccionar carpeta";
 "settings.storage.dialog.message" = "Trieu una carpeta per emmagatzemar gravacions";
+"settings.storage.folderRefused.title" = "No es pot fer servir aquesta carpeta";
+"settings.storage.folderRefused.notWritable" = "No tens permís per escriure a «%@», així que HyperWhisper no hi pot desar gravacions. La carpeta de gravacions no s'ha canviat.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper no ha pogut crear aquesta carpeta: %@ La carpeta de gravacions no s'ha canviat.";
 "settings.storage.storeAsM4A.title" = "Comprimir gravacions a M4A";
 "settings.storage.storeAsM4A.subtitle" = "Converteix les gravacions WAV a fitxers més petits després de la transcripció. Desactiveu-ho per conservar els fitxers WAV originals (més grans però sense pèrdua).";
 
@@ -383,6 +396,7 @@
 
 "settings.shortcuts.changeMode.title" = "Canviar mode";
 "settings.shortcuts.changeMode.subtitle" = "Només funciona durant la gravació";
+"settings.shortcuts.conflict.alert" = "Aquesta drecera de teclat no es pot utilitzar perquè ja la fa servir «%@».";
 
 "settings.shortcuts.reset.button" = "Restablir als valors predeterminats";
 "settings.shortcuts.reset.dialog.title" = "Restablir dreceres de teclat";
@@ -434,6 +448,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Enganxar des del porta-retalls";
 "settings.license.clearInput" = "Netejar";
+"license.error.keyFormat" = "Això no sembla una clau del compte.";
 "settings.license.recovery.prompt" = "Heu oblidat la vostra clau de llicència?";
 "settings.license.recovery.button" = "Anar al portal del client";
 "settings.license.daily.title" = "Transcripció diària";
@@ -576,6 +591,8 @@
 "onboarding.configure.cloud.note" = "Els crèdits són prepagats i es comparteixen entre tots els Mac connectats amb aquesta clau. El temps inactiu no costa res.";
 "onboarding.source.note" = "Si canvies d'opinió més tard, només cal repetir aquest pas. La resta de la configuració es manté.";
 "onboarding.permissions.note" = "Si saltes Accessibilitat, les transcripcions aniran al porta-retalls, llestes per enganxar. Activar-ho més tard només costa un clic.";
+"onboarding.permissions.microphone.denied" = "No permès. Activa HyperWhisper a la Configuració del Sistema i torna aquí.";
+"onboarding.permissions.continueNeedsMicrophone" = "Per continuar cal el micròfon. Permet-lo a dalt o tria Configurar més tard.";
 "onboarding.welcome.task1.title" = "Tria com es fa la transcripció";
 "onboarding.welcome.task1.caption" = "Al nostre núvol, en aquest Mac, o mitjançant un compte de proveïdor que ja pagues.";
 "onboarding.welcome.task2.title" = "Comprova el teu micròfon";
@@ -791,6 +808,7 @@ Edita aquests modes per seleccionar un model diferent abans de eliminar-lo.";
 "modes.field.name.placeholder" = "p. ex., Notes de reunió";
 "modes.field.name.editPlaceholder" = "Nom del mode";
 "modes.field.name.defaultLocked" = "Aquest és el mode per defecte, així que no se'n pot canviar el nom. Podeu canviar el nom de qualsevol altre mode.";
+"modes.field.name.taken" = "Ja existeix un mode amb aquest nom.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Proveïdor";
 "modes.provider.local" = "Local";
@@ -817,7 +835,7 @@ Edita aquests modes per seleccionar un model diferent abans de eliminar-lo.";
 "transcripts.delete.single.message" = "Això eliminarà permanentment aquesta gravació i el seu fitxer d'àudio.";
 "transcripts.delete.multiple.title" = "Eliminar %d gravacions?";
 "transcripts.delete.multiple.message" = "Això eliminarà permanentment %d gravacions i els seus fitxers d'àudio.\n\nAquesta acció no es pot desfer.";
-"transcripts.delete.multiple.confirm" = "Eliminar tot";
+"transcripts.delete.multiple.confirm" = "Eliminar %d gravacions";
 "transcripts.retry.error.title" = "Reintent fallat";
 "transcripts.retry.error.modeDeleted" = "El mode que va crear aquesta gravació s'ha suprimit, així que no s'ha tornat a provar. A l'Historial, fes clic amb el botó dret a la gravació i tria \"Reintentar amb...\" per escollir un altre mode.";
 
@@ -870,7 +888,6 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "recording.retry.inProgress" = "Reintentant…";
 "recording.retry.count" = "Reintentar (%d)";
 "recording.retry.failed.missing" = "Reintent fallat: Fitxer d'àudio no trobat";
-"recording.retry.failed.error" = "Reintent fallat: %@";
 "recording.retry.pending" = "Preparat per reintentar – feu clic per transcriure";
 "recording.retry.modeDeleted" = "S'ha suprimit el mode";
 "recording.cancel.dialog.title" = "Cancel·lar gravació?";
@@ -899,6 +916,7 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "audio.error.microphonePermission" = "Permís de micròfon no concedit";
 "audio.error.microphoneInUse" = "HyperWhisper no pot accedir al micròfon perquè una altra aplicació l'està utilitzant. Poseu en pausa l'altra aplicació o canvieu d'entrada i torneu-ho a provar.";
 "audio.error.audioSystemNotResponding" = "L'àudio de macOS no respon, així que el micròfon no s'ha pogut iniciar. Torna-ho a provar d'aquí a un moment. Si continua passant, reinicia el Mac.";
+"audio.error.recorderStopTimedOut" = "L'àudio de macOS ha deixat de respondre mentre es desava la gravació, així que no s'ha transcrit. L'àudio s'ha conservat: HyperWhisper intentarà recuperar-lo la propera vegada que s'iniciï.";
 "audio.error.createEngine" = "No s'ha pogut crear el motor d'àudio";
 "audio.error.noInput" = "No hi ha entrada d'àudio disponible";
 "audio.error.createFile" = "No s'ha pogut crear el fitxer d'àudio";
@@ -926,6 +944,9 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "transcription.error.providerNotAvailable.provider" = "%@ no està disponible. Comproveu la configuració i torneu-ho a provar.";
 "transcription.error.providerNotAvailable.detail" = "%@ no està disponible: %@";
 "transcription.error.modelNotDownloaded" = "Descarregueu primer un model";
+"transcription.error.modelNotDownloaded.modelAndMode" = "El mode %1$@ utilitza %2$@, que no està descarregat. Descarregueu-lo a Biblioteca de models.";
+"transcription.error.modelNotDownloaded.model" = "%1$@ no està descarregat. Descarregueu-lo a Biblioteca de models.";
+"transcription.error.openModelLibrary" = "Obrir la Biblioteca de models";
 "transcription.error.modelProtected" = "Aquest model no es pot eliminar";
 "transcription.error.audioFileNotFound" = "Fitxer d'àudio no trobat";
 "transcription.error.network.detail" = "Error de xarxa: %@";
@@ -972,6 +993,7 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "transcription.guidance.quotaExceeded" = "Afegiu crèdits al vostre compte de %@ o actualitzeu les dades de facturació";
 "transcription.guidance.timeout" = "La sol·licitud ha trigat massa. Comproveu la velocitat d'Internet i torneu-ho a provar.";
 "transcription.error.noSpeechDetected" = "No s'ha detectat veu a la gravació.";
+"transcription.error.audioTooShort" = "La gravació és massa curta per transcriure-la. Grava durant més estona.";
 "transcription.guidance.noSpeechDetected" = "Consells:\n• Parleu clarament al micròfon\n• Manteniu la tecla premuda més temps abans de parlar\n• Comproveu que el micròfon funcioni\n• Assegureu-vos que el dispositiu d'entrada correcte estigui seleccionat";
 "transcription.guidance.needsNativeRelaunch" = "Tanca i torna a obrir HyperWhisper en mode natiu per utilitzar el postprocessament local.";
 "transcription.guidance.localRuntimeUnavailable" = "Torna-ho a provar o tria un model local més petit als ajustos del mode.";
@@ -1114,6 +1136,17 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "transcribe.file.error.format.title" = "Format no compatible";
 "transcribe.file.error.format.message" = "Els fitxers .%@ no són compatibles amb %@. Formats admesos: %@";
 "transcribe.file.error.read" = "No es pot llegir el fitxer seleccionat.";
+"transcribe.file.error.webm" = "WebM no és compatible. Converteix el fitxer a MP3, M4A o WAV i torna-ho a provar.";
+"transcribe.file.busy.title" = "Ja s'està transcrivint un fitxer.";
+"transcribe.file.busy.message" = "Vols cancel·lar-lo i començar aquest?";
+"transcribe.file.busy.keepRunning" = "Continua";
+"transcribe.file.busy.cancelAndStart" = "Cancel·la'l i comença";
+"transcribe.file.error.notAudio" = "El fitxer «%@» no és un àudio vàlid. Pot estar malmès o en un format que macOS no pot descodificar.";
+"transcribe.file.error.empty" = "El fitxer «%@» és buit. No conté àudio per transcriure.";
+"transcribe.file.error.permission" = "HyperWhisper no pot llegir el fitxer «%@». Comprova els permisos del fitxer.";
+"transcribe.file.error.folderPermission" = "HyperWhisper no pot obrir una carpeta que conté el fitxer «%@». Comprova els permisos d'aquesta carpeta.";
+"transcribe.file.error.privacy" = "La configuració de privadesa de macOS ha impedit que HyperWhisper llegeixi el fitxer «%@». Permet-ho a Configuració del Sistema > Privadesa i seguretat > Accés total al disc.";
+"transcribe.file.error.tooShort" = "Aquest fitxer és massa curt per transcriure'l (%@ s).";
 "transcribe.file.error.copy" = "No s'ha pogut copiar el fitxer a la carpeta de gravacions.";
 "transcribe.file.error.video.title" = "Sense àudio al vídeo";
 "transcribe.file.error.video.noAudio" = "Aquest fitxer de vídeo no conté una pista d'àudio. Seleccioneu un vídeo amb àudio o un fitxer d'àudio.";
@@ -1140,3 +1173,4 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "settings.storage.maxRecordingDuration.hour" = "1 hora";
 "settings.storage.maxRecordingDuration.hours" = "%d hores";
 "settings.storage.maxRecordingDuration.off" = "Desactivat";
+"settings.api_server.status.stopping" = "S'està aturant…";

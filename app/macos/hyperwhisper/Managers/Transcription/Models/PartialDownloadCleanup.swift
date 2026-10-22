@@ -16,9 +16,14 @@
 //    handed back when the task is cancelled with `cancel(byProducingResumeData:)` (or
 //    a transport failure carries resume data); that name came from our own task, so
 //    removing it touches nothing else.
+//  - A file descriptor this process holds open (issue #1723). FluidAudio downloads a
+//    Parakeet file on a private per-file session the app cannot reach, so there is no
+//    task to ask for resume data. While the transfer runs, though, its
+//    `CFNetworkDownload_*.tmp` is open in OUR process, and that names it.
 //
 
 import Foundation
+import Darwin
 import os
 
 enum PartialDownloadCleanup {
@@ -200,6 +205,84 @@ enum PartialDownloadCleanup {
         }
     }
 
+    // MARK: - Tmp files this process holds open (issue #1723)
+
+    /// The `CFNetworkDownload_*.tmp` files directly in `temporaryDirectory` that this
+    /// process holds open right now: the in-flight transfers of its own download tasks.
+    /// The open descriptor is the proof the file is ours; the name only narrows it to
+    /// URLSession's download files.
+    static func openDownloadTempFiles(
+        temporaryDirectory: URL = FileManager.default.temporaryDirectory
+    ) -> Set<URL> {
+        guard let root = realPath(temporaryDirectory.path) else { return [] }
+        var found: Set<URL> = []
+        for path in openFilePaths() {
+            let url = URL(fileURLWithPath: path, isDirectory: false)
+            let name = url.lastPathComponent
+            guard url.deletingLastPathComponent().path == root,
+                  name.hasPrefix("CFNetworkDownload_"), name.hasSuffix(".tmp") else { continue }
+            found.insert(url)
+        }
+        return found
+    }
+
+    /// Remove each of `candidates` (files `openDownloadTempFiles` returned earlier)
+    /// that this process no longer holds open. A file still open belongs to a transfer
+    /// that is still running, maybe another model's, and is left alone. A closed one
+    /// is a transfer that ended: a finished one has been moved away by its owner, so
+    /// what is left there is abandoned. Returns the files removed.
+    @discardableResult
+    static func removeAbandonedDownloadTempFiles(
+        _ candidates: Set<URL>,
+        temporaryDirectory: URL = FileManager.default.temporaryDirectory
+    ) -> [URL] {
+        guard !candidates.isEmpty else { return [] }
+        let stillOpen = openDownloadTempFiles(temporaryDirectory: temporaryDirectory)
+        return candidates.subtracting(stillOpen)
+            .sorted { $0.path < $1.path }
+            .filter { removeFile($0) }
+    }
+
+    /// The quit path: remove every download tmp file this process holds open. Each
+    /// is an in-process transfer that dies with the process, and nothing resumes it.
+    @discardableResult
+    static func removeOpenDownloadTempFiles(
+        temporaryDirectory: URL = FileManager.default.temporaryDirectory
+    ) -> [URL] {
+        openDownloadTempFiles(temporaryDirectory: temporaryDirectory)
+            .sorted { $0.path < $1.path }
+            .filter { removeFile($0) }
+    }
+
+    /// The paths of this process's open vnode descriptors.
+    private static func openFilePaths() -> [String] {
+        let pid = getpid()
+        let needed = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, nil, 0)
+        guard needed > 0 else { return [] }
+        let stride = MemoryLayout<proc_fdinfo>.stride
+        // Room for descriptors opened between the two calls.
+        var fds = [proc_fdinfo](repeating: proc_fdinfo(), count: Int(needed) / stride + 32)
+        let used = fds.withUnsafeMutableBytes { buffer in
+            proc_pidinfo(pid, PROC_PIDLISTFDS, 0, buffer.baseAddress, Int32(buffer.count))
+        }
+        guard used > 0 else { return [] }
+        var paths: [String] = []
+        var path = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+        for info in fds.prefix(Int(used) / stride) where info.proc_fdtype == UInt32(PROX_FDTYPE_VNODE) {
+            if fcntl(info.proc_fd, F_GETPATH, &path) != -1 {
+                paths.append(String(cString: path))
+            }
+        }
+        return paths
+    }
+
+    /// `realpath(3)`: `$TMPDIR` is `/var/folders/…`, a descriptor's path is `/private/var/folders/…`.
+    private static func realPath(_ path: String) -> String? {
+        guard let resolved = realpath(path, nil) else { return nil }
+        defer { free(resolved) }
+        return String(cString: resolved)
+    }
+
     /// A bare file name: no separators, no `..`. Keeps a malformed value from
     /// pointing the delete outside the temp directory.
     private static func isPlainFileName(_ name: String) -> Bool {
@@ -243,5 +326,60 @@ enum PartialDownloadCleanup {
             }
         }
         return removed
+    }
+}
+
+/// The `CFNetworkDownload_*.tmp` files one FluidAudio download opened (issue #1723).
+///
+/// FluidAudio fetches each Parakeet file on a private session the app cannot reach,
+/// and a cancel or a failure there leaves the file's tmp behind with nothing naming it
+/// (measured on macOS 26.6, 2026-10-13). Sampling this process's open download files
+/// while the download runs names them; `removeAbandoned()` then drops the ones no
+/// transfer holds any more. Files that were already open when the download began
+/// belong to another download and are never collected.
+///
+/// The sampling runs on its own timer: FluidAudio 0.15.2 calls its progress handler
+/// only between files, when no tmp file is open (measured: 7 calls in 20 s).
+@MainActor
+final class DownloadTempFileTracker {
+    private let temporaryDirectory: URL
+    private let interval: TimeInterval
+    private let preexisting: Set<URL>
+    private(set) var seen: Set<URL> = []
+    private var sampler: Task<Void, Never>?
+
+    init(temporaryDirectory: URL = FileManager.default.temporaryDirectory, interval: TimeInterval = 0.5) {
+        self.temporaryDirectory = temporaryDirectory
+        self.interval = interval
+        preexisting = PartialDownloadCleanup.openDownloadTempFiles(temporaryDirectory: temporaryDirectory)
+    }
+
+    /// Sample every `interval` until `removeAbandoned()`. Each sample is one
+    /// `proc_pidinfo` call plus an `fcntl` per open file.
+    func start() {
+        guard sampler == nil else { return }
+        let nanoseconds = UInt64(interval * 1_000_000_000)
+        sampler = Task { [weak self] in
+            while !Task.isCancelled {
+                self?.sample()
+                try? await Task.sleep(nanoseconds: nanoseconds)
+            }
+        }
+    }
+
+    /// Record the download files open right now. Call it just before a cancel too,
+    /// so a file opened since the last tick is named while it is still open.
+    func sample() {
+        seen.formUnion(PartialDownloadCleanup.openDownloadTempFiles(temporaryDirectory: temporaryDirectory)
+            .subtracting(preexisting))
+    }
+
+    /// Stop sampling and remove every collected file that is no longer open. Call it
+    /// once the download has returned, whatever the outcome.
+    @discardableResult
+    func removeAbandoned() -> [URL] {
+        sampler?.cancel()
+        sampler = nil
+        return PartialDownloadCleanup.removeAbandonedDownloadTempFiles(seen, temporaryDirectory: temporaryDirectory)
     }
 }

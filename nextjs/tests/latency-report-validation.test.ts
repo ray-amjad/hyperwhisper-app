@@ -280,6 +280,38 @@ test("every model row is named the way the app's Model menu names it", async () 
   assert.equal(modelSortIndex("openai", "gpt-5-transcribe"), Number.MAX_SAFE_INTEGER);
 });
 
+test("a retired model keeps its own row, named as the app last named it (#1978)", async () => {
+  const { RETIRED_MODELS, modelDisplayName, isDefaultModel, modelSortIndex } =
+    await loadProviders();
+
+  // Grok Voice Transcribe 1.0 left every catalog in #1974, but the window still
+  // holds rows that measured it. They read as the model, not the raw id, and
+  // stay apart from 2.0: those timings came from 1.0.
+  assert.equal(modelDisplayName("grok", "grok-voice-transcribe-1.0"), "Grok Voice Transcribe 1");
+  assert.notEqual(
+    modelDisplayName("grok", "grok-voice-transcribe-1.0"),
+    modelDisplayName("grok", "grok-voice-transcribe-2.0"),
+  );
+  assert.equal(isDefaultModel("grok", "grok-voice-transcribe-1.0"), false);
+
+  // After the catalogued 2.0, before a row that names no model.
+  const retired = modelSortIndex("grok", "grok-voice-transcribe-1.0");
+  assert.ok(retired > modelSortIndex("grok", "grok-voice-transcribe-2.0"));
+  assert.ok(retired < modelSortIndex("grok", null));
+
+  // The name belongs to that provider only.
+  assert.equal(modelDisplayName("openai", "grok-voice-transcribe-1.0"), "grok-voice-transcribe-1.0");
+
+  // A retired entry that the catalog still carries would be dead: the catalog
+  // name wins. Keep the list to models the catalog really dropped.
+  for (const entry of readCatalog().providers) {
+    const catalogIds = new Set(entry.models.map((model: { id: string }) => model.id));
+    for (const model of RETIRED_MODELS[entry.sttProvider] ?? []) {
+      assert.ok(!catalogIds.has(model.id), `${entry.sttProvider}/${model.id} is still in the catalog`);
+    }
+  }
+});
+
 test("exactly one model per vendor is badged as the default", async () => {
   const { STT_CATALOG, isDefaultModel } = await loadProviders();
 

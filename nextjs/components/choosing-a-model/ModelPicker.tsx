@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Cloud, Laptop, MapPin } from "lucide-react";
 
 // The one place the credit rate is declared. This module is deliberately kept
@@ -152,11 +152,68 @@ function AccuracyNote({ model }: { model: Model }) {
 
   if (label === null) return null;
   return (
-    <span className="rounded-full border border-gray-700 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-gray-500">
+    <span className="rounded-full border border-gray-700 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-gray-400">
       {label}
     </span>
   );
 }
+
+/**
+ * How far a re-ranked row may visibly travel (#766). A row that moves further
+ * (one model jumps ~4,400 px on a single slider move) starts this far from its
+ * new place and fades in, instead of flying across the whole table.
+ */
+const FLIP_MAX_DISTANCE = 400;
+
+/**
+ * The slide's timing: --motion-duration-fast and --motion-ease-smooth-out in
+ * globals.css (a test pins the two together). The rows run on the Web
+ * Animations API rather than an inline transition, so a re-rank writes no
+ * inline style and needs no forced reflow to set a start state.
+ */
+export const FLIP_DURATION_MS = 250;
+export const FLIP_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
+
+/**
+ * Read at event time, never during render, so the server markup and the first
+ * client render stay identical (no hydration mismatch).
+ */
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+/**
+ * Weight changes closer together than this are one gesture: a slider drag, or
+ * a held arrow key (#766). Only the first change of a gesture replays the
+ * name swap and the stat pop; during the rest of it the text just updates, so
+ * a value the reader can already see is never pushed back to transparent.
+ * Above the pop's own 250 ms, so a pop that is still running is never
+ * restarted from opacity 0.
+ */
+export const SWAP_REST_MS = 300;
+
+/** Whether a weight change at `now` starts a gesture, and so may replay. */
+export function startsGesture(now: number, lastChangeAt: number | null) {
+  return lastChangeAt === null || now - lastChangeAt >= SWAP_REST_MS;
+}
+
+/**
+ * Where everything stood just before a weight change, so the commit that
+ * follows can animate from it. Taken only by the weight sliders and presets:
+ * a platform / language / requirement toggle changes the row SET, and those
+ * rows just appear.
+ */
+type MotionSnapshot = {
+  rowTops: Map<string, number>;
+  name: string | null;
+  stats: string[];
+  /** False mid-gesture: the swap and the pop are not replayed. */
+  replay: boolean;
+};
 
 export default function ModelPicker({ measured, regions }: Props) {
   const [weights, setWeights] = useState<Weights>(DEFAULT_WEIGHTS);
@@ -170,6 +227,14 @@ export default function ModelPicker({ measured, regions }: Props) {
   const [region, setRegion] = useState<string | null>(regions[0] ?? null);
   const [detectedCity, setDetectedCity] = useState<string | null>(null);
   const regionPickedByUser = useRef(false);
+
+  const tbodyRef = useRef<HTMLTableSectionElement>(null);
+  const rowRefs = useRef(new Map<string, HTMLTableRowElement>());
+  const nameRef = useRef<HTMLHeadingElement>(null);
+  const statsRef = useRef<HTMLDListElement>(null);
+  const pendingMotion = useRef<MotionSnapshot | null>(null);
+  const rowSlides = useRef(new Map<string, Animation>());
+  const lastWeightChangeAt = useRef<number | null>(null);
 
   const regionsKey = regions.join(",");
 
@@ -226,12 +291,142 @@ export default function ModelPicker({ measured, regions }: Props) {
     });
   }, [weights, platform, language, requirements, region, measured]);
 
+  // FLIP the re-ranked rows (#766): each row is drawn back at the place it
+  // held before the weight change, then let go so it slides to its new rank.
+  // Runs after the DOM commit and before paint, so no frame shows the jump.
+  //
+  // One read pass, then writes that dirty nothing: offsetTop ignores the
+  // transform a slide in flight draws, so no slide has to be cancelled first,
+  // and a Web Animation needs no inline style and no reflow to start. Writing
+  // inline styles row by row and reading the next row forced a style + layout
+  // flush per row, about 50 per slider input, which made a drag stutter.
+  useLayoutEffect(() => {
+    const before = pendingMotion.current;
+
+    pendingMotion.current = null;
+    if (before === null || prefersReducedMotion()) return;
+
+    const tbody = tbodyRef.current;
+    const rows = rowRefs.current;
+    const sameSet =
+      tbody !== null &&
+      rows.size === before.rowTops.size &&
+      Array.from(rows.keys()).every((id) => before.rowTops.has(id));
+
+    if (sameSet && typeof tbody.animate === "function") {
+      const base = tbody.offsetTop;
+      const viewTop = tbody.getBoundingClientRect().top;
+      const viewHeight = window.innerHeight;
+      const moved: {
+        id: string;
+        row: HTMLTableRowElement;
+        delta: number;
+        top: number;
+        height: number;
+      }[] = [];
+
+      rows.forEach((row, id) => {
+        const top = row.offsetTop - base;
+        const delta = (before.rowTops.get(id) ?? 0) - top;
+
+        if (Math.abs(delta) >= 1) {
+          moved.push({ id, row, delta, top, height: row.offsetHeight });
+        }
+      });
+      for (const { id, row, delta, top, height } of moved) {
+        const far = Math.abs(delta) > FLIP_MAX_DISTANCE;
+        const shown = far ? Math.sign(delta) * FLIP_MAX_DISTANCE : delta;
+        // A row whose whole slide is off screen is not animated: nobody
+        // sees it, and each running slide costs a style pass every frame.
+        const from = viewTop + top + Math.min(0, shown);
+        const to = viewTop + top + Math.max(0, shown) + height;
+
+        rowSlides.current.get(id)?.cancel();
+        if (to <= 0 || from >= viewHeight) {
+          rowSlides.current.delete(id);
+          continue;
+        }
+        rowSlides.current.set(
+          id,
+          row.animate(
+            far
+              ? [
+                  { transform: `translateY(${shown}px)`, opacity: 0 },
+                  { transform: "none", opacity: 1 },
+                ]
+              : [
+                  { transform: `translateY(${shown}px)` },
+                  { transform: "none" },
+                ],
+            { duration: FLIP_DURATION_MS, easing: FLIP_EASING },
+          ),
+        );
+      }
+    }
+
+    // The best-match name and its stats swap in place: replay only what
+    // changed, and only on the first change of a gesture (SWAP_REST_MS), so a
+    // drag never pushes a value the reader can see back to transparent.
+    if (!before.replay) return;
+    const swapped: HTMLElement[] = [];
+    const name = nameRef.current;
+
+    if (
+      name !== null &&
+      before.name !== null &&
+      name.textContent !== before.name
+    ) {
+      swapped.push(name);
+    }
+    statsRef.current?.querySelectorAll("dd").forEach((dd, i) => {
+      if (before.stats[i] !== undefined && dd.textContent !== before.stats[i]) {
+        swapped.push(dd);
+      }
+    });
+    if (swapped.length === 0) return;
+    // A data-motion-from element sits at its enter state with no transition
+    // (globals.css); one flush for all of them, then dropping the attribute
+    // lets each element's own transition carry it back.
+    for (const el of swapped) el.setAttribute("data-motion-from", "");
+    void swapped[0].offsetWidth;
+    for (const el of swapped) el.removeAttribute("data-motion-from");
+  }, [ranked]);
+
   const best = ranked[0] ?? null;
   const cloudCount = ranked.filter((entry) => isCloud(entry.model)).length;
   const deviceCount = ranked.length - cloudCount;
   const hasMeasurements = regions.length > 0;
 
-  function setPriority(priority: Priority, value: number) {
+  /** `at` is the input event's timeStamp, on the performance.now() clock. */
+  function snapshotForMotion(at: number) {
+    pendingMotion.current = null;
+    const tbody = tbodyRef.current;
+    const replay = startsGesture(at, lastWeightChangeAt.current);
+
+    lastWeightChangeAt.current = at;
+
+    if (tbody === null || prefersReducedMotion()) return;
+    const base = tbody.getBoundingClientRect().top;
+    const rowTops = new Map<string, number>();
+
+    // The visual top, mid-slide included, so a drag that re-ranks again
+    // before the last slide ends carries on from where the row is drawn.
+    rowRefs.current.forEach((row, id) => {
+      rowTops.set(id, row.getBoundingClientRect().top - base);
+    });
+    pendingMotion.current = {
+      rowTops,
+      name: nameRef.current?.textContent ?? null,
+      stats: Array.from(
+        statsRef.current?.querySelectorAll("dd") ?? [],
+        (dd) => dd.textContent ?? "",
+      ),
+      replay,
+    };
+  }
+
+  function setPriority(priority: Priority, value: number, at: number) {
+    snapshotForMotion(at);
     setWeights((current) => rebalance(current, priority, value));
   }
 
@@ -252,7 +447,7 @@ export default function ModelPicker({ measured, regions }: Props) {
             <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400">
               Your 100 points
             </h2>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-gray-400">
               {Math.round(weights.accuracy)} / {Math.round(weights.latency)} /{" "}
               {Math.round(weights.cost)} / {Math.round(weights.privacy)}
             </span>
@@ -274,7 +469,12 @@ export default function ModelPicker({ measured, regions }: Props) {
                 key={preset.id}
                 className="rounded-md border border-dashed border-gray-700 px-2.5 py-1 text-xs text-gray-400 transition hover:border-solid hover:border-purple-500/60 hover:text-white"
                 type="button"
-                onClick={() => setWeights(preset.weights)}
+                onClick={(event) => {
+                  // Same preset again: no re-render, so no snapshot to leave behind.
+                  if (preset.weights === weights) return;
+                  snapshotForMotion(event.timeStamp);
+                  setWeights(preset.weights);
+                }}
               >
                 {preset.label}
               </button>
@@ -295,7 +495,7 @@ export default function ModelPicker({ measured, regions }: Props) {
                     {Math.round(weights[priority])}
                   </span>
                 </div>
-                <p className="mt-0.5 text-xs text-gray-500">
+                <p className="mt-0.5 text-xs text-gray-400">
                   {PRIORITY_HINTS[priority]}
                 </p>
                 <input
@@ -306,7 +506,11 @@ export default function ModelPicker({ measured, regions }: Props) {
                   type="range"
                   value={Math.round(weights[priority])}
                   onChange={(event) =>
-                    setPriority(priority, Number(event.target.value))
+                    setPriority(
+                      priority,
+                      Number(event.target.value),
+                      event.timeStamp,
+                    )
                   }
                 />
               </div>
@@ -315,7 +519,7 @@ export default function ModelPicker({ measured, regions }: Props) {
 
           <div className="mt-6 border-t border-gray-800 pt-5">
             <span
-              className="text-xs uppercase tracking-widest text-gray-500"
+              className="text-xs uppercase tracking-widest text-gray-400"
               id="picker-platform-label"
             >
               Your platform
@@ -345,7 +549,7 @@ export default function ModelPicker({ measured, regions }: Props) {
 
           <div className="mt-5">
             <span
-              className="text-xs uppercase tracking-widest text-gray-500"
+              className="text-xs uppercase tracking-widest text-gray-400"
               id="picker-languages-label"
             >
               Languages you dictate
@@ -375,7 +579,7 @@ export default function ModelPicker({ measured, regions }: Props) {
 
           <div className="mt-5">
             <span
-              className="text-xs uppercase tracking-widest text-gray-500"
+              className="text-xs uppercase tracking-widest text-gray-400"
               id="picker-requirements-label"
             >
               Must have
@@ -406,7 +610,7 @@ export default function ModelPicker({ measured, regions }: Props) {
           {hasMeasurements ? (
             <div className="mt-5">
               <span
-                className="text-xs uppercase tracking-widest text-gray-500"
+                className="text-xs uppercase tracking-widest text-gray-400"
                 id="picker-region-label"
               >
                 Closest region
@@ -445,7 +649,7 @@ export default function ModelPicker({ measured, regions }: Props) {
             <p className="text-lg text-gray-300">
               Nothing matches all of those requirements.
             </p>
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-gray-400">
               Turn one of the &ldquo;must have&rdquo; filters back off.
             </p>
           </div>
@@ -453,11 +657,14 @@ export default function ModelPicker({ measured, regions }: Props) {
           <>
             <div className="relative overflow-hidden rounded-lg border border-gray-800 bg-gray-900/50 p-6 backdrop-blur-xl">
               <span className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-purple-500 to-blue-500" />
-              <p className="text-xs uppercase tracking-widest text-gray-500">
+              <p className="text-xs uppercase tracking-widest text-gray-400">
                 Best match for how you spent your points
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-3">
-                <h2 className="text-2xl font-bold text-white">
+                <h2
+                  ref={nameRef}
+                  className="t-text-swap text-2xl font-bold text-white"
+                >
                   {best.model.name}
                 </h2>
                 <PlacementBadge model={best.model} />
@@ -472,42 +679,42 @@ export default function ModelPicker({ measured, regions }: Props) {
                   : `${best.model.vendorLabel} · runs on HyperWhisper Cloud`}
               </p>
 
-              <dl className="mt-6 grid gap-3 sm:grid-cols-4">
+              <dl ref={statsRef} className="mt-6 grid gap-3 sm:grid-cols-4">
                 <div className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2.5">
-                  <dt className="text-[10px] uppercase tracking-wider text-gray-500">
+                  <dt className="text-[10px] uppercase tracking-wider text-gray-400">
                     Word errors
                   </dt>
-                  <dd className="mt-1 font-mono text-lg tabular-nums text-white">
+                  <dd className="t-number-pop mt-1 font-mono text-lg tabular-nums text-white">
                     {best.model.wer === null ? "—" : `${best.model.wer}%`}
                   </dd>
                 </div>
                 <div className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2.5">
-                  <dt className="text-[10px] uppercase tracking-wider text-gray-500">
+                  <dt className="text-[10px] uppercase tracking-wider text-gray-400">
                     Cost
                   </dt>
-                  <dd className="mt-1 font-mono text-lg tabular-nums text-white">
+                  <dd className="t-number-pop mt-1 font-mono text-lg tabular-nums text-white">
                     {formatCost(best.model)}
                   </dd>
                   {/* A second <dd>, not a <p> in the first one: a <dl> wrapper may hold
                       only <dt>/<dd> (#890), and inside the first <dd> the note would
                       inherit its font-mono text-lg line box. */}
-                  <dd className="mt-0.5 text-[10px] text-gray-500">
+                  <dd className="t-number-pop mt-0.5 text-[10px] text-gray-400">
                     {formatDollars(best.model) ?? "no per-minute cost"}
                   </dd>
                 </div>
                 <div className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2.5">
-                  <dt className="text-[10px] uppercase tracking-wider text-gray-500">
+                  <dt className="text-[10px] uppercase tracking-wider text-gray-400">
                     Per audio minute
                   </dt>
-                  <dd className="mt-1 font-mono text-lg tabular-nums text-white">
+                  <dd className="t-number-pop mt-1 font-mono text-lg tabular-nums text-white">
                     {formatSeconds(best.estimatedSeconds)}
                   </dd>
                 </div>
                 <div className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2.5">
-                  <dt className="text-[10px] uppercase tracking-wider text-gray-500">
+                  <dt className="text-[10px] uppercase tracking-wider text-gray-400">
                     Match
                   </dt>
-                  <dd className="mt-1 font-mono text-lg tabular-nums text-white">
+                  <dd className="t-number-pop mt-1 font-mono text-lg tabular-nums text-white">
                     {Math.round(best.score * 100)}
                   </dd>
                 </div>
@@ -531,7 +738,7 @@ export default function ModelPicker({ measured, regions }: Props) {
                 <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400">
                   Every model, ranked
                 </h2>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-400">
                   {cloudCount} cloud · {deviceCount} on-device
                 </p>
               </div>
@@ -546,36 +753,41 @@ export default function ModelPicker({ measured, regions }: Props) {
                 <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr className="border-b border-gray-800">
-                      <th className="px-4 py-3 text-left text-xs uppercase tracking-widest text-gray-500">
+                      <th className="px-4 py-3 text-left text-xs uppercase tracking-widest text-gray-400">
                         Model
                       </th>
-                      <th className="px-3 py-3 text-right text-xs uppercase tracking-widest text-gray-500">
+                      <th className="px-3 py-3 text-right text-xs uppercase tracking-widest text-gray-400">
                         WER
                       </th>
-                      <th className="px-3 py-3 text-right text-xs uppercase tracking-widest text-gray-500">
+                      <th className="px-3 py-3 text-right text-xs uppercase tracking-widest text-gray-400">
                         Cost
                       </th>
-                      <th className="px-3 py-3 text-right text-xs uppercase tracking-widest text-gray-500">
+                      <th className="px-3 py-3 text-right text-xs uppercase tracking-widest text-gray-400">
                         Per audio min
                       </th>
                       <th
-                        className="px-3 py-3 text-right text-xs uppercase tracking-widest text-gray-500"
+                        className="px-3 py-3 text-right text-xs uppercase tracking-widest text-gray-400"
                         title={MEASURED_HINT}
                       >
                         Measured clip
                       </th>
-                      <th className="hidden px-3 py-3 text-left text-xs uppercase tracking-widest text-gray-500 md:table-cell">
+                      <th className="hidden px-3 py-3 text-left text-xs uppercase tracking-widest text-gray-400 md:table-cell">
                         Why it scored
                       </th>
-                      <th className="px-4 py-3 text-right text-xs uppercase tracking-widest text-gray-500">
+                      <th className="px-4 py-3 text-right text-xs uppercase tracking-widest text-gray-400">
                         Match
                       </th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody ref={tbodyRef}>
                     {ranked.map((entry, index) => (
                       <tr
                         key={entry.model.id}
+                        ref={(row) => {
+                          if (row === null)
+                            rowRefs.current.delete(entry.model.id);
+                          else rowRefs.current.set(entry.model.id, row);
+                        }}
                         className={`border-b border-gray-900 transition hover:bg-gray-900/40 ${
                           index === 0 ? "bg-purple-600/5" : ""
                         }`}
@@ -588,7 +800,7 @@ export default function ModelPicker({ measured, regions }: Props) {
                             <PlacementBadge model={entry.model} />
                             <AccuracyNote model={entry.model} />
                           </div>
-                          <div className="mt-0.5 text-xs text-gray-500">
+                          <div className="mt-0.5 text-xs text-gray-400">
                             {entry.model.vendorLabel}
                             {isDevice(entry.model)
                               ? ` · ${
@@ -621,7 +833,7 @@ export default function ModelPicker({ measured, regions }: Props) {
                           }
                         >
                           {entry.measuredClipMs === null ? (
-                            <span className="text-gray-600">—</span>
+                            <span className="text-gray-400">—</span>
                           ) : (
                             <>
                               <span className="mr-1 text-purple-400">●</span>
@@ -651,7 +863,7 @@ export default function ModelPicker({ measured, regions }: Props) {
                 </table>
               </div>
 
-              <p className="mt-3 text-xs text-gray-500">
+              <p className="mt-3 text-xs text-gray-400">
                 The two speed columns are different questions.{" "}
                 <span className="text-gray-300">Per audio min</span> is how long
                 a minute of audio takes, from the leaderboard&apos;s published

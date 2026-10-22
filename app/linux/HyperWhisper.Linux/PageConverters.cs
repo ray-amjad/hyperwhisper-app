@@ -143,11 +143,13 @@ public sealed class ModeProviderLineConverter : IValueConverter
         return string.IsNullOrWhiteSpace(model) ? provider : $"{provider} · {model}";
     }
 
-    internal static bool IsHyperWhisperCloud(string? id) => id?.ToLowerInvariant() switch
-    {
-        null or "" or "hyperwhisper" or "hyperwhispercloud" or "hyperwhisper_cloud" => true,
-        _ => false,
-    };
+    /// <summary>
+    /// Whether a cloud mode's stored <c>cloudProvider</c> means HyperWhisper Cloud. A blank value
+    /// does, by the shared rule the router and the Mode editor read too (issue #1709).
+    /// </summary>
+    internal static bool IsHyperWhisperCloud(string? id) =>
+        SharedCoreBridge.EffectiveModeCloudProvider(id).Trim().ToLowerInvariant()
+            is "hyperwhisper" or "hyperwhispercloud" or "hyperwhisper_cloud";
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotSupportedException();
@@ -209,6 +211,12 @@ public sealed class StatusBarModelConverter : IValueConverter
         id = mode.CloudTranscriptionModel ?? mode.Model;
         if (string.IsNullOrWhiteSpace(id)) return "None";
         var name = HyperWhisper.ModelReadiness.CloudSttModelCatalog.Label(id);
+        // A retired id the catalog no longer lists (Grok `grok-voice-transcribe-1.0`, #1908) is
+        // named by its successor, the model the editor shows and the request sends. Label hands an
+        // unknown id back unchanged.
+        if (string.IsNullOrWhiteSpace(name) || name == id)
+            name = HyperWhisper.ModelReadiness.CloudSttModelCatalog.Label(
+                HyperWhisper.SharedCore.SharedCoreBridge.ResolveCloudSttModelAlias(id, mode.CloudProvider));
         return string.IsNullOrWhiteSpace(name) ? id : name;
     }
 

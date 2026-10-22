@@ -38,32 +38,7 @@ internal static class LocalApiErrorCode
     public const string Timeout = "TIMEOUT";
 }
 
-internal sealed class ApiError
-{
-    [JsonPropertyName("code")] public string Code { get; init; } = "";
-    [JsonPropertyName("message")] public string Message { get; init; } = "";
-    [JsonPropertyName("hint")] public string? Hint { get; init; }
-}
-
-/// <summary>
-/// `{ok:false, error:{...}}` envelope returned by failures.
-/// </summary>
-internal sealed class ApiFailureEnvelope
-{
-    [JsonPropertyName("ok")] public bool Ok => false;
-    [JsonPropertyName("error")] public ApiError Error { get; init; } = new();
-}
-
 // MARK: - /health -----------------------------------------------------------
-
-internal sealed class HealthProviderStatus
-{
-    [JsonPropertyName("id")] public string Id { get; init; } = "";
-    [JsonPropertyName("key_present")] public bool KeyPresent { get; init; }
-    [JsonPropertyName("reachable")] public bool Reachable { get; init; }
-    // "configured" means a key is present but the provider has no safe probe.
-    [JsonPropertyName("status")] public string Status { get; init; } = "unknown";
-}
 
 internal sealed class HealthLocalModelEntry
 {
@@ -79,36 +54,6 @@ internal sealed class HealthLocalModels
     [JsonPropertyName("qwen3_asr")] public List<HealthLocalModelEntry> Qwen3Asr { get; init; } = new();
     [JsonPropertyName("apple_speech")] public List<HealthLocalModelEntry> AppleSpeech { get; init; } = new();
     [JsonPropertyName("local_llm")] public List<HealthLocalModelEntry> LocalLlm { get; init; } = new();
-}
-
-internal sealed class HealthResponse
-{
-    [JsonPropertyName("ok")] public bool Ok => true;
-    [JsonPropertyName("app_version")] public string AppVersion { get; init; } = "";
-    [JsonPropertyName("api_version")] public int ApiVersion { get; init; } = LocalApiVersion.Current;
-    [JsonPropertyName("port")] public int Port { get; init; }
-    [JsonPropertyName("pid")] public int Pid { get; init; }
-    [JsonPropertyName("providers")] public List<HealthProviderStatus> Providers { get; init; } = new();
-    [JsonPropertyName("post_processing_providers")] public List<HealthProviderStatus> PostProcessingProviders { get; init; } = new();
-    [JsonPropertyName("local_models")] public HealthLocalModels LocalModels { get; init; } = new();
-}
-
-// MARK: - /models -----------------------------------------------------------
-
-internal sealed class ModelEntry
-{
-    [JsonPropertyName("id")] public string Id { get; init; } = "";
-    [JsonPropertyName("kind")] public string Kind { get; init; } = ""; // "voice" | "text"
-    [JsonPropertyName("provider")] public string Provider { get; init; } = "";
-    [JsonPropertyName("displayName")] public string DisplayName { get; init; } = "";
-    [JsonPropertyName("installed")] public bool Installed { get; init; }
-    [JsonPropertyName("size_mb")] public double? SizeMb { get; init; }
-}
-
-internal sealed class ModelsListResponse
-{
-    [JsonPropertyName("ok")] public bool Ok => true;
-    [JsonPropertyName("models")] public List<ModelEntry> Models { get; init; } = new();
 }
 
 // MARK: - /modes -----------------------------------------------------------
@@ -274,73 +219,7 @@ internal sealed class ModePatchDto
     [JsonPropertyName("providerType")] public string? ProviderType { get; set; }
 }
 
-internal sealed class ModesListResponse
-{
-    [JsonPropertyName("ok")] public bool Ok => true;
-    [JsonPropertyName("modes")] public List<ModeDto> Modes { get; init; } = new();
-}
-
-internal sealed class ModeResponse
-{
-    [JsonPropertyName("ok")] public bool Ok => true;
-    [JsonPropertyName("mode")] public ModeDto Mode { get; init; } = new();
-}
-
-internal sealed class OkResponse
-{
-    [JsonPropertyName("ok")] public bool Ok => true;
-}
-
-// MARK: - /transcribe -------------------------------------------------------
-
-internal sealed class TranscribeRequest
-{
-    [JsonPropertyName("file")] public string? File { get; set; }
-    [JsonPropertyName("audio_base64")] public string? AudioBase64 { get; set; }
-    [JsonPropertyName("mime_type")] public string? MimeType { get; set; }
-    [JsonPropertyName("mode_id")] public string? ModeId { get; set; }
-    [JsonPropertyName("engine")] public string? Engine { get; set; }
-    [JsonPropertyName("model")] public string? Model { get; set; }
-    [JsonPropertyName("language")] public string? Language { get; set; }
-    [JsonPropertyName("applicationContext")] public LocalApiApplicationContext? ApplicationContext { get; set; }
-}
-
-internal sealed class TranscribeTimings
-{
-    [JsonPropertyName("load_ms")] public int LoadMs { get; init; }
-    [JsonPropertyName("decode_ms")] public int DecodeMs { get; init; }
-}
-
-internal sealed class TranscribeResponse
-{
-    [JsonPropertyName("ok")] public bool Ok => true;
-    [JsonPropertyName("text")] public string Text { get; init; } = "";
-    [JsonPropertyName("engine")] public string Engine { get; init; } = "";
-    [JsonPropertyName("model")] public string Model { get; init; } = "";
-    [JsonPropertyName("language")] public string? Language { get; init; }
-    [JsonPropertyName("timings")] public TranscribeTimings Timings { get; init; } = new();
-    [JsonPropertyName("latency_ms")] public int LatencyMs { get; init; }
-}
-
-// MARK: - /post-process ----------------------------------------------------
-
-/// <summary>
-/// Wire shape for the `POST /post-process` request body. Core field names mirror
-/// the macOS `PostProcessRequest`. All four content fields are
-/// optional; the endpoint validates that at least one of mode_id / preset /
-/// prompt is present and that preset+prompt are mutually exclusive. Windows
-/// additionally accepts optional `applicationContext` for app-aware formatting.
-/// </summary>
-internal sealed class PostProcessRequest
-{
-    [JsonPropertyName("text")] public string? Text { get; set; }
-    [JsonPropertyName("mode_id")] public string? ModeId { get; set; }
-    [JsonPropertyName("preset")] public string? Preset { get; set; }
-    [JsonPropertyName("prompt")] public string? Prompt { get; set; }
-    [JsonPropertyName("provider")] public string? Provider { get; set; }
-    [JsonPropertyName("model")] public string? Model { get; set; }
-    [JsonPropertyName("applicationContext")] public LocalApiApplicationContext? ApplicationContext { get; set; }
-}
+// MARK: - applicationContext ----------------------------------------------
 
 /// <summary>
 /// Optional caller-supplied app context for Local API requests. The API never
@@ -363,6 +242,30 @@ internal sealed class LocalApiApplicationContext
     [JsonPropertyName("appTypeConfidence")] public string? AppTypeConfidence { get; set; }
     [JsonPropertyName("appTypeSource")] public string? AppTypeSource { get; set; }
     [JsonPropertyName("screenOCRText")] public string? ScreenOcrText { get; set; }
+
+    /// <summary>
+    /// The shared server's parsed context as this head's class, so
+    /// <see cref="ToApplicationContext"/> keeps one implementation. Null in,
+    /// null out.
+    /// </summary>
+    public static LocalApiApplicationContext? From(HyperWhisper.LocalApi.LocalApiApplicationContext? shared) =>
+        shared is null
+            ? null
+            : new LocalApiApplicationContext
+            {
+                ProcessName = shared.ProcessName,
+                WindowTitle = shared.WindowTitle,
+                Category = shared.Category,
+                BrowserTabTitle = shared.BrowserTabTitle,
+                BrowserHost = shared.BrowserHost,
+                FocusedElementType = shared.FocusedElementType,
+                FocusedContent = shared.FocusedContent,
+                TextFormat = shared.TextFormat,
+                AppType = shared.AppType,
+                AppTypeConfidence = shared.AppTypeConfidence,
+                AppTypeSource = shared.AppTypeSource,
+                ScreenOcrText = shared.ScreenOcrText
+            };
 
     public HyperWhisper.Services.ApplicationContext ToApplicationContext()
     {
@@ -443,95 +346,6 @@ internal sealed class LocalApiApplicationContext
         var trimmed = value?.Trim();
         return string.IsNullOrEmpty(trimmed) ? fallback : trimmed;
     }
-}
-
-/// <summary>
-/// Success body for `POST /post-process`. `provider` and `model` name what
-/// ACTUALLY RAN — the values <see cref="PostProcessingService"/> hands back on
-/// <see cref="PostProcessingResult"/> after every fallback it applies (unknown
-/// or retired model id, provider default, the cloud route's own `X-LLM-Model`,
-/// a repaired custom-endpoint model) — falling back to the working Mode's
-/// stored values only when no LLM ran. They used to be projected straight off
-/// the Mode, which named a model that never saw the caller's text (issue #314).
-/// `preset` is never remapped and still comes off the Mode.
-/// </summary>
-internal sealed class PostProcessResponse
-{
-    [JsonPropertyName("ok")] public bool Ok => true;
-    [JsonPropertyName("text")] public string Text { get; init; } = "";
-    [JsonPropertyName("provider")] public string Provider { get; init; } = "";
-    [JsonPropertyName("model")] public string Model { get; init; } = "";
-    [JsonPropertyName("preset")] public string Preset { get; init; } = "";
-    [JsonPropertyName("latency_ms")] public int LatencyMs { get; init; }
-
-    /// <summary>
-    /// Whether an LLM actually ran and produced the returned text.
-    /// </summary>
-    /// <remarks>
-    /// NOT OPTIONAL, AND NOT INFERABLE FROM `ok` (issue #499). A 200 with
-    /// `ok: true` does not mean an LLM ran, so this is the field that
-    /// separates a real rewrite from a no-op. `openapi.yaml` documents it and
-    /// macOS declares it a non-optional `Bool` on its `Codable` model
-    /// (`LocalAPITypes.swift:347`); Windows omitted the key entirely, so a
-    /// client sharing the macOS decoder failed with `keyNotFound` on every
-    /// Windows reply.
-    ///
-    /// WHICH no-op it reports is narrower here than on macOS, and that
-    /// difference is NOT introduced by this field — it is the pre-existing
-    /// shape of the endpoint. A Windows provider failure (missing key, HTTP
-    /// error, offline) raises <c>WarningOccurred</c>, and the endpoint turns a
-    /// captured warning into an `ok: false` / `TRANSCRIPTION_FAILED` envelope
-    /// that carries no body fields at all. macOS instead answers `ok: true`
-    /// with the raw input and `post_processed: false` for the same causes. So
-    /// on Windows a `false` here means a SILENT skip — post-processing off for
-    /// the resolved mode, or an empty system prompt — and a caller must handle
-    /// the `ok: false` envelope as well. Documented on the `/post-process`
-    /// path in `openapi.yaml`.
-    ///
-    /// Set from <c>PostProcessingResult.WasApplied</c> — `false` on the
-    /// no-op branch, `true` on the branch that ran. Do not give this a
-    /// default: both call sites must state it, so a third one cannot silently
-    /// inherit `false`.
-    /// </remarks>
-    [JsonPropertyName("post_processed")] public required bool PostProcessed { get; init; }
-}
-
-// MARK: - /recordings ------------------------------------------------------
-
-/// <summary>
-/// Wire projection of the <c>Transcript</c> EF entity. Keys match the macOS
-/// `RecordingDto` 1:1. Windows-only entity columns (FailedReason, RetryCount,
-/// LastRetryDate, TrimmedAudioFilePath, ModeId, RecordingSessionId) are
-/// deliberately omitted to keep the wire shape narrow and identical across
-/// platforms.
-/// </summary>
-internal sealed class RecordingDto
-{
-    [JsonPropertyName("id")] public string Id { get; init; } = "";
-    [JsonPropertyName("text")] public string Text { get; init; } = "";
-    [JsonPropertyName("postProcessedText")] public string? PostProcessedText { get; init; }
-    [JsonPropertyName("transcribedText")] public string? TranscribedText { get; init; }
-    [JsonPropertyName("date")] public DateTime Date { get; init; }
-    [JsonPropertyName("duration")] public double Duration { get; init; }
-    [JsonPropertyName("mode")] public string? Mode { get; init; }
-    [JsonPropertyName("transcriptionProvider")] public string? TranscriptionProvider { get; init; }
-    [JsonPropertyName("postProcessingProvider")] public string? PostProcessingProvider { get; init; }
-    [JsonPropertyName("status")] public string Status { get; init; } = "";
-    [JsonPropertyName("audioFilePath")] public string? AudioFilePath { get; init; }
-}
-
-internal sealed class RecordingsListResponse
-{
-    [JsonPropertyName("ok")] public bool Ok => true;
-    [JsonPropertyName("total")] public int Total { get; init; }
-    [JsonPropertyName("returned")] public int Returned { get; init; }
-    [JsonPropertyName("recordings")] public List<RecordingDto> Recordings { get; init; } = new();
-}
-
-internal sealed class RecordingResponse
-{
-    [JsonPropertyName("ok")] public bool Ok => true;
-    [JsonPropertyName("recording")] public RecordingDto Recording { get; init; } = new();
 }
 
 // MARK: - Port file --------------------------------------------------------

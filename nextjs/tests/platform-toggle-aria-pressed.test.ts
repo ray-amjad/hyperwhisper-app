@@ -55,7 +55,11 @@ moduleMock.module("react", {
 });
 
 moduleMock.module("next-intl", {
-  namedExports: { useTranslations: () => (key: string) => key },
+  namedExports: {
+    useTranslations: () => (key: string) => key,
+    // older-versions formats its release dates in the page locale (#1059).
+    useLocale: () => "en",
+  },
 });
 
 moduleMock.module("next/navigation", {

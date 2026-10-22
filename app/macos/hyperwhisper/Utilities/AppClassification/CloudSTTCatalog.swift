@@ -143,6 +143,30 @@ struct CloudSTTCatalog {
         cloudSttPickerLanguageCodes(id: id)
     }
 
+    /// The shared-catalog entry a bring-your-own-key model belongs to: the
+    /// BYOK-eligible entry whose `sttProvider` is this `cloudProvider` and
+    /// whose `models[]` lists the model, or nil when the catalog does not
+    /// list that model for that provider. Lets the Mode editor's language
+    /// picker use the catalog set for a BYOK model `STTCapabilities` has no
+    /// row for (`gpt-transcribe`, #1942) instead of offering every language.
+    ///
+    /// Provider ids compare on letters and digits only, case-insensitively:
+    /// the macOS raw value `geminitranscribe` is the catalog's
+    /// `gemini-transcribe`.
+    func byokEntryId(cloudProvider: String, modelId: String) -> String? {
+        let key = Self.providerKey(cloudProvider)
+        guard !key.isEmpty else { return nil }
+        return providers.first { entry in
+            entry.access?.byokEligible == true
+                && entry.sttProvider.map(Self.providerKey) == key
+                && model(forEntryId: entry.id, modelId: modelId) != nil
+        }?.id
+    }
+
+    private static func providerKey(_ value: String) -> String {
+        String(value.lowercased().filter { $0.isLetter || $0.isNumber })
+    }
+
     /// Normalize a persisted `cloudProvider` storage value. If the value is a
     /// legacy standalone-provider alias for an entry that is now surfaced as a
     /// HyperWhisper Cloud accuracy tier (e.g. `microsoftazurespeech` →
@@ -171,7 +195,7 @@ struct CloudSTTCatalog {
             return nil
         }
 
-        let resolvedProvider = CloudProvider.parse(cloudProvider) ?? .hyperwhisper
+        let resolvedProvider = CloudProvider.forMode(cloudProvider)
         if resolvedProvider == .meta {
             return UploadDurationConstraint(
                 maximumSeconds: MetaMuseProvider.maxDurationSeconds,

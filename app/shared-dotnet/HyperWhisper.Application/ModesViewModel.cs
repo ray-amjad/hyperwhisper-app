@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.Security.Cryptography;
-using System.Text;
 using System.Windows.Input;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.Data.Entities;
@@ -10,55 +9,12 @@ using HyperWhisper.SharedCore;
 
 namespace HyperWhisper.PortableApplication.ViewModels;
 
-public sealed class ModesViewModel : ViewModelBase
+public sealed partial class ModesViewModel : ViewModelBase
 {
     private readonly ModeRepository _repository;
     private readonly PortableSettingsService? _settings;
     private readonly ICredentialStore? _credentials;
     private Mode? _selected;
-    private string _name = string.Empty;
-    private string _language = "en";
-    private bool _localPostProcessingEnabled;
-    private string _localPostProcessingModel = string.Empty;
-    private string _userSystemPrompt = string.Empty;
-    private string _providerType = "local";
-    private string _localEngine = "whisper";
-    private string _transcriptionModel = "base";
-    private string _cloudProvider = "elevenlabs";
-    private string _cloudAccuracyTier = "elevenLabsScribeV2";
-    private string _cloudDomain = string.Empty;
-    private string _geminiPrompt = string.Empty;
-    private string _customVocabulary = string.Empty;
-    private bool _enableScreenOcr;
-    private string _postProcessingMode = "off";
-    private string _postProcessingProvider = "openai";
-    private string _postProcessingModel = "gpt-4.1-mini";
-    private string _hyperWhisperCloudModel = "anthropic:claude-haiku-5-5";
-    private string _customInstructions = string.Empty;
-    private bool _punctuation = true;
-    private bool _capitalization = true;
-    private bool _profanityFilter;
-    private bool _removeTrailingPeriod;
-    private string _englishSpelling = string.Empty;
-    private string _customEndpointName = string.Empty;
-    private string _customEndpointUrl = string.Empty;
-    private string _customEndpointModel = string.Empty;
-    private string _customEndpointApiKey = string.Empty;
-    private Guid? _customEndpointId;
-    // The Windows editor keeps a preset on the entity and reveals Custom Instructions only for
-    // "custom" (ModeEditorWindow.xaml.cs:1138). Linux used to show the box unconditionally and
-    // never round-tripped Mode.Preset at all, so an edit silently reset a mode to "hyper".
-    private string _preset = "hyper";
-    // "Persistent Instructions" is a checkbox on Windows that reveals the prompt box
-    // (UserPromptCheck → UserPromptPanel). It is not persisted; it starts checked when the mode
-    // already carries a prompt.
-    private bool _userPromptEnabled;
-    // Windows builds a brand-new Mode for the create dialog and leaves ModeService's selection
-    // alone, so the grid keeps its accent border and the status bar keeps its mode name. Linux
-    // used to null Selected instead, which dropped the active mode the instant the dialog opened
-    // and never put it back on Cancel. The flag separates "editing a new mode" from "nothing is
-    // selected" so Save can still tell an insert from an update.
-    private bool _isCreating;
     public ModesViewModel(
         ModeRepository repository,
         PortableSettingsService? settings = null,
@@ -87,7 +43,7 @@ public sealed class ModesViewModel : ViewModelBase
             CloudProvider = "hyperwhisper"; CloudAccuracyTier = "elevenLabsScribeV2"; CloudDomain = string.Empty;
             GeminiPrompt = string.Empty; CustomVocabulary = string.Empty; EnableScreenOcr = false;
             PostProcessingMode = "cloud"; PostProcessingProvider = "hyperwhispercloud";
-            PostProcessingModel = "gpt-4.1-mini"; HyperWhisperCloudModel = "anthropic:claude-haiku-5-5";
+            PostProcessingModel = "gpt-5.6-luna"; HyperWhisperCloudModel = "anthropic:claude-haiku-5-5";
             CustomInstructions = string.Empty; Punctuation = true; Capitalization = true;
             ProfanityFilter = false; RemoveTrailingPeriod = false; EnglishSpelling = string.Empty;
             Preset = "hyper"; UserPromptEnabled = false;
@@ -96,7 +52,58 @@ public sealed class ModesViewModel : ViewModelBase
             return Task.CompletedTask;
         });
         DeleteCommand = new AsyncCommand(_ => DeleteAsync());
+        PropertyChanged += (_, e) =>
+        {
+            if (!_loadingEditor && e.PropertyName is { } name && EditorFieldNames.Contains(name))
+                ClearStaleSuccessStatus();
+        };
     }
+
+    // The persisted editor fields — the same set ModeEditorSnapshot carries. A user edit to any of
+    // them makes the form dirty.
+    private static readonly HashSet<string> EditorFieldNames =
+    [
+        nameof(Name), nameof(Language), nameof(Preset), nameof(LocalPostProcessingEnabled),
+        nameof(LocalPostProcessingModel), nameof(UserSystemPrompt), nameof(UserPromptEnabled),
+        nameof(ProviderType), nameof(LocalEngine), nameof(TranscriptionModel), nameof(CloudProvider),
+        nameof(CloudAccuracyTier), nameof(CloudDomain), nameof(GeminiPrompt), nameof(CustomVocabulary),
+        nameof(EnableScreenOcr), nameof(PostProcessingMode), nameof(PostProcessingProvider),
+        nameof(PostProcessingModel), nameof(HyperWhisperCloudModel), nameof(CustomInstructions),
+        nameof(Punctuation), nameof(Capitalization), nameof(ProfanityFilter), nameof(RemoveTrailingPeriod),
+        nameof(EnglishSpelling), nameof(CustomEndpointName), nameof(CustomEndpointUrl),
+        nameof(CustomEndpointModel), nameof(CustomEndpointApiKey),
+    ];
+
+    /// <summary>
+    /// Issue #632: the editor footer binds <see cref="Status"/>, which is shared with the page and
+    /// outlives the dialog. A `Mode saved` left by the previous save read as confirmation of an
+    /// edit that is still pending. A success line describes state the form no longer shows once a
+    /// field changes, so it goes; an error stays, because it names what the user is fixing.
+    /// </summary>
+    private void ClearStaleSuccessStatus()
+    {
+        if (!Status.HasError && !Status.IsBusy && Status.Message.Length > 0) Status.Clear();
+    }
+
+    /// <summary>
+    /// Called when the mode editor opens, on both the edit and the create path. A success line
+    /// belongs to an earlier dialog — a fresh Create New Mode form used to open on the last edit's
+    /// `Mode saved` (issue #632) — so it goes. An error stays: the footer is the only place this
+    /// status shows, and the gear click that opens the editor sets <see cref="Selected"/>, whose
+    /// failure to persist is reported here. An earlier dialog's own errors are cleared by
+    /// <see cref="EndEditorSession"/> when that dialog is discarded.
+    /// </summary>
+    public void BeginEditorSession()
+    {
+        if (!Status.HasError) Status.Clear();
+    }
+
+    /// <summary>
+    /// Called when the mode editor is discarded (Cancel, Esc or the title bar), BEFORE the
+    /// pre-dialog state is restored. A validation error names a field of the form being thrown
+    /// away, so it must not greet the next dialog; a failure the restore itself raises still shows.
+    /// </summary>
+    public void EndEditorSession() => Status.Clear();
     public ObservableCollection<Mode> Items { get; } = new();
     public Mode? Selected
     {
@@ -123,1020 +130,6 @@ public sealed class ModesViewModel : ViewModelBase
         if (_selected is { } mode) LoadEditorFrom(mode);
     }
 
-    private void LoadEditorFrom(Mode value)
-    {
-        // Windows holds the same flag up for the whole of its own editor load
-        // (ModeEditorWindow.xaml.cs:19, ModeEditorWindow.Load.cs:15/:382) and every combo handler
-        // returns early on it (xaml.cs:615): a vendor assignment made BY the load is not a vendor
-        // change made by the user, and must not move the model selection off the value this mode
-        // was saved with. NormalizeCloudModel is the only reader here.
-        _loadingEditor = true;
-        try
-        {
-            Name = value.Name;
-            Language = value.Language;
-            Preset = string.IsNullOrWhiteSpace(value.Preset) ? "hyper" : value.Preset;
-            LocalPostProcessingEnabled = value.PostProcessingMode == 2
-                && string.Equals(value.PostProcessingProvider, "local_llm", StringComparison.OrdinalIgnoreCase);
-            LocalPostProcessingModel = value.LocalPostProcessingModel ?? string.Empty;
-            UserSystemPrompt = value.UserSystemPrompt ?? string.Empty;
-            ProviderType = value.ProviderType ?? "local";
-            LocalEngine = value.LocalEngine;
-            TranscriptionModel = value.ProviderType == "cloud" ? value.CloudTranscriptionModel ?? string.Empty : value.LocalEngine == "parakeet" ? value.LocalParakeetModel ?? "parakeet-v3" : value.ModelType ?? value.Model ?? "base";
-            CloudProvider = value.CloudProvider ?? "elevenlabs";
-            // Canonicalise on load, not just on save: a mode persisted by an older
-            // build (or restored from a backup) can carry a retired tier id such as
-            // `googleChirp3`. The shared core resolves it through the catalog's
-            // `migrateFrom` list, so the editor opens on the tier the user actually
-            // has (geminiTranscribe) instead of an id that is no longer offered.
-            CloudAccuracyTier = SharedCoreBridge.CanonicalCloudSttTier(value.CloudAccuracyTier);
-            CloudDomain = value.CloudTranscriptionDomain ?? string.Empty;
-            GeminiPrompt = value.GeminiCustomPrompt ?? string.Empty;
-            CustomVocabulary = string.Join(", ", value.CustomVocabulary ?? []);
-            EnableScreenOcr = value.EnableScreenOCR;
-            PostProcessingMode = value.PostProcessingMode switch { 1 => "cloud", 2 => "local", _ => "off" };
-            PostProcessingProvider = value.PostProcessingProvider?.StartsWith("custom:", StringComparison.OrdinalIgnoreCase) == true
-                ? "custom" : value.PostProcessingProvider ?? "openai";
-            PostProcessingModel = value.LanguageModel ?? string.Empty;
-            // Canonicalise on load: a mode saved before 2026-10 stores
-            // "anthropic:claude-haiku-4-5", which the picker no longer lists. Map it to the
-            // provider's default (Haiku 5.5), as Windows FromString does, so the picker opens
-            // on a row instead of blank.
-            HyperWhisperCloudModel = HyperWhisper.ModelReadiness.CloudPostProcessingCatalog.Canonicalize(value.CloudPostProcessingModel);
-            CustomInstructions = value.CustomInstructions ?? string.Empty;
-            Punctuation = value.Punctuation; Capitalization = value.Capitalization;
-            ProfanityFilter = value.ProfanityFilter; RemoveTrailingPeriod = value.RemoveTrailingPeriod;
-            EnglishSpelling = value.EnglishSpelling ?? string.Empty;
-            UserPromptEnabled = !string.IsNullOrWhiteSpace(value.UserSystemPrompt);
-            LoadCustomEndpoint(value.PostProcessingProvider);
-            // AFTER the fields above, never before: the assignments each notify, every notification
-            // re-reads CloudModels, and the vendor and model this mode is pinned on are only final
-            // here. Windows pins at the same point, from the same persisted value
-            // (ModeEditorWindow.Load.cs:200-201).
-            ApplyLoadedCloudModel();
-            NotifyEditorReveals();
-        }
-        finally { _loadingEditor = false; }
-    }
-    public string Name { get => _name; set { if (Set(ref _name, value)) Notify(nameof(CanSave)); } }
-    public string Language
-    {
-        get => _language;
-        set { if (Set(ref _language, value)) NotifyEditorReveals(); }
-    }
-    public bool LocalPostProcessingEnabled
-    {
-        get => _localPostProcessingEnabled;
-        set
-        {
-            if (!Set(ref _localPostProcessingEnabled, value)) return;
-            var desired = value ? "local" : _postProcessingMode == "local" ? "off" : _postProcessingMode;
-            if (_postProcessingMode != desired)
-            {
-                _postProcessingMode = desired;
-                Notify(nameof(PostProcessingMode));
-            }
-        }
-    }
-    public string LocalPostProcessingModel
-    {
-        get => _localPostProcessingModel;
-        set { if (Set(ref _localPostProcessingModel, value)) Notify(nameof(CanSave)); }
-    }
-    public string UserSystemPrompt { get => _userSystemPrompt; set => Set(ref _userSystemPrompt, value); }
-    public string ProviderType
-    {
-        get => _providerType;
-        set
-        {
-            if (!Set(ref _providerType, value)) return;
-            if (value == "cloud" && IsLocalTranscriptionModelId(_transcriptionModel)) TranscriptionModel = string.Empty;
-            NormalizeLocalModel();
-            NormalizeCloudModel();
-            NormalizeDictationDomain();
-            NotifyEditorReveals();
-        }
-    }
-    public string LocalEngine
-    {
-        get => _localEngine;
-        set { if (Set(ref _localEngine, value)) { NormalizeLocalModel(); NotifyEditorReveals(); } }
-    }
-
-    private ManagedModelKind LocalModelKind => string.Equals(_localEngine, "parakeet", StringComparison.Ordinal)
-        ? ManagedModelKind.Parakeet : ManagedModelKind.Whisper;
-
-    /// <summary>
-    /// The model ids the chosen on-device engine can actually run. Windows fills its single
-    /// LocalModelCombo (ModeEditorWindow.xaml:104) from the same catalog, so the card offers a
-    /// pick list rather than a free-text box.
-    /// </summary>
-    /// One cached list per engine.
-    ///
-    /// This used to build a NEW list on every read, and a single engine change notifies it twice
-    /// (NormalizeLocalModel assigns TranscriptionModel, whose setter notifies again). Avalonia
-    /// clears SelectedItem whenever ItemsSource is a different instance, so the model combo went
-    /// blank while the value underneath stayed correct. The list depends only on the engine, so
-    /// the same instance is handed back until the engine changes.
-    public IReadOnlyList<string> LocalModels
-    {
-        get
-        {
-            var kind = LocalModelKind;
-            if (_localModels is null || _localModelsKind != kind)
-            {
-                _localModelsKind = kind;
-                _localModels = [.. PortableModelCatalog.All.Where(model => model.Kind == kind).Select(model => model.Id)];
-            }
-            return _localModels;
-        }
-    }
-
-    private IReadOnlyList<string>? _localModels;
-    private ManagedModelKind? _localModelsKind;
-
-    /// <summary>
-    /// Mirrors the guard above. Switching TO cloud already drops a local model id; without the
-    /// reverse a cloud tier such as `scribe_v2` survived a switch to On-device and sat in the
-    /// local model field, where it is not a catalog entry and silently blocks CanSave. Windows
-    /// cannot show that state at all because its combo only lists entries for the engine.
-    ///
-    /// ORDER MATTERS, for the reason <see cref="NormalizeCloudModel"/> spells out (issue #1629).
-    /// An engine change swaps the model combo's ItemsSource for the other engine's list. Avalonia
-    /// clears a SelectedItem the new list lacks, the <see cref="LocalTranscriptionModel"/> proxy
-    /// refuses the null write-back, and the binding re-reads the property and records what it
-    /// finds as already delivered. If the incoming id is assigned first, that re-read records the
-    /// INCOMING id, the notification that follows is deduplicated, and the combo stays blank over
-    /// a correct field (Whisper -> Parakeet showed nothing while parakeet-v2 was saved). Handing
-    /// the combo the new list while the field still holds the OUTGOING id makes the incoming one a
-    /// change the binding delivers.
-    /// </summary>
-    private void NormalizeLocalModel()
-    {
-        if (!IsOnDeviceSource) return;
-        var kind = LocalModelKind;
-        if (PortableModelCatalog.All.Any(model => model.Kind == kind
-            && string.Equals(model.Id, _transcriptionModel, StringComparison.Ordinal))) return;
-        // The list BEFORE the selection — see the order note above. The getter rebuilds the cache
-        // for the new engine here; the LocalModels notification NotifyEditorReveals raises a moment
-        // later finds the same instance and is a no-op at the control.
-        Notify(nameof(LocalModels));
-        TranscriptionModel = PortableModelCatalog.All.First(model => model.Kind == kind).Id;
-    }
-
-    /// <summary>
-    /// True when <paramref name="id"/> names an on-device (Whisper or Parakeet) model.
-    ///
-    /// ONE predicate with three callers: the <see cref="ProviderType"/> setter drops such an id on
-    /// the way to cloud, <see cref="ApplyLoadedCloudModel"/> refuses to pin one into the BYOK
-    /// dropdown, and <c>SaveAsync</c> refuses to write one into the cloud column. The three used to
-    /// be inline copies of the same catalog query, and they disagreed: only SaveAsync trimmed. A
-    /// mode POSTed to the Local API with <c>"cloudTranscriptionModel": " base "</c> — no write path
-    /// trims that column — therefore escaped the other two, was offered as a BYOK model, and then
-    /// saved back as <c>null</c> with no error, which is the exact fault the guards exist to stop.
-    /// The trim lives here so every caller gets it.
-    /// </summary>
-    private static bool IsLocalTranscriptionModelId(string? id)
-    {
-        var trimmed = (id ?? string.Empty).Trim();
-        return trimmed.Length > 0 && PortableModelCatalog.All.Any(model =>
-            model.Kind is ManagedModelKind.Whisper or ManagedModelKind.Parakeet
-            && string.Equals(model.Id, trimmed, StringComparison.Ordinal));
-    }
-
-    /// <summary>
-    /// The model ids a BYOK vendor offers, in catalog order — what the Cloud Model combo lists.
-    ///
-    /// <see cref="CloudProviders"/> holds the ids a mode is PERSISTED with; the shared cloud STT
-    /// catalog keys its vendors on <c>sttProvider</c>, and the two spellings differ for Gemini
-    /// Transcribe (<c>geminitranscribe</c> here, <c>gemini-transcribe</c> there). Without the alias
-    /// that shipping BYOK vendor (LinuxLiveStreamingAdapters.cs:76) drew an EMPTY dropdown. The
-    /// same pair of spellings is already reconciled at ProviderAssets.cs:58/:62 and
-    /// SettingsViewModel.cs:590; this adds no model id and changes no catalog.
-    ///
-    /// Two vendor ids still return nothing, and correctly so:
-    /// <c>microsoftazurespeech</c> resolves to <c>azure-mai</c>, which the catalog does not mark
-    /// <c>byokEligible</c>; and <c>googlespeech</c> has no catalog vendor at all.
-    /// <see cref="NormalizeCloudModel"/> empties the selection to match, so Save writes null —
-    /// which is what an implicit model means. <c>grok</c> was a third until 2026-09-19: its single
-    /// catalog model carried an empty id, because an xAI request named no model.
-    /// </summary>
-    private static IReadOnlyList<string> CloudVendorModelIds(string vendor)
-        => [.. HyperWhisper.ModelReadiness.CloudSttModelCatalog
-            .ForProvider(string.Equals(vendor, "geminitranscribe", StringComparison.OrdinalIgnoreCase)
-                ? "gemini-transcribe" : vendor)
-            .Select(entry => entry.Value)];
-
-    /// <summary>
-    /// Mirrors <see cref="NormalizeLocalModel"/> for the BYOK picker: once a control OTHER than the
-    /// model combo has committed — the vendor combo, or the transcription source segment — the
-    /// selected model must be one the vendor now in force actually offers.
-    ///
-    /// This is the second half of issue #645. The first half made <see cref="CloudModels"/> a pure
-    /// read that never shrinks under the MODEL combo's own commit. That left the VENDOR combo
-    /// handing the list a wholly new set of ids while <c>_transcriptionModel</c> still held the old
-    /// vendor's: Avalonia cleared a SelectedItem that was no longer in ItemsSource, the
-    /// <see cref="CloudTranscriptionModel"/> proxy refused the null write-back, so the field read
-    /// blank while the value underneath survived — and SaveAsync, which strips only LOCAL ids, then
-    /// wrote the old vendor's model id under the new vendor with a `Mode saved` status. Every
-    /// dictation on that mode afterwards posts one vendor's model id to another vendor.
-    ///
-    /// Moving the selection is a WRITE, so it lives here and at the two setters that call it, never
-    /// in the <see cref="CloudModels"/> getter. Windows does the same thing from the same two
-    /// places: a provider change (ModeEditorWindow.xaml.cs:615-617 → :724) and a switch to the
-    /// "your provider" segment (:1184-1186) both call LoadCloudModels with NO preferred id, which
-    /// ends at <c>CloudModelCombo.SelectedIndex = 0</c> (:532-534).
-    ///
-    /// Never while the editor is loading a mode or restoring a cancelled one: there the persisted
-    /// id is the whole point, and <see cref="ApplyLoadedCloudModel"/> keeps it visible instead.
-    /// Windows guards the same call with its own <c>_isLoading</c> (xaml.cs:615).
-    ///
-    /// ORDER MATTERS, and it is the whole of the verify-round fix. The list must reach the bound
-    /// ComboBox while this field still holds the OUTGOING id, never after the incoming one is in
-    /// place. Measured against a real Avalonia 12.1.1 ComboBox: when ItemsSource is swapped for a
-    /// different instance that does not contain the current SelectedItem, Avalonia clears the
-    /// selection and the two-way binding writes that null back; the
-    /// <see cref="CloudTranscriptionModel"/> proxy refuses a null (it has to — the hidden picker's
-    /// combo would otherwise wipe the shared field), and the binding then RE-READS the property and
-    /// records what it finds as the value it has already delivered. Assign first and that value is
-    /// the incoming id, so the <c>CloudTranscriptionModel</c> notification that follows carries a
-    /// value the binding believes it already published, is deduplicated, and never reaches the
-    /// control: the combo stays blank over a correct field for the rest of the dialog. Notify
-    /// first and the binding records the OUTGOING id, so the incoming one is a change it delivers.
-    ///
-    /// The field run on a real X screen read this as "Deepgram and Google Gemini go blank, the
-    /// three other vendors do not", and reasonably guessed at the two panel reveals those two
-    /// vendors share. It is not the reveals. Every vendor change made from a combo that HAS a
-    /// selection went blank and every one made from an already-blank combo did not, so the walk
-    /// alternated and the two vendors that happened to land on the failing beat were those two.
-    /// Reversing the walk order moves the blanks onto ElevenLabs and Groq.
-    /// </summary>
-    private void NormalizeCloudModel()
-    {
-        if (_loadingEditor || !IsYourProviderSource) return;
-        var catalog = CloudVendorModelIds(_cloudProvider);
-        // OrdinalIgnoreCase, as the vendor lookup is: a mode persisted with `Whisper-1` names the
-        // catalog's `whisper-1` and must not be treated as a model openai does not offer.
-        if (catalog.Any(id => string.Equals(id, _transcriptionModel, StringComparison.OrdinalIgnoreCase))) return;
-        // Hand the combo the new vendor's list BEFORE the new selection — see the order note above.
-        // The getter is a pure read, so this only releases the cache the vendor change invalidated;
-        // the CloudModels notification NotifyEditorReveals raises a moment later then finds the same
-        // instance and is a no-op at the control.
-        Notify(nameof(CloudModels));
-        TranscriptionModel = catalog.Count > 0 ? catalog[0] : string.Empty;
-    }
-    public string TranscriptionModel
-    {
-        get => _transcriptionModel;
-        set { if (Set(ref _transcriptionModel, value)) { NormalizeDictationDomain(); NotifyEditorReveals(); } }
-    }
-    /// <summary>
-    /// The model ids the chosen BYOK vendor offers. Windows fills the same field from a pick list
-    /// (ModeEditorWindow.xaml:244, LoadCloudModels), so a raw id is never typed or shown; Linux had
-    /// a free-text box here, which put the saved id on screen verbatim.
-    ///
-    /// A mode written by another platform, or by a newer catalog, may hold an id this build does
-    /// not list at all. Linux keeps such a value visible: the id
-    /// <see cref="ApplyLoadedCloudModel"/> pinned is appended after the vendor's own models.
-    ///
-    /// This DIVERGES from Windows on purpose, and the divergence is worth being precise about.
-    /// Windows re-adds a preferred id only when it IS in the vendor's full catalog and was merely
-    /// filtered out of the shortlist — a retired model such as ElevenLabs `scribe_v1`
-    /// (ModeEditorWindow.xaml.cs:491-505). For an id the catalog does not contain AT ALL its
-    /// `currentModel` lookup returns null and control falls through to
-    /// `CloudModelCombo.SelectedIndex = 0` (:532-534, repeated at ModeEditorWindow.Load.cs:213-216),
-    /// so Windows silently migrates that mode to a different model on the next save. Linux would
-    /// rather show the id the user's mode is actually set to than rewrite it behind their back, so
-    /// it pins instead. The two heads agree everywhere the selection is NOT the user's saved value:
-    /// see <see cref="NormalizeCloudModel"/>, which is index 0, exactly as Windows does it.
-    ///
-    /// This getter is a pure read of the vendor and that pin (issue #645). It used to key the cache
-    /// on the CURRENT model id, so clicking an entry in the combo dropped the appended id and
-    /// handed back a SHORTER list in the middle of the selection commit: the model setter notifies
-    /// this property, and Avalonia's selection model then read the clicked index out of the new,
-    /// shorter list and took the whole process down with an ArgumentOutOfRangeException. Windows
-    /// cannot hit this because a model click only redraws a description
-    /// (ModeEditorWindow.xaml.cs:564-607); its combo is refilled from three places only — a
-    /// provider change (:724), the Show-all checkbox (:545) and a mode load
-    /// (ModeEditorWindow.Load.cs:201) — and never from the model combo's own handler.
-    /// </summary>
-    public IReadOnlyList<string> CloudModels
-    {
-        get
-        {
-            // Hand back the SAME list instance while the vendor and the pin are unchanged. Every
-            // reveal notification re-reads this property, and a fresh list each time makes the
-            // bound ComboBox drop and re-pick its selection on every keystroke elsewhere in the
-            // form. The vendor is matched OrdinalIgnoreCase, as CloudSttModelCatalog keys it.
-            // Compare-in-getter, like the sibling LocalModels: this is cache invalidation, and it
-            // reads and writes nothing but the three cache fields.
-            if (!string.Equals(_cloudModelsProvider, _cloudProvider, StringComparison.OrdinalIgnoreCase))
-            {
-                // A vendor change drops the pin along with the list: a pinned id belongs to the
-                // vendor it was pinned for, and leaving it would offer one vendor's model under
-                // another — which SaveAsync would then persist, as it strips only LOCAL ids.
-                // The SELECTION is moved onto the new vendor's first id by NormalizeCloudModel,
-                // from the setter that changed the vendor; a getter must never write it.
-                _cloudModelsProvider = _cloudProvider;
-                _cloudModelsPinnedId = null;
-                _cloudModels = null;
-            }
-            if (_cloudModels is not null) return _cloudModels;
-            var ids = CloudVendorModelIds(_cloudProvider).ToList();
-            if (_cloudModelsPinnedId is { Length: > 0 } pinned) ids.Add(pinned);
-            return _cloudModels = ids;
-        }
-    }
-
-    /// <summary>
-    /// Settles the BYOK model list on the id the editor has just taken from persisted or restored
-    /// data: drops the cached list, folds the id onto the catalog's own spelling when the catalog
-    /// has it, and otherwise pins it so <see cref="CloudModels"/> appends it and the user can see
-    /// what their mode is set to.
-    ///
-    /// Called ONLY from <see cref="LoadEditorFrom"/> and <see cref="RestoreEditorState"/>, after
-    /// their fields are assigned. Windows takes the mode's saved id at exactly that point too, as
-    /// LoadCloudModels' preferredModelId (ModeEditorWindow.Load.cs:200-201); its other two call
-    /// sites are a provider change, which passes none (ModeEditorWindow.xaml.cs:724), and the
-    /// Show-all checkbox, which passes the combo's CURRENT selection (:545).
-    ///
-    /// Deriving the pin inside the getter instead (issue #645, review round 1) captured whatever
-    /// _transcriptionModel happened to hold at the instant of a read and never released it: the
-    /// OUTGOING mode's id while the next mode was still loading, the on-device default `base` while
-    /// the create dialog sat between its ProviderType and TranscriptionModel assignments, and a
-    /// local id such as `tiny` that NormalizeLocalModel assigned during an On-device detour the
-    /// user then cancelled. Each stayed in the dropdown and could be re-selected; a foreign vendor's
-    /// id then saves under the wrong vendor and a local id saves as null.
-    ///
-    /// NewCommand needs no call: it assigns CloudProvider="hyperwhisper", and a pin exists only for
-    /// the BYOK vendor it was derived for, so the vendor change in the getter drops it.
-    /// </summary>
-    private void ApplyLoadedCloudModel()
-    {
-        _cloudModelsProvider = _cloudProvider;
-        _cloudModelsPinnedId = null;
-        _cloudModels = null;
-        // Only the BYOK picker draws this list, so only the BYOK state may pin into it. The
-        // HyperWhisper Cloud segment edits the same TranscriptionModel field through its own tier
-        // model control (ShowCloudAccuracyPanel), and On-device edits it through LocalModels.
-        if (!IsYourProviderSource || _transcriptionModel.Length == 0) return;
-        // A local model id is never a cloud model id, whatever a mode's cloud column holds: an
-        // older build persisted CloudTranscriptionModel="base", and the ProviderType guard drops
-        // such an id rather than showing it. The shared predicate trims, so a value POSTed to the
-        // Local API as " base " cannot slip past this and then save itself back as null.
-        if (IsLocalTranscriptionModelId(_transcriptionModel)) return;
-        // OrdinalIgnoreCase, as CloudSttModelCatalog keys its vendors and as Windows matches its
-        // combo tags (ModeEditorWindow.xaml.cs:497, :519-523). Ordinal here listed one model twice:
-        // a mode POSTed with `Whisper-1` (no write path folds that column's case) missed the
-        // catalog row `whisper-1`, so it was pinned and appended, and because Label() is an Ordinal
-        // dictionary the catalog row drew its display name and the pinned row drew the raw id.
-        // Folding the field onto the catalog's spelling is what Windows does through
-        // ResolveModelAlias plus its OrdinalIgnoreCase tag match; both callers notify right after.
-        var listed = CloudVendorModelIds(_cloudProvider)
-            .FirstOrDefault(id => string.Equals(id, _transcriptionModel, StringComparison.OrdinalIgnoreCase));
-        if (listed is null) _cloudModelsPinnedId = _transcriptionModel;
-        else _transcriptionModel = listed;
-    }
-
-    private string? _cloudModelsProvider;
-    private string? _cloudModelsPinnedId;
-    private IReadOnlyList<string>? _cloudModels;
-    private bool _loadingEditor;
-
-    /// <summary>
-    /// The on-device and BYOK model pickers both edit TranscriptionModel, but each lists only its
-    /// own catalog. Windows rebuilds one combo per panel as the panel is revealed; a XAML head that
-    /// keeps both alive has a hidden combo whose ItemsSource no longer holds the selected id, and a
-    /// two-way SelectedItem then writes null straight back and wipes the field. These two proxies
-    /// read as null while their panel is hidden and refuse a null write, so only the visible picker
-    /// can change the model.
-    /// </summary>
-    public string? LocalTranscriptionModel
-    {
-        get => IsOnDeviceSource ? _transcriptionModel : null;
-        set { if (!string.IsNullOrEmpty(value)) TranscriptionModel = value; }
-    }
-
-    /// <inheritdoc cref="LocalTranscriptionModel"/>
-    public string? CloudTranscriptionModel
-    {
-        get => IsYourProviderSource ? _transcriptionModel : null;
-        set { if (!string.IsNullOrEmpty(value)) TranscriptionModel = value; }
-    }
-
-    public IReadOnlyList<string> ProviderTypes { get; } = ["local", "cloud"];
-    public IReadOnlyList<string> LocalEngines { get; } = ["whisper", "parakeet"];
-    public string CloudProvider
-    {
-        get => _cloudProvider;
-        // Same shape as LocalEngine above: the list the picker draws is rebuilt lazily by the
-        // getter, and the SELECTION is moved onto that list here, where the change is written.
-        set { if (Set(ref _cloudProvider, value)) { NormalizeCloudModel(); NormalizeDictationDomain(); NotifyEditorReveals(); } }
-    }
-    public string CloudAccuracyTier
-    {
-        get => _cloudAccuracyTier;
-        set { if (Set(ref _cloudAccuracyTier, value)) { NormalizeDictationDomain(); Notify(nameof(CloudVendor)); Notify(nameof(CloudTierModels)); NotifyEditorReveals(); } }
-    }
-
-    /// <summary>
-    /// Every model the selected COMPANY offers, across all of its tiers — so the merged
-    /// Google row lists Gemini 3.5 Transcribe beside the Gemini family, exactly as macOS
-    /// and Windows list them. The list used to hold one tier's models only.
-    ///
-    /// Cached per company, and the cache is what keeps the SELECTION: a getter that built a
-    /// fresh list on every read handed the picker a new ItemsSource mid-commit, and the
-    /// selection it was committing was no longer an item of it.
-    /// </summary>
-    public IReadOnlyList<string> CloudTierModels =>
-        GroupForTier(_cloudAccuracyTier) is { } group ? VendorModelIds[group.VendorKey] : [];
-
-    /// <summary>
-    /// The model the Model row shows, and the tier it moves the mode onto.
-    ///
-    /// A company row can span tiers, so the MODEL decides the tier — picking a Gemini
-    /// family model under "Google" moves the mode off <c>geminiTranscribe</c> and onto
-    /// <c>gemini</c>, which is a different upstream route and different credits. Windows
-    /// resolves it the same way, from the item's own tier id (ModeEditorWindow.xaml.cs:253).
-    ///
-    /// The getter falls back to the tier default rather than to null. A HyperWhisper Cloud
-    /// mode that never chose a model stores an empty id, and the old getter drew an empty
-    /// row for it — the user saw no model at all and could not tell which one would run.
-    /// The fallback is display only: Save still writes null for an unchosen model, and the
-    /// send path still resolves the tier default from the same catalog.
-    /// </summary>
-    public string? CloudTierModel
-    {
-        get
-        {
-            if (!IsHwCloudSource) return null;
-            // The stored model shows only when the CURRENT tier owns it. The list holds the
-            // whole company, so a mode saved with tier `geminiTranscribe` and model
-            // `gemini-2.5-flash` would draw Gemini 2.5 Flash while the router ran the tier
-            // default. Show what will run instead.
-            if (TierOffers(_cloudAccuracyTier, _transcriptionModel)) return _transcriptionModel;
-            return DefaultModelForTier(_cloudAccuracyTier);
-        }
-        set
-        {
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                // A ComboBox clears its selection when the ItemsSource swaps to a list that
-                // does not hold it, and writes that null back through the two-way binding.
-                // Changing company does exactly that, and the write lands AFTER the change
-                // notification. Dropping it silently was not enough: the model stayed set and
-                // the row still drew EMPTY, measured on the Linux head 2026-09-20 with Google
-                // selected. Re-assert, so the picker reads the value back.
-                Notify(nameof(CloudTierModel));
-                return;
-            }
-            if (!TierOffers(_cloudAccuracyTier, _transcriptionModel)
-                && string.Equals(value, DefaultModelForTier(_cloudAccuracyTier), StringComparison.Ordinal))
-            {
-                // The getter's display fallback, echoed back. The dialog re-applies the
-                // selection after a list change, and the two-way binding writes that value
-                // here. The stored model is one this tier does not run — blank, the on-device
-                // placeholder "base", or another tier's id — so the tier default runs either
-                // way. Storing it would save a model the user never picked.
-                return;
-            }
-            var owner = (GroupForTier(_cloudAccuracyTier)?.Models ?? [])
-                .FirstOrDefault(m => string.Equals(m.ModelId, value, StringComparison.Ordinal));
-            var tierMoved = false;
-            if (owner is not null && !string.Equals(owner.TierId, _cloudAccuracyTier, StringComparison.Ordinal))
-            {
-                // Assign the field, not the property: the property's setter notifies
-                // CloudTierModels, and a list change mid-write makes the picker re-read a
-                // selection that is not written yet.
-                _cloudAccuracyTier = owner.TierId;
-                NormalizeDictationDomain();
-                Notify(nameof(CloudAccuracyTier));
-                tierMoved = true;
-            }
-            var modelChanged = !string.Equals(_transcriptionModel, value, StringComparison.Ordinal);
-            TranscriptionModel = value;
-            // The model setter notifies the reveals only when the id CHANGES. A mode that
-            // already stored this id under another tier moves tier here with the same id,
-            // and the credits, vocabulary and dictation rows must still follow the tier.
-            if (tierMoved && !modelChanged) NotifyEditorReveals();
-        }
-    }
-    public bool IsDictation => _transcriptionModel == "dictation"
-        && (IsHwCloudSource && _cloudAccuracyTier == "assemblyAI" || IsYourProviderSource && _cloudProvider == "assemblyai");
-    public bool IsNotDictation => !IsDictation;
-    // A hidden ComboBox still writes null when its list cannot represent Language.
-    // Keep that selection separate from the unrestricted language input, and preserve
-    // invalid loaded choices so Save can report them instead of inventing a default.
-    public string? DictationLanguage
-    {
-        get => IsDictation && DictationLanguages.Contains(_language) ? _language : null;
-        set { if (IsDictation && value is not null && DictationLanguages.Contains(value)) Language = value; }
-    }
-
-    private void NormalizeDictationDomain()
-    {
-        if (!_loadingEditor && IsDictation) CloudDomain = string.Empty;
-    }
-
-    public IReadOnlyList<string> DictationLanguages { get; } = ["en", "es", "de", "fr", "it", "pt", "tr", "nl", "sv", "no", "da", "fi", "hi", "vi", "he", "ur", "ko", "ca", "gl", "ru", "ro", "et", "fa", "yue", "af", "mr", "zu", "xh", "nn", "ar", "ja", "zh"];
-    public string CloudDomain { get => _cloudDomain; set => Set(ref _cloudDomain, value); }
-    public string GeminiPrompt { get => _geminiPrompt; set => Set(ref _geminiPrompt, value); }
-    public string CustomVocabulary { get => _customVocabulary; set => Set(ref _customVocabulary, value); }
-    public bool EnableScreenOcr { get => _enableScreenOcr; set => Set(ref _enableScreenOcr, value); }
-    public string PostProcessingMode
-    {
-        get => _postProcessingMode;
-        set
-        {
-            var normalized = value is "cloud" or "local" ? value : "off";
-            if (!Set(ref _postProcessingMode, normalized)) return;
-            if (_localPostProcessingEnabled != (normalized == "local"))
-            {
-                _localPostProcessingEnabled = normalized == "local";
-                Notify(nameof(LocalPostProcessingEnabled));
-            }
-            NotifyEditorReveals();
-        }
-    }
-    public string PostProcessingProvider
-    {
-        get => _postProcessingProvider;
-        set { if (Set(ref _postProcessingProvider, value ?? "openai")) NotifyEditorReveals(); }
-    }
-    public string PostProcessingModel { get => _postProcessingModel; set => Set(ref _postProcessingModel, value ?? string.Empty); }
-    public string HyperWhisperCloudModel { get => _hyperWhisperCloudModel; set => Set(ref _hyperWhisperCloudModel, value ?? string.Empty); }
-    public string CustomInstructions { get => _customInstructions; set => Set(ref _customInstructions, value ?? string.Empty); }
-    public bool Punctuation
-    {
-        get => _punctuation;
-        set { if (Set(ref _punctuation, value)) Notify(nameof(ShowRemoveTrailingPeriod)); }
-    }
-    public bool Capitalization { get => _capitalization; set => Set(ref _capitalization, value); }
-    public bool ProfanityFilter { get => _profanityFilter; set => Set(ref _profanityFilter, value); }
-    public bool RemoveTrailingPeriod { get => _removeTrailingPeriod; set => Set(ref _removeTrailingPeriod, value); }
-    public string EnglishSpelling { get => _englishSpelling; set => Set(ref _englishSpelling, value ?? string.Empty); }
-    public string CustomEndpointName { get => _customEndpointName; set => Set(ref _customEndpointName, value ?? string.Empty); }
-    public string CustomEndpointUrl { get => _customEndpointUrl; set => Set(ref _customEndpointUrl, value ?? string.Empty); }
-    public string CustomEndpointModel { get => _customEndpointModel; set => Set(ref _customEndpointModel, value ?? string.Empty); }
-    public string CustomEndpointApiKey { get => _customEndpointApiKey; set => Set(ref _customEndpointApiKey, value ?? string.Empty); }
-    public IReadOnlyList<string> PostProcessingModes { get; } = ["off", "cloud", "local"];
-    public IReadOnlyList<string> PostProcessingProviders { get; } = ["hyperwhispercloud", "openai", "anthropic", "groq", "grok", "gemini", "cerebras", "mistral", "custom"];
-    // Lowercase ids, matched ordinally on save. `geminitranscribe` is the BYOK
-    // Gemini 3.5 Transcribe provider, distinct from `gemini` (the multimodal
-    // model) and from the `geminiTranscribe` HyperWhisper Cloud accuracy TIER.
-    public IReadOnlyList<string> CloudProviders { get; } = ["openai", "groq", "elevenlabs", "mistral", "grok", "deepgram", "assemblyai", "soniox", "gemini", "geminitranscribe", "microsoftazurespeech", "googlespeech", "meta", "hyperwhisper"];
-    // =====================================================================================
-    // HYPERWHISPER CLOUD — the Provider row is a COMPANY, read from the catalog (#837).
-    //
-    // This used to be a hand-kept array of 12 tier ids, and the picker labelled each one
-    // from `modes.cloudAccuracy.<tierId>.label` in 80 translation files. So a company name
-    // was written 81 times, and Linux showed "Grok STT" where macOS and Windows showed
-    // "SpaceXAI". The same call the other 2 heads already make answers both questions.
-    // =====================================================================================
-
-    /// <summary>
-    /// The company rows, in catalog order. Read once: the catalog is compiled into the
-    /// shared core, so it cannot change while the app runs.
-    /// </summary>
-    private static readonly IReadOnlyList<SharedCoreBridge.CloudSttVendorGroup> VendorGroups =
-        LoadVendorGroups();
-
-    /// <summary>
-    /// Reads the company rows, and answers an empty list when the native core cannot.
-    ///
-    /// This runs from a static initializer. An exception here becomes a cached
-    /// <c>TypeInitializationException</c>, and every later touch of this type throws it, so
-    /// the whole Modes page dies, not only the cloud pickers. Windows guards the same call
-    /// the same way (CloudSttCatalog.Load). With no rows the page still loads and the Provider
-    /// picker is empty. Actions that need the core still fail, one at a time, and report it.
-    /// </summary>
-    private static IReadOnlyList<SharedCoreBridge.CloudSttVendorGroup> LoadVendorGroups()
-    {
-        try
-        {
-            return SharedCoreBridge.CloudSttVendorGroups();
-        }
-        catch (Exception exception)
-        {
-            System.Diagnostics.Trace.TraceError(
-                $"Cloud STT vendor groups failed to load from the shared core: {exception}");
-            return [];
-        }
-    }
-
-    /// <summary>
-    /// One model-id list per company, built once. Backs <see cref="CloudTierModels"/>; see
-    /// that property for why the list has to be the SAME instance on every read.
-    /// </summary>
-    private static readonly Dictionary<string, IReadOnlyList<string>> VendorModelIds =
-        VendorGroups.ToDictionary(
-            g => g.VendorKey,
-            g => (IReadOnlyList<string>)[.. g.Models.Select(m => m.ModelId)],
-            StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>The Provider picker's rows: one <c>vendor</c> key per company.</summary>
-    public IReadOnlyList<string> CloudVendors { get; } = [.. VendorGroups.Select(g => g.VendorKey)];
-
-    /// <summary>
-    /// Every cloud accuracy tier the catalog offers — the allow-list Save checks a
-    /// canonicalised tier against. A company can own several (Google holds
-    /// <c>geminiTranscribe</c> and <c>gemini</c>), so this is the flattened set, not one
-    /// entry per company.
-    /// </summary>
-    public IReadOnlyList<string> CloudAccuracyTiers { get; } = [.. VendorGroups.SelectMany(g => g.TierIds)];
-
-    /// <summary>True when <paramref name="tierId"/> itself offers <paramref name="modelId"/>.</summary>
-    private static bool TierOffers(string? tierId, string? modelId) =>
-        !string.IsNullOrEmpty(modelId)
-        && (GroupForTier(tierId)?.Models ?? []).Any(m =>
-            string.Equals(m.TierId, tierId, StringComparison.OrdinalIgnoreCase)
-            && string.Equals(m.ModelId, modelId, StringComparison.Ordinal));
-
-    /// <summary>The company that owns <paramref name="tierId"/>, or null.</summary>
-    private static SharedCoreBridge.CloudSttVendorGroup? GroupForTier(string? tierId) =>
-        string.IsNullOrEmpty(tierId)
-            ? null
-            : VendorGroups.FirstOrDefault(
-                g => g.TierIds.Contains(tierId, StringComparer.OrdinalIgnoreCase));
-
-    /// <summary>The company with this <c>vendor</c> key, or null.</summary>
-    private static SharedCoreBridge.CloudSttVendorGroup? GroupForVendor(string? vendorKey) =>
-        string.IsNullOrEmpty(vendorKey)
-            ? null
-            : VendorGroups.FirstOrDefault(
-                g => string.Equals(g.VendorKey, vendorKey, StringComparison.OrdinalIgnoreCase));
-
-    /// <summary>
-    /// The company the Provider row shows. Derived from the saved TIER, because the tier is
-    /// what the mode stores and what the send path puts in <c>X-STT-Provider</c>.
-    ///
-    /// Setting it moves the mode onto that company's default tier and default model, which
-    /// is what Windows does on the same change (ModeEditorWindow.xaml.cs:749-758). Writing
-    /// the model here is also what stops the Model row going blank: it used to show nothing
-    /// at all whenever the mode's stored model was not one this tier offers, which is every
-    /// HyperWhisper Cloud mode that never chose a model.
-    /// </summary>
-    public string CloudVendor
-    {
-        get => GroupForTier(_cloudAccuracyTier)?.VendorKey ?? string.Empty;
-        set
-        {
-            var group = GroupForVendor(value);
-            if (group is null || string.Equals(group.VendorKey, CloudVendor, StringComparison.OrdinalIgnoreCase))
-                return;
-            CloudAccuracyTier = group.DefaultTierId;
-            TranscriptionModel = DefaultModelForTier(group.DefaultTierId) ?? string.Empty;
-            Notify(nameof(CloudVendor));
-        }
-    }
-
-    /// <summary>
-    /// The tier's own default model id, when the tier still offers it. Null when the
-    /// catalog names no default — the caller then falls back to the group's first model.
-    /// </summary>
-    private static string? DefaultModelForTier(string tierId)
-    {
-        var models = GroupForTier(tierId)?.Models ?? [];
-        // No rows means no native core. Do not ask it for a default.
-        if (models.Count == 0) return null;
-        var preferred = SharedCoreBridge.CloudSttDefaultModel(tierId);
-        return models.FirstOrDefault(
-                   m => string.Equals(m.ModelId, preferred, StringComparison.Ordinal))?.ModelId
-               ?? models.FirstOrDefault(m => string.Equals(m.TierId, tierId, StringComparison.Ordinal))?.ModelId;
-    }
-    public IReadOnlyList<string> CloudDomains { get; } = ["", "medical"];
-
-    // =====================================================================================
-    // MODE EDITOR — segmented sources, conditional reveals and live Save validation.
-    //
-    // Windows' ModeEditorWindow.xaml.cs drives ~94 Visibility switches from code-behind. The
-    // same rules live here as computed properties so the Avalonia dialog can bind IsVisible
-    // straight to them. Each rule cites the Windows line it mirrors.
-    // =====================================================================================
-
-    /// <summary>True while the editor holds an unsaved new mode (see <see cref="_isCreating"/>).</summary>
-    public bool IsCreating
-    {
-        get => _isCreating;
-        private set { if (Set(ref _isCreating, value)) { Notify(nameof(IsEditing)); Notify(nameof(IsDefaultModeSelected)); } }
-    }
-    /// <summary>The inverse of <see cref="IsCreating"/>; Delete is offered only when editing.</summary>
-    public bool IsEditing => !_isCreating;
-
-    /// <summary>
-    /// True when the editor is open on the one mode whose name is fixed (issue #494).
-    ///
-    /// The FLAG, not the name. macOS used to key the same rule on <c>name == "Default"</c>,
-    /// which locked any mode a user happened to call that and stopped locking the real default
-    /// as soon as a restored backup carried another name. Windows has always read IsDefault
-    /// (ModeEditorWindow.xaml.cs), and Linux reads it here.
-    ///
-    /// A mode being created is never the default, hence the IsCreating guard: without it the
-    /// create dialog would inherit the flag from whichever mode was selected behind it.
-    /// </summary>
-    public bool IsDefaultModeSelected => !_isCreating && _selected?.IsDefault == true;
-
-    /// <summary>Mode.Preset, round-tripped. Drives <see cref="ShowCustomInstructions"/>.</summary>
-    public string Preset
-    {
-        get => _preset;
-        set { if (Set(ref _preset, string.IsNullOrWhiteSpace(value) ? "hyper" : value)) NotifyEditorReveals(); }
-    }
-    public IReadOnlyList<string> Presets { get; } = ["hyper", "message", "mail", "note", "meeting", "code", "custom"];
-    /// <summary>
-    /// The four variants Windows offers (ModeEditorWindow.xaml:485-488). There is deliberately no
-    /// empty entry: a mode that has never chosen one keeps EnglishSpelling empty, which the
-    /// shared core reads as "send no spelling instruction", and the combo simply shows nothing.
-    /// </summary>
-    public IReadOnlyList<string> EnglishSpellings { get; } = ["american", "british", "australian", "canadian"];
-
-    /// <summary>
-    /// Every HyperWhisper Cloud post-processing model, as the "provider:model" storage value the
-    /// mode actually saves. Windows offers these in a pair of pickers rather than a text field
-    /// (ModeEditorWindow.xaml:437-452, filled by LoadCloudPostProcessingModelsForEngine), so a
-    /// Linux mode editor that typed the id by hand showed a raw "anthropic:claude-haiku-5-5" where
-    /// Windows shows "Claude Haiku 5.5 (Recommended)".
-    ///
-    /// Read once, from the same cloud post-processing catalog Windows reads through CloudPpCatalog
-    /// and the model library reads through UnifiedModelCatalog, so there is no second list to keep
-    /// in step. If the core is unavailable the field still has its default value, so the picker
-    /// falls back to exactly that one entry rather than going empty.
-    /// </summary>
-    public IReadOnlyList<string> HyperWhisperCloudModels => _hyperWhisperCloudModels
-        ??= HyperWhisper.ModelReadiness.CloudPostProcessingCatalog.Entries
-            .Select(entry => entry.Value)
-            .ToList();
-
-    private IReadOnlyList<string>? _hyperWhisperCloudModels;
-
-    // ---- Transcription source segments -------------------------------------------------
-    // Windows carries three radios in one group (ModeEditorWindow.xaml:81-95). "On-device" is
-    // the legacy "local" ProviderType; both cloud segments map to ProviderType "cloud", with
-    // CloudProvider distinguishing HyperWhisper Cloud from a BYOK vendor.
-    // A false assignment is ignored: the RadioButton group already unchecks the old segment,
-    // and acting on it would fight the setter that is turning the new one on.
-    public bool IsOnDeviceSource
-    {
-        get => !string.Equals(_providerType, "cloud", StringComparison.Ordinal);
-        set { if (value) ProviderType = "local"; }
-    }
-    public bool IsHwCloudSource
-    {
-        get => string.Equals(_providerType, "cloud", StringComparison.Ordinal)
-            && string.Equals(_cloudProvider, "hyperwhisper", StringComparison.OrdinalIgnoreCase);
-        set
-        {
-            if (!value) return;
-            CloudProvider = "hyperwhisper";
-            ProviderType = "cloud";
-        }
-    }
-    public bool IsYourProviderSource
-    {
-        get => string.Equals(_providerType, "cloud", StringComparison.Ordinal)
-            && !string.Equals(_cloudProvider, "hyperwhisper", StringComparison.OrdinalIgnoreCase);
-        set
-        {
-            if (!value) return;
-            // Windows selects the first BYOK vendor when the combo has no selection, because
-            // HyperWhisper is removed from that list (ModeEditorWindow.xaml.cs:1184-1185), and then
-            // refills the model combo with no preferred id (:1186) — which is the ProviderType
-            // setter's NormalizeCloudModel call below.
-            if (string.Equals(_cloudProvider, "hyperwhisper", StringComparison.OrdinalIgnoreCase))
-                CloudProvider = "openai";
-            ProviderType = "cloud";
-        }
-    }
-
-    /// <summary>Local Model picker. Windows: LocalModelPanel, visible for "ondevice" (:1225).</summary>
-    public bool ShowLocalModelPanel => IsOnDeviceSource;
-    /// <summary>BYOK vendor combo. Windows: CloudProviderPanel, visible for "yourprovider" (:1226).</summary>
-    public bool ShowCloudProviderPanel => IsYourProviderSource;
-    /// <summary>Engine (accuracy tier) + tier model. Windows: CloudAccuracyPanel (:656, :1236).</summary>
-    public bool ShowCloudAccuracyPanel => IsHwCloudSource;
-    /// <summary>Windows shows the medical toggle for AssemblyAI only (:889).</summary>
-    public bool ShowMedicalDomain => IsHwCloudSource
-        && string.Equals(_cloudAccuracyTier, "assemblyAI", StringComparison.OrdinalIgnoreCase) && !IsDictation;
-    /// <summary>BYOK model box. Windows: CloudModelPanel (:697, :1293).</summary>
-    public bool ShowCloudModelPanel => IsYourProviderSource;
-    /// <summary>Windows reveals the Gemini prompt only for BYOK Gemini (:1326).</summary>
-    public bool ShowGeminiPrompt => IsYourProviderSource
-        && (string.Equals(_cloudProvider, "gemini", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(_cloudProvider, "geminitranscribe", StringComparison.OrdinalIgnoreCase));
-    /// <summary>
-    /// Windows' Nova3Warning: vocabulary boosting is dropped when a Nova model runs on
-    /// auto-detect (mode.editor.warning.nova3AutoDetect).
-    /// </summary>
-    public bool ShowNova3Warning => IsYourProviderSource
-        && string.Equals(_cloudProvider, "deepgram", StringComparison.OrdinalIgnoreCase)
-        && _transcriptionModel.StartsWith("nova-3", StringComparison.OrdinalIgnoreCase)
-        && (_language.Length == 0 || string.Equals(_language, "auto", StringComparison.OrdinalIgnoreCase));
-    /// <summary>
-    /// Windows' ParakeetLanguageWarning: the Parakeet engines are English-only in this build,
-    /// so a non-English mode on Parakeet loses its language (:1605).
-    /// </summary>
-    public bool ShowParakeetLanguageWarning => IsOnDeviceSource
-        && string.Equals(_localEngine, "parakeet", StringComparison.OrdinalIgnoreCase)
-        && _language.Length > 0
-        && !string.Equals(_language, "en", StringComparison.OrdinalIgnoreCase)
-        && !string.Equals(_language, "auto", StringComparison.OrdinalIgnoreCase);
-
-    // ---- Post-processing ---------------------------------------------------------------
-    /// <summary>Windows' PostProcessingCheck; reveals PostProcessingSettingsPanel (:1836).</summary>
-    public bool PostProcessingEnabled
-    {
-        get => !string.Equals(_postProcessingMode, "off", StringComparison.Ordinal);
-        set
-        {
-            if (value == PostProcessingEnabled) return;
-            // Windows' create default is cloud post-processing on HyperWhisper Cloud
-            // (ModeEditorWindow.xaml.cs:53-55), which is what enabling the checkbox lands on.
-            PostProcessingMode = value ? "cloud" : "off";
-            if (value && string.Equals(_postProcessingProvider, "openai", StringComparison.Ordinal))
-                PostProcessingProvider = "hyperwhispercloud";
-        }
-    }
-    public bool IsPpOnDeviceSource
-    {
-        get => string.Equals(_postProcessingMode, "local", StringComparison.Ordinal);
-        set { if (value) PostProcessingMode = "local"; }
-    }
-    public bool IsPpHwCloudSource
-    {
-        get => string.Equals(_postProcessingMode, "cloud", StringComparison.Ordinal)
-            && string.Equals(_postProcessingProvider, "hyperwhispercloud", StringComparison.OrdinalIgnoreCase);
-        set
-        {
-            if (!value) return;
-            PostProcessingProvider = "hyperwhispercloud";
-            PostProcessingMode = "cloud";
-        }
-    }
-    public bool IsPpYourProviderSource
-    {
-        get => string.Equals(_postProcessingMode, "cloud", StringComparison.Ordinal)
-            && !string.Equals(_postProcessingProvider, "hyperwhispercloud", StringComparison.OrdinalIgnoreCase);
-        set
-        {
-            if (!value) return;
-            if (string.Equals(_postProcessingProvider, "hyperwhispercloud", StringComparison.OrdinalIgnoreCase))
-                PostProcessingProvider = "openai";
-            PostProcessingMode = "cloud";
-        }
-    }
-    /// <summary>BYOK LLM vendor combo. Windows: PostProcessingProviderPanel (:1388).</summary>
-    public bool ShowPostProcessingProviderPanel => PostProcessingEnabled && IsPpYourProviderSource;
-    /// <summary>HyperWhisper Cloud engine + model pair. Windows: CloudPostProcessingModelPanel (:1381).</summary>
-    public bool ShowCloudPostProcessingPanel => PostProcessingEnabled && IsPpHwCloudSource;
-    /// <summary>The BYOK model box; Windows hides its model row for HW Cloud (:1380/:1390).</summary>
-    public bool ShowPostProcessingModelPanel => PostProcessingEnabled && IsPpYourProviderSource;
-    /// <summary>The local GGUF filename, which is Windows' model row under the on-device source.</summary>
-    public bool ShowLocalPostProcessingModel => PostProcessingEnabled && IsPpOnDeviceSource;
-    /// <summary>Linux-only: the inline custom OpenAI-compatible endpoint fields.</summary>
-    public bool ShowCustomEndpointPanel => ShowPostProcessingProviderPanel
-        && string.Equals(_postProcessingProvider, "custom", StringComparison.OrdinalIgnoreCase);
-    /// <summary>Windows shows the spelling variant for English or auto-detect only (:1708).</summary>
-    public bool ShowEnglishSpelling => PostProcessingEnabled
-        && (_language.Length == 0
-            || string.Equals(_language, "en", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(_language, "auto", StringComparison.OrdinalIgnoreCase));
-    /// <summary>Windows reveals Custom Instructions only for the Custom preset (:1644).</summary>
-    public bool ShowCustomInstructions => PostProcessingEnabled
-        && string.Equals(_preset, "custom", StringComparison.OrdinalIgnoreCase);
-    /// <summary>Windows' UserPromptCheck → UserPromptPanel (:1745).</summary>
-    public bool UserPromptEnabled
-    {
-        get => _userPromptEnabled;
-        set { if (Set(ref _userPromptEnabled, value)) Notify(nameof(ShowUserPrompt)); }
-    }
-    public bool ShowUserPrompt => PostProcessingEnabled && _userPromptEnabled;
-    /// <summary>Windows hides both punctuation checkboxes while post-processing is off (:1354-1355).</summary>
-    public bool ShowPunctuationOptions => PostProcessingEnabled;
-    /// <summary>Windows reveals "Remove trailing period" only under a ticked Add punctuation (:1728).</summary>
-    public bool ShowRemoveTrailingPeriod => PostProcessingEnabled && _punctuation;
-
-    /// <summary>
-    /// Windows disables Save live while the name is blank or the chosen on-device / local-LLM
-    /// model cannot be used (UpdateSaveButtonState, :318). The model rule here is the same
-    /// catalog check <see cref="SaveAsync"/> already enforces, so Save can no longer be pressed
-    /// into a failure the dialog could have shown up front.
-    /// </summary>
-    public bool CanSave
-    {
-        get
-        {
-            if (string.IsNullOrWhiteSpace(_name)) return false;
-            if (IsOnDeviceSource)
-            {
-                var kind = string.Equals(_localEngine, "parakeet", StringComparison.Ordinal)
-                    ? ManagedModelKind.Parakeet : ManagedModelKind.Whisper;
-                if (!PortableModelCatalog.All.Any(model => model.Kind == kind
-                    && string.Equals(model.Id, _transcriptionModel, StringComparison.Ordinal))) return false;
-            }
-            if (IsPpOnDeviceSource
-                && (string.IsNullOrWhiteSpace(_localPostProcessingModel)
-                    || !_localPostProcessingModel.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase))) return false;
-            return true;
-        }
-    }
-
-    private void NotifyEditorReveals()
-    {
-        Notify(nameof(IsOnDeviceSource)); Notify(nameof(IsHwCloudSource)); Notify(nameof(IsYourProviderSource));
-        Notify(nameof(ShowLocalModelPanel)); Notify(nameof(LocalModels)); Notify(nameof(CloudModels));
-        Notify(nameof(LocalTranscriptionModel)); Notify(nameof(CloudTranscriptionModel));
-        Notify(nameof(ShowCloudProviderPanel));
-        Notify(nameof(ShowCloudAccuracyPanel)); Notify(nameof(ShowMedicalDomain));
-        Notify(nameof(CloudVendor)); Notify(nameof(CloudTierModels));
-        Notify(nameof(CloudTierModel)); Notify(nameof(IsDictation)); Notify(nameof(IsNotDictation));
-        Notify(nameof(DictationLanguage));
-        Notify(nameof(ShowCloudModelPanel)); Notify(nameof(ShowGeminiPrompt));
-        Notify(nameof(ShowNova3Warning)); Notify(nameof(ShowParakeetLanguageWarning));
-        Notify(nameof(PostProcessingEnabled));
-        Notify(nameof(IsPpOnDeviceSource)); Notify(nameof(IsPpHwCloudSource)); Notify(nameof(IsPpYourProviderSource));
-        Notify(nameof(ShowPostProcessingProviderPanel)); Notify(nameof(ShowCloudPostProcessingPanel));
-        Notify(nameof(ShowPostProcessingModelPanel)); Notify(nameof(ShowLocalPostProcessingModel));
-        Notify(nameof(ShowCustomEndpointPanel)); Notify(nameof(ShowEnglishSpelling));
-        Notify(nameof(ShowCustomInstructions)); Notify(nameof(ShowUserPrompt));
-        Notify(nameof(ShowPunctuationOptions)); Notify(nameof(ShowRemoveTrailingPeriod));
-        Notify(nameof(CanSave));
-    }
-
-    /// <summary>
-    /// A copy of every editor field, taken before the dialog opens. Windows edits a Mode entity
-    /// copy and writes it only on Save, so Cancel discards; Linux binds the dialog to this live
-    /// shared view model, and restoring this snapshot is what makes its Cancel mean the same.
-    /// </summary>
-    public sealed record ModeEditorSnapshot(
-        Mode? Selected, bool IsCreating, string Name, string Language, string Preset,
-        bool LocalPostProcessingEnabled, string LocalPostProcessingModel, string UserSystemPrompt,
-        bool UserPromptEnabled, string ProviderType, string LocalEngine, string TranscriptionModel,
-        string CloudProvider, string CloudAccuracyTier, string CloudDomain, string GeminiPrompt,
-        string CustomVocabulary, bool EnableScreenOcr, string PostProcessingMode,
-        string PostProcessingProvider, string PostProcessingModel, string HyperWhisperCloudModel,
-        string CustomInstructions, bool Punctuation, bool Capitalization, bool ProfanityFilter,
-        bool RemoveTrailingPeriod, string EnglishSpelling, string CustomEndpointName,
-        string CustomEndpointUrl, string CustomEndpointModel, string CustomEndpointApiKey,
-        Guid? CustomEndpointId);
-
-    public ModeEditorSnapshot CaptureEditorState() => new(
-        _selected, _isCreating, _name, _language, _preset,
-        _localPostProcessingEnabled, _localPostProcessingModel, _userSystemPrompt,
-        _userPromptEnabled, _providerType, _localEngine, _transcriptionModel,
-        _cloudProvider, _cloudAccuracyTier, _cloudDomain, _geminiPrompt,
-        _customVocabulary, _enableScreenOcr, _postProcessingMode,
-        _postProcessingProvider, _postProcessingModel, _hyperWhisperCloudModel,
-        _customInstructions, _punctuation, _capitalization, _profanityFilter,
-        _removeTrailingPeriod, _englishSpelling, _customEndpointName,
-        _customEndpointUrl, _customEndpointModel, _customEndpointApiKey, _customEndpointId);
-
-    public void RestoreEditorState(ModeEditorSnapshot state)
-    {
-        ArgumentNullException.ThrowIfNull(state);
-        // A Cancel puts back values the user already had; it is not a user picking a new vendor,
-        // so the same flag LoadEditorFrom sets holds NormalizeCloudModel off for the whole restore.
-        // Without it the CloudProvider assignment below would move the model onto the restored
-        // vendor's first catalog id and the restore would discard the id it exists to put back.
-        _loadingEditor = true;
-        try
-        {
-            // Assign the backing field, not the property: the Selected setter would re-persist the
-            // selected-mode id and reload every field from disk, undoing the restore it is part of.
-            if (!ReferenceEquals(_selected, state.Selected))
-            {
-                _selected = state.Selected;
-                Notify(nameof(Selected));
-            }
-            IsCreating = state.IsCreating;
-            Name = state.Name; Language = state.Language; Preset = state.Preset;
-            ProviderType = state.ProviderType; LocalEngine = state.LocalEngine;
-            TranscriptionModel = state.TranscriptionModel;
-            CloudProvider = state.CloudProvider; CloudAccuracyTier = state.CloudAccuracyTier;
-            CloudDomain = state.CloudDomain; GeminiPrompt = state.GeminiPrompt;
-            CustomVocabulary = state.CustomVocabulary; EnableScreenOcr = state.EnableScreenOcr;
-            PostProcessingMode = state.PostProcessingMode;
-            LocalPostProcessingEnabled = state.LocalPostProcessingEnabled;
-            PostProcessingProvider = state.PostProcessingProvider;
-            PostProcessingModel = state.PostProcessingModel;
-            HyperWhisperCloudModel = state.HyperWhisperCloudModel;
-            LocalPostProcessingModel = state.LocalPostProcessingModel;
-            UserSystemPrompt = state.UserSystemPrompt; UserPromptEnabled = state.UserPromptEnabled;
-            CustomInstructions = state.CustomInstructions;
-            Punctuation = state.Punctuation; Capitalization = state.Capitalization;
-            ProfanityFilter = state.ProfanityFilter; RemoveTrailingPeriod = state.RemoveTrailingPeriod;
-            EnglishSpelling = state.EnglishSpelling;
-            CustomEndpointName = state.CustomEndpointName; CustomEndpointUrl = state.CustomEndpointUrl;
-            CustomEndpointModel = state.CustomEndpointModel; CustomEndpointApiKey = state.CustomEndpointApiKey;
-            _customEndpointId = state.CustomEndpointId;
-            // Cancel must put the BYOK list back too, not just the fields: an abandoned edit can
-            // have changed the vendor (which drops the pin) or assigned a local id through the
-            // On-device segment. Re-derived here, after the restore, for the same reason
-            // LoadEditorFrom does it last — vendor and model are only final once every field is back.
-            ApplyLoadedCloudModel();
-            NotifyEditorReveals();
-        }
-        finally { _loadingEditor = false; }
-    }
 
     public UiStatus Status { get; } = new();
     public ICommand SaveCommand { get; }
@@ -1153,7 +146,7 @@ public sealed class ModesViewModel : ViewModelBase
             Selected = Guid.TryParse(selectedId, out var id)
                 ? Items.FirstOrDefault(item => item.Id == id) ?? FallbackSelection()
                 : FallbackSelection();
-            Status.Success($"{Items.Count} mode(s)");
+            Status.Success(Plural.Count(Items.Count, "mode", "modes"));
         }
         catch (Exception) { Status.Failure("modes.load_failed", "Could not load modes."); }
     }
@@ -1168,12 +161,61 @@ public sealed class ModesViewModel : ViewModelBase
     }
     public async Task SaveAsync(CancellationToken cancellationToken = default)
     {
+        if (!ValidateEditor()) return;
+        var customEndpointId = PostProcessingMode == "cloud" && PostProcessingProvider == "custom"
+            ? _customEndpointId ?? Guid.NewGuid()
+            : (Guid?)null;
+        // A create dialog must insert even though Selected still points at the mode the user had
+        // active — Windows keeps that selection while the create window is open.
+        var mode = (_isCreating ? null : Selected) ?? new Mode { SortOrder = Items.Count };
+        ApplyEditorTo(mode, customEndpointId);
+        IReadOnlyDictionary<string, System.Text.Json.JsonElement>? settingsSnapshot = null;
+        byte[]? previousCredential = null;
+        var writesCredential = customEndpointId is not null && !string.IsNullOrWhiteSpace(CustomEndpointApiKey);
+        // Set only once the stored key has been read (issue #2236). A failed read leaves it false,
+        // so the rollback does not take "nothing read" for "nothing stored" and delete the key.
+        var credentialTouched = false;
+        try
+        {
+            if (customEndpointId is { } id)
+            {
+                settingsSnapshot = _settings!.Snapshot();
+                if (writesCredential)
+                {
+                    var previous = _credentials!.Read("HyperWhisper", $"CustomEndpoint_{id:D}");
+                    if (previous.IsFailure) throw new InvalidOperationException(previous.Error!.Message);
+                    previousCredential = previous.Value;
+                    credentialTouched = true;
+                }
+                PersistCustomEndpoint(id);
+            }
+            await _repository.UpsertSafelyAsync(mode, cancellationToken);
+            CommitSavedMode(mode, customEndpointId);
+        }
+        catch (Exception)
+        {
+            RollBackFailedSave(settingsSnapshot, customEndpointId, credentialTouched, previousCredential);
+            Status.Failure("modes.save_failed", "Could not save the mode or its secure endpoint configuration.");
+        }
+        finally
+        {
+            if (previousCredential is not null) CryptographicOperations.ZeroMemory(previousCredential);
+        }
+    }
+
+    /// <summary>
+    /// The checks <see cref="SaveAsync"/> runs before it writes anything. Each failure is reported on
+    /// <see cref="Status"/> and answers false. A legacy cloud provider is folded here (issue #601), as
+    /// before, so the allow-list check that follows sees the folded value.
+    /// </summary>
+    private bool ValidateEditor()
+    {
         if (IsDictation && (!DictationLanguages.Contains(Language) || !string.IsNullOrWhiteSpace(CloudDomain)))
         {
             Status.Failure("modes.dictation_selection", "Dictation needs an explicit supported language and no Medical domain.");
-            return;
+            return false;
         }
-        if (string.IsNullOrWhiteSpace(Name)) { Status.Failure("modes.name_required", "Enter a mode name."); return; }
+        if (string.IsNullOrWhiteSpace(Name)) { Status.Failure("modes.name_required", "Enter a mode name."); return false; }
         if (PostProcessingMode == "local"
             && (string.IsNullOrWhiteSpace(LocalPostProcessingModel)
                 || LocalPostProcessingModel != Path.GetFileName(LocalPostProcessingModel)
@@ -1181,33 +223,43 @@ public sealed class ModesViewModel : ViewModelBase
                 || !LocalPostProcessingModel.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase)))
         {
             Status.Failure("modes.local_llm_model_required", "Enter a GGUF model filename from the local LLM models directory.");
-            return;
+            return false;
         }
         if (UserSystemPrompt.Length > 8000)
         {
             Status.Failure("modes.prompt_too_long", "The system prompt cannot exceed 8000 characters.");
-            return;
+            return false;
         }
         if (CustomInstructions.Length > 4000)
-        { Status.Failure("modes.instructions_too_long", "Custom instructions cannot exceed 4000 characters."); return; }
+        { Status.Failure("modes.instructions_too_long", "Custom instructions cannot exceed 4000 characters."); return false; }
         if (PostProcessingMode == "cloud" && !PostProcessingProviders.Contains(PostProcessingProvider, StringComparer.Ordinal))
-        { Status.Failure("modes.postprocessing_provider_invalid", "Select a supported post-processing provider."); return; }
-        if (PostProcessingMode == "cloud" && PostProcessingProvider == "custom" && !ValidateCustomEndpoint()) return;
-        if (GeminiPrompt.Length > 2000) { Status.Failure("modes.gemini_prompt_too_long", "The Gemini prompt cannot exceed 2000 characters."); return; }
+        { Status.Failure("modes.postprocessing_provider_invalid", "Select a supported post-processing provider."); return false; }
+        if (PostProcessingMode == "cloud" && PostProcessingProvider == "custom" && !ValidateCustomEndpoint()) return false;
+        if (GeminiPrompt.Length > 2000) { Status.Failure("modes.gemini_prompt_too_long", "The Gemini prompt cannot exceed 2000 characters."); return false; }
+        // Issue #601: run the provider through the shared storage fold BEFORE the allow-list check,
+        // as #598 does for the Local API's ApplyModeDocument. A legacy alias set on this view
+        // model by any path other than the (folded) load becomes HyperWhisper Cloud, with its tier
+        // only if the current one is blank or the old default; it is never written verbatim.
+        if (ProviderType == "cloud"
+            && LegacyCloudProviderFold.TryFold(CloudProvider, CloudAccuracyTier, out var savedProvider, out var savedTier))
+        {
+            CloudProvider = savedProvider;
+            CloudAccuracyTier = savedTier ?? CloudAccuracyTier;
+        }
         if (ProviderType == "cloud" && !CloudProviders.Contains(CloudProvider, StringComparer.Ordinal))
-        { Status.Failure("modes.cloud_provider_required", "Select a supported cloud provider."); return; }
+        { Status.Failure("modes.cloud_provider_required", "Select a supported cloud provider."); return false; }
         if (ProviderType != "cloud")
         {
             var kind = LocalEngine == "parakeet" ? ManagedModelKind.Parakeet : ManagedModelKind.Whisper;
             if (!PortableModelCatalog.All.Any(model => model.Kind == kind && string.Equals(model.Id, TranscriptionModel, StringComparison.Ordinal)))
-            { Status.Failure("modes.local_model_invalid", "Select a model ID from the local model catalog."); return; }
+            { Status.Failure("modes.local_model_invalid", "Select a model ID from the local model catalog."); return false; }
         }
-        var customEndpointId = PostProcessingMode == "cloud" && PostProcessingProvider == "custom"
-            ? _customEndpointId ?? Guid.NewGuid()
-            : (Guid?)null;
-        // A create dialog must insert even though Selected still points at the mode the user had
-        // active — Windows keeps that selection while the create window is open.
-        var mode = (_isCreating ? null : Selected) ?? new Mode { SortOrder = Items.Count };
+        return true;
+    }
+
+    /// <summary>Copies the editor fields onto <paramref name="mode"/>, the row Save upserts.</summary>
+    private void ApplyEditorTo(Mode mode, Guid? customEndpointId)
+    {
         mode.Name = Name.Trim();
         mode.Preset = string.IsNullOrWhiteSpace(Preset) ? "hyper" : Preset;
         mode.Language = string.IsNullOrWhiteSpace(Language) ? "auto" : Language.Trim();
@@ -1262,56 +314,47 @@ public sealed class ModesViewModel : ViewModelBase
             .Distinct(StringComparer.OrdinalIgnoreCase).Take(1000).ToList();
         mode.EnableScreenOCR = EnableScreenOcr;
         mode.ModifiedDate = DateTime.UtcNow;
-        IReadOnlyDictionary<string, System.Text.Json.JsonElement>? settingsSnapshot = null;
-        byte[]? previousCredential = null;
-        var credentialTouched = customEndpointId is not null && !string.IsNullOrWhiteSpace(CustomEndpointApiKey);
-        try
+    }
+
+    /// <summary>The in-memory half of a save that reached the database: the list, the selection, the endpoint id.</summary>
+    private void CommitSavedMode(Mode mode, Guid? customEndpointId)
+    {
+        var existingIndex = Items.IndexOf(mode);
+        if (existingIndex < 0) Items.Add(mode);
+        else Items[existingIndex] = mode;
+        IsCreating = false;
+        Selected = mode;
+        if (customEndpointId is { } savedId)
         {
-            if (customEndpointId is { } id)
-            {
-                settingsSnapshot = _settings!.Snapshot();
-                if (credentialTouched)
-                {
-                    var previous = _credentials!.Read("HyperWhisper", $"CustomEndpoint_{id:D}");
-                    if (previous.IsFailure) throw new InvalidOperationException(previous.Error!.Message);
-                    previousCredential = previous.Value;
-                }
-                PersistCustomEndpoint(id);
-            }
-            await _repository.UpsertSafelyAsync(mode, cancellationToken);
-            var existingIndex = Items.IndexOf(mode);
-            if (existingIndex < 0) Items.Add(mode);
-            else Items[existingIndex] = mode;
-            IsCreating = false;
-            Selected = mode;
-            if (customEndpointId is { } savedId)
-            {
-                _customEndpointId = savedId;
-                CustomEndpointApiKey = string.Empty;
-            }
-            Status.Success("Mode saved");
+            _customEndpointId = savedId;
+            CustomEndpointApiKey = string.Empty;
         }
-        catch (Exception)
+        Status.Success("Mode saved");
+    }
+
+    /// <summary>
+    /// Undoes a failed save: puts the settings snapshot back and restores, or removes, the endpoint
+    /// credential. <see cref="SaveAsync"/> still zeroes <paramref name="previousCredential"/> in its
+    /// own finally, so the bytes are cleared on every path.
+    /// </summary>
+    private void RollBackFailedSave(
+        IReadOnlyDictionary<string, System.Text.Json.JsonElement>? settingsSnapshot,
+        Guid? customEndpointId, bool credentialTouched, byte[]? previousCredential)
+    {
+        if (settingsSnapshot is not null)
         {
-            if (settingsSnapshot is not null)
-            {
-                _settings!.Replace(settingsSnapshot);
-                _ = _settings.Save();
-            }
-            if (customEndpointId is { } id && credentialTouched)
-            {
-                if (previousCredential is { Length: > 0 })
-                    _ = _credentials!.Write("HyperWhisper", $"CustomEndpoint_{id:D}", previousCredential);
-                else
-                    _ = _credentials!.Delete("HyperWhisper", $"CustomEndpoint_{id:D}");
-            }
-            Status.Failure("modes.save_failed", "Could not save the mode or its secure endpoint configuration.");
+            _settings!.Replace(settingsSnapshot);
+            _ = _settings.Save();
         }
-        finally
+        if (customEndpointId is { } id && credentialTouched)
         {
-            if (previousCredential is not null) CryptographicOperations.ZeroMemory(previousCredential);
+            if (previousCredential is { Length: > 0 })
+                _ = _credentials!.Write("HyperWhisper", $"CustomEndpoint_{id:D}", previousCredential);
+            else
+                _ = _credentials!.Delete("HyperWhisper", $"CustomEndpoint_{id:D}");
         }
     }
+
     public async Task DeleteAsync(CancellationToken cancellationToken = default)
     {
         if (Selected == null) { Status.Failure("modes.no_selection", "Select a mode to delete."); return; }
@@ -1319,68 +362,5 @@ public sealed class ModesViewModel : ViewModelBase
         try { if (await _repository.DeleteSafelyAsync(selected.Id, cancellationToken)) { Items.Remove(selected); Selected = FallbackSelection(); Status.Success("Mode deleted"); } else Status.Failure("modes.not_found", "The mode no longer exists."); }
         catch (InvalidOperationException exception) { Status.Failure("modes.last_mode", exception.Message); }
         catch (Exception) { Status.Failure("modes.delete_failed", "Could not delete the mode."); }
-    }
-
-    private bool ValidateCustomEndpoint()
-    {
-        // The URL and model rules come from the shared core (#282), the same
-        // strict verdict the runtime and the Windows editor use. This method used
-        // to spell out its own third variant of them.
-        if (string.IsNullOrWhiteSpace(CustomEndpointName)
-            || HyperWhisper.SharedCore.LlmPostProcessing.NormalizeCustomEndpoint(
-                   CustomEndpointUrl ?? string.Empty, CustomEndpointModel ?? string.Empty).Status
-               != HyperWhisper.SharedCore.PortableEndpointStatus.Valid)
-        {
-            Status.Failure("modes.custom_endpoint_invalid", "Enter a name, HTTP(S) endpoint URL without embedded credentials, and model.");
-            return false;
-        }
-        if (_settings is null || _credentials is null)
-        {
-            Status.Failure("modes.custom_endpoint_unavailable", "Secure custom endpoint storage is unavailable.");
-            return false;
-        }
-        return true;
-    }
-
-    private void PersistCustomEndpoint(Guid id)
-    {
-        var endpoints = (_settings!.Get<PortableCustomPostProcessingEndpoint[]>("customEndpoints", []) ?? []).ToList();
-        var configured = new PortableCustomPostProcessingEndpoint(
-            id, CustomEndpointName.Trim(), CustomEndpointUrl.Trim(), CustomEndpointModel.Trim());
-        var index = endpoints.FindIndex(item => item.Id == id);
-        if (index < 0) endpoints.Add(configured); else endpoints[index] = configured;
-        _settings.Set("customEndpoints", endpoints);
-        if (!string.IsNullOrWhiteSpace(CustomEndpointApiKey))
-        {
-            var bytes = Encoding.UTF8.GetBytes(CustomEndpointApiKey.Trim());
-            try
-            {
-                var saved = _credentials!.Write("HyperWhisper", $"CustomEndpoint_{id:D}", bytes);
-                if (saved.IsFailure) throw new InvalidOperationException(saved.Error!.Message);
-            }
-            finally { CryptographicOperations.ZeroMemory(bytes); }
-        }
-        var persisted = _settings.Save();
-        if (persisted.IsFailure) throw new InvalidOperationException(persisted.Error!.Message);
-    }
-
-    private void LoadCustomEndpoint(string? provider)
-    {
-        ClearCustomEndpointEditor();
-        if (_settings is null || provider?.StartsWith("custom:", StringComparison.OrdinalIgnoreCase) != true
-            || !Guid.TryParse(provider[7..], out var id)) return;
-        var configured = (_settings.Get<PortableCustomPostProcessingEndpoint[]>("customEndpoints", []) ?? [])
-            .FirstOrDefault(item => item.Id == id);
-        if (configured is null) return;
-        _customEndpointId = id;
-        CustomEndpointName = configured.Name;
-        CustomEndpointUrl = configured.EndpointUrl;
-        CustomEndpointModel = configured.ModelName;
-    }
-
-    private void ClearCustomEndpointEditor()
-    {
-        _customEndpointId = null;
-        CustomEndpointName = CustomEndpointUrl = CustomEndpointModel = CustomEndpointApiKey = string.Empty;
     }
 }

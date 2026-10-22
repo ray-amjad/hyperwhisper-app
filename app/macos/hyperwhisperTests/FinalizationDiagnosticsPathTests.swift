@@ -3,7 +3,7 @@
 //  hyperwhisperTests
 //
 //  "Audio finalization failed" (HYPERWHISPER-F1, #1649) ships the dictionary
-//  `RecordingLifecycle.collectDiagnostics(rawURL:dstURL:duration:)` builds to
+//  `RecordingLifecycle.collectDiagnostics(rawURL:dstURL:duration:sessionID:)` builds to
 //  Sentry as extras. It used to hold `rawURL.path` and `dstURL.path`, and both
 //  carry the macOS account name. `SentryService.beforeSend` redacts extras by
 //  KEY (transcript/text/prompt) and never reads a value, so nothing downstream
@@ -63,10 +63,11 @@ struct FinalizationDiagnosticsPathTests {
         #expect(diagnostics["dstInDefaultRecordingsFolder"] as? Bool == true)
     }
 
-    /// `beforeSend` turns a String extra into `[redacted]` when its key contains
-    /// transcript/text/prompt. A key ending in "Extension" contains "text", so the
-    /// file kind reached Sentry as `[redacted]` (seen on a real Mac). Every key
-    /// here must reach Sentry with its value intact.
+    /// `beforeSend` turns a String extra into `[redacted]` when its key is not
+    /// on `SentryService.allowedExtraKeys` (issue #805). Under the old substring
+    /// rule a key ending in "Extension" contained "text", so the file kind
+    /// reached Sentry as `[redacted]` (seen on a real Mac). Every key here must
+    /// reach Sentry with its value intact.
     @Test func noKeyIsRedactedByBeforeSend() {
         let diagnostics = RecordingLifecycle.pathDiagnostics(
             rawURL: Self.rawURL,
@@ -121,7 +122,7 @@ struct FinalizationDiagnosticsPathTests {
     @Test func collectDiagnosticsPutsNoPathValueInTheDictionary() throws {
         let body = try ProductionSource.slice(
             of: "app/macos/hyperwhisper/Managers/AudioRecording/Recording/RecordingLifecycle.swift",
-            from: "private func collectDiagnostics(rawURL: URL, dstURL: URL, duration: TimeInterval) -> [String: Any] {",
+            from: "private func collectDiagnostics(rawURL: URL, dstURL: URL, duration: TimeInterval, sessionID: String?) -> [String: Any] {",
             to: "private func collectInputDeviceDiagnostics("
         )
 

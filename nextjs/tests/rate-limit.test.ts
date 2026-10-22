@@ -1,5 +1,5 @@
 /**
- * The three Upstash rate limiters in `lib/rate-limit.ts`, run for real.
+ * The Upstash rate limiters in `lib/rate-limit.ts`, run for real.
  *
  * The license and latency route tests replace this module with a stub, so
  * nothing else checks the numbers in it. They are the whole abuse budget of
@@ -15,100 +15,21 @@
  * blocking and the key layout below are what production Redis would compute.
  */
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import http from "node:http";
-import type { AddressInfo } from "node:net";
-import { createRequire } from "node:module";
 import { after, afterEach, before, describe, mock, test } from "node:test";
 
-import type Redis from "ioredis";
-
-// Loaded through `require` so `tsc` never resolves the module's types:
-// `@types/ioredis-mock` is only a transitive dependency, which npm hoists
-// and pnpm (the Vercel build) does not, so a static import fails the
-// production build with TS7016. ioredis-mock implements the ioredis API.
-const RedisMock = createRequire(import.meta.url)("ioredis-mock") as new () => Redis;
+import { listen, siteAuthHeaders, store, upstashRestServer } from "./fake-upstash-server";
 
 type RateLimitModule = typeof import("../lib/rate-limit");
-type Command = (string | number)[];
 
 const SITE_TOKEN = "site-token-for-tests";
 const CLOUD_TOKEN = "cloud-token-for-tests";
 
-const store = new RedisMock();
-const scripts = new Map<string, string>();
-const siteAuthHeaders: (string | undefined)[] = [];
 let cloudHits = 0;
 
 let site: http.Server;
 let cloud: http.Server;
 let limiters: RateLimitModule;
-
-/** Upstash answers in base64 when the client asks for it, as this one does. */
-function encode(value: unknown): unknown {
-  if (typeof value === "string") return Buffer.from(value).toString("base64");
-  if (Array.isArray(value)) return value.map(encode);
-  return value;
-}
-
-/**
- * One Redis command, as a Redis 7 server would run it. EVAL caches the
- * script under its SHA-1 so a later EVALSHA finds it, and an unknown SHA
- * answers NOSCRIPT — the path the ratelimit client takes on its first call.
- * Redis strips a `#!lua` shebang line before it compiles the body; the
- * embedded VM does not, so it is stripped here.
- */
-async function runCommand(command: Command): Promise<unknown> {
-  const [rawName, ...args] = command.map(String);
-  const name = rawName.toLowerCase();
-  if (name === "eval" || name === "evalsha") {
-    let sha = args[0];
-    if (name === "eval") {
-      sha = createHash("sha1").update(args[0]).digest("hex");
-      scripts.set(sha, args[0]);
-    }
-    const source = scripts.get(sha);
-    if (!source) throw new Error("NOSCRIPT No matching script.");
-    const [numKeys, ...keysAndArgs] = args.slice(1);
-    return store.eval(source.replace(/^#![^\n]*\n/, ""), numKeys, ...keysAndArgs);
-  }
-  const fn = (store as unknown as Record<string, (...a: string[]) => Promise<unknown>>)[name];
-  if (typeof fn !== "function") throw new Error(`ERR unknown command '${rawName}'`);
-  return fn.apply(store, args);
-}
-
-function upstashRestServer(): http.Server {
-  return http.createServer(async (req, res) => {
-    let body = "";
-    for await (const chunk of req) body += chunk;
-    siteAuthHeaders.push(req.headers.authorization);
-    const parsed = JSON.parse(body) as Command | Command[];
-    res.setHeader("content-type", "application/json");
-    if (req.url === "/pipeline" || req.url === "/multi-exec") {
-      const replies = [];
-      for (const command of parsed as Command[]) {
-        try {
-          replies.push({ result: encode(await runCommand(command)) });
-        } catch (err) {
-          replies.push({ error: (err as Error).message });
-        }
-      }
-      res.end(JSON.stringify(replies));
-      return;
-    }
-    try {
-      res.end(JSON.stringify({ result: encode(await runCommand(parsed as Command)) }));
-    } catch (err) {
-      res.statusCode = 400;
-      res.end(JSON.stringify({ error: (err as Error).message }));
-    }
-  });
-}
-
-async function listen(server: http.Server): Promise<string> {
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-}
 
 /** Calls `limit` once and waits for the analytics write it leaves behind. */
 async function hit(
@@ -136,6 +57,13 @@ function pinClock(now: number) {
   >[0]);
 }
 
+/**
+ * A fixed instant for tests that need several calls in one bucket. On the real
+ * clock a loop can straddle a minute (or hour) boundary, and the call after it
+ * lands in a fresh bucket and passes (#2123).
+ */
+const PINNED_NOW = Date.UTC(2026, 9, 19, 12, 0, 30);
+
 afterEach(() => mock.timers.reset());
 
 before(async () => {
@@ -151,6 +79,10 @@ before(async () => {
   process.env.UPSTASH_REDIS_SITE_TOKEN = SITE_TOKEN;
   process.env.UPSTASH_REDIS_CLOUD_URL = await listen(cloud);
   process.env.UPSTASH_REDIS_CLOUD_TOKEN = CLOUD_TOKEN;
+  // The Redis client reads the SITE pair through `src/env/server.mjs`, which
+  // snapshots process.env on this first import (#682). The other required
+  // secrets are absent here, so its format check is skipped.
+  process.env.SKIP_ENV_VALIDATION = "1";
   limiters = await import("../lib/rate-limit");
 });
 
@@ -164,6 +96,7 @@ after(() => {
 
 describe("downloadEmailRateLimiter", () => {
   test("allows 10 requests from one IP in an hour and blocks the 11th", async () => {
+    pinClock(PINNED_NOW);
     const ip = "203.0.113.10";
     const remaining: number[] = [];
     for (let i = 0; i < 10; i++) {
@@ -180,6 +113,7 @@ describe("downloadEmailRateLimiter", () => {
   });
 
   test("counts in one-hour buckets under its own prefix", async () => {
+    pinClock(PINNED_NOW);
     const ip = "203.0.113.11";
     const before = Date.now();
     const result = await hit(limiters.downloadEmailRateLimiter, ip);
@@ -194,6 +128,7 @@ describe("downloadEmailRateLimiter", () => {
   });
 
   test("keeps a separate budget per IP", async () => {
+    pinClock(PINNED_NOW);
     for (let i = 0; i < 10; i++) await hit(limiters.downloadEmailRateLimiter, "203.0.113.12");
     assert.equal((await hit(limiters.downloadEmailRateLimiter, "203.0.113.12")).success, false);
 
@@ -203,6 +138,7 @@ describe("downloadEmailRateLimiter", () => {
   });
 
   test("records allowed and blocked requests for the Upstash dashboard", async () => {
+    pinClock(PINNED_NOW);
     const ip = "203.0.113.14";
     for (let i = 0; i < 11; i++) await hit(limiters.downloadEmailRateLimiter, ip);
 
@@ -222,6 +158,7 @@ describe("downloadEmailRateLimiter", () => {
 
 describe("licenseValidateRateLimiter", () => {
   test("allows 30 requests from one IP in a minute and blocks the 31st", async () => {
+    pinClock(PINNED_NOW);
     const ip = "198.51.100.20";
     for (let i = 0; i < 30; i++) {
       const result = await hit(limiters.licenseValidateRateLimiter, ip);
@@ -234,6 +171,7 @@ describe("licenseValidateRateLimiter", () => {
   });
 
   test("counts in one-minute buckets under its own prefix", async () => {
+    pinClock(PINNED_NOW);
     const ip = "198.51.100.21";
     const before = Date.now();
     const result = await hit(limiters.licenseValidateRateLimiter, ip);
@@ -247,6 +185,7 @@ describe("licenseValidateRateLimiter", () => {
   });
 
   test("an IP blocked on the download form still has its license budget", async () => {
+    pinClock(PINNED_NOW);
     const ip = "198.51.100.22";
     for (let i = 0; i < 10; i++) await hit(limiters.downloadEmailRateLimiter, ip);
     assert.equal((await hit(limiters.downloadEmailRateLimiter, ip)).success, false);
@@ -257,8 +196,66 @@ describe("licenseValidateRateLimiter", () => {
   });
 });
 
+describe("licenseCreditsRateLimiter (#2010)", () => {
+  test("allows 300 credit reads from one IP in a minute and blocks the 301st", async () => {
+    pinClock(PINNED_NOW);
+    const ip = "198.51.100.40";
+    for (let i = 0; i < 300; i++) {
+      const result = await hit(limiters.licenseCreditsRateLimiter, ip);
+      assert.equal(result.success, true, `request ${i + 1} must pass`);
+      assert.equal(result.limit, 300);
+    }
+    const blocked = await hit(limiters.licenseCreditsRateLimiter, ip);
+    assert.equal(blocked.success, false);
+  });
+
+  test("has its own budget: an IP out of credit reads can still validate", async () => {
+    const ip = "198.51.100.41";
+    pinClock(PINNED_NOW);
+    const bucket = Math.floor(Date.now() / (60 * 1000));
+    for (let i = 0; i < 300; i++) await hit(limiters.licenseCreditsRateLimiter, ip);
+    assert.equal((await hit(limiters.licenseCreditsRateLimiter, ip)).success, false);
+
+    assert.deepEqual(await bucketKeys("ratelimit:license-credits", ip), [
+      `ratelimit:license-credits:${ip}:${bucket}`,
+    ]);
+    const validate = await hit(limiters.licenseValidateRateLimiter, ip);
+    assert.equal(validate.success, true);
+    assert.equal(validate.remaining, 29);
+  });
+});
+
+describe("checkoutRateLimiter (#2010)", () => {
+  test("allows 10 checkouts from one IP in a minute and blocks the 11th", async () => {
+    pinClock(PINNED_NOW);
+    const ip = "198.51.100.30";
+    for (let i = 0; i < 10; i++) {
+      const result = await hit(limiters.checkoutRateLimiter, ip);
+      assert.equal(result.success, true, `request ${i + 1} must pass`);
+      assert.equal(result.limit, 10);
+    }
+    const blocked = await hit(limiters.checkoutRateLimiter, ip);
+    assert.equal(blocked.success, false);
+  });
+
+  test("counts under its own prefix, apart from the licence budget", async () => {
+    pinClock(PINNED_NOW);
+    const ip = "198.51.100.31";
+    const before = Date.now();
+    await hit(limiters.checkoutRateLimiter, ip);
+    const bucket = Math.floor(before / (60 * 1000));
+
+    assert.deepEqual(await bucketKeys("ratelimit:checkout", ip), [
+      `ratelimit:checkout:${ip}:${bucket}`,
+    ]);
+    const license = await hit(limiters.licenseValidateRateLimiter, ip);
+    assert.equal(license.remaining, 29);
+  });
+});
+
 describe("latencyIngestRateLimiter", () => {
   test("gives each Fly region 6000 batches a minute", async () => {
+    pinClock(PINNED_NOW);
     const before = Date.now();
     const result = await hit(limiters.latencyIngestRateLimiter, "fra");
     const minute = 60 * 1000;
@@ -274,6 +271,7 @@ describe("latencyIngestRateLimiter", () => {
   });
 
   test("blocks a region at its ceiling and leaves the other regions alone", async () => {
+    pinClock(PINNED_NOW);
     await hit(limiters.latencyIngestRateLimiter, "iad");
     const [key] = await bucketKeys("ratelimit:latency-ingest", "iad");
     // 6000 real round trips take minutes, so the bucket is filled to one

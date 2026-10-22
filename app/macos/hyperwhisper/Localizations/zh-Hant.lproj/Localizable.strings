@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "診斷已匯出";
 "alerts.export.diagnostics.success.message" = "所有診斷日誌已成功匯出。";
 "alerts.export.diagnostics.saveFailed.message" = "無法將診斷儲存到選定位置：%@";
+"alerts.export.diagnostics.noSystemLogs.title" = "已匯出診斷資訊，但不含系統記錄";
+"alerts.export.diagnostics.noSystemLogs.message" = "診斷檔案已儲存，但無法讀取 App 的系統記錄，因此 system-logs.txt 中只有原因。原因：%@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "匯出更新日誌以取得支援";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "完成入門";
 
 "onboarding.setupLater.button" = "稍後設定";
-"onboarding.error.microphone.denied" = "麥克風許可被拒絕。請在系統設定中授予許可。";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "登入時啟動";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "關閉";
 "settings.general.mediaControl.mode.mute" = "靜音";
+"settings.general.mediaControl.mode.muffle" = "柔化音頻";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,9 +324,17 @@
 "settings.sound.soundEffects.title" = "播放音效";
 "settings.sound.soundEffects.info" = "在錄音開始和停止時播放音訊提示。";
 "settings.sound.mediaControl.title" = "錄音時的媒體控制";
-"settings.sound.mediaControl.info" = "選擇 HyperWhisper 在您錄音時如何處理其他音頻。「關閉」保持音頻不變，「靜音」會在錄音期間將系統輸出靜音并在之後恢復。";
+"settings.sound.mediaControl.info" = "選擇 HyperWhisper 在您錄音時如何處理其他音頻。「關閉」保持音頻不變，「靜音」會在錄音期間將系統輸出靜音并在之後恢復，「柔化音頻」則讓音頻繼續輕聲播放，彷彿來自隔壁房間。";
+"settings.sound.microphone.title" = "麥克風";
+"settings.sound.microphone.subtitle" = "僅供 HyperWhisper 使用。重新啟動後仍會保留。";
+"microphone.picker.default" = "預設 · %@";
+"microphone.picker.notConnected" = "%@（未連線）";
+"microphone.picker.fallback" = "正在使用 %1$@，直到 %2$@ 重新連線。";
+"settings.sound.microphone.test" = "測試";
+"settings.sound.microphone.stop" = "停止";
+"settings.sound.microphone.level" = "輸入音量";
 "settings.sound.autoIncreaseMicVolume.title" = "自動增加麥克風音量";
-"settings.sound.autoIncreaseMicVolume.info" = "錄音開始時自動將麥克風輸入音量設定為最大，錄音停止時恢復原始等級。僅在使用系統預設輸入裝置時適用。";
+"settings.sound.autoIncreaseMicVolume.info" = "開始錄音時，自動將 HyperWhisper 錄音所用麥克風的輸入音量調到最大，並在錄音停止後恢復原本的音量。沒有軟體音量控制的麥克風將維持不變。";
 "settings.sound.vad.title" = "在轉錄前移除靜音";
 "settings.sound.vad.info" = "使用 AI 語音偵測自動偵測並移除前導和尾隨靜音。這可以提高轉錄準確性並減少處理時間。";
 
@@ -336,6 +346,9 @@
 "settings.storage.choose.button" = "選擇...";
 "settings.storage.dialog.select" = "選擇資料夾";
 "settings.storage.dialog.message" = "選擇用於儲存錄音的資料夾";
+"settings.storage.folderRefused.title" = "無法使用此資料夾";
+"settings.storage.folderRefused.notWritable" = "你沒有寫入「%@」的權限，因此 HyperWhisper 無法在其中儲存錄音。錄音資料夾未變更。";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper 無法建立此資料夾：%@ 錄音資料夾未變更。";
 "settings.storage.storeAsM4A.title" = "將錄音壓縮為 M4A";
 "settings.storage.storeAsM4A.subtitle" = "轉錄後將 WAV 錄音轉換為較小的檔案。關閉以保持原始 WAV 檔案（較大但無損）。";
 
@@ -383,6 +396,7 @@
 
 "settings.shortcuts.changeMode.title" = "變更模式";
 "settings.shortcuts.changeMode.subtitle" = "僅在錄音時運作";
+"settings.shortcuts.conflict.alert" = "無法使用此鍵盤快速鍵，因為「%@」已在使用它。";
 
 "settings.shortcuts.reset.button" = "重設為預設值";
 "settings.shortcuts.reset.dialog.title" = "重設鍵盤快捷鍵";
@@ -434,6 +448,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "從剪貼板貼上";
 "settings.license.clearInput" = "清除";
+"license.error.keyFormat" = "這看起來不像帳戶金鑰。";
 "settings.license.recovery.prompt" = "忘記您的授權金鑰？";
 "settings.license.recovery.button" = "前往客戶入口";
 "settings.license.daily.title" = "每日轉錄";
@@ -576,6 +591,8 @@
 "onboarding.configure.cloud.note" = "額度為預付制，由使用此金鑰登入的每台 Mac 共用。閒置時間不會消耗額度。";
 "onboarding.source.note" = "之後改變主意只會重新執行這一步。您設定的其他內容都不會遺失。";
 "onboarding.permissions.note" = "略過輔助使用，轉錄結果會進入剪貼板，隨時可貼上。之後開啟只需點一下。";
+"onboarding.permissions.microphone.denied" = "未允許。請在「系統設定」中開啟 HyperWhisper，然後回到這裡。";
+"onboarding.permissions.continueNeedsMicrophone" = "繼續需要麥克風。請在上方允許，或選擇「稍後設定」。";
 "onboarding.welcome.task1.title" = "選擇轉錄的執行方式";
 "onboarding.welcome.task1.caption" = "在我們的雲端、這台 Mac 上，或透過您已付費的服務商帳戶。";
 "onboarding.welcome.task2.title" = "檢查您的麥克風";
@@ -791,6 +808,7 @@
 "modes.field.name.placeholder" = "例如，會議筆記";
 "modes.field.name.editPlaceholder" = "模式名稱";
 "modes.field.name.defaultLocked" = "這是預設模式，因此無法變更其名稱。你可以重新命名其他任何模式。";
+"modes.field.name.taken" = "已存在同名模式。";
 "modes.field.model" = "模型";
 "modes.field.provider" = "提供商";
 "modes.provider.local" = "本地";
@@ -817,7 +835,7 @@
 "transcripts.delete.single.message" = "這將永久刪除此錄音及其音頻檔案。";
 "transcripts.delete.multiple.title" = "刪除 %d 個錄音？";
 "transcripts.delete.multiple.message" = "這將永久刪除 %d 個錄音及其音頻檔案。\n\n此操作無法復原。";
-"transcripts.delete.multiple.confirm" = "全部刪除";
+"transcripts.delete.multiple.confirm" = "刪除 %d 個錄音";
 "transcripts.retry.error.title" = "重試失敗";
 "transcripts.retry.error.modeDeleted" = "建立此錄音的模式已被刪除，因此未重試。請在歷史記錄中以右鍵點按該錄音，然後選擇\"重試...\"以選取其他模式。";
 
@@ -870,7 +888,6 @@
 "recording.retry.inProgress" = "重試中…";
 "recording.retry.count" = "重試 (%d)";
 "recording.retry.failed.missing" = "重試失敗：找不到音頻檔案";
-"recording.retry.failed.error" = "重試失敗：%@";
 "recording.retry.pending" = "準備好重試 – 按一下轉錄";
 "recording.retry.modeDeleted" = "模式已被刪除";
 "recording.cancel.dialog.title" = "取消錄音？";
@@ -899,6 +916,7 @@
 "audio.error.microphonePermission" = "未授予麥克風許可";
 "audio.error.microphoneInUse" = "HyperWhisper 無法存取麥克風，因為另一個應用程式目前正在使用它。暫停另一個應用程式或切換輸入，然後再試一次。";
 "audio.error.audioSystemNotResponding" = "macOS 音訊沒有回應，因此無法啟動麥克風。請稍後再試。如果問題持續發生，請重新啟動 Mac。";
+"audio.error.recorderStopTimedOut" = "儲存錄音時 macOS 音訊停止回應，因此未進行轉寫。音訊已保留：HyperWhisper 會在下次啟動時嘗試復原。";
 "audio.error.createEngine" = "無法建立音頻引擎";
 "audio.error.noInput" = "沒有可用的音頻輸入";
 "audio.error.createFile" = "無法建立音頻檔案";
@@ -926,6 +944,9 @@
 "transcription.error.providerNotAvailable.provider" = "%@ 不可用。檢查您的設定並再試一次。";
 "transcription.error.providerNotAvailable.detail" = "%@ 不可用：%@";
 "transcription.error.modelNotDownloaded" = "請先下載模型";
+"transcription.error.modelNotDownloaded.modelAndMode" = "模式「%1$@」使用的 %2$@ 尚未下載。請在模型庫中下載。";
+"transcription.error.modelNotDownloaded.model" = "%1$@ 尚未下載。請在模型庫中下載。";
+"transcription.error.openModelLibrary" = "開啟模型庫";
 "transcription.error.modelProtected" = "此模型無法刪除";
 "transcription.error.audioFileNotFound" = "找不到音頻檔案";
 "transcription.error.network.detail" = "網路錯誤：%@";
@@ -972,6 +993,7 @@
 "transcription.guidance.quotaExceeded" = "向您的 %@ 帳戶新增額度或更新您的帳單詳細資訊";
 "transcription.guidance.timeout" = "請求耗時過長。檢查您的網際網路速度並重試。";
 "transcription.error.noSpeechDetected" = "在錄音中未偵測到語音。";
+"transcription.error.audioTooShort" = "錄音太短，無法轉寫。請錄製更長時間。";
 "transcription.guidance.noSpeechDetected" = "提示：\n• 清楚地對著麥克風說話\n• 在說話前按住按鍵較長時間\n• 檢查您的麥克風是否運作正常\n• 確保選擇了正確的輸入裝置";
 "transcription.guidance.needsNativeRelaunch" = "請結束並以原生模式重新開啟 HyperWhisper，才能使用本機後處理。";
 "transcription.guidance.localRuntimeUnavailable" = "請再試一次，或在模式設定中選擇較小的本機模型。";
@@ -1114,6 +1136,17 @@
 "transcribe.file.error.format.title" = "不支援的格式";
 "transcribe.file.error.format.message" = ".%@ 檔案不被 %@ 支援。支援的格式：%@";
 "transcribe.file.error.read" = "無法讀取選定的檔案。";
+"transcribe.file.error.webm" = "不支援 WebM。請將檔案轉換為 MP3、M4A 或 WAV 後再試一次。";
+"transcribe.file.busy.title" = "已有一個檔案正在轉寫。";
+"transcribe.file.busy.message" = "要取消它並開始這個檔案嗎？";
+"transcribe.file.busy.keepRunning" = "繼續執行";
+"transcribe.file.busy.cancelAndStart" = "取消並開始";
+"transcribe.file.error.notAudio" = "檔案「%@」不是有效的音訊。檔案可能已損毀，或是 macOS 無法解碼的格式。";
+"transcribe.file.error.empty" = "檔案「%@」是空的，沒有可轉錄的音訊。";
+"transcribe.file.error.permission" = "HyperWhisper 無法讀取檔案「%@」。請檢查該檔案的權限。";
+"transcribe.file.error.folderPermission" = "HyperWhisper 無法打開包含檔案「%@」的檔案夾。請檢查該檔案夾的權限。";
+"transcribe.file.error.privacy" = "macOS 隱私權設定阻止了 HyperWhisper 讀取檔案「%@」。請在「系統設定」>「隱私權與安全性」>「完整磁碟取用權限」中允許。";
+"transcribe.file.error.tooShort" = "此檔案太短，無法轉寫（%@ 秒）。";
 "transcribe.file.error.copy" = "無法將檔案複製到錄音資料夾。";
 "transcribe.file.error.video.title" = "影片中沒有音頻";
 "transcribe.file.error.video.noAudio" = "此影片檔案不包含音頻軌道。請選擇有音頻的影片或音頻檔案。";
@@ -1140,3 +1173,4 @@
 "settings.storage.maxRecordingDuration.hour" = "1 小時";
 "settings.storage.maxRecordingDuration.hours" = "%d 小時";
 "settings.storage.maxRecordingDuration.off" = "關閉";
+"settings.api_server.status.stopping" = "正在停止…";

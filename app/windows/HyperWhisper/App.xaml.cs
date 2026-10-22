@@ -175,6 +175,23 @@ public partial class App : WpfApplication
             return;
         }
 
+        // PENDING HISTORY ROWS (#1589)
+        // Rows the database refused while another program held its write lock were
+        // kept in pending-history.json. Write them now, before the recovery below, so
+        // one left Processing by the previous session is still flipped to Failed.
+        try
+        {
+            int saved = HistoryService.Instance.FlushPendingTranscripts();
+            if (saved > 0)
+            {
+                LoggingService.Info($"Saved {saved} pending History row(s) on startup");
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"Failed to save pending History rows: {ex.Message}");
+        }
+
         // ORPHANED TRANSCRIPT RECOVERY
         // Any transcript still in Processing status at startup is from a previous
         // session whose worker is long dead (crash, kill, OS restart mid-transcription).
@@ -274,6 +291,12 @@ public partial class App : WpfApplication
         // A download awaits ModelDownloadLeftovers.WhenSwept, so it never races the
         // sweep. StartSweep runs off the UI thread and logs every exception.
         _ = ModelDownloadLeftovers.StartSweep(DateTime.UtcNow);
+
+        // MUFFLE VOLUME RECOVERY
+        // A crash or kill mid-muffle leaves other apps' volumes lowered, and Windows
+        // remembers them per app. Put back what the restore journal still lists.
+        // ast-grep-ignore: no-discarded-task-run -- device enumeration must stay off the UI thread; the method logs every exception
+        _ = Task.Run(AudioEnvironmentService.Instance.RecoverMuffleVolumesFromEarlierRun);
 
         // LOCAL API SERVER
         // Off by default. When the user has enabled it via Settings → Local API,
@@ -437,11 +460,37 @@ public partial class App : WpfApplication
         // owned by TranscriptionRuntime are disposed implicitly by process exit.
         try { LocalApiServer.Instance.Shutdown(); } catch { /* best-effort on shutdown */ }
 
+        // The Whisper worker leaves with this process (stdin EOF); say so now,
+        // while the log can still be written (#1932).
+        try { TranscriptionRuntime.LocalProvider.LogWorkerAtAppExit(); } catch { /* best-effort on shutdown */ }
+
         // Quit paths that skip MainWindow.ShutdownAsync (an update restart, a
         // session end) still cancel running model downloads so each deletes its
         // partial if it gets the chance; start-up sweeps the rest (#1599). No wait:
         // a download's progress handler can need this UI thread.
         _ = ModelDownloadService.Instance.CancelAllAsync(TimeSpan.Zero);
+
+        // A muffle still running on a quit path that skipped the view model's
+        // restore must put the other apps' volumes back before the process ends.
+        // The teardown runs on the thread pool, so this wait cannot deadlock.
+        AudioEnvironmentService.Instance.ShutdownMuffle(TimeSpan.FromSeconds(3));
+
+        // History rows the database refused this session (#1589) get one last try, so
+        // a row whose pending-history.json write also failed is not lost with the
+        // process. On the thread pool with a short wait: a still-held lock would block
+        // the full 30 s busy timeout, and a killed write rolls back (the file keeps the rows).
+        // A row whose insert is still waiting is not lost either: it was written ahead to
+        // pending-history.json before the insert began, and the next launch saves it.
+        try
+        {
+            var flush = Task.Run(() => HistoryService.Instance.FlushPendingTranscripts());
+            if (!flush.Wait(TimeSpan.FromSeconds(5)))
+                LoggingService.Warn("App: pending History rows not saved at exit (database still busy)");
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"App: pending History flush at exit failed: {ex.Message}");
+        }
 
         // Release single-instance mutex
         SingleInstanceGuard.Release();

@@ -8,14 +8,22 @@ import { generateRequestId, getClientIP } from '../lib/request-id';
 import { buildTranscriptUserContent, extractCorrectedText, stripCleanMarkers } from '../lib/text-processing';
 import { creditsForCost, formatUsd } from '../lib/cost-calculator';
 import { isIPBlocked } from '../lib/redis';
+import { MAX_POST_PROCESS_BODY_BYTES } from '../lib/constants';
+import { validateContentLength } from '../lib/request-limits';
 import { errorResponse, invalidContentTypeResponse } from '../lib/responses';
 import { authDiagnosticsForLog, validateAuth } from '../middleware/auth';
-import { deductCredits, validateCredits } from '../middleware/credits';
+import { deductCredits, logDeductionFailure, validateCredits } from '../middleware/credits';
+import { withCreditHoldScope } from '../middleware/credit-holds';
+import { keyRateLimitResponse } from '../middleware/rate-limit';
 import { logEvent } from '../lib/logging';
 import { evaluateCompletionResponse } from '../lib/llm-completion';
 
 const MAX_TEXT_LENGTH = 100000;
 const ESTIMATED_POST_PROCESS_CREDITS = 1.0;
+// The one 500 message a client sees. A failure's own text can carry an
+// upstream provider's error body or a server env-var name (#2066), so it goes
+// to the logs only; the client keeps the requestId to find that log line.
+const LLM_FAILURE_MESSAGE = 'The language model request failed. Please try again.';
 
 interface PostProcessBody {
   text?: string;
@@ -39,6 +47,12 @@ function rawResponseLength(raw: unknown): number | undefined {
 }
 
 export async function postProcessRoute(c: Context) {
+  // The credit hold `validateCredits` takes is released when this returns or
+  // throws, unless the deduction below took it over (#2008).
+  return withCreditHoldScope(() => handlePostProcess(c));
+}
+
+async function handlePostProcess(c: Context) {
   const requestId = generateRequestId();
   const startTime = performance.now();
   const clientIP = getClientIP(c);
@@ -52,6 +66,20 @@ export async function postProcessRoute(c: Context) {
   const contentType = c.req.header('Content-Type') || '';
   if (!contentType.includes('application/json')) {
     return invalidContentTypeResponse('application/json', contentType);
+  }
+
+  // Size gate BEFORE parsing: `c.req.json()` buffers the whole body, and auth
+  // runs only after it, so without this an anonymous caller could make the
+  // machine hold up to Bun's 128 MB default per request.
+  const sizeCheck = validateContentLength(c.req.header('Content-Length'), MAX_POST_PROCESS_BODY_BYTES);
+  if (!sizeCheck.ok) {
+    logEvent(requestId, startTime, 'post_process.request_rejected', {
+      reason: sizeCheck.response.status === 413 ? 'payload_too_large' : 'invalid_content_length',
+      status: sizeCheck.response.status,
+      contentLength: sizeCheck.contentLength,
+      maxBytes: MAX_POST_PROCESS_BODY_BYTES,
+    });
+    return sizeCheck.response;
   }
 
   let body: PostProcessBody;
@@ -103,6 +131,13 @@ export async function postProcessRoute(c: Context) {
   }
   logEvent(requestId, startTime, 'post_process.auth_done', authDiagnosticsForLog(authResult.diagnostics));
 
+  // Per-key rate limit, after auth and before the credit hold (#2010).
+  const rateLimited = await keyRateLimitResponse('/post-process', authResult.value.licenseKey);
+  if (rateLimited) {
+    logEvent(requestId, startTime, 'post_process.request_rejected', { reason: 'rate_limited', status: rateLimited.status });
+    return rateLimited;
+  }
+
   const creditCheck = await validateCredits(authResult.value, ESTIMATED_POST_PROCESS_CREDITS, clientIP);
   if (!creditCheck.ok) {
     logEvent(requestId, startTime, 'post_process.request_rejected', { reason: 'insufficient_credits' });
@@ -147,7 +182,7 @@ export async function postProcessRoute(c: Context) {
           provider: providerUsed,
           error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
         });
-        return errorResponse(500, 'Post-processing failed', fallbackError instanceof Error ? fallbackError.message : String(fallbackError), { requestId });
+        return errorResponse(500, 'Post-processing failed', LLM_FAILURE_MESSAGE, { requestId });
       }
     } else {
       logEvent(requestId, startTime, 'post_process.request_fail', {
@@ -155,7 +190,7 @@ export async function postProcessRoute(c: Context) {
         provider,
         error: error instanceof Error ? error.message : String(error),
       });
-      return errorResponse(500, 'Post-processing failed', error instanceof Error ? error.message : String(error), { requestId });
+      return errorResponse(500, 'Post-processing failed', LLM_FAILURE_MESSAGE, { requestId });
     }
   }
 
@@ -249,7 +284,8 @@ export async function postProcessRoute(c: Context) {
         endpoint: '/post-process',
         llm_provider: providerUsed,
       },
-      clientIP
+      clientIP,
+      { onFailure: logDeductionFailure(requestId, startTime, '/post-process') }
     ).catch(console.error);
 
     logEvent(requestId, startTime, 'post_process.request_fail', {
@@ -258,7 +294,7 @@ export async function postProcessRoute(c: Context) {
       costUsd,
       error: extractError instanceof Error ? extractError.message : String(extractError),
     });
-    return errorResponse(500, 'Post-processing failed', extractError instanceof Error ? extractError.message : String(extractError), { requestId });
+    return errorResponse(500, 'Post-processing failed', LLM_FAILURE_MESSAGE, { requestId });
   }
 
   const creditsUsed = creditsForCost(costUsd);
@@ -273,7 +309,8 @@ export async function postProcessRoute(c: Context) {
       endpoint: '/post-process',
       llm_provider: providerUsed,
     },
-    clientIP
+    clientIP,
+    { onFailure: logDeductionFailure(requestId, startTime, '/post-process') }
   ).catch(console.error);
 
   logEvent(requestId, startTime, 'post_process.request_done', {

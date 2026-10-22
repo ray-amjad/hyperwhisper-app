@@ -278,13 +278,13 @@ struct SingleInstanceLockTests {
         let body = try ProductionSource.slice(
             of: Self.lockPath,
             from: "private static func bringToFront() {",
-            to: "private static func sendReopenToSelf() {"
+            to: "static func sendReopenToSelf() {"
         )
         #expect(body.contains("makeKeyAndOrderFront"))
         #expect(body.contains("sendReopenToSelf()"))
         let send = try ProductionSource.slice(
             of: Self.lockPath,
-            from: "private static func sendReopenToSelf() {",
+            from: "static func sendReopenToSelf() {",
             to: "\n}"
         )
         #expect(send.contains("kAEReopenApplication"))
@@ -414,7 +414,7 @@ struct SingleInstanceLockTests {
             to: "static func deletePortFileIfOwned("
         )
         #expect(
-            body.contains("Self.deletePortFileIfOwned(at: Self.portFileURL, ownerPID: ProcessInfo.processInfo.processIdentifier)"),
+            body.contains("Self.deletePortFileIfOwned(at: portFileURL, ownerPID: ProcessInfo.processInfo.processIdentifier)"),
             "deletePortFile() must only remove local-api.json when it names this process (issue #1483)"
         )
         #expect(!body.contains("removeItem"), "deletePortFile() must not delete the file unconditionally")

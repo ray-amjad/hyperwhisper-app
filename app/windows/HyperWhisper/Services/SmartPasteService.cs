@@ -7,8 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Automation;
 using System.Windows.Media.Imaging;
-using GregsStack.InputSimulatorStandard;
-using GregsStack.InputSimulatorStandard.Native;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Platform;
 using PlatformContracts = HyperWhisper.Platform.Abstractions;
@@ -39,7 +37,7 @@ namespace HyperWhisper.Services;
 /// - Cancels pending restoration when new recording starts
 ///
 /// USES:
-/// - InputSimulator for reliable Ctrl+V simulation
+/// - SyntheticKeyboard (SendInput, stamped with the HyperWhisper marker) for Ctrl+V
 /// - Win32 SetForegroundWindow to reactivate previous app
 /// - AllowSetForegroundWindow to bypass foreground restrictions
 ///
@@ -173,7 +171,6 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     // INSTANCE FIELDS
     // =========================================================================
 
-    private readonly InputSimulator _inputSimulator;
     private IntPtr _previousForegroundWindow;
     private uint _previousThreadId;
     private IntPtr _previousFocusedChild;
@@ -233,8 +230,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
 
     public SmartPasteService()
     {
-        _inputSimulator = new InputSimulator();
-        SendModifierKeyEvent = SendModifierKeyEventWithInputSimulator;
+        SendModifierKeyEvent = SendModifierKeyEventWithSendInput;
     }
 
     void PlatformContracts.ITextInjectionService.CaptureTarget()
@@ -1161,9 +1157,9 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
             // while this method reports Pasted (#1495). Release it first.
             ReleaseHeldModifiersBeforePaste();
 
-            _inputSimulator.Keyboard.ModifiedKeyStroke(
-                VirtualKeyCode.CONTROL,
-                VirtualKeyCode.VK_V);
+            // Stamped with HyperWhisper's marker, so push-to-talk bound to Ctrl
+            // does not read this generic VK_CONTROL as the user's press (#1851).
+            SyntheticKeyboard.Send(SyntheticKeyboard.CtrlV);
 
             LoggingService.Info("SmartPasteService: Sent Ctrl+V to paste text");
             ReportSmartPasteOutcome(PasteOutcome.Pasted, attempt);
@@ -1178,20 +1174,15 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     }
 
     /// <summary>
-    /// Sends one synthetic key event of a release plan. InputSimulator in
-    /// production (it sets the extended-key flag for Right Alt and the Win keys);
-    /// the smoke suite records the events instead of typing them.
+    /// Sends one synthetic key event of a release plan. SyntheticKeyboard in
+    /// production (it sets the extended-key flag for Right Alt and stamps the
+    /// HyperWhisper marker push-to-talk ignores); the smoke suite records the
+    /// events instead of typing them.
     /// </summary>
     internal Action<PasteKeyEvent> SendModifierKeyEvent { get; set; }
 
-    private void SendModifierKeyEventWithInputSimulator(PasteKeyEvent keyEvent)
-    {
-        var key = (VirtualKeyCode)keyEvent.Vk;
-        if (keyEvent.KeyUp)
-            _inputSimulator.Keyboard.KeyUp(key);
-        else
-            _inputSimulator.Keyboard.KeyDown(key);
-    }
+    private static void SendModifierKeyEventWithSendInput(PasteKeyEvent keyEvent)
+        => SyntheticKeyboard.Send(new[] { keyEvent });
 
     /// <summary>
     /// Releases any Shift, Alt or Win key that is still down, so the Ctrl+V that

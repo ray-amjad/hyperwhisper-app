@@ -305,7 +305,9 @@ actor ParakeetStreamingSession {
         } catch is CancellationError {
             return
         } catch {
-            logger.error("pass #\(passIndex, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+            // Fixed identifiers only (#1980): the description can hold a /Users/<name>/ path.
+            let errorSummary = LocalModelLoadFailureDetail.publicSummary(for: error)
+            logger.error("pass #\(passIndex, privacy: .public) failed: \(errorSummary, privacy: .public) description=\(error.localizedDescription, privacy: .private)")
             onError?(error)
             return
         }
@@ -413,7 +415,9 @@ actor ParakeetStreamingSession {
         } catch is CancellationError {
             return nil
         } catch {
-            logger.error("final pass failed: \(error.localizedDescription, privacy: .public)")
+            // Fixed identifiers only (#1980): the description can hold a /Users/<name>/ path.
+            let errorSummary = LocalModelLoadFailureDetail.publicSummary(for: error)
+            logger.error("final pass failed: \(errorSummary, privacy: .public) description=\(error.localizedDescription, privacy: .private)")
             onError?(error)
             return nil
         }

@@ -3,6 +3,7 @@ using HyperWhisper.Data.Entities;
 using HyperWhisper.ModelReadiness;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.ViewModels;
+using HyperWhisper.SharedCore;
 
 namespace HyperWhisper.Linux;
 
@@ -313,9 +314,10 @@ internal sealed class LinuxOnboardingModeReadiness(
                 && await _localModels.IsInstalledAsync(capability, cancellationToken).ConfigureAwait(false);
         }
 
-        if (!string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase)
-            || string.IsNullOrWhiteSpace(mode.CloudProvider)) return false;
-        var providerId = NormalizeCloudProvider(mode.CloudProvider);
+        if (!string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase)) return false;
+        // A cloud mode with no stored provider runs on HyperWhisper Cloud (issue #1709), so it is
+        // ready exactly when an explicit "hyperwhisper" mode would be.
+        var providerId = NormalizeCloudProvider(SharedCoreBridge.EffectiveModeCloudProvider(mode.CloudProvider));
         var knownProvider = string.Equals(providerId, "hyperwhisper", StringComparison.Ordinal)
             || _capabilities.Any(item => item.Deployment == ModelDeployment.Cloud
                 && item.Workload == ModelWorkload.Voice
@@ -329,11 +331,18 @@ internal sealed class LinuxOnboardingModeReadiness(
         return credential?.IsPresent == true;
     }
 
-    private static string NormalizeCloudProvider(string provider) => provider.Trim().ToLowerInvariant() switch
+    /// <summary>
+    /// The provider id a cloud mode's readiness is judged on. The legacy standalone aliases go
+    /// through the shared storage fold (issue #601), the same call the Local API, the startup
+    /// pass and the Mode editor make, so <c>googlespeech</c> / <c>microsoftazurespeech</c> read
+    /// as HyperWhisper Cloud here too; this used to map them to <c>google-chirp</c> /
+    /// <c>azure-mai</c>, which no capability matched after catalog v8. The macOS spelling
+    /// <c>xai</c> is not a legacy alias in the catalog, so its fold onto <c>grok</c> stays.
+    /// </summary>
+    internal static string NormalizeCloudProvider(string provider)
     {
-        "microsoftazurespeech" => "azure-mai",
-        "googlespeech" => "google-chirp",
-        "xai" => "grok",
-        _ => provider.Trim().ToLowerInvariant(),
-    };
+        var folded = (SharedCoreBridge.NormalizeCloudProvider(provider.Trim()).Provider ?? string.Empty)
+            .Trim().ToLowerInvariant();
+        return folded == "xai" ? "grok" : folded;
+    }
 }

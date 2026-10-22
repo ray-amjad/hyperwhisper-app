@@ -18,11 +18,14 @@ import { TRPCError } from "@trpc/server";
 
 import { createTRPCRouter, publicProcedure } from "../trpc";
 import { upsertEmail } from "@/src/lib/db-layer";
+import { APPCAST_FETCH_TIMEOUT_MS } from "@/lib/shared/appcast";
 import { emailTag } from "@/lib/shared/redact";
 import { describeDbError } from "@/lib/shared/db-error";
 import { disposableDomains } from "@/lib/disposable_domains";
 import { emailService } from "@/lib/services/email";
 import { downloadEmailRateLimiter } from "@/lib/rate-limit";
+import { countFailOpen } from "@/lib/rate-limit-gate";
+import { env } from "@/src/env/server.mjs";
 import { getClientIPFromHeaders } from "./download-ip";
 import { createDisposableDomainCache } from "./download-disposable-domains";
 
@@ -69,7 +72,10 @@ function isDisposableDomain(emailDomain: string, list: Set<string>): boolean {
 async function getLatestDownloadUrl(origin: string): Promise<string | null> {
   try {
     const appcastUrl = `${origin}/appcast.xml`;
-    const res = await fetch(appcastUrl, { cache: "no-store" });
+    const res = await fetch(appcastUrl, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(APPCAST_FETCH_TIMEOUT_MS),
+    });
 
     if (!res.ok) return null;
 
@@ -97,7 +103,7 @@ export const downloadRouter = createTRPCRouter({
    */
   getLatestUrl: publicProcedure.query(async () => {
     // Use production URL as default since we don't have request context
-    const origin = process.env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";
+    const origin = env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";
     const downloadUrl = await getLatestDownloadUrl(origin);
 
     if (!downloadUrl) {
@@ -121,11 +127,15 @@ export const downloadRouter = createTRPCRouter({
     )
     .mutation(async ({ input, ctx }) => {
       try {
-        // Rate limiting: 10 requests per IP per hour
+        // Rate limiting: 10 requests per IP per hour. Fails open, so an Upstash
+        // outage never keeps a visitor from the download link (#2136).
         const clientIP = getClientIPFromHeaders(ctx.headers);
-        const { success } = await downloadEmailRateLimiter.limit(clientIP);
+        const rateLimit = await countFailOpen(
+          () => downloadEmailRateLimiter.limit(clientIP),
+          "download email",
+        );
 
-        if (!success) {
+        if (rateLimit.limited) {
           throw new TRPCError({
             code: "TOO_MANY_REQUESTS",
             message: "Too many requests. Please try again later.",
@@ -164,7 +174,7 @@ export const downloadRouter = createTRPCRouter({
         const requesterTag = emailTag(input.email);
         console.log("Download requested by:", requesterTag);
 
-        const origin = process.env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";
+        const origin = env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";
         const emailDownloadUrl = `${origin}/api/download`;
 
         const welcomeEmailPayload: WelcomeEmailData = {
@@ -176,7 +186,7 @@ export const downloadRouter = createTRPCRouter({
             "https://www.loom.com/share/fd73e59755f9473b8bde341845c402e9?sid=e1892b2e-3ce6-4542-b512-31777a400909",
           loomThumbnailUrl:
             "https://www.hyperwhisper.com/email-assets/welcome-email-thumbnail.png",
-          supportEmail: process.env.SUPPORT_EMAIL ?? "hi@support.hyperwhisper.com",
+          supportEmail: env.SUPPORT_EMAIL ?? "hi@support.hyperwhisper.com",
         };
 
         try {

@@ -10,6 +10,13 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <!-- Per-Monitor V2 DPI awareness (issue #1501); see app.manifest. -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- WFO0003 asks for ApplicationHighDpiMode instead of a manifest. That
+         property only takes effect through a WinForms ApplicationConfiguration
+         .Initialize() Main; this is a WPF app (the WinForms tray menu runs in the
+         same process and follows its awareness), so the manifest is the setting. -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
     <RootNamespace>HyperWhisper</RootNamespace>
     <AssemblyName>HyperWhisper</AssemblyName>
 
@@ -56,14 +63,9 @@
   <!-- Existing dependencies -->
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.2.1" />
-    <PackageReference Include="Whisper.net" Version="1.9.0" />
-    <!-- Whisper.net Runtimes:
-         - Runtime: Standard CPU runtime with AVX optimizations (x64)
-         - Runtime.NoAvx: For CPUs without AVX support (ARM64, older x64)
-         - Runtime.Vulkan: Vulkan GPU acceleration (vendor-agnostic: NVIDIA, AMD, Intel) -->
-    <PackageReference Include="Whisper.net.Runtime" Version="1.9.0" />
-    <PackageReference Include="Whisper.net.Runtime.NoAvx" Version="1.9.0" />
-    <PackageReference Include="Whisper.net.Runtime.Vulkan" Version="1.9.0" />
+    <!-- Whisper.net is not referenced here. On-device Whisper runs in
+         HyperWhisper.WhisperWorker.exe (issue #1194), so no Whisper or ggml-whisper
+         DLL loads in this process; the worker ships under whisper-worker\. -->
     <PackageReference Include="LLamaSharp" Version="0.27.0" />
     <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.27.0" />
     <PackageReference Include="LLamaSharp.Backend.Cuda12" Version="0.27.0" />
@@ -75,7 +77,6 @@
            see LocalLlmGpuHelper for the backend selection rules. -->
     <PackageReference Include="LLamaSharp.Backend.Vulkan" Version="0.27.0" />
     <PackageReference Include="System.Management" Version="9.0.0" />
-    <PackageReference Include="GregsStack.InputSimulatorStandard" Version="1.3.5" />
   </ItemGroup>
 
   <ItemGroup>
@@ -93,6 +94,12 @@
     <!-- The app-type classifier, shared with the Linux head since issue #279.
          It used to be Services\AppClassification\AppTypeClassifier.cs here. -->
     <ProjectReference Include="..\..\shared-dotnet\HyperWhisper.AppClassification\HyperWhisper.AppClassification.csproj" />
+    <!-- The shared Local API server, hosted by this head since issue #356 item 6.
+         It used to be Services\LocalApi\Endpoints\ here, a second
+         implementation of the same routes. -->
+    <ProjectReference Include="..\..\shared-dotnet\HyperWhisper.LocalApi\HyperWhisper.LocalApi.csproj" />
+    <!-- The stdio client for the Whisper worker exe. Managed only: no Whisper.net. -->
+    <ProjectReference Include="..\HyperWhisper.WhisperWorker.Client\HyperWhisper.WhisperWorker.Client.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -288,17 +295,72 @@
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
                              Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/](linux|linux-musl|osx)-'))" />
 
-      <!-- Whisper.net nested runtime folders include non-target assets under noavx/vulkan. -->
-      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
-                             Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/]noavx[\\/](linux-[^\\/]+|win-x86)[\\/]'))" />
-      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
-                             Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/]vulkan[\\/]linux-[^\\/]+[\\/]'))" />
-
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
                              Condition="'$(RuntimeIdentifier)' == 'win-x64' And $([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/]win-(arm64|x86)[\\/]'))" />
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
                              Condition="'$(RuntimeIdentifier)' == 'win-arm64' And $([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/](win-x64|win-x86|noavx|vulkan)[\\/]'))" />
     </ItemGroup>
+  </Target>
+
+  <!-- Dev loop for the Whisper worker (issue #1194). TranscriptionService starts
+       whisper-worker\HyperWhisper.WhisperWorker.exe next to the app, so a plain
+       `dotnet build` / `dotnet run` builds the worker project and copies its
+       output there. build-release.ps1 publishes the worker itself (self-contained,
+       per RID) and passes -p:SkipWhisperWorkerCopy=true.
+       The worker is deliberately NOT a ProjectReference (that would pull its
+       Whisper.net / ggml natives into the app output), so it is outside the
+       app's restore graph: restore it here first. The unique
+       MSBuildRestoreSessionId makes the Restore call its own project instance,
+       so the Build call below evaluates fresh and sees the new
+       project.assets.json (a clean checkout otherwise fails NETSDK1004). -->
+  <Target Name="BuildAndCopyWhisperWorker" AfterTargets="Build"
+          Condition="'$(SkipWhisperWorkerCopy)' != 'true' And '$(DesignTimeBuild)' != 'true'">
+    <PropertyGroup>
+      <_WhisperWorkerProject>$(MSBuildThisFileDirectory)..\HyperWhisper.WhisperWorker\HyperWhisper.WhisperWorker.csproj</_WhisperWorkerProject>
+      <_WhisperWorkerProperties>Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);EnableWindowsTargeting=$(EnableWindowsTargeting)</_WhisperWorkerProperties>
+    </PropertyGroup>
+    <MSBuild Projects="$(_WhisperWorkerProject)"
+             Targets="Restore"
+             Properties="$(_WhisperWorkerProperties);MSBuildRestoreSessionId=$([System.Guid]::NewGuid())" />
+    <MSBuild Projects="$(_WhisperWorkerProject)"
+             Targets="Build"
+             Properties="$(_WhisperWorkerProperties)">
+      <Output TaskParameter="TargetOutputs" ItemName="_WhisperWorkerAssembly" />
+    </MSBuild>
+    <PropertyGroup>
+      <_WhisperWorkerOutDir>@(_WhisperWorkerAssembly->'%(RootDir)%(Directory)')</_WhisperWorkerOutDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <_WhisperWorkerFile Include="$(_WhisperWorkerOutDir)**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_WhisperWorkerFile)"
+          DestinationFiles="@(_WhisperWorkerFile->'$(OutDir)whisper-worker\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- A plain `dotnet publish` of the app ships the Whisper worker too (PR #1927
+       review): without it every local Whisper transcription fails with "The
+       Whisper worker is missing". The worker is published for the same RID and
+       self-contained setting as the app into <PublishDir>whisper-worker\, which
+       is what build-release.ps1 does on its own (it passes
+       -p:SkipWhisperWorkerCopy=true, so its output does not change). Restore
+       first in its own call, as the dev-loop target above does. -->
+  <Target Name="PublishWhisperWorker" AfterTargets="Publish"
+          Condition="'$(SkipWhisperWorkerCopy)' != 'true' And '$(DesignTimeBuild)' != 'true'">
+    <PropertyGroup>
+      <_WhisperWorkerProject>$(MSBuildThisFileDirectory)..\HyperWhisper.WhisperWorker\HyperWhisper.WhisperWorker.csproj</_WhisperWorkerProject>
+      <_WhisperWorkerPublishDir>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(PublishDir)', 'whisper-worker'))</_WhisperWorkerPublishDir>
+      <_WhisperWorkerPublishProperties>Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=$(SelfContained);EnableWindowsTargeting=$(EnableWindowsTargeting)</_WhisperWorkerPublishProperties>
+    </PropertyGroup>
+    <MSBuild Projects="$(_WhisperWorkerProject)"
+             Targets="Restore"
+             Properties="$(_WhisperWorkerPublishProperties);MSBuildRestoreSessionId=$([System.Guid]::NewGuid())" />
+    <MSBuild Projects="$(_WhisperWorkerProject)"
+             Targets="Publish"
+             Properties="$(_WhisperWorkerPublishProperties);PublishDir=$(_WhisperWorkerPublishDir)" />
+    <Error Condition="!Exists('$(_WhisperWorkerPublishDir)HyperWhisper.WhisperWorker.dll')"
+           Text="The Whisper worker publish left no HyperWhisper.WhisperWorker.dll in $(_WhisperWorkerPublishDir). Release installers are built with app\windows\build-release.ps1." />
+    <Message Importance="high" Text="Whisper worker -> $(_WhisperWorkerPublishDir)" />
   </Target>
 
   <!-- LLamaSharp's GPU backend packages ship WITHOUT ggml-cpu.dll in their

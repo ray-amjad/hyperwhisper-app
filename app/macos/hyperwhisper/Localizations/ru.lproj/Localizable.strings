@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Диагностика экспортирована";
 "alerts.export.diagnostics.success.message" = "Все журналы диагностики были успешно экспортированы.";
 "alerts.export.diagnostics.saveFailed.message" = "Не удалось сохранить диагностику в выбранное местоположение: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Диагностика экспортирована без системных журналов";
+"alerts.export.diagnostics.noSystemLogs.message" = "Файл диагностики сохранён, но системные журналы приложения не удалось прочитать, поэтому system-logs.txt содержит только причину. Причина: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Экспортировать журналы обновлений для поддержки";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Завершить введение";
 
 "onboarding.setupLater.button" = "Настроить позже";
-"onboarding.error.microphone.denied" = "Доступ к микрофону отклонен. Пожалуйста, предоставьте разрешение в Параметры системы.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Запуск при входе";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Выключено";
 "settings.general.mediaControl.mode.mute" = "Отключить звук";
+"settings.general.mediaControl.mode.muffle" = "Приглушить звук";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,9 +324,17 @@
 "settings.sound.soundEffects.title" = "Воспроизводить звуковые эффекты";
 "settings.sound.soundEffects.info" = "Воспроизводить звуковые сигналы при начале и остановке записи.";
 "settings.sound.mediaControl.title" = "Управление медиа при записи";
-"settings.sound.mediaControl.info" = "Выберите, как HyperWhisper обрабатывает другой звук при записи. 'Выключено' оставляет звук без изменений, 'Отключить звук' отключает системный вывод во время записи и восстанавливает его после.";
+"settings.sound.mediaControl.info" = "Выберите, как HyperWhisper обрабатывает другой звук при записи. 'Выключено' оставляет звук без изменений, 'Отключить звук' отключает системный вывод во время записи и восстанавливает его после, а 'Приглушить звук' оставляет его тихо играть, как из соседней комнаты.";
+"settings.sound.microphone.title" = "Микрофон";
+"settings.sound.microphone.subtitle" = "Используется только HyperWhisper. Сохраняется после перезапуска.";
+"microphone.picker.default" = "По умолчанию · %@";
+"microphone.picker.notConnected" = "%@ (не подключён)";
+"microphone.picker.fallback" = "Используется %1$@, пока %2$@ не будет снова подключён.";
+"settings.sound.microphone.test" = "Проверить";
+"settings.sound.microphone.stop" = "Стоп";
+"settings.sound.microphone.level" = "Уровень входа";
 "settings.sound.autoIncreaseMicVolume.title" = "Автоматически увеличивать громкость микрофона";
-"settings.sound.autoIncreaseMicVolume.info" = "Автоматически устанавливает громкость входного сигнала микрофона на максимум при начале записи, а затем восстанавливает исходный уровень при остановке. Применяется только при использовании устройства ввода по умолчанию системы.";
+"settings.sound.autoIncreaseMicVolume.info" = "Автоматически устанавливает максимальную громкость входа микрофона, с которого записывает HyperWhisper, при начале записи и восстанавливает исходный уровень после её остановки. Микрофоны без программной регулировки громкости не изменяются.";
 "settings.sound.vad.title" = "Удалить тишину перед транскрипцией";
 "settings.sound.vad.info" = "Автоматически определяет и удаляет начальную и конечную тишину с помощью ИИ для определения голоса. Это может улучшить точность транскрипции и сократить время обработки.";
 
@@ -336,6 +346,9 @@
 "settings.storage.choose.button" = "Выбрать...";
 "settings.storage.dialog.select" = "Выбрать папку";
 "settings.storage.dialog.message" = "Выберите папку для сохранения записей";
+"settings.storage.folderRefused.title" = "Эту папку нельзя использовать";
+"settings.storage.folderRefused.notWritable" = "У вас нет разрешения на запись в «%@», поэтому HyperWhisper не может сохранять туда записи. Папка записей не изменена.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper не удалось создать эту папку: %@ Папка записей не изменена.";
 "settings.storage.storeAsM4A.title" = "Сжать записи в M4A";
 "settings.storage.storeAsM4A.subtitle" = "Преобразует записи WAV в меньшие файлы после транскрипции. Отключите, чтобы сохранять исходные файлы WAV (больше, но без потерь).";
 
@@ -383,6 +396,7 @@
 
 "settings.shortcuts.changeMode.title" = "Изменить режим";
 "settings.shortcuts.changeMode.subtitle" = "Работает только при записи";
+"settings.shortcuts.conflict.alert" = "Это сочетание клавиш нельзя использовать, так как оно уже используется для «%@».";
 
 "settings.shortcuts.reset.button" = "Сбросить на значения по умолчанию";
 "settings.shortcuts.reset.dialog.title" = "Сбросить сочетания клавиш";
@@ -434,6 +448,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Вставить из буфера обмена";
 "settings.license.clearInput" = "Очистить";
+"license.error.keyFormat" = "Это не похоже на ключ учётной записи.";
 "settings.license.recovery.prompt" = "Забыли лицензионный ключ?";
 "settings.license.recovery.button" = "Перейти на портал клиента";
 "settings.license.daily.title" = "Ежедневная транскрипция";
@@ -576,6 +591,8 @@
 "onboarding.configure.cloud.note" = "Кредиты предоплачены и общие для всех Mac, вошедших с этим ключом. Время простоя ничего не стоит.";
 "onboarding.source.note" = "Если вы передумаете позже, повторится только этот шаг. Всё остальное, что вы настроили, сохранится.";
 "onboarding.permissions.note" = "Пропустите Универсальный доступ, и транскрипты будут попадать в буфер обмена, готовые для вставки. Включить его позже можно одним кликом.";
+"onboarding.permissions.microphone.denied" = "Не разрешено. Включите HyperWhisper в Системных настройках и вернитесь сюда.";
+"onboarding.permissions.continueNeedsMicrophone" = "Для продолжения нужен микрофон. Разрешите его выше или выберите «Настроить позже».";
 "onboarding.welcome.task1.title" = "Выберите, как будет работать транскрибация";
 "onboarding.welcome.task1.caption" = "В нашем облаке, на этом Mac или через аккаунт провайдера, за который вы уже платите.";
 "onboarding.welcome.task2.title" = "Проверьте микрофон";
@@ -791,6 +808,7 @@
 "modes.field.name.placeholder" = "например, Заметки встречи";
 "modes.field.name.editPlaceholder" = "Имя режима";
 "modes.field.name.defaultLocked" = "Это режим по умолчанию, поэтому его имя нельзя изменить. Любой другой режим можно переименовать.";
+"modes.field.name.taken" = "Режим с таким названием уже существует.";
 "modes.field.model" = "Модель";
 "modes.field.provider" = "Провайдер";
 "modes.provider.local" = "Локально";
@@ -817,7 +835,7 @@
 "transcripts.delete.single.message" = "Это будет постоянно удалять эту запись и файл аудио.";
 "transcripts.delete.multiple.title" = "Удалить %d записей?";
 "transcripts.delete.multiple.message" = "Это будет постоянно удалять %d записей и их аудиофайлы.\n\nЭто действие невозможно отменить.";
-"transcripts.delete.multiple.confirm" = "Удалить все";
+"transcripts.delete.multiple.confirm" = "Удалить записи: %d";
 "transcripts.retry.error.title" = "Ошибка повтора";
 "transcripts.retry.error.modeDeleted" = "Режим, в котором была сделана эта запись, удалён, поэтому повтор не выполнен. В Истории щёлкните запись правой кнопкой мыши и выберите \"Повторить с...\", чтобы выбрать другой режим.";
 
@@ -870,7 +888,6 @@
 "recording.retry.inProgress" = "Повтор…";
 "recording.retry.count" = "Повторить (%d)";
 "recording.retry.failed.missing" = "Ошибка повтора: аудиофайл не найден";
-"recording.retry.failed.error" = "Ошибка повтора: %@";
 "recording.retry.pending" = "Готов к повтору – щелкните для транскрипции";
 "recording.retry.modeDeleted" = "Режим удалён";
 "recording.cancel.dialog.title" = "Отмена записи?";
@@ -899,6 +916,7 @@
 "audio.error.microphonePermission" = "Разрешение на микрофон не предоставлено";
 "audio.error.microphoneInUse" = "HyperWhisper не может получить доступ к микрофону, потому что другое приложение в настоящее время его использует. Приостановите другое приложение или переключитесь на входы, а затем повторите попытку.";
 "audio.error.audioSystemNotResponding" = "Звуковая система macOS не отвечает, поэтому не удалось включить микрофон. Попробуйте ещё раз через несколько секунд. Если это повторяется, перезагрузите Mac.";
+"audio.error.recorderStopTimedOut" = "Аудиосистема macOS перестала отвечать во время сохранения записи, поэтому она не была расшифрована. Аудио сохранено: HyperWhisper попытается восстановить его при следующем запуске.";
 "audio.error.createEngine" = "Ошибка создания аудиомеханизма";
 "audio.error.noInput" = "Нет доступного входного аудио";
 "audio.error.createFile" = "Ошибка создания аудиофайла";
@@ -926,6 +944,9 @@
 "transcription.error.providerNotAvailable.provider" = "%@ недоступен. Проверьте параметры и повторите попытку.";
 "transcription.error.providerNotAvailable.detail" = "%@ недоступен: %@";
 "transcription.error.modelNotDownloaded" = "Пожалуйста, сначала загрузите модель";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Режим %1$@ использует модель %2$@, которая не загружена. Загрузите её в Библиотеке моделей.";
+"transcription.error.modelNotDownloaded.model" = "Модель %1$@ не загружена. Загрузите её в Библиотеке моделей.";
+"transcription.error.openModelLibrary" = "Открыть Библиотеку моделей";
 "transcription.error.modelProtected" = "Эта модель не может быть удалена";
 "transcription.error.audioFileNotFound" = "Аудиофайл не найден";
 "transcription.error.network.detail" = "Ошибка сети: %@";
@@ -972,6 +993,7 @@
 "transcription.guidance.quotaExceeded" = "Добавьте кредиты на учетную запись %@ или обновите сведения о биллинге";
 "transcription.guidance.timeout" = "Запрос занял слишком много времени. Проверьте скорость интернета и повторите попытку.";
 "transcription.error.noSpeechDetected" = "В записи не обнаружена речь.";
+"transcription.error.audioTooShort" = "Запись слишком короткая для расшифровки. Запишите подольше.";
 "transcription.guidance.noSpeechDetected" = "Советы:\n• Говорите четко в микрофон\n• Держите клавишу дольше перед разговором\n• Проверьте, что микрофон работает\n• Убедитесь, что выбрано правильное устройство ввода";
 "transcription.guidance.needsNativeRelaunch" = "Завершите работу HyperWhisper и откройте программу в нативном режиме, чтобы использовать локальную постобработку.";
 "transcription.guidance.localRuntimeUnavailable" = "Повторите попытку или выберите более компактную локальную модель в настройках режима.";
@@ -1114,6 +1136,17 @@
 "transcribe.file.error.format.title" = "Неподдерживаемый формат";
 "transcribe.file.error.format.message" = "Файлы .%@ не поддерживаются %@. Поддерживаемые форматы: %@";
 "transcribe.file.error.read" = "Невозможно прочитать выбранный файл.";
+"transcribe.file.error.webm" = "Формат WebM не поддерживается. Преобразуйте файл в MP3, M4A или WAV и попробуйте снова.";
+"transcribe.file.busy.title" = "Файл уже расшифровывается.";
+"transcribe.file.busy.message" = "Отменить его и начать этот?";
+"transcribe.file.busy.keepRunning" = "Продолжить";
+"transcribe.file.busy.cancelAndStart" = "Отменить и начать";
+"transcribe.file.error.notAudio" = "Файл «%@» не является корректным аудио. Возможно, он повреждён или имеет формат, который macOS не умеет декодировать.";
+"transcribe.file.error.empty" = "Файл «%@» пуст. В нём нет аудио для расшифровки.";
+"transcribe.file.error.permission" = "HyperWhisper не может прочитать файл «%@». Проверьте права доступа к файлу.";
+"transcribe.file.error.folderPermission" = "HyperWhisper не может открыть папку, в которой находится файл «%@». Проверьте права доступа к этой папке.";
+"transcribe.file.error.privacy" = "Настройки конфиденциальности macOS не позволили HyperWhisper прочитать файл «%@». Разрешите это в Системных настройках > Конфиденциальность и безопасность > Доступ к диску.";
+"transcribe.file.error.tooShort" = "Этот файл слишком короткий для расшифровки (%@ с).";
 "transcribe.file.error.copy" = "Ошибка копирования файла в папку записей.";
 "transcribe.file.error.video.title" = "Нет звука в видео";
 "transcribe.file.error.video.noAudio" = "Этот видеофайл не содержит аудиодорожку. Пожалуйста, выберите видео со звуком или аудиофайл.";
@@ -1140,3 +1173,4 @@
 "settings.storage.maxRecordingDuration.hour" = "1 час";
 "settings.storage.maxRecordingDuration.hours" = "%d часов";
 "settings.storage.maxRecordingDuration.off" = "Выключено";
+"settings.api_server.status.stopping" = "Остановка…";

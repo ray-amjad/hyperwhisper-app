@@ -120,7 +120,16 @@ final class ParakeetModelManager: ObservableObject {
     private var observation: NSObjectProtocol?
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "ParakeetModelManager")
 
+    /// The tmp files each in-flight download opened, so a cancel or a failure can
+    /// remove them (#1723). Keyed by modelId, like `downloads`.
+    private var tempFileTrackers: [String: DownloadTempFileTracker] = [:]
+
+    /// Issue #1723: the launch sweep runs once per process, so a second manager can
+    /// never remove a directory the first one is downloading into.
+    private static var didSweepLeftoverPartials = false
+
     init() {
+        Self.sweepLeftoverPartialsOnce()
         refreshState()
 
         observation = NotificationCenter.default.addObserver(
@@ -190,6 +199,49 @@ final class ParakeetModelManager: ObservableObject {
     // Returns version-specific cache directory from FluidAudio
     private func cacheDirectory(for modelVersion: AsrModelVersion) -> URL {
         AsrModels.defaultCacheDirectory(for: modelVersion)
+    }
+
+    // PARTIAL DOWNLOAD CLEANUP (issue #1723, the Parakeet side of #1445):
+    // FluidAudio moves each finished file straight into the cache directory, so a
+    // quit or a kill mid-download leaves a half-filled one, and the next download
+    // keeps its files (it skips any file already there). Nothing may resume (Ray,
+    // 2026-10-09). A download into a directory that holds no install writes this
+    // marker first; while it is there the directory is ours and unfinished, so the
+    // launch sweep removes both. The marker lives in our own folder, not in the cache
+    // directory, because FluidAudio deletes that directory itself on a forced or
+    // retried download.
+    nonisolated static func downloadMarker(for modelVersion: AsrModelVersion) -> URL {
+        downloadMarker(forCacheDirectory: AsrModels.defaultCacheDirectory(for: modelVersion))
+    }
+
+    nonisolated static func downloadMarker(forCacheDirectory directory: URL) -> URL {
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support", isDirectory: true)
+        return support
+            .appendingPathComponent("hyperwhisper", isDirectory: true)
+            .appendingPathComponent("\(directory.lastPathComponent).download-in-progress", isDirectory: false)
+    }
+
+    /// Remove what an unfinished download left: the cache directory its marker
+    /// covers, then the marker. No-op without a marker. Returns whether there was one.
+    @discardableResult
+    nonisolated static func removeUnfinishedDownload(in directory: URL, marker: URL, reason: String) -> Bool {
+        guard FileManager.default.fileExists(atPath: marker.path) else { return false }
+        PartialDownloadCleanup.removeOwnedDirectory(directory, reason: reason)
+        try? FileManager.default.removeItem(at: marker)
+        return true
+    }
+
+    private static func sweepLeftoverPartialsOnce() {
+        guard !didSweepLeftoverPartials else { return }
+        didSweepLeftoverPartials = true
+        for modelVersion in [AsrModelVersion.v2, .v3] {
+            removeUnfinishedDownload(
+                in: AsrModels.defaultCacheDirectory(for: modelVersion),
+                marker: downloadMarker(for: modelVersion),
+                reason: "unfinished Parakeet \(String(describing: modelVersion)) download left from an earlier run"
+            )
+        }
     }
 
     // REFRESH STATE:
@@ -288,6 +340,8 @@ final class ParakeetModelManager: ObservableObject {
             return
         }
         logger.info("Cancelling Parakeet download \(canonicalModelId, privacy: .public)")
+        // Name the file in flight while it is still open; the cancel closes it (#1723).
+        tempFileTrackers[canonicalModelId]?.sample()
         downloads.cancel(canonicalModelId)
     }
 
@@ -345,6 +399,24 @@ final class ParakeetModelManager: ObservableObject {
         let componentCount = modelVersion.hasFusedEncoder ? 3 : 4   // mirrors AsrModels.download's spec list
         let aggregator = ModelDownloadProgressAggregator(componentCount: componentCount)
 
+        // #1723: a download that starts with no install owns the cache directory until
+        // it finishes (see `downloadMarker(for:)`), and records the tmp files it opens.
+        let directory = cacheDirectory(for: modelVersion)
+        let marker = Self.downloadMarker(forCacheDirectory: directory)
+        let ownsDirectory = !AsrModels.modelsExist(at: directory)
+        if ownsDirectory {
+            do {
+                try FileManager.default.createDirectory(at: marker.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try Data().write(to: marker)
+            } catch {
+                logger.error("Could not write the Parakeet \(String(describing: modelVersion)) download marker: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+        let tempFiles = DownloadTempFileTracker()
+        tempFileTrackers[modelId] = tempFiles
+        tempFiles.start()
+        var succeeded = false
+
         do {
             _ = try await AsrModels.download(
                 // A Re-download always fetches: FluidAudio removes the cache
@@ -360,6 +432,7 @@ final class ParakeetModelManager: ObservableObject {
                     }
                 }
             )
+            succeeded = true
             logger.info("Parakeet \(String(describing: modelVersion)) downloaded successfully")
             // Fresh files on disk: any broken flag is stale now.
             clearModelBroken(modelId)
@@ -371,6 +444,20 @@ final class ParakeetModelManager: ObservableObject {
             let nsError = error as NSError
             logger.error("Failed to download Parakeet \(String(describing: modelVersion)); errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             errorMessage = error.localizedDescription
+        }
+
+        // Clean up, no resume (#1723). Even a success can follow a failed first try
+        // inside FluidAudio, whose tmp file it dropped without a word.
+        tempFileTrackers[modelId] = nil
+        tempFiles.removeAbandoned()
+        if succeeded {
+            try? FileManager.default.removeItem(at: marker)
+        } else if ownsDirectory {
+            Self.removeUnfinishedDownload(
+                in: directory,
+                marker: marker,
+                reason: "Parakeet \(String(describing: modelVersion)) download did not finish"
+            )
         }
 
         refreshState()

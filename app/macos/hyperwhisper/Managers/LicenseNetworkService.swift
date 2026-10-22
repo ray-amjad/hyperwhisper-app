@@ -52,6 +52,9 @@ protocol LicenseNetworkServing {
     func getCachedLicenseStatus() -> LicenseStatus?
     func getStoredLicenseKey() -> String?
     func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead
+    /// Reads the secure store itself, never this session's cached record.
+    /// Async so the blocking Keychain read stays off the main actor (#1408).
+    func readStoredLicenseKeyFromSecureStore() async -> RustLicenseStore.StoredLicenseKeyRead
     func clearStoredLicense() -> Bool
     func replaceStoredLicenseKeyForImport(_ licenseKey: String) -> Bool
 }
@@ -588,6 +591,12 @@ class LicenseNetworkService: LicenseNetworkServing {
         store.readStoredLicenseKey(retryAfterFailure: retryAfterFailure)
     }
 
+    /// A fresh Keychain read for a decision that must match what the next
+    /// launch sees (a failed Deactivate, #1490).
+    func readStoredLicenseKeyFromSecureStore() async -> RustLicenseStore.StoredLicenseKeyRead {
+        store.readStoredLicenseKeyFromSecureStore()
+    }
+
     // MARK: - License Data Management
 
     /// Clears all stored license data (key, customerId, lastValidation, status).
@@ -641,10 +650,12 @@ class LicenseNetworkService: LicenseNetworkServing {
     /// Persists a server verdict only while the caller's validation is still
     /// current. For a `RustLicenseStore`, the expected-key check and the
     /// side-effecting Rust FFI call run inside `performLicenseTransaction`,
-    /// under the store's `transactionLock` — the same lock its `get`/`set`/
-    /// `delete`, `clearLicenseRecord` and `replaceLicenseKeyForImport` take —
-    /// so they are one serialized unit relative to LicenseManager
-    /// activation/deactivation without any actor isolation.
+    /// under the store's `transactionLock` — the same lock its `set`/`delete`,
+    /// `clearLicenseRecord` and `replaceLicenseKeyForImport` take — so they
+    /// are one serialized unit relative to LicenseManager
+    /// activation/deactivation without any actor isolation. Reads outside the
+    /// transaction do not take that lock: they see the last committed record
+    /// and never wait on the Keychain write (#1424).
     ///
     /// Deliberately NOT `@MainActor`: the commit ends in a blocking Keychain
     /// write, so it must run off the main thread (#1408). It touches no

@@ -236,6 +236,78 @@ extension RecordingTranscriptionFlow {
         return newID
     }
 
+    /// Saves a failed pending-file Retry to History (#1815): an engine that
+    /// threw, or a result with no speech (some engines return `""` for
+    /// silence instead of throwing).
+    ///
+    /// The failed "Audio file could not be read" row stays failed, now with
+    /// the retry's reason, and counts the retry, as History's own Retry does.
+    /// Its reason and text are History Retry's too ("Retry failed: …", a
+    /// too-short file's length), from `TranscriptionRetryController.failedRow`
+    /// (#1643). With no such row (its write failed, or the user deleted it),
+    /// a new failed row records the attempt, worded the same.
+    ///
+    /// - Parameters:
+    ///   - failedRowWrite: the failed row's write
+    ///     (`AppState.pendingRetryFailedRowWrite`), landed or not.
+    ///   - transcriptionProvider: the engine that failed
+    ///     (`FileTranscriptionFlow.failedRowProvider(for:modelId:)`, #1518),
+    ///     written to the failed row. `nil` leaves the column as it is.
+    /// - Returns: the id of the failed row, or `nil` when no write was saved.
+    @discardableResult
+    static func savePendingRetryFailure(
+        _ error: Error,
+        failedRowWrite: Task<NSManagedObjectID?, Never>?,
+        audioURL: URL,
+        modeName: String?,
+        transcriptionProvider: String? = nil,
+        persistence: PersistenceController = .shared
+    ) async -> NSManagedObjectID? {
+        // Only a too-short file's wording reads the length, so only it opens
+        // the file before the row is updated.
+        var duration: TimeInterval?
+        if FileTranscriptionFlow.isTooShort(error) {
+            duration = await audioDurationSeconds(of: audioURL)
+        }
+        let failure = TranscriptionRetryController.failedRow(after: error, audioDuration: duration ?? 0)
+        if let failedTranscriptID = await failedRowWrite?.value,
+           await persistence.markTranscriptFailedInBackground(
+               transcriptID: failedTranscriptID,
+               failedReason: failure.failedReason,
+               errorText: failure.text,
+               countsRetry: true,
+               transcriptionProvider: transcriptionProvider
+           ) {
+            return failedTranscriptID
+        }
+
+        AppLogger.audio.warning("Pending-file retry failed with no failed History row to update; saving a new failed row")
+        let rowDuration: TimeInterval
+        if let duration {
+            rowDuration = duration
+        } else {
+            rowDuration = await audioDurationSeconds(of: audioURL)
+        }
+        let newID = await persistence.createFailedTranscriptInBackground(
+            duration: rowDuration,
+            mode: modeName,
+            audioFilePath: audioURL.path,
+            failedReason: failure.failedReason,
+            errorText: failure.text
+        )
+        // The create writer takes no engine, so the new row gets it from the
+        // failed-row writer, with the same reason and text (#1518).
+        if let newID, let transcriptionProvider {
+            await persistence.markTranscriptFailedInBackground(
+                transcriptID: newID,
+                failedReason: failure.failedReason,
+                errorText: failure.text,
+                transcriptionProvider: transcriptionProvider
+            )
+        }
+        return newID
+    }
+
     /// The length of the audio file in seconds, or 0 when it cannot be read.
     /// Off the main actor: `AVAudioFile(forReading:)` does synchronous file I/O.
     nonisolated static func audioDurationSeconds(of url: URL) async -> TimeInterval {

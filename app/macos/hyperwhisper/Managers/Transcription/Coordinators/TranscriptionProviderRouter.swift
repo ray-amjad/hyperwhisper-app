@@ -188,6 +188,44 @@ class TranscriptionProviderRouter {
         var whisperModel: WhisperModel? = nil
     }
 
+    /// Tests only: replaces routing, so a test can drive the real pipeline
+    /// with a provider it controls (#1425). `engineOverrideForTesting` is what
+    /// `serializedEngine(for:)` reports; `selectionOverrideForTesting` runs in
+    /// place of `selectProvider`, where a real engine stages its model. Both
+    /// nil in the app.
+    var engineOverrideForTesting: (any TranscriptionProvider)?
+    var selectionOverrideForTesting: ((Mode?) async throws -> any TranscriptionProvider)?
+
+    /// The shared engine `mode` will run on, when that engine runs one pass at
+    /// a time (`supportsConcurrentPasses == false`); nil otherwise (#1425).
+    ///
+    /// No side effects: it stages no model, prepares nothing, configures no
+    /// key and checks no health. The pipeline takes the engine with this
+    /// BEFORE `selectProvider`, because selecting stages per-call state on
+    /// the shared instance (Whisper `setModel`, Parakeet/Qwen3
+    /// `prepareIfNeeded`, OpenAI/Groq `configure`). Staged while another
+    /// kind's run holds the engine, that state could be overwritten before
+    /// this run starts, or (Parakeet) swap the model under the running pass.
+    ///
+    /// Must route as `selectProvider` does; `nil` for a mode it cannot route
+    /// (selection then throws its own error).
+    func serializedEngine(for mode: Mode?) -> (any TranscriptionProvider)? {
+        let engine: (any TranscriptionProvider)?
+        if selectionOverrideForTesting != nil {
+            engine = engineOverrideForTesting
+        } else {
+            let rawModel = (mode?.model ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let modelString = rawModel.isEmpty ? "cloud" : rawModel
+            if modelString.lowercased() == "cloud" {
+                engine = try? cloudProviderInstance(for: CloudProvider.forMode(mode?.cloudProvider))
+            } else {
+                engine = localProviderInstance(modelId: modelString.lowercased())
+            }
+        }
+        guard let engine, !engine.supportsConcurrentPasses else { return nil }
+        return engine
+    }
+
     /// Select the appropriate provider for the given mode
     /// PROVIDER SELECTION FLOW:
     /// 1. Determine if cloud transcription is needed based on model string
@@ -208,6 +246,9 @@ class TranscriptionProviderRouter {
     ///     to local Whisper, leave the shared provider's model alone and report
     ///     the model in `ProviderSelection.whisperModel` instead (issue #1465).
     func selectProvider(for mode: Mode?, vocabulary: [Vocabulary], stageWhisperModel: Bool = true) async throws -> ProviderSelection {
+        if let selectionOverrideForTesting {
+            return ProviderSelection(provider: try await selectionOverrideForTesting(mode), cloudProviderType: nil)
+        }
         let rawModel = (mode?.model ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         // Empty model id (legacy/imported modes) is treated as cloud — matches prepareModel's behaviour
         let modelString = rawModel.isEmpty ? "cloud" : rawModel
@@ -234,7 +275,7 @@ class TranscriptionProviderRouter {
         // is a BILLING decision. A camelCase id restored from a Windows/Linux
         // backup would miss the case-sensitive lookup and silently move a BYOK
         // user onto paid credits.
-        let cloudProviderType = CloudProvider.parse(mode?.cloudProvider) ?? .hyperwhisper
+        let cloudProviderType = CloudProvider.forMode(mode?.cloudProvider)
 
         // Validate API key (except for HyperWhisper Cloud which uses license/device ID)
         guard let settings = settingsManager else {
@@ -280,67 +321,7 @@ class TranscriptionProviderRouter {
         }
 
         // Select cloud provider instance
-        let provider: TranscriptionProvider
-        switch cloudProviderType {
-        case .hyperwhisper:
-            // Initialize HyperWhisper Cloud provider if needed
-            if hyperwhisperCloudProvider == nil,
-               let licenseManager = licenseManager,
-               let creditManager = creditManager {
-                hyperwhisperCloudProvider = HyperWhisperCloudProvider(
-                    licenseManager: licenseManager,
-                    creditManager: creditManager,
-                    settingsManager: settingsManager
-                )
-            }
-            guard let hwProvider = hyperwhisperCloudProvider else {
-                // SENTRY BREADCRUMB: Track HyperWhisper Cloud provider initialization failure
-                SentryService.addBreadcrumb(
-                    message: "HyperWhisper Cloud provider failed to initialize",
-                    category: "transcription.provider",
-                    data: [
-                        "provider": "HyperWhisper Cloud",
-                        "hasLicenseManager": licenseManager != nil,
-                        "hasCreditManager": creditManager != nil,
-                        "reason": "nilProvider"
-                    ]
-                )
-                throw TranscriptionError.providerNotAvailable(provider: "HyperWhisper Cloud", reason: "Failed to initialize provider")
-            }
-            provider = hwProvider
-        case .openai, .groq:
-            provider = cloudProvider
-        case .deepgram:
-            provider = deepgramProvider
-        case .assemblyAI:
-            provider = assemblyAIProvider
-        case .elevenLabs:
-            provider = elevenLabsProvider
-        case .mistral:
-            provider = mistralProvider
-        case .soniox:
-            provider = sonioxProvider
-        case .gemini:
-            provider = geminiTranscriptionProvider
-        case .grok:
-            provider = grokSTTProvider
-        case .microsoftAzureSpeech:
-            ensureAzureMAIProvider()
-            guard let azure = azureMAIProvider else {
-                throw TranscriptionError.providerNotAvailable(provider: "Microsoft MAI-Transcribe", reason: "Failed to initialize provider")
-            }
-            provider = azure
-        case .googleSpeech:
-            ensureGoogleChirpProvider()
-            guard let google = googleChirpProvider else {
-                throw TranscriptionError.providerNotAvailable(provider: "Google Chirp 3", reason: "Failed to initialize provider")
-            }
-            provider = google
-        case .geminiTranscribe:
-            provider = geminiTranscribeProvider
-        case .meta:
-            provider = metaMuseProvider
-        }
+        let provider = try cloudProviderInstance(for: cloudProviderType)
 
         // Check provider health before use
         if let healthManager = providerHealthManager {
@@ -533,17 +514,20 @@ class TranscriptionProviderRouter {
         let modelString: String
         switch resolvedEngine {
         case .whisperLocal:
+            // A request mistake, not an outage (issue #1493): INVALID_REQUEST
+            // with a hint to send `model`. No default model is picked (Ray,
+            // inbox #295). Only the Local API calls `resolveProvider`; dictation
+            // resolves a Mode through `selectProvider(for:)` and never gets here.
             guard let m = model?.trimmingCharacters(in: .whitespacesAndNewlines), !m.isEmpty else {
-                throw TranscriptionError.providerNotAvailable(provider: "Whisper", reason: "Missing 'model' for whisperLocal engine")
+                throw TranscribeEndpoint.APIInputError.whisperModelRequired
             }
             modelString = m
         case .parakeet:
             let requestedModelId = ParakeetModelManager.Constants.modelIdForSelection(model)
+            // An unknown model is a request mistake, not an outage (issue
+            // #1919): MODEL_NOT_FOUND, not ENGINE_UNAVAILABLE "Try again later".
             guard let canonicalModelId = ParakeetModelManager.Constants.canonicalModelId(for: requestedModelId) else {
-                throw TranscriptionError.providerNotAvailable(
-                    provider: "Parakeet",
-                    reason: "Unknown Parakeet model '\(requestedModelId)'"
-                )
+                throw TranscribeEndpoint.APIInputError.unknownParakeetModel(requestedModelId)
             }
             modelString = canonicalModelId
         // The four `nemotron*` spellings live in the shared table now;
@@ -552,16 +536,31 @@ class TranscriptionProviderRouter {
         case .nemotron:
             let requestedModelId = NemotronModelManager.Constants.modelIdForSelection(model)
             guard let canonicalModelId = NemotronModelManager.Constants.canonicalModelId(for: requestedModelId) else {
-                throw TranscriptionError.providerNotAvailable(
-                    provider: "Nemotron",
-                    reason: "Unknown Nemotron model '\(requestedModelId)'"
-                )
+                throw TranscribeEndpoint.APIInputError.unknownNemotronModel(requestedModelId)
             }
             modelString = canonicalModelId
         case .qwen3Asr:
             modelString = Qwen3AsrModelManager.Constants.modelId
         case .appleSpeech:
             modelString = "apple-speech-analyzer"
+        }
+
+        // Nemotron keeps its default (an omitted `model` tries multilingual);
+        // only the not-installed error changes, to name the model that was
+        // tried and suggest the installed variant (issue #1493). The bare
+        // `.modelNotDownloaded` rendered "Required model is not installed.",
+        // which reads as false to a caller whose only Nemotron model is
+        // installed. Same throw site as before (`prepareIfNeeded`), so the
+        // routing and every other error are unchanged.
+        if case .nemotron = resolvedEngine {
+            do {
+                return try await selectLocalProvider(modelId: modelString, language: resolvedLanguage, stageWhisperModel: false)
+            } catch TranscriptionError.modelNotDownloaded {
+                throw TranscribeEndpoint.APIInputError.nemotronModelNotInstalled(
+                    modelString,
+                    isInstalled: NemotronModelManager.isVariantInstalled
+                )
+            }
         }
 
         return try await selectLocalProvider(modelId: modelString, language: resolvedLanguage, stageWhisperModel: false)
@@ -678,7 +677,7 @@ class TranscriptionProviderRouter {
     func isHyperWhisperCloudActive(model: String?, cloudProvider: String?) -> Bool {
         let modelString = (model ?? "base").lowercased()
         guard modelString == "cloud" else { return false }
-        let resolved = CloudProvider.parse(cloudProvider) ?? .hyperwhisper
+        let resolved = CloudProvider.forMode(cloudProvider)
         return resolved.routesViaHyperWhisperCloud
     }
 
@@ -759,6 +758,93 @@ class TranscriptionProviderRouter {
     /// Check if a model ID is the Apple SpeechAnalyzer model
     private func isSpeechAnalyzerModel(_ modelId: String) -> Bool {
         modelId == "apple-speech-analyzer"
+    }
+
+    /// The shared instance that serves `cloudProviderType`. Creates the
+    /// HyperWhisper Cloud, Azure and Google providers on first use; configures
+    /// and checks nothing.
+    private func cloudProviderInstance(for cloudProviderType: CloudProvider) throws -> any TranscriptionProvider {
+        switch cloudProviderType {
+        case .hyperwhisper:
+            // Initialize HyperWhisper Cloud provider if needed
+            if hyperwhisperCloudProvider == nil,
+               let licenseManager = licenseManager,
+               let creditManager = creditManager {
+                hyperwhisperCloudProvider = HyperWhisperCloudProvider(
+                    licenseManager: licenseManager,
+                    creditManager: creditManager,
+                    settingsManager: settingsManager
+                )
+            }
+            guard let hwProvider = hyperwhisperCloudProvider else {
+                // SENTRY BREADCRUMB: Track HyperWhisper Cloud provider initialization failure
+                SentryService.addBreadcrumb(
+                    message: "HyperWhisper Cloud provider failed to initialize",
+                    category: "transcription.provider",
+                    data: [
+                        "provider": "HyperWhisper Cloud",
+                        "hasLicenseManager": licenseManager != nil,
+                        "hasCreditManager": creditManager != nil,
+                        "reason": "nilProvider"
+                    ]
+                )
+                throw TranscriptionError.providerNotAvailable(provider: "HyperWhisper Cloud", reason: "Failed to initialize provider")
+            }
+            return hwProvider
+        case .openai, .groq:
+            return cloudProvider
+        case .deepgram:
+            return deepgramProvider
+        case .assemblyAI:
+            return assemblyAIProvider
+        case .elevenLabs:
+            return elevenLabsProvider
+        case .mistral:
+            return mistralProvider
+        case .soniox:
+            return sonioxProvider
+        case .gemini:
+            return geminiTranscriptionProvider
+        case .grok:
+            return grokSTTProvider
+        case .microsoftAzureSpeech:
+            ensureAzureMAIProvider()
+            guard let azure = azureMAIProvider else {
+                throw TranscriptionError.providerNotAvailable(provider: "Microsoft MAI-Transcribe", reason: "Failed to initialize provider")
+            }
+            return azure
+        case .googleSpeech:
+            ensureGoogleChirpProvider()
+            guard let google = googleChirpProvider else {
+                throw TranscriptionError.providerNotAvailable(provider: "Google Chirp 3", reason: "Failed to initialize provider")
+            }
+            return google
+        case .geminiTranscribe:
+            return geminiTranscribeProvider
+        case .meta:
+            return metaMuseProvider
+        }
+    }
+
+    /// The shared instance a local model id runs on, in `selectLocalProvider`'s
+    /// order. Stages and prepares nothing.
+    private func localProviderInstance(modelId: String) -> (any TranscriptionProvider)? {
+        if mapModelIdToWhisperModel(modelId) != nil {
+            return localProvider
+        }
+        if isSpeechAnalyzerModel(modelId), let provider = speechAnalyzerProvider, provider.isAvailable {
+            return provider
+        }
+        if #available(macOS 15.0, *), isQwen3AsrModel(modelId), let provider = qwen3AsrProvider as? Qwen3AsrProvider {
+            return provider
+        }
+        if #available(macOS 14.0, *), isNemotronModel(modelId), let provider = nemotronProvider as? NemotronProvider {
+            return provider
+        }
+        if #available(macOS 13.0, *), isParakeetModel(modelId), let parakeetProvider {
+            return parakeetProvider
+        }
+        return nil
     }
 
     /// Select local provider based on model ID
@@ -881,7 +967,7 @@ class TranscriptionProviderRouter {
         case .unreachable:
             return .transientNetwork(details: "Provider unreachable")
         case .notInstalled:
-            return .modelNotDownloaded
+            return .modelNotDownloaded()
         case .checking, .unknown:
             return .providerNotAvailable(provider: providerDisplayName, reason: "Provider health check failed")
         case .healthy, .configured:

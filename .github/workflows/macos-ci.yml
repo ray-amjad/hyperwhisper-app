@@ -68,7 +68,7 @@ jobs:
       # 1. Checkout
       # ----------------------------------------------------------------
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # ----------------------------------------------------------------
       # 2. Select Xcode version
@@ -148,6 +148,19 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGN_ENTITLEMENTS=""
+
+      # The SwiftPM lockfile is tracked (#2006) so every build resolves the
+      # same dependency graph. If xcodebuild rewrote it during the build,
+      # the committed copy no longer matches project.pbxproj: fail here and
+      # print what Xcode resolved, so the fix is to commit that file.
+      - name: Package.resolved is current
+        run: |
+          resolved=app/macos/hyperwhisper.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          if ! git diff --exit-code -- "$resolved"; then
+            echo "::error file=$resolved::Package.resolved is out of date with project.pbxproj. Commit the file Xcode resolved (printed below)."
+            cat "$resolved"
+            exit 1
+          fi
 
       # ----------------------------------------------------------------
       # 5. Run unit tests

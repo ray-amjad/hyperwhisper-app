@@ -49,6 +49,7 @@ export const calls = {
   getOrCreateUser: [] as Array<{ email: string; data: unknown }>,
   grantCreditsForStripeEvent: [] as GrantForEventArgs[],
   refundCreditGrant: [] as RefundArgs[],
+  hasProcessedStripeObject: [] as string[],
   getCreditBalance: [] as string[],
   generateLicenseKey: 0,
   emails: [] as SentEmail[],
@@ -70,11 +71,13 @@ export const behaviour = {
   grantForEventResult: "processed" as "processed" | "duplicate",
   creditBalance: 12_345,
   refundResult: { status: "processed", refundedAmount: 500, removedAmount: 500 } as {
-    status: "processed" | "duplicate";
+    status: "processed" | "duplicate" | "not_found";
     refundedAmount: number;
     removedAmount: number;
   },
   stripeSessions: [] as unknown[],
+  /** Session ids `hasProcessedStripeObject` reports as already processed. */
+  processedStripeObjects: new Set<string>(),
   emailSuccess: true,
 };
 
@@ -102,6 +105,7 @@ export function resetHarness(): void {
   calls.getOrCreateUser.length = 0;
   calls.grantCreditsForStripeEvent.length = 0;
   calls.refundCreditGrant.length = 0;
+  calls.hasProcessedStripeObject.length = 0;
   calls.getCreditBalance.length = 0;
   calls.emails.length = 0;
   calls.stripeSessionQueries.length = 0;
@@ -118,6 +122,7 @@ export function resetHarness(): void {
   behaviour.creditBalance = 12_345;
   behaviour.refundResult = { status: "processed", refundedAmount: 500, removedAmount: 500 };
   behaviour.stripeSessions = [];
+  behaviour.processedStripeObjects = new Set();
   behaviour.emailSuccess = true;
 }
 
@@ -219,6 +224,10 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
     refundCreditGrant: async (args: RefundArgs) => {
       calls.refundCreditGrant.push(args);
       return behaviour.refundResult;
+    },
+    hasProcessedStripeObject: async (stripeObjectId: string): Promise<boolean> => {
+      calls.hasProcessedStripeObject.push(stripeObjectId);
+      return behaviour.processedStripeObjects.has(stripeObjectId);
     },
     getCreditBalance: async (userId: string): Promise<number> => {
       calls.getCreditBalance.push(userId);

@@ -460,13 +460,7 @@ public partial class ModelsSettingsPage : Page
     }
 
     private static bool MatchesSearch(LibraryModel model, string search)
-    {
-        if (string.IsNullOrWhiteSpace(search)) return true;
-        return model.DisplayName.Contains(search, StringComparison.OrdinalIgnoreCase)
-            || model.ProviderName.Contains(search, StringComparison.OrdinalIgnoreCase)
-            || (model.Detail?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
-            || (model.Tag?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false);
-    }
+        => LibraryModelSearch.Matches(model, search);
 
     private static bool MatchesProvider(LibraryModel model, string provider) => provider switch
     {
@@ -855,7 +849,7 @@ public partial class ModelsSettingsPage : Page
     private static void ShowModelInUse(string modelName, string modeName)
     {
         WpfMessageBox.Show(
-            $"{modelName} is used by the \"{modeName}\" mode. Switch that mode to another model before deleting it.",
+            Loc.S("settings.models.alert.cannotDelete.message", modelName, modeName),
             Loc.S("settings.models.alert.cannotDelete.title"),
             MessageBoxButton.OK,
             MessageBoxImage.Warning);

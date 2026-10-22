@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Toinen ohjelma on lukinnut historiatietokannan. Tallenne säilytettiin, ja se tallennetaan historiaan, kun tietokanta vapautuu.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Tätä tallennetta ei voitu vielä tallentaa historiaan. Tallenne säilytettiin, ja se tallennetaan historiaan myöhemmin.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -793,6 +799,12 @@ Tätä toimintoa ei voi perua.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Ei aktivoitu)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (Ei API-avainta)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -822,6 +834,9 @@ Tätä toimintoa ei voi perua.</value>
   </data>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Tiedoston litterointi peruutettu</value>
+  </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Litteroidaan tiedostoa...</value>
   </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
@@ -1084,6 +1099,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Yhden muokkausnäppäimen pikanäppäimiä, kuten Ctrl, Alt, Shift tai Win, ei tueta. Käytä näppäintä muokkausnäppäinten kanssa tai usean muokkausnäppäimen yhdistelmää, kuten Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Ilman muokkausnäppäintä olevan pikanäppäimen on oltava toimintonäppäin tai Esc. Mikä tahansa muu näppäin laukeaisi kirjoittaessasi.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Tämä pikanäppäin on jo käytössä toiminnolle {0} ({1})</value>
   </data>
@@ -1158,6 +1176,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Malli on käytössä</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} on tilan ”{1}” käytössä. Vaihda tilalle toinen malli ennen kuin poistat sen.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1292,6 +1316,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Tämä ei näytä tiliavaimelta.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1317,6 +1344,12 @@ You can re-download it later.</value>
   </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Tämä tiedosto on tyhjä, joten siinä ei ole litteroitavaa ääntä.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Tämä tiedosto on vioittunut tai se ei ole äänitiedosto, jota HyperWhisper pystyy lukemaan.</value>
   </data>
 
 
@@ -1699,6 +1732,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Lisää...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1993,11 +2029,35 @@ You can re-download it later.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Vaimenna ääni</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Vain HyperWhisperin käytössä. Säilyy uudelleenkäynnistyksen jälkeen.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Oletus · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (ei yhdistetty)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Käytetään laitetta {0}, kunnes {1} yhdistetään uudelleen.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Mikrofonia ei ole yhdistetty. HyperWhisper käyttää laitetta {0}, kun se yhdistetään uudelleen.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Testaa</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Pysäytä</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

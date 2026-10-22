@@ -32,6 +32,21 @@ enum TranscriptionState: Equatable, CustomStringConvertible {
         }
     }
     
+    /// The case name alone, for a diagnostic that leaves the machine.
+    ///
+    /// `description` is not safe to report: `.error(message:)` carries an
+    /// error's `localizedDescription`, which can hold a file name, a path or a
+    /// provider's response text, and the pipeline sets exactly that state right
+    /// before it captures a failure (issue #805). This is a closed set.
+    var reportingName: String {
+        switch self {
+        case .idle: return "idle"
+        case .transcribing: return "transcribing"
+        case .postProcessing: return "post_processing"
+        case .error: return "error"
+        }
+    }
+
     // Equatable conformance to allow state comparisons
     static func == (lhs: TranscriptionState, rhs: TranscriptionState) -> Bool {
         switch (lhs, rhs) {

@@ -73,21 +73,37 @@ struct LocalEngineNeverRoutesToCloudTests {
         }
     }
 
+    /// The `APIInputError` the validator threw, or nil when it threw nothing.
+    /// A blank Whisper model is refused with one of these since issue #1493.
+    private static func inputRefusal(engine: String, model: String?) -> TranscribeEndpoint.APIInputError? {
+        do {
+            try TranscribeEndpoint.validateMixedPathEngineModel(engine: engine, model: model)
+            return nil
+        } catch let error as TranscribeEndpoint.APIInputError {
+            return error
+        } catch {
+            Issue.record("engine '\(engine)' model '\(model ?? "nil")' threw \(error), not an APIInputError")
+            return nil
+        }
+    }
+
     private static let whisperSpellings = ["whisperLocal", "whisper", "libwhisper", "WhisperLocal", " whisper "]
 
     // MARK: - The refusal (Ray's decision 2026-10-08)
 
     /// Steps 2 and 3 of the issue: `whisperLocal` and `whisper` with `""` and
-    /// `"  "` on the mixed path. Refused with the engine-only path's error,
-    /// which the endpoint maps to ENGINE_UNAVAILABLE — never run, never sent
-    /// to Cloud.
+    /// `"  "` on the mixed path. Refused with the engine-only path's error —
+    /// never run, never sent to Cloud. Since issue #1493 that error is
+    /// INVALID_REQUEST "A Whisper model is required." with a send-`model`
+    /// hint, on both forms (it was ENGINE_UNAVAILABLE "Try again later").
     @Test func aBlankWhisperModelOnTheMixedPathIsRefused() {
         for engine in Self.whisperSpellings {
             for blank in ["", " ", "  ", "\t", "\t\n"] {
-                let refused = Self.refusal(engine: engine, model: blank)
+                let refused = Self.inputRefusal(engine: engine, model: blank)
                 #expect(refused != nil, "engine '\(engine)' with model '\(blank)' was not refused")
-                #expect(refused?.provider == "Whisper")
-                #expect(refused?.reason == "Missing 'model' for whisperLocal engine")
+                #expect(refused?.code == .invalidRequest)
+                #expect(refused?.message == "A Whisper model is required.")
+                #expect(refused?.hint == "Send model, for example base.en.")
             }
         }
     }
@@ -111,15 +127,16 @@ struct LocalEngineNeverRoutesToCloudTests {
     /// or another engine's id such as "base" — is refused on the mixed path
     /// exactly as `resolveProvider`'s parakeet arm refuses it, naming the
     /// trimmed id. Before, "cloud" ran v3 with `ok: true` and "base" swapped
-    /// to local Whisper.
+    /// to local Whisper. Since issue #1919 the refusal is MODEL_NOT_FOUND
+    /// (it was ENGINE_UNAVAILABLE "Try again later").
     @Test func anUnknownParakeetModelOnTheMixedPathIsRefusedLikeTheEngineOnlyPath() {
         for engine in ["parakeet", "Parakeet", " parakeet "] {
             for model in ["cloud", "CLOUD", " Cloud ", "base", "typo", "large-v3-turbo"] {
                 let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines)
-                let refused = Self.refusal(engine: engine, model: model)
+                let refused = Self.inputRefusal(engine: engine, model: model)
                 #expect(refused != nil, "engine '\(engine)' with model '\(model)' was not refused")
-                #expect(refused?.provider == "Parakeet")
-                #expect(refused?.reason == "Unknown Parakeet model '\(trimmed)'")
+                #expect(refused?.code == .modelNotFound)
+                #expect(refused?.message == "Unknown Parakeet model '\(trimmed)'")
             }
         }
     }

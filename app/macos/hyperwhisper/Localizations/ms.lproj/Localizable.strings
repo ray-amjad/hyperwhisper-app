@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostik Dieksport";
 "alerts.export.diagnostics.success.message" = "Semua log diagnostik telah berjaya dieksport.";
 "alerts.export.diagnostics.saveFailed.message" = "Tidak dapat menyimpan diagnostik ke lokasi yang dipilih: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostik Dieksport Tanpa Log Sistem";
+"alerts.export.diagnostics.noSystemLogs.message" = "Fail diagnostik telah disimpan, tetapi log sistem aplikasi tidak dapat dibaca, jadi system-logs.txt hanya mengandungi sebabnya. Sebab: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Eksport log kemas kini untuk sokongan";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Selesai Penyediaan Awal";
 
 "onboarding.setupLater.button" = "Sediakan kemudian";
-"onboarding.error.microphone.denied" = "Kebenaran mikrofon ditolak. Sila berikan kebenaran dalam Tetapan Sistem.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Lancarkan semasa log masuk";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Mati";
 "settings.general.mediaControl.mode.mute" = "Bisukan Audio";
+"settings.general.mediaControl.mode.muffle" = "Redamkan Audio";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,9 +324,17 @@
 "settings.sound.soundEffects.title" = "Mainkan kesan bunyi";
 "settings.sound.soundEffects.info" = "Mainkan isyarat audio apabila rakaman bermula dan berhenti.";
 "settings.sound.mediaControl.title" = "Kawalan media semasa merakam";
-"settings.sound.mediaControl.info" = "Pilih cara HyperWhisper mengendalikan audio lain semasa anda merakam. 'Mati' meninggalkan audio tidak berubah, 'Bisukan Audio' membisukan output sistem semasa merakam dan memulihkannya selepas itu.";
+"settings.sound.mediaControl.info" = "Pilih cara HyperWhisper mengendalikan audio lain semasa anda merakam. 'Mati' meninggalkan audio tidak berubah, 'Bisukan Audio' membisukan output sistem semasa merakam dan memulihkannya selepas itu, dan 'Redamkan Audio' terus memainkannya dengan perlahan, seolah-olah dari bilik sebelah.";
+"settings.sound.microphone.title" = "Mikrofon";
+"settings.sound.microphone.subtitle" = "Digunakan oleh HyperWhisper sahaja. Diingati selepas dimulakan semula.";
+"microphone.picker.default" = "Lalai · %@";
+"microphone.picker.notConnected" = "%@ (tidak disambungkan)";
+"microphone.picker.fallback" = "Menggunakan %1$@ sehingga %2$@ disambungkan semula.";
+"settings.sound.microphone.test" = "Uji";
+"settings.sound.microphone.stop" = "Henti";
+"settings.sound.microphone.level" = "Tahap input";
 "settings.sound.autoIncreaseMicVolume.title" = "Tingkatkan kelantangan mikrofon secara automatik";
-"settings.sound.autoIncreaseMicVolume.info" = "Secara automatik menetapkan kelantangan input mikrofon ke maksimum apabila rakaman bermula, kemudian memulihkan aras asal apabila rakaman berhenti. Hanya terpakai apabila menggunakan peranti input lalai sistem.";
+"settings.sound.autoIncreaseMicVolume.info" = "Menetapkan kelantangan input mikrofon yang digunakan HyperWhisper untuk merakam ke maksimum secara automatik apabila rakaman bermula, kemudian memulihkan tahap asal apabila rakaman berhenti. Mikrofon tanpa kawalan kelantangan perisian tidak diubah.";
 "settings.sound.vad.title" = "Alih keluar senyap sebelum transkripsi";
 "settings.sound.vad.info" = "Secara automatik mengesan dan mengeluarkan senyap di awal dan akhir menggunakan pengesanan suara AI. Ini boleh meningkatkan ketepatan transkripsi dan mengurangkan masa pemprosesan.";
 
@@ -336,6 +346,9 @@
 "settings.storage.choose.button" = "Pilih...";
 "settings.storage.dialog.select" = "Pilih Folder";
 "settings.storage.dialog.message" = "Pilih folder untuk menyimpan rakaman";
+"settings.storage.folderRefused.title" = "Folder ini tidak boleh digunakan";
+"settings.storage.folderRefused.notWritable" = "Anda tiada kebenaran untuk menulis ke “%@”, jadi HyperWhisper tidak dapat menyimpan rakaman di sana. Folder Rakaman tidak diubah.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper tidak dapat mencipta folder ini: %@ Folder Rakaman tidak diubah.";
 "settings.storage.storeAsM4A.title" = "Mampat rakaman ke M4A";
 "settings.storage.storeAsM4A.subtitle" = "Menukar rakaman WAV kepada fail yang lebih kecil selepas transkripsi. Matikan untuk menyimpan fail WAV asal (lebih besar tetapi tanpa kerugian).";
 
@@ -383,6 +396,7 @@
 
 "settings.shortcuts.changeMode.title" = "Tukar Mod";
 "settings.shortcuts.changeMode.subtitle" = "Hanya berfungsi semasa merakam";
+"settings.shortcuts.conflict.alert" = "Pintasan papan kekunci ini tidak boleh digunakan kerana ia sudah digunakan oleh “%@”.";
 
 "settings.shortcuts.reset.button" = "Tetapkan Semula ke Lalai";
 "settings.shortcuts.reset.dialog.title" = "Tetapkan Semula Pintasan Papan Kekunci";
@@ -434,6 +448,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Tampal dari Papan Klip";
 "settings.license.clearInput" = "Kosongkan";
+"license.error.keyFormat" = "Itu tidak kelihatan seperti kunci akaun.";
 "settings.license.recovery.prompt" = "Lupa kunci lesen anda?";
 "settings.license.recovery.button" = "Pergi ke portal pelanggan";
 "settings.license.daily.title" = "Transkripsi Harian";
@@ -576,6 +591,8 @@
 "onboarding.configure.cloud.note" = "Kredit adalah prabayar dan dikongsi di semua Mac yang log masuk dengan kunci ini. Masa terbiar tidak dikenakan sebarang kos.";
 "onboarding.source.note" = "Menukar fikiran kemudian hanya mengulang langkah ini sahaja. Tetapan lain yang anda buat kekal.";
 "onboarding.permissions.note" = "Langkau Kebolehcapaian dan transkrip akan pergi ke papan keratan, sedia untuk ditampal. Menghidupkannya kemudian cuma perlukan satu klik.";
+"onboarding.permissions.microphone.denied" = "Tidak dibenarkan. Hidupkan HyperWhisper dalam Tetapan Sistem, kemudian kembali ke sini.";
+"onboarding.permissions.continueNeedsMicrophone" = "Teruskan memerlukan mikrofon. Benarkannya di atas, atau pilih Sediakan Kemudian.";
 "onboarding.welcome.task1.title" = "Pilih cara transkripsi berjalan";
 "onboarding.welcome.task1.caption" = "Dalam awan kami, pada Mac ini, atau melalui akaun pembekal yang anda sudah bayar.";
 "onboarding.welcome.task2.title" = "Semak mikrofon anda";
@@ -791,6 +808,7 @@ Edit mod tersebut untuk memilih model yang berbeza sebelum mengalihkannya.";
 "modes.field.name.placeholder" = "cth. Nota Mesyuarat";
 "modes.field.name.editPlaceholder" = "Nama mod";
 "modes.field.name.defaultLocked" = "Ini ialah mod lalai, jadi namanya tidak boleh ditukar. Anda boleh menamakan semula mana-mana mod lain.";
+"modes.field.name.taken" = "Mod dengan nama itu sudah wujud.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Pembekal";
 "modes.provider.local" = "Tempatan";
@@ -817,7 +835,7 @@ Edit mod tersebut untuk memilih model yang berbeza sebelum mengalihkannya.";
 "transcripts.delete.single.message" = "Ini akan memadam rakaman ini dan fail audionya secara kekal.";
 "transcripts.delete.multiple.title" = "Padam %d Rakaman?";
 "transcripts.delete.multiple.message" = "Ini akan memadam %d rakaman dan fail audio mereka secara kekal.\n\nTindakan ini tidak boleh dibuat asal.";
-"transcripts.delete.multiple.confirm" = "Padam Semua";
+"transcripts.delete.multiple.confirm" = "Padam %d Rakaman";
 "transcripts.retry.error.title" = "Cuba Semula Gagal";
 "transcripts.retry.error.modeDeleted" = "Mod yang membuat rakaman ini telah dipadam, jadi ia tidak dicuba semula. Dalam Sejarah, klik kanan rakaman dan pilih \"Cuba semula dengan...\" untuk memilih mod lain.";
 
@@ -870,7 +888,6 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "recording.retry.inProgress" = "Mencuba Semula…";
 "recording.retry.count" = "Cuba Semula (%d)";
 "recording.retry.failed.missing" = "Cuba semula gagal: Fail audio tidak dijumpai";
-"recording.retry.failed.error" = "Cuba semula gagal: %@";
 "recording.retry.pending" = "Bersedia untuk cuba semula – klik untuk mentranskrip";
 "recording.retry.modeDeleted" = "Mod telah dipadam";
 "recording.cancel.dialog.title" = "Batal Rakaman?";
@@ -899,6 +916,7 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "audio.error.microphonePermission" = "Kebenaran mikrofon tidak diberikan";
 "audio.error.microphoneInUse" = "HyperWhisper tidak dapat mengakses mikrofon kerana aplikasi lain sedang menggunakannya. Jedakan aplikasi lain atau tukar input, kemudian cuba lagi.";
 "audio.error.audioSystemNotResponding" = "Audio macOS tidak bertindak balas, jadi mikrofon tidak dapat dimulakan. Cuba lagi sebentar nanti. Jika ia berterusan, mulakan semula Mac anda.";
+"audio.error.recorderStopTimedOut" = "Audio macOS berhenti bertindak balas semasa rakaman sedang disimpan, jadi rakaman tidak ditranskripsikan. Audio telah disimpan: HyperWhisper akan cuba memulihkannya apabila ia dimulakan semula.";
 "audio.error.createEngine" = "Gagal mencipta enjin audio";
 "audio.error.noInput" = "Tiada input audio tersedia";
 "audio.error.createFile" = "Gagal mencipta fail audio";
@@ -926,6 +944,9 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "transcription.error.providerNotAvailable.provider" = "%@ tidak tersedia. Periksa tetapan anda dan cuba lagi.";
 "transcription.error.providerNotAvailable.detail" = "%@ tidak tersedia: %@";
 "transcription.error.modelNotDownloaded" = "Sila muat turun model dahulu";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Mod %1$@ menggunakan %2$@, yang belum dimuat turun. Muat turunnya dalam Pustaka Model.";
+"transcription.error.modelNotDownloaded.model" = "%1$@ belum dimuat turun. Muat turunnya dalam Pustaka Model.";
+"transcription.error.openModelLibrary" = "Buka Pustaka Model";
 "transcription.error.modelProtected" = "Model ini tidak boleh dipadam";
 "transcription.error.audioFileNotFound" = "Fail audio tidak dijumpai";
 "transcription.error.network.detail" = "Ralat rangkaian: %@";
@@ -972,6 +993,7 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "transcription.guidance.quotaExceeded" = "Tambah kredit ke akaun %@ anda atau kemaskini butiran pembilan anda";
 "transcription.guidance.timeout" = "Permintaan mengambil masa terlalu lama. Periksa kelajuan internet anda dan cuba lagi.";
 "transcription.error.noSpeechDetected" = "Tiada pertuturan dikesan dalam rakaman.";
+"transcription.error.audioTooShort" = "Rakaman terlalu pendek untuk ditranskripsi. Sila rakam lebih lama.";
 "transcription.guidance.noSpeechDetected" = "Petua:\n• Bercakap dengan jelas ke dalam mikrofon\n• Tahan kekunci lebih lama sebelum bercakap\n• Periksa bahawa mikrofon anda berfungsi\n• Pastikan peranti input yang betul dipilih";
 "transcription.guidance.needsNativeRelaunch" = "Berhenti dan buka semula HyperWhisper secara asli untuk menggunakan pasca-pemprosesan tempatan.";
 "transcription.guidance.localRuntimeUnavailable" = "Cuba lagi, atau pilih model tempatan yang lebih kecil dalam tetapan Mod anda.";
@@ -1114,6 +1136,17 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "transcribe.file.error.format.title" = "Format Tidak Disokong";
 "transcribe.file.error.format.message" = "Fail .%@ tidak disokong oleh %@. Format yang disokong: %@";
 "transcribe.file.error.read" = "Tidak dapat membaca fail yang dipilih.";
+"transcribe.file.error.webm" = "WebM tidak disokong. Tukar fail kepada MP3, M4A atau WAV, kemudian cuba lagi.";
+"transcribe.file.busy.title" = "Satu fail sedang ditranskripsi.";
+"transcribe.file.busy.message" = "Batalkannya dan mulakan yang ini?";
+"transcribe.file.busy.keepRunning" = "Teruskan";
+"transcribe.file.busy.cancelAndStart" = "Batalkan dan Mula";
+"transcribe.file.error.notAudio" = "Fail “%@” bukan audio yang sah. Fail mungkin rosak, atau dalam format yang tidak dapat dinyahkod oleh macOS.";
+"transcribe.file.error.empty" = "Fail “%@” kosong. Tiada audio untuk ditranskripsikan.";
+"transcribe.file.error.permission" = "HyperWhisper tidak dapat membaca fail “%@”. Semak kebenaran fail itu.";
+"transcribe.file.error.folderPermission" = "HyperWhisper tidak dapat membuka folder yang mengandungi fail “%@”. Semak kebenaran folder itu.";
+"transcribe.file.error.privacy" = "Tetapan privasi macOS menghalang HyperWhisper daripada membaca fail “%@”. Benarkannya dalam Tetapan Sistem > Privasi & Keselamatan > Akses Cakera Penuh.";
+"transcribe.file.error.tooShort" = "Fail ini terlalu pendek untuk ditranskripsi (%@ s).";
 "transcribe.file.error.copy" = "Gagal menyalin fail ke folder rakaman.";
 "transcribe.file.error.video.title" = "Tiada Audio dalam Video";
 "transcribe.file.error.video.noAudio" = "Fail video ini tidak mengandungi trek audio. Sila pilih video dengan audio atau fail audio.";
@@ -1140,3 +1173,4 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "settings.storage.maxRecordingDuration.hour" = "1 jam";
 "settings.storage.maxRecordingDuration.hours" = "%d jam";
 "settings.storage.maxRecordingDuration.off" = "Mati";
+"settings.api_server.status.stopping" = "Menghentikan…";

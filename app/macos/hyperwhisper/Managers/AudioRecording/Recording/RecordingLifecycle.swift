@@ -102,6 +102,16 @@ class RecordingLifecycle {
     /// Stores original system volume and paused media players
     private var recordingAudioEnvironmentState: AudioEnvironmentState?
 
+    /// Whether this recording muffled other audio (Muffle Audio mode)
+    private var recordingMuffledAudio = false
+
+    /// Bumped each time a recording goes live and each time one stops, so a
+    /// delayed media-control apply can tell whether its recording is still live.
+    private var recordingGeneration: UInt64 = 0
+
+    /// The delayed media-control apply (after the start chime), if one is pending.
+    private var pendingMediaControlTask: Task<Void, Never>?
+
     /// Original microphone input volume for restoration after recording
     /// Used by the "Automatically increase microphone volume" feature.
     /// Stores the volume level (0.0 to 1.0) before it was increased to max.
@@ -121,6 +131,17 @@ class RecordingLifecycle {
     /// no-speech result to distinguish "user didn't speak" from "we couldn't
     /// boost the mic". Reset at the start of every recording.
     private(set) var lastMicBoostFailed = false
+
+    /// #1359: true when the last `stopRecording()` returned nil because
+    /// `SimpleRecorder.stopRecording()` timed out, so the WAV was never
+    /// finalised. The caller shows the recording-failed error and does not
+    /// transcribe. The WAV and its session row are left for `CrashRecoveryManager`.
+    /// Reset at the start of every `stopRecording()`.
+    private(set) var lastStopTimedOut = false
+
+    /// Called on the main actor when the live recorder lost its input device and
+    /// could not continue on any other (see `SimpleRecorder.onCaptureLost`).
+    var onCaptureLost: (() -> Void)?
 
     /// Recordings directory URL from the shared resolver.
     private var recordingsDirectory: URL {
@@ -145,6 +166,10 @@ class RecordingLifecycle {
         // Bind SimpleRecorder's audioLevel to our published property
         simpleRecorder.$audioLevel
             .assign(to: &$audioLevel)
+
+        simpleRecorder.onCaptureLost = { [weak self] in
+            self?.onCaptureLost?()
+        }
     }
 
     /// Configure with settings manager after initialization
@@ -157,12 +182,41 @@ class RecordingLifecycle {
     /// Apply media control settings (mute audio or pause media).
     /// Called AFTER recording starts and AFTER the start sound plays,
     /// so the sound remains audible.
-    func applyMediaControl() {
+    ///
+    /// With a `delay` (the start chime), the apply runs from a task this class
+    /// owns. `stopRecording()` cancels that task, and the apply re-checks that
+    /// the recording it was scheduled for is still the live one, so a quick
+    /// push-to-talk tap that stops inside the delay never mutes or muffles
+    /// other audio after the recording has already ended.
+    func applyMediaControl(after delay: Duration? = nil) {
+        pendingMediaControlTask?.cancel()
+        pendingMediaControlTask = nil
+
+        let generation = recordingGeneration
+        guard let delay else {
+            applyMediaControlIfLive(generation: generation)
+            return
+        }
+        pendingMediaControlTask = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled, let self else { return }
+            self.pendingMediaControlTask = nil
+            self.applyMediaControlIfLive(generation: generation)
+        }
+    }
+
+    private func applyMediaControlIfLive(generation: UInt64) {
+        guard isRecording, generation == recordingGeneration else {
+            AppLogger.audio.debug("Media control skipped: the recording it was scheduled for has ended")
+            return
+        }
         let mediaControlMode = settingsManager?.audio.mediaControlMode ?? .off
         switch mediaControlMode {
         case .off:
             AppLogger.audio.debug("Media control mode: off - no audio changes")
         case .muteAudio:
+            // Never prepare twice: a second save would record the muted volume as the original.
+            guard recordingAudioEnvironmentState == nil else { return }
             let audioEnvironmentState = audioSessionManager.prepareAudioEnvironment()
             if audioEnvironmentState != nil {
                 self.recordingAudioEnvironmentState = audioEnvironmentState
@@ -170,6 +224,10 @@ class RecordingLifecycle {
             } else {
                 AppLogger.audio.warning("Failed to mute audio environment, continuing recording")
             }
+        case .muffleAudio:
+            guard !recordingMuffledAudio else { return }
+            audioSessionManager.startMuffle()
+            recordingMuffledAudio = true
         }
     }
 
@@ -342,24 +400,28 @@ class RecordingLifecycle {
             throw AudioError.noMicrophoneAvailable
         }
 
-        // STEP 4: Apply selected audio input device
-        // This temporarily changes system default if user selected specific device
+        // STEP 4: Resolve which microphone this recording opens
+        // HyperWhisper's own microphone choice is opened DIRECTLY by the recorder in
+        // STEP 6; the macOS default input is never changed (it used to be, which moved
+        // every other app's microphone too). `captureDeviceID` is nil — record from the
+        // macOS default — when there is no choice, when the chosen device is unplugged
+        // (it is used again once it reappears), or when it already IS the default, in
+        // which case the long-proven AVAudioRecorder path records it.
         //
-        // STILL SYNCHRONOUS, AND STILL ON THE MAIN ACTOR. Its CoreAudio writes are a
-        // known contributor to HYPERWHISPER-HP, but moving them off is the device-manager
-        // rework that was descoped from this PR after review; it lands with its own review
-        // budget. Do not make this `await` without moving the whole of
-        // `AudioDeviceManager` with it — the recorder opened in STEP 6 captures whatever
-        // the system default is at that moment, so a fire-and-forget hop here records
-        // from the wrong microphone.
-        let deviceApplySpan = SentryService.startSpan(operation: "audio.device", description: "apply selected input device")
-        deviceManager.applySelectedInputDeviceIfNeeded()
+        // The lookup is blocking CoreAudio reads, so it runs off the main actor. Nothing
+        // here writes CoreAudio state any more, so the old "must stay synchronous" rule
+        // for this step no longer applies.
+        let deviceApplySpan = SentryService.startSpan(operation: "audio.device", description: "resolve chosen input device")
+        let preferredDeviceUID = deviceManager.preferredDevice?.uid
+        let captureDeviceID = await offMainActor {
+            MicrophoneCaptureRouting.captureDeviceID(preferredUID: preferredDeviceUID)
+        }
         SentryService.finishSpan(deviceApplySpan, status: .ok)
 
         // STEP 4.5: Auto-increase microphone volume if enabled
-        // Sets the active input device's volume to maximum for optimal recording levels.
-        // Works with both system default and explicitly selected devices.
-        // The original volume is saved and will be restored after recording stops.
+        // Raises the volume of the device THIS recording opens — the chosen microphone
+        // when it is pinned, else the macOS default — and restores it after recording
+        // stops. A device with no settable volume is skipped silently.
         //
         // FIRE-AND-FORGET FIX FOR MAIN THREAD BLOCKING
         // ---------------------------------------------------------------------------------
@@ -392,8 +454,8 @@ class RecordingLifecycle {
         // it undoes its own boost, so no device is ever left raised with nobody holding its
         // true original.
         if settingsManager?.autoIncreaseMicVolume == true {
-            // Capture device UID before launching background task (if a specific device is selected)
-            let selectedDeviceUID = deviceManager.selectedDevice?.uid
+            // The device the recorder opens in STEP 6 (nil = the macOS default input).
+            let boostDeviceID = captureDeviceID
 
             Task.detached(priority: .userInitiated) { [weak self] in
                 AppLogger.audio.info("🎚️ [ASYNC] Auto-increase mic volume task STARTED on background thread")
@@ -403,29 +465,15 @@ class RecordingLifecycle {
                     return
                 }
 
-                // Get device ID - either from selected device or system default
-                let deviceID: AudioDeviceID?
-                if let uid = selectedDeviceUID {
-                    // User selected a specific device - find its ID by UID
-                    deviceID = CoreAudioDeviceHelper.findAudioDeviceID(byUID: uid)
-                    if deviceID == nil {
-                        AppLogger.audio.warning("🎚️ [ASYNC] Failed - unable to find device with UID: \(uid, privacy: .public)")
-                        return
-                    }
-                } else {
-                    // Using system default
-                    deviceID = CoreAudioDeviceHelper.getSystemDefaultInputDeviceID()
-                    if deviceID == nil {
-                        AppLogger.audio.warning("🎚️ [ASYNC] Failed - unable to get system default device ID")
-                        return
-                    }
+                // The chosen device the recorder opens, or the system default
+                guard let deviceID = boostDeviceID ?? CoreAudioDeviceHelper.getSystemDefaultInputDeviceID() else {
+                    AppLogger.audio.warning("🎚️ [ASYNC] Failed - unable to get system default device ID")
+                    return
                 }
-
-                guard let deviceID = deviceID else { return }
 
                 // Log device info for debugging
                 let deviceName = CoreAudioDeviceHelper.copyDeviceName(for: deviceID) ?? "unknown"
-                let deviceType = selectedDeviceUID != nil ? "selected" : "system default"
+                let deviceType = boostDeviceID != nil ? "chosen" : "system default"
                 AppLogger.audio.info("🎚️ [ASYNC] Target device (\(deviceType, privacy: .public)): \(deviceName, privacy: .public) (ID: \(deviceID))")
 
                 // Save original volume for restoration
@@ -527,13 +575,16 @@ class RecordingLifecycle {
         let finalURL = recordingsDirectory.appendingPathComponent("recording_\(sessionID.uuidString).wav")
 
         // STEP 6: Start recording with SimpleRecorder
-        // AVAudioRecorder handles all buffer management and format conversion internally
+        // On the macOS default input AVAudioRecorder handles all buffer management and
+        // format conversion internally; on a pinned chosen microphone (`captureDeviceID`)
+        // SimpleRecorder uses DeviceAudioRecorder, which writes the same 16 kHz mono WAV and
+        // falls back to the default input if the device cannot be opened.
         // The recorder is constructed and started off the main actor (HYPERWHISPER-F7);
         // the span still measures exactly that work, so the fix stays measurable.
         let recorderStartSpan = SentryService.startSpan(operation: "audio.recorder", description: "start AVAudioRecorder")
         let outcome: RecorderStartOutcome
         do {
-            outcome = try await simpleRecorder.startRecording(to: wavURL)
+            outcome = try await simpleRecorder.startRecording(to: wavURL, inputDeviceID: captureDeviceID)
         } catch {
             SentryService.finishSpan(recorderStartSpan, status: .internalError)
             throw error
@@ -573,6 +624,7 @@ class RecordingLifecycle {
         self.rawURL = wavURL
         self.finalURL = finalURL
         isRecording = true
+        recordingGeneration &+= 1
         recordingStartTime = Date()
         startDurationTimer()
 
@@ -700,6 +752,8 @@ class RecordingLifecycle {
     /// - `recordingSession`: Core Data session updated for this stop, if available
     /// Returns nil if not currently recording
     func stopRecording(cancelled: Bool = false) async -> (url: URL?, duration: TimeInterval, conversionWarning: String?, recordingSession: RecordingSession?)? {
+        lastStopTimedOut = false
+
         guard isRecording else {
             // NOT NECESSARILY "nothing to stop". `isRecording` is set only after the
             // recorder comes up, so a start suspended inside CoreAudio — the
@@ -729,9 +783,20 @@ class RecordingLifecycle {
         // Track any conversion warning to surface to the user
         var conversionWarning: String?
 
-        // STEP 1: Stop SimpleRecorder
-        simpleRecorder.stopRecording()
+        // `isRecording` goes false before the recorder-stop wait below, so a second
+        // stop that lands during it cannot run a second finalisation of the same file.
         self.isRecording = false
+
+        // A media-control apply still waiting out the start chime belongs to this
+        // recording: cancel it, and bump the generation so it is a no-op even if
+        // it is already past its sleep.
+        recordingGeneration &+= 1
+        pendingMediaControlTask?.cancel()
+        pendingMediaControlTask = nil
+
+        // STEP 3 to 3.6 run BEFORE the recorder-stop wait (#1359): that wait can last
+        // 5 s when a meter read is stuck, and the user's system audio, mic volume and
+        // duration counter must not stay in their recording state for it.
 
         // STEP 3: Stop duration timer
         recordingTimer?.invalidate()
@@ -743,6 +808,10 @@ class RecordingLifecycle {
             AppLogger.audio.info("Audio environment restored after recording")
             self.recordingAudioEnvironmentState = nil
         }
+        if recordingMuffledAudio {
+            audioSessionManager.stopMuffle()
+            recordingMuffledAudio = false
+        }
 
         // STEP 3.6: Restore microphone input volume if we increased it
         // This restores the original volume level that was saved in startRecording()
@@ -753,28 +822,75 @@ class RecordingLifecycle {
             originalMicVolumeDeviceID = nil
         }
 
-        // Update UI state immediately
-        await MainActor.run {
-            self.audioLevel = 0
-            self.recordingDuration = 0
-        }
+        // Update UI state immediately. Synchronous (this class is @MainActor), so no
+        // suspension point sits between `isRecording = false` and the recorder stop
+        // below, where a new start could install a recorder this stop would retire.
+        self.audioLevel = 0
+        self.recordingDuration = 0
+
+        // STEP 0.5 (#1359): take ownership of this recording's file URLs and session
+        // row before the first suspension. A new recording can start during the waits
+        // below and writes its own `rawURL` / `finalURL` / session; from here on this
+        // stop reads and clears only what it owns, never the shared fields.
+        let ownedRawURL = self.rawURL
+        let ownedFinalURL = self.finalURL
+        self.rawURL = nil
+        self.finalURL = nil
+        let ownedSession = sessionManager.detachCurrentSession()
+
+        // STEP 1: Stop SimpleRecorder. Since #1359 its `stop()` runs on the meter
+        // queue behind any meter read in flight, and this waits for it off the main
+        // thread, for at most 5 s.
+        let recorderStopOutcome = await simpleRecorder.stopRecording()
 
         AppLogger.audio.info("Stopped recording - Duration: \(duration, privacy: .public)s")
+
+        // STEP 4 (#1359): the stop timed out, so `stop()` never finalised the WAV and
+        // its header may be wrong. Do not read, rename or convert it, and do not
+        // transcribe (Ray, 2026-10-07). Leave the file where it is and leave its
+        // session row open (no endTime): `CrashRecoveryManager` claims both on the
+        // next launch, which is the path built for an unfinalised WAV.
+        // This check runs BEFORE the cancelled branch below (Ray, 2026-10-13, PR #1767):
+        // a cancelled stop that times out also keeps its WAV and shows the error,
+        // because the recorder may still be writing a file that branch would delete.
+        if recorderStopOutcome == .timedOut {
+            if let session = await ownedSession.resolve() {
+                AppLogger.audio.notice("Recording stop timed out - left session \(session.id?.uuidString ?? "nil", privacy: .public) open for crash recovery")
+            }
+
+            AppLogger.logAudioError(
+                "Recording stop timed out",
+                error: AudioError.recorderStopTimedOut,
+                metadata: [
+                    "phase": "recorder_stop_timed_out",
+                    "recordingDurationMs": Int(duration * 1000)
+                ]
+            )
+
+            lastStopTimedOut = true
+            return nil
+        }
 
         // STEP 4: FILE FINALIZATION
         // When the recording was cancelled (e.g., validation failure like "offline + cloud mode"),
         // skip finalization entirely. The raw file contains no useful audio (just a WAV header),
         // so polling it 40 times and reporting "Audio finalization failed" to Sentry is wasteful.
-        // The caller (cancelRecordingWithError) will delete the file and session anyway.
+        // The session row is deleted here, not by the caller: since STEP 0.5 the
+        // manager's current session may belong to a recording that started meanwhile.
         if cancelled {
             // Clean up the raw file — it has no useful audio data
-            if let rawURL = rawURL {
-                try? FileManager.default.removeItem(at: rawURL)
+            if let ownedRawURL {
+                try? FileManager.default.removeItem(at: ownedRawURL)
             }
-            self.finalURL = nil
-            rawURL = nil
+            if let session = await ownedSession.resolve() {
+                await sessionManager.deleteSession(session)
+            }
             return (url: nil, duration: duration, conversionWarning: nil, recordingSession: nil)
         }
+
+        // Resolved before finalisation so diagnostics name this recording's row.
+        let stoppingSession = await ownedSession.resolve()
+        var stoppedFileURL: URL?
 
         // SimpleRecorder already recorded directly to WAV at 16kHz mono
         // Check file size to decide: keep as WAV or convert to M4A
@@ -785,7 +901,7 @@ class RecordingLifecycle {
         //    - >= 25 MB: Convert WAV → M4A (retry up to 5 times)
         // 2. Background M4A conversion happens AFTER transcription (in RecordingTranscriptionFlow)
         //    if user has storeAsM4A setting enabled
-        if let rawURL = rawURL, let dstURL = finalURL {
+        if let rawURL = ownedRawURL, let dstURL = ownedFinalURL {
             do {
                 // Wait for WAV file to be ready (SimpleRecorder just stopped)
                 // RECORDING TOO SHORT FIX:
@@ -812,7 +928,7 @@ class RecordingLifecycle {
                                 "fileSizeBytes": fileSize,
                                 "minimumSizeBytes": 5000,
                                 "recordingDurationMs": Int(duration * 1000),
-                                "sessionId": sessionManager.currentRecordingSession?.id?.uuidString ?? "nil"
+                                "sessionId": stoppingSession?.id?.uuidString ?? "nil"
                             ]
                         )
                     }
@@ -828,7 +944,7 @@ class RecordingLifecycle {
                         "destPath": dstURL.path,
                         "recordingDurationMs": Int(duration * 1_000)
                     ]
-                    if let sessionId = sessionManager.currentRecordingSession?.id?.uuidString {
+                    if let sessionId = stoppingSession?.id?.uuidString {
                         breadcrumbData["sessionId"] = sessionId
                     }
                     SentryService.addBreadcrumb(
@@ -847,7 +963,7 @@ class RecordingLifecycle {
                     // Background M4A conversion will happen after transcription if storeAsM4A is enabled
                     let finalWavURL = dstURL.deletingPathExtension().appendingPathExtension("wav")
                     try FileManager.default.moveItem(at: rawURL, to: finalWavURL)
-                    self.finalURL = finalWavURL
+                    stoppedFileURL = finalWavURL
                     AppLogger.audio.info("WAV file size (\(wavSize / 1024)KB) is under 25MB - using WAV: \(finalWavURL.lastPathComponent, privacy: .public)")
 
                     if AppLogger.isErrorLoggingEnabled {
@@ -874,7 +990,7 @@ class RecordingLifecycle {
                     let m4aResult = await performM4AConversionWithRetries(from: rawURL, to: m4aURL)
 
                     if m4aResult.success {
-                        self.finalURL = m4aURL
+                        stoppedFileURL = m4aURL
                         // Delete WAV since M4A was created successfully
                         try? FileManager.default.removeItem(at: rawURL)
 
@@ -905,7 +1021,7 @@ class RecordingLifecycle {
 
                         if exportSessionResult.success {
                             // AVAssetExportSession succeeded!
-                            self.finalURL = m4aURL
+                            stoppedFileURL = m4aURL
                             try? FileManager.default.removeItem(at: rawURL)
 
                             AppLogger.audio.info("AVAssetExportSession fallback succeeded: \(m4aURL.lastPathComponent, privacy: .public)")
@@ -931,7 +1047,7 @@ class RecordingLifecycle {
                             let finalWavURL = dstURL.deletingPathExtension().appendingPathExtension("wav")
                             try? FileManager.default.removeItem(at: finalWavURL)
                             try? FileManager.default.moveItem(at: rawURL, to: finalWavURL)
-                            self.finalURL = finalWavURL
+                            stoppedFileURL = finalWavURL
 
                             // Set warning to surface to user - the file is oversized and may cause issues
                             let sizeMB = wavSize / (1024 * 1024)
@@ -959,9 +1075,9 @@ class RecordingLifecycle {
                 // Clear finalURL first — only re-set if a fallback file actually exists.
                 // Without this, stopRecording() returns a stale URL pointing to a non-existent file,
                 // causing downstream "Audio file missing" errors.
-                self.finalURL = nil
+                stoppedFileURL = nil
 
-                var metadata = collectDiagnostics(rawURL: rawURL, dstURL: dstURL, duration: duration)
+                var metadata = collectDiagnostics(rawURL: rawURL, dstURL: dstURL, duration: duration, sessionID: stoppingSession?.id?.uuidString)
                 metadata["phase"] = "wav_finalization_error"
                 metadata["errorType"] = String(describing: type(of: error))
                 metadata["errorCode"] = (error as NSError).code
@@ -1025,26 +1141,23 @@ class RecordingLifecycle {
                             try? FileManager.default.removeItem(at: finalWavURL)
                             try FileManager.default.moveItem(at: rawURL, to: finalWavURL)
                             AppLogger.audio.warning("Using raw WAV as last resort: \(finalWavURL.lastPathComponent, privacy: .public)")
-                            self.finalURL = finalWavURL
+                            stoppedFileURL = finalWavURL
                         } else {
-                            self.finalURL = rawURL
+                            stoppedFileURL = rawURL
                         }
                     } catch {
                         AppLogger.audio.error("Failed to move WAV fallback file: \(error.localizedDescription)")
-                        self.finalURL = rawURL
+                        stoppedFileURL = rawURL
                     }
                 }
             }
         }
 
-        // STEP 5: Clear references
-        rawURL = nil
-
         // STEP 6: Resolve the session even when finalization failed. Otherwise
         // a deferred create can leave an orphaned row pointing at an incomplete file.
         var stoppedRecordingSession: RecordingSession?
-        if let session = await sessionManager.resolveCurrentSession() {
-            if let fileURL = finalURL {
+        if let session = stoppingSession {
+            if let fileURL = stoppedFileURL {
                 stoppedRecordingSession = session
 
                 // Compute the human-readable audio format label for the final output.
@@ -1075,27 +1188,21 @@ class RecordingLifecycle {
                     duration: duration,
                     audioFormat: formatLabel
                 )
-                sessionManager.clearCurrentSession()
                 AppLogger.audio.info("✅ Updated recording session: duration=\(String(format: "%.1f", duration))s, path=\(fileURL.path)")
             } else {
                 await sessionManager.deleteSession(session)
             }
         }
 
-        // STEP 7: Store for retry functionality and return
-        // DEFENSIVE FIX: Capture return value before clearing state
+        // STEP 7: Store for retry functionality and return. The shared URLs were
+        // already cleared in STEP 0.5, so stale paths cannot reach the next recording.
         let result: (url: URL?, duration: TimeInterval, conversionWarning: String?)?
-        if let fileURL = finalURL {
+        if let fileURL = stoppedFileURL {
             lastRecordingURL = fileURL
             result = (url: fileURL, duration: duration, conversionWarning: conversionWarning)
         } else {
             result = nil
         }
-
-        // STEP 8: Clear state to prevent stale URLs on next recording
-        // This fixes the bug where 2nd/3rd recordings would return old M4A paths
-        self.finalURL = nil
-        // rawURL already cleared at line 445
 
         guard let result else {
             return nil
@@ -1140,7 +1247,7 @@ class RecordingLifecycle {
     }
 
     /// Collect filesystem diagnostics for telemetry logging.
-    private func collectDiagnostics(rawURL: URL, dstURL: URL, duration: TimeInterval) -> [String: Any] {
+    private func collectDiagnostics(rawURL: URL, dstURL: URL, duration: TimeInterval, sessionID: String?) -> [String: Any] {
         let fm = FileManager.default
         let rawExists = fm.fileExists(atPath: rawURL.path)
         let rawReadable = fm.isReadableFile(atPath: rawURL.path)
@@ -1164,7 +1271,7 @@ class RecordingLifecycle {
             "rawSizeBytes": rawSize,
             "volumeFreeBytes": freeBytes,
             "recordingDurationMs": Int(duration * 1_000),
-            "sessionId": sessionManager.currentRecordingSession?.id?.uuidString ?? "nil"
+            "sessionId": sessionID ?? "nil"
         ]
 
         for (key, value) in Self.pathDiagnostics(
@@ -1217,7 +1324,7 @@ class RecordingLifecycle {
     /// STILL SYNCHRONOUS ON PURPOSE. When `availableDevices` is supplied — which is
     /// what the retry-exhausted branch of `startRecording()` does — this makes no HAL
     /// calls at all beyond the transport-type lookups. The zero-argument call from
-    /// `collectDiagnostics(rawURL:dstURL:duration:)` does re-enumerate, but that is a
+    /// `collectDiagnostics(rawURL:dstURL:duration:sessionID:)` does re-enumerate, but that is a
     /// post-failure telemetry path, not the recording-start path HYPERWHISPER-F7 is
     /// about, and its caller is a sync private helper whose own blocking filesystem
     /// reads would have to move in the same change. Left for a follow-up.

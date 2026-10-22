@@ -164,6 +164,23 @@ extension RecordingTranscriptionFlow {
         recordingMaxDurationTimer = nil
         let wavReadyStart = Date()
         guard let result = await recordingLifecycle.stopRecording(cancelled: cancelled) else {
+            // #1359: the recorder did not stop within 5 s, so there is no finalised
+            // file to transcribe. Show the error and end the session the way a
+            // failed start does. The WAV and its session row stay on disk for
+            // `CrashRecoveryManager`, so nothing here deletes them.
+            if recordingLifecycle.lastStopTimedOut {
+                AccessibilityHelper.shared.endRecordingSession()
+                await MainActor.run {
+                    appState?.recordingState = .idle
+                    appState?.showRecordingDialog = false
+                    appState?.isStreamingShortcutTriggered = false
+                    KeyboardShortcuts.disable(.cancelRecording)
+                    appState?.showError(AudioError.recorderStopTimedOut.localizedDescription)
+                }
+                clearActiveSessionMode()
+                powerActivityManager.endPowerActivity()
+                return
+            }
             await MainActor.run {
                 appState?.recordingState = .idle
             }
@@ -179,10 +196,11 @@ extension RecordingTranscriptionFlow {
         // Now we match the cleanup done by cancelRecordingWithError() and the streaming
         // cancel path: delete the file, delete the session, reset all UI state.
         if cancelled {
+            // stopRecording(cancelled:) already deleted this recording's session row
+            // (#1359: the current session may belong to a recording started since).
             if let url = result.url {
                 try? FileManager.default.removeItem(at: url)
             }
-            await recordingLifecycle.sessionManager.deleteCurrentSession()
             await MainActor.run {
                 appState?.recordingState = .idle
                 appState?.showRecordingDialog = false
@@ -341,6 +359,9 @@ extension RecordingTranscriptionFlow {
                 // Retry button, so a Retry that ends before the row lands
                 // awaits it instead of saving a second row.
                 appState?.pendingRetryFailedRowWrite = failedRowWrite
+                // #1643: the Quick Capture context ends with this session, so
+                // the Retry keeps its routing here: Notes, not a paste.
+                appState?.pendingRetryIsQuickCapture = quickCaptureContext != nil
                 appState?.showRecordingDialog = true
                 KeyboardShortcuts.disable(.cancelRecording)
             }

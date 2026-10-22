@@ -220,11 +220,15 @@ public static class CloudTranscriptionProviderExtensions
     ///
     /// Call this only where the mode is a cloud mode. A local mode carries a
     /// null <c>CloudProvider</c> on purpose (<c>LocalModeModel.ApplyOnDevice</c>).
+    ///
+    /// The blank rule is the shared core's
+    /// (<c>cloud_stt_effective_mode_cloud_provider</c>, issue #1709), read through
+    /// <c>SharedCoreBridge.EffectiveModeCloudProvider</c> exactly as the Linux
+    /// head and macOS read it, so the three heads cannot drift apart. A
+    /// non-blank value is parsed as stored, as before.
     /// </summary>
     public static CloudTranscriptionProvider FromModeCloudProvider(string? identifier)
-        => string.IsNullOrWhiteSpace(identifier)
-            ? CloudTranscriptionProvider.HyperWhisperCloud
-            : FromIdentifier(identifier);
+        => FromIdentifier(global::HyperWhisper.SharedCore.SharedCoreBridge.EffectiveModeCloudProvider(identifier));
 
     /// <summary>
     /// Parses a <c>cloud-stt-catalog.json</c> <c>sttProvider</c> value — the
@@ -266,6 +270,32 @@ public static class CloudTranscriptionProviderExtensions
         // API with its own key slot (TranscriptionApiKeyType.GeminiTranscribe),
         // so it must fall through to None here.
         _ => PostProcessingProvider.None
+    };
+
+    /// <summary>
+    /// The transcription-only key slot for a provider that does NOT share a
+    /// post-processing key (issue #1220). This is the ONE Windows copy of the
+    /// provider -> <see cref="TranscriptionApiKeyType"/> map; callers that read
+    /// or write a key go through <see cref="GetApiKeyProvider"/> first, then this
+    /// (<c>ApiKeyService.GetApiKey/HasApiKey(CloudTranscriptionProvider)</c>).
+    ///
+    /// Returns null for the four shared-key providers (OpenAI, Groq, Gemini,
+    /// Grok — Grok's reads use <c>PostProcessingProvider.Grok</c>, the same
+    /// GrokApiKey slot), for the HyperWhisper-Cloud-routed providers and for
+    /// <see cref="CloudTranscriptionProvider.None"/>. The inverse is
+    /// <c>TranscriptionApiKeyType.ToCloudTranscriptionProvider()</c>.
+    /// </summary>
+    public static TranscriptionApiKeyType? GetTranscriptionApiKeyType(this CloudTranscriptionProvider provider) => provider switch
+    {
+        CloudTranscriptionProvider.Deepgram => TranscriptionApiKeyType.Deepgram,
+        CloudTranscriptionProvider.AssemblyAI => TranscriptionApiKeyType.AssemblyAI,
+        CloudTranscriptionProvider.ElevenLabs => TranscriptionApiKeyType.ElevenLabs,
+        CloudTranscriptionProvider.Mistral => TranscriptionApiKeyType.Mistral,
+        CloudTranscriptionProvider.Soniox => TranscriptionApiKeyType.Soniox,
+        // Own key slot — Google, but NOT the Gemini post-processing key.
+        CloudTranscriptionProvider.GeminiTranscribe => TranscriptionApiKeyType.GeminiTranscribe,
+        CloudTranscriptionProvider.Meta => TranscriptionApiKeyType.Meta,
+        _ => null
     };
 
     /// <summary>

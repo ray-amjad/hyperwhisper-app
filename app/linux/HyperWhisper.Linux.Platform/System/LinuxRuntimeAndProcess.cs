@@ -17,7 +17,7 @@ public sealed class LinuxNativeRuntimeLocator : INativeRuntimeLocator
         var backends = new HashSet<NativeComputeBackend>();
         if (Candidates("whisper", NativeComputeBackend.Cpu).Concat(Candidates("llama", NativeComputeBackend.Cpu)).Any(File.Exists)) backends.Add(NativeComputeBackend.Cpu);
         if (Candidates("whisper", NativeComputeBackend.Vulkan).Concat(Candidates("llama", NativeComputeBackend.Vulkan)).Any(File.Exists)) backends.Add(NativeComputeBackend.Vulkan);
-        if (Candidates("llama", NativeComputeBackend.Cuda).Any(File.Exists)) backends.Add(NativeComputeBackend.Cuda);
+        if (Candidates("whisper", NativeComputeBackend.Cuda).Concat(Candidates("llama", NativeComputeBackend.Cuda)).Any(File.Exists)) backends.Add(NativeComputeBackend.Cuda);
         Capabilities = new(_rid, selected.ToString(), Candidates("whisper", NativeComputeBackend.Cpu).Any(File.Exists),
             ExecutableCandidates("parakeet").Any(IsExecutable), Candidates("llama", NativeComputeBackend.Cpu).Any(File.Exists), backends);
     }
@@ -44,7 +44,9 @@ public sealed class LinuxNativeRuntimeLocator : INativeRuntimeLocator
         if (component == "whisper")
         {
             if (backend == NativeComputeBackend.Cpu) yield return Path.Combine(_root, "runtimes", _rid, file);
-            yield return Path.Combine(_root, "runtimes", backend == NativeComputeBackend.Vulkan ? "vulkan" : "cpu", _rid, file);
+            // Whisper.net's layout: runtimes/{vulkan|cuda12|cpu}/<rid>. The cuda12 tree
+            // ships only in the hyperwhisper-cuda package (issue #1002).
+            yield return Path.Combine(_root, "runtimes", backend switch { NativeComputeBackend.Vulkan => "vulkan", NativeComputeBackend.Cuda => "cuda12", _ => "cpu" }, _rid, file);
             if (backend == NativeComputeBackend.Cpu) yield return Path.Combine(_root, "runtimes", "noavx", _rid, file);
             yield return Path.Combine(_root, "runtimes", _rid, "native", backend == NativeComputeBackend.Cpu ? file : Path.Combine(flavor, file));
         }
@@ -83,6 +85,51 @@ public sealed class LinuxNativeRuntimeLocator : INativeRuntimeLocator
         if (string.IsNullOrWhiteSpace(component) || component.Contains("..", StringComparison.Ordinal)
             || component.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]) >= 0)
             throw new ArgumentException("A native component must be a simple name.", nameof(component));
+    }
+}
+
+/// <summary>
+/// What a CUDA choice becomes on this machine. The CUDA 12 backends ship in the
+/// optional hyperwhisper-cuda package (issue #1002), so a CUDA choice without it
+/// falls back to Vulkan, then CPU (when CPU fallback is allowed), and says why.
+/// </summary>
+public sealed record LinuxComputeBackendChoice(NativeComputeBackend Backend, bool CudaPackageMissing, bool Unavailable)
+{
+    /// <summary>Short status suffix; null when the requested backend is used as is.</summary>
+    public string? Notice => CudaPackageMissing ? LinuxCudaPackage.MissingNotice : null;
+}
+
+public static class LinuxCudaPackage
+{
+    public const string Name = "hyperwhisper-cuda";
+    public const string MissingNotice = "CUDA is not installed (install the hyperwhisper-cuda package)";
+    public const string MissingFailure =
+        "The CUDA backend is not installed. Install the hyperwhisper-cuda package, or choose Vulkan or CPU.";
+
+    public static LinuxComputeBackendChoice Choose(
+        NativeComputeBackend requested, bool cudaInstalled, bool vulkanAvailable, bool allowCpuFallback)
+    {
+        if (requested != NativeComputeBackend.Cuda || cudaInstalled) return new(requested, false, false);
+        if (vulkanAvailable) return new(NativeComputeBackend.Vulkan, true, false);
+        if (allowCpuFallback) return new(NativeComputeBackend.Cpu, true, false);
+        return new(NativeComputeBackend.Cuda, true, true);
+    }
+
+    /// <summary>
+    /// Decides from the packaged files: CUDA counts as installed when the component's
+    /// CUDA 12 library is present. <paramref name="vulkanUsable"/> lets a caller add
+    /// its own Vulkan check (for example that libvulkan.so.1 loads).
+    /// </summary>
+    public static LinuxComputeBackendChoice Choose(
+        INativeRuntimeLocator runtime, string component, NativeComputeBackend requested,
+        bool allowCpuFallback, bool vulkanUsable = true)
+    {
+        ArgumentNullException.ThrowIfNull(runtime);
+        if (requested != NativeComputeBackend.Cuda) return new(requested, false, false);
+        return Choose(requested,
+            runtime.FindLibrary(component, NativeComputeBackend.Cuda).IsSuccess,
+            vulkanUsable && runtime.FindLibrary(component, NativeComputeBackend.Vulkan).IsSuccess,
+            allowCpuFallback);
     }
 }
 

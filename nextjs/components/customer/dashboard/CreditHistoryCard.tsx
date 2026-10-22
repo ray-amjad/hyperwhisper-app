@@ -32,7 +32,7 @@ export default function CreditHistoryCard() {
               <p className="text-white font-medium">
                 <bdi>{grant.originalAmount.toLocaleString()} credits</bdi>
               </p>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-xs text-gray-400 mt-0.5">
                 <bdi>
                   {formatDate(grant.createdAt)}
                   {grant.expiresAt && (

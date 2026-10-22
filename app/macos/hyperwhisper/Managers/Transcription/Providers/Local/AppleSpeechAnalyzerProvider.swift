@@ -18,8 +18,17 @@ import os
 // Requires macOS 26+ and on-device speech assets to be downloaded
 @available(macOS 26.0, *)
 final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
+    /// Each call builds its own SpeechAnalyzer, and keeps no per-call state here (#1425).
+    var supportsConcurrentPasses: Bool { true }
 
-    let name: String = "Apple Speech"
+
+    /// The engine name `name` returns, which a completed History row stores as
+    /// its `transcriptionProvider`, and the name Model Library shows for this
+    /// engine. Static so a failed row can store the same value without an
+    /// instance, and so a missing-assets error can name it (issue #1518).
+    static let engineName = "Apple Speech"
+
+    let name: String = AppleSpeechAnalyzerProvider.engineName
 
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "SpeechAnalyzer")
 
@@ -285,7 +294,7 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
             return
         case .unsupported:
             logger.error("Locale \(locale.identifier, privacy: .public) is not supported by SpeechTranscriber")
-            throw TranscriptionError.modelNotDownloaded
+            throw TranscriptionError.modelNotDownloaded(model: Self.engineName)
         case .supported, .downloading:
             logger.info("Downloading speech assets for locale: \(locale.identifier, privacy: .public)")
             try await downloadAssets(for: transcriber, locale: locale)
@@ -302,14 +311,14 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
                 logger.info("Speech assets downloaded for locale: \(locale.identifier, privacy: .public)")
             } else {
                 logger.warning("No installation request available for locale: \(locale.identifier, privacy: .public)")
-                throw TranscriptionError.modelNotDownloaded
+                throw TranscriptionError.modelNotDownloaded(model: Self.engineName)
             }
         } catch let error as TranscriptionError {
             throw error
         } catch {
             let nsError = error as NSError
             logger.error("Failed to download speech assets; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
-            throw TranscriptionError.modelNotDownloaded
+            throw TranscriptionError.modelNotDownloaded(model: Self.engineName)
         }
     }
 }

@@ -183,3 +183,42 @@ enum ModeEditorDefaults {
         initialProvider(licenseActive: licenseActive, availableModelIds: availableModelIds) == .local ? .off : .cloud
     }
 }
+
+// MARK: - Name uniqueness (issue #1435)
+
+/// The id and stored name of one Mode, as the editor's name check reads it.
+/// A value type so the check runs without a Core Data context.
+struct ModeNameEntry: Equatable {
+    let id: UUID?
+    let name: String?
+}
+
+extension ModeEditorDefaults {
+
+    /// Whether the editor's name is already used by another mode, by the same
+    /// rule the Local API's `MODE_NAME_TAKEN` uses: `ModeNamePolicy.normalized`
+    /// on the candidate, then the shared core's `localApiModeNameConflict`
+    /// (trim, then lowercase) against every OTHER mode's stored name.
+    ///
+    /// - `editing` is the mode being edited (nil when creating). It is left out
+    ///   of the comparison by id, and a name equal to its stored name is never
+    ///   a conflict — the Local API PATCH checks only when the name changes, so
+    ///   a mode that already shares a name (written by an older build) can
+    ///   still save its other settings.
+    /// - A blank name is not a conflict: the editor already refuses it.
+    static func nameIsTaken(
+        _ proposedName: String,
+        editing: ModeNameEntry?,
+        existingModes: [ModeNameEntry]
+    ) -> Bool {
+        guard let candidate = ModeNamePolicy.normalized(proposedName) else { return false }
+        if let editing, candidate == editing.name { return false }
+        let otherNames = existingModes
+            .filter { entry in
+                guard let editing else { return true }
+                return entry.id != editing.id
+            }
+            .compactMap { $0.name }
+        return localApiModeNameConflict(candidate: candidate, otherNames: otherNames)
+    }
+}

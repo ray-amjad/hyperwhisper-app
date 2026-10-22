@@ -76,7 +76,6 @@ function authed(extra: Record<string, string> = {}): Record<string, string> {
   return { "x-internal-secret": INTERNAL_SECRET, ...extra };
 }
 
-const realInternalSecret = process.env.HYPERWHISPER_INTERNAL_SECRET;
 const realDateNow = Date.now;
 
 before(async () => {
@@ -94,16 +93,12 @@ beforeEach(() => {
   resetHarness();
   logLines.length = 0;
   Date.now = () => NOW;
-  process.env.HYPERWHISPER_INTERNAL_SECRET = INTERNAL_SECRET;
+  // The ingest route reads the validated env (#682), which the harness fakes.
+  fakeEnv.HYPERWHISPER_INTERNAL_SECRET = INTERNAL_SECRET;
 });
 
 afterEach(() => {
   Date.now = realDateNow;
-  if (realInternalSecret === undefined) {
-    delete process.env.HYPERWHISPER_INTERNAL_SECRET;
-  } else {
-    process.env.HYPERWHISPER_INTERNAL_SECRET = realInternalSecret;
-  }
 });
 
 describe("POST /api/internal/latency — the secret gate", () => {
@@ -129,7 +124,7 @@ describe("POST /api/internal/latency — the secret gate", () => {
   });
 
   test("answers 401 when the server has no secret configured", async () => {
-    delete process.env.HYPERWHISPER_INTERNAL_SECRET;
+    delete fakeEnv.HYPERWHISPER_INTERNAL_SECRET;
     const { POST } = await loadLatencyIngestRoute();
     const res = await POST(
       postRequest(INGEST_PATH, { samples: [sample()] }, { "x-internal-secret": "" }),
@@ -310,6 +305,24 @@ describe("POST /api/internal/latency — what is stored", () => {
     assert.equal(res.status, 429);
     assert.deepEqual(await readJson(res), { error: "Rate limit exceeded" });
     assert.equal(calls.inserts.length, 0);
+  });
+
+  test("stores the samples when the limiter is unreachable, and logs the fault class (#2136)", async () => {
+    behaviour.rateLimitError = new TypeError("fetch failed: upstash 203.0.113.9");
+    const { POST } = await loadLatencyIngestRoute();
+    const res = await POST(postRequest(INGEST_PATH, { samples: [sample()] }, authed()));
+
+    assert.equal(res.status, 200);
+    assert.equal((await readJson(res)).inserted, 1);
+    assert.deepEqual(calls.rateLimit, ["fra"]);
+    assert.equal(calls.inserts.length, 1);
+    assert.equal(calls.inserts[0].rows.length, 1);
+    const warnings = logLines.filter((line) => line.level === "warn").map((line) => inspect(line.args));
+    assert.ok(
+      warnings.some((line) => line.includes("Rate limit unavailable for latency ingest, failing open: TypeError")),
+      warnings.join("\n"),
+    );
+    assert.ok(!warnings.some((line) => line.includes("203.0.113.9")), "the error message is not logged");
   });
 
   test("stores the good rows and reports the skipped ones by index", async () => {

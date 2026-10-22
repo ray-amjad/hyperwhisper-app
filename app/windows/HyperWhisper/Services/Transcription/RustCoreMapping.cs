@@ -67,7 +67,10 @@ internal static class RustCoreMapping
                         httpStatusCode ?? 402,
                         retryAfterSeconds: null,
                         innerException: null,
-                        providerDiagnostics: providerDiagnostics);
+                        providerDiagnostics: providerDiagnostics)
+                    {
+                        IsInsufficientCredits = true,
+                    };
                 }
                 return new TranscriptionException(
                     TranscriptionErrorCode.QuotaExceeded,

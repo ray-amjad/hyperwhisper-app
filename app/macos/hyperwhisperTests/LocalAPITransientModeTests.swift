@@ -257,8 +257,12 @@ struct LocalAPITransientModeTests {
             to: "return ProviderResolution("
         )
         #expect(mixed.contains("try await router.selectProvider(for: transient.mode"))
-        #expect(mixed.contains("transient.end()"))
-        #expect(mixed.contains("throw error"))
+        // #1919: the catch rethrows through `mixedPathSelectionError`, which
+        // only renames a Nemotron not-installed error. The Mode must still be
+        // ended before anything is thrown.
+        let end = try #require(mixed.range(of: "transient.end()"))
+        let rethrow = try #require(mixed.range(of: "throw mixedPathSelectionError("))
+        #expect(end.lowerBound < rethrow.lowerBound)
     }
 
     // MARK: - Leaked rows from earlier builds

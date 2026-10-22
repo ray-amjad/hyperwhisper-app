@@ -106,6 +106,11 @@ public partial class ProviderApiKeyWindow : Window
         if (_credentials.SaveCommand.CanExecute(null)) _credentials.SaveCommand.Execute(null);
         if (_credentials.Status.HasError)
         {
+            // A failed write leaves the typed key in Secret so the credentials page can offer it
+            // again (#1388). This modal keeps its own ProviderKeyInput, and Secret lives on the
+            // shared view model, so clearing it here stops a cancelled modal from pre-filling the
+            // credentials page, where a Save under another account would store this key there.
+            _credentials.Secret = string.Empty;
             SetText("ProviderKeyStatus", _credentials.Status.Message);
             return;
         }

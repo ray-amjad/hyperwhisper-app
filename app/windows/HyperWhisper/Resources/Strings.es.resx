@@ -131,6 +131,9 @@
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Sin nombre</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Más...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribir archivo</value>
   </data>
@@ -226,6 +229,12 @@
   </data>
   <data name="history.status.retrying" xml:space="preserve">
     <value>Reintentando...</value>
+  </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Otro programa tiene bloqueada la base de datos del historial. Se ha conservado la grabación y se guardará en el historial cuando la base de datos quede libre.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Aún no se ha podido guardar esta grabación en el historial. Se ha conservado la grabación y se guardará en el historial más tarde.</value>
   </data>
 
   <!-- Modes Page -->
@@ -878,6 +887,12 @@
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Listo)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (No activado)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (Sin clave de API)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>La carga falló</value>
   </data>
@@ -907,6 +922,9 @@
   </data>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transcripción del archivo cancelada</value>
+  </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transcribiendo archivo...</value>
   </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Desconocido</value>
@@ -1172,6 +1190,9 @@ Debe tener al menos un modo.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Los atajos con un solo modificador como Ctrl, Alt, Shift o Win no son compatibles. Usa una tecla con modificadores o un atajo con varios modificadores, como Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Un atajo sin modificador debe ser una tecla de función o Esc. Cualquier otra tecla se activaría mientras escribes.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Este atajo ya se usa para {0} ({1})</value>
   </data>
@@ -1246,6 +1267,12 @@ Puede volver a descargarlo más tarde.</value>
     <value>No se pudo eliminar {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Modelo en uso</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>El modo "{1}" usa {0}. Cambia ese modo a otro modelo antes de eliminarlo.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1371,6 +1398,9 @@ Puede volver a descargarlo más tarde.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Por favor, introduzca una clave de licencia.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Eso no parece una clave de cuenta.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1401,6 +1431,12 @@ Puede volver a descargarlo más tarde.</value>
   </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>El archivo es demasiado grande para este proveedor. Tamaño máximo: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Este archivo está vacío, así que no hay audio que transcribir.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Este archivo está dañado o no es un archivo de audio que HyperWhisper pueda leer.</value>
   </data>
 
   <!-- Update UI -->
@@ -1853,12 +1889,36 @@ Puede volver a descargarlo más tarde.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Silenciar audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Amortiguar audio</value>
+  </data>
   <!-- Synced fallback strings -->
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Mantener el micrófono activo</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Mantener abierto un flujo de entrada silencioso entre grabaciones para reducir el retardo inicial, sobre todo con micrófonos Bluetooth.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Solo lo usa HyperWhisper. Se recuerda tras reiniciar.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Predeterminado · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (no conectado)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Usando {0} hasta que se vuelva a conectar {1}.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>No hay ningún micrófono conectado. HyperWhisper usará {0} cuando se vuelva a conectar.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Probar</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Detener</value>
   </data>
 
   <!-- Synced fallback strings -->

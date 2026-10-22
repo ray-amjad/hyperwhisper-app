@@ -325,7 +325,7 @@ struct LocalRuntimePreparationKey: Equatable, Sendable {
 ///
 ///   - `prepareModel` calls `cancelTranscription()` unconditionally
 ///     (`TranscriptionModelManager.swift`), which cancels
-///     `TranscriptionPipeline.currentTask` — and that one task spans
+///     `TranscriptionPipeline.runningTasks` — and each task spans
 ///     transcription AND post-processing, so cancelling it during
 ///     `.postProcessing` loses the AI cleanup and, on the rethrowing branch,
 ///     the transcript with it.
@@ -641,6 +641,7 @@ class AppState: ObservableObject {
             if pendingRetryAudioPath != oldValue {
                 pendingRetryNeedsModePick = false
                 pendingRetryFailedRowWrite = nil
+                pendingRetryIsQuickCapture = false
             }
         }
     }
@@ -656,6 +657,13 @@ class AppState: ObservableObject {
     /// pending file changes or is cleared (see its `didSet`).
     /// Not `@Published`: no view reads it.
     var pendingRetryFailedRowWrite: Task<NSManagedObjectID?, Never>?
+
+    /// Whether the recording in `pendingRetryAudioPath` was a Quick Capture
+    /// session. Its context ends at the stop, so the pill's Retry reads this
+    /// to send the transcript to Notes, not paste it (Ray, #1643). Set in the
+    /// same main-actor turn as the path; dropped with it (see its `didSet`).
+    /// Not `@Published`: no view reads it.
+    var pendingRetryIsQuickCapture = false
 
     /// Set when a pending-file retry found that the mode which made the
     /// recording was deleted (#1617). No request was sent; the recording dialog

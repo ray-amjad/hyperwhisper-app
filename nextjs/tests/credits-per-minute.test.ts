@@ -45,7 +45,7 @@ for (const path of [ADMIN_PAGE, DASHBOARD_ROUTER]) {
 test("every minutes figure on the admin page divides by the shared rate", () => {
   const text = source(ADMIN_PAGE);
   const divisions = text.match(/\/ CREDITS_PER_MINUTE\)/g) ?? [];
-  // The row's "(… min)", the dialog's current balance, and the dialog's
+  // Total's "(… min)", the dialog's current balance, and the dialog's
   // "= … minutes of transcription" preview.
   assert.equal(divisions.length, 3);
 });

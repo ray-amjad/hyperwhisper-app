@@ -50,18 +50,49 @@ enum AutoDeleteTimeUnit: String, CaseIterable, Codable {
         }
     }
 
+    /// Seconds in one unit.
+    private var secondsPerUnit: TimeInterval {
+        switch self {
+        case .minutes:
+            return 60
+        case .hours:
+            return 60 * 60
+        case .days:
+            return 60 * 60 * 24
+        }
+    }
+
+    /// The largest duration this unit accepts: 100 years (36,500 days).
+    ///
+    /// The Storage field accepts any whole number, and `Int` arithmetic on a
+    /// huge one traps. The cleanup pass runs at launch, so one stored
+    /// 999999999999999 crashed the app on every start (#2077). 100 years keeps
+    /// every recording a real user has, and stays far below an overflow.
+    var maximumValue: Int {
+        switch self {
+        case .minutes:
+            return 36_500 * 24 * 60
+        case .hours:
+            return 36_500 * 24
+        case .days:
+            return 36_500
+        }
+    }
+
+    /// `value` brought into the range this unit accepts: 1 to `maximumValue`.
+    func clampedValue(_ value: Int) -> Int {
+        min(max(1, value), maximumValue)
+    }
+
     /// Convert the value in this unit to seconds for date calculations
+    ///
+    /// Never traps: a value above `maximumValue` (one stored before #2077, or
+    /// written into the defaults by hand) counts as `maximumValue`, and the
+    /// multiplication is done in `TimeInterval`, not `Int`.
     /// - Parameter value: The number of units
     /// - Returns: The equivalent duration in seconds
     func toSeconds(_ value: Int) -> TimeInterval {
-        switch self {
-        case .minutes:
-            return TimeInterval(value * 60)
-        case .hours:
-            return TimeInterval(value * 60 * 60)
-        case .days:
-            return TimeInterval(value * 60 * 60 * 24)
-        }
+        TimeInterval(min(value, maximumValue)) * secondsPerUnit
     }
 }
 
@@ -171,7 +202,7 @@ class AutoDeleteSettingsManager: ObservableObject {
     @AppStorage(AutoDeleteDefaultsKey.value) private var autoDeleteValueStorage: Int = 30
 
     /// The number of time units before a recording is deleted
-    /// Must be a positive integer (minimum 1)
+    /// Must be a positive integer (minimum 1, at most the unit's `maximumValue`)
     /// Default: 30 (when combined with days unit = 30 days)
     ///
     /// IMPORTANT: This computed property wraps @AppStorage to ensure objectWillChange is called,
@@ -179,7 +210,7 @@ class AutoDeleteSettingsManager: ObservableObject {
     var autoDeleteValue: Int {
         get { autoDeleteValueStorage }
         set {
-            let clamped = max(1, newValue)
+            let clamped = autoDeleteTimeUnit.clampedValue(newValue)
             if autoDeleteValueStorage != clamped {
                 objectWillChange.send()
                 autoDeleteValueStorage = clamped
@@ -201,6 +232,10 @@ class AutoDeleteSettingsManager: ObservableObject {
             if autoDeleteTimeUnitRaw != newValue.rawValue {
                 objectWillChange.send()
                 autoDeleteTimeUnitRaw = newValue.rawValue
+                // 60,000,000 minutes is in range; 60,000,000 days is not (#2077).
+                if autoDeleteValueStorage > newValue.maximumValue {
+                    autoDeleteValueStorage = newValue.maximumValue
+                }
             }
         }
     }
@@ -266,17 +301,21 @@ class AutoDeleteSettingsManager: ObservableObject {
         if autoDeleteValue < 1 {
             autoDeleteValue = 30
             logger.warning("Auto-delete value was invalid, reset to 30")
+        } else if autoDeleteValue > autoDeleteTimeUnit.maximumValue {
+            // A value stored before #2077 capped it.
+            autoDeleteValue = autoDeleteTimeUnit.maximumValue
+            logger.warning("Auto-delete value was above the maximum, clamped to \(self.autoDeleteValue, privacy: .public)")
         }
     }
 
     // MARK: - Public Methods
 
     /// Validates and sets the auto-delete value
-    /// Ensures the value is at least 1
+    /// Ensures the value is at least 1 and at most the unit's `maximumValue`
     ///
     /// - Parameter value: The new value to set
     func setAutoDeleteValue(_ value: Int) {
-        autoDeleteValue = max(1, value)
+        autoDeleteValue = value
         logger.info("Auto-delete value set to \(self.autoDeleteValue, privacy: .public) \(self.autoDeleteTimeUnit.rawValue, privacy: .public)")
     }
 

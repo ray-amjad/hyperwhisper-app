@@ -90,6 +90,13 @@ class AudioRecordingManager: NSObject, ObservableObject {
     // CoreAudio reads when Combine mirrors an invalidated device during a route change.
     @Published var selectedDevice: AudioDevice? = nil
 
+    /// HyperWhisper's saved microphone choice, kept while its device is unplugged
+    /// (`nil` = "Default", follow the macOS default input). Mirrors
+    /// `AudioDeviceManager.preferredDevice`. The Settings picker and the menu-bar
+    /// Microphone menu both read this and write through `selectDevice(_:)`, so a change
+    /// in one shows in the other at once.
+    @Published private(set) var preferredMicrophone: MicrophoneChoice?
+
     /// Current system input volume slider value (0.0 - 1.0)
     /// Read by AudioDeviceManager from CoreAudio APIs
     @Published var inputVolumeScalar: Float?
@@ -103,7 +110,7 @@ class AudioRecordingManager: NSObject, ObservableObject {
     @Published var activeInputDeviceIdentifier: String?
 
     /// UID of the system's default input device
-    /// Used to show "(Default)" indicator next to the system default in the microphone menu
+    /// Used to label the "Default · <device>" option in the microphone pickers
     @Published var systemDefaultDeviceUID: String?
 
     /// Duration of current recording in seconds.
@@ -136,6 +143,10 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// short-lived metering session (see `startInputLevelPreview()`), publishing
     /// here. Kept off `liveMetrics` because this drives a single, isolated screen.
     @Published var idleInputLevel: Float = 0
+
+    /// True while the Settings → Sound microphone `Test` is running (its button reads
+    /// `Stop`). Cleared when the test times out, is stopped, or a recording starts.
+    @Published private(set) var isMicrophoneTestRunning = false
 
     // MARK: - Dependencies (Weak References)
 
@@ -202,9 +213,18 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// Store subscriptions to prevent deallocation
     private var cancellables = Set<AnyCancellable>()
 
-    /// Lightweight metering recorder for the onboarding input-level preview.
-    /// Writes to /dev/null with metering enabled; never produces a file.
-    private var inputLevelPreviewRecorder: AVAudioRecorder?
+    /// Lightweight metering recorder for the input-level preview (onboarding and the
+    /// Settings microphone test). Never produces a file: an `AVAudioRecorder` writing to
+    /// /dev/null on the default input, or a meter-only `DeviceAudioRecorder` on the
+    /// chosen microphone.
+    private var inputLevelPreviewRecorder: (any LiveAudioRecording)?
+
+    /// Bumped by every preview start and stop, so a chosen-device preview that is still
+    /// opening off the main actor knows it was superseded and discards itself.
+    private var inputLevelPreviewGeneration = 0
+
+    /// Ends the Settings microphone test after its duration.
+    private var microphoneTestTimeoutTask: Task<Void, Never>?
 
     /// Polling task that samples `inputLevelPreviewRecorder` at ~30 FPS.
     private var inputLevelPreviewTask: Task<Void, Never>?
@@ -349,27 +369,35 @@ class AudioRecordingManager: NSObject, ObservableObject {
             providerHealthManager: providerHealthManager
         )
 
-        // Clear saved preference if the selected microphone disappears (e.g., Bluetooth device removed).
-        deviceManager.onSelectedDeviceInvalidated = { [weak self] lostDevice in
-            AppLogger.audio.warning("Clearing persisted microphone preference for missing device UID: \(lostDevice.uid, privacy: .public)")
-            self?.settingsManager?.selectedMicrophoneId = ""
+        // The chosen microphone disappearing (Bluetooth off, USB unplugged) does NOT clear
+        // the saved choice: recording uses the default meanwhile, and the device manager
+        // selects the chosen device again when it reappears.
+        deviceManager.onSelectedDeviceInvalidated = { lostDevice in
+            AppLogger.audio.notice("Chosen microphone \(lostDevice.uid, privacy: .public) disconnected - keeping the choice, recording from the default until it returns")
         }
 
         // Update available devices on launch
         updateAvailableDevices(reason: .initialBootstrap)
 
-        // MICROPHONE RESTORATION: Restore the user's previously selected microphone if still available
-        // This runs on app launch to ensure the same device is used across sessions
-        // The savedId is persisted via @AppStorage in SettingsManager
+        // MICROPHONE RESTORATION: restore the saved choice, connected or not. A choice whose
+        // device is missing is kept (shown as "<name> (not connected)") and used again as
+        // soon as the device appears. `selectedMicrophoneId` has always held the CoreAudio
+        // UID, so choices saved by earlier builds restore unchanged.
         if let savedId = settingsManager?.selectedMicrophoneId, !savedId.isEmpty {
-            if let savedDevice = availableDevices.first(where: { $0.id == savedId }) {
-                AppLogger.audio.info("Restoring saved microphone selection on launch: \(savedDevice.name, privacy: .public)")
-                selectDevice(savedDevice)
-            } else {
-                // Device no longer available (disconnected Bluetooth, unplugged USB, etc.)
-                // Clear the preference so we don't keep trying to restore a missing device
-                AppLogger.audio.warning("Saved microphone not found on launch, clearing preference: \(savedId, privacy: .public)")
-                settingsManager?.selectedMicrophoneId = ""
+            let savedName = settingsManager?.selectedMicrophoneName ?? ""
+            switch MicrophoneResolution.resolve(savedUID: savedId, savedName: savedName, devices: availableDevices) {
+            case .chosen(let device):
+                AppLogger.audio.info("Restoring saved microphone selection on launch: \(device.name, privacy: .public)")
+                deviceManager.restorePreferredDevice(MicrophoneChoice(uid: device.uid, name: device.name))
+                // Backfill the name for choices saved before names were stored.
+                if savedName != device.name {
+                    settingsManager?.selectedMicrophoneName = device.name
+                }
+            case .chosenNotConnected(let choice):
+                AppLogger.audio.notice("Saved microphone not connected on launch, keeping the choice: \(savedId, privacy: .public)")
+                deviceManager.restorePreferredDevice(choice)
+            case .systemDefault:
+                break
             }
         }
 
@@ -762,6 +790,9 @@ class AudioRecordingManager: NSObject, ObservableObject {
         deviceManager.$selectedDevice
             .assign(to: &$selectedDevice)
 
+        deviceManager.$preferredDevice
+            .assign(to: &$preferredMicrophone)
+
         deviceManager.$inputVolumeScalar
             .assign(to: &$inputVolumeScalar)
 
@@ -1008,53 +1039,137 @@ class AudioRecordingManager: NSObject, ObservableObject {
         deviceManager.updateAvailableDevices(reason: reason)
     }
 
-    /// Select a specific audio input device for recording
+    /// Choose the microphone HyperWhisper records from.
     ///
     /// **What This Does:**
-    /// Sets the selected device which will be used for next recording.
-    /// Updates volume metrics for the newly selected device.
+    /// Saves the choice (UID and name) for HyperWhisper only — the macOS default input is
+    /// NOT changed, so other apps keep theirs. The next recording, the level preview,
+    /// streaming capture and keep-warm open the chosen device directly.
     ///
     /// **Parameters:**
-    /// - `device`: The device to select (nil restores system default)
+    /// - `device`: The device to use (nil = follow the macOS default input)
     ///
     /// **When to Call:**
-    /// When user selects a device from the picker in settings
+    /// From the Settings → Sound picker, the menu-bar Microphone menu and onboarding.
     func selectDevice(_ device: AudioDevice?) {
         deviceManager.selectDevice(device)
+        settingsManager?.selectedMicrophoneId = device?.uid ?? ""
+        settingsManager?.selectedMicrophoneName = device?.name ?? ""
     }
 
-    // MARK: - Public API: Onboarding Input-Level Preview
+    /// Restore a saved choice by UID, keeping it even when its device is not connected.
+    /// Onboarding uses this to roll a previewed choice back to the one saved before.
+    func restoreMicrophoneChoice(uid: String?) {
+        guard let uid, !uid.isEmpty else {
+            selectDevice(nil)
+            return
+        }
+        let savedName = settingsManager?.selectedMicrophoneId == uid
+            ? (settingsManager?.selectedMicrophoneName ?? "")
+            : ""
+        let resolution = MicrophoneResolution.resolve(savedUID: uid, savedName: savedName, devices: availableDevices)
+        let choice: MicrophoneChoice
+        switch resolution {
+        case .chosen(let device):
+            choice = MicrophoneChoice(uid: device.uid, name: device.name)
+        case .chosenNotConnected(let missing):
+            choice = missing
+        case .systemDefault:
+            selectDevice(nil)
+            return
+        }
+        deviceManager.restorePreferredDevice(choice)
+        settingsManager?.selectedMicrophoneId = choice.uid
+        settingsManager?.selectedMicrophoneName = choice.name
+    }
 
-    /// Start a lightweight metering session so the onboarding microphone step can
-    /// show a live input level **without** starting a real recording.
+    // MARK: - Public API: Input-Level Preview (Onboarding, Settings Test)
+
+    /// Start a lightweight metering session so the onboarding microphone step and the
+    /// Settings microphone test can show a live input level **without** starting a
+    /// real recording.
     ///
-    /// Backed by an `AVAudioRecorder` writing to `/dev/null` with metering
-    /// enabled, sampled at ~30 FPS and normalized (-60…0 dB → 0…1) exactly like
-    /// `SimpleRecorder.readNormalizedLevel`. The recorder captures whatever the system
-    /// default input is at start time; `selectDevice(_:)` switches that default,
-    /// so call `startInputLevelPreview()` again after changing the device to
-    /// re-point it.
+    /// Meters the device HyperWhisper would record from right now: the chosen
+    /// microphone when it is connected and is not the macOS default (a meter-only
+    /// `DeviceAudioRecorder`, opened off the main actor), otherwise the default input
+    /// (an `AVAudioRecorder` writing to `/dev/null`). Levels are normalized
+    /// (-60…0 dB → 0…1) exactly like `SimpleRecorder.readNormalizedLevel`. Call it again
+    /// after changing the device to re-point it.
     ///
     /// No-ops (and releases any prior session) if microphone permission is
     /// missing or a real recording is active — the preview must never contend
     /// with the recording capture path or leak the mic.
-    func startInputLevelPreview() {
+    ///
+    /// - Returns: `true` if a preview is running or opening.
+    @discardableResult
+    func startInputLevelPreview() -> Bool {
         // Restart cleanly if already running (e.g. the device changed).
         stopInputLevelPreview()
 
         guard hasMicrophonePermission else {
             AppLogger.audio.info("Input-level preview skipped — microphone permission not granted")
-            return
+            return false
         }
         guard !isRecording else {
             AppLogger.audio.info("Input-level preview skipped — a recording is in progress")
-            return
+            return false
         }
 
-        // Ensure the chosen device is the active system default before we open
-        // the metering recorder, so the preview reflects the picked device.
-        deviceManager.applySelectedInputDeviceIfNeeded()
+        inputLevelPreviewGeneration &+= 1
+        let generation = inputLevelPreviewGeneration
 
+        // Decide from cached state; the device lookup itself happens off the main actor.
+        let pinnedUID = MicrophoneResolution
+            .resolve(savedUID: preferredMicrophone?.uid, savedName: nil, devices: availableDevices)
+            .pinnedDeviceUID(systemDefaultUID: systemDefaultDeviceUID)
+
+        guard let pinnedUID else {
+            return startDefaultInputLevelPreview()
+        }
+
+        let queue = inputLevelPreviewMeterQueue
+        queue.async {
+            var opened: DeviceAudioRecorder?
+            if let deviceID = CoreAudioDeviceHelper.findAudioDeviceID(byUID: pinnedUID) {
+                let recorder = DeviceAudioRecorder(deviceID: deviceID, url: nil)
+                if recorder.record() {
+                    opened = recorder
+                }
+            }
+            let result = opened
+            Task { @MainActor [weak self] in
+                self?.finishChosenDevicePreviewStart(result, generation: generation)
+            }
+        }
+        AppLogger.audio.info("Input-level preview opening the chosen microphone")
+        return true
+    }
+
+    /// Back on the main actor after a chosen-device preview tried to open.
+    private func finishChosenDevicePreviewStart(_ recorder: DeviceAudioRecorder?, generation: Int) {
+        guard generation == inputLevelPreviewGeneration, !isRecording else {
+            // Superseded by a stop, a restart or a recording: release it.
+            if let recorder {
+                let queue = inputLevelPreviewMeterQueue
+                queue.async {
+                    SimpleRecorder.stopAndReleaseLater(recorder, on: queue, using: SimpleRecorder.defaultRecorderStopper)
+                }
+            }
+            return
+        }
+        guard let recorder else {
+            AppLogger.audio.warning("Input-level preview could not open the chosen microphone - previewing the default input")
+            if !startDefaultInputLevelPreview() {
+                stopInputLevelPreview()
+            }
+            return
+        }
+        installInputLevelPreview(recorder)
+        AppLogger.audio.info("Input-level preview started on the chosen microphone")
+    }
+
+    /// The preview on the macOS default input. Main actor, as it always was.
+    private func startDefaultInputLevelPreview() -> Bool {
         let settings: [String: Any] = [
             AVFormatIDKey: Int(kAudioFormatLinearPCM),
             AVSampleRateKey: 16000.0,
@@ -1069,30 +1184,53 @@ class AudioRecordingManager: NSObject, ObservableObject {
             recorder.isMeteringEnabled = true
             guard recorder.record() else {
                 AppLogger.audio.warning("Input-level preview recorder failed to start")
-                return
+                return false
             }
-            inputLevelPreviewRecorder = recorder
-            inputLevelPreviewTask = Task { [weak self] in
-                while !Task.isCancelled {
-                    self?.sampleInputLevelPreview()
-                    try? await Task.sleep(nanoseconds: 33_000_000) // ~30 FPS
-                }
-            }
+            installInputLevelPreview(recorder)
             AppLogger.audio.info("Input-level preview started")
+            return true
         } catch {
             AppLogger.audio.error("Failed to start input-level preview: \(error.localizedDescription, privacy: .public)")
+            return false
         }
     }
 
-    /// Stop the onboarding input-level preview and release the microphone.
-    /// Safe to call repeatedly; also invoked when onboarding is dismissed and
-    /// whenever a real recording starts.
+    private func installInputLevelPreview(_ recorder: any LiveAudioRecording) {
+        inputLevelPreviewRecorder = recorder
+        inputLevelPreviewTask = Task { [weak self] in
+            while !Task.isCancelled {
+                self?.sampleInputLevelPreview()
+                try? await Task.sleep(nanoseconds: 33_000_000) // ~30 FPS
+            }
+        }
+    }
+
+    /// Stop the input-level preview and release the microphone.
+    /// Safe to call repeatedly; also invoked when onboarding is dismissed, when the
+    /// Settings microphone test ends, and whenever a real recording starts.
+    ///
+    /// The `stop()` runs on `inputLevelPreviewMeterQueue`, behind any read in
+    /// flight, so a read and a stop of the same recorder never overlap and a read
+    /// stuck on the AudioQueue lock cannot freeze the main thread here (#1359).
+    /// Nothing waits for it: the preview writes no file, so there is nothing to
+    /// finalise.
     func stopInputLevelPreview() {
+        inputLevelPreviewGeneration &+= 1
         inputLevelPreviewTask?.cancel()
         inputLevelPreviewTask = nil
-        inputLevelPreviewRecorder?.stop()
-        inputLevelPreviewRecorder = nil
+        if let recorder = inputLevelPreviewRecorder {
+            inputLevelPreviewRecorder = nil
+            let queue = inputLevelPreviewMeterQueue
+            queue.async {
+                SimpleRecorder.stopAndReleaseLater(recorder, on: queue, using: SimpleRecorder.defaultRecorderStopper)
+            }
+        }
         idleInputLevel = 0
+        microphoneTestTimeoutTask?.cancel()
+        microphoneTestTimeoutTask = nil
+        if isMicrophoneTestRunning {
+            isMicrophoneTestRunning = false
+        }
     }
 
     /// Sample the preview recorder's level on `inputLevelPreviewMeterQueue` and
@@ -1116,6 +1254,35 @@ class AudioRecordingManager: NSObject, ObservableObject {
             guard self.inputLevelPreviewRecorder === recorder else { return }
             self.idleInputLevel = level
         }
+    }
+
+    // MARK: - Public API: Settings Microphone Test
+
+    /// How long the Settings microphone test keeps the microphone open.
+    nonisolated static let microphoneTestDuration: TimeInterval = 10
+
+    /// Open the chosen microphone (the default while it is unplugged) for
+    /// `duration` seconds and show its level. Starting again restarts the timer.
+    ///
+    /// Visiting Settings never opens the microphone; only this does. The test stops on
+    /// `stopMicrophoneTest()`, after `duration`, or when a recording starts (the
+    /// recording-start hook calls `stopInputLevelPreview()`).
+    func startMicrophoneTest(duration: TimeInterval = AudioRecordingManager.microphoneTestDuration) {
+        guard startInputLevelPreview() else { return }
+        isMicrophoneTestRunning = true
+        microphoneTestTimeoutTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            self?.stopMicrophoneTest()
+        }
+        AppLogger.audio.info("Microphone test started")
+    }
+
+    /// End the Settings microphone test, if one is running.
+    func stopMicrophoneTest() {
+        guard isMicrophoneTestRunning else { return }
+        stopInputLevelPreview()
+        AppLogger.audio.info("Microphone test stopped")
     }
 
     // MARK: - Public API: Crash Recovery

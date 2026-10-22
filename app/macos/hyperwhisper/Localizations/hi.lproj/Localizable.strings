@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "निदान निर्यात किए गए";
 "alerts.export.diagnostics.success.message" = "सभी निदान लॉग सफलतापूर्वक निर्यात कर दिए गए हैं।";
 "alerts.export.diagnostics.saveFailed.message" = "निदान को चयनित स्थान पर सहेज नहीं सके: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "सिस्टम लॉग के बिना डायग्नोस्टिक्स निर्यात किए गए";
+"alerts.export.diagnostics.noSystemLogs.message" = "डायग्नोस्टिक्स फ़ाइल सहेजी गई, लेकिन ऐप के सिस्टम लॉग पढ़े नहीं जा सके, इसलिए system-logs.txt में केवल कारण है। कारण: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "समर्थन के लिए अपडेट लॉग निर्यात करें";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "ऑनबोर्डिंग पूर्ण करें";
 
 "onboarding.setupLater.button" = "बाद में सेट अप करें";
-"onboarding.error.microphone.denied" = "माइक्रोफ़ोन अनुमति अस्वीकृत। कृपया सिस्टम सेटिंग्स में अनुमति दें।";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "लॉगिन पर लॉन्च करें";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "बंद";
 "settings.general.mediaControl.mode.mute" = "ऑडियो मूक करें";
+"settings.general.mediaControl.mode.muffle" = "ऑडियो मंद करें";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,9 +324,17 @@
 "settings.sound.soundEffects.title" = "ध्वनि प्रभाव चलाएं";
 "settings.sound.soundEffects.info" = "रिकॉर्डिंग शुरू और बंद होने पर ऑडियो संकेत चलाएं.";
 "settings.sound.mediaControl.title" = "रिकॉर्डिंग के दौरान मीडिया नियंत्रण";
-"settings.sound.mediaControl.info" = "चुनें कि HyperWhisper रिकॉर्ड करते समय अन्य ऑडियो को कैसे संभालता है। 'बंद' ऑडियो को अपरिवर्तित रखता है, 'मूक ऑडियो' रिकॉर्डिंग के दौरान सिस्टम आउटपुट को साइलेंट करता है और बाद में उसे पुनः स्थापित करता है।";
+"settings.sound.mediaControl.info" = "चुनें कि HyperWhisper रिकॉर्ड करते समय अन्य ऑडियो को कैसे संभालता है। 'बंद' ऑडियो को अपरिवर्तित रखता है, 'मूक ऑडियो' रिकॉर्डिंग के दौरान सिस्टम आउटपुट को साइलेंट करता है और बाद में उसे पुनः स्थापित करता है।, और 'ऑडियो मंद करें' उसे धीमे-धीमे चलता रखता है, मानो अगले कमरे से आ रहा हो।";
+"settings.sound.microphone.title" = "माइक्रोफ़ोन";
+"settings.sound.microphone.subtitle" = "केवल HyperWhisper द्वारा उपयोग किया जाता है। रीस्टार्ट के बाद भी याद रहता है।";
+"microphone.picker.default" = "डिफ़ॉल्ट · %@";
+"microphone.picker.notConnected" = "%@ (कनेक्ट नहीं है)";
+"microphone.picker.fallback" = "%2$@ के फिर से कनेक्ट होने तक %1$@ का उपयोग हो रहा है।";
+"settings.sound.microphone.test" = "टेस्ट";
+"settings.sound.microphone.stop" = "रोकें";
+"settings.sound.microphone.level" = "इनपुट स्तर";
 "settings.sound.autoIncreaseMicVolume.title" = "माइक्रोफ़ोन वॉल्यूम स्वचालित रूप से बढ़ाएं";
-"settings.sound.autoIncreaseMicVolume.info" = "जब रिकॉर्डिंग शुरू हो तो माइक्रोफ़ोन इनपुट वॉल्यूम को अधिकतम पर सेट करता है, फिर रिकॉर्डिंग बंद होने पर मूल स्तर को पुनः स्थापित करता है। केवल सिस्टम डिफ़ॉल्ट इनपुट डिवाइस का उपयोग करते समय लागू होता है।";
+"settings.sound.autoIncreaseMicVolume.info" = "रिकॉर्डिंग शुरू होने पर HyperWhisper जिस माइक्रोफ़ोन से रिकॉर्ड करता है, उसका इनपुट वॉल्यूम अपने-आप अधिकतम कर देता है और रिकॉर्डिंग रुकने पर मूल स्तर बहाल कर देता है। जिन माइक्रोफ़ोन में सॉफ़्टवेयर वॉल्यूम नियंत्रण नहीं है, वे अपरिवर्तित रहते हैं।";
 "settings.sound.vad.title" = "ट्रांसक्रिप्शन से पहले मौन हटाएं";
 "settings.sound.vad.info" = "AI वॉयस डिटेक्शन का उपयोग करके स्वचालित रूप से अग्रणी और अनुगामी मौन का पता लगाता और हटाता है। यह ट्रांसक्रिप्शन सटीकता में सुधार और प्रोसेसिंग समय को कम कर सकता है।";
 
@@ -336,6 +346,9 @@
 "settings.storage.choose.button" = "चुनें...";
 "settings.storage.dialog.select" = "फ़ोल्डर चुनें";
 "settings.storage.dialog.message" = "रिकॉर्डिंग संग्रहीत करने के लिए एक फ़ोल्डर चुनें";
+"settings.storage.folderRefused.title" = "इस फ़ोल्डर का उपयोग नहीं किया जा सकता";
+"settings.storage.folderRefused.notWritable" = "आपको “%@” में लिखने की अनुमति नहीं है, इसलिए HyperWhisper वहाँ रिकॉर्डिंग सहेज नहीं सकता। रिकॉर्डिंग फ़ोल्डर नहीं बदला गया।";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper यह फ़ोल्डर नहीं बना सका: %@ रिकॉर्डिंग फ़ोल्डर नहीं बदला गया।";
 "settings.storage.storeAsM4A.title" = "रिकॉर्डिंग को M4A में संपीड़ित करें";
 "settings.storage.storeAsM4A.subtitle" = "WAV रिकॉर्डिंग को ट्रांसक्रिप्शन के बाद छोटी फ़ाइलों में परिवर्तित करता है। मूल WAV फ़ाइलों को रखने के लिए बंद करें (बड़ी लेकिन नुकसान रहित)।";
 
@@ -383,6 +396,7 @@
 
 "settings.shortcuts.changeMode.title" = "मोड बदलें";
 "settings.shortcuts.changeMode.subtitle" = "केवल रिकॉर्डिंग के दौरान काम करता है";
+"settings.shortcuts.conflict.alert" = "यह कीबोर्ड शॉर्टकट उपयोग नहीं किया जा सकता क्योंकि इसे पहले से “%@” उपयोग कर रहा है।";
 
 "settings.shortcuts.reset.button" = "डिफ़ॉल्ट पर रीसेट करें";
 "settings.shortcuts.reset.dialog.title" = "कीबोर्ड शॉर्टकट रीसेट करें";
@@ -434,6 +448,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "क्लिपबोर्ड से पेस्ट करें";
 "settings.license.clearInput" = "साफ़ करें";
+"license.error.keyFormat" = "यह खाता कुंजी जैसा नहीं दिखता।";
 "settings.license.recovery.prompt" = "अपनी लाइसेंस कुंजी भूल गए?";
 "settings.license.recovery.button" = "ग्राहक पोर्टल पर जाएं";
 "settings.license.daily.title" = "दैनिक ट्रांसक्रिप्शन";
@@ -576,6 +591,8 @@
 "onboarding.configure.cloud.note" = "क्रेडिट पहले से भुगतान किए गए हैं और इस कुंजी से साइन-इन हर Mac के बीच साझा होते हैं। खाली समय का कोई शुल्क नहीं लगता।";
 "onboarding.source.note" = "बाद में मन बदलने पर सिर्फ यही एक स्टेप दोबारा चलता है। आपकी बाकी सेटअप की गई कोई भी चीज़ नहीं खोती।";
 "onboarding.permissions.note" = "एक्सेसिबिलिटी को छोड़ें और ट्रांसक्रिप्ट क्लिपबोर्ड में जाएंगे, पेस्ट के लिए तैयार। इसे बाद में ऑन करने में एक क्लिक लगता है।";
+"onboarding.permissions.microphone.denied" = "अनुमति नहीं है। सिस्टम सेटिंग्स में HyperWhisper चालू करें, फिर यहाँ वापस आएँ।";
+"onboarding.permissions.continueNeedsMicrophone" = "जारी रखने के लिए माइक्रोफ़ोन चाहिए। ऊपर इसकी अनुमति दें, या बाद में सेट अप करें चुनें।";
 "onboarding.welcome.task1.title" = "चुनें कि ट्रांसक्रिप्शन कैसे चलेगा";
 "onboarding.welcome.task1.caption" = "हमारे क्लाउड में, इस Mac पर, या किसी ऐसे प्रोवाइडर खाते से जिसके लिए आप पहले से भुगतान करते हैं।";
 "onboarding.welcome.task2.title" = "अपना माइक्रोफ़ोन जांचें";
@@ -791,6 +808,7 @@
 "modes.field.name.placeholder" = "जैसे, मीटिंग नोट्स";
 "modes.field.name.editPlaceholder" = "मोड नाम";
 "modes.field.name.defaultLocked" = "यह डिफ़ॉल्ट मोड है, इसलिए इसका नाम नहीं बदला जा सकता। आप किसी भी अन्य मोड का नाम बदल सकते हैं।";
+"modes.field.name.taken" = "इस नाम का मोड पहले से मौजूद है।";
 "modes.field.model" = "मॉडल";
 "modes.field.provider" = "प्रदाता";
 "modes.provider.local" = "स्थानीय";
@@ -817,7 +835,7 @@
 "transcripts.delete.single.message" = "यह इस रिकॉर्डिंग और इसकी ऑडियो फ़ाइल को स्थायी रूप से हटा देगा।";
 "transcripts.delete.multiple.title" = "%d रिकॉर्डिंग हटाएं?";
 "transcripts.delete.multiple.message" = "यह %d रिकॉर्डिंग और उनकी ऑडियो फ़ाइलों को स्थायी रूप से हटा देगा।\n\nयह कार्य को पूर्ववत नहीं किया जा सकता।";
-"transcripts.delete.multiple.confirm" = "सभी हटाएं";
+"transcripts.delete.multiple.confirm" = "%d रिकॉर्डिंग हटाएं";
 "transcripts.retry.error.title" = "पुनः प्रयास विफल";
 "transcripts.retry.error.modeDeleted" = "जिस मोड ने यह रिकॉर्डिंग बनाई थी, वह हटा दिया गया है, इसलिए दोबारा प्रयास नहीं किया गया। इतिहास में रिकॉर्डिंग पर राइट-क्लिक करें और दूसरा मोड चुनने के लिए \"इसके साथ फिर से प्रयास करें...\" चुनें।";
 
@@ -870,7 +888,6 @@
 "recording.retry.inProgress" = "पुनः प्रयास किया जा रहा है…";
 "recording.retry.count" = "पुनः प्रयास (%d)";
 "recording.retry.failed.missing" = "पुनः प्रयास विफल: ऑडियो फ़ाइल नहीं मिली";
-"recording.retry.failed.error" = "पुनः प्रयास विफल: %@";
 "recording.retry.pending" = "फिर से प्रयास करने के लिए तैयार – ट्रांसक्राइब करने के लिए क्लिक करें";
 "recording.retry.modeDeleted" = "मोड हटा दिया गया";
 "recording.cancel.dialog.title" = "रिकॉर्डिंग रद्द करें?";
@@ -899,6 +916,7 @@
 "audio.error.microphonePermission" = "माइक्रोफ़ोन अनुमति नहीं दी गई";
 "audio.error.microphoneInUse" = "HyperWhisper माइक्रोफ़ोन तक पहुंच नहीं सकता क्योंकि एक अन्य ऐप वर्तमान में इसका उपयोग कर रहा है। अन्य ऐप को रोकें या इनपुट स्विच करें, फिर फिर से प्रयास करें।";
 "audio.error.audioSystemNotResponding" = "macOS ऑडियो प्रतिक्रिया नहीं दे रहा है, इसलिए माइक्रोफ़ोन शुरू नहीं हो सका। थोड़ी देर में फिर से कोशिश करें। अगर ऐसा होता रहे, तो अपना Mac रीस्टार्ट करें।";
+"audio.error.recorderStopTimedOut" = "रिकॉर्डिंग सहेजते समय macOS ऑडियो ने जवाब देना बंद कर दिया, इसलिए उसका ट्रांसक्रिप्शन नहीं हुआ। ऑडियो सुरक्षित रखा गया है: HyperWhisper अगली बार शुरू होने पर इसे पुनर्प्राप्त करने का प्रयास करेगा।";
 "audio.error.createEngine" = "ऑडियो इंजन बनाने में विफल";
 "audio.error.noInput" = "कोई ऑडियो इनपुट उपलब्ध नहीं";
 "audio.error.createFile" = "ऑडियो फ़ाइल बनाने में विफल";
@@ -926,6 +944,9 @@
 "transcription.error.providerNotAvailable.provider" = "%@ उपलब्ध नहीं है। अपनी सेटिंग्स जांचें और फिर से प्रयास करें।";
 "transcription.error.providerNotAvailable.detail" = "%@ उपलब्ध नहीं है: %@";
 "transcription.error.modelNotDownloaded" = "कृपया पहले एक मॉडल डाउनलोड करें";
+"transcription.error.modelNotDownloaded.modelAndMode" = "मोड %1$@ मॉडल %2$@ का उपयोग करता है, जो डाउनलोड नहीं है। इसे मॉडल लाइब्रेरी में डाउनलोड करें।";
+"transcription.error.modelNotDownloaded.model" = "मॉडल %1$@ डाउनलोड नहीं है। इसे मॉडल लाइब्रेरी में डाउनलोड करें।";
+"transcription.error.openModelLibrary" = "मॉडल लाइब्रेरी खोलें";
 "transcription.error.modelProtected" = "यह मॉडल नहीं हटाया जा सकता";
 "transcription.error.audioFileNotFound" = "ऑडियो फ़ाइल नहीं मिली";
 "transcription.error.network.detail" = "नेटवर्क त्रुटि: %@";
@@ -972,6 +993,7 @@
 "transcription.guidance.quotaExceeded" = "अपने %@ खाते में क्रेडिट जोड़ें या अपनी बिलिंग जानकारी अपडेट करें";
 "transcription.guidance.timeout" = "अनुरोध में बहुत समय लगा। अपनी इंटरनेट गति जांचें और फिर से प्रयास करें।";
 "transcription.error.noSpeechDetected" = "रिकॉर्डिंग में कोई भाषण का पता नहीं चला।";
+"transcription.error.audioTooShort" = "रिकॉर्डिंग ट्रांसक्राइब करने के लिए बहुत छोटी है। कृपया थोड़ी देर और रिकॉर्ड करें।";
 "transcription.guidance.noSpeechDetected" = "सुझाव:\n• माइक्रोफ़ोन में स्पष्ट रूप से बोलें\n• कुंजी को दबाने से पहले लंबे समय तक दबाएं\n• जांचें कि आपका माइक्रोफ़ोन काम कर रहा है\n• सुनिश्चित करें कि सही इनपुट डिवाइस चयनित है";
 "transcription.guidance.needsNativeRelaunch" = "लोकल पोस्ट-प्रोसेसिंग इस्तेमाल करने के लिए HyperWhisper को बंद करके नेटिव रूप से फिर से खोलें।";
 "transcription.guidance.localRuntimeUnavailable" = "फिर से कोशिश करें, या अपनी मोड सेटिंग में कोई छोटा लोकल मॉडल चुनें।";
@@ -1114,6 +1136,17 @@
 "transcribe.file.error.format.title" = "असमर्थित प्रारूप";
 "transcribe.file.error.format.message" = ".%@ फ़ाइलें %@ द्वारा समर्थित नहीं हैं। समर्थित प्रारूप: %@";
 "transcribe.file.error.read" = "चयनित फ़ाइल को पढ़ा नहीं जा सकता।";
+"transcribe.file.error.webm" = "WebM समर्थित नहीं है। फ़ाइल को MP3, M4A या WAV में बदलें, फिर से कोशिश करें।";
+"transcribe.file.busy.title" = "एक फ़ाइल पहले से ट्रांसक्राइब हो रही है।";
+"transcribe.file.busy.message" = "क्या उसे रद्द करके यह शुरू करें?";
+"transcribe.file.busy.keepRunning" = "चलने दें";
+"transcribe.file.busy.cancelAndStart" = "रद्द करें और शुरू करें";
+"transcribe.file.error.notAudio" = "फ़ाइल “%@” मान्य ऑडियो नहीं है। फ़ाइल ख़राब हो सकती है, या ऐसे फ़ॉर्मेट में हो सकती है जिसे macOS डिकोड नहीं कर सकता।";
+"transcribe.file.error.empty" = "फ़ाइल “%@” ख़ाली है। इसमें ट्रांसक्राइब करने के लिए कोई ऑडियो नहीं है।";
+"transcribe.file.error.permission" = "HyperWhisper फ़ाइल “%@” को नहीं पढ़ सकता। फ़ाइल की अनुमतियाँ जाँचें।";
+"transcribe.file.error.folderPermission" = "HyperWhisper उस फ़ोल्डर को नहीं खोल सकता जिसमें फ़ाइल “%@” है। उस फ़ोल्डर की अनुमतियाँ जाँचें।";
+"transcribe.file.error.privacy" = "macOS की गोपनीयता सेटिंग्स ने HyperWhisper को फ़ाइल “%@” पढ़ने से रोक दिया। इसे सिस्टम सेटिंग्स > गोपनीयता और सुरक्षा > पूर्ण डिस्क एक्सेस में अनुमति दें।";
+"transcribe.file.error.tooShort" = "यह फ़ाइल ट्रांसक्राइब करने के लिए बहुत छोटी है (%@ s)।";
 "transcribe.file.error.copy" = "फ़ाइल को रिकॉर्डिंग फ़ोल्डर में कॉपी करने में विफल।";
 "transcribe.file.error.video.title" = "वीडियो में कोई ऑडियो नहीं";
 "transcribe.file.error.video.noAudio" = "इस वीडियो फ़ाइल में ऑडियो ट्रैक नहीं है। कृपया ऑडियो या एक ऑडियो फ़ाइल के साथ एक वीडियो चुनें।";
@@ -1140,3 +1173,4 @@
 "settings.storage.maxRecordingDuration.hour" = "1 घंटा";
 "settings.storage.maxRecordingDuration.hours" = "%d घंटे";
 "settings.storage.maxRecordingDuration.off" = "बंद";
+"settings.api_server.status.stopping" = "रोका जा रहा है…";

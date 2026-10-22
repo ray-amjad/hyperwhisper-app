@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostics exportés";
 "alerts.export.diagnostics.success.message" = "Tous les journaux de diagnostic ont été exportés avec succès.";
 "alerts.export.diagnostics.saveFailed.message" = "Impossible d’enregistrer les diagnostics à l’emplacement sélectionné : %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostics exportés sans journaux système";
+"alerts.export.diagnostics.noSystemLogs.message" = "Le fichier de diagnostics a été enregistré, mais les journaux système de l'app n'ont pas pu être lus : system-logs.txt contient seulement la raison. Raison : %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Exporter les journaux de mise à jour pour le support";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Terminer l’onboarding";
 
 "onboarding.setupLater.button" = "Configurer plus tard";
-"onboarding.error.microphone.denied" = "Autorisation du microphone refusée. Veuillez l’accorder dans Réglages Système.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Lancer à l’ouverture de session";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Désactivé";
 "settings.general.mediaControl.mode.mute" = "Couper l’audio";
+"settings.general.mediaControl.mode.muffle" = "Étouffer l’audio";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,9 +324,17 @@
 "settings.sound.soundEffects.title" = "Jouer les effets sonores";
 "settings.sound.soundEffects.info" = "Émettre des signaux sonores au début et à la fin de l'enregistrement.";
 "settings.sound.mediaControl.title" = "Contrôle des médias pendant l’enregistrement";
-"settings.sound.mediaControl.info" = "Choisissez comment HyperWhisper gère les autres sons pendant l'enregistrement. 'Off' ne change rien, 'Mute Audio' coupe la sortie système pendant l'enregistrement et la restaure ensuite.";
+"settings.sound.mediaControl.info" = "Choisissez comment HyperWhisper gère les autres sons pendant l'enregistrement. 'Off' ne change rien, 'Mute Audio' coupe la sortie système pendant l'enregistrement et la restaure ensuite, et 'Étouffer l’audio' le laisse jouer doucement, comme depuis la pièce voisine.";
+"settings.sound.microphone.title" = "Microphone";
+"settings.sound.microphone.subtitle" = "Utilisé uniquement par HyperWhisper. Conservé après un redémarrage.";
+"microphone.picker.default" = "Par défaut · %@";
+"microphone.picker.notConnected" = "%@ (non connecté)";
+"microphone.picker.fallback" = "Utilisation de %1$@ jusqu'à la reconnexion de %2$@.";
+"settings.sound.microphone.test" = "Tester";
+"settings.sound.microphone.stop" = "Arrêter";
+"settings.sound.microphone.level" = "Niveau d'entrée";
 "settings.sound.autoIncreaseMicVolume.title" = "Augmenter automatiquement le volume du micro";
-"settings.sound.autoIncreaseMicVolume.info" = "Règle automatiquement le volume d’entrée du micro au maximum au début de l’enregistrement, puis restaure le niveau d’origine à l’arrêt. S’applique uniquement avec le périphérique d’entrée système par défaut.";
+"settings.sound.autoIncreaseMicVolume.info" = "Règle automatiquement au maximum le volume d'entrée du microphone utilisé par HyperWhisper au début de l'enregistrement, puis rétablit le niveau d'origine à la fin. Les microphones sans réglage de volume logiciel ne sont pas modifiés.";
 "settings.sound.vad.title" = "Supprimer les silences avant transcription";
 "settings.sound.vad.info" = "Détecte et supprime automatiquement les silences au début et à la fin grâce à la détection vocale par IA. Cela peut améliorer la précision et réduire le temps de traitement.";
 
@@ -336,6 +346,9 @@
 "settings.storage.choose.button" = "Choisir...";
 "settings.storage.dialog.select" = "Sélectionner un dossier";
 "settings.storage.dialog.message" = "Choisissez un dossier pour stocker les enregistrements";
+"settings.storage.folderRefused.title" = "Impossible d'utiliser ce dossier";
+"settings.storage.folderRefused.notWritable" = "Vous n'avez pas l'autorisation d'écrire dans « %@ », HyperWhisper ne peut donc pas y enregistrer. Le dossier des enregistrements n'a pas été modifié.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper n'a pas pu créer ce dossier : %@ Le dossier des enregistrements n'a pas été modifié.";
 "settings.storage.storeAsM4A.title" = "Compresser les enregistrements en M4A";
 "settings.storage.storeAsM4A.subtitle" = "Convertit les enregistrements WAV en fichiers plus petits après transcription. Désactivez pour conserver les WAV d’origine (plus gros mais sans perte).";
 
@@ -383,6 +396,7 @@
 
 "settings.shortcuts.changeMode.title" = "Changer de mode";
 "settings.shortcuts.changeMode.subtitle" = "Fonctionne uniquement pendant l’enregistrement";
+"settings.shortcuts.conflict.alert" = "Ce raccourci clavier ne peut pas être utilisé, car il est déjà utilisé par « %@ ».";
 
 "settings.shortcuts.reset.button" = "Réinitialiser par défaut";
 "settings.shortcuts.reset.dialog.title" = "Réinitialiser les raccourcis clavier";
@@ -434,6 +448,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Coller depuis le presse-papiers";
 "settings.license.clearInput" = "Effacer";
+"license.error.keyFormat" = "Cela ne ressemble pas à une clé de compte.";
 "settings.license.recovery.prompt" = "Vous avez oublié votre clé de licence ?";
 "settings.license.recovery.button" = "Aller au portail client";
 "settings.license.daily.title" = "Transcription quotidienne";
@@ -576,6 +591,8 @@
 "onboarding.configure.cloud.note" = "Les crédits sont prépayés et partagés entre tous les Mac connectés avec cette clé. Le temps d'inactivité ne coûte rien.";
 "onboarding.source.note" = "Changer d'avis plus tard ne relance que cette étape. Rien d'autre de ce que vous avez configuré n'est perdu.";
 "onboarding.permissions.note" = "Ignorez Accessibilité et les transcriptions vont dans le presse-papiers, prêtes à coller. L'activer plus tard prend un clic.";
+"onboarding.permissions.microphone.denied" = "Non autorisé. Activez HyperWhisper dans Réglages Système, puis revenez ici.";
+"onboarding.permissions.continueNeedsMicrophone" = "Continuer nécessite le micro. Autorisez-le ci-dessus ou choisissez Configurer plus tard.";
 "onboarding.welcome.task1.title" = "Choisissez comment la transcription fonctionne";
 "onboarding.welcome.task1.caption" = "Dans notre cloud, sur ce Mac, ou via un compte fournisseur que vous payez déjà.";
 "onboarding.welcome.task2.title" = "Vérifiez votre microphone";
@@ -791,6 +808,7 @@ Modifiez ces modes pour sélectionner un modèle différent avant de le supprime
 "modes.field.name.placeholder" = "ex. : Notes de réunion";
 "modes.field.name.editPlaceholder" = "Nom du mode";
 "modes.field.name.defaultLocked" = "Il s'agit du mode par défaut, son nom ne peut donc pas être modifié. Vous pouvez renommer tout autre mode.";
+"modes.field.name.taken" = "Un mode portant ce nom existe déjà.";
 "modes.field.model" = "Modèle";
 "modes.field.provider" = "Fournisseur";
 "modes.provider.local" = "Local";
@@ -817,7 +835,7 @@ Modifiez ces modes pour sélectionner un modèle différent avant de le supprime
 "transcripts.delete.single.message" = "Cela supprimera définitivement cet enregistrement et son fichier audio.";
 "transcripts.delete.multiple.title" = "Supprimer %d enregistrements ?";
 "transcripts.delete.multiple.message" = "Cela supprimera définitivement %d enregistrements et leurs fichiers audio.\n\nCette action est irréversible.";
-"transcripts.delete.multiple.confirm" = "Tout supprimer";
+"transcripts.delete.multiple.confirm" = "Supprimer %d enregistrements";
 "transcripts.retry.error.title" = "Nouvelle tentative échouée";
 "transcripts.retry.error.modeDeleted" = "Le mode qui a créé cet enregistrement a été supprimé, il n'a donc pas été relancé. Dans l'Historique, faites un clic droit sur l'enregistrement et choisissez \"Relancer avec...\" pour sélectionner un autre mode.";
 
@@ -870,7 +888,6 @@ Mettez à jour ces modes pour utiliser un autre modèle avant de supprimer.";
 "recording.retry.inProgress" = "Nouvelle tentative…";
 "recording.retry.count" = "Réessayer (%d)";
 "recording.retry.failed.missing" = "Nouvelle tentative échouée : fichier audio introuvable";
-"recording.retry.failed.error" = "Nouvelle tentative échouée : %@";
 "recording.retry.pending" = "Prêt à réessayer - cliquez pour transcrire";
 "recording.retry.modeDeleted" = "Le mode a été supprimé";
 "recording.cancel.dialog.title" = "Annuler l'enregistrement ?";
@@ -899,6 +916,7 @@ Mettez à jour ces modes pour utiliser un autre modèle avant de supprimer.";
 "audio.error.microphonePermission" = "Autorisation du microphone non accordée";
 "audio.error.microphoneInUse" = "HyperWhisper ne peut pas accéder au microphone car une autre app l'utilise actuellement. Mettez l'autre app en pause ou changez d'entrée, puis réessayez.";
 "audio.error.audioSystemNotResponding" = "L'audio de macOS ne répond pas, le micro n'a donc pas pu démarrer. Réessayez dans un instant. Si le problème persiste, redémarrez votre Mac.";
+"audio.error.recorderStopTimedOut" = "L'audio de macOS a cessé de répondre pendant l'enregistrement du fichier, il n'a donc pas été transcrit. L'audio a été conservé : HyperWhisper essaiera de le récupérer au prochain démarrage.";
 "audio.error.createEngine" = "Échec de la création du moteur audio";
 "audio.error.noInput" = "Aucune entrée audio disponible";
 "audio.error.createFile" = "Échec de la création du fichier audio";
@@ -926,6 +944,9 @@ Mettez à jour ces modes pour utiliser un autre modèle avant de supprimer.";
 "transcription.error.providerNotAvailable.provider" = "%@ n'est pas disponible. Vérifiez vos réglages et réessayez.";
 "transcription.error.providerNotAvailable.detail" = "%@ n'est pas disponible : %@";
 "transcription.error.modelNotDownloaded" = "Veuillez d'abord télécharger un modèle";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Le mode %1$@ utilise %2$@, qui n'est pas téléchargé. Téléchargez-le dans la Bibliothèque de modèles.";
+"transcription.error.modelNotDownloaded.model" = "%1$@ n'est pas téléchargé. Téléchargez-le dans la Bibliothèque de modèles.";
+"transcription.error.openModelLibrary" = "Ouvrir la Bibliothèque de modèles";
 "transcription.error.modelProtected" = "Ce modèle ne peut pas être supprimé";
 "transcription.error.audioFileNotFound" = "Fichier audio introuvable";
 "transcription.error.network.detail" = "Erreur réseau : %@";
@@ -972,6 +993,7 @@ Mettez à jour ces modes pour utiliser un autre modèle avant de supprimer.";
 "transcription.guidance.quotaExceeded" = "Ajoutez des crédits à votre compte %@ ou mettez à jour vos informations de facturation";
 "transcription.guidance.timeout" = "La requête a pris trop de temps. Vérifiez votre vitesse Internet et réessayez.";
 "transcription.error.noSpeechDetected" = "Aucune parole détectée dans l'enregistrement.";
+"transcription.error.audioTooShort" = "L’enregistrement est trop court pour être transcrit. Enregistrez plus longtemps.";
 "transcription.guidance.noSpeechDetected" = "Conseils :\n• Parlez clairement dans le microphone\n• Maintenez la touche plus longtemps avant de parler\n• Vérifiez que votre microphone fonctionne\n• Assurez-vous que le bon périphérique d'entrée est sélectionné";
 "transcription.guidance.needsNativeRelaunch" = "Quittez puis rouvrez HyperWhisper en mode natif pour utiliser le post-traitement local.";
 "transcription.guidance.localRuntimeUnavailable" = "Réessayez ou choisissez un modèle local plus léger dans les réglages de votre mode.";
@@ -1114,6 +1136,17 @@ Mettez à jour ces modes pour utiliser un autre modèle avant de supprimer.";
 "transcribe.file.error.format.title" = "Format non pris en charge";
 "transcribe.file.error.format.message" = "Les fichiers .%@ ne sont pas pris en charge par %@. Formats pris en charge : %@";
 "transcribe.file.error.read" = "Impossible de lire le fichier sélectionné.";
+"transcribe.file.error.webm" = "Le format WebM n'est pas pris en charge. Convertissez le fichier en MP3, M4A ou WAV, puis réessayez.";
+"transcribe.file.busy.title" = "Un fichier est déjà en cours de transcription.";
+"transcribe.file.busy.message" = "L’annuler et commencer celui-ci ?";
+"transcribe.file.busy.keepRunning" = "Continuer";
+"transcribe.file.busy.cancelAndStart" = "Annuler et commencer";
+"transcribe.file.error.notAudio" = "Le fichier « %@ » n'est pas un audio valide. Il est peut-être endommagé ou dans un format que macOS ne sait pas décoder.";
+"transcribe.file.error.empty" = "Le fichier « %@ » est vide. Il ne contient aucun audio à transcrire.";
+"transcribe.file.error.permission" = "HyperWhisper ne peut pas lire le fichier « %@ ». Vérifiez les autorisations du fichier.";
+"transcribe.file.error.folderPermission" = "HyperWhisper ne peut pas ouvrir un dossier qui contient le fichier « %@ ». Vérifiez les autorisations de ce dossier.";
+"transcribe.file.error.privacy" = "Les réglages de confidentialité de macOS ont empêché HyperWhisper de lire le fichier « %@ ». Autorisez-le dans Réglages Système > Confidentialité et sécurité > Accès complet au disque.";
+"transcribe.file.error.tooShort" = "Ce fichier est trop court pour être transcrit (%@ s).";
 "transcribe.file.error.copy" = "Échec de la copie du fichier dans le dossier des enregistrements.";
 "transcribe.file.error.video.title" = "Aucun audio dans la vidéo";
 "transcribe.file.error.video.noAudio" = "Ce fichier vidéo ne contient pas de piste audio. Veuillez choisir une vidéo avec audio ou un fichier audio.";
@@ -1140,3 +1173,4 @@ Mettez à jour ces modes pour utiliser un autre modèle avant de supprimer.";
 "settings.storage.maxRecordingDuration.hour" = "1 heure";
 "settings.storage.maxRecordingDuration.hours" = "%d heures";
 "settings.storage.maxRecordingDuration.off" = "Désactivé";
+"settings.api_server.status.stopping" = "Arrêt en cours…";

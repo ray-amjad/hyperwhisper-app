@@ -5,6 +5,9 @@
 
 app = 'hyperwhisper-transcribe'
 primary_region = 'sjc'
+# Grace between the stop signal and SIGKILL. src/index.ts drains pending
+# credit writes for up to SHUTDOWN_DRAIN_MS (115 s) inside it (#2011).
+kill_timeout = '120s'
 
 [build]
   dockerfile = 'Dockerfile'
@@ -19,6 +22,23 @@ primary_region = 'sjc'
   auto_stop_machines = 'off'
   auto_start_machines = true
   min_machines_running = 17
+
+  # A request buffers its whole upload (up to MAX_AUDIO_SIZE_BYTES, 128 MB) on
+  # a 1 GB machine. Past 20 in flight Fly sends new requests to another
+  # machine, and past 25 it holds them, so a burst cannot pile onto one (#2011).
+  [http_service.concurrency]
+    type = 'requests'
+    soft_limit = 20
+    hard_limit = 25
+
+  # Process liveness only: /health does not touch Redis, so a Redis outage
+  # does not fail every machine at once (#2011).
+  [[http_service.checks]]
+    grace_period = '10s'
+    interval = '15s'
+    method = 'GET'
+    path = '/health'
+    timeout = '5s'
 
 [[vm]]
   memory = '1gb'

@@ -27,6 +27,13 @@ var tests = new (string Name, Func<Task> Run)[]
     ("evdev drops unrelated keys at boundary", DropsUnrelatedKeys),
     ("evdev emits configured logical shortcut", EmitsConfiguredShortcut),
     ("evdev session binding replacement preserves held actions", EvdevSessionBindingReplacement),
+    ("evdev Ctrl+Alt alone toggles on its release, either order", EvdevModifierChordAloneFiresOnRelease),
+    ("evdev Ctrl+Alt+Left never toggles, either release order", EvdevModifierChordWithKeyDoesNotFire),
+    ("evdev Ctrl+Alt+Shift never toggles", EvdevModifierChordWithModifierDoesNotFire),
+    ("evdev a key on another device spoils a held Ctrl+Alt", EvdevModifierChordSpoiledAcrossDevices),
+    ("evdev a same-name rebind drops a held Ctrl+Alt", EvdevModifierChordDroppedOnRebind),
+    ("evdev push-to-talk modifier-only chord fires on press", EvdevPushToTalkChordFiresOnPress),
+    ("evdev service toggles a modifier-only chord on its release", EvdevServiceModifierChordFiresOnRelease),
     ("evdev disposal is bounded for uncooperative devices", EvdevDisposalBounded),
     ("global shortcut capability probe is content-free and closes sources", ShortcutCapabilityProbe),
     ("X11 mapper preserves logical shortcut privacy", X11ShortcutPrivacy),
@@ -112,6 +119,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("clipboard restore rejects snapshots above 32 MiB", ClipboardSnapshotBound),
     ("native X11 owner receives every MIME format", NativeX11Restore),
     ("native X11 owner serves every MIME format", NativeX11RoundTrip),
+    ("native X11 owner sleeps while it holds the clipboard", NativeX11IdleSleeps),
     ("XWayland owner bridges text HTML and PNG", XWaylandRoundTrip),
     ("external desktop helpers have a hard timeout", ExternalHelperTimeout),
     ("a helper with discarded output keeps the hard timeout", ExternalHelperDiscardedOutputTimeout),
@@ -136,6 +144,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Xvfb active-window integration", X11ApplicationContextIntegration),
     ("Linux runtime locator resolves packaged backend variants", RuntimeLocatorVariants),
     ("Linux runtime locator matches published app output", RuntimeLocatorPublishedOutput),
+    ("CUDA backend choice falls back without the hyperwhisper-cuda runtime", CudaChoiceFallsBackWithoutCudaPackage),
     ("child launcher preserves literal argv", ChildProcessLiteralArgv),
     ("child launcher terminates process tree", ChildProcessTermination),
     ("package update probe is read-only and parses bounded metadata", PackageUpdateProbe),
@@ -158,6 +167,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("streaming audio level survives a clipped -32768 sample", StreamingAudioLevelSurvivesClipping),
     ("private credential fallback is owner-only", PrivateCredentialFallback),
     ("Secret Service keeps credential out of argv", SecretServiceArgvPrivacy),
+    ("Secret Service tells a failed lookup from no stored credential", SecretServiceLookupFailure),
+    ("external process runner keeps stderr only when asked", ExternalProcessCapturesErrorOnlyWhenAsked),
     ("single-instance socket signals primary safely", SingleInstanceSocket),
     ("XDG autostart is atomic and owner-only", XdgAutostart),
     ("push-to-talk emits only configured logical action", PushToTalkPrivacy),
@@ -201,6 +212,31 @@ var tests = new (string Name, Func<Task> Run)[]
     ("audio environment mute restores exact prior state", AudioEnvironmentMuteRestore),
     ("audio environment unchanged requires no backend", AudioEnvironmentUnchanged),
     ("audio environment duck restores channel volumes", AudioEnvironmentDuckRestore),
+    ("device watch counts only source add/remove and server changes", DeviceWatcherTests.OnlySourceAndServerEventsCount),
+    ("device watch turns a plug-in burst into one debounced event and ends pactl on dispose", DeviceWatcherTests.BurstIsOneDebouncedEvent),
+    ("device watch re-reads and resubscribes after the sound server restarts", DeviceWatcherTests.ServerRestartRaisesAndResubscribes),
+    ("device watch re-reads the list every time a subscription is established", DeviceWatcherTests.SubscribingRereadsTheList),
+    ("device watch falls back to polling when pactl subscribe cannot start", DeviceWatcherTests.NoSubscribeDegradesToPolling),
+    ("muffle moves other apps' streams and restores only those", MuffleTests.MovesOtherStreamsAndRestoresOnlyThose),
+    ("muffle pump low-passes the monitor into the real sink", MuffleTests.PumpFiltersTheMonitorIntoTheRealSink),
+    ("muffle recovers a stale sink from a crashed run", MuffleTests.StaleSinkIsRecovered),
+    ("muffle falls back to duck when it cannot start", MuffleTests.FallsBackToDuck),
+    ("muffle restore retries after failure and honours cancel", MuffleTests.RestoreRetriesAndCancels),
+    ("muffle hands the sink to a recording that starts during restore", MuffleTests.NewRecordingTakesOverDuringRestore),
+    ("muffle puts streams back when a helper dies", MuffleTests.HelperDeathPutsStreamsBack),
+    ("muffle moves nothing into a sink that never carries audio", MuffleTests.SilentSinkMovesNothing),
+    ("muffle stopped before audio arrives moves nothing and stays open", MuffleTests.RestoreBeforeAudioArrives),
+    ("muffle quit flushes a pending restore at once", MuffleTests.QuitFlushesAPendingRestore),
+    ("muffle never hands a dead run to the next recording", MuffleTests.DeadRunIsNotClaimed),
+    ("muffle prepare does not block the caller", MuffleTests.PrepareDoesNotBlockTheCaller),
+    ("muffle moves a stream that starts right after the scan", MuffleTests.StreamBetweenScanAndSubscribeIsMoved),
+    ("muffle pactl subscribe dies with the app", MuffleTests.TiedChildDiesWithTheApp),
+    ("muffle restore of an overtaken generation leaves the new claim muffled", MuffleTests.StaleRestoreDoesNotReleaseANewClaim),
+    ("muffle helper death during a move strands no stream", MuffleTests.HelperDeathDuringAMoveStrandsNothing),
+    ("audio restore joiners share the owner's failure and honour their own cancel", MuffleTests.JoinedRestoreSharesTheOutcome),
+    ("muffle teardown stops the helpers and unloads when the move-back fails", MuffleTests.TeardownUnloadsWhenTheMoveBackFails),
+    ("muffle keeps a run whose claim-time teardown failed, for the quit", MuffleTests.FailedClaimTeardownKeepsTheRun),
+    ("muffle parses pactl JSON and parent pids", MuffleTests.ParsesPactlJson),
     ("UI dispatcher posts and invokes through context", UiDispatcherContext),
     ("UI dispatcher cancellation skips queued work", UiDispatcherCancellation),
 };
@@ -354,7 +390,7 @@ static Task PrivateDeleteIsIdempotent() => WithTemporaryDirectory(directory =>
     var service = new LinuxPrivateFileService();
     Assert.Success(service.Delete(Path.Combine(directory, "token")));
     Assert.Success(service.Delete(Path.Combine(directory, "autostart", "hyperwhisper.desktop")));
-    var autostart = new LinuxAutostartService(new FakeAppPaths(directory), "/bin/true", service);
+    var autostart = new LinuxAutostartService(directory, Path.Combine(directory, "hyperwhisper"), "/bin/true", service);
     Assert.Success(autostart.Disable());
 });
 
@@ -409,6 +445,181 @@ static Task EvdevSessionBindingReplacement()
     var unrelatedRelease = filter.Process("keyboard", new EvdevEvent(EvdevEvent.KeyType, 29, 0));
     Assert.True(unrelatedRelease.Signals.All(signal => signal.Shortcut.Name != LinuxInteractionCoordinator.SessionCancelActionName));
     return Task.CompletedTask;
+}
+
+// Issue #1725. evdev codes: Ctrl_L 29, Alt_L 56, Shift_L 42, Left 105. Value 1 is a
+// press, 0 a release, 2 an auto-repeat. Only the toggle is registered, so Shift and
+// Left are irrelevant codes the filter drops after noting that they spoiled the chord.
+static string RunEvdevToggle(X11ModifierOnlyTrigger trigger, params (ushort Code, int Value)[] input)
+{
+    var toggle = EvdevShortcutMapper.Map(new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))).Value!;
+    var filter = new EvdevShortcutFilter(trigger);
+    filter.ReplaceBindings([toggle]);
+    var events = new List<string>();
+    foreach (var (code, value) in input)
+        foreach (var signal in filter.Process("keyboard", new EvdevEvent(EvdevEvent.KeyType, code, value)).Signals)
+            events.Add((signal.Pressed ? "down:" : "up:") + signal.Shortcut.Name);
+    return string.Join(',', events);
+}
+
+static Task EvdevModifierChordAloneFiresOnRelease()
+{
+    // Nothing fires while the chord is held; it fires on the release that breaks it.
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease, (29, 1), (56, 1)));
+    Assert.Equal("down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (56, 0), (29, 0)));
+    Assert.Equal("down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (56, 1), (29, 1), (56, 0), (29, 0)));
+    // A held Alt that auto-repeats is not another key joining the chord. It re-arms.
+    Assert.Equal("down:toggle,up:toggle,down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (56, 2), (56, 2), (29, 0), (56, 0),
+        (29, 1), (56, 1), (29, 0), (56, 0)));
+    // The other Ctrl joining the chord is still the chord.
+    Assert.Equal("down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (97, 1), (97, 0), (29, 0), (56, 0)));
+    return Task.CompletedTask;
+}
+
+static Task EvdevModifierChordWithKeyDoesNotFire()
+{
+    // Ctrl+Alt+Left, Left released first.
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (105, 1), (105, 0), (56, 0), (29, 0)));
+    // Ctrl+Alt+Left, a modifier released before Left (either one).
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (105, 1), (56, 0), (105, 0), (29, 0)));
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (105, 1), (29, 0), (105, 0), (56, 0)));
+    // A spoiled chord does not leak into the next one: Ctrl+Alt+Left, then Ctrl+Alt alone.
+    Assert.Equal("down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (105, 1), (105, 0), (56, 0),
+        (56, 1), (56, 0), (29, 0)));
+    // A registered key binding joining the chord spoils it the same way.
+    var toggle = EvdevShortcutMapper.Map(new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))).Value!;
+    var left = EvdevShortcutMapper.Map(new NamedShortcut("left",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt, new("ArrowLeft")))).Value!;
+    var filter = new EvdevShortcutFilter();
+    filter.ReplaceBindings([toggle, left]);
+    var names = new List<string>();
+    foreach (var (code, value) in new (ushort, int)[] { (29, 1), (56, 1), (105, 1), (105, 0), (56, 0), (29, 0) })
+        names.AddRange(filter.Process("keyboard", new EvdevEvent(EvdevEvent.KeyType, code, value)).Signals
+            .Select(signal => signal.Shortcut.Name));
+    Assert.Equal("left,left", string.Join(',', names));
+    return Task.CompletedTask;
+}
+
+static Task EvdevModifierChordWithModifierDoesNotFire()
+{
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (42, 1), (42, 0), (56, 0), (29, 0)));
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (42, 1), (29, 0), (56, 0), (42, 0)));
+    // A key pressed before the chord is complete spoils it too: Shift (or Left, which
+    // then only auto-repeats) first, then Ctrl+Alt, then T.
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (42, 1), (29, 1), (56, 1), (20, 1), (20, 0), (56, 0), (29, 0), (42, 0)));
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (42, 1), (29, 1), (56, 1), (56, 0), (29, 0), (42, 0)));
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (105, 1), (29, 1), (56, 1), (105, 2), (105, 2), (105, 0), (56, 0), (29, 0)));
+    // ...and only that chord: once the key is up, a fresh Ctrl+Alt fires again.
+    Assert.Equal("down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (42, 1), (29, 1), (56, 1), (42, 0), (56, 0), (29, 0),
+        (29, 1), (56, 1), (56, 0), (29, 0)));
+
+    // ChangeMode = Ctrl+Alt+Shift with Shift pressed first: Shift is relevant here, and only
+    // change-mode, whose own key it is, fires.
+    var toggle = EvdevShortcutMapper.Map(new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))).Value!;
+    var changeMode = EvdevShortcutMapper.Map(new NamedShortcut("change",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt | ShortcutModifiers.Shift))).Value!;
+    var filter = new EvdevShortcutFilter();
+    filter.ReplaceBindings([toggle, changeMode]);
+    var names = new List<string>();
+    foreach (var (code, value) in new (ushort, int)[] { (42, 1), (29, 1), (56, 1), (56, 0), (29, 0), (42, 0) })
+        names.AddRange(filter.Process("keyboard", new EvdevEvent(EvdevEvent.KeyType, code, value)).Signals
+            .Select(signal => signal.Shortcut.Name));
+    Assert.Equal("change,change", string.Join(',', names));
+    return Task.CompletedTask;
+}
+
+static Task EvdevModifierChordSpoiledAcrossDevices()
+{
+    var toggle = EvdevShortcutMapper.Map(new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))).Value!;
+    string Run(params (string Device, ushort Code, int Value)[] input)
+    {
+        var filter = new EvdevShortcutFilter();
+        filter.ReplaceBindings([toggle]);
+        var names = new List<string>();
+        foreach (var (device, code, value) in input)
+            names.AddRange(filter.Process(device, new EvdevEvent(EvdevEvent.KeyType, code, value)).Signals
+                .Select(signal => (signal.Pressed ? "down:" : "up:") + signal.Shortcut.Name));
+        return string.Join(',', names);
+    }
+
+    // Ctrl+Alt on keyboard A, Left on keyboard B while it is held.
+    Assert.Equal("", Run(("a", 29, 1), ("a", 56, 1), ("b", 105, 1), ("a", 56, 0), ("a", 29, 0), ("b", 105, 0)));
+    // Left held on keyboard B before the chord completes on keyboard A.
+    Assert.Equal("", Run(("b", 105, 1), ("a", 29, 1), ("a", 56, 1), ("a", 56, 0), ("a", 29, 0), ("b", 105, 0)));
+    // A clean chord on A still fires with a second keyboard idle.
+    Assert.Equal("down:toggle,up:toggle", Run(("b", 105, 1), ("b", 105, 0), ("a", 29, 1), ("a", 56, 1), ("a", 56, 0), ("a", 29, 0)));
+    return Task.CompletedTask;
+}
+
+static Task EvdevModifierChordDroppedOnRebind()
+{
+    var ctrlAlt = EvdevShortcutMapper.Map(new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))).Value!;
+    var ctrlShift = EvdevShortcutMapper.Map(new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Shift))).Value!;
+    string Run(EvdevBinding rebound)
+    {
+        var filter = new EvdevShortcutFilter();
+        filter.ReplaceBindings([ctrlAlt]);
+        var names = new List<string>();
+        void Feed(ushort code, int value) => names.AddRange(filter.Process("keyboard",
+            new EvdevEvent(EvdevEvent.KeyType, code, value)).Signals.Select(signal => (signal.Pressed ? "down:" : "up:") + signal.Shortcut.Name));
+        Feed(29, 1);
+        Feed(56, 1);
+        filter.ReplaceBindings([rebound]);
+        Feed(29, 0);
+        Feed(56, 0);
+        return string.Join(',', names);
+    }
+
+    // Rebound to Ctrl+Shift under the same name: the old Ctrl+Alt release fires nothing.
+    Assert.Equal("", Run(ctrlShift));
+    // Re-registered with the same keys: the held chord still fires on its release.
+    Assert.Equal("down:toggle,up:toggle", Run(ctrlAlt));
+    return Task.CompletedTask;
+}
+
+static Task EvdevPushToTalkChordFiresOnPress()
+{
+    // Push-to-talk holds, so its filter keeps the press, even when another key joins.
+    Assert.Equal("down:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnPress, (29, 1), (56, 1)));
+    Assert.Equal("down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnPress,
+        (29, 1), (56, 1), (105, 1), (56, 0), (105, 0), (29, 0)));
+    return Task.CompletedTask;
+}
+
+static async Task EvdevServiceModifierChordFiresOnRelease()
+{
+    // The interaction service defaults to release; Ctrl+Alt+Left then Ctrl+Alt fires once.
+    var source = new FakeSource("keyboard", Frame(29, 1), Frame(56, 1), Frame(105, 1), Frame(105, 0),
+        Frame(56, 0), Frame(56, 1), Frame(56, 0), Frame(29, 0));
+    using var service = new LinuxGlobalShortcutService(new FakeSourceFactory(source), null);
+    service.RegisterShortcuts([new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))]);
+    var events = new List<string>();
+    service.ShortcutPressed += (_, args) => events.Add($"down:{args.Name}");
+    service.ShortcutReleased += (_, args) => events.Add($"up:{args.Name}");
+    Assert.Success(service.Start());
+    await source.Completed.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    Assert.Equal("down:toggle,up:toggle", string.Join(',', events));
 }
 
 static Task EvdevDisposalBounded()
@@ -2087,6 +2298,32 @@ static async Task NativeX11RoundTrip()
     owner.Dispose();
 }
 
+static async Task NativeX11IdleSleeps()
+{
+    if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DISPLAY"))) return;
+    using var owner = new NativeX11ClipboardOwner(allowXWayland:
+        string.Equals(Environment.GetEnvironmentVariable("XDG_SESSION_TYPE"), "wayland", StringComparison.OrdinalIgnoreCase));
+    Assert.True(owner.IsAvailable);
+    // Own the clipboard, as the app does after a paste, then leave it idle.
+    Assert.Success(await owner.OwnAsync(new ClipboardSnapshot(new Dictionary<string, byte[]>(StringComparer.Ordinal)
+        { ["text/plain"] = "idle"u8.ToArray() }), CancellationToken.None));
+    await Task.Delay(200);
+    // Linux truncates a thread name to 15 bytes in /proc.
+    var tasks = Directory.GetDirectories("/proc/self/task")
+        .Where(task => File.ReadAllText(Path.Combine(task, "comm")).Trim() == "HyperWhisper X1")
+        .ToArray();
+    Assert.True(tasks.Length > 0, "The X11 clipboard thread was not found in /proc/self/task.");
+    static long Switches(string[] tasks) => tasks.Sum(task => File.ReadLines(Path.Combine(task, "status"))
+        .Where(line => line.StartsWith("voluntary_ctxt_switches:", StringComparison.Ordinal))
+        .Select(line => long.Parse(line.Split(':')[1].Trim()))
+        .FirstOrDefault());
+    var before = Switches(tasks);
+    await Task.Delay(1000);
+    var wakeups = Switches(tasks) - before;
+    // The old loop woke every 10 ms, about 100 times in this second.
+    Assert.True(wakeups <= 5, $"The idle X11 clipboard thread woke {wakeups} times in 1 s.");
+}
+
 static async Task XWaylandRoundTrip()
 {
     var required = string.Equals(Environment.GetEnvironmentVariable("HW_REQUIRE_XWAYLAND_CLIPBOARD_BRIDGE"), "1", StringComparison.Ordinal);
@@ -2434,6 +2671,58 @@ static Task RuntimeLocatorVariants() => WithTemporaryDirectory(directory =>
     Assert.True(locator.FindLibrary("llama", NativeComputeBackend.Cuda).IsSuccess);
     Assert.True(locator.FindExecutable("parakeet").IsSuccess);
     Assert.True(locator.Capabilities.ComputeBackends.Contains(NativeComputeBackend.Cuda));
+});
+
+// Issue #1002: the main .deb ships no runtimes/cuda12/linux-x64 (Whisper) and no
+// runtimes/linux-x64/native/cuda12 (LLama); hyperwhisper-cuda adds them at those
+// paths. Without them a CUDA choice falls back and names the package.
+static Task CudaChoiceFallsBackWithoutCudaPackage() => WithTemporaryDirectory(directory =>
+{
+    static void Touch(string path) { Directory.CreateDirectory(Path.GetDirectoryName(path)!); File.WriteAllBytes(path, [1]); }
+    // The main package's layout: CPU and Vulkan for both engines, no CUDA tree.
+    Touch(Path.Combine(directory, "runtimes", "linux-x64", "libwhisper.so"));
+    Touch(Path.Combine(directory, "runtimes", "vulkan", "linux-x64", "libwhisper.so"));
+    foreach (var isa in new[] { "noavx", "avx", "avx2", "avx512" })
+        Touch(Path.Combine(directory, "runtimes", "linux-x64", "native", isa, "libllama.so"));
+    Touch(Path.Combine(directory, "runtimes", "linux-x64", "native", "vulkan", "libllama.so"));
+    Assert.True(!Directory.Exists(Path.Combine(directory, "runtimes", "cuda12")));
+
+    var withoutCuda = new LinuxNativeRuntimeLocator(directory, System.Runtime.InteropServices.Architecture.X64);
+    Assert.True(!withoutCuda.Capabilities.ComputeBackends.Contains(NativeComputeBackend.Cuda));
+    Assert.True(withoutCuda.FindLibrary("whisper", NativeComputeBackend.Cuda).IsFailure);
+    Assert.True(withoutCuda.FindLibrary("llama", NativeComputeBackend.Cuda).IsFailure);
+
+    // CUDA falls back to the packaged Vulkan backend, and says which package to install.
+    foreach (var component in new[] { "whisper", "llama" })
+    {
+        var choice = LinuxCudaPackage.Choose(withoutCuda, component, NativeComputeBackend.Cuda, allowCpuFallback: true);
+        Assert.Equal(new LinuxComputeBackendChoice(NativeComputeBackend.Vulkan, true, false), choice);
+        Assert.True(choice.Notice?.Contains("install the hyperwhisper-cuda package", StringComparison.Ordinal) == true);
+    }
+    // No usable Vulkan: CPU, when CPU fallback is allowed.
+    Assert.Equal(new LinuxComputeBackendChoice(NativeComputeBackend.Cpu, true, false),
+        LinuxCudaPackage.Choose(withoutCuda, "llama", NativeComputeBackend.Cuda, allowCpuFallback: true, vulkanUsable: false));
+    // Strict mode with nothing to fall back to: unavailable with the install hint, never a crash.
+    var strict = LinuxCudaPackage.Choose(withoutCuda, "llama", NativeComputeBackend.Cuda, allowCpuFallback: false, vulkanUsable: false);
+    Assert.True(strict.Unavailable && strict.CudaPackageMissing);
+    Assert.True(LinuxCudaPackage.MissingFailure.Contains("hyperwhisper-cuda", StringComparison.Ordinal));
+    // A non-CUDA choice is never touched.
+    Assert.Equal(new LinuxComputeBackendChoice(NativeComputeBackend.Vulkan, false, false),
+        LinuxCudaPackage.Choose(withoutCuda, "whisper", NativeComputeBackend.Vulkan, allowCpuFallback: false));
+    Assert.Equal(null, LinuxCudaPackage.Choose(withoutCuda, "whisper", NativeComputeBackend.Cpu, true).Notice);
+
+    // Installing hyperwhisper-cuda adds exactly these two trees; CUDA is then used as chosen.
+    Touch(Path.Combine(directory, "runtimes", "cuda12", "linux-x64", "libwhisper.so"));
+    Touch(Path.Combine(directory, "runtimes", "linux-x64", "native", "cuda12", "libllama.so"));
+    var withCuda = new LinuxNativeRuntimeLocator(directory, System.Runtime.InteropServices.Architecture.X64);
+    Assert.True(withCuda.Capabilities.ComputeBackends.Contains(NativeComputeBackend.Cuda));
+    Assert.True(withCuda.FindLibrary("whisper", NativeComputeBackend.Cuda).Value?.EndsWith(
+        "runtimes/cuda12/linux-x64/libwhisper.so", StringComparison.Ordinal) == true);
+    Assert.True(withCuda.FindLibrary("llama", NativeComputeBackend.Cuda).Value?.EndsWith(
+        "runtimes/linux-x64/native/cuda12/libllama.so", StringComparison.Ordinal) == true);
+    foreach (var component in new[] { "whisper", "llama" })
+        Assert.Equal(new LinuxComputeBackendChoice(NativeComputeBackend.Cuda, false, false),
+            LinuxCudaPackage.Choose(withCuda, component, NativeComputeBackend.Cuda, allowCpuFallback: false));
 });
 
 static Task RuntimeLocatorPublishedOutput()
@@ -2866,6 +3155,63 @@ static Task SecretServiceArgvPrivacy()
     return Task.CompletedTask;
 }
 
+// secret-tool lookup exits 1 both for "no item matches" and for an error. A D-Bus failure prints the
+// reason on stderr; a locked keyring whose unlock prompt is dismissed or cannot show is as silent as a
+// miss, so a silent exit 1 is "nothing stored" only when `search` (which never prompts) lists nothing.
+// An error read as "nothing stored" let a rollback delete a key that exists (#2300).
+static Task SecretServiceLookupFailure()
+{
+    byte[] silent = [];
+    var runner = new FakeDesktopCommandRunner(
+        new ExternalProcessResult(1, [], silent), new ExternalProcessResult(0, []),
+        new ExternalProcessResult(1, [], silent),
+        new ExternalProcessResult(0, "[/1]\nlabel = HyperWhisper\n"u8.ToArray()),
+        new ExternalProcessResult(1, [], silent),
+        new ExternalProcessResult(1, [], "secret-tool: Cannot autolaunch D-Bus without X11 $DISPLAY\n"u8.ToArray()),
+        new ExternalProcessResult(1, [], "secret-tool: Cannot autolaunch D-Bus without X11 $DISPLAY\n"u8.ToArray()),
+        new ExternalProcessResult(1, []),
+        new ExternalProcessResult(2, [], silent),
+        new ExternalProcessResult(0, "hyperwhisper-bytes-v1:AQID\n"u8.ToArray(), silent));
+    var backend = new SecretToolCredentialBackend(runner, "/usr/bin/secret-tool");
+    var missing = backend.Read("resource", "account");
+    Assert.True(missing.IsSuccess && missing.Value is null, "a silent exit 1 with nothing listed is no stored credential");
+    Assert.Equal("search resource resource account account", string.Join(' ', runner.Calls[1].Arguments));
+    foreach (var because in new[] { "a locked item that search still lists", "a search that failed", "an error on stderr",
+                 "a runner that could not read stderr", "an exit code other than 1" })
+    {
+        var failed = backend.Read("resource", "account");
+        Assert.True(failed.IsFailure && failed.Error!.Code == "credential.read_failed", $"{because} must fail the read");
+    }
+    var stored = backend.Read("resource", "account");
+    Assert.True(stored.IsSuccess);
+    Assert.SequenceEqual([1, 2, 3], stored.Value!);
+    Assert.Equal("lookup", runner.Calls[0].Arguments[0]);
+    Assert.Equal(10, runner.Calls.Count);
+    return Task.CompletedTask;
+}
+
+static async Task ExternalProcessCapturesErrorOnlyWhenAsked()
+{
+    string[] script = ["-c", "printf out; printf 'lookup failed\\n' >&2; exit 1"];
+    var captured = await ExternalProcessRunner.RunAsync("/bin/sh", script, null, CancellationToken.None, captureError: true);
+    Assert.Equal(1, captured.ExitCode);
+    Assert.SequenceEqual("out"u8.ToArray(), captured.Output);
+    Assert.SequenceEqual("lookup failed\n"u8.ToArray(), captured.Error!);
+    var silent = await ExternalProcessRunner.RunAsync("/bin/sh", ["-c", "exit 1"], null, CancellationToken.None, captureError: true);
+    Assert.True(silent.Error is { Length: 0 }, "a silent helper must report an empty stderr, not null");
+    var plain = await ExternalProcessRunner.RunAsync("/bin/sh", script, null, CancellationToken.None);
+    Assert.True(plain.Error is null, "stderr must stay unread unless the caller asks for it");
+    Assert.SequenceEqual("out"u8.ToArray(), plain.Output);
+    // A helper that floods stderr is drained to the end (it never blocks on a full pipe) and kept capped.
+    var flood = await ExternalProcessRunner.RunAsync("/bin/sh", ["-c", "head -c 200000 /dev/zero >&2; printf done"], null,
+        CancellationToken.None, captureError: true);
+    Assert.Equal(ExternalProcessRunner.MaximumErrorBytes, flood.Error!.Length);
+    Assert.SequenceEqual("done"u8.ToArray(), flood.Output);
+    var real = new DesktopCommandRunner();
+    var viaRunner = await real.RunCapturingErrorAsync("/bin/sh", script, null, CancellationToken.None, TimeSpan.FromSeconds(5));
+    Assert.SequenceEqual("lookup failed\n"u8.ToArray(), viaRunner.Error!);
+}
+
 static Task SingleInstanceSocket() => WithTemporaryDirectoryAsync(async directory =>
 {
     using var primary = new LinuxSingleInstanceCoordinator(new FakeAppPaths(directory));
@@ -2880,15 +3226,35 @@ static Task SingleInstanceSocket() => WithTemporaryDirectoryAsync(async director
     Assert.True(File.Exists(Path.Combine(directory, "instance.sock")));
 });
 
+// GNOME, KDE and every XDG session read only $XDG_CONFIG_HOME/autostart/ (#2023). The entry was
+// written under the app's own config folder, and this test passed because its fake paths had no
+// hyperwhisper segment. Build the paths the real way so the two folders differ.
 static Task XdgAutostart() => WithTemporaryDirectory(directory =>
 {
-    var service = new LinuxAutostartService(new FakeAppPaths(directory), "/bin/true", new LinuxPrivateFileService());
+    var configHome = Path.Combine(directory, "config");
+    var paths = new LinuxAppPaths(
+        new FakeEnvironment(directory, new Dictionary<string, string> { ["XDG_CONFIG_HOME"] = configHome }),
+        new FakeUser(1));
+    Assert.Equal(configHome, paths.XdgConfigHome);
+    var service = new LinuxAutostartService(paths.XdgConfigHome, paths.ConfigDirectory, "/bin/true", new LinuxPrivateFileService());
+    var path = Path.Combine(configHome, "autostart", "hyperwhisper.desktop");
+    var legacy = Path.Combine(configHome, "hyperwhisper", "autostart", "hyperwhisper.desktop");
+    Directory.CreateDirectory(Path.GetDirectoryName(legacy)!);
+    File.WriteAllText(legacy, "[Desktop Entry]\nX-GNOME-Autostart-enabled=true\n");
     Assert.Success(service.Enable());
-    var path = Path.Combine(directory, "autostart", "hyperwhisper.desktop");
     Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(path));
+    Assert.True(!File.Exists(legacy));
     Assert.True(service.IsEnabled().Value);
+    File.WriteAllText(legacy, "[Desktop Entry]\nX-GNOME-Autostart-enabled=true\n");
     Assert.Success(service.Disable());
     Assert.True(!File.Exists(path));
+    Assert.True(!File.Exists(legacy));
+    Assert.True(!service.IsEnabled().Value);
+    // An entry the desktop's own startup tool made (a copy of the .deb launcher) survives the
+    // Disable that startup runs while the switch is off.
+    File.WriteAllText(path, "[Desktop Entry]\nType=Application\nExec=/usr/bin/hyperwhisper\nX-GNOME-Autostart-enabled=true\n");
+    Assert.Success(service.Disable());
+    Assert.True(File.Exists(path));
     Assert.Equal("/usr/bin/hyperwhisper", LinuxAutostartService.LaunchPath("/usr/lib/hyperwhisper/HyperWhisper", _ => true));
     Assert.Equal("/usr/lib/hyperwhisper/HyperWhisper", LinuxAutostartService.LaunchPath("/usr/lib/hyperwhisper/HyperWhisper", _ => false));
     Assert.Equal("/opt/hw/HyperWhisper", LinuxAutostartService.LaunchPath("/opt/hw/HyperWhisper", _ => true));
@@ -4025,7 +4391,11 @@ sealed class FakeClipboard : ILinuxClipboardBackend
         ? System.Text.Encoding.UTF8.GetString(value) : string.Empty;
     public bool FailWrites { get; init; }
     public bool BlockWrites { get; init; }
-    public int RestoreCalls { get; private set; }
+    // #1582: counted only after the restored formats are written, with a full fence. A test polls
+    // RestoreCalls on another thread and then reads Formats; counting first let it read the
+    // transcript the restore was about to replace.
+    public int RestoreCalls => Volatile.Read(ref _restoreCalls);
+    private int _restoreCalls;
     public ClipboardHistoryPrivacyPolicy LastPrivacyPolicy { get; private set; }
     /// <summary>Another app (the user) puts new content on the clipboard.</summary>
     public void UserCopy(IReadOnlyDictionary<string, byte[]> formats) => Formats = Clone(formats);
@@ -4054,8 +4424,8 @@ sealed class FakeClipboard : ILinuxClipboardBackend
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (RestoreGate is { } gate) return GatedRestoreAsync(snapshot, gate);
-        RestoreCalls++;
         Formats = Clone(snapshot.Formats);
+        Interlocked.Increment(ref _restoreCalls);
         return ValueTask.FromResult(PlatformResult.Success());
     }
     public async ValueTask<PlatformResult> SetTextAsync(string text, ClipboardHistoryPrivacyPolicy privacyPolicy,
@@ -4075,8 +4445,8 @@ sealed class FakeClipboard : ILinuxClipboardBackend
     {
         RestoreEntered.TrySetResult();
         await gate.Task;
-        RestoreCalls++;
         Formats = Clone(snapshot.Formats);
+        Interlocked.Increment(ref _restoreCalls);
         return PlatformResult.Success();
     }
     private static Dictionary<string, byte[]> Clone(IReadOnlyDictionary<string, byte[]> source) =>

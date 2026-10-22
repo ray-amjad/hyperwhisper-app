@@ -137,7 +137,7 @@ struct ModeCard: View {
                                     Image(systemName: "icloud.fill")
                                         .font(.system(size: 11))
                                     // Display cloud provider name and model
-                                    let provider = mode.cloudProvider ?? "hyperwhisper"
+                                    let provider = CloudProvider.effectiveModeStorageValue(mode.cloudProvider)
                                     let providerDisplay: String = {
                                         if provider == "hyperwhisper" {
                                             return "HyperWhisper"  // Shortened name for HyperWhisper Cloud

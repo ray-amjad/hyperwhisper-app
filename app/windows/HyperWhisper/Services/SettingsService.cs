@@ -16,7 +16,7 @@ namespace HyperWhisper.Services;
 ///
 /// STORED SETTINGS:
 /// - LastSelectedModel: The model file name that was last selected
-/// - LastSelectedMicrophone: The microphone device ID that was last selected (future)
+/// - LastSelectedMicrophone: The saved microphone (a WaveIn device NAME); null follows the Windows default
 ///
 /// FILE FORMAT:
 /// {
@@ -278,7 +278,7 @@ public partial class SettingsService
 
     /// <summary>
     /// Controls how Windows output audio is handled during recording.
-    /// Values: "off" or "muteAudio". Default: off.
+    /// Values: "off", "muteAudio" or "muffleAudio" (the macOS raw values). Default: off.
     /// </summary>
     public string MediaControlMode
     {
@@ -471,7 +471,20 @@ public partial class SettingsService
                 string json = File.ReadAllText(SettingsFilePath);
                 var loaded = JsonSerializer.Deserialize<SettingsData>(json);
 
-                if (loaded != null)
+                if (loaded == null)
+                {
+                    // settings.json holds the JSON literal null (a sync tool, a restore
+                    // tool or a hand edit). Deserialize returns null without throwing,
+                    // so the catch below never sees it. It is as corrupt as a torn
+                    // file: recover from .bak first, or the next Save() rotates this
+                    // file over the only good .bak (issue #2096).
+                    LoggingService.Warn($"SettingsService: {SettingsFilePath} holds null, trying the backup");
+                    if (TryLoadBackup())
+                    {
+                        return;
+                    }
+                }
+                else
                 {
                     _settings = loaded;
                     LoggingService.Info($"SettingsService: Loaded settings from {SettingsFilePath}");
@@ -818,9 +831,16 @@ public partial class SettingsService
         return AppPaths.LegacyAudioDirectory;
     }
 
-    private static string NormalizeMediaControlMode(string? value)
+    internal static string NormalizeMediaControlMode(string? value)
     {
-        return string.Equals(value, "muteAudio", StringComparison.OrdinalIgnoreCase) ? "muteAudio" : "off";
+        if (string.Equals(value, AudioEnvironmentService.MuteAudioMode, StringComparison.OrdinalIgnoreCase))
+        {
+            return AudioEnvironmentService.MuteAudioMode;
+        }
+
+        return string.Equals(value, AudioEnvironmentService.MuffleAudioMode, StringComparison.OrdinalIgnoreCase)
+            ? AudioEnvironmentService.MuffleAudioMode
+            : "off";
     }
 
 }

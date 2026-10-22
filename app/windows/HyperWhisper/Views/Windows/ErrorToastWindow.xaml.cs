@@ -15,6 +15,7 @@ using System;
 using System.Windows;
 using System.Windows.Threading;
 using HyperWhisper.Services;
+using HyperWhisper.Utilities;
 
 namespace HyperWhisper.Views.Windows;
 
@@ -105,31 +106,42 @@ public partial class ErrorToastWindow : Window
 
         // Try to find the recording overlay window and position above it
         var recordingWindow = ToastWindowBehavior.FindVisibleRecordingOverlay();
-        var workArea = SystemParameters.WorkArea;
+        var overlay = recordingWindow != null && recordingWindow.IsVisible ? recordingWindow : null;
 
-        if (recordingWindow != null && recordingWindow.IsVisible)
-        {
-            // Position centered above the recording dialog, 12px gap (matching macOS)
-            Left = recordingWindow.Left + (recordingWindow.ActualWidth - Width) / 2;
-            Top = recordingWindow.Top - height - 12;
+        // A held slide animation would mask the Top set below (issue #1501).
+        ToastWindowBehavior.ReleasePosition(this);
 
-            // A tall toast above a dialog near the top of the screen would otherwise
-            // start off the top edge and hide its own first lines. Only for a dialog
-            // inside the primary work area: SystemParameters.WorkArea describes no
-            // other monitor - which is the assumption RecordingOverlayWindow's own
-            // PositionOverlay makes too - and a dialog on a monitor ABOVE the primary
-            // has a legitimately negative Top that must be left alone.
-            if (Top < workArea.Top && recordingWindow.Top >= workArea.Top)
+        // The work area and the overlay's position are both taken in the DIP of
+        // the overlay's monitor (or the primary one), not SystemParameters.WorkArea,
+        // which keeps the DPI the app started at (issue #1501).
+        MonitorWorkArea.Place(this,
+            () => overlay != null ? MonitorWorkArea.OfWindow(overlay) : MonitorWorkArea.Primary(),
+            workArea =>
             {
-                Top = workArea.Top;
-            }
-        }
-        else
-        {
-            // Fallback: bottom-center of work area, 80 pixels from bottom
-            Left = workArea.Left + (workArea.Width - Width) / 2;
-            Top = Math.Max(workArea.Top, workArea.Bottom - height - 80);
-        }
+                if (overlay != null)
+                {
+                    var anchor = ToastWindowBehavior.OverlayBounds(overlay);
+
+                    // Position centered above the recording dialog, 12px gap (matching macOS)
+                    var left = anchor.Left + (anchor.Width - Width) / 2;
+                    var top = anchor.Top - height - 12;
+
+                    // A tall toast above a dialog near the top of the screen would otherwise
+                    // start off the top edge and hide its own first lines. Only for a dialog
+                    // inside its monitor's work area: a dialog dragged partly above it keeps
+                    // its toast with it.
+                    if (top < workArea.Top && anchor.Top >= workArea.Top)
+                    {
+                        top = workArea.Top;
+                    }
+                    return new System.Windows.Point(left, top);
+                }
+
+                // Fallback: bottom-center of work area, 80 pixels from bottom
+                return new System.Windows.Point(
+                    workArea.Left + (workArea.Width - Width) / 2,
+                    Math.Max(workArea.Top, workArea.Bottom - height - 80));
+            });
     }
 
     private void AnimateIn()

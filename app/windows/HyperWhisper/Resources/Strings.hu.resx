@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Egy másik program zárolta az előzmények adatbázisát. A felvételt megőriztük, és amint az adatbázis felszabadul, mentjük az előzmények közé.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Ezt a felvételt még nem sikerült menteni az előzmények közé. A felvételt megőriztük, és később mentjük az előzmények közé.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -793,6 +799,12 @@ Ez a művelet nem vonható vissza.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Nincs aktiválva)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (Nincs API-kulcs)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -822,6 +834,9 @@ Ez a művelet nem vonható vissza.</value>
   </data>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Fájl átírása megszakítva</value>
+  </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Fájl átírása...</value>
   </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
@@ -1084,6 +1099,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Az egyetlen módosítóbillentyűből álló gyorsbillentyűk, például a Ctrl, az Alt, a Shift vagy a Win, nem támogatottak. Használjon módosítókkal ellátott billentyűt vagy több módosítós gyorsbillentyűt, például Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Módosítóbillentyű nélküli billentyűparancs csak funkcióbillentyű vagy Esc lehet. Bármely más billentyű gépelés közben is aktiválódna.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Ez a gyorsbillentyű már foglalt: {0} ({1})</value>
   </data>
@@ -1158,6 +1176,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>A modell használatban van</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>A(z) {0} modellt a(z) „{1}” mód használja. Törlés előtt állítsa át ezt a módot egy másik modellre.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1292,6 +1316,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Ez nem tűnik fiókkulcsnak.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1317,6 +1344,12 @@ You can re-download it later.</value>
   </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Ez a fájl üres, így nincs átírható hang.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Ez a fájl sérült, vagy nem olyan hangfájl, amelyet a HyperWhisper be tud olvasni.</value>
   </data>
 
 
@@ -1699,6 +1732,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Továbbiak...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1993,11 +2029,35 @@ You can re-download it later.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Audio tompítás</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Csak a HyperWhisper használja. Újraindítás után is megmarad.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Alapértelmezett · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (nincs csatlakoztatva)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>A(z) {0} van használatban, amíg a(z) {1} újra nem csatlakozik.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Nincs csatlakoztatott mikrofon. A HyperWhisper a(z) {0} eszközt fogja használni, amikor újra csatlakozik.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Teszt indítása</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Leállítás</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

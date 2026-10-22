@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "تم تصدير التشخيصات";
 "alerts.export.diagnostics.success.message" = "تم تصدير جميع سجلات التشخيص بنجاح.";
 "alerts.export.diagnostics.saveFailed.message" = "تعذر حفظ التشخيصات في الموقع المحدد: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "تم تصدير التشخيصات بدون سجلات النظام";
+"alerts.export.diagnostics.noSystemLogs.message" = "تم حفظ ملف التشخيصات، لكن تعذرت قراءة سجلات النظام الخاصة بالتطبيق، لذا يحتوي system-logs.txt على السبب فقط. السبب: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "تصدير سجلات التحديث للدعم";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "اكتمال الإعداد الأولي";
 
 "onboarding.setupLater.button" = "الإعداد لاحقًا";
-"onboarding.error.microphone.denied" = "تم رفض إذن الميكروفون. يرجى منح الإذن في إعدادات النظام.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "إطلاق عند تسجيل الدخول";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "إيقاف";
 "settings.general.mediaControl.mode.mute" = "كتم الصوت";
+"settings.general.mediaControl.mode.muffle" = "إخماد الصوت";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,9 +324,17 @@
 "settings.sound.soundEffects.title" = "تشغيل المؤثرات الصوتية";
 "settings.sound.soundEffects.info" = "تشغيل إشارات صوتية عند بدء التسجيل وإيقافه.";
 "settings.sound.mediaControl.title" = "التحكم في الوسائط أثناء التسجيل";
-"settings.sound.mediaControl.info" = "اختر كيفية تعامل HyperWhisper مع الصوت الآخر أثناء التسجيل. 'إيقاف' يترك الصوت دون تغيير، 'كتم الصوت' يسكت مخرجات النظام أثناء التسجيل ويستعيدها بعد ذلك.";
+"settings.sound.mediaControl.info" = "اختر كيفية تعامل HyperWhisper مع الصوت الآخر أثناء التسجيل. 'إيقاف' يترك الصوت دون تغيير، 'كتم الصوت' يسكت مخرجات النظام أثناء التسجيل ويستعيدها بعد ذلك، و'إخماد الصوت' يبقيه يعمل بهدوء، كأنه من الغرفة المجاورة.";
+"settings.sound.microphone.title" = "الميكروفون";
+"settings.sound.microphone.subtitle" = "يستخدمه HyperWhisper فقط. يُحفظ بعد إعادة التشغيل.";
+"microphone.picker.default" = "الافتراضي · %@";
+"microphone.picker.notConnected" = "%@ (غير متصل)";
+"microphone.picker.fallback" = "يتم استخدام %1$@ حتى تتم إعادة توصيل %2$@.";
+"settings.sound.microphone.test" = "اختبار";
+"settings.sound.microphone.stop" = "إيقاف";
+"settings.sound.microphone.level" = "مستوى الإدخال";
 "settings.sound.autoIncreaseMicVolume.title" = "زيادة مستوى صوت الميكروفون تلقائياً";
-"settings.sound.autoIncreaseMicVolume.info" = "يضبط مستوى صوت إدخال الميكروفون تلقائياً على الحد الأقصى عند بدء التسجيل، ثم يستعيد المستوى الأصلي عند إيقاف التسجيل. ينطبق فقط عند استخدام جهاز الإدخال الافتراضي للنظام.";
+"settings.sound.autoIncreaseMicVolume.info" = "يضبط تلقائيًا مستوى صوت إدخال الميكروفون الذي يسجّل منه HyperWhisper على الحد الأقصى عند بدء التسجيل، ثم يعيد المستوى الأصلي عند إيقافه. تبقى الميكروفونات التي لا تحتوي على تحكم برمجي في مستوى الصوت دون تغيير.";
 "settings.sound.vad.title" = "إزالة الصمت قبل النسخ";
 "settings.sound.vad.info" = "يكتشف تلقائياً ويزيل الصمت البادئ واللاحق باستخدام كشف الصوت بـ AI. هذا يمكن أن يحسن دقة النسخ ويقلل وقت المعالجة.";
 
@@ -336,6 +346,9 @@
 "settings.storage.choose.button" = "اختر...";
 "settings.storage.dialog.select" = "اختر مجلداً";
 "settings.storage.dialog.message" = "اختر مجلداً لتخزين التسجيلات";
+"settings.storage.folderRefused.title" = "لا يمكن استخدام هذا المجلد";
+"settings.storage.folderRefused.notWritable" = "ليس لديك إذن بالكتابة في «%@»، لذا لا يمكن لـ HyperWhisper حفظ التسجيلات فيه. لم يتم تغيير مجلد التسجيلات.";
+"settings.storage.folderRefused.createFailed" = "تعذّر على HyperWhisper إنشاء هذا المجلد: %@ لم يتم تغيير مجلد التسجيلات.";
 "settings.storage.storeAsM4A.title" = "ضغط التسجيلات إلى M4A";
 "settings.storage.storeAsM4A.subtitle" = "تحويل تسجيلات WAV إلى ملفات أصغر بعد النسخ. أطفئ للاحتفاظ بملفات WAV الأصلية (أكبر لكن بدون فقدان).";
 
@@ -383,6 +396,7 @@
 
 "settings.shortcuts.changeMode.title" = "تغيير الوضع";
 "settings.shortcuts.changeMode.subtitle" = "يعمل فقط أثناء التسجيل";
+"settings.shortcuts.conflict.alert" = "لا يمكن استخدام اختصار لوحة المفاتيح هذا لأنه مستخدم بالفعل لـ “%@”.";
 
 "settings.shortcuts.reset.button" = "إعادة تعيين إلى الافتراضيات";
 "settings.shortcuts.reset.dialog.title" = "إعادة تعيين اختصارات لوحة المفاتيح";
@@ -434,6 +448,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "لصق من الحافظة";
 "settings.license.clearInput" = "مسح";
+"license.error.keyFormat" = "هذا لا يبدو مفتاح حساب.";
 "settings.license.recovery.prompt" = "هل نسيت مفتاح الترخيص الخاص بك؟";
 "settings.license.recovery.button" = "انتقل إلى بوابة العملاء";
 "settings.license.daily.title" = "النسخ اليومي";
@@ -576,6 +591,8 @@
 "onboarding.configure.cloud.note" = "الرصيد مدفوع مسبقًا ومشترك بين كل أجهزة Mac المسجّلة بهذا المفتاح. وقت الخمول لا يكلّف شيئًا.";
 "onboarding.source.note" = "تغيير رأيك لاحقًا يعيد هذه الخطوة فقط. لا يُفقد أي شيء آخر أعددته.";
 "onboarding.permissions.note" = "تخطَّ إمكانية الوصول وستذهب النصوص إلى الحافظة، جاهزة للصق. تفعيلها لاحقًا يتطلب نقرة واحدة فقط.";
+"onboarding.permissions.microphone.denied" = "غير مسموح. فعّل HyperWhisper في إعدادات النظام، ثم عد إلى هنا.";
+"onboarding.permissions.continueNeedsMicrophone" = "يتطلب «متابعة» الميكروفون. اسمح به أعلاه، أو اختر «الإعداد لاحقًا».";
 "onboarding.welcome.task1.title" = "اختر كيفية تشغيل التفريغ";
 "onboarding.welcome.task1.caption" = "على سحابتنا، على جهاز Mac هذا، أو عبر حساب مزوّد تدفع له بالفعل.";
 "onboarding.welcome.task2.title" = "تحقق من ميكروفونك";
@@ -791,6 +808,7 @@
 "modes.field.name.placeholder" = "مثل ملاحظات الاجتماع";
 "modes.field.name.editPlaceholder" = "اسم الوضع";
 "modes.field.name.defaultLocked" = "هذا هو الوضع الافتراضي، لذا لا يمكن تغيير اسمه. يمكنك إعادة تسمية أي وضع آخر.";
+"modes.field.name.taken" = "يوجد وضع بهذا الاسم بالفعل.";
 "modes.field.model" = "النموذج";
 "modes.field.provider" = "المزود";
 "modes.provider.local" = "محلي";
@@ -817,7 +835,7 @@
 "transcripts.delete.single.message" = "سيؤدي هذا إلى حذف هذا التسجيل وملف الصوت الخاص به بشكل دائم.";
 "transcripts.delete.multiple.title" = "حذف %d تسجيلات؟";
 "transcripts.delete.multiple.message" = "سيؤدي هذا إلى حذف %d تسجيلات وملفات الصوت الخاصة بها بشكل دائم.\n\nلا يمكن التراجع عن هذا الإجراء.";
-"transcripts.delete.multiple.confirm" = "حذف الكل";
+"transcripts.delete.multiple.confirm" = "حذف التسجيلات: %d";
 "transcripts.retry.error.title" = "فشلت المحاولة";
 "transcripts.retry.error.modeDeleted" = "تم حذف الوضع الذي أنشأ هذا التسجيل، لذلك لم تتم إعادة المحاولة. في السجل، انقر بزر الماوس الأيمن على التسجيل واختر \"إعادة محاولة مع...\" لاختيار وضع آخر.";
 
@@ -870,7 +888,6 @@
 "recording.retry.inProgress" = "جارٍ المحاولة…";
 "recording.retry.count" = "إعادة المحاولة (%d)";
 "recording.retry.failed.missing" = "فشلت المحاولة: لم يتم العثور على ملف الصوت";
-"recording.retry.failed.error" = "فشلت المحاولة: %@";
 "recording.retry.pending" = "جاهز لإعادة المحاولة – انقر للنسخ";
 "recording.retry.modeDeleted" = "تم حذف الوضع";
 "recording.cancel.dialog.title" = "إلغاء التسجيل؟";
@@ -899,6 +916,7 @@
 "audio.error.microphonePermission" = "لم يتم منح إذن الميكروفون";
 "audio.error.microphoneInUse" = "لا يمكن لـ HyperWhisper الوصول إلى الميكروفون لأن تطبيقاً آخر يستخدمه حالياً. أوقف التطبيق الآخر أو بدّل المدخلات، ثم حاول مرة أخرى.";
 "audio.error.audioSystemNotResponding" = "نظام الصوت في macOS لا يستجيب، لذا تعذّر تشغيل الميكروفون. حاول مرة أخرى بعد لحظات. إذا تكرر ذلك، فأعد تشغيل جهاز Mac.";
+"audio.error.recorderStopTimedOut" = "توقف نظام الصوت في macOS عن الاستجابة أثناء حفظ التسجيل، لذلك لم يتم تحويله إلى نص. تم الاحتفاظ بالصوت: سيحاول HyperWhisper استعادته في المرة القادمة التي يبدأ فيها.";
 "audio.error.createEngine" = "فشل إنشاء محرك الصوت";
 "audio.error.noInput" = "لا يوجد إدخال صوت متاح";
 "audio.error.createFile" = "فشل إنشاء ملف الصوت";
@@ -926,6 +944,9 @@
 "transcription.error.providerNotAvailable.provider" = "%@ غير متاح. تحقق من إعداداتك وحاول مرة أخرى.";
 "transcription.error.providerNotAvailable.detail" = "%@ غير متاح: %@";
 "transcription.error.modelNotDownloaded" = "يرجى تحميل نموذج أولاً";
+"transcription.error.modelNotDownloaded.modelAndMode" = "يستخدم الوضع %1$@ النموذج %2$@، وهو غير محمّل. حمّله من مكتبة النماذج.";
+"transcription.error.modelNotDownloaded.model" = "النموذج %1$@ غير محمّل. حمّله من مكتبة النماذج.";
+"transcription.error.openModelLibrary" = "فتح مكتبة النماذج";
 "transcription.error.modelProtected" = "لا يمكن حذف هذا النموذج";
 "transcription.error.audioFileNotFound" = "لم يتم العثور على ملف الصوت";
 "transcription.error.network.detail" = "خطأ في الشبكة: %@";
@@ -972,6 +993,7 @@
 "transcription.guidance.quotaExceeded" = "أضف أرصدة إلى حسابك %@ أو حدّث تفاصيل الفواتير";
 "transcription.guidance.timeout" = "استغرق الطلب وقتاً طويلاً. تحقق من سرعة الإنترنت الخاصة بك وحاول مرة أخرى.";
 "transcription.error.noSpeechDetected" = "لم يتم الكشف عن أي كلام في التسجيل.";
+"transcription.error.audioTooShort" = "التسجيل قصير جدًا ولا يمكن تحويله إلى نص. يُرجى التسجيل لمدة أطول.";
 "transcription.guidance.noSpeechDetected" = "نصائح:\n• تحدث بوضوح نحو الميكروفون\n• اضغط على المفتاح لفترة أطول قبل التحدث\n• تحقق من أن الميكروفون يعمل\n• تأكد من تحديد جهاز الإدخال الصحيح";
 "transcription.guidance.needsNativeRelaunch" = "أغلق HyperWhisper وأعد فتحه كتطبيق أصلي لاستخدام المعالجة اللاحقة المحلية.";
 "transcription.guidance.localRuntimeUnavailable" = "حاول مرة أخرى، أو اختر نموذجاً محلياً أصغر في إعدادات الوضع.";
@@ -1114,6 +1136,17 @@
 "transcribe.file.error.format.title" = "تنسيق غير مدعوم";
 "transcribe.file.error.format.message" = "لا يتم دعم ملفات .%@ بواسطة %@. التنسيقات المدعومة: %@";
 "transcribe.file.error.read" = "لا يمكن قراءة الملف المحدد.";
+"transcribe.file.error.webm" = "تنسيق WebM غير مدعوم. حوّل الملف إلى MP3 أو M4A أو WAV، ثم حاول مرة أخرى.";
+"transcribe.file.busy.title" = "يجري بالفعل نسخ ملف.";
+"transcribe.file.busy.message" = "هل تريد إلغاءه وبدء هذا الملف؟";
+"transcribe.file.busy.keepRunning" = "متابعة التشغيل";
+"transcribe.file.busy.cancelAndStart" = "إلغاؤه والبدء";
+"transcribe.file.error.notAudio" = "الملف «%@» ليس ملفًا صوتيًا صالحًا. قد يكون تالفًا، أو بتنسيق لا يستطيع macOS فك ترميزه.";
+"transcribe.file.error.empty" = "الملف «%@» فارغ. لا يحتوي على صوت لتحويله إلى نص.";
+"transcribe.file.error.permission" = "لا يستطيع HyperWhisper قراءة الملف «%@». تحقّق من أذونات الملف.";
+"transcribe.file.error.folderPermission" = "لا يستطيع HyperWhisper فتح مجلد يحتوي على الملف «%@». تحقّق من أذونات ذلك المجلد.";
+"transcribe.file.error.privacy" = "منعت إعدادات الخصوصية في macOS تطبيق HyperWhisper من قراءة الملف «%@». اسمح بذلك في إعدادات النظام > الخصوصية والأمن > الوصول الكامل إلى القرص.";
+"transcribe.file.error.tooShort" = "هذا الملف قصير جدًا ولا يمكن تحويله إلى نص (%@ ث).";
 "transcribe.file.error.copy" = "فشل في نسخ الملف إلى مجلد التسجيلات.";
 "transcribe.file.error.video.title" = "لا توجد صوت في الفيديو";
 "transcribe.file.error.video.noAudio" = "لا يحتوي ملف الفيديو هذا على مسار صوتي. يرجى تحديد فيديو مع صوت أو ملف صوتي.";
@@ -1140,3 +1173,4 @@
 "settings.storage.maxRecordingDuration.hour" = "ساعة واحدة";
 "settings.storage.maxRecordingDuration.hours" = "%d ساعات";
 "settings.storage.maxRecordingDuration.off" = "إيقاف";
+"settings.api_server.status.stopping" = "جارٍ الإيقاف…";

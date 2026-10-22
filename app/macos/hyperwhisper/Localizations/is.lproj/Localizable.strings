@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Greiningarskrár fluttar út";
 "alerts.export.diagnostics.success.message" = "Allar greiningarskrár hafa verið fluttar út með góðum árangri.";
 "alerts.export.diagnostics.saveFailed.message" = "Gat ekki vistað greiningarskrár á valda staðsetningu: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Greiningargögn flutt út án kerfisannála";
+"alerts.export.diagnostics.noSystemLogs.message" = "Greiningarskráin var vistuð, en ekki tókst að lesa kerfisannála forritsins, svo system-logs.txt inniheldur aðeins ástæðuna. Ástæða: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Flytja út uppfærsluskrár fyrir aðstoð";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Ljúka byrjunarferli";
 
 "onboarding.setupLater.button" = "Setja upp síðar";
-"onboarding.error.microphone.denied" = "Hljóðnemaleyfi hafnað. Vinsamlegast veittu leyfi í kerfisstillingum.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Ræsa við innskráningu";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Af";
 "settings.general.mediaControl.mode.mute" = "Þagga hljóð";
+"settings.general.mediaControl.mode.muffle" = "Deyfa hljóð";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,9 +324,17 @@
 "settings.sound.soundEffects.title" = "Spila hljóðbrellur";
 "settings.sound.soundEffects.info" = "Spila hljóðmerki þegar upptaka hefst og hættir.";
 "settings.sound.mediaControl.title" = "Miðilstjórnun á meðan á upptöku stendur";
-"settings.sound.mediaControl.info" = "Veldu hvernig HyperWhisper meðhöndlar annað hljóð á meðan þu tekur upp. 'Af' lætur hljóð óbreytt, 'Þögga hljóð' þöggar niður kerfisúttaki meðan á upptokt stendur og endurheimtir þeð á eftir.";
+"settings.sound.mediaControl.info" = "Veldu hvernig HyperWhisper meðhöndlar annað hljóð á meðan þu tekur upp. 'Af' lætur hljóð óbreytt, 'Þögga hljóð' þöggar niður kerfisúttaki meðan á upptokt stendur og endurheimtir þeð á eftir, og 'Deyfa hljóð' lætur það spila lágt, eins og úr næsta herbergi.";
+"settings.sound.microphone.title" = "Hljóðnemi";
+"settings.sound.microphone.subtitle" = "Aðeins notaður af HyperWhisper. Munað eftir endurræsingu.";
+"microphone.picker.default" = "Sjálfgefið · %@";
+"microphone.picker.notConnected" = "%@ (ekki tengdur)";
+"microphone.picker.fallback" = "Notar %1$@ þar til %2$@ er tengdur aftur.";
+"settings.sound.microphone.test" = "Prófa";
+"settings.sound.microphone.stop" = "Stöðva";
+"settings.sound.microphone.level" = "Inntaksstyrkur";
 "settings.sound.autoIncreaseMicVolume.title" = "Hækka sjálfkrafa hljóðnemahljóðstyrk";
-"settings.sound.autoIncreaseMicVolume.info" = "Stillir sjálfkrafa hljóðnemainntakshljóðstyrk á hámark þegar upptaka byrjar, endurheimtir síðan upprunalegt stig þegar upptöku lýkur. Gildir aðeins þegar sjálfgefið kerfisinntak tæki er notað.";
+"settings.sound.autoIncreaseMicVolume.info" = "Stillir sjálfkrafa inntaksstyrk hljóðnemans sem HyperWhisper tekur upp úr á hámark þegar upptaka hefst og endurheimtir upprunalegan styrk þegar henni lýkur. Hljóðnemum án hugbúnaðarstýringar á styrk er ekki breytt.";
 "settings.sound.vad.title" = "Fjarlægja þögn fyrir afritun";
 "settings.sound.vad.info" = "Greinir sjálfkrafa og fjarlægir fremsta og aftasta þögn með gervigreindar raddgreining. Þetta getur bætt afritunarárangur og minnkað vinnslutíma.";
 
@@ -336,6 +346,9 @@
 "settings.storage.choose.button" = "Velja...";
 "settings.storage.dialog.select" = "Velja möppu";
 "settings.storage.dialog.message" = "Veldu möppu til að geyma upptökur";
+"settings.storage.folderRefused.title" = "Ekki er hægt að nota þessa möppu";
+"settings.storage.folderRefused.notWritable" = "Þú hefur ekki heimild til að skrifa í „%@“, svo HyperWhisper getur ekki vistað upptökur þar. Upptökumöppunni var ekki breytt.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper gat ekki búið til þessa möppu: %@ Upptökumöppunni var ekki breytt.";
 "settings.storage.storeAsM4A.title" = "Þjappa upptökum í M4A";
 "settings.storage.storeAsM4A.subtitle" = "Breytir WAV upptökum í minni skrár eftir afritun. Slökktu til að halda upprunalegum WAV skrám (stærri en taplausar).";
 
@@ -383,6 +396,7 @@
 
 "settings.shortcuts.changeMode.title" = "Breyta ham";
 "settings.shortcuts.changeMode.subtitle" = "Virkar aðeins þegar upptaka er í gangi";
+"settings.shortcuts.conflict.alert" = "Ekki er hægt að nota þessa flýtilykla þar sem „%@“ notar þá nú þegar.";
 
 "settings.shortcuts.reset.button" = "Endurstilla í sjálfgefin gildi";
 "settings.shortcuts.reset.dialog.title" = "Endurstilla lyklaborðsflýtileiðir";
@@ -434,6 +448,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Líma frá klippispjaldi";
 "settings.license.clearInput" = "Hreinsa";
+"license.error.keyFormat" = "Þetta lítur ekki út eins og reikningslykill.";
 "settings.license.recovery.prompt" = "Gleymdirðu leyfislyklinum þínum?";
 "settings.license.recovery.button" = "Fara í viðskiptavinasvæði";
 "settings.license.daily.title" = "Dagleg afritun";
@@ -576,6 +591,8 @@
 "onboarding.configure.cloud.note" = "Inneign er fyrirframgreidd og deilt á milli allra Mac-tölva sem eru innskráðar með þessum lykli. Aðgerðarlaus tími kostar ekkert.";
 "onboarding.source.note" = "Skiptir þú um skoðun síðar er þetta eina skrefið endurtekið. Ekkert annað sem þú settir upp týnist.";
 "onboarding.permissions.note" = "Sleppir þú Aðgengi fara umskriftir á klippiborðið, tilbúnar til að líma. Að kveikja á því síðar tekur eitt smell.";
+"onboarding.permissions.microphone.denied" = "Ekki leyft. Kveiktu á HyperWhisper í kerfisstillingum og komdu svo aftur hingað.";
+"onboarding.permissions.continueNeedsMicrophone" = "Til að halda áfram þarf hljóðnemann. Leyfðu hann hér að ofan eða veldu Setja upp síðar.";
 "onboarding.welcome.task1.title" = "Veldu hvernig umritun keyrir";
 "onboarding.welcome.task1.caption" = "Í skýinu okkar, á þessari Mac-tölvu, eða í gegnum veitureikning sem þú borgar nú þegar fyrir.";
 "onboarding.welcome.task2.title" = "Athugaðu hljóðnemann þinn";
@@ -791,6 +808,7 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 "modes.field.name.placeholder" = "t.d., Fundarathugasemdir";
 "modes.field.name.editPlaceholder" = "Heiti hams";
 "modes.field.name.defaultLocked" = "Þetta er sjálfgefna stillingin, svo ekki er hægt að breyta nafni hennar. Þú getur endurnefnt allar aðrar stillingar.";
+"modes.field.name.taken" = "Hamur með þessu nafni er þegar til.";
 "modes.field.model" = "Líkan";
 "modes.field.provider" = "Veitandi";
 "modes.provider.local" = "Staðbundinn";
@@ -817,7 +835,7 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 "transcripts.delete.single.message" = "Þetta mun varanlega eyða þessari upptöku og hljóðskrá hennar.";
 "transcripts.delete.multiple.title" = "Eyða %d upptökum?";
 "transcripts.delete.multiple.message" = "Þetta mun varanlega eyða %d upptökum og hljóðskránum þeirra.\n\nÞessa aðgerð er ekki hægt að afturkalla.";
-"transcripts.delete.multiple.confirm" = "Eyða öllum";
+"transcripts.delete.multiple.confirm" = "Eyða upptökum: %d";
 "transcripts.retry.error.title" = "Endurtilraun mistókst";
 "transcripts.retry.error.modeDeleted" = "Hamurinn sem gerði þessa upptöku var eyddur, svo ekki var reynt aftur. Í Sögu skaltu hægrismella á upptökuna og velja \"Reyna aftur með...\" til að velja annan ham.";
 
@@ -870,7 +888,6 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "recording.retry.inProgress" = "Reyni aftur…";
 "recording.retry.count" = "Reyna aftur (%d)";
 "recording.retry.failed.missing" = "Endurtilraun mistókst: Hljóðskrá fannst ekki";
-"recording.retry.failed.error" = "Endurtilraun mistókst: %@";
 "recording.retry.pending" = "Tilbúið að reyna aftur – smelltu til að afrita";
 "recording.retry.modeDeleted" = "Hamnum var eytt";
 "recording.cancel.dialog.title" = "Hætta við upptöku?";
@@ -899,6 +916,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "audio.error.microphonePermission" = "Hljóðnemaleyfi ekki veitt";
 "audio.error.microphoneInUse" = "HyperWhisper getur ekki nálgast hljóðnemannm vegna þess að annað forrit er núna að nota hann. Gerðu hlé á hinu forritinu eða skiptu um inntak, reyndu síðan aftur.";
 "audio.error.audioSystemNotResponding" = "Hljóðkerfi macOS svarar ekki, svo ekki tókst að ræsa hljóðnemann. Reyndu aftur eftir smástund. Ef þetta heldur áfram skaltu endurræsa Mac-tölvuna.";
+"audio.error.recorderStopTimedOut" = "Hljóðkerfi macOS hætti að svara á meðan upptakan var vistuð, svo hún var ekki umrituð. Hljóðið var geymt: HyperWhisper reynir að endurheimta það næst þegar forritið ræsist.";
 "audio.error.createEngine" = "Mistókst að búa til hljóðvél";
 "audio.error.noInput" = "Ekkert hljóðinntak tiltækt";
 "audio.error.createFile" = "Mistókst að búa til hljóðskrá";
@@ -926,6 +944,9 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcription.error.providerNotAvailable.provider" = "%@ er ekki tiltækt. Athugaðu stillingarnar þínar og reyndu aftur.";
 "transcription.error.providerNotAvailable.detail" = "%@ er ekki tiltækt: %@";
 "transcription.error.modelNotDownloaded" = "Vinsamlegast sæktu líkan fyrst";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Hamurinn %1$@ notar líkanið %2$@, sem hefur ekki verið sótt. Sæktu það í Líkanaasafni.";
+"transcription.error.modelNotDownloaded.model" = "Líkanið %1$@ hefur ekki verið sótt. Sæktu það í Líkanaasafni.";
+"transcription.error.openModelLibrary" = "Opna Líkanaasafn";
 "transcription.error.modelProtected" = "Þessu líkani er ekki hægt að eyða";
 "transcription.error.audioFileNotFound" = "Hljóðskrá fannst ekki";
 "transcription.error.network.detail" = "Netvilla: %@";
@@ -972,6 +993,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcription.guidance.quotaExceeded" = "Bættu við einingum á %@ reikninginn þinn eða uppfærðu greiðsluupplýsingar þínar";
 "transcription.guidance.timeout" = "Beiðnin tók of langan tíma. Athugaðu nethraðann þinn og reyndu aftur.";
 "transcription.error.noSpeechDetected" = "Engin tala greind í upptökunni.";
+"transcription.error.audioTooShort" = "Upptakan er of stutt til að umrita hana. Taktu upp lengur.";
 "transcription.guidance.noSpeechDetected" = "Ábendingar:\n• Talaðu skýrt í hljóðnemanninn\n• Haltu lyklinum lengur áður en þú talar\n• Athugaðu að hljóðneminn þinn sé að virka\n• Gakktu úr skugga um að rétt inntakstæki sé valið";
 "transcription.guidance.needsNativeRelaunch" = "Lokaðu HyperWhisper og opnaðu forritið aftur sem innbyggt forrit til að nota staðbundna eftirvinnslu.";
 "transcription.guidance.localRuntimeUnavailable" = "Reyndu aftur eða veldu minna staðbundið líkan í hamstillingunum þínum.";
@@ -1114,6 +1136,17 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcribe.file.error.format.title" = "Óstutt form";
 "transcribe.file.error.format.message" = ".%@ skrár eru ekki studdar af %@. Studd form: %@";
 "transcribe.file.error.read" = "Get ekki lesið valda skrá.";
+"transcribe.file.error.webm" = "WebM er ekki stutt. Umbreyttu skránni í MP3, M4A eða WAV og reyndu aftur.";
+"transcribe.file.busy.title" = "Verið er að umrita skrá nú þegar.";
+"transcribe.file.busy.message" = "Hætta við hana og byrja á þessari?";
+"transcribe.file.busy.keepRunning" = "Halda áfram";
+"transcribe.file.busy.cancelAndStart" = "Hætta við og byrja";
+"transcribe.file.error.notAudio" = "Skráin „%@“ er ekki gilt hljóð. Hún gæti verið skemmd eða á sniði sem macOS getur ekki afkóðað.";
+"transcribe.file.error.empty" = "Skráin „%@“ er tóm. Hún inniheldur ekkert hljóð til að umrita.";
+"transcribe.file.error.permission" = "HyperWhisper getur ekki lesið skrána „%@“. Athugaðu heimildir skrárinnar.";
+"transcribe.file.error.folderPermission" = "HyperWhisper getur ekki opnað möppu sem inniheldur skrána „%@“. Athugaðu heimildir þeirrar möppu.";
+"transcribe.file.error.privacy" = "Persónuverndarstillingar macOS komu í veg fyrir að HyperWhisper læsi skrána „%@“. Leyfðu það í Kerfisstillingum > Persónuvernd og öryggi > Fullur diskaðgangur.";
+"transcribe.file.error.tooShort" = "Þessi skrá er of stutt til að umrita hana (%@ s).";
 "transcribe.file.error.copy" = "Mistókst að afrita skrá í upptökumöppu.";
 "transcribe.file.error.video.title" = "Ekkert hljóð í myndskrá";
 "transcribe.file.error.video.noAudio" = "Þessi myndbandskrá inniheldur ekki hljóðlag. Vinsamlegast veldu myndband með hljóði eða hljóðskrá.";
@@ -1140,3 +1173,4 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "settings.storage.maxRecordingDuration.hour" = "1 klukkustund";
 "settings.storage.maxRecordingDuration.hours" = "%d klukkustundir";
 "settings.storage.maxRecordingDuration.off" = "Slökkt";
+"settings.api_server.status.stopping" = "Stöðvar…";

@@ -4,7 +4,10 @@ import { stripe } from "@/lib/clients/stripe";
 import { findAccountByKey, updateAccountKey } from "@/src/lib/db-layer";
 import { isRecord } from "@/src/lib/type-guards";
 import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
-import { describeDbError, safeErrorMessage } from "@/lib/shared/db-error";
+import { describeDbError } from "@/lib/shared/db-error";
+import { checkoutRateLimiter } from "@/lib/rate-limit";
+import { rateLimitGate } from "@/lib/rate-limit-gate";
+import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
 import {
   validateCreditPurchaseAmount,
   computeCreditPurchase,
@@ -20,7 +23,9 @@ import {
  *
  * REQUEST BODY:
  * - amount: whole dollars, 5..500 (1000 credits per $1)
- * - licenseKey (optional): when present, top up that key instead of minting
+ * - licenseKey (optional): when present, top up that key instead of minting.
+ *   A present key that is not a string (null included) is refused with a 400,
+ *   never treated as absent: that would sell the buyer a second wallet (#2081).
  * - email (optional): mint path only. Prefills the Stripe checkout email so the
  *   minted key is emailed to that address; ignored when topping up a key.
  *
@@ -34,9 +39,20 @@ import {
  * - credit_amount: credits to grant
  * - fee_cents: the processing fee charged
  * - license_key: present ONLY when topping up an existing key (absent => mint)
+ *
+ * RATE LIMIT: per IP (`checkoutRateLimiter`), before the body is read — every
+ * call that gets through creates a Stripe Checkout Session (#2010).
  */
 
 export async function POST(req: NextRequest) {
+  const limited = await rateLimitGate(
+    checkoutRateLimiter,
+    getClientIPFromHeaders(req.headers),
+    "POST /api/checkout/credits",
+  );
+
+  if (limited) return limited;
+
   let body: unknown;
 
   try {
@@ -68,6 +84,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "amount must be a finite number" },
         { status: 400 }
+      );
+    }
+
+    // A present licenseKey must be a string. Anything else (a number, null, an
+    // object) used to fall through to the mint path, so the buyer paid for a
+    // brand-new wallet instead of topping up theirs (#2081). Refuse it before
+    // any database or Stripe call. Never coerce it with String(): that would
+    // look up a key the buyer never typed.
+    if (licenseKey !== undefined && typeof licenseKey !== "string") {
+      return NextResponse.json(
+        { error: "licenseKey must be a string" },
+        { status: 400 },
       );
     }
 
@@ -235,12 +263,12 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Credit checkout error:", describeDbError(error));
 
+    // No `details`: the throw's own message stays in the server log above. A
+    // DB error's message is its SQL plus the bound key and email (#1049), and a
+    // Stripe error's names the customer id and the key mode (#2311). No caller
+    // reads the field.
     return NextResponse.json(
-      {
-        error: "Failed to create checkout session",
-        // A DB error's message is its SQL plus the bound key and email (#1049).
-        details: safeErrorMessage(error, "Unknown error"),
-      },
+      { error: "Failed to create checkout session" },
       { status: 500 }
     );
   }

@@ -8,7 +8,7 @@
 import { computeOpenAITranscriptionCost } from '../lib/cost-calculator';
 import { OPENAI_INLINE_MAX_BYTES } from '../lib/constants';
 import { resolveProviderLanguage } from '../lib/language-codes';
-import { AudioTooLargeError, ProviderUnavailableError } from './types';
+import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
@@ -17,13 +17,17 @@ import {
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  splitVocabularyTerms,
 } from './utils';
 
 const OPENAI_URL = 'https://api.openai.com/v1/audio/transcriptions';
 const DEFAULT_MODEL = 'gpt-4o-transcribe';
+// OpenAI serves this model only over a Realtime WebSocket session, not on
+// v1/audio/transcriptions. It stays registered (stt-models.ts), so the adapter
+// refuses it before the key check or any upstream call.
+const LIVE_ONLY_MODEL = 'gpt-live-transcribe';
 
-// Models that accept a structured keyword list. gpt-live-transcribe is
-// realtime-only and never reaches this synchronous adapter.
+// Models that accept a structured keyword list.
 const KEYWORDS_MODELS = new Set(['gpt-transcribe']);
 // Models OpenAI bills per audio minute rather than per token
 // (cost-calculator.ts). Each one is billed on the duration OpenAI reports
@@ -31,7 +35,7 @@ const KEYWORDS_MODELS = new Set(['gpt-transcribe']);
 // does not. gpt-transcribe was billed on the byte estimate alone, which reads a
 // 16 kHz mono WAV as ~4x its length; since #797 aliases whisper-1 and
 // gpt-4o-transcribe to it, that would have tripled their bill.
-const DURATION_BILLED_MODELS: ReadonlySet<string> = new Set(['whisper-1', 'gpt-transcribe', 'gpt-live-transcribe']);
+const DURATION_BILLED_MODELS: ReadonlySet<string> = new Set(['whisper-1', 'gpt-transcribe']);
 // OpenAI encodes array parameters on this endpoint with a trailing `[]`, one
 // field per element — the same shape as the documented
 // `timestamp_granularities[]`.
@@ -46,33 +50,14 @@ const MAX_KEYWORD_CHARS = 80;
 
 /** Split a comma/newline vocabulary prompt into `keywords[]` values. */
 function toKeywords(initialPrompt: string): string[] {
-  const seen = new Set<string>();
-  const keywords: string[] = [];
-  for (const raw of initialPrompt.split(/[,\n;]+/)) {
-    // OpenAI documents that a keyword must be one line with no `<`, `>`, CR or LF.
-    // Collapsing whitespace runs matches the canonical sanitizer and keeps a
-    // multi-line paste from becoming one unusable hint.
-    const keyword = raw
-      .trim()
-      // Strip a list bullet ONLY when a space follows it. Without that space a
-      // leading "-" or "*" is part of the term — "-Xmx", "*args" — and stripping
-      // it silently biases the model toward a different token than the user
-      // entered, which the BYOK path does not do.
-      .replace(/^[-*]\s+/, '')
-      .replace(/[<>]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      // Truncate rather than drop, matching `sanitize_vocabulary_word`, and by
-      // code POINT so a term of supplementary characters is not cut early.
-      .slice(0, MAX_KEYWORD_CHARS);
-    if (keyword.length === 0) continue;
-    const key = keyword.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    keywords.push(keyword);
-    if (keywords.length === MAX_KEYWORDS) break;
-  }
-  return keywords;
+  // OpenAI documents that a keyword must be one line with no `<`, `>`, CR or LF;
+  // the sanitize policy removes all of them.
+  return splitVocabularyTerms(initialPrompt, {
+    maxTerms: MAX_KEYWORDS,
+    maxTermChars: MAX_KEYWORD_CHARS,
+    sanitize: true,
+    overLongTerm: 'truncate',
+  });
 }
 
 interface OpenAIUsage {
@@ -92,6 +77,17 @@ export async function transcribeWithOpenAI(
   const startedAt = performance.now();
   const provider = 'openai';
   const model = context.model || DEFAULT_MODEL;
+
+  if (model === LIVE_ONLY_MODEL) {
+    // Fail before spending a round trip, and name the reason. A
+    // ProviderInputError on this self-only chain surfaces as a 400.
+    throw new ProviderInputError(
+      'OpenAI',
+      400,
+      `${LIVE_ONLY_MODEL} is a WebSocket-only model and is not served by /transcribe`,
+    );
+  }
+
   const isWhisper = model === 'whisper-1';
 
   const apiKey = process.env.OPENAI_API_KEY;
