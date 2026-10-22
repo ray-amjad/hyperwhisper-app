@@ -3,6 +3,7 @@ import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import { computeGoogleChirpTranscriptionCost } from '../lib/cost-calculator';
 import * as realGoogleAuth from '../lib/google-auth';
 import { captureNoSpeechEvent } from './test-support';
+import { saveEnv, stubEnv } from '../test-support/env';
 
 // ---------------------------------------------------------------------------
 // Mock the GCS scratch-storage module. google-chirp.ts only knows the shape
@@ -65,13 +66,14 @@ const originalFetch = globalThis.fetch;
 
 const { transcribeWithGoogleChirp, INLINE_AUDIO_MAX_BYTES } = await import('./google-chirp');
 
-const ENV_KEYS = ['GOOGLE_PROJECT_ID', 'GOOGLE_SPEECH_REGION', 'STT_PROVIDER_TIMEOUT_MS'] as const;
-const savedEnv: Record<string, string | undefined> = {};
+let restoreEnv: Array<() => void> = [];
 
 beforeEach(() => {
-  for (const key of ENV_KEYS) savedEnv[key] = process.env[key];
-  process.env.GOOGLE_PROJECT_ID = 'test-project';
-  delete process.env.GOOGLE_SPEECH_REGION;
+  restoreEnv = [
+    stubEnv('GOOGLE_PROJECT_ID', 'test-project'),
+    stubEnv('GOOGLE_SPEECH_REGION', undefined),
+    saveEnv('STT_PROVIDER_TIMEOUT_MS'),
+  ];
 
   gcsConfigured = false;
   uploadResult = {
@@ -92,10 +94,7 @@ beforeEach(() => {
 afterEach(() => {
   globalThis.fetch = originalFetch;
   gcsConfigured = false;
-  for (const key of ENV_KEYS) {
-    if (savedEnv[key] === undefined) delete process.env[key];
-    else process.env[key] = savedEnv[key];
-  }
+  for (const restore of restoreEnv) restore();
 });
 
 function syncRecognizeResponse(transcript = 'hello world', languageCode = 'en-US', totalBilledDuration?: string) {

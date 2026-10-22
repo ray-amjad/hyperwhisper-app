@@ -4,22 +4,22 @@ import { computeMetaMuseTranscriptionCost } from '../lib/cost-calculator';
 import { transcribeWithMeta } from './meta';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
 import { wav } from '../test-support/wav';
+import { stubEnv } from '../test-support/env';
 
 const originalFetch = globalThis.fetch;
-const originalKey = process.env.META_MODEL_API_KEY;
+let restoreKey: () => void;
 
 function okResponse(transcript = '  hello from muse  ', audioDurationMs = 12_500): Response {
   return Response.json({ transcript, audioDurationMs, turns: [] });
 }
 
 beforeEach(() => {
-  process.env.META_MODEL_API_KEY = 'test-meta-key';
+  restoreKey = stubEnv('META_MODEL_API_KEY', 'test-meta-key');
 });
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  if (originalKey === undefined) delete process.env.META_MODEL_API_KEY;
-  else process.env.META_MODEL_API_KEY = originalKey;
+  restoreKey();
 });
 
 describe('Meta Muse request and response', () => {
