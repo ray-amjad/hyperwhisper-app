@@ -160,7 +160,11 @@ final class MicrophoneKeepWarmManager: NSObject, AVCaptureAudioDataOutputSampleB
         sessionQueue.async { [weak self] in
             guard let self else { return }
 
-            guard let device = AVCaptureDevice.default(for: .audio) else {
+            // Keep warm the device HyperWhisper records from: the chosen microphone while
+            // it is connected (its CoreAudio UID is the AVCaptureDevice uniqueID), else the
+            // macOS default. The default input itself is never changed.
+            let expectedDevice = expectedDeviceUID.flatMap { AVCaptureDevice(uniqueID: $0) }
+            guard let device = expectedDevice ?? AVCaptureDevice.default(for: .audio) else {
                 AppLogger.audio.warning("Mic keep-warm could not find an audio input device")
                 self.teardownSessionOnQueue(reason: "no audio input device")
                 return
