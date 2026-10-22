@@ -14,6 +14,8 @@ import {
  *
  * Handles Stripe webhook events for HyperWhisper purchases.
  * Primary event: checkout.session.completed
+ * Reversals: charge.refunded, and charge.dispute.closed when the dispute is
+ * lost (#2482). The Stripe endpoint must be subscribed to both.
  *
  * SUPPORTED PURCHASE TYPES:
  * - "credits": Credit pack purchase (adds to Stripe Billing Meter)

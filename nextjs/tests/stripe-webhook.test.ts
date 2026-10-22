@@ -803,6 +803,43 @@ test("a lost dispute adds to what was refunded before it, capped at the charge",
   assert.deepEqual(refundedTotals(), [5000, 5000, 2000]);
 });
 
+test("a refund on a disputed charge counts the charge's lost disputes, not its open or won ones", async () => {
+  behaviour.stripeSessions = [creditSession({ credits: 5000, feeCents: 30, amountTotal: 530 })];
+  behaviour.stripeDisputes = [
+    { id: "dp_lost", status: "lost", amount: 300 },
+    { id: "dp_won", status: "won", amount: 100 },
+    { id: "dp_open", status: "needs_response", amount: 100 },
+  ];
+
+  await handleChargeRefunded(charge({ id: "ch_d", amount: 530, amount_refunded: 100, disputed: true }));
+
+  assert.deepEqual(calls.stripeDisputeQueries, [{ charge: "ch_d", limit: 100 }]);
+  assert.deepEqual(refundedTotals(), [4000]);
+});
+
+test("a refund on an undisputed charge never lists disputes", async () => {
+  behaviour.stripeSessions = [creditSession({ credits: 5000, feeCents: 30, amountTotal: 530 })];
+
+  await handleChargeRefunded(charge({ amount: 530, amount_refunded: 450, disputed: false }));
+
+  assert.deepEqual(calls.stripeDisputeQueries, []);
+  assert.deepEqual(refundedTotals(), [4500]);
+});
+
+test("a lost dispute does not count itself twice when the list already shows it", async () => {
+  behaviour.stripeSessions = [creditSession({ credits: 5000, feeCents: 30, amountTotal: 530 })];
+  behaviour.stripeDisputes = [
+    { id: "dp_other", status: "lost", amount: 100 },
+    { id: "dp_1", status: "lost", amount: 200 },
+  ];
+
+  await handleDisputeClosed(
+    dispute({ id: "dp_1", amount: 200, charge: charge({ amount: 530, amount_refunded: 0, disputed: true }) }),
+  );
+
+  assert.deepEqual(refundedTotals(), [3000]);
+});
+
 test("a lost dispute whose grant is not minted yet rejects so Stripe retries it", async () => {
   behaviour.stripeSessions = [creditSession({ credits: 5000, feeCents: 0, amountTotal: 500 })];
   behaviour.refundResult = { status: "not_found", refundedAmount: 0, removedAmount: 0 };

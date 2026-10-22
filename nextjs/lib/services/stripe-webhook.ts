@@ -366,7 +366,71 @@ export async function handleChargeRefunded(
   console.log(
     `Processing refund for charge ${charge.id} (${charge.amount_refunded}/${charge.amount})`
   );
+  await reverseCreditCharge(charge, null);
+}
 
+/**
+ * Process a closed dispute (chargeback) (#2482).
+ *
+ * Only a LOST dispute takes credits back: the bank returned the money to the
+ * buyer, so the pack is reversed like a refund of the disputed amount. `won`,
+ * `warning_closed` and any other outcome leave the pack alone, and so does an
+ * open dispute (`charge.dispute.created` / `funds_withdrawn` are not routed
+ * here): the merchant may still win it.
+ *
+ * It shares the refund's trace (charge -> PaymentIntent -> Checkout Session
+ * -> grant), its missing-grant retry and its spent-credit shortfall, and the
+ * same running total (`reversedCents`), so refunds and lost disputes on one
+ * charge add up in any order, and a re-delivered event takes nothing more.
+ */
+export async function handleDisputeClosed(
+  dispute: Stripe.Dispute
+): Promise<void> {
+  if (dispute.status !== "lost") {
+    console.log(
+      `Dispute ${dispute.id} closed as ${dispute.status}, no credits taken back`
+    );
+    return;
+  }
+
+  const charge =
+    typeof dispute.charge === "string"
+      ? await stripe.charges.retrieve(dispute.charge)
+      : dispute.charge;
+  console.log(
+    `Processing lost dispute ${dispute.id} on charge ${charge.id} (${dispute.amount}/${charge.amount})`
+  );
+  await reverseCreditCharge(charge, dispute);
+}
+
+/**
+ * The cents of a charge the buyer has got back so far: every refund plus
+ * every LOST dispute, capped at the charge (#2482). Stripe keeps disputed
+ * money out of `amount_refunded`, so a refund event and a dispute event must
+ * both count the other, or whichever lands last undercounts and the ledger
+ * reads it as a duplicate. `closing` is the dispute whose event is being
+ * handled; it counts even if the list has not caught up with it yet.
+ */
+async function reversedCents(
+  charge: Stripe.Charge,
+  closing: Stripe.Dispute | null
+): Promise<number> {
+  let lostCents = 0;
+  if (charge.disputed || closing) {
+    const disputes = await stripe.disputes.list({ charge: charge.id, limit: 100 });
+    for (const d of disputes.data) {
+      if (d.status === "lost" && d.id !== closing?.id) lostCents += d.amount;
+    }
+    if (closing) lostCents += closing.amount;
+  }
+  return Math.min(charge.amount, (charge.amount_refunded ?? 0) + lostCents);
+}
+
+/** Trace a refunded or charged-back charge to its purchase and reverse it. */
+async function reverseCreditCharge(
+  charge: Stripe.Charge,
+  closingDispute: Stripe.Dispute | null
+): Promise<void> {
   // STEP 2: Get PaymentIntent ID from the charge
   const paymentIntentId =
     typeof charge.payment_intent === "string"
@@ -398,8 +462,13 @@ export async function handleChargeRefunded(
 
   // STEP 4: Route by purchase type.
   if (purchaseType === "credits") {
-    // Any refund, partial or full, removes credits at the price paid (#1351).
-    await handleCreditRefund(charge, checkoutSession);
+    // Any refund or lost dispute, partial or full, removes credits at the
+    // price paid (#1351, #2482).
+    await handleCreditRefund(
+      charge,
+      checkoutSession,
+      await reversedCents(charge, closingDispute)
+    );
     return;
   }
 
@@ -408,51 +477,6 @@ export async function handleChargeRefunded(
   console.log(
     `Refund for unknown purchase type (${purchaseType}), skipping`
   );
-}
-
-/**
- * Process a closed dispute (chargeback) (#2482).
- *
- * Only a LOST dispute takes credits back: the bank returned the money to the
- * buyer, so the pack is reversed exactly like a refund of the disputed amount.
- * `won`, `warning_closed` and any other outcome leave the pack alone, and so
- * does an open dispute (`charge.dispute.created` / `funds_withdrawn` are not
- * routed here): the merchant may still win it.
- *
- * Stripe keeps a disputed amount out of `amount_refunded`, so the running
- * total handed to the refund path is what was refunded plus what was lost,
- * capped at the charge. It runs through `handleChargeRefunded`, so the trace
- * (charge -> PaymentIntent -> Checkout Session -> grant), the missing-grant
- * retry and the spent-credit shortfall are the refund's own.
- *
- * IDEMPOTENCY: `refundCreditGrant` records the grant's cumulative refunded
- * credits, so a re-delivered `charge.dispute.closed`, or a `charge.refunded`
- * whose smaller total arrives after it, takes nothing more.
- */
-export async function handleDisputeClosed(
-  dispute: Stripe.Dispute
-): Promise<void> {
-  if (dispute.status !== "lost") {
-    console.log(
-      `Dispute ${dispute.id} closed as ${dispute.status}, no credits taken back`
-    );
-    return;
-  }
-
-  const charge =
-    typeof dispute.charge === "string"
-      ? await stripe.charges.retrieve(dispute.charge)
-      : dispute.charge;
-
-  const reversedCents = Math.min(
-    charge.amount,
-    (charge.amount_refunded ?? 0) + dispute.amount
-  );
-  console.log(
-    `Dispute ${dispute.id} lost on charge ${charge.id} (${dispute.amount}/${charge.amount}); reversing ${reversedCents} in total`
-  );
-
-  await handleChargeRefunded({ ...charge, amount_refunded: reversedCents });
 }
 
 /**
@@ -501,16 +525,17 @@ async function permanentMissingGrantReason(
 }
 
 /**
- * Reverse a refunded credit-pack purchase, in whole or in part.
+ * Reverse a refunded or charged-back credit-pack purchase, in whole or in part.
  *
- * Turns the charge's cumulative refunded cents into the grant's cumulative
+ * Turns the charge's cumulative reversed cents (`reversedCents`) into the grant's cumulative
  * refunded credits at the price paid, then lets `refundCreditGrant` remove
  * the part not yet recorded, from that grant only. Idempotent: the same
  * cumulative total twice removes nothing the second time.
  */
 async function handleCreditRefund(
   charge: Stripe.Charge,
-  checkoutSession: Stripe.Checkout.Session
+  checkoutSession: Stripe.Checkout.Session,
+  reversedCents: number
 ): Promise<void> {
   // license_key is only present on top-ups; minted credit purchases carry none.
   // The clawback is keyed on the checkout session id (the grant's source_id),
@@ -540,12 +565,12 @@ async function handleCreditRefund(
     listFeeCents: Number.isFinite(feeCents) ? feeCents : 0,
     amountTotal,
     amountTax,
-    amountRefunded: charge.amount_refunded,
+    amountRefunded: reversedCents,
   });
 
   if (refundedCredits <= 0) {
     console.log(
-      `Refund ${charge.amount_refunded}/${charge.amount} on charge ${charge.id} is worth no credits for session ${checkoutSession.id}, skipping`
+      `Refund ${reversedCents}/${charge.amount} on charge ${charge.id} is worth no credits for session ${checkoutSession.id}, skipping`
     );
     return;
   }
