@@ -630,6 +630,23 @@
       ],
       "licensed": false,
       "note": "Unlicensed (no HYPERWHISPER_ACCOUNT_KEY). core-settings: toggles in General/Sound/Text Output OK, persistence-after-restart not checked (step cap). licence: Codex stopped at step 7 'no JSON from codex'; manual: empty key disables Activate, garbage key 'License key not found', 400-char key 'That doesn't look like an account key' - all fine. modes: create/rename long name/switch/delete active/delete last all fine; filed #2382 (new mode no English Spelling). Not covered: emoji/duplicate names, Cloud transcription."
+    },
+    {
+      "at": "2026-10-22T01:04:17Z",
+      "platform": "linux",
+      "commit": "7961036a",
+      "routes": [
+        "history-and-backup",
+        "local-api",
+        "onboarding"
+      ],
+      "status": "2-filed",
+      "issues": [
+        2390,
+        2391
+      ],
+      "licensed": false,
+      "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY). Codex drives: 0 defects on all 3. Hand probes: backup import of empty/non-JSON/random/wrong-version/wrong-type/dupe all refused cleanly; 200k-char vocab word imports and freezes UI ~3min per Vocabulary visit (#2390); export appVersion hard-coded 1.0.0 (#2391). Local API: auth/rebind guard/port clamp ok; MODE_NOT_FOUND for missing recording is deliberate (#289). Avalonia managed file picker: type folder in path bar, not full path in File name."
     }
   ]
 }
