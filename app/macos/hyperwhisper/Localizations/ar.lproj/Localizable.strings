@@ -709,6 +709,7 @@
 "modes.header.create" = "إنشاء وضع";
 "modes.name.unnamed" = "بدون اسم";
 "modes.badge.offline" = "غير متصل";
+"modes.badge.modelMissing" = "النموذج مفقود";
 "modes.context.select" = "حدد";
 "modes.help.edit" = "تحرير إعدادات الوضع";
 "modes.help.preset" = "تعرف على المزيد حول نمط التنسيق هذا";

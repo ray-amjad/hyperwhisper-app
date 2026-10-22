@@ -709,6 +709,7 @@ Uredi te načine, da izbereš drug model pred odstranitvijo.";
 "modes.header.create" = "Ustvari način";
 "modes.name.unnamed" = "Brez imena";
 "modes.badge.offline" = "Brez povezave";
+"modes.badge.modelMissing" = "Model manjka";
 "modes.context.select" = "Izberi";
 "modes.help.edit" = "Uredi nastavitve načina";
 "modes.help.preset" = "Izvedite več o tej predlogi";

@@ -19,17 +19,15 @@
  * tests/route-rate-limits.test.ts.
  */
 import assert from "node:assert/strict";
-import { describe, mock, test } from "node:test";
+import { describe, test } from "node:test";
 
 import { NextRequest } from "next/server";
 
 import { GET as getConfig } from "../app/api/config/route";
 
-// `mock.module` needs --experimental-test-module-mocks (npm test passes it);
-// @types/node@20 has no declaration for it.
-(mock as unknown as {
-  module(specifier: string, options: { namedExports: Record<string, unknown> }): void;
-}).module(new URL("../lib/rate-limit.ts", import.meta.url).href, {
+import { moduleMock } from "./module-mock";
+
+moduleMock.module(new URL("../lib/rate-limit.ts", import.meta.url).href, {
   namedExports: {
     checkoutRateLimiter: { limit: async () => ({ success: true }) },
   },

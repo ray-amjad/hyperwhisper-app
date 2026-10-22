@@ -11,22 +11,10 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import test, { mock } from "node:test";
+import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-// `mock.module` is real in Node 22 (behind `--experimental-test-module-mocks`,
-// which `npm test` passes), but the pinned @types/node@20 does not declare it.
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: {
-      namedExports?: Record<string, unknown>;
-      defaultExport?: unknown;
-    },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+import { moduleMock } from "./module-mock";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 

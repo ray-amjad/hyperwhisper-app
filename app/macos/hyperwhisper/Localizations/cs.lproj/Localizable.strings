@@ -709,6 +709,7 @@ Upravte tyto režimy a vyberte jiný model před jeho odebráním.";
 "modes.header.create" = "Vytvorit rezim";
 "modes.name.unnamed" = "Nepojmenovany";
 "modes.badge.offline" = "Offline";
+"modes.badge.modelMissing" = "Chybí model";
 "modes.context.select" = "Vybrat";
 "modes.help.edit" = "Upravit nastaveni rezimu";
 "modes.help.preset" = "Zjistit více o tomto stylu formátování";
