@@ -262,7 +262,8 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// Number of reconnect attempts in the current session.
     /// Reset to 0 on successful startSession(), and lazily in handleUnexpectedDisconnect()
     /// when the previous connection was stable for a while (isolated network blip).
-    /// If >= 3, skip reconnect and go straight to error.
+    /// If > maxReconnectsPerCycle (3), skip reconnect and go straight to error:
+    /// the 4th rapid drop gives up. See `reconnectBudget(previousCount:connectedFor:)`.
     private var reconnectCount = 0
 
     /// When the current WebSocket connection was (re)established.
@@ -272,7 +273,31 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
     /// If a connection stayed up at least this long before dropping, the drop is
     /// treated as an isolated blip and the reconnect budget is reset.
-    private static let stableConnectionResetInterval: TimeInterval = 60
+    nonisolated static let stableConnectionResetInterval: TimeInterval = 60
+
+    /// Reconnects allowed per rapid-drop cycle. The drop after the last one gives up.
+    nonisolated static let maxReconnectsPerCycle = 3
+
+    /// The reconnect budget rule, as a pure function so tests can pin it.
+    ///
+    /// A connection that stayed up at least `stableConnectionResetInterval` before
+    /// dropping is an isolated network blip, not part of a flapping loop, so the
+    /// budget resets before this drop is counted (#246). Rapid drop cycles keep
+    /// accumulating, and the drop that takes the count past
+    /// `maxReconnectsPerCycle` is `exhausted`.
+    ///
+    /// - Returns: the new reconnect count, and whether the budget is spent.
+    nonisolated static func reconnectBudget(
+        previousCount: Int,
+        connectedFor: TimeInterval
+    ) -> (count: Int, exhausted: Bool) {
+        var count = previousCount
+        if connectedFor >= stableConnectionResetInterval {
+            count = 0
+        }
+        count += 1
+        return (count, count > maxReconnectsPerCycle)
+    }
 
     /// True while handleUnexpectedDisconnect is mid-flight.
     /// Although the class is @MainActor, handleUnexpectedDisconnect suspends
@@ -2030,15 +2055,15 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         // so long sessions don't exhaust it after 3 lifetime blips (#246).
         // Rapid drop cycles (connect → drop within seconds) keep accumulating
         // and still hit the limit below.
-        if Date().timeIntervalSince(connectionEstablishedAt) >= Self.stableConnectionResetInterval {
-            reconnectCount = 0
-        }
-
-        reconnectCount += 1
+        let budget = Self.reconnectBudget(
+            previousCount: reconnectCount,
+            connectedFor: Date().timeIntervalSince(connectionEstablishedAt)
+        )
+        reconnectCount = budget.count
 
         // Guard against unbounded reconnect cycles.
         // After 3 failed reconnects, stop trying and surface the error.
-        if reconnectCount > 3 {
+        if budget.exhausted {
             logger.error("Reconnect cycle limit reached (\(self.reconnectCount) attempts) — giving up")
             noteStage("reconnect_exhausted")
             if AppLogger.isErrorLoggingEnabled {

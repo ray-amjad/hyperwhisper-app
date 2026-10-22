@@ -156,6 +156,62 @@ struct DeviceAudioRecorderTests {
         ))
     }
 
+    // MARK: - Device Removal (issue #2284)
+
+    @Test func aRemovedChosenDeviceFallsBackToTheDefault() {
+        let gone: Set<AudioDeviceID> = [41]
+        #expect(DeviceAudioRecorder.restartCandidates(chosen: 41, fallback: 73, isGone: { gone.contains($0) }) == [73])
+    }
+
+    @Test func aLiveChosenDeviceIsTriedBeforeTheDefault() {
+        #expect(DeviceAudioRecorder.restartCandidates(chosen: 41, fallback: 73, isGone: { _ in false }) == [41, 73])
+        #expect(DeviceAudioRecorder.restartCandidates(chosen: 41, fallback: 41, isGone: { _ in false }) == [41])
+        #expect(DeviceAudioRecorder.restartCandidates(chosen: 41, fallback: AudioDeviceID(kAudioObjectUnknown), isGone: { _ in false }) == [41])
+        #expect(DeviceAudioRecorder.restartCandidates(chosen: 41, fallback: nil, isGone: { _ in false }) == [41])
+    }
+
+    @Test func noLiveDeviceMeansNoCandidate() {
+        // An empty list makes the restart fail, so the retry budget ends in capture lost.
+        #expect(DeviceAudioRecorder.restartCandidates(chosen: 41, fallback: 73, isGone: { _ in true }).isEmpty)
+    }
+
+    @Test func onlyPositiveEvidenceMeansADeviceIsGone() {
+        #expect(DeviceAudioRecorder.isGone(aliveFlag: 0, isListed: nil))
+        #expect(!DeviceAudioRecorder.isGone(aliveFlag: 1, isListed: nil))
+        #expect(DeviceAudioRecorder.isGone(aliveFlag: nil, isListed: false))
+        // A failed alive read on a device that is still listed, or with no list at all,
+        // must not move the recording off the chosen microphone.
+        #expect(!DeviceAudioRecorder.isGone(aliveFlag: nil, isListed: true))
+        #expect(!DeviceAudioRecorder.isGone(aliveFlag: nil, isListed: nil))
+    }
+
+    @Test func aRemovedActiveDeviceRestartsCapture() {
+        #expect(DeviceAudioRecorder.deviceRemovalNeedsRestart(isRunning: true, hasEngine: true, activeDeviceID: 41, isGone: { $0 == 41 }))
+    }
+
+    @Test func aLiveActiveDeviceKeepsCapture() {
+        // Another device coming or going fires the same listener: no restart for it.
+        #expect(!DeviceAudioRecorder.deviceRemovalNeedsRestart(isRunning: true, hasEngine: true, activeDeviceID: 41, isGone: { _ in false }))
+        #expect(!DeviceAudioRecorder.deviceRemovalNeedsRestart(isRunning: true, hasEngine: true, activeDeviceID: 41, isGone: { $0 == 99 }))
+    }
+
+    @Test func noRunningCaptureMeansNoRestart() {
+        let allGone: (AudioDeviceID) -> Bool = { _ in true }
+        #expect(!DeviceAudioRecorder.deviceRemovalNeedsRestart(isRunning: false, hasEngine: true, activeDeviceID: 41, isGone: allGone))
+        // Torn down, or a retry pending: the restart path owns capture already.
+        #expect(!DeviceAudioRecorder.deviceRemovalNeedsRestart(isRunning: true, hasEngine: false, activeDeviceID: 41, isGone: allGone))
+        // Teardown clears the active device, so a stale listener block does nothing.
+        #expect(!DeviceAudioRecorder.deviceRemovalNeedsRestart(isRunning: true, hasEngine: true, activeDeviceID: nil, isGone: allGone))
+    }
+
+    @Test func afterAFallbackTheDecisionFollowsTheDefaultDevice() {
+        // Capture fell back from the chosen device 41 to the default 73.
+        let chosenGone: (AudioDeviceID) -> Bool = { $0 == 41 }
+        #expect(!DeviceAudioRecorder.deviceRemovalNeedsRestart(isRunning: true, hasEngine: true, activeDeviceID: 73, isGone: chosenGone))
+        let defaultGone: (AudioDeviceID) -> Bool = { $0 == 41 || $0 == 73 }
+        #expect(DeviceAudioRecorder.deviceRemovalNeedsRestart(isRunning: true, hasEngine: true, activeDeviceID: 73, isGone: defaultGone))
+    }
+
     // MARK: - File Shape
 
     @Test func outputFileIs16kMonoInt16WAV() throws {

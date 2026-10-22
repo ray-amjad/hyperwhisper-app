@@ -14,7 +14,8 @@
  * binds to the real `crypto` and the fault branches stay unreachable.
  */
 import realCrypto from "node:crypto";
-import { mock } from "node:test";
+
+import { consoleSilencer, moduleMock } from "./module-mock";
 
 export interface RandomIntCall {
   max: number;
@@ -48,35 +49,10 @@ export function resetHarness(): void {
 /** The generator warns between retries. Capture the lines rather than print them. */
 export const warnLines: string[] = [];
 
-const realConsole = { warn: console.warn };
+const retryWarnings = consoleSilencer(["warn"], warnLines);
 
-export function silenceRetryWarnings(): void {
-  console.warn = (...args: unknown[]): void => {
-    warnLines.push(args.map((a) => String(a)).join(" "));
-  };
-}
-
-export function restoreRetryWarnings(): void {
-  console.warn = realConsole.warn;
-}
-
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrow the tracker to the one method used here rather
- * than bumping the types in a test-only change.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: {
-      namedExports?: Record<string, unknown>;
-      defaultExport?: unknown;
-    },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+export const silenceRetryWarnings = retryWarnings.silence;
+export const restoreRetryWarnings = retryWarnings.restore;
 
 function scriptedRandomInt(max: number): number {
   calls.randomInt.push({ max });

@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Возможности",
-    "pricing": "Цены",
     "faq": "FAQ",
     "support": "Поддержка",
     "download": "Скачать",
@@ -20,7 +19,6 @@
     "githubAria": "Посмотреть HyperWhisper на GitHub"
   },
   "hero": {
-    "openSourceBadge": "Открытый код · Apache-2.0",
     "logoAlt": "Логотип HyperWhisper",
     "headline": "Пишите, создавайте и творите",
     "headlineAccent": "в 5 раз быстрее с ИИ",
@@ -97,57 +95,6 @@
     "accuracyRate": "Точность",
     "languagesSupported": "Поддерживаемые языки",
     "providersSupported": "Поддерживаемые провайдеры"
-  },
-  "pricing": {
-    "title": "Без подписок. Никогда.",
-    "subtitle": "Платите один раз, пользуйтесь вечно. Мы тоже не любим подписки.",
-    "guarantee": "14-дневная гарантия возврата денег",
-    "guaranteeExtended": "если вы не полностью довольны.",
-    "learnMore": "Узнать больше",
-    "free": {
-      "name": "Бесплатно",
-      "price": "$0",
-      "period": "навсегда",
-      "description": "Идеально, чтобы попробовать HyperWhisper",
-      "cta": "Скачать бесплатно",
-      "features": {
-        "transcriptionLimit": "5 минут транскрибации в день",
-        "basicModes": "Базовые режимы транскрибации",
-        "offlineTranscription": "Офлайн транскрибация",
-        "apiTranscription": "API-транскрибация (с вашими ключами)",
-        "postProcessing": "Постобработка текста",
-        "providers": "9+ провайдеров на выбор",
-        "lifetimeUpdates": "Пожизненные обновления",
-        "cloudLimited": "HyperWhisper Cloud (ограниченное использование)",
-        "customVocabulary": "Пользовательский словарь",
-        "prioritySupport": "Приоритетная поддержка"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "пожизненно",
-      "description": "Разовая покупка, безлимитные возможности навсегда",
-      "cta": "Купить сейчас - Пожизненный доступ",
-      "mostPopular": "Самый популярный",
-      "features": {
-        "unlimitedTranscription": "Неограниченная транскрибация",
-        "allModes": "Все режимы транскрибации",
-        "offlineTranscription": "Офлайн транскрибация",
-        "apiTranscription": "API-транскрибация (с вашими ключами)",
-        "postProcessing": "Постобработка текста",
-        "providers": "9+ провайдеров на выбор",
-        "lifetimeUpdates": "Пожизненные обновления",
-        "cloudCredits": "HyperWhisper Cloud ($5 в кредитах)",
-        "customVocabulary": "Пользовательский словарь",
-        "prioritySupport": "Приоритетная поддержка"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise и индивидуальные цены",
-      "description": "Скидки за объём, SSO, приоритетная поддержка, внутренний хостинг и индивидуальные интеграции",
-      "cta": "Связаться с продажами"
-    }
   },
   "faq": {
     "title": "Часто задаваемые вопросы",
@@ -252,10 +199,7 @@
     "downloadButton": "Скачать HyperWhisper",
     "errorGeneric": "Что-то пошло не так. Пожалуйста, попробуйте снова.",
     "errorEmail": "Введите действительный адрес e-mail.",
-    "errorNetwork": "Ошибка сети. Проверьте подключение и попробуйте снова.",
-    "thankYouTitle": "Спасибо!",
     "downloadStarted": "Скачивание должно начаться автоматически.",
-    "manualDownload": "Скачивание не началось? Нажмите здесь",
     "skipAndDownloadButton": "Пропустить и скачать"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Скачать",
       "roadmap": "Дорожная карта",
       "helpCenter": "Центр помощи",
-      "manageBilling": "Управление платежами",
       "customerPortal": "Клиентский портал",
       "olderVersions": "Старые версии",
       "blog": "Блог",

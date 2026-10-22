@@ -709,6 +709,7 @@ Rediger disse tilstande for at vælge en anden model, inden du fjerner den.";
 "modes.header.create" = "Opret tilstand";
 "modes.name.unnamed" = "Unavngivet";
 "modes.badge.offline" = "Offline";
+"modes.badge.modelMissing" = "Model mangler";
 "modes.context.select" = "Vælg";
 "modes.help.edit" = "Rediger tilstandsindstillinger";
 "modes.help.preset" = "Læs mere om denne formateringsstil";
