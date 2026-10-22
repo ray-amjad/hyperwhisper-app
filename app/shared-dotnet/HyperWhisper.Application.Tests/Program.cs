@@ -1084,6 +1084,37 @@ try
     await credentialViewModel.SaveAsync();
     Assert(credentialViewModel.Items.Single(item => item.Account == "OpenAIApiKey").IsPresent
         && credentialViewModel.Secret.Length == 0, "credential UI did not save securely or clear its input");
+    credentialViewModel.SelectAccount("GroqApiKey");
+    credentialViewModel.Secret = "groq-test-secret-never-export";
+    await credentialViewModel.SaveAsync();
+    Assert(credentialViewModel.Selected?.Account == "GroqApiKey"
+        && credentialViewModel.Selected.IsPresent,
+        "saving a credential moved the selection off the account it saved (#2324)");
+    await credentialViewModel.DeleteAsync();
+    Assert(credentialViewModel.Selected?.Account == "GroqApiKey"
+        && !credentialViewModel.Selected.IsPresent
+        && credentialStore.HasAccount("OpenAIApiKey"),
+        "deleting a credential moved the selection off the account it deleted (#2324)");
+    await credentialViewModel.DeleteAsync();
+    Assert(credentialViewModel.Selected?.Account == "GroqApiKey"
+        && credentialStore.HasAccount("OpenAIApiKey")
+        && credentialViewModel.Items.Single(item => item.Account == "OpenAIApiKey").IsPresent,
+        "a second Delete erased another provider's stored credential (#2324)");
+    var failingCredentialViewModel = new HyperWhisper.PortableApplication.ViewModels.CredentialManagementViewModel(
+        new FailWriteCredentialStore());
+    failingCredentialViewModel.Selected = failingCredentialViewModel.Items.Single(item => item.Account == "OpenAIApiKey");
+    failingCredentialViewModel.Secret = "typed-key-must-survive-a-failed-write";
+    await failingCredentialViewModel.SaveAsync();
+    Assert(failingCredentialViewModel.Secret == "typed-key-must-survive-a-failed-write"
+        && failingCredentialViewModel.Status.ErrorCode == "credentials.write_failed",
+        "credential UI emptied the typed secret after a failed secure-storage write");
+    failingCredentialViewModel.SelectAccount("OpenAIApiKey");
+    Assert(failingCredentialViewModel.Secret == "typed-key-must-survive-a-failed-write",
+        "re-selecting the same credential emptied the typed secret");
+    failingCredentialViewModel.SelectAccount("AnthropicApiKey");
+    Assert(failingCredentialViewModel.Secret.Length == 0,
+        "a secret typed for one credential stayed in the field after selecting another");
+    credentialViewModel.SelectAccount("OpenAIApiKey");
     await credentialViewModel.DeleteAsync();
     Assert(!credentialViewModel.Items.Single(item => item.Account == "OpenAIApiKey").IsPresent,
         "credential UI did not delete the stored credential");
@@ -1358,6 +1389,24 @@ try
         && !(await new ModeRepository(database).ListAsync()).Any(item => item.Name == "Rejected custom endpoint"),
         "failed custom endpoint save left partial settings or mode persistence");
 
+    // Issue #2236: when the stored key cannot be read, the save fails and the rollback must leave
+    // that key alone. It used to take "nothing read" for "nothing stored" and delete it.
+    var storedAccount = $"CustomEndpoint_{customEndpoint.Id:D}";
+    foreach (var throws in new[] { false, true })
+    {
+        var readFailingModes = new HyperWhisper.PortableApplication.ViewModels.ModesViewModel(
+            new ModeRepository(database), reloadedSettings, new FailReadCredentialStore(credentialStore, throws));
+        await readFailingModes.RefreshAsync();
+        readFailingModes.Selected = readFailingModes.Items.Single(item => item.Name == "Custom endpoint");
+        readFailingModes.CustomEndpointApiKey = "custom-secret-replacement";
+        await readFailingModes.SaveAsync();
+        var kept = credentialStore.Read("HyperWhisper", storedAccount);
+        Assert(readFailingModes.Status.ErrorCode == "modes.save_failed"
+            && kept.IsSuccess && kept.Value is { } keptBytes
+            && Encoding.UTF8.GetString(keptBytes) == "custom-secret-never-export",
+            $"a failed credential read (throws={throws}) deleted or replaced the stored custom endpoint key");
+    }
+
     var delayedModels = new DelayedHttpHandler();
     using (var modelHttp = new HttpClient(delayedModels))
     {
@@ -1502,6 +1551,18 @@ try
             && archive.Entries.Select(entry => entry.FullName).Order().SequenceEqual(
                 new[] { "capabilities.json", "logs/events.jsonl", "system.json" }),
             "about diagnostics did not enforce the exact archive allowlist");
+
+    // #2391: the shell hands the head's real version (the one About shows) to backup export,
+    // so a Linux backup no longer claims the old hard-coded "1.0.0".
+    using (var versionShell = new ApplicationShellViewModel(database, reloadedSettings, about: about))
+    {
+        var versionBackupPath = Path.Combine(root, "version.hwbackup");
+        versionShell.Backup.Path = versionBackupPath;
+        await versionShell.Backup.ExportAsync();
+        Assert(!versionShell.Backup.Status.HasError
+            && JsonNode.Parse(File.ReadAllText(versionBackupPath))!["appVersion"]!.GetValue<string>() == "1.2.3",
+            $"shell backup export did not stamp the About app version: {versionShell.Backup.Status.ErrorCode}");
+    }
 
     Console.WriteLine("HyperWhisper.Application persistence tests passed.");
     return 0;
@@ -4353,6 +4414,16 @@ file sealed class MemoryCredentialStore : ICredentialStore
     public PlatformResult Delete(string resource, string account)
     { _values.Remove((resource, account)); return PlatformResult.Success(); }
     public bool HasAccount(string account) => _values.ContainsKey(("HyperWhisper", account));
+}
+
+/// <summary>Fails every read, as a transient keyring error would; writes and deletes reach <c>inner</c>.</summary>
+file sealed class FailReadCredentialStore(ICredentialStore inner, bool throws) : ICredentialStore
+{
+    public PlatformResult<byte[]?> Read(string resource, string account) => throws
+        ? throw new InvalidOperationException("simulated keyring exception")
+        : PlatformResult<byte[]?>.Failure("credentials.read_failed", "simulated secure store read failure");
+    public PlatformResult Write(string resource, string account, ReadOnlySpan<byte> value) => inner.Write(resource, account, value);
+    public PlatformResult Delete(string resource, string account) => inner.Delete(resource, account);
 }
 
 file sealed class FailWriteCredentialStore : ICredentialStore

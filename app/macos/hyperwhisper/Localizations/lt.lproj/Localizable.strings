@@ -1173,3 +1173,4 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "settings.storage.maxRecordingDuration.hour" = "1 valanda";
 "settings.storage.maxRecordingDuration.hours" = "%d val.";
 "settings.storage.maxRecordingDuration.off" = "Išjungta";
+"settings.api_server.status.stopping" = "Stabdoma…";

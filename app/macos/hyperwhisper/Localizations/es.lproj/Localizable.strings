@@ -1174,3 +1174,4 @@ Actualiza estos modos para usar un modelo diferente antes de eliminarlo.";
 "settings.storage.maxRecordingDuration.hour" = "1 hora";
 "settings.storage.maxRecordingDuration.hours" = "%d horas";
 "settings.storage.maxRecordingDuration.off" = "Desactivado";
+"settings.api_server.status.stopping" = "Deteniendo…";

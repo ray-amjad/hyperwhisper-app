@@ -1,7 +1,7 @@
 // Tests for the caller-identity helpers in request-id.ts.
 //
 // `getClientIP` is an abuse control, not a logging convenience: every route
-// (`transcribe`, `post-process`, `assistant`, `usage`, `ws-streaming-deepgram`)
+// (`transcribe`, `post-process`, `usage`, `ws-streaming-deepgram`)
 // hands its result to the per-IP daily quota and the `ip_blocked` list. Both
 // stop being enforceable the moment a caller can choose its own IP, so the rule
 // this file protects is:

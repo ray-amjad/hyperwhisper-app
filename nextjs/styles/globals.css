@@ -371,3 +371,27 @@ body {
     animation: none;
   }
 }
+
+/* A /credits summary value that changes (#768): each character re-enters
+   from a small blurred offset, 40 ms after the one before it. Inline-block so
+   the transform applies; pre so a grouping space keeps its width. */
+@keyframes number-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance-small));
+    filter: blur(var(--motion-blur-small));
+  }
+}
+
+.t-number-pop-char {
+  display: inline-block;
+  white-space: pre;
+  animation: number-pop-in 500ms var(--motion-ease-in-out) both;
+}
+
+/* Reduce motion: the new value is shown in one frame. */
+@media (prefers-reduced-motion: reduce) {
+  .t-number-pop-char {
+    animation: none;
+  }
+}

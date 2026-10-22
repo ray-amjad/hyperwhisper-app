@@ -799,6 +799,12 @@ Questa azione non può essere annullata.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (pronto)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (non attivato)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (nessuna chiave API)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Caricamento non riuscito</value>
   </data>

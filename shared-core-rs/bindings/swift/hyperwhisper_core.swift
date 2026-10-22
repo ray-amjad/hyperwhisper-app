@@ -17682,6 +17682,11 @@ public func llmWrapTranscript(systemInfo: String, transcript: String) -> String 
 }
 /**
  * Every engine id, in the order `openapi.yaml` lists them.
+ *
+ * **Call site: the macOS test target**, not a head's runtime code.
+ * `LocalEngineNeverRoutesToCloudTests` drives its "no local engine routes to
+ * Cloud" properties off this table, so an engine added here is covered there
+ * without anyone widening a list.
  */
 public func localApiAllEngineIds() -> [HwLocalApiEngineId] {
     return try!  FfiConverterSequenceTypeHwLocalApiEngineId.lift(try! rustCall() {
@@ -17911,23 +17916,6 @@ public func localApiMaxUploadBytes() -> UInt64 {
 })
 }
 /**
- * Which required keys a create body did not carry, in the documented order.
- *
- * **Call sites: the portable head and Windows only, deliberately.** The portable
- * head already walks `document.EnumerateObject()`. Windows needs a new
- * `ReadJsonBodyWithKeysAsync<T>` because it cannot infer presence from
- * `ModeDto` — `Punctuation`/`Capitalization`/`ProfanityFilter` are non-nullable
- * `bool`, so an absent key and `false` are the same value. macOS needs neither:
- * its decoder *is* this check.
- */
-public func localApiMissingRequiredModeKeys(present: [String]) -> [String] {
-    return try!  FfiConverterSequenceString.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_local_api_missing_required_mode_keys(
-        FfiConverterSequenceString.lower(present),$0
-    )
-})
-}
-/**
  * Classify one top-level key of a mode body. Exact, case-sensitive.
  *
  * **Call sites: the portable head and Windows. Not macOS** — see the module
@@ -17940,27 +17928,6 @@ public func localApiModeKeyClassification(key: String) -> HwLocalApiModeKeyClass
     return try!  FfiConverterTypeHwLocalApiModeKeyClass.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_local_api_mode_key_classification(
         FfiConverterString.lower(key),$0
-    )
-})
-}
-/**
- * The key a mode name is compared *by*: trim Unicode whitespace, then
- * lowercase. `None` when nothing is left.
- *
- * **This is the definition of "the same name"**, replacing .NET's
- * `OrdinalIgnoreCase` and Core Data's `==[c]`. It is not a storage name — each
- * head still writes whatever its own pre-normalisation produced.
- *
- * **Call sites: all three heads.** On macOS it sits *behind*
- * `ModeNamePolicy.normalized`, which keeps NFC and the Unicode general-category
- * boundary trim. That half stays native because it needs
- * `unicode-normalization` and a category table, and `hw-localapi` takes no
- * dependency — it runs under `panic = "abort"` in front of a loopback socket.
- */
-public func localApiModeNameComparisonKey(name: String) -> String? {
-    return try!  FfiConverterOptionString.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_local_api_mode_name_comparison_key(
-        FfiConverterString.lower(name),$0
     )
 })
 }
@@ -18082,17 +18049,6 @@ public func localApiResolveEngineAlias(alias: String) -> HwLocalApiEngineId? {
 public func localApiTokenEntropyBytes() -> UInt32 {
     return try!  FfiConverterUInt32.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_local_api_token_entropy_bytes($0
-    )
-})
-}
-/**
- * The SHA-256 fingerprint of a token, hex-encoded — for a log line that has to
- * identify a credential without carrying it.
- */
-public func localApiTokenFingerprint(token: String) -> String {
-    return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_local_api_token_fingerprint(
-        FfiConverterString.lower(token),$0
     )
 })
 }
@@ -19497,7 +19453,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_llm_wrap_transcript() != 44003) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_local_api_all_engine_ids() != 63651) {
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_all_engine_ids() != 39863) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_all_error_codes() != 35889) {
@@ -19545,13 +19501,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_local_api_max_upload_bytes() != 24328) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_local_api_missing_required_mode_keys() != 39725) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_mode_key_classification() != 12705) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_comparison_key() != 44521) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_conflict() != 32568) {
@@ -19573,9 +19523,6 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_token_entropy_bytes() != 13421) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_local_api_token_fingerprint() != 55514) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_unauthorized_failure() != 22025) {

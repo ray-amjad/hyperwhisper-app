@@ -77,7 +77,8 @@ export interface CachedLicense {
   /**
    * Epoch ms taken just BEFORE the licence API request whose reply this is was
    * sent (#2026). Orders writes of the pool balance, which several requests
-   * race to write: see `WRITE_POOL_BALANCE_SCRIPT`.
+   * race to write (see `WRITE_POOL_BALANCE_SCRIPT`), and of this entry itself
+   * (#1899, see `WRITE_LICENSE_SCRIPT`).
    */
   issuedAtMs?: number;
 }
@@ -111,6 +112,34 @@ export async function getCachedLicense(
   }
 }
 
+// KEYS: license:<key>. ARGV: entry JSON, ttl seconds, issuedAtMs. Returns 1 if
+// written.
+//
+// The entry from whichever licence API call was ASKED last wins, not whichever
+// reply got here last (#1899). Validation, the usage read and every charge
+// reply all write this one entry, and they race: a slow success to a charge
+// sent before a revoke would otherwise rewrite the refusal as "valid" and admit
+// the key for a whole TTL (and a request that never charges, such as silent
+// audio, never corrects it). A slow refusal to a call sent before a re-grant is
+// dropped the same way. A tie (two calls asked in the same millisecond, so
+// either could be the later verdict) never replaces a stored refusal: the safe
+// side, as a revoke beats a charge sent the same instant. Any other tie is
+// written. A stored entry with no stamp, or one that does not parse, is
+// replaced. One script, so no reply can land between the read and the write.
+export const WRITE_LICENSE_SCRIPT = `
+local incomingIssued = tonumber(ARGV[3])
+local raw = redis.call('GET', KEYS[1])
+if raw and incomingIssued then
+  local ok, stored = pcall(function() return cjson.decode(raw) end)
+  if ok and type(stored) == 'table' and type(stored.issuedAtMs) == 'number' then
+    if stored.issuedAtMs > incomingIssued then return 0 end
+    if stored.issuedAtMs == incomingIssued and stored.isValid == false then return 0 end
+  end
+end
+redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2])
+return 1
+`;
+
 export async function cacheLicense(
   store: RedisStoreFactory,
   licenseKey: string,
@@ -119,8 +148,16 @@ export async function cacheLicense(
 ): Promise<void> {
   try {
     const redis = store();
+    // Every caller stamps its write; an unstamped one (a machine still on an
+    // older build mid-deploy) keeps the plain last-write-wins `set` it had.
     const writes: Array<Promise<unknown>> = [
-      redis.set(`license:${licenseKey}`, license, { ex: LICENSE_CACHE_TTL_SECONDS }),
+      license.issuedAtMs !== undefined
+        ? redis.eval(
+          WRITE_LICENSE_SCRIPT,
+          [`license:${licenseKey}`],
+          [JSON.stringify(license), String(LICENSE_CACHE_TTL_SECONDS), String(license.issuedAtMs)],
+        )
+        : redis.set(`license:${licenseKey}`, license, { ex: LICENSE_CACHE_TTL_SECONDS }),
     ];
     // A pooled key's balance is the USER's (#2026), so it is also the latest
     // word on every other key of that user. The credit-hold script caps a

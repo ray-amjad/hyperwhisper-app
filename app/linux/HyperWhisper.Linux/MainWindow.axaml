@@ -731,9 +731,11 @@
                 <DataTemplate>
                   <Border Padding="16,8" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource HwBorderBrush}">
                     <Grid ColumnDefinitions="2*,2*,110,90">
-                      <TextBlock Text="{Binding Word}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center"
+                      <!-- MaxLines bounds the layout: an unbounded 200,000-character word wrapped into
+                           thousands of lines and froze the page for minutes (#2390). -->
+                      <TextBlock Text="{Binding Word}" FontSize="13" TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
                                  Foreground="{DynamicResource HwTextPrimaryBrush}"/>
-                      <TextBlock Grid.Column="1" Text="{Binding Replacement}" FontSize="13" TextWrapping="Wrap"
+                      <TextBlock Grid.Column="1" Text="{Binding Replacement}" FontSize="13" TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis"
                                  VerticalAlignment="Center" Foreground="{DynamicResource HwTextSecondaryBrush}"/>
                       <Border Grid.Column="2" Classes="sourceBadge"
                               IsVisible="{Binding Source, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}">

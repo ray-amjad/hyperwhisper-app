@@ -269,8 +269,7 @@ const requestScope = new AsyncLocalStorage<Set<CreditHold>>();
 /**
  * Run one billed HTTP request. Every hold `validateCredits` takes inside it is
  * released when `run` settles, unless a deduction took it over first (it then
- * releases it after the charge) or `detachCreditHold` handed it to work that
- * outlives the handler.
+ * releases it after the charge).
  */
 export async function withCreditHoldScope<T>(run: () => Promise<T>): Promise<T> {
   const scope = new Set<CreditHold>();
@@ -295,17 +294,6 @@ export function requestHoldFor(auth: AuthContext): CreditHold | undefined {
   if (existing && existing.active && scope.has(existing)) return existing;
   const hold = new CreditHold(auth, REQUEST_HOLD_TTL_MS);
   scope.add(hold);
-  return hold;
-}
-
-/**
- * Take this request's hold out of its scope, for work that outlives the handler
- * (the assistant's streamed answer). The caller must `release()` it.
- */
-export function detachCreditHold(auth: AuthContext): CreditHold | undefined {
-  const hold = holdsByAuth.get(auth);
-  if (!hold) return undefined;
-  requestScope.getStore()?.delete(hold);
   return hold;
 }
 
