@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, MapPin, Pin } from "lucide-react";
 
 import {
@@ -13,6 +13,11 @@ import {
   type LatencyModelRow,
   type LatencyVendorRow,
 } from "@/lib/latency/types";
+import {
+  prefersReducedMotion,
+  slideRows,
+  snapshotRowTops,
+} from "@/lib/flip-rows";
 import { regionCity } from "@/lib/latency/fly-regions";
 import { TEXT_LINK } from "@/components/text-link";
 import { isRecord } from "@/src/lib/type-guards";
@@ -94,6 +99,12 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   // rather than jumping 500 px in one frame.
   const matrixRegion = useRef<HTMLDivElement>(null);
   const matrixTable = useRef<HTMLTableElement>(null);
+  // The re-sort FLIP (#812): where each row stood just before a re-order, and
+  // the slides in flight.
+  const tbodyRef = useRef<HTMLTableSectionElement>(null);
+  const rowRefs = useRef(new Map<string, HTMLTableRowElement>());
+  const pendingRowTops = useRef<Map<string, number> | null>(null);
+  const rowSlides = useRef(new Map<string, Animation>());
 
   const data = matrices[bucket];
   const { regions } = data;
@@ -269,6 +280,27 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendorRows, regions, activeSortRegion, byModel]);
 
+  // Slide the re-sorted rows to their new places (#812) instead of painting
+  // the new order in one frame, so the reader who clicked a column can follow
+  // the provider they were looking at. Only a re-order snapshots the rows: the
+  // "Break down by model" toggle changes the row SET, and #702 glides that.
+  useLayoutEffect(() => {
+    const before = pendingRowTops.current;
+
+    pendingRowTops.current = null;
+    const tbody = tbodyRef.current;
+    if (before === null || tbody === null || prefersReducedMotion()) return;
+    slideRows(tbody, rowRefs.current, before, rowSlides.current);
+  }, [rows]);
+
+  /** Call before any state change that re-orders the rows. */
+  function snapshotForSort() {
+    pendingRowTops.current = null;
+    const tbody = tbodyRef.current;
+    if (tbody === null || prefersReducedMotion()) return;
+    pendingRowTops.current = snapshotRowTops(tbody, rowRefs.current);
+  }
+
   /**
    * Colour range over the rows actually on screen. Model rows are included only
    * while the breakdown is open, so opening it cannot leave the vendor rows
@@ -326,7 +358,11 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                     : "text-gray-400 hover:text-white"
                 }`}
                 type="button"
-                onClick={() => setMetric(entry.key)}
+                onClick={() => {
+                  if (entry.key === metric) return;
+                  snapshotForSort();
+                  setMetric(entry.key);
+                }}
               >
                 {entry.label}
               </button>
@@ -356,7 +392,11 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                     : "text-gray-400 hover:text-white"
                 }`}
                 type="button"
-                onClick={() => setBucket(entry)}
+                onClick={() => {
+                  if (entry === bucket) return;
+                  snapshotForSort();
+                  setBucket(entry);
+                }}
               >
                 {BUCKET_LABELS[entry]}
               </button>
@@ -396,7 +436,12 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
               <button
                 className="rounded-lg border border-gray-800 bg-gray-900/60 px-3 py-2 text-sm text-gray-300 transition hover:text-white"
                 type="button"
-                onClick={() => setSortRegion(null)}
+                onClick={() => {
+                  // Only a re-order may leave a snapshot behind: a stale one
+                  // would slide rows on the next, unrelated change.
+                  if (activeSortRegion !== null) snapshotForSort();
+                  setSortRegion(null);
+                }}
               >
                 {activeSortRegion
                   ? `Sorted by ${regionCity(activeSortRegion)} — reset`
@@ -509,9 +554,10 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                         className="whitespace-nowrap transition hover:text-white"
                         title={`Sort providers by ${regionCity(region)}`}
                         type="button"
-                        onClick={() =>
-                          setSortRegion((current) => (current === region ? null : region))
-                        }
+                        onClick={() => {
+                          snapshotForSort();
+                          setSortRegion((current) => (current === region ? null : region));
+                        }}
                       >
                         {regionCity(region)}
                         <span className="block text-[10px] uppercase tracking-wider text-gray-400">
@@ -522,12 +568,16 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                   ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody ref={tbodyRef}>
                 {rows.map((row) => {
                   const pinned = pinnedVendor === row.vendor;
                   return (
                     <tr
                       key={row.key}
+                      ref={(tr) => {
+                        if (tr === null) rowRefs.current.delete(row.key);
+                        else rowRefs.current.set(row.key, tr);
+                      }}
                       className={
                         pinned
                           ? "bg-purple-950/20"
