@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
-import { localeOpenGraph, SITE_URL } from "@/lib/site-metadata";
+import { OG_IMAGES, SITE_NAME, SITE_URL } from "@/lib/site-metadata";
 import {
   buildAlternateLanguageMap,
   defaultLocale,
   isSupportedLocale,
+  toOpenGraphLocale,
 } from "@/src/i18n/locales";
 
 type LocalizedPageMetadataInput = {
@@ -25,6 +25,13 @@ type LocalizedPageMetadataInput = {
  *
  * Next merges metadata SHALLOWLY per top-level key, so `openGraph` carries the
  * layout's whole object plus the `url`, or the page would drop the og images.
+ *
+ * Except og:title and og:description (#2265): with neither set, Next fills
+ * them from the page's own resolved <title> (template applied) and
+ * description, and the layout's `twitter` block, which sets no title or
+ * description either, from those. The layout's home strings here would send
+ * the home page's title on every shared link. A page that sets its title after
+ * calling this (credits, open-source) gets its own title the same way.
  *
  * Returns the page's whole `generateMetadata`, so each page only states its
  * path and, if it has them, its own title and description:
@@ -48,7 +55,6 @@ export function localizedPageMetadata({
     // Same guard as the [locale] layout: no canonical built from a non-locale (#1853).
     if (!isSupportedLocale(locale)) notFound();
 
-    const t = await getTranslations({ locale, namespace: "metadata" });
     const url = `${SITE_URL}/${locale}${path}`;
 
     return {
@@ -62,7 +68,10 @@ export function localizedPageMetadata({
         },
       },
       openGraph: {
-        ...localeOpenGraph(locale, t("title"), t("description")),
+        type: "website",
+        locale: toOpenGraphLocale(locale),
+        siteName: SITE_NAME,
+        images: OG_IMAGES,
         url,
       },
     };

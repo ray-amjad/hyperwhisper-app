@@ -1,5 +1,7 @@
 "use client";
 
+import { ErrorReveal } from "@/components/ErrorReveal";
+
 /**
  * The tier a checkout is in flight for: the dollar amount of a preset, or the
  * `"custom"` sentinel for the free-entry box. `null` is "nothing in flight".
@@ -221,14 +223,18 @@ export default function CloudCreditsCardView({
           {/* #737: the whole point. A refused checkout used to leave the
               customer with a spinner that stopped and nothing else. The region
               sits UNDER the tier buttons, inside the `activeLicenseKey` guard
-              — there is no buy button to fail without a key. */}
-          {error && (
-            <div className="mt-2">
-              <span className="text-red-300 text-sm" role="alert">
-                {error}
-              </span>
-            </div>
-          )}
+              — there is no buy button to fail without a key. #2286: it
+              reveals instead of arriving in one frame; the mt-2 stays inside
+              the clip, so a closed wrapper takes no space. */}
+          <ErrorReveal>
+            {error && (
+              <div className="mt-2">
+                <span className="text-red-300 text-sm" role="alert">
+                  {error}
+                </span>
+              </div>
+            )}
+          </ErrorReveal>
         </>
       )}
     </div>

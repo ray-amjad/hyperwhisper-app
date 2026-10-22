@@ -172,10 +172,10 @@ describe('/transcribe never logs an STT provider error body (#2163)', () => {
     expect(allLogText()).toContain(ERROR_CODE);
     expect(allLogText()).toContain(UPSTREAM_REQUEST_ID);
     if (status === 400) {
-      // Unchanged wire: the client's 400 still carries the upstream's wording.
+      // #2131: the client's 400 is a fixed message, never the upstream's wording.
       expect(res.status).toBe(400);
-      expect(body).toContain('No transcription provider accepted this request');
-      expect(body).toContain(MARKER);
+      expect(body).toContain('No transcription provider accepted this audio or its settings');
+      expect(body).not.toContain(MARKER);
     }
   }, 30_000);
 
@@ -189,7 +189,7 @@ describe('/transcribe never logs an STT provider error body (#2163)', () => {
     expect(allLogText()).toContain(ERROR_CODE);
     if (status === 400) {
       expect(res.status).toBe(400);
-      expect(body).toContain(MARKER);
+      expect(body).not.toContain(MARKER);
     }
   }, 30_000);
 

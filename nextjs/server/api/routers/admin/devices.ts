@@ -15,12 +15,19 @@ import {
 } from "@/src/lib/db-layer";
 import { describeDbError, safeErrorMessage } from "@/lib/shared/db-error";
 
+/**
+ * The last-active window in whole days, 1 to 3650 (ten years). Without a
+ * bound a huge value made `since` an Invalid Date in the db-layer and the
+ * query answered 500 "Invalid time value"; now it is a 400 input error (#2083).
+ */
+const daysInput = z.number().int().min(1).max(3650);
+
 export const devicesRouter = createTRPCRouter({
   /**
    * List device counts per license, optionally filtered by last-active window.
    */
   list: adminProcedure
-    .input(z.object({ days: z.number().positive().optional() }).optional())
+    .input(z.object({ days: daysInput.optional() }).optional())
     .query(async ({ input }) => {
       try {
         const days = input?.days ?? 30;
@@ -47,7 +54,7 @@ export const devicesRouter = createTRPCRouter({
     .input(
       z.object({
         licenseKeyId: z.string().uuid(),
-        days: z.number().positive().optional(),
+        days: daysInput.optional(),
         search: z.string().max(200).optional(),
         limit: z.number().int().min(1).max(100).optional(),
         cursor: z.number().int().min(0).nullish(),

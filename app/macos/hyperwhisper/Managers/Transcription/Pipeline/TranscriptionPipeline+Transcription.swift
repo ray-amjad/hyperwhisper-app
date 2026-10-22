@@ -276,16 +276,29 @@ extension TranscriptionPipeline {
             // inherits main-actor isolation and the call below is a plain
             // synchronous call — no hop that could be reordered after the next
             // health probe.
-            let text: String
+            //
+            // PER-CALL RESULTS (#754): `transcribeDetailed` returns this call's
+            // detected language, timestamps and server-corrected text in its
+            // outcome, instead of leaving them on the shared provider instance.
+            // A failed attempt's diagnostics ride on `TranscriptionAttemptFailure`,
+            // which is unwrapped right here: everything below, the catch included,
+            // sees the provider's ORIGINAL error, exactly as before.
+            let outcome: TranscriptionOutcome
+            var failedAttemptProviderDiagnostics: TranscriptionAttemptDiagnostics?
             let providerClock = ContinuousClock()
             let providerStart = providerClock.now
             do {
-                text = try await provider.transcribe(
-                    audioURL: audioURL,
-                    language: languageArg,
-                    mode: mode,
-                    vocabulary: vocabulary
-                )
+                do {
+                    outcome = try await provider.transcribeDetailed(
+                        audioURL: audioURL,
+                        language: languageArg,
+                        mode: mode,
+                        vocabulary: vocabulary
+                    )
+                } catch let failure as TranscriptionAttemptFailure {
+                    failedAttemptProviderDiagnostics = failure.diagnostics
+                    throw failure.underlying
+                }
                 _ = providerStart.duration(to: providerClock.now)
                 if let cloudProviderType {
                     if let credentialGeneration {
@@ -303,7 +316,7 @@ extension TranscriptionPipeline {
                 if let transcriptionError = error as? TranscriptionError,
                    case .noSpeechDetected = transcriptionError {
                     let diagnostics = TranscriptionAttemptDiagnostics.failureSnapshot(
-                        providerDiagnostics: provider.lastAttemptDiagnostics,
+                        providerDiagnostics: failedAttemptProviderDiagnostics,
                         providerDisplayName: provider.name,
                         providerAttemptMs: providerAttemptMs
                     )
@@ -326,16 +339,16 @@ extension TranscriptionPipeline {
                 throw error
             }
 
-            // Read timestamps produced by the run (nil unless the engine produced
-            // them). Same ordering guarantee as `detectedLanguage` below.
-            let timestamps = provider.lastTimestamps
+            // The engine's raw text for THIS call.
+            let text = outcome.text
 
-            // Provider-detected language (nil unless the provider surfaces one,
-            // e.g. HyperWhisper Cloud). Read immediately after the awaited
-            // transcribe(...) — transcriptions are serialized per session so this
-            // is ordered with respect to the call that produced it. Used to gate
-            // filler-word removal when the requested language was "auto".
-            let detectedLanguage = provider.detectedLanguage
+            // Timestamps produced by THIS call (nil unless the engine produced them).
+            let timestamps = outcome.timestamps
+
+            // Provider-detected language for THIS call (nil unless the provider
+            // surfaces one, e.g. HyperWhisper Cloud). Used to gate filler-word
+            // removal when the requested language was "auto".
+            let detectedLanguage = outcome.detectedLanguage
 
             // The local engine's own vocabulary correction (the Parakeet
             // family's phonetic pass), run ONCE, here, after `text` is kept as
@@ -352,16 +365,16 @@ extension TranscriptionPipeline {
                 vocabulary: vocabulary
             )
 
-            // Use server-provided AI-enhanced text when HyperWhisper Cloud returns it.
+            // Use server-provided AI-enhanced text when HyperWhisper Cloud returns
+            // it for THIS call (every other provider returns nil).
             let hyperwhisperCloudAIText: String?
-            if let hwProvider = provider as? HyperWhisperCloudProvider,
-               let aiText = hwProvider.aiEnhancedText {
+            if let aiText = outcome.serverCorrectedText {
                 hyperwhisperCloudAIText = aiText
                 AppLogger.transcription.info("🔄 HyperWhisper Cloud returned AI-enhanced text · chars=\(aiText.count, privacy: .public)")
             } else {
                 hyperwhisperCloudAIText = nil
             }
-            // Every read of the provider's per-call state is done.
+            // Done with the engine for this call.
             releaseEngine()
 
             // Decide whether to run client-side AI post-processing.

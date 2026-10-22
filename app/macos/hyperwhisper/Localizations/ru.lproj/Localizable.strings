@@ -709,6 +709,7 @@
 "modes.header.create" = "Создать режим";
 "modes.name.unnamed" = "Без названия";
 "modes.badge.offline" = "Автономно";
+"modes.badge.modelMissing" = "Модель отсутствует";
 "modes.context.select" = "Выбрать";
 "modes.help.edit" = "Редактировать параметры режима";
 "modes.help.preset" = "Узнайте больше об этом предустановку";

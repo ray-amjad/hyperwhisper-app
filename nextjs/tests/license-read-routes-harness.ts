@@ -26,11 +26,9 @@
  * helpers are the only way the tests reach the routes. A test file that
  * imports a route path itself would bind to the real collaborators, so do not.
  */
-import { mock } from "node:test";
-
 import { NextRequest } from "next/server";
 
-import { formatLogArgs } from "./db-error-fixture";
+import { consoleSilencer, moduleMock, moduleUrl } from "./module-mock";
 
 import type { AccountKeyRow } from "@/src/lib/db-layer";
 
@@ -105,36 +103,10 @@ export function resetHarness(): void {
  */
 export const logLines: string[] = [];
 
-const realConsole = { error: console.error };
+const routeLogging = consoleSilencer(["error"], logLines);
 
-export function silenceRouteLogging(): void {
-  console.error = (...args: unknown[]): void => {
-    logLines.push(formatLogArgs(args));
-  };
-}
-
-export function restoreRouteLogging(): void {
-  console.error = realConsole.error;
-}
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
-
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrow the tracker to the one method used here rather
- * than bumping the types in a test-only change.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports: Record<string, unknown> },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+export const silenceRouteLogging = routeLogging.silence;
+export const restoreRouteLogging = routeLogging.restore;
 
 moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
   namedExports: {
