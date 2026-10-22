@@ -9,8 +9,10 @@ import { providerAudioReservation } from '../providers/audio-reservation';
 import { maxReservationUsdPerMinute } from '../providers/reservation';
 
 /**
- * Preflight credit reservation: turn a declared Content-Length into the credits
- * to hold before the body is read.
+ * Preflight credit reservation: turn an audio duration into the credits to
+ * hold. The duration is `exactAudioSeconds` when the provider boundary read it
+ * from the buffered body (every route but AssemblyAI dictation's and Meta's
+ * reads it from the container, #2483), else a size-only estimate.
  *
  * Which providers the request could reach, what each of them would charge, and
  * which of them has a routing tier priced above its own catalog are all

@@ -1,5 +1,6 @@
 import { parseDictationWav } from './assemblyai-dictation';
-import { estimateAudioSecondsFromSize } from '../lib/audio-duration';
+import { estimateAudioSecondsFromSize, reservationAudioSeconds } from '../lib/audio-duration';
+import { MAX_UPLOAD_BYTES_PER_SECOND } from '../lib/constants';
 import type { SttProviderId } from '../lib/stt-models';
 import { parseMetaWav } from './meta';
 import { ProviderInputError, UnsupportedAudioFormatError } from './types';
@@ -11,7 +12,7 @@ export type BufferedAudioReservationResult =
 export interface ProviderAudioReservation {
   /** Whether the exact reservation requires the request body. */
   requiresBufferedBody: boolean;
-  /** The historical size-only estimate used when no exact duration is known. */
+  /** The size-only estimate used when no exact duration is known. */
   estimatedAudioSeconds: number;
   /** A safe duration floor for the credit check before body allocation. */
   preBufferAudioSeconds: number;
@@ -71,11 +72,18 @@ export function providerAudioReservation(
   const providerReservation = PROVIDER_RESERVATIONS[provider];
   if (providerReservation) return providerReservation(sizeBytes);
 
-  const audioSeconds = estimateAudioSecondsFromSize(sizeBytes);
+  // Every other provider takes compressed audio, whose size says little about
+  // its length: an hour of 8 kbps Opus is 3.6 MB (#2483). So the hold waits for
+  // the body and reads the length from the container. The route buffers the
+  // whole body anyway; this only moves that before the hold.
   return {
-    requiresBufferedBody: false,
-    estimatedAudioSeconds: audioSeconds,
-    preBufferAudioSeconds: audioSeconds,
-    resolveBufferedAudio: () => durationResult(audioSeconds),
+    requiresBufferedBody: true,
+    estimatedAudioSeconds: estimateAudioSecondsFromSize(sizeBytes),
+    // No legitimate upload has a higher byte rate, so no audio of this size is
+    // shorter: this only refuses a balance that clearly cannot cover it.
+    preBufferAudioSeconds: sizeBytes / MAX_UPLOAD_BYTES_PER_SECOND,
+    // Unreadable audio falls back to a low-bitrate estimate rather than a
+    // local input error, which would skip the credit check.
+    resolveBufferedAudio: (audio) => durationResult(reservationAudioSeconds(audio)),
   };
 }
