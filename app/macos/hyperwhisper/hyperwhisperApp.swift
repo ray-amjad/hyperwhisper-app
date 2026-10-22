@@ -1344,7 +1344,7 @@ struct MenuBarIconView: View {
             alert.messageText = "alerts.export.failed.title".localized
             alert.informativeText = "alerts.export.logs.failed.message".localized
             alert.alertStyle = .warning
-            alert.runModal()
+            ModelessAlert.show(alert)
             return
         }
         
@@ -1368,14 +1368,14 @@ struct MenuBarIconView: View {
                     successAlert.messageText = "alerts.export.logs.success.title".localized
                     successAlert.informativeText = "alerts.export.logs.success.message".localized
                     successAlert.alertStyle = .informational
-                    successAlert.runModal()
+                    ModelessAlert.show(successAlert)
                 } catch {
                     // Show error alert
                     let alert = NSAlert()
                     alert.messageText = "alerts.export.failed.title".localized
                     alert.informativeText = "alerts.export.logs.saveFailed.message".localized(arguments: error.localizedDescription)
                     alert.alertStyle = .warning
-                    alert.runModal()
+                    ModelessAlert.show(alert)
                 }
             }
         }
@@ -1390,7 +1390,7 @@ struct MenuBarIconView: View {
                 alert.messageText = "alerts.export.failed.title".localized
                 alert.informativeText = "alerts.export.diagnostics.failed.message".localized
                 alert.alertStyle = .warning
-                alert.runModal()
+                ModelessAlert.show(alert)
                 return
             }
             
@@ -1425,14 +1425,14 @@ struct MenuBarIconView: View {
                             successAlert.informativeText = "alerts.export.diagnostics.noSystemLogs.message".localized(arguments: reason)
                             successAlert.alertStyle = .warning
                         }
-                        successAlert.runModal()
+                        ModelessAlert.show(successAlert)
                     } catch {
                         // Show error alert
                         let alert = NSAlert()
                         alert.messageText = "alerts.export.failed.title".localized
                         alert.informativeText = "alerts.export.diagnostics.saveFailed.message".localized(arguments: error.localizedDescription)
                         alert.alertStyle = .warning
-                        alert.runModal()
+                        ModelessAlert.show(alert)
                     }
                 } else {
                     // Clean up temporary file if user cancelled

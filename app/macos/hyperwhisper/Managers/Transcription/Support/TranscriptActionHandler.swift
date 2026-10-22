@@ -609,9 +609,11 @@ class TranscriptActionHandler: ObservableObject {
             deleteButton.hasDestructiveAction = true
         }
         
-        // Run the modal and return the result
-        // Since we're already on @MainActor, this is safe
-        let response = alert.runModal()
+        // Await the answer without runModal (issue #1734): runModal held the main
+        // actor until the click, and the Local API (@MainActor) answered nothing.
+        // A transcript deleted while this is open has a nil id afterwards, and
+        // both callers skip a nil id.
+        let response = await ModelessAlert.response(for: alert)
         return response == .alertFirstButtonReturn
     }
     
@@ -623,6 +625,7 @@ class TranscriptActionHandler: ObservableObject {
         alert.informativeText = error
         alert.alertStyle = .warning
         alert.addButton(withTitle: "common.ok".localized)
-        alert.runModal()
+        // Modeless so the Local API keeps answering while it is open (issue #1734).
+        ModelessAlert.show(alert)
     }
 }
