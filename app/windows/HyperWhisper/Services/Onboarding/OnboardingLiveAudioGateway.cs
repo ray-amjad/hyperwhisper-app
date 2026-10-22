@@ -31,8 +31,9 @@
 // DEVICE IDENTITY. macOS keys devices on a string id. Windows keys capture on an
 // int DeviceNumber, which shifts when a device is plugged in, and persists a
 // device NAME. So the seam's string id is the device NAME, and "" is the System
-// Default row, which resolves to DeviceNumber -1: the sentinel
-// AudioRecorderService.ResolveCaptureDevice already understands.
+// Default row, which resolves to the automatic pick's DeviceNumber (the Windows
+// default, skipping a virtual one, #2408), or -1 when nothing can be listed:
+// the sentinel AudioRecorderService.ResolveCaptureDevice already understands.
 
 using System.IO;
 using HyperWhisper.Data.Entities;
@@ -298,19 +299,37 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
     }
 
     /// <summary>
-    /// Name -> NAudio WaveIn index. -1 is NAudio's "default device" sentinel and
-    /// is what an unknown or absent name resolves to, so a preference naming a
-    /// disconnected microphone degrades to the system default rather than throwing.
+    /// Name -> NAudio WaveIn index. An unknown or absent name (the System
+    /// Default row, or a preference naming a disconnected microphone) resolves
+    /// to the AUTOMATIC PICK, the same device MainViewModel records from: the
+    /// Windows default, or the first non-virtual input when that default is a
+    /// virtual device (#2408, <see cref="MicrophoneSelection.AutomaticPick"/>).
+    /// -1, NAudio's "default device" sentinel (WAVE_MAPPER), is left only for
+    /// when the devices cannot be listed, so it degrades rather than throws.
     /// </summary>
     internal int ResolveDeviceNumber(string? name)
     {
-        if (string.IsNullOrEmpty(name)) return -1;
-
         var result = _devices.GetAvailableDevices();
-        if (result.IsFailure || result.Value is null) return -1;
+        if (result.IsFailure || result.Value is null || result.Value.Count == 0) return -1;
 
-        var match = result.Value.FirstOrDefault(d => d.Name == name);
-        return match?.DeviceNumber ?? -1;
+        var devices = result.Value;
+        if (!string.IsNullOrEmpty(name))
+        {
+            var match = devices.FirstOrDefault(d => d.Name == name);
+            if (match != null) return match.DeviceNumber;
+        }
+
+        var endpoint = _devices.GetDefaultCaptureEndpoint();
+        var systemDefault = MicrophoneSelection.ResolveDefault(devices, endpoint?.FriendlyName, endpoint?.Ordinal ?? -1);
+        var automatic = MicrophoneSelection.AutomaticPick(devices, systemDefault);
+        if (automatic != null && automatic != systemDefault)
+        {
+            LoggingService.Info(
+                $"LiveOnboardingAudioGateway: Windows default input '{systemDefault?.Name}' is a virtual device; " +
+                $"using '{automatic.Name}' (#{automatic.DeviceNumber}) instead");
+        }
+
+        return automatic?.DeviceNumber ?? -1;
     }
 
     // =========================================================================

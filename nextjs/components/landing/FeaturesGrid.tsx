@@ -58,7 +58,7 @@ export default function FeaturesGrid() {
       icon: <Shield className="w-6 h-6" />,
       titleKey: "privacy.title",
       descriptionKey: "privacy.description",
-      gradient: "from-green-600 to-emerald-600",
+      gradient: "from-emerald-600 to-teal-600",
     },
     {
       icon: <Github className="w-6 h-6" />,
@@ -183,7 +183,7 @@ export default function FeaturesGrid() {
               <div className="flex flex-col md:flex-row items-center gap-8">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-4">
-                    <Sparkles className="w-8 h-8 text-purple-400" />
+                    <Sparkles className="w-8 h-8 text-purple-400" strokeWidth={2.5} />
                     <h3 className="text-2xl font-bold text-white">
                       {t("modes.title")}
                     </h3>

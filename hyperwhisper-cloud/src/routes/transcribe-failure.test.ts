@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Hono } from 'hono';
 import { ProviderInputError } from '../providers/types';
 import { providerChainFailureResponse } from './transcribe-failure';
+import { stubEnv } from '../test-support/env';
 
 // A valid, well-funded licensed user so the route reaches the provider chain.
 // mock.module is process-wide in bun: keep the `redis` export (see
@@ -147,21 +148,15 @@ describe('providerChainFailureResponse', () => {
 describe('transcribeRoute chain failure keeps provider text out of the reply (#2131)', () => {
   const MARKER = 'MARKER-2131-provider-text';
   const originalFetch = globalThis.fetch;
-  const savedEnv: Record<string, string | undefined> = {};
+  let restoreEnv: Array<() => void> = [];
   const keys = ['ELEVENLABS_API_KEY', 'DEEPGRAM_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY'];
 
   beforeEach(() => {
-    for (const key of keys) {
-      savedEnv[key] = process.env[key];
-      process.env[key] = `test-${key}`;
-    }
+    restoreEnv = keys.map((key) => stubEnv(key, `test-${key}`));
   });
   afterEach(() => {
     globalThis.fetch = originalFetch;
-    for (const key of keys) {
-      if (savedEnv[key] === undefined) delete process.env[key];
-      else process.env[key] = savedEnv[key];
-    }
+    for (const restore of restoreEnv) restore();
   });
 
   function transcribeRequest(provider: string): Request {

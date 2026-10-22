@@ -587,8 +587,12 @@ jobs:
       - name: Validate appcast.xml
         working-directory: nextjs
         run: |
-          npm install xml2js 2>/dev/null
-          node scripts/validate-appcast.js
+          # Install only the validator's one dependency, in its own directory.
+          # `npm install` inside nextjs/ resolved the whole pnpm-managed tree,
+          # and with stderr hidden it failed silently (run 39774525971).
+          VALIDATOR_DEPS="$RUNNER_TEMP/appcast-validator"
+          npm install --prefix "$VALIDATOR_DEPS" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund xml2js@^0.6.2
+          NODE_PATH="$VALIDATOR_DEPS/node_modules" node scripts/validate-appcast.js
 
       # ----------------------------------------------------------------
       # 16. Upload DMG to Cloudflare R2

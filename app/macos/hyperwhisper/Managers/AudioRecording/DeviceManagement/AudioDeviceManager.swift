@@ -182,7 +182,8 @@ class AudioDeviceManager {
     @Published private(set) var availableDevices: [AudioDevice] = []
 
     /// The chosen device while it is connected; `nil` means HyperWhisper records from the
-    /// macOS default input (no choice, or the chosen device is unplugged).
+    /// automatic pick (no choice, or the chosen device is unplugged): the macOS default
+    /// input, or a physical input when that default is virtual (`AutomaticMicrophonePick`).
     @Published var selectedDevice: AudioDevice?
 
     /// HyperWhisper's saved microphone choice, kept while its device is unplugged.
@@ -413,10 +414,18 @@ class AudioDeviceManager {
             }
             return enumeration.deviceIDsByUID[selectedDeviceUID]
         }()
-        let activeDeviceID = selectedDeviceID ?? defaultDeviceID
+        // No connected choice: the automatic pick, which passes over a virtual default
+        // (BlackHole, Loopback…) when a physical input is connected (#2408). Keep-warm
+        // and the active-device name follow this.
+        let automaticPick = AutomaticMicrophonePick.resolve(devices: devices, systemDefaultUID: defaultDeviceUID)
+        let automaticOverrideID = automaticPick.pinnedDeviceUID.flatMap { enumeration.deviceIDsByUID[$0] }
+        let activeDeviceID = selectedDeviceID ?? automaticOverrideID ?? defaultDeviceID
         let activeDevice = {
             if selectedDeviceID != nil, let selectedDeviceUID {
                 return devices.first(where: { $0.uid == selectedDeviceUID })
+            }
+            if automaticOverrideID != nil, let pinnedUID = automaticPick.pinnedDeviceUID {
+                return devices.first(where: { $0.uid == pinnedUID })
             }
             guard let defaultDeviceUID else { return nil }
             return devices.first(where: { $0.uid == defaultDeviceUID })
@@ -687,10 +696,18 @@ class AudioDeviceManager {
     /// - After device enumeration
     /// - Periodically to keep volume metrics fresh
     func updateInputVolumeMetrics() {
-        // Determine active device ID
+        // Determine active device ID: the connected choice, else the automatic pick
+        // (a physical stand-in for a virtual default, #2408), else the macOS default.
+        let automaticPinnedUID = AutomaticMicrophonePick
+            .resolve(devices: availableDevices, systemDefaultUID: systemDefaultDeviceUID)
+            .pinnedDeviceUID
         let resolvedDeviceID: AudioDeviceID? = {
             if let selected = selectedDevice,
                let id = CoreAudioDeviceHelper.findAudioDeviceID(byUID: selected.uid) {
+                return id
+            }
+            if let automaticPinnedUID,
+               let id = CoreAudioDeviceHelper.findAudioDeviceID(byUID: automaticPinnedUID) {
                 return id
             }
             return CoreAudioDeviceHelper.getSystemDefaultInputDeviceID()

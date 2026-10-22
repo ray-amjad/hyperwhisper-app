@@ -89,6 +89,8 @@ public sealed class HyperWhisperCloudManager : INotifyPropertyChanged, IDisposab
     // =========================================================================
 
     private readonly HttpClient _httpClient;
+    private readonly Func<DateTime> _now;
+    private readonly bool _subscribedToLicense;
     private HyperWhisperCloudCredits? _credits;
     private bool _isFetchingCredits;
     private string? _lastError;
@@ -114,17 +116,27 @@ public sealed class HyperWhisperCloudManager : INotifyPropertyChanged, IDisposab
     // =========================================================================
 
     private HyperWhisperCloudManager()
+        : this(new HttpClient { Timeout = TimeSpan.FromSeconds(RequestTimeoutSeconds) }, () => DateTime.UtcNow)
     {
-        _httpClient = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(RequestTimeoutSeconds)
-        };
-
         // Subscribe to license status changes to invalidate cache
         // When user switches between license key and device ID, we need fresh data
         LicenseManager.Instance.LicenseStatusChanged += OnLicenseStatusChanged;
+        _subscribedToLicense = true;
 
         LoggingService.Info("HyperWhisperCloudManager: Initialized");
+    }
+
+    /// <summary>
+    /// Test seam: builds a NON-singleton instance with a scripted HTTP client and a clock the
+    /// caller drives by hand, so tests can script /usage replies and cross the 60 s cache
+    /// without waiting. It does NOT subscribe to the process-wide <see cref="LicenseManager"/>.
+    /// Visible to HyperWhisper.SmokeTests via InternalsVisibleTo (see HyperWhisper.csproj).
+    /// Production always goes through <see cref="Instance"/>.
+    /// </summary>
+    internal HyperWhisperCloudManager(HttpClient httpClient, Func<DateTime> now)
+    {
+        _httpClient = httpClient;
+        _now = now;
     }
 
     // =========================================================================
@@ -297,7 +309,7 @@ public sealed class HyperWhisperCloudManager : INotifyPropertyChanged, IDisposab
 
             // STEP 7: Update state
             Credits = credits;
-            _lastFetchTime = DateTime.UtcNow;
+            _lastFetchTime = _now();
 
             LoggingService.Info($"HyperWhisperCloudManager: Credits fetched - {credits.FormattedBalance}");
             LoggingService.Debug($"  Account type: {credits.AccountType}");
@@ -379,7 +391,7 @@ public sealed class HyperWhisperCloudManager : INotifyPropertyChanged, IDisposab
         if (_credits == null || _lastFetchTime == null)
             return false;
 
-        var elapsed = DateTime.UtcNow - _lastFetchTime.Value;
+        var elapsed = _now() - _lastFetchTime.Value;
         return elapsed.TotalSeconds < CacheDurationSeconds;
     }
 
@@ -446,7 +458,10 @@ public sealed class HyperWhisperCloudManager : INotifyPropertyChanged, IDisposab
     {
         if (!_disposed)
         {
-            LicenseManager.Instance.LicenseStatusChanged -= OnLicenseStatusChanged;
+            if (_subscribedToLicense)
+            {
+                LicenseManager.Instance.LicenseStatusChanged -= OnLicenseStatusChanged;
+            }
             _httpClient.Dispose();
             _disposed = true;
         }

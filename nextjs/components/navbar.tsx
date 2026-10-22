@@ -185,18 +185,26 @@ export const Navbar = () => {
         {navItems.map((item) => (
           <NavbarItem key={item.href}>
             <a
-              className={clsx(
-                linkStyles({ color: "foreground" }),
-                "text-gray-300 hover:text-white transition-colors",
-                /*
+              /*
+                Passed through the recipe's `class` slot, not concatenated after it, so
+                tailwind-merge drops linkStyles()' own `transition-opacity`. Two
+                transition-property utilities on one native <a> cannot both win: the later
+                one in the stylesheet does, and the colour hover snapped (#848).
+              */
+              className={linkStyles({
+                color: "foreground",
+                class: clsx(
+                  "text-gray-300 hover:text-white transition-[color,opacity]",
+                  /*
                   linkStyles() opens with `outline-solid outline-transparent` and restores the
                   ring only through `data-[focus-visible=true]:`, an attribute the HeroUI <Link>
                   component sets and a native <a> never gets. Without these 3 utilities the link
                   has no keyboard focus ring at all. `outline-focus` is HeroUI's own token, so
                   this is the same ring the Download button and the GitHub link already draw.
                 */
-                "rounded focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2",
-              )}
+                  "rounded focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2",
+                ),
+              })}
               href={item.href}
             >
               {item.label}
@@ -216,7 +224,7 @@ export const Navbar = () => {
           <HeroUILink
             isExternal
             aria-label={t("githubAria")}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-gray-400 hover:text-white transition-[color,opacity]"
             href="https://github.com/ray-amjad/hyperwhisper-app"
           >
             <Github className="w-5 h-5" />
