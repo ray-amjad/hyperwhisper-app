@@ -33,6 +33,13 @@ try
     credentialStore.Seed("AnthropicApiKey", "anthropic-export-secret");
     credentialStore.Seed("LicenseKey", "account-key-must-never-export");
     var service = new ApplicationBackupService(database, settings, credentialStore);
+    var versionedExport = JsonNode.Parse(await new ApplicationBackupService(
+        database, settings, credentialStore, appVersion: "9.9.9").ExportAsync())!.AsObject();
+    Assert(versionedExport["appVersion"]!.GetValue<string>() == "9.9.9",
+        "export did not stamp the app version it was given");
+    await AssertThrowsAsync<ArgumentException>(
+        () => Task.FromResult(new ApplicationBackupService(database, settings, appVersion: " ")),
+        "a blank app version was accepted");
 
     var vocabularyOnly = await service.ExportAsync(new BackupExportSelection(
         IncludeSettings: false, IncludeModes: false, IncludeVocabulary: true));
