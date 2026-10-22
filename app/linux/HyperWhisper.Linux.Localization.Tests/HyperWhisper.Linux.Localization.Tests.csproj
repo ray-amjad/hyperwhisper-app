@@ -19,6 +19,7 @@
     <Content Include="../HyperWhisper.Linux/ProviderApiKeyWindow.axaml" Link="LocalizationSurface/ProviderApiKeyWindow.axaml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../HyperWhisper.Linux/CustomEndpointWindow.axaml" Link="LocalizationSurface/CustomEndpointWindow.axaml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../HyperWhisper.Linux/CredentialsWindow.axaml" Link="LocalizationSurface/CredentialsWindow.axaml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../HyperWhisper.Linux/App.axaml" Link="LocalizationSurface/App.axaml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../HyperWhisper.Linux/MainWindow.axaml.cs" Link="LocalizationSurface/MainWindow.axaml.cs" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../desktop-companions/status-notifier.py" Link="LocalizationSurface/status-notifier.py" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

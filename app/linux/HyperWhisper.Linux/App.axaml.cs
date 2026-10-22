@@ -20,6 +20,7 @@ public partial class App : Application
         AvaloniaXamlLoader.Load(this);
         Resources["Localization"] = Localization;
         Resources["LocalizedFormatConverter"] = new LocalizedFormatConverter(Localization);
+        Resources["LocalizedBoolConverter"] = new LocalizedBoolConverter(Localization);
         Resources["LocalTimeConverter"] = new LocalTimeConverter();
         Resources["ShortDurationConverter"] = new ShortDurationConverter();
         Resources["IconKeyConverter"] = new IconKeyConverter();
