@@ -16,7 +16,8 @@
       "switchTo": "Tukar bahasa"
     },
     "cloud": "Cloud",
-    "githubAria": "Lihat HyperWhisper di GitHub"
+    "githubAria": "Lihat HyperWhisper di GitHub",
+    "linux": "Linux"
   },
   "hero": {
     "logoAlt": "Logo HyperWhisper",
@@ -225,10 +226,11 @@
     "linuxTargets": "Linux v1 menyasarkan Ubuntu 22.04+ dan Debian 12+ pada amd64.",
     "linuxReplaceVersion": "Gantikan VERSION dengan versi yang anda muat turun.",
     "linuxInstallCommandLabel": "Arahan pemasangan Debian",
-    "linuxInputGroupNote": "Log keluar dan log masuk semula selepas menyertai kumpulan input. Keahlian adalah pilihan, tetapi pintasan global dan tampal automatik memerlukannya.",
+    "linuxInputGroupNote": "Pada X11, pintasan global berfungsi tanpanya. Pada GNOME dan KDE Plasma Wayland, pintasan global memerlukan kumpulan input, dan tampal automatik memerlukannya pada setiap desktop. Log keluar dan log masuk semula selepas menyertainya.",
     "aptTitle": "Hos sendiri repositori APT",
     "aptBody": "Keluaran Linux juga disertakan dengan arkib repositori APT statik. HyperWhisper buat masa ini tidak mengendalikan endpoint APT awam; lihat panduan pemasangan Linux untuk persediaan hos sendiri yang ditandatangani, komponen pendamping desktop, butiran privasi dan cara menyahpasang.",
-    "linuxGuideCta": "Baca panduan pemasangan Linux"
+    "linuxGuideCta": "Baca panduan pemasangan Linux",
+    "learnMoreLinux": "Ketahui lebih lanjut tentang HyperWhisper di Linux"
   },
   "olderVersions": {
     "title": "Versi Lama",
@@ -276,7 +278,8 @@
       "privacyPolicy": "Dasar Privasi",
       "termsOfService": "Terma Perkhidmatan",
       "refundPolicy": "Dasar Pemulangan",
-      "dataTraining": "Privasi Data"
+      "dataTraining": "Privasi Data",
+      "linux": "HyperWhisper untuk Linux"
     },
     "copyright": "© 2026 HyperWhisper. Hak cipta terpelihara.",
     "linkedinAria": "LinkedIn"
@@ -373,6 +376,53 @@
     "licenseOlder": "<strong>Dibeli lebih daripada 30 hari yang lalu:</strong> kami akan menukar jumlah yang anda bayar kepada kredit HyperWhisper Cloud — harga pembelian penuh, tolak kredit $5 yang telah ditambah ke akaun anda. <credits>Hantar e-mel kepada kami</credits> dan kami akan memasukkan bakinya.",
     "contributeHeading": "Ingin menyumbang?",
     "contributeBody": "Laporan pepijat, idea ciri dan pull request semuanya dialu-alukan. Buka isu atau mulakan perbincangan <github>di GitHub</github>."
+  },
+  "linuxPage": {
+    "metaTitle": "HyperWhisper: alternatif Wispr Flow untuk Linux",
+    "metaDescription": "Wispr Flow tiada aplikasi Linux asli. HyperWhisper ada: imlak suara AI untuk Ubuntu dan Debian dengan model setempat luar talian, kunci API anda sendiri dan pintasan global.",
+    "eyebrow": "HyperWhisper untuk Linux",
+    "heading": "HyperWhisper: alternatif Wispr Flow untuk Linux",
+    "lead": "Wispr Flow tiada aplikasi Linux asli. HyperWhisper ada. Bercakap secara semula jadi dan dapatkan teks yang kemas, ditranskripsi di luar talian pada komputer anda sendiri atau dalam awan dengan kunci API anda sendiri.",
+    "downloadCta": "Muat turun .deb (v{version})",
+    "releaseNotes": "Nota keluaran dan checksum",
+    "requirementsShort": "x86_64 · Ubuntu 22.04+ / Debian 12+",
+    "installHeading": "Pasang dengan satu arahan",
+    "installBody": "Muat turun pakej, kemudian jalankan arahan ini dari folder yang menyimpannya. apt memasang aplikasi dan kebergantungannya sekali gus.",
+    "installCommandLabel": "Arahan pemasangan Debian",
+    "requirementsHeading": "Keperluan",
+    "requirementArch": "Komputer x86_64 (amd64)",
+    "requirementDistro": "Ubuntu 22.04 atau lebih baharu, atau Debian 12 atau lebih baharu",
+    "requirementDesktop": "GNOME atau KDE Plasma untuk pengalaman desktop yang telah disahkan",
+    "cudaHeading": "Ada GPU NVIDIA? Tambah CUDA",
+    "cudaBody": "Pasang pakej pilihan hyperwhisper-cuda daripada keluaran yang sama, dengan versi yang sama seperti aplikasi, untuk menjalankan Whisper setempat dan pascapemprosesan Gemma setempat pada CUDA.",
+    "featuresHeading": "Dibina untuk desktop Linux anda",
+    "localHeading": "Model luar talian dalam peranti",
+    "localBody": "Pilih model setempat dan transkripsi berjalan sepenuhnya pada komputer anda, tanpa sambungan internet. Whisper berjalan pada CPU atau pada GPU anda melalui Vulkan atau CUDA. Parakeet, Qwen3 ASR dan Nemotron berjalan pada CPU. Model Gemma setempat juga boleh mengemaskan teks anda di luar talian.",
+    "byokHeading": "Gunakan kunci API anda sendiri",
+    "byokBody": "Lebih suka awan? Gunakan kunci API anda sendiri untuk transkripsi awan, contohnya Deepgram atau ElevenLabs, dan untuk pascapemprosesan AI, contohnya OpenAI, Anthropic, Groq atau Gemini. Atau langkau kunci dan gunakan HyperWhisper Cloud, bayar ikut penggunaan.",
+    "languagesHeading": "40 bahasa antara muka",
+    "languagesBody": "Antara muka aplikasi tersedia dalam 40 bahasa, dan model Whisper mentranskripsi lebih daripada 100 bahasa.",
+    "openSourceHeading": "Sumber terbuka",
+    "openSourceBody": "HyperWhisper ialah sumber terbuka di bawah Apache-2.0, termasuk aplikasi Linux. Baca setiap baris di GitHub.",
+    "hotkeysHeading": "Pintasan global pada X11 dan Wayland",
+    "hotkeysBody": "Pintasan global berfungsi terus pada X11. Pada GNOME dan KDE Plasma Wayland, ia berfungsi selepas anda menyertai kumpulan hyperwhisper-input dan log keluar serta log masuk semula. Pada Wayland, HyperWhisper membaca papan kekunci melalui evdev, bukan portal desktop.",
+    "hotkeysCommandLabel": "Sertai kumpulan input",
+    "hotkeysFallback": "Tanpa kumpulan itu, transkripsi masih berfungsi dan hasilnya disimpan pada papan keratan. Tampal automatik juga memerlukan kumpulan itu.",
+    "hotkeysDefault": "Tekan Ctrl+Alt untuk memulakan dan menghentikan rakaman. Anda boleh menukar setiap pintasan dalam Tetapan.",
+    "compareHeading": "HyperWhisper atau Wispr Flow di Linux?",
+    "compareBody": "Wispr Flow tiada aplikasi Linux asli. HyperWhisper menyediakan aplikasi Linux asli hari ini, sebagai pakej .deb untuk Ubuntu dan Debian, bersama aplikasinya untuk macOS dan Windows.",
+    "faqHeading": "Soalan lazim",
+    "faqWisprQuestion": "Adakah terdapat aplikasi Wispr Flow untuk Linux?",
+    "faqWisprAnswer": "Tidak. Wispr Flow tiada aplikasi Linux asli. HyperWhisper berjalan secara asli di Linux, serta di macOS dan Windows.",
+    "faqDistroQuestion": "Distribusi Linux manakah yang disokong?",
+    "faqDistroAnswer": "Ubuntu 22.04 atau lebih baharu dan Debian 12 atau lebih baharu, pada x86_64 (amd64). HyperWhisper diedarkan sebagai pakej .deb. Distribusi lain berasaskan Debian mungkin berfungsi, tetapi ia tidak termasuk dalam matriks keluaran yang disahkan.",
+    "faqOfflineQuestion": "Adakah ia berfungsi di luar talian?",
+    "faqOfflineAnswer": "Ya. Dengan model setempat, transkripsi berjalan sepenuhnya pada komputer anda dan tidak memerlukan sambungan internet.",
+    "faqWaylandQuestion": "Adakah pintasan global berfungsi pada Wayland?",
+    "faqWaylandAnswer": "Pada GNOME dan KDE Plasma Wayland, ya, selepas anda menyertai kumpulan hyperwhisper-input dan log keluar serta log masuk semula. Pada X11, ia berfungsi terus.",
+    "docsHeading": "Perlukan butiran lanjut?",
+    "docsBody": "Panduan pemasangan Linux merangkumi CUDA, kebenaran input, pendamping GNOME dan KDE pilihan, serta cara membuang aplikasi.",
+    "docsCta": "Baca panduan pemasangan Linux"
   },
   "openSourceBanner": {
     "text": "HyperWhisper kini sepenuhnya sumber terbuka",

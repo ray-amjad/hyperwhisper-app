@@ -16,7 +16,8 @@
       "switchTo": "Zmień język"
     },
     "cloud": "Cloud",
-    "githubAria": "Zobacz HyperWhisper na GitHub"
+    "githubAria": "Zobacz HyperWhisper na GitHub",
+    "linux": "Linux"
   },
   "hero": {
     "logoAlt": "Logo HyperWhisper",
@@ -225,10 +226,11 @@
     "linuxTargets": "Linux v1 obsługuje Ubuntu 22.04+ i Debian 12+ na amd64.",
     "linuxReplaceVersion": "Zastąp VERSION pobraną wersją.",
     "linuxInstallCommandLabel": "Polecenie instalacji dla Debiana",
-    "linuxInputGroupNote": "Po dołączeniu do grupy input wyloguj się i zaloguj ponownie. Członkostwo jest opcjonalne, ale wymagają go globalne skróty i automatyczne wklejanie.",
+    "linuxInputGroupNote": "Na X11 globalne skróty działają bez niej. Na GNOME i KDE Plasma z Waylandem globalne skróty wymagają grupy input, a automatyczne wklejanie wymaga jej w każdym środowisku graficznym. Po dołączeniu do grupy wyloguj się i zaloguj ponownie.",
     "aptTitle": "Własne repozytorium APT",
     "aptBody": "Wydania dla Linuxa zawierają też archiwum statycznego repozytorium APT. HyperWhisper nie prowadzi obecnie publicznego serwera APT; informacje o konfiguracji podpisanego, własnego repozytorium, komponentach desktopowych, prywatności i odinstalowaniu znajdziesz w przewodniku instalacji dla Linuxa.",
-    "linuxGuideCta": "Przeczytaj przewodnik instalacji dla Linuxa"
+    "linuxGuideCta": "Przeczytaj przewodnik instalacji dla Linuxa",
+    "learnMoreLinux": "Dowiedz się więcej o HyperWhisper na Linuksie"
   },
   "olderVersions": {
     "title": "Starsze wersje",
@@ -276,7 +278,8 @@
       "privacyPolicy": "Polityka prywatności",
       "termsOfService": "Warunki korzystania",
       "refundPolicy": "Polityka zwrotów",
-      "dataTraining": "Prywatność danych"
+      "dataTraining": "Prywatność danych",
+      "linux": "HyperWhisper na Linuksa"
     },
     "copyright": "© 2026 HyperWhisper. Wszelkie prawa zastrzeżone.",
     "linkedinAria": "LinkedIn"
@@ -373,6 +376,53 @@
     "licenseOlder": "<strong>Zakup ponad 30 dni temu:</strong> zamienimy zapłaconą kwotę na kredyty HyperWhisper Cloud — pełną cenę zakupu pomniejszoną o $5 w kredytach, które już dodaliśmy do Twojego konta. <credits>Napisz do nas</credits>, a dopiszemy resztę salda.",
     "contributeHeading": "Chcesz współtworzyć projekt?",
     "contributeBody": "Zgłoszenia błędów, pomysły na funkcje i pull requesty są mile widziane. Utwórz zgłoszenie lub rozpocznij dyskusję <github>na GitHubie</github>."
+  },
+  "linuxPage": {
+    "metaTitle": "HyperWhisper: alternatywa dla Wispr Flow na Linuksa",
+    "metaDescription": "Wispr Flow nie ma natywnej aplikacji na Linuksa. HyperWhisper ma: dyktowanie głosowe z AI dla Ubuntu i Debiana z lokalnymi modelami offline, własnymi kluczami API i globalnymi skrótami.",
+    "eyebrow": "HyperWhisper na Linuksa",
+    "heading": "HyperWhisper: alternatywa dla Wispr Flow na Linuksa",
+    "lead": "Wispr Flow nie ma natywnej aplikacji na Linuksa. HyperWhisper ma. Mów naturalnie i otrzymuj czysty tekst, transkrybowany offline na Twoim komputerze lub w chmurze z Twoim własnym kluczem API.",
+    "downloadCta": "Pobierz .deb (v{version})",
+    "releaseNotes": "Informacje o wydaniu i sumy kontrolne",
+    "requirementsShort": "x86_64 · Ubuntu 22.04+ / Debian 12+",
+    "installHeading": "Instalacja jednym poleceniem",
+    "installBody": "Pobierz pakiet, a następnie uruchom to polecenie w folderze, w którym się znajduje. apt instaluje aplikację razem z jej zależnościami.",
+    "installCommandLabel": "Polecenie instalacji w Debianie",
+    "requirementsHeading": "Wymagania",
+    "requirementArch": "Komputer x86_64 (amd64)",
+    "requirementDistro": "Ubuntu 22.04 lub nowszy albo Debian 12 lub nowszy",
+    "requirementDesktop": "GNOME lub KDE Plasma dla zweryfikowanego środowiska pulpitu",
+    "cudaHeading": "Masz GPU NVIDIA? Dodaj CUDA",
+    "cudaBody": "Zainstaluj opcjonalny pakiet hyperwhisper-cuda z tego samego wydania, w tej samej wersji co aplikacja, aby uruchamiać lokalny Whisper i lokalne przetwarzanie końcowe Gemma na CUDA.",
+    "featuresHeading": "Stworzony dla Twojego pulpitu Linux",
+    "localHeading": "Modele offline na urządzeniu",
+    "localBody": "Wybierz model lokalny, a transkrypcja odbywa się w całości na Twoim komputerze, bez połączenia z internetem. Whisper działa na CPU lub na Twoim GPU przez Vulkan albo CUDA. Parakeet, Qwen3 ASR i Nemotron działają na CPU. Lokalne modele Gemma mogą też uporządkować Twój tekst offline.",
+    "byokHeading": "Użyj własnego klucza API",
+    "byokBody": "Wolisz chmurę? Użyj własnego klucza API do transkrypcji w chmurze, na przykład Deepgram lub ElevenLabs, oraz do przetwarzania końcowego AI, na przykład OpenAI, Anthropic, Groq lub Gemini. Możesz też zrezygnować z kluczy i korzystać z HyperWhisper Cloud, płacąc za faktyczne użycie.",
+    "languagesHeading": "40 języków interfejsu",
+    "languagesBody": "Interfejs aplikacji jest dostępny w 40 językach, a modele Whisper transkrybują ponad 100 języków.",
+    "openSourceHeading": "Otwarte źródło",
+    "openSourceBody": "HyperWhisper jest oprogramowaniem open source na licencji Apache-2.0, łącznie z aplikacją na Linuksa. Przeczytaj każdą linijkę na GitHubie.",
+    "hotkeysHeading": "Globalne skróty w X11 i Wayland",
+    "hotkeysBody": "Globalne skróty działają od razu w X11. W GNOME i KDE Plasma na Wayland działają po dołączeniu do grupy hyperwhisper-input oraz wylogowaniu się i ponownym zalogowaniu. Na Wayland HyperWhisper odczytuje klawiaturę przez evdev, a nie przez portal pulpitu.",
+    "hotkeysCommandLabel": "Dołącz do grupy wejścia",
+    "hotkeysFallback": "Bez tej grupy transkrypcja nadal działa, a wynik pozostaje w schowku. Automatyczne wklejanie również wymaga tej grupy.",
+    "hotkeysDefault": "Naciśnij Ctrl+Alt, aby rozpocząć i zatrzymać nagrywanie. Każdy skrót możesz zmienić w Ustawieniach.",
+    "compareHeading": "HyperWhisper czy Wispr Flow na Linuksie?",
+    "compareBody": "Wispr Flow nie ma natywnej aplikacji na Linuksa. HyperWhisper już dziś oferuje natywną aplikację na Linuksa jako pakiet .deb dla Ubuntu i Debiana, obok aplikacji na macOS i Windows.",
+    "faqHeading": "Najczęściej zadawane pytania",
+    "faqWisprQuestion": "Czy istnieje aplikacja Wispr Flow na Linuksa?",
+    "faqWisprAnswer": "Nie. Wispr Flow nie ma natywnej aplikacji na Linuksa. HyperWhisper działa natywnie na Linuksie, a także na macOS i Windows.",
+    "faqDistroQuestion": "Które dystrybucje Linuksa są obsługiwane?",
+    "faqDistroAnswer": "Ubuntu 22.04 lub nowszy i Debian 12 lub nowszy, na x86_64 (amd64). HyperWhisper jest dostarczany jako pakiet .deb. Inne dystrybucje oparte na Debianie mogą działać, ale nie należą do zweryfikowanej macierzy wydań.",
+    "faqOfflineQuestion": "Czy działa offline?",
+    "faqOfflineAnswer": "Tak. Z modelem lokalnym transkrypcja odbywa się w całości na Twoim komputerze i nie wymaga połączenia z internetem.",
+    "faqWaylandQuestion": "Czy globalne skróty działają w Wayland?",
+    "faqWaylandAnswer": "W GNOME i KDE Plasma na Wayland tak, po dołączeniu do grupy hyperwhisper-input oraz wylogowaniu się i ponownym zalogowaniu. W X11 działają od razu.",
+    "docsHeading": "Potrzebujesz szczegółów?",
+    "docsBody": "Przewodnik instalacji na Linuksie omawia CUDA, uprawnienia wejścia, opcjonalne dodatki dla GNOME i KDE oraz odinstalowanie.",
+    "docsCta": "Przeczytaj przewodnik instalacji na Linuksie"
   },
   "openSourceBanner": {
     "text": "HyperWhisper jest teraz w pełni otwartoźródłowy",

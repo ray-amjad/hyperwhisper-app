@@ -16,7 +16,8 @@
       "switchTo": "Nyelvváltás"
     },
     "cloud": "Cloud",
-    "githubAria": "A HyperWhisper megtekintese a GitHubon"
+    "githubAria": "A HyperWhisper megtekintese a GitHubon",
+    "linux": "Linux"
   },
   "hero": {
     "logoAlt": "HyperWhisper logó",
@@ -225,10 +226,11 @@
     "linuxTargets": "A Linux v1 az Ubuntu 22.04+ és a Debian 12+ rendszereket támogatja amd64 architektúrán.",
     "linuxReplaceVersion": "Cseréld le a VERSION szót a letöltött verzióra.",
     "linuxInstallCommandLabel": "Debian telepítési parancs",
-    "linuxInputGroupNote": "Az input csoporthoz való csatlakozás után jelentkezz ki, majd újra be. A tagság nem kötelező, de a globális billentyűparancsokhoz és az automatikus beillesztéshez szükséges.",
+    "linuxInputGroupNote": "X11 alatt a globális billentyűparancsok nélküle is működnek. GNOME és KDE Plasma Wayland alatt a globális billentyűparancsokhoz szükséges az input csoport, az automatikus beillesztéshez pedig minden asztali környezetben. A csatlakozás után jelentkezz ki, majd újra be.",
     "aptTitle": "Saját APT-tároló üzemeltetése",
     "aptBody": "A Linux-kiadások egy statikus APT-tárolóarchívumot is tartalmaznak. A HyperWhisper jelenleg nem üzemeltet nyilvános APT-végpontot; az aláírt, saját üzemeltetésű beállításról, az asztali integrációról, az adatvédelmi részletekről és az eltávolításról a Linux telepítési útmutatóban olvashatsz.",
-    "linuxGuideCta": "Olvasd el a Linux telepítési útmutatót"
+    "linuxGuideCta": "Olvasd el a Linux telepítési útmutatót",
+    "learnMoreLinux": "Tudj meg többet a HyperWhisperről Linuxon"
   },
   "olderVersions": {
     "title": "Korábbi verziók",
@@ -276,7 +278,8 @@
       "privacyPolicy": "Adatvédelmi szabályzat",
       "termsOfService": "Szolgáltatási feltételek",
       "refundPolicy": "Visszatérítési szabályzat",
-      "dataTraining": "Adatvédelem"
+      "dataTraining": "Adatvédelem",
+      "linux": "HyperWhisper Linuxra"
     },
     "copyright": "© 2026 HyperWhisper. Minden jog fenntartva.",
     "linkedinAria": "LinkedIn"
@@ -373,6 +376,53 @@
     "licenseOlder": "<strong>Több mint 30 napja vásárolt:</strong> a kifizetett összeget HyperWhisper Cloud kreditekre váltjuk — a teljes vételárat, levonva a fiókjához már hozzáadott $5 értékű kreditet. <credits>Írjon nekünk e-mailt</credits>, és jóváírjuk a fennmaradó összeget.",
     "contributeHeading": "Szeretne hozzájárulni?",
     "contributeBody": "Hibajelentéseket, funkcióötleteket és pull requesteket egyaránt szívesen fogadunk. Nyisson egy hibajegyet, vagy indítson beszélgetést <github>a GitHubon</github>."
+  },
+  "linuxPage": {
+    "metaTitle": "HyperWhisper: a Wispr Flow alternatívája Linuxra",
+    "metaDescription": "A Wispr Flow-nak nincs natív Linux-alkalmazása. A HyperWhispernek van: MI-alapú hangalapú diktálás Ubuntura és Debianra, offline helyi modellekkel, saját API-kulcsokkal és globális billentyűparancsokkal.",
+    "eyebrow": "HyperWhisper Linuxra",
+    "heading": "HyperWhisper: a Wispr Flow alternatívája Linuxra",
+    "lead": "A Wispr Flow-nak nincs natív Linux-alkalmazása. A HyperWhispernek van. Beszélj természetesen, és tiszta szöveget kapsz, amelyet offline a saját gépeden vagy a felhőben, a saját API-kulcsoddal írunk át.",
+    "downloadCta": ".deb letöltése (v{version})",
+    "releaseNotes": "Kiadási megjegyzések és ellenőrzőösszegek",
+    "requirementsShort": "x86_64 · Ubuntu 22.04+ / Debian 12+",
+    "installHeading": "Telepítés egyetlen paranccsal",
+    "installBody": "Töltsd le a csomagot, majd futtasd ezt a parancsot abból a mappából, amelyben van. Az apt együtt telepíti az alkalmazást és a függőségeit.",
+    "installCommandLabel": "Debian telepítési parancs",
+    "requirementsHeading": "Követelmények",
+    "requirementArch": "x86_64 (amd64) számítógép",
+    "requirementDistro": "Ubuntu 22.04 vagy újabb, illetve Debian 12 vagy újabb",
+    "requirementDesktop": "GNOME vagy KDE Plasma az ellenőrzött asztali élményhez",
+    "cudaHeading": "NVIDIA GPU-d van? Add hozzá a CUDA-t",
+    "cudaBody": "Telepítsd ugyanabból a kiadásból az opcionális hyperwhisper-cuda csomagot, az alkalmazással azonos verzióban, hogy a helyi Whisper és a helyi Gemma utófeldolgozás CUDA-n fusson.",
+    "featuresHeading": "A Linux-asztalodra készült",
+    "localHeading": "Offline, eszközön futó modellek",
+    "localBody": "Válassz egy helyi modellt, és az átírás teljes egészében a gépeden fut, internetkapcsolat nélkül. A Whisper a CPU-n vagy a GPU-don fut Vulkanon vagy CUDA-n keresztül. A Parakeet, a Qwen3 ASR és a Nemotron a CPU-n fut. A helyi Gemma modellek offline is rendbe tehetik a szövegedet.",
+    "byokHeading": "Használd a saját API-kulcsodat",
+    "byokBody": "A felhőt részesíted előnyben? Használd a saját API-kulcsodat a felhőalapú átíráshoz, például a Deepgramhoz vagy az ElevenLabshez, és az MI-alapú utófeldolgozáshoz, például az OpenAI-hoz, az Anthropichoz, a Groqhoz vagy a Geminihez. Vagy hagyd ki a kulcsokat, és használd a HyperWhisper Cloudot, használatalapú fizetéssel.",
+    "languagesHeading": "40 nyelvű felület",
+    "languagesBody": "Az alkalmazás felülete 40 nyelven érhető el, a Whisper modellek pedig több mint 100 nyelven írnak át.",
+    "openSourceHeading": "Nyílt forráskód",
+    "openSourceBody": "A HyperWhisper nyílt forráskódú az Apache-2.0 licenc alatt, a Linux-alkalmazással együtt. Olvass el minden sort a GitHubon.",
+    "hotkeysHeading": "Globális billentyűparancsok X11 és Wayland alatt",
+    "hotkeysBody": "A globális billentyűparancsok X11 alatt azonnal működnek. GNOME és KDE Plasma Wayland alatt azután működnek, hogy csatlakoztál a hyperwhisper-input csoporthoz, majd kijelentkeztél és újra bejelentkeztél. Wayland alatt a HyperWhisper az evdev-en keresztül olvassa a billentyűzetet, nem egy asztali portálon keresztül.",
+    "hotkeysCommandLabel": "Csatlakozás a bemeneti csoporthoz",
+    "hotkeysFallback": "A csoport nélkül az átírás továbbra is működik, az eredmény pedig a vágólapon marad. Az automatikus beillesztéshez is szükség van a csoportra.",
+    "hotkeysDefault": "Nyomd meg a Ctrl+Alt billentyűket a felvétel indításához és leállításához. Minden billentyűparancsot módosíthatsz a Beállításokban.",
+    "compareHeading": "HyperWhisper vagy Wispr Flow Linuxon?",
+    "compareBody": "A Wispr Flow-nak nincs natív Linux-alkalmazása. A HyperWhisper már ma natív Linux-alkalmazást kínál, .deb csomagként Ubuntura és Debianra, a macOS- és Windows-alkalmazásai mellett.",
+    "faqHeading": "Gyakran ismételt kérdések",
+    "faqWisprQuestion": "Van Wispr Flow alkalmazás Linuxra?",
+    "faqWisprAnswer": "Nincs. A Wispr Flow-nak nincs natív Linux-alkalmazása. A HyperWhisper natívan fut Linuxon, valamint macOS-en és Windowson is.",
+    "faqDistroQuestion": "Mely Linux-disztribúciók támogatottak?",
+    "faqDistroAnswer": "Ubuntu 22.04 vagy újabb és Debian 12 vagy újabb, x86_64 (amd64) architektúrán. A HyperWhisper .deb csomagként érhető el. Más Debian-alapú disztribúciók is működhetnek, de nem részei az ellenőrzött kiadási mátrixnak.",
+    "faqOfflineQuestion": "Működik offline?",
+    "faqOfflineAnswer": "Igen. Helyi modellel az átírás teljes egészében a gépeden fut, és nincs szükség internetkapcsolatra.",
+    "faqWaylandQuestion": "Működnek a globális billentyűparancsok Wayland alatt?",
+    "faqWaylandAnswer": "GNOME és KDE Plasma Wayland alatt igen, miután csatlakoztál a hyperwhisper-input csoporthoz, majd kijelentkeztél és újra bejelentkeztél. X11 alatt azonnal működnek.",
+    "docsHeading": "Részletekre van szükséged?",
+    "docsBody": "A Linux telepítési útmutató kitér a CUDA-ra, a bemeneti jogosultságokra, az opcionális GNOME- és KDE-kiegészítőkre, valamint az eltávolításra.",
+    "docsCta": "Olvasd el a Linux telepítési útmutatót"
   },
   "openSourceBanner": {
     "text": "A HyperWhisper mostantól teljesen nyílt forráskódú",

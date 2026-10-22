@@ -201,6 +201,11 @@ const PAGES = [
     en: "Open Source | HyperWhisper",
   },
   {
+    file: "linux/page.tsx",
+    path: "/linux",
+    en: "HyperWhisper: the Wispr Flow alternative for Linux",
+  },
+  {
     file: "purchase-success/layout.tsx",
     path: "/purchase-success",
     en: "Purchase Successful - HyperWhisper",

@@ -16,7 +16,8 @@
       "switchTo": "言語を切り替え"
     },
     "cloud": "クラウド",
-    "githubAria": "HyperWhisperをGitHubで見る"
+    "githubAria": "HyperWhisperをGitHubで見る",
+    "linux": "Linux"
   },
   "hero": {
     "logoAlt": "HyperWhisperロゴ",
@@ -225,10 +226,11 @@
     "linuxTargets": "Linux v1は、amd64上のUbuntu 22.04+およびDebian 12+を対象としています。",
     "linuxReplaceVersion": "VERSIONをダウンロードしたバージョンに置き換えてください。",
     "linuxInstallCommandLabel": "Debianインストールコマンド",
-    "linuxInputGroupNote": "inputグループに参加した後は、一度ログアウトして再度ログインしてください。参加は任意ですが、グローバルショートカットと自動貼り付けには必要です。",
+    "linuxInputGroupNote": "X11では、グローバルショートカットはinputグループなしで動作します。GNOMEおよびKDE PlasmaのWaylandでは、グローバルショートカットにinputグループが必要です。自動貼り付けはすべてのデスクトップで必要です。参加した後は、一度ログアウトして再度ログインしてください。",
     "aptTitle": "APTリポジトリをセルフホスト",
     "aptBody": "Linuxのリリースには、静的なAPTリポジトリのアーカイブも含まれています。HyperWhisperは現在、公開APTエンドポイントを運用していません。署名付きのセルフホスト設定、デスクトップ連携機能、プライバシーの詳細、アンインストール方法については、Linuxインストールガイドをご覧ください。",
-    "linuxGuideCta": "Linuxインストールガイドを読む"
+    "linuxGuideCta": "Linuxインストールガイドを読む",
+    "learnMoreLinux": "Linux版HyperWhisperについて詳しく見る"
   },
   "olderVersions": {
     "title": "過去のバージョン",
@@ -276,7 +278,8 @@
       "privacyPolicy": "プライバシーポリシー",
       "termsOfService": "利用規約",
       "refundPolicy": "返金ポリシー",
-      "dataTraining": "データプライバシー"
+      "dataTraining": "データプライバシー",
+      "linux": "Linux版HyperWhisper"
     },
     "copyright": "© 2026 HyperWhisper. All rights reserved.",
     "linkedinAria": "LinkedIn"
@@ -373,6 +376,53 @@
     "licenseOlder": "<strong>購入から30日を超えている方：</strong>お支払いいただいた金額をHyperWhisper Cloudのクレジットに変換いたします。購入代金の全額から、すでにアカウントに追加されている$5分のクレジットを差し引いた額となります。<credits>メールでご連絡</credits>いただければ、残額を反映いたします。",
     "contributeHeading": "コントリビュートしませんか？",
     "contributeBody": "バグ報告、機能のアイデア、プルリクエストはいずれも大歓迎です。<github>GitHubで</github>Issueを作成するか、ディスカッションを始めてください。"
+  },
+  "linuxPage": {
+    "metaTitle": "HyperWhisper：Linux向けWispr Flowの代替アプリ",
+    "metaDescription": "Wispr FlowにはネイティブのLinuxアプリがありません。HyperWhisperにはあります。Ubuntu・Debian向けのAI音声入力アプリで、オフラインのローカルモデル、ご自身のAPIキー、グローバルショートカットに対応しています。",
+    "eyebrow": "Linux版HyperWhisper",
+    "heading": "HyperWhisper：Linux向けWispr Flowの代替アプリ",
+    "lead": "Wispr FlowにはネイティブのLinuxアプリがありません。HyperWhisperにはあります。自然に話すだけで、きれいなテキストが得られます。文字起こしはご自身のコンピューター上でオフラインで行うことも、ご自身のAPIキーでクラウドで行うこともできます。",
+    "downloadCta": ".debをダウンロード（v{version}）",
+    "releaseNotes": "リリースノートとチェックサム",
+    "requirementsShort": "x86_64 · Ubuntu 22.04+ / Debian 12+",
+    "installHeading": "コマンド1つでインストール",
+    "installBody": "パッケージをダウンロードし、そのファイルがあるフォルダーでこのコマンドを実行します。aptがアプリと依存パッケージをまとめてインストールします。",
+    "installCommandLabel": "Debianのインストールコマンド",
+    "requirementsHeading": "動作要件",
+    "requirementArch": "x86_64（amd64）のコンピューター",
+    "requirementDistro": "Ubuntu 22.04以降、またはDebian 12以降",
+    "requirementDesktop": "検証済みのデスクトップ環境として、GNOMEまたはKDE Plasma",
+    "cudaHeading": "NVIDIA GPUをお使いなら、CUDAを追加",
+    "cudaBody": "ローカルのWhisperとローカルのGemmaによる後処理をCUDAで実行するには、同じリリースから、アプリと同じバージョンのオプションパッケージhyperwhisper-cudaをインストールしてください。",
+    "featuresHeading": "Linuxデスクトップのために設計",
+    "localHeading": "オフラインで動くオンデバイスモデル",
+    "localBody": "ローカルモデルを選べば、文字起こしはインターネット接続なしで、すべてお使いのコンピューター上で行われます。WhisperはCPU、またはVulkanやCUDAを通じてGPUで動作します。Parakeet、Qwen3 ASR、NemotronはCPUで動作します。ローカルのGemmaモデルを使えば、テキストの整形もオフラインで行えます。",
+    "byokHeading": "ご自身のAPIキーを利用",
+    "byokBody": "クラウドを使いたい場合は、クラウド文字起こし（DeepgramやElevenLabsなど）やAIによる後処理（OpenAI、Anthropic、Groq、Geminiなど）にご自身のAPIキーを使えます。キーを用意せずに、従量課金のHyperWhisper Cloudを使うこともできます。",
+    "languagesHeading": "40言語のインターフェース",
+    "languagesBody": "アプリのインターフェースは40言語に対応し、Whisperモデルは100以上の言語を文字起こしできます。",
+    "openSourceHeading": "オープンソース",
+    "openSourceBody": "HyperWhisperはLinuxアプリも含めて、Apache-2.0ライセンスのオープンソースです。すべてのコードをGitHubで読めます。",
+    "hotkeysHeading": "X11とWaylandでのグローバルショートカット",
+    "hotkeysBody": "グローバルショートカットはX11ではそのまま使えます。GNOMEとKDE PlasmaのWaylandでは、hyperwhisper-inputグループに参加し、ログアウトしてから再度ログインすると使えるようになります。Waylandでは、HyperWhisperはデスクトップポータルではなく、evdevを通じてキーボードを読み取ります。",
+    "hotkeysCommandLabel": "入力グループに参加",
+    "hotkeysFallback": "グループに参加しなくても文字起こしは動作し、結果はクリップボードに保持されます。自動貼り付けにもこのグループが必要です。",
+    "hotkeysDefault": "Ctrl+Altを押すと録音を開始・停止します。すべてのショートカットは設定で変更できます。",
+    "compareHeading": "LinuxならHyperWhisperとWispr Flowのどちら？",
+    "compareBody": "Wispr FlowにはネイティブのLinuxアプリがありません。HyperWhisperは、macOS版・Windows版に加えて、Ubuntu・Debian向けの.debパッケージとしてネイティブのLinuxアプリをすでに提供しています。",
+    "faqHeading": "よくある質問",
+    "faqWisprQuestion": "Linux向けのWispr Flowアプリはありますか？",
+    "faqWisprAnswer": "いいえ。Wispr FlowにはネイティブのLinuxアプリがありません。HyperWhisperはLinuxでネイティブに動作し、macOSとWindowsにも対応しています。",
+    "faqDistroQuestion": "どのLinuxディストリビューションに対応していますか？",
+    "faqDistroAnswer": "x86_64（amd64）上のUbuntu 22.04以降とDebian 12以降です。HyperWhisperは.debパッケージとして提供されます。その他のDebian系ディストリビューションでも動作する場合がありますが、検証済みのリリースマトリクスには含まれていません。",
+    "faqOfflineQuestion": "オフラインで使えますか？",
+    "faqOfflineAnswer": "はい。ローカルモデルを使えば、文字起こしはすべてお使いのコンピューター上で行われ、インターネット接続は不要です。",
+    "faqWaylandQuestion": "グローバルショートカットはWaylandで使えますか？",
+    "faqWaylandAnswer": "GNOMEとKDE PlasmaのWaylandでは、hyperwhisper-inputグループに参加し、ログアウトしてから再度ログインすれば使えます。X11ではそのまま使えます。",
+    "docsHeading": "詳しく知りたい場合",
+    "docsBody": "Linuxインストールガイドでは、CUDA、入力デバイスの権限、オプションのGNOME・KDEコンパニオン、アンインストールについて説明しています。",
+    "docsCta": "Linuxインストールガイドを読む"
   },
   "openSourceBanner": {
     "text": "HyperWhisperが完全にオープンソースになりました",

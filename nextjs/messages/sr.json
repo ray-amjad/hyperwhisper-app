@@ -16,7 +16,8 @@
       "switchTo": "Promeni jezik"
     },
     "cloud": "Cloud",
-    "githubAria": "Pogledajte HyperWhisper na GitHubu"
+    "githubAria": "Pogledajte HyperWhisper na GitHubu",
+    "linux": "Linux"
   },
   "hero": {
     "logoAlt": "HyperWhisper logo",
@@ -225,10 +226,11 @@
     "linuxTargets": "Linux v1 je namenjen za Ubuntu 22.04+ i Debian 12+ na amd64.",
     "linuxReplaceVersion": "Zamenite VERSION verzijom koju ste preuzeli.",
     "linuxInstallCommandLabel": "Komanda za instalaciju na Debianu",
-    "linuxInputGroupNote": "Nakon pridruživanja grupi input odjavite se i ponovo prijavite. Članstvo nije obavezno, ali ga zahtevaju globalne prečice i automatsko lepljenje.",
+    "linuxInputGroupNote": "Na X11 globalne prečice rade i bez nje. Na GNOME-u i KDE Plasmi sa Waylandom globalne prečice zahtevaju grupu input, a automatsko lepljenje je zahteva na svakom radnom okruženju. Nakon pridruživanja grupi odjavite se i ponovo prijavite.",
     "aptTitle": "Sopstveni APT repozitorijum",
     "aptBody": "Linux izdanja uključuju i arhivu statičkog APT repozitorijuma. HyperWhisper trenutno ne održava javni APT server; za potpisano, samostalno hostovano podešavanje, desktop dodatke, detalje o privatnosti i uklanjanje pogledajte vodič za instalaciju na Linuxu.",
-    "linuxGuideCta": "Pročitajte vodič za instalaciju na Linuxu"
+    "linuxGuideCta": "Pročitajte vodič za instalaciju na Linuxu",
+    "learnMoreLinux": "Saznajte više o HyperWhisper na Linuxu"
   },
   "olderVersions": {
     "title": "Starije verzije",
@@ -276,7 +278,8 @@
       "privacyPolicy": "Politika privatnosti",
       "termsOfService": "Uslovi korišćenja",
       "refundPolicy": "Politika povraćaja",
-      "dataTraining": "Приватност података"
+      "dataTraining": "Приватност података",
+      "linux": "HyperWhisper za Linux"
     },
     "copyright": "© 2026 HyperWhisper. Sva prava zadržana.",
     "linkedinAria": "LinkedIn"
@@ -373,6 +376,53 @@
     "licenseOlder": "<strong>Kupljeno pre više od 30 dana:</strong> plaćeni iznos ćemo pretvoriti u kredite HyperWhisper Cloud — punu kupovnu cenu umanjenu za $5 u kreditima koji su već dodati na vaš nalog. <credits>Pišite nam</credits> i dodaćemo vam ostatak.",
     "contributeHeading": "Želite da doprinesete?",
     "contributeBody": "Prijave grešaka, ideje za funkcije i pull requestovi su dobrodošli. Otvorite issue ili započnite diskusiju <github>na GitHubu</github>."
+  },
+  "linuxPage": {
+    "metaTitle": "HyperWhisper: alternativa za Wispr Flow na Linuxu",
+    "metaDescription": "Wispr Flow nema izvornu aplikaciju za Linux. HyperWhisper je ima: glasovno diktiranje uz veštačku inteligenciju za Ubuntu i Debian, sa lokalnim modelima bez interneta, sopstvenim API ključevima i globalnim prečicama.",
+    "eyebrow": "HyperWhisper za Linux",
+    "heading": "HyperWhisper: alternativa za Wispr Flow na Linuxu",
+    "lead": "Wispr Flow nema izvornu aplikaciju za Linux. HyperWhisper je ima. Govorite prirodno i dobijte čist tekst, transkribovan bez interneta na vašem računaru ili u oblaku uz vaš sopstveni API ključ.",
+    "downloadCta": "Preuzmi .deb (v{version})",
+    "releaseNotes": "Beleške o izdanju i kontrolni zbirovi",
+    "requirementsShort": "x86_64 · Ubuntu 22.04+ / Debian 12+",
+    "installHeading": "Instalacija jednom komandom",
+    "installBody": "Preuzmite paket, a zatim pokrenite ovu komandu iz fascikle u kojoj se nalazi. apt instalira aplikaciju zajedno sa njenim zavisnostima.",
+    "installCommandLabel": "Komanda za instalaciju Debian paketa",
+    "requirementsHeading": "Zahtevi",
+    "requirementArch": "Računar x86_64 (amd64)",
+    "requirementDistro": "Ubuntu 22.04 ili noviji, ili Debian 12 ili noviji",
+    "requirementDesktop": "GNOME ili KDE Plasma za provereno iskustvo na radnoj površini",
+    "cudaHeading": "Imate NVIDIA GPU? Dodajte CUDA",
+    "cudaBody": "Instalirajte opcioni paket hyperwhisper-cuda iz istog izdanja, iste verzije kao aplikacija, da biste lokalni Whisper i lokalnu Gemma naknadnu obradu pokretali na CUDA.",
+    "featuresHeading": "Napravljeno za vašu Linux radnu površinu",
+    "localHeading": "Modeli bez interneta, na vašem uređaju",
+    "localBody": "Izaberite lokalni model i transkripcija se u potpunosti odvija na vašem računaru, bez internet veze. Whisper radi na procesoru ili na grafičkoj kartici preko Vulkan ili CUDA. Parakeet, Qwen3 ASR i Nemotron rade na procesoru. Lokalni Gemma modeli mogu da srede vaš tekst i bez interneta.",
+    "byokHeading": "Koristite sopstveni API ključ",
+    "byokBody": "Više volite oblak? Koristite sopstveni API ključ za transkripciju u oblaku, na primer Deepgram ili ElevenLabs, i za AI naknadnu obradu, na primer OpenAI, Anthropic, Groq ili Gemini. Ili preskočite ključeve i koristite HyperWhisper Cloud, uz plaćanje po potrošnji.",
+    "languagesHeading": "Interfejs na 40 jezika",
+    "languagesBody": "Interfejs aplikacije dostupan je na 40 jezika, a Whisper modeli transkribuju više od 100 jezika.",
+    "openSourceHeading": "Otvoreni kod",
+    "openSourceBody": "HyperWhisper je otvorenog koda pod licencom Apache-2.0, uključujući i aplikaciju za Linux. Pročitajte svaki red na GitHubu.",
+    "hotkeysHeading": "Globalne prečice na X11 i Waylandu",
+    "hotkeysBody": "Globalne prečice rade odmah na X11. Na GNOME i KDE Plasma Wayland rade kada se pridružite grupi hyperwhisper-input, odjavite se i ponovo prijavite. Na Waylandu HyperWhisper čita tastaturu preko evdev, a ne preko portala radne površine.",
+    "hotkeysCommandLabel": "Pridružite se grupi za unos",
+    "hotkeysFallback": "Bez grupe transkripcija i dalje radi, a rezultat ostaje u međuspremniku. Automatsko lepljenje takođe zahteva grupu.",
+    "hotkeysDefault": "Pritisnite Ctrl+Alt da započnete i zaustavite snimanje. Svaku prečicu možete da promenite u podešavanjima.",
+    "compareHeading": "HyperWhisper ili Wispr Flow na Linuxu?",
+    "compareBody": "Wispr Flow nema izvornu aplikaciju za Linux. HyperWhisper već danas nudi izvornu aplikaciju za Linux, kao .deb paket za Ubuntu i Debian, pored svojih aplikacija za macOS i Windows.",
+    "faqHeading": "Često postavljana pitanja",
+    "faqWisprQuestion": "Postoji li Wispr Flow aplikacija za Linux?",
+    "faqWisprAnswer": "Ne. Wispr Flow nema izvornu aplikaciju za Linux. HyperWhisper radi izvorno na Linuxu, kao i na macOS i Windows.",
+    "faqDistroQuestion": "Koje Linux distribucije su podržane?",
+    "faqDistroAnswer": "Ubuntu 22.04 ili noviji i Debian 12 ili noviji, na x86_64 (amd64). HyperWhisper se isporučuje kao .deb paket. Druge distribucije zasnovane na Debianu možda rade, ali nisu deo proverene matrice izdanja.",
+    "faqOfflineQuestion": "Da li radi bez interneta?",
+    "faqOfflineAnswer": "Da. Sa lokalnim modelom transkripcija se u potpunosti odvija na vašem računaru i ne zahteva internet vezu.",
+    "faqWaylandQuestion": "Da li globalne prečice rade na Waylandu?",
+    "faqWaylandAnswer": "Na GNOME i KDE Plasma Wayland da, kada se pridružite grupi hyperwhisper-input, odjavite se i ponovo prijavite. Na X11 rade odmah.",
+    "docsHeading": "Potrebni su vam detalji?",
+    "docsBody": "Vodič za instalaciju na Linuxu pokriva CUDA, dozvole za unos, opcione pratioce za GNOME i KDE i uklanjanje.",
+    "docsCta": "Pročitajte vodič za instalaciju na Linuxu"
   },
   "openSourceBanner": {
     "text": "HyperWhisper je sada potpuno otvorenog koda",

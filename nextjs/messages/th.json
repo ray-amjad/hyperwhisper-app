@@ -16,7 +16,8 @@
       "switchTo": "เปลี่ยนภาษา"
     },
     "cloud": "คลาวด์",
-    "githubAria": "ดู HyperWhisper บน GitHub"
+    "githubAria": "ดู HyperWhisper บน GitHub",
+    "linux": "Linux"
   },
   "hero": {
     "logoAlt": "โลโก้ HyperWhisper",
@@ -225,10 +226,11 @@
     "linuxTargets": "Linux v1 รองรับ Ubuntu 22.04+ และ Debian 12+ บน amd64",
     "linuxReplaceVersion": "แทนที่ VERSION ด้วยเวอร์ชันที่คุณดาวน์โหลด",
     "linuxInstallCommandLabel": "คำสั่งติดตั้ง Debian",
-    "linuxInputGroupNote": "ออกจากระบบแล้วเข้าสู่ระบบใหม่หลังจากเข้าร่วมกลุ่ม input การเป็นสมาชิกไม่บังคับ แต่ทางลัดส่วนกลางและการวางอัตโนมัติจำเป็นต้องใช้",
+    "linuxInputGroupNote": "บน X11 ทางลัดส่วนกลางทำงานได้โดยไม่ต้องใช้กลุ่มนี้ บน GNOME และ KDE Plasma แบบ Wayland ทางลัดส่วนกลางต้องใช้กลุ่ม input และการวางอัตโนมัติต้องใช้กลุ่มนี้บนทุกเดสก์ท็อป ออกจากระบบแล้วเข้าสู่ระบบใหม่หลังจากเข้าร่วมกลุ่ม",
     "aptTitle": "โฮสต์รีโพสิทอรี APT เอง",
     "aptBody": "รุ่น Linux ยังมีไฟล์เก็บถาวรรีโพสิทอรี APT แบบสแตติกมาด้วย ขณะนี้ HyperWhisper ไม่ได้ให้บริการ APT endpoint สาธารณะ ดูคู่มือการติดตั้ง Linux สำหรับการตั้งค่าแบบโฮสต์เองพร้อมลายเซ็น ส่วนเสริมสำหรับเดสก์ท็อป รายละเอียดความเป็นส่วนตัว และการถอนการติดตั้ง",
-    "linuxGuideCta": "อ่านคู่มือการติดตั้ง Linux"
+    "linuxGuideCta": "อ่านคู่มือการติดตั้ง Linux",
+    "learnMoreLinux": "ดูข้อมูลเพิ่มเติมเกี่ยวกับ HyperWhisper บน Linux"
   },
   "olderVersions": {
     "title": "เวอร์ชันเก่า",
@@ -276,7 +278,8 @@
       "privacyPolicy": "นโยบายความเป็นส่วนตัว",
       "termsOfService": "ข้อกำหนดการให้บริการ",
       "refundPolicy": "นโยบายการคืนเงิน",
-      "dataTraining": "ความเป็นส่วนตัวของข้อมูล"
+      "dataTraining": "ความเป็นส่วนตัวของข้อมูล",
+      "linux": "HyperWhisper สำหรับ Linux"
     },
     "copyright": "© 2026 HyperWhisper. สงวนลิขสิทธิ์",
     "linkedinAria": "LinkedIn"
@@ -373,6 +376,53 @@
     "licenseOlder": "<strong>ซื้อมานานกว่า 30 วัน:</strong> เราจะแปลงเงินที่คุณจ่ายเป็นเครดิต HyperWhisper Cloud เท่ากับราคาซื้อเต็มจำนวน หักด้วยเครดิต $5 ที่เพิ่มเข้าบัญชีของคุณแล้ว <credits>ส่งอีเมลหาเรา</credits> แล้วเราจะเติมยอดคงเหลือให้",
     "contributeHeading": "อยากมีส่วนร่วมไหม",
     "contributeBody": "ยินดีรับรายงานบั๊ก ไอเดียฟีเจอร์ และ Pull Request ทุกรูปแบบ เปิด Issue หรือเริ่มการพูดคุย<github>บน GitHub</github>"
+  },
+  "linuxPage": {
+    "metaTitle": "HyperWhisper: ทางเลือกแทน Wispr Flow สำหรับ Linux",
+    "metaDescription": "Wispr Flow ไม่มีแอปแบบเนทีฟสำหรับ Linux แต่ HyperWhisper มี: การพิมพ์ด้วยเสียงด้วย AI สำหรับ Ubuntu และ Debian พร้อมโมเดลในเครื่องที่ใช้งานออฟไลน์ได้ คีย์ API ของคุณเอง และคีย์ลัดแบบโกลบอล",
+    "eyebrow": "HyperWhisper สำหรับ Linux",
+    "heading": "HyperWhisper: ทางเลือกแทน Wispr Flow สำหรับ Linux",
+    "lead": "Wispr Flow ไม่มีแอปแบบเนทีฟสำหรับ Linux แต่ HyperWhisper มี พูดตามธรรมชาติแล้วได้ข้อความที่เรียบร้อย ถอดเสียงแบบออฟไลน์บนคอมพิวเตอร์ของคุณเอง หรือบนคลาวด์ด้วยคีย์ API ของคุณเอง",
+    "downloadCta": "ดาวน์โหลด .deb (v{version})",
+    "releaseNotes": "บันทึกประจำรุ่นและเช็กซัม",
+    "requirementsShort": "x86_64 · Ubuntu 22.04+ / Debian 12+",
+    "installHeading": "ติดตั้งด้วยคำสั่งเดียว",
+    "installBody": "ดาวน์โหลดแพ็กเกจ แล้วรันคำสั่งนี้จากโฟลเดอร์ที่มีไฟล์นั้นอยู่ apt จะติดตั้งแอปพร้อมกับส่วนประกอบที่จำเป็นทั้งหมด",
+    "installCommandLabel": "คำสั่งติดตั้งแพ็กเกจ Debian",
+    "requirementsHeading": "ความต้องการของระบบ",
+    "requirementArch": "คอมพิวเตอร์ x86_64 (amd64)",
+    "requirementDistro": "Ubuntu 22.04 ขึ้นไป หรือ Debian 12 ขึ้นไป",
+    "requirementDesktop": "GNOME หรือ KDE Plasma สำหรับประสบการณ์เดสก์ท็อปที่ผ่านการตรวจสอบแล้ว",
+    "cudaHeading": "ใช้การ์ดจอ NVIDIA? เพิ่ม CUDA",
+    "cudaBody": "ติดตั้งแพ็กเกจเสริม hyperwhisper-cuda จากรุ่นเดียวกัน โดยใช้เวอร์ชันเดียวกับแอป เพื่อรัน Whisper ในเครื่องและการประมวลผลขั้นหลังด้วย Gemma ในเครื่องบน CUDA",
+    "featuresHeading": "สร้างมาเพื่อเดสก์ท็อป Linux ของคุณ",
+    "localHeading": "โมเดลออฟไลน์บนอุปกรณ์ของคุณ",
+    "localBody": "เลือกโมเดลในเครื่อง แล้วการถอดเสียงจะทำงานบนคอมพิวเตอร์ของคุณทั้งหมด โดยไม่ต้องเชื่อมต่ออินเทอร์เน็ต Whisper ทำงานบน CPU หรือบน GPU ผ่าน Vulkan หรือ CUDA ส่วน Parakeet, Qwen3 ASR และ Nemotron ทำงานบน CPU และโมเดล Gemma ในเครื่องยังช่วยเกลาข้อความของคุณแบบออฟไลน์ได้ด้วย",
+    "byokHeading": "ใช้คีย์ API ของคุณเอง",
+    "byokBody": "ชอบใช้คลาวด์มากกว่า? ใช้คีย์ API ของคุณเองสำหรับการถอดเสียงบนคลาวด์ เช่น Deepgram หรือ ElevenLabs และสำหรับการประมวลผลขั้นหลังด้วย AI เช่น OpenAI, Anthropic, Groq หรือ Gemini หรือไม่ต้องใช้คีย์เลยแล้วเลือก HyperWhisper Cloud แบบจ่ายตามการใช้งาน",
+    "languagesHeading": "อินเทอร์เฟซ 40 ภาษา",
+    "languagesBody": "อินเทอร์เฟซของแอปมีให้ใช้งาน 40 ภาษา และโมเดล Whisper ถอดเสียงได้มากกว่า 100 ภาษา",
+    "openSourceHeading": "โอเพนซอร์ส",
+    "openSourceBody": "HyperWhisper เป็นโอเพนซอร์สภายใต้ Apache-2.0 รวมถึงแอปสำหรับ Linux ด้วย อ่านโค้ดได้ทุกบรรทัดบน GitHub",
+    "hotkeysHeading": "คีย์ลัดแบบโกลบอลบน X11 และ Wayland",
+    "hotkeysBody": "คีย์ลัดแบบโกลบอลใช้งานได้ทันทีบน X11 บน GNOME และ KDE Plasma Wayland จะใช้งานได้หลังจากคุณเข้าร่วมกลุ่ม hyperwhisper-input แล้วออกจากระบบและเข้าสู่ระบบใหม่ บน Wayland HyperWhisper อ่านคีย์บอร์ดผ่าน evdev ไม่ใช่ผ่านพอร์ทัลของเดสก์ท็อป",
+    "hotkeysCommandLabel": "เข้าร่วมกลุ่มอินพุต",
+    "hotkeysFallback": "หากไม่ได้อยู่ในกลุ่ม การถอดเสียงก็ยังใช้งานได้ และผลลัพธ์จะถูกเก็บไว้ในคลิปบอร์ด การวางอัตโนมัติก็ต้องใช้กลุ่มนี้เช่นกัน",
+    "hotkeysDefault": "กด Ctrl+Alt เพื่อเริ่มและหยุดการบันทึก คุณเปลี่ยนคีย์ลัดทุกอันได้ในการตั้งค่า",
+    "compareHeading": "HyperWhisper หรือ Wispr Flow บน Linux?",
+    "compareBody": "Wispr Flow ไม่มีแอปแบบเนทีฟสำหรับ Linux ส่วน HyperWhisper มีแอป Linux แบบเนทีฟให้ใช้แล้ววันนี้ ในรูปแบบแพ็กเกจ .deb สำหรับ Ubuntu และ Debian ควบคู่กับแอปสำหรับ macOS และ Windows",
+    "faqHeading": "คำถามที่พบบ่อย",
+    "faqWisprQuestion": "มีแอป Wispr Flow สำหรับ Linux ไหม?",
+    "faqWisprAnswer": "ไม่มี Wispr Flow ไม่มีแอปแบบเนทีฟสำหรับ Linux ส่วน HyperWhisper ทำงานแบบเนทีฟบน Linux รวมถึงบน macOS และ Windows",
+    "faqDistroQuestion": "รองรับ Linux ดิสทริบิวชันใดบ้าง?",
+    "faqDistroAnswer": "Ubuntu 22.04 ขึ้นไปและ Debian 12 ขึ้นไป บน x86_64 (amd64) HyperWhisper มาในรูปแบบแพ็กเกจ .deb ดิสทริบิวชันอื่นที่อิงกับ Debian อาจใช้งานได้ แต่ไม่ได้อยู่ในชุดการทดสอบรุ่นที่ผ่านการตรวจสอบแล้ว",
+    "faqOfflineQuestion": "ใช้งานแบบออฟไลน์ได้ไหม?",
+    "faqOfflineAnswer": "ได้ เมื่อใช้โมเดลในเครื่อง การถอดเสียงจะทำงานบนคอมพิวเตอร์ของคุณทั้งหมดและไม่ต้องใช้อินเทอร์เน็ต",
+    "faqWaylandQuestion": "คีย์ลัดแบบโกลบอลใช้งานได้บน Wayland ไหม?",
+    "faqWaylandAnswer": "บน GNOME และ KDE Plasma Wayland ใช้งานได้ หลังจากคุณเข้าร่วมกลุ่ม hyperwhisper-input แล้วออกจากระบบและเข้าสู่ระบบใหม่ ส่วนบน X11 ใช้งานได้ทันที",
+    "docsHeading": "ต้องการรายละเอียดเพิ่มเติม?",
+    "docsBody": "คู่มือการติดตั้ง Linux ครอบคลุม CUDA สิทธิ์การเข้าถึงอินพุต ส่วนเสริมสำหรับ GNOME และ KDE ที่ติดตั้งได้ตามต้องการ และการถอนการติดตั้ง",
+    "docsCta": "อ่านคู่มือการติดตั้ง Linux"
   },
   "openSourceBanner": {
     "text": "ตอนนี้ HyperWhisper เป็นโอเพนซอร์สทั้งหมดแล้ว",

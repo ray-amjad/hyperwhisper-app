@@ -16,7 +16,8 @@
       "switchTo": "Vaihda kieli"
     },
     "cloud": "Cloud",
-    "githubAria": "Katso HyperWhisper GitHubissa"
+    "githubAria": "Katso HyperWhisper GitHubissa",
+    "linux": "Linux"
   },
   "hero": {
     "logoAlt": "HyperWhisper-logo",
@@ -225,10 +226,11 @@
     "linuxTargets": "Linux v1 tukee järjestelmiä Ubuntu 22.04+ ja Debian 12+ amd64-alustalla.",
     "linuxReplaceVersion": "Korvaa VERSION lataamasi version numerolla.",
     "linuxInstallCommandLabel": "Debianin asennuskomento",
-    "linuxInputGroupNote": "Kirjaudu ulos ja takaisin sisään, kun olet liittynyt input-ryhmään. Jäsenyys on valinnainen, mutta yleiset pikanäppäimet ja automaattinen liittäminen edellyttävät sitä.",
+    "linuxInputGroupNote": "X11:ssä yleiset pikanäppäimet toimivat ilman sitä. GNOMEn ja KDE Plasman Wayland-istunnoissa yleiset pikanäppäimet edellyttävät input-ryhmää, ja automaattinen liittäminen edellyttää sitä kaikissa työpöytäympäristöissä. Kirjaudu ulos ja takaisin sisään, kun olet liittynyt siihen.",
     "aptTitle": "Isännöi omaa APT-repositoriota",
     "aptBody": "Linux-julkaisuihin sisältyy myös staattinen APT-repositorioarkisto. HyperWhisper ei tällä hetkellä ylläpidä julkista APT-päätepistettä; katso Linux-asennusoppaasta ohjeet allekirjoitettuun, itse isännöityyn käyttöönottoon, työpöytäintegraatioon, tietosuojaan ja poistamiseen.",
-    "linuxGuideCta": "Lue Linux-asennusopas"
+    "linuxGuideCta": "Lue Linux-asennusopas",
+    "learnMoreLinux": "Lue lisää HyperWhisperistä Linuxissa"
   },
   "olderVersions": {
     "title": "Vanhemmat versiot",
@@ -276,7 +278,8 @@
       "privacyPolicy": "Tietosuojakäytäntö",
       "termsOfService": "Käyttöehdot",
       "refundPolicy": "Palautuskäytäntö",
-      "dataTraining": "Tietosuoja"
+      "dataTraining": "Tietosuoja",
+      "linux": "HyperWhisper Linuxille"
     },
     "copyright": "© 2026 HyperWhisper. Kaikki oikeudet pidätetään.",
     "linkedinAria": "LinkedIn"
@@ -373,6 +376,53 @@
     "licenseOlder": "<strong>Ostettu yli 30 päivää sitten:</strong> muutamme maksamasi summan HyperWhisper Cloud -krediiteiksi — koko ostohinnan, josta vähennetään tilillesi jo lisätyt krediitit ($5). <credits>Lähetä meille sähköpostia</credits>, niin lisäämme saldon.",
     "contributeHeading": "Haluatko osallistua?",
     "contributeBody": "Virheraportit, ominaisuusideat ja pull requestit ovat kaikki tervetulleita. Avaa issue tai aloita keskustelu <github>GitHubissa</github>."
+  },
+  "linuxPage": {
+    "metaTitle": "HyperWhisper: Wispr Flow -vaihtoehto Linuxille",
+    "metaDescription": "Wispr Flow -sovelluksesta ei ole natiivia Linux-versiota. HyperWhisperistä on: tekoälypohjainen puhesanelu Ubuntulle ja Debianille paikallisilla offline-malleilla, omilla API-avaimilla ja yleisillä pikanäppäimillä.",
+    "eyebrow": "HyperWhisper Linuxille",
+    "heading": "HyperWhisper: Wispr Flow -vaihtoehto Linuxille",
+    "lead": "Wispr Flow -sovelluksesta ei ole natiivia Linux-versiota. HyperWhisperistä on. Puhu luontevasti ja saat siistiä tekstiä, joka litteroidaan offline omalla tietokoneellasi tai pilvessä omalla API-avaimellasi.",
+    "downloadCta": "Lataa .deb (v{version})",
+    "releaseNotes": "Julkaisutiedot ja tarkistussummat",
+    "requirementsShort": "x86_64 · Ubuntu 22.04+ / Debian 12+",
+    "installHeading": "Asenna yhdellä komennolla",
+    "installBody": "Lataa paketti ja suorita sitten tämä komento kansiossa, jossa se on. apt asentaa sovelluksen ja sen riippuvuudet yhdellä kertaa.",
+    "installCommandLabel": "Debianin asennuskomento",
+    "requirementsHeading": "Vaatimukset",
+    "requirementArch": "x86_64-tietokone (amd64)",
+    "requirementDistro": "Ubuntu 22.04 tai uudempi tai Debian 12 tai uudempi",
+    "requirementDesktop": "GNOME tai KDE Plasma varmennettua työpöytäkokemusta varten",
+    "cudaHeading": "NVIDIA-näytönohjain? Lisää CUDA",
+    "cudaBody": "Asenna valinnainen hyperwhisper-cuda-paketti samasta julkaisusta ja samana versiona kuin sovellus, niin paikallinen Whisper ja paikallinen Gemma-jälkikäsittely toimivat CUDAlla.",
+    "featuresHeading": "Tehty Linux-työpöydällesi",
+    "localHeading": "Offline-mallit omalla laitteellasi",
+    "localBody": "Valitse paikallinen malli, niin litterointi toimii kokonaan tietokoneellasi ilman internetyhteyttä. Whisper toimii suorittimella tai näytönohjaimella Vulkanin tai CUDAn kautta. Parakeet, Qwen3 ASR ja Nemotron toimivat suorittimella. Paikalliset Gemma-mallit voivat myös viimeistellä tekstisi offline.",
+    "byokHeading": "Käytä omaa API-avaintasi",
+    "byokBody": "Suositko pilveä? Käytä omaa API-avaintasi pilvilitterointiin, esimerkiksi Deepgramin tai ElevenLabsin kanssa, ja tekoälypohjaiseen jälkikäsittelyyn, esimerkiksi OpenAI:n, Anthropicin, Groqin tai Geminin kanssa. Tai ohita avaimet ja käytä HyperWhisper Cloudia, jossa maksat käytön mukaan.",
+    "languagesHeading": "Käyttöliittymä 40 kielellä",
+    "languagesBody": "Sovelluksen käyttöliittymä on saatavilla 40 kielellä, ja Whisper-mallit litteroivat yli 100 kieltä.",
+    "openSourceHeading": "Avoin lähdekoodi",
+    "openSourceBody": "HyperWhisper on avointa lähdekoodia Apache-2.0-lisenssillä, Linux-sovellus mukaan lukien. Lue jokainen rivi GitHubissa.",
+    "hotkeysHeading": "Yleiset pikanäppäimet X11:ssä ja Waylandissa",
+    "hotkeysBody": "Yleiset pikanäppäimet toimivat X11:ssä heti. GNOMEn ja KDE Plasman Wayland-istunnoissa ne toimivat, kun olet liittynyt hyperwhisper-input-ryhmään ja kirjautunut ulos ja takaisin sisään. Waylandissa HyperWhisper lukee näppäimistöä evdevin kautta, ei työpöytäportaalin kautta.",
+    "hotkeysCommandLabel": "Liity syöteryhmään",
+    "hotkeysFallback": "Ilman ryhmää litterointi toimii silti, ja tulos säilyy leikepöydällä. Myös automaattinen liittäminen vaatii ryhmän.",
+    "hotkeysDefault": "Aloita ja lopeta tallennus painamalla Ctrl+Alt. Voit muuttaa jokaisen pikanäppäimen asetuksissa.",
+    "compareHeading": "HyperWhisper vai Wispr Flow Linuxissa?",
+    "compareBody": "Wispr Flow -sovelluksesta ei ole natiivia Linux-versiota. HyperWhisperistä on natiivi Linux-sovellus jo nyt .deb-pakettina Ubuntulle ja Debianille, macOS- ja Windows-sovellusten lisäksi.",
+    "faqHeading": "Usein kysytyt kysymykset",
+    "faqWisprQuestion": "Onko Wispr Flow saatavilla Linuxille?",
+    "faqWisprAnswer": "Ei. Wispr Flow -sovelluksesta ei ole natiivia Linux-versiota. HyperWhisper toimii natiivisti Linuxissa sekä macOS:ssä ja Windowsissa.",
+    "faqDistroQuestion": "Mitä Linux-jakeluita tuetaan?",
+    "faqDistroAnswer": "Ubuntu 22.04 tai uudempi ja Debian 12 tai uudempi x86_64-arkkitehtuurilla (amd64). HyperWhisper toimitetaan .deb-pakettina. Muut Debian-pohjaiset jakelut voivat toimia, mutta ne eivät kuulu varmennettuun julkaisumatriisiin.",
+    "faqOfflineQuestion": "Toimiiko se offline?",
+    "faqOfflineAnswer": "Kyllä. Paikallisella mallilla litterointi toimii kokonaan tietokoneellasi eikä tarvitse internetyhteyttä.",
+    "faqWaylandQuestion": "Toimivatko yleiset pikanäppäimet Waylandissa?",
+    "faqWaylandAnswer": "GNOMEn ja KDE Plasman Wayland-istunnoissa kyllä, kun olet liittynyt hyperwhisper-input-ryhmään ja kirjautunut ulos ja takaisin sisään. X11:ssä ne toimivat heti.",
+    "docsHeading": "Tarvitsetko lisätietoja?",
+    "docsBody": "Linuxin asennusopas kattaa CUDAn, syöteoikeudet, valinnaiset GNOME- ja KDE-apuohjelmat sekä poistamisen.",
+    "docsCta": "Lue Linuxin asennusopas"
   },
   "openSourceBanner": {
     "text": "HyperWhisper on nyt täysin avointa lähdekoodia",

@@ -16,7 +16,8 @@
       "switchTo": "Dili değiştir"
     },
     "cloud": "Bulut",
-    "githubAria": "HyperWhisper'ı GitHub'da görüntüleyin"
+    "githubAria": "HyperWhisper'ı GitHub'da görüntüleyin",
+    "linux": "Linux"
   },
   "hero": {
     "logoAlt": "HyperWhisper Logosu",
@@ -225,10 +226,11 @@
     "linuxTargets": "Linux v1, amd64 üzerinde Ubuntu 22.04+ ve Debian 12+ sürümlerini hedefler.",
     "linuxReplaceVersion": "VERSION ifadesini indirdiğiniz sürümle değiştirin.",
     "linuxInstallCommandLabel": "Debian kurulum komutu",
-    "linuxInputGroupNote": "input grubuna katıldıktan sonra oturumu kapatıp yeniden açın. Üyelik isteğe bağlıdır, ancak genel kısayollar ve otomatik yapıştırma için gereklidir.",
+    "linuxInputGroupNote": "X11'de genel kısayollar bu grup olmadan çalışır. GNOME ve KDE Plasma Wayland'de genel kısayollar için input grubu gerekir; otomatik yapıştırma için ise her masaüstünde gereklidir. Gruba katıldıktan sonra oturumu kapatıp yeniden açın.",
     "aptTitle": "Kendi APT deponuzu barındırın",
     "aptBody": "Linux sürümleri ayrıca statik bir APT deposu arşivi içerir. HyperWhisper şu anda herkese açık bir APT uç noktası işletmiyor; imzalı ve kendi barındırdığınız kurulum, masaüstü yardımcı bileşenleri, gizlilik ayrıntıları ve kaldırma için Linux kurulum kılavuzuna bakın.",
-    "linuxGuideCta": "Linux kurulum kılavuzunu okuyun"
+    "linuxGuideCta": "Linux kurulum kılavuzunu okuyun",
+    "learnMoreLinux": "Linux'ta HyperWhisper hakkında daha fazla bilgi"
   },
   "olderVersions": {
     "title": "Eski Sürümler",
@@ -276,7 +278,8 @@
       "privacyPolicy": "Gizlilik Politikası",
       "termsOfService": "Hizmet Şartları",
       "refundPolicy": "İade Politikası",
-      "dataTraining": "Veri Gizliliği"
+      "dataTraining": "Veri Gizliliği",
+      "linux": "Linux için HyperWhisper"
     },
     "copyright": "© 2026 HyperWhisper. Tüm hakları saklıdır.",
     "linkedinAria": "LinkedIn"
@@ -373,6 +376,53 @@
     "licenseOlder": "<strong>30 günden daha uzun süre önce satın aldıysanız:</strong> ödediğiniz tutarı HyperWhisper Cloud kredisine dönüştüreceğiz — satın alma bedelinin tamamı, hesabınıza zaten eklenmiş olan $5 kredi düşülerek. <credits>Bize e-posta gönderin</credits>, kalan bakiyeyi hesabınıza tanımlayalım.",
     "contributeHeading": "Katkıda bulunmak ister misiniz?",
     "contributeBody": "Hata bildirimleri, özellik fikirleri ve pull request'ler memnuniyetle karşılanır. <github>GitHub'da</github> bir issue açın veya bir tartışma başlatın."
+  },
+  "linuxPage": {
+    "metaTitle": "HyperWhisper: Linux için Wispr Flow alternatifi",
+    "metaDescription": "Wispr Flow'un yerel bir Linux uygulaması yok. HyperWhisper'ın var: Ubuntu ve Debian için çevrimdışı yerel modeller, kendi API anahtarlarınız ve genel kısayollarla yapay zekâ destekli sesle yazma.",
+    "eyebrow": "Linux için HyperWhisper",
+    "heading": "HyperWhisper: Linux için Wispr Flow alternatifi",
+    "lead": "Wispr Flow'un yerel bir Linux uygulaması yok. HyperWhisper'ın var. Doğal konuşun ve temiz metin alın; metin kendi bilgisayarınızda çevrimdışı ya da kendi API anahtarınızla bulutta yazıya dökülür.",
+    "downloadCta": ".deb indir (v{version})",
+    "releaseNotes": "Sürüm notları ve sağlama toplamları",
+    "requirementsShort": "x86_64 · Ubuntu 22.04+ / Debian 12+",
+    "installHeading": "Tek komutla kurun",
+    "installBody": "Paketi indirin, ardından bu komutu paketin bulunduğu klasörde çalıştırın. apt, uygulamayı bağımlılıklarıyla birlikte kurar.",
+    "installCommandLabel": "Debian kurulum komutu",
+    "requirementsHeading": "Gereksinimler",
+    "requirementArch": "x86_64 (amd64) bir bilgisayar",
+    "requirementDistro": "Ubuntu 22.04 veya üzeri ya da Debian 12 veya üzeri",
+    "requirementDesktop": "Doğrulanmış masaüstü deneyimi için GNOME veya KDE Plasma",
+    "cudaHeading": "NVIDIA GPU mu var? CUDA ekleyin",
+    "cudaBody": "Yerel Whisper'ı ve yerel Gemma son işlemesini CUDA üzerinde çalıştırmak için aynı sürümden, uygulamayla aynı sürüm numarasına sahip isteğe bağlı hyperwhisper-cuda paketini kurun.",
+    "featuresHeading": "Linux masaüstünüz için tasarlandı",
+    "localHeading": "Çevrimdışı, cihaz üzerinde modeller",
+    "localBody": "Yerel bir model seçin; yazıya dökme tamamen bilgisayarınızda, internet bağlantısı olmadan çalışır. Whisper işlemcide ya da Vulkan veya CUDA ile ekran kartınızda çalışır. Parakeet, Qwen3 ASR ve Nemotron işlemcide çalışır. Yerel Gemma modelleri metninizi çevrimdışı olarak da düzenleyebilir.",
+    "byokHeading": "Kendi API anahtarınızı kullanın",
+    "byokBody": "Bulutu mu tercih ediyorsunuz? Bulutta yazıya dökme için (örneğin Deepgram veya ElevenLabs) ve yapay zekâ son işlemesi için (örneğin OpenAI, Anthropic, Groq veya Gemini) kendi API anahtarınızı kullanın. Ya da anahtarlarla uğraşmayın ve kullandıkça öde modeliyle HyperWhisper Cloud'u kullanın.",
+    "languagesHeading": "40 arayüz dili",
+    "languagesBody": "Uygulama arayüzü 40 dilde kullanılabilir ve Whisper modelleri 100'den fazla dili yazıya döker.",
+    "openSourceHeading": "Açık kaynak",
+    "openSourceBody": "HyperWhisper, Linux uygulaması dahil Apache-2.0 lisansıyla açık kaynaktır. Her satırı GitHub'da okuyun.",
+    "hotkeysHeading": "X11 ve Wayland'de genel kısayollar",
+    "hotkeysBody": "Genel kısayollar X11'de kurulumdan hemen sonra çalışır. GNOME ve KDE Plasma Wayland'de ise hyperwhisper-input grubuna katılıp oturumu kapatıp yeniden açtıktan sonra çalışır. Wayland'de HyperWhisper klavyeyi bir masaüstü portalı üzerinden değil, evdev üzerinden okur.",
+    "hotkeysCommandLabel": "Giriş grubuna katılın",
+    "hotkeysFallback": "Grup olmadan da yazıya dökme çalışır ve sonuç panoda tutulur. Otomatik yapıştırma da grubu gerektirir.",
+    "hotkeysDefault": "Kaydı başlatmak ve durdurmak için Ctrl+Alt tuşlarına basın. Tüm kısayolları Ayarlar'dan değiştirebilirsiniz.",
+    "compareHeading": "Linux'ta HyperWhisper mı, Wispr Flow mu?",
+    "compareBody": "Wispr Flow'un yerel bir Linux uygulaması yok. HyperWhisper ise macOS ve Windows uygulamalarının yanında, bugün Ubuntu ve Debian için .deb paketi olarak yerel bir Linux uygulaması sunuyor.",
+    "faqHeading": "Sık sorulan sorular",
+    "faqWisprQuestion": "Linux için bir Wispr Flow uygulaması var mı?",
+    "faqWisprAnswer": "Hayır. Wispr Flow'un yerel bir Linux uygulaması yok. HyperWhisper ise Linux'ta, ayrıca macOS ve Windows'ta yerel olarak çalışır.",
+    "faqDistroQuestion": "Hangi Linux dağıtımları destekleniyor?",
+    "faqDistroAnswer": "x86_64 (amd64) üzerinde Ubuntu 22.04 veya üzeri ve Debian 12 veya üzeri. HyperWhisper bir .deb paketi olarak sunulur. Debian tabanlı diğer dağıtımlar çalışabilir, ancak doğrulanmış sürüm matrisinin parçası değildir.",
+    "faqOfflineQuestion": "Çevrimdışı çalışıyor mu?",
+    "faqOfflineAnswer": "Evet. Yerel bir modelle yazıya dökme tamamen bilgisayarınızda çalışır ve internet bağlantısı gerektirmez.",
+    "faqWaylandQuestion": "Genel kısayollar Wayland'de çalışıyor mu?",
+    "faqWaylandAnswer": "GNOME ve KDE Plasma Wayland'de evet, hyperwhisper-input grubuna katılıp oturumu kapatıp yeniden açtıktan sonra. X11'de kurulumdan hemen sonra çalışır.",
+    "docsHeading": "Ayrıntılara mı ihtiyacınız var?",
+    "docsBody": "Linux kurulum kılavuzu CUDA'yı, giriş izinlerini, isteğe bağlı GNOME ve KDE yardımcılarını ve kaldırmayı anlatır.",
+    "docsCta": "Linux kurulum kılavuzunu okuyun"
   },
   "openSourceBanner": {
     "text": "HyperWhisper artık tamamen açık kaynak",

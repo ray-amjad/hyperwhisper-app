@@ -13,7 +13,7 @@ import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { AnimatePresence, m } from "framer-motion";
 import { Download, Copy, Check, Terminal, CheckCircle } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { ICON_SWAP } from "@/lib/icon-swap";
 import { isMobileDevice } from "@/src/lib/mobile-device";
@@ -79,6 +79,7 @@ function PlatformFromQuery({
 
 export default function DownloadPage() {
   const t = useTranslations("downloadPage");
+  const locale = useLocale();
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>("mac");
   const [downloadState, setDownloadState] = useState<
     Record<Platform, { countdown: number; started: boolean }>
@@ -457,6 +458,12 @@ export default function DownloadPage() {
                     target="_blank"
                   >
                     {t("linuxReleaseNotes")}
+                  </a>
+                  <a
+                    className="text-sm text-purple-400 underline underline-offset-4 transition-colors hover:text-purple-300"
+                    href={`/${locale}/linux`}
+                  >
+                    {t("learnMoreLinux")}
                   </a>
                 </div>
               ) : (

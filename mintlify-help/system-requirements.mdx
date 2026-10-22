@@ -81,8 +81,11 @@ HyperWhisper runs natively on macOS, Windows, and Linux. Select your platform be
     GPUs and otherwise falls back to the CPU. CUDA needs the optional
     `hyperwhisper-cuda` package; see [Install HyperWhisper on Linux](/linux-installation).
 
-    Global shortcuts and automatic paste require explicit membership in the
-    `hyperwhisper-input` group. Wayland active-application matching uses optional
+    Automatic paste requires explicit membership in the `hyperwhisper-input`
+    group on every desktop. Global shortcuts need no group on an X11 (Xorg)
+    session that reports `XDG_SESSION_TYPE=x11`; on Wayland and any other
+    session they need the group too. GNOME and KDE Plasma Wayland are the
+    verified Wayland desktops. Wayland active-application matching uses optional
     GNOME or KDE companions. See [Install HyperWhisper on Linux](/linux-installation)
     for installation, privacy, fallback, and removal details.
   </Tab>

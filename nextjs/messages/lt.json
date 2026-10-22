@@ -16,7 +16,8 @@
       "switchTo": "Pakeisti kalbą"
     },
     "cloud": "Cloud",
-    "githubAria": "Peržiūrėti HyperWhisper svetainėje GitHub"
+    "githubAria": "Peržiūrėti HyperWhisper svetainėje GitHub",
+    "linux": "Linux"
   },
   "hero": {
     "logoAlt": "HyperWhisper logotipas",
@@ -225,10 +226,11 @@
     "linuxTargets": "Linux v1 skirta Ubuntu 22.04+ ir Debian 12+ sistemoms su amd64.",
     "linuxReplaceVersion": "Pakeiskite VERSION atsisiųsta versija.",
     "linuxInstallCommandLabel": "Debian diegimo komanda",
-    "linuxInputGroupNote": "Prisijungę prie input grupės, atsijunkite ir vėl prisijunkite. Narystė neprivaloma, tačiau jos reikia visuotiniams spartiesiems klavišams ir automatiniam įklijavimui.",
+    "linuxInputGroupNote": "X11 aplinkoje visuotiniai spartieji klavišai veikia ir be jos. GNOME ir KDE Plasma Wayland aplinkose visuotiniams spartiesiems klavišams reikia input grupės, o automatiniam įklijavimui jos reikia bet kurioje darbalaukio aplinkoje. Prisijungę prie grupės, atsijunkite ir vėl prisijunkite.",
     "aptTitle": "Talpinkite savo APT saugyklą",
     "aptBody": "Linux leidimuose taip pat yra statinis APT saugyklos archyvas. HyperWhisper šiuo metu neteikia viešo APT galinio taško; informacijos apie pasirašytą, savarankiškai talpinamą sąranką, darbalaukio integraciją, privatumą ir pašalinimą rasite Linux diegimo vadove.",
-    "linuxGuideCta": "Skaityti Linux diegimo vadovą"
+    "linuxGuideCta": "Skaityti Linux diegimo vadovą",
+    "learnMoreLinux": "Sužinokite daugiau apie HyperWhisper Linux sistemoje"
   },
   "olderVersions": {
     "title": "Senesnės versijos",
@@ -276,7 +278,8 @@
       "privacyPolicy": "Privatumo politika",
       "termsOfService": "Paslaugų teikimo sąlygos",
       "refundPolicy": "Pinigų grąžinimo politika",
-      "dataTraining": "Duomenų privatumas"
+      "dataTraining": "Duomenų privatumas",
+      "linux": "HyperWhisper Linux sistemai"
     },
     "copyright": "© 2026 HyperWhisper. Visos teisės saugomos.",
     "linkedinAria": "LinkedIn"
@@ -373,6 +376,53 @@
     "licenseOlder": "<strong>Įsigyta daugiau nei prieš 30 dienų:</strong> sumokėtą sumą konvertuosime į HyperWhisper Cloud kreditus — visą pirkimo kainą, atėmus $5 kreditų, kurie jau pridėti prie jūsų paskyros. <credits>Parašykite mums</credits>, ir mes pridėsime likutį.",
     "contributeHeading": "Norite prisidėti?",
     "contributeBody": "Klaidų pranešimai, funkcijų idėjos ir pull request užklausos — visi laukiami. Sukurkite problemos pranešimą arba pradėkite diskusiją <github>svetainėje GitHub</github>."
+  },
+  "linuxPage": {
+    "metaTitle": "HyperWhisper: Wispr Flow alternatyva Linux sistemai",
+    "metaDescription": "Wispr Flow neturi savosios Linux programos. HyperWhisper turi: AI balso diktavimas Ubuntu ir Debian sistemoms su neprisijungus veikiančiais vietiniais modeliais, jūsų API raktais ir visuotiniais spartiaisiais klavišais.",
+    "eyebrow": "HyperWhisper Linux sistemai",
+    "heading": "HyperWhisper: Wispr Flow alternatyva Linux sistemai",
+    "lead": "Wispr Flow neturi savosios Linux programos. HyperWhisper turi. Kalbėkite natūraliai ir gaukite švarų tekstą, transkribuotą neprisijungus jūsų kompiuteryje arba debesyje su jūsų API raktu.",
+    "downloadCta": "Atsisiųsti .deb (v{version})",
+    "releaseNotes": "Leidimo pastabos ir kontrolinės sumos",
+    "requirementsShort": "x86_64 · Ubuntu 22.04+ / Debian 12+",
+    "installHeading": "Įdiekite viena komanda",
+    "installBody": "Atsisiųskite paketą, tada paleiskite šią komandą iš aplanko, kuriame jis yra. apt kartu įdiegia programą ir jos priklausomybes.",
+    "installCommandLabel": "Debian diegimo komanda",
+    "requirementsHeading": "Reikalavimai",
+    "requirementArch": "x86_64 (amd64) kompiuteris",
+    "requirementDistro": "Ubuntu 22.04 ar naujesnė arba Debian 12 ar naujesnė",
+    "requirementDesktop": "GNOME arba KDE Plasma patikrintai darbalaukio patirčiai",
+    "cudaHeading": "Turite NVIDIA GPU? Pridėkite CUDA",
+    "cudaBody": "Įdiekite pasirenkamą hyperwhisper-cuda paketą iš to paties leidimo, tos pačios versijos kaip programa, kad vietinis Whisper ir vietinis Gemma tolesnis apdorojimas veiktų su CUDA.",
+    "featuresHeading": "Sukurta jūsų Linux darbalaukiui",
+    "localHeading": "Neprisijungus veikiantys modeliai įrenginyje",
+    "localBody": "Pasirinkite vietinį modelį ir transkripcija vyks tik jūsų kompiuteryje, be interneto ryšio. Whisper veikia su CPU arba jūsų GPU per Vulkan ar CUDA. Parakeet, Qwen3 ASR ir Nemotron veikia su CPU. Vietiniai Gemma modeliai taip pat gali sutvarkyti jūsų tekstą neprisijungus.",
+    "byokHeading": "Naudokite savo API raktą",
+    "byokBody": "Renkatės debesį? Naudokite savo API raktą transkripcijai debesyje, pavyzdžiui, Deepgram ar ElevenLabs, ir AI tolesniam apdorojimui, pavyzdžiui, OpenAI, Anthropic, Groq ar Gemini. Arba apsieikite be raktų ir naudokite HyperWhisper Cloud, mokėdami tik už tai, ką naudojate.",
+    "languagesHeading": "40 sąsajos kalbų",
+    "languagesBody": "Programos sąsaja pasiekiama 40 kalbų, o Whisper modeliai transkribuoja daugiau nei 100 kalbų.",
+    "openSourceHeading": "Atvirasis kodas",
+    "openSourceBody": "HyperWhisper yra atvirojo kodo programa pagal Apache-2.0 licenciją, įskaitant Linux programą. Perskaitykite kiekvieną eilutę GitHub.",
+    "hotkeysHeading": "Visuotiniai spartieji klavišai X11 ir Wayland aplinkose",
+    "hotkeysBody": "Visuotiniai spartieji klavišai veikia iš karto X11 aplinkoje. GNOME ir KDE Plasma Wayland aplinkose jie veikia, kai prisijungiate prie hyperwhisper-input grupės, atsijungiate ir vėl prisijungiate. Wayland aplinkoje HyperWhisper skaito klaviatūrą per evdev, o ne per darbalaukio portalą.",
+    "hotkeysCommandLabel": "Prisijunkite prie įvesties grupės",
+    "hotkeysFallback": "Be grupės transkripcija vis tiek veikia, o rezultatas išsaugomas iškarpinėje. Automatiniam įklijavimui taip pat reikia grupės.",
+    "hotkeysDefault": "Paspauskite Ctrl+Alt, kad pradėtumėte ir sustabdytumėte įrašymą. Kiekvieną spartųjį klavišą galite pakeisti nustatymuose.",
+    "compareHeading": "HyperWhisper ar Wispr Flow Linux sistemoje?",
+    "compareBody": "Wispr Flow neturi savosios Linux programos. HyperWhisper jau šiandien siūlo savąją Linux programą kaip .deb paketą Ubuntu ir Debian sistemoms, kartu su programomis macOS ir Windows.",
+    "faqHeading": "Dažniausiai užduodami klausimai",
+    "faqWisprQuestion": "Ar yra Wispr Flow programa Linux sistemai?",
+    "faqWisprAnswer": "Ne. Wispr Flow neturi savosios Linux programos. HyperWhisper veikia natūraliai Linux, taip pat macOS ir Windows sistemose.",
+    "faqDistroQuestion": "Kurie Linux distributyvai palaikomi?",
+    "faqDistroAnswer": "Ubuntu 22.04 ar naujesnė ir Debian 12 ar naujesnė, x86_64 (amd64) architektūroje. HyperWhisper platinamas kaip .deb paketas. Kiti Debian pagrindu sukurti distributyvai gali veikti, bet jie nėra patikrintų leidimų matricoje.",
+    "faqOfflineQuestion": "Ar veikia neprisijungus?",
+    "faqOfflineAnswer": "Taip. Su vietiniu modeliu transkripcija vyksta tik jūsų kompiuteryje ir nereikia interneto ryšio.",
+    "faqWaylandQuestion": "Ar visuotiniai spartieji klavišai veikia Wayland aplinkoje?",
+    "faqWaylandAnswer": "GNOME ir KDE Plasma Wayland aplinkose taip, kai prisijungiate prie hyperwhisper-input grupės, atsijungiate ir vėl prisijungiate. X11 aplinkoje jie veikia iš karto.",
+    "docsHeading": "Reikia daugiau informacijos?",
+    "docsBody": "Linux diegimo vadove aprašyta CUDA, įvesties leidimai, pasirenkami GNOME ir KDE papildiniai bei pašalinimas.",
+    "docsCta": "Skaityti Linux diegimo vadovą"
   },
   "openSourceBanner": {
     "text": "HyperWhisper dabar visiškai atvirojo kodo",

@@ -16,7 +16,8 @@
       "switchTo": "切換語言"
     },
     "cloud": "雲端",
-    "githubAria": "在 GitHub 上查看 HyperWhisper"
+    "githubAria": "在 GitHub 上查看 HyperWhisper",
+    "linux": "Linux"
   },
   "hero": {
     "logoAlt": "HyperWhisper 標誌",
@@ -225,10 +226,11 @@
     "linuxTargets": "Linux v1 支援 amd64 架構上的 Ubuntu 22.04+ 與 Debian 12+。",
     "linuxReplaceVersion": "請將 VERSION 替換為你下載的版本號碼。",
     "linuxInstallCommandLabel": "Debian 安裝指令",
-    "linuxInputGroupNote": "加入 input 群組後，請登出再重新登入。加入群組並非必要，但全域快捷鍵與自動貼上需要它。",
+    "linuxInputGroupNote": "在 X11 上，全域快捷鍵不需加入群組即可使用。在 GNOME 與 KDE Plasma 的 Wayland 工作階段中，全域快捷鍵需要 input 群組，而自動貼上在所有桌面環境中都需要它。加入群組後，請登出再重新登入。",
     "aptTitle": "自行架設 APT 套件庫",
     "aptBody": "Linux 版本也附帶一個靜態 APT 套件庫封存檔。HyperWhisper 目前並未營運公開的 APT 端點；關於簽署的自行架設設定、桌面配套元件、隱私細節與移除方式，請參閱 Linux 安裝指南。",
-    "linuxGuideCta": "閱讀 Linux 安裝指南"
+    "linuxGuideCta": "閱讀 Linux 安裝指南",
+    "learnMoreLinux": "進一步了解 Linux 版 HyperWhisper"
   },
   "olderVersions": {
     "title": "舊版本",
@@ -276,7 +278,8 @@
       "privacyPolicy": "隱私權政策",
       "termsOfService": "服務條款",
       "refundPolicy": "退款政策",
-      "dataTraining": "資料隱私"
+      "dataTraining": "資料隱私",
+      "linux": "HyperWhisper Linux 版"
     },
     "copyright": "© 2026 HyperWhisper. 保留所有權利。",
     "linkedinAria": "LinkedIn"
@@ -373,6 +376,53 @@
     "licenseOlder": "<strong>超過 30 天前購買：</strong>我們會將你支付的金額轉換為 HyperWhisper Cloud 點數——即全部購買價格，扣除已加入你帳戶的 $5 點數。<credits>寄信給我們</credits>，我們會為你加入餘額。",
     "contributeHeading": "想參與貢獻嗎？",
     "contributeBody": "歡迎提交錯誤回報、功能建議與 Pull Request。<github>在 GitHub 上</github>開啟 Issue 或發起討論吧。"
+  },
+  "linuxPage": {
+    "metaTitle": "HyperWhisper：Linux 上的 Wispr Flow 替代方案",
+    "metaDescription": "Wispr Flow 沒有原生 Linux 應用程式，HyperWhisper 有：適用於 Ubuntu 與 Debian 的 AI 語音聽寫，支援離線本機模型、自備 API 金鑰與全域快捷鍵。",
+    "eyebrow": "HyperWhisper for Linux",
+    "heading": "HyperWhisper：Linux 上的 Wispr Flow 替代方案",
+    "lead": "Wispr Flow 沒有原生 Linux 應用程式，HyperWhisper 有。自然地說話，就能得到乾淨的文字，可在你自己的電腦上離線轉錄，也可使用你自己的 API 金鑰在雲端轉錄。",
+    "downloadCta": "下載 .deb（v{version}）",
+    "releaseNotes": "版本說明與總和檢查碼",
+    "requirementsShort": "x86_64 · Ubuntu 22.04+ / Debian 12+",
+    "installHeading": "一行指令完成安裝",
+    "installBody": "下載套件後，在套件所在的資料夾中執行此指令。apt 會一併安裝應用程式及其相依套件。",
+    "installCommandLabel": "Debian 安裝指令",
+    "requirementsHeading": "系統需求",
+    "requirementArch": "x86_64（amd64）電腦",
+    "requirementDistro": "Ubuntu 22.04 或更新版本，或 Debian 12 或更新版本",
+    "requirementDesktop": "GNOME 或 KDE Plasma，以獲得經過驗證的桌面體驗",
+    "cudaHeading": "使用 NVIDIA GPU？加裝 CUDA",
+    "cudaBody": "從同一個版本安裝選用的 hyperwhisper-cuda 套件（版本須與應用程式相同），即可讓本機 Whisper 與本機 Gemma 後處理在 CUDA 上執行。",
+    "featuresHeading": "為你的 Linux 桌面打造",
+    "localHeading": "離線的裝置端模型",
+    "localBody": "選擇本機模型後，轉錄完全在你的電腦上執行，無需網際網路連線。Whisper 可在 CPU 上執行，或透過 Vulkan 或 CUDA 在 GPU 上執行。Parakeet、Qwen3 ASR 與 Nemotron 在 CPU 上執行。本機 Gemma 模型也能離線潤飾你的文字。",
+    "byokHeading": "自備 API 金鑰",
+    "byokBody": "偏好雲端？使用你自己的 API 金鑰進行雲端轉錄（例如 Deepgram 或 ElevenLabs）以及 AI 後處理（例如 OpenAI、Anthropic、Groq 或 Gemini）。也可以不用金鑰，直接使用按用量付費的 HyperWhisper Cloud。",
+    "languagesHeading": "40 種介面語言",
+    "languagesBody": "應用程式介面提供 40 種語言，Whisper 模型可轉錄超過 100 種語言。",
+    "openSourceHeading": "開放原始碼",
+    "openSourceBody": "HyperWhisper 以 Apache-2.0 授權開放原始碼，Linux 應用程式也包含在內。你可以在 GitHub 上閱讀每一行程式碼。",
+    "hotkeysHeading": "X11 與 Wayland 上的全域快捷鍵",
+    "hotkeysBody": "全域快捷鍵在 X11 上安裝即可使用。在 GNOME 與 KDE Plasma Wayland 上，需先加入 hyperwhisper-input 群組，並登出後重新登入才能使用。在 Wayland 上，HyperWhisper 透過 evdev 讀取鍵盤，而非透過桌面入口（portal）。",
+    "hotkeysCommandLabel": "加入輸入群組",
+    "hotkeysFallback": "未加入群組時，轉錄仍可正常運作，結果會保留在剪貼簿中。自動貼上同樣需要此群組。",
+    "hotkeysDefault": "按下 Ctrl+Alt 即可開始與停止錄音。你可以在設定中變更所有快捷鍵。",
+    "compareHeading": "在 Linux 上選 HyperWhisper 還是 Wispr Flow？",
+    "compareBody": "Wispr Flow 沒有原生 Linux 應用程式。HyperWhisper 現在就提供原生 Linux 應用程式，以適用於 Ubuntu 與 Debian 的 .deb 套件形式發行，與其 macOS 和 Windows 應用程式並列。",
+    "faqHeading": "常見問題",
+    "faqWisprQuestion": "Wispr Flow 有 Linux 版應用程式嗎？",
+    "faqWisprAnswer": "沒有。Wispr Flow 沒有原生 Linux 應用程式。HyperWhisper 可原生執行於 Linux，也支援 macOS 與 Windows。",
+    "faqDistroQuestion": "支援哪些 Linux 發行版？",
+    "faqDistroAnswer": "x86_64（amd64）上的 Ubuntu 22.04 或更新版本，以及 Debian 12 或更新版本。HyperWhisper 以 .deb 套件發行。其他以 Debian 為基礎的發行版可能可以使用，但不在經過驗證的發行測試矩陣內。",
+    "faqOfflineQuestion": "可以離線使用嗎？",
+    "faqOfflineAnswer": "可以。使用本機模型時，轉錄完全在你的電腦上執行，不需要網際網路連線。",
+    "faqWaylandQuestion": "全域快捷鍵能在 Wayland 上使用嗎？",
+    "faqWaylandAnswer": "在 GNOME 與 KDE Plasma Wayland 上可以，但需先加入 hyperwhisper-input 群組，並登出後重新登入。在 X11 上則安裝即可使用。",
+    "docsHeading": "需要更多細節？",
+    "docsBody": "Linux 安裝指南涵蓋 CUDA、輸入權限、選用的 GNOME 與 KDE 輔助元件，以及解除安裝方式。",
+    "docsCta": "閱讀 Linux 安裝指南"
   },
   "openSourceBanner": {
     "text": "HyperWhisper 現已完全開放原始碼",

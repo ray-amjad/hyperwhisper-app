@@ -16,7 +16,8 @@
       "switchTo": "Змінити мову"
     },
     "cloud": "Хмара",
-    "githubAria": "Переглянути HyperWhisper на GitHub"
+    "githubAria": "Переглянути HyperWhisper на GitHub",
+    "linux": "Linux"
   },
   "hero": {
     "logoAlt": "Логотип HyperWhisper",
@@ -225,10 +226,11 @@
     "linuxTargets": "Linux v1 розрахований на Ubuntu 22.04+ і Debian 12+ на amd64.",
     "linuxReplaceVersion": "Замініть VERSION на завантажену версію.",
     "linuxInstallCommandLabel": "Команда встановлення для Debian",
-    "linuxInputGroupNote": "Після додавання до групи input вийдіть із системи та увійдіть знову. Членство в групі необов’язкове, але воно потрібне для глобальних сполучень клавіш і автоматичного вставлення.",
+    "linuxInputGroupNote": "В X11 глобальні сполучення клавіш працюють і без неї. У GNOME і KDE Plasma на Wayland глобальним сполученням клавіш потрібна група input, а автоматичному вставленню вона потрібна в будь-якому робочому середовищі. Після додавання до групи вийдіть із системи та увійдіть знову.",
     "aptTitle": "Власний APT-репозиторій",
     "aptBody": "Релізи для Linux також містять архів статичного APT-репозиторію. Наразі HyperWhisper не підтримує публічний APT-сервер; про налаштування підписаного власного репозиторію, компоненти для робочого столу, конфіденційність і видалення читайте в посібнику зі встановлення для Linux.",
-    "linuxGuideCta": "Відкрити посібник зі встановлення для Linux"
+    "linuxGuideCta": "Відкрити посібник зі встановлення для Linux",
+    "learnMoreLinux": "Докладніше про HyperWhisper на Linux"
   },
   "olderVersions": {
     "title": "Старі версії",
@@ -276,7 +278,8 @@
       "privacyPolicy": "Політика конфіденційності",
       "termsOfService": "Умови використання",
       "refundPolicy": "Політика повернення",
-      "dataTraining": "Конфіденційність даних"
+      "dataTraining": "Конфіденційність даних",
+      "linux": "HyperWhisper для Linux"
     },
     "copyright": "© 2026 HyperWhisper. Усі права захищено.",
     "linkedinAria": "LinkedIn"
@@ -373,6 +376,53 @@
     "licenseOlder": "<strong>Придбали понад 30 днів тому:</strong> ми переведемо сплачену суму в кредити HyperWhisper Cloud — повну вартість покупки за вирахуванням $5 у кредитах, які вже нараховано на ваш обліковий запис. <credits>Напишіть нам</credits>, і ми нарахуємо решту.",
     "contributeHeading": "Хочете долучитися?",
     "contributeBody": "Ми раді звітам про помилки, ідеям нових функцій і pull request’ам. Створіть issue або почніть обговорення <github>на GitHub</github>."
+  },
+  "linuxPage": {
+    "metaTitle": "HyperWhisper: альтернатива Wispr Flow для Linux",
+    "metaDescription": "Wispr Flow не має нативного застосунку для Linux. HyperWhisper має: голосовий диктант на базі ШІ для Ubuntu і Debian з локальними офлайн-моделями, власними ключами API та глобальними гарячими клавішами.",
+    "eyebrow": "HyperWhisper для Linux",
+    "heading": "HyperWhisper: альтернатива Wispr Flow для Linux",
+    "lead": "Wispr Flow не має нативного застосунку для Linux. HyperWhisper має. Говоріть природно й отримуйте чистий текст, розпізнаний офлайн на вашому комп'ютері або в хмарі з вашим власним ключем API.",
+    "downloadCta": "Завантажити .deb (v{version})",
+    "releaseNotes": "Примітки до випуску та контрольні суми",
+    "requirementsShort": "x86_64 · Ubuntu 22.04+ / Debian 12+",
+    "installHeading": "Встановлення однією командою",
+    "installBody": "Завантажте пакет, а потім виконайте цю команду в теці, де він лежить. apt встановить застосунок разом з його залежностями.",
+    "installCommandLabel": "Команда встановлення пакета Debian",
+    "requirementsHeading": "Вимоги",
+    "requirementArch": "Комп'ютер x86_64 (amd64)",
+    "requirementDistro": "Ubuntu 22.04 або новіша, чи Debian 12 або новіша",
+    "requirementDesktop": "GNOME або KDE Plasma для перевіреної роботи на робочому столі",
+    "cudaHeading": "Маєте GPU NVIDIA? Додайте CUDA",
+    "cudaBody": "Встановіть необов'язковий пакет hyperwhisper-cuda з того самого випуску, тієї ж версії, що й застосунок, щоб локальний Whisper і локальна постобробка Gemma працювали на CUDA.",
+    "featuresHeading": "Створено для вашого робочого столу Linux",
+    "localHeading": "Офлайн-моделі на вашому пристрої",
+    "localBody": "Оберіть локальну модель, і розпізнавання повністю працюватиме на вашому комп'ютері, без підключення до інтернету. Whisper працює на процесорі або на відеокарті через Vulkan чи CUDA. Parakeet, Qwen3 ASR і Nemotron працюють на процесорі. Локальні моделі Gemma також можуть офлайн упорядкувати ваш текст.",
+    "byokHeading": "Використовуйте власний ключ API",
+    "byokBody": "Віддаєте перевагу хмарі? Використовуйте власний ключ API для хмарного розпізнавання, наприклад Deepgram чи ElevenLabs, і для постобробки за допомогою ШІ, наприклад OpenAI, Anthropic, Groq чи Gemini. Або обійдіться без ключів і користуйтеся HyperWhisper Cloud з оплатою за фактичне використання.",
+    "languagesHeading": "Інтерфейс 40 мовами",
+    "languagesBody": "Інтерфейс застосунку доступний 40 мовами, а моделі Whisper розпізнають понад 100 мов.",
+    "openSourceHeading": "Відкритий код",
+    "openSourceBody": "HyperWhisper має відкритий код за ліцензією Apache-2.0, зокрема й застосунок для Linux. Прочитайте кожен рядок на GitHub.",
+    "hotkeysHeading": "Глобальні гарячі клавіші на X11 і Wayland",
+    "hotkeysBody": "Глобальні гарячі клавіші працюють на X11 одразу. На GNOME і KDE Plasma Wayland вони працюють після того, як ви приєднаєтеся до групи hyperwhisper-input, вийдете із сеансу та ввійдете знову. На Wayland HyperWhisper читає клавіатуру через evdev, а не через портал робочого столу.",
+    "hotkeysCommandLabel": "Приєднатися до групи введення",
+    "hotkeysFallback": "Без групи розпізнавання все одно працює, а результат залишається в буфері обміну. Автоматичне вставлення теж потребує групи.",
+    "hotkeysDefault": "Натисніть Ctrl+Alt, щоб почати й зупинити запис. Будь-яку гарячу клавішу можна змінити в налаштуваннях.",
+    "compareHeading": "HyperWhisper чи Wispr Flow на Linux?",
+    "compareBody": "Wispr Flow не має нативного застосунку для Linux. HyperWhisper уже сьогодні пропонує нативний застосунок для Linux у вигляді пакета .deb для Ubuntu і Debian, поряд зі своїми застосунками для macOS і Windows.",
+    "faqHeading": "Поширені запитання",
+    "faqWisprQuestion": "Чи є застосунок Wispr Flow для Linux?",
+    "faqWisprAnswer": "Ні. Wispr Flow не має нативного застосунку для Linux. HyperWhisper працює нативно на Linux, а також на macOS і Windows.",
+    "faqDistroQuestion": "Які дистрибутиви Linux підтримуються?",
+    "faqDistroAnswer": "Ubuntu 22.04 або новіша та Debian 12 або новіша, на x86_64 (amd64). HyperWhisper постачається як пакет .deb. Інші дистрибутиви на основі Debian можуть працювати, але вони не входять до перевіреної матриці випусків.",
+    "faqOfflineQuestion": "Чи працює він офлайн?",
+    "faqOfflineAnswer": "Так. З локальною моделлю розпізнавання повністю працює на вашому комп'ютері й не потребує підключення до інтернету.",
+    "faqWaylandQuestion": "Чи працюють глобальні гарячі клавіші на Wayland?",
+    "faqWaylandAnswer": "На GNOME і KDE Plasma Wayland так, після того як ви приєднаєтеся до групи hyperwhisper-input, вийдете із сеансу та ввійдете знову. На X11 вони працюють одразу.",
+    "docsHeading": "Потрібні подробиці?",
+    "docsBody": "Посібник зі встановлення для Linux описує CUDA, дозволи на введення, необов'язкові компаньйони для GNOME і KDE та видалення.",
+    "docsCta": "Відкрити посібник зі встановлення для Linux"
   },
   "openSourceBanner": {
     "text": "HyperWhisper тепер має повністю відкритий код",
