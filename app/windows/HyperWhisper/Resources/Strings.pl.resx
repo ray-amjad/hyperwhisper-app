@@ -875,6 +875,9 @@ Tej czynności nie można cofnąć.</value>
   <data name="recording.cancel.prompt" xml:space="preserve">
     <value>Anulować?</value>
   </data>
+  <data name="recording.warning.micSilent" xml:space="preserve">
+    <value>Brak dźwięku z urządzenia {0}</value>
+  </data>
 
   <!-- Mode Editor - Extended -->
   <data name="mode.editor.section.settings" xml:space="preserve">

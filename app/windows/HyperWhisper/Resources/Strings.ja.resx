@@ -966,6 +966,9 @@
   <data name="recording.cancel.prompt" xml:space="preserve">
     <value>キャンセル?</value>
   </data>
+  <data name="recording.warning.micSilent" xml:space="preserve">
+    <value>{0} から音が入力されていません</value>
+  </data>
 
   <!-- Mode Editor - Extended -->
   <data name="mode.editor.section.settings" xml:space="preserve">

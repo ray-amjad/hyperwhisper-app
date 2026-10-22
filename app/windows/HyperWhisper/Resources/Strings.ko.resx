@@ -875,6 +875,9 @@
   <data name="recording.cancel.prompt" xml:space="preserve">
     <value>녹음을 취소할까요?</value>
   </data>
+  <data name="recording.warning.micSilent" xml:space="preserve">
+    <value>{0}에서 소리가 들리지 않습니다</value>
+  </data>
 
   <!-- Mode Editor - Extended -->
   <data name="mode.editor.section.settings" xml:space="preserve">

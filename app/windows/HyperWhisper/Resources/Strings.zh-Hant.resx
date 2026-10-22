@@ -875,6 +875,9 @@
   <data name="recording.cancel.prompt" xml:space="preserve">
     <value>取消？</value>
   </data>
+  <data name="recording.warning.micSilent" xml:space="preserve">
+    <value>{0} 沒有聲音</value>
+  </data>
 
   <!-- Mode Editor - Extended -->
   <data name="mode.editor.section.settings" xml:space="preserve">
