@@ -1,7 +1,7 @@
 {
   "$schemaDoc": "Shared source of truth for cloud STT provider capabilities. Loaded by macOS and Windows clients to drive UI affordances (custom-vocab field visibility, supported-language chips, credits/min caption, cloud-tier vs BYOK list filtering, accepted-format hints). Every fact is either verified from an upstream doc (with the URL in `sources`) OR marked the literal string `\"unverified\"`. See CLAUDE.md (symlink to AGENTS.md) in this directory before editing.",
   "version": 12,
-  "updated": "2026-09-19",
+  "updated": "2026-10-18",
   "providers": [
     {
       "id": "groqWhisper",
@@ -99,8 +99,7 @@
       "sttProvider": "grok",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
-        { "id": "grok-voice-transcribe-2.0", "displayName": "Grok Voice Transcribe 2", "creditsPerMinute": 1.67, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
-        { "id": "grok-voice-transcribe-1.0", "displayName": "Grok Voice Transcribe 1", "creditsPerMinute": 1.67, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true }
+        { "id": "grok-voice-transcribe-2.0", "displayName": "Grok Voice Transcribe 2", "creditsPerMinute": 1.67, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true }
       ],
       "cloudTier": { "accuracy": "high", "creditsPerMinute": 1.67 },
       "migrateFrom": ["grok", "grokstt"],
@@ -123,7 +122,7 @@
       "features": { "wordTimestamps": true, "diarization": true, "streaming": true },
       "regionalRouting": "Single global endpoint (`https://api.x.ai/v1/stt`); SpaceXAI hosts in `us-east-1` but no per-region routing exposed.",
       "previewStatus": false,
-      "notes": "`/v1/stt` now takes a `model` parameter (it did not when this entry was written, which is why the single model row carried an empty id until 2026-09-19). Upstream accepts `grok-voice-transcribe-2.0` and `grok-voice-transcribe-1.0` and defaults to 2.0; we send the selected id explicitly, so an upstream default change cannot move a user's model without a release. Both rows are listed because 1.0 is what every pre-2026-09-19 Grok mode actually ran — it was the only model xAI served — and dropping it would have silently upgraded those users. WARNING: xAI's own announcement says 1.0 `will be deprecated in the coming weeks`, and that 2.0 is `twice as accurate as Grok Voice Transcribe 1.0, at the same price`. When upstream retires 1.0, delete the row and add `grok-voice-transcribe-1.0` to `migrateFrom` so a pinned mode folds onto 2.0 instead of erroring.",
+      "notes": "`/v1/stt` now takes a `model` parameter (it did not when this entry was written, which is why the single model row carried an empty id until 2026-09-19). Upstream defaults to `grok-voice-transcribe-2.0`; we send the selected id explicitly, so an upstream default change cannot move a user's model without a release. xAI ended `grok-voice-transcribe-1.0` on 2026-10-02 and routes every request for it to 2.0 at the same price, so its row is gone (#1908). A saved 1.0 id is a MODEL id, not a tier id, so it is not in `migrateFrom`: the BYOK heads fold it onto 2.0 through `hw-catalog::model_alias` (GROK_ALIASES; macOS `legacyGrokAliases`), and HyperWhisper Cloud through the `aliases` map on the grok provider in `hyperwhisper-cloud/src/lib/stt-models.ts`.",
       "sources": [
         "https://docs.x.ai/developers/model-capabilities/audio/speech-to-text",
         "https://docs.x.ai/developers/models/speech-to-text",
@@ -272,7 +271,7 @@
     {
       "id": "openaiWhisper",
       "displayName": "OpenAI Whisper",
-      "displayModel": "whisper-1",
+      "displayModel": "gpt-transcribe",
       "vendor": "openai",
       "vendorDisplayName": "OpenAI",
       "sttProvider": "openai",
@@ -282,7 +281,8 @@
         { "id": "gpt-4o-mini-transcribe", "displayName": "GPT-4o Mini Transcribe", "creditsPerMinute": 3.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "whisper-1", "displayName": "Whisper", "creditsPerMinute": 6.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "gpt-transcribe", "displayName": "GPT Transcribe", "creditsPerMinute": 4.5, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
-        { "id": "gpt-live-transcribe", "displayName": "GPT Live Transcribe", "creditsPerMinute": 17.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true }
+        { "id": "gpt-live-transcribe", "displayName": "GPT Live Transcribe", "creditsPerMinute": 17.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "gpt-4o-mini-transcribe-2025-12-15", "displayName": "GPT-4o Mini Transcribe (2025-12-15)", "creditsPerMinute": 3.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true }
       ],
       "customVocabulary": {
         "supported": true,
@@ -436,16 +436,16 @@
     {
       "id": "gemini",
       "displayName": "Google Gemini",
-      "displayModel": "gemini-2.5-flash",
+      "displayModel": "gemini-3.8-flash",
       "vendor": "google",
       "vendorDisplayName": "Google",
       "sttProvider": "gemini",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
-        { "id": "gemini-2.5-flash", "displayName": "Gemini 2.5 Flash", "creditsPerMinute": 2.4, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "gemini-3.8-flash", "displayName": "Gemini 3.8 Flash", "creditsPerMinute": 3.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "gemini-2.5-flash", "displayName": "Gemini 2.5 Flash", "creditsPerMinute": 2.4, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "gemini-2.5-flash-lite", "displayName": "Gemini 2.5 Flash Lite", "creditsPerMinute": 0.8, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "gemini-2.5-pro", "displayName": "Gemini 2.5 Pro", "creditsPerMinute": 7.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
-        { "id": "gemini-3-flash-preview", "displayName": "Gemini 3 Flash", "creditsPerMinute": 3.0, "isDefault": false, "previewStatus": true, "supportsCustomVocabulary": true },
         { "id": "gemini-3.1-pro-preview", "displayName": "Gemini 3.1 Pro", "creditsPerMinute": 10.0, "isDefault": false, "previewStatus": true, "supportsCustomVocabulary": true }
       ],
       "customVocabulary": {
@@ -467,7 +467,8 @@
       "previewStatus": false,
       "sources": [
         "https://ai.google.dev/gemini-api/docs/audio",
-        "https://cloud.google.com/blog/products/ai-machine-learning/lower-costs-more-languages-for-gemini-on-vertex"
+        "https://cloud.google.com/blog/products/ai-machine-learning/lower-costs-more-languages-for-gemini-on-vertex",
+        "https://ai.google.dev/gemini-api/docs/changelog"
       ]
     },
 

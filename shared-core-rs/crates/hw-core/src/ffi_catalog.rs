@@ -744,6 +744,16 @@ pub fn cloud_stt_normalize_cloud_provider(value: Option<String>) -> NormalizedCl
         .into()
 }
 
+/// The STT provider a CLOUD mode runs on, given its stored `cloudProvider`:
+/// null, empty or whitespace means `"hyperwhisper"` (HyperWhisper Cloud);
+/// anything else is `cloud_stt_normalize_cloud_provider`'s folded, lowercased
+/// provider. A read rule only: storage and `GET /modes` keep the blank value.
+/// Call it only for a cloud mode — a local mode's null is deliberate.
+#[uniffi::export]
+pub fn cloud_stt_effective_mode_cloud_provider(value: Option<String>) -> String {
+    cloud_stt().effective_mode_cloud_provider(value.as_deref())
+}
+
 /// Resolve a legacy cloud-STT model id onto its current catalog id.
 ///
 /// `provider` is the persisted `cloudProvider` identifier (`"deepgram"`,
@@ -1462,6 +1472,7 @@ mod tests {
                 "whisper-1",
                 "gpt-transcribe",
                 "gpt-live-transcribe",
+                "gpt-4o-mini-transcribe-2025-12-15",
             ]
         );
 
@@ -1505,6 +1516,21 @@ mod tests {
         let absent = cloud_stt_normalize_cloud_provider(None);
         assert_eq!(absent.provider, None);
         assert_eq!(absent.accuracy_tier, None);
+    }
+
+    /// #1709: the read rule across the FFI boundary. Blank means HyperWhisper
+    /// Cloud; a non-blank value is what the storage rule stores.
+    #[test]
+    fn cloud_stt_effective_mode_cloud_provider_defaults_blank_to_hyperwhisper() {
+        for blank in [None, Some(""), Some("  ")] {
+            assert_eq!(
+                cloud_stt_effective_mode_cloud_provider(blank.map(str::to_string)),
+                "hyperwhisper"
+            );
+        }
+        assert_eq!(cloud_stt_effective_mode_cloud_provider(Some("Deepgram".into())), "deepgram");
+        assert_eq!(cloud_stt_effective_mode_cloud_provider(Some("googleSpeech".into())), "hyperwhisper");
+        assert_eq!(cloud_stt_effective_mode_cloud_provider(Some("not-a-provider".into())), "not-a-provider");
     }
 
     /// The FFI boundary the platforms actually cross. Windows persists
@@ -1565,15 +1591,15 @@ mod tests {
         // gemini, not openai: gpt-5.6-luna has accuracy == speed (4, 4), so it
         // could not catch a swapped pair.
         let m = cloud_pp_default_model("gemini".to_string()).expect("gemini has a default model");
-        assert_eq!(m.id, "gemini-2.5-flash");
-        assert_eq!(m.display_name, "Gemini 2.5 Flash");
-        assert_eq!(m.llm_model_header.as_deref(), Some("gemini-2.5-flash"));
-        assert_eq!(m.price_per_m_input, Some(0.30));
-        assert_eq!(m.price_per_m_output, Some(2.5));
+        assert_eq!(m.id, "gemini-3.8-flash");
+        assert_eq!(m.display_name, "Gemini 3.8 Flash");
+        assert_eq!(m.llm_model_header.as_deref(), Some("gemini-3.8-flash"));
+        assert_eq!(m.price_per_m_input, Some(0.75));
+        assert_eq!(m.price_per_m_output, Some(3.75));
         assert_eq!(m.is_default, Some(true));
         assert_eq!(m.is_recommended, Some(true));
-        assert_eq!(m.accuracy, Some(3));
-        assert_eq!(m.speed, Some(1));
+        assert_eq!(m.accuracy, Some(5));
+        assert_eq!(m.speed, Some(2));
         assert_eq!(m.preview_status, Some(false));
         assert_eq!(m.enabled, Some(true));
 
@@ -1623,9 +1649,9 @@ mod tests {
         assert_eq!(
             ids,
             vec![
+                "gemini-3.8-flash".to_string(),
                 "gemini-2.5-flash".to_string(),
-                "gemini-2.5-flash-lite".to_string(),
-                "gemini-3.8-flash".to_string()
+                "gemini-2.5-flash-lite".to_string()
             ]
         );
         let openai: Vec<String> = cloud_pp_models("openai".to_string())

@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostik Diekspor";
 "alerts.export.diagnostics.success.message" = "Semua log diagnostik telah berhasil diekspor.";
 "alerts.export.diagnostics.saveFailed.message" = "Tidak dapat menyimpan diagnostik ke lokasi yang dipilih: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostik Diekspor Tanpa Log Sistem";
+"alerts.export.diagnostics.noSystemLogs.message" = "File diagnostik telah disimpan, tetapi log sistem aplikasi tidak dapat dibaca, sehingga system-logs.txt hanya berisi alasannya. Alasan: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Ekspor log pembaruan untuk dukungan";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Selesai Onboarding";
 
 "onboarding.setupLater.button" = "Siapkan nanti";
-"onboarding.error.microphone.denied" = "Izin mikrofon ditolak. Silakan berikan izin di Pengaturan Sistem.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Luncurkan saat login";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Nonaktif";
 "settings.general.mediaControl.mode.mute" = "Bisukan Audio";
+"settings.general.mediaControl.mode.muffle" = "Redam Audio";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,9 +324,17 @@
 "settings.sound.soundEffects.title" = "Putar efek suara";
 "settings.sound.soundEffects.info" = "Putar isyarat audio saat perekaman dimulai dan berhenti.";
 "settings.sound.mediaControl.title" = "Kontrol media saat merekam";
-"settings.sound.mediaControl.info" = "Pilih bagaimana HyperWhisper menangani audio lain saat Anda merekam. 'Nonaktif' membiarkan audio tidak berubah, 'Bisukan Audio' membungkam output sistem saat merekam dan memulihkannya setelahnya.";
+"settings.sound.mediaControl.info" = "Pilih bagaimana HyperWhisper menangani audio lain saat Anda merekam. 'Nonaktif' membiarkan audio tidak berubah, 'Bisukan Audio' membungkam output sistem saat merekam dan memulihkannya setelahnya, dan 'Redam Audio' tetap memutarnya dengan lembut, seolah dari ruangan sebelah.";
+"settings.sound.microphone.title" = "Mikrofon";
+"settings.sound.microphone.subtitle" = "Hanya digunakan oleh HyperWhisper. Tetap diingat setelah dimulai ulang.";
+"microphone.picker.default" = "Default · %@";
+"microphone.picker.notConnected" = "%@ (tidak terhubung)";
+"microphone.picker.fallback" = "Menggunakan %1$@ hingga %2$@ terhubung kembali.";
+"settings.sound.microphone.test" = "Uji";
+"settings.sound.microphone.stop" = "Hentikan";
+"settings.sound.microphone.level" = "Level input";
 "settings.sound.autoIncreaseMicVolume.title" = "Tingkatkan volume mikrofon secara otomatis";
-"settings.sound.autoIncreaseMicVolume.info" = "Secara otomatis menyetel volume input mikrofon ke maksimum saat perekaman dimulai, kemudian mengembalikan level asli saat perekaman berhenti. Hanya berlaku saat menggunakan perangkat input default sistem.";
+"settings.sound.autoIncreaseMicVolume.info" = "Secara otomatis mengatur volume input mikrofon yang digunakan HyperWhisper untuk merekam ke maksimum saat perekaman dimulai, lalu memulihkan level aslinya saat perekaman berhenti. Mikrofon tanpa kontrol volume perangkat lunak tidak diubah.";
 "settings.sound.vad.title" = "Hapus keheningan sebelum transkripsi";
 "settings.sound.vad.info" = "Secara otomatis mendeteksi dan menghapus keheningan awal dan akhir menggunakan deteksi suara AI. Ini dapat meningkatkan akurasi transkripsi dan mengurangi waktu pemrosesan.";
 
@@ -336,6 +346,9 @@
 "settings.storage.choose.button" = "Pilih...";
 "settings.storage.dialog.select" = "Pilih Folder";
 "settings.storage.dialog.message" = "Pilih folder untuk menyimpan rekaman";
+"settings.storage.folderRefused.title" = "Folder ini tidak dapat digunakan";
+"settings.storage.folderRefused.notWritable" = "Anda tidak memiliki izin untuk menulis ke “%@”, jadi HyperWhisper tidak dapat menyimpan rekaman di sana. Folder Rekaman tidak diubah.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper tidak dapat membuat folder ini: %@ Folder Rekaman tidak diubah.";
 "settings.storage.storeAsM4A.title" = "Kompres rekaman ke M4A";
 "settings.storage.storeAsM4A.subtitle" = "Mengonversi rekaman WAV ke file yang lebih kecil setelah transkripsi. Matikan untuk menyimpan file WAV asli (lebih besar tetapi tanpa kehilangan).";
 
@@ -383,6 +396,7 @@
 
 "settings.shortcuts.changeMode.title" = "Ubah Mode";
 "settings.shortcuts.changeMode.subtitle" = "Hanya berfungsi saat merekam";
+"settings.shortcuts.conflict.alert" = "Pintasan keyboard ini tidak dapat digunakan karena sudah dipakai oleh “%@”.";
 
 "settings.shortcuts.reset.button" = "Setel Ulang ke Default";
 "settings.shortcuts.reset.dialog.title" = "Setel Ulang Pintasan Keyboard";
@@ -434,6 +448,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Tempel dari Clipboard";
 "settings.license.clearInput" = "Hapus";
+"license.error.keyFormat" = "Itu tidak terlihat seperti kunci akun.";
 "settings.license.recovery.prompt" = "Lupa kunci lisensi Anda?";
 "settings.license.recovery.button" = "Buka portal pelanggan";
 "settings.license.daily.title" = "Transkripsi Harian";
@@ -576,6 +591,8 @@
 "onboarding.configure.cloud.note" = "Kredit dibayar di muka dan dibagikan di semua Mac yang masuk dengan kunci ini. Waktu idle tidak dikenakan biaya.";
 "onboarding.source.note" = "Mengubah pilihan nanti hanya mengulang langkah ini saja. Semua yang sudah Anda atur lainnya tidak akan hilang.";
 "onboarding.permissions.note" = "Lewati Aksesibilitas dan transkrip akan masuk ke clipboard, siap ditempel. Mengaktifkannya nanti hanya perlu satu klik.";
+"onboarding.permissions.microphone.denied" = "Tidak diizinkan. Aktifkan HyperWhisper di Pengaturan Sistem, lalu kembali ke sini.";
+"onboarding.permissions.continueNeedsMicrophone" = "Lanjutkan memerlukan mikrofon. Izinkan di atas, atau pilih Atur Nanti.";
 "onboarding.welcome.task1.title" = "Pilih cara transkripsi berjalan";
 "onboarding.welcome.task1.caption" = "Di cloud kami, di Mac ini, atau melalui akun penyedia yang sudah Anda bayar.";
 "onboarding.welcome.task2.title" = "Periksa mikrofon Anda";
@@ -683,6 +700,10 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Hapus mode?";
 "modes.delete.confirm.message" = "Ini akan menghapus mode yang dipilih. Tindakan ini tidak dapat dibatalkan.";
+"modes.editor.discard.title" = "Buang perubahan yang belum disimpan?";
+"modes.editor.discard.message" = "Perubahan Anda pada mode ini belum disimpan.";
+"modes.editor.discard.keepEditing" = "Lanjutkan Mengedit";
+"modes.editor.discard.button" = "Buang";
 "modes.header.title" = "Mode";
 "modes.header.subtitle" = "Buat profil khusus untuk konteks dan alur kerja berbeda";
 "modes.header.create" = "Buat Mode";
@@ -727,7 +748,7 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "modes.postProcessing.apiKeyMissing" = "Kunci API %@ tidak dikonfigurasi. Tambahkan di Pengaturan untuk mengaktifkan pascapemrosesan.";
 "modes.postProcessing.configure" = "Konfigurasi di Pengaturan";
 "modes.postProcessing.modelRecommendation" = "Kami merekomendasikan menggunakan GPT-4.1 Nano untuk keseimbangan terbaik antara kecepatan dan kualitas.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Pasca-pemrosesan lokal memerlukan model lokal yang diunduh.";
 "modes.postProcessing.download" = "Unduh di Pengaturan";
@@ -787,12 +808,15 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "modes.field.name.placeholder" = "misalnya, Catatan Rapat";
 "modes.field.name.editPlaceholder" = "Nama mode";
 "modes.field.name.defaultLocked" = "Ini adalah mode default, jadi namanya tidak dapat diubah. Anda dapat mengganti nama mode lainnya.";
+"modes.field.name.taken" = "Mode dengan nama itu sudah ada.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Penyedia";
 "modes.provider.local" = "Lokal";
 "modes.provider.cloud" = "Cloud";
 "modes.notice.noLocalModels.title" = "Tidak ada model lokal terinstal";
 "modes.notice.noLocalModels.subtitle" = "Instal model di Pengaturan terlebih dahulu";
+"modes.model.notInstalledFormat" = "%@ (tidak terpasang)";
+"modes.notice.modelNotInstalled" = "Model mode ini tidak terpasang. Menyimpan akan mempertahankannya. Unduh di Perpustakaan Model, atau pilih model lain.";
 "modes.model.pricing" = "Harga: $%.6f / menit (ditagih per detik)";
 "modes.button.create" = "Buat Mode";
 "modes.button.delete" = "Hapus Mode";
@@ -811,8 +835,9 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "transcripts.delete.single.message" = "Ini akan menghapus rekaman ini dan file audionya secara permanen.";
 "transcripts.delete.multiple.title" = "Hapus %d Rekaman?";
 "transcripts.delete.multiple.message" = "Ini akan menghapus %d rekaman dan file audio mereka secara permanen.\n\nTindakan ini tidak dapat dibatalkan.";
-"transcripts.delete.multiple.confirm" = "Hapus Semua";
+"transcripts.delete.multiple.confirm" = "Hapus %d Rekaman";
 "transcripts.retry.error.title" = "Coba Lagi Gagal";
+"transcripts.retry.error.modeDeleted" = "Mode yang membuat rekaman ini telah dihapus, jadi tidak dicoba lagi. Di Riwayat, klik kanan rekaman dan pilih \"Coba lagi dengan...\" untuk memilih mode lain.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Pilih Folder Rekaman";
@@ -863,8 +888,8 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "recording.retry.inProgress" = "Mencoba lagi…";
 "recording.retry.count" = "Coba Lagi (%d)";
 "recording.retry.failed.missing" = "Coba lagi gagal: File audio tidak ditemukan";
-"recording.retry.failed.error" = "Coba lagi gagal: %@";
 "recording.retry.pending" = "Siap untuk mencoba lagi – klik untuk metranskripsi";
+"recording.retry.modeDeleted" = "Mode telah dihapus";
 "recording.cancel.dialog.title" = "Batalkan Perekaman?";
 "recording.cancel.dialog.message" = "Ini akan membuang rekaman saat ini.";
 "recording.cancel.dialog.confirm" = "Batalkan Perekaman";
@@ -891,6 +916,7 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "audio.error.microphonePermission" = "Izin mikrofon tidak diberikan";
 "audio.error.microphoneInUse" = "HyperWhisper tidak dapat mengakses mikrofon karena aplikasi lain sedang menggunakannya. Jeda aplikasi lain atau ganti input, lalu coba lagi.";
 "audio.error.audioSystemNotResponding" = "Audio macOS tidak merespons, jadi mikrofon tidak dapat dimulai. Coba lagi sebentar lagi. Jika terus terjadi, mulai ulang Mac Anda.";
+"audio.error.recorderStopTimedOut" = "Audio macOS berhenti merespons saat rekaman sedang disimpan, jadi rekaman tidak ditranskripsi. Audio tetap disimpan: HyperWhisper akan mencoba memulihkannya saat dijalankan berikutnya.";
 "audio.error.createEngine" = "Gagal membuat mesin audio";
 "audio.error.noInput" = "Tidak ada input audio yang tersedia";
 "audio.error.createFile" = "Gagal membuat file audio";
@@ -918,6 +944,9 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "transcription.error.providerNotAvailable.provider" = "%@ tidak tersedia. Periksa pengaturan Anda dan coba lagi.";
 "transcription.error.providerNotAvailable.detail" = "%@ tidak tersedia: %@";
 "transcription.error.modelNotDownloaded" = "Silakan unduh model terlebih dahulu";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Mode %1$@ menggunakan %2$@, yang belum diunduh. Unduh di Perpustakaan Model.";
+"transcription.error.modelNotDownloaded.model" = "%1$@ belum diunduh. Unduh di Perpustakaan Model.";
+"transcription.error.openModelLibrary" = "Buka Perpustakaan Model";
 "transcription.error.modelProtected" = "Model ini tidak dapat dihapus";
 "transcription.error.audioFileNotFound" = "File audio tidak ditemukan";
 "transcription.error.network.detail" = "Kesalahan jaringan: %@";
@@ -964,10 +993,15 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "transcription.guidance.quotaExceeded" = "Tambahkan kredit ke akun %@ Anda atau perbarui detail tagihan Anda";
 "transcription.guidance.timeout" = "Permintaan memakan waktu terlalu lama. Periksa kecepatan internet Anda dan coba lagi.";
 "transcription.error.noSpeechDetected" = "Tidak ada ucapan terdeteksi dalam rekaman.";
+"transcription.error.audioTooShort" = "Rekaman terlalu pendek untuk ditranskripsi. Silakan rekam lebih lama.";
 "transcription.guidance.noSpeechDetected" = "Tips:\n• Berbicara dengan jelas ke mikrofon\n• Tahan tombol lebih lama sebelum berbicara\n• Periksa apakah mikrofon Anda berfungsi\n• Pastikan perangkat input yang benar dipilih";
 "transcription.guidance.needsNativeRelaunch" = "Keluar lalu buka kembali HyperWhisper secara native untuk memakai pasca-pemrosesan lokal.";
 "transcription.guidance.localRuntimeUnavailable" = "Coba lagi, atau pilih model lokal yang lebih kecil di pengaturan Mode Anda.";
 "transcription.error.localRuntimeUnavailable" = "AI lokal tidak dapat menyelesaikan prosesnya — transkrip mentah Anda tetap disimpan.";
+"transcription.error.postProcessingPreflight.unauthorized" = "%@ menolak kunci API Anda — transkrip mentah Anda tetap disimpan.";
+"transcription.error.postProcessingPreflight.unreachable" = "Tidak dapat menjangkau %@ — transkrip mentah Anda tetap disimpan.";
+"transcription.error.postProcessingPreflight.notInstalled" = "%@ tidak terinstal — transkrip mentah Anda tetap disimpan.";
+"transcription.error.postProcessingPreflight.unavailable" = "%@ tidak tersedia — transkrip mentah Anda tetap disimpan.";
 "transcription.error.localSpeechModelEvicted" = "Model ucapan dilepas untuk membebaskan memori dan tidak dapat dimuat ulang. Tutup beberapa aplikasi lalu coba lagi.";
 "settings.backup.localDownload.title" = "Unduh model lokal?";
 "settings.backup.localDownload.message" = "%d mode yang Anda pulihkan menggunakan model AI di perangkat yang belum diunduh.";
@@ -975,6 +1009,11 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "settings.backup.localDownload.dismiss" = "Abaikan";
 "modelLibrary.local.requiresAppleSilicon" = "Memerlukan Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Jalankan ulang secara native";
+"modelLibrary.remove.confirm.title" = "Hapus %@?";
+"modelLibrary.remove.confirm.message" = "Anda perlu mengunduhnya lagi (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Anda perlu mengunduhnya lagi.";
+"modelLibrary.remove.confirm.button" = "Hapus";
+"settings.models.inUse.localAPI" = "Permintaan Local API sedang menggunakan model ini. Coba lagi setelah selesai.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Kredit tidak mencukupi. Tambahkan lebih banyak kredit di Pengaturan.";
@@ -1039,7 +1078,12 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "settings.backup.import.subtitle" = "Pulihkan pengaturan dari file cadangan";
 "settings.backup.import.button" = "Impor...";
 "settings.backup.import.panel.title" = "Impor Pengaturan";
-"settings.backup.import.success" = "Impor selesai: %d mode, %d item kosakata diimpor";
+"settings.backup.import.result" = "Impor selesai: %@";
+"settings.backup.import.result.settings" = "pengaturan dipulihkan";
+"settings.backup.import.result.modes" = "%d mode diimpor";
+"settings.backup.import.result.vocabulary" = "%d item kosakata diimpor";
+"settings.backup.import.complete" = "Impor selesai";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Gagal membaca file cadangan";
 "settings.backup.import.error.decode" = "Format file cadangan tidak valid";
 "settings.backup.import.error.decode.keyNotFound" = "Bidang wajib tidak ada: %@";
@@ -1049,6 +1093,14 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "settings.backup.import.error.decode.corruptedField" = "Nilai rusak untuk bidang: %@";
 "settings.backup.import.error.version" = "File cadangan dari versi yang lebih baru";
 "settings.backup.import.error.unknown" = "Impor gagal";
+"settings.backup.import.error.storeModes" = "Mode tidak dapat disimpan, jadi dibiarkan seperti semula.";
+"settings.backup.import.error.storeModesAndVocabulary" = "Mode tidak dapat disimpan, jadi mode dan kosakata dibiarkan seperti semula.";
+"settings.backup.import.error.storeVocabulary" = "Kosakata tidak dapat disimpan, jadi dibiarkan seperti semula.";
+"settings.backup.import.error.storeVocabularyAfterModes" = "Mode telah diimpor, tetapi kosakata tidak dapat disimpan, jadi dibiarkan seperti semula.";
+"settings.backup.import.error.storeLicense" = "Kunci lisensi tidak dapat diimpor dengan aman.";
+"settings.backup.import.error.storeSettingsRestored" = "Pengaturan dibiarkan seperti semula.";
+"settings.backup.import.error.storeOtherSections" = "Bagian lain yang dipilih telah diterapkan.";
+"settings.backup.import.apiKeysFailed" = "Kunci API ini tidak dapat disimpan ke Rantai Kunci dan tidak dipulihkan: %@. Masukkan lagi di Pengaturan.";
 "settings.backup.import.confirm.title" = "Impor Pengaturan?";
 "settings.backup.import.confirm.message" = "Ini akan mengganti mode dan kosakata Anda yang ada dengan yang dari file cadangan. Pengaturan juga akan diperbarui.";
 "settings.backup.import.confirm.button" = "Impor";
@@ -1058,6 +1110,7 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "settings.backup.info.note" = "Cadangan mencakup pengaturan, mode, dan kosakata. Rekaman dan transkrip tidak disertakan.";
 "settings.backup.result.success.title" = "Berhasil";
 "settings.backup.result.error.title" = "Kesalahan";
+"settings.backup.result.incomplete.title" = "Impor Tidak Lengkap";
 "settings.backup.export.choose.subtitle" = "Pilih apa yang akan disertakan dalam file cadangan";
 "settings.backup.export.section.settings" = "Pengaturan";
 "settings.backup.export.section.modes" = "Mode";
@@ -1083,6 +1136,17 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "transcribe.file.error.format.title" = "Format Tidak Didukung";
 "transcribe.file.error.format.message" = "File .%@ tidak didukung oleh %@. Format yang didukung: %@";
 "transcribe.file.error.read" = "Tidak dapat membaca file yang dipilih.";
+"transcribe.file.error.webm" = "WebM tidak didukung. Ubah file ke MP3, M4A, atau WAV, lalu coba lagi.";
+"transcribe.file.busy.title" = "Sebuah file sedang ditranskripsi.";
+"transcribe.file.busy.message" = "Batalkan dan mulai yang ini?";
+"transcribe.file.busy.keepRunning" = "Biarkan Berjalan";
+"transcribe.file.busy.cancelAndStart" = "Batalkan dan Mulai";
+"transcribe.file.error.notAudio" = "File “%@” bukan audio yang valid. File mungkin rusak, atau dalam format yang tidak dapat didekode macOS.";
+"transcribe.file.error.empty" = "File “%@” kosong. Tidak ada audio untuk ditranskripsi.";
+"transcribe.file.error.permission" = "HyperWhisper tidak dapat membaca file “%@”. Periksa izin file tersebut.";
+"transcribe.file.error.folderPermission" = "HyperWhisper tidak dapat membuka folder yang berisi file “%@”. Periksa izin folder tersebut.";
+"transcribe.file.error.privacy" = "Pengaturan privasi macOS memblokir HyperWhisper membaca file “%@”. Izinkan di Pengaturan Sistem > Privasi & Keamanan > Akses Disk Penuh.";
+"transcribe.file.error.tooShort" = "File ini terlalu pendek untuk ditranskripsi (%@ dtk).";
 "transcribe.file.error.copy" = "Gagal menyalin file ke folder rekaman.";
 "transcribe.file.error.video.title" = "Tidak Ada Audio dalam Video";
 "transcribe.file.error.video.noAudio" = "File video ini tidak berisi trek audio. Silakan pilih video dengan audio atau file audio.";
@@ -1109,3 +1173,4 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "settings.storage.maxRecordingDuration.hour" = "1 jam";
 "settings.storage.maxRecordingDuration.hours" = "%d jam";
 "settings.storage.maxRecordingDuration.off" = "Nonaktif";
+"settings.api_server.status.stopping" = "Menghentikan…";

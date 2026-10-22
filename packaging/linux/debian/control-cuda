@@ -1,0 +1,16 @@
+Package: hyperwhisper-cuda
+Version: @VERSION@
+Section: sound
+Priority: optional
+Architecture: @ARCHITECTURE@
+Maintainer: HyperWhisper Contributors <opensource@hyperwhisper.com>
+Installed-Size: @INSTALLED_SIZE@
+Depends: hyperwhisper (= @VERSION@), libc6 (>= 2.35), libgcc-s1, libstdc++6, libgomp1
+Replaces: hyperwhisper (<< @VERSION@)
+Breaks: hyperwhisper (<< @VERSION@)
+Homepage: https://hyperwhisper.com
+Description: NVIDIA CUDA 12 backends for HyperWhisper
+ Optional GPU backends that let HyperWhisper run local Whisper transcription
+ and local LLM post-processing on an NVIDIA GPU through CUDA 12. They need the
+ NVIDIA driver and the CUDA 12 runtime libraries. Without this package,
+ HyperWhisper uses its Vulkan or CPU backends.

@@ -11,7 +11,8 @@ namespace HyperWhisper.PortableApplication.Persistence;
 public sealed partial class ApplicationBackupService(
     ApplicationDb database,
     PortableSettingsService settings,
-    ICredentialStore? credentialStore = null)
+    ICredentialStore? credentialStore = null,
+    string appVersion = "unknown")
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {
@@ -21,6 +22,9 @@ public sealed partial class ApplicationBackupService(
     private readonly ApplicationDb _database = database ?? throw new ArgumentNullException(nameof(database));
     private readonly PortableSettingsService _settings = settings ?? throw new ArgumentNullException(nameof(settings));
     private readonly ICredentialStore? _credentialStore = credentialStore;
+    private readonly string _appVersion = string.IsNullOrWhiteSpace(appVersion)
+        ? throw new ArgumentException("App version is required.", nameof(appVersion))
+        : appVersion;
 
     public Task<string> ExportAsync(CancellationToken cancellationToken = default)
         => ExportAsync(BackupExportSelection.All, cancellationToken);
@@ -56,7 +60,7 @@ public sealed partial class ApplicationBackupService(
         {
             ["schemaVersion"] = 2,
             ["exportDate"] = DateTimeOffset.UtcNow.ToString("O"),
-            ["appVersion"] = "1.0.0",
+            ["appVersion"] = _appVersion,
             ["platform"] = "linux",
         };
         if (selection.IncludeSettings)
@@ -231,8 +235,8 @@ public sealed partial class ApplicationBackupService(
             ? null
             : new JsonArray(mode.CustomVocabulary.Select(term => (JsonNode?)JsonValue.Create(term)).ToArray());
         linux["isSystemProvided"] = mode.IsSystemProvided;
-        linux["createdDate"] = mode.CreatedDate.ToUniversalTime().ToString("O");
-        linux["modifiedDate"] = mode.ModifiedDate.ToUniversalTime().ToString("O");
+        linux["createdDate"] = AsUtc(mode.CreatedDate).ToString("O");
+        linux["modifiedDate"] = AsUtc(mode.ModifiedDate).ToString("O");
         extensions["linux"] = linux;
         return new JsonObject
         {
@@ -267,6 +271,12 @@ public sealed partial class ApplicationBackupService(
     /// cloudTranscriptionDomain gate. Absent fields stay absent — the caller
     /// applies <see cref="ModeDefaults"/>.
     ///
+    /// <paramref name="withoutPeerSlice"/> hands the core the mode WITHOUT its
+    /// <c>platformExtensions.windows</c> slice, so that slice's tier and
+    /// post-processing model do not override the top-level ones. Set when the linux
+    /// slice won (#1747): Linux keeps those two fields only at the top level, so a
+    /// windows slice preserved from an older Windows import holds a stale copy.
+    ///
     /// A backup file is the one input that is arbitrarily old: it can be written
     /// by any past version, on any platform, and restored years later, and it
     /// bypasses the one-shot EF migration entirely, because that migration is
@@ -277,42 +287,165 @@ public sealed partial class ApplicationBackupService(
     /// changes the user's vendor, credits and <c>X-STT-Provider</c> without
     /// telling them.
     /// </summary>
-    private static JsonObject NormalizeCloudRouting(JsonObject mode)
-        => JsonNode.Parse(SharedCoreBridge.NormalizeUniversalMode(mode.ToJsonString()))
+    private static JsonObject NormalizeCloudRouting(JsonObject mode, bool withoutPeerSlice = false)
+    {
+        if (withoutPeerSlice && mode["platformExtensions"] is JsonObject extensions && extensions.ContainsKey(PeerModeSlice))
+        {
+            mode = mode.DeepClone().AsObject();
+            mode["platformExtensions"]!.AsObject().Remove(PeerModeSlice);
+        }
+        return JsonNode.Parse(SharedCoreBridge.NormalizeUniversalMode(mode.ToJsonString()))
             as JsonObject
             ?? throw new JsonException("Mode normalization did not return an object.");
+    }
 
     private static Mode ParseMode(JsonNode? node)
     {
         var value = node as JsonObject ?? throw new JsonException("Mode must be an object.");
-        var normalized = NormalizeCloudRouting(value);
         var extensions = value["platformExtensions"] as JsonObject;
         var linux = extensions?["linux"] as JsonObject;
+        // The per-mode fields both .NET heads write under the same names (#1712):
+        // the linux slice when there is a readable one (a JSON object), else the
+        // Windows head's slice. A readable Windows slice with a NEWER modifiedDate
+        // also wins: the mode was edited on Windows after this linux slice was
+        // preserved there (#1716).
+        var peer = ReadablePeerSlice(extensions?[PeerModeSlice] as JsonObject);
+        var own = linux is null || PeerSliceIsNewer(linux, peer) ? peer : linux;
+        // The cloud tier and post-processing models: a windows slice's copy beats the
+        // top-level one only when that slice won. A linux record keeps all three at the
+        // top level, so a preserved windows slice holds stale copies (#1747). The core
+        // fold reads the tier and cloud model; the local model is read here, as Windows
+        // UniversalBackupMapper does.
+        var peerWon = peer is not null && own == peer;
+        var normalized = NormalizeCloudRouting(value, withoutPeerSlice: linux is not null && own == linux);
         var preservedExtensions = extensions?.DeepClone() as JsonObject;
+        // No slice says: a Cloud mode is `model == "cloud"` OR a set cloudProvider
+        // (#1690). A Cloud mode with a blank provider stores HyperWhisper Cloud.
+        var providerType = String(own, "providerType")
+            ?? (String(value, "model") == "cloud" || !string.IsNullOrWhiteSpace(String(value, "cloudProvider")) ? "cloud" : "local");
+        var cloudProvider = String(normalized, "cloudProvider");
+        if (providerType == "cloud" && string.IsNullOrWhiteSpace(cloudProvider))
+            cloudProvider = SharedCoreBridge.EffectiveModeCloudProvider(cloudProvider);
         return new Mode
         {
             Id = Guid.Parse(value["id"]!.GetValue<string>()), Name = normalized["name"]!.GetValue<string>(),
             Preset = String(value, "preset") ?? "hyper", Language = String(value, "language") ?? "en",
-            Model = String(value, "model") ?? "base", ModelType = String(linux, "modelType") ?? String(value, "model") ?? "base",
+            Model = String(value, "model") ?? "base", ModelType = String(own, "modelType") ?? String(value, "model") ?? "base",
             IsDefault = Bool(value, "isDefault"), SortOrder = Int(value, "sortOrder"),
             Punctuation = Bool(value, "punctuation", true), Capitalization = Bool(value, "capitalization", true),
             ProfanityFilter = Bool(value, "profanityFilter"), RemoveTrailingPeriod = Bool(value, "removeTrailingPeriod"),
-            EnglishSpelling = String(value, "englishSpelling"), CloudProvider = String(normalized, "cloudProvider"),
+            EnglishSpelling = String(value, "englishSpelling"), CloudProvider = cloudProvider,
             CloudTranscriptionModel = String(normalized, "cloudTranscriptionModel"), CloudTranscriptionDomain = String(normalized, "cloudTranscriptionDomain"),
             PostProcessingMode = Int(value, "postProcessingMode"), PostProcessingProvider = String(value, "postProcessingProvider"),
-            LanguageModel = String(value, "languageModel"), LocalPostProcessingModel = String(value, "localPostProcessingModel"),
+            LanguageModel = String(value, "languageModel"), LocalPostProcessingModel = (peerWon ? String(peer, "localPostProcessingModel") : null) ?? String(value, "localPostProcessingModel"),
             UserSystemPrompt = String(value, "userSystemPrompt"), CustomInstructions = String(value, "customInstructions"),
             GeminiCustomPrompt = String(value, "geminiCustomPrompt"),
             CloudAccuracyTier = String(normalized, "cloudAccuracyTier") ?? ModeDefaults.CloudAccuracyTier,
             CloudPostProcessingModel = String(normalized, "cloudPostProcessingModel") ?? ModeDefaults.CloudPostProcessingModel,
-            LocalEngine = String(linux, "localEngine") ?? "whisper", LocalParakeetModel = String(linux, "localParakeetModel"),
-            ProviderType = String(linux, "providerType") ?? (String(value, "cloudProvider") is null ? "local" : "cloud"),
-            EnableScreenOCR = Bool(linux, "enableScreenOCR"), CustomVocabulary = StringList(linux, "customVocabulary"),
-            IsSystemProvided = Bool(linux, "isSystemProvided"),
+            LocalEngine = String(own, "localEngine") ?? "whisper", LocalParakeetModel = String(own, "localParakeetModel"),
+            ProviderType = providerType,
+            EnableScreenOCR = ScreenOcr(linux is null ? null : own, linux, extensions), CustomVocabulary = StringList(own, "customVocabulary"),
+            IsSystemProvided = Bool(own, "isSystemProvided"),
             ForeignPlatformExtensions = preservedExtensions is null || preservedExtensions.Count == 0 ? null : preservedExtensions.ToJsonString(),
-            CreatedDate = Date(linux, "createdDate") ?? DateTime.UtcNow,
-            ModifiedDate = Date(linux, "modifiedDate") ?? DateTime.UtcNow,
+            CreatedDate = Date(own, "createdDate") ?? DateTime.UtcNow,
+            ModifiedDate = Date(own, "modifiedDate") ?? DateTime.UtcNow,
         };
+    }
+
+    /// <summary>
+    /// The other .NET head's per-mode slice (#1712). Windows writes the same
+    /// per-mode fields as Linux under the same names and JSON types
+    /// (<c>customVocabulary</c>, <c>localEngine</c>, <c>localParakeetModel</c>,
+    /// <c>providerType</c>, <c>modelType</c>, <c>isSystemProvided</c>,
+    /// <c>createdDate</c>, <c>modifiedDate</c>); macOS writes none of them. Read
+    /// when the mode has no readable <c>linux</c> slice (absent, or not a JSON
+    /// object), or when it carries a newer <c>modifiedDate</c> than the linux slice
+    /// (<see cref="PeerSliceIsNewer"/>). The winning slice is read whole, so a stale
+    /// preserved Windows value never mixes into a newer linux record. Mirrors
+    /// Windows <c>UniversalBackupMapper.ReadPeerModeExtensions</c>.
+    /// </summary>
+    private const string PeerModeSlice = "windows";
+
+    /// <summary>
+    /// True when the readable Windows slice carries a strictly newer
+    /// <c>modifiedDate</c> than the linux slice (#1716). A Linux → Windows (edit) →
+    /// Linux trip brings the Windows edit back in the windows slice and the OLD
+    /// values in the preserved linux slice; the newer one is the user's latest
+    /// edit. A tie, or a missing date on either side, keeps the linux slice, so an
+    /// unedited trip restores the same values it did before. Mirrors Windows
+    /// <c>UniversalBackupMapper.PeerSliceIsNewer</c>.
+    /// </summary>
+    private static bool PeerSliceIsNewer(JsonObject linux, JsonObject? peer)
+        => Date(linux, "modifiedDate") is { } ownDate
+            && Date(peer, "modifiedDate") is { } peerDate
+            && peerDate > ownDate;
+
+    // EF hands back a stored date with no kind; every writer stores UTC
+    // (DateTime.UtcNow), so an unspecified kind is UTC, not local time.
+    private static DateTime AsUtc(DateTime value) => value.Kind switch
+    {
+        DateTimeKind.Local => value.ToUniversalTime(),
+        DateTimeKind.Unspecified => DateTime.SpecifyKind(value, DateTimeKind.Utc),
+        _ => value,
+    };
+
+    /// <summary>
+    /// The peer slice, or null when one of the shared fields in it cannot be read
+    /// (a wrong JSON type, a date that does not parse). A bad peer value must not
+    /// reject the whole backup: Linux never read this slice before #1712, and
+    /// Windows <c>ReadPeerModeExtensions</c> also drops an unreadable peer slice
+    /// and keeps the defaults.
+    /// </summary>
+    private static JsonObject? ReadablePeerSlice(JsonObject? peer)
+    {
+        if (peer is null) return null;
+        try
+        {
+            _ = String(peer, "modelType"); _ = String(peer, "localEngine");
+            _ = String(peer, "localParakeetModel"); _ = String(peer, "providerType");
+            _ = StringList(peer, "customVocabulary"); _ = Bool(peer, "isSystemProvided");
+            _ = Date(peer, "createdDate"); _ = Date(peer, "modifiedDate");
+            _ = String(peer, "localPostProcessingModel");
+            return peer;
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The FOREIGN per-mode slices, in lookup order, for a field every head writes
+    /// under the same name in its own slice (today only <c>enableScreenOCR</c>).
+    /// Linux reads its own slice first, then these: the remaining heads in the
+    /// fixed order macos, windows, linux — the rule in <c>shared-backup/AGENTS.md</c>.
+    /// </summary>
+    private static readonly string[] ForeignModeSliceOrder = ["macos", "windows"];
+
+    /// <summary>
+    /// A mode's screen OCR flag (#1498): the <c>linux</c> slice's value when it
+    /// carries one (an explicit <c>false</c> wins too), else the first foreign
+    /// slice that carries it as a JSON Bool, else <c>false</c>. Mirrors macOS
+    /// <c>UniversalModeDTO.platformExtensionBool</c>. <paramref name="newer"/> is the
+    /// Windows slice when it beat the linux slice on <c>modifiedDate</c> (#1716); its
+    /// JSON Bool comes first.
+    /// </summary>
+    private static bool ScreenOcr(JsonObject? newer, JsonObject? linux, JsonObject? extensions)
+    {
+        const string key = "enableScreenOCR";
+        if (newer != linux
+            && newer?[key] is JsonValue newerValue
+            && newerValue.GetValueKind() is JsonValueKind.True or JsonValueKind.False)
+            return newerValue.GetValue<bool>();
+        if (linux?[key] is not null) return Bool(linux, key);
+        foreach (var platform in ForeignModeSliceOrder)
+        {
+            if (extensions?[platform] is JsonObject slice
+                && slice[key] is JsonValue value
+                && value.GetValueKind() is JsonValueKind.True or JsonValueKind.False)
+                return value.GetValue<bool>();
+        }
+        return false;
     }
 
     private static List<string>? StringList(JsonObject? value, string key)
@@ -347,6 +480,35 @@ public sealed partial class ApplicationBackupService(
             || modes.Select(item => item.Name.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Count() != modes.Count
             || modes.Any(item => string.IsNullOrWhiteSpace(item.Name)))
             throw new InvalidOperationException("Duplicate or invalid modes.");
+    }
+
+    /// <summary>
+    /// A backup made before #1475/#1777 can carry a word with line breaks inside it. It imports as
+    /// one word per non-empty line, the way the add field saves a paste: the first line keeps the
+    /// item's id, each further line gets a fresh id and the same replacement. A split line that
+    /// repeats a word already in the backup is dropped, so the split alone never fails the import
+    /// with a duplicate.
+    /// </summary>
+    private static List<VocabularyItem> SplitMultiLineWords(List<VocabularyItem> vocabulary)
+    {
+        if (!vocabulary.Any(item => VocabularyWords.HasLineBreak(item.Word))) return vocabulary;
+        var singleLineWords = vocabulary.Where(item => !VocabularyWords.HasLineBreak(item.Word))
+            .Select(item => item.Word.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var splitWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var result = new List<VocabularyItem>(vocabulary.Count);
+        foreach (var item in vocabulary)
+        {
+            // A blank word stays as is, so ValidateVocabulary still refuses it.
+            if (!VocabularyWords.HasLineBreak(item.Word) || VocabularyWords.SplitLines(item.Word).Count == 0) { result.Add(item); continue; }
+            var first = true;
+            foreach (var line in VocabularyWords.SplitLines(item.Word))
+            {
+                if (singleLineWords.Contains(line) || !splitWords.Add(line)) continue;
+                result.Add(new VocabularyItem { Id = first ? item.Id : Guid.NewGuid(), Word = line, Replacement = item.Replacement, SortOrder = item.SortOrder });
+                first = false;
+            }
+        }
+        return result;
     }
 
     private static void ValidateVocabulary(IReadOnlyList<VocabularyItem> vocabulary)

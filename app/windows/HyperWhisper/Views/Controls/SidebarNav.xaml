@@ -32,6 +32,13 @@
                            Foreground="{DynamicResource TextPrimaryBrush}"/>
             </Border>
             <Border Grid.Row="1" Style="{StaticResource SidebarGroupStyle}" Margin="10,0">
+                <!-- The rail spans the whole window, and the window is shrunk to the
+                     work area when 680 DIP does not fit (issue #1500). The items scroll
+                     rather than slide under the account card below them. No bar shows
+                     while they fit, and the viewer is no tab stop of its own. -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              Focusable="False">
                 <StackPanel>
                 <RadioButton Style="{StaticResource SidebarItemStyle}" Content="{loc:Loc sidebar.home}" Command="{Binding NavigateToHomeCommand}" GroupName="Nav"
                              IsChecked="{Binding CurrentPage, Mode=OneWay, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Home}">
@@ -122,6 +129,7 @@
                     </RadioButton.Tag>
                 </RadioButton>
                 </StackPanel>
+                </ScrollViewer>
             </Border>
             <StackPanel Grid.Row="2" Margin="10,0,10,10">
                 <Separator Background="{DynamicResource BorderBrush}" Opacity="0.5" Margin="10,8"/>

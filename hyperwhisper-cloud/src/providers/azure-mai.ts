@@ -26,9 +26,10 @@ import {
   computeUploadTimeoutMs,
   fetchWithTimeout,
   logProviderEvent,
-  readErrorBodyPreview,
   splitVocabularyTerms,
+  readJson200,
 } from './utils';
+import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
 
 const MAX_PHRASES = 100;
 const MAX_PHRASE_LEN = 50;
@@ -221,15 +222,15 @@ export async function transcribeWithAzureMai(
   }, context, computeUploadTimeoutMs(audio.byteLength));
 
   if (!response.ok) {
-    const errorText = await readErrorBodyPreview(response);
+    // Never the body: it can quote the phrase list (#2163).
+    const { fields } = await readUpstreamError(response);
     const elapsedMs = Math.round(performance.now() - startedAt);
     const kind = response.status >= 500 ? 'upstream_5xx' : response.status === 429 ? 'rate_limit' : 'http_error';
 
     logProviderEvent(provider, 'http_error', {
       elapsedMs,
-      status: response.status,
+      ...upstreamErrorLogFields(fields),
       kind,
-      bodyPreview: errorText,
     }, context);
 
     if (response.status === 401) {
@@ -253,13 +254,31 @@ export async function transcribeWithAzureMai(
     throw new Error(`Azure MAI error: ${response.status}`);
   }
 
-  const data = await response.json() as {
-    combinedPhrases?: Array<{ text?: string }>;
-    durationMilliseconds?: number;
-    phrases?: Array<{ locale?: string }>;
-  };
+  // A 200 whose body is cut off, not JSON, not an object, or breaks mid-read
+  // is an upstream hiccup, not a request fault: answer the retryable 502 the
+  // other adapters give, not a 500 carrying the parser's text. The shape goes
+  // to the log only. (#2064, #2151)
+  const data = await readJson200<{
+    combinedPhrases: Array<{ text?: unknown }>;
+    durationMilliseconds: number;
+    phrases: Array<{ locale?: string }>;
+  }>(provider, 'Azure MAI', response, startedAt, context);
 
-  const transcript = data.combinedPhrases?.[0]?.text || '';
+  const rawTranscript = Array.isArray(data.combinedPhrases) ? data.combinedPhrases[0]?.text : undefined;
+  // A truthy non-string `text` would reach `.trim()` and throw a TypeError.
+  if (rawTranscript !== undefined && rawTranscript !== null && typeof rawTranscript !== 'string') {
+    logProviderEvent(provider, 'parse_error', {
+      elapsedMs: Math.round(performance.now() - startedAt),
+      field: 'combinedPhrases[0].text',
+      fieldType: typeof rawTranscript,
+    }, context);
+    throw new ProviderUnavailableError('Azure MAI', 'malformed 200 response body', {
+      kind: 'bad_response',
+      status: response.status,
+      elapsedMs: Math.round(performance.now() - startedAt),
+    });
+  }
+  const transcript = rawTranscript || '';
   const durationSeconds = (data.durationMilliseconds || 0) / 1000;
   const detectedLanguage = data.phrases?.[0]?.locale;
 

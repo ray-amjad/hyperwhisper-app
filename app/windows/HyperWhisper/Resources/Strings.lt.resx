@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Kita programa užrakino istorijos duomenų bazę. Įrašas išlaikytas ir bus išsaugotas istorijoje, kai duomenų bazė atsilaisvins.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Šio įrašo dar nepavyko išsaugoti istorijoje. Įrašas išlaikytas ir bus išsaugotas istorijoje vėliau.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -366,6 +372,9 @@
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
+  </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Nepasiekiama bandomajame profilyje. Ši versija naudoja atskirą programos duomenų aplanką, todėl nekeičia įdiegtos programos prisijungimo įrašo.</value>
   </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Paleisti sumažintą</value>
@@ -790,6 +799,12 @@
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Neaktyvuota)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (Nėra API rakto)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -820,6 +835,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Failo transkripcija atšaukta</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transkribuojamas failas...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -843,11 +861,11 @@
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Režimas, kuriuo padarytas šis įrašas, buvo ištrintas, todėl bandymas nekartotas. Istorijoje dešiniuoju pelės mygtuku spustelėkite įrašą ir pasirinkite „Bandyti su...“, kad pasirinktumėte kitą režimą.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Įrašymas sustabdytas — pasiektas 20 minučių saugos limitas.</value>
@@ -1081,6 +1099,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Spartieji klavišai su vienu modifikavimo klavišu, pvz., Ctrl, Alt, Shift ar Win, nepalaikomi. Naudokite klavišą su modifikavimo klavišais arba kelių modifikatorių derinį, pvz., Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Spartusis klavišas be modifikatoriaus turi būti funkcinis klavišas arba Esc. Bet kuris kitas klavišas suveiktų jums rašant.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Šis spartusis klavišas jau naudojamas: {0} ({1})</value>
   </data>
@@ -1121,6 +1142,9 @@ You must have at least one mode.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Windows programų valdymas užblokavo {0} – failą, kurio reikia HyperWhisper. Paprašykite IT administratoriaus leisti HyperWhisper arba patikrinkite išmanųjį programų valdymą Windows saugoje.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>
@@ -1152,6 +1176,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Modelis naudojamas</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} naudoja režimas „{1}“. Prieš ištrindami perjunkite tą režimą į kitą modelį.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1286,6 +1316,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Tai nepanašu į paskyros raktą.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1306,8 +1339,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Jau vyksta įrašymas arba failo transkribavimas. Bandykite failą dar kartą, kai baigsis.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Šis failas tuščias, todėl nėra garso, kurį būtų galima transkribuoti.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Šis failas sugadintas arba tai nėra garso failas, kurį HyperWhisper gali perskaityti.</value>
   </data>
 
 
@@ -1690,6 +1732,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Daugiau...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1984,11 +2029,35 @@ You can re-download it later.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Prislopinti audio</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Naudoja tik HyperWhisper. Įsimenama ir paleidus iš naujo.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Numatytasis · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (neprijungta)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Naudojamas {0}, kol {1} vėl bus prijungtas.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Neprijungtas joks mikrofonas. HyperWhisper naudos {0}, kai jis vėl bus prijungtas.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Išbandyti</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Stabdyti</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

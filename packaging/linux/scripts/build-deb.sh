@@ -73,7 +73,7 @@ if [[ "$ARCHITECTURE" != "amd64" ]]; then
     echo "Linux v1 packaging supports amd64 only." >&2
     exit 2
 fi
-for tool in patchelf strip; do
+for tool in patchelf strip python3; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         echo "$tool is required to normalize packaged native libraries." >&2
         exit 2
@@ -87,6 +87,14 @@ cleanup() {
 trap cleanup EXIT
 
 PACKAGE_ROOT="$BUILD_ROOT/hyperwhisper"
+CUDA_PACKAGE_ROOT="$BUILD_ROOT/hyperwhisper-cuda"
+# Relative to /usr/lib/hyperwhisper: Whisper.net's and LLamaSharp's CUDA 12
+# backends, exactly where LinuxNativeRuntimeLocator looks for them.
+CUDA_RUNTIME_DIRS=(runtimes/cuda12/linux-x64 runtimes/linux-x64/native/cuda12)
+install -d -m 0755 \
+    "$CUDA_PACKAGE_ROOT/DEBIAN" \
+    "$CUDA_PACKAGE_ROOT/usr/lib/hyperwhisper" \
+    "$CUDA_PACKAGE_ROOT/usr/share/doc/hyperwhisper-cuda"
 install -d -m 0755 \
     "$PACKAGE_ROOT/DEBIAN" \
     "$PACKAGE_ROOT/usr/bin" \
@@ -102,7 +110,7 @@ install -d -m 0755 \
 cp -a -- "$PUBLISH_DIR/." "$PACKAGE_ROOT/usr/lib/hyperwhisper/"
 # NuGet publish assets include every supported host RID. The Debian artifact is
 # amd64-only, so retaining foreign binaries is both wasteful and misleading to
-# package tooling. Keep the three Linux x64 Whisper backends and the x64 LLama
+# package tooling. Keep the Linux x64 Whisper backends and the x64 LLama
 # variants; discard Windows, macOS, ARM, and foreign accelerator assets.
 rm -rf -- \
     "$PACKAGE_ROOT/usr/lib/hyperwhisper/runtimes/linux-arm" \
@@ -115,6 +123,30 @@ rm -rf -- \
     "$PACKAGE_ROOT/usr/lib/hyperwhisper/runtimes/cuda12/win-x64" \
     "$PACKAGE_ROOT/usr/lib/hyperwhisper/runtimes/vulkan/win-x64"
 
+# NuGet also drops Windows native DLLs (onnxruntime.dll and its providers) into
+# the publish root. Managed .NET assemblies share the *.dll name, so a PE check
+# keeps every assembly with a CLR header and prunes only native Windows images.
+mapfile -d '' WINDOWS_NATIVE_DLLS < <(
+    python3 "$SCRIPT_DIR/find-windows-native-dlls.py" -0 "$PACKAGE_ROOT/usr/lib/hyperwhisper"
+)
+if ((${#WINDOWS_NATIVE_DLLS[@]} > 0)); then
+    rm -f -- "${WINDOWS_NATIVE_DLLS[@]}"
+fi
+
+# The CUDA 12 backends are ~1 GB, so they ship in their own hyperwhisper-cuda
+# package at the same /usr/lib/hyperwhisper paths the app probes (issue #1002).
+# Without it, a CUDA choice falls back to Vulkan or CPU.
+for cuda_runtime in "${CUDA_RUNTIME_DIRS[@]}"; do
+    if [[ ! -d "$PACKAGE_ROOT/usr/lib/hyperwhisper/$cuda_runtime" ]]; then
+        echo "Publish directory is missing the CUDA runtime: $cuda_runtime" >&2
+        exit 2
+    fi
+    install -d -m 0755 "$CUDA_PACKAGE_ROOT/usr/lib/hyperwhisper/$(dirname -- "$cuda_runtime")"
+    mv -- "$PACKAGE_ROOT/usr/lib/hyperwhisper/$cuda_runtime" \
+        "$CUDA_PACKAGE_ROOT/usr/lib/hyperwhisper/$cuda_runtime"
+done
+rmdir -- "$PACKAGE_ROOT/usr/lib/hyperwhisper/runtimes/cuda12"
+
 # Upstream Whisper binaries embed their CI build directories as RUNPATHs.
 # Runtime siblings are resolved through the loader and application directory,
 # so remove those non-portable paths. Strip only the native objects that ship
@@ -122,8 +154,8 @@ rm -rf -- \
 mapfile -d '' PACKAGED_RUNTIME_LIBRARIES < <(
     find \
         "$PACKAGE_ROOT/usr/lib/hyperwhisper/runtimes/linux-x64" \
-        "$PACKAGE_ROOT/usr/lib/hyperwhisper/runtimes/cuda12/linux-x64" \
         "$PACKAGE_ROOT/usr/lib/hyperwhisper/runtimes/vulkan/linux-x64" \
+        "$CUDA_PACKAGE_ROOT/usr/lib/hyperwhisper/runtimes" \
         -type f -name '*.so' -print0
 )
 for library in "${PACKAGED_RUNTIME_LIBRARIES[@]}"; do
@@ -132,9 +164,9 @@ for library in "${PACKAGED_RUNTIME_LIBRARIES[@]}"; do
 done
 strip --strip-unneeded "$PACKAGE_ROOT/usr/lib/hyperwhisper/libe_sqlite3.so"
 
-find "$PACKAGE_ROOT/usr/lib/hyperwhisper" -type d -exec chmod 0755 {} +
-find "$PACKAGE_ROOT/usr/lib/hyperwhisper" -type f -exec chmod 0644 {} +
-find "$PACKAGE_ROOT/usr/lib/hyperwhisper" -type f -name '*.pdb' -delete
+find "$PACKAGE_ROOT/usr/lib/hyperwhisper" "$CUDA_PACKAGE_ROOT/usr/lib/hyperwhisper" -type d -exec chmod 0755 {} +
+find "$PACKAGE_ROOT/usr/lib/hyperwhisper" "$CUDA_PACKAGE_ROOT/usr/lib/hyperwhisper" -type f -exec chmod 0644 {} +
+find "$PACKAGE_ROOT/usr/lib/hyperwhisper" "$CUDA_PACKAGE_ROOT/usr/lib/hyperwhisper" -type f -name '*.pdb' -delete
 chmod 0755 "$PACKAGE_ROOT/usr/lib/hyperwhisper/HyperWhisper"
 if [[ -f "$PACKAGE_ROOT/usr/lib/hyperwhisper/parakeet-engine/parakeet-engine" ]]; then
     chmod 0755 "$PACKAGE_ROOT/usr/lib/hyperwhisper/parakeet-engine/parakeet-engine"
@@ -195,7 +227,30 @@ chmod 0644 "$PACKAGE_ROOT/DEBIAN/control"
 ) > "$PACKAGE_ROOT/DEBIAN/md5sums"
 chmod 0644 "$PACKAGE_ROOT/DEBIAN/md5sums"
 
+install -m 0644 "$DEBIAN_SOURCE/copyright" \
+    "$CUDA_PACKAGE_ROOT/usr/share/doc/hyperwhisper-cuda/copyright"
+gzip -n -9 -c "$DEBIAN_SOURCE/changelog" \
+    > "$CUDA_PACKAGE_ROOT/usr/share/doc/hyperwhisper-cuda/changelog.gz"
+chmod 0644 "$CUDA_PACKAGE_ROOT/usr/share/doc/hyperwhisper-cuda/changelog.gz"
+CUDA_INSTALLED_SIZE="$(du -sk "$CUDA_PACKAGE_ROOT" | awk '{print $1}')"
+sed \
+    -e "s/@VERSION@/$VERSION/g" \
+    -e "s/@ARCHITECTURE@/$ARCHITECTURE/g" \
+    -e "s/@INSTALLED_SIZE@/$CUDA_INSTALLED_SIZE/g" \
+    "$DEBIAN_SOURCE/control-cuda" > "$CUDA_PACKAGE_ROOT/DEBIAN/control"
+chmod 0644 "$CUDA_PACKAGE_ROOT/DEBIAN/control"
+(
+    cd "$CUDA_PACKAGE_ROOT"
+    find usr -type f -print0 | sort -z | xargs -0 md5sum
+) > "$CUDA_PACKAGE_ROOT/DEBIAN/md5sums"
+chmod 0644 "$CUDA_PACKAGE_ROOT/DEBIAN/md5sums"
+
 install -d -m 0755 "$OUTPUT_DIR"
 OUTPUT_PATH="$OUTPUT_DIR/hyperwhisper_${VERSION}_${ARCHITECTURE}.deb"
+CUDA_OUTPUT_PATH="$OUTPUT_DIR/hyperwhisper-cuda_${VERSION}_${ARCHITECTURE}.deb"
 dpkg-deb --root-owner-group --build "$PACKAGE_ROOT" "$OUTPUT_PATH" >&2
+dpkg-deb --root-owner-group --build "$CUDA_PACKAGE_ROOT" "$CUDA_OUTPUT_PATH" >&2
+# Callers capture stdout as the main package path, so it stays the one line it
+# always was. The CUDA package sits next to it under its fixed name.
+echo "Built CUDA package: $CUDA_OUTPUT_PATH" >&2
 printf '%s\n' "$OUTPUT_PATH"

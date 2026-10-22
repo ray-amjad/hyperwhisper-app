@@ -78,7 +78,13 @@ internal sealed class LinuxPostProcessingRouter : ITranscriptionPostProcessor, I
             ? PortablePostProcessingResult.Applied(result.Text, result.Provider, result.Model)
             : PortablePostProcessingResult.Skipped(
                 transcript,
-                $"postprocessing.{result.Failure?.Code.ToString().ToLowerInvariant() ?? "failed"}",
+                // A missing credential on HyperWhisper Cloud is the account
+                // key, which the Local API refuses as MISSING_API_KEY (#1487);
+                // a BYOK provider's missing key keeps the generic code.
+                provider == CloudPostProcessingProvider.HyperWhisperCloud
+                    && result.Failure?.Code == CloudPostProcessingFailureCode.MissingCredential
+                    ? PortablePostProcessingResult.CloudAccountRequiredFailureCode
+                    : $"postprocessing.{result.Failure?.Code.ToString().ToLowerInvariant() ?? "failed"}",
                 result.Failure?.Message ?? "Cloud post-processing failed.");
     }
 

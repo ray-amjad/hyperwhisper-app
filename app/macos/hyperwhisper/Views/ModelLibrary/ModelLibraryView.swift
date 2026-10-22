@@ -36,6 +36,10 @@ struct ModelLibraryView: View {
     @State private var showAPIKeysManager = false
     @State private var showingModelInUseAlert = false
     @State private var modelInUseMessage = ""
+    /// The installed model whose trash icon was clicked and that no mode uses.
+    /// The Remove confirmation is presented from this optional (never from a
+    /// separate Bool), and only its Remove button deletes the file (#1527).
+    @State private var pendingRemoval: LibraryModel?
     @State private var showCustomEndpointSheet = false
     @State private var editingEndpoint: CustomPostProcessingEndpoint?
 
@@ -163,6 +167,38 @@ struct ModelLibraryView: View {
             Button(LocalizedStringKey("common.ok"), role: .cancel) {}
         } message: {
             Text(modelInUseMessage)
+        }
+        .confirmationDialog(
+            pendingRemoval?.removalConfirmationTitle() ?? "",
+            isPresented: Binding(
+                get: { pendingRemoval != nil },
+                set: { if !$0 { pendingRemoval = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingRemoval
+        ) { model in
+            Button(role: .destructive) {
+                pendingRemoval = nil
+                confirmRemoval(of: model)
+            } label: {
+                Text(localized: "modelLibrary.remove.confirm.button")
+            }
+            Button(role: .cancel) { pendingRemoval = nil } label: {
+                Text(localized: "common.cancel")
+            }
+        } message: { model in
+            Text(model.removalConfirmationMessage())
+        }
+        // Issue #1672: close every sheet and prompt (the API keys manager's
+        // own sheet goes with it) before a page change removes this view.
+        .closesPresentationsOnPageChange(
+            isPresenting: sheetTarget != nil || showAPIKeysManager || showCustomEndpointSheet || showingModelInUseAlert || pendingRemoval != nil
+        ) {
+            sheetTarget = nil
+            showAPIKeysManager = false
+            showCustomEndpointSheet = false
+            showingModelInUseAlert = false
+            pendingRemoval = nil
         }
     }
 
@@ -536,7 +572,6 @@ struct ModelLibraryView: View {
     /// to compute the "N of M support X" count (M = models matching everything
     /// else; N = those that also support the chosen language).
     private func passesNonLanguageFilters(_ model: LibraryModel) -> Bool {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if !providerFilter.matches(model.providerKey) { return false }
         if typeFilter != .all && model.kind.rawValue != typeFilter.rawValue { return false }
         if locationFilter != .all {
@@ -548,14 +583,7 @@ struct ModelLibraryView: View {
         }
         if vocabFilter && !model.supportsCustomVocabulary { return false }
         if cloudAvailableFilter && !model.availableViaHyperWhisperCloud { return false }
-        if !query.isEmpty {
-            let matchesQuery =
-                model.displayName.lowercased().contains(query)
-                || model.providerKey.displayName.lowercased().contains(query)
-                || (model.tag?.lowercased().contains(query) ?? false)
-            if !matchesQuery { return false }
-        }
-        return true
+        return ModelLibrarySearch.matches(model, query: searchText)
     }
 
     /// Language clause. Only voice models are language-filtered; text
@@ -647,7 +675,10 @@ struct ModelLibraryView: View {
         case .cloud:
             break
         case .offline(_, let installed, _):
-            if installed {
+            if model.needsRedownload {
+                // A broken install (#1632): its manager wipes the damaged files first.
+                triggerDownload(for: model)
+            } else if installed {
                 triggerDelete(for: model)
             } else {
                 // Local model downloads are unlimited (open source) — no gate.
@@ -718,37 +749,83 @@ struct ModelLibraryView: View {
         }
     }
 
+    /// The trash icon on an installed local model. A model a mode uses gets the
+    /// "Cannot Delete Model" alert and nothing else. Any other model is only
+    /// staged here: the file is deleted by the confirmation's Remove button,
+    /// through `confirmRemoval(of:)`, never by the click itself (#1527).
     private func triggerDelete(for model: LibraryModel) {
+        guard let blocker = removalBlocker(for: model) else { return }
+        guard !showCannotDeleteAlertIfNeeded(blocker.modes, messageKey: blocker.messageKey) else { return }
+        pendingRemoval = model
+    }
+
+    /// The Remove button. Runs the in-use check again, because a mode can
+    /// start using the model (Local API, another window) while the dialog is
+    /// open, then deletes.
+    private func confirmRemoval(of model: LibraryModel) {
+        guard let blocker = removalBlocker(for: model) else { return }
+        guard !showCannotDeleteAlertIfNeeded(blocker.modes, messageKey: blocker.messageKey) else { return }
+        performDelete(for: model)
+    }
+
+    /// The modes that use `model`, and the "in use" message for it. Nil for a
+    /// row the trash icon never offers removal on (cloud, Apple Speech, a
+    /// non-local post-processing model).
+    private func removalBlocker(for model: LibraryModel) -> (modes: [Mode], messageKey: String)? {
+        let canonical = model.canonicalModelId
+        switch model.providerKey {
+        case .localWhisper, .parakeet:
+            return (modes: modesUsingVoiceModel(canonical), messageKey: "settings.models.localASR.inUse")
+        case .qwen3ASR:
+            return (modes: modesUsingVoiceModel(Qwen3AsrModelManager.Constants.modelId), messageKey: "settings.models.localASR.inUse")
+        case .nemotron:
+            guard #available(macOS 14.0, *) else { return nil }
+            return (modes: modesUsingVoiceModel(canonical), messageKey: "settings.models.localASR.inUse")
+        case .postProcessing(.localLLM):
+            return (modes: modesUsingLocalLLM(canonical), messageKey: "settings.models.local.inUse")
+        case .postProcessing, .cloud, .appleSpeech:
+            return nil
+        }
+    }
+
+    /// Deletes the model file. Only `confirmRemoval(of:)` calls this.
+    private func performDelete(for model: LibraryModel) {
         let canonical = model.canonicalModelId
         switch model.providerKey {
         case .localWhisper:
-            checkAndRemoveModel(canonical)
+            Task {
+                if let item = whisperManager.downloadedModels.first(where: { $0.name == canonical }) {
+                    await whisperManager.deleteModel(item)
+                }
+            }
         case .parakeet:
-            checkAndRemoveParakeetModel(canonical)
+            parakeetManager.deleteModel(canonical)
         case .qwen3ASR:
-            checkAndRemoveQwen3AsrModel()
+            qwen3AsrManager.deleteModel()
         case .nemotron:
-            checkAndRemoveNemotronModel(canonical)
+            if #available(macOS 14.0, *) {
+                nemotronManager.deleteModel(canonical)
+            }
         case .postProcessing(.localLLM):
-            checkAndRemoveLocalModel(canonical)
-        default:
+            localLLMManager.deleteModel(canonical)
+        case .postProcessing, .cloud, .appleSpeech:
             break
         }
     }
 
-    @MainActor
-    private func checkAndRemoveNemotronModel(_ modelId: String) {
-        guard #available(macOS 14.0, *) else { return }
-        let modesUsingModel = PersistenceController.shared.fetchAllModes().filter { mode in
+    /// Modes whose voice model is `modelId` (Whisper, Parakeet, Qwen3 ASR,
+    /// Nemotron all store it in `mode.model`). Includes a running Local API
+    /// request's Mode; see `modesThatCanUseAModel()`.
+    private func modesUsingVoiceModel(_ modelId: String) -> [Mode] {
+        modesThatCanUseAModel().filter { mode in
             (mode.model ?? "").caseInsensitiveCompare(modelId) == .orderedSame
         }
-
-        guard !showCannotDeleteAlertIfNeeded(modesUsingModel, messageKey: "settings.models.localASR.inUse") else { return }
-        nemotronManager.deleteModel(modelId)
     }
 
-    private func checkAndRemoveLocalModel(_ modelId: String) {
-        let modesUsingModel = PersistenceController.shared.fetchAllModes().filter { mode in
+    /// Modes that post-process with the local LLM `modelId`. Includes a
+    /// running Local API request's Mode; see `modesThatCanUseAModel()`.
+    private func modesUsingLocalLLM(_ modelId: String) -> [Mode] {
+        modesThatCanUseAModel().filter { mode in
             let processingMode = PostProcessingMode(rawValue: mode.postProcessingMode) ?? .off
             let provider = mode.postProcessingProvider ?? ""
             let isActiveLocalMode = processingMode == .local
@@ -756,52 +833,74 @@ struct ModelLibraryView: View {
             let matchesModel = (mode.languageModel ?? "").caseInsensitiveCompare(modelId) == .orderedSame
             return isActiveLocalMode && matchesProvider && matchesModel
         }
-
-        guard !showCannotDeleteAlertIfNeeded(modesUsingModel, messageKey: "settings.models.local.inUse") else { return }
-        localLLMManager.deleteModel(modelId)
     }
 
-    private func checkAndRemoveModel(_ modelId: String) {
-        let modesUsingModel = PersistenceController.shared.fetchAllModes().filter { mode in
-            (mode.model ?? "").caseInsensitiveCompare(modelId) == .orderedSame
-        }
-
-        guard !showCannotDeleteAlertIfNeeded(modesUsingModel, messageKey: "settings.models.localASR.inUse") else { return }
-
-        Task {
-            if let model = whisperManager.downloadedModels.first(where: { $0.name == modelId }) {
-                await whisperManager.deleteModel(model)
-            }
-        }
+    /// The saved Modes, plus the Mode of every Local API request still running.
+    ///
+    /// A request's Mode lives outside the `viewContext` (issue #1509), so
+    /// `fetchAllModes()` alone no longer sees it. It used to, by accident, and
+    /// that is what refused to delete a model a request was transcribing with
+    /// (issue #1446). The in-flight list keeps that refusal.
+    private func modesThatCanUseAModel() -> [Mode] {
+        PersistenceController.shared.fetchAllModes() + LocalAPITransientMode.inFlightModes
     }
 
-    private func checkAndRemoveQwen3AsrModel() {
-        let modesUsingModel = PersistenceController.shared.fetchAllModes().filter { mode in
-            (mode.model ?? "").caseInsensitiveCompare(Qwen3AsrModelManager.Constants.modelId) == .orderedSame
-        }
-
-        guard !showCannotDeleteAlertIfNeeded(modesUsingModel, messageKey: "settings.models.localASR.inUse") else { return }
-        qwen3AsrManager.deleteModel()
-    }
-
-    private func checkAndRemoveParakeetModel(_ modelId: String) {
-        let modesUsingModel = PersistenceController.shared.fetchAllModes().filter { mode in
-            (mode.model ?? "").caseInsensitiveCompare(modelId) == .orderedSame
-        }
-
-        guard !showCannotDeleteAlertIfNeeded(modesUsingModel, messageKey: "settings.models.localASR.inUse") else { return }
-        parakeetManager.deleteModel(modelId)
-    }
-
+    /// Shows the "Cannot Delete Model" alert when any Mode uses the model.
+    ///
+    /// A saved Mode is listed by name, as before. A running Local API request
+    /// has no name a user can act on (it used to show the internal
+    /// `__local_api_transient__`, issue #1446), so when only requests use the
+    /// model the alert says so and asks to try again once they finish. When a
+    /// saved Mode uses it too, the saved-Mode message wins: that is the one the
+    /// user has to act on.
     @discardableResult
     private func showCannotDeleteAlertIfNeeded(_ modes: [Mode], messageKey: String) -> Bool {
         guard !modes.isEmpty else { return false }
 
-        let bulletItems = modes.map { mode in
-            String(format: "settings.models.mode.bullet".localized, mode.name ?? "settings.models.mode.unknown".localized)
+        let savedModes = modes.filter { !LocalAPITransientMode.isInFlight($0) }
+        if savedModes.isEmpty {
+            modelInUseMessage = "settings.models.inUse.localAPI".localized
+        } else {
+            let bulletItems = savedModes.map { mode in
+                String(format: "settings.models.mode.bullet".localized, mode.name ?? "settings.models.mode.unknown".localized)
+            }
+            modelInUseMessage = String(format: messageKey.localized, bulletItems.joined(separator: "\n"))
         }
-        modelInUseMessage = String(format: messageKey.localized, bulletItems.joined(separator: "\n"))
         showingModelInUseAlert = true
         return true
+    }
+}
+
+// MARK: - Search (#1447)
+
+/// The Model Library search box. Every whitespace-separated word must match
+/// (AND), case-insensitively, as a substring of the display name, the provider
+/// name, the tag or the model id, so `nemotron latin` finds only "Nemotron 3.5
+/// (Latin)" and `base.en` finds "Base (English-only)".
+enum ModelLibrarySearch {
+    static func matches(_ model: LibraryModel, query: String) -> Bool {
+        let words = query.lowercased().split(whereSeparator: \.isWhitespace)
+        if words.isEmpty { return true }
+        let fields = [
+            model.displayName,
+            model.providerKey.displayName,
+            model.tag ?? "",
+            modelId(of: model),
+        ].map { $0.lowercased() }
+        return words.allSatisfy { word in fields.contains { $0.contains(word) } }
+    }
+
+    /// The model id the Local API and docs show (`base.en`, `gpt-4o-transcribe`):
+    /// the row id without the prefix `ModelLibraryManager` adds to keep rows
+    /// unique, so a word like "cloud" or "pp" does not match every row.
+    static func modelId(of model: LibraryModel) -> String {
+        var prefixes = ["whisper-", "parakeet-", "nemotron-", "qwen3-asr-", "local-llm-"]
+        switch model.providerKey {
+        case .cloud(let provider): prefixes.insert("cloud-tx-\(provider.rawValue)-", at: 0)
+        case .postProcessing(let provider): prefixes.insert("pp-\(provider.rawValue)-", at: 0)
+        default: break
+        }
+        guard let prefix = prefixes.first(where: { model.id.hasPrefix($0) }) else { return model.id }
+        return String(model.id.dropFirst(prefix.count))
     }
 }

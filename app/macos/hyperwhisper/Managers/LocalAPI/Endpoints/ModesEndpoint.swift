@@ -352,8 +352,17 @@ enum ModesEndpoint {
 
     // MARK: - Delete
 
+    /// `appState` and `settingsManager` are the running app's, passed in by the
+    /// `LocalAPIServer` trampoline. Deleting the mode the app has selected used
+    /// to leave the app pointed at a row that no longer exists (issue #1439);
+    /// the shared delete below moves the selection to the first remaining mode,
+    /// exactly as the Modes page does. The response is unchanged.
     @MainActor
-    static func delete(request: HTTPRequest) async -> HTTPResponse {
+    static func delete(
+        request: HTTPRequest,
+        appState: AppState? = nil,
+        settingsManager: SettingsManager? = nil
+    ) async -> HTTPResponse {
         guard let id = idParameter(from: request) else {
             return LocalAPIResponder.failure(code: .invalidRequest, message: "Missing :id path parameter")
         }
@@ -370,7 +379,11 @@ enum ModesEndpoint {
             )
         }
 
-        PersistenceController.shared.deleteMode(mode)
+        PersistenceController.shared.deleteModeAndReconcileSelection(
+            mode,
+            appState: appState,
+            settingsManager: settingsManager
+        )
         return LocalAPIResponder.ok(OKResponse(ok: true))
     }
 

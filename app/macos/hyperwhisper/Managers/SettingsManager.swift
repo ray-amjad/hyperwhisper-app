@@ -286,9 +286,18 @@ class SettingsManager: ObservableObject {
     
     // MARK: - Forwarding Properties - General Settings
 
-    var launchAtLogin: Bool {
-        get { general.launchAtLogin }
-        set { general.launchAtLogin = newValue }
+    /// Last-read launch-at-login state. Read-only: reading or writing the login
+    /// item blocks on XPC, so both go through the async methods below (#853).
+    var launchAtLogin: Bool { general.launchAtLogin }
+
+    @discardableResult
+    func refreshLaunchAtLogin() async -> Bool {
+        await general.refreshLaunchAtLogin()
+    }
+
+    @discardableResult
+    func setLaunchAtLogin(_ enabled: Bool) async -> Bool {
+        await general.setLaunchAtLogin(enabled)
     }
 
     var showInDock: Bool {
@@ -331,6 +340,11 @@ class SettingsManager: ObservableObject {
     var selectedMicrophoneId: String {
         get { audio.selectedMicrophoneId }
         set { audio.selectedMicrophoneId = newValue }
+    }
+
+    var selectedMicrophoneName: String {
+        get { audio.selectedMicrophoneName }
+        set { audio.selectedMicrophoneName = newValue }
     }
 
     var autoIncreaseMicVolume: Bool {
@@ -406,8 +420,13 @@ class SettingsManager: ObservableObject {
     }
 
     // Storage methods
-    func changeRecordingsFolder(to url: URL) {
+    @discardableResult
+    func changeRecordingsFolder(to url: URL) -> Bool {
         storage.changeRecordingsFolder(to: url)
+    }
+
+    func presentRecordingsFolderRefusedAlert() {
+        storage.presentRecordingsFolderRefusedAlert()
     }
 
     func ensureRecordingsFolderExists() {
@@ -434,12 +453,12 @@ class SettingsManager: ObservableObject {
         storage.fallbackToBestAvailableLocation()
     }
 
-    func offerManualFolderSelection() -> Bool {
-        storage.offerManualFolderSelection()
+    func offerManualFolderSelection() async -> Bool {
+        await storage.offerManualFolderSelection()
     }
 
-    func presentStorageRecoveryPrompt() -> Bool {
-        storage.presentStorageRecoveryPrompt()
+    func presentStorageRecoveryPrompt() async -> Bool {
+        await storage.presentStorageRecoveryPrompt()
     }
 
     // MARK: - Forwarding Properties - API Keys

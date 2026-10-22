@@ -774,6 +774,28 @@ describe('OpenAI language_hint normalization (BCP-47 → ISO)', () => {
     expect(response.status).toBe(200);
     expect(languageField).toBe('en');
   });
+
+  test('OpenAI\'s WebSocket-only gpt-live-transcribe is rejected without reaching the upstream', async () => {
+    let openaiCalls = 0;
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.openai.com')) {
+        openaiCalls++;
+        return Response.json({ text: 'should not happen', duration: 1 });
+      }
+      if (url.includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(request({
+      'X-STT-Provider': 'openai',
+      'X-STT-Model': 'gpt-live-transcribe',
+    }));
+
+    expect(response.status).toBe(400);
+    expect(JSON.stringify(await response.json())).toContain('WebSocket-only');
+    expect(openaiCalls).toBe(0);
+  });
 });
 
 describe('Whisper-family locale normalization (BCP-47 → bare ISO)', () => {
@@ -1204,16 +1226,18 @@ describe('AssemblyAI keyterms preflight credit reservation', () => {
     expect(withPrompt).toBeGreaterThan(base);
   });
 
-  test('OpenAI gpt-4o reservation includes an output-token allowance over the duration-billed whisper-1', () => {
-    // gpt-4o-transcribe is token-billed (input + output); its reservation must
-    // cover output, so it reserves strictly more than duration-billed whisper-1
-    // for the same audio.
+  test('a deprecated OpenAI id reserves exactly what its replacement reserves', () => {
+    // Until #797 this compared gpt-4o-transcribe (token-billed) with whisper-1
+    // (duration-billed). Both ids are now aliased (stt-models.ts), so the
+    // route reserves at the model that actually runs: never more than before
+    // (whisper-1 $0.006 and gpt-4o-transcribe $0.009 drop to $0.0045/min, the
+    // mini tier stays at $0.0045/min).
     const bigBytes = 5_000_000;
-    const whisper = estimateCreditsForProviderFallbacks(bigBytes, 'openai', 'whisper-1');
-    const gpt4o = estimateCreditsForProviderFallbacks(bigBytes, 'openai', 'gpt-4o-transcribe');
-    const gpt4oMini = estimateCreditsForProviderFallbacks(bigBytes, 'openai', 'gpt-4o-mini-transcribe');
-    expect(gpt4o).toBeGreaterThan(whisper);
-    expect(gpt4o).toBeGreaterThan(gpt4oMini);
+    const reserve = (model: string) => estimateCreditsForProviderFallbacks(bigBytes, 'openai', model);
+    expect(reserve('whisper-1')).toBe(reserve('gpt-transcribe'));
+    expect(reserve('gpt-4o-transcribe')).toBe(reserve('gpt-transcribe'));
+    expect(reserve('gpt-4o-mini-transcribe')).toBe(reserve('gpt-4o-mini-transcribe-2025-12-15'));
+    expect(reserve('gpt-live-transcribe')).toBeGreaterThan(reserve('gpt-transcribe'));
   });
 
   test('duration-billed self-only providers do NOT inflate the reservation for a prompt', () => {

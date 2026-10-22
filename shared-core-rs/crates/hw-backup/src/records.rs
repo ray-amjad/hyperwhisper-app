@@ -10,6 +10,60 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
+/// A JSON number as an `i64` when its value is a whole number, so `2.0` reads as
+/// `2`. JSON Schema compares numbers by value, which makes `2.0` a valid
+/// `"const": 2`; `serde_json`'s own `as_i64` rejects every float.
+pub fn integral_i64(v: &Value) -> Option<i64> {
+    v.as_i64().or_else(|| {
+        v.as_f64()
+            .filter(|f| f.fract() == 0.0 && *f >= i64::MIN as f64 && *f < i64::MAX as f64)
+            .map(|f| f as i64)
+    })
+}
+
+fn deserialize_integral_i64<'de, D>(deserializer: D) -> Result<i64, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let v = Value::deserialize(deserializer)?;
+    integral_i64(&v).ok_or_else(|| {
+        serde::de::Error::custom(format!("schemaVersion must be an integer, got {v}"))
+    })
+}
+
+/// The optional twin of [`deserialize_integral_i64`]: `null` or an absent key
+/// is `None`, a whole number (`1` or `1.0`) is `Some(1)`, anything else is an
+/// error that names `field`. Keeps the parser in step with the validator, which
+/// checks these fields with [`integral_i64`] too.
+fn deserialize_optional_integral_i64<'de, D>(
+    deserializer: D,
+    field: &str,
+) -> Result<Option<i64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    match Option::<Value>::deserialize(deserializer)? {
+        None => Ok(None),
+        Some(v) => integral_i64(&v).map(Some).ok_or_else(|| {
+            serde::de::Error::custom(format!("{field} must be an integer, got {v}"))
+        }),
+    }
+}
+
+fn deserialize_sort_order<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    deserialize_optional_integral_i64(deserializer, "sortOrder")
+}
+
+fn deserialize_post_processing_mode<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    deserialize_optional_integral_i64(deserializer, "postProcessingMode")
+}
+
 // ============================================================================
 // Universal v2 wire format (parsed 1:1 from the .hwbackup.json file)
 // ============================================================================
@@ -21,7 +75,10 @@ use std::collections::BTreeMap;
 /// round-trip is lossless — the requirement the golden tests enforce.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UniversalBackup {
-    #[serde(rename = "schemaVersion")]
+    #[serde(
+        rename = "schemaVersion",
+        deserialize_with = "deserialize_integral_i64"
+    )]
     pub schema_version: i64,
     #[serde(rename = "exportDate")]
     pub export_date: String,
@@ -93,7 +150,12 @@ pub struct UniversalMode {
     pub model: Option<String>,
     #[serde(rename = "isDefault", default, skip_serializing_if = "Option::is_none")]
     pub is_default: Option<bool>,
-    #[serde(rename = "sortOrder", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "sortOrder",
+        default,
+        deserialize_with = "deserialize_sort_order",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub sort_order: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub punctuation: Option<bool>,
@@ -138,6 +200,7 @@ pub struct UniversalMode {
     #[serde(
         rename = "postProcessingMode",
         default,
+        deserialize_with = "deserialize_post_processing_mode",
         skip_serializing_if = "Option::is_none"
     )]
     pub post_processing_mode: Option<i64>,
@@ -208,7 +271,12 @@ pub struct UniversalVocabularyItem {
     pub word: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub replacement: Option<String>,
-    #[serde(rename = "sortOrder", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "sortOrder",
+        default,
+        deserialize_with = "deserialize_sort_order",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub sort_order: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,

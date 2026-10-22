@@ -42,6 +42,7 @@ public class VocabularyProcessor
         // equal. The replacement is passed through unnormalized — it is inserted
         // literally, never matched.
         var processed = text.Normalize(System.Text.NormalizationForm.FormC);
+        var appliedEntries = 0;
 
         foreach (var entry in vocab)
         {
@@ -53,13 +54,20 @@ public class VocabularyProcessor
                 entry.Replacement!);
 
             // Ordinal compare, not ReferenceEquals — the FFI always returns a
-            // fresh string, so a reference check would log every entry.
+            // fresh string, so a reference check would count every entry.
             if (!string.Equals(updated, processed, StringComparison.Ordinal))
             {
-                LoggingService.Debug($"VocabularyProcessor: Replaced '{entry.Word}' -> '{entry.Replacement}'");
+                appliedEntries++;
             }
 
             processed = updated;
+        }
+
+        // The count only, never the words: a match says what the user dictated,
+        // and the log ships in the Export Diagnostics bundle (#1645).
+        if (appliedEntries > 0)
+        {
+            LoggingService.Debug($"VocabularyProcessor: Applied {appliedEntries} replacement entr{(appliedEntries == 1 ? "y" : "ies")}");
         }
 
         return processed.Trim();

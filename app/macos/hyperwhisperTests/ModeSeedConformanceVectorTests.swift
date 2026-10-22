@@ -199,7 +199,7 @@ struct ModeSeedConformanceVectorTests {
 
             let model = CloudPostProcessingModel.fromStorageValue(vector.cloudPostProcessingModel)
             #expect(model.engineId == "anthropic", "\(label): post-processing engine")
-            #expect(model.modelId == "claude-haiku-4-5", "\(label): post-processing model")
+            #expect(model.modelId == "claude-haiku-5-5", "\(label): post-processing model")
             #expect(
                 model.storageValue == vector.cloudPostProcessingModel,
                 "\(label): the stored form is not the canonical one")

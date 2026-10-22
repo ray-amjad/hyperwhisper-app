@@ -491,12 +491,34 @@ impl From<c::RetryDecision> for RetryDecision {
     }
 }
 
+/// Why a provider health probe came out the way it did. Mirrors
+/// `hw_net::HealthReason`. Hosts map this onto their own states (issue #779) —
+/// none of them re-derives it from the raw status.
+#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HwHealthReason {
+    Healthy,
+    Unauthorized,
+    Unreachable,
+}
+
+impl From<c::HealthReason> for HwHealthReason {
+    fn from(r: c::HealthReason) -> Self {
+        match r {
+            c::HealthReason::Healthy => HwHealthReason::Healthy,
+            c::HealthReason::Unauthorized => HwHealthReason::Unauthorized,
+            c::HealthReason::Unreachable => HwHealthReason::Unreachable,
+        }
+    }
+}
+
 /// Result of a provider health probe. Mirrors `hw_net::ProviderHealth`.
+/// `healthy` is always `reason == Healthy`; `reason` is the field to switch on.
 #[derive(uniffi::Record)]
 pub struct HwProviderHealth {
     pub provider: HwProvider,
     pub healthy: bool,
     pub status: Option<u16>,
+    pub reason: HwHealthReason,
 }
 
 impl From<c::ProviderHealth> for HwProviderHealth {
@@ -505,6 +527,7 @@ impl From<c::ProviderHealth> for HwProviderHealth {
             provider: h.provider.into(),
             healthy: h.healthy,
             status: h.status,
+            reason: h.reason.into(),
         }
     }
 }

@@ -485,7 +485,7 @@ struct ModePreparationKeyTests {
     /// `.postProcessing` is the case this exists for, and the one a reasonable
     /// reader gets wrong: `prepareModel`'s own bail-out covers `.transcribing`
     /// only, and it then falls through to an unconditional
-    /// `cancelTranscription()`. `TranscriptionPipeline.currentTask` spans BOTH
+    /// `cancelTranscription()`. `TranscriptionPipeline.runningTasks` span BOTH
     /// transcription and post-processing, so cancelling it while the AI cleanup
     /// is running loses the enhancement — and, on the rethrowing branch, the
     /// transcript. `prepareLocalRuntime` is worse: it reads no state at all and

@@ -58,6 +58,47 @@ public sealed class LocalApiFailureException : Exception
     }
 
     /// <summary>
+    /// <c>MISSING_API_KEY</c> for a HyperWhisper Cloud call with no account key,
+    /// from the shared table's <c>CloudAccountRequired</c> row — the envelope
+    /// every head sends for <c>/transcribe</c> and <c>/post-process</c> alike
+    /// (issue #1487). Public because a head's post-processor adapter lives in
+    /// its own assembly.
+    /// </summary>
+    public static LocalApiFailureException CloudAccountRequired() =>
+        From(HyperwhisperCoreMethods.LocalApiMapTranscriptionError(
+            HwLocalApiTranscriptionFailureReason.CloudAccountRequired,
+            new HwLocalApiTranscriptionFailureParams(
+                @provider: "HyperWhisper Cloud",
+                @detail: null,
+                @model: null,
+                @limitBytes: null,
+                @httpStatus: null,
+                @retryAfterSeconds: null,
+                @hint: "Add your account key in Settings → HyperWhisper Cloud.")));
+
+    /// <summary>
+    /// <c>MODE_NOT_FOUND</c> for a well-formed <c>mode_id</c> that names no
+    /// stored mode, on <c>/transcribe</c> and <c>/post-process</c> (issue
+    /// #1935). This head answered HTTP 400 <c>INVALID_REQUEST</c>, while
+    /// <c>GET /modes/&lt;id&gt;</c> here and both other heads answer HTTP 200
+    /// <c>MODE_NOT_FOUND</c>. The message is Windows' <c>TranscribeEndpoints</c>
+    /// and <c>PostProcessEndpoints</c> text. Public because the Linux
+    /// post-processor adapter lives in its own assembly.
+    /// </summary>
+    public static LocalApiFailureException ModeNotFound(string modeId) =>
+        From(HyperwhisperCoreMethods.LocalApiBusinessFailure(
+            HwLocalApiErrorCode.ModeNotFound, $"No mode with id '{modeId}'", null));
+
+    /// <summary>
+    /// <c>MODEL_NOT_FOUND</c> for a local Parakeet-family run whose model id is
+    /// not in the catalog (issue #1935), with Windows' message. Raised before
+    /// the upload is staged, so no file and no History row is left behind.
+    /// </summary>
+    public static LocalApiFailureException ParakeetModelNotFound(string modelId) =>
+        From(HyperwhisperCoreMethods.LocalApiBusinessFailure(
+            HwLocalApiErrorCode.ModelNotFound, $"Parakeet-family model '{modelId}' is not recognized", null));
+
+    /// <summary>
     /// Wrap a <c>hw-localapi</c> failure. The binding's records are
     /// <c>internal</c>, so this factory is the seam that keeps them off the
     /// public surface of the server — the same trick

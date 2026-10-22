@@ -144,6 +144,14 @@ public partial class SettingsService
         _settings.ChangeModeShortcut ??= DefaultChangeModeShortcut.ToPersistedString();
         _settings.StreamingShortcut ??= DefaultStreamingShortcut.ToPersistedString();
 
+        // #2114: a bare typing key (Tab, K, Shift+Tab) or a single bare modifier saved
+        // by an older build would otherwise be registered as a live global shortcut.
+        // Reset it to the role's default at load, before anything registers it.
+        _settings.ToggleShortcut = ResetIfUnsafe("Toggle", _settings.ToggleShortcut);
+        _settings.CancelShortcut = ResetIfUnsafe("Cancel", _settings.CancelShortcut);
+        _settings.ChangeModeShortcut = ResetIfUnsafe("ChangeMode", _settings.ChangeModeShortcut);
+        _settings.StreamingShortcut = ResetIfUnsafe("Streaming", _settings.StreamingShortcut);
+
         // STREAMING DEFAULTS
         _settings.StreamingEnabled ??= false;
         _settings.StreamingProvider = Models.StreamingTranscriptionProviderExtensions.IsValidStorageValue(_settings.StreamingProvider)
@@ -181,12 +189,79 @@ public partial class SettingsService
         if (string.Equals(_settings.PushToTalk.Modifier, "Ctrl", StringComparison.OrdinalIgnoreCase))
             _settings.PushToTalk.Modifier = "LeftAlt";
 
+        _settings.PushToTalk = ResetPushToTalkIfUnsafe(_settings.PushToTalk);
+
         _settings.Version = LatestSettingsVersion;
+    }
+
+    /// <summary>
+    /// #2139, the push-to-talk half of #2114: a stored custom key the recorder would
+    /// refuse (bare Tab, K, a single bare modifier) must not reach the hook. Push-to-talk
+    /// has no per-role default, so Ray (inbox #1811) turns it OFF: a fresh
+    /// <see cref="PushToTalkSettings"/>, as <see cref="ResetShortcutsToDefaults"/> does.
+    /// A custom key that is stored but not live (Mode is not Custom) is only cleared,
+    /// so a working Modifier push-to-talk is not switched off.
+    /// </summary>
+    private static PushToTalkSettings ResetPushToTalkIfUnsafe(PushToTalkSettings ptt)
+    {
+        if (ptt.CustomShortcut is not { } custom
+            || !ShortcutValidationService.IsUnsafeStoredActionShortcut(custom))
+            return ptt;
+
+        if (ptt.Mode != PushToTalkMode.Custom)
+        {
+            LoggingService.Warn(
+                $"SettingsService: Push-to-talk custom key from settings.json ({custom.ToDisplayString()}) would fire while the user types. Cleared it; push-to-talk mode {ptt.Mode} is unchanged.");
+            ptt.CustomShortcut = null;
+            return ptt;
+        }
+
+        LoggingService.Warn(
+            $"SettingsService: Push-to-talk custom key from settings.json ({custom.ToDisplayString()}) would fire while the user types. Push-to-talk is turned off.");
+        return new PushToTalkSettings();
     }
 
     private static KeyboardShortcut GetShortcutOrDefault(string? stored, KeyboardShortcut fallback)
     {
         return string.IsNullOrWhiteSpace(stored) ? fallback.Clone() : KeyboardShortcut.FromPersistedString(stored);
+    }
+
+    /// <summary>
+    /// The default for one of the four action roles ("Toggle", "Cancel",
+    /// "ChangeMode", "Streaming").
+    /// </summary>
+    internal static KeyboardShortcut DefaultActionShortcut(string role) => role switch
+    {
+        "Toggle" => DefaultToggleShortcut.Clone(),
+        "Cancel" => DefaultCancelShortcut.Clone(),
+        "ChangeMode" => DefaultChangeModeShortcut.Clone(),
+        "Streaming" => DefaultStreamingShortcut.Clone(),
+        _ => throw new ArgumentException($"Unknown shortcut role '{role}'", nameof(role)),
+    };
+
+    /// <summary>
+    /// <paramref name="shortcut"/>, or the role's default when it must not be a live
+    /// global shortcut (<see cref="ShortcutValidationService.IsUnsafeStoredActionShortcut"/>).
+    /// Settings load and backup import both go through this (#2114).
+    /// </summary>
+    internal static KeyboardShortcut SafeActionShortcut(string role, KeyboardShortcut shortcut, string source)
+    {
+        if (!ShortcutValidationService.IsUnsafeStoredActionShortcut(shortcut)) return shortcut;
+
+        var fallback = DefaultActionShortcut(role);
+        LoggingService.Warn(
+            $"SettingsService: {role} shortcut from {source} ({shortcut.ToDisplayString()}) would fire while the user types. Reset to the default ({fallback.ToDisplayString()}).");
+        return fallback;
+    }
+
+    // Writes back only when the value is unsafe, so a valid stored string keeps its
+    // exact spelling.
+    private static string? ResetIfUnsafe(string role, string? stored)
+    {
+        if (string.IsNullOrWhiteSpace(stored)) return stored;
+        var shortcut = KeyboardShortcut.FromPersistedString(stored);
+        var safe = SafeActionShortcut(role, shortcut, "settings.json");
+        return ReferenceEquals(safe, shortcut) ? stored : safe.ToPersistedString();
     }
 
     public void ResetShortcutsToDefaults()

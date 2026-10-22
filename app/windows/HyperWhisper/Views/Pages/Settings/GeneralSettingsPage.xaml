@@ -25,6 +25,12 @@
                             <TextBlock Text="{loc:Loc settings.general.launchAtLogin.subtitle}"
                                        FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
                                        Margin="0,2,0,0" TextWrapping="Wrap"/>
+                            <!-- #1471: shown only on an isolated app-data profile, where the box is disabled -->
+                            <TextBlock x:Name="LaunchAtStartupIsolatedNote"
+                                       Text="{loc:Loc settings.general.launchAtLogin.isolatedProfileNote}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,4,0,0" TextWrapping="Wrap"
+                                       Visibility="Collapsed"/>
                         </StackPanel>
 
                         <CheckBox x:Name="LaunchAtStartupCheckbox" Grid.Column="1"

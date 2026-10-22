@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>มีโปรแกรมอื่นล็อกฐานข้อมูลประวัติอยู่ เราเก็บการบันทึกไว้แล้วและจะบันทึกลงในประวัติเมื่อฐานข้อมูลว่าง</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>ยังไม่สามารถบันทึกการบันทึกนี้ลงในประวัติได้ เราเก็บการบันทึกไว้แล้วและจะบันทึกลงในประวัติในภายหลัง</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -366,6 +372,9 @@
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
+  </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>ไม่พร้อมใช้งานในโปรไฟล์ทดสอบ บิลด์นี้ใช้โฟลเดอร์ข้อมูลแอปแยกต่างหาก จึงไม่เปลี่ยนรายการเข้าสู่ระบบของแอปที่ติดตั้งไว้</value>
   </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>เปิดตัวแบบย่อขนาด</value>
@@ -790,6 +799,12 @@
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (ยังไม่ได้เปิดใช้งาน)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (ไม่มีคีย์ API)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -820,6 +835,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>ยกเลิกการถอดเสียงไฟล์แล้ว</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>กำลังถอดเสียงไฟล์...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -843,11 +861,11 @@
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>โหมดที่สร้างการบันทึกนี้ถูกลบไปแล้ว จึงไม่ได้ลองใหม่ ในประวัติ ให้คลิกขวาที่การบันทึกแล้วเลือก "ลองใหม่ด้วย..." เพื่อเลือกโหมดอื่น</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>การบันทึกหยุดแล้ว — ถึงขีดจำกัดความปลอดภัย 20 นาทีแล้ว</value>
@@ -1081,6 +1099,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>ไม่รองรับทางลัดที่ใช้ปุ่มปรับแต่งเพียงปุ่มเดียว เช่น Ctrl, Alt, Shift หรือ Win กรุณาใช้ปุ่มร่วมกับปุ่มปรับแต่ง หรือทางลัดที่มีปุ่มปรับแต่งหลายปุ่ม เช่น Ctrl+Win</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>ปุ่มลัดที่ไม่มีปุ่มปรับแต่งต้องเป็นปุ่มฟังก์ชันหรือ Esc ปุ่มอื่นใดจะทำงานขณะที่คุณพิมพ์</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>ทางลัดนี้ถูกใช้สำหรับ {0} แล้ว ({1})</value>
   </data>
@@ -1121,6 +1142,9 @@ You must have at least one mode.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>การควบคุมแอปพลิเคชันของ Windows บล็อก {0} ซึ่งเป็นไฟล์ที่ HyperWhisper ต้องใช้ ขอให้ผู้ดูแลระบบไอทีของคุณอนุญาต HyperWhisper หรือตรวจสอบการควบคุมแอปอัจฉริยะในความปลอดภัยของ Windows</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>
@@ -1152,6 +1176,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>โมเดลกำลังถูกใช้งาน</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>โหมด "{1}" กำลังใช้ {0} อยู่ เปลี่ยนโหมดนั้นไปใช้โมเดลอื่นก่อนลบ</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1286,6 +1316,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>ข้อความนี้ดูไม่เหมือนคีย์บัญชี</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1306,8 +1339,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>มีการบันทึกเสียงหรือการถอดความไฟล์กำลังทำงานอยู่แล้ว ลองไฟล์อีกครั้งเมื่อเสร็จสิ้น</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>ไฟล์นี้ว่างเปล่า จึงไม่มีเสียงให้ถอดความ</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>ไฟล์นี้เสียหายหรือไม่ใช่ไฟล์เสียงที่ HyperWhisper อ่านได้</value>
   </data>
 
 
@@ -1690,6 +1732,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>เพิ่มเติม...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1984,11 +2029,35 @@ You can re-download it later.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>ทำให้เสียงอู้อี้</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>ใช้โดย HyperWhisper เท่านั้น จดจำไว้แม้รีสตาร์ท</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>ค่าเริ่มต้น · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (ไม่ได้เชื่อมต่อ)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>กำลังใช้ {0} จนกว่า {1} จะเชื่อมต่ออีกครั้ง</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>ไม่มีไมโครโฟนที่เชื่อมต่ออยู่ HyperWhisper จะใช้ {0} เมื่อเชื่อมต่ออีกครั้ง</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>ทดสอบ</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>หยุด</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Sentry;
+using Sentry.Protocol;
 
 namespace HyperWhisper.Telemetry;
 
@@ -68,7 +69,12 @@ public sealed class LinuxSentryService : IDisposable
         }
     }
 
-    public void Capture(Exception exception, string? context = null)
+    /// <param name="isTerminating">
+    /// The runtime is about to end the process (<see cref="UnhandledExceptionEventArgs.IsTerminating"/>):
+    /// the report is sent before this returns, bounded by 2 s, since the background
+    /// worker that would send it dies with the process.
+    /// </param>
+    public void Capture(Exception exception, string? context = null, bool isTerminating = false)
     {
         ArgumentNullException.ThrowIfNull(exception);
         lock (_gate)
@@ -85,6 +91,20 @@ public sealed class LinuxSentryService : IDisposable
             catch
             {
                 // Reporting an application failure must not cause another one.
+            }
+
+            if (!isTerminating)
+            {
+                return;
+            }
+
+            try
+            {
+                _backend.Flush(TimeSpan.FromSeconds(2));
+            }
+            catch
+            {
+                // The process is ending either way.
             }
         }
     }
@@ -125,10 +145,107 @@ public sealed class LinuxSentryService : IDisposable
 
 internal static class TelemetryPrivacy
 {
-    internal static Exception SanitizeException(Exception exception) =>
-        new TelemetryReportedException(
-            exception.GetType().FullName ?? "System.Exception",
-            SanitizeStackTrace(exception.StackTrace));
+    private const int MaxInnerExceptions = 4;
+    private const int MaxStackTraceLength = 16_384;
+
+    /// <summary>
+    /// Keeps the type names and method frames of an exception and of up to
+    /// <see cref="MaxInnerExceptions"/> inner exceptions, and nothing else: no
+    /// Message, no Data, no HResult text, at any depth.
+    /// </summary>
+    /// <remarks>
+    /// An <see cref="AggregateException"/> from <c>TaskScheduler.UnobservedTaskException</c>
+    /// is never thrown, so it has no stack of its own; the cause and its frames are
+    /// only on the inner exceptions (#1051).
+    /// </remarks>
+    internal static Exception SanitizeException(Exception exception)
+    {
+        var outerType = TypeName(exception);
+        var outerStack = SanitizedStackOf(exception);
+
+        IReadOnlyList<(Exception Exception, int ParentId)> inner;
+        try
+        {
+            inner = CollectInnerExceptions(exception);
+        }
+        catch
+        {
+            // A hostile InnerException getter costs the inner detail, not the report.
+            inner = [];
+        }
+
+        var innerParts = inner
+            .Select(found => new SanitizedPart(TypeName(found.Exception), SanitizedStackOf(found.Exception), found.ParentId))
+            .ToList();
+        var stack = new List<string>();
+        if (outerStack is not null) stack.Add(outerStack);
+        foreach (var part in innerParts.Where(part => part.Stack is not null))
+        {
+            stack.Add($"--- inner {part.Type} ---");
+            stack.Add(part.Stack!);
+        }
+
+        var stackTrace = stack.Count == 0 ? null : string.Join('\n', stack);
+        if (stackTrace is { Length: > MaxStackTraceLength }) stackTrace = stackTrace[..MaxStackTraceLength];
+        return new TelemetryReportedException(new SanitizedPart(outerType, outerStack), innerParts, stackTrace);
+    }
+
+    /// <summary>
+    /// One kept exception: its type FullName, its sanitized stack, and the Sentry
+    /// exception_id of the kept exception that holds it (0 is the reported one).
+    /// </summary>
+    internal sealed record SanitizedPart(string Type, string? Stack, int ParentId = 0);
+
+    private static string TypeName(Exception exception) =>
+        exception.GetType().FullName ?? "System.Exception";
+
+    /// <summary>A throwing StackTrace getter costs that exception's frames, not the report.</summary>
+    private static string? SanitizedStackOf(Exception exception)
+    {
+        try
+        {
+            return SanitizeStackTrace(exception.StackTrace);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Breadth-first: an <see cref="AggregateException"/> is flattened and stands
+    /// for its inner exceptions (it is a container, so it is not named); any other
+    /// exception is named and its <see cref="Exception.InnerException"/> followed.
+    /// Each found exception carries the id of the nearest NAMED exception that holds
+    /// it: the root is 0, the n-th found is n, and an unnamed nested aggregate passes
+    /// its own parent on to its contents.
+    /// </summary>
+    private static List<(Exception Exception, int ParentId)> CollectInnerExceptions(Exception root)
+    {
+        var found = new List<(Exception, int)>();
+        var seen = new HashSet<Exception>(ReferenceEqualityComparer.Instance) { root };
+        var pending = new Queue<(Exception Exception, int ParentId)>(Children(root).Select(child => (child, 0)));
+        while (pending.Count > 0 && found.Count < MaxInnerExceptions)
+        {
+            var (next, parentId) = pending.Dequeue();
+            if (!seen.Add(next)) continue;
+            var id = parentId;
+            if (next is not AggregateException)
+            {
+                found.Add((next, parentId));
+                id = found.Count;
+            }
+            foreach (var child in Children(next)) pending.Enqueue((child, id));
+        }
+        return found;
+
+        static IEnumerable<Exception> Children(Exception exception) => exception switch
+        {
+            AggregateException aggregate => aggregate.Flatten().InnerExceptions,
+            { InnerException: { } single } => [single],
+            _ => [],
+        };
+    }
 
     internal static string? SanitizeStackTrace(string? stackTrace)
     {
@@ -141,7 +258,7 @@ internal static class TelemetryPrivacy
                 return (pathStart >= 0 ? line[..pathStart] : line).TrimEnd('\r');
             });
         var sanitized = string.Join('\n', lines);
-        return sanitized.Length <= 16_384 ? sanitized : sanitized[..16_384];
+        return sanitized.Length <= MaxStackTraceLength ? sanitized : sanitized[..MaxStackTraceLength];
     }
 
     internal static string? SanitizeContext(string? context) => context switch
@@ -152,10 +269,90 @@ internal static class TelemetryPrivacy
         _ => null,
     };
 
-    private sealed class TelemetryReportedException(string originalType, string? sanitizedStack)
-        : Exception($"A {originalType} was reported with message, inner-exception, and data content removed.")
+    /// <summary>
+    /// The Sentry mechanism for a report, read from its (sanitized) context. The
+    /// AppDomain and unobserved-task reports replace the SDK integrations that
+    /// #1051 turned off, so they carry the same mechanism type and handled=false
+    /// those integrations set: Sentry then counts the crash in release health
+    /// and ends the session as Crashed. The app's UI handler does not set
+    /// Handled, so Avalonia rethrows and the process ends: unhandled too.
+    /// Any other report is one the app caught: generic, handled.
+    /// </summary>
+    internal static (string Type, bool Handled) MechanismFor(string? context) => context switch
+    {
+        "Unhandled application exception" => ("AppDomain.UnhandledException", false),
+        "Unobserved task exception" => ("UnobservedTaskException", false),
+        "Unhandled UI exception" => ("Avalonia.Threading.Dispatcher.UnhandledException", false),
+        _ => ("generic", true),
+    };
+
+    internal sealed class TelemetryReportedException(
+        SanitizedPart outer,
+        IReadOnlyList<SanitizedPart> inner,
+        string? sanitizedStack)
+        : Exception(inner.Count == 0
+            ? $"A {outer.Type} was reported with message, inner-exception, and data content removed."
+            : $"A {outer.Type} (inner: {string.Join(", ", inner.Select(part => part.Type))}) was reported with message, inner-exception, and data content removed.")
     {
         public override string? StackTrace => sanitizedStack;
+
+        /// <summary>
+        /// The Sentry exception values for this report, built from the sanitized
+        /// parts only. The SDK builds frames from the runtime's own stack of a
+        /// THROWN exception, so this never-thrown copy would otherwise reach Sentry
+        /// with no frames at all (#1051). Innermost first, outermost last, as the
+        /// SDK orders a chain.
+        /// </summary>
+        internal List<SentryException> ToSentryExceptions(string mechanismType = "generic", bool handled = true)
+        {
+            var values = new List<SentryException>();
+            for (var i = inner.Count - 1; i >= 0; i--)
+            {
+                values.Add(ToSentryException(
+                    inner[i],
+                    $"A {inner[i].Type} was reported with message and data content removed.",
+                    new Mechanism { Type = "chained", Handled = true, ExceptionId = i + 1, ParentId = inner[i].ParentId }));
+            }
+            values.Add(ToSentryException(
+                outer,
+                Message,
+                new Mechanism { Type = mechanismType, Handled = handled, ExceptionId = 0, IsExceptionGroup = inner.Count > 0 && outer.Type == typeof(AggregateException).FullName }));
+            return values;
+        }
+
+        private static SentryException ToSentryException(SanitizedPart part, string value, Mechanism mechanism) => new()
+        {
+            Type = part.Type,
+            Value = value,
+            Mechanism = mechanism,
+            Stacktrace = ParseFrames(part.Stack) is { Count: > 0 } frames ? new SentryStackTrace { Frames = frames } : null,
+        };
+
+        /// <summary>
+        /// "   at Ns.Type.Method(args)" → Module "Ns.Type", Function "Method(args)".
+        /// A constructor's name starts with its own dot: "Ns.Type..ctor(args)" →
+        /// Module "Ns.Type", Function ".ctor(args)" (".cctor()" the same way).
+        /// Any other line (.NET's "--- End of stack trace ---" markers) is dropped.
+        /// Sentry wants the oldest frame first; .NET writes the newest first.
+        /// </summary>
+        private static List<SentryStackFrame> ParseFrames(string? stack)
+        {
+            var frames = new List<SentryStackFrame>();
+            foreach (var raw in (stack ?? string.Empty).Split('\n'))
+            {
+                var line = raw.Trim();
+                if (!line.StartsWith("at ", StringComparison.Ordinal)) continue;
+                var call = line[3..];
+                var paren = call.IndexOf('(');
+                var dot = call.LastIndexOf('.', paren < 0 ? call.Length - 1 : paren);
+                if (dot > 0 && call[dot - 1] == '.') dot--;
+                frames.Add(dot <= 0
+                    ? new SentryStackFrame { Function = call }
+                    : new SentryStackFrame { Module = call[..dot], Function = call[(dot + 1)..] });
+            }
+            frames.Reverse();
+            return frames;
+        }
     }
 }
 
@@ -294,16 +491,47 @@ internal sealed class SentryTelemetryBackend : ITelemetryBackend
         options.AttachStacktrace = configuration.AttachStacktrace;
         options.MaxBreadcrumbs = configuration.MaxBreadcrumbs;
         options.SetBeforeSend((sentryEvent, _) => LinuxSentryEventSanitizer.SanitizeEvent(sentryEvent));
+
+        // The app's own handlers (App.axaml.cs) report these two through
+        // LinuxSentryService.Capture, which runs TelemetryPrivacy first. Left on, the
+        // SDK's integrations send the SAME fault a second time, raw, past
+        // TelemetryPrivacy (#1051: HYPERWHISPER-YX beside its sanitized copy YW).
+        options.DisableUnobservedTaskExceptionCapture();
+        options.DisableAppDomainUnhandledExceptionCapture();
     }
 
     public void Capture(Exception exception, string? context)
     {
-        var sentryEvent = new SentryEvent(exception);
+        // A sanitized report goes as explicit exception values with frames, and with
+        // no Exception object for the SDK to re-read (#1051).
+        var (mechanismType, handled) = TelemetryPrivacy.MechanismFor(context);
+        var sentryEvent = exception is TelemetryPrivacy.TelemetryReportedException reported
+            ? new SentryEvent
+            {
+                Level = SentryLevel.Error,
+                SentryExceptions = reported.ToSentryExceptions(mechanismType, handled),
+            }
+            : new SentryEvent(exception);
         SentrySdk.CaptureEvent(sentryEvent, scope =>
         {
             if (!string.IsNullOrWhiteSpace(context))
             {
                 scope.SetExtra("error_message", context);
+            }
+
+            if (sentryEvent.Exception is null)
+            {
+                // With no Exception object, AttachStacktrace makes the SDK add a
+                // `threads` entry, and when no value has frames (an exception that was
+                // never thrown) that entry is the CURRENT stack: this capture call and
+                // its callers, with build-machine abs_path values. The sanitized frames
+                // are already on the exception values. This processor is on this
+                // event's own scope and runs after the SDK's.
+                scope.AddEventProcessor(processed =>
+                {
+                    processed.SentryThreads = null;
+                    return processed;
+                });
             }
         });
     }

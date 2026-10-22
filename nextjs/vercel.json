@@ -8,6 +8,10 @@
     {
       "path": "/api/internal/latency/prune",
       "schedule": "17 4 * * *"
+    },
+    {
+      "path": "/api/internal/sessions/prune",
+      "schedule": "37 4 * * *"
     }
   ],
   "rewrites": [
@@ -24,24 +28,8 @@
       "destination": "https://rayamjadltd.mintlify.dev/docs"
     },
     {
-      "source": "/docs/llms.txt",
-      "destination": "https://rayamjadltd.mintlify.dev/llms.txt"
-    },
-    {
-      "source": "/docs/llms-full.txt",
-      "destination": "https://rayamjadltd.mintlify.dev/llms-full.txt"
-    },
-    {
-      "source": "/docs/sitemap.xml",
-      "destination": "https://rayamjadltd.mintlify.dev/sitemap.xml"
-    },
-    {
-      "source": "/docs/robots.txt",
-      "destination": "https://rayamjadltd.mintlify.dev/robots.txt"
-    },
-    {
-      "source": "/docs/mcp",
-      "destination": "https://rayamjadltd.mintlify.dev/mcp"
+      "source": "/docs.rsc",
+      "destination": "https://rayamjadltd.mintlify.dev/docs.rsc"
     },
     {
       "source": "/docs/:path*",

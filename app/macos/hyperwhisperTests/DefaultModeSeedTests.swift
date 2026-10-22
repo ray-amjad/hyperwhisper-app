@@ -102,7 +102,7 @@ struct DefaultModeSeedTests {
         #expect(mode.cloudTranscriptionModel == "scribe_v2")
         #expect(mode.postProcessingMode == 1)
         #expect(mode.postProcessingProvider == "hyperwhispercloud")
-        #expect(mode.cloudPostProcessingModel == "anthropic:claude-haiku-4-5")
+        #expect(mode.cloudPostProcessingModel == "anthropic:claude-haiku-5-5")
         #expect(mode.customInstructions == "")
         #expect(mode.isDefault)
         #expect(mode.isSystemProvided)
@@ -178,7 +178,7 @@ struct DefaultModeSeedTests {
         let resolved = CloudPostProcessingModel.fromStorageValue(mode.cloudPostProcessingModel)
 
         #expect(resolved.engineId == "anthropic")
-        #expect(resolved.modelId == "claude-haiku-4-5")
+        #expect(resolved.modelId == "claude-haiku-5-5")
         #expect(resolved.storageValue == mode.cloudPostProcessingModel)
         #expect(resolved != CloudPostProcessingModel.fallback, "fell through to the Grok fallback")
     }

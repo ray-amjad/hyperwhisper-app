@@ -33,6 +33,13 @@ try
     credentialStore.Seed("AnthropicApiKey", "anthropic-export-secret");
     credentialStore.Seed("LicenseKey", "account-key-must-never-export");
     var service = new ApplicationBackupService(database, settings, credentialStore);
+    var versionedExport = JsonNode.Parse(await new ApplicationBackupService(
+        database, settings, credentialStore, appVersion: "9.9.9").ExportAsync())!.AsObject();
+    Assert(versionedExport["appVersion"]!.GetValue<string>() == "9.9.9",
+        "export did not stamp the app version it was given");
+    await AssertThrowsAsync<ArgumentException>(
+        () => Task.FromResult(new ApplicationBackupService(database, settings, appVersion: " ")),
+        "a blank app version was accepted");
 
     var vocabularyOnly = await service.ExportAsync(new BackupExportSelection(
         IncludeSettings: false, IncludeModes: false, IncludeVocabulary: true));
@@ -251,6 +258,28 @@ try
     emptyModes["modes"] = new JsonArray();
     Assert((await service.ImportAsync(emptyModes.ToJsonString(), BackupImportSelection.All)).Error?.Code == "backup.no_modes",
         "an explicitly empty replace-all modes section wiped or bypassed the mode invariant");
+
+    // Issue #2390: a 200,000-character word froze the Linux Vocabulary page for minutes on every
+    // visit. Import refuses it at its path and stores nothing; a word at the cap still imports.
+    var vocabularyBeforeLongWord = (await vocabulary.ListAsync()).Select(item => item.Word).Order().ToList();
+    var longWord = full.DeepClone().AsObject();
+    longWord["vocabulary"] = new JsonArray(new JsonObject
+    {
+        ["id"] = Guid.NewGuid().ToString("D"), ["word"] = new string('w', 200_000), ["replacement"] = "r",
+        ["sortOrder"] = 0, ["source"] = "manual",
+    });
+    var longWordInspect = service.Inspect(longWord.ToJsonString());
+    Assert(longWordInspect.Error is { Code: "backup.invalid", Message: "The universal backup failed validation at vocabulary[0].word." },
+        $"a 200,000-character vocabulary word was not refused at vocabulary[0].word: {longWordInspect.Error?.Code} {longWordInspect.Error?.Message}");
+    Assert((await service.ImportAsync(longWord.ToJsonString(), BackupImportSelection.All)).Error?.Code == "backup.invalid",
+        "a 200,000-character vocabulary word was imported");
+    Assert(vocabularyBeforeLongWord.SequenceEqual((await vocabulary.ListAsync()).Select(item => item.Word).Order()),
+        "a refused long-word import changed the vocabulary");
+    longWord["vocabulary"]![0]!["word"] = "short\n" + new string('w', 1_001);
+    Assert(service.Inspect(longWord.ToJsonString()).Error?.Code == "backup.invalid",
+        "an over-long line inside a multi-line vocabulary word was not refused");
+    longWord["vocabulary"]![0]!["word"] = new string('w', VocabularyWords.MaxWordChars);
+    Assert(service.Inspect(longWord.ToJsonString()).IsSuccess, "a vocabulary word at the length cap was refused");
 
     var rollback = full.DeepClone().AsObject();
     rollback["modes"]![0]!["name"] = "Must Roll Back";
@@ -742,7 +771,336 @@ try
     }
     Console.WriteLine($"Backup macos-settings vectors: {macosRows.Count}/{macosRows.Count} rows matched the shared core.");
 
-    Console.WriteLine("Backup application tests passed (42/42).");
+    // Issue #1498: screen OCR is per-mode on every head, but each head writes it in
+    // its OWN platformExtensions slice. A macOS backup restored on Linux must keep
+    // OCR on, and an explicit linux value (true OR false) must win over a foreign one.
+    var ocrRoot = Path.Combine(root, "foreign-slice-screen-ocr");
+    Directory.CreateDirectory(ocrRoot);
+    var ocrPaths = new TestPaths(ocrRoot);
+    var ocrSettings = new PortableSettingsService(new MemoryPrivateFileService(), ocrPaths);
+    Assert(ocrSettings.Load().IsSuccess, "OCR settings did not initialize");
+    var ocrDatabase = new ApplicationDb(ocrPaths);
+    await ocrDatabase.MigrateAsync();
+    var ocrService = new ApplicationBackupService(ocrDatabase, ocrSettings);
+    var macOnlyId = Guid.NewGuid();
+    var linuxFalseId = Guid.NewGuid();
+    var linuxSliceWithoutOcrId = Guid.NewGuid();
+    var windowsOnlyId = Guid.NewGuid();
+    var noSliceId = Guid.NewGuid();
+    JsonObject OcrMode(Guid id, string name, int sortOrder, JsonObject? extensions)
+    {
+        var mode = new JsonObject
+        {
+            ["id"] = id.ToString("D"), ["name"] = name, ["preset"] = "custom", ["language"] = "en",
+            ["model"] = "base", ["isDefault"] = sortOrder == 0, ["sortOrder"] = sortOrder,
+        };
+        if (extensions is not null) mode["platformExtensions"] = extensions;
+        return mode;
+    }
+    var macosOcrBackup = new JsonObject
+    {
+        ["schemaVersion"] = 2,
+        ["exportDate"] = DateTimeOffset.UtcNow.ToString("O"),
+        ["appVersion"] = "1.0.0",
+        ["platform"] = "macos",
+        ["modes"] = new JsonArray(
+            OcrMode(macOnlyId, "Mac OCR on", 0, new JsonObject
+            {
+                ["macos"] = new JsonObject { ["enableScreenOCR"] = true, ["useStreamingTranscription"] = false },
+            }),
+            OcrMode(linuxFalseId, "Linux says off", 1, new JsonObject
+            {
+                ["linux"] = new JsonObject { ["enableScreenOCR"] = false },
+                ["macos"] = new JsonObject { ["enableScreenOCR"] = true },
+            }),
+            OcrMode(linuxSliceWithoutOcrId, "Linux slice without OCR", 2, new JsonObject
+            {
+                ["linux"] = new JsonObject { ["localEngine"] = "whisper" },
+                ["macos"] = new JsonObject { ["enableScreenOCR"] = true },
+            }),
+            OcrMode(windowsOnlyId, "Windows OCR on", 3, new JsonObject
+            {
+                ["windows"] = new JsonObject { ["enableScreenOCR"] = true },
+            }),
+            OcrMode(noSliceId, "No slice", 4, null)),
+    };
+    var ocrImport = await ocrService.ImportAsync(macosOcrBackup.ToJsonString());
+    Assert(ocrImport.IsSuccess, $"macOS OCR backup failed to import: {ocrImport.Error?.Message}");
+    var ocrModes = (await new ModeRepository(ocrDatabase).ListAsync()).ToDictionary(item => item.Id);
+    Assert(ocrModes[macOnlyId].EnableScreenOCR,
+        "a macOS backup with platformExtensions.macos.enableScreenOCR: true restored with OCR OFF on Linux (#1498)");
+    Assert(!ocrModes[linuxFalseId].EnableScreenOCR,
+        "an explicit platformExtensions.linux.enableScreenOCR: false lost to the macos slice's true (#1498)");
+    Assert(ocrModes[linuxSliceWithoutOcrId].EnableScreenOCR,
+        "a linux slice with no enableScreenOCR hid the macos slice's true (#1498)");
+    Assert(ocrModes[windowsOnlyId].EnableScreenOCR,
+        "a Windows backup with platformExtensions.windows.enableScreenOCR: true restored with OCR OFF on Linux (#1498)");
+    Assert(!ocrModes[noSliceId].EnableScreenOCR, "a mode with no slice at all restored with OCR ON");
+
+    // Issue #1690: with no slice to say, a mode is Cloud when `model` is "cloud" OR a
+    // cloudProvider is set. A restored Cloud mode with a blank provider stores
+    // HyperWhisper Cloud, the meaning every head gives that blank.
+    var cloudRoot = Path.Combine(root, "cloud-mode-without-provider");
+    Directory.CreateDirectory(cloudRoot);
+    var cloudPaths = new TestPaths(cloudRoot);
+    var cloudSettings = new PortableSettingsService(new MemoryPrivateFileService(), cloudPaths);
+    Assert(cloudSettings.Load().IsSuccess, "cloud-mode settings did not initialize");
+    var cloudDatabase = new ApplicationDb(cloudPaths);
+    await cloudDatabase.MigrateAsync();
+    var cloudNoProviderId = Guid.NewGuid();
+    var cloudBlankProviderId = Guid.NewGuid();
+    var cloudOpenAiId = Guid.NewGuid();
+    var localNoProviderId = Guid.NewGuid();
+    var sliceCloudNoProviderId = Guid.NewGuid();
+    JsonObject CloudMode(Guid id, string name, int sortOrder, string model, string? provider, JsonObject? extensions = null)
+    {
+        var mode = OcrMode(id, name, sortOrder, extensions);
+        mode["model"] = model;
+        if (provider is not null) mode["cloudProvider"] = provider;
+        return mode;
+    }
+    var cloudBackup = new JsonObject
+    {
+        ["schemaVersion"] = 2,
+        ["exportDate"] = DateTimeOffset.UtcNow.ToString("O"),
+        ["appVersion"] = "1.0.0",
+        ["platform"] = "macos",
+        ["modes"] = new JsonArray(
+            CloudMode(cloudNoProviderId, "Cloud, no provider", 0, "cloud", null),
+            CloudMode(cloudBlankProviderId, "Cloud, blank provider", 1, "cloud", "  "),
+            CloudMode(cloudOpenAiId, "Cloud, OpenAI", 2, "cloud", "openai"),
+            CloudMode(localNoProviderId, "Local, no provider", 3, "base", null),
+            CloudMode(sliceCloudNoProviderId, "Linux slice cloud, no provider", 4, "cloud", null, new JsonObject
+            {
+                ["linux"] = new JsonObject { ["providerType"] = "cloud" },
+            })),
+    };
+    var cloudImport = await new ApplicationBackupService(cloudDatabase, cloudSettings).ImportAsync(cloudBackup.ToJsonString());
+    Assert(cloudImport.IsSuccess, $"cloud-mode backup failed to import: {cloudImport.Error?.Message}");
+    var cloudModes = (await new ModeRepository(cloudDatabase).ListAsync()).ToDictionary(item => item.Id);
+    foreach (var id in new[] { cloudNoProviderId, cloudBlankProviderId, sliceCloudNoProviderId })
+        Assert(cloudModes[id].ProviderType == "cloud" && cloudModes[id].CloudProvider == "hyperwhisper",
+            $"a Cloud mode with no cloudProvider ('{cloudModes[id].Name}') restored as {cloudModes[id].ProviderType} / '{cloudModes[id].CloudProvider}', not cloud / hyperwhisper (#1690)");
+    Assert(cloudModes[cloudOpenAiId].ProviderType == "cloud" && cloudModes[cloudOpenAiId].CloudProvider == "openai",
+        $"a Cloud mode with cloudProvider openai restored as {cloudModes[cloudOpenAiId].ProviderType} / '{cloudModes[cloudOpenAiId].CloudProvider}' (#1690)");
+    Assert(cloudModes[localNoProviderId].ProviderType == "local" && cloudModes[localNoProviderId].CloudProvider is null,
+        $"a local mode with no cloudProvider restored as {cloudModes[localNoProviderId].ProviderType} / '{cloudModes[localNoProviderId].CloudProvider}' (#1690)");
+
+    // Issue #1712: both .NET heads write a mode's vocabulary and local-engine fields
+    // in their OWN slice under the same names. A Windows backup restored on Linux
+    // must keep them; a present linux slice stays the whole record of them.
+    var peerRoot = Path.Combine(root, "foreign-slice-windows-mode");
+    Directory.CreateDirectory(peerRoot);
+    var peerPaths = new TestPaths(peerRoot);
+    var peerSettings = new PortableSettingsService(new MemoryPrivateFileService(), peerPaths);
+    Assert(peerSettings.Load().IsSuccess, "peer-slice settings did not initialize");
+    var peerDatabase = new ApplicationDb(peerPaths);
+    await peerDatabase.MigrateAsync();
+    var peerService = new ApplicationBackupService(peerDatabase, peerSettings);
+    var windowsModeId = Guid.NewGuid();
+    var bothSlicesId = Guid.NewGuid();
+    var badPeerId = Guid.NewGuid();
+    var windowsBackup = new JsonObject
+    {
+        ["schemaVersion"] = 2,
+        ["exportDate"] = DateTimeOffset.UtcNow.ToString("O"),
+        ["appVersion"] = "1.0.0",
+        ["platform"] = "windows",
+        ["modes"] = new JsonArray(
+            OcrMode(windowsModeId, "Windows vocabulary", 0, new JsonObject
+            {
+                ["windows"] = new JsonObject
+                {
+                    ["customVocabulary"] = new JsonArray("Øresund"), ["localEngine"] = "parakeet",
+                    ["localParakeetModel"] = "parakeet-tdt-0.6b-v3", ["providerType"] = "local",
+                    ["modelType"] = "large-v3", ["isSystemProvided"] = true,
+                    ["createdDate"] = "2025-01-02T03:04:05Z", ["modifiedDate"] = "2025-06-07T08:09:10Z",
+                    ["cloudAccuracyTier"] = "deepgramNova3", ["cloudPostProcessingModel"] = "grok:grok-4.3",
+                    ["localPostProcessingModel"] = "windows-local-pp",
+                },
+            }),
+            OcrMode(bothSlicesId, "Linux slice wins", 1, new JsonObject
+            {
+                ["linux"] = new JsonObject { ["customVocabulary"] = null, ["localEngine"] = "whisper" },
+                ["windows"] = new JsonObject
+                {
+                    ["customVocabulary"] = new JsonArray("Stale"), ["localEngine"] = "parakeet",
+                    ["localParakeetModel"] = "parakeet-tdt-0.6b-v3",
+                },
+            }),
+            // A wrong-typed value in the peer slice: Linux drops that slice and keeps
+            // the defaults, as Windows does, instead of rejecting the whole backup.
+            OcrMode(badPeerId, "Bad windows slice", 2, new JsonObject
+            {
+                ["windows"] = new JsonObject
+                {
+                    ["customVocabulary"] = new JsonArray("Dropped"), ["localEngine"] = "parakeet",
+                    ["isSystemProvided"] = "true",
+                },
+            })),
+    };
+    var peerImport = await peerService.ImportAsync(windowsBackup.ToJsonString());
+    Assert(peerImport.IsSuccess, $"Windows mode backup failed to import: {peerImport.Error?.Message}");
+    var peerModes = (await new ModeRepository(peerDatabase).ListAsync()).ToDictionary(item => item.Id);
+    var fromWindows = peerModes[windowsModeId];
+    Assert(fromWindows.CustomVocabulary is ["Øresund"],
+        "a Windows backup's platformExtensions.windows.customVocabulary was lost on a Linux restore (#1712)");
+    Assert(fromWindows.LocalEngine == "parakeet" && fromWindows.LocalParakeetModel == "parakeet-tdt-0.6b-v3",
+        "a Windows backup's local engine / Parakeet model was lost on a Linux restore (#1712)");
+    Assert(fromWindows.ProviderType == "local" && fromWindows.ModelType == "large-v3" && fromWindows.IsSystemProvided,
+        "a Windows backup's providerType / modelType / isSystemProvided was lost on a Linux restore (#1712)");
+    Assert(fromWindows.CreatedDate == new DateTime(2025, 1, 2, 3, 4, 5, DateTimeKind.Utc)
+        && fromWindows.ModifiedDate == new DateTime(2025, 6, 7, 8, 9, 10, DateTimeKind.Utc),
+        "a Windows backup's createdDate / modifiedDate was lost on a Linux restore (#1712)");
+    var linuxWins = peerModes[bothSlicesId];
+    Assert(linuxWins.CustomVocabulary is null && linuxWins.LocalEngine == "whisper" && linuxWins.LocalParakeetModel is null,
+        "a stale preserved windows slice overrode the mode's own linux slice (#1712)");
+    var badPeer = peerModes[badPeerId];
+    Assert(badPeer.CustomVocabulary is null && badPeer.LocalEngine == "whisper" && !badPeer.IsSystemProvided,
+        "an unreadable windows slice was used instead of the defaults (#1712)");
+
+    // Issue #1716: a mode edited on the other .NET head must survive a round trip.
+    // When a mode holds both a windows and a linux slice, the one with the NEWER
+    // modifiedDate is the record of the fields both heads share.
+    // Windows → Linux (edit) → Windows: the Linux edit lands in the linux slice with
+    // a newer date than the preserved windows slice, which is what Windows reads
+    // (the Windows half is HyperWhisper.SmokeTests "backup import (#1716)").
+    var linuxEdited = fromWindows;
+    linuxEdited.CustomVocabulary = ["Kattegat"];
+    linuxEdited.LocalEngine = "whisper";
+    linuxEdited.CloudAccuracyTier = "groqWhisper";
+    linuxEdited.CloudPostProcessingModel = "cerebras:gpt-oss-120b";
+    linuxEdited.LocalPostProcessingModel = "linux-local-pp";
+    linuxEdited.ModifiedDate = new DateTime(2026, 10, 11, 9, 0, 0, DateTimeKind.Utc);
+    await new ModeRepository(peerDatabase).UpsertAsync(linuxEdited);
+    var tripExport = JsonNode.Parse(await peerService.ExportAsync())!.AsObject();
+    var trippedMode = tripExport["modes"]!.AsArray()
+        .Single(node => node!["id"]!.GetValue<string>() == windowsModeId.ToString("D"))!.AsObject();
+    var trippedLinux = trippedMode["platformExtensions"]!["linux"]!.AsObject();
+    var trippedWindows = trippedMode["platformExtensions"]!["windows"]!.AsObject();
+    Assert(trippedLinux["customVocabulary"]!.AsArray().Select(term => term!.GetValue<string>()).SequenceEqual(["Kattegat"])
+        && trippedLinux["modifiedDate"]!.GetValue<string>() == "2026-10-11T09:00:00.0000000Z",
+        "a Linux export did not write the Linux-edited vocabulary and its modifiedDate in the linux slice (#1716)");
+    Assert(trippedWindows["modifiedDate"]!.GetValue<string>() == "2025-06-07T08:09:10Z",
+        "a Linux export rewrote the preserved windows slice instead of carrying it (#1716)");
+
+    // Issue #1747: Linux writes the cloud tier and the cloud / local post-processing
+    // models only at the top level, so the preserved windows slice still holds the
+    // OLD ones. The newer linux slice wins, so the top-level values must restore.
+    Assert(trippedMode["cloudAccuracyTier"]!.GetValue<string>() == "groqWhisper"
+        && trippedWindows["cloudAccuracyTier"]!.GetValue<string>() == "deepgramNova3",
+        "a Linux export did not write the edited cloud tier at the top level beside the preserved windows slice (#1747)");
+    var selfRoot = Path.Combine(root, "linux-edit-self-restore");
+    Directory.CreateDirectory(selfRoot);
+    var selfPaths = new TestPaths(selfRoot);
+    var selfSettings = new PortableSettingsService(new MemoryPrivateFileService(), selfPaths);
+    Assert(selfSettings.Load().IsSuccess, "self-restore settings did not initialize");
+    var selfDatabase = new ApplicationDb(selfPaths);
+    await selfDatabase.MigrateAsync();
+    var selfImport = await new ApplicationBackupService(selfDatabase, selfSettings).ImportAsync(tripExport.ToJsonString());
+    Assert(selfImport.IsSuccess, $"Linux-edited backup failed to import: {selfImport.Error?.Message}");
+    var selfRestored = (await new ModeRepository(selfDatabase).ListAsync()).Single(item => item.Id == windowsModeId);
+    Assert(selfRestored.CloudAccuracyTier == "groqWhisper" && selfRestored.CloudPostProcessingModel == "cerebras:gpt-oss-120b",
+        $"a Linux-edited cloud tier / post-processing model lost to the stale preserved windows slice: {selfRestored.CloudAccuracyTier} / {selfRestored.CloudPostProcessingModel} (#1747)");
+    Assert(trippedWindows["localPostProcessingModel"]!.GetValue<string>() == "windows-local-pp"
+        && selfRestored.LocalPostProcessingModel == "linux-local-pp",
+        $"a Linux-edited local post-processing model lost to the stale preserved windows slice: {selfRestored.LocalPostProcessingModel} (#1747)");
+
+    // Linux → Windows (edit) → Linux: the Windows edit lands in the windows slice
+    // with a newer date than the preserved linux slice. A tie keeps the linux slice.
+    var windowsEditedBackup = tripExport.DeepClone().AsObject();
+    var windowsEditedModes = windowsEditedBackup["modes"]!.AsArray();
+    var newerWindowsId = Guid.NewGuid();
+    var tiedSlicesId = Guid.NewGuid();
+    windowsEditedModes.Clear();
+    windowsEditedModes.Add(OcrMode(windowsModeId, "Windows vocabulary", 0, new JsonObject
+    {
+        ["linux"] = trippedLinux.DeepClone(),
+        ["windows"] = new JsonObject
+        {
+            ["customVocabulary"] = new JsonArray("Skagerrak"), ["localEngine"] = "parakeet",
+            ["localParakeetModel"] = "parakeet-tdt-0.6b-v3", ["providerType"] = "local",
+            ["modelType"] = "large-v3", ["isSystemProvided"] = true, ["enableScreenOCR"] = true,
+            ["createdDate"] = "2025-01-02T03:04:05", ["modifiedDate"] = "2026-10-11T10:30:00",
+            ["cloudAccuracyTier"] = "soniox", ["cloudPostProcessingModel"] = "groq:openai/gpt-oss-120b",
+            ["localPostProcessingModel"] = "windows-edit-local-pp",
+        },
+    }));
+    windowsEditedModes.Add(OcrMode(newerWindowsId, "Older Windows slice", 1, new JsonObject
+    {
+        ["linux"] = new JsonObject
+        {
+            ["customVocabulary"] = new JsonArray("Linux newer"), ["localEngine"] = "whisper",
+            ["enableScreenOCR"] = false, ["modifiedDate"] = "2026-10-11T10:30:00.0000000Z",
+        },
+        ["windows"] = new JsonObject
+        {
+            ["customVocabulary"] = new JsonArray("Windows older"), ["localEngine"] = "parakeet",
+            ["enableScreenOCR"] = true, ["modifiedDate"] = "2026-10-11T09:00:00",
+        },
+    }));
+    windowsEditedModes.Add(OcrMode(tiedSlicesId, "Tied slices", 2, new JsonObject
+    {
+        ["linux"] = new JsonObject { ["customVocabulary"] = new JsonArray("Linux tie"), ["modifiedDate"] = "2026-10-11T09:00:00Z" },
+        ["windows"] = new JsonObject { ["customVocabulary"] = new JsonArray("Windows tie"), ["modifiedDate"] = "2026-10-11T09:00:00" },
+    }));
+    var tripRoot = Path.Combine(root, "foreign-slice-round-trip");
+    Directory.CreateDirectory(tripRoot);
+    var tripPaths = new TestPaths(tripRoot);
+    var tripSettings = new PortableSettingsService(new MemoryPrivateFileService(), tripPaths);
+    Assert(tripSettings.Load().IsSuccess, "round-trip settings did not initialize");
+    var tripDatabase = new ApplicationDb(tripPaths);
+    await tripDatabase.MigrateAsync();
+    var tripImport = await new ApplicationBackupService(tripDatabase, tripSettings).ImportAsync(windowsEditedBackup.ToJsonString());
+    Assert(tripImport.IsSuccess, $"Windows-edited backup failed to import: {tripImport.Error?.Message}");
+    var tripModes = (await new ModeRepository(tripDatabase).ListAsync()).ToDictionary(item => item.Id);
+    var windowsEdit = tripModes[windowsModeId];
+    Assert(windowsEdit.CustomVocabulary is ["Skagerrak"] && windowsEdit.LocalEngine == "parakeet"
+        && windowsEdit.LocalParakeetModel == "parakeet-tdt-0.6b-v3" && windowsEdit.EnableScreenOCR,
+        "a newer windows slice lost to the stale preserved linux slice on a Linux restore (#1716)");
+    Assert(windowsEdit.ModifiedDate == new DateTime(2026, 10, 11, 10, 30, 0, DateTimeKind.Utc),
+        "a newer windows slice's modifiedDate was not restored on Linux (#1716)");
+    Assert(windowsEdit.CloudAccuracyTier == "soniox" && windowsEdit.CloudPostProcessingModel == "groq:openai/gpt-oss-120b",
+        "a newer windows slice's cloud tier / post-processing model was not restored on Linux (#1747)");
+    Assert(windowsEdit.LocalPostProcessingModel == "windows-edit-local-pp",
+        $"a newer windows slice's local post-processing model lost to the top-level one on Linux: {windowsEdit.LocalPostProcessingModel} (#1747)");
+    var linuxNewer = tripModes[newerWindowsId];
+    Assert(linuxNewer.CustomVocabulary is ["Linux newer"] && linuxNewer.LocalEngine == "whisper" && !linuxNewer.EnableScreenOCR,
+        "an older windows slice overrode a newer linux slice (#1716)");
+    Assert(tripModes[tiedSlicesId].CustomVocabulary is ["Linux tie"],
+        "a windows slice with the SAME modifiedDate overrode the linux slice (#1716)");
+
+    // #1777: a backup made before #1475 can carry a word with line breaks inside it. It imports
+    // as one word per non-empty line, like the add field: no stored word holds a line break, a
+    // split line that repeats another backup word is dropped rather than failing the import, and
+    // the snippet replacement keeps its own line break.
+    var splitRoot = Path.Combine(root, "multi-line-vocabulary-word");
+    Directory.CreateDirectory(splitRoot);
+    var splitPaths = new TestPaths(splitRoot);
+    var splitSettings = new PortableSettingsService(new MemoryPrivateFileService(), splitPaths);
+    Assert(splitSettings.Load().IsSuccess, "multi-line vocabulary settings did not initialize");
+    var splitDatabase = new ApplicationDb(splitPaths);
+    await splitDatabase.MigrateAsync();
+    var splitBackup = JsonNode.Parse(await new ApplicationBackupService(splitDatabase, splitSettings).ExportAsync())!.AsObject();
+    var splitWordId = Guid.NewGuid();
+    splitBackup["vocabulary"] = new JsonArray(
+        new JsonObject { ["id"] = splitWordId.ToString("D"), ["word"] = " x \r\ny\n\nZ", ["replacement"] = "Best,\nRay", ["sortOrder"] = 0, ["source"] = "manual" },
+        new JsonObject { ["id"] = Guid.NewGuid().ToString("D"), ["word"] = "z", ["sortOrder"] = 1, ["source"] = "manual" });
+    var splitSelection = new BackupImportSelection(
+        ImportSettings: false, ImportModes: false, ImportVocabulary: true,
+        VocabularyConflictPolicy: VocabularyConflictPolicy.Skip);
+    var splitImport = await new ApplicationBackupService(splitDatabase, splitSettings).ImportAsync(splitBackup.ToJsonString(), splitSelection);
+    Assert(splitImport.IsSuccess && splitImport.Value is { VocabularyAdded: 3, VocabularySkipped: 0 },
+        $"a multi-line backup word did not import as one word per line (#1777): {splitImport.Error?.Message}");
+    var splitWords = await new VocabularyRepository(splitDatabase).ListAsync();
+    Assert(splitWords.Select(item => item.Word).Order(StringComparer.Ordinal).SequenceEqual(["x", "y", "z"])
+        && splitWords.All(item => !VocabularyWords.HasLineBreak(item.Word)),
+        $"a backup import saved a word with a line break inside it (#1777): {string.Join(" | ", splitWords.Select(item => item.Word))}");
+    Assert(splitWords.Single(item => item.Word == "x") is { Replacement: "Best,\nRay" } splitFirst && splitFirst.Id == splitWordId
+        && splitWords.Single(item => item.Word == "y").Replacement == "Best,\nRay",
+        "a split backup word lost its id or its multi-line replacement (#1777)");
+
+    Console.WriteLine("Backup application tests passed (53/53).");
 }
 finally
 {

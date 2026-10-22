@@ -631,6 +631,14 @@ impl Step {
         ) {
             return;
         }
+        // A released hold waiting out its key-up debounce is finished: the
+        // shortcut is no longer held, so the next key cannot be part of a
+        // keyboard shortcut with it. Let the pending release stop the recording
+        // (#2054). A quick-tap recording, also `PttActive` with the key up, still
+        // treats the next key as interference.
+        if self.from == PttState::PttActive && self.st.entered_via_hold && !self.st.key_down {
+            return;
+        }
         self.full_reset();
         self.signal = Some(PttSignal::Interfered);
         self.reason = if self.from == PttState::WaitingForActivation {

@@ -58,14 +58,14 @@ const MUTANTS = [
     to: "if (false) {",
   },
   {
-    name: "mis-spell the license purchase type",
-    from: 'if (purchaseType === "license") {',
-    to: 'if (purchaseType === "licence") {',
+    name: "route a retired license session to the credit handler",
+    from: '    // Route to appropriate handler based on purchase type\n    if (purchaseType === "credits") {',
+    to: '    // Route to appropriate handler based on purchase type\n    if (purchaseType === "credits" || purchaseType === "license") {',
   },
   {
-    name: "route credits to the license handler",
-    from: '} else if (purchaseType === "credits") {',
-    to: '} else if (purchaseType === "license") {',
+    name: "route every purchase type to the credit handler",
+    from: '    // Route to appropriate handler based on purchase type\n    if (purchaseType === "credits") {',
+    to: '    // Route to appropriate handler based on purchase type\n    if (true) {',
   },
   {
     name: "swap the credit handler's event id and event type",
@@ -76,11 +76,6 @@ const MUTANTS = [
     name: "ignore checkout.session.async_payment_succeeded",
     from: '    event.type === "checkout.session.async_payment_succeeded"',
     to: '    event.type === "checkout.session.never_emitted"',
-  },
-  {
-    name: "answer 200 when the license handler throws",
-    from: '          { error: "Failed to process license purchase" },\n          { status: 500 }',
-    to: '          { error: "Failed to process license purchase" },\n          { status: 200 }',
   },
   {
     name: "answer 200 when the credit handler throws",

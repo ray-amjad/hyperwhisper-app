@@ -70,9 +70,21 @@ const DEEPGRAM_ALIASES: &[(&str, &str)] = &[
 
 const SONIOX_ALIASES: &[(&str, &str)] = &[("stt-async-v4", "stt-async-v5")];
 
+/// Every target must be a model the `gemini` catalog entry sells: a mapping onto
+/// an id the catalog lacks is judged foreign by the membership guard, which then
+/// swaps in a different model (#796). `alias_targets_are_catalogued` pins it.
 const GEMINI_ALIASES: &[(&str, &str)] = &[
-    ("gemini-3.1-flash-lite-preview", "gemini-3.1-flash-lite"),
-    ("gemini-2.0-flash", "gemini-3.6-flash"),
+    // The sold lite model. #1580 moves this to 3.5 Flash Lite once that is sold.
+    ("gemini-3.1-flash-lite-preview", "gemini-2.5-flash-lite"),
+    // The Gemini default since #1430; Google now limits 2.5 Flash to past users.
+    ("gemini-2.0-flash", "gemini-3.8-flash"),
+    // The preview left the pickers in 2026-10. ONE target on every route:
+    // HyperWhisper Cloud serves 3.8 Flash but not 3.6 (an unknown model there is a
+    // 400), and a head that resolves with no provider lands here too. 3.8 Flash is
+    // also a row in every BYOK picker. PARITY: macOS legacyGeminiAliases and the
+    // post-processing tables, Windows MigrateModelId, shared-dotnet Migrate, and
+    // hyperwhisper-cloud stt-models.ts.
+    ("gemini-3-flash-preview", "gemini-3.8-flash"),
 ];
 
 /// OpenAI STT ids deprecated 2026-08-26, shutdown 2027-02-26
@@ -94,6 +106,13 @@ const OPENAI_ALIASES: &[(&str, &str)] = &[
     ("gpt-4o-transcribe", "gpt-transcribe"),
     ("gpt-4o-mini-transcribe", "gpt-4o-mini-transcribe-2025-12-15"),
 ];
+
+/// xAI Grok STT ids. xAI ended `grok-voice-transcribe-1.0` on 2026-10-02 and
+/// routes every request for it to `grok-voice-transcribe-2.0` at the same price
+/// (docs.x.ai release notes), so the 1.0 picker row is gone and a saved mode or
+/// backup still naming it moves to 2.0 instead of falling to the first row.
+/// The target is no dearer: both rows were $0.00167/min.
+const GROK_ALIASES: &[(&str, &str)] = &[("grok-voice-transcribe-1.0", "grok-voice-transcribe-2.0")];
 
 /// Resolve a legacy AssemblyAI model id to its current equivalent. Non-AssemblyAI
 /// and already-current ids pass through unchanged.
@@ -124,6 +143,11 @@ pub fn resolve_gemini_model_alias(model_id: &str) -> String {
 /// Resolve a deprecated OpenAI STT model id to its current equivalent.
 pub fn resolve_openai_model_alias(model_id: &str) -> String {
     resolve_in(OPENAI_ALIASES, model_id)
+}
+
+/// Resolve a retired xAI Grok STT model id to its current equivalent.
+pub fn resolve_grok_model_alias(model_id: &str) -> String {
+    resolve_in(GROK_ALIASES, model_id)
 }
 
 fn resolve_in(table: &[(&str, &str)], model_id: &str) -> String {
@@ -179,6 +203,10 @@ const KNOWN_PROVIDER_IDS: &[&str] = &[
 /// direction. It is in the chain at all because a restored backup is exactly the
 /// case this module exists for, and a backup can carry a model id with no
 /// provider beside it.
+///
+/// Grok was added after OpenAI on the same terms and goes outside it: its one
+/// key and target are `grok-voice-transcribe-*` ids no other table names
+/// (`added_keys_collide_with_no_other_table` pins it).
 pub fn resolve_model_alias(model_id: &str, provider: Option<&str>) -> String {
     if model_id.is_empty() {
         return String::new();
@@ -192,14 +220,15 @@ pub fn resolve_model_alias(model_id: &str, provider: Option<&str>) -> String {
         Some("soniox") => resolve_soniox_model_alias(model_id),
         Some("gemini") => resolve_gemini_model_alias(model_id),
         Some("openai") => resolve_openai_model_alias(model_id),
+        Some("grok") => resolve_grok_model_alias(model_id),
         // Known provider with no alias table → pass through.
         Some(p) if KNOWN_PROVIDER_IDS.contains(&p) => model_id.to_string(),
         // `null` / `None` / unrecognized → chain everything, innermost first.
-        _ => resolve_openai_model_alias(&resolve_gemini_model_alias(
+        _ => resolve_grok_model_alias(&resolve_openai_model_alias(&resolve_gemini_model_alias(
             &resolve_soniox_model_alias(&resolve_deepgram_model_alias(
                 &resolve_assemblyai_model_alias(&resolve_elevenlabs_model_alias(model_id)),
             )),
-        )),
+        ))),
     }
 }
 
@@ -227,7 +256,19 @@ mod tests {
         );
         assert_eq!(
             resolve_model_alias("gemini-2.0-flash", Some("gemini")),
-            "gemini-3.6-flash"
+            "gemini-3.8-flash"
+        );
+        assert_eq!(
+            resolve_model_alias("gemini-3.1-flash-lite-preview", Some("gemini")),
+            "gemini-2.5-flash-lite"
+        );
+        assert_eq!(
+            resolve_model_alias("gemini-3-flash-preview", Some("gemini")),
+            "gemini-3.8-flash"
+        );
+        assert_eq!(
+            resolve_model_alias("gemini-3-flash-preview", None),
+            "gemini-3.8-flash"
         );
     }
 
@@ -267,25 +308,136 @@ mod tests {
     }
 
     #[test]
-    fn openai_keys_collide_with_no_other_table() {
-        // The chain arm applies OPENAI_ALIASES outermost. That is only safe while
-        // its keys are absent from every other table and are no other table's
-        // target, so pin it rather than trusting a future edit to remember.
-        let others: &[&[(&str, &str)]] = &[
-            ASSEMBLYAI_ALIASES,
-            ELEVENLABS_ALIASES,
-            DEEPGRAM_ALIASES,
-            SONIOX_ALIASES,
-            GEMINI_ALIASES,
+    fn added_keys_collide_with_no_other_table() {
+        // The chain arm applies OPENAI_ALIASES and then GROK_ALIASES outermost.
+        // That is only safe while their keys are absent from every other table
+        // and are no other table's target, so pin it rather than trusting a
+        // future edit to remember.
+        let all: &[(&str, &[(&str, &str)])] = &[
+            ("assemblyai", ASSEMBLYAI_ALIASES),
+            ("elevenlabs", ELEVENLABS_ALIASES),
+            ("deepgram", DEEPGRAM_ALIASES),
+            ("soniox", SONIOX_ALIASES),
+            ("gemini", GEMINI_ALIASES),
+            ("openai", OPENAI_ALIASES),
+            ("grok", GROK_ALIASES),
         ];
-        for (key, target) in OPENAI_ALIASES {
-            for table in others {
-                for (other_key, other_target) in *table {
-                    assert_ne!(key, other_key, "{key} is also a key in another table");
-                    assert_ne!(key, other_target, "{key} is another table's target");
-                    assert_ne!(target, other_key, "{target} is another table's key");
+        for (name, outer) in [("openai", OPENAI_ALIASES), ("grok", GROK_ALIASES)] {
+            for (key, target) in outer {
+                for (other_name, table) in all {
+                    if *other_name == name {
+                        continue;
+                    }
+                    for (other_key, other_target) in *table {
+                        assert_ne!(key, other_key, "{key} is also a key in {other_name}");
+                        assert_ne!(key, other_target, "{key} is {other_name}'s target");
+                        assert_ne!(target, other_key, "{target} is {other_name}'s key");
+                    }
                 }
             }
+        }
+    }
+
+    #[test]
+    fn retired_grok_stt_resolves_to_2_0() {
+        // xAI ended 1.0 on 2026-10-02 and reroutes it to 2.0 at the same price.
+        assert_eq!(
+            resolve_model_alias("grok-voice-transcribe-1.0", Some("grok")),
+            "grok-voice-transcribe-2.0"
+        );
+        // A backup can carry the id with no provider beside it.
+        assert_eq!(
+            resolve_model_alias("grok-voice-transcribe-1.0", None),
+            "grok-voice-transcribe-2.0"
+        );
+        assert_eq!(
+            resolve_model_alias("Grok-Voice-Transcribe-1.0", Some("Grok")),
+            "grok-voice-transcribe-2.0"
+        );
+        // 2.0 is current and must not hop again; the pre-2026-09-19 empty id
+        // stays empty (the catalog's legacy-blank rule owns it).
+        assert_eq!(
+            resolve_model_alias("grok-voice-transcribe-2.0", Some("grok")),
+            "grok-voice-transcribe-2.0"
+        );
+        assert_eq!(resolve_model_alias("", Some("grok")), "");
+        // Grok's table is scoped: another provider's id passes through.
+        assert_eq!(resolve_model_alias("nova-2", Some("grok")), "nova-2");
+    }
+
+    /// Every alias target, keyed by the catalog entry that sells that
+    /// provider's models. An alias onto an id the entry lacks is a dead end: the
+    /// membership guard judges the migrated mode foreign and swaps its model
+    /// (#796).
+    fn tables_by_catalog_entry() -> Vec<(&'static str, &'static [(&'static str, &'static str)])> {
+        vec![
+            ("assemblyAI", ASSEMBLYAI_ALIASES),
+            ("elevenLabsScribeV2", ELEVENLABS_ALIASES),
+            ("deepgramNova3", DEEPGRAM_ALIASES),
+            ("soniox", SONIOX_ALIASES),
+            ("gemini", GEMINI_ALIASES),
+            ("openaiWhisper", OPENAI_ALIASES),
+            ("grokStt", GROK_ALIASES),
+        ]
+    }
+
+    /// BYOK-only targets with no catalog row. The Cloud tier sells AssemblyAI
+    /// medical as an add-on on `universal-3-5-pro`, not as its own model, while
+    /// both BYOK pickers carry `universal-3-5-pro-medical` as a row.
+    const BYOK_ONLY_TARGETS: &[&str] = &["universal-3-5-pro-medical"];
+
+    fn uncatalogued_targets(catalog: &crate::cloud_stt::CloudSttCatalog) -> Vec<String> {
+        let mut missing = Vec::new();
+        for (entry_id, table) in tables_by_catalog_entry() {
+            let models = catalog.models(entry_id);
+            assert!(!models.is_empty(), "catalog entry {entry_id} has no models");
+            for (alias, target) in table {
+                if BYOK_ONLY_TARGETS.contains(target) {
+                    continue;
+                }
+                if !models.iter().any(|m| m.id == *target) {
+                    missing.push(format!("{entry_id}: {alias} -> {target}"));
+                }
+            }
+        }
+        missing
+    }
+
+    #[test]
+    fn alias_targets_are_catalogued() {
+        let catalog = crate::cloud_stt::CloudSttCatalog::embedded()
+            .expect("embedded cloud-stt-catalog.json must parse");
+        let missing = uncatalogued_targets(&catalog);
+        assert!(
+            missing.is_empty(),
+            "alias targets missing from cloud-stt-catalog.json: {missing:?}"
+        );
+    }
+
+    #[test]
+    fn alias_target_guard_fails_when_a_target_leaves_the_catalog() {
+        // Prove the guard is not vacuous: drop each Gemini target from the
+        // catalog JSON and the guard must name it.
+        for (_, target) in GEMINI_ALIASES {
+            let mut json: serde_json::Value =
+                serde_json::from_str(crate::CLOUD_STT_CATALOG).expect("catalog JSON");
+            let gemini = json["providers"]
+                .as_array_mut()
+                .expect("providers")
+                .iter_mut()
+                .find(|p| p["id"] == "gemini")
+                .expect("gemini entry");
+            gemini["models"]
+                .as_array_mut()
+                .expect("models")
+                .retain(|m| m["id"] != *target);
+            let catalog = crate::cloud_stt::CloudSttCatalog::parse(&json.to_string())
+                .expect("trimmed catalog must parse");
+            let missing = uncatalogued_targets(&catalog);
+            assert!(
+                missing.iter().any(|m| m.ends_with(&format!("-> {target}"))),
+                "removing {target} went unnoticed: {missing:?}"
+            );
         }
     }
 

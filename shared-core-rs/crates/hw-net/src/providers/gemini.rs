@@ -760,7 +760,7 @@ mod tests {
         let mut p = params();
         p.model = "".to_string();
         let req = build_generate_request(&p, &file).unwrap();
-        assert!(req.url.contains("/models/gemini-2.5-flash:generateContent"));
+        assert!(req.url.contains("/models/gemini-3.8-flash:generateContent"));
     }
 
     #[test]

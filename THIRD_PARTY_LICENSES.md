@@ -52,7 +52,7 @@ NAudio (MIT), and `silero_vad.onnx` (CC-BY-4.0). No Parakeet weights are bundled
 | ZIPFoundation | MIT | Thomas Zoechling |
 | sentry-cocoa | MIT | Sentry |
 | swift-atomics | Apache-2.0 | Apple |
-| FlyingFox | MIT | Simon Whitty |
+| FlyingFox (patched copy in `app/macos/Vendor/FlyingFox`) | MIT | Simon Whitty |
 | AXSwift | MIT | Tyler Mandry et al. |
 | KeyboardShortcuts | MIT | Sindre Sorhus |
 | KeySender | MIT | Sindre Sorhus |
@@ -90,7 +90,6 @@ NuGet packages — all **MIT** unless noted:
 | Whisper.net (+ Runtime, Runtime.NoAvx, Runtime.Vulkan) | MIT | Sandro Hawke / const-me upstream |
 | LLamaSharp (+ Backend.Cpu, Backend.Cuda12) | MIT | SciSharp / LLamaSharp contributors |
 | System.Management | MIT | Microsoft |
-| GregsStack.InputSimulatorStandard | MIT | Gregory Morse |
 | CommunityToolkit.Mvvm | MIT | Microsoft |
 | Microsoft.EntityFrameworkCore.Sqlite / .Design | MIT | Microsoft |
 | Microsoft.AspNetCore.App (framework reference) | MIT | Microsoft |

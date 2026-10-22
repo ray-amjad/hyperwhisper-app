@@ -9,19 +9,90 @@ import CoreData
 import Foundation
 import KeyboardShortcuts
 
+/// The mode the user picked for a pending-file retry, after the mode that made
+/// the recording was deleted (#1617). Plain values, not the Core Data `Mode`,
+/// so the pick can cross into the retry's task.
+struct PendingRetryModeChoice: Equatable, Sendable {
+    let id: String
+    let name: String
+}
+
 extension RecordingTranscriptionFlow {
 
     // MARK: - Error Handling
 
     /// Retry transcription using a previously recorded audio file that failed before transcription started
-    func retryPendingFile() {
+    /// - Parameter pickedMode: the mode the user chose in the recording dialog's
+    ///   picker after the session's mode turned out to be deleted (#1617);
+    ///   `nil` retries with the session's own mode, as before.
+    func retryPendingFile(with pickedMode: PendingRetryModeChoice? = nil) {
         toggleTask?.cancel()
+        // A retry is a session of its own: an older retry still in flight is
+        // superseded by this one and writes nothing when it ends (#1276).
+        guard let appState = appState else { return }
+        appState.pendingRetryNeedsModePick = false
+        let identity = PendingRetryIdentity(sessionGeneration: appState.beginTranscriptionSession())
+        // #1636: a Retry is a new delivery. Paste where the user is at the
+        // click, as a recording start does, not into the app that was
+        // frontmost when the failed recording began (minutes ago, maybe).
+        // The pill is a non-activating panel, so the click leaves that app
+        // frontmost.
+        capturePasteTarget()
         toggleTask = Task {
-            await retryTranscriptionFromPendingPath()
+            await retryTranscriptionFromPendingPath(identity: identity, pickedMode: pickedMode)
         }
     }
 
-    private func retryTranscriptionFromPendingPath() async {
+    /// Whether a newer flow (a dictation, a file transcription, another retry)
+    /// has started since this retry began. See `PendingRetryIdentity`.
+    private func isPendingRetrySuperseded(_ identity: PendingRetryIdentity) -> Bool {
+        guard let appState = appState else { return true }
+        let superseded = identity.isSuperseded(
+            currentSessionGeneration: appState.transcriptionSessionGeneration
+        )
+        if superseded {
+            AppLogger.audio.info("Pending-file retry superseded by a newer flow; leaving shared state to it")
+        }
+        return superseded
+    }
+
+    /// The mode a pending-file retry transcribes with, or `nil` when the user
+    /// must pick one first (#1617).
+    ///
+    /// Looks the mode up by id ONLY, and NEVER falls back to a mode found by
+    /// name or to the default mode: on a fresh install the default is the
+    /// Cloud mode "Hyper", so a deleted on-device mode would otherwise send
+    /// the audio to HyperWhisper Cloud without asking. Same rule as History's
+    /// Retry (`TranscriptionRetryController`, #1440). A session mode that
+    /// still exists resolves by its id, as before.
+    ///
+    /// No name step, for the session mode or a PICKED one: if the mode was
+    /// deleted, another mode with the same name (maybe a Cloud mode the user
+    /// created or imported since) must not stand in for it. An empty session
+    /// id (no app state, a cleared selection) has no mode to match either: a
+    /// name then ("Default", or "") could only reach some other mode. `nil`
+    /// opens the picker and nothing is sent.
+    static func resolvePendingRetryMode(
+        pickedMode: PendingRetryModeChoice?,
+        sessionModeId: String,
+        persistence: PersistenceController = .shared
+    ) async -> Mode? {
+        let id = pickedMode?.id ?? sessionModeId
+        guard !id.isEmpty else { return nil }
+        return await persistence.resolveTranscriptionModeInBackground(
+            id: id,
+            fallbackName: "",
+            allowNameFallback: false,
+            allowDefaultFallback: false
+        )
+    }
+
+    private func retryTranscriptionFromPendingPath(
+        identity: PendingRetryIdentity,
+        pickedMode: PendingRetryModeChoice?
+    ) async {
+        guard !isPendingRetrySuperseded(identity) else { return }
+
         guard
             let appState = appState,
             let path = appState.pendingRetryAudioPath
@@ -41,11 +112,37 @@ extension RecordingTranscriptionFlow {
             return
         }
 
-        let actualMode = activeSessionModeName
-        let transcriptionMode = await PersistenceController.shared.resolveTranscriptionModeInBackground(
-            id: activeSessionModeId,
-            fallbackName: actualMode
+        let resolvedMode = await Self.resolvePendingRetryMode(
+            pickedMode: pickedMode,
+            sessionModeId: activeSessionModeId
         )
+
+        // The mode lookup suspends; a new dictation may have started meanwhile.
+        guard !isPendingRetrySuperseded(identity) else { return }
+
+        // #1617: the mode was deleted (or the picked one was deleted since).
+        // Send nothing and ask: the dialog shows a mode picker and retries with
+        // the user's pick. `pendingRetryAudioPath` is left alone, so the audio
+        // is kept whether the user picks a mode or dismisses the picker.
+        guard let transcriptionMode = resolvedMode else {
+            AppLogger.audio.warning("Pending-file retry: its mode no longer exists; asking the user to pick one, no request sent")
+            await MainActor.run {
+                appState.pendingRetryNeedsModePick = true
+                appState.showRecordingDialog = true
+            }
+            return
+        }
+
+        // #1636: the clipboard snapshot the paste's restore writes back, taken
+        // now, as a recording start takes it. The failed recording's snapshot
+        // is as old as that recording: restoring it would overwrite anything
+        // the user copied since. Only here, once a request will be sent: the
+        // exits above paste nothing.
+        await AccessibilityHelper.shared.startRecordingSession()
+
+        // The clipboard read suspends (up to 1 s); a newer flow may own the
+        // dialog now, and took its own snapshot.
+        guard !isPendingRetrySuperseded(identity) else { return }
 
         await MainActor.run {
             appState.recordingState = .transcribing
@@ -64,16 +161,109 @@ extension RecordingTranscriptionFlow {
                 applicationContext: capturedApplicationContext
             )
 
+            // A newer flow owns the dialog, the state and the session mode now.
+            guard !isPendingRetrySuperseded(identity) else { return }
+
+            // #1636: the write of the History row saved for THIS file when it
+            // could not be read. Taken before the path is cleared below (which
+            // drops it); awaited by the save, so a row that has not landed yet
+            // is still the one completed.
+            let failedRowWrite = appState.pendingRetryAudioPath == path
+                ? appState.pendingRetryFailedRowWrite
+                : nil
+            // #1643: a Quick Capture recording's Retry goes to Notes, like a
+            // Quick Capture dictation, never pasted (Ray, inbox ask #490).
+            // Read with the row write, before the path is cleared below.
+            let isQuickCaptureRetry = appState.pendingRetryAudioPath == path
+                && appState.pendingRetryIsQuickCapture
+
+            // A retry that hears no speech keeps the row failed, with the
+            // "no speech" reason, instead of a blank completed row (#1815).
+            // Nothing is delivered; the catch below saves and shows the error.
+            try transcriptionResult.throwIfNoSpeech()
+
+            // Deliver like a dictation (paste, clipboard fallback, the pill's
+            // "Pasted!" only after a real paste), then save. Before #1636 the
+            // retry only set the text: nothing was pasted, copied or saved.
+            let pasteStart = Date()
             await MainActor.run {
                 appState.lastTranscription = transcriptionResult.text
                 appState.recordingState = .idle
                 appState.pendingRetryAudioPath = nil
+                // The recording's session ended at its stop: no onboarding
+                // gate of its own is left, and a newer session would have
+                // superseded this retry. Its Quick Capture routing was kept
+                // at the stop (#1643).
+                deliverBatchTranscript(
+                    transcriptionResult,
+                    transcriptionMode: transcriptionMode,
+                    sessionStartedSuppressed: false,
+                    trigger: .unknown,
+                    isQuickCaptureRouting: isQuickCaptureRetry,
+                    pasteStart: pasteStart
+                )
             }
             clearActiveSessionMode()
+
+            let savedTranscriptID = await Self.savePendingRetryTranscript(
+                transcriptionResult,
+                failedRowWrite: failedRowWrite,
+                audioURL: audioURL,
+                modeName: transcriptionMode.name
+            )
+
+            // Same storage step as a dictation's success: the row now holds a
+            // completed transcript, so its WAV may be compressed to M4A.
+            if audioURL.pathExtension.lowercased() == "wav",
+               settingsManager?.storeAsM4A == true,
+               let savedTranscriptID {
+                Task {
+                    await recordingLifecycle.performBackgroundWAVToM4AConversion(
+                        transcriptID: savedTranscriptID,
+                        wavURL: audioURL
+                    )
+                }
+            }
         } catch {
+            // Superseded: the newer flow's own request cancelled this one (or it
+            // failed while the newer flow ran). Its error is not the user's.
+            guard !isPendingRetrySuperseded(identity) else { return }
+
+            // A missing model names the mode that uses it, in the row's
+            // reason and the dialog (#1518).
+            let failure = TranscriptionError.attachingMode(transcriptionMode.name, to: error)
+
+            // Every failure, an empty result or an engine that threw (Whisper
+            // throws `.noSpeechDetected` itself), fails the History row with
+            // its reason and counts the retry (#1815).
+            if !(error is CancellationError) {
+                let failedRowWrite = appState.pendingRetryAudioPath == path
+                    ? appState.pendingRetryFailedRowWrite
+                    : nil
+                let failedTranscriptID = await Self.savePendingRetryFailure(
+                    failure,
+                    failedRowWrite: failedRowWrite,
+                    audioURL: audioURL,
+                    modeName: transcriptionMode.name,
+                    transcriptionProvider: FileTranscriptionFlow.failedRowProvider(
+                        for: error,
+                        modelId: transcriptionMode.model
+                    )
+                )
+
+                // The save suspends; a newer flow may own the dialog now.
+                guard !isPendingRetrySuperseded(identity) else { return }
+
+                // The next Retry of this file updates the row just saved, not
+                // a new one per attempt.
+                if let failedTranscriptID, appState.pendingRetryAudioPath == path {
+                    appState.pendingRetryFailedRowWrite = Task { failedTranscriptID }
+                }
+            }
+
             await MainActor.run {
                 appState.recordingState = .idle
-                appState.lastTranscription = "Error: \(error.localizedDescription)"
+                appState.lastTranscription = "Error: \(failure.localizedDescription)"
                 appState.showRecordingDialog = true
             }
         }
@@ -131,9 +321,7 @@ extension RecordingTranscriptionFlow {
         // booleans below carry the diagnostic value the path was carrying:
         // "did the user move this folder, and is it off the home volume".
         let recordingsFolder = settingsManager?.recordingsFolder ?? ""
-        let defaultRecordingsFolder = FileManager.default
-            .urls(for: .documentDirectory, in: .userDomainMask).first?
-            .appendingPathComponent("hyperwhisper/recordings").path
+        let defaultRecordingsFolder = StorageSettingsManager.defaultRecordingsFolderURL?.path
         metadata["recordingsFolderIsDefault"] = !recordingsFolder.isEmpty && recordingsFolder == defaultRecordingsFolder
         metadata["recordingsFolderIsInHome"] = recordingsFolder.hasPrefix(NSHomeDirectory() + "/")
         if recordingsFolder.isEmpty {
@@ -368,6 +556,14 @@ extension RecordingTranscriptionFlow {
             }
         }
 
+        // Issue #1518: a missing model names the mode that uses it, in the alert,
+        // the dialog and the row's reason. Read now, before the session mode is
+        // cleared below. The logs keep `error`: a mode name is user-typed text.
+        let failure = TranscriptionError.attachingMode(appState?.currentSessionModeName, to: error)
+        // The engine the mode routes to, so the failed row shows which one
+        // failed, worded as a completed row words it.
+        let failedRowProvider = FileTranscriptionFlow.failedRowProvider(for: error, modelId: modeIdentity?.localEngine)
+
         let isNetworkOutage: Bool
         if let transcriptionError = error as? TranscriptionError, case .transientNetwork = transcriptionError {
             isNetworkOutage = true
@@ -400,7 +596,8 @@ extension RecordingTranscriptionFlow {
                     await PersistenceController.shared.markTranscriptFailedInBackground(
                         transcriptID: processingTranscriptID,
                         failedReason: te.localizedDescription,
-                        errorText: "Transcription failed: \(te.localizedDescription)"
+                        errorText: "Transcription failed: \(te.localizedDescription)",
+                        transcriptionProvider: failedRowProvider
                     )
                 }
             }
@@ -413,10 +610,10 @@ extension RecordingTranscriptionFlow {
                         appState?.errorMessage = ""
                         appState?.showErrorAlert = false
                     } else {
-                        appState?.showError(error.localizedDescription)
+                        appState?.showError(failure.localizedDescription)
                     }
                     appState?.recordingState = .idle
-                    appState?.lastTranscription = "Error: \(error.localizedDescription)"
+                    appState?.lastTranscription = "Error: \(failure.localizedDescription)"
 
                     // CRITICAL: Disable cancel shortcut on error
                     KeyboardShortcuts.disable(.cancelRecording)
@@ -429,8 +626,9 @@ extension RecordingTranscriptionFlow {
                 if let processingTranscriptID {
                     await PersistenceController.shared.markTranscriptFailedInBackground(
                         transcriptID: processingTranscriptID,
-                        failedReason: error.localizedDescription,
-                        errorText: "Transcription failed: \(error.localizedDescription)"
+                        failedReason: failure.localizedDescription,
+                        errorText: "Transcription failed: \(failure.localizedDescription)",
+                        transcriptionProvider: failedRowProvider
                     )
                 }
                 if !isNetworkOutage, let processingTranscriptID {

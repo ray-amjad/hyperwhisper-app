@@ -53,6 +53,8 @@ HyperWhisper exports your data to a file. You can import that file later on the 
   HyperWhisper does **not** include API keys and license keys by default. Keep a file that contains them in a secure location. Treat this file like a password.
 </Note>
 
+On Linux, HyperWhisper writes an export with owner-only permissions (`0600`), because the file can contain plaintext API keys. If an export or an import fails, the reason appears in a banner on the **Backup** page.
+
 On macOS, an export that includes the license key reads it from the protected Keychain. If that secure read fails, HyperWhisper stops the export and does not write an incomplete backup. During an import, HyperWhisper securely replaces the stored key and waits for its online validation before it reports success. If the license-key step fails after another selected section was applied, the app reports a partial failure and does not roll back that earlier section.
 
 ## Import a backup
@@ -90,7 +92,7 @@ You can restore only the sections that the file contains. You can also uncheck a
         HyperWhisper always adds the words that are not in your list. This option does not change that behavior.
       </Step>
       <Step title="Confirm">
-        Click **Import**. A confirmation shows the number of modes and vocabulary items that HyperWhisper imported. Nothing changes until you click this button.
+        Click **Import**. A confirmation shows the number of modes and vocabulary items that HyperWhisper imported. Nothing changes until you click this button. HyperWhisper imports the modes, and then the vocabulary, all or nothing. If it cannot save one of them, it keeps that part as it was and shows a message.
       </Step>
     </Steps>
   </Tab>

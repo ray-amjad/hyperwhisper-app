@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "진단 내보내기 완료";
 "alerts.export.diagnostics.success.message" = "모든 진단 로그를 성공적으로 내보냈습니다.";
 "alerts.export.diagnostics.saveFailed.message" = "선택한 위치에 진단을 저장할 수 없습니다: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "시스템 로그 없이 진단 정보를 내보냈습니다";
+"alerts.export.diagnostics.noSystemLogs.message" = "진단 파일은 저장되었지만 앱의 시스템 로그를 읽을 수 없어 system-logs.txt에는 이유만 들어 있습니다. 이유: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "지원을 위한 업데이트 로그 내보내기";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "온보딩 완료";
 
 "onboarding.setupLater.button" = "나중에 설정";
-"onboarding.error.microphone.denied" = "마이크 권한이 거부되었습니다. 시스템 설정에서 권한을 부여하세요.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "로그인 시 실행";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "끄기";
 "settings.general.mediaControl.mode.mute" = "오디오 음소거";
+"settings.general.mediaControl.mode.muffle" = "오디오 먹먹하게";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,9 +324,17 @@
 "settings.sound.soundEffects.title" = "효과음 재생";
 "settings.sound.soundEffects.info" = "녹음이 시작되고 중지될 때 오디오 신호를 재생합니다.";
 "settings.sound.mediaControl.title" = "녹음 중 미디어 제어";
-"settings.sound.mediaControl.info" = "녹음하는 동안 HyperWhisper가 다른 오디오를 처리하는 방법을 선택하세요. '끄기'는 오디오를 변경하지 않고 그대로 두고, '오디오 음소거'는 녹음 중 시스템 출력을 음소거하고 이후 복원합니다.";
+"settings.sound.mediaControl.info" = "녹음하는 동안 HyperWhisper가 다른 오디오를 처리하는 방법을 선택하세요. '끄기'는 오디오를 변경하지 않고 그대로 두고, '오디오 음소거'는 녹음 중 시스템 출력을 음소거하고 이후 복원합니다, '오디오 먹먹하게'는 옆방에서 들리는 것처럼 부드럽게 계속 재생합니다.";
+"settings.sound.microphone.title" = "마이크";
+"settings.sound.microphone.subtitle" = "HyperWhisper에서만 사용됩니다. 재시작 후에도 유지됩니다.";
+"microphone.picker.default" = "기본값 · %@";
+"microphone.picker.notConnected" = "%@ (연결 안 됨)";
+"microphone.picker.fallback" = "%2$@이(가) 다시 연결될 때까지 %1$@ 사용 중입니다.";
+"settings.sound.microphone.test" = "테스트";
+"settings.sound.microphone.stop" = "중지";
+"settings.sound.microphone.level" = "입력 레벨";
 "settings.sound.autoIncreaseMicVolume.title" = "마이크 볼륨 자동 증가";
-"settings.sound.autoIncreaseMicVolume.info" = "녹음 시작 시 마이크 입력 볼륨을 최대로 자동 설정한 다음 녹음 중지 시 원래 레벨로 복원합니다. 시스템 기본 입력 장치를 사용하는 경우에만 적용됩니다.";
+"settings.sound.autoIncreaseMicVolume.info" = "녹음을 시작하면 HyperWhisper가 녹음하는 마이크의 입력 음량을 자동으로 최대로 설정하고, 녹음이 끝나면 원래 레벨로 복원합니다. 소프트웨어 음량 조절이 없는 마이크는 변경되지 않습니다.";
 "settings.sound.vad.title" = "음성 인식 전 무음 제거";
 "settings.sound.vad.info" = "AI 음성 감지를 사용하여 앞뒤 무음을 자동으로 감지하고 제거합니다. 음성 인식 정확도를 향상시키고 처리 시간을 줄일 수 있습니다.";
 
@@ -336,6 +346,9 @@
 "settings.storage.choose.button" = "선택...";
 "settings.storage.dialog.select" = "폴더 선택";
 "settings.storage.dialog.message" = "녹음을 저장할 폴더를 선택하세요";
+"settings.storage.folderRefused.title" = "이 폴더를 사용할 수 없습니다";
+"settings.storage.folderRefused.notWritable" = "“%@”에 쓸 권한이 없어 HyperWhisper가 그곳에 녹음을 저장할 수 없습니다. 녹음 폴더는 변경되지 않았습니다.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper가 이 폴더를 만들 수 없습니다: %@ 녹음 폴더는 변경되지 않았습니다.";
 "settings.storage.storeAsM4A.title" = "녹음을 M4A로 압축";
 "settings.storage.storeAsM4A.subtitle" = "음성 인식 후 WAV 녹음을 더 작은 파일로 변환합니다. 끄면 원본 WAV 파일을 유지합니다 (더 크지만 무손실).";
 
@@ -383,6 +396,7 @@
 
 "settings.shortcuts.changeMode.title" = "모드 변경";
 "settings.shortcuts.changeMode.subtitle" = "녹음 중에만 작동";
+"settings.shortcuts.conflict.alert" = "이 키보드 단축키는 이미 “%@”에서 사용 중이므로 사용할 수 없습니다.";
 
 "settings.shortcuts.reset.button" = "기본값으로 재설정";
 "settings.shortcuts.reset.dialog.title" = "키보드 단축키 재설정";
@@ -434,6 +448,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "클립보드에서 붙여넣기";
 "settings.license.clearInput" = "지우기";
+"license.error.keyFormat" = "계정 키 형식이 아닌 것 같습니다.";
 "settings.license.recovery.prompt" = "라이선스 키를 잊으셨나요?";
 "settings.license.recovery.button" = "고객 포털로 이동";
 "settings.license.daily.title" = "일일 음성 인식";
@@ -576,6 +591,8 @@
 "onboarding.configure.cloud.note" = "크레딧은 선불이며 이 키로 로그인한 모든 Mac에서 공유돼요. 아무것도 하지 않는 시간에는 비용이 들지 않아요.";
 "onboarding.source.note" = "나중에 마음이 바뀌어도 다시 하는 건 이 단계 하나뿐이에요. 다른 설정은 그대로 남아요.";
 "onboarding.permissions.note" = "손쉬운 사용을 건너뛰면 필사 결과는 클립보드로 보내져 바로 붙여넣을 수 있어요. 나중에 켜는 건 클릭 한 번이면 돼요.";
+"onboarding.permissions.microphone.denied" = "허용되지 않음. 시스템 설정에서 HyperWhisper를 켠 다음 여기로 돌아오세요.";
+"onboarding.permissions.continueNeedsMicrophone" = "계속하려면 마이크가 필요합니다. 위에서 허용하거나 나중에 설정을 선택하세요.";
 "onboarding.welcome.task1.title" = "필사가 어떻게 실행될지 선택하세요";
 "onboarding.welcome.task1.caption" = "저희 클라우드, 이 Mac, 또는 이미 이용 중인 제공업체 계정 중에서 선택할 수 있어요.";
 "onboarding.welcome.task2.title" = "마이크를 확인하세요";
@@ -683,6 +700,10 @@
 // MARK: - Modes
 "modes.delete.confirm.title" = "모드를 삭제하시겠습니까?";
 "modes.delete.confirm.message" = "선택한 모드를 제거합니다. 이 작업은 실행 취소할 수 없습니다.";
+"modes.editor.discard.title" = "저장하지 않은 변경 사항을 버리시겠습니까?";
+"modes.editor.discard.message" = "이 모드의 변경 사항이 저장되지 않았습니다.";
+"modes.editor.discard.keepEditing" = "계속 편집";
+"modes.editor.discard.button" = "버리기";
 "modes.header.title" = "모드";
 "modes.header.subtitle" = "다양한 컨텍스트 및 워크플로에 대한 사용자 정의 프로필 만들기";
 "modes.header.create" = "모드 만들기";
@@ -727,7 +748,7 @@
 "modes.postProcessing.apiKeyMissing" = "%@ API 키가 구성되지 않았습니다. 후처리를 활성화하려면 설정에 추가하세요.";
 "modes.postProcessing.configure" = "설정에서 구성";
 "modes.postProcessing.modelRecommendation" = "속도와 품질의 최상의 균형을 위해 GPT-4.1 Nano를 사용하는 것이 좋습니다.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "로컬 후처리에는 다운로드된 로컬 모델이 필요합니다.";
 "modes.postProcessing.download" = "설정에서 다운로드";
@@ -787,12 +808,15 @@
 "modes.field.name.placeholder" = "예: 회의록";
 "modes.field.name.editPlaceholder" = "모드 이름";
 "modes.field.name.defaultLocked" = "기본 모드이므로 이름을 변경할 수 없습니다. 다른 모드는 이름을 변경할 수 있습니다.";
+"modes.field.name.taken" = "같은 이름의 모드가 이미 있습니다.";
 "modes.field.model" = "모델";
 "modes.field.provider" = "제공자";
 "modes.provider.local" = "로컬";
 "modes.provider.cloud" = "클라우드";
 "modes.notice.noLocalModels.title" = "로컬 모델이 설치되지 않음";
 "modes.notice.noLocalModels.subtitle" = "먼저 설정에서 모델 설치";
+"modes.model.notInstalledFormat" = "%@ (설치되지 않음)";
+"modes.notice.modelNotInstalled" = "이 모드의 모델이 설치되어 있지 않습니다. 저장해도 그대로 유지됩니다. 모델 라이브러리에서 다운로드하거나 다른 모델을 선택하세요.";
 "modes.model.pricing" = "가격: $%.6f / 분 (초당 청구)";
 "modes.button.create" = "모드 만들기";
 "modes.button.delete" = "모드 삭제";
@@ -811,8 +835,9 @@
 "transcripts.delete.single.message" = "이 녹음과 오디오 파일을 영구적으로 삭제합니다.";
 "transcripts.delete.multiple.title" = "%d개 녹음을 삭제하시겠습니까?";
 "transcripts.delete.multiple.message" = "%d개 녹음과 오디오 파일을 영구적으로 삭제합니다.\n\n이 작업은 실행 취소할 수 없습니다.";
-"transcripts.delete.multiple.confirm" = "모두 삭제";
+"transcripts.delete.multiple.confirm" = "%d개 녹음 삭제";
 "transcripts.retry.error.title" = "재시도 실패";
+"transcripts.retry.error.modeDeleted" = "이 녹음을 만든 모드가 삭제되어 재시도하지 않았습니다. 기록에서 녹음을 마우스 오른쪽 버튼으로 클릭하고 \"다음으로 재시도...\"을(를) 선택하여 다른 모드를 고르세요.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "녹음 폴더 선택";
@@ -863,8 +888,8 @@
 "recording.retry.inProgress" = "재시도 중…";
 "recording.retry.count" = "재시도 (%d)";
 "recording.retry.failed.missing" = "재시도 실패: 오디오 파일을 찾을 수 없음";
-"recording.retry.failed.error" = "재시도 실패: %@";
 "recording.retry.pending" = "재시도 준비 완료 – 클릭하여 음성 인식";
+"recording.retry.modeDeleted" = "모드가 삭제되었습니다";
 "recording.cancel.dialog.title" = "녹음을 취소하시겠습니까?";
 "recording.cancel.dialog.message" = "현재 녹음을 삭제합니다.";
 "recording.cancel.dialog.confirm" = "녹음 취소";
@@ -891,6 +916,7 @@
 "audio.error.microphonePermission" = "마이크 권한이 부여되지 않음";
 "audio.error.microphoneInUse" = "다른 앱이 현재 사용 중이므로 HyperWhisper가 마이크에 액세스할 수 없습니다. 다른 앱을 일시 중지하거나 입력을 전환한 다음 다시 시도하세요.";
 "audio.error.audioSystemNotResponding" = "macOS 오디오가 응답하지 않아 마이크를 시작할 수 없습니다. 잠시 후 다시 시도하세요. 계속 발생하면 Mac을 재시동하세요.";
+"audio.error.recorderStopTimedOut" = "녹음을 저장하는 동안 macOS 오디오가 응답하지 않아 전사하지 못했습니다. 오디오는 보존되었으며, 다음에 HyperWhisper를 시작할 때 복구를 시도합니다.";
 "audio.error.createEngine" = "오디오 엔진 생성 실패";
 "audio.error.noInput" = "오디오 입력을 사용할 수 없음";
 "audio.error.createFile" = "오디오 파일 생성 실패";
@@ -918,6 +944,9 @@
 "transcription.error.providerNotAvailable.provider" = "%@을(를) 사용할 수 없습니다. 설정을 확인하고 다시 시도하세요.";
 "transcription.error.providerNotAvailable.detail" = "%@을(를) 사용할 수 없음: %@";
 "transcription.error.modelNotDownloaded" = "먼저 모델을 다운로드하세요";
+"transcription.error.modelNotDownloaded.modelAndMode" = "%1$@ 모드는 %2$@ 모델을 사용하지만 다운로드되지 않았습니다. 모델 라이브러리에서 다운로드하세요.";
+"transcription.error.modelNotDownloaded.model" = "%1$@ 모델이 다운로드되지 않았습니다. 모델 라이브러리에서 다운로드하세요.";
+"transcription.error.openModelLibrary" = "모델 라이브러리 열기";
 "transcription.error.modelProtected" = "이 모델은 삭제할 수 없습니다";
 "transcription.error.audioFileNotFound" = "오디오 파일을 찾을 수 없음";
 "transcription.error.network.detail" = "네트워크 오류: %@";
@@ -964,10 +993,15 @@
 "transcription.guidance.quotaExceeded" = "%@ 계정에 크레딧을 추가하거나 청구 세부 정보를 업데이트하세요";
 "transcription.guidance.timeout" = "요청이 너무 오래 걸렸습니다. 인터넷 속도를 확인하고 다시 시도하세요.";
 "transcription.error.noSpeechDetected" = "녹음에서 음성이 감지되지 않았습니다.";
+"transcription.error.audioTooShort" = "녹음이 너무 짧아 전사할 수 없습니다. 더 길게 녹음해 주세요.";
 "transcription.guidance.noSpeechDetected" = "팁:\n• 마이크에 명확하게 말하세요\n• 말하기 전에 키를 더 오래 누르세요\n• 마이크가 작동하는지 확인하세요\n• 올바른 입력 장치가 선택되었는지 확인하세요";
 "transcription.guidance.needsNativeRelaunch" = "로컬 후처리를 사용하려면 HyperWhisper를 종료한 후 네이티브로 다시 실행하세요.";
 "transcription.guidance.localRuntimeUnavailable" = "다시 시도하거나, 모드 설정에서 더 작은 로컬 모델을 선택하세요.";
 "transcription.error.localRuntimeUnavailable" = "로컬 AI가 처리를 완료하지 못했습니다 — 원본 받아쓰기 결과는 그대로 유지했습니다.";
+"transcription.error.postProcessingPreflight.unauthorized" = "%@에서 API 키를 거부했습니다 — 원본 받아쓰기 결과는 그대로 유지했습니다.";
+"transcription.error.postProcessingPreflight.unreachable" = "%@에 연결할 수 없습니다 — 원본 받아쓰기 결과는 그대로 유지했습니다.";
+"transcription.error.postProcessingPreflight.notInstalled" = "%@이(가) 설치되어 있지 않습니다 — 원본 받아쓰기 결과는 그대로 유지했습니다.";
+"transcription.error.postProcessingPreflight.unavailable" = "%@을(를) 사용할 수 없습니다 — 원본 받아쓰기 결과는 그대로 유지했습니다.";
 "transcription.error.localSpeechModelEvicted" = "메모리를 확보하기 위해 음성 모델이 해제되었고 다시 불러올 수 없었습니다. 일부 앱을 닫고 다시 시도해 주세요.";
 "settings.backup.localDownload.title" = "로컬 모델을 다운로드할까요?";
 "settings.backup.localDownload.message" = "복원된 모드 중 %d개가 아직 다운로드되지 않은 온디바이스 AI 모델을 사용합니다.";
@@ -975,6 +1009,11 @@
 "settings.backup.localDownload.dismiss" = "닫기";
 "modelLibrary.local.requiresAppleSilicon" = "Apple Silicon 필요";
 "modelLibrary.local.needsNativeRelaunch" = "네이티브로 다시 실행";
+"modelLibrary.remove.confirm.title" = "%@을(를) 제거하시겠습니까?";
+"modelLibrary.remove.confirm.message" = "다시 다운로드해야 합니다(%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "다시 다운로드해야 합니다.";
+"modelLibrary.remove.confirm.button" = "제거";
+"settings.models.inUse.localAPI" = "Local API 요청이 지금 이 모델을 사용하고 있습니다. 요청이 끝나면 다시 시도하세요.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "크레딧이 부족합니다. 설정에서 크레딧을 더 추가하세요.";
@@ -1039,7 +1078,12 @@
 "settings.backup.import.subtitle" = "백업 파일에서 설정 복원";
 "settings.backup.import.button" = "가져오기...";
 "settings.backup.import.panel.title" = "설정 가져오기";
-"settings.backup.import.success" = "가져오기 완료: %d개 모드, %d개 어휘 항목 가져옴";
+"settings.backup.import.result" = "가져오기 완료: %@";
+"settings.backup.import.result.settings" = "설정 복원됨";
+"settings.backup.import.result.modes" = "%d개 모드 가져옴";
+"settings.backup.import.result.vocabulary" = "%d개 어휘 항목 가져옴";
+"settings.backup.import.complete" = "가져오기 완료";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "백업 파일 읽기 실패";
 "settings.backup.import.error.decode" = "잘못된 백업 파일 형식";
 "settings.backup.import.error.decode.keyNotFound" = "필수 필드가 없습니다: %@";
@@ -1049,6 +1093,14 @@
 "settings.backup.import.error.decode.corruptedField" = "필드 값이 손상되었습니다: %@";
 "settings.backup.import.error.version" = "백업 파일이 최신 버전입니다";
 "settings.backup.import.error.unknown" = "가져오기 실패";
+"settings.backup.import.error.storeModes" = "모드를 저장할 수 없어 변경되지 않았습니다.";
+"settings.backup.import.error.storeModesAndVocabulary" = "모드를 저장할 수 없어 모드와 어휘가 변경되지 않았습니다.";
+"settings.backup.import.error.storeVocabulary" = "어휘를 저장할 수 없어 변경되지 않았습니다.";
+"settings.backup.import.error.storeVocabularyAfterModes" = "모드는 가져왔지만 어휘를 저장할 수 없어 어휘는 변경되지 않았습니다.";
+"settings.backup.import.error.storeLicense" = "라이선스 키를 안전하게 가져올 수 없습니다.";
+"settings.backup.import.error.storeSettingsRestored" = "설정은 그대로 유지되었습니다.";
+"settings.backup.import.error.storeOtherSections" = "선택한 다른 항목은 적용되었습니다.";
+"settings.backup.import.apiKeysFailed" = "다음 API 키를 키체인에 저장할 수 없어 복원되지 않았습니다: %@. 설정에서 다시 입력하세요.";
 "settings.backup.import.confirm.title" = "설정을 가져오시겠습니까?";
 "settings.backup.import.confirm.message" = "백업 파일의 모드 및 어휘로 기존 모드 및 어휘를 교체합니다. 설정도 업데이트됩니다.";
 "settings.backup.import.confirm.button" = "가져오기";
@@ -1058,6 +1110,7 @@
 "settings.backup.info.note" = "백업에는 설정, 모드 및 어휘가 포함됩니다. 녹음 및 음성 인식은 포함되지 않습니다.";
 "settings.backup.result.success.title" = "성공";
 "settings.backup.result.error.title" = "오류";
+"settings.backup.result.incomplete.title" = "가져오기 불완전";
 "settings.backup.export.choose.subtitle" = "백업 파일에 포함할 항목 선택";
 "settings.backup.export.section.settings" = "설정";
 "settings.backup.export.section.modes" = "모드";
@@ -1083,6 +1136,17 @@
 "transcribe.file.error.format.title" = "지원되지 않는 형식";
 "transcribe.file.error.format.message" = ".%@ 파일은 %@에서 지원되지 않습니다. 지원되는 형식: %@";
 "transcribe.file.error.read" = "선택한 파일을 읽을 수 없습니다.";
+"transcribe.file.error.webm" = "WebM은 지원되지 않습니다. 파일을 MP3, M4A 또는 WAV로 변환한 후 다시 시도하세요.";
+"transcribe.file.busy.title" = "이미 파일을 전사하는 중입니다.";
+"transcribe.file.busy.message" = "취소하고 이 파일을 시작할까요?";
+"transcribe.file.busy.keepRunning" = "계속 실행";
+"transcribe.file.busy.cancelAndStart" = "취소하고 시작";
+"transcribe.file.error.notAudio" = "“%@” 파일은 올바른 오디오가 아닙니다. 파일이 손상되었거나 macOS가 디코딩할 수 없는 형식일 수 있습니다.";
+"transcribe.file.error.empty" = "“%@” 파일이 비어 있습니다. 받아쓸 오디오가 없습니다.";
+"transcribe.file.error.permission" = "HyperWhisper가 파일 “%@”을(를) 읽을 수 없습니다. 파일 권한을 확인하세요.";
+"transcribe.file.error.folderPermission" = "HyperWhisper가 파일 “%@”이(가) 들어 있는 폴더를 열 수 없습니다. 해당 폴더의 권한을 확인하세요.";
+"transcribe.file.error.privacy" = "macOS 개인정보 보호 설정 때문에 HyperWhisper가 파일 “%@”을(를) 읽지 못했습니다. 시스템 설정 > 개인정보 보호 및 보안 > 전체 디스크 접근 권한에서 허용하세요.";
+"transcribe.file.error.tooShort" = "이 파일은 너무 짧아 전사할 수 없습니다(%@초).";
 "transcribe.file.error.copy" = "파일을 녹음 폴더로 복사하지 못했습니다.";
 "transcribe.file.error.video.title" = "비디오에 오디오 없음";
 "transcribe.file.error.video.noAudio" = "이 비디오 파일에는 오디오 트랙이 포함되어 있지 않습니다. 오디오가 있는 비디오 또는 오디오 파일을 선택하세요.";
@@ -1109,3 +1173,4 @@
 "settings.storage.maxRecordingDuration.hour" = "1시간";
 "settings.storage.maxRecordingDuration.hours" = "%d시간";
 "settings.storage.maxRecordingDuration.off" = "끄기";
+"settings.api_server.status.stopping" = "중지 중…";

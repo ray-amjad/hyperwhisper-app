@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Діагностика експортована";
 "alerts.export.diagnostics.success.message" = "Усі журнали діагностики успішно експортовано.";
 "alerts.export.diagnostics.saveFailed.message" = "Не вдалося зберегти діагностику у вибраному місцезнаходженні: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Діагностику експортовано без системних журналів";
+"alerts.export.diagnostics.noSystemLogs.message" = "Файл діагностики збережено, але системні журнали застосунку не вдалося прочитати, тому system-logs.txt містить лише причину. Причина: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Експортувати журнали оновлень для підтримки";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Завершити онбординг";
 
 "onboarding.setupLater.button" = "Налаштувати пізніше";
-"onboarding.error.microphone.denied" = "Дозвіл на мікрофон відхилено. Будь ласка, надайте дозвіл у параметрах системи.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Запускати при вході";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Вимкнено";
 "settings.general.mediaControl.mode.mute" = "Вимкнути звук";
+"settings.general.mediaControl.mode.muffle" = "Приглушити звук";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,9 +324,17 @@
 "settings.sound.soundEffects.title" = "Відтворювати звукові ефекти";
 "settings.sound.soundEffects.info" = "Відтворювати звукові сигнали під час початку та зупинки запису.";
 "settings.sound.mediaControl.title" = "Керування медіа під час запису";
-"settings.sound.mediaControl.info" = "Виберіть, як HyperWhisper обробляє інший звук під час запису. 'Вимкнено' залишає звук без змін, 'Вимкнути звук' вимикає системний вивід під час запису та відновлює його після.";
+"settings.sound.mediaControl.info" = "Виберіть, як HyperWhisper обробляє інший звук під час запису. 'Вимкнено' залишає звук без змін, 'Вимкнути звук' вимикає системний вивід під час запису та відновлює його після, а 'Приглушити звук' залишає його тихо грати, ніби з сусідньої кімнати.";
+"settings.sound.microphone.title" = "Мікрофон";
+"settings.sound.microphone.subtitle" = "Використовується лише HyperWhisper. Зберігається після перезапуску.";
+"microphone.picker.default" = "За замовчуванням · %@";
+"microphone.picker.notConnected" = "%@ (не підключено)";
+"microphone.picker.fallback" = "Використовується %1$@, доки %2$@ не буде знову підключено.";
+"settings.sound.microphone.test" = "Перевірити";
+"settings.sound.microphone.stop" = "Зупинити";
+"settings.sound.microphone.level" = "Рівень входу";
 "settings.sound.autoIncreaseMicVolume.title" = "Автоматично підвищувати гучність мікрофона";
-"settings.sound.autoIncreaseMicVolume.info" = "Автоматично встановлює гучність вхідного сигналу мікрофона на максимум при початку запису, а потім відновлює вихідний рівень при зупинці. Застосовується тільки при використанні системного пристрою введення за замовчуванням.";
+"settings.sound.autoIncreaseMicVolume.info" = "Автоматично встановлює максимальну вхідну гучність мікрофона, з якого записує HyperWhisper, на початку запису й відновлює початковий рівень після його зупинки. Мікрофони без програмного керування гучністю залишаються без змін.";
 "settings.sound.vad.title" = "Видалити тишу перед транскрипцією";
 "settings.sound.vad.info" = "Автоматично виявляє та видаляє першу та останню тишу за допомогою детектування голосу ШІ. Це може поліпшити точність транскрипції та зменшити час обробки.";
 
@@ -336,6 +346,9 @@
 "settings.storage.choose.button" = "Вибрати...";
 "settings.storage.dialog.select" = "Вибрати папку";
 "settings.storage.dialog.message" = "Виберіть папку для зберігання записів";
+"settings.storage.folderRefused.title" = "Цю папку не можна використати";
+"settings.storage.folderRefused.notWritable" = "У вас немає дозволу на запис у «%@», тому HyperWhisper не може зберігати туди записи. Папку записів не змінено.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper не вдалося створити цю папку: %@ Папку записів не змінено.";
 "settings.storage.storeAsM4A.title" = "Стиснути записи в M4A";
 "settings.storage.storeAsM4A.subtitle" = "Перетворює записи WAV у менші файли після транскрипції. Вимкніть, щоб зберігати вихідні файли WAV (більші, але без втрат якості).";
 
@@ -383,6 +396,7 @@
 
 "settings.shortcuts.changeMode.title" = "Змінити режим";
 "settings.shortcuts.changeMode.subtitle" = "Працює тільки під час запису";
+"settings.shortcuts.conflict.alert" = "Це сполучення клавіш не можна використати, бо воно вже використовується для «%@».";
 
 "settings.shortcuts.reset.button" = "Скинути на значення за замовчуванням";
 "settings.shortcuts.reset.dialog.title" = "Скинути клавіатурні ярлики";
@@ -434,6 +448,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Вставити з буфера обміну";
 "settings.license.clearInput" = "Очистити";
+"license.error.keyFormat" = "Це не схоже на ключ облікового запису.";
 "settings.license.recovery.prompt" = "Забули ліцензійний ключ?";
 "settings.license.recovery.button" = "Перейти на портал клієнта";
 "settings.license.daily.title" = "Щоденна транскрипція";
@@ -576,6 +591,8 @@
 "onboarding.configure.cloud.note" = "Кредити передплачені та спільні для всіх Mac, авторизованих з цим ключем. Час простою нічого не коштує.";
 "onboarding.source.note" = "Якщо ви передумаєте пізніше, повториться лише цей крок. Все інше, що ви налаштували, збережеться.";
 "onboarding.permissions.note" = "Пропустіть Доступність, і транскрипти потраплятимуть у буфер обміну, готові до вставлення. Увімкнути пізніше можна одним кліком.";
+"onboarding.permissions.microphone.denied" = "Не дозволено. Увімкніть HyperWhisper у Системних параметрах і поверніться сюди.";
+"onboarding.permissions.continueNeedsMicrophone" = "Щоб продовжити, потрібен мікрофон. Дозвольте його вище або виберіть «Налаштувати пізніше».";
 "onboarding.welcome.task1.title" = "Виберіть, як працюватиме транскрипція";
 "onboarding.welcome.task1.caption" = "У нашій хмарі, на цьому Mac або через обліковий запис провайдера, за який ви вже платите.";
 "onboarding.welcome.task2.title" = "Перевірте свій мікрофон";
@@ -683,6 +700,10 @@
 // MARK: - Modes
 "modes.delete.confirm.title" = "Видалити режим?";
 "modes.delete.confirm.message" = "Це видалить вибраний режим. Цю дію не можна скасувати.";
+"modes.editor.discard.title" = "Скасувати незбережені зміни?";
+"modes.editor.discard.message" = "Ваші зміни цього режиму не збережено.";
+"modes.editor.discard.keepEditing" = "Продовжити редагування";
+"modes.editor.discard.button" = "Скасувати зміни";
 "modes.header.title" = "Режими";
 "modes.header.subtitle" = "Створюйте спеціальні профілі для різних контекстів та робочих процесів";
 "modes.header.create" = "Створити режим";
@@ -727,7 +748,7 @@
 "modes.postProcessing.apiKeyMissing" = "API ключ %@ не налаштований. Додайте його в параметрах для увімкнення постобробки.";
 "modes.postProcessing.configure" = "Налаштувати в параметрах";
 "modes.postProcessing.modelRecommendation" = "Ми рекомендуємо використовувати GPT-4.1 Nano для найкращого балансу між швидкістю та якістю.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Для локальної постобробки потрібна завантажена локальна модель.";
 "modes.postProcessing.download" = "Завантажити в параметрах";
@@ -787,12 +808,15 @@
 "modes.field.name.placeholder" = "наприклад, Замітки зустрічі";
 "modes.field.name.editPlaceholder" = "Назва режиму";
 "modes.field.name.defaultLocked" = "Це режим за замовчуванням, тому його назву не можна змінити. Будь-який інший режим можна перейменувати.";
+"modes.field.name.taken" = "Режим із такою назвою вже існує.";
 "modes.field.model" = "Модель";
 "modes.field.provider" = "Постачальник";
 "modes.provider.local" = "Локально";
 "modes.provider.cloud" = "Хмара";
 "modes.notice.noLocalModels.title" = "Нема встановлених локальних моделей";
 "modes.notice.noLocalModels.subtitle" = "Спочатку встановіть модель у параметрах";
+"modes.model.notInstalledFormat" = "%@ (не встановлено)";
+"modes.notice.modelNotInstalled" = "Модель цього режиму не встановлено. Збереження її залишає. Завантажте її в Бібліотеці моделей або виберіть іншу модель.";
 "modes.model.pricing" = "Ціна: $%.6f / хвилина (виставляється в секунду)";
 "modes.button.create" = "Створити режим";
 "modes.button.delete" = "Видалити режим";
@@ -811,8 +835,9 @@
 "transcripts.delete.single.message" = "Це назавжди видалить цей запис та його аудіо файл.";
 "transcripts.delete.multiple.title" = "Видалити %d записів?";
 "transcripts.delete.multiple.message" = "Це назавжди видалить %d записів та їхні аудіо файли.\n\nЦю дію не можна скасувати.";
-"transcripts.delete.multiple.confirm" = "Видалити все";
+"transcripts.delete.multiple.confirm" = "Видалити записи: %d";
 "transcripts.retry.error.title" = "Повторна спроба не вдалася";
+"transcripts.retry.error.modeDeleted" = "Режим, у якому зроблено цей запис, видалено, тому повтор не виконано. В Історії клацніть запис правою кнопкою миші та виберіть \"Повторити з...\", щоб вибрати інший режим.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Виберіть папку для записів";
@@ -863,8 +888,8 @@
 "recording.retry.inProgress" = "Повторна спроба…";
 "recording.retry.count" = "Повторити (%d)";
 "recording.retry.failed.missing" = "Повторна спроба не вдалася: аудіо файл не знайдено";
-"recording.retry.failed.error" = "Повторна спроба не вдалася: %@";
 "recording.retry.pending" = "Готово для повторення – клацніть для транскрипції";
+"recording.retry.modeDeleted" = "Режим видалено";
 "recording.cancel.dialog.title" = "Скасувати запис?";
 "recording.cancel.dialog.message" = "Це відхилить поточний запис.";
 "recording.cancel.dialog.confirm" = "Скасувати запис";
@@ -891,6 +916,7 @@
 "audio.error.microphonePermission" = "Дозвіл на мікрофон не надано";
 "audio.error.microphoneInUse" = "HyperWhisper не може отримати доступ до мікрофона, оскільки його використовує інший застосунок. Призупиніть інший застосунок або перемкніть входи, а потім спробуйте ще раз.";
 "audio.error.audioSystemNotResponding" = "Звукова система macOS не відповідає, тому не вдалося увімкнути мікрофон. Спробуйте ще раз за мить. Якщо це повторюється, перезавантажте Mac.";
+"audio.error.recorderStopTimedOut" = "Аудіосистема macOS перестала відповідати під час збереження запису, тому його не було розшифровано. Аудіо збережено: HyperWhisper спробує відновити його під час наступного запуску.";
 "audio.error.createEngine" = "Не вдалося створити аудіо рушій";
 "audio.error.noInput" = "Нема доступного аудіо входу";
 "audio.error.createFile" = "Не вдалося створити аудіо файл";
@@ -918,6 +944,9 @@
 "transcription.error.providerNotAvailable.provider" = "%@ недоступний. Перевірте параметри та спробуйте ще раз.";
 "transcription.error.providerNotAvailable.detail" = "%@ недоступний: %@";
 "transcription.error.modelNotDownloaded" = "Будь ласка, спочатку завантажте модель";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Режим %1$@ використовує модель %2$@, яку не завантажено. Завантажте її в Бібліотеці моделей.";
+"transcription.error.modelNotDownloaded.model" = "Модель %1$@ не завантажено. Завантажте її в Бібліотеці моделей.";
+"transcription.error.openModelLibrary" = "Відкрити Бібліотеку моделей";
 "transcription.error.modelProtected" = "Цю модель не можна видалити";
 "transcription.error.audioFileNotFound" = "Аудіо файл не знайдено";
 "transcription.error.network.detail" = "Помилка мережі: %@";
@@ -964,10 +993,15 @@
 "transcription.guidance.quotaExceeded" = "Додайте кредити на свій обліковий запис %@ або оновіть деталі виставлення рахунків";
 "transcription.guidance.timeout" = "Запит тривав занадто довго. Перевірте швидкість інтернету та спробуйте ще раз.";
 "transcription.error.noSpeechDetected" = "У записі не виявлено мовлення.";
+"transcription.error.audioTooShort" = "Запис закороткий для транскрибування. Записуйте довше.";
 "transcription.guidance.noSpeechDetected" = "Поради:\n• Говоріть ясно в мікрофон\n• Утримуйте клавішу довше перед тим, як говорити\n• Переконайтеся, що ваш мікрофон працює\n• Переконайтеся, що вибраний правильний пристрій введення";
 "transcription.guidance.needsNativeRelaunch" = "Закрийте та знову відкрийте HyperWhisper у нативному режимі, щоб використовувати локальну постобробку.";
 "transcription.guidance.localRuntimeUnavailable" = "Спробуйте ще раз або виберіть меншу локальну модель у параметрах режиму.";
 "transcription.error.localRuntimeUnavailable" = "Локальний ШІ не зміг завершити обробку — вихідний транскрипт збережено.";
+"transcription.error.postProcessingPreflight.unauthorized" = "%@ відхилив ваш API-ключ — вихідний транскрипт збережено.";
+"transcription.error.postProcessingPreflight.unreachable" = "Не вдалося підключитися до %@ — вихідний транскрипт збережено.";
+"transcription.error.postProcessingPreflight.notInstalled" = "%@ не встановлено — вихідний транскрипт збережено.";
+"transcription.error.postProcessingPreflight.unavailable" = "%@ недоступний — вихідний транскрипт збережено.";
 "transcription.error.localSpeechModelEvicted" = "Мовленнєву модель вивантажено, щоб звільнити пам'ять, і не вдалося завантажити її знову. Закрийте кілька програм і повторіть спробу.";
 "settings.backup.localDownload.title" = "Завантажити локальні моделі?";
 "settings.backup.localDownload.message" = "%d з ваших відновлених режимів використовують локальні моделі ШІ, які ще не завантажено.";
@@ -975,6 +1009,11 @@
 "settings.backup.localDownload.dismiss" = "Закрити";
 "modelLibrary.local.requiresAppleSilicon" = "Потрібен Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Перезапустити нативно";
+"modelLibrary.remove.confirm.title" = "Видалити %@?";
+"modelLibrary.remove.confirm.message" = "Вам доведеться завантажити її знову (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Вам доведеться завантажити її знову.";
+"modelLibrary.remove.confirm.button" = "Видалити";
+"settings.models.inUse.localAPI" = "Цю модель зараз використовує запит Local API. Спробуйте ще раз, коли він завершиться.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Недостатньо кредитів. Додайте більше кредитів у Налаштуваннях.";
@@ -1039,7 +1078,12 @@
 "settings.backup.import.subtitle" = "Відновити параметри з файла резервної копії";
 "settings.backup.import.button" = "Імпортувати...";
 "settings.backup.import.panel.title" = "Імпортувати параметри";
-"settings.backup.import.success" = "Імпорт завершено: %d режимів, %d елементів словника імпортовано";
+"settings.backup.import.result" = "Імпорт завершено: %@";
+"settings.backup.import.result.settings" = "налаштування відновлено";
+"settings.backup.import.result.modes" = "імпортовано режимів: %d";
+"settings.backup.import.result.vocabulary" = "імпортовано елементів словника: %d";
+"settings.backup.import.complete" = "Імпорт завершено";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Не вдалось прочитати файл резервної копії";
 "settings.backup.import.error.decode" = "Недійсний формат файла резервної копії";
 "settings.backup.import.error.decode.keyNotFound" = "Відсутнє обовʼязкове поле: %@";
@@ -1049,6 +1093,14 @@
 "settings.backup.import.error.decode.corruptedField" = "Пошкоджене значення поля: %@";
 "settings.backup.import.error.version" = "Файл резервної копії з новішої версії";
 "settings.backup.import.error.unknown" = "Імпорт не вдалось";
+"settings.backup.import.error.storeModes" = "Не вдалося зберегти режими, тому вони залишилися без змін.";
+"settings.backup.import.error.storeModesAndVocabulary" = "Не вдалося зберегти режими, тому режими та словник залишилися без змін.";
+"settings.backup.import.error.storeVocabulary" = "Не вдалося зберегти словник, тому він залишився без змін.";
+"settings.backup.import.error.storeVocabularyAfterModes" = "Режими імпортовано, але не вдалося зберегти словник, тому він залишився без змін.";
+"settings.backup.import.error.storeLicense" = "Не вдалося безпечно імпортувати ліцензійний ключ.";
+"settings.backup.import.error.storeSettingsRestored" = "Налаштування залишилися без змін.";
+"settings.backup.import.error.storeOtherSections" = "Інші вибрані розділи застосовано.";
+"settings.backup.import.apiKeysFailed" = "Ці API-ключі не вдалося зберегти у в'язку ключів, тому їх не відновлено: %@. Введіть їх знову в налаштуваннях.";
 "settings.backup.import.confirm.title" = "Імпортувати параметри?";
 "settings.backup.import.confirm.message" = "Це замінить ваші існуючі режими та словник на ті, що з файла резервної копії. Параметри також будуть оновлені.";
 "settings.backup.import.confirm.button" = "Імпортувати";
@@ -1058,6 +1110,7 @@
 "settings.backup.info.note" = "Резервні копії включають параметри, режими та словник. Записи та транскрипти не включені.";
 "settings.backup.result.success.title" = "Успіх";
 "settings.backup.result.error.title" = "Помилка";
+"settings.backup.result.incomplete.title" = "Імпорт неповний";
 "settings.backup.export.choose.subtitle" = "Виберіть, що включити до файлу резервної копії";
 "settings.backup.export.section.settings" = "Налаштування";
 "settings.backup.export.section.modes" = "Режими";
@@ -1083,6 +1136,17 @@
 "transcribe.file.error.format.title" = "Непідтримуваний формат";
 "transcribe.file.error.format.message" = "Файли .%@ не підтримуються %@. Підтримувані формати: %@";
 "transcribe.file.error.read" = "Не вдалось прочитати вибраний файл.";
+"transcribe.file.error.webm" = "Формат WebM не підтримується. Перетворіть файл у MP3, M4A або WAV і спробуйте ще раз.";
+"transcribe.file.busy.title" = "Файл уже транскрибується.";
+"transcribe.file.busy.message" = "Скасувати його й почати цей?";
+"transcribe.file.busy.keepRunning" = "Продовжити";
+"transcribe.file.busy.cancelAndStart" = "Скасувати й почати";
+"transcribe.file.error.notAudio" = "Файл «%@» не є коректним аудіо. Можливо, його пошкоджено або він має формат, який macOS не вміє декодувати.";
+"transcribe.file.error.empty" = "Файл «%@» порожній. У ньому немає аудіо для транскрибування.";
+"transcribe.file.error.permission" = "HyperWhisper не може прочитати файл «%@». Перевірте права доступу до файлу.";
+"transcribe.file.error.folderPermission" = "HyperWhisper не може відкрити папку, у якій міститься файл «%@». Перевірте права доступу до цієї папки.";
+"transcribe.file.error.privacy" = "Налаштування приватності macOS не дозволили HyperWhisper прочитати файл «%@». Дозвольте це в Системних параметрах > Приватність і безпека > Повний доступ до диска.";
+"transcribe.file.error.tooShort" = "Цей файл закороткий для транскрибування (%@ с).";
 "transcribe.file.error.copy" = "Не вдалось скопіювати файл у папку записів.";
 "transcribe.file.error.video.title" = "Нема звуку у відео";
 "transcribe.file.error.video.noAudio" = "Цей відеофайл не містить аудіо доріжки. Виберіть відео зі звуком або аудіо файл.";
@@ -1109,3 +1173,4 @@
 "settings.storage.maxRecordingDuration.hour" = "1 година";
 "settings.storage.maxRecordingDuration.hours" = "%d годин";
 "settings.storage.maxRecordingDuration.off" = "Вимкнено";
+"settings.api_server.status.stopping" = "Зупинка…";

@@ -136,7 +136,7 @@ public partial class App : Application
     private void OnDomainUnhandledException(object? sender, UnhandledExceptionEventArgs args)
     {
         if (args.ExceptionObject is Exception exception)
-            _telemetry.Capture(exception, "Unhandled application exception");
+            _telemetry.Capture(exception, "Unhandled application exception", args.IsTerminating);
     }
 
     private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs args)

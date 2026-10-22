@@ -200,6 +200,37 @@ public static class CloudTranscriptionProviderExtensions
     };
 
     /// <summary>
+    /// Parses the stored <c>Mode.CloudProvider</c> of a CLOUD mode. A missing
+    /// (null, empty or whitespace) value means HyperWhisper Cloud.
+    ///
+    /// <c>openapi.yaml</c> marks <c>cloudProvider</c> optional, so
+    /// <c>POST /modes</c> with <c>"model":"cloud"</c> and no
+    /// <c>cloudProvider</c> stores null, and so did every older build. macOS
+    /// reads that nil as <c>"hyperwhisper"</c> (<c>ModeModels.swift</c>,
+    /// <c>ModeCard.swift</c>, <c>CloudSTTCatalog.swift</c>); Windows read it as
+    /// <see cref="CloudTranscriptionProvider.None"/>, so the Modes card said
+    /// "None" and every transcription failed with "Unknown cloud provider: None"
+    /// (issue #1521). Defaulting at the READ keeps the stored value and the
+    /// Local API response as they are (both heads answer GET /modes with no
+    /// <c>cloudProvider</c>) and heals modes older builds already saved.
+    ///
+    /// A non-blank value that is not a known identifier still parses to
+    /// <see cref="CloudTranscriptionProvider.None"/>: that is a bad value, not
+    /// an omitted one, and guessing a vendor for it is a different decision.
+    ///
+    /// Call this only where the mode is a cloud mode. A local mode carries a
+    /// null <c>CloudProvider</c> on purpose (<c>LocalModeModel.ApplyOnDevice</c>).
+    ///
+    /// The blank rule is the shared core's
+    /// (<c>cloud_stt_effective_mode_cloud_provider</c>, issue #1709), read through
+    /// <c>SharedCoreBridge.EffectiveModeCloudProvider</c> exactly as the Linux
+    /// head and macOS read it, so the three heads cannot drift apart. A
+    /// non-blank value is parsed as stored, as before.
+    /// </summary>
+    public static CloudTranscriptionProvider FromModeCloudProvider(string? identifier)
+        => FromIdentifier(global::HyperWhisper.SharedCore.SharedCoreBridge.EffectiveModeCloudProvider(identifier));
+
+    /// <summary>
     /// Parses a <c>cloud-stt-catalog.json</c> <c>sttProvider</c> value — the
     /// backend's <c>X-STT-Provider</c> dispatch key — to this enum.
     ///
@@ -239,6 +270,32 @@ public static class CloudTranscriptionProviderExtensions
         // API with its own key slot (TranscriptionApiKeyType.GeminiTranscribe),
         // so it must fall through to None here.
         _ => PostProcessingProvider.None
+    };
+
+    /// <summary>
+    /// The transcription-only key slot for a provider that does NOT share a
+    /// post-processing key (issue #1220). This is the ONE Windows copy of the
+    /// provider -> <see cref="TranscriptionApiKeyType"/> map; callers that read
+    /// or write a key go through <see cref="GetApiKeyProvider"/> first, then this
+    /// (<c>ApiKeyService.GetApiKey/HasApiKey(CloudTranscriptionProvider)</c>).
+    ///
+    /// Returns null for the four shared-key providers (OpenAI, Groq, Gemini,
+    /// Grok — Grok's reads use <c>PostProcessingProvider.Grok</c>, the same
+    /// GrokApiKey slot), for the HyperWhisper-Cloud-routed providers and for
+    /// <see cref="CloudTranscriptionProvider.None"/>. The inverse is
+    /// <c>TranscriptionApiKeyType.ToCloudTranscriptionProvider()</c>.
+    /// </summary>
+    public static TranscriptionApiKeyType? GetTranscriptionApiKeyType(this CloudTranscriptionProvider provider) => provider switch
+    {
+        CloudTranscriptionProvider.Deepgram => TranscriptionApiKeyType.Deepgram,
+        CloudTranscriptionProvider.AssemblyAI => TranscriptionApiKeyType.AssemblyAI,
+        CloudTranscriptionProvider.ElevenLabs => TranscriptionApiKeyType.ElevenLabs,
+        CloudTranscriptionProvider.Mistral => TranscriptionApiKeyType.Mistral,
+        CloudTranscriptionProvider.Soniox => TranscriptionApiKeyType.Soniox,
+        // Own key slot — Google, but NOT the Gemini post-processing key.
+        CloudTranscriptionProvider.GeminiTranscribe => TranscriptionApiKeyType.GeminiTranscribe,
+        CloudTranscriptionProvider.Meta => TranscriptionApiKeyType.Meta,
+        _ => null
     };
 
     /// <summary>

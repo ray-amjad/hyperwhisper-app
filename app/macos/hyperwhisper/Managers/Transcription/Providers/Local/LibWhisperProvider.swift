@@ -24,7 +24,15 @@ class LibWhisperProvider: TranscriptionProvider {
     var name: String {
         currentModel?.displayName ?? "LibWhisper"
     }
-    
+
+    /// The name Model Library shows for a whisper.cpp model id ("tiny.en" →
+    /// "Tiny (English-only)"), which is also what `name` returns once that
+    /// model is loaded. An id no `WhisperModel` has comes back as it is.
+    /// Used to name a missing model (issue #1518).
+    static func modelDisplayName(for modelName: String) -> String {
+        WhisperModel(rawValue: modelName)?.name ?? modelName
+    }
+
     /// The resident whisper.cpp context, or `nil` when nothing is loaded and
     /// when a memory-pressure eviction has freed it. Written ONLY while holding
     /// `lifecycleLock`.
@@ -48,6 +56,17 @@ class LibWhisperProvider: TranscriptionProvider {
     /// and leaves the newer context alone.
     private var contextGeneration: UInt64 = 0
 
+    /// Serialises Local API passes among themselves, FIFO (issue #1465). The
+    /// router hands every request the same provider, and a new pass supersedes
+    /// the running one, so overlapping `/transcribe` calls used to cancel each
+    /// other. Held across the whole request: arming, the pass, and the reads of
+    /// per-pass state afterwards.
+    private let localAPIQueue = AsyncSerialLock()
+
+    /// Counts the passes running on this provider, so a queued Local API pass
+    /// can wait for an in-app dictation to finish instead of superseding it.
+    private let passGate = LibWhisperPassGate()
+
     /// Bumped by every `cancelTranscription()` and by every new pass. A pass
     /// compares it after its claim/reload, because that reload can take seconds
     /// and the unstructured `Task` it creates afterwards inherits no
@@ -63,10 +82,16 @@ class LibWhisperProvider: TranscriptionProvider {
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "LibWhisperProvider")
     
     /// Current transcription task
-    private var transcriptionTask: Task<String, Error>?
+    private var transcriptionTask: Task<TranscriptionOutcome, Error>?
     
     /// Pending model to load (set by setModel, loaded on transcribe)
     private var pendingModel: WhisperModel?
+
+    /// The model the app last chose through `setModel`. A Local API pass loads
+    /// its own model without touching this, so the next in-app pass can see
+    /// that the resident model is no longer the one the app chose, and load it
+    /// back (issue #1465).
+    private var inAppModel: WhisperModel?
     
     /// Track if model is ready
     private var isModelReady: Bool = false
@@ -75,10 +100,8 @@ class LibWhisperProvider: TranscriptionProvider {
     /// Empty = text only (default; zero extra cost).
     private var requestedGranularities: TimestampGranularities = []
 
-    /// Timestamps from the most recent transcribe(...) call, or nil when none
-    /// were requested or the run produced no kept text. Read after the awaited
-    /// transcribe(...) returns (serialized API path — see R5 in the plan).
-    private(set) var lastTimestamps: TranscriptionTimestamps?
+    // A pass's timestamps are returned in its `TranscriptionOutcome`, never
+    // stored on this shared instance (#754).
 
     // MARK: - Initialization
     
@@ -176,7 +199,7 @@ class LibWhisperProvider: TranscriptionProvider {
         guard let model = self.modelManager.downloadedModels.first(where: { $0.name == modelName }),
               let modelPath = model.url?.path else {
             logger.error("❌ Model not found: \(modelName). Available models: \(self.modelManager.downloadedModels.map { $0.name })")
-            throw TranscriptionError.modelNotDownloaded
+            throw TranscriptionError.modelNotDownloaded(model: Self.modelDisplayName(for: modelName))
         }
 
         logger.info("🔧 Found model at path: \(modelPath)")
@@ -240,8 +263,83 @@ class LibWhisperProvider: TranscriptionProvider {
     ///   - vocabulary: Custom vocabulary list
     /// - Returns: Transcribed text
     func transcribe(audioURL: URL, language: String?, mode: Mode?, vocabulary: [Vocabulary]) async throws -> String {
-        // Reset any timestamps from a previous run; only the kept run below sets them.
-        lastTimestamps = nil
+        try await transcribeDetailed(audioURL: audioURL, language: language, mode: mode, vocabulary: vocabulary).text
+    }
+
+    /// The in-app pass, with THIS pass's timestamps (nil when none were armed
+    /// through `setTimestampGranularities` or the run kept no text). whisper.cpp
+    /// reports no detected language here, so `detectedLanguage` stays nil, as
+    /// the protocol default always returned.
+    func transcribeDetailed(audioURL: URL, language: String?, mode: Mode?, vocabulary: [Vocabulary]) async throws -> TranscriptionOutcome {
+        // An in-app pass starts at once and supersedes whatever is running,
+        // Local API passes included: the latest in-app request wins (#1425).
+        await passGate.begin()
+        do {
+            let outcome = try await performTranscribe(audioURL: audioURL, language: language, vocabulary: vocabulary, requiredModel: nil)
+            await passGate.end()
+            return outcome
+        } catch {
+            await passGate.end()
+            throw error
+        }
+    }
+
+    /// One Local API `/transcribe` pass, queued behind every earlier Local API
+    /// pass on this provider (issue #1465, Ray 2026-10-08: queue on the one
+    /// shared provider, no per-request provider).
+    ///
+    /// - Waits its turn among Local API calls, FIFO.
+    /// - Then waits for any in-app pass already running, rather than
+    ///   superseding it: an in-app dictation wins over the API.
+    /// - Can itself still be superseded by an in-app pass that starts while it
+    ///   runs. It then throws `streamingInterrupted`, which the endpoint words
+    ///   as a cancellation.
+    ///
+    /// `model` is loaded for THIS pass only. It never goes through
+    /// `pendingModel`, so a request that resolves while another pass runs can
+    /// no longer change the model under it.
+    func transcribeQueuedForLocalAPI(
+        model: WhisperModel?,
+        audioURL: URL,
+        language: String?,
+        vocabulary: [Vocabulary],
+        granularities: TimestampGranularities
+    ) async throws -> TranscriptionOutcome {
+        try await localAPIQueue.withLock { () async throws -> TranscriptionOutcome in
+            await self.passGate.beginWhenIdle()
+            do {
+                self.requestedGranularities = granularities
+                // The pass's own outcome: its timestamps travel with it, so
+                // nothing is read back off the shared instance (#754).
+                let result = try await self.performTranscribe(audioURL: audioURL, language: language, vocabulary: vocabulary, requiredModel: model)
+                await self.passGate.end()
+                return result
+            } catch {
+                await self.passGate.end()
+                throw error
+            }
+        }
+    }
+
+    /// The whisper.cpp `initial_prompt` for a pass: the vocabulary words that
+    /// have no replacement, space-joined, or nil when there are none.
+    static func vocabularyPrompt(for vocabulary: [Vocabulary]) -> String? {
+        let words = vocabulary
+            .filter { ($0.replacement ?? "").isEmpty }
+            .compactMap { $0.word }
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        return words.isEmpty ? nil : words.joined(separator: " ")
+    }
+
+    /// Sets the pass's prompt on the resident context, every pass, so a nil
+    /// prompt clears the one an earlier mode left there (#2048).
+    static func applyVocabularyPrompt(_ vocabulary: [Vocabulary], to context: WhisperContext) async {
+        await context.setPrompt(vocabularyPrompt(for: vocabulary))
+    }
+
+    /// The body of a pass. `requiredModel` is set only by the Local API, which
+    /// loads its own model instead of the one `setModel` staged.
+    private func performTranscribe(audioURL: URL, language: String?, vocabulary: [Vocabulary], requiredModel: WhisperModel?) async throws -> TranscriptionOutcome {
         // Snapshot the requested granularities for this run, then clear so they
         // don't leak into the next call on this shared provider instance — each
         // call must re-arm via setTimestampGranularities (matches "arm next call").
@@ -270,11 +368,20 @@ class LibWhisperProvider: TranscriptionProvider {
         cancellationEpoch &+= 1
         let epoch = cancellationEpoch
 
-        // If we have a pending model but haven't loaded it yet, load it now
-        if let pending = pendingModel {
+        // If we have a pending model but haven't loaded it yet, load it now.
+        // A Local API pass loads the model it asked for instead, and leaves the
+        // staged one for the next in-app pass.
+        if let requiredModel {
+            try await loadModel(named: requiredModel.rawValue)
+        } else if let pending = pendingModel {
             logger.info("🔄 Loading pending model before transcription: \(pending.rawValue)")
             try await loadModel(named: pending.rawValue)
             pendingModel = nil
+        } else if let inAppModel, let resident = currentModel?.name, resident != inAppModel.rawValue {
+            // A Local API pass swapped the model after `setModel` had found the
+            // app's choice already resident and staged nothing.
+            logger.info("🔄 Restoring the app's model after a Local API pass: \(inAppModel.rawValue)")
+            try await loadModel(named: inAppModel.rawValue)
         }
 
         // Claim residency, THEN read the context under that claim. See
@@ -331,8 +438,10 @@ class LibWhisperProvider: TranscriptionProvider {
         }
 
         // The reload above may have taken seconds. If the user cancelled during
-        // it, stop here — we hold a claim, so release it on the way out.
-        if cancellationEpoch != epoch {
+        // it, stop here — we hold a claim, so release it on the way out. The
+        // caller's own cancel counts too: a cancel aimed at one job only
+        // (#1425) cancels its task, not the provider-wide epoch.
+        if cancellationEpoch != epoch || Task.isCancelled {
             await ModelResidencyRegistry.shared.markIdle(claimToken)
             logger.info("Transcription cancelled before decoding started")
             throw TranscriptionError.streamingInterrupted
@@ -341,7 +450,7 @@ class LibWhisperProvider: TranscriptionProvider {
         logger.info("Starting transcription with model: \(self.currentModel?.name ?? "unknown")")
 
         // Create new transcription task
-        let task = Task<String, Error> {
+        let task = Task<TranscriptionOutcome, Error> {
             try Task.checkCancellation()
 
             // Load and convert audio to required format
@@ -351,9 +460,7 @@ class LibWhisperProvider: TranscriptionProvider {
                 logger.error("❌ No audio samples after conversion")
             }
 
-            // whisper.cpp does not poll for cancellation once `fullTranscribe`
-            // is under way, so this is the last chance to abandon a cancelled
-            // pass before the expensive part.
+            // Abandon a cancelled pass before the expensive part.
             try Task.checkCancellation()
 
             // Early no-speech guard: avoid hallucinated text on near-silent recordings.
@@ -374,17 +481,16 @@ class LibWhisperProvider: TranscriptionProvider {
                 await context.setLanguage(nil)
             }
             
-            // Set custom vocabulary/prompt
-            if !vocabulary.isEmpty {
-                let prompt = vocabulary.filter { $0.replacement == nil || $0.replacement!.isEmpty }.map { $0.word ?? "" }.joined(separator: " ")
-                await context.setPrompt(prompt)
-            }
+            // Set custom vocabulary/prompt, or clear it: the context outlives
+            // this pass, so a mode with no prompt words must not inherit the
+            // last mode's (#2048).
+            await Self.applyVocabularyPrompt(vocabulary, to: context)
             
             // When timestamps are requested, read text + timings together from the
             // same whisper run so the captured timings always belong to the *kept*
             // text (handles the empty-output retries below). Otherwise use the
-            // byte-identical text-only path. Captured timestamps are committed to
-            // `self.lastTimestamps` only after a non-empty result survives.
+            // byte-identical text-only path. Captured timestamps are returned in
+            // this pass's outcome only after a non-empty result survives.
             var capturedTimed: TranscriptionTimestamps?
             func readKeptText() async -> String {
                 guard wantTimestamps else {
@@ -404,8 +510,21 @@ class LibWhisperProvider: TranscriptionProvider {
                 return timed.cleanedText
             }
 
-            // Perform transcription
-            var success = await context.fullTranscribe(samples: samples, wordTimestamps: includeWords)
+            // Perform transcription. A cancel stops whisper.cpp mid-decode
+            // through the abort signal; on its own `fullTranscribe` would run
+            // through the whole file (#1743).
+            let abortSignal = WhisperAbortSignal()
+            func decode(translate: Bool = false) async -> Bool {
+                await withTaskCancellationHandler {
+                    await context.fullTranscribe(samples: samples, translate: translate, wordTimestamps: includeWords, abortSignal: abortSignal)
+                } onCancel: {
+                    abortSignal.trigger()
+                }
+            }
+            var success = await decode()
+
+            // An aborted decode returns false or partial text: report the cancel.
+            try Task.checkCancellation()
 
             guard success else {
                 // The old wording here ("the audio may be corrupted or too
@@ -428,7 +547,7 @@ class LibWhisperProvider: TranscriptionProvider {
                 if let detected = await context.getDetectedLanguage() {
                     logger.warning("⚠️ Empty result. Retrying with detected language forced: \(detected)")
                     await context.setLanguage(detected)
-                    success = await context.fullTranscribe(samples: samples, wordTimestamps: includeWords)
+                    success = await decode()
                     if success {
                         text = await readKeptText()
                     }
@@ -436,31 +555,31 @@ class LibWhisperProvider: TranscriptionProvider {
                 // If still empty, try translation to English
                 if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     logger.warning("⚠️ Still empty after forcing language. Retrying with translation → English")
-                    success = await context.fullTranscribe(samples: samples, translate: true, wordTimestamps: includeWords)
+                    success = await decode(translate: true)
                     if success {
                         text = await readKeptText()
                     }
                 }
             }
 
+            try Task.checkCancellation()
+
             if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 logger.info("🔇 Whisper output remained empty after retries")
-                // No-speech: leave lastTimestamps nil (graceful omission).
+                // No-speech: no outcome, so no timestamps (graceful omission).
                 throw TranscriptionError.noSpeechDetected
             }
-
-            // Commit timings from the run that produced the kept text.
-            self.lastTimestamps = capturedTimed
 
             // PRIVACY: Never log transcript content - only metadata
             // This ensures user speech is never exposed in system logs or diagnostics
             logger.info("Transcription completed - length: \(text.count, privacy: .public) chars")
 
-            return text
+            // Timings from the run that produced the kept text, returned with it.
+            return TranscriptionOutcome(text: text, timestamps: capturedTimed)
         }
         
         transcriptionTask = task
-        if cancellationEpoch != epoch {
+        if cancellationEpoch != epoch || Task.isCancelled {
             // A cancel landed between the check above and this assignment, so it
             // saw no task to cancel. Hand it to this one; the `checkCancellation`
             // at the top of the closure picks it up before any real work.
@@ -470,8 +589,23 @@ class LibWhisperProvider: TranscriptionProvider {
         // Residency already claimed above (before the task could start). Release
         // it once the pass finishes, on every exit path.
         do {
-            let output = try await task.value
+            // The pass task is unstructured, so it does not inherit the caller's
+            // cancellation: forward it, or a cancelled caller (a deleted row's
+            // Retry, #1743) leaves the decode running to the end of the file.
+            let output = try await withTaskCancellationHandler {
+                try await task.value
+            } onCancel: {
+                task.cancel()
+            }
             await ModelResidencyRegistry.shared.markIdle(claimToken)
+            // A pass cancelled in its last window can still finish and hand
+            // back its text. Drop it: the
+            // caller was cancelled or superseded, and a Local API request must
+            // answer with the cancellation, not a transcript (issue #1465).
+            if task.isCancelled || cancellationEpoch != epoch {
+                logger.info("Transcription cancelled during decode; result discarded")
+                throw TranscriptionError.streamingInterrupted
+            }
             return output
         } catch {
             await ModelResidencyRegistry.shared.markIdle(claimToken)
@@ -542,6 +676,7 @@ class LibWhisperProvider: TranscriptionProvider {
     /// Set model (compatibility method for TranscriptionPipeline)
     /// This defers actual loading until transcription time for efficiency
     func setModel(_ model: WhisperModel) {
+        inAppModel = model
         if currentModel?.name == model.rawValue, whisperContext != nil, isModelReady {
             if pendingModel != nil {
                 logger.debug("🎯 Clearing pending model reload because \(model.rawValue) is already active")
@@ -668,7 +803,11 @@ class LibWhisperProvider: TranscriptionProvider {
             case .conversionFailed:
                 throw TranscriptionError.audioConversionFailed
             }
-            
+
+        } catch is CancellationError {
+            // A cancelled pass stops the decode at its next chunk; keep the
+            // cancel so the pass answers `streamingInterrupted` (#1743).
+            throw CancellationError()
         } catch {
             // Unexpected errors
             logger.error("❌ Unexpected audio conversion error: \(error)")
@@ -706,5 +845,41 @@ class LibWhisperProvider: TranscriptionProvider {
     /// Get total size of downloaded models
     func getModelsSize() -> Int64 {
         return modelManager.downloadedModels.reduce(0) { $0 + $1.sizeInBytes }
+    }
+}
+
+/// How many passes are running on one `LibWhisperProvider`, and a way to wait
+/// until none is (issue #1465).
+///
+/// An actor so the "is anything running?" check and the "I am running now"
+/// mark happen in one turn: a dictation that starts between the two would
+/// otherwise be superseded by the Local API pass that had just seen it idle.
+actor LibWhisperPassGate {
+    private var running = 0
+    private var idleWaiters: [CheckedContinuation<Void, Never>] = []
+
+    /// An in-app pass: starts at once, whatever is running.
+    func begin() {
+        running += 1
+    }
+
+    /// A Local API pass: waits until no pass is running, then starts. Loops,
+    /// because a dictation can start between the wake-up and this turn.
+    func beginWhenIdle() async {
+        while running > 0 {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                idleWaiters.append(continuation)
+            }
+        }
+        running += 1
+    }
+
+    /// Every `begin`/`beginWhenIdle` is balanced by exactly one `end`.
+    func end() {
+        running = max(0, running - 1)
+        guard running == 0 else { return }
+        let waiters = idleWaiters
+        idleWaiters.removeAll()
+        waiters.forEach { $0.resume() }
     }
 }

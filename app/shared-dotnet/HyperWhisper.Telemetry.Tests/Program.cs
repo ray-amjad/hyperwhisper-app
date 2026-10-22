@@ -3,6 +3,17 @@ using HyperWhisper.Telemetry;
 using Sentry;
 using Sentry.Protocol;
 
+if (args is [AppDomainChild.Flag, var envelopeFile])
+{
+    AppDomainChild.Run(envelopeFile);
+    return;
+}
+if (args is [AppDomainChild.AppHandlerFlag, var appEnvelopeFile])
+{
+    AppDomainChild.RunWithAppHandler(appEnvelopeFile);
+    return;
+}
+
 var tests = new (string Name, Action Run)[]
 {
     ("blank DSN is a strict no-op", BlankDsnIsNoOp),
@@ -20,6 +31,17 @@ var tests = new (string Name, Action Run)[]
     ("beforeSend sanitizer rewrites every field that can carry the account name", SanitizerRewritesEveryField),
     ("beforeSend sanitizer keeps the grouping directive, adds no key, drops an event it cannot sanitize", SanitizerKeepsShapeAndDropsOnFault),
     ("the configured beforeSend keeps the account name out of the envelope", ConfiguredBeforeSendKeepsAccountNameOutOfEnvelope),
+    ("an unobserved AggregateException keeps its inner type and frames, not their text", AggregateKeepsInnerTypeAndFrames),
+    ("the inner-exception walk flattens, follows InnerException, and stops at 4", InnerExceptionWalkIsFlattenedAndCapped),
+    ("a sanitized unobserved AggregateException reaches the envelope with its inner type and frames, and no text", SanitizedAggregateReachesEnvelopeWithInnerFrames),
+    ("configured options leave unobserved task exceptions to the app handler",ConfiguredOptionsDisableSdkUnobservedTaskCapture),
+    ("configured options leave AppDomain unhandled exceptions to the app handler", ConfiguredOptionsDisableSdkAppDomainCapture),
+    ("a throwing inner StackTrace getter costs only that inner's frames", ThrowingInnerStackTraceCostsOnlyItsFrames),
+    ("each inner exception value links to its true parent", InnerExceptionValuesLinkToTheirParent),
+    ("each report kind carries the mechanism and handled flag the SDK integration set", ReportKindsCarryTheSdkMechanism),
+    ("a fatal AppDomain exception reaches the transport before the process dies, as a crash", FatalAppDomainExceptionIsFlushedAsACrash),
+    ("a sanitized report carries no capture-site thread stack", SanitizedReportCarriesNoCaptureSiteStack),
+    ("each frame splits into its type and its method, constructors and generated types included", FramesSplitIntoTypeAndMethod),
 };
 
 foreach (var test in tests)
@@ -412,6 +434,386 @@ static void ThrowSensitiveException()
     throw exception;
 }
 
+static void AggregateKeepsInnerTypeAndFrames()
+{
+    // The shape TaskScheduler.UnobservedTaskException hands the app (#1051): an
+    // AggregateException that was never thrown, around one that was.
+    Exception thrown;
+    try
+    {
+        ThrowSecretMarker();
+        throw new InvalidOperationException("unreachable");
+    }
+    catch (InvalidOperationException exception)
+    {
+        thrown = exception;
+    }
+    var aggregate = new AggregateException(thrown);
+    Assert.True(aggregate.StackTrace is null);
+
+    var sanitized = TelemetryPrivacy.SanitizeException(aggregate);
+
+    Assert.True(sanitized.Message.Contains("System.AggregateException", StringComparison.Ordinal));
+    Assert.True(sanitized.Message.Contains("System.InvalidOperationException", StringComparison.Ordinal));
+    Assert.True(sanitized.StackTrace is not null);
+    Assert.True(sanitized.StackTrace!.Contains(nameof(ThrowSecretMarker), StringComparison.Ordinal));
+    Assert.False(sanitized.StackTrace.Contains(" in ", StringComparison.Ordinal));
+    Assert.False(sanitized.Message.Contains("secret-marker", StringComparison.Ordinal));
+    Assert.False(sanitized.StackTrace.Contains("secret-marker", StringComparison.Ordinal));
+    Assert.False(sanitized.ToString().Contains("secret-marker", StringComparison.Ordinal));
+    Assert.True(sanitized.InnerException is null);
+    Assert.Equal(0, sanitized.Data.Count);
+}
+
+static void SanitizedAggregateReachesEnvelopeWithInnerFrames()
+{
+    // The production backend's Capture, the production options, the real SDK.
+    Exception thrown;
+    try
+    {
+        ThrowSecretMarker();
+        throw new InvalidOperationException("unreachable");
+    }
+    catch (InvalidOperationException exception)
+    {
+        thrown = exception;
+    }
+
+    var transport = new CapturingSentryTransport();
+    using (SentrySdk.Init(options =>
+    {
+        SentryTelemetryBackend.ConfigureOptions(options, TestConfiguration());
+        options.Transport = transport;
+        options.ProfilesSampleRate = 0;
+        options.AutoSessionTracking = false;
+    }))
+    {
+        new SentryTelemetryBackend().Capture(
+            TelemetryPrivacy.SanitizeException(new AggregateException(thrown)),
+            "Unobserved task exception");
+        SentrySdk.FlushAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+    }
+
+    var errorEvent = transport.FindPayload(payload => payload["exception"] is not null)
+        ?? throw new InvalidOperationException("no error event: " + transport.Dump());
+    var values = errorEvent["exception"]?["values"]?.AsArray() ?? [];
+    Assert.Equal("System.AggregateException", values[^1]?["type"]?.GetValue<string>());
+    var inner = values.SingleOrDefault(value => value?["type"]?.GetValue<string>() == "System.InvalidOperationException");
+    Assert.True(inner is not null);
+    var frames = inner!["stacktrace"]?["frames"]?.AsArray() ?? [];
+    Assert.True(frames.Any(frame =>
+        frame?["function"]?.GetValue<string>().Contains(nameof(ThrowSecretMarker), StringComparison.Ordinal) == true));
+    Assert.True(frames.All(frame => frame?["abs_path"] is null && frame?["filename"] is null));
+    Assert.Equal("chained", inner["mechanism"]?["type"]?.GetValue<string>());
+
+    // Every byte the SDK handed the transport: no message, Data or HResult text.
+    var dump = transport.Dump();
+    Assert.False(dump.Contains("secret-marker", StringComparison.Ordinal));
+    Assert.False(dump.Contains("/home/bob", StringComparison.Ordinal));
+    Assert.False(dump.Contains("0x80131620", StringComparison.OrdinalIgnoreCase));
+    Assert.False(dump.Contains(thrown.HResult.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal));
+}
+
+[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+static void ThrowSecretMarker()
+{
+    var exception = new InvalidOperationException("secret-marker at /home/bob/x.wav");
+    exception.Data["transcript"] = "secret-marker";
+    exception.HResult = unchecked((int)0x80131620);
+    throw exception;
+}
+
+static void InnerExceptionWalkIsFlattenedAndCapped()
+{
+    // Nested aggregates are containers: flattened, never named. Flatten() lists the
+    // direct inner exceptions before a nested aggregate's, and the walk keeps that order.
+    var nested = new AggregateException(
+        new AggregateException(new TimeoutException("secret-marker")),
+        new IOException("secret-marker", new UnauthorizedAccessException("secret-marker")));
+    var flattened = TelemetryPrivacy.SanitizeException(nested).Message;
+    Assert.True(flattened.Contains(
+        "(inner: System.IO.IOException, System.TimeoutException, System.UnauthorizedAccessException)",
+        StringComparison.Ordinal));
+    Assert.False(flattened.Contains("secret-marker", StringComparison.Ordinal));
+
+    // A plain InnerException chain of 6 names the first 4 only.
+    Exception chain = new FormatException("secret-marker");
+    chain = new KeyNotFoundException("secret-marker", chain);
+    chain = new NotSupportedException("secret-marker", chain);
+    chain = new ArgumentException("secret-marker", chain);
+    chain = new IOException("secret-marker", chain);
+    chain = new TimeoutException("secret-marker", chain);
+    var outer = new InvalidOperationException("secret-marker", chain);
+    var capped = TelemetryPrivacy.SanitizeException(outer).Message;
+    Assert.True(capped.Contains(
+        "(inner: System.TimeoutException, System.IO.IOException, System.ArgumentException, System.NotSupportedException)",
+        StringComparison.Ordinal));
+    Assert.False(capped.Contains("KeyNotFoundException", StringComparison.Ordinal));
+    Assert.False(capped.Contains("secret-marker", StringComparison.Ordinal));
+
+    // No inner exception: the message is the pre-#1051 text, so existing Sentry
+    // groups for plain exceptions do not split.
+    Assert.Equal(
+        "A System.InvalidOperationException was reported with message, inner-exception, and data content removed.",
+        TelemetryPrivacy.SanitizeException(new InvalidOperationException("secret-marker")).Message);
+}
+
+// Sentry 4.12.1 has no public getter for its default integrations (Integrations and
+// HasIntegration are internal), so both tests observe the behaviour instead: the
+// production options, the real SDK, an in-memory transport, and the real event.
+static void ConfiguredOptionsDisableSdkUnobservedTaskCapture()
+{
+    var transport = new CapturingSentryTransport();
+    using var raised = new ManualResetEventSlim(false);
+    EventHandler<UnobservedTaskExceptionEventArgs> probe = (_, args) =>
+    {
+        if (args.Exception.InnerException?.Message == "unobserved-marker") raised.Set();
+    };
+    TaskScheduler.UnobservedTaskException += probe;
+    try
+    {
+        using (SentrySdk.Init(options =>
+        {
+            SentryTelemetryBackend.ConfigureOptions(options, TestConfiguration());
+            options.Transport = transport;
+            options.ProfilesSampleRate = 0;
+            options.AutoSessionTracking = false;
+        }))
+        {
+            SentrySdk.CaptureMessage("sdk-alive");
+            for (var attempt = 0; attempt < 50 && !raised.IsSet; attempt++)
+            {
+                AbandonFaultedTask();
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                raised.Wait(TimeSpan.FromMilliseconds(100));
+            }
+            SentrySdk.FlushAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+        }
+    }
+    finally
+    {
+        TaskScheduler.UnobservedTaskException -= probe;
+    }
+
+    // Not vacuous: the event fired, and the transport did carry an event.
+    Assert.True(raised.IsSet);
+    Assert.True(transport.FindPayload(payload => payload["logentry"] is not null) is not null);
+    Assert.True(transport.FindPayload(payload => payload["exception"] is not null) is null);
+    Assert.False(transport.Dump().Contains("unobserved-marker", StringComparison.Ordinal));
+}
+
+[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+static void AbandonFaultedTask()
+{
+    var task = Task.Run(new Action(() => throw new InvalidOperationException("unobserved-marker")));
+    // Waits for the fault without observing it.
+    ((IAsyncResult)task).AsyncWaitHandle.WaitOne();
+}
+
+static void ConfiguredOptionsDisableSdkAppDomainCapture()
+{
+    // An unhandled exception ends the process, so it runs in a child copy of this
+    // program; the child's transport appends each envelope to a file.
+    var envelopeFile = Path.Combine(Path.GetTempPath(), $"hw-telemetry-{Guid.NewGuid():N}.envelopes");
+    try
+    {
+        var (exitCode, stdout, stderr) = AppDomainChild.Spawn(AppDomainChild.Flag, envelopeFile);
+
+        // Not vacuous: the child really died of the unhandled exception, and its
+        // transport really carried an event before that.
+        Assert.True(exitCode != 0);
+        Assert.True(stderr.Contains(AppDomainChild.Marker, StringComparison.Ordinal));
+        Assert.True(stdout.Contains("child-flushed", StringComparison.Ordinal));
+        var transport = CapturingSentryTransport.Load(envelopeFile);
+        Assert.True(transport.FindPayload(payload => payload["logentry"] is not null) is not null);
+        Assert.True(transport.FindPayload(payload => payload["exception"] is not null) is null);
+        Assert.False(transport.Dump().Contains(AppDomainChild.Marker, StringComparison.Ordinal));
+    }
+    finally
+    {
+        File.Delete(envelopeFile);
+    }
+}
+
+static void ThrowingInnerStackTraceCostsOnlyItsFrames()
+{
+    var outer = new InvalidOperationException("secret-marker", new HostileStackTraceException());
+    var sanitized = TelemetryPrivacy.SanitizeException(outer);
+    Assert.True(sanitized.Message.Contains("(inner: HostileStackTraceException)", StringComparison.Ordinal));
+    var values = ((TelemetryPrivacy.TelemetryReportedException)sanitized).ToSentryExceptions();
+    Assert.Equal(2, values.Count);
+    Assert.True(values[0].Stacktrace is null);
+    Assert.Equal("System.InvalidOperationException", values[1].Type);
+}
+
+static void InnerExceptionValuesLinkToTheirParent()
+{
+    // outer -> middle -> cause: the cause hangs off the middle, not the outer.
+    var chain = new InvalidOperationException("secret-marker",
+        new IOException("secret-marker", new TimeoutException("secret-marker")));
+    var links = Links(chain);
+    Assert.Equal((1, 0), links["System.IO.IOException"]);
+    Assert.Equal((2, 1), links["System.TimeoutException"]);
+
+    // An aggregate's flattened inners hang off the aggregate; an InnerException off its wrapper.
+    var aggregate = new AggregateException(
+        new IOException("secret-marker", new UnauthorizedAccessException("secret-marker")),
+        new TimeoutException("secret-marker"));
+    links = Links(aggregate);
+    Assert.Equal((1, 0), links["System.IO.IOException"]);
+    Assert.Equal((2, 0), links["System.TimeoutException"]);
+    Assert.Equal((3, 1), links["System.UnauthorizedAccessException"]);
+
+    // A nested aggregate is not named, so its contents hang off the exception that holds it.
+    var wrapped = new InvalidOperationException("secret-marker", new IOException("secret-marker",
+        new AggregateException(new TimeoutException("secret-marker"), new FormatException("secret-marker"))));
+    links = Links(wrapped);
+    Assert.Equal((1, 0), links["System.IO.IOException"]);
+    Assert.Equal((2, 1), links["System.TimeoutException"]);
+    Assert.Equal((3, 1), links["System.FormatException"]);
+
+    // And the real SDK keeps the links in the envelope.
+    var transport = new CapturingSentryTransport();
+    using (InitTestSdk(transport))
+    {
+        new SentryTelemetryBackend().Capture(TelemetryPrivacy.SanitizeException(chain), null);
+        SentrySdk.FlushAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+    }
+    var values = transport.FindPayload(payload => payload["exception"] is not null)?["exception"]?["values"]?.AsArray()
+        ?? throw new InvalidOperationException("no error event: " + transport.Dump());
+    var cause = values.Single(value => value?["type"]?.GetValue<string>() == "System.TimeoutException");
+    Assert.Equal(2, cause!["mechanism"]?["exception_id"]?.GetValue<int>());
+    Assert.Equal(1, cause["mechanism"]?["parent_id"]?.GetValue<int>());
+
+    static Dictionary<string, (int Id, int Parent)> Links(Exception exception) =>
+        ((TelemetryPrivacy.TelemetryReportedException)TelemetryPrivacy.SanitizeException(exception))
+            .ToSentryExceptions()
+            .Where(value => value.Mechanism?.Type == "chained")
+            .ToDictionary(value => value.Type!, value => (value.Mechanism!.ExceptionId!.Value, value.Mechanism.ParentId!.Value));
+}
+
+static void ReportKindsCarryTheSdkMechanism()
+{
+    var transport = new CapturingSentryTransport();
+    using (InitTestSdk(transport, autoSessionTracking: true))
+    {
+        var backend = new SentryTelemetryBackend();
+        foreach (var context in new[] { "Unobserved task exception", "Unhandled UI exception", "Unhandled application exception" })
+        {
+            backend.Capture(TelemetryPrivacy.SanitizeException(new AggregateException(new TimeoutException(context))), context);
+        }
+        SentrySdk.FlushAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+    }
+    Assert.Equal(("UnobservedTaskException", false), OuterMechanism(transport, "Unobserved task exception"));
+    Assert.Equal(("Avalonia.Threading.Dispatcher.UnhandledException", false), OuterMechanism(transport, "Unhandled UI exception"));
+    Assert.Equal(("AppDomain.UnhandledException", false), OuterMechanism(transport, "Unhandled application exception"));
+    // Unhandled, so the SDK ends the release-health session as Crashed.
+    Assert.True(transport.FindPayload(payload => payload["status"]?.GetValue<string>() == "crashed") is not null);
+
+    // A report the app caught itself stays generic and handled, and crashes no session.
+    var caught = new CapturingSentryTransport();
+    using (InitTestSdk(caught, autoSessionTracking: true))
+    {
+        new SentryTelemetryBackend().Capture(TelemetryPrivacy.SanitizeException(new TimeoutException("secret-marker")), null);
+        SentrySdk.FlushAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+    }
+    var mechanism = caught.FindPayload(payload => payload["exception"] is not null)?["exception"]?["values"]?[0]?["mechanism"];
+    Assert.Equal("generic", mechanism?["type"]?.GetValue<string>());
+    Assert.Equal(true, mechanism?["handled"]?.GetValue<bool>());
+    Assert.True(caught.FindPayload(payload => payload["status"]?.GetValue<string>() == "crashed") is null);
+    Assert.True(caught.FindPayload(payload => payload["sid"] is not null) is not null);
+
+    static (string?, bool?) OuterMechanism(CapturingSentryTransport transport, string context)
+    {
+        var payload = transport.FindPayload(payload => payload["extra"]?["error_message"]?.GetValue<string>() == context)
+            ?? throw new InvalidOperationException("no event for " + context);
+        var mechanism = payload["exception"]?["values"]?.AsArray()[^1]?["mechanism"];
+        return (mechanism?["type"]?.GetValue<string>(), mechanism?["handled"]?.GetValue<bool>());
+    }
+}
+
+static void FatalAppDomainExceptionIsFlushedAsACrash()
+{
+    // The production LinuxSentryService and backend, an app-style AppDomain handler,
+    // and a thread that dies: the report must be on the transport before the process ends.
+    var envelopeFile = Path.Combine(Path.GetTempPath(), $"hw-telemetry-{Guid.NewGuid():N}.envelopes");
+    try
+    {
+        var (exitCode, stdout, stderr) = AppDomainChild.Spawn(AppDomainChild.AppHandlerFlag, envelopeFile);
+        Assert.True(exitCode != 0);
+        Assert.True(stderr.Contains(AppDomainChild.Marker, StringComparison.Ordinal));
+        Assert.True(stdout.Contains("handler-returned", StringComparison.Ordinal));
+        var transport = CapturingSentryTransport.Load(envelopeFile);
+        var errorEvent = transport.FindPayload(payload => payload["exception"] is not null)
+            ?? throw new InvalidOperationException("no error event: " + transport.Dump());
+        var mechanism = errorEvent["exception"]?["values"]?.AsArray()[^1]?["mechanism"];
+        Assert.Equal("AppDomain.UnhandledException", mechanism?["type"]?.GetValue<string>());
+        Assert.Equal(false, mechanism?["handled"]?.GetValue<bool>());
+        Assert.True(transport.FindPayload(payload => payload["status"]?.GetValue<string>() == "crashed") is not null);
+        Assert.False(transport.Dump().Contains(AppDomainChild.Marker, StringComparison.Ordinal));
+    }
+    finally
+    {
+        File.Delete(envelopeFile);
+    }
+}
+
+static void SanitizedReportCarriesNoCaptureSiteStack()
+{
+    // AttachStacktrace is on in production. A report with no Exception object makes
+    // the SDK attach a thread stack, which for a never-thrown exception is the
+    // capture call site's own stack, abs_path and all.
+    Exception thrown;
+    try
+    {
+        ThrowSecretMarker();
+        throw new InvalidOperationException("unreachable");
+    }
+    catch (InvalidOperationException exception)
+    {
+        thrown = exception;
+    }
+
+    var transport = new CapturingSentryTransport();
+    using (InitTestSdk(transport))
+    {
+        using var service = new LinuxSentryService(new PreInitializedSentryBackend());
+        Assert.True(service.Initialize("https://public@example.invalid/1", "test"));
+        CaptureFromNestedSite(service, new InvalidOperationException("never thrown"));
+        CaptureFromNestedSite(service, new AggregateException(thrown));
+        SentrySdk.FlushAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+    }
+
+    var events = 0;
+    foreach (var envelope in transport.Dump().Split("\n---envelope---\n"))
+    {
+        if (!envelope.Contains("\"exception\"", StringComparison.Ordinal)) continue;
+        events++;
+        Assert.False(envelope.Contains("\"threads\"", StringComparison.Ordinal));
+        Assert.False(envelope.Contains("abs_path", StringComparison.Ordinal));
+        foreach (var plumbing in new[] { nameof(CaptureFromNestedSite), nameof(LinuxSentryService), nameof(SentryTelemetryBackend), "OnDomainUnhandledException" })
+        {
+            Assert.False(envelope.Contains(plumbing, StringComparison.Ordinal));
+        }
+    }
+    Assert.Equal(2, events);
+    // Not vacuous: the thrown inner's own sanitized frames are still there.
+    Assert.True(transport.Dump().Contains(nameof(ThrowSecretMarker), StringComparison.Ordinal));
+}
+
+[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+static void CaptureFromNestedSite(LinuxSentryService service, Exception exception) =>
+    service.Capture(exception, "Unhandled application exception");
+
+static IDisposable InitTestSdk(CapturingSentryTransport transport, bool autoSessionTracking = false) => SentrySdk.Init(options =>
+{
+    SentryTelemetryBackend.ConfigureOptions(options, TestConfiguration());
+    options.Transport = transport;
+    options.ProfilesSampleRate = 0;
+    options.AutoSessionTracking = autoSessionTracking;
+});
+
 static void InitializedTelemetryCapturesAndFlushes()
 {
     var backend = new FakeBackend();
@@ -462,6 +864,38 @@ static void ConcurrentInitializationCreatesOneSession()
     Assert.Equal(1, backend.InitializeCalls);
 }
 
+static void FramesSplitIntoTypeAndMethod()
+{
+    // A constructor's name starts with a dot, so a split at the last dot before
+    // "(" alone would give Module "Ns.Widget." and Function "ctor(String name)".
+    var cases = new (string Line, string Module, string Function)[]
+    {
+        ("   at Ns.Widget..ctor(String name)", "Ns.Widget", ".ctor(String name)"),
+        ("   at Ns.Widget..cctor()", "Ns.Widget", ".cctor()"),
+        ("   at Ns.Type`1.Method[T](T value, System.String text)", "Ns.Type`1", "Method[T](T value, System.String text)"),
+        ("   at Ns.Type.<Run>d__3.MoveNext()", "Ns.Type.<Run>d__3", "MoveNext()"),
+        ("   at Ns.Program.<>c.<Main>b__0_0()", "Ns.Program.<>c", "<Main>b__0_0()"),
+        ("   at Ns.Outer+Inner.M()", "Ns.Outer+Inner", "M()"),
+        ("   at Ns.Type.Method(Int32 x)", "Ns.Type", "Method(Int32 x)"),
+    };
+    var stack = string.Join('\n', cases.Select(c => c.Line));
+    var report = new TelemetryPrivacy.TelemetryReportedException(
+        new TelemetryPrivacy.SanitizedPart("System.InvalidOperationException", stack),
+        [],
+        stack);
+
+    var frames = report.ToSentryExceptions().Single().Stacktrace?.Frames
+        ?? throw new InvalidOperationException("no frames");
+    Assert.Equal(cases.Length, frames.Count);
+    for (var i = 0; i < cases.Length; i++)
+    {
+        // Sentry wants the oldest frame first: the last line is frame 0.
+        var frame = frames[cases.Length - 1 - i];
+        Assert.Equal(cases[i].Module, frame.Module);
+        Assert.Equal(cases[i].Function, frame.Function);
+    }
+}
+
 sealed class FakeBackend : ITelemetryBackend
 {
     public int InitializeCalls { get; private set; }
@@ -487,6 +921,20 @@ sealed class FakeBackend : ITelemetryBackend
     }
 
     public void Flush(TimeSpan timeout) => FlushCalls++;
+}
+
+/// <summary>The production backend over an SDK the test already initialized.</summary>
+sealed class PreInitializedSentryBackend : ITelemetryBackend
+{
+    private readonly SentryTelemetryBackend _real = new();
+    public IDisposable? Initialize(TelemetryConfiguration configuration) => new CallbackDisposable(() => { });
+    public void Capture(Exception exception, string? context) => _real.Capture(exception, context);
+    public void Flush(TimeSpan timeout) => _real.Flush(timeout);
+}
+
+sealed class HostileStackTraceException : Exception
+{
+    public override string? StackTrace => throw new InvalidOperationException("secret-marker");
 }
 
 sealed class CallbackDisposable(Action callback) : IDisposable
@@ -515,20 +963,126 @@ static class Fixtures
         "Could not open '$XDG_DATA_HOME/HyperWhisper/models/ggml-base.bin' for $USER: Permission denied (errno 13, 0x80131620)";
 }
 
-sealed class CapturingSentryTransport : Sentry.Extensibility.ITransport
+static class AppDomainChild
 {
+    public const string Flag = "--appdomain-child";
+    public const string AppHandlerFlag = "--appdomain-app-handler-child";
+    public const string Marker = "appdomain-marker";
+
+    public static (int ExitCode, string Stdout, string Stderr) Spawn(string flag, string envelopeFile)
+    {
+        var self = Environment.ProcessPath ?? throw new InvalidOperationException("no process path");
+        var start = new System.Diagnostics.ProcessStartInfo(self)
+        {
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+        };
+        if (Path.GetFileNameWithoutExtension(self) == "dotnet") start.ArgumentList.Add(typeof(Program).Assembly.Location);
+        start.ArgumentList.Add(flag);
+        start.ArgumentList.Add(envelopeFile);
+        start.Environment["DOTNET_DbgEnableMiniDump"] = "0";
+
+        using var child = System.Diagnostics.Process.Start(start) ?? throw new InvalidOperationException("no child");
+        var stderr = child.StandardError.ReadToEndAsync();
+        var stdout = child.StandardOutput.ReadToEndAsync();
+        if (!child.WaitForExit(TimeSpan.FromSeconds(60)))
+        {
+            child.Kill(entireProcessTree: true);
+            throw new InvalidOperationException("child did not exit");
+        }
+        return (child.ExitCode, stdout.Result, stderr.Result);
+    }
+
+    /// <summary>
+    /// What App.axaml.cs does: the production service and backend, and an AppDomain
+    /// handler that reports through it. Only the transport differs (a file).
+    /// </summary>
+    public static void RunWithAppHandler(string envelopeFile)
+    {
+        var service = new LinuxSentryService(new FileTransportBackend(envelopeFile));
+        if (!service.Initialize("https://public@example.invalid/1", "test")) throw new InvalidOperationException("no init");
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            if (args.ExceptionObject is Exception exception)
+                service.Capture(exception, "Unhandled application exception", args.IsTerminating);
+            Console.WriteLine("handler-returned");
+            Console.Out.Flush();
+        };
+
+        var thread = new Thread(() => throw new InvalidOperationException(Marker));
+        thread.Start();
+        thread.Join();
+    }
+
+    private sealed class FileTransportBackend(string envelopeFile) : ITelemetryBackend
+    {
+        private readonly SentryTelemetryBackend _real = new();
+
+        public IDisposable? Initialize(TelemetryConfiguration configuration) => SentrySdk.Init(options =>
+        {
+            SentryTelemetryBackend.ConfigureOptions(options, configuration);
+            options.Transport = new CapturingSentryTransport(envelopeFile);
+            options.ProfilesSampleRate = 0;
+        });
+
+        public void Capture(Exception exception, string? context) => _real.Capture(exception, context);
+        public void Flush(TimeSpan timeout) => _real.Flush(timeout);
+    }
+
+    public static void Run(string envelopeFile)
+    {
+        // Production options, a file-backed transport, and no app handler: any
+        // exception event in the file came from the SDK's own integration.
+        SentrySdk.Init(options =>
+        {
+            SentryTelemetryBackend.ConfigureOptions(options, TelemetryConfiguration.Create(
+                "https://public@example.invalid/1", "test", typeof(Program).Assembly));
+            options.Transport = new CapturingSentryTransport(envelopeFile);
+            options.ProfilesSampleRate = 0;
+            options.AutoSessionTracking = false;
+        });
+        SentrySdk.CaptureMessage("child-alive");
+        SentrySdk.FlushAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+        Console.WriteLine("child-flushed");
+        Console.Out.Flush();
+
+        var thread = new Thread(() => throw new InvalidOperationException(Marker));
+        thread.Start();
+        thread.Join();
+    }
+}
+
+sealed class CapturingSentryTransport(string? mirrorFile = null) : Sentry.Extensibility.ITransport
+{
+    private const string Separator = "\n---envelope---\n";
     private readonly List<string> _envelopes = [];
+
+    public static CapturingSentryTransport Load(string file)
+    {
+        var transport = new CapturingSentryTransport();
+        if (File.Exists(file))
+        {
+            transport._envelopes.AddRange(File.ReadAllText(file)
+                .Split(Separator, StringSplitOptions.RemoveEmptyEntries));
+        }
+        return transport;
+    }
 
     public async Task SendEnvelopeAsync(Sentry.Protocol.Envelopes.Envelope envelope, CancellationToken cancellationToken = default)
     {
         using var stream = new MemoryStream();
         await envelope.SerializeAsync(stream, null, cancellationToken);
-        lock (_envelopes) _envelopes.Add(System.Text.Encoding.UTF8.GetString(stream.ToArray()));
+        var text = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+        lock (_envelopes)
+        {
+            _envelopes.Add(text);
+            if (mirrorFile is not null) File.AppendAllText(mirrorFile, text + Separator);
+        }
     }
 
     public string Dump()
     {
-        lock (_envelopes) return string.Join("\n---envelope---\n", _envelopes);
+        lock (_envelopes) return string.Join(Separator, _envelopes);
     }
 
     public IEnumerable<string> AllStringValues()

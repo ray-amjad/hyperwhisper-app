@@ -23,11 +23,14 @@
 import Foundation
 
 class DeepgramProvider: TranscriptionProvider {
+    /// A stateless HTTP call: nothing per call is kept on the instance (#1425).
+    var supportsConcurrentPasses: Bool { true }
+
     private var apiKey: String = ""
 
     /// Shared session with 180s resource timeout (matches Windows)
     private lazy var session: URLSession = {
-        let config = URLSessionConfiguration.default
+        let config = URLSessionConfiguration.credentialBearing
         config.timeoutIntervalForRequest = 60
         config.timeoutIntervalForResource = 180
         config.waitsForConnectivity = false

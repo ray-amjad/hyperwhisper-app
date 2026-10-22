@@ -21,12 +21,19 @@ public sealed class VocabularyViewModel : ViewModelBase
         ExportCommand = new AsyncCommand(_ => ExportAsync());
     }
     public ObservableCollection<VocabularyItem> Items { get; } = new();
-    public string Word { get => _word; set => Set(ref _word, value); }
-    public string Replacement { get => _replacement; set => Set(ref _replacement, value); }
+    public string Word { get => _word; set { if (Set(ref _word, value)) ClearSubmitError(); } }
+    public string Replacement { get => _replacement; set { if (Set(ref _replacement, value)) ClearSubmitError(); } }
     public VocabularyItem? Selected
     {
         get => _selected;
-        set { if (Set(ref _selected, value) && value is not null) { Word = value.Word; Replacement = value.Replacement ?? string.Empty; } }
+        set
+        {
+            // Loading a row always reloads the pill, even the row already selected: a failed
+            // save leaves Selected on it, and editing it again restores its word (#634).
+            if (!Set(ref _selected, value) && value is null) return;
+            ClearSubmitError();
+            if (value is not null) { Word = value.Word; Replacement = value.Replacement ?? string.Empty; }
+        }
     }
     public string TransferPath { get => _transferPath; set => Set(ref _transferPath, value); }
 
@@ -52,7 +59,7 @@ public sealed class VocabularyViewModel : ViewModelBase
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
-        try { Items.Clear(); foreach (var item in await _repository.ListAsync(cancellationToken)) Items.Add(item); Status.Success($"{Items.Count} term(s)"); }
+        try { Items.Clear(); foreach (var item in await _repository.ListAsync(cancellationToken)) Items.Add(item); Status.Success(Plural.Count(Items.Count, "term", "terms")); }
         catch (Exception) { Status.Failure("vocabulary.load_failed", "Could not load vocabulary."); }
         NotifyDerived();
     }
@@ -64,13 +71,49 @@ public sealed class VocabularyViewModel : ViewModelBase
         Notify(nameof(InputError));
         Notify(nameof(HasInputError));
     }
+    /// <summary>
+    /// Issue #634: a submit error describes the text that was submitted, so it goes once that
+    /// text is edited or another row is loaded into the pill — what Windows does
+    /// (VocabularyPage.xaml.cs ClearError). Load, delete and transfer errors stay.
+    /// </summary>
+    private void ClearSubmitError()
+    {
+        if (Status.ErrorCode is not ("vocabulary.word_required" or "vocabulary.duplicate" or "vocabulary.add_failed")) return;
+        Status.Clear();
+        NotifyDerived();
+    }
     public Task AddAsync(CancellationToken cancellationToken = default) => SaveAsync(cancellationToken);
     public async Task SaveAsync(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(Word)) { Status.Failure("vocabulary.word_required", "Enter a word or phrase."); NotifyDerived(); return; }
-        var item = Selected ?? new VocabularyItem { SortOrder = Items.Count };
-        item.Word = Word.Trim(); item.Replacement = string.IsNullOrWhiteSpace(Replacement) ? null : Replacement.Trim();
-        try { _ = await _repository.UpsertAsync(item, cancellationToken); await RefreshAsync(cancellationToken); Selected = null; Word = string.Empty; Replacement = string.Empty; Status.Success("Vocabulary saved"); }
+        // Issue #1777: a pasted multi-line text is one word per non-empty line. The first line
+        // takes the row being edited (if any); every line carries the same replacement, which
+        // may itself span lines.
+        var lines = VocabularyWords.SplitLines(Word);
+        var replacement = string.IsNullOrWhiteSpace(Replacement) ? null : Replacement.Trim();
+        try
+        {
+            // Issue #633: the store merges a word it already holds (any case), which moved the row,
+            // wiped its replacement or rewrote its spelling. A word that another row holds, or that
+            // an earlier pasted line holds, is refused, nothing is written, and the input stays.
+            // The row being edited may keep or re-case its own word. Import still merges.
+            var taken = new HashSet<string>(
+                (await _repository.ListAsync(cancellationToken)).Where(item => item.Id != Selected?.Id).Select(item => item.Word.Trim()),
+                StringComparer.OrdinalIgnoreCase);
+            if (lines.FirstOrDefault(line => !taken.Add(line)) is { } duplicate)
+            {
+                Status.Failure("vocabulary.duplicate", $"\"{duplicate}\" is already in your vocabulary.");
+                NotifyDerived();
+                return;
+            }
+            for (var index = 0; index < lines.Count; index++)
+            {
+                var item = index == 0 && Selected is { } selected ? selected : new VocabularyItem { SortOrder = Items.Count + index };
+                item.Word = lines[index]; item.Replacement = replacement;
+                _ = await _repository.UpsertAsync(item, cancellationToken);
+            }
+            await RefreshAsync(cancellationToken); Selected = null; Word = string.Empty; Replacement = string.Empty; Status.Success("Vocabulary saved");
+        }
         catch (Exception) { Status.Failure("vocabulary.add_failed", "Could not add the vocabulary item."); }
         NotifyDerived();
     }
@@ -94,7 +137,7 @@ public sealed class VocabularyViewModel : ViewModelBase
             }).Where(item => item.Word.Length > 0);
             var count = await _repository.MergeAsync(items, cancellationToken);
             await RefreshAsync(cancellationToken);
-            Status.Success($"Imported {count} term(s); duplicates merged");
+            Status.Success($"Imported {Plural.Count(count, "term", "terms")}; duplicates merged");
         }
         catch (Exception) { Status.Failure("vocabulary.import_failed", "Could not import vocabulary."); }
     }

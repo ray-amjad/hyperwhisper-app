@@ -19,10 +19,11 @@ const ROUTE = "app/api/download/route.ts";
 
 const MUTANTS = [
   {
-    file: ROUTE,
+    // The limit is shared with the download router since #2069.
+    file: "lib/shared/appcast.ts",
     name: "time out after 30 s, not 3 s",
-    from: "const APPCAST_FETCH_TIMEOUT_MS = 3000;",
-    to: "const APPCAST_FETCH_TIMEOUT_MS = 30000;",
+    from: "export const APPCAST_FETCH_TIMEOUT_MS = 3000;",
+    to: "export const APPCAST_FETCH_TIMEOUT_MS = 30000;",
   },
   {
     file: ROUTE,

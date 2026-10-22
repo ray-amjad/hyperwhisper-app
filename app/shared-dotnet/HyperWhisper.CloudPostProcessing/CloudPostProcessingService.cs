@@ -218,12 +218,16 @@ public sealed class CloudPostProcessingService : IDisposable
         }
         var credential = await _credentials.GetCredentialAsync(
             CloudPostProcessingProvider.HyperWhisperCloud, null, cancellationToken);
-        if (string.IsNullOrWhiteSpace(credential?.LicenseKey)
-            && string.IsNullOrWhiteSpace(credential?.DeviceId))
+        // An account key is required. The backend answers 401 "License
+        // required" to a device-id request, so a device identity alone is a
+        // doomed call; refuse here, as cloud transcription already does
+        // (`CloudTranscriptionService.CreateParams`). Fail-closed only — the
+        // server stays the authority (issue #1487).
+        if (string.IsNullOrWhiteSpace(credential?.LicenseKey))
         {
             return CloudPostProcessingResult.Failed(
                 transcript, CloudPostProcessingFailureCode.MissingCredential,
-                "A HyperWhisper account or device identity is required.");
+                "HyperWhisper Cloud requires an account key.");
         }
 
         using var message = LlmPostProcessing.BuildRequest(new PortableLlmRequest(

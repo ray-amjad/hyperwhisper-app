@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { Fragment, useId, useMemo, useState } from "react";
 import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
@@ -15,19 +15,81 @@ import {
   validateCreditPurchaseAmount,
   computeCreditPurchase,
 } from "@/app/api/checkout/credits/validation";
-import { isRecord } from "@/src/lib/type-guards";
 import { showEmailError } from "@/src/lib/credits-email";
+import { watchForAbandonedRedirect } from "@/src/lib/abandoned-redirect";
+import { createBuyCreditsHandler } from "@/src/lib/buy-credits";
+import { reportClientError } from "@/lib/shared/report-client-error";
 
 const PRESETS = [5, 10] as const;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
+ * The seam's report properties, narrowed to what `reportClientError` takes.
+ * The seam builds them and keeps the email (and any licence key) out of them;
+ * this only drops values that are not a string or a number, and drops the
+ * seam's own `operation`, which `reportClientError` overwrites anyway.
+ */
+function reportContext(
+  properties: Record<string, unknown>,
+): Record<string, string | number> {
+  const context: Record<string, string | number> = {};
+
+  for (const [key, value] of Object.entries(properties)) {
+    if (key === "operation") continue;
+    if (typeof value === "string" || typeof value === "number") {
+      context[key] = value;
+    }
+  }
+
+  return context;
+}
+
+/**
+ * #768: a summary value that pops in, one character at a time, when it
+ * changes. The first render is the plain text, so the server markup and the
+ * first paint are as before. Each later change remounts the characters (the
+ * key), which replays their `.t-number-pop-char` animation with no reflow
+ * trick. A screen reader reads the whole value from the `sr-only` copy; the
+ * split characters are hidden from it.
+ */
+function PopValue({ text, delay = 0 }: { text: string; delay?: number }) {
+  const [shown, setShown] = useState(text);
+  const [changes, setChanges] = useState(0);
+
+  // The "adjust state while rendering" pattern from the React docs: no effect,
+  // so the new value never paints once without its animation.
+  if (text !== shown) {
+    setShown(text);
+    setChanges(changes + 1);
+  }
+  if (changes === 0) return text;
+
+  return (
+    <Fragment key={changes}>
+      <span className="sr-only">{text}</span>
+      {Array.from(text).map((char, index) => (
+        <span
+          key={index}
+          aria-hidden="true"
+          className="t-number-pop-char"
+          style={{ animationDelay: `${delay + index * 40}ms` }}
+        >
+          {char}
+        </span>
+      ))}
+    </Fragment>
+  );
+}
+
+/**
  * Guest buy-credits UI for /credits.
  *
  * Visitor enters an email, picks a preset ($5 / $10) or a custom whole-dollar
- * amount, and we POST to /api/checkout/credits (mint path — no license key).
- * Stripe collects payment, the webhook mints a key and emails it to them.
+ * amount, and we POST to /api/checkout/credits (mint path — no license key)
+ * through the shared seam in `src/lib/buy-credits.ts` (#949), the same one the
+ * dashboard's `CloudCreditsCard` uses. Stripe collects payment, the webhook
+ * mints a key and emails it to them.
  *
  * Copy lives under the `buyCredits` namespace in messages/*.json.
  */
@@ -78,6 +140,41 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
     setError(null);
   };
 
+  // Built in the render body, as `CloudCreditsCard.tsx` does it, so a test that
+  // can render this form but cannot click it still sees the wiring. Every rule
+  // about when to navigate, what to show and when to clear `loading` lives in
+  // the seam (#949): a non-JSON body and an empty or 5xx server `error` show
+  // the translated checkout copy, and a scheduled redirect hands the release
+  // of `loading` to the abandoned-redirect watcher instead of dropping it.
+  const handleBuyCredits = createBuyCreditsHandler({
+    email: email.trim(),
+    // NOT the bare global `fetch`: passed as a value it loses its `this` and
+    // throws `Illegal invocation` in the browser.
+    fetchImpl: (input, init) => fetch(input, init),
+    navigate: (destination) => {
+      window.location.href = destination;
+    },
+    // Never the email address: the seam builds these properties and keeps the
+    // address out of them, and only the failure goes to the report.
+    // `credits.checkout` is the operation name #739 pins for this form.
+    reportError: (thrown, properties) => {
+      const context = reportContext(properties);
+
+      void reportClientError("credits.checkout", thrown, context);
+    },
+    // The seam's busy tier is a dollar amount or "custom"; this form has one
+    // button, so any tier is just "loading".
+    setBusy: (tier) => setLoading(tier !== null),
+    setError,
+    // Back from Stripe out of the bfcache re-arms the button. See
+    // `src/lib/abandoned-redirect.ts` before adding a timer here.
+    onRedirectScheduled: (release) => {
+      watchForAbandonedRedirect(window, release);
+    },
+    checkoutErrorMessage: t("errorCheckout"),
+    genericErrorMessage: t("errorGeneric"),
+  });
+
   const handleCheckout = async () => {
     // Guard against double-submit (rapid clicks create duplicate checkout
     // sessions / charges); the button is also disabled while loading.
@@ -98,38 +195,12 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
       return;
     }
 
-    setLoading(true);
-    try {
-      const response = await fetch("/api/checkout/credits", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), amount: effectiveAmount }),
-      });
-      const data: unknown = await response.json();
-
-      if (
-        response.ok &&
-        isRecord(data) &&
-        typeof data.checkoutUrl === "string"
-      ) {
-        window.location.href = data.checkoutUrl;
-        return;
-      }
-
-      setError(
-        isRecord(data) && typeof data.error === "string"
-          ? data.error
-          : t("errorCheckout"),
-      );
-      setLoading(false);
-    } catch {
-      setError(t("errorGeneric"));
-      setLoading(false);
-    }
+    // The seam never rejects; it sets and releases `loading` itself.
+    await handleBuyCredits(effectiveAmount);
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="mx-auto lg:max-w-2xl">
       <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -181,7 +252,7 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
                 input: "text-white",
               }}
             />
-            <p className="text-xs text-gray-500 mt-2" id={emailHelpId}>
+            <p className="text-xs text-gray-400 mt-2" id={emailHelpId}>
               {t("emailHelp")}
             </p>
 
@@ -248,35 +319,41 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
                 </button>
               </div>
 
+              {/* The field grows open from 0fr (#702) instead of arriving at
+                  full height in one frame. */}
               {isCustom && (
-                <div className="mt-3">
-                  {/* HeroUI still sets aria-label to the placeholder, but a
-                      caller's aria-labelledby reaches the <input> as given and
-                      wins over aria-label in the accessible name. */}
-                  <Input
-                    aria-labelledby={`${amountLabelId} ${customTitleId}`}
-                    type="number"
-                    value={customAmount}
-                    onChange={(e) => {
-                      setCustomAmount(e.target.value);
-                      setError(null);
-                    }}
-                    placeholder={t("customPlaceholder", {
-                      min: MIN_CREDIT_DOLLARS,
-                      max: MAX_CREDIT_DOLLARS,
-                    })}
-                    variant="bordered"
-                    size="lg"
-                    min={MIN_CREDIT_DOLLARS}
-                    max={MAX_CREDIT_DOLLARS}
-                    step={1}
-                    startContent={<span className="text-gray-400">$</span>}
-                    classNames={{
-                      inputWrapper:
-                        "bg-gray-900/60 border-gray-700 data-[hover=true]:border-gray-600 group-data-[focus=true]:border-purple-500",
-                      input: "text-white",
-                    }}
-                  />
+                <div className="t-cell-reveal">
+                  <div>
+                    <div className="mt-3">
+                      {/* HeroUI still sets aria-label to the placeholder, but a
+                          caller's aria-labelledby reaches the <input> as given and
+                          wins over aria-label in the accessible name. */}
+                      <Input
+                        aria-labelledby={`${amountLabelId} ${customTitleId}`}
+                        type="number"
+                        value={customAmount}
+                        onChange={(e) => {
+                          setCustomAmount(e.target.value);
+                          setError(null);
+                        }}
+                        placeholder={t("customPlaceholder", {
+                          min: MIN_CREDIT_DOLLARS,
+                          max: MAX_CREDIT_DOLLARS,
+                        })}
+                        variant="bordered"
+                        size="lg"
+                        min={MIN_CREDIT_DOLLARS}
+                        max={MAX_CREDIT_DOLLARS}
+                        step={1}
+                        startContent={<span className="text-gray-400">$</span>}
+                        classNames={{
+                          inputWrapper:
+                            "bg-gray-900/60 border-gray-700 data-[hover=true]:border-gray-600 group-data-[focus=true]:border-purple-500",
+                          input: "text-white",
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -286,24 +363,39 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
               <div className="flex justify-between text-gray-400 mb-2">
                 <span>{t("summaryCredits")}</span>
                 <span className="text-gray-200">
-                  {credits.toLocaleString()}
+                  <PopValue text={credits.toLocaleString()} />
                 </span>
               </div>
               <div className="flex justify-between text-gray-400 mb-2">
                 <span>{t("summaryFee")}</span>
-                <span className="text-gray-200">${feeUsd.toFixed(2)}</span>
+                <span className="text-gray-200">
+                  <PopValue text={`$${feeUsd.toFixed(2)}`} />
+                </span>
               </div>
               <div className="flex justify-between font-semibold text-white border-t border-gray-800 pt-2 mt-2">
                 <span>{t("summaryTotal")}</span>
-                <span>${totalUsd.toFixed(2)}</span>
+                {/* Last in the stagger, so the eye lands on the charge. */}
+                <span>
+                  <PopValue delay={120} text={`$${totalUsd.toFixed(2)}`} />
+                </span>
               </div>
             </div>
 
-            {error && (
-              <p className="text-sm text-red-400 mt-4" role="alert">
-                {error}
-              </p>
-            )}
+            {/* #749: the wrapper stays mounted and the message reveals in it
+                (.t-error-reveal), so the button below moves down over 280 ms
+                instead of in one frame. The alert still mounts with its text.
+                No field shakes here: the button is disarmed while the email or
+                the amount is invalid, so the only error a buyer can reach is
+                the server refusing the checkout, which no field caused. */}
+            <div className="t-error-reveal" data-open={error ? "" : undefined}>
+              <div>
+                {error && (
+                  <p className="text-sm text-red-400 mt-4" role="alert">
+                    {error}
+                  </p>
+                )}
+              </div>
+            </div>
 
             <Button
               className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold mt-6"
@@ -315,7 +407,7 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
               {loading ? t("ctaLoading") : t("ctaIdle")}
             </Button>
 
-            <p className="text-xs text-gray-500 text-center mt-3">
+            <p className="text-xs text-gray-400 text-center mt-3">
               {t("secure")}
             </p>
           </CardBody>

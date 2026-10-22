@@ -3,6 +3,11 @@ import VideoDemo from "@/components/landing/VideoDemo";
 import FeaturesGrid from "@/components/landing/FeaturesGrid";
 import PricingSection from "@/components/landing/PricingSection";
 import FAQSection from "@/components/landing/FAQSection";
+import { localizedPageMetadata } from "@/lib/localized-page-metadata";
+
+export const generateMetadata = localizedPageMetadata({
+  path: "",
+});
 
 export default function Home() {
   return (

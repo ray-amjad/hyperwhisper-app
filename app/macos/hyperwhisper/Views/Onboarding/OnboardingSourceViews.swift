@@ -282,11 +282,16 @@ struct OnboardingConfigureView: View {
                 )
                 Button("onboarding.configure.cloud.testKey".localized, action: flow.testAccessKey)
                     .buttonStyle(.bordered)
-                    .disabled(flow.isTestingKey
-                              || flow.licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(flow.isTestingKey || !flow.isLicenseKeyPlausible)
             }
 
-            if flow.isTestingKey {
+            // #1489: text that cannot be a key gets a short hint instead of a server round trip.
+            if flow.showsLicenseKeyFormatHint {
+                OnboardingCardDivider()
+                OnboardingCardBlock {
+                    OnboardingErrorNote(text: "license.error.keyFormat".localized)
+                }
+            } else if flow.isTestingKey {
                 OnboardingCardDivider()
                 OnboardingCardRow {
                     ProgressView().scaleEffect(0.5).frame(width: 16, height: 16)
@@ -601,8 +606,7 @@ struct OnboardingSetupView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
-                    .disabled(flow.isActivatingLicense
-                              || flow.licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(flow.isActivatingLicense || !flow.isLicenseKeyPlausible)
 
                     // #315: the user was sent back here from a later step. The
                     // copy names Back explicitly, because a user who reached

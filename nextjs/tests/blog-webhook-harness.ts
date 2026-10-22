@@ -31,6 +31,19 @@ export const fakeEnv: Record<string, string | undefined> = {
 /** Database calls the route made. The 400 paths must make none. */
 export const dbCalls: string[] = [];
 
+/**
+ * Per-test stand-ins for `db.select` and `db.insert`. Unset, a call throws,
+ * so a test that expects no database work fails loudly if the route makes any.
+ * `resetHarness` clears them.
+ */
+export const dbHandlers: {
+  select?: (...args: unknown[]) => unknown;
+  insert?: (...args: unknown[]) => unknown;
+} = {};
+
+/** Every path the route passed to `revalidatePath` (mocked: no Next runtime). */
+export const revalidatedPaths: string[] = [];
+
 /** Every `console.error` call the route made, with its raw arguments. */
 export const errorCalls: unknown[][] = [];
 
@@ -49,6 +62,9 @@ export function restoreRouteErrors(): void {
 export function resetHarness(): void {
   dbCalls.length = 0;
   errorCalls.length = 0;
+  revalidatedPaths.length = 0;
+  delete dbHandlers.select;
+  delete dbHandlers.insert;
 }
 
 function moduleUrl(relative: string): string {
@@ -70,9 +86,12 @@ interface ModuleMocker {
 
 const moduleMock = mock as unknown as ModuleMocker;
 
-function recordDb(method: string) {
-  return () => {
+function recordDb(method: "select" | "insert") {
+  return (...args: unknown[]) => {
     dbCalls.push(method);
+    const handler = dbHandlers[method];
+
+    if (handler) return handler(...args);
     throw new Error(`unexpected db.${method} in a blog webhook test`);
   };
 }
@@ -85,6 +104,16 @@ moduleMock.module(moduleUrl("../src/db/index.ts"), {
 
 moduleMock.module(moduleUrl("../src/env/server.mjs"), {
   namedExports: { env: fakeEnv },
+});
+
+// The real revalidatePath throws outside a Next request ("static generation
+// store missing"), which the route would count as a failed upsert.
+moduleMock.module("next/cache", {
+  namedExports: {
+    revalidatePath: (path: string) => {
+      revalidatedPaths.push(path);
+    },
+  },
 });
 
 const URL_BASE = "https://hyperwhisper.test/api/webhooks/add-blog-post";

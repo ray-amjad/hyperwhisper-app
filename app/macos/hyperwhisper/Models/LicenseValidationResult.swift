@@ -83,6 +83,10 @@ struct LicenseValidationResult {
     /// commit it. `status` still carries that authoritative server verdict.
     /// `LicenseManager` keeps an existing Active state only when the server also
     /// returned Active; an Invalid or Expired verdict revokes it immediately.
+    /// From any other state, an Active verdict activates only when its key is
+    /// the key already stored (only the verdict cache failed to commit). When
+    /// the store holds no key or a different key, nothing was saved for it, so
+    /// the prior state stays (#1490).
     let storagePersistenceFailed: Bool
 
     init(
@@ -103,5 +107,43 @@ struct LicenseValidationResult {
         self.errorMessage = errorMessage
         self.networkFailureFallback = networkFailureFallback
         self.storagePersistenceFailed = storagePersistenceFailed
+    }
+}
+
+/// The loose shape check every account-key field runs before it sends anything (#1489).
+///
+/// It refuses only text that cannot be any key: empty after trimming, longer than
+/// `maximumLength` characters, or holding whitespace, a control character, or any
+/// character outside printable ASCII. There is deliberately no `HW-XXXX` pattern: the
+/// server also holds imported Polar-era keys whose format the app cannot assume, and
+/// those must still activate. The server stays the only judge of whether a key is real.
+///
+/// Windows and Linux share the same rule in `AccountKeyFormat`
+/// (app/shared-dotnet/HyperWhisper.CloudAccount/AccountKeyFormat.cs).
+enum LicenseKeyFormat {
+    /// The longest trimmed text that can still be a key.
+    static let maximumLength = 64
+
+    /// The field text with leading and trailing whitespace and newlines removed. A key
+    /// copied from an email often carries a trailing newline; this is the text that is
+    /// checked and sent.
+    static func normalized(_ text: String) -> String {
+        text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// True when the trimmed text could be a key, so Activate may send it.
+    static func isPlausible(_ text: String) -> Bool {
+        let scalars = normalized(text).unicodeScalars
+        guard !scalars.isEmpty, scalars.count <= maximumLength else { return false }
+        // Printable ASCII without the space: "!" (0x21) through "~" (0x7E). This one range
+        // excludes every whitespace, every control character and every non-ASCII scalar.
+        return scalars.allSatisfy { (0x21...0x7E).contains($0.value) }
+    }
+
+    /// True when the field holds text that cannot be a key, so the hint shows under it.
+    /// An empty or whitespace-only field shows no hint: there is nothing to correct yet,
+    /// and the disabled Activate button already says so.
+    static func showsHint(_ text: String) -> Bool {
+        !normalized(text).isEmpty && !isPlausible(text)
     }
 }

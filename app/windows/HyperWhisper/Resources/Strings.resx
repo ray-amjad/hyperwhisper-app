@@ -148,6 +148,9 @@
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>More...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -246,6 +249,12 @@
   </data>
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
+  </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Another program has the History database locked. The recording was kept and will be saved to History once the database is free.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>This recording couldn't be saved to History yet. The recording was kept and will be saved to History later.</value>
   </data>
 
   <!-- Modes Page -->
@@ -437,6 +446,9 @@
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
+  </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Not available on a test profile. This build uses a separate app-data folder, so it does not change the installed app's login entry.</value>
   </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Launch minimized</value>
@@ -1050,6 +1062,12 @@ Do you want to restart now?</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Not activated)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (No API key)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -1080,6 +1098,9 @@ Do you want to restart now?</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>File transcription cancelled</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transcribing file...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1103,11 +1124,11 @@ Do you want to restart now?</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>The mode that made this recording was deleted, so it was not retried. In History, right-click the recording and choose "Retry With..." to pick another mode.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Recording stopped — 20-minute safety limit reached.</value>
@@ -1414,6 +1435,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Single modifier shortcuts such as Ctrl, Alt, Shift, or Win are not supported. Use a key with modifiers or a multi-modifier shortcut such as Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>A shortcut with no modifier must be a function key or Esc. Any other key would fire while you type.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>This shortcut is already used for {0} ({1})</value>
   </data>
@@ -1454,6 +1478,9 @@ You must have at least one mode.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Windows Application Control blocked {0}, a file HyperWhisper needs. Ask your IT administrator to allow HyperWhisper, or check Smart App Control in Windows Security.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>
@@ -1485,6 +1512,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Model In Use</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} is used by the "{1}" mode. Switch that mode to another model before deleting it.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1755,6 +1788,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>That doesn't look like an account key.</value>
+  </data>
 
 
   <!-- Mode Editor - Additional -->
@@ -1779,8 +1815,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>A recording or file transcription is already running. Try the file again when it finishes.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>This file is empty, so there is no audio to transcribe.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>This file is damaged or is not an audio file HyperWhisper can read.</value>
   </data>
 
   <!-- Update UI -->
@@ -1861,6 +1906,9 @@ You can re-download it later.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Muffle audio</value>
+  </data>
   <data name="settings.sound.autoIncreaseMicVolume.title" xml:space="preserve">
     <value>Auto-increase microphone volume</value>
   </data>
@@ -1872,6 +1920,27 @@ You can re-download it later.</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Used by HyperWhisper only. Remembered across restarts.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Default · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (not connected)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Using {0} until {1} is reconnected.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>No microphone is connected. HyperWhisper will use {0} when it is reconnected.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Test</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Stop</value>
   </data>
 
   <!-- Home Stats Bar -->

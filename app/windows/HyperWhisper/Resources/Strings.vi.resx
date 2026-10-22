@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Một chương trình khác đang khóa cơ sở dữ liệu Lịch sử. Bản ghi đã được giữ lại và sẽ được lưu vào Lịch sử khi cơ sở dữ liệu rảnh.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Chưa thể lưu bản ghi này vào Lịch sử. Bản ghi đã được giữ lại và sẽ được lưu vào Lịch sử sau.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -366,6 +372,9 @@
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
+  </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Không khả dụng trên hồ sơ thử nghiệm. Bản dựng này dùng một thư mục dữ liệu ứng dụng riêng, nên không thay đổi mục đăng nhập của ứng dụng đã cài đặt.</value>
   </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Khởi động ở trạng thái tối thiểu</value>
@@ -790,6 +799,12 @@ Hành động này không thể được hoàn tác.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Chưa kích hoạt)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (Không có khóa API)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -820,6 +835,9 @@ Hành động này không thể được hoàn tác.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Đã hủy chuyển tệp thành văn bản</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Đang chép lời tệp...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -843,11 +861,11 @@ Hành động này không thể được hoàn tác.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Chế độ đã tạo bản ghi này đã bị xóa, nên bản ghi không được thử lại. Trong Lịch sử, nhấp chuột phải vào bản ghi và chọn "Thử lại với..." để chọn chế độ khác.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Ghi âm đã dừng — đã đạt giới hạn an toàn 20 phút.</value>
@@ -1081,6 +1099,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Không hỗ trợ phím tắt chỉ gồm một phím bổ trợ như Ctrl, Alt, Shift hoặc Win. Hãy dùng một phím kèm phím bổ trợ hoặc phím tắt nhiều phím bổ trợ như Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Phím tắt không có phím bổ trợ phải là phím chức năng hoặc Esc. Bất kỳ phím nào khác sẽ bị kích hoạt khi bạn gõ.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Phím tắt này đã được dùng cho {0} ({1})</value>
   </data>
@@ -1121,6 +1142,9 @@ You must have at least one mode.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Kiểm soát ứng dụng Windows đã chặn {0}, một tệp mà HyperWhisper cần. Hãy nhờ quản trị viên CNTT của bạn cho phép HyperWhisper, hoặc kiểm tra Kiểm soát ứng dụng thông minh trong Bảo mật Windows.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>
@@ -1152,6 +1176,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Mô hình đang được sử dụng</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>Chế độ "{1}" đang dùng {0}. Hãy chuyển chế độ đó sang mô hình khác trước khi xóa.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1286,6 +1316,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Đây có vẻ không phải là khóa tài khoản.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1306,8 +1339,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Đang có một bản ghi âm hoặc phiên chép lời tệp chạy. Hãy thử lại tệp khi hoàn tất.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Tệp này trống nên không có âm thanh để chép lời.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Tệp này bị hỏng hoặc không phải là tệp âm thanh mà HyperWhisper có thể đọc.</value>
   </data>
 
   <!-- Mode Change Toast -->
@@ -1689,6 +1731,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Thêm...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1983,11 +2028,35 @@ You can re-download it later.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Làm nghẹt âm thanh</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Chỉ HyperWhisper sử dụng. Được ghi nhớ sau khi khởi động lại.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Mặc định · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (chưa kết nối)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Đang dùng {0} cho đến khi {1} được kết nối lại.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Không có micrô nào được kết nối. HyperWhisper sẽ dùng {0} khi nó được kết nối lại.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Kiểm tra</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Dừng</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

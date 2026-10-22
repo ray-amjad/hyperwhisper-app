@@ -139,8 +139,12 @@ struct HyperWhisperApp: App {
     /// Aggregates cloud + local models into a single Library list
     @StateObject private var modelLibraryManager = ModelLibraryManager()
     
-    /// Core Data persistence controller
-    let persistenceController = PersistenceController.shared
+    /// Core Data persistence controller.
+    ///
+    /// Computed, not a stored `let`: a stored property's initial value runs
+    /// before `init()`'s body, which would open the store ahead of the
+    /// single-instance guard there (issue #1483).
+    var persistenceController: PersistenceController { PersistenceController.shared }
 
     /// Auto-delete cleanup service for automatic deletion of old recordings
     /// This service runs on app launch and periodically to clean up old transcripts
@@ -149,6 +153,11 @@ struct HyperWhisperApp: App {
     // MARK: - Initialization
     
     init() {
+        // ONE COPY PER DATA STORE (issue #1483): first, before anything opens
+        // the Core Data store or starts the Local API. A second launch on the
+        // same store brings the running copy forward and exits here.
+        SingleInstanceGuard.claimStoreOrHandOff()
+
         let sharedLicenseManager = LicenseManager()
         _licenseManager = StateObject(wrappedValue: sharedLicenseManager)
         _hyperWhisperCloudManager = StateObject(wrappedValue: HyperWhisperCloudManager(licenseManager: sharedLicenseManager))
@@ -254,7 +263,13 @@ struct MenuBarIconView: View {
 }
 
     // MARK: - Scene Configuration
-    
+
+    /// The main window's localized title, by license. The Window menu's
+    /// reopen item reads the same string (#1526).
+    private var mainWindowTitle: String {
+        licenseManager.licenseStatus == .active ? "app.title.pro".localized : "app.title".localized
+    }
+
     /// The body property defines all the scenes (windows) our app can display
     /// A Scene in SwiftUI represents a window or group of windows
     var body: some Scene {
@@ -262,7 +277,7 @@ struct MenuBarIconView: View {
         // MARK: Main Window
         /// WindowGroup creates the main application window
         /// It automatically handles window management (closing, minimizing, etc.)
-        WindowGroup(licenseManager.licenseStatus == .active ? "app.title.pro".localized : "app.title".localized, id: "mainWindow") {  // Dynamic localized window title based on license
+        WindowGroup(mainWindowTitle, id: "mainWindow") {  // Dynamic localized window title based on license
 
             // This is the root view of our main window
             MainAppView()
@@ -312,6 +327,21 @@ struct MenuBarIconView: View {
                     // Update transcription manager when models change
                     transcriptionPipeline.rescanAvailableLocalModels()
                 }
+                // A finished Whisper download prepares the selected mode again, so a
+                // mode that launched on a missing or truncated file returns to Ready
+                // (#1632). Fires after the rescan above: same publisher, registered later.
+                .onReceive(
+                    whisperModelManager.$downloadedModels
+                        .dropFirst()
+                        .map { models in models.map(\.name) }
+                        .removeDuplicates()
+                ) { _ in
+                    Task { @MainActor in
+                        await transcriptionPipeline.refreshParakeetReadiness(
+                            forModeId: appState.selectedModeId
+                        )
+                    }
+                }
                 .onReceive(parakeetModelManager.$availableModels) { _ in
                     transcriptionPipeline.rescanAvailableLocalModels()
                 }
@@ -331,6 +361,26 @@ struct MenuBarIconView: View {
                 }
                 .onReceive(nemotronModelManager.$availableModels) { _ in
                     transcriptionPipeline.rescanAvailableLocalModels()
+                }
+                // Prepare the selected Nemotron mode again once its install changes,
+                // or once a Re-download clears a broken flag: that leaves
+                // availableModels equal, so watch the flag too (#1632). A flag being
+                // set is skipped, or each failed load would retry the load.
+                .onReceive(
+                    nemotronModelManager.$availableModels
+                        .dropFirst()
+                        .removeDuplicates()
+                        .map { _ in () }
+                        .merge(with: nemotronModelManager.$brokenVariants
+                            .scan((Set<String>(), Set<String>())) { pair, next in (pair.1, next) }
+                            .filter { pair in !pair.0.isSubset(of: pair.1) }
+                            .map { _ in () })
+                ) { _ in
+                    Task { @MainActor in
+                        await transcriptionPipeline.refreshParakeetReadiness(
+                            forModeId: appState.selectedModeId
+                        )
+                    }
                 }
                 .onReceive(localModelManager.$downloadedModels) { _ in
                     cloudProviderHealthManager.refreshAllPostProcessing(force: true)
@@ -363,7 +413,15 @@ struct MenuBarIconView: View {
         
         // Disable window resizing
         .windowResizability(.contentSize)
-        
+
+        // Never open a NEW main window for an external event (issue #656). A
+        // file opened with "Open With" / `open -a` is handled by
+        // AppDelegate.application(_:open:), which shows History in the existing
+        // window; without this SwiftUI may also route the open event to this
+        // WindowGroup and spawn a second instance of it. The app declares no URL
+        // scheme, so no other external event is meant to reach this scene.
+        .handlesExternalEvents(matching: [])
+
         // Add keyboard shortcuts for the window
         .commands {
             // Remove "New Window" item
@@ -372,8 +430,12 @@ struct MenuBarIconView: View {
             // Remove "Edit" menu items
             CommandGroup(replacing: .undoRedo) { }
 
-            // Remove "Window" menu items (Show All Tabs)
-            CommandGroup(replacing: .windowList) { }
+            // Settings… (cmd+,) in the app menu, and the Window menu's window
+            // list replaced by one item that reopens the main window (#1526)
+            MainWindowCommands(
+                appState: appState,
+                windowTitle: mainWindowTitle
+            )
 
             // Clean up View menu
             // Remove "Show Tab Bar" / Toolbar items
@@ -650,6 +712,19 @@ struct MenuBarIconView: View {
         cloudProviderHealthManager.refreshAll()
         cloudProviderHealthManager.refreshAllPostProcessing()
 
+        // LOCAL API STAGING SWEEP (issue #1484): delete the per-request audio
+        // folders a killed or crashed process left in $TMPDIR. Runs whether
+        // or not the server is on, since an earlier run may have left them.
+        // Off the main actor; it never removes this process's own folders,
+        // so it cannot race a request the server below starts meanwhile.
+        // CLOUD TEMP AUDIO SWEEP (issue #1581): the same rule for the temp
+        // copies of the user's audio a cloud request writes (multipart and
+        // base64 bodies, re-encoded and Dictation WAVs).
+        Task.detached(priority: .utility) {
+            LocalAPIStagingSweep.sweep()
+            CloudTempAudioSweep.sweep()
+        }
+
         // LOCAL API SERVER: wire dependencies, then start the server if the
         // user toggle is on. The server stays off by default — Settings →
         // API Server flips `localAPIServerEnabled` and calls start()/stop().
@@ -799,6 +874,20 @@ struct MenuBarIconView: View {
         // repair for a dangling `currentModeId` — see the note there.
         Task { @MainActor in
             initializeSelectedModeLightweight()
+
+            // OPENED FILES (issue #656): files from Finder "Open With" or
+            // `open -a HyperWhisper <file>` queue in OpenedFileRouter until now.
+            // Configured here, after the selected Mode is restored in this same
+            // turn, so a cold-launch file uses the user's Mode and not the
+            // seeded default AppState starts with.
+            OpenedFileRouter.shared.configure(
+                processor: OpenedFileRouter.makeFileImportProcessor(
+                    transcriptionPipeline: transcriptionPipeline,
+                    settingsManager: settingsManager,
+                    appState: appState,
+                    licenseManager: licenseManager
+                )
+            )
         }
     }
 
@@ -1182,6 +1271,10 @@ struct MenuBarIconView: View {
         // disabled, and keep OS-level registration in sync with the settings
         // toggles (settings change paths post .shortcutDidChange).
         syncFeatureGatedHotkeys()
+
+        // A recorder refuses a combo another action uses, and says which (#1474).
+        ShortcutConflictGuard.shared.start()
+
         NotificationCenter.default.addObserver(
             forName: .shortcutDidChange,
             object: nil,
@@ -1251,7 +1344,7 @@ struct MenuBarIconView: View {
             alert.messageText = "alerts.export.failed.title".localized
             alert.informativeText = "alerts.export.logs.failed.message".localized
             alert.alertStyle = .warning
-            alert.runModal()
+            ModelessAlert.show(alert)
             return
         }
         
@@ -1275,14 +1368,14 @@ struct MenuBarIconView: View {
                     successAlert.messageText = "alerts.export.logs.success.title".localized
                     successAlert.informativeText = "alerts.export.logs.success.message".localized
                     successAlert.alertStyle = .informational
-                    successAlert.runModal()
+                    ModelessAlert.show(successAlert)
                 } catch {
                     // Show error alert
                     let alert = NSAlert()
                     alert.messageText = "alerts.export.failed.title".localized
                     alert.informativeText = "alerts.export.logs.saveFailed.message".localized(arguments: error.localizedDescription)
                     alert.alertStyle = .warning
-                    alert.runModal()
+                    ModelessAlert.show(alert)
                 }
             }
         }
@@ -1290,16 +1383,18 @@ struct MenuBarIconView: View {
     
     /// Exports all diagnostics (combines update logs and system logs)
     private func exportAllDiagnostics() {
-        AppLogger.exportDiagnostics { exportURL in
-            guard let exportURL = exportURL else {
+        AppLogger.exportDiagnostics { export in
+            guard let export else {
                 // Show error alert if export failed
                 let alert = NSAlert()
                 alert.messageText = "alerts.export.failed.title".localized
                 alert.informativeText = "alerts.export.diagnostics.failed.message".localized
                 alert.alertStyle = .warning
-                alert.runModal()
+                ModelessAlert.show(alert)
                 return
             }
+            
+            let exportURL = export.url
             
             // Open save panel for user to choose destination
             let savePanel = NSSavePanel()
@@ -1316,19 +1411,28 @@ struct MenuBarIconView: View {
                         }
                         try FileManager.default.moveItem(at: exportURL, to: destination)
                         
-                        // Show success alert
+                        // Only claim every log made it when system-logs.txt
+                        // holds real log lines (#1480). Otherwise the zip is
+                        // still worth sending, and the alert gives the reason.
                         let successAlert = NSAlert()
-                        successAlert.messageText = "alerts.export.diagnostics.success.title".localized
-                        successAlert.informativeText = "alerts.export.diagnostics.success.message".localized
-                        successAlert.alertStyle = .informational
-                        successAlert.runModal()
+                        switch export.systemLogs {
+                        case .written:
+                            successAlert.messageText = "alerts.export.diagnostics.success.title".localized
+                            successAlert.informativeText = "alerts.export.diagnostics.success.message".localized
+                            successAlert.alertStyle = .informational
+                        case .unavailable(let reason):
+                            successAlert.messageText = "alerts.export.diagnostics.noSystemLogs.title".localized
+                            successAlert.informativeText = "alerts.export.diagnostics.noSystemLogs.message".localized(arguments: reason)
+                            successAlert.alertStyle = .warning
+                        }
+                        ModelessAlert.show(successAlert)
                     } catch {
                         // Show error alert
                         let alert = NSAlert()
                         alert.messageText = "alerts.export.failed.title".localized
                         alert.informativeText = "alerts.export.diagnostics.saveFailed.message".localized(arguments: error.localizedDescription)
                         alert.alertStyle = .warning
-                        alert.runModal()
+                        ModelessAlert.show(alert)
                     }
                 } else {
                     // Clean up temporary file if user cancelled
@@ -1336,5 +1440,64 @@ struct MenuBarIconView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Main Window Commands
+
+/// The menu-bar-menu way back to the main window after cmd+W (issue #1526).
+///
+/// Ray's decisions (inbox ask #333): the app menu gets Settings… with cmd+,
+/// that opens the main window on its Settings page (no SwiftUI `Settings`
+/// scene), and the Window menu's system window list stays replaced, now by one
+/// item that reopens the main window (cmd+0) instead of nothing.
+struct MainWindowCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+
+    let appState: AppState
+    /// The main window's own title, so the Window menu item reads as it.
+    let windowTitle: String
+
+    var body: some Commands {
+        CommandGroup(replacing: .appSettings) {
+            Button {
+                Self.openSettings(appState: appState, showMainWindow: showMainWindow)
+            } label: {
+                // An icon like the other app-menu items on macOS 26 (#2213)
+                Label("menu.settings".localized, systemImage: "gearshape")
+            }
+            .keyboardShortcut(",", modifiers: .command)
+        }
+
+        CommandGroup(replacing: .windowList) {
+            Button(windowTitle) {
+                showMainWindow()
+            }
+            .keyboardShortcut("0", modifiers: .command)
+        }
+    }
+
+    /// Settings… is a user-chosen jump, as the menu bar's Settings… is: an
+    /// open mode editor with unsaved changes asks first (issue #1525).
+    @MainActor
+    static func openSettings(appState: AppState, showMainWindow: () -> Void) {
+        showMainWindow()
+        appState.requestNavigation(to: .settings, trigger: .userChosen)
+    }
+
+    /// Brings the main window forward, or opens it when it was closed: the
+    /// same steps as the menu bar's `MainAppView.openMainWindow()`.
+    @MainActor
+    private func showMainWindow() {
+        // The user asked for this window, so `launchMinimized` must not hide it.
+        HyperWhisperApp.suppressLaunchMinimizedHide()
+        NSApp.activate(ignoringOtherApps: true)
+
+        if let mainWindow = MainWindowStore.window
+            ?? NSApp.windows.first(where: { $0.identifier == .hyperwhisperMainWindow }) {
+            mainWindow.makeKeyAndOrderFront(nil)
+            return
+        }
+        openWindow(id: "mainWindow")
     }
 }

@@ -76,15 +76,20 @@ public class ParakeetModelService
     /// <summary>
     /// Checks if a model is fully downloaded.
     ///
-    /// Parakeet (flat): verifies every file in <see cref="ParakeetModelInfo.OnnxFileNames"/>.
+    /// Parakeet (flat): verifies every file in <see cref="ParakeetModelInfo.OnnxFileNames"/>
+    /// exists and, where <see cref="ParakeetModelInfo.FileSizes"/> pins it, is that
+    /// exact byte size (#1598).
     /// Qwen3 (tree): the exact filenames vary by export (int8 vs fp32), so verify
     /// structurally — a conv-frontend, an encoder, a decoder ONNX, and a non-empty
     /// <c>tokenizer/</c> directory.
+    /// Either way, a model that failed to load this session
+    /// (<see cref="LocalModelHealth"/>) counts as not installed.
     /// </summary>
     public bool IsModelDownloaded(ParakeetModelInfo model)
     {
         var modelDir = GetModelDirectory(model);
         if (!Directory.Exists(modelDir)) return false;
+        if (LocalModelHealth.IsBroken(modelDir)) return false;
 
         if (model.Engine == ParakeetEngine.Qwen3)
         {
@@ -101,7 +106,37 @@ public class ParakeetModelService
                 && Directory.EnumerateFileSystemEntries(tokenizerDir).Any();
         }
 
-        return model.OnnxFileNames.All(f => File.Exists(Path.Combine(modelDir, f)));
+        return HasRequiredFiles(model, modelDir);
+    }
+
+    /// <summary>
+    /// True when every file in <see cref="ParakeetModelInfo.OnnxFileNames"/> exists
+    /// in <paramref name="directory"/> and each pinned file is its exact size.
+    /// </summary>
+    internal static bool HasRequiredFiles(ParakeetModelInfo model, string directory)
+    {
+        try
+        {
+            foreach (var fileName in model.OnnxFileNames)
+            {
+                var path = Path.Combine(directory, fileName);
+                if (!File.Exists(path)) return false;
+
+                if (model.FileSizes != null
+                    && model.FileSizes.TryGetValue(fileName, out var expected)
+                    && new FileInfo(path).Length != expected)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            LoggingService.Warn($"ParakeetModelService: Failed to inspect {model.Id}: {ex.Message}");
+            return false;
+        }
     }
 
     // =========================================================================
@@ -206,12 +241,24 @@ public class ParakeetModelService
                 LoggingService.Info($"  File complete: {relativePath} ({new FileInfo(filePath).Length:N0} bytes)");
             }
 
+            // A short body (a dropped connection the server closed cleanly) must not
+            // be installed: check the pinned sizes before the rename (#1598).
+            if (!model.IsHuggingFaceTreeDownload && !HasRequiredFiles(model, tempDir))
+            {
+                CleanupTempDirectory(tempDir);
+                LoggingService.Warn($"ParakeetModelService: Downloaded files for {model.Id} do not match the pinned sizes");
+                return Result<string>.Failure(Loc.S("settings.models.download.failed", "the downloaded model files are incomplete"));
+            }
+
             // Atomic rename: temp -> final
             if (Directory.Exists(finalDir))
             {
                 Directory.Delete(finalDir, true);
             }
             Directory.Move(tempDir, finalDir);
+
+            // A fresh copy replaces the one that failed to load (#1598).
+            LocalModelHealth.ClearBroken(finalDir);
 
             LoggingService.Info($"  Download complete: {totalBytesDownloaded:N0} total bytes");
             LoggingService.Info($"========== PARAKEET MODEL DOWNLOAD COMPLETE ==========");
@@ -248,6 +295,7 @@ public class ParakeetModelService
                 Directory.Delete(modelDir, true);
             }
 
+            LocalModelHealth.ClearBroken(modelDir);
             return Result.Success();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)

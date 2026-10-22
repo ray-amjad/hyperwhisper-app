@@ -8,12 +8,15 @@
 import { computeGeminiTranscriptionCost } from '../lib/cost-calculator';
 import { BYTES_PER_MINUTE_ESTIMATE, GEMINI_INLINE_MAX_BYTES } from '../lib/constants';
 import { describeLanguage } from '../lib/language-codes';
+import { getProviderDef } from '../lib/stt-models';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+// Read from the registry, never restated, so the adapter cannot disagree with
+// `stt-models.ts` about the default (same pattern as azure-mai.ts).
+const DEFAULT_MODEL = getProviderDef('gemini').defaultModel;
 const AUDIO_TOKENS_PER_SECOND = 32;
 // Vocabulary terms named in the prompt, matching the sibling adapters' cap.
 const MAX_PROMPT_TERMS = 100;
@@ -46,6 +49,10 @@ export function geminiMimeType(contentType: string): string {
 /** Per-model thinking config — keep thinking as low as each model allows. */
 function thinkingConfig(model: string): Record<string, unknown> {
   if (model === 'gemini-3.1-pro-preview') return { thinkingLevel: 'low' };
+  // 3.8 Flash accepts low/medium/high only: no 'minimal', and thinking cannot be
+  // turned off (https://ai.google.dev/gemini-api/docs/thinking, read 2026-10-07).
+  // Sending the gemini-3 'minimal' below would be refused, so pin its floor.
+  if (model === 'gemini-3.8-flash') return { thinkingLevel: 'low' };
   if (model.startsWith('gemini-3')) return { thinkingLevel: 'minimal' };
   if (model === 'gemini-2.5-pro') return { thinkingBudget: 128 }; // 0 invalid on Pro
   return { thinkingBudget: 0 }; // 2.5-flash / 2.5-flash-lite

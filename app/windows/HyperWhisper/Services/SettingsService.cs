@@ -16,7 +16,7 @@ namespace HyperWhisper.Services;
 ///
 /// STORED SETTINGS:
 /// - LastSelectedModel: The model file name that was last selected
-/// - LastSelectedMicrophone: The microphone device ID that was last selected (future)
+/// - LastSelectedMicrophone: The saved microphone (a WaveIn device NAME); null follows the Windows default
 ///
 /// FILE FORMAT:
 /// {
@@ -278,7 +278,7 @@ public partial class SettingsService
 
     /// <summary>
     /// Controls how Windows output audio is handled during recording.
-    /// Values: "off" or "muteAudio". Default: off.
+    /// Values: "off", "muteAudio" or "muffleAudio" (the macOS raw values). Default: off.
     /// </summary>
     public string MediaControlMode
     {
@@ -471,7 +471,20 @@ public partial class SettingsService
                 string json = File.ReadAllText(SettingsFilePath);
                 var loaded = JsonSerializer.Deserialize<SettingsData>(json);
 
-                if (loaded != null)
+                if (loaded == null)
+                {
+                    // settings.json holds the JSON literal null (a sync tool, a restore
+                    // tool or a hand edit). Deserialize returns null without throwing,
+                    // so the catch below never sees it. It is as corrupt as a torn
+                    // file: recover from .bak first, or the next Save() rotates this
+                    // file over the only good .bak (issue #2096).
+                    LoggingService.Warn($"SettingsService: {SettingsFilePath} holds null, trying the backup");
+                    if (TryLoadBackup())
+                    {
+                        return;
+                    }
+                }
+                else
                 {
                     _settings = loaded;
                     LoggingService.Info($"SettingsService: Loaded settings from {SettingsFilePath}");
@@ -574,7 +587,14 @@ public partial class SettingsService
     /// Saves settings to disk.
     /// Creates the settings folder if it doesn't exist.
     /// </summary>
-    private void Save()
+    private void Save() => TrySave();
+
+    /// <summary>
+    /// <see cref="Save"/>, reporting whether settings.json was written. Every setter
+    /// ignores the answer (a failed save is logged and the in-memory value stands);
+    /// <see cref="RestoreImportSnapshot"/> needs it to tell its caller the truth.
+    /// </summary>
+    private bool TrySave()
     {
         lock (_ioLock)
         {
@@ -619,10 +639,12 @@ public partial class SettingsService
                 }
 
                 LoggingService.Debug($"SettingsService: Saved settings to {SettingsFilePath}");
+                return true;
             }
             catch (Exception ex)
             {
                 LoggingService.Error($"SettingsService: Failed to save settings: {ex.Message}");
+                return false;
             }
         }
     }
@@ -716,6 +738,79 @@ public partial class SettingsService
         apply();
     }
 
+    /// <summary>
+    /// An opaque deep copy of every persisted setting, taken before a backup import
+    /// applies its settings so a failed database step can put them back (issue #1614,
+    /// the Windows twin of Linux's <c>PortableSettingsService.Snapshot</c>/<c>Replace</c>).
+    /// It is the JSON <see cref="Save"/> would write, so it holds nothing settings.json
+    /// does not already hold.
+    /// </summary>
+    internal sealed class ImportSnapshot
+    {
+        internal ImportSnapshot(string json) => Json = json;
+
+        internal string Json { get; }
+    }
+
+    /// <summary>
+    /// Captures <see cref="ImportSnapshot"/> of the live settings. Call it as the FIRST
+    /// statement of the <see cref="ApplyImport"/> batch it guards: that runs on the UI
+    /// thread, so no setter can interleave between the copy and the import's own writes.
+    /// </summary>
+    internal ImportSnapshot CaptureImportSnapshot()
+    {
+        lock (_ioLock)
+        {
+            return new ImportSnapshot(JsonSerializer.Serialize(_settings));
+        }
+    }
+
+    /// <summary>
+    /// Puts back the settings captured by <see cref="CaptureImportSnapshot"/> after the
+    /// import's database step failed and rolled back. Replaces the whole in-memory graph,
+    /// writes settings.json and raises <see cref="SettingsChanged"/> once, all on the UI
+    /// thread (through <see cref="ApplyImport"/>) so UI-affine listeners such as the
+    /// global-shortcut re-registration re-read the restored values there.
+    /// </summary>
+    /// <returns>
+    /// <c>false</c> when the settings already equal the snapshot (the import changed
+    /// nothing), so there is nothing to write and nobody to notify; <c>true</c> when
+    /// they were restored.
+    /// </returns>
+    /// <exception cref="InvalidOperationException">
+    /// The settings were restored in memory but settings.json could not be written.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">The app is shutting down.</exception>
+    internal bool RestoreImportSnapshot(ImportSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+
+        var restored = false;
+        var saved = true;
+        ApplyImport(() =>
+        {
+            lock (_ioLock)
+            {
+                if (JsonSerializer.Serialize(_settings) == snapshot.Json)
+                    return;
+
+                _settings = JsonSerializer.Deserialize<SettingsData>(snapshot.Json)
+                    ?? throw new InvalidOperationException("The settings snapshot is empty");
+                // Same lock, re-entered: the write cannot interleave with another Save().
+                saved = TrySave();
+            }
+
+            restored = true;
+            NotifySettingsChanged();
+        });
+
+        if (!saved)
+            throw new InvalidOperationException(
+                "Settings were restored in memory but settings.json could not be written");
+
+        return restored;
+    }
+
     // =========================================================================
     // HELPERS
     // =========================================================================
@@ -736,9 +831,16 @@ public partial class SettingsService
         return AppPaths.LegacyAudioDirectory;
     }
 
-    private static string NormalizeMediaControlMode(string? value)
+    internal static string NormalizeMediaControlMode(string? value)
     {
-        return string.Equals(value, "muteAudio", StringComparison.OrdinalIgnoreCase) ? "muteAudio" : "off";
+        if (string.Equals(value, AudioEnvironmentService.MuteAudioMode, StringComparison.OrdinalIgnoreCase))
+        {
+            return AudioEnvironmentService.MuteAudioMode;
+        }
+
+        return string.Equals(value, AudioEnvironmentService.MuffleAudioMode, StringComparison.OrdinalIgnoreCase)
+            ? AudioEnvironmentService.MuffleAudioMode
+            : "off";
     }
 
 }

@@ -12,7 +12,16 @@ const TITLE = "Speech-to-text latency, measured";
 const DESCRIPTION =
   `How fast each speech-to-text provider actually answers HyperWhisper Cloud, by region and by model, over the last ${WINDOW_DAYS} days.`;
 
-export async function generateMetadata() {
+// #815: the English-only check runs here too. A notFound() thrown only from the
+// page left this English metadata (and the layout's "index, follow") in the RSC
+// payload, which is what the browser shows on /de/latency. Thrown here, Next
+// resolves the [locale] 404's metadata instead.
+export async function generateMetadata({ params }: Props) {
+  const { locale } = await params;
+  if (locale !== "en") {
+    notFound();
+  }
+
   return englishStaticPageMetadata({
     path: "/latency",
     title: TITLE,

@@ -36,11 +36,6 @@ private actor TextInputCoordinator {
     }
 }
 
-private struct PasteboardItemSnapshot {
-    let types: [NSPasteboard.PasteboardType]
-    let data: [NSPasteboard.PasteboardType: Data]
-}
-
 /// Service for inputting text into applications via typing or pasting.
 ///
 /// TEXT INPUT STRATEGIES:
@@ -82,24 +77,7 @@ final class TextInputService {
 
     private init() {}
 
-    private func capturePasteboardSnapshot(from pasteboard: NSPasteboard) -> [PasteboardItemSnapshot]? {
-        guard let items = pasteboard.pasteboardItems, !items.isEmpty else {
-            return nil
-        }
-
-        return items.compactMap { item in
-            var dataByType: [NSPasteboard.PasteboardType: Data] = [:]
-            for type in item.types {
-                if let data = item.data(forType: type) {
-                    dataByType[type] = data
-                }
-            }
-            guard !dataByType.isEmpty else { return nil }
-            return PasteboardItemSnapshot(types: item.types, data: dataByType)
-        }
-    }
-
-    private func restorePasteboardSnapshot(_ snapshot: [PasteboardItemSnapshot], to pasteboard: NSPasteboard) {
+    private func restorePasteboardSnapshot(_ snapshot: [AccessibilityHelper.ClipboardItemData], to pasteboard: NSPasteboard) {
         pasteboard.clearContents()
         let items = snapshot.map { snapshotItem -> NSPasteboardItem in
             let item = NSPasteboardItem()
@@ -109,6 +87,41 @@ final class TextInputService {
             return item
         }
         _ = pasteboard.writeObjects(items)
+    }
+
+    /// Puts the streaming paste's snapshot back, but only over the paste's own
+    /// write (#1591): when the change count moved since `changeCountAfterWrite`,
+    /// something else (the user's own copy) wrote to the clipboard, so leave it.
+    /// After a write-back, a pending dictation restore that expected the clipboard
+    /// from before this paste is told the new count, so it still runs.
+    ///
+    /// With no snapshot (the #879 deadline passed) the streamed text stays on the
+    /// clipboard. It is still the app's own write, so the pending dictation
+    /// restore is told the post-write count and writes the original back over
+    /// it, as before #1591. Internal, not private: a test drives it.
+    func restoreSnapshotUnlessClipboardChanged(
+        _ snapshot: [AccessibilityHelper.ClipboardItemData]?,
+        to pasteboard: NSPasteboard,
+        changeCountBeforeWrite: Int,
+        changeCountAfterWrite: Int
+    ) async {
+        guard pasteboard.changeCount == changeCountAfterWrite else {
+            logger.info("📋 Clipboard changed since the streaming paste wrote it; skipped the restore")
+            return
+        }
+        guard let snapshot else {
+            await AccessibilityHelper.shared.clipboardRoundTripRestored(
+                from: changeCountBeforeWrite,
+                to: changeCountAfterWrite
+            )
+            return
+        }
+        restorePasteboardSnapshot(snapshot, to: pasteboard)
+        let changeCountAfterRestore = pasteboard.changeCount
+        await AccessibilityHelper.shared.clipboardRoundTripRestored(
+            from: changeCountBeforeWrite,
+            to: changeCountAfterRestore
+        )
     }
 
     // MARK: - Character Typing
@@ -172,7 +185,8 @@ final class TextInputService {
             // The actual character is set via keyboardSetUnicodeString
             guard let keyDown = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true),
                   let keyUp = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false) else {
-                logger.warning("⚠️ Failed to create CGEvent for character: \(String(char), privacy: .public)")
+                // No character: it is the user's transcript, one letter per line (#1647).
+                logger.warning("⚠️ Failed to create CGEvent for a character")
                 continue
             }
 
@@ -327,11 +341,14 @@ final class TextInputService {
             isTerminalTarget = false
         }
 
-        // Save current clipboard
+        // Save current clipboard, off this thread and with a deadline (#879). Past
+        // the deadline the snapshot is nil and the clipboard is not restored; the
+        // reader logs it.
         let pasteboard = NSPasteboard.general
-        let savedSnapshot = capturePasteboardSnapshot(from: pasteboard)
+        let savedSnapshot = await ClipboardSnapshotReader.shared.snapshot(caller: "streaming paste")
 
         // Set new content, optionally with concealed type to hide from clipboard history apps
+        let changeCountBeforeWrite = pasteboard.changeCount
         pasteboard.clearContents()
         let item = NSPasteboardItem()
         item.setString(text, forType: .string)
@@ -340,6 +357,8 @@ final class TextInputService {
             item.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
         }
         pasteboard.writeObjects([item])
+        // Read now, so a later write (the user's own copy) breaks the match (#1591).
+        let changeCountAfterWrite = pasteboard.changeCount
 
         logger.info(
             "📋 Streaming paste prepared for bundle=\(frontmostBundleId ?? "unknown", privacy: .public) targetPID=\(targetPID ?? -1, privacy: .public) terminal=\(isTerminalTarget, privacy: .public) chars=\(text.count, privacy: .public) spaces=\(self.whitespaceCount(text), privacy: .public)"
@@ -358,9 +377,12 @@ final class TextInputService {
                     "❌ Terminal paste failed for bundle=\(frontmostBundleId ?? "unknown", privacy: .public). Direct Cmd+V failed."
                 )
             }
-            if let savedSnapshot {
-                restorePasteboardSnapshot(savedSnapshot, to: pasteboard)
-            }
+            await restoreSnapshotUnlessClipboardChanged(
+                savedSnapshot,
+                to: pasteboard,
+                changeCountBeforeWrite: changeCountBeforeWrite,
+                changeCountAfterWrite: changeCountAfterWrite
+            )
             return false
         }
 
@@ -369,9 +391,12 @@ final class TextInputService {
         try? await Task.sleep(nanoseconds: restoreDelayNanoseconds)
 
         // Restore clipboard
-        if let savedSnapshot {
-            restorePasteboardSnapshot(savedSnapshot, to: pasteboard)
-        }
+        await restoreSnapshotUnlessClipboardChanged(
+            savedSnapshot,
+            to: pasteboard,
+            changeCountBeforeWrite: changeCountBeforeWrite,
+            changeCountAfterWrite: changeCountAfterWrite
+        )
 
         logger.info(
             "✅ Pasted \(text.count, privacy: .public) characters via clipboard, bundle=\(frontmostBundleId ?? "unknown", privacy: .public), restoreDelayMs=\(restoreDelayNanoseconds / 1_000_000, privacy: .public), spaces=\(self.whitespaceCount(text), privacy: .public)"

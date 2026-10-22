@@ -55,6 +55,132 @@ private final class FakeLicenseCredentialStore: LicenseCredentialStore {
     }
 }
 
+/// Records, for every write of the licence record, whether it ran on the main
+/// thread. A real `SecItemUpdate` there blocks the whole app (#1408).
+private final class ThreadRecordingCredentialStore: LicenseCredentialStore, @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [LicenseCredentialDescriptor: Data] = [:]
+    private var licenseStateWriteOnMainThread: [Bool] = []
+
+    /// One entry per licence-record write: `true` when it ran on the main thread.
+    var licenseStateWritesOnMainThread: [Bool] {
+        lock.withLock { licenseStateWriteOnMainThread }
+    }
+
+    func read(item: LicenseCredentialDescriptor) throws -> Data? {
+        lock.withLock { storage[item] }
+    }
+
+    func write(_ data: Data, item: LicenseCredentialDescriptor) throws {
+        let isMainThread = Thread.isMainThread
+        lock.withLock {
+            if item == LicenseKeychainStore.licenseStateItem {
+                licenseStateWriteOnMainThread.append(isMainThread)
+            }
+            storage[item] = data
+        }
+    }
+
+    func delete(item: LicenseCredentialDescriptor) throws {
+        _ = lock.withLock { storage.removeValue(forKey: item) }
+    }
+}
+
+/// Holds every licence-record write until the test releases it, standing in
+/// for a slow `SecItemUpdate` (#1424). The wait is bounded so a regression
+/// that blocks the main thread on the write fails the test instead of hanging.
+private final class PersistenceResultBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: LicenseNetworkService.ValidationPersistenceResult?
+
+    var value: LicenseNetworkService.ValidationPersistenceResult? {
+        get { lock.withLock { stored } }
+        set { lock.withLock { stored = newValue } }
+    }
+}
+
+private final class BlockingWriteCredentialStore: LicenseCredentialStore, @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [LicenseCredentialDescriptor: Data] = [:]
+    private var blocksLicenseStateWrites = false
+    private var writeInFlight = false
+    private let writeRelease = DispatchSemaphore(value: 0)
+    /// How long a held write waits for `releaseBlockedWrite()` before it lands
+    /// anyway. Long, so the in-flight window outlasts a loaded runner holding
+    /// the main actor; it only bounds a regression that blocks a read on the
+    /// write, which then fails instead of hanging.
+    static let writeHoldSafetyBound: Double = 60
+    /// Signalled when a held write starts.
+    let writeStarted = DispatchSemaphore(value: 0)
+
+    /// True while a licence-record write is held inside `write`.
+    var isWriteInFlight: Bool {
+        lock.withLock { writeInFlight }
+    }
+
+    func blockLicenseStateWrites() {
+        lock.withLock { blocksLicenseStateWrites = true }
+    }
+
+    func releaseBlockedWrite() {
+        writeRelease.signal()
+    }
+
+    func read(item: LicenseCredentialDescriptor) throws -> Data? {
+        lock.withLock { storage[item] }
+    }
+
+    func write(_ data: Data, item: LicenseCredentialDescriptor) throws {
+        let blocks = lock.withLock {
+            item == LicenseKeychainStore.licenseStateItem && blocksLicenseStateWrites
+        }
+        if blocks {
+            lock.withLock { writeInFlight = true }
+            writeStarted.signal()
+            _ = writeRelease.wait(timeout: .now() + Self.writeHoldSafetyBound)
+            lock.withLock { writeInFlight = false }
+        }
+        lock.withLock { storage[item] = data }
+    }
+
+    func delete(item: LicenseCredentialDescriptor) throws {
+        _ = lock.withLock { storage.removeValue(forKey: item) }
+    }
+}
+
+/// Answers every request with HTTP 200 and an Active verdict, so a test can
+/// drive `LicenseNetworkService`'s real stateful validation and commit path
+/// without reaching the licence server.
+private final class ActiveVerdictURLProtocol: URLProtocol {
+    static func makeSession() -> URLSession {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [ActiveVerdictURLProtocol.self]
+        return URLSession(configuration: config)
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let url = request.url,
+              let response = HTTPURLResponse(
+                url: url,
+                statusCode: 200,
+                httpVersion: "HTTP/1.1",
+                headerFields: ["Content-Type": "application/json"]
+              ) else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+            return
+        }
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data(#"{"status":"active"}"#.utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
 struct RustLicenseStoreSecurityTests {
     @Test func recordEncodingReadUpdateAndDeletion() throws {
         let credentials = FakeLicenseCredentialStore()
@@ -246,6 +372,28 @@ struct RustLicenseStoreSecurityTests {
         #expect(store.readStoredLicenseKey(retryAfterFailure: true) == .present("secure-key"))
     }
 
+    /// #1490 Deactivate: the cached read cannot see a record written past this
+    /// session's cache. The secure-store read does, refreshes the cache, and a
+    /// failed one answers `.unavailable` without touching the cache.
+    @Test func secureStoreReadBypassesCachedRecord() throws {
+        let defaults = makeDefaults()
+        let credentials = FakeLicenseCredentialStore()
+        let keychain = LicenseKeychainStore(credentialStore: credentials)
+        try keychain.writeMigrationMarker()
+        let store = RustLicenseStore(defaults: defaults, licenseStore: keychain, seedUsage: false)
+        #expect(store.readStoredLicenseKey() == .missing)
+
+        try keychain.replaceRecord(with: LicenseKeychainRecord(key: "  restored-key "))
+
+        #expect(store.readStoredLicenseKey(retryAfterFailure: true) == .missing)
+        #expect(store.readStoredLicenseKeyFromSecureStore() == .present("restored-key"))
+        #expect(store.readStoredLicenseKey() == .present("restored-key"))
+
+        credentials.failReads = true
+        #expect(store.readStoredLicenseKeyFromSecureStore() == .unavailable)
+        #expect(store.readStoredLicenseKey() == .present("restored-key"))
+    }
+
     @Test func migratesOnlyTrimmedLegacyKeyAndDeletesAllPlaintextFields() throws {
         let defaults = makeDefaults()
         let credentials = FakeLicenseCredentialStore()
@@ -386,6 +534,99 @@ struct RustLicenseStoreSecurityTests {
         let service = LicenseNetworkService(store: store)
         #expect(!service.clearStoredLicense())
         #expect(try keychain.readRecord()?.key == "prior-key")
+    }
+
+    /// #1408 (HYPERWHISPER-10B): the stateful validation commit used to hop to
+    /// the main actor, so its blocking Keychain write froze the app while
+    /// securityd was slow. Called from the main actor, as LicenseManager calls
+    /// it, the commit must still write the licence record off the main thread.
+    @MainActor
+    @Test func statefulValidationCommitWritesKeychainOffMainThread() async throws {
+        let defaults = makeDefaults()
+        let credentials = ThreadRecordingCredentialStore()
+        let keychain = LicenseKeychainStore(credentialStore: credentials)
+        try keychain.writeMigrationMarker()
+        let store = RustLicenseStore(defaults: defaults, licenseStore: keychain, seedUsage: false)
+        let service = LicenseNetworkService(
+            store: store,
+            session: ActiveVerdictURLProtocol.makeSession()
+        )
+        #expect(credentials.licenseStateWritesOnMainThread.isEmpty)
+
+        let result = await service.activateLicense("off-main-key")
+
+        #expect(result.isValid)
+        #expect(!result.storagePersistenceFailed)
+        #expect(try keychain.readRecord()?.key == "off-main-key")
+        // Exactly one commit, and it did not run on the main thread.
+        #expect(credentials.licenseStateWritesOnMainThread == [false])
+    }
+
+    /// #1424: a stateful commit holds the transaction lock across its blocking
+    /// Keychain write. A main-actor licence read must not wait on it; it sees
+    /// the last committed record until the write lands.
+    @MainActor
+    @Test func mainActorLicenceReadDoesNotWaitOnInFlightKeychainWrite() async throws {
+        let defaults = makeDefaults()
+        let credentials = BlockingWriteCredentialStore()
+        let keychain = LicenseKeychainStore(credentialStore: credentials)
+        try keychain.writeMigrationMarker()
+        try keychain.replaceRecord(with: LicenseKeychainRecord(
+            key: "current-key",
+            lastValidation: "100",
+            cachedStatus: "Active"
+        ))
+        let store = RustLicenseStore(defaults: defaults, licenseStore: keychain, seedUsage: false)
+        let service = LicenseNetworkService(store: store)
+        let manager = LicenseManager(
+            networkService: service,
+            loadStoredLicenseOnInit: false,
+            notificationCenter: NotificationCenter()
+        )
+        manager.licenseStatus = .active
+        // Load the committed snapshot, as the launch read does.
+        #expect(manager.storedLicenseKeyReadForSeeding() == .present("current-key"))
+        credentials.blockLicenseStateWrites()
+
+        // The held write blocks its thread, so it runs on a thread of its own,
+        // not the Swift concurrency pool (see SemaphoreWait.swift).
+        let commitResult = PersistenceResultBox()
+        let commitDone = DispatchSemaphore(value: 0)
+        Thread.detachNewThread {
+            commitResult.value = LicenseNetworkService.persistValidationVerdictIfCurrent(
+                store: store,
+                status: .active,
+                attemptedKey: "current-key",
+                expectedStoredLicenseKey: "current-key",
+                nowUnixSecs: 200,
+                isCancelled: false
+            )
+            commitDone.signal()
+        }
+        // Generous bounds: on a loaded runner the main actor can resume late.
+        // The held write cannot land meanwhile; only the release below lets it.
+        #expect(await waitOffThePool(for: credentials.writeStarted, seconds: 30))
+
+        let identifier = manager.getTranscriptionIdentifier()
+        let seeding = manager.storedLicenseKeyReadForSeeding()
+        let stored = service.getStoredLicenseKey()
+        let lastValidation = store.get(key: RustLicenseStore.kLicenseLastValidation)
+        // Every read above returned while the write was still held. A read that
+        // waited on the write returns only once the safety bound lets it land,
+        // so this fails rather than hangs.
+        #expect(credentials.isWriteInFlight)
+        #expect(identifier.identifier == "current-key")
+        #expect(identifier.isLicensed)
+        #expect(seeding == .present("current-key"))
+        #expect(stored == "current-key")
+        // The staged verdict is not visible before its Keychain write lands.
+        #expect(lastValidation == "100")
+
+        credentials.releaseBlockedWrite()
+        #expect(await waitOffThePool(for: commitDone, seconds: 30))
+        #expect(commitResult.value == .persisted)
+        #expect(store.get(key: RustLicenseStore.kLicenseLastValidation) == "200")
+        #expect(try keychain.readRecord()?.lastValidation == "200")
     }
 
     @Test func noOpLicenseTransactionSkipsKeychainWrite() throws {
@@ -731,6 +972,205 @@ struct BackupLicenseStorageTests {
         #expect(manager.lastError == "Could not securely save the license")
     }
 
+    /// The service's answer when the server says Active but the key and cache
+    /// did not commit (`LicenseNetworkService`, `.storageFailed`).
+    private static var unsavedActiveVerdict: LicenseValidationResult {
+        LicenseValidationResult(
+            isValid: false,
+            status: .active,
+            customerId: nil,
+            customerEmail: "server@example.com",
+            customerName: nil,
+            errorMessage: "Could not securely save the license",
+            storagePersistenceFailed: true
+        )
+    }
+
+    /// #1490: an Active verdict whose save failed is not an activation when
+    /// the store holds no key, or a different key, for it. From any unlicensed
+    /// state the published status, customer and badge stay put.
+    @Test func unsavedActiveVerdictForUnstoredKeyDoesNotActivate() async {
+        for storedKey in [String?.none, "other-key"] {
+            for priorStatus in [LicenseStatus.trial, .invalid, .expired] {
+                let service = BackupLicenseNetworkSpy()
+                if let storedKey {
+                    #expect(service.replaceStoredLicenseKeyForImport(storedKey))
+                }
+                service.validationResultOverride = Self.unsavedActiveVerdict
+                let center = NotificationCenter()
+                let manager = LicenseManager(
+                    networkService: service,
+                    loadStoredLicenseOnInit: false,
+                    notificationCenter: center
+                )
+                manager.licenseStatus = priorStatus
+                let notificationCount = NotificationCountBox()
+                let observer = center.addObserver(
+                    forName: .licenseStatusChanged,
+                    object: nil,
+                    queue: nil
+                ) { _ in
+                    notificationCount.value += 1
+                }
+
+                let result = await manager.activateLicense("new-key")
+                center.removeObserver(observer)
+
+                #expect(!result.isValid)
+                #expect(manager.licenseStatus == priorStatus)
+                #expect(manager.customerEmail == nil)
+                #expect(manager.lastError == "Could not securely save the license")
+                #expect(notificationCount.value == 0)
+                #expect(!manager.getTranscriptionIdentifier().isLicensed)
+            }
+        }
+    }
+
+    /// An unsaved Active verdict for the key that IS stored (only the verdict
+    /// cache failed to commit) publishes Active, and the identifier is that key.
+    /// Launch revalidation starts from no cache, a cached Expired or a cached
+    /// Invalid verdict (a renewal since the last check).
+    @Test func unsavedActiveVerdictAtLaunchActivatesStoredKey() async {
+        for cachedStatus in [LicenseStatus?.none, .expired, .invalid] {
+            let service = BackupLicenseNetworkSpy()
+            #expect(service.replaceStoredLicenseKeyForImport("stored-key"))
+            service.requiresRevalidation = true
+            service.cachedStatus = cachedStatus
+            service.validationResultOverride = Self.unsavedActiveVerdict
+            let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
+
+            await manager.loadStoredLicense()
+
+            #expect(manager.licenseStatus == .active)
+            #expect(manager.getTranscriptionIdentifier().identifier == "stored-key")
+            #expect(manager.getTranscriptionIdentifier().isLicensed)
+            #expect(manager.lastError == "Could not securely save the license")
+        }
+    }
+
+    /// A backup import commits the key before it validates, so an unsaved
+    /// Active verdict for it is backed by the stored key.
+    @Test func unsavedActiveVerdictForImportedKeyActivatesStoredKey() async {
+        let service = BackupLicenseNetworkSpy()
+        #expect(service.replaceStoredLicenseKeyForImport("imported-key"))
+        service.validationResultOverride = Self.unsavedActiveVerdict
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
+
+        await manager.validateImportedLicenseKey("imported-key")
+
+        #expect(manager.licenseStatus == .active)
+        #expect(manager.getTranscriptionIdentifier().identifier == "imported-key")
+        #expect(manager.getTranscriptionIdentifier().isLicensed)
+        #expect(manager.lastError == "Could not securely save the license")
+    }
+
+    /// Re-entering the stored key (with stray whitespace) after an Expired
+    /// verdict activates it even when the new verdict could not be cached.
+    @Test func unsavedActiveVerdictForReenteredStoredKeyActivates() async {
+        let service = BackupLicenseNetworkSpy()
+        #expect(service.replaceStoredLicenseKeyForImport("stored-key"))
+        service.validationResultOverride = Self.unsavedActiveVerdict
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
+        manager.licenseStatus = .expired
+
+        _ = await manager.activateLicense("  stored-key\n")
+
+        #expect(manager.licenseStatus == .active)
+        #expect(manager.getTranscriptionIdentifier().identifier == "stored-key")
+        #expect(manager.getTranscriptionIdentifier().isLicensed)
+        #expect(manager.lastError == "Could not securely save the license")
+    }
+
+    /// #1490: when the secure delete fails but a fresh Keychain read finds no
+    /// record, there is nothing to deactivate, so the published Active state
+    /// must not stick.
+    @Test func deactivateClearsPublishedStateWhenNoRecordIsStored() async {
+        let service = BackupLicenseNetworkSpy()
+        service.clearSucceeds = false
+        service.queuedSecureStoreReads = [.missing]
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
+        manager.licenseStatus = .active
+        manager.customerEmail = "stale@example.com"
+
+        #expect(await manager.deactivateLicense())
+
+        #expect(manager.licenseStatus == .trial)
+        #expect(manager.customerEmail == nil)
+        #expect(manager.lastError == nil)
+    }
+
+    /// A failed delete of a record that the Keychain still holds, or that it
+    /// cannot read, stays a failure: clearing the UI would hide a key the next
+    /// launch restores. The session cache says `.missing` here (no stored key
+    /// in the spy), so the decision must come from the secure-store read.
+    @Test func failedDeactivateKeepsActiveStateWhileRecordMayRemain() async {
+        for read in [RustLicenseStore.StoredLicenseKeyRead.present("stored-key"), .unavailable] {
+            let service = BackupLicenseNetworkSpy()
+            service.clearSucceeds = false
+            service.queuedSecureStoreReads = [read]
+            let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
+            manager.licenseStatus = .active
+
+            #expect(!(await manager.deactivateLicense()))
+
+            #expect(manager.licenseStatus == .active)
+            #expect(manager.lastError == "Could not securely remove the license")
+            #expect(service.secureStoreReadCount == 1)
+            #expect(service.storedReadCount == 0)
+        }
+    }
+
+    /// The same decision through the real store: the delete fails and the
+    /// Keychain still holds a record this session's cache never saw.
+    @Test func failedDeactivateWithRealStoreKeepsKeyTheCacheMissed() async throws {
+        let suiteName = "BackupLicenseStorageTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        let credentials = FakeLicenseCredentialStore()
+        let keychain = LicenseKeychainStore(credentialStore: credentials)
+        try keychain.writeMigrationMarker()
+        let store = RustLicenseStore(defaults: defaults, licenseStore: keychain, seedUsage: false)
+        let manager = LicenseManager(
+            networkService: LicenseNetworkService(store: store),
+            loadStoredLicenseOnInit: false,
+            notificationCenter: NotificationCenter()
+        )
+        #expect(manager.storedLicenseKeyReadForSeeding() == .missing)
+        try keychain.replaceRecord(with: LicenseKeychainRecord(key: "stored-key"))
+        credentials.failDeletes = true
+        manager.licenseStatus = .active
+
+        #expect(!(await manager.deactivateLicense()))
+
+        #expect(manager.licenseStatus == .active)
+        #expect(manager.lastError == "Could not securely remove the license")
+        #expect(try keychain.readRecord()?.key == "stored-key")
+    }
+
+    /// The delete fails, but the Keychain holds no record: the published
+    /// Active state is cleared, and the next launch agrees.
+    @Test func failedDeactivateWithRealStoreClearsWhenKeychainIsEmpty() async throws {
+        let suiteName = "BackupLicenseStorageTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        let credentials = FakeLicenseCredentialStore()
+        let keychain = LicenseKeychainStore(credentialStore: credentials)
+        try keychain.writeMigrationMarker()
+        let store = RustLicenseStore(defaults: defaults, licenseStore: keychain, seedUsage: false)
+        let manager = LicenseManager(
+            networkService: LicenseNetworkService(store: store),
+            loadStoredLicenseOnInit: false,
+            notificationCenter: NotificationCenter()
+        )
+        credentials.failDeletes = true
+        manager.licenseStatus = .active
+        manager.customerEmail = "stale@example.com"
+
+        #expect(await manager.deactivateLicense())
+
+        #expect(manager.licenseStatus == .trial)
+        #expect(manager.customerEmail == nil)
+        #expect(manager.lastError == nil)
+    }
+
     @Test func missingSecureRecordClearsCustomerStateAndNotifiesObservers() async {
         let service = BackupLicenseNetworkSpy()
         let center = NotificationCenter()
@@ -785,8 +1225,11 @@ private final class BackupLicenseNetworkSpy: LicenseNetworkServing {
     var expectedKeys: [String?] = []
     var validationResultOverride: LicenseValidationResult?
     var requiresRevalidation = false
+    var cachedStatus: LicenseStatus?
     var queuedStoredReads: [RustLicenseStore.StoredLicenseKeyRead] = []
+    var queuedSecureStoreReads: [RustLicenseStore.StoredLicenseKeyRead] = []
     private(set) var storedReadCount = 0
+    private(set) var secureStoreReadCount = 0
     private var storedKey: String?
     private var validationWaiters: [CheckedContinuation<Void, Never>] = []
 
@@ -794,7 +1237,10 @@ private final class BackupLicenseNetworkSpy: LicenseNetworkServing {
         validationResult
     }
 
-    func deactivateLicense() async -> (success: Bool, error: String?) { (true, nil) }
+    func deactivateLicense() async -> (success: Bool, error: String?) {
+        guard clearSucceeds else { return (false, "Could not securely remove the license") }
+        return (true, nil)
+    }
 
     func validateLicense(
         _ licenseKey: String,
@@ -818,12 +1264,19 @@ private final class BackupLicenseNetworkSpy: LicenseNetworkServing {
 
     func probeLicense(_ licenseKey: String) async -> LicenseValidationResult { validationResult }
     func shouldRevalidateLicense() -> Bool { requiresRevalidation }
-    func getCachedLicenseStatus() -> LicenseStatus? { nil }
+    func getCachedLicenseStatus() -> LicenseStatus? { cachedStatus }
     func getStoredLicenseKey() -> String? { storedKey }
     func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead {
         storedReadCount += 1
         if !queuedStoredReads.isEmpty {
             return queuedStoredReads.removeFirst()
+        }
+        return storedKey.map(RustLicenseStore.StoredLicenseKeyRead.present) ?? .missing
+    }
+    func readStoredLicenseKeyFromSecureStore() async -> RustLicenseStore.StoredLicenseKeyRead {
+        secureStoreReadCount += 1
+        if !queuedSecureStoreReads.isEmpty {
+            return queuedSecureStoreReads.removeFirst()
         }
         return storedKey.map(RustLicenseStore.StoredLicenseKeyRead.present) ?? .missing
     }
@@ -915,6 +1368,9 @@ private final class ControlledBackupLicenseNetworkSpy: LicenseNetworkServing {
     func getCachedLicenseStatus() -> LicenseStatus? { nil }
     func getStoredLicenseKey() -> String? { storedKey }
     func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead {
+        storedKey.map(RustLicenseStore.StoredLicenseKeyRead.present) ?? .missing
+    }
+    func readStoredLicenseKeyFromSecureStore() async -> RustLicenseStore.StoredLicenseKeyRead {
         storedKey.map(RustLicenseStore.StoredLicenseKeyRead.present) ?? .missing
     }
     func clearStoredLicense() -> Bool {

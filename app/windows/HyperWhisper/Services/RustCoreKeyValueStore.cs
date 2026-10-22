@@ -35,8 +35,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using HyperWhisper.Models;
+using HyperWhisper.Services.Platform;
 using uniffi.hyperwhisper_core;
-using Windows.Security.Credentials;
+using PlatformContracts = HyperWhisper.Platform.Abstractions;
 
 // `KeyValueStore`, the constant routing target, lives in uniffi.hyperwhisper_core
 // and is `internal` to HyperWhisper.SharedCore, which grants this assembly access
@@ -70,7 +71,10 @@ internal sealed class RustCoreKeyValueStore : KeyValueStore
 
     private static string VaultResource => AppPaths.CredentialResource;
     private const string LicenseKeyCredentialName = "LicenseKey";
-    private readonly PasswordVault _vault = new();
+
+    // Same backend as WindowsCredentialStore: only ElementNotFound counts as
+    // "no credential"; every other Credential Manager fault surfaces (#742).
+    private readonly IWindowsCredentialBackend _credentials = new PasswordVaultCredentialBackend();
 
     // ---- Flat JSON store (everything else) ----
 
@@ -115,7 +119,11 @@ internal sealed class RustCoreKeyValueStore : KeyValueStore
         // Exact-match the license-key constant → Credential Manager; else JSON.
         if (key == KLicenseKey)
         {
-            return RetrieveLicenseKeyFromVault();
+            // The UniFFI KeyValueStore contract is Option<String>, so a vault
+            // fault still reaches the core as "no key". It is no longer silent:
+            // RetrieveLicenseKeyFromVault has already logged it as an error.
+            var read = RetrieveLicenseKeyFromVault();
+            return read.IsSuccess ? read.Value : null;
         }
 
         lock (_lock)
@@ -128,6 +136,8 @@ internal sealed class RustCoreKeyValueStore : KeyValueStore
     {
         if (key == KLicenseKey)
         {
+            // The contract's set() returns nothing, so the failure cannot travel
+            // back into the core; SaveLicenseKeyToVault logs it as an error.
             SaveLicenseKeyToVault(value);
             return;
         }
@@ -215,46 +225,65 @@ internal sealed class RustCoreKeyValueStore : KeyValueStore
     // Credential Manager (license key) — mirrors LicenseNetworkService
     // =========================================================================
 
-    private string? RetrieveLicenseKeyFromVault()
+    /// <summary>
+    /// Success(null) when no licence key is stored (ElementNotFound, or a blank
+    /// value); Failure for every other Credential Manager fault.
+    /// </summary>
+    private PlatformContracts.PlatformResult<string?> RetrieveLicenseKeyFromVault()
     {
         try
         {
-            var credential = _vault.Retrieve(VaultResource, LicenseKeyCredentialName);
-            credential.RetrievePassword();
-            return string.IsNullOrWhiteSpace(credential.Password) ? null : credential.Password;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private void SaveLicenseKeyToVault(string? licenseKey)
-    {
-        try
-        {
-            ClearLicenseKeyFromVault();
-            if (!string.IsNullOrWhiteSpace(licenseKey))
+            if (!_credentials.TryRead(VaultResource, LicenseKeyCredentialName, out var value)
+                || string.IsNullOrWhiteSpace(value))
             {
-                _vault.Add(new PasswordCredential(VaultResource, LicenseKeyCredentialName, licenseKey.Trim()));
+                return PlatformContracts.PlatformResult<string?>.Success(null);
             }
+
+            return PlatformContracts.PlatformResult<string?>.Success(value);
         }
         catch (Exception ex)
         {
-            LoggingService.Warn($"RustCoreKeyValueStore: Failed to store license key in Credential Manager: {ex.Message}");
+            LoggingService.Error("RustCoreKeyValueStore: Failed to read license key from Credential Manager", ex);
+            return PlatformContracts.PlatformResult<string?>.Failure(
+                "credential.read_failed", "Windows Credential Manager could not read the license key.");
         }
     }
 
-    private void ClearLicenseKeyFromVault()
+    private PlatformContracts.PlatformResult SaveLicenseKeyToVault(string? licenseKey)
+    {
+        if (string.IsNullOrWhiteSpace(licenseKey))
+        {
+            return ClearLicenseKeyFromVault();
+        }
+
+        try
+        {
+            // Write removes any existing credential, then adds the new one.
+            _credentials.Write(VaultResource, LicenseKeyCredentialName, licenseKey.Trim());
+            return PlatformContracts.PlatformResult.Success();
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Error("RustCoreKeyValueStore: Failed to store license key in Credential Manager", ex);
+            return PlatformContracts.PlatformResult.Failure(
+                "credential.write_failed", "Windows Credential Manager could not write the license key.");
+        }
+    }
+
+    private PlatformContracts.PlatformResult ClearLicenseKeyFromVault()
     {
         try
         {
-            var existing = _vault.Retrieve(VaultResource, LicenseKeyCredentialName);
-            _vault.Remove(existing);
+            // A missing credential is expected for trial users and fresh installs;
+            // the backend swallows ElementNotFound only.
+            _credentials.Delete(VaultResource, LicenseKeyCredentialName);
+            return PlatformContracts.PlatformResult.Success();
         }
-        catch
+        catch (Exception ex)
         {
-            // Missing credential is expected for trial users and fresh installs.
+            LoggingService.Error("RustCoreKeyValueStore: Failed to delete license key from Credential Manager", ex);
+            return PlatformContracts.PlatformResult.Failure(
+                "credential.delete_failed", "Windows Credential Manager could not delete the license key.");
         }
     }
 

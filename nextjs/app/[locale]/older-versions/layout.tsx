@@ -1,9 +1,10 @@
-import { Metadata } from "next";
+import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
-export const metadata: Metadata = {
+export const generateMetadata = localizedPageMetadata({
+  path: "/older-versions",
   title: "Older Versions",
   description: "Download previous versions of HyperWhisper",
-};
+});
 
 export default function DownloadsLayout({
   children,

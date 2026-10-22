@@ -51,13 +51,20 @@ class StorageSettingsManager: ObservableObject {
         return appSupport.appendingPathComponent("HyperWhisper").path
     }()
 
+    /// The default recordings folder: ~/Documents/hyperwhisper/recordings.
+    /// The ONE place this default is derived. `recordingsFolder` starts with
+    /// its `.path`, and the Sentry diagnostics that report "is the folder the
+    /// default" (`recordingsFolderIsDefault`, `dstInDefaultRecordingsFolder`)
+    /// compare against it, so changing the default here keeps them all honest.
+    /// `nonisolated` so off-main-actor callers can read it.
+    nonisolated static var defaultRecordingsFolderURL: URL? {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("hyperwhisper/recordings")
+    }
+
     /// Recordings folder location for storing audio files
     /// Default: ~/Documents/hyperwhisper/recordings (requires TCC on first access)
-    @AppStorage("recordingsFolder") var recordingsFolder: String = {
-        // Default to Documents/hyperwhisper/recordings
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return documentsPath.appendingPathComponent("hyperwhisper/recordings").path
-    }()
+    @AppStorage("recordingsFolder") var recordingsFolder: String = StorageSettingsManager.defaultRecordingsFolderURL!.path
 
     // MARK: - Permission Tracking
 
@@ -91,8 +98,8 @@ class StorageSettingsManager: ObservableObject {
 
     // MARK: - Published Error State
 
-    /// Validation error for folder operations
-    /// Displayed in UI when folder creation or permission checks fail
+    /// Why the last `changeRecordingsFolder(to:)` refused the folder, or nil
+    /// once one is accepted. `presentRecordingsFolderRefusedAlert()` shows it.
     @Published var validationError: String?
 
     // MARK: - Initialization
@@ -109,8 +116,13 @@ class StorageSettingsManager: ObservableObject {
 
     /// Change recordings folder location
     /// - Parameter url: The new folder URL
+    /// - Returns: True if the folder was saved. False if it was refused; then
+    ///   `validationError` says why and `recordingsFolder` is unchanged. A
+    ///   caller that shows a chooser must tell the user (#1473):
+    ///   `presentRecordingsFolderRefusedAlert()`.
     /// - Note: This does NOT migrate existing recordings, only affects new recordings
-    func changeRecordingsFolder(to url: URL) {
+    @discardableResult
+    func changeRecordingsFolder(to url: URL) -> Bool {
         let newPath = url.path
 
         // Create folder if it doesn't exist
@@ -123,7 +135,9 @@ class StorageSettingsManager: ObservableObject {
                 logger.info("✅ Created recordings folder at: \(newPath, privacy: .public)")
             } catch {
                 logger.error("❌ Failed to create recordings folder: \(error.localizedDescription, privacy: .public)")
-                validationError = "Failed to create folder: \(error.localizedDescription)"
+                validationError = Self.folderCreateFailedMessage(
+                    systemError: error.localizedDescription
+                )
                 if AppLogger.isErrorLoggingEnabled {
                     SentryService.addBreadcrumb(
                         message: "Recordings folder creation failed",
@@ -135,13 +149,13 @@ class StorageSettingsManager: ObservableObject {
                         ]
                     )
                 }
-                return
+                return false
             }
         }
 
         // Verify write permissions
         if !FileManager.default.isWritableFile(atPath: newPath) {
-            validationError = "Cannot write to selected folder. Please check permissions."
+            validationError = Self.folderNotWritableMessage(folderName: url.lastPathComponent)
             if AppLogger.isErrorLoggingEnabled {
                 SentryService.addBreadcrumb(
                     message: "Recordings folder not writable",
@@ -150,9 +164,10 @@ class StorageSettingsManager: ObservableObject {
                     data: ["path": newPath]
                 )
             }
-            return
+            return false
         }
 
+        validationError = nil
         recordingsFolder = newPath
         logger.info("✅ Recordings folder changed to: \(newPath, privacy: .public)")
         if AppLogger.isErrorLoggingEnabled {
@@ -162,6 +177,40 @@ class StorageSettingsManager: ObservableObject {
                 data: ["path": newPath]
             )
         }
+        return true
+    }
+
+    /// The refusal text for a folder the user cannot write to (#1473).
+    nonisolated static func folderNotWritableMessage(
+        folderName: String,
+        localize: (String) -> String = { $0.localized }
+    ) -> String {
+        String(format: localize("settings.storage.folderRefused.notWritable"), folderName)
+    }
+
+    /// The refusal text for a folder that could not be created (#1473).
+    nonisolated static func folderCreateFailedMessage(
+        systemError: String,
+        localize: (String) -> String = { $0.localized }
+    ) -> String {
+        String(format: localize("settings.storage.folderRefused.createFailed"), systemError)
+    }
+
+    /// Tell the user why the folder they just chose was refused (#1473).
+    ///
+    /// Without this a refused pick closes the chooser and shows nothing: the
+    /// field keeps the old path, and the user can easily think it was saved.
+    @MainActor
+    func presentRecordingsFolderRefusedAlert() {
+        guard let message = validationError else { return }
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "settings.storage.folderRefused.title".localized
+        alert.informativeText = message
+        alert.addButton(withTitle: "common.ok".localized)
+        // Modeless, like the other storage alerts (#1734), so the Local API
+        // keeps answering while it is open.
+        ModelessAlert.show(alert)
     }
 
     /// Ensure recordings folder exists
@@ -335,9 +384,13 @@ class StorageSettingsManager: ObservableObject {
     /// Offer manual folder selection when all automatic options fail
     /// Presents NSOpenPanel for user to choose a writable location
     ///
+    /// Uses `begin` and awaits it rather than `runModal()` (issue #1734): runModal
+    /// held the main actor until the user chose, and the Local API (@MainActor)
+    /// answered nothing meanwhile.
+    ///
     /// - Returns: True if user selected a folder, false if cancelled
     @MainActor
-    func offerManualFolderSelection() -> Bool {
+    func offerManualFolderSelection() async -> Bool {
         let panel = NSOpenPanel()
         panel.title = "storage.folder.choose.title".localized
         panel.message = "storage.folder.choose.message".localized
@@ -346,9 +399,16 @@ class StorageSettingsManager: ObservableObject {
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = true
-        let response = panel.runModal()
+        // Reached from a recording start, often while another app is frontmost.
+        NSApp.activate(ignoringOtherApps: true)
+        let response = await withCheckedContinuation { continuation in
+            panel.begin { continuation.resume(returning: $0) }
+        }
         if response == .OK, let url = panel.url {
-            changeRecordingsFolder(to: url)
+            guard changeRecordingsFolder(to: url) else {
+                presentRecordingsFolderRefusedAlert()
+                return false
+            }
             return true
         }
         return false
@@ -357,18 +417,21 @@ class StorageSettingsManager: ObservableObject {
     /// Present a recovery alert and offer manual folder selection
     /// Called when all automatic fallbacks have failed
     ///
+    /// Modeless (issue #1734): the caller needs the answer, so it awaits it, which
+    /// leaves the main actor — and the Local API — free while the alert is open.
+    ///
     /// - Returns: True if user selected a folder, false otherwise
     @MainActor
-    func presentStorageRecoveryPrompt() -> Bool {
+    func presentStorageRecoveryPrompt() async -> Bool {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = "storage.recovery.title".localized
         alert.informativeText = "storage.recovery.message".localized
         alert.addButton(withTitle: "storage.recovery.choose".localized)
         alert.addButton(withTitle: "common.cancel".localized)
-        let result = alert.runModal()
+        let result = await ModelessAlert.response(for: alert)
         if result == .alertFirstButtonReturn {
-            return offerManualFolderSelection()
+            return await offerManualFolderSelection()
         }
         return false
     }

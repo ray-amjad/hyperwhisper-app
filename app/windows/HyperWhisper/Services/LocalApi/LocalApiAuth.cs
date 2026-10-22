@@ -66,24 +66,6 @@ internal static class LocalApiAuth
     }
 
     /// <summary>
-    /// Whether an <c>Authorization</c> header presents the stored token.
-    ///
-    /// THE PARSE AND THE COMPARE LIVE IN RUST (issue #289). All three platforms
-    /// did this differently. This one compared UTF-8 bytes directly, and
-    /// <c>FixedTimeEquals</c> returns false immediately on a length mismatch,
-    /// so the length of the stored token leaked through timing. The shared
-    /// version hashes both sides to a fixed 32 bytes first, so the compare runs
-    /// the same number of iterations for every request whatever the caller
-    /// sent. It also owns the header parse, which is what stops the three from
-    /// disagreeing about a trailing space again.
-    ///
-    /// An empty stored token denies everything, so a credential store that came
-    /// back empty cannot be authorized against.
-    /// </summary>
-    public static bool Authorize(string? authorizationHeader, string expectedToken) =>
-        HyperwhisperCoreMethods.LocalApiAuthorize(authorizationHeader, expectedToken ?? "");
-
-    /// <summary>
     /// 32 random bytes → base64-url, the encoding all three platforms wrote out
     /// separately.
     ///

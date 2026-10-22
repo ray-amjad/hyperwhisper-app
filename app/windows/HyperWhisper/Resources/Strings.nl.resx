@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Opnieuw proberen...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Een ander programma heeft de geschiedenisdatabase vergrendeld. De opname is bewaard en wordt in de geschiedenis opgeslagen zodra de database vrij is.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Deze opname kon nog niet in de geschiedenis worden opgeslagen. De opname is bewaard en wordt later in de geschiedenis opgeslagen.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -366,6 +372,9 @@
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatisch wanneer je je aanmeldt.</value>
+  </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Niet beschikbaar in een testprofiel. Deze build gebruikt een aparte map voor app-gegevens en wijzigt daarom de aanmeldingsvermelding van de geïnstalleerde app niet.</value>
   </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Geminimaliseerd starten</value>
@@ -790,6 +799,12 @@ Dit kan niet ongedaan worden gemaakt.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (gereed)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (niet geactiveerd)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (geen API-sleutel)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Laden mislukt</value>
   </data>
@@ -820,6 +835,9 @@ Dit kan niet ongedaan worden gemaakt.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Bestandstranscriptie geannuleerd</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Bestand transcriberen...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Onbekend</value>
   </data>
@@ -843,11 +861,11 @@ Dit kan niet ongedaan worden gemaakt.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcriptie mislukt: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>Geen modus beschikbaar om opnieuw te proberen.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Nieuwe poging mislukt: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>De modus waarmee deze opname is gemaakt, is verwijderd, dus er is niet opnieuw geprobeerd. Klik in Geschiedenis met de rechtermuisknop op de opname en kies "Opnieuw proberen met..." om een andere modus te kiezen.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Opname gestopt — veiligheidslimiet van 20 minuten bereikt.</value>
@@ -1081,6 +1099,9 @@ Je hebt minstens één modus nodig.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Sneltoetsen met slechts één modificatietoets zoals Ctrl, Alt, Shift of Win worden niet ondersteund. Gebruik een toets met modificatietoetsen of een sneltoets met meerdere modificatietoetsen, bijvoorbeeld Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Een sneltoets zonder modificatietoets moet een functietoets of Esc zijn. Elke andere toets zou afgaan terwijl je typt.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Deze sneltoets wordt al gebruikt voor {0} ({1})</value>
   </data>
@@ -1121,6 +1142,9 @@ Je hebt minstens één modus nodig.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Fout: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Windows Toepassingsbeheer heeft {0} geblokkeerd, een bestand dat HyperWhisper nodig heeft. Vraag je IT-beheerder om HyperWhisper toe te staan, of controleer Slim app-beheer in Windows-beveiliging.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Kan automatisch starten niet inschakelen. Controleer of je de opstartinstellingen mag wijzigen.</value>
@@ -1152,6 +1176,12 @@ Je kunt het later opnieuw downloaden.</value>
     <value>Kan {0} niet verwijderen:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Model in gebruik</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} wordt gebruikt door de modus "{1}". Zet die modus op een ander model voordat je het verwijdert.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1286,6 +1316,9 @@ Je kunt het later opnieuw downloaden.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Voer een licentiesleutel in.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Dat lijkt geen accountsleutel.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1306,8 +1339,17 @@ Je kunt het later opnieuw downloaden.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>Bestand niet gevonden</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Er loopt al een opname of bestandstranscriptie. Probeer het bestand opnieuw wanneer die klaar is.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>Het bestand is te groot voor deze provider. Maximale grootte: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Dit bestand is leeg, dus er is geen audio om te transcriberen.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Dit bestand is beschadigd of is geen audiobestand dat HyperWhisper kan lezen.</value>
   </data>
 
   <!-- Mode Change Toast -->
@@ -1690,6 +1732,9 @@ Je kunt het later opnieuw downloaden.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Naamloos</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Meer...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Bestand transcriberen</value>
   </data>
@@ -1984,11 +2029,35 @@ Je kunt het later opnieuw downloaden.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Geluid dempen</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Geluid smoren</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Microfoon paraat houden</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Houd tussen opnamen door een stille invoerstroom open, zodat het starten minder vertraging heeft, vooral bij Bluetooth-microfoons.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Alleen gebruikt door HyperWhisper. Blijft bewaard na een herstart.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Standaard · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (niet verbonden)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>{0} wordt gebruikt totdat {1} opnieuw is verbonden.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Er is geen microfoon verbonden. HyperWhisper gebruikt {0} zodra die opnieuw is verbonden.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Testen</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Stoppen</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Gemiddelde snelheid</value>

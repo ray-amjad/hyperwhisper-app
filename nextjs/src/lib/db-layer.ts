@@ -4,7 +4,7 @@
  * All database operations go through Drizzle ORM (Neon/PlanetScale).
  */
 
-import { eq, and, desc, gte, inArray, count, countDistinct, sql, ilike } from "drizzle-orm";
+import { eq, and, or, asc, desc, gte, inArray, count, countDistinct, sql, ilike } from "drizzle-orm";
 import { generateLicenseKey } from "@/lib/services/license-key";
 import { db } from "@/src/db";
 import {
@@ -75,6 +75,25 @@ export interface CreditGrantInsert {
 export interface CreditGrantRefund {
   sourceType: CreditGrantSourceType;
   sourceId: string;
+  /**
+   * The TOTAL credits of this grant refunded so far, across every refund of
+   * its purchase (Stripe's `amount_refunded` is cumulative, so the caller
+   * passes the running total, not this refund's share). Omitted means the
+   * whole grant is refunded.
+   */
+  refundedCreditsTotal?: number;
+}
+
+export interface CreditGrantRefundResult {
+  /**
+   * "duplicate": the grant already records this refund total. "not_found":
+   * no grant exists for the source yet (e.g. the refund beat the mint, #1798).
+   */
+  status: "processed" | "duplicate" | "not_found";
+  /** Credits of value this call newly recorded as refunded. */
+  refundedAmount: number;
+  /** Credits this call took off the grant's spendable remainder. */
+  removedAmount: number;
 }
 
 export interface UserResult {
@@ -489,23 +508,58 @@ export async function grantCreditsForStripeEvent(
   return insertedEvent ? "processed" : "duplicate";
 }
 
+/**
+ * True when a Stripe object (a Checkout Session id) already has its completed
+ * event recorded in `stripe_processed_events`. The table is keyed by event id
+ * with a unique index on `stripe_object_id`, and a credit purchase writes the
+ * session id there in the same transaction as its grant (#1834).
+ */
+export async function hasProcessedStripeObject(stripeObjectId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ eventId: stripeProcessedEvents.eventId })
+    .from(stripeProcessedEvents)
+    .where(eq(stripeProcessedEvents.stripeObjectId, stripeObjectId))
+    .limit(1);
+  return Boolean(row);
+}
+
+/**
+ * Record a refund against ONE grant and take the refunded credits off it.
+ *
+ * RULE (#1351, Ray 2026-10-07): a refund removes credits from the refunded
+ * purchase's own grant only — never from another grant on the account — and
+ * never more than that grant has left unrefunded. A buyer with pack A and pack
+ * B who refunds pack A keeps every credit of pack B.
+ *
+ * DEDUPE: `refunded_amount` holds the running total of credits refunded on
+ * this grant. The caller passes the new running total (Stripe's
+ * `amount_refunded` is cumulative), and only `total - refunded_amount` is
+ * removed. A repeated, re-delivered or out-of-order event is a no-op, and a
+ * second partial refund removes only its own part.
+ *
+ * SPENT CREDITS: the policy refunds only unused credits. When the grant has
+ * fewer credits left than the refund is worth, the grant goes to 0 and the
+ * rest is NOT drawn from other grants; the full value is still recorded on
+ * `refunded_amount` so the running total stays right. The caller sees the gap
+ * as `refundedAmount - removedAmount` and logs it.
+ */
 export async function refundCreditGrant(
   data: CreditGrantRefund
-): Promise<{ status: "processed" | "duplicate"; refundedAmount: number }> {
+): Promise<CreditGrantRefundResult> {
   return db.transaction(async (tx) => {
-    // Resolve the refunded purchase by provenance. We deliberately do NOT filter
-    // on remaining_amount > 0: a fully-consumed pack still has to be clawed back,
-    // otherwise spending the pack first (so a refund can't hand back unused paid
-    // credits — see spendCreditGrantsByProvenance / #872) would let a refund of a
-    // fully-spent pack reclaim nothing, leaving the user with the paid usage for
-    // free PLUS the cash refund (the inverse money-loss bug).
+    // Resolve the refunded purchase by provenance. No remaining_amount filter:
+    // a fully-spent grant still records its refund (and is a duplicate on the
+    // next delivery). FOR UPDATE serialises this against a concurrent spend
+    // and a concurrent delivery of the same refund.
     const target = await tx.execute<{
       id: string;
       user_id: string;
       original_amount: string;
+      remaining_amount: string;
       refunded_amount: string;
+      status: string;
     }>(sql`
-      SELECT id, user_id, original_amount, refunded_amount
+      SELECT id, user_id, original_amount, remaining_amount, refunded_amount, status
       FROM credit_grants
       WHERE source_type = ${data.sourceType}
         AND source_id = ${data.sourceId}
@@ -514,78 +568,38 @@ export async function refundCreditGrant(
 
     const grant = target.rows[0];
     if (!grant) {
-      return { status: "duplicate", refundedAmount: 0 };
+      // Not a duplicate: nothing was refunded. The caller decides whether a
+      // missing grant is normal or must be retried (#1798).
+      return { status: "not_found", refundedAmount: 0, removedAmount: 0 };
     }
 
-    // The amount this refund reclaims is the grant's full purchased value that
-    // has not already been refunded. A refunded grant (refunded_amount already
-    // covers original_amount) is a no-op / duplicate webhook delivery.
     const originalAmount = Number(grant.original_amount);
+    const remainingAmount = Number(grant.remaining_amount);
     const alreadyRefunded = Number(grant.refunded_amount);
-    const clawback = originalAmount - alreadyRefunded;
-    if (clawback <= 0) {
-      return { status: "duplicate", refundedAmount: 0 };
-    }
 
-    // A full refund must remove the FULL purchased value from the license's
-    // spendable balance, regardless of which grant happened to be spent for the
-    // matching usage. Clamped at the license's current active total so a user who
-    // already burned the credits doesn't go negative, but no value escapes:
-    //   spend order + refund clawback are reconciled against the SAME running
-    //   total, so neither bundle-first nor pack-first ordering can leak money.
-    let toClawback = Math.min(
-      clawback,
-      await getActiveGrantsTotal(tx, grant.user_id)
+    // The running total this refund brings the grant to, capped at the grant.
+    const refundedTotal = Math.min(
+      originalAmount,
+      Math.max(0, data.refundedCreditsTotal ?? originalAmount)
     );
-
-    // Draw the clawback down from the license's active, unexpired grants,
-    // starting with the refunded grant itself, then the same oldest-first order
-    // used when spending (soonest-to-expire first). The clawback total is
-    // clamped at the license's current active balance, and both spend and
-    // clawback reconcile against that same running total, so no ordering can
-    // leak money. Expired grants are skipped: they no longer back any spendable
-    // balance, so clawing them back would remove value that was never available.
-    const drawdown = await tx.execute<{ id: string; remaining_amount: string }>(sql`
-      SELECT id, remaining_amount
-      FROM credit_grants
-      WHERE user_id = ${grant.user_id}
-        AND remaining_amount > 0
-        AND status = 'active'
-        AND ${ACTIVE_GRANT_EXPIRY}
-      ORDER BY
-        CASE WHEN id = ${grant.id} THEN 0 ELSE 1 END,
-        expires_at ASC,
-        created_at ASC,
-        id
-      FOR UPDATE
-    `);
-
-    for (const row of drawdown.rows) {
-      if (toClawback <= 0) break;
-      const rowRemaining = Number(row.remaining_amount);
-      const deduction = Math.min(rowRemaining, toClawback);
-      if (deduction <= 0) continue;
-      const newRemaining = rowRemaining - deduction;
-      await tx
-        .update(creditGrants)
-        .set({
-          remainingAmount: newRemaining.toString(),
-          status: newRemaining === 0 ? "spent" : "active",
-          updatedAt: new Date(),
-        })
-        .where(eq(creditGrants.id, row.id));
-      toClawback -= deduction;
+    const refundNow = refundedTotal - alreadyRefunded;
+    if (refundNow <= 0) {
+      return { status: "duplicate", refundedAmount: 0, removedAmount: 0 };
     }
 
-    // Mark the refunded grant as refunded and record the full reclaimed value on
-    // it (even when the credits were physically drawn from other grants), so the
-    // grant's lifetime is correct and a duplicate refund webhook is a no-op.
+    // Take the refunded credits off THIS grant only, flooring at 0.
+    const removedAmount = Math.min(remainingAmount, refundNow);
+    const newRemaining = remainingAmount - removedAmount;
+
     await tx
       .update(creditGrants)
       .set({
-        remainingAmount: "0",
-        refundedAmount: (alreadyRefunded + clawback).toString(),
-        status: "refunded",
+        remainingAmount: newRemaining.toString(),
+        refundedAmount: refundedTotal.toString(),
+        // A grant with nothing left after a refund is closed as refunded. A
+        // partly refunded grant with credits left keeps its status, so the
+        // rest stays spendable.
+        status: newRemaining <= 0 ? "refunded" : grant.status,
         updatedAt: new Date(),
       })
       .where(eq(creditGrants.id, grant.id));
@@ -594,7 +608,8 @@ export async function refundCreditGrant(
     await reconcileCreditBalance(tx, grant.user_id);
     return {
       status: "processed",
-      refundedAmount: clawback,
+      refundedAmount: refundNow,
+      removedAmount,
     };
   });
 }
@@ -614,12 +629,10 @@ export async function spendCreditGrantsByProvenance(
       -- Spend OLDEST-FIRST: soonest-to-expire grants are consumed before grants
       -- that still have time on them (and never-expiring grants last), so a user
       -- naturally burns down credits before they lapse. This replaces the older
-      -- provenance (paid-pack-first) order; refund safety is now preserved a
-      -- different way — refundCreditGrant clamps every clawback at the license's
-      -- current active balance and reconciles against the same running total
-      -- (#872 / spec §6), so neither spend nor clawback ordering can leak money
-      -- regardless of which grant a given unit of usage drew from. Expired
-      -- grants are excluded above and never spent.
+      -- provenance (paid-pack-first) order. A refund takes credits from the
+      -- refunded purchase's own grant only (#1351), so what a pack has left
+      -- here is what a refund of that pack can remove. Expired grants are
+      -- excluded above and never spent.
       ORDER BY
         expires_at ASC,
         created_at ASC,
@@ -669,9 +682,30 @@ export async function spendCreditGrantsByProvenance(
  *
  * Returns the new cached aggregate balance. The public API response shape is
  * preserved, but the underlying grant rows record which source was consumed.
+ *
+ * The floor at zero swallows any part of `amount` the grants cannot cover. That
+ * overspend is written off, never carried as a negative balance, and logged as
+ * one structured `credits_shortfall` line (#2008) so it can be counted. The
+ * cloud logs the same event, with `source: "cloud"`, for overspend it catches
+ * before it charges. No account identifier is logged.
  */
 export async function deductCreditBalance(userId: string, amount: number): Promise<number> {
   const result = await spendCreditGrantsByProvenance(userId, amount);
+  const shortfall = amount - result.deductedAmount;
+
+  // Grant amounts are stored to the cent, so anything under one is float noise.
+  if (shortfall > 0.005) {
+    console.warn(
+      JSON.stringify({
+        event: "credits_shortfall",
+        source: "license_api",
+        requestedCredits: amount,
+        deductedCredits: result.deductedAmount,
+        shortfallCredits: Math.round(shortfall * 100) / 100,
+      }),
+    );
+  }
+
   return result.balance;
 }
 
@@ -968,36 +1002,78 @@ export async function upsertDeviceValidation(
     });
 }
 
+/** Rows per page of the admin per-key device list (#1661). */
+export const DEVICES_PAGE_SIZE = 50;
+
+/**
+ * Escapes `\`, `%` and `_` so a user's text matches itself literally inside
+ * a LIKE / ILIKE pattern (Postgres's default escape character is `\`).
+ */
+export function escapeLikePattern(text: string): string {
+  return text.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+}
+
+/**
+ * One page of a key's devices, plus how many devices match in total (#1661).
+ * A key can hold over a thousand devices, so the admin Devices page asks for
+ * them 50 at a time instead of every row at once.
+ *
+ * - `sinceDays` keeps only devices validated inside that window.
+ * - `search` matches the device name or the device id, case-insensitive, as
+ *   literal text (LIKE wildcards in it are escaped).
+ * - Ordered most recently validated first, then by device id, so a page
+ *   boundary never shifts between two requests with tied timestamps.
+ */
 export async function getDevicesForLicense(
   licenseKeyId: string,
-  sinceDays?: number
-): Promise<
-  Array<{
+  sinceDays?: number,
+  page: { limit?: number; offset?: number; search?: string } = {}
+): Promise<{
+  devices: Array<{
     deviceId: string;
     deviceName: string | null;
     createdAt: Date;
     lastValidatedAt: Date;
-  }>
-> {
+  }>;
+  total: number;
+}> {
   const conditions = [eq(deviceValidations.licenseKeyId, licenseKeyId)];
   if (sinceDays) {
     const since = new Date();
     since.setDate(since.getDate() - sinceDays);
     conditions.push(gte(deviceValidations.lastValidatedAt, since));
   }
+  const search = page.search?.trim();
+  if (search) {
+    const pattern = `%${escapeLikePattern(search)}%`;
+    const match = or(
+      ilike(deviceValidations.deviceName, pattern),
+      ilike(deviceValidations.deviceId, pattern)
+    );
+    if (match) conditions.push(match);
+  }
+  const where = and(...conditions);
 
-  const rows = await db
-    .select({
-      deviceId: deviceValidations.deviceId,
-      deviceName: deviceValidations.deviceName,
-      createdAt: deviceValidations.createdAt,
-      lastValidatedAt: deviceValidations.lastValidatedAt,
-    })
-    .from(deviceValidations)
-    .where(and(...conditions))
-    .orderBy(desc(deviceValidations.lastValidatedAt));
+  const [devices, countRows] = await Promise.all([
+    db
+      .select({
+        deviceId: deviceValidations.deviceId,
+        deviceName: deviceValidations.deviceName,
+        createdAt: deviceValidations.createdAt,
+        lastValidatedAt: deviceValidations.lastValidatedAt,
+      })
+      .from(deviceValidations)
+      .where(where)
+      .orderBy(
+        desc(deviceValidations.lastValidatedAt),
+        asc(deviceValidations.deviceId)
+      )
+      .limit(page.limit ?? DEVICES_PAGE_SIZE)
+      .offset(page.offset ?? 0),
+    db.select({ total: count() }).from(deviceValidations).where(where),
+  ]);
 
-  return rows;
+  return { devices, total: Number(countRows[0]?.total ?? 0) };
 }
 
 export async function getDeviceCountsPerLicense(sinceDays?: number): Promise<

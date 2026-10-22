@@ -210,8 +210,10 @@ public static class UnifiedModelCatalog
             var provider = Required(model.@provider, "provider");
             if (provider is "localLLM") continue;
             var modelId = model.@id;
+            // models-catalog.json owns the model name; a row with none falls back to its id.
+            var displayName = string.IsNullOrWhiteSpace(model.@displayName) ? modelId : model.@displayName;
             result.Add(new ModelCapability(
-                $"cloud/pp-byok/{provider}/{NormalizeEmpty(modelId)}", modelId,
+                $"cloud/pp-byok/{provider}/{NormalizeEmpty(modelId)}", displayName,
                 provider, modelId, ModelDeployment.Cloud, ModelWorkload.Text,
                 ModelSurface.PostProcessing, false,
                 model.@supportsAllLanguages == true,

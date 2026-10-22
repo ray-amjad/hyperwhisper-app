@@ -42,6 +42,37 @@ try
             .Where(group => group.Count() > 1).Select(group => group.Key).ToArray();
         Assert(duplicateIds.Length == 0,
             "the library table repeats a local model id: " + string.Join(", ", duplicateIds));
+
+        // #2203: a multi-word query matches when EVERY word matches some searched field, as on
+        // macOS (#1447) and Windows (#2169). Before, the whole query had to sit in one field.
+        string Found(string query)
+        {
+            bundled.SearchText = query;
+            return string.Join(", ", bundled.Items.Select(item => $"{item.DisplayName} [{item.ModelId}]"));
+        }
+        var allRows = bundled.Items.Count;
+        bundled.SearchText = "nemotron multilingual";
+        Assert(bundled.Items.Count == 1 && bundled.Items[0].ModelId.StartsWith("nemotron-", StringComparison.Ordinal),
+            "\"nemotron multilingual\" did not find the Nemotron row only: " + Found("nemotron multilingual"));
+        bundled.SearchText = "whisper base.en";
+        Assert(bundled.Items.Count == 1 && bundled.Items[0].ModelId == "base.en" && bundled.Items[0].IsLocal,
+            "\"whisper base.en\" did not find the Whisper Base English row only: " + Found("whisper base.en"));
+        bundled.SearchText = "  WHISPER   Base.EN ";
+        Assert(bundled.Items.Count == 1 && bundled.Items[0].ModelId == "base.en",
+            "search words were not trimmed, split on runs of whitespace and matched case-insensitively");
+        bundled.SearchText = "base.en";
+        Assert(bundled.Items.Any(item => item.ModelId == "base.en")
+            && bundled.Items.All(item => item.ModelId.Contains("base.en", StringComparison.OrdinalIgnoreCase)
+                || item.DisplayName.Contains("base.en", StringComparison.OrdinalIgnoreCase)),
+            "a one-word query no longer matches a single field: " + Found("base.en"));
+        bundled.SearchText = "nemotron zzqx";
+        Assert(bundled.Items.Count == 0, "a query with a junk word still matched rows: " + Found("nemotron zzqx"));
+        bundled.SearchText = "zzqx";
+        Assert(bundled.Items.Count == 0, "a junk query matched rows");
+        bundled.SearchText = "   ";
+        Assert(bundled.Items.Count == allRows, "a blank query filtered rows");
+        bundled.SearchText = string.Empty;
+        Assert(bundled.Items.Count == allRows, "clearing the search did not restore every row");
     }
     var capabilities = new ModelCapability[]
     {
@@ -185,7 +216,9 @@ try
     using (var countViewModel = new ModelLibraryViewModel(countManager, countReadiness))
     {
         Assert(InstalledCount(countViewModel) == 0, "a fresh profile did not start at 0 Installed: " + countViewModel.LibrarySummary);
-        countViewModel.Selected = countViewModel.Items.Single(item => item.ModelId == "parakeet-v2");
+        // The smallest catalog model: every local model now has to arrive at its exact
+        // catalog size to count as installed (#1632), so the handler streams that many bytes.
+        countViewModel.Selected = countViewModel.Items.Single(item => item.ModelId == "tiny");
         await countViewModel.DownloadAsync();
         Assert(countViewModel.Selected!.Installed && InstalledCount(countViewModel) == 1,
             "a successful download left the installed count stale: " + countViewModel.LibrarySummary);
@@ -236,11 +269,40 @@ sealed class SettableLocalSource : ILocalModelReadinessSource
 /// </summary>
 sealed class TinyArtifactHandler : HttpMessageHandler
 {
+    // Serves a catalog artifact at its exact size (a ggml header, then zeros), so the
+    // byte-exact installed check accepts it; anything else gets a 4-byte stub.
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        => Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent("stub"u8.ToArray()),
-        });
+    {
+        var model = PortableModelCatalog.All.FirstOrDefault(m => m.Artifacts.Any(a => a.DownloadUri == request.RequestUri));
+        var artifact = model?.Artifacts.First(a => a.DownloadUri == request.RequestUri);
+        HttpContent content = artifact?.ExactSizeBytes is { } length
+            ? new StreamContent(new ZeroStream(model!.Kind == ManagedModelKind.Whisper ? "lmgg"u8.ToArray() : [], length))
+            : new ByteArrayContent("stub"u8.ToArray());
+        if (artifact?.ExactSizeBytes is { } declared) content.Headers.ContentLength = declared;
+        return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = content });
+    }
+}
+
+sealed class ZeroStream(byte[] header, long length) : Stream
+{
+    private long _position;
+    public override bool CanRead => true;
+    public override bool CanSeek => false;
+    public override bool CanWrite => false;
+    public override long Length => length;
+    public override long Position { get => _position; set => throw new NotSupportedException(); }
+    public override int Read(byte[] buffer, int offset, int count)
+    {
+        var read = (int)Math.Min(count, length - _position);
+        Array.Clear(buffer, offset, read);
+        for (var i = 0; i < read && _position + i < header.Length; i++) buffer[offset + i] = header[_position + i];
+        _position += read;
+        return read;
+    }
+    public override void Flush() { }
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 }
 
 sealed class TestCredentials : IProviderCredentialSource

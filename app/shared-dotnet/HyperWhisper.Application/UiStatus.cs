@@ -14,4 +14,5 @@ public sealed class UiStatus : ViewModelBase
     public void Busy(string message) { IsBusy = true; ErrorCode = null; Message = message; }
     public void Success(string message) { IsBusy = false; ErrorCode = null; Message = message; }
     public void Failure(string code, string message) { IsBusy = false; ErrorCode = code; Message = message; }
+    public void Clear() { IsBusy = false; ErrorCode = null; Message = string.Empty; }
 }

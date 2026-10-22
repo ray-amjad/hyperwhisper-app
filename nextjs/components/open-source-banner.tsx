@@ -1,10 +1,13 @@
 "use client";
 
 import { Sparkles, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Link } from "@/src/i18n/navigation";
 
 export const OpenSourceBanner = ({ onDismiss }: { onDismiss: () => void }) => {
+  const t = useTranslations("openSourceBanner");
+
   return (
     <div className="w-full h-12 bg-black text-white border-b border-white/10 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-r from-purple-900/30 via-blue-900/30 to-purple-900/30" />
@@ -12,19 +15,17 @@ export const OpenSourceBanner = ({ onDismiss }: { onDismiss: () => void }) => {
       <div className="h-full flex items-center justify-center gap-2 sm:gap-3 px-3 relative z-10">
         <Sparkles className="w-3.5 h-3.5 text-purple-300 shrink-0" />
         <p className="text-xs sm:text-sm font-medium truncate">
-          <span className="hidden sm:inline">
-            HyperWhisper is now fully open source ·{" "}
-          </span>
-          <span className="sm:hidden">Now open source · </span>
+          <span className="hidden sm:inline">{t("text")} · </span>
+          <span className="sm:hidden">{t("shortText")} · </span>
           <Link
             className="underline underline-offset-2 hover:text-purple-200 transition-colors"
             href="/open-source"
           >
-            Learn more
+            {t("learnMore")}
           </Link>
         </p>
         <button
-          aria-label="Dismiss announcement"
+          aria-label={t("dismiss")}
           className="absolute right-2 sm:right-3 p-1 text-gray-400 hover:text-white transition-colors cursor-pointer"
           onClick={onDismiss}
         >

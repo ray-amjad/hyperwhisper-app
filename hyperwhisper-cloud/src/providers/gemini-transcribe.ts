@@ -50,8 +50,9 @@ import {
   isExplicitLanguage,
   logProviderEvent,
   providerHttpError,
-  readErrorBodyPreview,
+  splitVocabularyTerms,
 } from './utils';
+import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
 
 const INTERACTIONS_URL = 'https://generativelanguage.googleapis.com/v1beta/interactions';
 // Google versions this endpoint by date. Omitting the header selects whatever
@@ -148,30 +149,12 @@ export function buildTranscriptionConfig(
  * de-duplicate case-insensitively.
  */
 export function toVocabularyTerms(initialPrompt: string): string[] {
-  const seen = new Set<string>();
-  const terms: string[] = [];
-
-  for (const raw of initialPrompt.split(/[,\n;]+/)) {
-    const term = raw
-      .trim()
-      // Only strip a bullet when a space follows it: without the space a leading
-      // '-' or '*' is part of the term ('-Xmx', '*args'), and the BYOK path
-      // keeps it.
-      .replace(/^[-*]\s+/, '')
-      .replace(/[<>]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, MAX_VOCABULARY_TERM_CHARS);
-    if (term.length === 0) continue;
-
-    const key = term.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    terms.push(term);
-    if (terms.length === MAX_VOCABULARY_TERMS) break;
-  }
-
-  return terms;
+  return splitVocabularyTerms(initialPrompt, {
+    maxTerms: MAX_VOCABULARY_TERMS,
+    maxTermChars: MAX_VOCABULARY_TERM_CHARS,
+    sanitize: true,
+    overLongTerm: 'truncate',
+  });
 }
 
 interface InteractionsUsage {
@@ -304,10 +287,11 @@ export async function transcribeWithGeminiTranscribe(
   if (!response.ok) {
     if (response.status === 400) {
       // Peek at a clone so providerHttpError below still owns the body it logs.
-      const preview = await readErrorBodyPreview(response.clone());
-      if (looksLikeAuthFailure(preview)) {
+      // `classifierText` is for the auth test only; never logged (#2163).
+      const { fields, classifierText } = await readUpstreamError(response.clone());
+      if (looksLikeAuthFailure(classifierText)) {
         logProviderEvent(provider, 'http_error', {
-          model, status: 400, kind: 'auth', bodyPreview: preview,
+          model, ...upstreamErrorLogFields(fields), kind: 'auth',
         }, context);
         throw new Error('Gemini API key is invalid or unauthorized');
       }

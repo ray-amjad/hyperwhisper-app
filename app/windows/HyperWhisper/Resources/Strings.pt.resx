@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>A tentar novamente...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Outro programa bloqueou o banco de dados do histórico. A gravação foi mantida e será salva no histórico assim que o banco de dados ficar livre.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Ainda não foi possível salvar esta gravação no histórico. A gravação foi mantida e será salva no histórico mais tarde.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -366,6 +372,9 @@
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Iniciar o HyperWhisper automaticamente quando inicia sessão.</value>
+  </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Indisponível num perfil de teste. Esta compilação usa uma pasta de dados da app separada, por isso não altera a entrada de início de sessão da app instalada.</value>
   </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Iniciar minimizado</value>
@@ -790,6 +799,12 @@ Esta ação não pode ser desfeita.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (pronto)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (não ativado)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (sem chave de API)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Falha ao carregar</value>
   </data>
@@ -820,6 +835,9 @@ Esta ação não pode ser desfeita.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transcrição do ficheiro cancelada</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>A transcrever ficheiro...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Desconhecido</value>
   </data>
@@ -843,11 +861,11 @@ Esta ação não pode ser desfeita.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>A transcrição falhou: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>Não há nenhum modo disponível para tentar novamente.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>A nova tentativa falhou: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>O modo que fez esta gravação foi excluído, então ela não foi tentada novamente. Em Histórico, clique com o botão direito na gravação e escolha "Tentar novamente com..." para escolher outro modo.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Gravação parada — limite de segurança de 20 minutos atingido.</value>
@@ -1081,6 +1099,9 @@ Tem de ter pelo menos um modo.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Atalhos com um único modificador, como Ctrl, Alt, Shift ou Win, não são suportados. Use uma tecla com modificadores ou um atalho com vários modificadores, como Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Um atalho sem tecla modificadora tem de ser uma tecla de função ou Esc. Qualquer outra tecla seria acionada enquanto escreve.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Este atalho já é usado para {0} ({1})</value>
   </data>
@@ -1121,6 +1142,9 @@ Tem de ter pelo menos um modo.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Erro: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>O Controlo de Aplicações do Windows bloqueou {0}, um ficheiro de que o HyperWhisper precisa. Peça ao seu administrador de TI que permita o HyperWhisper ou verifique o Controlo Inteligente de Aplicações na Segurança do Windows.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Não foi possível ativar o arranque automático. Verifique se tem permissão para alterar as definições de arranque.</value>
@@ -1152,6 +1176,12 @@ Pode voltar a descarregá-lo mais tarde.</value>
     <value>Não foi possível eliminar {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Modelo em uso</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} é usado pelo modo "{1}". Mude esse modo para outro modelo antes de excluí-lo.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1286,6 +1316,9 @@ Pode voltar a descarregá-lo mais tarde.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Introduza uma chave de licença.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Isto não parece uma chave da conta.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1306,8 +1339,17 @@ Pode voltar a descarregá-lo mais tarde.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>Ficheiro não encontrado</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Já está em curso uma gravação ou transcrição de ficheiro. Tente o ficheiro novamente quando terminar.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>O ficheiro é demasiado grande para este fornecedor. Tamanho máximo: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Este ficheiro está vazio, por isso não há áudio para transcrever.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Este ficheiro está danificado ou não é um ficheiro de áudio que o HyperWhisper consiga ler.</value>
   </data>
 
   <!-- Mode Change Toast -->
@@ -1690,6 +1732,9 @@ Pode voltar a descarregá-lo mais tarde.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Sem nome</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Mais...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcrever ficheiro</value>
   </data>
@@ -1984,11 +2029,35 @@ Pode voltar a descarregá-lo mais tarde.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Silenciar o áudio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Abafar o áudio</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Manter o microfone ativo</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Manter um fluxo de entrada silencioso aberto entre gravações, para reduzir o atraso de arranque, sobretudo com microfones Bluetooth.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Utilizado apenas pelo HyperWhisper. Memorizado após reiniciar.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Predefinição · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (não ligado)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>A utilizar {0} até {1} ser novamente ligado.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Nenhum microfone está ligado. O HyperWhisper utilizará {0} quando for novamente ligado.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Testar</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Parar</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Velocidade média</value>

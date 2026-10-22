@@ -371,7 +371,13 @@ public sealed partial class ApplicationBackupService
             List<VocabularyItem>? vocabulary = null;
             if (root["vocabulary"] is JsonArray vocabularyNodes)
             {
-                vocabulary = vocabularyNodes.Select(ParseVocabulary).ToList();
+                var parsedVocabulary = vocabularyNodes.Select(ParseVocabulary).ToList();
+                // A word longer than the cap froze the Linux page for minutes on every visit (#2390).
+                // Refused, not truncated: an import never changes a word without saying so.
+                var tooLong = parsedVocabulary.FindIndex(item => VocabularyWords.SplitLines(item.Word).Any(line => line.Length > VocabularyWords.MaxWordChars));
+                if (tooLong >= 0)
+                    return PlatformResult<ParsedBackup>.Failure("backup.invalid", $"The universal backup failed validation at vocabulary[{tooLong}].word.");
+                vocabulary = SplitMultiLineWords(parsedVocabulary);
                 ValidateVocabulary(vocabulary);
             }
             var platform = root["platform"]!.GetValue<string>();
