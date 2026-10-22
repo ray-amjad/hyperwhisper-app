@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using HyperWhisper.Platform.Abstractions.Audio;
 using NAudio.Wave;
 
 namespace HyperWhisper.Services.Streaming;
@@ -43,6 +44,12 @@ public sealed class StreamingAudioCapture : IDisposable
     public event Action<byte[]>? AudioChunkAvailable;
     public event Action<float>? AudioLevelChanged;
     public event Action<Exception?>? CaptureStopped;
+
+    /// <summary>
+    /// Each capture buffer's PEAK in dBFS, over every channel of the raw 16-bit
+    /// samples before the mix-down (#2411). Raised on the NAudio capture thread.
+    /// </summary>
+    public event Action<double>? BlockPeakDbfs;
 
     public void Start(int deviceNumber, int sampleRate = 16000)
     {
@@ -112,6 +119,8 @@ public sealed class StreamingAudioCapture : IDisposable
     {
         if (!IsCapturing || e.BytesRecorded <= 0)
             return;
+
+        BlockPeakDbfs?.Invoke(AudioBlockPeak.Pcm16Dbfs(e.Buffer.AsSpan(0, e.BytesRecorded)));
 
         var chunk = _captureChannelCount > 2
             ? MixToMono(e.Buffer, e.BytesRecorded, _captureChannelCount)

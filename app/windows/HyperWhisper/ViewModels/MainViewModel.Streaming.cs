@@ -97,6 +97,7 @@ public partial class MainViewModel : ViewModelBase
         _streamingAudioCapture = new StreamingAudioCapture();
         _streamingAudioCapture.AudioChunkAvailable += OnStreamingAudioChunkAvailable;
         _streamingAudioCapture.AudioLevelChanged += _audioLevelHandler;
+        _streamingAudioCapture.BlockPeakDbfs += _micSilenceWatcher.ObserveBlockPeak;
 
         AudioEnvironmentService.AudioEnvironmentRestoreClaim? audioRestoreClaim = null;
 
@@ -723,6 +724,7 @@ public partial class MainViewModel : ViewModelBase
         {
             _streamingAudioCapture.AudioChunkAvailable -= OnStreamingAudioChunkAvailable;
             _streamingAudioCapture.AudioLevelChanged -= _audioLevelHandler;
+            _streamingAudioCapture.BlockPeakDbfs -= _micSilenceWatcher.ObserveBlockPeak;
             _streamingAudioCapture.Dispose();
             _streamingAudioCapture = null;
         }

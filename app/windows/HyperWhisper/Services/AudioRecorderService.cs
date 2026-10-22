@@ -2,6 +2,7 @@ using System.IO;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using HyperWhisper.Data.Entities;
+using HyperWhisper.Platform.Abstractions.Audio;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
 
@@ -53,6 +54,13 @@ public class AudioRecorderService : IDisposable
     /// Event raised when audio level changes (0.0 to 1.0).
     /// </summary>
     public event Action<float>? AudioLevelChanged;
+
+    /// <summary>
+    /// Each captured buffer's PEAK in dBFS, read from the raw 16-bit samples
+    /// (#2411). Raised on the NAudio capture thread. Not derived from
+    /// <see cref="AudioLevelChanged"/>, which is smoothed and perceptual.
+    /// </summary>
+    public event Action<double>? BlockPeakDbfs;
 
     /// <summary>
     /// PCM bytes the capture device delivered to the last recording's file,
@@ -220,6 +228,9 @@ public class AudioRecorderService : IDisposable
         _displayedLevel = AudioLevelMath.NextLevel(e.Buffer, e.BytesRecorded, _displayedLevel);
 
         AudioLevelChanged?.Invoke(_displayedLevel);
+
+        if (e.BytesRecorded > 0)
+            BlockPeakDbfs?.Invoke(AudioBlockPeak.Pcm16Dbfs(e.Buffer.AsSpan(0, e.BytesRecorded)));
     }
 
     private void OnRecordingStopped(object? sender, StoppedEventArgs e)
