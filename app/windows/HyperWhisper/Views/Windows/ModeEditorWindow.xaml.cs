@@ -20,6 +20,12 @@ public partial class ModeEditorWindow : Window
     private bool _isUpdatingCloudModels;
     private bool _isUpdatingCloudTierModels;
 
+    // Name-taken check (issue #2478). _storedName is the edited mode's name as
+    // stored (null when creating); _otherModeNames is every OTHER mode's name.
+    // Both are read on load and again at Save.
+    private string? _storedName;
+    private List<string> _otherModeNames = [];
+
     public ModeEditorWindow(Mode mode)
     {
         InitializeComponent();
@@ -27,6 +33,7 @@ public partial class ModeEditorWindow : Window
         WindowWorkAreaFit.Attach(this);
         _mode = mode;
         _isCreateMode = false;
+        _storedName = mode.Name;
 
         ApplyDefaultModeNameLock();
         Loaded += OnLoaded;
@@ -88,8 +95,20 @@ public partial class ModeEditorWindow : Window
         Loaded += OnLoaded;
     }
 
+    private void ReloadOtherModeNames()
+    {
+        var modes = ModeService.Instance.GetAllModes();
+        _otherModeNames = modes.Where(m => m.Id != _mode.Id).Select(m => m.Name).ToList();
+        // The stored name too: the Local API can rename this mode while the
+        // window is open, and a stale one would exempt a name it no longer has.
+        var stored = modes.FirstOrDefault(m => m.Id == _mode.Id);
+        if (!_isCreateMode && stored != null) _storedName = stored.Name;
+    }
+
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        ReloadOtherModeNames();
+
         // Configure UI for ARM64 architecture before loading data
         ConfigureForArchitecture();
 
@@ -352,10 +371,42 @@ public partial class ModeEditorWindow : Window
         return language != null && support.Codes.Contains(language);
     }
 
+    /// <summary>
+    /// Whether another mode already uses the typed name (issue #2478), by the
+    /// rule the Local API's MODE_NAME_TAKEN and the macOS editor use.
+    /// </summary>
+    private bool IsModeNameTaken() =>
+        ModeNameRules.IsTaken(ModeNameBox.Text, _storedName, _otherModeNames);
+
+    /// <summary>
+    /// Shows or hides the name-taken hint. A WPF LiveSetting alone announces
+    /// nothing, so the peer raises LiveRegionChanged when it appears, and the
+    /// hint becomes the box's HelpText like the default-mode lock hint.
+    /// </summary>
+    private void ShowModeNameTakenHint(bool show)
+    {
+        var wasShown = ModeNameTakenHint.Visibility == Visibility.Visible;
+        ModeNameTakenHint.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        if (show == wasShown) return;
+
+        System.Windows.Automation.AutomationProperties.SetHelpText(
+            ModeNameBox, show ? ModeNameTakenHint.Text : string.Empty);
+        if (show)
+        {
+            ModeNameTakenHint.UpdateLayout();
+            System.Windows.Automation.Peers.UIElementAutomationPeer
+                .CreatePeerForElement(ModeNameTakenHint)
+                .RaiseAutomationEvent(System.Windows.Automation.Peers.AutomationEvents.LiveRegionChanged);
+        }
+    }
+
     private void UpdateSaveButtonState()
     {
-        // Name is required
-        if (string.IsNullOrWhiteSpace(ModeNameBox.Text) || !HasValidDictationLanguage())
+        var nameTaken = IsModeNameTaken();
+        ShowModeNameTakenHint(nameTaken);
+
+        // Name is required, and no other mode may already use it
+        if (string.IsNullOrWhiteSpace(ModeNameBox.Text) || nameTaken || !HasValidDictationLanguage())
         {
             SaveModeButton.IsEnabled = false;
             return;
@@ -1770,6 +1821,15 @@ public partial class ModeEditorWindow : Window
         if (!HasValidDictationLanguage())
         {
             LanguageCombo.Focus();
+            return;
+        }
+
+        // Re-read: the Local API can add a mode while this window is open.
+        ReloadOtherModeNames();
+        if (IsModeNameTaken())
+        {
+            UpdateSaveButtonState();
+            ModeNameBox.Focus();
             return;
         }
 
