@@ -709,6 +709,7 @@ Bewerk die modi om een ander model te selecteren voordat je het verwijdert.";
 "modes.header.create" = "Modus maken";
 "modes.name.unnamed" = "Naamloos";
 "modes.badge.offline" = "Offline";
+"modes.badge.modelMissing" = "Model ontbreekt";
 "modes.context.select" = "Selecteren";
 "modes.help.edit" = "Modusinstellingen bewerken";
 "modes.help.preset" = "Meer informatie over deze voorinstelling";

@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Özellikler",
-    "pricing": "Fiyatlandırma",
     "faq": "SSS",
     "support": "Destek",
     "download": "İndir",
@@ -20,7 +19,6 @@
     "githubAria": "HyperWhisper'ı GitHub'da görüntüleyin"
   },
   "hero": {
-    "openSourceBadge": "Açık kaynak · Apache-2.0",
     "logoAlt": "HyperWhisper Logosu",
     "headline": "Yazın, üretin ve oluşturun",
     "headlineAccent": "Yapay zeka ile 5x daha hızlı",
@@ -97,57 +95,6 @@
     "accuracyRate": "Doğruluk oranı",
     "languagesSupported": "Desteklenen diller",
     "providersSupported": "Desteklenen sağlayıcılar"
-  },
-  "pricing": {
-    "title": "Abonelik yok. Asla.",
-    "subtitle": "Bir kez ödeyin, sonsuza dek kullanın. Biz de abonelikten hoşlanmıyoruz.",
-    "guarantee": "14 günlük para iade garantisi",
-    "guaranteeExtended": "tam memnun kalmazsanız.",
-    "learnMore": "Daha fazla bilgi",
-    "free": {
-      "name": "Free",
-      "price": "$0",
-      "period": "sonsuza dek",
-      "description": "HyperWhisper'ı denemek için ideal",
-      "cta": "Ücretsiz indir",
-      "features": {
-        "transcriptionLimit": "Günde 5 dakika transkripsiyon",
-        "basicModes": "Temel transkripsiyon modları",
-        "offlineTranscription": "Çevrimdışı transkripsiyon",
-        "apiTranscription": "API transkripsiyonu (kendi anahtarlarınızı getirin)",
-        "postProcessing": "Metin son işleme",
-        "providers": "Seçebileceğiniz 9+ sağlayıcı",
-        "lifetimeUpdates": "Ömür boyu güncellemeler",
-        "cloudLimited": "HyperWhisper Cloud (sınırlı kullanım)",
-        "customVocabulary": "Özel sözlük",
-        "prioritySupport": "Öncelikli destek"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "ömür boyu",
-      "description": "Tek seferlik satın alma, sonsuza dek sınırsız güç",
-      "cta": "Şimdi Satın Al - Ömür Boyu Erişim",
-      "mostPopular": "En Popüler",
-      "features": {
-        "unlimitedTranscription": "Sınırsız transkripsiyon",
-        "allModes": "Tüm transkripsiyon modları",
-        "offlineTranscription": "Çevrimdışı transkripsiyon",
-        "apiTranscription": "API transkripsiyonu (kendi anahtarlarınızı getirin)",
-        "postProcessing": "Metin son işleme",
-        "providers": "Seçebileceğiniz 9+ sağlayıcı",
-        "lifetimeUpdates": "Ömür boyu güncellemeler",
-        "cloudCredits": "HyperWhisper Cloud ($5 kredi)",
-        "customVocabulary": "Özel sözlük",
-        "prioritySupport": "Öncelikli destek"
-      }
-    },
-    "enterprise": {
-      "title": "Kurumsal ve Özel Fiyatlandırma",
-      "description": "Hacim indirimleri, SSO, öncelikli destek, kurum içi barındırma ve özel entegrasyonlar",
-      "cta": "Satışla İletişime Geç"
-    }
   },
   "faq": {
     "title": "Sık sorulan sorular",
@@ -252,10 +199,7 @@
     "downloadButton": "HyperWhisper'ı İndir",
     "errorGeneric": "Bir şeyler ters gitti. Lütfen tekrar deneyin.",
     "errorEmail": "Lütfen geçerli bir e-posta adresi girin.",
-    "errorNetwork": "Ağ hatası. Lütfen bağlantınızı kontrol edip tekrar deneyin.",
-    "thankYouTitle": "Teşekkürler!",
     "downloadStarted": "İndirmeniz otomatik olarak başlamalı.",
-    "manualDownload": "İndirme başlamadı mı? Buraya tıklayın",
     "skipAndDownloadButton": "Atla ve indir"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "İndir",
       "roadmap": "Yol haritası",
       "helpCenter": "Yardım Merkezi",
-      "manageBilling": "Faturalandırmayı Yönet",
       "customerPortal": "Müşteri Portalı",
       "olderVersions": "Eski Sürümler",
       "blog": "Blog",

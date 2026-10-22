@@ -23,9 +23,9 @@
  * the only way the tests reach the source. A test file that imports the route
  * itself would bind to the real collaborators, so do not.
  */
-import { mock } from "node:test";
-
 import superjson from "superjson";
+
+import { moduleMock, moduleUrl } from "./module-mock";
 
 export interface DeviceCountRow {
   licenseKeyId: string;
@@ -86,28 +86,6 @@ export function resetHarness(): void {
   behaviour.stripeError = null;
   behaviour.downloadOuterError = null;
 }
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
-
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrow the tracker to the one method used here rather
- * than bumping the types in a test-only change.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: {
-      namedExports?: Record<string, unknown>;
-      defaultExport?: unknown;
-    },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
 
 moduleMock.module(moduleUrl("../src/lib/auth.ts"), {
   namedExports: {

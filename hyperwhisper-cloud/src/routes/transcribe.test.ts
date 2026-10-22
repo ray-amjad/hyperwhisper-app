@@ -4,7 +4,7 @@ import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 import { computeElevenLabsTranscriptionCost, creditsForCost } from '../lib/cost-calculator';
 import { drainPendingLatencyReports } from '../lib/latency-report';
 import { estimateCreditsFromSize } from '../middleware/credits';
-import { estimateCreditsForProviderFallbacks } from './transcribe';
+import { estimateCreditsForProviderFallbacks } from './transcribe-audio';
 
 /**
  * A client new enough to carry the "Share anonymous speed data" switch, which

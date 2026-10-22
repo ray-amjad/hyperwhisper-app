@@ -20,11 +20,11 @@
  * helpers are the only way the tests reach the routes. A test file that
  * imports a route path itself would bind to the real collaborators, so do not.
  */
-import { mock } from "node:test";
-
 import { PgDialect } from "drizzle-orm/pg-core";
 import type { SQL } from "drizzle-orm";
 import { NextRequest } from "next/server";
+
+import { moduleMock, moduleUrl } from "./module-mock";
 
 /** Everything the routes asked their collaborators to do, in call order. */
 export const calls = {
@@ -96,25 +96,6 @@ export function restoreRouteLogging(): void {
   console.error = realConsole.error;
   console.warn = realConsole.warn;
 }
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
-
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrow the tracker to the one method used here rather
- * than bumping the types in a test-only change.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports: Record<string, unknown> },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
 
 /**
  * Renders a Drizzle `where` clause the way Postgres would receive it, so the
