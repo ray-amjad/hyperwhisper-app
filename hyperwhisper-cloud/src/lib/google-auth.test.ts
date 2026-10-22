@@ -32,6 +32,7 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import * as realGoogleAuthLibrary from 'google-auth-library';
 import * as realRedis from './redis';
+import { saveEnv } from '../test-support/env';
 
 // ---------------------------------------------------------------------------
 // A fake JWT client. It records the credentials it was constructed with, so a
@@ -122,14 +123,10 @@ const FAKE_SERVICE_ACCOUNT = JSON.stringify({
   private_key: PLACEHOLDER_PRIVATE_KEY,
 });
 
-const originalServiceAccountJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+const restoreServiceAccountJson = saveEnv('GOOGLE_SERVICE_ACCOUNT_JSON');
 
 afterAll(() => {
-  if (originalServiceAccountJson === undefined) {
-    delete process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  } else {
-    process.env.GOOGLE_SERVICE_ACCOUNT_JSON = originalServiceAccountJson;
-  }
+  restoreServiceAccountJson();
 });
 
 beforeEach(() => {
