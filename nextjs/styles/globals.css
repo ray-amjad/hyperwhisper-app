@@ -389,6 +389,12 @@ body {
   }
 }
 
+/* Its own formatting context, so the last child's bottom margin counts in
+   the measured height instead of collapsing out of it. */
+.t-panel-content {
+  display: flow-root;
+}
+
 .t-panel-content[data-enter] {
   animation: panel-reveal 400ms var(--motion-ease-smooth-out) both;
 }

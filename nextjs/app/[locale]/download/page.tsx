@@ -102,6 +102,9 @@ export default function DownloadPage() {
   // at it, then sets the new one, and `.t-panel` tweens between the two.
   const panel = useRef<HTMLDivElement>(null);
   const panelHeightBeforeSwap = useRef<number | null>(null);
+  // Ends the tween in flight, so a second press mid-tween starts from where the
+  // panel is now instead of racing the first tween's observer and timer.
+  const stopPanelTween = useRef<(() => void) | null>(null);
   const [panelEnter, setPanelEnter] = useState(false);
 
   const choosePlatform = (platform: Platform) => {
@@ -117,6 +120,7 @@ export default function DownloadPage() {
 
     panelHeightBeforeSwap.current = null;
     if (!box || from === null) return;
+    stopPanelTween.current?.();
     const to = box.offsetHeight;
 
     if (to === from) return;
@@ -125,35 +129,39 @@ export default function DownloadPage() {
     void box.offsetHeight;
     box.style.height = `${to}px`;
 
-    // Content can still change size mid-tween (the Linux version arrives from
-    // /linux-latest.json); retarget the pin to it rather than snap at the end.
-    const content = box.firstElementChild;
-    const observer = new ResizeObserver(() => {
-      if (content instanceof HTMLElement) {
-        box.style.height = `${content.offsetHeight}px`;
-      }
-    });
-
-    if (content) observer.observe(content);
-
     const unpin = () => {
       observer.disconnect();
       window.clearTimeout(timer);
       box.removeEventListener("transitionend", onEnd);
       box.style.height = "";
       delete box.dataset.resizing;
+      stopPanelTween.current = null;
     };
     // The content's own transitions bubble here too; only the panel's counts.
     const onEnd = (event: TransitionEvent) => {
       if (event.target === box && event.propertyName === "height") unpin();
     };
     // A transition that never runs (reduced motion) fires no transitionend.
-    const timer = window.setTimeout(unpin, 400);
+    let timer = window.setTimeout(unpin, 400);
 
+    // Content can still change size mid-tween (the Linux version arrives from
+    // /linux-latest.json); retarget the pin to it rather than snap at the end.
+    const content = box.firstElementChild;
+    const observer = new ResizeObserver(() => {
+      if (!(content instanceof HTMLElement)) return;
+      box.style.height = `${content.offsetHeight}px`;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(unpin, 400);
+    });
+
+    if (content) observer.observe(content);
     box.addEventListener("transitionend", onEnd);
+    stopPanelTween.current = unpin;
     // No cleanup: Strict Mode's dev-only re-run would unpin the panel before
-    // the tween ran. The timer bounds the pin either way.
+    // the tween ran. The next press, or leaving the page, ends it instead.
   }, [selectedPlatform]);
+
+  useEffect(() => () => stopPanelTween.current?.(), []);
 
   // A phone or tablet cannot run the desktop app, so it gets no auto-download
   // (#1099). This ignores ?platform= on purpose: a phone opening
