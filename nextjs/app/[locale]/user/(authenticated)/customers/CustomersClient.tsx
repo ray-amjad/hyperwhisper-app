@@ -7,8 +7,8 @@ import { api } from "@/lib/trpc/client";
 import { errorSentence } from "@/lib/trpc/input-error";
 import { formatDate } from "@/lib/format-date";
 import { ICON_SWAP } from "@/lib/icon-swap";
-import { MODAL_BACKDROP, MODAL_DIALOG, MODAL_ROOT } from "@/lib/modal-motion";
 import { CREDITS_PER_MINUTE } from "@/lib/credits-per-minute";
+import { AnimatedDialog } from "@/components/AnimatedDialog";
 import { ErrorReveal } from "@/components/ErrorReveal";
 
 /**
@@ -837,200 +837,175 @@ export default function CustomersClient() {
       {/* Refund Modal */}
       <AnimatePresence>
         {refundTarget && (
-          <m.div
+          <AnimatedDialog
             key="refund-modal"
-            {...MODAL_ROOT}
-            className="fixed inset-0 z-50 flex items-center justify-center"
+            onBackdropClick={() => { if (!refundMutation.isPending) { setRefundTarget(null); refundMutation.reset(); } }}
           >
-            <m.div
-              {...MODAL_BACKDROP}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => { if (!refundMutation.isPending) { setRefundTarget(null); refundMutation.reset(); } }}
-            />
-            <m.div
-              {...MODAL_DIALOG}
-              className="relative bg-slate-800 border border-white/10 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-5"
-            >
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-white">Refund Account Key</h2>
-                <button
-                  onClick={() => { setRefundTarget(null); refundMutation.reset(); }}
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-white">Refund Account Key</h2>
+              <button
+                onClick={() => { setRefundTarget(null); refundMutation.reset(); }}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
 
-              <div className="space-y-2 text-sm">
-                <p className="text-gray-400">Email: <span className="text-white">{refundTarget.email}</span></p>
-                <p className="text-gray-400">Key: <code className="text-white font-mono text-xs">{refundTarget.key}</code></p>
-              </div>
+            <div className="space-y-2 text-sm">
+              <p className="text-gray-400">Email: <span className="text-white">{refundTarget.email}</span></p>
+              <p className="text-gray-400">Key: <code className="text-white font-mono text-xs">{refundTarget.key}</code></p>
+            </div>
 
-              {refundMutation.isSuccess ? (
-                <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg">
-                  <p className="text-emerald-300 text-sm">
-                    Refund processed successfully{refundMutation.data?.revoked ? " and Account Key revoked" : ""}.
-                  </p>
+            {refundMutation.isSuccess ? (
+              <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg">
+                <p className="text-emerald-300 text-sm">
+                  Refund processed successfully{refundMutation.data?.revoked ? " and Account Key revoked" : ""}.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* #2286: the error reveals; the space-y-5 gap rides inside
+                    the clip as pb-5. */}
+                <ErrorReveal gap="pb-5">
+                  {refundMutation.error && (
+                    <div
+                      className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg"
+                      role="alert"
+                    >
+                      <p className="text-red-300 text-sm">{errorSentence(refundMutation.error, INVALID_INPUT)}</p>
+                    </div>
+                  )}
+                </ErrorReveal>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() =>
+                      refundMutation.mutate({
+                        licenseKeyId: refundTarget.id,
+                        revokeLicense: true,
+                      })
+                    }
+                    disabled={refundMutation.isPending}
+                    className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50 text-sm font-medium"
+                  >
+                    {refundMutation.isPending ? "Processing..." : "Refund & Revoke"}
+                  </button>
+                  <button
+                    onClick={() =>
+                      refundMutation.mutate({
+                        licenseKeyId: refundTarget.id,
+                        revokeLicense: false,
+                      })
+                    }
+                    disabled={refundMutation.isPending}
+                    className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/15 text-gray-300 rounded-lg transition-colors disabled:opacity-50 text-sm font-medium border border-white/10"
+                  >
+                    {refundMutation.isPending ? "Processing..." : "Refund Only"}
+                  </button>
                 </div>
-              ) : (
-                <>
-                  {/* #2286: the error reveals; the space-y-5 gap rides inside
-                      the clip as pb-5. */}
-                  <ErrorReveal gap="pb-5">
-                    {refundMutation.error && (
-                      <div
-                        className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg"
-                        role="alert"
-                      >
-                        <p className="text-red-300 text-sm">{errorSentence(refundMutation.error, INVALID_INPUT)}</p>
-                      </div>
-                    )}
-                  </ErrorReveal>
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      onClick={() =>
-                        refundMutation.mutate({
-                          licenseKeyId: refundTarget.id,
-                          revokeLicense: true,
-                        })
-                      }
-                      disabled={refundMutation.isPending}
-                      className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50 text-sm font-medium"
-                    >
-                      {refundMutation.isPending ? "Processing..." : "Refund & Revoke"}
-                    </button>
-                    <button
-                      onClick={() =>
-                        refundMutation.mutate({
-                          licenseKeyId: refundTarget.id,
-                          revokeLicense: false,
-                        })
-                      }
-                      disabled={refundMutation.isPending}
-                      className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/15 text-gray-300 rounded-lg transition-colors disabled:opacity-50 text-sm font-medium border border-white/10"
-                    >
-                      {refundMutation.isPending ? "Processing..." : "Refund Only"}
-                    </button>
-                  </div>
-                </>
-              )}
-            </m.div>
-          </m.div>
+              </>
+            )}
+          </AnimatedDialog>
         )}
       </AnimatePresence>
 
       {/* Add Credits Modal (targets a single license key directly) */}
       <AnimatePresence>
         {creditTarget && (
-          <m.div
+          <AnimatedDialog
             key="credit-modal"
-            {...MODAL_ROOT}
-            className="fixed inset-0 z-50 flex items-center justify-center"
+            onBackdropClick={() => { if (!addCreditsMutation.isPending) { setCreditTarget(null); addCreditsMutation.reset(); } }}
           >
-            {/* Backdrop */}
-            <m.div
-              {...MODAL_BACKDROP}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => { if (!addCreditsMutation.isPending) { setCreditTarget(null); addCreditsMutation.reset(); } }}
-            />
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-white">Add Credits</h2>
+              <button
+                onClick={() => { setCreditTarget(null); addCreditsMutation.reset(); }}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
 
-            {/* Modal */}
-            <m.div
-              {...MODAL_DIALOG}
-              className="relative bg-slate-800 border border-white/10 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-5"
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-white">Add Credits</h2>
+            {/* Account Info (the pooled balance) */}
+            <div className="p-3 bg-white/5 rounded-lg space-y-1">
+              <p className="text-white font-medium">{creditTarget.email}</p>
+              <p className="text-gray-400 text-sm">
+                Current balance: {formatCredits(creditTarget.credits)} credits
+                ({Math.floor(creditTarget.credits / CREDITS_PER_MINUTE)} minutes)
+              </p>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleAddCredits} className="space-y-4">
+              {/* Credit Amount */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                  Credits to Add
+                </label>
+                <input
+                  type="number"
+                  value={creditAmount}
+                  onChange={(e) => setCreditAmount(e.target.value)}
+                  placeholder="e.g. 5000"
+                  min="1"
+                  step="1"
+                  required
+                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
+                />
+                {creditAmount && parseFloat(creditAmount) > 0 && (
+                  <p className="text-gray-400 text-xs mt-1">
+                    = {Math.floor(parseFloat(creditAmount) / CREDITS_PER_MINUTE)} minutes of transcription
+                  </p>
+                )}
+              </div>
+
+              {/* Quick amounts */}
+              <div className="flex gap-2">
+                {[1000, 5000, 10000, 20000].map((amount) => (
+                  <button
+                    key={amount}
+                    type="button"
+                    onClick={() => setCreditAmount(amount.toString())}
+                    className="flex-1 px-2 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-gray-300 text-sm transition-colors"
+                  >
+                    {amount.toLocaleString()}
+                  </button>
+                ))}
+              </div>
+
+              {/* Error. It reveals (#2286); the space-y-4 gap rides inside
+                  the clip as pb-4. */}
+              <ErrorReveal gap="pb-4">
+                {addCreditsMutation.error && (
+                  <p className="text-red-300 text-sm" role="alert">
+                    {errorSentence(addCreditsMutation.error, INVALID_AMOUNT)}
+                  </p>
+                )}
+              </ErrorReveal>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-2">
                 <button
+                  type="button"
                   onClick={() => { setCreditTarget(null); addCreditsMutation.reset(); }}
-                  className="text-gray-400 hover:text-white transition-colors"
+                  className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/15 text-gray-300 rounded-lg transition-colors"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addCreditsMutation.isPending || !creditAmount || parseFloat(creditAmount) <= 0}
+                  className="flex-1 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {addCreditsMutation.isPending ? "Adding..." : "Add Credits"}
                 </button>
               </div>
-
-              {/* Account Info (the pooled balance) */}
-              <div className="p-3 bg-white/5 rounded-lg space-y-1">
-                <p className="text-white font-medium">{creditTarget.email}</p>
-                <p className="text-gray-400 text-sm">
-                  Current balance: {formatCredits(creditTarget.credits)} credits
-                  ({Math.floor(creditTarget.credits / CREDITS_PER_MINUTE)} minutes)
-                </p>
-              </div>
-
-              {/* Form */}
-              <form onSubmit={handleAddCredits} className="space-y-4">
-                {/* Credit Amount */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                    Credits to Add
-                  </label>
-                  <input
-                    type="number"
-                    value={creditAmount}
-                    onChange={(e) => setCreditAmount(e.target.value)}
-                    placeholder="e.g. 5000"
-                    min="1"
-                    step="1"
-                    required
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
-                  />
-                  {creditAmount && parseFloat(creditAmount) > 0 && (
-                    <p className="text-gray-400 text-xs mt-1">
-                      = {Math.floor(parseFloat(creditAmount) / CREDITS_PER_MINUTE)} minutes of transcription
-                    </p>
-                  )}
-                </div>
-
-                {/* Quick amounts */}
-                <div className="flex gap-2">
-                  {[1000, 5000, 10000, 20000].map((amount) => (
-                    <button
-                      key={amount}
-                      type="button"
-                      onClick={() => setCreditAmount(amount.toString())}
-                      className="flex-1 px-2 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-gray-300 text-sm transition-colors"
-                    >
-                      {amount.toLocaleString()}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Error. It reveals (#2286); the space-y-4 gap rides inside
-                    the clip as pb-4. */}
-                <ErrorReveal gap="pb-4">
-                  {addCreditsMutation.error && (
-                    <p className="text-red-300 text-sm" role="alert">
-                      {errorSentence(addCreditsMutation.error, INVALID_AMOUNT)}
-                    </p>
-                  )}
-                </ErrorReveal>
-
-                {/* Actions */}
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => { setCreditTarget(null); addCreditsMutation.reset(); }}
-                    className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/15 text-gray-300 rounded-lg transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={addCreditsMutation.isPending || !creditAmount || parseFloat(creditAmount) <= 0}
-                    className="flex-1 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    {addCreditsMutation.isPending ? "Adding..." : "Add Credits"}
-                  </button>
-                </div>
-              </form>
-            </m.div>
-          </m.div>
+            </form>
+          </AnimatedDialog>
         )}
       </AnimatePresence>
     </div>

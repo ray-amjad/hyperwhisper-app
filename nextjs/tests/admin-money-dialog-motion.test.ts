@@ -1,66 +1,90 @@
 /**
  * #864: the admin Customers page's Add credits and Refund overlays covered
- * and uncovered the page in one frame. They now enter and leave through
- * framer-motion's <AnimatePresence>, with the presets in lib/modal-motion.ts.
+ * and uncovered the page in one frame. Both now render <AnimatedDialog> as
+ * the keyed child of an <AnimatePresence>.
  *
  * The motion itself runs in the browser (the Chromium probe in the PR body).
- * This file pins what node can see: the presets start hidden and end at rest,
- * the exit is short enough for the "gone within 300 ms" bar, the root stops
- * taking clicks while it closes, and both overlays are wired to them.
+ * This file pins what node can see: the backdrop and the panel start hidden
+ * and end at rest, open runs 250 ms and close 150 ms, and a dialog that is
+ * exiting is inert, so its stale Refund / Add Credits buttons take no click,
+ * focus or key press.
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
+import { PresenceContext } from "framer-motion";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 import {
-  MODAL_BACKDROP,
-  MODAL_DIALOG,
-  MODAL_ROOT,
-} from "@/lib/modal-motion";
+  AnimatedDialog,
+  DIALOG_BACKDROP,
+  DIALOG_PANEL,
+} from "@/components/AnimatedDialog";
 
-const CLIENT = readFileSync(
-  new URL(
-    "../app/[locale]/user/(authenticated)/customers/CustomersClient.tsx",
-    import.meta.url,
-  ),
-  "utf8",
-);
+function render(isPresent: boolean) {
+  const dialog = createElement(
+    AnimatedDialog,
+    {
+      onBackdropClick: () => {},
+      children: createElement("button", { type: "button" }, "Refund Only"),
+    },
+  );
+
+  return renderToStaticMarkup(
+    createElement(
+      PresenceContext.Provider,
+      {
+        value: {
+          id: "t",
+          initial: undefined,
+          isPresent,
+          custom: undefined,
+          onExitComplete: () => {},
+          register: () => () => {},
+        },
+      },
+      dialog,
+    ),
+  );
+}
 
 test("the backdrop fades 0 -> 1 in and back to 0 out", () => {
-  assert.equal(MODAL_BACKDROP.initial.opacity, 0);
-  assert.equal(MODAL_BACKDROP.animate.opacity, 1);
-  assert.equal(MODAL_BACKDROP.exit.opacity, 0);
+  assert.equal(DIALOG_BACKDROP.initial.opacity, 0);
+  assert.equal(DIALOG_BACKDROP.animate.opacity, 1);
+  assert.equal(DIALOG_BACKDROP.exit.opacity, 0);
 });
 
-test("the dialog fades and scales up from 0.96 and reverses on close", () => {
-  assert.deepEqual(MODAL_DIALOG.initial, { opacity: 0, scale: 0.96 });
-  assert.equal(MODAL_DIALOG.animate.opacity, 1);
-  assert.equal(MODAL_DIALOG.animate.scale, 1);
-  assert.equal(MODAL_DIALOG.exit.opacity, 0);
-  assert.equal(MODAL_DIALOG.exit.scale, 0.96);
+test("the panel fades and scales up from 0.96 and reverses on close", () => {
+  assert.deepEqual(DIALOG_PANEL.initial, { opacity: 0, scale: 0.96 });
+  assert.equal(DIALOG_PANEL.animate.opacity, 1);
+  assert.equal(DIALOG_PANEL.animate.scale, 1);
+  assert.equal(DIALOG_PANEL.exit.opacity, 0);
+  assert.equal(DIALOG_PANEL.exit.scale, 0.96);
 });
 
 test("open runs 250 ms, close 150 ms (the motion tokens)", () => {
-  for (const preset of [MODAL_BACKDROP, MODAL_DIALOG]) {
+  for (const preset of [DIALOG_BACKDROP, DIALOG_PANEL]) {
     assert.equal(preset.animate.transition.duration, 0.25);
     assert.equal(preset.exit.transition.duration, 0.15);
   }
 });
 
-test("a closing overlay takes no clicks", () => {
-  assert.equal(MODAL_ROOT.exit.pointerEvents, "none");
+test("an open dialog renders its first frame hidden and takes input", () => {
+  const html = render(true);
+  const root = html.match(/^<div [^>]*>/)?.[0] ?? "";
+
+  assert.match(root, /class="fixed inset-0 z-50 flex items-center justify-center"/);
+  assert.doesNotMatch(root, /\binert\b/);
+  assert.doesNotMatch(root, /pointer-events-none/);
+  assert.match(html, /class="absolute inset-0 bg-black\/60[^"]*" style="opacity:0"/);
+  assert.match(html, /style="opacity:0;transform:scale\(0\.96\)"/);
+  assert.match(html, /<button type="button">Refund Only<\/button>/);
 });
 
-test("both money overlays render inside AnimatePresence with the presets", () => {
-  for (const target of ["refundTarget", "creditTarget"]) {
-    const block = CLIENT.match(
-      new RegExp(
-        `<AnimatePresence>\\s*\\{${target} && \\(([\\s\\S]*?)\\)\\}\\s*</AnimatePresence>`,
-      ),
-    );
-    assert.ok(block, `${target} overlay is not wrapped in <AnimatePresence>`);
-    assert.match(block[1], /<m\.div\s+key="[a-z]+-modal"\s+\{\.\.\.MODAL_ROOT\}/);
-    assert.match(block[1], /\{\.\.\.MODAL_BACKDROP\}/);
-    assert.match(block[1], /\{\.\.\.MODAL_DIALOG\}/);
-  }
+test("an exiting dialog is inert and lets clicks through", () => {
+  const root = render(false).match(/^<div [^>]*>/)?.[0] ?? "";
+
+  assert.match(root, /\binert=""/);
+  assert.match(root, /pointer-events-none/);
+  assert.match(root, /data-closing=""/);
 });
