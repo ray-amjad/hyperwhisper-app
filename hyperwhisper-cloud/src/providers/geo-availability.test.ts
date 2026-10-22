@@ -1,19 +1,16 @@
 import { describe, expect, test, afterEach } from 'bun:test';
 import { FLY_REPLAY_MAX_BODY_BYTES } from '../lib/constants';
 import { planGeoRouting, reachableFromRegion } from './geo-availability';
+import { saveEnv, stubEnv } from '../test-support/env';
 
-const originalRegion = process.env.FLY_REGION;
+const restoreRegion = saveEnv('FLY_REGION');
 
 function setRegion(region: string | undefined): void {
-  if (region === undefined) {
-    delete process.env.FLY_REGION;
-  } else {
-    process.env.FLY_REGION = region;
-  }
+  stubEnv('FLY_REGION', region);
 }
 
 afterEach(() => {
-  setRegion(originalRegion);
+  restoreRegion();
 });
 
 describe('planGeoRouting', () => {

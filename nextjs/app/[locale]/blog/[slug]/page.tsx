@@ -6,7 +6,7 @@ import { getBlogPost, getBlogPosts } from "@/src/content/blog";
 import { formatLongUTCDate } from "@/lib/format-date";
 import { PROSE_TEXT_LINK } from "@/components/text-link";
 import { serializeJsonLd } from "@/lib/security/json-ld";
-import { SITE_URL } from "@/lib/site-metadata";
+import { OG_IMAGES, SITE_URL, TWITTER_IMAGES } from "@/lib/site-metadata";
 
 export const dynamic = "force-static";
 export const dynamicParams = true;
@@ -52,13 +52,16 @@ export async function generateMetadata({ params }: Props) {
       url: canonical,
       title,
       description,
-      images: image ? [image] : undefined,
+      // A post with no front-matter image falls back to the site card (#844):
+      // this object replaces the layout's whole `openGraph`, so leaving it
+      // undefined sent no og:image at all under a summary_large_image card.
+      images: image ? [image] : OG_IMAGES,
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: image ? [image.url] : undefined,
+      images: image ? [image.url] : TWITTER_IMAGES,
     },
   };
 }

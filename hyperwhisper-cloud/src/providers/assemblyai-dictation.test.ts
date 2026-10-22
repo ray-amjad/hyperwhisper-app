@@ -7,14 +7,14 @@ import { estimatedUsdPerMinute, resolveModel } from '../lib/stt-models';
 import { maxReservationUsdPerMinute } from './reservation';
 import { providerAudioReservation } from './audio-reservation';
 import { pcm16Wav, wav } from '../test-support/wav';
+import { stubEnv } from '../test-support/env';
 
 const originalFetch = globalThis.fetch;
-const originalKey = process.env.ASSEMBLYAI_API_KEY;
-beforeEach(() => { process.env.ASSEMBLYAI_API_KEY = 'test-key'; });
+let restoreKey: () => void;
+beforeEach(() => { restoreKey = stubEnv('ASSEMBLYAI_API_KEY', 'test-key'); });
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  if (originalKey === undefined) delete process.env.ASSEMBLYAI_API_KEY;
-  else process.env.ASSEMBLYAI_API_KEY = originalKey;
+  restoreKey();
 });
 
 const transcribe = (audio = pcm16Wav(), language: string | undefined = 'en', domain?: string) =>

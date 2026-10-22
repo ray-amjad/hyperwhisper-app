@@ -4511,6 +4511,99 @@ internal static class Program
                     $"probe went to '{handler.LastRequestUri}'");
             });
 
+            // Issue #741. PostProcessingService promises graceful degradation: when
+            // the clean-up fails, the user keeps the raw transcription, and the
+            // toast says why. The service built its own HttpClient, so none of its
+            // failure routes could run without a live provider. These drive the
+            // custom-endpoint route, the one that needs no stored API key, through
+            // the internal constructor and a scripted handler.
+            RunAsync("post-processing: a provider 500 keeps the original transcription", async () =>
+            {
+                const string Raw = "um so the meeting is at three";
+                var run = await ProcessThroughScriptedEndpointAsync(Raw,
+                    () => Respond(HttpStatusCode.InternalServerError, """{"error":{"message":"boom"}}"""));
+
+                Assert(run.Handler.Sends == 1, $"expected one upstream call, saw {run.Handler.Sends}");
+                Assert(!run.Result.WasApplied, "a 500 must not report the clean-up as applied");
+                Assert(run.Result.Text == Raw, $"a 500 must return the original text, got '{run.Result.Text}'");
+                Assert(run.Result.ResolvedProvider is null && run.Result.ResolvedModel is null,
+                    "a failed run must not name a provider or model that produced nothing");
+            });
+
+            RunAsync("post-processing: a provider 500 raises one plain failure toast", async () =>
+            {
+                var run = await ProcessThroughScriptedEndpointAsync("um so the meeting is at three",
+                    () => Respond(HttpStatusCode.InternalServerError, """{"error":{"message":"boom"}}"""));
+
+                Assert(run.Toasts.Count == 1, $"expected exactly one toast, saw {run.Toasts.Count}");
+                var toast = run.Toasts[0];
+                Assert(toast.Message == HyperWhisper.Localization.Loc.S("postprocessing.error.failed"),
+                    $"expected the plain failure message, got '{toast.Message}'");
+                Assert(!toast.ShowSettingsButton && toast.SettingsSection is null && !toast.OpenApiKeysManager,
+                    "a network failure toast must not send the user to Settings or the API keys manager");
+            });
+
+            RunAsync("post-processing: a rejected completion keeps the original transcription", async () =>
+            {
+                const string Raw = "um so the meeting is at three";
+                // A 200 the shared core refuses: the model hit its output limit, so
+                // the completion is cut short. Not a network failure, same outcome.
+                var run = await ProcessThroughScriptedEndpointAsync(Raw,
+                    () => Respond(HttpStatusCode.OK,
+                        """{"choices":[{"message":{"content":"<<CLEANED>>So the meet"},"finish_reason":"length"}]}"""));
+
+                Assert(run.Handler.Sends == 1, $"expected one upstream call, saw {run.Handler.Sends}");
+                Assert(!run.Result.WasApplied, "a truncated completion must not report the clean-up as applied");
+                Assert(run.Result.Text == Raw, $"a rejected completion must return the original text, got '{run.Result.Text}'");
+                Assert(run.Toasts.Count == 1 && run.Toasts[0].Message == HyperWhisper.Localization.Loc.S("postprocessing.error.failed")
+                        && !run.Toasts[0].ShowSettingsButton,
+                    $"a rejected completion must raise the plain failure toast once, saw {run.Toasts.Count}");
+            });
+
+            RunAsync("post-processing: a cancelled request keeps the text and raises no toast", async () =>
+            {
+                const string Raw = "um so the meeting is at three";
+                // The user cancels while the request is in flight. A scripted handler
+                // ignores the token, so it throws the way the socket handler does on a
+                // cancel; a token cancelled before the call never reached the service's
+                // catch, because HttpClient handed the canned 200 straight back.
+                using var cancel = new CancellationTokenSource();
+                var run = await ProcessThroughScriptedEndpointAsync(Raw,
+                    () =>
+                    {
+                        cancel.Cancel();
+                        cancel.Token.ThrowIfCancellationRequested();
+                        throw new InvalidOperationException("unreachable");
+                    },
+                    cancel.Token);
+
+                Assert(run.Handler.Sends == 1, $"expected one upstream call, saw {run.Handler.Sends}");
+                Assert(!run.Result.WasApplied, "a cancelled request must not report the clean-up as applied");
+                Assert(run.Result.Text == Raw, $"a cancelled request must return the original text, got '{run.Result.Text}'");
+                // The user cancelled; telling them it failed would be wrong. This is
+                // the one Skipped route with no toast.
+                Assert(run.Toasts.Count == 0, $"a cancelled request must raise no toast, saw {run.Toasts.Count}");
+            });
+
+            RunAsync("post-processing: an accepted completion reports the provider that ran", async () =>
+            {
+                var run = await ProcessThroughScriptedEndpointAsync("um so the meeting is at three",
+                    () => Respond(HttpStatusCode.OK,
+                        """{"choices":[{"message":{"content":"<<CLEANED>>So the meeting is at three.<<END>>"},"finish_reason":"stop"}]}"""));
+
+                Assert(run.Result.WasApplied, "an accepted completion must report the clean-up as applied");
+                Assert(run.Result.Text == "So the meeting is at three.",
+                    $"expected the cleaned text without wrapper markers, got '{run.Result.Text}'");
+                Assert(run.Result.ResolvedProvider == run.ProviderString,
+                    $"expected the endpoint's provider string '{run.ProviderString}', got '{run.Result.ResolvedProvider}'");
+                Assert(run.Result.ResolvedModel == ScriptedEndpointModel,
+                    $"expected model '{ScriptedEndpointModel}', got '{run.Result.ResolvedModel}'");
+                Assert(run.Toasts.Count == 0, $"a success must raise no toast, saw {run.Toasts.Count}");
+                Assert(run.Handler.LastRequestUri?.Host == "percy.example.com"
+                        && run.Handler.LastRequestUri?.AbsolutePath == "/v1/chat/completions",
+                    $"the request went to '{run.Handler.LastRequestUri}', not the configured endpoint");
+            });
+
             // Issue #509. The Model Library called a custom endpoint "Connected"
             // when nothing had ever connected to it. Two independent gaps, so
             // two independent groups of assertions: the outcome was never
@@ -6429,6 +6522,188 @@ internal static class Program
                     try { File.Delete(whisperPath); } catch { /* best effort */ }
                     try { Directory.Delete(parakeetDir, recursive: true); } catch { /* best effort */ }
                 }
+            });
+
+            // #1782: DownloadModelAsync against a scripted Hugging Face, through the
+            // internal HttpClient constructor. Each check uses its own model id.
+            RunAsync("ParakeetModelService.DownloadModelAsync follows every Qwen3 tree page and skips repo metadata and test_wavs (#1782)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-qwen3-tree", "Smoke", "1 KB", 16, false, ["en"], [], "smoke/qwen3-tree",
+                    engine: ParakeetEngine.Qwen3);
+                var treeUrl = "https://huggingface.co/api/models/smoke/qwen3-tree/tree/main?recursive=true";
+                var page2Url = treeUrl + "&cursor=page2";
+                var handler = new HuggingFaceStubHandler((request, _) =>
+                {
+                    var url = request.RequestUri!.ToString();
+                    if (url == treeUrl)
+                    {
+                        var page1 = TreeJson(("file", "conv_frontend.int8.onnx"), ("file", "README.md"),
+                            ("file", ".gitattributes"), ("directory", "tokenizer"), ("file", "test_wavs/a.wav"));
+                        page1.Headers.TryAddWithoutValidation("Link", $"<{page2Url}>; rel=\"next\"");
+                        return page1;
+                    }
+                    if (url == page2Url)
+                        return TreeJson(("file", "encoder.int8.onnx"), ("file", "decoder.int8.onnx"), ("file", "tokenizer/vocab.json"));
+                    return url.StartsWith("https://huggingface.co/smoke/qwen3-tree/resolve/main/", StringComparison.Ordinal)
+                        ? Respond(HttpStatusCode.OK, "onnx")
+                        : Respond(HttpStatusCode.NotFound, "");
+                });
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+                try
+                {
+                    var result = await service.DownloadModelAsync(model);
+
+                    Assert(result.IsSuccess, $"the 2-page tree download failed: {result.Error}");
+                    var installed = Directory.EnumerateFiles(finalDir, "*", SearchOption.AllDirectories)
+                        .Select(f => Path.GetRelativePath(finalDir, f).Replace(Path.DirectorySeparatorChar, '/'))
+                        .OrderBy(f => f, StringComparer.Ordinal)
+                        .ToList();
+                    var expected = new[] { "conv_frontend.int8.onnx", "decoder.int8.onnx", "encoder.int8.onnx", "tokenizer/vocab.json" };
+                    Assert(installed.SequenceEqual(expected),
+                        $"expected the files of both pages and nothing else, got [{string.Join(", ", installed)}]");
+                    Assert(!handler.Requested.Any(u => u.Contains("README.md") || u.Contains(".gitattributes") || u.Contains("test_wavs")),
+                        $"a skipped path was fetched: {string.Join(", ", handler.Requested)}");
+                    Assert(service.IsModelDownloaded(model), "the installed tree should count as downloaded");
+                    Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was left behind");
+                }
+                finally
+                {
+                    try { Directory.Delete(finalDir, recursive: true); } catch { /* best effort */ }
+                }
+            });
+
+            RunAsync("ParakeetModelService.DownloadModelAsync fails an empty Qwen3 tree and leaves no .temp folder (#1782)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-qwen3-empty", "Smoke", "1 KB", 16, false, ["en"], [], "smoke/qwen3-empty",
+                    engine: ParakeetEngine.Qwen3);
+                var handler = new HuggingFaceStubHandler((request, _) =>
+                    request.RequestUri!.AbsolutePath.StartsWith("/api/models/", StringComparison.Ordinal)
+                        ? TreeJson()
+                        : Respond(HttpStatusCode.NotFound, ""));
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+
+                var result = await service.DownloadModelAsync(model);
+
+                Assert(result.IsFailure, "an empty repository tree should fail the download");
+                Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was left behind");
+                Assert(!Directory.Exists(finalDir), "an empty tree should install nothing");
+                Assert(handler.Requested.Count == 1, $"expected only the tree request, got {handler.Requested.Count}");
+            });
+
+            RunAsync("ParakeetModelService.DownloadModelAsync rejects a short body and keeps the old install (#1782, #1598)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-short-body", "Smoke", "1 KB", 7, true, ["en"], ["model.onnx", "tokens.txt"], "smoke/short-body",
+                    fileSizes: new Dictionary<string, long> { ["model.onnx"] = 4, ["tokens.txt"] = 3 });
+                var handler = new HuggingFaceStubHandler((request, _) => request.RequestUri!.AbsolutePath switch
+                {
+                    "/smoke/short-body/resolve/main/model.onnx" => Respond(HttpStatusCode.OK, "abcd"),
+                    "/smoke/short-body/resolve/main/tokens.txt" => Respond(HttpStatusCode.OK, "ab"), // 1 byte short
+                    _ => Respond(HttpStatusCode.NotFound, ""),
+                });
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+                Directory.CreateDirectory(finalDir);
+                File.WriteAllText(Path.Combine(finalDir, "model.onnx"), "good");
+                File.WriteAllText(Path.Combine(finalDir, "tokens.txt"), "old");
+                try
+                {
+                    Assert(service.IsModelDownloaded(model), "precondition: the old install is complete");
+
+                    var result = await service.DownloadModelAsync(model);
+
+                    Assert(result.IsFailure, "a body 1 byte short of its pinned size should fail the download");
+                    Assert(File.ReadAllText(Path.Combine(finalDir, "tokens.txt")) == "old", "the failed download replaced the old install");
+                    Assert(service.IsModelDownloaded(model), "the old install should still count as downloaded");
+                    Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was left behind");
+                }
+                finally
+                {
+                    try { Directory.Delete(finalDir, recursive: true); } catch { /* best effort */ }
+                }
+            });
+
+            RunAsync("ParakeetModelService.DownloadModelAsync fails an HTTP 500 on the second file and leaves no .temp folder (#1782)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-http-500", "Smoke", "1 KB", 7, true, ["en"], ["model.onnx", "tokens.txt"], "smoke/http-500",
+                    fileSizes: new Dictionary<string, long> { ["model.onnx"] = 4, ["tokens.txt"] = 3 });
+                var handler = new HuggingFaceStubHandler((request, _) => request.RequestUri!.AbsolutePath switch
+                {
+                    "/smoke/http-500/resolve/main/model.onnx" => Respond(HttpStatusCode.OK, "abcd"),
+                    "/smoke/http-500/resolve/main/tokens.txt" => Respond(HttpStatusCode.InternalServerError, "boom"),
+                    _ => Respond(HttpStatusCode.NotFound, ""),
+                });
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+
+                var result = await service.DownloadModelAsync(model);
+
+                Assert(result.IsFailure, "an HTTP 500 should fail the download");
+                Assert(result.Error != HyperWhisper.Localization.Loc.S("settings.models.download.cancelled"), "an HTTP failure was reported as a cancel");
+                Assert(handler.Requested.Count == 2, $"expected both files to be requested, got {handler.Requested.Count}");
+                Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder of partial files was left behind");
+                Assert(!Directory.Exists(finalDir), "a failed download should install nothing");
+            });
+
+            RunAsync("ParakeetModelService.DownloadModelAsync moves temp to final and clears a broken mark (#1782, #1598)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-good", "Smoke", "1 KB", 7, true, ["en"], ["model.onnx", "tokens.txt"], "smoke/good",
+                    fileSizes: new Dictionary<string, long> { ["model.onnx"] = 4, ["tokens.txt"] = 3 });
+                var handler = new HuggingFaceStubHandler((request, _) => request.RequestUri!.AbsolutePath switch
+                {
+                    "/smoke/good/resolve/main/model.onnx" => Respond(HttpStatusCode.OK, "abcd"),
+                    "/smoke/good/resolve/main/tokens.txt" => Respond(HttpStatusCode.OK, "abc"),
+                    _ => Respond(HttpStatusCode.NotFound, ""),
+                });
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+                LocalModelHealth.MarkBroken(finalDir, "smoke 1782");
+                try
+                {
+                    var result = await service.DownloadModelAsync(model);
+
+                    Assert(result.IsSuccess, $"a good download failed: {result.Error}");
+                    Assert(result.Value == finalDir, $"expected the final folder, got {result.Value}");
+                    Assert(File.ReadAllText(Path.Combine(finalDir, "tokens.txt")) == "abc", "the downloaded file is not in the final folder");
+                    Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was not moved");
+                    Assert(!LocalModelHealth.IsBroken(finalDir), "the re-downloaded model is still marked broken");
+                    Assert(service.IsModelDownloaded(model), "the re-downloaded model should count as downloaded");
+                }
+                finally
+                {
+                    LocalModelHealth.ClearBroken(finalDir);
+                    try { Directory.Delete(finalDir, recursive: true); } catch { /* best effort */ }
+                }
+            });
+
+            RunAsync("ParakeetModelService.DownloadModelAsync reports a cancel as cancelled and leaves no .temp folder (#1782)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-cancel", "Smoke", "1 KB", 7, true, ["en"], ["model.onnx", "tokens.txt"], "smoke/cancel",
+                    fileSizes: new Dictionary<string, long> { ["model.onnx"] = 4, ["tokens.txt"] = 3 });
+                using var cts = new CancellationTokenSource();
+                var handler = new HuggingFaceStubHandler((request, _) =>
+                {
+                    // The user presses Cancel while the first file is arriving.
+                    cts.Cancel();
+                    return Respond(HttpStatusCode.OK, "abcd");
+                });
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+
+                var result = await service.DownloadModelAsync(model, cancellationToken: cts.Token);
+
+                Assert(result.IsFailure, "a cancelled download should fail");
+                Assert(result.Error == HyperWhisper.Localization.Loc.S("settings.models.download.cancelled"),
+                    $"expected the cancelled message, got '{result.Error}'");
+                Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was left behind");
+                Assert(!Directory.Exists(finalDir), "a cancelled download should install nothing");
             });
 
             Run("Model Library offers Download for a broken model, even one a mode uses (#1598)", () =>
@@ -14923,17 +15198,32 @@ internal static class Program
             {
                 // Google's newer Gemini keys do not start with "AIza". The prefix rule
                 // refused them with "Invalid API key format" on Windows and Linux; a
-                // wrong key fails at the provider anyway. Only a blank key is refused:
-                // no prefix and no length rule, for every provider.
+                // wrong key fails at the provider anyway. There is no prefix and no
+                // length rule for any provider (#2389): the store takes any non-blank text.
                 var newGeminiKey = "AQ." + new string('k', 37);
-                Assert(ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.GeminiTranscribe, newGeminiKey),
-                    "a Gemini 3.5 Transcribe key that does not start with AIza is refused");
-                Assert(ApiKeyService.IsValidKeyFormat(PostProcessingProvider.Gemini, newGeminiKey),
-                    "a Gemini post-processing key that does not start with AIza is refused");
-                Assert(ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.GeminiTranscribe, "AIza" + new string('k', 35)),
-                    "an AIza Gemini key is refused");
+                var apiKeys = new ApiKeyService(new InMemoryCredentialBackend());
+                Assert(apiKeys.SetApiKey(TranscriptionApiKeyType.GeminiTranscribe, newGeminiKey).IsSuccess,
+                    "the store refused a non-AIza Gemini 3.5 Transcribe key");
+                Assert(apiKeys.GetApiKey(TranscriptionApiKeyType.GeminiTranscribe) == newGeminiKey,
+                    "the stored Gemini 3.5 Transcribe key does not read back");
+                Assert(apiKeys.SetApiKey(PostProcessingProvider.Gemini, newGeminiKey).IsSuccess &&
+                       apiKeys.GetApiKey(PostProcessingProvider.Gemini) == newGeminiKey,
+                    "the store refused a non-AIza Gemini post-processing key");
+                Assert(apiKeys.SetApiKey(PostProcessingProvider.OpenAI, "k").IsSuccess &&
+                       apiKeys.GetApiKey(PostProcessingProvider.OpenAI) == "k",
+                    "the store refused a one-character key");
+                Assert(apiKeys.SetApiKey(PostProcessingProvider.HyperWhisperCloud, newGeminiKey).IsFailure,
+                    "a key for HyperWhisper Cloud, which takes none, was stored");
+            });
 
-                // The same for every vendor: any non-blank text, however short, is a key.
+            Run("issue #2410: every BYOK key write trims, from the store, onboarding and backup import", () =>
+            {
+                const string key = "sk-padded-key";
+                const string padded = "  sk-padded-key \r\n";
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                // The store itself: every provider and transcription slot trims, and whitespace alone clears.
                 foreach (var provider in new[]
                 {
                     PostProcessingProvider.OpenAI, PostProcessingProvider.Anthropic, PostProcessingProvider.Groq,
@@ -14941,27 +15231,50 @@ internal static class Program
                     PostProcessingProvider.Mistral,
                 })
                 {
-                    Assert(ApiKeyService.IsValidKeyFormat(provider, "k"), $"a short {provider} key is refused");
-                    Assert(!ApiKeyService.IsValidKeyFormat(provider, "   "), $"a blank {provider} key is accepted");
-                    Assert(!ApiKeyService.IsValidKeyFormat(provider, null), $"a null {provider} key is accepted");
+                    var backend = new InMemoryCredentialBackend();
+                    var store = new ApiKeyService(backend, health);
+                    Assert(store.SetApiKey(provider, padded).IsSuccess && backend.StoredValue == key,
+                        $"a padded {provider} key was stored as '{backend.StoredValue}'");
+                    Assert(store.SetApiKey(provider, " \t ").IsSuccess && backend.StoredValue == null,
+                        $"a whitespace-only {provider} key was stored instead of clearing the slot");
                 }
                 foreach (var type in Enum.GetValues<TranscriptionApiKeyType>())
                 {
-                    Assert(ApiKeyService.IsValidKeyFormat(type, "k"), $"a short {type} key is refused");
-                    Assert(!ApiKeyService.IsValidKeyFormat(type, " \t "), $"a blank {type} key is accepted");
-                    Assert(!ApiKeyService.IsValidKeyFormat(type, null), $"a null {type} key is accepted");
+                    var backend = new InMemoryCredentialBackend();
+                    var store = new ApiKeyService(backend, health);
+                    Assert(store.SetApiKey(type, padded).IsSuccess && backend.StoredValue == key,
+                        $"a padded {type} key was stored as '{backend.StoredValue}'");
+                    Assert(store.SetApiKey(type, "   ").IsSuccess && backend.StoredValue == null,
+                        $"a whitespace-only {type} key was stored instead of clearing the slot");
                 }
-                Assert(!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.None, newGeminiKey),
-                    "a key for no provider is accepted");
-                Assert(!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.HyperWhisperCloud, newGeminiKey),
-                    "a key for HyperWhisper Cloud, which takes none, is accepted");
 
-                // And it reaches the store: what the Model Library modal does on Save.
-                var apiKeys = new ApiKeyService(new InMemoryCredentialBackend());
-                Assert(apiKeys.SetApiKey(TranscriptionApiKeyType.GeminiTranscribe, newGeminiKey).IsSuccess,
-                    "the store refused a non-AIza Gemini 3.5 Transcribe key");
-                Assert(apiKeys.GetApiKey(TranscriptionApiKeyType.GeminiTranscribe) == newGeminiKey,
-                    "the stored Gemini 3.5 Transcribe key does not read back");
+                // Onboarding: the gateway's write and its read-back agree on the trimmed
+                // key, so a padded key saves, and a restore point holding a key stored
+                // with padding before #2389 still counts as restored.
+                foreach (var provider in new[] { CloudTranscriptionProvider.OpenAI, CloudTranscriptionProvider.Deepgram })
+                {
+                    var backend = new InMemoryCredentialBackend();
+                    var gateway = new LiveOnboardingProviderKeyGateway(new ApiKeyService(backend, health), health);
+                    Assert(gateway.Persist(padded, provider), $"onboarding refused a padded {provider} key: {gateway.ValidationError}");
+                    Assert(backend.StoredValue == key, $"onboarding stored the {provider} key as '{backend.StoredValue}'");
+                    Assert(gateway.Persist("", provider) && backend.StoredValue == null,
+                        $"onboarding's empty-string restore did not clear the {provider} key");
+                }
+
+                // Backup import: a padded key is restored trimmed, and a whitespace-only
+                // entry leaves the stored key alone instead of clearing it.
+                var importBackend = new InMemoryCredentialBackend();
+                var importStore = new ApiKeyService(importBackend, health);
+                var importJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["deepgram"] = padded });
+                Assert(UniversalBackupMapper.ApplyApiKeys(JsonSerializer.Deserialize<UniversalApiKeys>(importJson)!, importStore),
+                    "the backup import reported a failed key write");
+                Assert(importStore.GetApiKey(TranscriptionApiKeyType.Deepgram) == key,
+                    $"the backup import stored the Deepgram key as '{importBackend.StoredValue}'");
+                var blankJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["deepgram"] = "   " });
+                Assert(UniversalBackupMapper.ApplyApiKeys(JsonSerializer.Deserialize<UniversalApiKeys>(blankJson)!, importStore),
+                    "the backup import reported a failed write for a blank key");
+                Assert(importStore.GetApiKey(TranscriptionApiKeyType.Deepgram) == key,
+                    "a whitespace-only key in a backup cleared the stored Deepgram key");
             });
 
             Run("issue #650: /health key_present for the HW-Cloud rows follows the account key /transcribe refuses on", () =>
@@ -27842,6 +28155,57 @@ internal static class Program
         }
     }
 
+    private const string ScriptedEndpointModel = "m-741";
+
+    /// <summary>
+    /// Issue #741. Runs one <see cref="PostProcessingService.ProcessAsync"/> on a
+    /// custom endpoint whose only reply is <paramref name="reply"/>, and returns
+    /// what came back plus every toast the service raised. The endpoint lives in
+    /// an empty endpoint list that is put back afterwards.
+    /// </summary>
+    private static async Task<(PostProcessingResult Result, List<ErrorToastEventArgs> Toasts, CapturingHandler Handler, string ProviderString)>
+        ProcessThroughScriptedEndpointAsync(
+            string transcript,
+            Func<HttpResponseMessage> reply,
+            CancellationToken cancellationToken = default)
+    {
+        // ProcessAsync reads the vocabulary table for the prompt, so the suite's
+        // scratch database must exist even when this runs before any DB check.
+        await DatabaseInitializer.InitializeAsync();
+
+        var settings = SettingsService.Instance;
+        var saved = settings.CustomEndpoints;
+        settings.CustomEndpoints = new List<CustomPostProcessingEndpoint>();
+        try
+        {
+            var endpoint = CustomEndpointManager.Instance.AddEndpoint(
+                "Percy #741", "https://percy.example.com/v1/chat/completions", ScriptedEndpointModel, out var error);
+            Assert(endpoint is not null, $"the fixture endpoint should save, got '{error}'");
+
+            var handler = new CapturingHandler { Next = reply };
+            var toasts = new List<ErrorToastEventArgs>();
+            // The service owns and disposes the client it is given.
+            using var service = new PostProcessingService(
+                new HttpClient(handler), new LocalLlmModelService(), new LocalLlmService());
+            service.WarningOccurred += (_, e) => toasts.Add(e);
+
+            var mode = new Mode
+            {
+                Name = "Smoke",
+                PostProcessingMode = 1,
+                PostProcessingProvider = endpoint!.ProviderString,
+            };
+            // A fixed context, so the prompt never reads the CI runner's foreground window.
+            var context = new ApplicationContext { ProcessName = "notepad", WindowTitle = "Untitled - Notepad" };
+            var result = await service.ProcessAsync(transcript, mode, context, cancellationToken);
+            return (result, toasts, handler, endpoint.ProviderString);
+        }
+        finally
+        {
+            settings.CustomEndpoints = saved;
+        }
+    }
+
     private sealed class CapturingHandler : HttpMessageHandler
     {
         public Func<HttpResponseMessage>? Next;
@@ -27907,6 +28271,34 @@ internal static class Program
                 Content = new StringContent(body.ToJsonString(), System.Text.Encoding.UTF8, "application/json")
             };
         }
+    }
+
+    /// <summary>
+    /// Scripted Hugging Face for <c>ParakeetModelService.DownloadModelAsync</c> (#1782):
+    /// records every URL it was asked for and answers each from <c>respond</c>.
+    /// </summary>
+    private sealed class HuggingFaceStubHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, CancellationToken, HttpResponseMessage> _respond;
+        public List<string> Requested { get; } = new();
+
+        public HuggingFaceStubHandler(Func<HttpRequestMessage, CancellationToken, HttpResponseMessage> respond) => _respond = respond;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Requested.Add(request.RequestUri!.ToString());
+            return Task.FromResult(_respond(request, cancellationToken));
+        }
+    }
+
+    /// <summary>A Hugging Face tree API page: one <c>{type, path}</c> entry per item.</summary>
+    private static HttpResponseMessage TreeJson(params (string Type, string Path)[] entries)
+    {
+        var page = new JsonArray(entries.Select(e => (JsonNode)new JsonObject { ["type"] = e.Type, ["path"] = e.Path }).ToArray());
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(page.ToJsonString(), System.Text.Encoding.UTF8, "application/json")
+        };
     }
 
     /// <summary>

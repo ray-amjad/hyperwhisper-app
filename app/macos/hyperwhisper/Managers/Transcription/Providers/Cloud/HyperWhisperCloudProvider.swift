@@ -218,66 +218,11 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         // is what a diagnosis needs.
         AppLogger.network.info("HyperWhisper Cloud transcription started (streaming v2) · fileExtension=\(audioURL.pathExtension, privacy: .public)")
 
-        // Per-call results, returned in the outcome (never stored on self).
-        var serverCorrectedText: String?
-        var detectedLanguage: String?
+        let (identifier, isLicensed) = try await preflightLicensedIdentifier(for: audioURL)
 
-        // Verify audio file exists
-        guard FileManager.default.fileExists(atPath: audioURL.path) else {
-            AppLogger.network.error("HyperWhisper Cloud transcription aborted · reason=Audio file missing")
-            throw TranscriptionError.audioFileNotFound
-        }
+        let postProcessing = await resolvePostProcessing(mode: mode, vocabulary: vocabulary)
 
-        // Check network connectivity
-        guard NetworkStatus.shared.isOnline else {
-            AppLogger.network.error("HyperWhisper Cloud transcription aborted · reason=Offline")
-            throw TranscriptionError.transientNetwork(details: "No internet connection")
-        }
-
-        // Get identifier (license key or device ID)
-        let (identifier, isLicensed) = await licenseManager.getTranscriptionIdentifier()
-
-        AppLogger.network.debug("HyperWhisper Cloud identifier · licensed=\(isLicensed, privacy: .public) · hash=\(identifier.prefix(8), privacy: .private)")
-
-        // Fail fast: the guest/device-credit path is dead server-side
-        // (entitlement is enforced there), so an unlicensed request is doomed —
-        // surface guidance instead of burning the upload and the network
-        // round-trip on a 401. This does NOT skip audio preprocessing: the
-        // recording flow already VAD-trimmed (and the import path already
-        // re-encoded) before this provider was called. Fail-closed only; the
-        // backend still validates the key. See HyperWhisperCloudEntitlement.
-        try HyperWhisperCloudEntitlement.requireLicense(isLicensed: isLicensed, provider: name)
-
-        // Determine post-processing configuration based on mode settings
-        let postProcessingMode = mode.flatMap { PostProcessingMode(rawValue: $0.postProcessingMode) } ?? .cloud
-        let selectedPostProcessingProvider = mode?.postProcessingProvider.flatMap { PostProcessingProvider(rawValue: $0) }
-            ?? postProcessingMode.defaultProvider ?? .hyperwhisper
-        let postProcessingEnabled = postProcessingMode != .off && selectedPostProcessingProvider == .hyperwhisper
-        var postProcessingPrompt: String? = nil
-        if postProcessingEnabled, let mode {
-            postProcessingPrompt = await buildPostProcessingPrompt(for: mode, vocabulary: vocabulary)
-        }
-
-        // Resolve the accuracy tier early so we can gate the send path on the
-        // catalog's `customVocabulary.supported` flag (a tier whose backend
-        // drops `initial_prompt` must not be sent one).
-        let accuracyTier = CloudAccuracyTier.fromStorageValue(mode?.cloudAccuracyTier)
-        // X-STT-Model: the selected model within the provider/tier. Empty →
-        // omit so the backend applies the provider default. Trim defensively.
-        // cloudTranscriptionModel is shared with the BYOK path (Core Data
-        // default "whisper-1"), so a HyperWhisper Cloud mode can carry a model
-        // that doesn't belong to its tier. Resolve it against the tier's catalog
-        // models (mirrors ModeEditorView.onAppear) so we never send a mismatched
-        // X-STT-Model the backend 400s on; an unknown model falls back to the
-        // tier default ("" → header omitted).
-        let selectedModelId = Self.resolvedSTTModelId(
-            tier: accuracyTier,
-            storedModelId: mode?.cloudTranscriptionModel
-        )
-        // X-STT-Domain: "medical" (assemblyAI) or nil.
-        let trimmedDomain = mode?.cloudTranscriptionDomain?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        let transcriptionDomain: String? = (trimmedDomain?.isEmpty == false) ? trimmedDomain : nil
+        let (accuracyTier, selectedModelId, transcriptionDomain) = Self.resolveSTTRouting(for: mode)
         let originalAudioURL = audioURL
         var audioURL = audioURL
         if accuracyTier == .assemblyAI && (selectedModelId == "dictation" || mode?.cloudTranscriptionModel == "dictation-medical") {
@@ -285,137 +230,33 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
             audioURL = try await AssemblyAIDictationAudio.prepare(originalAudioURL)
         }
         defer { if audioURL != originalAudioURL { try? FileManager.default.removeItem(at: audioURL) } }
-        let candidatePrompt = buildInitialTranscriptionPrompt(vocabulary: vocabulary)
-        let initialPrompt: String?
-        // Vocabulary support is now model-specific (e.g. Deepgram nova-3 supports
-        // keyterm but the catalog flags per-model). Gate on the selected model.
-        if candidatePrompt != nil && !accuracyTier.supportsCustomVocabulary(forModelId: selectedModelId) {
-            AppLogger.network.info("HyperWhisper Cloud dropping initial_prompt · tier=\(accuracyTier.rawValue, privacy: .public) · model=\(selectedModelId, privacy: .public) reason=catalog_unsupported")
-            initialPrompt = nil
-        } else {
-            initialPrompt = candidatePrompt
-        }
+        let initialPrompt = resolveInitialPrompt(vocabulary: vocabulary, accuracyTier: accuracyTier, modelId: selectedModelId)
 
-        AppLogger.network.debug("HyperWhisper Cloud post-processing config · enabled=\(postProcessingEnabled, privacy: .public) · provider=\(selectedPostProcessingProvider.displayName, privacy: .public) · hasPrompt=\(postProcessingPrompt != nil, privacy: .public)")
+        AppLogger.network.debug("HyperWhisper Cloud post-processing config · enabled=\(postProcessing.enabled, privacy: .public) · provider=\(postProcessing.provider.displayName, privacy: .public) · hasPrompt=\(postProcessing.prompt != nil, privacy: .public)")
         AppLogger.network.debug("HyperWhisper Cloud initial prompt · hasCustomVocabulary=\(initialPrompt != nil, privacy: .public)")
 
         // =====================================================================
         // STEP 1: Resolve audio file size without loading the full payload into memory.
         // =====================================================================
-        // File-existence/size preflight stays native (the core never touches
-        // disk). resolveUploadFileSize also guards against a 0-byte race.
-        let fileSizeBytes = try await resolveUploadFileSize(for: audioURL)
-        let contentType = AudioMimeTypeResolver.infer(for: audioURL)
-
-        AppLogger.transcription.debug(
-            "HyperWhisper Cloud audio payload prepared · sizeKB=\(fileSizeBytes / 1024, privacy: .public) · contentType=\(contentType, privacy: .public) · strategy=file_upload"
-        )
+        let (fileSizeBytes, contentType) = try await prepareUploadPayload(for: audioURL)
 
         // =====================================================================
         // STEP 2: Build the transcription request via the Rust shared core.
         // =====================================================================
-        // The core (`hyperwhisperCloudBuildTranscribeRequest`) builds the URL +
-        // query (license_key/device_id, language, initial_prompt), the
-        // Content-Type, the routed X-STT-* headers, and the @raw raw-stream body.
-        //
-        // The native X-STT-Provider/-Model/-Domain (derived from the accuracy
-        // tier) are passed as the core's routed_* fields so the builder bakes
-        // the same headers. Vocabulary gating (catalog `supportsCustomVocabulary`)
-        // is decided here in native code: when dropped we pass an empty term list.
-        let vocabTermsForCore: [String] = (initialPrompt != nil)
-            ? RustCoreMapping.boostVocabularyTerms(from: vocabulary)
-            : []
-        let trimmedModelId = selectedModelId.isEmpty ? nil : selectedModelId
-        let userAgent = "HyperWhisper/\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")"
-
-        // Builds the request for a given identifier and sends it through the
-        // shared executor + core retry loop. Factored out so HYPERWHISPER-T2's
-        // retry-after-revalidation (below) can reuse it instead of duplicating
-        // the request-building/parseError/onTransportError wiring.
-        //
-        // `uploadURL` / `uploadContentType` are parameters rather than captures so
-        // the 415 format recovery below can re-send a WAV re-encode of the clip
-        // through this exact same wiring instead of duplicating it.
-        func sendTranscribeRequest(
-            identifier: String,
-            isLicensed: Bool,
-            uploadURL: URL,
-            uploadContentType: String
-        ) async throws -> HttpResponse {
-            let params = RustCoreMapping.transcribeParams(
-                audioPath: uploadURL.path,
-                audioMime: uploadContentType,
-                language: language,
-                vocabulary: vocabTermsForCore,
-                baseURL: NetworkConfig.hyperwhisperCloudURL,
-                // The `deviceID` branch is now unreachable from `transcribe` —
-                // the HyperWhisperCloudEntitlement pre-check above rejects
-                // `isLicensed == false` before we get here. Kept because the
-                // core's param shape is shared with other callers, and so the
-                // guard stays the single place that encodes the policy.
-                licenseKey: isLicensed ? identifier : nil,
-                deviceID: isLicensed ? nil : identifier,
-                routedProvider: accuracyTier.sttProvider,
-                routedModel: trimmedModelId,
-                routedDomain: transcriptionDomain,
-                // Opt-out only: the core sends `X-Latency-Opt-Out: 1` when this
-                // is false and nothing at all when it is true. `isEnabled` is
-                // the opt-out, so it inverts.
-                shareAnonymousSpeedData: !LatencyOptOut.isEnabled
-            )
-
-            let baseRequest: HttpRequest
-            do {
-                baseRequest = try hyperwhisperCloudBuildTranscribeRequest(params: params)
-            } catch let err as HwTranscriptionError {
-                throw RustCoreMapping.mapTranscriptionError(err, providerName: "HyperWhisper Cloud")
-            }
-
-            // The core does not add the platform `mode` query param or `User-Agent`
-            // header (both are HW-Cloud-specific, not part of the shared contract).
-            // Inject them natively while preserving everything the core built.
-            var request = baseRequest
-            if let mode, let modeId = mode.id {
-                request.url = Self.appendingModeQuery(to: request.url, modeId: modeId.uuidString)
-            }
-            request.headers.append(Header(name: "User-Agent", value: userAgent))
-            HyperWhisperClientInfo.apply(to: &request)
-
-            // fileSizeKB describes the ORIGINAL preflighted file — the 415 retry
-            // uploads a WAV re-encode whose size differs; read `contentType=` to
-            // tell the two attempts apart.
-            AppLogger.network.info("HyperWhisper Cloud streaming request · sttProvider=\(accuracyTier.sttProvider, privacy: .public) · fileSizeKB=\(fileSizeBytes / 1024, privacy: .public) · contentType=\(uploadContentType, privacy: .public) · licensed=\(isLicensed, privacy: .public)")
-
-            // Cancellation, file streaming, and DNS recovery stay native (in the
-            // executor / session). The core decides retries via nextRetry(...).
-            return try await RustRetry.perform(
-                session: session,
-                buildRequest: { request },
-                parseError: { resp in
-                    // Map the core's classified error, enriching the HW-Cloud 402
-                    // credit context from the response body (remaining/required).
-                    do {
-                        _ = try hyperwhisperCloudParseTranscribeResponse(resp: resp)
-                        // 2xx never reaches parseError; a non-error parse is unexpected.
-                        return TranscriptionError.invalidResponse(details: "unexpected non-error response")
-                    } catch let err as HwTranscriptionError {
-                        return HyperWhisperRoutedTranscription.mapBackendError(err, resp: resp, providerName: "HyperWhisper Cloud")
-                    } catch {
-                        return TranscriptionError.invalidResponse(details: error.localizedDescription)
-                    }
-                },
-                onTransportError: { urlError in
-                    // One-shot DNS-cache flush on a network flip — restores the
-                    // recovery the deleted native `performRequestWithRetry` did.
-                    // `resetSharedSessionAfterDnsFailure` is @MainActor and applies
-                    // the 60 s cross-call window shared with the warmup and the
-                    // routed providers, on top of RustRetry's one-shot gate.
-                    if HyperWhisperRoutedTranscription.isDnsError(urlError) {
-                        await HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure()
-                    }
-                }
-            )
-        }
+        // Vocabulary gating is decided here in native code: when the catalog
+        // drops `initial_prompt` the core gets an empty term list.
+        let requestContext = TranscribeRequestContext(
+            language: language,
+            vocabularyTerms: (initialPrompt != nil)
+                ? RustCoreMapping.boostVocabularyTerms(from: vocabulary)
+                : [],
+            accuracyTier: accuracyTier,
+            modelId: selectedModelId.isEmpty ? nil : selectedModelId,
+            domain: transcriptionDomain,
+            mode: mode,
+            userAgent: "HyperWhisper/\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")",
+            fileSizeBytes: fileSizeBytes
+        )
 
         // =====================================================================
         // STEP 3: Perform request via the shared executor + core retry loop.
@@ -473,7 +314,8 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                     identifier: attemptIdentifier,
                     isLicensed: attemptIsLicensed,
                     send: { sendIdentifier, sendIsLicensed in
-                        try await sendTranscribeRequest(
+                        try await self.sendTranscribeRequest(
+                            requestContext,
                             identifier: sendIdentifier,
                             isLicensed: sendIsLicensed,
                             uploadURL: uploadURL,
@@ -511,6 +353,289 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         try throwIfCancelled()
 
         // Parse the success response via the core.
+        let transcript = try await parseTranscribeResponse(response, attemptDiagnostics: attemptDiagnostics)
+
+        // Capture the server-detected language so the pipeline can gate
+        // language-sensitive post steps. The core's Transcript does not carry
+        // the detected language; read it from the response body natively.
+        let detectedLanguage = Self.detectedLanguage(from: response)
+
+        // =====================================================================
+        // STEP 4: Optionally call /post-process for AI correction
+        // =====================================================================
+        var serverCorrectedText: String?
+        if postProcessing.enabled, let prompt = postProcessing.prompt, !transcript.text.isEmpty {
+            serverCorrectedText = try await applyOptionalPostProcess(
+                to: transcript.text,
+                prompt: prompt,
+                identifier: successfulIdentifier,
+                isLicensed: successfulIsLicensed,
+                mode: mode
+            )
+        }
+
+        try throwIfCancelled()
+
+        // Return the raw transcription text — may not be wrapped, so use the
+        // lenient passthrough (strict extraction would wipe an unwrapped result).
+        let cleanedText = TranscriptionTextProcessing.stripWrapperMarkers(transcript.text)
+        let hasCorrection = serverCorrectedText != nil
+        AppLogger.network.info("HyperWhisper Cloud transcription completed · chars=\(cleanedText.count, privacy: .public) · hasServerCorrection=\(hasCorrection, privacy: .public)")
+
+        return TranscriptionOutcome(
+            text: cleanedText,
+            detectedLanguage: detectedLanguage,
+            timestamps: nil,
+            diagnostics: attemptDiagnostics,
+            serverCorrectedText: serverCorrectedText
+        )
+    }
+
+    // MARK: - Transcription Preflight
+
+    /// Fails fast before any upload: the file must exist, the Mac must be
+    /// online, and the identity must be licensed. Returns that identity.
+    private func preflightLicensedIdentifier(for audioURL: URL) async throws -> (identifier: String, isLicensed: Bool) {
+        // Verify audio file exists
+        guard FileManager.default.fileExists(atPath: audioURL.path) else {
+            AppLogger.network.error("HyperWhisper Cloud transcription aborted · reason=Audio file missing")
+            throw TranscriptionError.audioFileNotFound
+        }
+
+        // Check network connectivity
+        guard NetworkStatus.shared.isOnline else {
+            AppLogger.network.error("HyperWhisper Cloud transcription aborted · reason=Offline")
+            throw TranscriptionError.transientNetwork(details: "No internet connection")
+        }
+
+        // Get identifier (license key or device ID)
+        let (identifier, isLicensed) = await licenseManager.getTranscriptionIdentifier()
+
+        AppLogger.network.debug("HyperWhisper Cloud identifier · licensed=\(isLicensed, privacy: .public) · hash=\(identifier.prefix(8), privacy: .private)")
+
+        // Fail fast: the guest/device-credit path is dead server-side
+        // (entitlement is enforced there), so an unlicensed request is doomed —
+        // surface guidance instead of burning the upload and the network
+        // round-trip on a 401. This does NOT skip audio preprocessing: the
+        // recording flow already VAD-trimmed (and the import path already
+        // re-encoded) before this provider was called. Fail-closed only; the
+        // backend still validates the key. See HyperWhisperCloudEntitlement.
+        try HyperWhisperCloudEntitlement.requireLicense(isLicensed: isLicensed, provider: name)
+
+        return (identifier, isLicensed)
+    }
+
+    /// Whether this call runs Cloud /post-process, and with which prompt.
+    private struct PostProcessingPlan {
+        let provider: PostProcessingProvider
+        let enabled: Bool
+        let prompt: String?
+    }
+
+    /// Determine post-processing configuration based on mode settings.
+    private func resolvePostProcessing(mode: Mode?, vocabulary: [Vocabulary]) async -> PostProcessingPlan {
+        let postProcessingMode = mode.flatMap { PostProcessingMode(rawValue: $0.postProcessingMode) } ?? .cloud
+        let selectedPostProcessingProvider = mode?.postProcessingProvider.flatMap { PostProcessingProvider(rawValue: $0) }
+            ?? postProcessingMode.defaultProvider ?? .hyperwhisper
+        let postProcessingEnabled = postProcessingMode != .off && selectedPostProcessingProvider == .hyperwhisper
+        var postProcessingPrompt: String? = nil
+        if postProcessingEnabled, let mode {
+            postProcessingPrompt = await buildPostProcessingPrompt(for: mode, vocabulary: vocabulary)
+        }
+
+        return PostProcessingPlan(
+            provider: selectedPostProcessingProvider,
+            enabled: postProcessingEnabled,
+            prompt: postProcessingPrompt
+        )
+    }
+
+    /// The accuracy tier, the X-STT-Model and the X-STT-Domain a mode routes to.
+    private static func resolveSTTRouting(
+        for mode: Mode?
+    ) -> (accuracyTier: CloudAccuracyTier, modelId: String, domain: String?) {
+        // Resolve the accuracy tier early so we can gate the send path on the
+        // catalog's `customVocabulary.supported` flag (a tier whose backend
+        // drops `initial_prompt` must not be sent one).
+        let accuracyTier = CloudAccuracyTier.fromStorageValue(mode?.cloudAccuracyTier)
+        // X-STT-Model: the selected model within the provider/tier. Empty →
+        // omit so the backend applies the provider default. Trim defensively.
+        // cloudTranscriptionModel is shared with the BYOK path (Core Data
+        // default "whisper-1"), so a HyperWhisper Cloud mode can carry a model
+        // that doesn't belong to its tier. Resolve it against the tier's catalog
+        // models (mirrors ModeEditorView.onAppear) so we never send a mismatched
+        // X-STT-Model the backend 400s on; an unknown model falls back to the
+        // tier default ("" → header omitted).
+        let selectedModelId = resolvedSTTModelId(
+            tier: accuracyTier,
+            storedModelId: mode?.cloudTranscriptionModel
+        )
+        // X-STT-Domain: "medical" (assemblyAI) or nil.
+        let trimmedDomain = mode?.cloudTranscriptionDomain?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let transcriptionDomain: String? = (trimmedDomain?.isEmpty == false) ? trimmedDomain : nil
+
+        return (accuracyTier, selectedModelId, transcriptionDomain)
+    }
+
+    /// The vocabulary prompt, or nil when the selected model's catalog entry
+    /// says it drops `initial_prompt`.
+    private func resolveInitialPrompt(
+        vocabulary: [Vocabulary],
+        accuracyTier: CloudAccuracyTier,
+        modelId: String
+    ) -> String? {
+        let candidatePrompt = buildInitialTranscriptionPrompt(vocabulary: vocabulary)
+        let initialPrompt: String?
+        // Vocabulary support is now model-specific (e.g. Deepgram nova-3 supports
+        // keyterm but the catalog flags per-model). Gate on the selected model.
+        if candidatePrompt != nil && !accuracyTier.supportsCustomVocabulary(forModelId: modelId) {
+            AppLogger.network.info("HyperWhisper Cloud dropping initial_prompt · tier=\(accuracyTier.rawValue, privacy: .public) · model=\(modelId, privacy: .public) reason=catalog_unsupported")
+            initialPrompt = nil
+        } else {
+            initialPrompt = candidatePrompt
+        }
+        return initialPrompt
+    }
+
+    /// STEP 1 of `transcribeDetailed`: the upload's size and Content-Type.
+    private func prepareUploadPayload(for audioURL: URL) async throws -> (sizeBytes: Int64, contentType: String) {
+        // File-existence/size preflight stays native (the core never touches
+        // disk). resolveUploadFileSize also guards against a 0-byte race.
+        let fileSizeBytes = try await resolveUploadFileSize(for: audioURL)
+        let contentType = AudioMimeTypeResolver.infer(for: audioURL)
+
+        AppLogger.transcription.debug(
+            "HyperWhisper Cloud audio payload prepared · sizeKB=\(fileSizeBytes / 1024, privacy: .public) · contentType=\(contentType, privacy: .public) · strategy=file_upload"
+        )
+
+        return (fileSizeBytes, contentType)
+    }
+
+    // MARK: - Transcribe Request
+
+    /// The inputs `sendTranscribeRequest` bakes into every attempt of one
+    /// `transcribeDetailed` call. Only the identity and the upload file change
+    /// between attempts, so those stay parameters.
+    private struct TranscribeRequestContext {
+        let language: String?
+        let vocabularyTerms: [String]
+        let accuracyTier: CloudAccuracyTier
+        let modelId: String?
+        let domain: String?
+        let mode: Mode?
+        let userAgent: String
+        let fileSizeBytes: Int64
+    }
+
+    /// The core (`hyperwhisperCloudBuildTranscribeRequest`) builds the URL +
+    /// query (license_key/device_id, language, initial_prompt), the
+    /// Content-Type, the routed X-STT-* headers, and the @raw raw-stream body.
+    ///
+    /// The native X-STT-Provider/-Model/-Domain (derived from the accuracy
+    /// tier) are passed as the core's routed_* fields so the builder bakes
+    /// the same headers. Vocabulary gating (catalog `supportsCustomVocabulary`)
+    /// is decided by the caller: when dropped it passes an empty term list.
+    ///
+    /// Builds the request for a given identifier and sends it through the
+    /// shared executor + core retry loop. Factored out so HYPERWHISPER-T2's
+    /// retry-after-revalidation (in `transcribeDetailed`) can reuse it instead of duplicating
+    /// the request-building/parseError/onTransportError wiring.
+    ///
+    /// `uploadURL` / `uploadContentType` are parameters rather than captures so
+    /// the 415 format recovery in `transcribeDetailed` can re-send a WAV re-encode of the clip
+    /// through this exact same wiring instead of duplicating it.
+    private func sendTranscribeRequest(
+        _ context: TranscribeRequestContext,
+        identifier: String,
+        isLicensed: Bool,
+        uploadURL: URL,
+        uploadContentType: String
+    ) async throws -> HttpResponse {
+        let params = RustCoreMapping.transcribeParams(
+            audioPath: uploadURL.path,
+            audioMime: uploadContentType,
+            language: context.language,
+            vocabulary: context.vocabularyTerms,
+            baseURL: NetworkConfig.hyperwhisperCloudURL,
+            // The `deviceID` branch is now unreachable from `transcribeDetailed` —
+            // the HyperWhisperCloudEntitlement pre-check in
+            // `preflightLicensedIdentifier` rejects
+            // `isLicensed == false` before we get here. Kept because the
+            // core's param shape is shared with other callers, and so the
+            // guard stays the single place that encodes the policy.
+            licenseKey: isLicensed ? identifier : nil,
+            deviceID: isLicensed ? nil : identifier,
+            routedProvider: context.accuracyTier.sttProvider,
+            routedModel: context.modelId,
+            routedDomain: context.domain,
+            // Opt-out only: the core sends `X-Latency-Opt-Out: 1` when this
+            // is false and nothing at all when it is true. `isEnabled` is
+            // the opt-out, so it inverts.
+            shareAnonymousSpeedData: !LatencyOptOut.isEnabled
+        )
+
+        let baseRequest: HttpRequest
+        do {
+            baseRequest = try hyperwhisperCloudBuildTranscribeRequest(params: params)
+        } catch let err as HwTranscriptionError {
+            throw RustCoreMapping.mapTranscriptionError(err, providerName: "HyperWhisper Cloud")
+        }
+
+        // The core does not add the platform `mode` query param or `User-Agent`
+        // header (both are HW-Cloud-specific, not part of the shared contract).
+        // Inject them natively while preserving everything the core built.
+        var request = baseRequest
+        if let mode = context.mode, let modeId = mode.id {
+            request.url = Self.appendingModeQuery(to: request.url, modeId: modeId.uuidString)
+        }
+        request.headers.append(Header(name: "User-Agent", value: context.userAgent))
+        HyperWhisperClientInfo.apply(to: &request)
+
+        // fileSizeKB describes the ORIGINAL preflighted file — the 415 retry
+        // uploads a WAV re-encode whose size differs; read `contentType=` to
+        // tell the two attempts apart.
+        AppLogger.network.info("HyperWhisper Cloud streaming request · sttProvider=\(context.accuracyTier.sttProvider, privacy: .public) · fileSizeKB=\(context.fileSizeBytes / 1024, privacy: .public) · contentType=\(uploadContentType, privacy: .public) · licensed=\(isLicensed, privacy: .public)")
+
+        // Cancellation, file streaming, and DNS recovery stay native (in the
+        // executor / session). The core decides retries via nextRetry(...).
+        return try await RustRetry.perform(
+            session: session,
+            buildRequest: { request },
+            parseError: { resp in
+                // Map the core's classified error, enriching the HW-Cloud 402
+                // credit context from the response body (remaining/required).
+                do {
+                    _ = try hyperwhisperCloudParseTranscribeResponse(resp: resp)
+                    // 2xx never reaches parseError; a non-error parse is unexpected.
+                    return TranscriptionError.invalidResponse(details: "unexpected non-error response")
+                } catch let err as HwTranscriptionError {
+                    return HyperWhisperRoutedTranscription.mapBackendError(err, resp: resp, providerName: "HyperWhisper Cloud")
+                } catch {
+                    return TranscriptionError.invalidResponse(details: error.localizedDescription)
+                }
+            },
+            onTransportError: { urlError in
+                // One-shot DNS-cache flush on a network flip — restores the
+                // recovery the deleted native `performRequestWithRetry` did.
+                // `resetSharedSessionAfterDnsFailure` is @MainActor and applies
+                // the 60 s cross-call window shared with the warmup and the
+                // routed providers, on top of RustRetry's one-shot gate.
+                if HyperWhisperRoutedTranscription.isDnsError(urlError) {
+                    await HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure()
+                }
+            }
+        )
+    }
+
+    /// Parses a 2xx transcribe response through the core, logs the credit
+    /// headers and invalidates the cached balance the request just charged.
+    /// A 200 with no speech throws `TranscriptionAttemptFailure` carrying this
+    /// attempt's diagnostics.
+    private func parseTranscribeResponse(
+        _ response: HttpResponse,
+        attemptDiagnostics: TranscriptionAttemptDiagnostics
+    ) async throws -> HwTranscript {
         let transcript: HwTranscript
         do {
             transcript = try hyperwhisperCloudParseTranscribeResponse(resp: response)
@@ -532,13 +657,6 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
             )
         }
 
-        // Capture the server-detected language so the pipeline can gate
-        // language-sensitive post steps. The core's Transcript does not carry
-        // the detected language; read it from the response body natively.
-        if let lang = Self.detectedLanguage(from: response) {
-            detectedLanguage = lang
-        }
-
         // Surface the credit balance for the cache/UI from the response headers.
         if let remaining = hyperwhisperCloudParseCreditsRemaining(resp: response) {
             AppLogger.network.info("HyperWhisper Cloud credits remaining · remaining=\(remaining, privacy: .public)")
@@ -552,111 +670,108 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         // exposes only invalidateCache(), no value-setter).
         await creditManager.invalidateCache()
 
-        // =====================================================================
-        // STEP 4: Optionally call /post-process for AI correction
-        // =====================================================================
-        if postProcessingEnabled, let prompt = postProcessingPrompt, !transcript.text.isEmpty {
-            AppLogger.network.info("HyperWhisper Cloud calling /post-process endpoint")
+        return transcript
+    }
 
-            do {
-                try throwIfCancelled()
+    // MARK: - Optional Post-Processing
 
-                // Dictated break commands must never reach the LLM — it merges
-                // mid-body breaks whatever the prompt says (issue #1). Mirror
-                // AIPostProcessor.performAIPostProcessingPreservingBreaks: split
-                // on the dictated commands, post-process each segment separately,
-                // and restore the breaks afterwards. A transcript with no dictated
-                // break is a single segment and takes the old single-call path.
-                let segments = TranscriptionTextProcessing.splitOnDictatedBreaks(transcript.text)
-                let corrected: String
-                if segments.count > 1 {
-                    AppLogger.network.info("HyperWhisper Cloud post-processing \(segments.count, privacy: .public) dictated segments separately")
-                    var processed: [String] = []
-                    for segment in segments {
-                        try throwIfCancelled()
-                        let output = try await performPostProcess(
-                            session: session,
-                            text: segment,
-                            prompt: prompt,
-                            identifier: successfulIdentifier,
-                            isLicensed: successfulIsLicensed,
-                            mode: mode
-                        )
-                        processed.append(output.trimmingCharacters(in: .whitespacesAndNewlines))
-                    }
-                    corrected = processed.filter { !$0.isEmpty }.joined(separator: "\n\n")
-                } else {
-                    corrected = try await performPostProcess(
+    /// STEP 4 of `transcribeDetailed`: runs /post-process over the raw transcript
+    /// and returns the trimmed correction, or nil when there is none. A failure
+    /// other than cancellation is logged and swallowed: the raw transcript still
+    /// stands.
+    private func applyOptionalPostProcess(
+        to text: String,
+        prompt: String,
+        identifier: String,
+        isLicensed: Bool,
+        mode: Mode?
+    ) async throws -> String? {
+        AppLogger.network.info("HyperWhisper Cloud calling /post-process endpoint")
+
+        do {
+            try throwIfCancelled()
+
+            // Dictated break commands must never reach the LLM — it merges
+            // mid-body breaks whatever the prompt says (issue #1). Mirror
+            // AIPostProcessor.performAIPostProcessingPreservingBreaks: split
+            // on the dictated commands, post-process each segment separately,
+            // and restore the breaks afterwards. A transcript with no dictated
+            // break is a single segment and takes the old single-call path.
+            let segments = TranscriptionTextProcessing.splitOnDictatedBreaks(text)
+            let corrected: String
+            if segments.count > 1 {
+                AppLogger.network.info("HyperWhisper Cloud post-processing \(segments.count, privacy: .public) dictated segments separately")
+                var processed: [String] = []
+                for segment in segments {
+                    try throwIfCancelled()
+                    let output = try await performPostProcess(
                         session: session,
-                        text: transcript.text,
+                        text: segment,
                         prompt: prompt,
-                        identifier: successfulIdentifier,
-                        isLicensed: successfulIsLicensed,
+                        identifier: identifier,
+                        isLicensed: isLicensed,
                         mode: mode
                     )
+                    processed.append(output.trimmingCharacters(in: .whitespacesAndNewlines))
                 }
-
-                try throwIfCancelled()
-
-                if !corrected.isEmpty {
-                    // The backend already enforces the completion policy server-side
-                    // (rejects incomplete/truncated output there) — use the returned
-                    // text as-is rather than re-extracting wrapper markers here.
-                    let trimmedCorrected = corrected.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmedCorrected.isEmpty {
-                        serverCorrectedText = trimmedCorrected
-                        AppLogger.network.debug("HyperWhisper Cloud stored corrected text · chars=\(trimmedCorrected.count, privacy: .public)")
-                    }
-                }
-            } catch is CancellationError {
-                AppLogger.network.info("HyperWhisper Cloud post-processing cancelled")
-                throw CancellationError()
-            } catch {
-                // Post-processing failed, but we still have the raw transcription
-                // A Cloud error is thrown as `serverError(message:)` holding the
-                // Cloud's `message`, which can carry an upstream provider's error
-                // body that echoes the transcript (#1679). The error's identity and
-                // status are public; its description is private.
-                let nsError = error as NSError
-                let serverStatus = TranscriptionError.serverStatus(of: error)
-                AppLogger.network.warning("HyperWhisper Cloud post-processing failed · errorDomain=\(nsError.domain, privacy: .public) · errorCode=\(nsError.code, privacy: .public) · serverStatus=\(serverStatus, privacy: .public) · description=\(error.localizedDescription, privacy: .private)")
-
-                // Log to Sentry so we get alerted about real post-processing failures.
-                // Same rule as the log line above: send identifiers only. The
-                // error is rebuilt without its description or userInfo, and the
-                // fingerprint is domain + code + server status, so a Cloud
-                // message that echoes the transcript never reaches Sentry and
-                // each distinct message does not open a new issue (#1679).
-                SentryService.capture(
-                    error: SentryService.identifierOnlyError(error),
-                    message: "HyperWhisper Cloud post-processing failed",
-                    tags: [
-                        "component": "post_process",
-                        "provider": "hyperwhisper_cloud",
-                        "server_status": serverStatus
-                    ],
-                    fingerprint: ["post-process-failure", nsError.domain, String(nsError.code), serverStatus]
+                corrected = processed.filter { !$0.isEmpty }.joined(separator: "\n\n")
+            } else {
+                corrected = try await performPostProcess(
+                    session: session,
+                    text: text,
+                    prompt: prompt,
+                    identifier: identifier,
+                    isLicensed: isLicensed,
+                    mode: mode
                 )
-
-                // Continue without AI enhancement
             }
+
+            try throwIfCancelled()
+
+            if !corrected.isEmpty {
+                // The backend already enforces the completion policy server-side
+                // (rejects incomplete/truncated output there) — use the returned
+                // text as-is rather than re-extracting wrapper markers here.
+                let trimmedCorrected = corrected.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmedCorrected.isEmpty {
+                    AppLogger.network.debug("HyperWhisper Cloud stored corrected text · chars=\(trimmedCorrected.count, privacy: .public)")
+                    return trimmedCorrected
+                }
+            }
+            return nil
+        } catch is CancellationError {
+            AppLogger.network.info("HyperWhisper Cloud post-processing cancelled")
+            throw CancellationError()
+        } catch {
+            // Post-processing failed, but we still have the raw transcription
+            // A Cloud error is thrown as `serverError(message:)` holding the
+            // Cloud's `message`, which can carry an upstream provider's error
+            // body that echoes the transcript (#1679). The error's identity and
+            // status are public; its description is private.
+            let nsError = error as NSError
+            let serverStatus = TranscriptionError.serverStatus(of: error)
+            AppLogger.network.warning("HyperWhisper Cloud post-processing failed · errorDomain=\(nsError.domain, privacy: .public) · errorCode=\(nsError.code, privacy: .public) · serverStatus=\(serverStatus, privacy: .public) · description=\(error.localizedDescription, privacy: .private)")
+
+            // Log to Sentry so we get alerted about real post-processing failures.
+            // Same rule as the log line above: send identifiers only. The
+            // error is rebuilt without its description or userInfo, and the
+            // fingerprint is domain + code + server status, so a Cloud
+            // message that echoes the transcript never reaches Sentry and
+            // each distinct message does not open a new issue (#1679).
+            SentryService.capture(
+                error: SentryService.identifierOnlyError(error),
+                message: "HyperWhisper Cloud post-processing failed",
+                tags: [
+                    "component": "post_process",
+                    "provider": "hyperwhisper_cloud",
+                    "server_status": serverStatus
+                ],
+                fingerprint: ["post-process-failure", nsError.domain, String(nsError.code), serverStatus]
+            )
+
+            // Continue without AI enhancement
+            return nil
         }
-
-        try throwIfCancelled()
-
-        // Return the raw transcription text — may not be wrapped, so use the
-        // lenient passthrough (strict extraction would wipe an unwrapped result).
-        let cleanedText = TranscriptionTextProcessing.stripWrapperMarkers(transcript.text)
-        let hasCorrection = serverCorrectedText != nil
-        AppLogger.network.info("HyperWhisper Cloud transcription completed · chars=\(cleanedText.count, privacy: .public) · hasServerCorrection=\(hasCorrection, privacy: .public)")
-
-        return TranscriptionOutcome(
-            text: cleanedText,
-            detectedLanguage: detectedLanguage,
-            timestamps: nil,
-            diagnostics: attemptDiagnostics,
-            serverCorrectedText: serverCorrectedText
-        )
     }
 
     /// Sends a licensed transcription request, repairing a stale cached license
