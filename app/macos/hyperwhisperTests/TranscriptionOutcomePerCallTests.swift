@@ -402,7 +402,8 @@ struct TranscriptionOutcomePerCallTests {
         // Stop here if A never parked: B's /post-process would be the held
         // one, and nothing would release it. End A first, so it cannot reach
         // the shared backend after the next test resets it.
-        guard await Self.eventually({ backend.heldCount == 1 }) else {
+        let aParked = await Self.eventually { backend.heldCount == 1 }
+        guard aParked else {
             Issue.record("call A never reached its /post-process")
             backend.releaseHeld()
             callA.cancel()
