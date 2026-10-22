@@ -709,6 +709,7 @@
 "modes.header.create" = "צור מצב";
 "modes.name.unnamed" = "ללא שם";
 "modes.badge.offline" = "לא מקוון";
+"modes.badge.modelMissing" = "המודל חסר";
 "modes.context.select" = "בחר";
 "modes.help.edit" = "ערוך הגדרות מצב";
 "modes.help.preset" = "למד עוד על סגנון עיצוב זה";

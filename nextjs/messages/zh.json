@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "功能",
-    "pricing": "定价",
     "faq": "常见问题",
     "support": "支持",
     "download": "下载",
@@ -20,7 +19,6 @@
     "githubAria": "在 GitHub 上查看 HyperWhisper"
   },
   "hero": {
-    "openSourceBadge": "开源 · Apache-2.0",
     "logoAlt": "HyperWhisper 标志",
     "headline": "写作、构思、创作",
     "headlineAccent": "AI 加持快 5 倍",
@@ -97,57 +95,6 @@
     "accuracyRate": "准确率",
     "languagesSupported": "支持语言",
     "providersSupported": "支持提供商"
-  },
-  "pricing": {
-    "title": "无需订阅。永远使用。",
-    "subtitle": "一次购买，永久使用。我们也讨厌订阅。",
-    "guarantee": "14 天退款保证",
-    "guaranteeExtended": "如果你不完全满意。",
-    "learnMore": "了解更多",
-    "free": {
-      "name": "免费",
-      "price": "$0",
-      "period": "永久",
-      "description": "适合体验 HyperWhisper",
-      "cta": "免费下载",
-      "features": {
-        "transcriptionLimit": "每天 5 分钟转写",
-        "basicModes": "基础转写模式",
-        "offlineTranscription": "离线转写",
-        "apiTranscription": "API 转写（自备密钥）",
-        "postProcessing": "文本后处理",
-        "providers": "可选 9+ 提供商",
-        "lifetimeUpdates": "终身更新",
-        "cloudLimited": "HyperWhisper Cloud（有限使用）",
-        "customVocabulary": "自定义词汇",
-        "prioritySupport": "优先支持"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "终身",
-      "description": "一次购买，永久解锁全部能力",
-      "cta": "立即购买 - 终身访问",
-      "mostPopular": "最受欢迎",
-      "features": {
-        "unlimitedTranscription": "无限转写",
-        "allModes": "全部转写模式",
-        "offlineTranscription": "离线转写",
-        "apiTranscription": "API 转写（自备密钥）",
-        "postProcessing": "文本后处理",
-        "providers": "可选 9+ 提供商",
-        "lifetimeUpdates": "终身更新",
-        "cloudCredits": "HyperWhisper Cloud（$5 额度）",
-        "customVocabulary": "自定义词汇",
-        "prioritySupport": "优先支持"
-      }
-    },
-    "enterprise": {
-      "title": "企业与定制价格",
-      "description": "批量折扣、SSO、优先支持、内部部署托管和定制集成",
-      "cta": "联系销售"
-    }
   },
   "faq": {
     "title": "常见问题",
@@ -252,10 +199,7 @@
     "downloadButton": "下载 HyperWhisper",
     "errorGeneric": "出了点问题，请重试。",
     "errorEmail": "请输入有效的邮箱地址。",
-    "errorNetwork": "网络错误。请检查连接后重试。",
-    "thankYouTitle": "谢谢！",
     "downloadStarted": "下载应会自动开始。",
-    "manualDownload": "下载未开始？点击这里",
     "skipAndDownloadButton": "跳过并下载"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "下载",
       "roadmap": "路线图",
       "helpCenter": "帮助中心",
-      "manageBilling": "管理账单",
       "customerPortal": "客户门户",
       "olderVersions": "旧版本",
       "blog": "博客",
