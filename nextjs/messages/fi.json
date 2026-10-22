@@ -405,7 +405,7 @@
     "openSourceHeading": "Avoin lähdekoodi",
     "openSourceBody": "HyperWhisper on avointa lähdekoodia Apache-2.0-lisenssillä, Linux-sovellus mukaan lukien. Lue jokainen rivi GitHubissa.",
     "hotkeysHeading": "Yleiset pikanäppäimet X11:ssä ja Waylandissa",
-    "hotkeysBody": "Yleiset pikanäppäimet toimivat X11:ssä heti. GNOMEn ja KDE Plasman Wayland-istunnoissa ne toimivat, kun olet liittynyt hyperwhisper-input-ryhmään ja kirjautunut ulos ja takaisin sisään. HyperWhisper lukee näppäimistöä evdevin kautta, ei työpöytäportaalin kautta.",
+    "hotkeysBody": "Yleiset pikanäppäimet toimivat X11:ssä heti. GNOMEn ja KDE Plasman Wayland-istunnoissa ne toimivat, kun olet liittynyt hyperwhisper-input-ryhmään ja kirjautunut ulos ja takaisin sisään. Waylandissa HyperWhisper lukee näppäimistöä evdevin kautta, ei työpöytäportaalin kautta.",
     "hotkeysCommandLabel": "Liity syöteryhmään",
     "hotkeysFallback": "Ilman ryhmää litterointi toimii silti, ja tulos säilyy leikepöydällä. Myös automaattinen liittäminen vaatii ryhmän.",
     "hotkeysDefault": "Aloita ja lopeta tallennus painamalla Ctrl+Alt. Voit muuttaa jokaisen pikanäppäimen asetuksissa.",

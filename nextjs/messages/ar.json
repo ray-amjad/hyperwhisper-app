@@ -405,7 +405,7 @@
     "openSourceHeading": "مفتوح المصدر",
     "openSourceBody": "HyperWhisper مفتوح المصدر بموجب ترخيص Apache-2.0، بما في ذلك تطبيق Linux. اقرأ كل سطر على GitHub.",
     "hotkeysHeading": "اختصارات عامة على X11 وWayland",
-    "hotkeysBody": "تعمل الاختصارات العامة مباشرةً على X11. أما على GNOME وKDE Plasma ضمن Wayland فتعمل بعد انضمامك إلى المجموعة hyperwhisper-input وتسجيل الخروج ثم الدخول مجددًا. يقرأ HyperWhisper لوحة المفاتيح عبر evdev، وليس عبر بوابة سطح المكتب.",
+    "hotkeysBody": "تعمل الاختصارات العامة مباشرةً على X11. أما على GNOME وKDE Plasma ضمن Wayland فتعمل بعد انضمامك إلى المجموعة hyperwhisper-input وتسجيل الخروج ثم الدخول مجددًا. على Wayland، يقرأ HyperWhisper لوحة المفاتيح عبر evdev، وليس عبر بوابة سطح المكتب.",
     "hotkeysCommandLabel": "الانضمام إلى مجموعة الإدخال",
     "hotkeysFallback": "من دون المجموعة يظل التفريغ يعمل، وتبقى النتيجة في الحافظة. ويحتاج اللصق التلقائي أيضًا إلى المجموعة.",
     "hotkeysDefault": "اضغط Ctrl+Alt لبدء التسجيل وإيقافه. يمكنك تغيير أي اختصار من الإعدادات.",

@@ -405,7 +405,7 @@
     "openSourceHeading": "開放原始碼",
     "openSourceBody": "HyperWhisper 以 Apache-2.0 授權開放原始碼，Linux 應用程式也包含在內。你可以在 GitHub 上閱讀每一行程式碼。",
     "hotkeysHeading": "X11 與 Wayland 上的全域快捷鍵",
-    "hotkeysBody": "全域快捷鍵在 X11 上安裝即可使用。在 GNOME 與 KDE Plasma Wayland 上，需先加入 hyperwhisper-input 群組，並登出後重新登入才能使用。HyperWhisper 透過 evdev 讀取鍵盤，而非透過桌面入口（portal）。",
+    "hotkeysBody": "全域快捷鍵在 X11 上安裝即可使用。在 GNOME 與 KDE Plasma Wayland 上，需先加入 hyperwhisper-input 群組，並登出後重新登入才能使用。在 Wayland 上，HyperWhisper 透過 evdev 讀取鍵盤，而非透過桌面入口（portal）。",
     "hotkeysCommandLabel": "加入輸入群組",
     "hotkeysFallback": "未加入群組時，轉錄仍可正常運作，結果會保留在剪貼簿中。自動貼上同樣需要此群組。",
     "hotkeysDefault": "按下 Ctrl+Alt 即可開始與停止錄音。你可以在設定中變更所有快捷鍵。",

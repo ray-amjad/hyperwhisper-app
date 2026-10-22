@@ -405,7 +405,7 @@
     "openSourceHeading": "오픈 소스",
     "openSourceBody": "HyperWhisper는 Linux 앱을 포함해 Apache-2.0 라이선스의 오픈 소스입니다. GitHub에서 모든 코드를 읽어 보세요.",
     "hotkeysHeading": "X11 및 Wayland의 전역 단축키",
-    "hotkeysBody": "전역 단축키는 X11에서 바로 작동합니다. GNOME 및 KDE Plasma Wayland에서는 hyperwhisper-input 그룹에 가입하고 로그아웃했다가 다시 로그인하면 작동합니다. HyperWhisper는 데스크톱 포털이 아니라 evdev를 통해 키보드를 읽습니다.",
+    "hotkeysBody": "전역 단축키는 X11에서 바로 작동합니다. GNOME 및 KDE Plasma Wayland에서는 hyperwhisper-input 그룹에 가입하고 로그아웃했다가 다시 로그인하면 작동합니다. Wayland에서 HyperWhisper는 데스크톱 포털이 아니라 evdev를 통해 키보드를 읽습니다.",
     "hotkeysCommandLabel": "입력 그룹에 가입",
     "hotkeysFallback": "그룹에 가입하지 않아도 전사는 작동하며 결과는 클립보드에 보관됩니다. 자동 붙여넣기에도 이 그룹이 필요합니다.",
     "hotkeysDefault": "Ctrl+Alt를 눌러 녹음을 시작하고 중지하세요. 모든 단축키는 설정에서 변경할 수 있습니다.",

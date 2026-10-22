@@ -405,7 +405,7 @@
     "openSourceHeading": "Otwarte źródło",
     "openSourceBody": "HyperWhisper jest oprogramowaniem open source na licencji Apache-2.0, łącznie z aplikacją na Linuksa. Przeczytaj każdą linijkę na GitHubie.",
     "hotkeysHeading": "Globalne skróty w X11 i Wayland",
-    "hotkeysBody": "Globalne skróty działają od razu w X11. W GNOME i KDE Plasma na Wayland działają po dołączeniu do grupy hyperwhisper-input oraz wylogowaniu się i ponownym zalogowaniu. HyperWhisper odczytuje klawiaturę przez evdev, a nie przez portal pulpitu.",
+    "hotkeysBody": "Globalne skróty działają od razu w X11. W GNOME i KDE Plasma na Wayland działają po dołączeniu do grupy hyperwhisper-input oraz wylogowaniu się i ponownym zalogowaniu. Na Wayland HyperWhisper odczytuje klawiaturę przez evdev, a nie przez portal pulpitu.",
     "hotkeysCommandLabel": "Dołącz do grupy wejścia",
     "hotkeysFallback": "Bez tej grupy transkrypcja nadal działa, a wynik pozostaje w schowku. Automatyczne wklejanie również wymaga tej grupy.",
     "hotkeysDefault": "Naciśnij Ctrl+Alt, aby rozpocząć i zatrzymać nagrywanie. Każdy skrót możesz zmienić w Ustawieniach.",

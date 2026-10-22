@@ -405,7 +405,7 @@
     "openSourceHeading": "Sumber terbuka",
     "openSourceBody": "HyperWhisper bersumber terbuka di bawah Apache-2.0, termasuk aplikasi Linux-nya. Baca setiap barisnya di GitHub.",
     "hotkeysHeading": "Pintasan global di X11 dan Wayland",
-    "hotkeysBody": "Pintasan global langsung berfungsi di X11. Di GNOME dan KDE Plasma Wayland, pintasan berfungsi setelah Anda bergabung dengan grup hyperwhisper-input lalu keluar dan masuk kembali. HyperWhisper membaca keyboard melalui evdev, bukan melalui portal desktop.",
+    "hotkeysBody": "Pintasan global langsung berfungsi di X11. Di GNOME dan KDE Plasma Wayland, pintasan berfungsi setelah Anda bergabung dengan grup hyperwhisper-input lalu keluar dan masuk kembali. Di Wayland, HyperWhisper membaca keyboard melalui evdev, bukan melalui portal desktop.",
     "hotkeysCommandLabel": "Bergabung dengan grup input",
     "hotkeysFallback": "Tanpa grup tersebut, transkripsi tetap berfungsi dan hasilnya disimpan di clipboard. Tempel otomatis juga memerlukan grup tersebut.",
     "hotkeysDefault": "Tekan Ctrl+Alt untuk memulai dan menghentikan perekaman. Anda dapat mengubah setiap pintasan di Pengaturan.",

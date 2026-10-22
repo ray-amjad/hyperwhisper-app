@@ -405,7 +405,7 @@
     "openSourceHeading": "Open source",
     "openSourceBody": "HyperWhisper is open source onder Apache-2.0, inclusief de Linux-app. Lees elke regel op GitHub.",
     "hotkeysHeading": "Globale sneltoetsen op X11 en Wayland",
-    "hotkeysBody": "Globale sneltoetsen werken direct op X11. Op GNOME en KDE Plasma Wayland werken ze nadat je lid bent geworden van de groep hyperwhisper-input en je hebt uit- en weer ingelogd. HyperWhisper leest het toetsenbord via evdev, niet via een desktopportal.",
+    "hotkeysBody": "Globale sneltoetsen werken direct op X11. Op GNOME en KDE Plasma Wayland werken ze nadat je lid bent geworden van de groep hyperwhisper-input en je hebt uit- en weer ingelogd. Op Wayland leest HyperWhisper het toetsenbord via evdev, niet via een desktopportal.",
     "hotkeysCommandLabel": "Word lid van de invoergroep",
     "hotkeysFallback": "Zonder de groep werkt transcriptie nog steeds en blijft het resultaat op het klembord staan. Automatisch plakken heeft de groep ook nodig.",
     "hotkeysDefault": "Druk op Ctrl+Alt om de opname te starten en te stoppen. Je kunt elke sneltoets wijzigen in Instellingen.",

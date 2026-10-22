@@ -405,7 +405,7 @@
     "openSourceHeading": "Codi obert",
     "openSourceBody": "HyperWhisper és de codi obert sota Apache-2.0, inclosa l'aplicació per a Linux. Llegeix cada línia a GitHub.",
     "hotkeysHeading": "Dreceres globals a X11 i Wayland",
-    "hotkeysBody": "Les dreceres globals funcionen d'entrada a X11. A GNOME i KDE Plasma amb Wayland funcionen després d'unir-te al grup hyperwhisper-input i tancar la sessió i tornar-la a obrir. HyperWhisper llegeix el teclat mitjançant evdev, no mitjançant un portal d'escriptori.",
+    "hotkeysBody": "Les dreceres globals funcionen d'entrada a X11. A GNOME i KDE Plasma amb Wayland funcionen després d'unir-te al grup hyperwhisper-input i tancar la sessió i tornar-la a obrir. A Wayland, HyperWhisper llegeix el teclat mitjançant evdev, no mitjançant un portal d'escriptori.",
     "hotkeysCommandLabel": "Uneix-te al grup d'entrada",
     "hotkeysFallback": "Sense el grup, la transcripció continua funcionant i el resultat es conserva al porta-retalls. L'enganxament automàtic també necessita el grup.",
     "hotkeysDefault": "Prem Ctrl+Alt per iniciar i aturar l'enregistrament. Pots canviar qualsevol drecera a Configuració.",

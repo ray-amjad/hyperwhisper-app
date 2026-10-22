@@ -405,7 +405,7 @@
     "openSourceHeading": "Open source",
     "openSourceBody": "HyperWhisper er open source under Apache-2.0, inklusive Linux-appen. Læs hver eneste linje på GitHub.",
     "hotkeysHeading": "Globale genveje på X11 og Wayland",
-    "hotkeysBody": "Globale genveje virker med det samme på X11. På GNOME og KDE Plasma med Wayland virker de, når du har meldt dig ind i gruppen hyperwhisper-input og har logget ud og ind igen. HyperWhisper læser tastaturet via evdev, ikke via en skrivebordsportal.",
+    "hotkeysBody": "Globale genveje virker med det samme på X11. På GNOME og KDE Plasma med Wayland virker de, når du har meldt dig ind i gruppen hyperwhisper-input og har logget ud og ind igen. På Wayland læser HyperWhisper tastaturet via evdev, ikke via en skrivebordsportal.",
     "hotkeysCommandLabel": "Meld dig ind i inputgruppen",
     "hotkeysFallback": "Uden gruppen virker transskriptionen stadig, og resultatet bliver på udklipsholderen. Automatisk indsættelse kræver også gruppen.",
     "hotkeysDefault": "Tryk på Ctrl+Alt for at starte og stoppe optagelsen. Du kan ændre alle genveje i Indstillinger.",

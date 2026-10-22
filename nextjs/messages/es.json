@@ -405,7 +405,7 @@
     "openSourceHeading": "Código abierto",
     "openSourceBody": "HyperWhisper es de código abierto bajo Apache-2.0, incluida la app para Linux. Lee cada línea en GitHub.",
     "hotkeysHeading": "Atajos globales en X11 y Wayland",
-    "hotkeysBody": "Los atajos globales funcionan desde el primer momento en X11. En GNOME y KDE Plasma con Wayland funcionan después de unirte al grupo hyperwhisper-input y cerrar sesión y volver a iniciarla. HyperWhisper lee el teclado mediante evdev, no mediante un portal de escritorio.",
+    "hotkeysBody": "Los atajos globales funcionan desde el primer momento en X11. En GNOME y KDE Plasma con Wayland funcionan después de unirte al grupo hyperwhisper-input y cerrar sesión y volver a iniciarla. En Wayland, HyperWhisper lee el teclado mediante evdev, no mediante un portal de escritorio.",
     "hotkeysCommandLabel": "Unirse al grupo de entrada",
     "hotkeysFallback": "Sin el grupo, la transcripción sigue funcionando y el resultado se conserva en el portapapeles. El pegado automático también necesita el grupo.",
     "hotkeysDefault": "Pulsa Ctrl+Alt para iniciar y detener la grabación. Puedes cambiar cualquier atajo en Ajustes.",

@@ -405,7 +405,7 @@
     "openSourceHeading": "Atvērtais pirmkods",
     "openSourceBody": "HyperWhisper ir atvērtā pirmkoda programma ar Apache-2.0 licenci, ieskaitot Linux lietotni. Izlasiet katru rindiņu GitHub.",
     "hotkeysHeading": "Globālie īsinājumtaustiņi X11 un Wayland vidē",
-    "hotkeysBody": "Globālie īsinājumtaustiņi X11 vidē darbojas uzreiz. GNOME un KDE Plasma Wayland vidē tie darbojas pēc tam, kad pievienojaties grupai hyperwhisper-input, izrakstāties un atkal pierakstāties. HyperWhisper nolasa tastatūru caur evdev, nevis darbvirsmas portālu.",
+    "hotkeysBody": "Globālie īsinājumtaustiņi X11 vidē darbojas uzreiz. GNOME un KDE Plasma Wayland vidē tie darbojas pēc tam, kad pievienojaties grupai hyperwhisper-input, izrakstāties un atkal pierakstāties. Wayland vidē HyperWhisper nolasa tastatūru caur evdev, nevis darbvirsmas portālu.",
     "hotkeysCommandLabel": "Pievienojieties ievades grupai",
     "hotkeysFallback": "Bez grupas transkripcija joprojām darbojas, un rezultāts tiek saglabāts starpliktuvē. Arī automātiskajai ielīmēšanai ir nepieciešama grupa.",
     "hotkeysDefault": "Nospiediet Ctrl+Alt, lai sāktu un apturētu ierakstīšanu. Katru īsinājumtaustiņu varat mainīt iestatījumos.",

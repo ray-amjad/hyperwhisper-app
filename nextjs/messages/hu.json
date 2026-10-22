@@ -405,7 +405,7 @@
     "openSourceHeading": "Nyílt forráskód",
     "openSourceBody": "A HyperWhisper nyílt forráskódú az Apache-2.0 licenc alatt, a Linux-alkalmazással együtt. Olvass el minden sort a GitHubon.",
     "hotkeysHeading": "Globális billentyűparancsok X11 és Wayland alatt",
-    "hotkeysBody": "A globális billentyűparancsok X11 alatt azonnal működnek. GNOME és KDE Plasma Wayland alatt azután működnek, hogy csatlakoztál a hyperwhisper-input csoporthoz, majd kijelentkeztél és újra bejelentkeztél. A HyperWhisper az evdev-en keresztül olvassa a billentyűzetet, nem egy asztali portálon keresztül.",
+    "hotkeysBody": "A globális billentyűparancsok X11 alatt azonnal működnek. GNOME és KDE Plasma Wayland alatt azután működnek, hogy csatlakoztál a hyperwhisper-input csoporthoz, majd kijelentkeztél és újra bejelentkeztél. Wayland alatt a HyperWhisper az evdev-en keresztül olvassa a billentyűzetet, nem egy asztali portálon keresztül.",
     "hotkeysCommandLabel": "Csatlakozás a bemeneti csoporthoz",
     "hotkeysFallback": "A csoport nélkül az átírás továbbra is működik, az eredmény pedig a vágólapon marad. Az automatikus beillesztéshez is szükség van a csoportra.",
     "hotkeysDefault": "Nyomd meg a Ctrl+Alt billentyűket a felvétel indításához és leállításához. Minden billentyűparancsot módosíthatsz a Beállításokban.",

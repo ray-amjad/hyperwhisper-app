@@ -140,7 +140,7 @@
     "openSourceHeading": "Open source",
     "openSourceBody": "HyperWhisper is open source under Apache-2.0, the Linux app included. Read every line on GitHub.",
     "hotkeysHeading": "Global shortcuts on X11 and Wayland",
-    "hotkeysBody": "Global shortcuts work out of the box on X11. On GNOME and KDE Plasma Wayland they work after you join the hyperwhisper-input group and log out and back in. HyperWhisper reads the keyboard through evdev, not a desktop portal.",
+    "hotkeysBody": "Global shortcuts work out of the box on X11. On GNOME and KDE Plasma Wayland they work after you join the hyperwhisper-input group and log out and back in. On Wayland, HyperWhisper reads the keyboard through evdev, not a desktop portal.",
     "hotkeysCommandLabel": "Join the input group",
     "hotkeysFallback": "Without the group, transcription still works and the result is kept on the clipboard. Automatic paste also needs the group.",
     "hotkeysDefault": "Press Ctrl+Alt to start and stop recording. You can change every shortcut in Settings.",

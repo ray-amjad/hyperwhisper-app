@@ -405,7 +405,7 @@
     "openSourceHeading": "Open source",
     "openSourceBody": "HyperWhisper est open source sous licence Apache-2.0, application Linux comprise. Lisez chaque ligne sur GitHub.",
     "hotkeysHeading": "Raccourcis globaux sous X11 et Wayland",
-    "hotkeysBody": "Les raccourcis globaux fonctionnent immédiatement sous X11. Sous GNOME et KDE Plasma en Wayland, ils fonctionnent une fois que vous avez rejoint le groupe hyperwhisper-input, puis que vous vous êtes déconnecté et reconnecté. HyperWhisper lit le clavier via evdev, et non via un portail de bureau.",
+    "hotkeysBody": "Les raccourcis globaux fonctionnent immédiatement sous X11. Sous GNOME et KDE Plasma en Wayland, ils fonctionnent une fois que vous avez rejoint le groupe hyperwhisper-input, puis que vous vous êtes déconnecté et reconnecté. Sous Wayland, HyperWhisper lit le clavier via evdev, et non via un portail de bureau.",
     "hotkeysCommandLabel": "Rejoindre le groupe d'entrée",
     "hotkeysFallback": "Sans ce groupe, la transcription fonctionne toujours et le résultat est conservé dans le presse-papiers. Le collage automatique nécessite aussi ce groupe.",
     "hotkeysDefault": "Appuyez sur Ctrl+Alt pour démarrer et arrêter l'enregistrement. Vous pouvez modifier chaque raccourci dans les Réglages.",

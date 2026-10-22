@@ -405,7 +405,7 @@
     "openSourceHeading": "Open source",
     "openSourceBody": "HyperWhisper este open source sub licența Apache-2.0, inclusiv aplicația pentru Linux. Citește fiecare linie pe GitHub.",
     "hotkeysHeading": "Comenzi rapide globale pe X11 și Wayland",
-    "hotkeysBody": "Comenzile rapide globale funcționează direct pe X11. Pe GNOME și KDE Plasma cu Wayland, ele funcționează după ce te alături grupului hyperwhisper-input și te deconectezi și te reconectezi. HyperWhisper citește tastatura prin evdev, nu printr-un portal de desktop.",
+    "hotkeysBody": "Comenzile rapide globale funcționează direct pe X11. Pe GNOME și KDE Plasma cu Wayland, ele funcționează după ce te alături grupului hyperwhisper-input și te deconectezi și te reconectezi. Pe Wayland, HyperWhisper citește tastatura prin evdev, nu printr-un portal de desktop.",
     "hotkeysCommandLabel": "Alătură-te grupului de intrare",
     "hotkeysFallback": "Fără grup, transcrierea funcționează în continuare, iar rezultatul rămâne în clipboard. Lipirea automată are și ea nevoie de grup.",
     "hotkeysDefault": "Apasă Ctrl+Alt pentru a porni și a opri înregistrarea. Poți schimba orice comandă rapidă din Setări.",

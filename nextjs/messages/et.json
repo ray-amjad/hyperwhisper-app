@@ -405,7 +405,7 @@
     "openSourceHeading": "Avatud lähtekood",
     "openSourceBody": "HyperWhisper on avatud lähtekoodiga Apache-2.0 litsentsi all, sealhulgas Linuxi rakendus. Loe iga rida GitHubis.",
     "hotkeysHeading": "Globaalsed kiirklahvid X11-s ja Waylandis",
-    "hotkeysBody": "Globaalsed kiirklahvid töötavad X11-s kohe. GNOME ja KDE Plasma Waylandi seanssides töötavad need pärast seda, kui oled liitunud grupiga hyperwhisper-input ning välja ja uuesti sisse loginud. HyperWhisper loeb klaviatuuri evdevi kaudu, mitte töölauaportaali kaudu.",
+    "hotkeysBody": "Globaalsed kiirklahvid töötavad X11-s kohe. GNOME ja KDE Plasma Waylandi seanssides töötavad need pärast seda, kui oled liitunud grupiga hyperwhisper-input ning välja ja uuesti sisse loginud. Waylandis loeb HyperWhisper klaviatuuri evdevi kaudu, mitte töölauaportaali kaudu.",
     "hotkeysCommandLabel": "Liitu sisendgrupiga",
     "hotkeysFallback": "Ilma grupita töötab transkribeerimine ikkagi ja tulemus jääb lõikelauale. Automaatne kleepimine vajab samuti gruppi.",
     "hotkeysDefault": "Salvestamise alustamiseks ja peatamiseks vajuta Ctrl+Alt. Iga kiirklahvi saad muuta seadetes.",

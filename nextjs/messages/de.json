@@ -405,7 +405,7 @@
     "openSourceHeading": "Open Source",
     "openSourceBody": "HyperWhisper ist Open Source unter Apache-2.0, die Linux-App eingeschlossen. Lesen Sie jede Zeile auf GitHub.",
     "hotkeysHeading": "Globale Tastenkürzel unter X11 und Wayland",
-    "hotkeysBody": "Globale Tastenkürzel funktionieren unter X11 sofort. Unter GNOME und KDE Plasma mit Wayland funktionieren sie, nachdem Sie der Gruppe hyperwhisper-input beigetreten sind und sich ab- und wieder angemeldet haben. HyperWhisper liest die Tastatur über evdev, nicht über ein Desktop-Portal.",
+    "hotkeysBody": "Globale Tastenkürzel funktionieren unter X11 sofort. Unter GNOME und KDE Plasma mit Wayland funktionieren sie, nachdem Sie der Gruppe hyperwhisper-input beigetreten sind und sich ab- und wieder angemeldet haben. Unter Wayland liest HyperWhisper die Tastatur über evdev, nicht über ein Desktop-Portal.",
     "hotkeysCommandLabel": "Der Eingabegruppe beitreten",
     "hotkeysFallback": "Ohne die Gruppe funktioniert die Transkription trotzdem, und das Ergebnis bleibt in der Zwischenablage. Auch das automatische Einfügen benötigt die Gruppe.",
     "hotkeysDefault": "Drücken Sie Ctrl+Alt, um die Aufnahme zu starten und zu stoppen. Jedes Tastenkürzel können Sie in den Einstellungen ändern.",

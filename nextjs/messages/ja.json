@@ -405,7 +405,7 @@
     "openSourceHeading": "オープンソース",
     "openSourceBody": "HyperWhisperはLinuxアプリも含めて、Apache-2.0ライセンスのオープンソースです。すべてのコードをGitHubで読めます。",
     "hotkeysHeading": "X11とWaylandでのグローバルショートカット",
-    "hotkeysBody": "グローバルショートカットはX11ではそのまま使えます。GNOMEとKDE PlasmaのWaylandでは、hyperwhisper-inputグループに参加し、ログアウトしてから再度ログインすると使えるようになります。HyperWhisperはデスクトップポータルではなく、evdevを通じてキーボードを読み取ります。",
+    "hotkeysBody": "グローバルショートカットはX11ではそのまま使えます。GNOMEとKDE PlasmaのWaylandでは、hyperwhisper-inputグループに参加し、ログアウトしてから再度ログインすると使えるようになります。Waylandでは、HyperWhisperはデスクトップポータルではなく、evdevを通じてキーボードを読み取ります。",
     "hotkeysCommandLabel": "入力グループに参加",
     "hotkeysFallback": "グループに参加しなくても文字起こしは動作し、結果はクリップボードに保持されます。自動貼り付けにもこのグループが必要です。",
     "hotkeysDefault": "Ctrl+Altを押すと録音を開始・停止します。すべてのショートカットは設定で変更できます。",

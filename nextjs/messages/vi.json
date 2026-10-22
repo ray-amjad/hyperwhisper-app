@@ -405,7 +405,7 @@
     "openSourceHeading": "Mã nguồn mở",
     "openSourceBody": "HyperWhisper là mã nguồn mở theo giấy phép Apache-2.0, bao gồm cả ứng dụng Linux. Hãy đọc từng dòng mã trên GitHub.",
     "hotkeysHeading": "Phím tắt toàn cục trên X11 và Wayland",
-    "hotkeysBody": "Phím tắt toàn cục hoạt động ngay trên X11. Trên GNOME và KDE Plasma Wayland, chúng hoạt động sau khi bạn tham gia nhóm hyperwhisper-input, rồi đăng xuất và đăng nhập lại. HyperWhisper đọc bàn phím qua evdev, không qua cổng desktop portal.",
+    "hotkeysBody": "Phím tắt toàn cục hoạt động ngay trên X11. Trên GNOME và KDE Plasma Wayland, chúng hoạt động sau khi bạn tham gia nhóm hyperwhisper-input, rồi đăng xuất và đăng nhập lại. Trên Wayland, HyperWhisper đọc bàn phím qua evdev, không qua cổng desktop portal.",
     "hotkeysCommandLabel": "Tham gia nhóm nhập liệu",
     "hotkeysFallback": "Không có nhóm, tính năng chuyển giọng nói thành văn bản vẫn hoạt động và kết quả được giữ trong bảng nhớ tạm. Tự động dán cũng cần nhóm này.",
     "hotkeysDefault": "Nhấn Ctrl+Alt để bắt đầu và dừng ghi âm. Bạn có thể đổi mọi phím tắt trong phần Cài đặt.",

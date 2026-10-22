@@ -405,7 +405,7 @@
     "openSourceHeading": "Öppen källkod",
     "openSourceBody": "HyperWhisper är öppen källkod under Apache-2.0, Linux-appen inräknad. Läs varje rad på GitHub.",
     "hotkeysHeading": "Globala kortkommandon på X11 och Wayland",
-    "hotkeysBody": "Globala kortkommandon fungerar direkt på X11. På GNOME och KDE Plasma Wayland fungerar de när du har gått med i gruppen hyperwhisper-input och loggat ut och in igen. HyperWhisper läser tangentbordet via evdev, inte via en skrivbordsportal.",
+    "hotkeysBody": "Globala kortkommandon fungerar direkt på X11. På GNOME och KDE Plasma Wayland fungerar de när du har gått med i gruppen hyperwhisper-input och loggat ut och in igen. På Wayland läser HyperWhisper tangentbordet via evdev, inte via en skrivbordsportal.",
     "hotkeysCommandLabel": "Gå med i inmatningsgruppen",
     "hotkeysFallback": "Utan gruppen fungerar transkriberingen ändå, och resultatet ligger kvar i urklipp. Automatisk inklistring kräver också gruppen.",
     "hotkeysDefault": "Tryck på Ctrl+Alt för att starta och stoppa inspelningen. Du kan ändra alla kortkommandon i Inställningar.",

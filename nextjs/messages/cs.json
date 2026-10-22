@@ -405,7 +405,7 @@
     "openSourceHeading": "Open source",
     "openSourceBody": "HyperWhisper je open source pod licencí Apache-2.0, včetně aplikace pro Linux. Přečtěte si každý řádek na GitHubu.",
     "hotkeysHeading": "Globální zkratky v X11 a Waylandu",
-    "hotkeysBody": "Globální zkratky fungují v X11 hned po instalaci. V GNOME a KDE Plasma pod Waylandem fungují poté, co se připojíte ke skupině hyperwhisper-input a odhlásíte se a znovu přihlásíte. HyperWhisper čte klávesnici přes evdev, ne přes portál desktopu.",
+    "hotkeysBody": "Globální zkratky fungují v X11 hned po instalaci. V GNOME a KDE Plasma pod Waylandem fungují poté, co se připojíte ke skupině hyperwhisper-input a odhlásíte se a znovu přihlásíte. Pod Waylandem HyperWhisper čte klávesnici přes evdev, ne přes portál desktopu.",
     "hotkeysCommandLabel": "Připojení ke vstupní skupině",
     "hotkeysFallback": "Bez skupiny přepis stále funguje a výsledek zůstane ve schránce. Automatické vkládání skupinu také vyžaduje.",
     "hotkeysDefault": "Stisknutím Ctrl+Alt spustíte a zastavíte nahrávání. Každou zkratku můžete změnit v Nastavení.",

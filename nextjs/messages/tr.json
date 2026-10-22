@@ -405,7 +405,7 @@
     "openSourceHeading": "Açık kaynak",
     "openSourceBody": "HyperWhisper, Linux uygulaması dahil Apache-2.0 lisansıyla açık kaynaktır. Her satırı GitHub'da okuyun.",
     "hotkeysHeading": "X11 ve Wayland'de genel kısayollar",
-    "hotkeysBody": "Genel kısayollar X11'de kurulumdan hemen sonra çalışır. GNOME ve KDE Plasma Wayland'de ise hyperwhisper-input grubuna katılıp oturumu kapatıp yeniden açtıktan sonra çalışır. HyperWhisper klavyeyi bir masaüstü portalı üzerinden değil, evdev üzerinden okur.",
+    "hotkeysBody": "Genel kısayollar X11'de kurulumdan hemen sonra çalışır. GNOME ve KDE Plasma Wayland'de ise hyperwhisper-input grubuna katılıp oturumu kapatıp yeniden açtıktan sonra çalışır. Wayland'de HyperWhisper klavyeyi bir masaüstü portalı üzerinden değil, evdev üzerinden okur.",
     "hotkeysCommandLabel": "Giriş grubuna katılın",
     "hotkeysFallback": "Grup olmadan da yazıya dökme çalışır ve sonuç panoda tutulur. Otomatik yapıştırma da grubu gerektirir.",
     "hotkeysDefault": "Kaydı başlatmak ve durdurmak için Ctrl+Alt tuşlarına basın. Tüm kısayolları Ayarlar'dan değiştirebilirsiniz.",

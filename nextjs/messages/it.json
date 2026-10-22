@@ -405,7 +405,7 @@
     "openSourceHeading": "Open source",
     "openSourceBody": "HyperWhisper è open source con licenza Apache-2.0, app per Linux inclusa. Leggi ogni riga su GitHub.",
     "hotkeysHeading": "Scorciatoie globali su X11 e Wayland",
-    "hotkeysBody": "Le scorciatoie globali funzionano subito su X11. Su GNOME e KDE Plasma con Wayland funzionano dopo che ti sei unito al gruppo hyperwhisper-input e hai effettuato il logout e di nuovo il login. HyperWhisper legge la tastiera tramite evdev, non tramite un portale del desktop.",
+    "hotkeysBody": "Le scorciatoie globali funzionano subito su X11. Su GNOME e KDE Plasma con Wayland funzionano dopo che ti sei unito al gruppo hyperwhisper-input e hai effettuato il logout e di nuovo il login. Su Wayland, HyperWhisper legge la tastiera tramite evdev, non tramite un portale del desktop.",
     "hotkeysCommandLabel": "Unisciti al gruppo di input",
     "hotkeysFallback": "Senza il gruppo, la trascrizione funziona comunque e il risultato resta negli appunti. Anche l'incolla automatico richiede il gruppo.",
     "hotkeysDefault": "Premi Ctrl+Alt per avviare e interrompere la registrazione. Puoi modificare ogni scorciatoia nelle Impostazioni.",

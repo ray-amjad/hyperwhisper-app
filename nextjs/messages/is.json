@@ -405,7 +405,7 @@
     "openSourceHeading": "Opinn hugbúnaður",
     "openSourceBody": "HyperWhisper er opinn hugbúnaður með Apache-2.0 leyfi, Linux-forritið meðtalið. Lestu hverja línu á GitHub.",
     "hotkeysHeading": "Altækir flýtilyklar á X11 og Wayland",
-    "hotkeysBody": "Altækir flýtilyklar virka strax á X11. Á GNOME og KDE Plasma Wayland virka þeir eftir að þú gengur í hópinn hyperwhisper-input og skráir þig út og inn aftur. HyperWhisper les lyklaborðið í gegnum evdev, ekki í gegnum skjáborðsgátt.",
+    "hotkeysBody": "Altækir flýtilyklar virka strax á X11. Á GNOME og KDE Plasma Wayland virka þeir eftir að þú gengur í hópinn hyperwhisper-input og skráir þig út og inn aftur. Á Wayland les HyperWhisper lyklaborðið í gegnum evdev, ekki í gegnum skjáborðsgátt.",
     "hotkeysCommandLabel": "Ganga í inntakshópinn",
     "hotkeysFallback": "Án hópsins virkar umritunin samt og niðurstaðan er geymd á klippiborðinu. Sjálfvirk innlíming þarf líka hópinn.",
     "hotkeysDefault": "Ýttu á Ctrl+Alt til að hefja og stöðva upptöku. Þú getur breytt öllum flýtilyklum í Stillingum.",

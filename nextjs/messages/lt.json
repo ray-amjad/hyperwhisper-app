@@ -405,7 +405,7 @@
     "openSourceHeading": "Atvirasis kodas",
     "openSourceBody": "HyperWhisper yra atvirojo kodo programa pagal Apache-2.0 licenciją, įskaitant Linux programą. Perskaitykite kiekvieną eilutę GitHub.",
     "hotkeysHeading": "Visuotiniai spartieji klavišai X11 ir Wayland aplinkose",
-    "hotkeysBody": "Visuotiniai spartieji klavišai veikia iš karto X11 aplinkoje. GNOME ir KDE Plasma Wayland aplinkose jie veikia, kai prisijungiate prie hyperwhisper-input grupės, atsijungiate ir vėl prisijungiate. HyperWhisper skaito klaviatūrą per evdev, o ne per darbalaukio portalą.",
+    "hotkeysBody": "Visuotiniai spartieji klavišai veikia iš karto X11 aplinkoje. GNOME ir KDE Plasma Wayland aplinkose jie veikia, kai prisijungiate prie hyperwhisper-input grupės, atsijungiate ir vėl prisijungiate. Wayland aplinkoje HyperWhisper skaito klaviatūrą per evdev, o ne per darbalaukio portalą.",
     "hotkeysCommandLabel": "Prisijunkite prie įvesties grupės",
     "hotkeysFallback": "Be grupės transkripcija vis tiek veikia, o rezultatas išsaugomas iškarpinėje. Automatiniam įklijavimui taip pat reikia grupės.",
     "hotkeysDefault": "Paspauskite Ctrl+Alt, kad pradėtumėte ir sustabdytumėte įrašymą. Kiekvieną spartųjį klavišą galite pakeisti nustatymuose.",

@@ -405,7 +405,7 @@
     "openSourceHeading": "קוד פתוח",
     "openSourceBody": "HyperWhisper הוא קוד פתוח ברישיון Apache-2.0, כולל אפליקציית Linux. קראו כל שורה ב-GitHub.",
     "hotkeysHeading": "קיצורי מקשים גלובליים ב-X11 וב-Wayland",
-    "hotkeysBody": "קיצורי מקשים גלובליים עובדים מיד ב-X11. ב-GNOME וב-KDE Plasma תחת Wayland הם עובדים אחרי שאתם מצטרפים לקבוצה hyperwhisper-input ומתנתקים ומתחברים מחדש. HyperWhisper קורא את המקלדת דרך evdev, ולא דרך פורטל של שולחן העבודה.",
+    "hotkeysBody": "קיצורי מקשים גלובליים עובדים מיד ב-X11. ב-GNOME וב-KDE Plasma תחת Wayland הם עובדים אחרי שאתם מצטרפים לקבוצה hyperwhisper-input ומתנתקים ומתחברים מחדש. ב-Wayland, HyperWhisper קורא את המקלדת דרך evdev, ולא דרך פורטל של שולחן העבודה.",
     "hotkeysCommandLabel": "הצטרפות לקבוצת הקלט",
     "hotkeysFallback": "בלי הקבוצה, התמלול עדיין עובד והתוצאה נשמרת בלוח הגזירים. גם הדבקה אוטומטית דורשת את הקבוצה.",
     "hotkeysDefault": "הקישו Ctrl+Alt כדי להתחיל ולעצור הקלטה. אפשר לשנות כל קיצור מקשים בהגדרות.",

@@ -405,7 +405,7 @@
     "openSourceHeading": "Odprta koda",
     "openSourceBody": "HyperWhisper je odprtokoden pod licenco Apache-2.0, vključno z aplikacijo za Linux. Preberite vsako vrstico na GitHubu.",
     "hotkeysHeading": "Globalne bližnjice na X11 in Waylandu",
-    "hotkeysBody": "Globalne bližnjice na X11 delujejo takoj. Na GNOME in KDE Plasma Wayland delujejo, ko se pridružite skupini hyperwhisper-input ter se odjavite in znova prijavite. HyperWhisper bere tipkovnico prek evdev, ne prek namiznega portala.",
+    "hotkeysBody": "Globalne bližnjice na X11 delujejo takoj. Na GNOME in KDE Plasma Wayland delujejo, ko se pridružite skupini hyperwhisper-input ter se odjavite in znova prijavite. Na Waylandu HyperWhisper bere tipkovnico prek evdev, ne prek namiznega portala.",
     "hotkeysCommandLabel": "Pridružite se skupini za vnos",
     "hotkeysFallback": "Brez skupine prepisovanje še vedno deluje, rezultat pa ostane v odložišču. Tudi samodejno lepljenje potrebuje skupino.",
     "hotkeysDefault": "Pritisnite Ctrl+Alt, da začnete in ustavite snemanje. Vsako bližnjico lahko spremenite v nastavitvah.",
