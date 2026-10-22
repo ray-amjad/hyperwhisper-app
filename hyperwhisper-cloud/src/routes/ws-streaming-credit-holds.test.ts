@@ -12,6 +12,7 @@ import { computeDeepgramTranscriptionCost, creditsForCost } from '../lib/cost-ca
 import { createMemoryCreditHoldStore, type MemoryCreditHoldStore } from '../lib/credit-hold-store-memory';
 import type { AuthContext } from '../middleware/auth';
 import { FakeClientSocket, FakeStreamingTimers, FakeUpstreamSocketBase, fakeContext } from './ws-streaming-test-support';
+import { stubEnv } from '../test-support/env';
 
 let cachedLicenseValue: { isValid: boolean; credits: number; cachedAt: string } | null = null;
 
@@ -39,7 +40,7 @@ const BLOCK = creditsForCost(computeDeepgramTranscriptionCost(300));
 
 const originalFetch = globalThis.fetch;
 const originalWebSocket = globalThis.WebSocket;
-const originalApiKey = process.env.DEEPGRAM_API_KEY;
+let restoreApiKey: () => void;
 const originalLog = console.log;
 const originalWarn = console.warn;
 
@@ -111,7 +112,7 @@ beforeEach(() => {
   shortfalls = [];
   upstreamSockets.length = 0;
   cachedLicenseValue = { isValid: true, credits: 100, cachedAt: 'cached' };
-  process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
+  restoreApiKey = stubEnv('DEEPGRAM_API_KEY', 'test-deepgram-key');
   globalThis.WebSocket = FakeUpstreamSocket as unknown as typeof WebSocket;
   globalThis.fetch = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
     charges.push((JSON.parse(String(init?.body)) as { amount: number }).amount);
@@ -138,8 +139,7 @@ afterEach(async () => {
   globalThis.fetch = originalFetch;
   globalThis.WebSocket = originalWebSocket;
   cachedLicenseValue = null;
-  if (originalApiKey === undefined) delete process.env.DEEPGRAM_API_KEY;
-  else process.env.DEEPGRAM_API_KEY = originalApiKey;
+  restoreApiKey();
 });
 
 describe('the upgrade preflight holds the first block', () => {

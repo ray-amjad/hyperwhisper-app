@@ -50,8 +50,8 @@ public class PostProcessingService : IDisposable
     private static readonly Lazy<HyperWhisperCloudService> SharedCloudService =
         new(() => new HyperWhisperCloudService(), LazyThreadSafetyMode.ExecutionAndPublication);
 
-    private readonly LocalLlmModelService _localLlmModelService = new();
-    private readonly LocalLlmService _localLlmService = new();
+    private readonly LocalLlmModelService _localLlmModelService;
+    private readonly LocalLlmService _localLlmService;
     private bool _disposed;
 
     // =========================================================================
@@ -64,11 +64,31 @@ public class PostProcessingService : IDisposable
     public event EventHandler<ErrorToastEventArgs>? WarningOccurred;
 
     public PostProcessingService()
+        : this(
+            new HttpClient { Timeout = TimeSpan.FromSeconds(30) },
+            new LocalLlmModelService(),
+            new LocalLlmService())
     {
-        _httpClient = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(30)
-        };
+    }
+
+    /// <summary>
+    /// The seam the smoke suite uses to drive the graceful-degradation routes
+    /// through a scripted <see cref="HttpMessageHandler"/> (#741).
+    /// </summary>
+    /// <remarks>
+    /// The service OWNS all three: <see cref="Dispose()"/> disposes
+    /// <paramref name="httpClient"/> and <paramref name="localLlmService"/>, as
+    /// it always has for the ones the public constructor builds. Do not pass in
+    /// an instance something else still uses.
+    /// </remarks>
+    internal PostProcessingService(
+        HttpClient httpClient,
+        LocalLlmModelService localLlmModelService,
+        LocalLlmService localLlmService)
+    {
+        _httpClient = httpClient;
+        _localLlmModelService = localLlmModelService;
+        _localLlmService = localLlmService;
     }
 
     // =========================================================================

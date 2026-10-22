@@ -3,6 +3,21 @@
     <channel>
         <title>hyperwhisper</title>
         <item>
+            <title>2.50.0</title>
+            <pubDate>Thu, 22 Oct 2026 12:34:15 +0000</pubDate>
+            <sparkle:version>120</sparkle:version>
+            <sparkle:shortVersionString>2.50.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.50.0.dmg" length="36508648" type="application/octet-stream" sparkle:edSignature="Pdhf023s0iNOHdY5HeVZ4ScG9JCMUtHxRp8x1nNCE8dEi+SPEx4O6jaE9u6m96a5N7WujAPXZMzjxXbHsxopCw=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Choose your microphone in Settings → Sound; if it is unplugged mid-recording, HyperWhisper falls back to your default microphone, and virtual microphones are no longer picked automatically</li><li>Other audio can now be muffled while you record</li><li>Open audio and video files with HyperWhisper straight from Finder</li><li>New models: ElevenLabs Scribe v2 Medical, Mistral Medium 3.5, Claude Haiku and Sonnet 5.5, and GPT-6 Luna; retired models switch to their replacements automatically</li><li>History gets a playhead you can seek, and you can delete several recordings at once</li><li>Clearer messages when an imported file is empty, too short or not audio</li><li>Many fixes for freezes, backup import, Retry, and keeping your spoken words out of logs</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
             <title>2.49.0</title>
             <pubDate>Fri, 25 Sep 2026 00:39:26 +0000</pubDate>
             <sparkle:version>119</sparkle:version>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { stripe } from "@/lib/clients/stripe";
+import { stripeCustomerBelongsTo } from "@/lib/services/stripe-customer";
 import { findAccountByKey, updateAccountKey } from "@/src/lib/db-layer";
 import { isRecord } from "@/src/lib/type-guards";
 import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
@@ -172,7 +173,16 @@ export async function POST(req: NextRequest) {
       metadata.license_key = normalizedLicenseKey;
 
       // Find or create the Stripe customer by email and cache it on the license.
+      // The cached customer is reused only while it still belongs to the
+      // license's email: after an admin email move it is the OLD address's
+      // customer, and billing it sends the receipt there (#2460).
       stripeCustomerId = license.stripeCustomerId ?? undefined;
+      if (
+        stripeCustomerId &&
+        !(await stripeCustomerBelongsTo(stripeCustomerId, email))
+      ) {
+        stripeCustomerId = undefined;
+      }
       if (!stripeCustomerId) {
         const existingCustomers = await stripe.customers.list({
           email,
