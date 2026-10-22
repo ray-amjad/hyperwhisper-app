@@ -146,46 +146,22 @@ final class FileTranscriptionPopupManager {
 
     /// Configure the panel appearance for floating, non-activating behavior
     ///
-    /// **Panel Configuration:**
-    /// - Non-activating: Doesn't steal focus from other apps
-    /// - Floating: Stays above normal windows
-    /// - Floating level: above normal windows, below modal panels
-    /// - Can join all spaces: Visible on all virtual desktops
-    /// - Transparent: SwiftUI handles the visual style
+    /// The shared floating-panel style, draggable by clicking anywhere on it,
+    /// at `.floating` level (below).
     private func configurePanelAppearance(_ panel: NSPanel) {
-        // Non-activating panel that doesn't become key
-        panel.styleMask = [.nonactivatingPanel]
+        FloatingPanelStyle.apply(
+            to: panel,
+            contentSize: NSSize(width: panelWidth, height: panelHeight),
+            dragging: .byWindowBackground,
+            becomesKeyOnlyIfNeeded: false
+        )
 
         // Floating, not .screenSaver like the recording dialog: this HUD stays up
         // for minutes while the user keeps using the app, and at .screenSaver it
         // covered alerts, the open panel and the Model picker (#1438). .floating
         // still sits above normal windows (and fullscreen apps, with the
-        // collection behaviour below) but under .modalPanel windows.
+        // shared collection behaviour) but under .modalPanel windows.
         panel.level = .floating
-
-        // Collection behavior for multi-space and fullscreen support
-        panel.collectionBehavior = [
-            .canJoinAllSpaces,      // Visible on all virtual desktops
-            .fullScreenAuxiliary,   // Can appear over fullscreen apps
-            .stationary,            // Doesn't move with spaces
-            .ignoresCycle           // Not included in Cmd+Tab cycle
-        ]
-
-        // Visual appearance
-        panel.backgroundColor = .clear
-        panel.isOpaque = false
-        panel.hasShadow = false  // SwiftUI shadow is used instead
-        panel.isMovable = true
-        panel.isMovableByWindowBackground = true  // Allow dragging by clicking anywhere
-        panel.hidesOnDeactivate = false
-        panel.becomesKeyOnlyIfNeeded = false
-
-        // Set content size
-        panel.setContentSize(NSSize(width: panelWidth, height: panelHeight))
-
-        // Ensure content view is transparent
-        panel.contentView?.wantsLayer = true
-        panel.contentView?.layer?.backgroundColor = NSColor.clear.cgColor
     }
 
     /// Position the panel in the top-right corner of the main screen

@@ -18,7 +18,6 @@
 import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, describe, test } from "node:test";
 
-import Stripe from "stripe";
 
 import {
   accountKeyRow,
@@ -532,11 +531,14 @@ describe("POST /api/checkout/credits — Stripe faults", () => {
   test("a Stripe error naming the customer stays out of the body, and in the log", async () => {
     logLines.length = 0;
     storeRow(accountKeyRow({ key: GRANTED_KEY, stripeCustomerId: "cus_Q8leakedCustomer" }));
-    behaviour.sessionError = new Stripe.errors.StripeInvalidRequestError({
-      type: "invalid_request_error",
-      message:
+    // Built by hand, not from the SDK: only lib/clients/stripe.ts and the
+    // webhook files may load `stripe` at runtime (stripe-client-boundary).
+    behaviour.sessionError = Object.assign(
+      new Error(
         "No such customer: 'cus_Q8leakedCustomer'; a similar object exists in live mode, but a test mode key was used to make this request.",
-    });
+      ),
+      { type: "StripeInvalidRequestError", rawType: "invalid_request_error", statusCode: 400 },
+    );
     const { POST } = await loadCheckoutCreditsRoute();
 
     const response = await POST(

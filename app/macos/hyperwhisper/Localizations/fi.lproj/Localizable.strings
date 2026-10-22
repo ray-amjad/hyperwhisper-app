@@ -709,6 +709,7 @@ Muokkaa näitä tiloja valitaksesi eri mallin ennen sen poistamista.";
 "modes.header.create" = "Luo tila";
 "modes.name.unnamed" = "Nimetön";
 "modes.badge.offline" = "Offline";
+"modes.badge.modelMissing" = "Malli puuttuu";
 "modes.context.select" = "Valitse";
 "modes.help.edit" = "Muokkaa tilan asetuksia";
 "modes.help.preset" = "Lue lisää tästä muotoilutyylistä";

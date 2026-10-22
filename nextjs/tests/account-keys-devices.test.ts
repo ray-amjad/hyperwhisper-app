@@ -542,6 +542,43 @@ describe("escapeLikePattern", () => {
   });
 });
 
+describe("getAccountKeyCustomerPage search (#1949)", () => {
+  test("LIKE wildcards in the email search match only themselves", async () => {
+    for (const u of ["plain", "pct", "under", "back"]) await seedUser(u);
+    await seedKey("HW-CS1", "plain", { email: "axb@example.test" });
+    await seedKey("HW-CS2", "pct", { email: "100%club@example.test" });
+    await seedKey("HW-CS3", "under", { email: "a_b@example.test" });
+    await seedKey("HW-CS4", "back", { email: "c\\d@example.test" });
+
+    const find = (search: string) =>
+      L.getAccountKeyCustomerPage({ search, page: 1, pageSize: 50 });
+
+    const pct = await find("%");
+    const under = await find("_");
+    const aUnderB = await find("a_b");
+    const slash = await find("\\");
+
+    assert.deepEqual(pct.userIds, ["pct"]);
+    assert.equal(pct.totalCustomers, 1);
+    assert.deepEqual(under.userIds, ["under"]);
+    assert.equal(under.totalCustomers, 1);
+    assert.deepEqual(aUnderB.userIds, ["under"]);
+    assert.deepEqual(slash.userIds, ["back"]);
+  });
+
+  test("a plain search still matches part of the email, case-insensitive", async () => {
+    await seedUser("u1");
+    await seedUser("u2");
+    await seedKey("HW-CS5", "u1", { email: "Ray@Example.test" });
+    await seedKey("HW-CS6", "u2", { email: "other@elsewhere.test" });
+
+    const res = await L.getAccountKeyCustomerPage({ search: "ray@ex", page: 1, pageSize: 50 });
+
+    assert.deepEqual(res.userIds, ["u1"]);
+    assert.equal(res.totalCustomers, 1);
+  });
+});
+
 describe("getDeviceCountsPerLicense", () => {
   test("counts devices per key, biggest first, as numbers, and skips keys with none", async () => {
     await seedUser("u1");

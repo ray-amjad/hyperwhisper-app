@@ -9,9 +9,11 @@
  * service and Better Auth (which `server/api/trpc.ts` imports).
  */
 import assert from "node:assert/strict";
-import test, { afterEach, beforeEach, mock } from "node:test";
+import test, { afterEach, beforeEach } from "node:test";
 
 import { TRPCError, callTRPCProcedure, type AnyRouter } from "@trpc/server";
+
+import { captureConsole, moduleMock, moduleUrl, type ConsoleCapture } from "./module-mock";
 
 const behaviour = {
   /** Thrown by the limiter when set: Upstash unreachable. */
@@ -20,16 +22,6 @@ const behaviour = {
   limitSuccess: true,
 };
 const calls = { limit: [] as string[], upserts: 0, welcomeEmails: 0 };
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
-
-/** `mock.module` is untyped under the pinned `@types/node@20`; see the harnesses. */
-interface ModuleMocker {
-  module(specifier: string, options: { namedExports: Record<string, unknown> }): void;
-}
-const moduleMock = mock as unknown as ModuleMocker;
 
 moduleMock.module(moduleUrl("../lib/rate-limit.ts"), {
   namedExports: {
@@ -77,7 +69,7 @@ const DOWNLOAD_PATH = "../server/api/routers/download.ts";
 const CLIENT_IP = "203.0.113.7";
 
 let warnings: string[] = [];
-const realConsole = { log: console.log, warn: console.warn, error: console.error };
+let captures: ConsoleCapture[] = [];
 const realFetch = globalThis.fetch;
 
 beforeEach(() => {
@@ -87,19 +79,13 @@ beforeEach(() => {
   calls.upserts = 0;
   calls.welcomeEmails = 0;
   warnings = [];
-  console.log = () => {};
-  console.error = () => {};
-  console.warn = (...args: unknown[]) => {
-    warnings.push(args.map(String).join(" "));
-  };
+  captures = [captureConsole(["log", "error"]), captureConsole(["warn"], warnings)];
   // `recordDownload` fetches the appcast; answer "not found" with no network.
   globalThis.fetch = (async () => new Response("", { status: 404 })) as typeof fetch;
 });
 
 afterEach(() => {
-  console.log = realConsole.log;
-  console.warn = realConsole.warn;
-  console.error = realConsole.error;
+  for (const capture of captures) capture.restore();
   globalThis.fetch = realFetch;
 });
 
