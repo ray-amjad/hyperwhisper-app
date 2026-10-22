@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
 
   const license_key =
     isRecord(body) && typeof body.license_key === "string"
-      ? body.license_key
+      ? body.license_key.trim()
       : undefined;
 
   if (!license_key) {

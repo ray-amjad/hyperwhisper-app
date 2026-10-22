@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
-using System.Runtime.InteropServices;
 using System.Windows.Media;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Localization;
@@ -19,12 +18,6 @@ namespace HyperWhisper.Views.Windows;
 
 public partial class MainWindow : Window
 {
-    private const int DwmwaUseImmersiveDarkMode = 20;
-    private const int DwmwaWindowCornerPreference = 33;
-    private const int DwmwaSystemBackdropType = 38;
-    private const int DwmWindowCornerPreferenceRound = 2;
-    private const int DwmSystemBackdropTypeMica = 2;
-
     private readonly MainViewModel _viewModel;
     private RecordingOverlayWindow? _recordingOverlay;
     private FileTranscriptionProgressWindow? _fileProgressWindow;
@@ -94,6 +87,7 @@ public partial class MainWindow : Window
         _viewModel.StreamingConnectionStateChanged += (s, state) => Dispatcher.Invoke(() =>
             _recordingOverlay?.UpdateStreamingConnectionState(state));
         _viewModel.HideOverlayRequested += (s, e) => Dispatcher.Invoke(() => _recordingOverlay?.Hide());
+        _viewModel.HideOverlayAfterHoldRequested += (s, hold) => Dispatcher.Invoke(() => _recordingOverlay?.HideAfter(hold));
         _viewModel.ShowTranscribingRequested += (s, e) => Dispatcher.Invoke(() =>
         {
             // Show transcribing state even if recording window was hidden
@@ -282,30 +276,7 @@ public partial class MainWindow : Window
         await shutdownTask;
     }
 
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int pvAttribute, int cbAttribute);
-
-    private void ApplyMacStyleWindowBackdrop()
-    {
-        try
-        {
-            var hwnd = new WindowInteropHelper(this).Handle;
-            if (hwnd == IntPtr.Zero) return;
-
-            var darkMode = ThemeService.Instance.IsDarkMode ? 1 : 0;
-            _ = DwmSetWindowAttribute(hwnd, DwmwaUseImmersiveDarkMode, ref darkMode, Marshal.SizeOf<int>());
-
-            var cornerPreference = DwmWindowCornerPreferenceRound;
-            _ = DwmSetWindowAttribute(hwnd, DwmwaWindowCornerPreference, ref cornerPreference, Marshal.SizeOf<int>());
-
-            var backdropType = DwmSystemBackdropTypeMica;
-            _ = DwmSetWindowAttribute(hwnd, DwmwaSystemBackdropType, ref backdropType, Marshal.SizeOf<int>());
-        }
-        catch (Exception ex)
-        {
-            LoggingService.Debug($"MainWindow: Native backdrop unavailable: {ex.Message}");
-        }
-    }
+    private void ApplyMacStyleWindowBackdrop() => WindowBackdrop.ApplyMacStyle(this, nameof(MainWindow));
 
     private void OnThemeChanged(object? sender, bool isDarkMode) => Dispatcher.Invoke(ApplyMacStyleWindowBackdrop);
 

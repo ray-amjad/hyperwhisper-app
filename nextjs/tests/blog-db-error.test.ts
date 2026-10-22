@@ -9,13 +9,9 @@
  */
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { afterEach, before, beforeEach, describe, mock, test } from "node:test";
+import { afterEach, before, beforeEach, describe, test } from "node:test";
 
-// `mock.module` exists in Node 22 behind --experimental-test-module-mocks, but
-// @types/node@20 has no declaration for it; narrow to the one method used.
-const moduleMock = mock as unknown as {
-  module(specifier: string, options: { namedExports: Record<string, unknown> }): void;
-};
+import { moduleMock } from "./module-mock";
 
 let select: () => unknown;
 moduleMock.module(new URL("../src/db/index.ts", import.meta.url).href, {

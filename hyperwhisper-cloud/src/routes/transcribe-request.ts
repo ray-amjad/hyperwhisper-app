@@ -66,9 +66,14 @@ export function isLatencyOptOut(c: Context): boolean {
 export function validateStreamingHeaders(c: Context, provider: SttProviderId):
   | { ok: true; contentType: string; contentLength: number }
   | { ok: false; response: Response } {
-  const contentType = c.req.header('Content-Type') || '';
+  // Media types are case-insensitive (RFC 9110 §8.3.1), so `Audio/WAV` is as
+  // valid as `audio/wav`. Fold case once here and hand on the lowered value, so
+  // every adapter's format matching sees one form. The refusal echoes what the
+  // caller actually sent.
+  const receivedContentType = c.req.header('Content-Type') || '';
+  const contentType = receivedContentType.toLowerCase();
   if (!contentType.startsWith('audio/')) {
-    return { ok: false, response: invalidContentTypeResponse('audio/*', contentType) };
+    return { ok: false, response: invalidContentTypeResponse('audio/*', receivedContentType) };
   }
 
   const contentLengthHeader = c.req.header('Content-Length');

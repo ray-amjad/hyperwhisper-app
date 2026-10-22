@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Funktsioonid",
-    "pricing": "Hinnad",
     "faq": "KKK",
     "support": "Tugi",
     "download": "Laadi alla",
@@ -20,7 +19,6 @@
     "githubAria": "Vaata HyperWhisperit GitHubis"
   },
   "hero": {
-    "openSourceBadge": "Avatud lähtekood · Apache-2.0",
     "logoAlt": "HyperWhisperi logo",
     "headline": "Kirjuta, loo ja kujunda",
     "headlineAccent": "5x kiiremini AI-ga",
@@ -97,57 +95,6 @@
     "accuracyRate": "Täpsusmäär",
     "languagesSupported": "Toetatud keeled",
     "providersSupported": "Toetatud pakkujad"
-  },
-  "pricing": {
-    "title": "Ilma tellimusteta. Kunagi.",
-    "subtitle": "Maksa üks kord, kasuta igavesti. Ka meie vihkame tellimusi.",
-    "guarantee": "14-päevane raha tagasi garantii",
-    "guaranteeExtended": "kui sa pole täielikult rahul.",
-    "learnMore": "Loe lähemalt",
-    "free": {
-      "name": "Tasuta",
-      "price": "$0",
-      "period": "igavesti",
-      "description": "Ideaalne HyperWhisperi proovimiseks",
-      "cta": "Laadi tasuta alla",
-      "features": {
-        "transcriptionLimit": "5 minutit transkriptsiooni päevas",
-        "basicModes": "Põhilised transkriptsioonirežiimid",
-        "offlineTranscription": "Offline transkriptsioon",
-        "apiTranscription": "API transkriptsioon (kasuta oma võtmeid)",
-        "postProcessing": "Teksti järeltöötlus",
-        "providers": "9+ pakkujat valimiseks",
-        "lifetimeUpdates": "Eluaegsed uuendused",
-        "cloudLimited": "HyperWhisper Cloud (piiratud kasutus)",
-        "customVocabulary": "Kohandatud sõnavara",
-        "prioritySupport": "Prioriteetne tugi"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "eluaegne",
-      "description": "Ühekordne ost, piiramatu võimsus igaveseks",
-      "cta": "Osta kohe - Eluaegne ligipääs",
-      "mostPopular": "Kõige populaarsem",
-      "features": {
-        "unlimitedTranscription": "Piiramatu transkriptsioon",
-        "allModes": "Kõik transkriptsioonirežiimid",
-        "offlineTranscription": "Offline transkriptsioon",
-        "apiTranscription": "API transkriptsioon (kasuta oma võtmeid)",
-        "postProcessing": "Teksti järeltöötlus",
-        "providers": "9+ pakkujat valimiseks",
-        "lifetimeUpdates": "Eluaegsed uuendused",
-        "cloudCredits": "HyperWhisper Cloud ($5 krediiti)",
-        "customVocabulary": "Kohandatud sõnavara",
-        "prioritySupport": "Prioriteetne tugi"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise ja kohandatud hinnastamine",
-      "description": "Mahusoodustused, SSO, prioriteetne tugi, sisemajutus ja kohandatud integratsioonid",
-      "cta": "Võta müügiga ühendust"
-    }
   },
   "faq": {
     "title": "Korduma kippuvad küsimused",
@@ -252,10 +199,7 @@
     "downloadButton": "Laadi HyperWhisper alla",
     "errorGeneric": "Midagi läks valesti. Palun proovi uuesti.",
     "errorEmail": "Sisesta kehtiv e-posti aadress.",
-    "errorNetwork": "Võrguviga. Kontrolli ühendust ja proovi uuesti.",
-    "thankYouTitle": "Aitäh!",
     "downloadStarted": "Allalaadimine peaks algama automaatselt.",
-    "manualDownload": "Allalaadimine ei alanud? Klõpsa siia",
     "skipAndDownloadButton": "Jäta vahele ja laadi alla"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Laadi alla",
       "roadmap": "Teekaart",
       "helpCenter": "Abikeskus",
-      "manageBilling": "Halda arveldust",
       "customerPortal": "Kliendiportaal",
       "olderVersions": "Vanemad versioonid",
       "blog": "Blogi",

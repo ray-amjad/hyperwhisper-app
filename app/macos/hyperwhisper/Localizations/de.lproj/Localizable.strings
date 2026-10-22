@@ -709,6 +709,7 @@ Bearbeite diese Modi, um ein anderes Modell auszuwählen, bevor du es entfernst.
 "modes.header.create" = "Erstellungsmodus";
 "modes.name.unnamed" = "Unbenannt";
 "modes.badge.offline" = "Offline";
+"modes.badge.modelMissing" = "Modell fehlt";
 "modes.context.select" = "Wählen";
 "modes.help.edit" = "Moduseinstellungen bearbeiten";
 "modes.help.preset" = "Erfahren Sie mehr über diesen Formatierungsstil";

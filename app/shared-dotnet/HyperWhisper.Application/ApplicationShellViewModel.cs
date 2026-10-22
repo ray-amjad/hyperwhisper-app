@@ -93,7 +93,8 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         }, retryModes: Modes.Items, textInjection: historyTextInjection);
         Models = modelManager is null ? null : new ModelLibraryViewModel(
             modelManager, modelReadiness, streamingSettings: Settings);
-        Backup = new BackupViewModel(new ApplicationBackupService(database, settings, credentials));
+        Backup = new BackupViewModel(new ApplicationBackupService(
+            database, settings, credentials, about?.AppVersion ?? "unknown"));
         Credentials = credentials is null ? null : new CredentialManagementViewModel(credentials);
         Account = cloudAccount is not null && deviceIdentity is not null && openAccountUri is not null
             ? new CloudAccountViewModel(cloudAccount, deviceIdentity, deviceName, openAccountUri)
