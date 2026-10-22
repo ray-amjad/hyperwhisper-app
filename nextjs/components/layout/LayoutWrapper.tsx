@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, m } from "framer-motion";
 
 import { Navbar } from "@/components/navbar";
 import FooterSection from "@/components/landing/FooterSection";
@@ -23,7 +24,9 @@ export default function LayoutWrapper({
 
   // Open-source announcement banner: shown until the user dismisses it.
   // Defaults to visible so SSR and first client render match; hidden after
-  // mount if a prior dismissal is stored.
+  // mount if a prior dismissal is stored. Until then a returning visitor never
+  // sees it: HtmlDocument's blocking script marks <html> before first paint and
+  // globals.css hides the banner from that mark (#849).
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
   useEffect(() => {
@@ -89,7 +92,24 @@ export default function LayoutWrapper({
         to keep in sync, which previously caused the header to be cut off.
       */}
       <div ref={headerRef} className="sticky top-0 z-50 w-full flex flex-col">
-        {showBanner && <OpenSourceBanner onDismiss={dismissBanner} />}
+        {/*
+          The dismiss collapses the banner's height over 300ms instead of
+          unmounting it in one frame, so the page eases up rather than stepping
+          48px (#849). initial={false}: no enter animation on first render.
+        */}
+        <AnimatePresence initial={false}>
+          {showBanner && (
+            <m.div
+              key="open-source-banner"
+              className="overflow-hidden"
+              data-os-banner-root=""
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ type: "spring", duration: 0.3, bounce: 0 }}
+            >
+              <OpenSourceBanner onDismiss={dismissBanner} />
+            </m.div>
+          )}
+        </AnimatePresence>
         <Navbar />
       </div>
       <main className="container mx-auto max-w-7xl px-6 flex-grow">
