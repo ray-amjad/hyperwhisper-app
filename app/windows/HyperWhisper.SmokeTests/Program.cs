@@ -14631,7 +14631,7 @@ internal static class Program
                 var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
                 using var health = new CloudProviderHealthService(() => now);
 
-                // The store itself: every slot kind trims, and whitespace alone clears.
+                // The store itself: every provider and transcription slot trims, and whitespace alone clears.
                 foreach (var provider in new[]
                 {
                     PostProcessingProvider.OpenAI, PostProcessingProvider.Anthropic, PostProcessingProvider.Groq,
@@ -14655,10 +14655,6 @@ internal static class Program
                     Assert(store.SetApiKey(type, "   ").IsSuccess && backend.StoredValue == null,
                         $"a whitespace-only {type} key was stored instead of clearing the slot");
                 }
-                var endpointBackend = new InMemoryCredentialBackend();
-                var endpointStore = new ApiKeyService(endpointBackend, health);
-                Assert(endpointStore.SetCustomEndpointApiKey(Guid.NewGuid(), padded).IsSuccess && endpointBackend.StoredValue == key,
-                    $"a padded custom endpoint key was stored as '{endpointBackend.StoredValue}'");
 
                 // Onboarding: the gateway's write and its read-back agree on the trimmed
                 // key, so a padded key saves, and a restore point holding a key stored

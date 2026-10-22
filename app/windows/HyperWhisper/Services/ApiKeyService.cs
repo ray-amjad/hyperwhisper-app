@@ -250,7 +250,7 @@ public class ApiKeyService
     {
         lock (_lock)
         {
-            var result = SaveToVault($"CustomEndpoint_{endpointId}", NormalizeKey(apiKey));
+            var result = SaveToVault($"CustomEndpoint_{endpointId}", apiKey);
             ApiKeysChanged?.Invoke(this, EventArgs.Empty);
             return result;
         }
@@ -261,10 +261,12 @@ public class ApiKeyService
     // =========================================================================
 
     /// <summary>
-    /// The one rule for what a key write stores: the text trimmed, or null (a
-    /// clear) when nothing but whitespace is left. Every caller — the API Keys
-    /// page, the provider modal, onboarding and backup import — goes through it,
-    /// so a key pasted with a trailing newline is stored the same way from each.
+    /// The one rule for what a BYOK provider key write stores: the text trimmed,
+    /// or null (a clear) when nothing but whitespace is left. Both SetApiKey
+    /// overloads apply it, so the API Keys page, the provider modal, onboarding
+    /// and backup import store a key pasted with a trailing newline the same way.
+    /// Custom endpoint keys are not normalised here: CustomEndpointManager and
+    /// its window test and compare the key exactly as typed.
     /// There is deliberately no prefix or length rule: vendors change their key
     /// formats (#2389), and a wrong key fails at the provider, which says so.
     /// </summary>
