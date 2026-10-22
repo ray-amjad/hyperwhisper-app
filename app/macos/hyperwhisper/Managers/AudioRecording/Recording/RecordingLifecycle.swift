@@ -406,17 +406,18 @@ class RecordingLifecycle {
         // every other app's microphone too). With no connected choice (none saved, or the
         // chosen device unplugged — it is used again once it reappears) the automatic
         // pick is used: the default, or the first physical input when the default is a
-        // virtual device such as BlackHole (#2408). `captureDeviceID` is nil — record from
-        // the macOS default — whenever the device to use already IS the default, in which
-        // case the long-proven AVAudioRecorder path records it.
+        // virtual device such as BlackHole (#2408). `captureRoute` is `.systemDefault` —
+        // record from the macOS default — whenever the device to use already IS the
+        // default, in which case the long-proven AVAudioRecorder path records it. A route
+        // pinned to skip a virtual default never falls back to it (STEP 6).
         //
         // The lookup is blocking CoreAudio reads, so it runs off the main actor. Nothing
         // here writes CoreAudio state any more, so the old "must stay synchronous" rule
         // for this step no longer applies.
         let deviceApplySpan = SentryService.startSpan(operation: "audio.device", description: "resolve chosen input device")
         let preferredDeviceUID = deviceManager.preferredDevice?.uid
-        let captureDeviceID = await offMainActor {
-            MicrophoneCaptureRouting.captureDeviceID(preferredUID: preferredDeviceUID)
+        let captureRoute = await offMainActor {
+            MicrophoneCaptureRouting.captureRoute(preferredUID: preferredDeviceUID)
         }
         SentryService.finishSpan(deviceApplySpan, status: .ok)
 
@@ -457,7 +458,7 @@ class RecordingLifecycle {
         // true original.
         if settingsManager?.autoIncreaseMicVolume == true {
             // The device the recorder opens in STEP 6 (nil = the macOS default input).
-            let boostDeviceID = captureDeviceID
+            let boostDeviceID = captureRoute.primaryDeviceID
 
             Task.detached(priority: .userInitiated) { [weak self] in
                 AppLogger.audio.info("🎚️ [ASYNC] Auto-increase mic volume task STARTED on background thread")
@@ -578,15 +579,16 @@ class RecordingLifecycle {
 
         // STEP 6: Start recording with SimpleRecorder
         // On the macOS default input AVAudioRecorder handles all buffer management and
-        // format conversion internally; on a pinned chosen microphone (`captureDeviceID`)
-        // SimpleRecorder uses DeviceAudioRecorder, which writes the same 16 kHz mono WAV and
-        // falls back to the default input if the device cannot be opened.
+        // format conversion internally; on a pinned microphone (`captureRoute`) SimpleRecorder
+        // uses DeviceAudioRecorder, which writes the same 16 kHz mono WAV, tries the route's
+        // devices in order, and falls back to the default input only when the route allows
+        // it (not when a virtual default was skipped — then the start fails as usual).
         // The recorder is constructed and started off the main actor (HYPERWHISPER-F7);
         // the span still measures exactly that work, so the fix stays measurable.
         let recorderStartSpan = SentryService.startSpan(operation: "audio.recorder", description: "start AVAudioRecorder")
         let outcome: RecorderStartOutcome
         do {
-            outcome = try await simpleRecorder.startRecording(to: wavURL, inputDeviceID: captureDeviceID)
+            outcome = try await simpleRecorder.startRecording(to: wavURL, route: captureRoute)
         } catch {
             SentryService.finishSpan(recorderStartSpan, status: .internalError)
             throw error

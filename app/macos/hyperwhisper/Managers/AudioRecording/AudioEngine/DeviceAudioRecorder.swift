@@ -240,10 +240,12 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     /// Where the WAV goes, or `nil` to meter only.
     let url: URL?
 
-    /// The automatic pick (the macOS default input, or the first non-virtual input when
-    /// that default is virtual — #2408), the fallback when the chosen device stops
-    /// opening. Injected so a test never has to read real hardware.
-    private let defaultInputDeviceID: @Sendable () -> AudioDeviceID?
+    /// The devices to fall back to, in order, when the chosen device stops opening:
+    /// the automatic pick (the macOS default input, or the non-virtual inputs when that
+    /// default is virtual — #2408). Never the virtual default for a capture pinned to
+    /// skip it (`MicrophoneCaptureRouting.fallbackInputDeviceIDs`). Injected so a test
+    /// never has to read real hardware.
+    private let fallbackInputDeviceIDs: @Sendable () -> [AudioDeviceID]
 
     /// Whether a device has been removed from the system. Injected for the same reason.
     private let deviceIsGone: @Sendable (AudioDeviceID) -> Bool
@@ -301,8 +303,8 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     init(
         deviceID: AudioDeviceID,
         url: URL?,
-        defaultInputDeviceID: @escaping @Sendable () -> AudioDeviceID? = {
-            MicrophoneCaptureRouting.automaticInputDeviceID()
+        fallbackInputDeviceIDs: @escaping @Sendable () -> [AudioDeviceID] = {
+            MicrophoneCaptureRouting.fallbackInputDeviceIDs(avoidingVirtualDefault: false)
         },
         deviceIsGone: @escaping @Sendable (AudioDeviceID) -> Bool = { id in
             DeviceAudioRecorder.isDeviceGone(id)
@@ -310,7 +312,7 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     ) {
         self.deviceID = deviceID
         self.url = url
-        self.defaultInputDeviceID = defaultInputDeviceID
+        self.fallbackInputDeviceIDs = fallbackInputDeviceIDs
         self.deviceIsGone = deviceIsGone
         super.init()
     }
@@ -434,16 +436,16 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         return !captureFormat.isEqual(currentFormat)
     }
 
-    /// The devices a restart tries, in order: the chosen device, then the macOS
-    /// default. A device that is gone is left out: the engine opens a removed device
+    /// The devices a restart tries, in order: the chosen device, then the fallbacks
+    /// (each once). A device that is gone is left out: the engine opens a removed device
     /// without an error and records silence from it (issue #2284).
     static func restartCandidates(
         chosen: AudioDeviceID,
-        fallback: AudioDeviceID?,
+        fallbacks: [AudioDeviceID],
         isGone: (AudioDeviceID) -> Bool
     ) -> [AudioDeviceID] {
         var candidates: [AudioDeviceID] = [chosen]
-        if let fallback, fallback != kAudioObjectUnknown, fallback != chosen {
+        for fallback in fallbacks where fallback != kAudioObjectUnknown && !candidates.contains(fallback) {
             candidates.append(fallback)
         }
         return candidates.filter { !isGone($0) }
@@ -812,7 +814,7 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     private func startOnAnyInputLocked(cause: RestartCause) -> Bool {
         let candidates = Self.restartCandidates(
             chosen: deviceID,
-            fallback: defaultInputDeviceID(),
+            fallbacks: fallbackInputDeviceIDs(),
             isGone: deviceIsGone
         )
 

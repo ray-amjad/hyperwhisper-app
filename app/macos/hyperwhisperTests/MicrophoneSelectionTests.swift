@@ -183,6 +183,96 @@ struct MicrophoneSelectionTests {
         #expect(MicrophoneResolution.resolve(savedUID: blackHole.uid, savedName: nil, devices: devices) == .chosen(blackHole))
     }
 
+    // MARK: - Capture plan (open-failure fallbacks, #2408)
+
+    @Test func aSkippedVirtualDefaultIsNeverTheFallback() {
+        // BlackHole is the default and the built-in mic cannot open: the next physical
+        // input is tried, and then the start fails rather than record BlackHole.
+        let devices = [blackHole, builtIn, loopback, scarlett]
+        let plan = MicrophoneCapturePlan.resolve(chosenUID: nil, devices: devices, systemDefaultUID: blackHole.uid)
+        #expect(plan.deviceUIDs == [builtIn.uid, scarlett.uid])
+        #expect(!plan.fallsBackToSystemDefault)
+        #expect(MicrophoneCapturePlan.resolve(.systemDefault, devices: devices, systemDefaultUID: blackHole.uid) == plan)
+    }
+
+    @Test func anUnpluggedChoiceWithAVirtualDefaultNeverFallsBackToIt() {
+        let devices = [blackHole, builtIn]
+        let resolution = MicrophoneResolution.resolve(savedUID: scarlett.uid, savedName: scarlett.name, devices: devices)
+        let plan = MicrophoneCapturePlan.resolve(resolution, devices: devices, systemDefaultUID: blackHole.uid)
+        #expect(plan.deviceUIDs == [builtIn.uid])
+        #expect(!plan.fallsBackToSystemDefault)
+    }
+
+    @Test func aChosenMicrophoneThatFailsTriesTheStandInsBeforeAVirtualDefault() {
+        let devices = [blackHole, builtIn, scarlett]
+        let plan = MicrophoneCapturePlan.resolve(.chosen(scarlett), devices: devices, systemDefaultUID: blackHole.uid)
+        #expect(plan.deviceUIDs == [scarlett.uid, builtIn.uid])
+        #expect(!plan.fallsBackToSystemDefault)
+    }
+
+    @Test func aChosenMicrophoneWithAPhysicalDefaultKeepsTheDefaultFallback() {
+        let devices = [builtIn, scarlett, blackHole]
+        let plan = MicrophoneCapturePlan.resolve(.chosen(scarlett), devices: devices, systemDefaultUID: builtIn.uid)
+        #expect(plan == MicrophoneCapturePlan(deviceUIDs: [scarlett.uid], fallsBackToSystemDefault: true))
+    }
+
+    @Test func aVirtualMicrophoneChosenByHandKeepsItsBehaviour() {
+        let devices = [builtIn, blackHole]
+        // Chosen, not the default: opened first, the default is still the fallback.
+        #expect(MicrophoneCapturePlan.resolve(.chosen(blackHole), devices: devices, systemDefaultUID: builtIn.uid)
+            == MicrophoneCapturePlan(deviceUIDs: [blackHole.uid], fallsBackToSystemDefault: true))
+        // Chosen and the default: recorded from the default, nothing skips it.
+        #expect(MicrophoneCapturePlan.resolve(.chosen(blackHole), devices: devices, systemDefaultUID: blackHole.uid) == .systemDefault)
+    }
+
+    @Test func anAllVirtualMacStillRecordsFromTheDefault() {
+        let devices = [blackHole, loopback]
+        #expect(MicrophoneCapturePlan.resolve(.systemDefault, devices: devices, systemDefaultUID: blackHole.uid) == .systemDefault)
+    }
+
+    @Test func aPhysicalDefaultNeedsNoPlan() {
+        let devices = [blackHole, builtIn, scarlett]
+        #expect(MicrophoneCapturePlan.resolve(.systemDefault, devices: devices, systemDefaultUID: scarlett.uid) == .systemDefault)
+        #expect(MicrophoneCapturePlan.resolve(.systemDefault, devices: devices, systemDefaultUID: nil) == .systemDefault)
+    }
+
+    @Test func aRestartOfASkippingCaptureAvoidsTheVirtualDefaultWhenNoPhysicalInputIsLeft() {
+        // The physical stand-in was unplugged mid-recording: nothing to skip BlackHole
+        // for any more, but this capture still must not move onto it.
+        let restart = MicrophoneCapturePlan.resolve(
+            chosenUID: nil, devices: [blackHole], systemDefaultUID: blackHole.uid, avoidingVirtualDefault: true
+        )
+        #expect(restart == MicrophoneCapturePlan(deviceUIDs: [], fallsBackToSystemDefault: false))
+        // An unknown default is not trusted either.
+        #expect(!MicrophoneCapturePlan.resolve(
+            chosenUID: nil, devices: [blackHole], systemDefaultUID: nil, avoidingVirtualDefault: true
+        ).fallsBackToSystemDefault)
+        // The user switched the macOS default to a physical mic meanwhile: that is fine.
+        #expect(MicrophoneCapturePlan.resolve(
+            chosenUID: nil, devices: [blackHole, scarlett], systemDefaultUID: scarlett.uid, avoidingVirtualDefault: true
+        ) == .systemDefault)
+        // Without the flag (no virtual default was skipped), restarts keep the default.
+        #expect(MicrophoneCapturePlan.resolve(chosenUID: nil, devices: [blackHole], systemDefaultUID: blackHole.uid) == .systemDefault)
+    }
+
+    @Test func theFirstPlannedDeviceIsThePinnedDevice() {
+        let devices = [blackHole, builtIn, scarlett]
+        for resolution in [MicrophoneResolution.systemDefault, .chosen(scarlett), .chosen(blackHole), .chosen(builtIn)] {
+            for defaultUID in [blackHole.uid, builtIn.uid, scarlett.uid] {
+                let plan = MicrophoneCapturePlan.resolve(resolution, devices: devices, systemDefaultUID: defaultUID)
+                #expect(plan.deviceUIDs.first == resolution.pinnedDeviceUID(systemDefaultUID: defaultUID, devices: devices))
+            }
+        }
+    }
+
+    @Test func routeFlagsFollowThePlan() {
+        #expect(MicrophoneCaptureRoute.systemDefault.primaryDeviceID == nil)
+        #expect(!MicrophoneCaptureRoute.systemDefault.avoidsVirtualDefault)
+        let skipping = MicrophoneCaptureRoute(deviceIDs: [52, 73], fallsBackToSystemDefault: false)
+        #expect(skipping.primaryDeviceID == 52)
+        #expect(skipping.avoidsVirtualDefault)
+    }
+
     // MARK: - Labels
 
     @Test func defaultDeviceNameNamesTheAutomaticPick() {

@@ -166,6 +166,91 @@ struct AutomaticMicrophonePick: Equatable, Sendable {
     }
 }
 
+// MARK: - Capture Plan
+
+/// What a capture opens, in order, and whether it may end up on the macOS default.
+///
+/// The ONE rule for every open-failure fallback (recording start, mid-recording
+/// restart, streaming, level preview): a capture that was pinned because a virtual
+/// default was skipped never falls back to that virtual default. It tries the next
+/// non-virtual input instead, and fails through the existing open-failure path when
+/// none opens (#2408). Pure, so it is unit tested without CoreAudio.
+struct MicrophoneCapturePlan: Equatable, Sendable {
+    /// The inputs to open, in order. Empty: record from the macOS default.
+    let deviceUIDs: [String]
+    /// Whether the macOS default may be recorded when every input above fails to open
+    /// (or when there is none).
+    let fallsBackToSystemDefault: Bool
+
+    static let systemDefault = MicrophoneCapturePlan(deviceUIDs: [], fallsBackToSystemDefault: true)
+
+    /// The plan for a saved choice: a connected chosen device first (none when it IS the
+    /// macOS default — the default path records it, even a virtual one), then the
+    /// automatic pick. Its first UID is `MicrophoneResolution.pinnedDeviceUID`.
+    static func resolve(
+        _ resolution: MicrophoneResolution,
+        devices: [AudioDevice],
+        systemDefaultUID: String?
+    ) -> MicrophoneCapturePlan {
+        if case .chosen(let device) = resolution {
+            if let systemDefaultUID, device.uid == systemDefaultUID { return .systemDefault }
+            return resolve(chosenUID: device.uid, devices: devices, systemDefaultUID: systemDefaultUID)
+        }
+        return resolve(chosenUID: nil, devices: devices, systemDefaultUID: systemDefaultUID)
+    }
+
+    /// - Parameters:
+    ///   - chosenUID: a connected chosen device that is NOT the macOS default, opened
+    ///     first. A user's choice is used as is, virtual or not.
+    ///   - avoidingVirtualDefault: the capture being restarted was pinned because a
+    ///     virtual default was skipped, so the default stays off-limits while it is
+    ///     virtual (or unknown) even when no physical input is left to skip it for.
+    static func resolve(
+        chosenUID: String?,
+        devices: [AudioDevice],
+        systemDefaultUID: String?,
+        avoidingVirtualDefault: Bool = false
+    ) -> MicrophoneCapturePlan {
+        let pick = AutomaticMicrophonePick.resolve(devices: devices, systemDefaultUID: systemDefaultUID)
+        let skipsVirtualDefault = pick.skippedVirtualDefault != nil
+        // The stand-ins for a skipped virtual default: every non-virtual input, the
+        // automatic pick first (enumeration order), so a failed open tries the next.
+        let standIns = skipsVirtualDefault
+            ? devices.filter { !VirtualMicrophoneDetector.isVirtual(name: $0.name) }.map(\.uid)
+            : []
+
+        var uids: [String] = []
+        if let chosenUID, !chosenUID.isEmpty {
+            uids.append(chosenUID)
+        }
+        for uid in standIns where !uids.contains(uid) {
+            uids.append(uid)
+        }
+
+        let defaultDevice = systemDefaultUID.flatMap { uid in devices.first(where: { $0.uid == uid }) }
+        let defaultIsVirtualOrUnknown = defaultDevice.map { VirtualMicrophoneDetector.isVirtual(name: $0.name) } ?? true
+        let fallsBack = !skipsVirtualDefault && !(avoidingVirtualDefault && defaultIsVirtualOrUnknown)
+        return MicrophoneCapturePlan(deviceUIDs: uids, fallsBackToSystemDefault: fallsBack)
+    }
+}
+
+/// `MicrophoneCapturePlan` resolved to CoreAudio device IDs, for the capture code.
+struct MicrophoneCaptureRoute: Equatable, Sendable {
+    /// The devices to open, in order. Empty: record from the macOS default.
+    let deviceIDs: [AudioDeviceID]
+    /// Whether the macOS default may be recorded when every device above fails to open.
+    let fallsBackToSystemDefault: Bool
+
+    static let systemDefault = MicrophoneCaptureRoute(deviceIDs: [], fallsBackToSystemDefault: true)
+
+    /// The device opened first, or `nil` for the macOS default.
+    var primaryDeviceID: AudioDeviceID? { deviceIDs.first }
+
+    /// A capture that may not fall back to the default was pinned to skip a virtual
+    /// default; its mid-capture restarts keep avoiding it.
+    var avoidsVirtualDefault: Bool { !fallsBackToSystemDefault }
+}
+
 // MARK: - Labels
 
 /// User-facing labels for the microphone picker, shared by Settings and the menu bar.
@@ -237,54 +322,72 @@ final class MicrophoneRoutingStore: @unchecked Sendable {
 // MARK: - Capture Device Lookup
 
 enum MicrophoneCaptureRouting {
-    /// The `AudioDeviceID` a capture should open for `preferredUID`, or `nil` to record
-    /// from the macOS default.
+    /// What a capture should open for `preferredUID` (`MicrophoneCapturePlan`).
     ///
-    /// - The chosen device while it is connected — `nil` when it is the current default
-    ///   (see `MicrophoneResolution.pinnedDeviceUID`).
-    /// - Otherwise (no choice, or the chosen device unplugged) the automatic pick:
-    ///   `nil` for the default, or the first non-virtual input when the default is a
-    ///   virtual device (`AutomaticMicrophonePick`).
+    /// - The chosen device while it is connected — `.systemDefault` when it is the
+    ///   current default (see `MicrophoneResolution.pinnedDeviceUID`).
+    /// - Otherwise (no choice, or the chosen device unplugged) the automatic pick: the
+    ///   default, or the non-virtual inputs in order when the default is a virtual
+    ///   device (`AutomaticMicrophonePick`) — and then never the default.
     ///
-    /// BLOCKS: CoreAudio reads (a full input enumeration when there is no connected
-    /// choice). Call it off the main actor (`await offMainActor { … }`) or from code
-    /// already off it.
-    nonisolated static func captureDeviceID(preferredUID: String?) -> AudioDeviceID? {
+    /// BLOCKS: CoreAudio reads, including a full input enumeration. Call it off the main
+    /// actor (`await offMainActor { … }`) or from code already off it.
+    nonisolated static func captureRoute(preferredUID: String?) -> MicrophoneCaptureRoute {
+        var chosen: (uid: String, id: AudioDeviceID)?
         if let preferredUID, !preferredUID.isEmpty {
             if let deviceID = CoreAudioDeviceHelper.findAudioDeviceID(byUID: preferredUID) {
                 if let defaultID = CoreAudioDeviceHelper.getSystemDefaultInputDeviceID(), defaultID == deviceID {
-                    return nil
+                    return .systemDefault
                 }
-                return deviceID
+                chosen = (preferredUID, deviceID)
+            } else {
+                AppLogger.audio.notice("Chosen microphone is not connected - recording from the automatic pick")
             }
-            AppLogger.audio.notice("Chosen microphone is not connected - recording from the automatic pick")
         }
-        return automaticPickOverrideDeviceID()
+
+        let enumeration = CoreAudioDeviceHelper.fetchCoreAudioInputDevicesWithIDs()
+        let systemDefaultUID = CoreAudioDeviceHelper.getSystemDefaultInputDeviceUID()
+        let plan = MicrophoneCapturePlan.resolve(
+            chosenUID: chosen?.uid,
+            devices: enumeration.devices,
+            systemDefaultUID: systemDefaultUID
+        )
+        if chosen == nil {
+            logSkippedVirtualDefault(
+                AutomaticMicrophonePick.resolve(devices: enumeration.devices, systemDefaultUID: systemDefaultUID)
+            )
+        }
+        var deviceIDs: [AudioDeviceID] = []
+        for uid in plan.deviceUIDs {
+            let id = uid == chosen?.uid ? chosen?.id : enumeration.deviceIDsByUID[uid]
+            if let id, !deviceIDs.contains(id) {
+                deviceIDs.append(id)
+            }
+        }
+        return MicrophoneCaptureRoute(deviceIDs: deviceIDs, fallsBackToSystemDefault: plan.fallsBackToSystemDefault)
     }
 
-    /// The device the automatic pick records from: the pinned stand-in for a skipped
-    /// virtual default, else the macOS default. `DeviceAudioRecorder` falls back to it
-    /// when the chosen device stops opening mid-capture.
+    /// The devices a capture falls back to, in order, when its own device stops opening
+    /// mid-capture: the automatic pick's non-virtual stand-ins when the default is
+    /// virtual, else the macOS default. With `avoidingVirtualDefault` (the capture was
+    /// pinned to skip a virtual default) the default is left out while it is virtual,
+    /// even when no physical input remains — the capture is then lost, not moved onto
+    /// BlackHole (#2408).
     ///
     /// BLOCKS: CoreAudio reads. Call it off the main actor.
-    nonisolated static func automaticInputDeviceID() -> AudioDeviceID? {
-        automaticPickOverrideDeviceID() ?? CoreAudioDeviceHelper.getSystemDefaultInputDeviceID()
-    }
-
-    /// The automatic pick's device ID when it is NOT the macOS default (a virtual default
-    /// was skipped), else `nil`.
-    nonisolated private static func automaticPickOverrideDeviceID() -> AudioDeviceID? {
+    nonisolated static func fallbackInputDeviceIDs(avoidingVirtualDefault: Bool) -> [AudioDeviceID] {
         let enumeration = CoreAudioDeviceHelper.fetchCoreAudioInputDevicesWithIDs()
-        let pick = AutomaticMicrophonePick.resolve(
+        let plan = MicrophoneCapturePlan.resolve(
+            chosenUID: nil,
             devices: enumeration.devices,
-            systemDefaultUID: CoreAudioDeviceHelper.getSystemDefaultInputDeviceUID()
+            systemDefaultUID: CoreAudioDeviceHelper.getSystemDefaultInputDeviceUID(),
+            avoidingVirtualDefault: avoidingVirtualDefault
         )
-        guard let pinnedUID = pick.pinnedDeviceUID,
-              let deviceID = enumeration.deviceIDsByUID[pinnedUID] else {
-            return nil
+        var deviceIDs = plan.deviceUIDs.compactMap { enumeration.deviceIDsByUID[$0] }
+        if plan.fallsBackToSystemDefault, let defaultID = CoreAudioDeviceHelper.getSystemDefaultInputDeviceID() {
+            deviceIDs.append(defaultID)
         }
-        logSkippedVirtualDefault(pick)
-        return deviceID
+        return deviceIDs
     }
 
     /// One line whenever the automatic pick passes over a virtual default. Device names
