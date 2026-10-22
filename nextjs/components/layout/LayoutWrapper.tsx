@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, m } from "framer-motion";
+import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 
 import { Navbar } from "@/components/navbar";
 import FooterSection from "@/components/landing/FooterSection";
@@ -21,6 +21,9 @@ export default function LayoutWrapper({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  // MotionConfig's reducedMotion="user" skips transforms only, not the height
+  // collapse below, so Reduce Motion is read here (#701: one frame, no ease).
+  const reduceMotion = useReducedMotion();
 
   // Open-source announcement banner: shown until the user dismisses it.
   // Defaults to visible so SSR and first client render match; hidden after
@@ -104,7 +107,11 @@ export default function LayoutWrapper({
               className="overflow-hidden"
               data-os-banner-root=""
               exit={{ opacity: 0, height: 0 }}
-              transition={{ type: "spring", duration: 0.3, bounce: 0 }}
+              transition={
+                reduceMotion
+                  ? { duration: 0 }
+                  : { type: "spring", duration: 0.3, bounce: 0 }
+              }
             >
               <OpenSourceBanner onDismiss={dismissBanner} />
             </m.div>
