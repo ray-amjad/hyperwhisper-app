@@ -191,7 +191,8 @@ public sealed class VocabularyViewModel : ViewModelBase
                 "Vocabulary imported. Added: {0}, updated: {1}, skipped (over 1000 characters): {2}.",
                 result.Added, result.Updated, result.Skipped);
         }
-        catch (Exception) { Status.Failure("vocabulary.import_failed", Text("vocabulary.transfer.importFailed", "Could not read this file. Choose a UTF-8 CSV or TXT file.")); }
+        // The file parsed; a failure here is the database, not the file.
+        catch (Exception) { Status.Failure("vocabulary.import_save_failed", Text("vocabulary.transfer.saveFailed", "The vocabulary could not be saved. Nothing was imported.")); }
         NotifyDerived();
     }
 

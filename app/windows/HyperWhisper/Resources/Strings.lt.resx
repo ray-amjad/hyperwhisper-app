@@ -341,6 +341,9 @@
   <data name="vocabulary.transfer.importFailed" xml:space="preserve">
     <value>Nepavyko perskaityti šio failo. Pasirinkite UTF-8 CSV arba TXT failą.</value>
   </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>Nepavyko išsaugoti žodyno. Niekas nebuvo importuota.</value>
+  </data>
   <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
     <value>Nepavyko eksportuoti žodyno.</value>
   </data>

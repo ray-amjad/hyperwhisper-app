@@ -172,7 +172,9 @@ static void AllCatalogsLoad()
     // `vocabulary.transfer.import`, `.export`, `.import.dialogTitle`, `.export.dialogTitle`,
     // `.fileType.any`, `.fileType.csv`, `.fileType.txt`, `.imported`, `.exported`,
     // `.importFailed` and `.exportFailed` (Windows and Linux).
-    Equal(872,PortableLocalizer.BaseKeyCount, "base key count");
+    // 872 -> 873 (#2409 review): `vocabulary.transfer.saveFailed` tells a database failure
+    // apart from an unreadable file.
+    Equal(873,PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

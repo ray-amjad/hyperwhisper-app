@@ -341,6 +341,9 @@
   <data name="vocabulary.transfer.importFailed" xml:space="preserve">
     <value>Не удалось прочитать этот файл. Выберите файл CSV или TXT в кодировке UTF-8.</value>
   </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>Не удалось сохранить словарь. Ничего не импортировано.</value>
+  </data>
   <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
     <value>Не удалось экспортировать словарь.</value>
   </data>

@@ -341,6 +341,9 @@
   <data name="vocabulary.transfer.importFailed" xml:space="preserve">
     <value>Kunne ikke lese denne filen. Velg en CSV- eller TXT-fil i UTF-8.</value>
   </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>Ordforrådet kunne ikke lagres. Ingenting ble importert.</value>
+  </data>
   <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
     <value>Kunne ikke eksportere ordforrådet.</value>
   </data>

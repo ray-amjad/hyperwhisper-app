@@ -257,21 +257,32 @@ public class VocabularyService
     /// </summary>
     public Result<VocabularyImportResult> ImportFile(string filePath)
     {
+        var parsed = ReadFile(filePath);
+        return parsed.IsSuccess
+            ? Import(parsed.Value!)
+            : Result<VocabularyImportResult>.Failure(parsed.Error!, parsed.Exception!);
+    }
+
+    /// <summary>
+    /// The read step of <see cref="ImportFile"/>: a failure here means the file itself is bad,
+    /// while a failure of <see cref="Import"/> means the database could not be written. The page
+    /// calls the two steps itself so it can tell the user which one failed.
+    /// </summary>
+    public Result<VocabularyTransferParse> ReadFile(string filePath)
+    {
         if (string.IsNullOrWhiteSpace(filePath))
             throw new ArgumentException("A file path is required.", nameof(filePath));
 
-        VocabularyTransferParse parsed;
         try
         {
             var text = VocabularyTransfer.Decode(File.ReadAllBytes(filePath));
-            parsed = VocabularyTransfer.Read(VocabularyTransfer.FormatForPath(filePath), text);
+            return Result<VocabularyTransferParse>.Success(VocabularyTransfer.Read(VocabularyTransfer.FormatForPath(filePath), text));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or VocabularyTransferException or NotSupportedException)
         {
             LoggingService.Warn($"VocabularyService: Could not read the vocabulary file ({ex.GetType().Name})");
-            return Result<VocabularyImportResult>.Failure("The file could not be read as UTF-8 text.", ex);
+            return Result<VocabularyTransferParse>.Failure("The file could not be read as UTF-8 text.", ex);
         }
-        return Import(parsed);
     }
 
     /// <summary>Merges already-parsed rows; see <see cref="ImportFile"/>.</summary>

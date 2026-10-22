@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.ViewModels;
@@ -18,6 +19,7 @@ static class VocabularyTransferTests
         await RoundTripThroughThePageAsync(Path.Combine(root, "round-trip"));
         await MergeRulesAsync(Path.Combine(root, "merge"));
         await UnreadableFilesWriteNothingAsync(Path.Combine(root, "unreadable"));
+        await FailedSaveIsNotABadFileAsync(Path.Combine(root, "save-failed"));
         Console.WriteLine("Vocabulary transfer tests passed.");
     }
 
@@ -235,6 +237,31 @@ static class VocabularyTransferTests
 
         await page.ExportAsync(Path.Combine(root, "no-such-directory", "out.csv"));
         Check(page.HasInputError && page.Status.ErrorCode == "vocabulary.export_failed", $"an export to a missing folder did not show the error line: {page.Status.ErrorCode}");
+    }
+
+    // A file that parsed but could not be saved says so, not "Could not read this file": a
+    // trigger makes SQLite refuse the merge's insert, the way a full or locked disk would.
+    private static async Task FailedSaveIsNotABadFileAsync(string root)
+    {
+        var (database, repository, page) = await NewPageAsync(root);
+        await SeedAsync(repository, [new("keep", "me")]);
+        await page.RefreshAsync();
+        var before = await SnapshotAsync(repository);
+        await using (var context = database.CreateContext())
+            await context.Database.ExecuteSqlRawAsync(
+                "CREATE TRIGGER refuse_vocabulary BEFORE INSERT ON \"VocabularyItems\" BEGIN SELECT RAISE(ABORT, 'refused'); END");
+
+        var file = Path.Combine(root, "good.csv");
+        await File.WriteAllTextAsync(file, "word,replacement\nnew word,\n");
+        await page.ImportAsync(file);
+        Check(page.HasInputError && page.Status.ErrorCode == "vocabulary.import_save_failed" && !page.HasTransferMessage,
+            $"a failed save did not show its own error line: {page.Status.ErrorCode} '{page.InputError}'");
+        Check(page.InputError == "The vocabulary could not be saved. Nothing was imported.", $"a failed save reads '{page.InputError}'");
+        Check(await SnapshotAsync(repository) == before, "a failed save wrote rows");
+
+        page.Localize = key => key == "vocabulary.transfer.saveFailed" ? "localized save failure" : null;
+        await page.ImportAsync(file);
+        Check(page.InputError == "localized save failure", $"the head's saveFailed text was not used: '{page.InputError}'");
     }
 
     private static void CheckEntries(IReadOnlyList<VocabularyTransferEntry> actual, IReadOnlyList<VocabularyTransferEntry> expected, string what) =>

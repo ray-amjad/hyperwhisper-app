@@ -383,6 +383,9 @@
   <data name="vocabulary.transfer.importFailed" xml:space="preserve">
     <value>このファイルを読み込めませんでした。UTF-8 の CSV または TXT ファイルを選択してください。</value>
   </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>語彙を保存できませんでした。何も読み込まれていません。</value>
+  </data>
   <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
     <value>語彙をエクスポートできませんでした。</value>
   </data>

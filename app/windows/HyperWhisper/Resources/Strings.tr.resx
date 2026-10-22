@@ -341,6 +341,9 @@
   <data name="vocabulary.transfer.importFailed" xml:space="preserve">
     <value>Bu dosya okunamadı. UTF-8 kodlu bir CSV veya TXT dosyası seçin.</value>
   </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>Kelime dağarcığı kaydedilemedi. Hiçbir şey içe aktarılmadı.</value>
+  </data>
   <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
     <value>Kelime hazinesi dışa aktarılamadı.</value>
   </data>

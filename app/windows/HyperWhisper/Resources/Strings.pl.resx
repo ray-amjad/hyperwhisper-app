@@ -341,6 +341,9 @@
   <data name="vocabulary.transfer.importFailed" xml:space="preserve">
     <value>Nie można odczytać tego pliku. Wybierz plik CSV lub TXT w kodowaniu UTF-8.</value>
   </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>Nie można zapisać słownictwa. Nic nie zostało zaimportowane.</value>
+  </data>
   <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
     <value>Nie można wyeksportować słownictwa.</value>
   </data>

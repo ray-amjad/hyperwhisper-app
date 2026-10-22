@@ -341,6 +341,9 @@
   <data name="vocabulary.transfer.importFailed" xml:space="preserve">
     <value>Acest fișier nu a putut fi citit. Alegeți un fișier CSV sau TXT în UTF-8.</value>
   </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>Vocabularul nu a putut fi salvat. Nu s-a importat nimic.</value>
+  </data>
   <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
     <value>Vocabularul nu a putut fi exportat.</value>
   </data>

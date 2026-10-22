@@ -409,6 +409,9 @@
   <data name="vocabulary.transfer.importFailed" xml:space="preserve">
     <value>Could not read this file. Choose a UTF-8 CSV or TXT file.</value>
   </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>The vocabulary could not be saved. Nothing was imported.</value>
+  </data>
   <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
     <value>Could not export the vocabulary.</value>
   </data>

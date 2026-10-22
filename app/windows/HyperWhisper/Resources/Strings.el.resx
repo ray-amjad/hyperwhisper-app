@@ -341,6 +341,9 @@
   <data name="vocabulary.transfer.importFailed" xml:space="preserve">
     <value>Δεν ήταν δυνατή η ανάγνωση αυτού του αρχείου. Επιλέξτε ένα αρχείο CSV ή TXT σε UTF-8.</value>
   </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>Δεν ήταν δυνατή η αποθήκευση του λεξιλογίου. Δεν εισήχθη τίποτα.</value>
+  </data>
   <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
     <value>Δεν ήταν δυνατή η εξαγωγή του λεξιλογίου.</value>
   </data>

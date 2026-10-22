@@ -349,12 +349,20 @@ public partial class VocabularyPage : Page
         SetTransferBusy(true);
         ShowTransferStatus(null);
         // The service raises VocabularyChanged, which reloads the list and the keyword banner.
-        var result = await Task.Run(() => _vocabularyService.ImportFile(filePath));
+        // Two steps, so a database failure is not reported as a bad file.
+        var parsed = await Task.Run(() => _vocabularyService.ReadFile(filePath));
+        if (parsed.IsFailure)
+        {
+            SetTransferBusy(false);
+            ShowTransferError(Loc.S("vocabulary.transfer.importFailed"));
+            return;
+        }
+        var result = await Task.Run(() => _vocabularyService.Import(parsed.Value!));
         SetTransferBusy(false);
 
         if (result.IsFailure)
         {
-            ShowTransferError(Loc.S("vocabulary.transfer.importFailed"));
+            ShowTransferError(Loc.S("vocabulary.transfer.saveFailed"));
             return;
         }
         var counts = result.Value!;

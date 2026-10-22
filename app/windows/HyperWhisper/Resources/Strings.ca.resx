@@ -341,6 +341,9 @@
   <data name="vocabulary.transfer.importFailed" xml:space="preserve">
     <value>No s'ha pogut llegir aquest fitxer. Trieu un fitxer CSV o TXT en UTF-8.</value>
   </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>No s'ha pogut desar el vocabulari. No s'ha importat res.</value>
+  </data>
   <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
     <value>No s'ha pogut exportar el vocabulari.</value>
   </data>

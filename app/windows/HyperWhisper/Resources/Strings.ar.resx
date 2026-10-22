@@ -341,6 +341,9 @@
   <data name="vocabulary.transfer.importFailed" xml:space="preserve">
     <value>تعذّرت قراءة هذا الملف. اختر ملف CSV أو TXT بترميز UTF-8.</value>
   </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>تعذّر حفظ المفردات. لم يتم استيراد أي شيء.</value>
+  </data>
   <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
     <value>تعذّر تصدير المفردات.</value>
   </data>

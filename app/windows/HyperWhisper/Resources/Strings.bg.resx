@@ -341,6 +341,9 @@
   <data name="vocabulary.transfer.importFailed" xml:space="preserve">
     <value>Този файл не може да бъде прочетен. Изберете CSV или TXT файл в UTF-8.</value>
   </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>Речникът не може да бъде запазен. Нищо не е импортирано.</value>
+  </data>
   <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
     <value>Речникът не можа да бъде експортиран.</value>
   </data>

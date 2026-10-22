@@ -341,6 +341,9 @@
   <data name="vocabulary.transfer.importFailed" xml:space="preserve">
     <value>Ova se datoteka ne može pročitati. Odaberite CSV ili TXT datoteku u UTF-8.</value>
   </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>Rječnik nije moguće spremiti. Ništa nije uvezeno.</value>
+  </data>
   <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
     <value>Rječnik se ne može izvesti.</value>
   </data>

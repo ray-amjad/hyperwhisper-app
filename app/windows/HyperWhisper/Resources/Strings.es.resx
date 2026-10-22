@@ -383,6 +383,9 @@
   <data name="vocabulary.transfer.importFailed" xml:space="preserve">
     <value>No se pudo leer este archivo. Elija un archivo CSV o TXT en UTF-8.</value>
   </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>No se pudo guardar el vocabulario. No se importó nada.</value>
+  </data>
   <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
     <value>No se pudo exportar el vocabulario.</value>
   </data>

@@ -341,6 +341,9 @@
   <data name="vocabulary.transfer.importFailed" xml:space="preserve">
     <value>Te datoteke ni mogoče prebrati. Izberite datoteko CSV ali TXT v UTF-8.</value>
   </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>Besedišča ni bilo mogoče shraniti. Nič ni bilo uvoženo.</value>
+  </data>
   <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
     <value>Besednjaka ni bilo mogoče izvoziti.</value>
   </data>

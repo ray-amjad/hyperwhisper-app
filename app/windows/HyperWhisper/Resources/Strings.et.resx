@@ -341,6 +341,9 @@
   <data name="vocabulary.transfer.importFailed" xml:space="preserve">
     <value>Seda faili ei saanud lugeda. Valige UTF-8 CSV- või TXT-fail.</value>
   </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>Sõnavara ei saanud salvestada. Midagi ei imporditud.</value>
+  </data>
   <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
     <value>Sõnavara ei saanud eksportida.</value>
   </data>

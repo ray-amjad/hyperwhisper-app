@@ -341,6 +341,9 @@
   <data name="vocabulary.transfer.importFailed" xml:space="preserve">
     <value>Không thể đọc tệp này. Hãy chọn tệp CSV hoặc TXT mã hóa UTF-8.</value>
   </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>Không thể lưu từ vựng. Không có gì được nhập.</value>
+  </data>
   <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
     <value>Không thể xuất từ vựng.</value>
   </data>

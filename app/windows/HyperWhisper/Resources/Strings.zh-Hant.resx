@@ -341,6 +341,9 @@
   <data name="vocabulary.transfer.importFailed" xml:space="preserve">
     <value>無法讀取此檔案。請選擇 UTF-8 編碼的 CSV 或 TXT 檔案。</value>
   </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>無法儲存詞彙。未匯入任何內容。</value>
+  </data>
   <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
     <value>無法匯出詞彙。</value>
   </data>
