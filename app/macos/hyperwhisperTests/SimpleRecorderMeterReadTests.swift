@@ -200,7 +200,6 @@ struct SimpleRecorderMeterReadTests {
 
         // An inline read would have blocked here until `release()`.
         #expect(await reader.waitUntilEntered())
-        StallProbe1866.stallProcessOnce()  // TEMPORARY #1866 proof
         #expect(reader.ranOnMainThread == false)
         #expect(recorder.meterReadInFlight)
     }
@@ -213,7 +212,6 @@ struct SimpleRecorderMeterReadTests {
 
         recorder.requestMeterRead(from: avRecorder)
         #expect(await reader.waitUntilEntered())
-        StallProbe1866.stallProcessOnce()  // TEMPORARY #1866 proof
 
         // Ticks while the first read is stuck are skipped, not queued.
         for _ in 0..<5 {
@@ -244,7 +242,6 @@ struct SimpleRecorderMeterReadTests {
 
         recorder.requestMeterRead(from: avRecorder)
         #expect(await reader.waitUntilEntered())
-        StallProbe1866.stallProcessOnce()  // TEMPORARY #1866 proof
         reader.release()
 
         #expect(await Self.waitUntilReadSettles(recorder))
@@ -260,7 +257,6 @@ struct SimpleRecorderMeterReadTests {
 
         recorder.requestMeterRead(from: avRecorder)
         #expect(await reader.waitUntilEntered())
-        StallProbe1866.stallProcessOnce()  // TEMPORARY #1866 proof
 
         // The stop now waits behind the stuck read (#1359); a deadline that fires
         // at once lets it give up so the test can go on while the read is still
@@ -296,7 +292,6 @@ struct SimpleRecorderMeterReadTests {
 
         recorder.requestMeterRead(from: avRecorder)
         #expect(await reader.waitUntilEntered())
-        StallProbe1866.stallProcessOnce()  // TEMPORARY #1866 proof
 
         let stop = Task { await recorder.stopRecording() }
 
@@ -327,7 +322,6 @@ struct SimpleRecorderMeterReadTests {
 
         recorder.requestMeterRead(from: avRecorder)
         #expect(await reader.waitUntilEntered())
-        StallProbe1866.stallProcessOnce()  // TEMPORARY #1866 proof
 
         let returned = Flag()
         let stop = Task { () -> RecorderStopOutcome in
