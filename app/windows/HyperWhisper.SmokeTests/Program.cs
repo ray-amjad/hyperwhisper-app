@@ -4493,13 +4493,21 @@ internal static class Program
             RunAsync("post-processing: a cancelled request keeps the text and raises no toast", async () =>
             {
                 const string Raw = "um so the meeting is at three";
-                using var cancelled = new CancellationTokenSource();
-                cancelled.Cancel();
+                // The user cancels while the request is in flight. A scripted handler
+                // ignores the token, so it throws the way the socket handler does on a
+                // cancel; a token cancelled before the call never reached the service's
+                // catch, because HttpClient handed the canned 200 straight back.
+                using var cancel = new CancellationTokenSource();
                 var run = await ProcessThroughScriptedEndpointAsync(Raw,
-                    () => Respond(HttpStatusCode.OK,
-                        """{"choices":[{"message":{"content":"<<CLEANED>>So the meeting is at three.<<END>>"},"finish_reason":"stop"}]}"""),
-                    cancelled.Token);
+                    () =>
+                    {
+                        cancel.Cancel();
+                        cancel.Token.ThrowIfCancellationRequested();
+                        throw new InvalidOperationException("unreachable");
+                    },
+                    cancel.Token);
 
+                Assert(run.Handler.Sends == 1, $"expected one upstream call, saw {run.Handler.Sends}");
                 Assert(!run.Result.WasApplied, "a cancelled request must not report the clean-up as applied");
                 Assert(run.Result.Text == Raw, $"a cancelled request must return the original text, got '{run.Result.Text}'");
                 // The user cancelled; telling them it failed would be wrong. This is
