@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Eiginleikar",
-    "pricing": "Verð",
     "faq": "Algengar spurningar",
     "support": "Aðstoð",
     "download": "Sækja",
@@ -20,7 +19,6 @@
     "githubAria": "Skoða HyperWhisper á GitHub"
   },
   "hero": {
-    "openSourceBadge": "Opinn hugbúnaður · Apache-2.0",
     "logoAlt": "HyperWhisper merki",
     "headline": "Skrifaðu, semdu og skapaðu",
     "headlineAccent": "5x hraðar með AI",
@@ -97,57 +95,6 @@
     "accuracyRate": "Nákvæmni",
     "languagesSupported": "Studd tungumál",
     "providersSupported": "Studdir veitendur"
-  },
-  "pricing": {
-    "title": "Engar áskriftir. Aldrei.",
-    "subtitle": "Borgaðu einu sinni, notaðu að eilífu. Við hatum líka áskriftir.",
-    "guarantee": "14 daga endurgreiðsluábyrgð",
-    "guaranteeExtended": "ef þú ert ekki fullkomlega sátt(ur).",
-    "learnMore": "Læra meira",
-    "free": {
-      "name": "Ókeypis",
-      "price": "$0",
-      "period": "að eilífu",
-      "description": "Fullkomið til að prófa HyperWhisper",
-      "cta": "Sækja ókeypis",
-      "features": {
-        "transcriptionLimit": "5 mínútur af umritun á dag",
-        "basicModes": "Grunnhamir umritunar",
-        "offlineTranscription": "Offline umritun",
-        "apiTranscription": "API umritun (með þínum eigin lyklum)",
-        "postProcessing": "Eftirvinnsla texta",
-        "providers": "9+ veitendur til að velja úr",
-        "lifetimeUpdates": "Ævilangar uppfærslur",
-        "cloudLimited": "HyperWhisper Cloud (takmörkuð notkun)",
-        "customVocabulary": "Sérsniðinn orðaforði",
-        "prioritySupport": "Forgangsaðstoð"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "ævilangt",
-      "description": "Einskiptiskaup, ótakmörkuð kraftur að eilífu",
-      "cta": "Kaupa núna - Ævilangur aðgangur",
-      "mostPopular": "Vinsælast",
-      "features": {
-        "unlimitedTranscription": "Ótakmörkuð umritun",
-        "allModes": "Allir umritunarhamir",
-        "offlineTranscription": "Offline umritun",
-        "apiTranscription": "API umritun (með þínum eigin lyklum)",
-        "postProcessing": "Eftirvinnsla texta",
-        "providers": "9+ veitendur til að velja úr",
-        "lifetimeUpdates": "Ævilangar uppfærslur",
-        "cloudCredits": "HyperWhisper Cloud ($5 í inneign)",
-        "customVocabulary": "Sérsniðinn orðaforði",
-        "prioritySupport": "Forgangsaðstoð"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise og sérsniðið verð",
-      "description": "Magnafslættir, SSO, forgangsaðstoð, innanhússhýsing og sérsniðnar samþættingar",
-      "cta": "Hafa samband við sölu"
-    }
   },
   "faq": {
     "title": "Algengar spurningar",
@@ -252,10 +199,7 @@
     "downloadButton": "Sækja HyperWhisper",
     "errorGeneric": "Eitthvað fór úrskeiðis. Vinsamlegast reyndu aftur.",
     "errorEmail": "Sláðu inn gilt netfang.",
-    "errorNetwork": "Netvilla. Athugaðu tenginguna og reyndu aftur.",
-    "thankYouTitle": "Takk!",
     "downloadStarted": "Niðurhal ætti að hefjast sjálfkrafa.",
-    "manualDownload": "Niðurhal hófst ekki? Smelltu hér",
     "skipAndDownloadButton": "Sleppa og sækja"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Sækja",
       "roadmap": "Vegvísir",
       "helpCenter": "Hjálparmiðstöð",
-      "manageBilling": "Stjórna greiðslum",
       "customerPortal": "Viðskiptavinagátt",
       "olderVersions": "Eldri útgáfur",
       "blog": "Blogg",

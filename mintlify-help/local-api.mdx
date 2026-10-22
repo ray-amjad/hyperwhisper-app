@@ -199,6 +199,8 @@ The server has no fixed port. At the first start, it asks the operating system f
 
 If the kept port is not free at a later start, for example because a different program took it, the server does not fail. It asks the operating system for a new free port and writes the new port into the discovery file. To make a script that always finds the server, read the port from the discovery file.
 
+On macOS, when you set the Local API switch to off, the status shows **Stopping…** until the old server releases its port, then **Server disabled**. If you set the switch to on again before the port is released, HyperWhisper waits up to 2 seconds for it. After that, it asks the operating system for a new free port.
+
 <Note>
   Linux is different. It gives you a **Preferred port** box, and the default is `51671`. HyperWhisper tries that port first. If the port is taken, it asks the operating system for any free loopback port instead, and it writes the port that it really got into the discovery file. Set the box to `0` to always ask for a free port.
 
@@ -332,6 +334,8 @@ A different `localEngine`, or a model that is not in the list of its engine, ret
 To write a cloud Mode instead, send `"providerType": "cloud"` and a `cloudProvider`. A `"model": "cloud"` sets the same thing. If you omit `cloudProvider`, Windows and Linux run the Mode on HyperWhisper Cloud, and `GET /modes` still reports it without the key. Linux refuses an empty `cloudProvider` string, or a `cloudProvider` that is not in its provider list. It returns an **HTTP 400** with the code `INVALID_REQUEST`.
 
 Windows accepts the same two field names, but it applies no list of accepted values to them. Only Linux refuses an unknown `localEngine` or an unknown local model.
+
+On Windows, a PATCH that changes a cloud Mode to `"providerType": "local"` must also name the local model in `model` (or in `localParakeetModel` for the `parakeet` engine). Without it, Windows returns `INVALID_REQUEST` and does not pick a model for you. A local Mode stores its local model ID in `model`, and `GET /modes` reports `cloudProvider: null` for it.
 
 <Note>
   The platforms are different in two ways. On macOS, `GET /models` accepts the `?kind=` and `?installed_only=` query parameters to filter the catalog. Windows and Linux ignore these parameters and always return the full catalog.

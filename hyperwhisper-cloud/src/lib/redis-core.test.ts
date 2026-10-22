@@ -13,7 +13,7 @@
 // `./redis-core`, so a plain import always resolves to the real thing whatever
 // order bun walks the tree in.
 
-import { afterAll, afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 // The REAL error classes, not a hand-rolled stand-in. A fixture that assigns
 // `error.name = 'UpstashError'` only ever confirms the fixture's own field, so
 // it cannot notice the library renaming or restructuring what it throws. This
@@ -25,6 +25,7 @@ import { errors } from '@upstash/redis';
 import { LICENSE_CACHE_TTL_SECONDS } from './constants';
 import { WRITE_POOL_BALANCE_SCRIPT } from './credit-hold-store';
 import {
+  WRITE_LICENSE_SCRIPT,
   cacheLicense,
   getCachedLicense,
   isIPBlocked,
@@ -761,10 +762,13 @@ describe('cacheLicense', () => {
 
     await cacheLicense(() => store, 'KEY-123', pooled, 1_250);
 
-    expect(store.sets).toEqual([
-      { key: 'license:KEY-123', value: pooled, opts: { ex: LICENSE_CACHE_TTL_SECONDS } },
-    ]);
+    expect(store.sets).toEqual([]);
     expect(store.evals).toEqual([
+      {
+        script: WRITE_LICENSE_SCRIPT,
+        keys: ['license:KEY-123'],
+        args: [JSON.stringify(pooled), String(LICENSE_CACHE_TTL_SECONDS), '1000'],
+      },
       {
         script: WRITE_POOL_BALANCE_SCRIPT,
         keys: [`credit_pool_balance:${poolId}`],
@@ -785,6 +789,7 @@ describe('cacheLicense', () => {
 
     await cacheLicense(() => store, 'KEY-123', pooled, 1_250);
 
+    expect(store.sets.map((write) => write.key)).toEqual(['license:KEY-123']);
     expect(store.evals[0]?.args).toEqual([
       JSON.stringify({ credits: pooled.credits, cachedAt: pooled.cachedAt }),
       String(LICENSE_CACHE_TTL_SECONDS),
@@ -799,6 +804,31 @@ describe('cacheLicense', () => {
     store.eval = async () => { throw new Error('upstash script failed'); };
 
     expect(await cacheLicense(() => store, 'KEY-123', { ...validLicense, creditPoolId: 'e'.repeat(64), issuedAtMs: 1 })).toBeUndefined();
+    expect(consoleError()).toHaveBeenCalledTimes(1);
+    expect(loggedLine()).toBe('Error: upstash script failed');
+  });
+
+  test('a stamped licence writes license:<key> through the ordered compare-and-set, never a plain set (#1899)', async () => {
+    const store = recordingStore();
+    const stamped: CachedLicense = { isValid: false, credits: 0, cachedAt: '2026-09-01T00:00:00Z', issuedAtMs: 1_000 };
+
+    await cacheLicense(() => store, 'KEY-123', stamped);
+
+    expect(store.sets).toEqual([]);
+    expect(store.evals).toEqual([
+      {
+        script: WRITE_LICENSE_SCRIPT,
+        keys: ['license:KEY-123'],
+        args: [JSON.stringify(stamped), String(LICENSE_CACHE_TTL_SECONDS), '1000'],
+      },
+    ]);
+  });
+
+  test('a failed stamped licence write is logged and swallowed', async () => {
+    const store = recordingStore();
+    store.eval = async () => { throw new Error('upstash script failed'); };
+
+    expect(await cacheLicense(() => store, 'KEY-123', { ...validLicense, issuedAtMs: 1 })).toBeUndefined();
     expect(consoleError()).toHaveBeenCalledTimes(1);
     expect(loggedLine()).toBe('Error: upstash script failed');
   });
@@ -1002,5 +1032,118 @@ describe('the round trip a request actually makes', () => {
     expect(await getCachedLicense(() => store, 'KEY-123')).toBeNull();
     await cacheLicense(() => store, 'KEY-123', validLicense);
     expect(await getCachedLicense(() => store, 'KEY-123')).toEqual(validLicense);
+  });
+});
+
+// The licence-entry script run for real, against a local redis-server, through
+// `cacheLicense` and `getCachedLicense` (only the transport is swapped: Bun's RESP
+// client for Upstash's REST one, serialising as Upstash does). Skipped where no
+// `redis-server` binary is on PATH, as `credit-hold-store.test.ts` is.
+const redisServerPath = Bun.which('redis-server');
+
+describe.skipIf(!redisServerPath)('the licence entry on redis-server (#1899)', () => {
+  const port = 20_000 + Math.floor(Math.random() * 20_000);
+  let server: ReturnType<typeof Bun.spawn> | undefined;
+  let client: InstanceType<typeof Bun.RedisClient> | undefined;
+
+  const store: RedisStore = {
+    async get<TData = unknown>(key: string): Promise<TData | null> {
+      const raw = await client!.send('GET', [key]) as string | null;
+      return raw === null ? null : JSON.parse(raw) as TData;
+    },
+    async set(key: string, value: unknown, opts: { ex: number }): Promise<unknown> {
+      return await client!.send('SET', [key, JSON.stringify(value), 'EX', String(opts.ex)]);
+    },
+    async eval<TArgs extends unknown[], TData = unknown>(script: string, keys: string[], args: TArgs): Promise<TData> {
+      return await client!.send('EVAL', [script, String(keys.length), ...keys, ...args.map(String)]) as TData;
+    },
+  };
+  const write = (license: CachedLicense) => cacheLicense(() => store, 'KEY-123', license);
+  const read = () => getCachedLicense(() => store, 'KEY-123');
+
+  const refusalAt = (issuedAtMs: number): CachedLicense => ({ isValid: false, credits: 0, cachedAt: 'r', issuedAtMs });
+  const validAt = (issuedAtMs: number, credits = 12): CachedLicense => ({ isValid: true, credits, cachedAt: 'v', issuedAtMs });
+
+  beforeAll(async () => {
+    server = Bun.spawn([redisServerPath!, '--port', String(port), '--save', '', '--appendonly', 'no'], {
+      stdout: 'ignore',
+      stderr: 'ignore',
+    });
+    client = new Bun.RedisClient(`redis://127.0.0.1:${port}`);
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      try {
+        await client.send('PING', []);
+        return;
+      } catch {
+        await Bun.sleep(50);
+      }
+    }
+    throw new Error('redis-server did not start');
+  });
+
+  afterAll(() => {
+    client?.close();
+    server?.kill();
+  });
+
+  beforeEach(async () => {
+    await client!.send('FLUSHALL', []);
+  });
+
+  test('a slow success to a call asked BEFORE a refusal leaves the refusal in place', async () => {
+    await write(refusalAt(2_000));
+    await write(validAt(1_000));
+    expect(await read()).toEqual(refusalAt(2_000));
+  });
+
+  test('a slow refusal to a call asked BEFORE a re-grant leaves the valid entry in place', async () => {
+    await write(validAt(2_000, 20));
+    await write(refusalAt(1_000));
+    expect(await read()).toEqual(validAt(2_000, 20));
+  });
+
+  test('a call asked AFTER the stored one replaces it, either way round', async () => {
+    await write(validAt(1_000));
+    await write(refusalAt(2_000));
+    expect(await read()).toEqual(refusalAt(2_000));
+    await write(validAt(3_000, 5));
+    expect(await read()).toEqual(validAt(3_000, 5));
+  });
+
+  test('a tie replaces a valid entry, but never a refusal', async () => {
+    await write(validAt(1_000));
+    await write(validAt(1_000, 7));
+    expect(await read()).toEqual(validAt(1_000, 7));
+    await write(refusalAt(1_000));
+    expect(await read()).toEqual(refusalAt(1_000));
+    // A success to a charge sent the same millisecond as the revoke, landing last.
+    await write(validAt(1_000));
+    expect(await read()).toEqual(refusalAt(1_000));
+  });
+
+  test('replaces a stored entry with no stamp, or one that is not JSON', async () => {
+    await client!.send('SET', ['license:KEY-123', JSON.stringify(validLicense)]);
+    await write(refusalAt(1));
+    expect(await read()).toEqual(refusalAt(1));
+    await client!.send('SET', ['license:KEY-123', 'not json']);
+    await write(refusalAt(1));
+    expect(await read()).toEqual(refusalAt(1));
+  });
+
+  test('a written entry carries the 1 hour TTL; a dropped one does not refresh it', async () => {
+    await write(refusalAt(2_000));
+    await client!.send('EXPIRE', ['license:KEY-123', '10']);
+    await write(validAt(1_000));
+    expect(Number(await client!.send('TTL', ['license:KEY-123']))).toBeLessThanOrEqual(10);
+    await write(refusalAt(3_000));
+    expect(Number(await client!.send('TTL', ['license:KEY-123']))).toBeGreaterThan(LICENSE_CACHE_TTL_SECONDS - 5);
+  });
+
+  test('of many replies landing at once, the one asked last is what stays', async () => {
+    const issued = Array.from({ length: 50 }, (_, index) => 1_000 + index);
+    // Land them in a scrambled order, all in flight together.
+    const order = [...issued].sort((a, b) => ((a * 7919) % 101) - ((b * 7919) % 101));
+    await Promise.all(order.map((at) => write(at % 2 === 0 ? validAt(at) : refusalAt(at))));
+    expect((await read())?.issuedAtMs).toBe(1_049);
   });
 });
