@@ -279,13 +279,15 @@ struct AudioDeviceNotificationRefreshTests {
 
     @Test func scanDurationExcludesDelayBeforeMainActorCanResume() async {
         let probe = NotificationScanProbe()
-        let providerGate = NotificationScanGate()
+        let providerStart = OSAllocatedUnfairLock<UInt64>(initialState: 0)
+        let providerReturned = NotificationScanGate()
         let mainActorGate = NotificationScanGate()
         let manager = AudioDeviceManager(
             registerNotificationListeners: false,
             notificationSnapshotProvider: { _ in
                 _ = probe.beginCall()
-                providerGate.wait()
+                providerStart.withLock { $0 = DispatchTime.now().uptimeNanoseconds }
+                providerReturned.release()
                 return notificationSnapshot(devices: [notificationFirstDevice])
             },
             notificationScanReporter: { report in probe.record(report) }
@@ -296,21 +298,23 @@ struct AudioDeviceNotificationRefreshTests {
         }
         await Self.waitUntil { probe.calls == 1 }
 
-        // Let the provider return at once, then hold the main actor. A duration that
-        // wrongly ran until the main actor resumed would be at least `mainActorBlockedMs`,
-        // because the provider started before the hold. The bound is relative, so a slow
-        // runner stretches both sides instead of failing a fixed wall-clock limit (#2401).
-        let blockStart = DispatchTime.now().uptimeNanoseconds
-        providerGate.release()
-        DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(300)) {
+        // Hold the main actor only after the provider has returned. A duration that
+        // wrongly ran until the main actor resumed is then at least the time from the
+        // provider's start to the end of the hold. That bound is measured, not a fixed
+        // wall-clock limit, so a slow runner cannot fail a correct scan (#2401).
+        providerReturned.wait()
+        DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(150)) {
             mainActorGate.release()
         }
         mainActorGate.wait()
-        let mainActorBlockedMs = Int((DispatchTime.now().uptimeNanoseconds - blockStart) / 1_000_000)
+        let mainActorResumeNanoseconds = DispatchTime.now().uptimeNanoseconds
+        let providerStartToMainActorResumeMs = Int(
+            (mainActorResumeNanoseconds - providerStart.withLock { $0 }) / 1_000_000
+        )
         await refresh.value
 
         #expect(probe.reports.count == 1)
-        #expect(probe.reports[0].durationMs < mainActorBlockedMs)
+        #expect(probe.reports[0].durationMs < providerStartToMainActorResumeMs)
     }
 
     @Test func missingSelectedDeviceInvalidatesOnceWithoutCoreAudio() async {
