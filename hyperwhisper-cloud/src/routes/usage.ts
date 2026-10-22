@@ -3,7 +3,7 @@
 
 import type { Context } from 'hono';
 import { CREDITS_PER_MINUTE, DEFAULT_API_BASE_URL, LICENSE_API_TIMEOUT_MS } from '../lib/constants';
-import { authDiagnosticsForLog, readCreditPoolId, validateAuth, type AuthDiagnostics } from '../middleware/auth';
+import { authDiagnosticsForLog, canonicalAccountKey, readCreditPoolId, validateAuth, type AuthDiagnostics } from '../middleware/auth';
 import { generateRequestId, getClientIP } from '../lib/request-id';
 import { logEvent } from '../lib/logging';
 import { getCachedLicense, cacheLicense } from '../lib/redis';
@@ -87,8 +87,12 @@ export async function usageRoute(c: Context) {
 
   // `account_key` is the canonical param; `license_key` is the legacy alias that
   // installed native apps still send, so we accept either.
+  // Trimmed (#2461): the cache and the balance lookup below key on it directly.
   const licenseKey =
-    c.req.query('account_key') || c.req.query('license_key') || c.req.query('identifier')?.trim() || null;
+    canonicalAccountKey(c.req.query('account_key')) ||
+    canonicalAccountKey(c.req.query('license_key')) ||
+    canonicalAccountKey(c.req.query('identifier')) ||
+    null;
   const forceRefresh = c.req.query('force_refresh') === 'true';
 
   if (licenseKey) {
