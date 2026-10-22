@@ -16,7 +16,8 @@
       "switchTo": "Αλλαγή γλώσσας"
     },
     "cloud": "Cloud",
-    "githubAria": "Δείτε το HyperWhisper στο GitHub"
+    "githubAria": "Δείτε το HyperWhisper στο GitHub",
+    "linux": "Linux"
   },
   "hero": {
     "logoAlt": "Λογότυπο HyperWhisper",
@@ -228,7 +229,8 @@
     "linuxInputGroupNote": "Αφού προστεθείτε στην ομάδα input, αποσυνδεθείτε και συνδεθείτε ξανά. Η συμμετοχή είναι προαιρετική, αλλά απαιτείται για τις καθολικές συντομεύσεις και την αυτόματη επικόλληση.",
     "aptTitle": "Φιλοξενήστε μόνοι σας ένα αποθετήριο APT",
     "aptBody": "Οι εκδόσεις για Linux περιλαμβάνουν επίσης ένα αρχείο στατικού αποθετηρίου APT. Το HyperWhisper δεν διαθέτει προς το παρόν δημόσιο endpoint APT· δείτε τον οδηγό εγκατάστασης για Linux για υπογεγραμμένη ρύθμιση με αυτοφιλοξενία, συνοδευτικά στοιχεία για την επιφάνεια εργασίας, λεπτομέρειες απορρήτου και απεγκατάσταση.",
-    "linuxGuideCta": "Διαβάστε τον οδηγό εγκατάστασης για Linux"
+    "linuxGuideCta": "Διαβάστε τον οδηγό εγκατάστασης για Linux",
+    "learnMoreLinux": "Μάθετε περισσότερα για το HyperWhisper σε Linux"
   },
   "olderVersions": {
     "title": "Παλαιότερες εκδόσεις",
@@ -276,7 +278,8 @@
       "privacyPolicy": "Πολιτική απορρήτου",
       "termsOfService": "Όροι χρήσης",
       "refundPolicy": "Πολιτική επιστροφών",
-      "dataTraining": "Απόρρητο δεδομένων"
+      "dataTraining": "Απόρρητο δεδομένων",
+      "linux": "HyperWhisper για Linux"
     },
     "copyright": "© 2026 HyperWhisper. Με επιφύλαξη παντός δικαιώματος.",
     "linkedinAria": "LinkedIn"
@@ -373,6 +376,53 @@
     "licenseOlder": "<strong>Αγοράσατε πριν από περισσότερες από 30 ημέρες:</strong> θα μετατρέψουμε ό,τι πληρώσατε σε credits του HyperWhisper Cloud — ολόκληρη την τιμή αγοράς, μείον τα $5 σε credits που έχουν ήδη προστεθεί στον λογαριασμό σας. <credits>Στείλτε μας email</credits> και θα πιστώσουμε το υπόλοιπο.",
     "contributeHeading": "Θέλετε να συνεισφέρετε;",
     "contributeBody": "Αναφορές σφαλμάτων, ιδέες για λειτουργίες και pull requests είναι όλα ευπρόσδεκτα. Ανοίξτε ένα issue ή ξεκινήστε μια συζήτηση <github>στο GitHub</github>."
+  },
+  "linuxPage": {
+    "metaTitle": "HyperWhisper: η εναλλακτική του Wispr Flow για Linux",
+    "metaDescription": "Το Wispr Flow δεν έχει εγγενή εφαρμογή για Linux. Το HyperWhisper έχει: φωνητική υπαγόρευση με AI για Ubuntu και Debian, με τοπικά μοντέλα εκτός σύνδεσης, τα δικά σας κλειδιά API και καθολικές συντομεύσεις.",
+    "eyebrow": "HyperWhisper για Linux",
+    "heading": "HyperWhisper: η εναλλακτική του Wispr Flow για Linux",
+    "lead": "Το Wispr Flow δεν έχει εγγενή εφαρμογή για Linux. Το HyperWhisper έχει. Μιλήστε φυσικά και λάβετε καθαρό κείμενο, απομαγνητοφωνημένο εκτός σύνδεσης στον δικό σας υπολογιστή ή στο cloud με το δικό σας κλειδί API.",
+    "downloadCta": "Λήψη .deb (v{version})",
+    "releaseNotes": "Σημειώσεις έκδοσης και αθροίσματα ελέγχου",
+    "requirementsShort": "x86_64 · Ubuntu 22.04+ / Debian 12+",
+    "installHeading": "Εγκατάσταση με μία εντολή",
+    "installBody": "Κατεβάστε το πακέτο και εκτελέστε αυτή την εντολή από τον φάκελο που το περιέχει. Το apt εγκαθιστά την εφαρμογή μαζί με τις εξαρτήσεις της.",
+    "installCommandLabel": "Εντολή εγκατάστασης για Debian",
+    "requirementsHeading": "Απαιτήσεις",
+    "requirementArch": "Υπολογιστής x86_64 (amd64)",
+    "requirementDistro": "Ubuntu 22.04 ή νεότερο, ή Debian 12 ή νεότερο",
+    "requirementDesktop": "GNOME ή KDE Plasma για την επαληθευμένη εμπειρία επιφάνειας εργασίας",
+    "cudaHeading": "Κάρτα γραφικών NVIDIA; Προσθέστε CUDA",
+    "cudaBody": "Εγκαταστήστε το προαιρετικό πακέτο hyperwhisper-cuda από την ίδια κυκλοφορία, στην ίδια έκδοση με την εφαρμογή, για να εκτελείτε το τοπικό Whisper και την τοπική μεταεπεξεργασία με Gemma σε CUDA.",
+    "featuresHeading": "Φτιαγμένο για την επιφάνεια εργασίας Linux",
+    "localHeading": "Μοντέλα εκτός σύνδεσης, στη συσκευή σας",
+    "localBody": "Επιλέξτε ένα τοπικό μοντέλο και η απομαγνητοφώνηση εκτελείται εξ ολοκλήρου στον υπολογιστή σας, χωρίς σύνδεση στο διαδίκτυο. Το Whisper εκτελείται στον επεξεργαστή ή στην κάρτα γραφικών μέσω Vulkan ή CUDA. Τα Parakeet, Qwen3 ASR και Nemotron εκτελούνται στον επεξεργαστή. Τα τοπικά μοντέλα Gemma μπορούν επίσης να βελτιώσουν το κείμενό σας εκτός σύνδεσης.",
+    "byokHeading": "Χρησιμοποιήστε το δικό σας κλειδί API",
+    "byokBody": "Προτιμάτε το cloud; Χρησιμοποιήστε το δικό σας κλειδί API για απομαγνητοφώνηση στο cloud, για παράδειγμα Deepgram ή ElevenLabs, και για μεταεπεξεργασία με AI, για παράδειγμα OpenAI, Anthropic, Groq ή Gemini. Ή παραλείψτε τα κλειδιά και χρησιμοποιήστε το HyperWhisper Cloud, πληρώνοντας ανάλογα με τη χρήση.",
+    "languagesHeading": "Περιβάλλον σε 40 γλώσσες",
+    "languagesBody": "Το περιβάλλον της εφαρμογής είναι διαθέσιμο σε 40 γλώσσες, και τα μοντέλα Whisper απομαγνητοφωνούν περισσότερες από 100.",
+    "openSourceHeading": "Ανοιχτός κώδικας",
+    "openSourceBody": "Το HyperWhisper είναι ανοιχτού κώδικα με άδεια Apache-2.0, μαζί με την εφαρμογή για Linux. Διαβάστε κάθε γραμμή στο GitHub.",
+    "hotkeysHeading": "Καθολικές συντομεύσεις σε X11 και Wayland",
+    "hotkeysBody": "Οι καθολικές συντομεύσεις λειτουργούν αμέσως στο X11. Στα GNOME και KDE Plasma με Wayland λειτουργούν αφού γίνετε μέλος της ομάδας hyperwhisper-input και αποσυνδεθείτε και συνδεθείτε ξανά. Το HyperWhisper διαβάζει το πληκτρολόγιο μέσω evdev, όχι μέσω πύλης επιφάνειας εργασίας.",
+    "hotkeysCommandLabel": "Ένταξη στην ομάδα εισόδου",
+    "hotkeysFallback": "Χωρίς την ομάδα, η απομαγνητοφώνηση εξακολουθεί να λειτουργεί και το αποτέλεσμα παραμένει στο πρόχειρο. Η αυτόματη επικόλληση χρειάζεται επίσης την ομάδα.",
+    "hotkeysDefault": "Πατήστε Ctrl+Alt για να ξεκινήσετε και να σταματήσετε την εγγραφή. Μπορείτε να αλλάξετε κάθε συντόμευση στις Ρυθμίσεις.",
+    "compareHeading": "HyperWhisper ή Wispr Flow σε Linux;",
+    "compareBody": "Το Wispr Flow δεν έχει εγγενή εφαρμογή για Linux. Το HyperWhisper διαθέτει ήδη σήμερα εγγενή εφαρμογή για Linux, ως πακέτο .deb για Ubuntu και Debian, δίπλα στις εφαρμογές του για macOS και Windows.",
+    "faqHeading": "Συχνές ερωτήσεις",
+    "faqWisprQuestion": "Υπάρχει εφαρμογή Wispr Flow για Linux;",
+    "faqWisprAnswer": "Όχι. Το Wispr Flow δεν έχει εγγενή εφαρμογή για Linux. Το HyperWhisper εκτελείται εγγενώς σε Linux, καθώς και σε macOS και Windows.",
+    "faqDistroQuestion": "Ποιες διανομές Linux υποστηρίζονται;",
+    "faqDistroAnswer": "Ubuntu 22.04 ή νεότερο και Debian 12 ή νεότερο, σε x86_64 (amd64). Το HyperWhisper διατίθεται ως πακέτο .deb. Άλλες διανομές βασισμένες στο Debian ίσως λειτουργούν, αλλά δεν ανήκουν στον επαληθευμένο πίνακα κυκλοφοριών.",
+    "faqOfflineQuestion": "Λειτουργεί εκτός σύνδεσης;",
+    "faqOfflineAnswer": "Ναι. Με ένα τοπικό μοντέλο, η απομαγνητοφώνηση εκτελείται εξ ολοκλήρου στον υπολογιστή σας και δεν χρειάζεται σύνδεση στο διαδίκτυο.",
+    "faqWaylandQuestion": "Λειτουργούν οι καθολικές συντομεύσεις στο Wayland;",
+    "faqWaylandAnswer": "Στα GNOME και KDE Plasma με Wayland ναι, αφού γίνετε μέλος της ομάδας hyperwhisper-input και αποσυνδεθείτε και συνδεθείτε ξανά. Στο X11 λειτουργούν αμέσως.",
+    "docsHeading": "Χρειάζεστε λεπτομέρειες;",
+    "docsBody": "Ο οδηγός εγκατάστασης για Linux καλύπτει το CUDA, τα δικαιώματα εισόδου, τα προαιρετικά συνοδευτικά για GNOME και KDE και την απεγκατάσταση.",
+    "docsCta": "Διαβάστε τον οδηγό εγκατάστασης για Linux"
   },
   "openSourceBanner": {
     "text": "Το HyperWhisper είναι πλέον πλήρως ανοιχτού κώδικα",

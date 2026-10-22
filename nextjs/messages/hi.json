@@ -16,7 +16,8 @@
       "switchTo": "भाषा बदलें"
     },
     "cloud": "Cloud",
-    "githubAria": "GitHub पर HyperWhisper देखें"
+    "githubAria": "GitHub पर HyperWhisper देखें",
+    "linux": "Linux"
   },
   "hero": {
     "logoAlt": "HyperWhisper लोगो",
@@ -228,7 +229,8 @@
     "linuxInputGroupNote": "input ग्रुप में शामिल होने के बाद लॉग आउट करके फिर से लॉग इन करें। सदस्यता वैकल्पिक है, लेकिन ग्लोबल शॉर्टकट और ऑटोमैटिक पेस्ट के लिए यह ज़रूरी है।",
     "aptTitle": "APT रिपॉज़िटरी स्वयं होस्ट करें",
     "aptBody": "Linux रिलीज़ में एक स्टैटिक APT रिपॉज़िटरी आर्काइव भी शामिल होता है। HyperWhisper फ़िलहाल कोई सार्वजनिक APT एंडपॉइंट नहीं चलाता; साइन किए गए, स्वयं होस्ट किए गए सेटअप, डेस्कटॉप कंपैनियन, गोपनीयता विवरण और हटाने की जानकारी के लिए Linux इंस्टॉलेशन गाइड देखें।",
-    "linuxGuideCta": "Linux इंस्टॉलेशन गाइड पढ़ें"
+    "linuxGuideCta": "Linux इंस्टॉलेशन गाइड पढ़ें",
+    "learnMoreLinux": "Linux पर HyperWhisper के बारे में और जानें"
   },
   "olderVersions": {
     "title": "पुराने वर्ज़न",
@@ -276,7 +278,8 @@
       "privacyPolicy": "प्राइवेसी पॉलिसी",
       "termsOfService": "सेवा की शर्तें",
       "refundPolicy": "रिफंड पॉलिसी",
-      "dataTraining": "डेटा गोपनीयता"
+      "dataTraining": "डेटा गोपनीयता",
+      "linux": "Linux के लिए HyperWhisper"
     },
     "copyright": "© 2026 HyperWhisper. सर्वाधिकार सुरक्षित।",
     "linkedinAria": "LinkedIn"
@@ -373,6 +376,53 @@
     "licenseOlder": "<strong>30 दिन से ज़्यादा पहले खरीदा:</strong> आपने जो भुगतान किया था, उसे हम HyperWhisper Cloud क्रेडिट में बदल देंगे — पूरी खरीद कीमत, उन $5 के क्रेडिट को घटाकर जो पहले ही आपके अकाउंट में जोड़े जा चुके हैं। <credits>हमें ईमेल करें</credits> और हम शेष राशि लागू कर देंगे।",
     "contributeHeading": "योगदान देना चाहते हैं?",
     "contributeBody": "बग रिपोर्ट, फ़ीचर के सुझाव और pull requests — सभी का स्वागत है। <github>GitHub पर</github> एक इश्यू खोलें या चर्चा शुरू करें।"
+  },
+  "linuxPage": {
+    "metaTitle": "HyperWhisper: Linux के लिए Wispr Flow का विकल्प",
+    "metaDescription": "Wispr Flow का कोई नेटिव Linux ऐप नहीं है। HyperWhisper का है: Ubuntu और Debian के लिए AI वॉइस डिक्टेशन, ऑफ़लाइन लोकल मॉडल, आपकी अपनी API कुंजियों और ग्लोबल शॉर्टकट के साथ।",
+    "eyebrow": "Linux के लिए HyperWhisper",
+    "heading": "HyperWhisper: Linux के लिए Wispr Flow का विकल्प",
+    "lead": "Wispr Flow का कोई नेटिव Linux ऐप नहीं है। HyperWhisper का है। स्वाभाविक रूप से बोलें और साफ़ टेक्स्ट पाएँ, जो आपके अपने कंप्यूटर पर ऑफ़लाइन या आपकी अपनी API कुंजी के साथ क्लाउड में ट्रांसक्राइब होता है।",
+    "downloadCta": ".deb डाउनलोड करें (v{version})",
+    "releaseNotes": "रिलीज़ नोट्स और चेकसम",
+    "requirementsShort": "x86_64 · Ubuntu 22.04+ / Debian 12+",
+    "installHeading": "एक कमांड में इंस्टॉल करें",
+    "installBody": "पैकेज डाउनलोड करें, फिर जिस फ़ोल्डर में वह है वहाँ से यह कमांड चलाएँ। apt ऐप और उसकी निर्भरताओं को एक साथ इंस्टॉल करता है।",
+    "installCommandLabel": "Debian इंस्टॉल कमांड",
+    "requirementsHeading": "आवश्यकताएँ",
+    "requirementArch": "एक x86_64 (amd64) कंप्यूटर",
+    "requirementDistro": "Ubuntu 22.04 या नया, या Debian 12 या नया",
+    "requirementDesktop": "सत्यापित डेस्कटॉप अनुभव के लिए GNOME या KDE Plasma",
+    "cudaHeading": "NVIDIA GPU है? CUDA जोड़ें",
+    "cudaBody": "लोकल Whisper और लोकल Gemma पोस्ट-प्रोसेसिंग को CUDA पर चलाने के लिए, उसी रिलीज़ से वैकल्पिक hyperwhisper-cuda पैकेज इंस्टॉल करें, जिसका वर्शन ऐप के वर्शन जैसा ही हो।",
+    "featuresHeading": "आपके Linux डेस्कटॉप के लिए बनाया गया",
+    "localHeading": "ऑफ़लाइन, ऑन-डिवाइस मॉडल",
+    "localBody": "एक लोकल मॉडल चुनें और ट्रांसक्रिप्शन पूरी तरह आपके कंप्यूटर पर चलता है, बिना इंटरनेट कनेक्शन के। Whisper CPU पर या Vulkan या CUDA के ज़रिए आपके GPU पर चलता है। Parakeet, Qwen3 ASR और Nemotron CPU पर चलते हैं। लोकल Gemma मॉडल आपके टेक्स्ट को ऑफ़लाइन भी साफ़ कर सकते हैं।",
+    "byokHeading": "अपनी API कुंजी इस्तेमाल करें",
+    "byokBody": "क्लाउड पसंद है? क्लाउड ट्रांसक्रिप्शन के लिए अपनी API कुंजी इस्तेमाल करें, जैसे Deepgram या ElevenLabs, और AI पोस्ट-प्रोसेसिंग के लिए, जैसे OpenAI, Anthropic, Groq या Gemini। या कुंजियों के बिना HyperWhisper Cloud इस्तेमाल करें, जितना इस्तेमाल उतना भुगतान।",
+    "languagesHeading": "40 इंटरफ़ेस भाषाएँ",
+    "languagesBody": "ऐप का इंटरफ़ेस 40 भाषाओं में उपलब्ध है, और Whisper मॉडल 100 से ज़्यादा भाषाओं को ट्रांसक्राइब करते हैं।",
+    "openSourceHeading": "ओपन सोर्स",
+    "openSourceBody": "HyperWhisper, Linux ऐप सहित, Apache-2.0 के तहत ओपन सोर्स है। हर पंक्ति GitHub पर पढ़ें।",
+    "hotkeysHeading": "X11 और Wayland पर ग्लोबल शॉर्टकट",
+    "hotkeysBody": "ग्लोबल शॉर्टकट X11 पर बिना किसी सेटअप के काम करते हैं। GNOME और KDE Plasma Wayland पर वे तब काम करते हैं जब आप hyperwhisper-input समूह में शामिल हो जाते हैं और लॉग आउट करके फिर से लॉग इन करते हैं। HyperWhisper कीबोर्ड को evdev के ज़रिए पढ़ता है, किसी डेस्कटॉप पोर्टल के ज़रिए नहीं।",
+    "hotkeysCommandLabel": "इनपुट समूह में शामिल हों",
+    "hotkeysFallback": "समूह के बिना भी ट्रांसक्रिप्शन काम करता है और नतीजा क्लिपबोर्ड पर रखा जाता है। ऑटोमैटिक पेस्ट के लिए भी समूह ज़रूरी है।",
+    "hotkeysDefault": "रिकॉर्डिंग शुरू और बंद करने के लिए Ctrl+Alt दबाएँ। आप हर शॉर्टकट को सेटिंग्स में बदल सकते हैं।",
+    "compareHeading": "Linux पर HyperWhisper या Wispr Flow?",
+    "compareBody": "Wispr Flow का कोई नेटिव Linux ऐप नहीं है। HyperWhisper आज ही एक नेटिव Linux ऐप देता है, Ubuntu और Debian के लिए .deb पैकेज के रूप में, अपने macOS और Windows ऐप के साथ।",
+    "faqHeading": "अक्सर पूछे जाने वाले प्रश्न",
+    "faqWisprQuestion": "क्या Linux के लिए Wispr Flow ऐप है?",
+    "faqWisprAnswer": "नहीं। Wispr Flow का कोई नेटिव Linux ऐप नहीं है। HyperWhisper Linux पर नेटिव रूप से चलता है, और macOS व Windows पर भी।",
+    "faqDistroQuestion": "कौन-से Linux डिस्ट्रीब्यूशन समर्थित हैं?",
+    "faqDistroAnswer": "x86_64 (amd64) पर Ubuntu 22.04 या नया और Debian 12 या नया। HyperWhisper एक .deb पैकेज के रूप में आता है। अन्य Debian-आधारित डिस्ट्रीब्यूशन काम कर सकते हैं, लेकिन वे सत्यापित रिलीज़ मैट्रिक्स का हिस्सा नहीं हैं।",
+    "faqOfflineQuestion": "क्या यह ऑफ़लाइन काम करता है?",
+    "faqOfflineAnswer": "हाँ। लोकल मॉडल के साथ, ट्रांसक्रिप्शन पूरी तरह आपके कंप्यूटर पर चलता है और इसके लिए किसी इंटरनेट कनेक्शन की ज़रूरत नहीं होती।",
+    "faqWaylandQuestion": "क्या ग्लोबल शॉर्टकट Wayland पर काम करते हैं?",
+    "faqWaylandAnswer": "GNOME और KDE Plasma Wayland पर, हाँ, जब आप hyperwhisper-input समूह में शामिल हो जाते हैं और लॉग आउट करके फिर से लॉग इन करते हैं। X11 पर वे बिना किसी सेटअप के काम करते हैं।",
+    "docsHeading": "पूरी जानकारी चाहिए?",
+    "docsBody": "Linux इंस्टॉलेशन गाइड में CUDA, इनपुट अनुमतियाँ, वैकल्पिक GNOME और KDE कंपैनियन, और अनइंस्टॉल करना शामिल है।",
+    "docsCta": "Linux इंस्टॉलेशन गाइड पढ़ें"
   },
   "openSourceBanner": {
     "text": "HyperWhisper अब पूरी तरह से ओपन सोर्स है",

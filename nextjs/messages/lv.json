@@ -16,7 +16,8 @@
       "switchTo": "Mainīt valodu"
     },
     "cloud": "Cloud",
-    "githubAria": "Skatīt HyperWhisper vietnē GitHub"
+    "githubAria": "Skatīt HyperWhisper vietnē GitHub",
+    "linux": "Linux"
   },
   "hero": {
     "logoAlt": "HyperWhisper logotips",
@@ -228,7 +229,8 @@
     "linuxInputGroupNote": "Pēc pievienošanās input grupai izrakstieties un pierakstieties vēlreiz. Dalība nav obligāta, taču tā nepieciešama globālajiem īsinājumtaustiņiem un automātiskai ielīmēšanai.",
     "aptTitle": "Mitiniet savu APT repozitoriju",
     "aptBody": "Linux laidienos ir iekļauts arī statisks APT repozitorija arhīvs. HyperWhisper pašlaik neuztur publisku APT galapunktu; informāciju par parakstītu, pašmitinātu iestatīšanu, darbvirsmas integrāciju, privātumu un noņemšanu skatiet Linux instalēšanas rokasgrāmatā.",
-    "linuxGuideCta": "Lasīt Linux instalēšanas rokasgrāmatu"
+    "linuxGuideCta": "Lasīt Linux instalēšanas rokasgrāmatu",
+    "learnMoreLinux": "Uzziniet vairāk par HyperWhisper Linux sistēmā"
   },
   "olderVersions": {
     "title": "Vecākas versijas",
@@ -276,7 +278,8 @@
       "privacyPolicy": "Privātuma politika",
       "termsOfService": "Lietošanas noteikumi",
       "refundPolicy": "Naudas atgriešanas politika",
-      "dataTraining": "Datu privātums"
+      "dataTraining": "Datu privātums",
+      "linux": "HyperWhisper Linux sistēmai"
     },
     "copyright": "© 2026 HyperWhisper. Visas tiesības aizsargātas.",
     "linkedinAria": "LinkedIn"
@@ -373,6 +376,53 @@
     "licenseOlder": "<strong>Iegādāts vairāk nekā pirms 30 dienām:</strong> mēs pārvērtīsim samaksāto summu HyperWhisper Cloud kredītos — pilnu pirkuma cenu, atskaitot $5 kredītos, kas jau pievienoti jūsu kontam. <credits>Rakstiet mums</credits>, un mēs ieskaitīsim atlikumu.",
     "contributeHeading": "Vēlaties piedalīties?",
     "contributeBody": "Kļūdu ziņojumi, funkciju idejas un pull request pieprasījumi ir laipni gaidīti. Atveriet problēmas pieteikumu vai sāciet diskusiju <github>vietnē GitHub</github>."
+  },
+  "linuxPage": {
+    "metaTitle": "HyperWhisper: Wispr Flow alternatīva Linux sistēmai",
+    "metaDescription": "Wispr Flow nav vietējās Linux lietotnes. HyperWhisper ir: AI balss diktēšana Ubuntu un Debian sistēmām ar bezsaistes lokālajiem modeļiem, jūsu API atslēgām un globālajiem īsinājumtaustiņiem.",
+    "eyebrow": "HyperWhisper Linux sistēmai",
+    "heading": "HyperWhisper: Wispr Flow alternatīva Linux sistēmai",
+    "lead": "Wispr Flow nav vietējās Linux lietotnes. HyperWhisper ir. Runājiet dabiski un saņemiet tīru tekstu, kas transkribēts bezsaistē jūsu datorā vai mākonī ar jūsu API atslēgu.",
+    "downloadCta": "Lejupielādēt .deb (v{version})",
+    "releaseNotes": "Laidiena piezīmes un kontrolsummas",
+    "requirementsShort": "x86_64 · Ubuntu 22.04+ / Debian 12+",
+    "installHeading": "Instalējiet ar vienu komandu",
+    "installBody": "Lejupielādējiet pakotni un pēc tam palaidiet šo komandu mapē, kurā tā atrodas. apt instalē lietotni kopā ar tās atkarībām.",
+    "installCommandLabel": "Debian instalēšanas komanda",
+    "requirementsHeading": "Prasības",
+    "requirementArch": "x86_64 (amd64) dators",
+    "requirementDistro": "Ubuntu 22.04 vai jaunāka, vai Debian 12 vai jaunāka",
+    "requirementDesktop": "GNOME vai KDE Plasma pārbaudītai darbvirsmas pieredzei",
+    "cudaHeading": "Ir NVIDIA GPU? Pievienojiet CUDA",
+    "cudaBody": "Instalējiet izvēles pakotni hyperwhisper-cuda no tā paša laidiena, ar to pašu versiju kā lietotnei, lai lokālais Whisper un lokālā Gemma pēcapstrāde darbotos ar CUDA.",
+    "featuresHeading": "Veidots jūsu Linux darbvirsmai",
+    "localHeading": "Bezsaistes modeļi ierīcē",
+    "localBody": "Izvēlieties lokālo modeli, un transkripcija notiek pilnībā jūsu datorā, bez interneta savienojuma. Whisper darbojas ar CPU vai ar jūsu GPU, izmantojot Vulkan vai CUDA. Parakeet, Qwen3 ASR un Nemotron darbojas ar CPU. Lokālie Gemma modeļi var arī sakārtot jūsu tekstu bezsaistē.",
+    "byokHeading": "Izmantojiet savu API atslēgu",
+    "byokBody": "Dodat priekšroku mākonim? Izmantojiet savu API atslēgu mākoņa transkripcijai, piemēram, Deepgram vai ElevenLabs, un AI pēcapstrādei, piemēram, OpenAI, Anthropic, Groq vai Gemini. Vai iztieciet bez atslēgām un izmantojiet HyperWhisper Cloud, maksājot tikai par lietošanu.",
+    "languagesHeading": "40 saskarnes valodas",
+    "languagesBody": "Lietotnes saskarne ir pieejama 40 valodās, un Whisper modeļi transkribē vairāk nekā 100 valodas.",
+    "openSourceHeading": "Atvērtais pirmkods",
+    "openSourceBody": "HyperWhisper ir atvērtā pirmkoda programma ar Apache-2.0 licenci, ieskaitot Linux lietotni. Izlasiet katru rindiņu GitHub.",
+    "hotkeysHeading": "Globālie īsinājumtaustiņi X11 un Wayland vidē",
+    "hotkeysBody": "Globālie īsinājumtaustiņi X11 vidē darbojas uzreiz. GNOME un KDE Plasma Wayland vidē tie darbojas pēc tam, kad pievienojaties grupai hyperwhisper-input, izrakstāties un atkal pierakstāties. HyperWhisper nolasa tastatūru caur evdev, nevis darbvirsmas portālu.",
+    "hotkeysCommandLabel": "Pievienojieties ievades grupai",
+    "hotkeysFallback": "Bez grupas transkripcija joprojām darbojas, un rezultāts tiek saglabāts starpliktuvē. Arī automātiskajai ielīmēšanai ir nepieciešama grupa.",
+    "hotkeysDefault": "Nospiediet Ctrl+Alt, lai sāktu un apturētu ierakstīšanu. Katru īsinājumtaustiņu varat mainīt iestatījumos.",
+    "compareHeading": "HyperWhisper vai Wispr Flow Linux sistēmā?",
+    "compareBody": "Wispr Flow nav vietējās Linux lietotnes. HyperWhisper jau šodien piedāvā vietējo Linux lietotni kā .deb pakotni Ubuntu un Debian sistēmām, līdzās lietotnēm macOS un Windows.",
+    "faqHeading": "Biežāk uzdotie jautājumi",
+    "faqWisprQuestion": "Vai ir Wispr Flow lietotne Linux sistēmai?",
+    "faqWisprAnswer": "Nē. Wispr Flow nav vietējās Linux lietotnes. HyperWhisper darbojas vietēji Linux, kā arī macOS un Windows sistēmās.",
+    "faqDistroQuestion": "Kuri Linux distributīvi tiek atbalstīti?",
+    "faqDistroAnswer": "Ubuntu 22.04 vai jaunāka un Debian 12 vai jaunāka, uz x86_64 (amd64). HyperWhisper tiek piegādāts kā .deb pakotne. Citi uz Debian balstīti distributīvi var darboties, taču tie nav iekļauti pārbaudīto laidienu matricā.",
+    "faqOfflineQuestion": "Vai tas darbojas bezsaistē?",
+    "faqOfflineAnswer": "Jā. Ar lokālo modeli transkripcija notiek pilnībā jūsu datorā, un interneta savienojums nav vajadzīgs.",
+    "faqWaylandQuestion": "Vai globālie īsinājumtaustiņi darbojas Wayland vidē?",
+    "faqWaylandAnswer": "GNOME un KDE Plasma Wayland vidē jā, pēc tam, kad pievienojaties grupai hyperwhisper-input, izrakstāties un atkal pierakstāties. X11 vidē tie darbojas uzreiz.",
+    "docsHeading": "Nepieciešama sīkāka informācija?",
+    "docsBody": "Linux instalēšanas rokasgrāmatā aprakstīta CUDA, ievades atļaujas, izvēles GNOME un KDE papildrīki un noņemšana.",
+    "docsCta": "Lasīt Linux instalēšanas rokasgrāmatu"
   },
   "openSourceBanner": {
     "text": "HyperWhisper tagad ir pilnībā atvērtā koda",
