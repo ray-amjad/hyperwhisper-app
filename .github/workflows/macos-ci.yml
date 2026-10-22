@@ -176,16 +176,40 @@ jobs:
       - name: Run unit tests
         run: |
           touch "$RUNNER_TEMP/hyperwhisper-test-start"
+          echo "THROWAWAY #2019 proof: 50x HomeStatsModelTests on the fix, under CPU stress"
+          ncpu=$(sysctl -n hw.ncpu); for i in $(seq $((ncpu*2))); do (yes > /dev/null &) ; done
+          set -o pipefail
           xcodebuild test-without-building \
             -project app/macos/hyperwhisper.xcodeproj \
             -scheme hyperwhisper \
             -configuration Debug \
             -destination "platform=macOS" \
-            -only-testing:hyperwhisperTests \
+            -only-testing:hyperwhisperTests/HomeStatsModelTests \
+            -test-iterations 50 \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            CODE_SIGN_ENTITLEMENTS=""
+            CODE_SIGN_ENTITLEMENTS="" 2>&1 | tee "$RUNNER_TEMP/after.log" | grep -E "HomeStatsModelTests|Executed|TEST |iteration" || true
+          echo "AFTER: passed=$(grep -c "HomeStatsModelTests/.*passed" "$RUNNER_TEMP/after.log") failed=$(grep -c "HomeStatsModelTests/.*failed" "$RUNNER_TEMP/after.log")"
+          echo "BEFORE: rebuilding with main's test file"
+          git fetch -q origin main
+          git show origin/main:app/macos/hyperwhisperTests/HomeStatsModelTests.swift > app/macos/hyperwhisperTests/HomeStatsModelTests.swift
+          xcodebuild build-for-testing -project app/macos/hyperwhisper.xcodeproj -scheme hyperwhisper -configuration Debug -destination "platform=macOS" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS="" -quiet || true
+          xcodebuild test-without-building \
+            -project app/macos/hyperwhisper.xcodeproj \
+            -scheme hyperwhisper \
+            -configuration Debug \
+            -destination "platform=macOS" \
+            -only-testing:hyperwhisperTests/HomeStatsModelTests \
+            -test-iterations 50 \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" > "$RUNNER_TEMP/before.log" 2>&1 || true
+          grep -E "HomeStatsModelTests/.*failed|Expectation failed|recorded an issue" "$RUNNER_TEMP/before.log" | head -40 || true
+          echo "BEFORE: passed=$(grep -c "HomeStatsModelTests/.*passed" "$RUNNER_TEMP/before.log") failed=$(grep -c "HomeStatsModelTests/.*failed" "$RUNNER_TEMP/before.log")"
+          killall yes || true
+          grep -q "HomeStatsModelTests/.*failed" "$RUNNER_TEMP/after.log" && exit 1 || exit 0
 
       # A macOS unit test runs INSIDE the app. When the app aborts, XCTest
       # reports the test that happened to be running as a bare failure in
