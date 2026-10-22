@@ -381,9 +381,9 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                 onClick={() => setByModel((open) => !open)}
               >
                 {byModel ? (
-                  <ChevronDown className="h-3.5 w-3.5" />
+                  <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} />
                 ) : (
-                  <ChevronRight className="h-3.5 w-3.5" />
+                  <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
                 )}
                 Break down by model
               </button>
@@ -427,7 +427,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
           {/* Region highlight */}
           <div className="mt-6 text-sm">
             <div className="flex flex-wrap items-center gap-3">
-              <MapPin className="h-4 w-4 text-purple-300" />
+              <MapPin className="h-4 w-4 text-purple-300" strokeWidth={1.5} />
               {activeHomeRegion ? (
                 <span className="text-gray-300">
                   Showing{" "}
