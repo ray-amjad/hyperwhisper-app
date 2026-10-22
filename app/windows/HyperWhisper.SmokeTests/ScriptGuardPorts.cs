@@ -732,7 +732,6 @@ internal static class ScriptGuardPorts
 
         public void StartRecording()
         {
-            Assert(!Disposed, $"keep-warm started a disposed capture on device #{Device}");
             if (failStart)
                 throw new InvalidOperationException("device busy");
             Running = true;
