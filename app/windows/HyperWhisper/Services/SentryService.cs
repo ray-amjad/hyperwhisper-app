@@ -577,8 +577,8 @@ public static class SentryService
     /// <c>C:\Users\bob\Documents\...</c>, and the local-app-data rule is the only one
     /// that catches a local-app-data directory redirected to another drive. That
     /// directory is read from the environment rather than from the special-folder
-    /// API, because only <c>AppPaths</c> may read that special folder (see
-    /// <c>scripts/verify_isolated_app_profile_paths.ps1</c>).
+    /// API, because <c>AppPaths</c> owns that special folder (it applies the
+    /// isolated-profile override).
     /// </para>
     /// <para>
     /// This deliberately does NOT do what <c>TelemetryPrivacy.SanitizeException</c>

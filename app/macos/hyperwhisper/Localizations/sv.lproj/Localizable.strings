@@ -709,6 +709,7 @@ Redigera dessa lägen för att välja en annan modell innan du tar bort den.";
 "modes.header.create" = "Skapa läge";
 "modes.name.unnamed" = "Namnlös";
 "modes.badge.offline" = "Offline";
+"modes.badge.modelMissing" = "Modell saknas";
 "modes.context.select" = "Välj";
 "modes.help.edit" = "Redigera lägeinställningar";
 "modes.help.preset" = "Lär dig mer om denna förinställning";

@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useState,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  type ReactNode,
-} from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
@@ -15,43 +9,9 @@ import { withoutAccountKeyParams } from "@/src/lib/account-key-redaction";
 import { sanitizeReturnTo } from "@/src/lib/license-key-redirect";
 import { isRecord } from "@/src/lib/type-guards";
 import { reportClientError } from "@/lib/shared/report-client-error";
+import { ErrorReveal, shake } from "@/components/ErrorReveal";
 
 type Tab = "license-key" | "email";
-
-/**
- * #749: a form error reveals instead of mounting at full size in one frame.
- * The wrapper is always in the DOM (`.t-error-reveal` in globals.css); the
- * `role="alert"` banner inside it still mounts with its message, so the
- * screen-reader path is the one #760 built. `gap` is the space the parent's
- * `space-y-*` gave the banner: the wrapper drops that margin (`mb-0`) and
- * carries it as padding inside the clip, so a closed wrapper takes no space.
- */
-function ErrorReveal({ gap, children }: { gap: string; children: ReactNode }) {
-  return (
-    <div className="t-error-reveal mb-0" data-open={children ? "" : undefined}>
-      <div>
-        <div className={gap}>{children}</div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * #749: shake the field a failed submit is about. Removing the class and
- * forcing a reflow before adding it back is what replays the shake on a
- * second failure; the class goes when the animation ends.
- */
-function shake(element: HTMLElement | null) {
-  if (!element) return;
-  element.classList.remove("is-shaking");
-  void element.offsetWidth;
-  element.classList.add("is-shaking");
-  element.addEventListener(
-    "animationend",
-    () => element.classList.remove("is-shaking"),
-    { once: true },
-  );
-}
 
 /**
  * The codes Better Auth's `/magic-link/verify` puts on `?error=` when the link

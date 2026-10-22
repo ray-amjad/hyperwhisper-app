@@ -42,25 +42,13 @@
  * the real HeroUI Input passes that attribute to the <input> unchanged.
  */
 import assert from "node:assert/strict";
-import test, { beforeEach, mock } from "node:test";
+import test, { beforeEach } from "node:test";
 import { pathToFileURL } from "node:url";
 import { createElement, type ReactElement } from "react";
 import * as realJsxRuntime from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Same narrowed shape the other mock.module tests here use.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports?: Record<string, unknown> },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+import { moduleMock } from "./module-mock";
 
 interface InputProps {
   type?: string;

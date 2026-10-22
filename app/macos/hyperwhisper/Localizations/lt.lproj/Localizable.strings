@@ -709,6 +709,7 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 "modes.header.create" = "Sukurti režimą";
 "modes.name.unnamed" = "Nevardintas";
 "modes.badge.offline" = "Neprisijungęs";
+"modes.badge.modelMissing" = "Trūksta modelio";
 "modes.context.select" = "Pasirinkti";
 "modes.help.edit" = "Redaguoti režimo nustatymus";
 "modes.help.preset" = "Sužinoti daugiau apie šią šabloną";

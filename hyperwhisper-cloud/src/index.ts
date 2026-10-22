@@ -21,6 +21,10 @@ import { drainPendingLatencyReports } from './lib/latency-report';
 import { ipRateLimit } from './middleware/rate-limit';
 import { MAX_AUDIO_SIZE_BYTES } from './lib/constants';
 import { toRedactedLogLine } from './lib/log-redaction';
+import { captureServerError, flushErrorTracking, initErrorTracking } from './lib/error-tracking';
+
+// Server error tracking (#2013): a no-op unless SENTRY_DSN is set.
+initErrorTracking();
 
 const app = new Hono();
 
@@ -111,6 +115,7 @@ export function unhandledErrorLogFields(err: unknown): { errorName: string; mess
 app.onError((err, c) => {
   const errorId = crypto.randomUUID();
   console.error(`Unhandled error [${errorId}]:`, JSON.stringify(unhandledErrorLogFields(err)));
+  captureServerError(err, { errorId, route: c.req.routePath, method: c.req.method });
   return c.json({
     error: 'Internal server error',
     message: 'An unexpected error occurred. Please try again.',
@@ -155,6 +160,8 @@ async function gracefulShutdown(signal: string): Promise<void> {
     drainPendingDeductions(SHUTDOWN_DRAIN_MS),
     drainPendingLatencyReports(SHUTDOWN_DRAIN_MS),
     drainPendingHoldReleases(SHUTDOWN_DRAIN_MS),
+    // Error events still queued for Sentry; a no-op with no DSN.
+    flushErrorTracking(2_000),
   ]);
   if (drained > 0) {
     console.log('machine.shutdown_drained_deductions', { count: drained });
