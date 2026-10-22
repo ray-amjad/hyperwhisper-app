@@ -19,6 +19,7 @@ import { ICON_SWAP } from "@/lib/icon-swap";
 import { isMobileDevice } from "@/src/lib/mobile-device";
 import { isRecord } from "@/src/lib/type-guards";
 import { reportClientError } from "@/lib/shared/report-client-error";
+import { Link } from "@/src/i18n/navigation";
 
 type Platform = "mac" | "windows" | "linux";
 
@@ -458,6 +459,12 @@ export default function DownloadPage() {
                   >
                     {t("linuxReleaseNotes")}
                   </a>
+                  <Link
+                    className="text-sm text-purple-400 underline underline-offset-4 transition-colors hover:text-purple-300"
+                    href="/linux"
+                  >
+                    {t("learnMoreLinux")}
+                  </Link>
                 </div>
               ) : (
                 <Button
