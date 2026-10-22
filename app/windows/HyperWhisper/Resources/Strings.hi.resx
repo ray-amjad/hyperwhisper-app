@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>यह डिफ़ॉल्ट मोड है, इसलिए इसका नाम नहीं बदला जा सकता। आप किसी भी अन्य मोड का नाम बदल सकते हैं।</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>इस नाम का मोड पहले से मौजूद है।</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>

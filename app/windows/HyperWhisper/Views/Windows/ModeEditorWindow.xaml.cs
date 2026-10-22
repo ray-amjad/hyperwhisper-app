@@ -20,6 +20,12 @@ public partial class ModeEditorWindow : Window
     private bool _isUpdatingCloudModels;
     private bool _isUpdatingCloudTierModels;
 
+    // Name-taken check (issue #2478). _storedName is the edited mode's name as
+    // stored (null when creating); _otherModeNames is every OTHER mode's name,
+    // read once on load.
+    private readonly string? _storedName;
+    private List<string> _otherModeNames = [];
+
     public ModeEditorWindow(Mode mode)
     {
         InitializeComponent();
@@ -27,6 +33,7 @@ public partial class ModeEditorWindow : Window
         WindowWorkAreaFit.Attach(this);
         _mode = mode;
         _isCreateMode = false;
+        _storedName = mode.Name;
 
         ApplyDefaultModeNameLock();
         Loaded += OnLoaded;
@@ -90,6 +97,11 @@ public partial class ModeEditorWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        _otherModeNames = ModeService.Instance.GetAllModes()
+            .Where(m => m.Id != _mode.Id)
+            .Select(m => m.Name)
+            .ToList();
+
         // Configure UI for ARM64 architecture before loading data
         ConfigureForArchitecture();
 
@@ -352,10 +364,20 @@ public partial class ModeEditorWindow : Window
         return language != null && support.Codes.Contains(language);
     }
 
+    /// <summary>
+    /// Whether another mode already uses the typed name (issue #2478), by the
+    /// rule the Local API's MODE_NAME_TAKEN and the macOS editor use.
+    /// </summary>
+    private bool IsModeNameTaken() =>
+        ModeNameRules.IsTaken(ModeNameBox.Text, _storedName, _otherModeNames);
+
     private void UpdateSaveButtonState()
     {
-        // Name is required
-        if (string.IsNullOrWhiteSpace(ModeNameBox.Text) || !HasValidDictationLanguage())
+        var nameTaken = IsModeNameTaken();
+        ModeNameTakenHint.Visibility = nameTaken ? Visibility.Visible : Visibility.Collapsed;
+
+        // Name is required, and no other mode may already use it
+        if (string.IsNullOrWhiteSpace(ModeNameBox.Text) || nameTaken || !HasValidDictationLanguage())
         {
             SaveModeButton.IsEnabled = false;
             return;
@@ -1770,6 +1792,12 @@ public partial class ModeEditorWindow : Window
         if (!HasValidDictationLanguage())
         {
             LanguageCombo.Focus();
+            return;
+        }
+
+        if (IsModeNameTaken())
+        {
+            ModeNameBox.Focus();
             return;
         }
 

@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Il s'agit du mode par défaut, son nom ne peut donc pas être modifié. Vous pouvez renommer tout autre mode.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Un mode portant ce nom existe déjà.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Fournisseur</value>
   </data>

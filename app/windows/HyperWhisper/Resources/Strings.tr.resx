@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Bu varsayılan moddur, bu nedenle adı değiştirilemez. Diğer tüm modları yeniden adlandırabilirsiniz.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Bu ada sahip bir mod zaten var.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Sağlayıcı</value>
   </data>

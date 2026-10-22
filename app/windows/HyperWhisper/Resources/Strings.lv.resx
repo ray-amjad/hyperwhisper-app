@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Šis ir noklusējuma režīms, tāpēc tā nosaukumu nevar mainīt. Jebkuru citu režīmu var pārdēvēt.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Režīms ar šādu nosaukumu jau pastāv.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
