@@ -50,7 +50,7 @@ body {
    later one, and any layer beats unlayered CSS. Tailwind declares
    "theme, base, components, utilities", so HeroUI's !duration-* utilities
    (@layer utilities, !important) beat an unlayered guard but lose to this one.
-   The two normal rules above stay unlayered, where a normal rule wins. */
+   The normal rule above stays unlayered, where a normal rule wins. */
 @layer base {
   @media (prefers-reduced-motion: reduce) {
     *,
