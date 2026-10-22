@@ -115,12 +115,30 @@ public sealed class StreamingAudioCapture : IDisposable
         }
     }
 
+    // One bad subscriber must not break the others or the NAudio capture thread (app/windows/CLAUDE.md).
+    private void RaiseBlockPeak(double peakDbfs)
+    {
+        if (BlockPeakDbfs is not { } handlers)
+            return;
+        foreach (var handler in handlers.GetInvocationList())
+        {
+            try
+            {
+                ((Action<double>)handler)(peakDbfs);
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Warn($"{nameof(BlockPeakDbfs)} subscriber failed - {ex.Message}");
+            }
+        }
+    }
+
     private void OnDataAvailable(object? sender, WaveInEventArgs e)
     {
         if (!IsCapturing || e.BytesRecorded <= 0)
             return;
 
-        BlockPeakDbfs?.Invoke(AudioBlockPeak.Pcm16Dbfs(e.Buffer.AsSpan(0, e.BytesRecorded)));
+        RaiseBlockPeak(AudioBlockPeak.Pcm16Dbfs(e.Buffer.AsSpan(0, e.BytesRecorded)));
 
         var chunk = _captureChannelCount > 2
             ? MixToMono(e.Buffer, e.BytesRecorded, _captureChannelCount)

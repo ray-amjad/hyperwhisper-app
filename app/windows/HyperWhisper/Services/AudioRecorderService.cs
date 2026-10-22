@@ -230,7 +230,25 @@ public class AudioRecorderService : IDisposable
         AudioLevelChanged?.Invoke(_displayedLevel);
 
         if (e.BytesRecorded > 0)
-            BlockPeakDbfs?.Invoke(AudioBlockPeak.Pcm16Dbfs(e.Buffer.AsSpan(0, e.BytesRecorded)));
+            RaiseBlockPeak(AudioBlockPeak.Pcm16Dbfs(e.Buffer.AsSpan(0, e.BytesRecorded)));
+    }
+
+    // One bad subscriber must not break the others or the NAudio capture thread (app/windows/CLAUDE.md).
+    private void RaiseBlockPeak(double peakDbfs)
+    {
+        if (BlockPeakDbfs is not { } handlers)
+            return;
+        foreach (var handler in handlers.GetInvocationList())
+        {
+            try
+            {
+                ((Action<double>)handler)(peakDbfs);
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Warn($"{nameof(BlockPeakDbfs)} subscriber failed - {ex.Message}");
+            }
+        }
     }
 
     private void OnRecordingStopped(object? sender, StoppedEventArgs e)
