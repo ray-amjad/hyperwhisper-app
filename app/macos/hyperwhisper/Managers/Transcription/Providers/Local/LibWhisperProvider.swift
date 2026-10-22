@@ -82,7 +82,7 @@ class LibWhisperProvider: TranscriptionProvider {
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "LibWhisperProvider")
     
     /// Current transcription task
-    private var transcriptionTask: Task<String, Error>?
+    private var transcriptionTask: Task<TranscriptionOutcome, Error>?
     
     /// Pending model to load (set by setModel, loaded on transcribe)
     private var pendingModel: WhisperModel?
@@ -100,10 +100,8 @@ class LibWhisperProvider: TranscriptionProvider {
     /// Empty = text only (default; zero extra cost).
     private var requestedGranularities: TimestampGranularities = []
 
-    /// Timestamps from the most recent transcribe(...) call, or nil when none
-    /// were requested or the run produced no kept text. Read after the awaited
-    /// transcribe(...) returns (serialized API path — see R5 in the plan).
-    private(set) var lastTimestamps: TranscriptionTimestamps?
+    // A pass's timestamps are returned in its `TranscriptionOutcome`, never
+    // stored on this shared instance (#754).
 
     // MARK: - Initialization
     
@@ -265,24 +263,25 @@ class LibWhisperProvider: TranscriptionProvider {
     ///   - vocabulary: Custom vocabulary list
     /// - Returns: Transcribed text
     func transcribe(audioURL: URL, language: String?, mode: Mode?, vocabulary: [Vocabulary]) async throws -> String {
+        try await transcribeDetailed(audioURL: audioURL, language: language, mode: mode, vocabulary: vocabulary).text
+    }
+
+    /// The in-app pass, with THIS pass's timestamps (nil when none were armed
+    /// through `setTimestampGranularities` or the run kept no text). whisper.cpp
+    /// reports no detected language here, so `detectedLanguage` stays nil, as
+    /// the protocol default always returned.
+    func transcribeDetailed(audioURL: URL, language: String?, mode: Mode?, vocabulary: [Vocabulary]) async throws -> TranscriptionOutcome {
         // An in-app pass starts at once and supersedes whatever is running,
         // Local API passes included: the latest in-app request wins (#1425).
         await passGate.begin()
         do {
-            let text = try await performTranscribe(audioURL: audioURL, language: language, vocabulary: vocabulary, requiredModel: nil)
+            let outcome = try await performTranscribe(audioURL: audioURL, language: language, vocabulary: vocabulary, requiredModel: nil)
             await passGate.end()
-            return text
+            return outcome
         } catch {
             await passGate.end()
             throw error
         }
-    }
-
-    /// What one Local API pass produced, read before the queue moves on.
-    struct LocalAPIPassResult {
-        let text: String
-        let timestamps: TranscriptionTimestamps?
-        let detectedLanguage: String?
     }
 
     /// One Local API `/transcribe` pass, queued behind every earlier Local API
@@ -305,13 +304,14 @@ class LibWhisperProvider: TranscriptionProvider {
         language: String?,
         vocabulary: [Vocabulary],
         granularities: TimestampGranularities
-    ) async throws -> LocalAPIPassResult {
-        try await localAPIQueue.withLock { () async throws -> LocalAPIPassResult in
+    ) async throws -> TranscriptionOutcome {
+        try await localAPIQueue.withLock { () async throws -> TranscriptionOutcome in
             await self.passGate.beginWhenIdle()
             do {
                 self.requestedGranularities = granularities
-                let text = try await self.performTranscribe(audioURL: audioURL, language: language, vocabulary: vocabulary, requiredModel: model)
-                let result = LocalAPIPassResult(text: text, timestamps: self.lastTimestamps, detectedLanguage: self.detectedLanguage)
+                // The pass's own outcome: its timestamps travel with it, so
+                // nothing is read back off the shared instance (#754).
+                let result = try await self.performTranscribe(audioURL: audioURL, language: language, vocabulary: vocabulary, requiredModel: model)
                 await self.passGate.end()
                 return result
             } catch {
@@ -339,9 +339,7 @@ class LibWhisperProvider: TranscriptionProvider {
 
     /// The body of a pass. `requiredModel` is set only by the Local API, which
     /// loads its own model instead of the one `setModel` staged.
-    private func performTranscribe(audioURL: URL, language: String?, vocabulary: [Vocabulary], requiredModel: WhisperModel?) async throws -> String {
-        // Reset any timestamps from a previous run; only the kept run below sets them.
-        lastTimestamps = nil
+    private func performTranscribe(audioURL: URL, language: String?, vocabulary: [Vocabulary], requiredModel: WhisperModel?) async throws -> TranscriptionOutcome {
         // Snapshot the requested granularities for this run, then clear so they
         // don't leak into the next call on this shared provider instance — each
         // call must re-arm via setTimestampGranularities (matches "arm next call").
@@ -452,7 +450,7 @@ class LibWhisperProvider: TranscriptionProvider {
         logger.info("Starting transcription with model: \(self.currentModel?.name ?? "unknown")")
 
         // Create new transcription task
-        let task = Task<String, Error> {
+        let task = Task<TranscriptionOutcome, Error> {
             try Task.checkCancellation()
 
             // Load and convert audio to required format
@@ -491,8 +489,8 @@ class LibWhisperProvider: TranscriptionProvider {
             // When timestamps are requested, read text + timings together from the
             // same whisper run so the captured timings always belong to the *kept*
             // text (handles the empty-output retries below). Otherwise use the
-            // byte-identical text-only path. Captured timestamps are committed to
-            // `self.lastTimestamps` only after a non-empty result survives.
+            // byte-identical text-only path. Captured timestamps are returned in
+            // this pass's outcome only after a non-empty result survives.
             var capturedTimed: TranscriptionTimestamps?
             func readKeptText() async -> String {
                 guard wantTimestamps else {
@@ -568,18 +566,16 @@ class LibWhisperProvider: TranscriptionProvider {
 
             if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 logger.info("🔇 Whisper output remained empty after retries")
-                // No-speech: leave lastTimestamps nil (graceful omission).
+                // No-speech: no outcome, so no timestamps (graceful omission).
                 throw TranscriptionError.noSpeechDetected
             }
-
-            // Commit timings from the run that produced the kept text.
-            self.lastTimestamps = capturedTimed
 
             // PRIVACY: Never log transcript content - only metadata
             // This ensures user speech is never exposed in system logs or diagnostics
             logger.info("Transcription completed - length: \(text.count, privacy: .public) chars")
 
-            return text
+            // Timings from the run that produced the kept text, returned with it.
+            return TranscriptionOutcome(text: text, timestamps: capturedTimed)
         }
         
         transcriptionTask = task
@@ -608,7 +604,6 @@ class LibWhisperProvider: TranscriptionProvider {
             // answer with the cancellation, not a transcript (issue #1465).
             if task.isCancelled || cancellationEpoch != epoch {
                 logger.info("Transcription cancelled during decode; result discarded")
-                lastTimestamps = nil
                 throw TranscriptionError.streamingInterrupted
             }
             return output

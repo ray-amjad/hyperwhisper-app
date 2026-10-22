@@ -709,6 +709,7 @@ Editează acele moduri pentru a selecta un alt model înainte de a-l elimina.";
 "modes.header.create" = "Creați modul";
 "modes.name.unnamed" = "Fără nume";
 "modes.badge.offline" = "Offline";
+"modes.badge.modelMissing" = "Model lipsă";
 "modes.context.select" = "Selectați";
 "modes.help.edit" = "Editați setări mod";
 "modes.help.preset" = "Aflați mai multe despre acest preset";

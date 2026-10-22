@@ -210,7 +210,7 @@ Both models accept only **WAV, MP3, FLAC**. Anything else (m4a, mp4, webm, opus,
 
 Upload cap: 300 MB. Larger payloads throw `AudioTooLargeError('Azure MAI', ...)` at entry → HTTP 413.
 
-`azure-mai` is a **self-only fallback chain** — no silent substitution to Deepgram/Groq. A 5xx surfaces as 502 with the upstream error preserved.
+`azure-mai` is a **self-only fallback chain** — no silent substitution to Deepgram/Groq. A 5xx surfaces as 502 with a fixed "<provider> is currently unavailable" message; the upstream error goes only to the `transcribe.request_fail` log (#2131).
 
 Ref: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/mai-transcribe
 </important>
