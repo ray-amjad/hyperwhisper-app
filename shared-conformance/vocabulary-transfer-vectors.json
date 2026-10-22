@@ -74,6 +74,17 @@
       "skipped": 0
     },
     {
+      "name": "blank rows before the header are ignored, then the header is found",
+      "input": "\r\n , \r\nword,replacement\r\nfoo,bar\r\n",
+      "expected": [
+        {
+          "word": "foo",
+          "replacement": "bar"
+        }
+      ],
+      "skipped": 0
+    },
+    {
       "name": "one-column file of multi-word terms",
       "input": "word\nNew York City\nSan Francisco\n",
       "expected": [
@@ -153,6 +164,21 @@
         {
           "word": "beta gamma",
           "replacement": null
+        }
+      ],
+      "skipped": 0
+    },
+    {
+      "name": "lone CR line endings",
+      "input": "a\tA\rb\tB\r",
+      "expected": [
+        {
+          "word": "a",
+          "replacement": "A"
+        },
+        {
+          "word": "b",
+          "replacement": "B"
         }
       ],
       "skipped": 0

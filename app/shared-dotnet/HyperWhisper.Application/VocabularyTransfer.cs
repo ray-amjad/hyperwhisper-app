@@ -124,7 +124,8 @@ public static class VocabularyTransfer
     public static VocabularyTransferParse ReadCsv(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
-        var rows = ParseCsvRows(StripBom(text));
+        // Blank rows go first, so a blank line above the header still finds the header (as macOS).
+        var rows = ParseCsvRows(StripBom(text)).Where(fields => !fields.All(string.IsNullOrWhiteSpace)).ToList();
         var builder = new EntryBuilder();
         for (var index = 0; index < rows.Count; index++)
         {
@@ -139,7 +140,8 @@ public static class VocabularyTransfer
     {
         ArgumentNullException.ThrowIfNull(text);
         var builder = new EntryBuilder();
-        foreach (var line in StripBom(text).Replace("\r\n", "\n").Split('\n'))
+        // LF, CRLF and a lone CR each end a line, as in the CSV reader and on macOS.
+        foreach (var line in StripBom(text).Split(TxtLineBreaks, StringSplitOptions.None))
         {
             var tab = line.IndexOf('\t');
             if (tab < 0) builder.Add(line, null);
@@ -147,6 +149,8 @@ public static class VocabularyTransfer
         }
         return builder.Build();
     }
+
+    private static readonly string[] TxtLineBreaks = ["\r\n", "\r", "\n"];
 
     private static string StripBom(string text) => text.Length > 0 && text[0] == '﻿' ? text[1..] : text;
 
