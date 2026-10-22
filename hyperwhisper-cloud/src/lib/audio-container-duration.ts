@@ -176,7 +176,7 @@ function wavDuration(b: Uint8Array): number | undefined {
 // ---------------------------------------------------------------------------
 // OGG: walk every page and reassemble packet boundaries from the lacing values.
 // Opus: sum each audio packet's TOC-declared frames, which is exactly what a
-// decoder plays, minus the pre-skip. Vorbis: the last granule over the sample
+// decoder plays, minus the pre-skip (no packet counted: unknown, never the granule). Vorbis: the last granule over the sample
 // rate, but never less than one short block per audio packet. Every logical
 // stream is summed (chained files); a stream of any other codec makes the whole
 // file unknown, because the bytes it carries might be the audio.
@@ -221,11 +221,14 @@ function oggDuration(b: Uint8Array): number | undefined {
 
   const finish = (stream: OggStream) => {
     if (stream.codec === 'opus') {
+      // Only counted packets: with none, the granule is all there is, and it
+      // is the uploader's to write, so the stream is unknown instead.
+      if (stream.opusSamples === 0) {
+        unknown = true;
+        return;
+      }
       sawAudio = true;
-      const samples = stream.opusSamples > 0
-        ? stream.opusSamples
-        : Math.max(0, stream.lastGranule);
-      totalSeconds += Math.max(0, samples - stream.preSkip) / 48_000;
+      totalSeconds += Math.max(0, stream.opusSamples - stream.preSkip) / 48_000;
     } else if (stream.codec === 'vorbis') {
       sawAudio = true;
       const granuleSamples = Math.max(0, stream.lastGranule);
@@ -352,8 +355,8 @@ function findOggS(b: Uint8Array, from: number): number {
 
 // ---------------------------------------------------------------------------
 // FLAC: count the samples of every frame whose header passes its CRC-8, which
-// is what a decoder plays. STREAMINFO's declared total is used only when no
-// frame can be read. A false sync inside frame data has to pass the CRC too
+// is what a decoder plays. STREAMINFO's declared total is never used: when no
+// frame verifies, the duration is unknown (the caller's 8 kbps fallback). A false sync inside frame data has to pass the CRC too
 // (about one in 50 million bytes), and it can only over-count.
 
 const FLAC_MAX_HEADER_BYTES = 16;
@@ -411,7 +414,6 @@ function flacFrameSamples(b: Uint8Array, p: number): number | undefined {
 function flacDuration(b: Uint8Array, start: number): number | undefined {
   let offset = start + 4;
   let sampleRate = 0;
-  let declaredSamples = 0;
   // Metadata blocks: each advances at least 4 bytes.
   while (offset + 4 <= b.length) {
     const header = b[offset];
@@ -419,7 +421,6 @@ function flacDuration(b: Uint8Array, start: number): number | undefined {
     if ((header & 0x7F) === 0 && length >= 34) {
       const info = offset + 4;
       sampleRate = (u8(b, info + 10) << 12) | (u8(b, info + 11) << 4) | (u8(b, info + 12) >> 4);
-      declaredSamples = (u8(b, info + 13) & 0x0F) * 2 ** 32 + u32be(b, info + 14);
     }
     offset += 4 + length;
     if (header & 0x80) break;
@@ -442,8 +443,9 @@ function flacDuration(b: Uint8Array, start: number): number | undefined {
       candidate += 5;
     }
   }
-  const samples = counted > 0 ? counted : declaredSamples;
-  return samples > 0 ? samples / sampleRate : undefined;
+  // No verified frame means nothing was measured: STREAMINFO's total is the
+  // uploader's to write, so it is never used on its own.
+  return counted > 0 ? counted / sampleRate : undefined;
 }
 
 // ---------------------------------------------------------------------------

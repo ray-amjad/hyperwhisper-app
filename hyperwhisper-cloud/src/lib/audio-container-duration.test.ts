@@ -138,6 +138,37 @@ describe('readAudioContainerDuration: tampered headers', () => {
     expect(durationOf(audio)).toBe(3);
   });
 
+  test('FLAC with no verifiable frame is unknown, not STREAMINFO\'s declared total', () => {
+    const audio = fixture('flac-silence-3s.flac');
+    const bytes = new Uint8Array(audio);
+    // Keep fLaC + STREAMINFO (4 + 4 + 34 bytes), zero every frame after it.
+    bytes.fill(0, 42);
+    // Declare a single sample.
+    bytes[8 + 13] &= 0xF0;
+    new DataView(audio).setUint32(8 + 14, 1);
+    expect(readAudioContainerDuration(audio)).toMatchObject({ container: 'flac', durationSeconds: undefined });
+  });
+
+  test('Ogg Opus with no countable packet is unknown, not the last granule', () => {
+    // Every audio packet is an invalid code-3 packet (no frame-count byte), so
+    // none is counted; the granules claim one second.
+    const pages = opusStreamPages({ seconds: 600, granule: () => 48_000 });
+    const audio = new Uint8Array(concat(pages));
+    let offset = 0;
+    for (const [index, page] of pages.entries()) {
+      if (index >= 2) {
+        const segments = page[26];
+        let body = offset + 27 + segments;
+        for (let segment = 0; segment < segments; segment++) {
+          audio[body] |= 3;
+          body += page[27 + segment];
+        }
+      }
+      offset += page.length;
+    }
+    expect(readAudioContainerDuration(audio.buffer)).toMatchObject({ container: 'ogg', durationSeconds: undefined });
+  });
+
   test('an M4A whose stts and mdhd claim a millisecond is measured by its AAC frames', () => {
     const audio = fixture('aac-16kbps-moov-last-3s.m4a');
     const bytes = new Uint8Array(audio);
