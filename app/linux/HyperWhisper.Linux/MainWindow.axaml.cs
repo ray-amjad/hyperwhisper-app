@@ -2526,6 +2526,11 @@ public partial class MainWindow : Window
         try
         {
             _viewModel.Navigate(pageId);
+            // Leaving Vocabulary ends an unsaved edit the way Cancel does. The edit used to
+            // survive the round trip with the row still hidden and still Selected while the pill
+            // showed "Add word" again, so the next add silently overwrote that row (#2323).
+            if (_currentPageId == "vocabulary" && pageId != "vocabulary" && _vocabularyEditingItem is not null)
+                OnVocabularyCancelEdit(this, new RoutedEventArgs());
             _currentPageId = pageId;
             UpdatePlatformNotice();
             var inSettings = Array.IndexOf(SettingsFamily, pageId) >= 0;
