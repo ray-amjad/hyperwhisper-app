@@ -7,21 +7,20 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithGroq } from './groq';
 import { EmptyTranscriptError, ProviderInputError, ProviderUnavailableError } from './types';
 import { captureNoSpeechEvent } from './test-support';
+import { stubEnv } from '../test-support/env';
 
 const originalFetch = globalThis.fetch;
-let savedKey: string | undefined;
+let restoreKey: () => void;
 
 const audio = (bytes = 1_000) => new ArrayBuffer(bytes);
 
 beforeEach(() => {
-  savedKey = process.env.GROQ_API_KEY;
-  process.env.GROQ_API_KEY = 'test-key';
+  restoreKey = stubEnv('GROQ_API_KEY', 'test-key');
 });
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  if (savedKey === undefined) delete process.env.GROQ_API_KEY;
-  else process.env.GROQ_API_KEY = savedKey;
+  restoreKey();
 });
 
 function captureRequest(body: unknown) {

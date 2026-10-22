@@ -19,6 +19,7 @@ import {
 import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
 import { readUpstreamError } from './upstream-error';
 import type { TranscriptionResult } from './types';
+import { saveEnv } from '../test-support/env';
 
 describe('computeUploadTimeoutMs (size-scaled audio-upload budget)', () => {
   test('small payloads get the 30s floor', () => {
@@ -170,12 +171,11 @@ describe('audioExtensionFromContentType (multipart filename extension)', () => {
 });
 
 const originalFetch = globalThis.fetch;
-const originalTimeoutEnv = process.env.STT_PROVIDER_TIMEOUT_MS;
+const restoreTimeoutEnv = saveEnv('STT_PROVIDER_TIMEOUT_MS');
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  if (originalTimeoutEnv === undefined) delete process.env.STT_PROVIDER_TIMEOUT_MS;
-  else process.env.STT_PROVIDER_TIMEOUT_MS = originalTimeoutEnv;
+  restoreTimeoutEnv();
 });
 
 function fetchThatRejectsOnAbort(rejection: () => Error) {
