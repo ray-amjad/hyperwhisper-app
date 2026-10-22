@@ -5572,13 +5572,13 @@ internal static class Program
             // WPF context would never run in this console harness.
             Run("DeferredOverlayHide keeps the success and copied holds main used (#983)", () =>
             {
-                Assert(DeferredOverlayHide.HoldFor(SmartPasteResult.Pasted) == TimeSpan.FromMilliseconds(400),
-                    "a paste no longer holds the success tick for 400 ms");
-                Assert(DeferredOverlayHide.HoldFor(SmartPasteResult.CopiedToClipboard) == TimeSpan.FromMilliseconds(500),
-                    "a clipboard copy no longer holds the copied state for 500 ms");
-                Assert(DeferredOverlayHide.HoldFor(SmartPasteResult.SecureFieldSkipped) == TimeSpan.FromMilliseconds(500),
-                    "a secure-field skip no longer holds the copied state for 500 ms");
-                Assert(DeferredOverlayHide.HoldFor(SmartPasteResult.Failed) == null,
+                Assert(DeferredOverlayHide.EndStateFor(SmartPasteResult.Pasted) == new OverlayEndState(OverlayEndKind.Success, TimeSpan.FromMilliseconds(400)),
+                    "a paste no longer shows the success tick for 400 ms");
+                Assert(DeferredOverlayHide.EndStateFor(SmartPasteResult.CopiedToClipboard) == new OverlayEndState(OverlayEndKind.Copied, TimeSpan.FromMilliseconds(500)),
+                    "a clipboard copy no longer shows the copied state for 500 ms");
+                Assert(DeferredOverlayHide.EndStateFor(SmartPasteResult.SecureFieldSkipped) == new OverlayEndState(OverlayEndKind.Copied, TimeSpan.FromMilliseconds(500)),
+                    "a secure-field skip no longer shows the copied state for 500 ms");
+                Assert(DeferredOverlayHide.EndStateFor(SmartPasteResult.Failed) == null,
                     "a failed delivery shows no end state, so the overlay must hide at once");
             });
 
@@ -5728,9 +5728,39 @@ internal static class Program
                     Assert(delays.Count == 0,
                         $"{flowName} still awaits Task.Delay ({delays.Count} call(s)) before its finally, " +
                         "so the hotkey stays blocked through the success animation");
-                    Assert(called.Any(m => m.DeclaringType == typeof(DeferredOverlayHide) && m.Name == nameof(DeferredOverlayHide.HoldFor)),
-                        $"{flowName} no longer hands its success/copied hold to DeferredOverlayHide");
+                    Assert(called.Any(m => m.DeclaringType == typeof(MainViewModel) && m.Name == "ShowPasteEndState"),
+                        $"{flowName} no longer shows its end state through ShowPasteEndState");
                 }
+
+                // The one helper both flows share reads the end-state table and asks
+                // the overlay for the late hide, never waiting for it itself.
+                var helper = typeof(MainViewModel).GetMethod("ShowPasteEndState", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert(helper != null, "MainViewModel.ShowPasteEndState is gone; update this check");
+                Assert(helper!.GetCustomAttribute<System.Runtime.CompilerServices.AsyncStateMachineAttribute>() == null,
+                    "ShowPasteEndState became async, so a flow could await the hold again");
+                var helperCalls = CalledMethods(helper!);
+                Assert(helperCalls.Any(m => m.DeclaringType == typeof(DeferredOverlayHide) && m.Name == nameof(DeferredOverlayHide.EndStateFor)),
+                    "ShowPasteEndState no longer reads DeferredOverlayHide.EndStateFor");
+            });
+
+            Run("every overlay show and hide supersedes a pending late hide (#983)", () =>
+            {
+                // The guard lives in the overlay window, not in each flow: whatever
+                // shows the overlay next, the last dictation's late hide must not
+                // hide it. Read each show/hide method's IL for the Supersede call.
+                var overlay = typeof(HyperWhisper.Views.Windows.RecordingOverlayWindow);
+                foreach (var name in new[] { "ShowRecording", "ShowStatusState", "ShowSuccess", "ShowCopied", "ShowCancelConfirmation", "Hide" })
+                {
+                    var method = overlay.GetMethod(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly, Type.EmptyTypes);
+                    Assert(method != null, $"RecordingOverlayWindow.{name}() is gone; update this check");
+                    Assert(CalledMethods(method!).Any(m => m.DeclaringType == typeof(DeferredOverlayHide) && m.Name == nameof(DeferredOverlayHide.Supersede)),
+                        $"RecordingOverlayWindow.{name} does not supersede the pending late hide");
+                }
+
+                var hideAfter = overlay.GetMethod("HideAfter", BindingFlags.Instance | BindingFlags.Public);
+                Assert(hideAfter != null, "RecordingOverlayWindow.HideAfter is gone; update this check");
+                Assert(CalledMethods(hideAfter!).Any(m => m.DeclaringType == typeof(DeferredOverlayHide) && m.Name == nameof(DeferredOverlayHide.Schedule)),
+                    "RecordingOverlayWindow.HideAfter no longer schedules through DeferredOverlayHide");
             });
 
             Run("CaptureDeviceNameCache: one FriendlyName read per endpoint ID, dropped on invalidate / clear (#980)", () =>
@@ -25588,6 +25618,39 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Every method a method body calls (call/callvirt/newobj), read from its IL.
+    /// A byte that only looks like a call opcode resolves to nothing and is skipped.
+    /// </summary>
+    private static List<MethodBase> CalledMethods(MethodInfo method)
+    {
+        var il = method.GetMethodBody()?.GetILAsByteArray() ?? Array.Empty<byte>();
+        var found = new List<MethodBase>();
+        for (var i = 0; i + 4 < il.Length; i++)
+        {
+            if (il[i] is not (0x28 or 0x6F or 0x73))
+                continue;
+
+            var token = BitConverter.ToInt32(il, i + 1);
+            if ((token >> 24) is not (0x06 or 0x0A or 0x2B))
+                continue;
+
+            try
+            {
+                var target = method.Module.ResolveMethod(token,
+                    method.DeclaringType?.GetGenericArguments(), method.GetGenericArguments());
+                if (target != null)
+                    found.Add(target);
+            }
+            catch (Exception)
+            {
+                // Not a method token at this offset (or one this process cannot load).
+            }
+        }
+
+        return found;
+    }
+
     private static void RunAsync(string name, Func<Task> check)
         => Run(name, () => check().GetAwaiter().GetResult());
 
@@ -26237,50 +26300,6 @@ internal static class Program
             Console.Error.WriteLine($"       could not put the operator's clipboard back: {ex.Message}");
         }
     }
-
-    /// <summary>
-    /// Every method a method body calls (call/callvirt/newobj), read from its IL.
-    /// A byte that only looks like a call opcode resolves to nothing and is skipped.
-    /// </summary>
-    private static List<MethodBase> CalledMethods(MethodInfo method)
-    {
-        var il = method.GetMethodBody()?.GetILAsByteArray() ?? Array.Empty<byte>();
-        var found = new List<MethodBase>();
-        for (var i = 0; i + 4 < il.Length; i++)
-        {
-            if (il[i] is not (0x28 or 0x6F or 0x73))
-                continue;
-
-            var token = BitConverter.ToInt32(il, i + 1);
-            if ((token >> 24) is not (0x06 or 0x0A or 0x2B))
-                continue;
-
-            try
-            {
-                var target = method.Module.ResolveMethod(token,
-                    method.DeclaringType?.GetGenericArguments(), method.GetGenericArguments());
-                if (target != null)
-                    found.Add(target);
-            }
-            catch (Exception)
-            {
-                // Not a method token at this offset (or one this process cannot load).
-            }
-        }
-
-        return found;
-    }
-
-    private static void RunAsync(string name, Func<Task> check)
-        => Run(name, () => check().GetAwaiter().GetResult());
-
-    private static void Assert(bool condition, string message)
-    {
-        if (!condition)
-            throw new InvalidOperationException(message);
-    }
-
-            });
 
     /// <summary>
     /// Pins the Application Control boundary (HYPERWHISPER-Y5 / HYPERWHISPER-YF).

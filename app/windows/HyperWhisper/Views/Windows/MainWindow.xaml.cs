@@ -94,6 +94,7 @@ public partial class MainWindow : Window
         _viewModel.StreamingConnectionStateChanged += (s, state) => Dispatcher.Invoke(() =>
             _recordingOverlay?.UpdateStreamingConnectionState(state));
         _viewModel.HideOverlayRequested += (s, e) => Dispatcher.Invoke(() => _recordingOverlay?.Hide());
+        _viewModel.HideOverlayAfterHoldRequested += (s, hold) => Dispatcher.Invoke(() => _recordingOverlay?.HideAfter(hold));
         _viewModel.ShowTranscribingRequested += (s, e) => Dispatcher.Invoke(() =>
         {
             // Show transcribing state even if recording window was hidden

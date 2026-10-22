@@ -102,9 +102,6 @@ public partial class MainViewModel : ViewModelBase
 
         try
         {
-            // Before the show: the last dictation's late success/copied hide must
-            // not hide this session's overlay (#983).
-            _deferredOverlayHide.Supersede();
             ShowStreamingOverlayRequested?.Invoke(this, providerName);
             _pasteService?.StartRecordingSession();
             RaiseMicrophoneCaptureStarting();
@@ -368,22 +365,7 @@ public partial class MainViewModel : ViewModelBase
 
             // The success/copied state holds on a deferred hide, not on an await
             // here, so the finally below unblocks the hotkey at once (#983).
-            switch (pasteResult)
-            {
-                case SmartPasteResult.Pasted:
-                    ShowSuccessRequested?.Invoke(this, EventArgs.Empty);
-                    break;
-                case SmartPasteResult.SecureFieldSkipped:
-                case SmartPasteResult.CopiedToClipboard:
-                    ShowCopiedRequested?.Invoke(this, EventArgs.Empty);
-                    break;
-            }
-
-            if (DeferredOverlayHide.HoldFor(pasteResult) is { } overlayHold)
-            {
-                ScheduleOverlayHide(overlayHold);
-                overlayHideDeferred = true;
-            }
+            overlayHideDeferred = ShowPasteEndState(pasteResult);
         }
         catch (Exception ex)
         {

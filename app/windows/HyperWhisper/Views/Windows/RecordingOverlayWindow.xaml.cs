@@ -12,6 +12,7 @@ using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
 using HyperWhisper.Utilities;
+using HyperWhisper.ViewModels;
 
 namespace HyperWhisper.Views.Windows;
 
@@ -117,6 +118,10 @@ public partial class RecordingOverlayWindow : Window
     /// Used for keyboard event routing.
     /// </summary>
     private bool _isShowingCancelConfirmation;
+
+    // The late hide after a dictation's success/copied hold (#983). Every show and
+    // hide below supersedes it, so a pending hide never hides what came after it.
+    private readonly DeferredOverlayHide _deferredHide = new();
 
     /// <summary>
     /// Debounce timer for saving overlay position during drag.
@@ -335,6 +340,7 @@ public partial class RecordingOverlayWindow : Window
     /// </summary>
     public void ShowRecording()
     {
+        _deferredHide.Supersede();
         MainBorder.BorderBrush = new SolidColorBrush(WpfColor.FromArgb(26, 255, 255, 255));
         StreamingDot.Visibility = Visibility.Collapsed;
         _smoothedLevel = 0;
@@ -435,6 +441,7 @@ public partial class RecordingOverlayWindow : Window
 
     private void ShowStatusState()
     {
+        _deferredHide.Supersede();
         Dispatcher.Invoke(() =>
         {
             RecordingState.Visibility = Visibility.Collapsed;
@@ -454,6 +461,7 @@ public partial class RecordingOverlayWindow : Window
     /// </summary>
     public void ShowSuccess()
     {
+        _deferredHide.Supersede();
         Dispatcher.Invoke(() =>
         {
             RecordingState.Visibility = Visibility.Collapsed;
@@ -474,6 +482,7 @@ public partial class RecordingOverlayWindow : Window
     /// </summary>
     public void ShowCopied()
     {
+        _deferredHide.Supersede();
         Dispatcher.Invoke(() =>
         {
             RecordingState.Visibility = Visibility.Collapsed;
@@ -493,11 +502,23 @@ public partial class RecordingOverlayWindow : Window
     /// </summary>
     public new void Hide()
     {
+        _deferredHide.Supersede();
         _animationTimer.Stop();
         _spinnerStoryboard?.Stop();
         _isShowingCancelConfirmation = false;
         base.Hide();
         LoggingService.Debug("RecordingOverlayWindow: Hidden");
+    }
+
+    /// <summary>
+    /// Hides the overlay once it has held its current state for <paramref name="hold"/>,
+    /// unless it shows or hides anything else first (#983). Returns at once: the
+    /// dictation flow that asks for it has already unblocked the hotkey.
+    /// </summary>
+    public void HideAfter(TimeSpan hold)
+    {
+        // Discarded on purpose: the task never faults (DeferredOverlayHide logs a failed hide).
+        _ = _deferredHide.Schedule(hold, Hide);
     }
 
     /// <summary>
@@ -507,6 +528,7 @@ public partial class RecordingOverlayWindow : Window
     /// </summary>
     public void ShowCancelConfirmation()
     {
+        _deferredHide.Supersede();
         Dispatcher.Invoke(() =>
         {
             _isShowingCancelConfirmation = true;
