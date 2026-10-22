@@ -8,12 +8,11 @@
  *    default is "never", so without it every `initial`/`whileInView` entrance
  *    slides in at full strength under reduce.
  * 2. `styles/globals.css` ends with a `prefers-reduced-motion: reduce` block that
- *    turns off smooth scrolling, stops the looping decorative keyframes and
- *    collapses every other CSS animation and transition. The !important
- *    universal rule sits inside `@layer base` (#1173): for important
- *    declarations an earlier layer beats a later one and any layer beats
- *    unlayered CSS, so unlayered it lost to HeroUI's `!duration-*` utilities
- *    in `@layer utilities`.
+ *    turns off smooth scrolling and collapses every CSS animation and
+ *    transition. The !important universal rule sits inside `@layer base`
+ *    (#1173): for important declarations an earlier layer beats a later one
+ *    and any layer beats unlayered CSS, so unlayered it lost to HeroUI's
+ *    `!duration-*` utilities in `@layer utilities`.
  *
  * These are source checks: the behaviour itself is a browser media query, which
  * neither node nor react-dom/server evaluates; a Chromium run with
@@ -80,16 +79,11 @@ test("globals.css carries the prefers-reduced-motion guard", () => {
   const block = blockAt(css, at).body.replace(/\s+/g, " ");
 
   assert.match(block, /html \{ scroll-behavior: auto; \}/, "html scroll-behavior: auto");
-  assert.match(
-    block,
-    /\.animate-scroll, \.animate-scroll-x \{ animation: none; \}/,
-    "decorative keyframe classes get animation: none",
-  );
-  // The two normal rules stay unlayered: an unlayered normal rule beats a
-  // layered one, so moving them into a layer would weaken them.
+  // The normal rule stays unlayered: an unlayered normal rule beats a
+  // layered one, so moving it into a layer would weaken it.
   const before = css.slice(0, at);
   const depth = before.split("{").length - before.split("}").length;
-  assert.equal(depth, 0, "the html / .animate-* reduce block is top level, not inside an @layer");
+  assert.equal(depth, 0, "the html reduce block is top level, not inside an @layer");
   assert.doesNotMatch(block, UNIVERSAL, "the !important universal rule is not in the unlayered block");
 });
 
