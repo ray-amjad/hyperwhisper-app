@@ -11,6 +11,11 @@ catalog; it never calls a translation service. Linux-specific copy deliberately 
 the invariant English fallback until a native-speaker review supplies that locale.
 Shared keys continue to use the existing 40 translated satellite catalogs.
 
+The exception is `linux-specific-translations.json`: hand-written translations of
+Linux-only keys a feature spec required in every locale (the Settings → Sound
+microphone picker, `linux.settings.sound.microphone.*`). The generator merges them
+into every satellite as written. They still await native-speaker review.
+
 Do not treat catalog presence as human translation approval. A release claiming full
 Linux UI-language parity must record native-speaker review of every Linux-specific key
 as an external content gate. Provider/model IDs, paths, shortcut tokens, protocol

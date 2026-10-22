@@ -1,11 +1,16 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Hono } from 'hono';
-import type { Context } from 'hono';
-import type { WSMessageReceive } from 'hono/ws';
 import { computeDeepgramTranscriptionCost, creditsForCost } from '../lib/cost-calculator';
 import { drainPendingDeductions } from '../middleware/credits';
 import type { AuthContext } from '../middleware/auth';
 import { captureRejectionLogs, captureStreamingLogs } from './ws-streaming-test-logs';
+import {
+  FakeClientSocket,
+  FakeUpstreamSocketBase,
+  binaryMessage,
+  fakeContext,
+  textMessage,
+} from './ws-streaming-test-support';
 
 type CachedLicense = { isValid: boolean; credits: number; cachedAt: string };
 
@@ -210,57 +215,13 @@ describe('wsStreamingPreflight', () => {
 // Socket lifecycle
 // ---------------------------------------------------------------------------
 
-interface CloseCall {
-  code?: number;
-  reason?: string;
-}
-
 const upstreamSockets: FakeUpstreamSocket[] = [];
 
-class FakeUpstreamSocket {
-  static readonly CONNECTING = 0;
-  static readonly OPEN = 1;
-  static readonly CLOSING = 2;
-  static readonly CLOSED = 3;
-
-  readyState = 0;
-  bufferedAmount = 0;
-  readonly sent: Array<string | ArrayBuffer> = [];
-  readonly closes: CloseCall[] = [];
-  private readonly listeners = new Map<string, Array<(evt: unknown) => void>>();
-
-  constructor(readonly url: string, readonly protocols?: string | string[]) {
+/** `handshake()` is Deepgram accepting it; `deliver()` is one Deepgram Live JSON frame. */
+class FakeUpstreamSocket extends FakeUpstreamSocketBase {
+  constructor(url: string, protocols?: string | string[]) {
+    super(url, protocols);
     upstreamSockets.push(this);
-  }
-
-  addEventListener(type: string, handler: (evt: unknown) => void): void {
-    const existing = this.listeners.get(type) ?? [];
-    existing.push(handler);
-    this.listeners.set(type, existing);
-  }
-
-  send(data: string | ArrayBuffer): void {
-    this.sent.push(data);
-  }
-
-  close(code?: number, reason?: string): void {
-    this.readyState = FakeUpstreamSocket.CLOSED;
-    this.closes.push({ code, reason });
-  }
-
-  emit(type: string, evt: unknown): void {
-    for (const handler of this.listeners.get(type) ?? []) handler(evt);
-  }
-
-  /** Simulate Deepgram accepting the handshake. */
-  handshake(): void {
-    this.readyState = FakeUpstreamSocket.OPEN;
-    this.emit('open', {});
-  }
-
-  /** Simulate one Deepgram Live JSON frame arriving. */
-  deliver(payload: unknown): void {
-    this.emit('message', { data: typeof payload === 'string' ? payload : JSON.stringify(payload) });
   }
 
   get audioFramesForwarded(): number {
@@ -268,47 +229,8 @@ class FakeUpstreamSocket {
   }
 }
 
-class FakeClientSocket {
-  readyState = 1;
-  readonly sent: string[] = [];
-  readonly closes: CloseCall[] = [];
-
-  send(data: string | ArrayBuffer | Uint8Array): void {
-    this.sent.push(typeof data === 'string' ? data : '<binary>');
-  }
-
-  close(code?: number, reason?: string): void {
-    this.readyState = 3;
-    this.closes.push({ code, reason });
-  }
-
-  messages(): Array<Record<string, unknown>> {
-    return this.sent.map((raw) => JSON.parse(raw) as Record<string, unknown>);
-  }
-
-  messagesOfType(type: string): Array<Record<string, unknown>> {
-    return this.messages().filter((message) => message.type === type);
-  }
-}
-
-function fakeContext(auth: AuthContext, url: string): Context {
-  const vars: Record<string, unknown> = { wsAuth: auth, wsClientIP: '203.0.113.7' };
-  return {
-    get: (key: string) => vars[key],
-    req: { url },
-  } as unknown as Context;
-}
-
 function audioFrame(seconds: number): ArrayBuffer {
   return new ArrayBuffer(Math.round(seconds * BYTES_PER_SECOND));
-}
-
-function binaryMessage(data: ArrayBuffer): MessageEvent<WSMessageReceive> {
-  return { data } as MessageEvent<WSMessageReceive>;
-}
-
-function textMessage(data: string): MessageEvent<WSMessageReceive> {
-  return { data } as MessageEvent<WSMessageReceive>;
 }
 
 interface Harness {

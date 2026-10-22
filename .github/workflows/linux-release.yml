@@ -336,11 +336,14 @@ jobs:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: |
           set -euo pipefail
+          # ReadyToRun ships precompiled code, so startup does not JIT every
+          # method: ready time 2.9 s -> 1.8 s for about +33 MB installed (#999).
           dotnet publish \
             app/linux/HyperWhisper.Linux/HyperWhisper.Linux.csproj \
             --configuration Release \
             --runtime linux-x64 \
             --self-contained true \
+            -p:PublishReadyToRun=true \
             -p:Version="${{ steps.release.outputs.version }}" \
             --output artifacts/hyperwhisper-linux
 
@@ -349,6 +352,7 @@ jobs:
             --configuration Release \
             --runtime linux-x64 \
             --self-contained true \
+            -p:PublishReadyToRun=true \
             -p:Version="${{ steps.release.outputs.version }}" \
             --output artifacts/hyperwhisper-linux/parakeet-engine
 

@@ -12,8 +12,7 @@
  *
  * Only the collaborators at the edge are replaced with `mock.module`: Better
  * Auth (`src/lib/auth.ts`), the database layer (`src/lib/db-layer.ts`), the
- * shared Stripe client (`lib/clients/stripe.ts`), the `stripe` package (the
- * admin customers router builds its own client from it at load), the mailer
+ * Stripe clients (`lib/clients/stripe.ts`), the mailer
  * (`lib/services/email.ts`), the rate limiters (`lib/rate-limit.ts`, which
  * would otherwise open an Upstash client) and the validated server env
  * (`src/env/server.mjs`, empty: the routers fall back to their defaults). No bypass and no test license key
@@ -24,9 +23,7 @@
  * the only way the tests reach the source. A test file that imports the route
  * itself would bind to the real collaborators, so do not.
  */
-import { createRequire } from "node:module";
 import { mock } from "node:test";
-import { pathToFileURL } from "node:url";
 
 import superjson from "superjson";
 
@@ -195,18 +192,10 @@ moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
         },
       },
     },
+    // The admin customers router's pinned refund client. Never called here.
+    stripeRefundApi: {},
   },
 });
-
-/** Stands in for the `stripe` package's default export. Never called here. */
-class FakeStripe {}
-
-// nextjs has no `"type": "module"`, so tsx loads the routers as CommonJS and
-// `import Stripe from "stripe"` becomes a `require` of the package's CJS entry.
-moduleMock.module(
-  pathToFileURL(createRequire(import.meta.url).resolve("stripe")).href,
-  { defaultExport: FakeStripe },
-);
 
 moduleMock.module(moduleUrl("../lib/services/email.ts"), {
   namedExports: { emailService: {} },
