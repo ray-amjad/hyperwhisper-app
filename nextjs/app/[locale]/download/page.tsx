@@ -249,7 +249,7 @@ export default function DownloadPage() {
           <div className="w-24 h-24 mx-auto mb-8">
             <img
               alt="HyperWhisper Logo"
-              className="w-24 h-24"
+              className="w-24 h-24 rounded-[20%] outline-1 -outline-offset-1 outline-white/10"
               src="/icon/256.png"
             />
           </div>
