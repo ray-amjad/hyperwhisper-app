@@ -1,23 +1,19 @@
 // @ts-check
-import { clientEnv, clientSchema } from "./schema.mjs";
+/**
+ * Client env. This module is in the browser bundle on every route (through
+ * `src/lib/posthog-client.ts`), so it imports only `schema.client.mjs`: no
+ * server schema and no zod (#917).
+ */
+import { clientEnv, validateClientEnv } from "./schema.client.mjs";
 
-const _clientEnv = clientSchema.safeParse(clientEnv);
-
-export const formatErrors = (
-  /** @type {import('zod').ZodFormattedError<Map<string,string>,string>} */
-  errors,
-) =>
-  Object.entries(errors)
-    .map(([name, value]) => {
-      if (value && "_errors" in value)
-        return `${name}: ${value._errors.join(", ")}\n`;
-    })
-    .filter(Boolean);
+const _clientEnv = validateClientEnv(clientEnv);
 
 if (!_clientEnv.success) {
   console.error(
     "❌ Invalid environment variables:\n",
-    ...formatErrors(_clientEnv.error.format()),
+    ...Object.entries(_clientEnv.errors).map(
+      ([name, message]) => `${name}: ${message}\n`,
+    ),
   );
   throw new Error("Invalid environment variables");
 }

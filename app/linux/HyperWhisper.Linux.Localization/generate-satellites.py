@@ -3,15 +3,21 @@
 
 Linux-specific copy deliberately stays in the invariant catalog until a human-reviewed
 translation is supplied. This generator must never call a translation service.
+
+The one exception is linux-specific-translations.json: hand-written translations of Linux-only
+keys that a spec required in every locale (the Settings -> Sound microphone picker). They are
+merged as written and still await native-speaker review.
 """
 
 from pathlib import Path
+import json
 import re
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[2]
 LINUX = Path(__file__).resolve().parent / "Resources"
 MAC = ROOT / "macos" / "hyperwhisper" / "Localizations"
+HAND = json.loads((Path(__file__).resolve().parent / "linux-specific-translations.json").read_text(encoding="utf-8"))["translations"]
 ENTRY = re.compile(r'^"(?P<key>[^"\\]+)"\s*=\s*"(?P<value>(?:[^"\\]|\\.)*)";', re.MULTILINE)
 
 
@@ -40,11 +46,18 @@ for directory in sorted(MAC.glob("*.lproj")):
         continue
     localized = strings(directory / "Localizable.strings")
     root = ET.Element("root")
-    for linux_key, mac_key in sorted(reusable.items()):
+    values: dict[str, str] = {}
+    for linux_key, mac_key in reusable.items():
         if mac_key not in localized:
             raise SystemExit(f"{culture} is missing macOS key {mac_key}")
+        values[linux_key] = localized[mac_key]
+    hand = HAND.get(culture)
+    if hand is None:
+        raise SystemExit(f"{culture} is missing from linux-specific-translations.json")
+    values.update(hand)
+    for linux_key, value in sorted(values.items()):
         data = ET.SubElement(root, "data", {"name": linux_key, "xml:space": "preserve"})
-        ET.SubElement(data, "value").text = localized[mac_key]
+        ET.SubElement(data, "value").text = value
     ET.indent(root, space="  ")
     output = LINUX / f"LinuxStrings.{culture}.resx"
     ET.ElementTree(root).write(output, encoding="utf-8", xml_declaration=True)

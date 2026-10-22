@@ -610,6 +610,10 @@ public sealed class PortableCloudAccountService : IDisposable
             || activation.DeviceId.Contains('\0')
             || activation.DeviceName.Contains('\0'))
             return new(CloudAccountFailureCode.InvalidRequest, "Account activation fields are invalid.");
+        // #1489: text that cannot be any key (too long, whitespace inside, non-ASCII) never
+        // leaves the device. The UI refuses it first; this is the last stop before HTTP.
+        if (!AccountKeyFormat.IsPlausible(activation.AccountKey))
+            return new(CloudAccountFailureCode.InvalidRequest, "That doesn't look like an account key.");
         return null;
     }
 

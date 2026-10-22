@@ -48,7 +48,10 @@ public class WhisperModelInfo
     public bool IsEnglishOnly { get; }
 
     /// <summary>
-    /// Approximate size in bytes (for progress calculation during download).
+    /// EXACT size in bytes of ggml-{Type}.bin on Hugging Face. The install check
+    /// demands this size to the byte (#1598), so a wrong value here makes the model
+    /// impossible to install. Measured from
+    /// https://huggingface.co/api/models/ggerganov/whisper.cpp/tree/main on 2026-10-09.
     /// </summary>
     public long SizeInBytes { get; }
 

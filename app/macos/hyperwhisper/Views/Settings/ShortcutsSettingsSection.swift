@@ -255,7 +255,7 @@ struct ShortcutsSettingsSection: View {
                 Text("settings.shortcuts.quickCapture.mode.current")
                     .tag(Self.currentModeTag)
                 ForEach(modes, id: \.objectID) { mode in
-                    Text(mode.name ?? "—")
+                    Text(MenuItemText.bounded(mode.name ?? "—")) // #1436
                         .tag(mode.id?.uuidString ?? "")
                 }
             } label: {
@@ -318,6 +318,12 @@ struct ShortcutsSettingsSection: View {
                 Button(LocalizedStringKey("common.cancel"), role: .cancel) { }
             } message: {
                 Text("settings.shortcuts.reset.dialog.message".localized)
+            }
+            // Issue #1672: close the dialog before a page change removes this view.
+            .closesPresentationsOnPageChange(
+                isPresenting: showResetShortcutsConfirmation
+            ) {
+                showResetShortcutsConfirmation = false
             }
 
             Spacer()

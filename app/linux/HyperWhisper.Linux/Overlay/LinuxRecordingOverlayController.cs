@@ -206,14 +206,18 @@ public sealed class LinuxRecordingOverlayController : IDisposable
         {
             LinuxRecordingOverlayCompletion.Pasted => LinuxRecordingOverlayState.Pasted,
             LinuxRecordingOverlayCompletion.Copied => LinuxRecordingOverlayState.Copied,
+            LinuxRecordingOverlayCompletion.CopyFailed => LinuxRecordingOverlayState.Error,
             _ => LinuxRecordingOverlayState.SecureField,
         };
         var text = completion switch
         {
             LinuxRecordingOverlayCompletion.Pasted => _text("recording.success.pasted"),
             LinuxRecordingOverlayCompletion.Copied => _text("recording.copy.copied"),
+            LinuxRecordingOverlayCompletion.CopyFailed => _text("linux.overlay.error.copy"),
             _ => _text("linux.overlay.secure_field"),
         };
+        // A failed delivery stays up as long as any other error, so it is not missed (#1703).
+        var duration = completion == LinuxRecordingOverlayCompletion.CopyFailed ? ErrorDuration : CompletionDuration;
         lock (_gate)
         {
             if (_disposed) return;
@@ -222,7 +226,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             _face = RecordingFace.None;
             _audioLevel = 0;
             ApplyLocked(new(state, true, text, string.Empty, ViewModel.DurationText));
-            StartTransientLocked(CompletionDuration, HideLocked);
+            StartTransientLocked(duration, HideLocked);
         }
     }
 

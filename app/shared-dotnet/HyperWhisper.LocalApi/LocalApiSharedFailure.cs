@@ -1,3 +1,4 @@
+using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Transcription;
 using Microsoft.AspNetCore.Http;
 using uniffi.hyperwhisper_core;
@@ -62,11 +63,40 @@ internal static class LocalApiSharedFailure
     /// hint in.
     /// </remarks>
     internal static LocalApiFailureException TranscriptionFailure(PortableTranscriptionFailure? failure) =>
+        // No account key on a HyperWhisper Cloud run: the one envelope
+        // /post-process sends for the same mode, provider and hint included
+        // (issue #1487), so the two endpoints cannot drift apart.
+        failure?.Code == PortableTranscriptionErrorCode.CloudAccountRequired
+            ? LocalApiFailureException.CloudAccountRequired()
+            : LocalApiFailureException.From(HyperwhisperCoreMethods.LocalApiMapTranscriptionError(
+                ReasonFor(failure?.Code),
+                new HwLocalApiTranscriptionFailureParams(
+                    @provider: null,
+                    @detail: failure?.Message,
+                    @model: null,
+                    @limitBytes: null,
+                    @httpStatus: null,
+                    @retryAfterSeconds: null,
+                    @hint: null)));
+
+    /// <summary>
+    /// A failed ffmpeg conversion of an upload (issue #1572), through the same
+    /// shared table and onto codes already in the closed set.
+    /// </summary>
+    /// <remarks>
+    /// ffmpeg that cannot start is the host missing a capability, so it is
+    /// <c>ENGINE_UNAVAILABLE</c>; anything else the converter refuses is
+    /// <c>AUDIO_DECODE_FAILED</c>, the code Windows sends for
+    /// <c>UnsupportedFormat</c> and macOS for <c>.audioConversionFailed</c>.
+    /// </remarks>
+    internal static LocalApiFailureException AudioConversionFailure(PlatformError? error) =>
         LocalApiFailureException.From(HyperwhisperCoreMethods.LocalApiMapTranscriptionError(
-            ReasonFor(failure?.Code),
+            error?.Code == "audio_normalization.ffmpeg_unavailable"
+                ? HwLocalApiTranscriptionFailureReason.EngineUnavailable
+                : HwLocalApiTranscriptionFailureReason.AudioDecodeFailed,
             new HwLocalApiTranscriptionFailureParams(
                 @provider: null,
-                @detail: failure?.Message,
+                @detail: error?.Message,
                 @model: null,
                 @limitBytes: null,
                 @httpStatus: null,

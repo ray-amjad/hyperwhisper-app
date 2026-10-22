@@ -133,19 +133,6 @@ export function applyHtmlLocaleAttributes(
   element.dir = localeDirection(locale);
 }
 
-export function stripLocalePrefix(pathname: string): string {
-  const segments = pathname.split("/").filter(Boolean);
-
-  if (segments.length === 0) return "";
-
-  if (isSupportedLocale(segments[0])) {
-    const rest = segments.slice(1).join("/");
-    return rest ? `/${rest}` : "";
-  }
-
-  return pathname;
-}
-
 export function buildAlternateLanguageMap(baseUrl: string, path: string) {
   const normalizedPath = path.startsWith("/") || path === "" ? path : `/${path}`;
   const map: Record<string, string> = {};

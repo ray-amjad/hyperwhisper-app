@@ -3,6 +3,9 @@
   <data name="linux.overlay.recording" xml:space="preserve">
     <value>Opnemen</value>
   </data>
+  <data name="linux.settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Audio smoren</value>
+  </data>
   <data name="linux.ui.api.keys" xml:space="preserve">
     <value>API-sleutels</value>
   </data>
@@ -20,5 +23,29 @@
   </data>
   <data name="linux.ui.start.recording" xml:space="preserve">
     <value>Opnemen starten</value>
+  </data>
+  <data name="linux.settings.sound.microphone.default" xml:space="preserve">
+    <value>Standaard · {0}</value>
+  </data>
+  <data name="linux.settings.sound.microphone.defaultNone" xml:space="preserve">
+    <value>Standaard</value>
+  </data>
+  <data name="linux.settings.sound.microphone.fallback" xml:space="preserve">
+    <value>{0} wordt gebruikt totdat {1} opnieuw is verbonden.</value>
+  </data>
+  <data name="linux.settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (niet verbonden)</value>
+  </data>
+  <data name="linux.settings.sound.microphone.stop" xml:space="preserve">
+    <value>Stoppen</value>
+  </data>
+  <data name="linux.settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Alleen gebruikt door HyperWhisper. Blijft bewaard na herstarten.</value>
+  </data>
+  <data name="linux.settings.sound.microphone.test" xml:space="preserve">
+    <value>Testen</value>
+  </data>
+  <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve">
+    <value>De microfoon kon niet worden geopend.</value>
   </data>
 </root>

@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Nuovo tentativo...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Un altro programma ha bloccato il database della cronologia. La registrazione è stata conservata e verrà salvata nella cronologia appena il database sarà libero.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Non è stato ancora possibile salvare questa registrazione nella cronologia. La registrazione è stata conservata e verrà salvata nella cronologia più tardi.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -366,6 +372,9 @@
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Avvia HyperWhisper automaticamente quando accedi.</value>
+  </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Non disponibile in un profilo di prova. Questa build usa una cartella dati dell'app separata, quindi non modifica la voce di accesso dell'app installata.</value>
   </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Avvia ridotto a icona</value>
@@ -790,6 +799,12 @@ Questa azione non può essere annullata.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (pronto)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (non attivato)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (nessuna chiave API)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Caricamento non riuscito</value>
   </data>
@@ -820,6 +835,9 @@ Questa azione non può essere annullata.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Trascrizione del file annullata</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Trascrizione del file...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Sconosciuto</value>
   </data>
@@ -843,11 +861,11 @@ Questa azione non può essere annullata.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Trascrizione non riuscita: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>Nessuna modalità disponibile per riprovare.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Nuovo tentativo non riuscito: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>La modalità che ha creato questa registrazione è stata eliminata, quindi non è stato fatto un nuovo tentativo. In Cronologia, fai clic con il tasto destro sulla registrazione e scegli "Riprova con..." per selezionare un'altra modalità.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Registrazione interrotta — raggiunto il limite di sicurezza di 20 minuti.</value>
@@ -1081,6 +1099,9 @@ Deve esserci almeno una modalità.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Le scorciatoie con un solo tasto modificatore come Ctrl, Alt, Shift o Win non sono supportate. Usa un tasto con modificatori o una scorciatoia con più modificatori, ad esempio Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Una scorciatoia senza tasto modificatore deve essere un tasto funzione o Esc. Qualsiasi altro tasto si attiverebbe mentre scrivi.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Questa scorciatoia è già usata per {0} ({1})</value>
   </data>
@@ -1121,6 +1142,9 @@ Deve esserci almeno una modalità.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Errore: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Il Controllo delle applicazioni di Windows ha bloccato {0}, un file necessario a HyperWhisper. Chiedi all'amministratore IT di consentire HyperWhisper oppure controlla Controllo intelligente delle app in Sicurezza di Windows.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Impossibile attivare l'avvio automatico. Verifica di avere i permessi per modificare le impostazioni di avvio.</value>
@@ -1152,6 +1176,12 @@ Potrai scaricarlo di nuovo in seguito.</value>
     <value>Impossibile eliminare {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Modello in uso</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} è usato dalla modalità "{1}". Passa quella modalità a un altro modello prima di eliminarlo.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1286,6 +1316,9 @@ Potrai scaricarlo di nuovo in seguito.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Inserisci una chiave di licenza.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Questa non sembra una chiave dell'account.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1306,8 +1339,17 @@ Potrai scaricarlo di nuovo in seguito.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File non trovato</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>È già in corso una registrazione o una trascrizione di file. Riprova con il file quando è terminata.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>Il file è troppo grande per questo provider. Dimensione massima: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Questo file è vuoto, quindi non c'è audio da trascrivere.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Questo file è danneggiato o non è un file audio che HyperWhisper può leggere.</value>
   </data>
 
 
@@ -1690,6 +1732,9 @@ Potrai scaricarlo di nuovo in seguito.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Senza nome</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Altro...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Trascrivi file</value>
   </data>
@@ -1984,11 +2029,35 @@ Potrai scaricarlo di nuovo in seguito.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Disattiva l'audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Attenua l'audio</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Mantieni il microfono pronto</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Mantieni aperto un flusso di ingresso silenzioso tra una registrazione e l'altra per ridurre il ritardo di avvio, soprattutto con i microfoni Bluetooth.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Usato solo da HyperWhisper. Ricordato anche dopo il riavvio.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Predefinito · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (non connesso)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Viene usato {0} finché {1} non viene ricollegato.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Nessun microfono è collegato. HyperWhisper userà {0} quando verrà ricollegato.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Prova</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Ferma</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Velocità media</value>

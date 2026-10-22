@@ -29,10 +29,16 @@
  * fetch in `useEffect`, which a server render never runs.
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test, { beforeEach, mock } from "node:test";
+import { NextIntlClientProvider } from "next-intl";
 import { createElement, type ReactElement } from "react";
 import * as realJsxRuntime from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
+
+const enMessages = JSON.parse(
+  readFileSync(new URL("../messages/en.json", import.meta.url), "utf8"),
+) as Record<string, unknown>;
 
 /**
  * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
@@ -58,6 +64,8 @@ let switchedTab = false;
 let submitted = false;
 /** The id of the last `<input>` built: a form's children are built before it. */
 let lastInputId: string | undefined;
+/** The page's query string for the next render (#2070 reads `?error=`). */
+let searchParams = new URLSearchParams();
 
 interface Props {
   id?: string;
@@ -116,7 +124,7 @@ moduleMock.module("react/jsx-runtime", {
 moduleMock.module("next/navigation", {
   namedExports: {
     useRouter: () => ({ push: () => {} }),
-    useSearchParams: () => new URLSearchParams(),
+    useSearchParams: () => searchParams,
     useParams: () => ({ locale: "en" }),
   },
 });
@@ -150,7 +158,19 @@ async function render(next: typeof scenario): Promise<string> {
     default: () => ReactElement;
   };
 
-  return renderToStaticMarkup(createElement(SignInClient));
+  // #2070: the component reads its one translated string through next-intl,
+  // so it renders inside the provider `app/[locale]/layout.tsx` gives it.
+  return renderToStaticMarkup(
+    createElement(
+      NextIntlClientProvider,
+      {
+        locale: "en",
+        messages: enMessages,
+        timeZone: "UTC",
+        children: createElement(SignInClient),
+      },
+    ),
+  );
 }
 
 /** The opening tag of the element with this id. */
@@ -169,6 +189,7 @@ beforeEach(() => {
   switchedTab = false;
   submitted = false;
   lastInputId = undefined;
+  searchParams = new URLSearchParams();
   globalThis.fetch = (() => {
     throw new Error("offline");
   }) as typeof fetch;

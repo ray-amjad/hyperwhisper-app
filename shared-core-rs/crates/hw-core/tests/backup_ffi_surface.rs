@@ -162,6 +162,29 @@ fn normalize_rejects_a_backup_with_a_mistyped_field() {
     assert!(message.contains("invalid type"), "got {message}");
 }
 
+/// #2091: JSON Schema compares numbers by value, so `2.0` is the schema's
+/// `"const": 2`. The validator macOS calls first and the parser behind it must
+/// both take it, or the file passes one step and fails the next.
+#[test]
+fn a_schema_version_written_as_2_0_validates_and_normalizes_to_2() {
+    let doc = json!({
+        "schemaVersion": 2.0,
+        "exportDate": "2026-01-01T00:00:00Z",
+        "appVersion": "1.0.0",
+        "platform": "macos",
+        "vocabulary": [ { "id": "a", "word": "HyperWhisper" } ]
+    })
+    .to_string();
+    assert!(
+        doc.contains("\"schemaVersion\":2.0"),
+        "fixture lost its float: {doc}"
+    );
+    assert!(validate_backup_json(doc.clone()).is_empty());
+    let normalized: Value = serde_json::from_str(&normalize_backup_json(doc).unwrap()).unwrap();
+    assert_eq!(normalized["schemaVersion"], json!(2));
+    assert!(normalized["schemaVersion"].is_i64());
+}
+
 // ---- BackupError: the message every head shows ----------------------------
 
 #[test]

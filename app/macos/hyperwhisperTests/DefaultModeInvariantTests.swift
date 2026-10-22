@@ -40,6 +40,11 @@ struct DefaultModeInvariantTests {
     ) -> Mode {
         let mode = Mode(context: persistence.container.viewContext)
         mode.id = UUID()
+        // Required attributes: without them every save of this context fails
+        // validation, and since #1613 a backup import refuses to start on a
+        // context it cannot save.
+        mode.createdDate = Date()
+        mode.modifiedDate = Date()
         mode.name = name
         mode.isDefault = isDefault
         mode.sortOrder = sortOrder

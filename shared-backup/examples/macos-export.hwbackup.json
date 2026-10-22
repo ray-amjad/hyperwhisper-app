@@ -52,7 +52,12 @@
       "userSystemPrompt": null,
       "customInstructions": null,
       "geminiCustomPrompt": null,
-      "platformExtensions": {}
+      "platformExtensions": {
+        "macos": {
+          "enableScreenOCR": true,
+          "useStreamingTranscription": false
+        }
+      }
     },
     {
       "id": "660e8400-e29b-41d4-a716-446655440001",
@@ -76,7 +81,12 @@
       "userSystemPrompt": "Format as bullet-point meeting notes with action items.",
       "customInstructions": null,
       "geminiCustomPrompt": null,
-      "platformExtensions": {}
+      "platformExtensions": {
+        "macos": {
+          "enableScreenOCR": false,
+          "useStreamingTranscription": true
+        }
+      }
     }
   ],
   "vocabulary": [
@@ -121,7 +131,15 @@
         },
         "shortcuts": {
           "pushToTalkMode": "disabled",
-          "pushToTalkDoublePressEnabled": false
+          "pushToTalkDoublePressEnabled": false,
+          "keyboardShortcuts": {
+            "toggleRecordingWithTranscription": { "carbonKeyCode": 32, "carbonModifiers": 4608 },
+            "cancelRecording": { "carbonKeyCode": 53, "carbonModifiers": 0 },
+            "pushToTalk": { "carbonKeyCode": 41, "carbonModifiers": 2048 },
+            "startStreaming": { "carbonKeyCode": 49, "carbonModifiers": 2560 },
+            "changeMode": { "carbonKeyCode": 40, "carbonModifiers": 4608 },
+            "quickCapture": null
+          }
         },
         "aiModel": {
           "showExperimentalModels": false,

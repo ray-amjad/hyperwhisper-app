@@ -27,7 +27,8 @@ import { getGoogleAccessToken, invalidateGoogleAccessToken } from '../lib/google
 import { resolveProviderLanguage } from '../lib/language-codes';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { estimateAudioSeconds, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, splitVocabularyTerms, unparsedBodyKind } from './utils';
+import { estimateAudioSeconds, fetchWithTimeout, logProviderEvent, splitVocabularyTerms, unparsedBodyKind } from './utils';
+import { readUpstreamError, safeErrorToken, upstreamErrorLogFields, type UpstreamErrorFields } from './upstream-error';
 
 // Re-exported for the transcribe route's pre-buffer header gate. Kept here
 // historically; the canonical constant now lives in `lib/constants.ts`.
@@ -241,25 +242,25 @@ export async function transcribeWithGoogleChirp(
       }, context, SYNC_RECOGNIZE_TIMEOUT_MS);
 
       let response = await recognize({ config, content });
-      let errorText: string | undefined;
+      let errorFields: UpstreamErrorFields | undefined;
 
       if (!response.ok) {
         const rejection = await classifyRejection(response, phrases.length > 0);
-        errorText = rejection.errorText;
+        errorFields = rejection.fields;
         if (rejection.retryWithoutAdaptation) {
+          // Never the body: a phrase-set 400 quotes the user's vocabulary (#2163).
           logProviderEvent(provider, 'adaptation_rejected_retrying_without', {
-            status: response.status,
+            ...upstreamErrorLogFields(rejection.fields),
             phraseCount: phrases.length,
             delivery: 'inline',
-            bodyPreview: rejection.errorText,
           }, context);
           response = await recognize({ config: configWithoutAdaptation(), content });
-          errorText = undefined;
+          errorFields = undefined;
         }
       }
 
       if (!response.ok) {
-        await throwForSpeechError(provider, response, startedAt, context, errorText);
+        await throwForSpeechError(provider, response, startedAt, context, errorFields);
       }
 
       const data = await parseJsonBody<SpeechRecognizeResponse>(response, provider, 'sync_recognize', context);
@@ -432,18 +433,20 @@ function normalizeSpeechResults(
 async function classifyRejection(
   response: Response,
   hasPhrases: boolean,
-): Promise<{ retryWithoutAdaptation: boolean; errorText: string }> {
-  const errorText = await readErrorBodyPreview(response);
+): Promise<{ retryWithoutAdaptation: boolean; fields: UpstreamErrorFields }> {
+  // `classifierText` is tested here and dropped: it can quote the phrase
+  // list, so only the content-free `fields` leave this function (#2163).
+  const { fields, classifierText } = await readUpstreamError(response);
   if (!hasPhrases) {
-    return { retryWithoutAdaptation: false, errorText };
+    return { retryWithoutAdaptation: false, fields };
   }
   if (response.status === 404) {
-    return { retryWithoutAdaptation: true, errorText };
+    return { retryWithoutAdaptation: true, fields };
   }
-  if (response.status === 400 && /adaptation|phrase[_ ]?set|phrases/i.test(errorText)) {
-    return { retryWithoutAdaptation: true, errorText };
+  if (response.status === 400 && /adaptation|phrase[_ ]?set|phrases/i.test(classifierText)) {
+    return { retryWithoutAdaptation: true, fields };
   }
-  return { retryWithoutAdaptation: false, errorText };
+  return { retryWithoutAdaptation: false, fields };
 }
 
 async function throwForSpeechError(
@@ -452,9 +455,9 @@ async function throwForSpeechError(
   startedAt: number,
   context: ProviderRequestContext,
   /** Body already read by `classifyRejection`; a Response body reads once. */
-  preReadErrorText?: string,
+  preReadFields?: UpstreamErrorFields,
 ): Promise<never> {
-  const errorText = preReadErrorText ?? await readErrorBodyPreview(response);
+  const fields = preReadFields ?? (await readUpstreamError(response)).fields;
   const elapsedMs = Math.round(performance.now() - startedAt);
   const kind = response.status >= 500
     ? 'upstream_5xx'
@@ -464,9 +467,8 @@ async function throwForSpeechError(
 
   logProviderEvent(provider, 'http_error', {
     elapsedMs,
-    status: response.status,
+    ...upstreamErrorLogFields(fields),
     kind,
-    bodyPreview: errorText,
   }, context);
 
   if (response.status === 401) {
@@ -547,7 +549,7 @@ async function runBatchRecognize(params: BatchRecognizeParams): Promise<Normaliz
   }, context, BATCH_SUBMIT_TIMEOUT_MS);
 
   let submitResponse = await submit(config);
-  let submitErrorText: string | undefined;
+  let submitErrorFields: UpstreamErrorFields | undefined;
 
   // Advisory biasing must never cost the transcript — see the adaptation note
   // in `transcribeWithGoogleChirp`. Retried at submit time only, so a poll-time
@@ -555,21 +557,20 @@ async function runBatchRecognize(params: BatchRecognizeParams): Promise<Normaliz
   // through the SAME predicate as the inline path so the two cannot drift.
   if (!submitResponse.ok) {
     const rejection = await classifyRejection(submitResponse, Boolean(fallbackConfig));
-    submitErrorText = rejection.errorText;
+    submitErrorFields = rejection.fields;
     if (rejection.retryWithoutAdaptation && fallbackConfig) {
       logProviderEvent(provider, 'adaptation_rejected_retrying_without', {
-        status: submitResponse.status,
+        ...upstreamErrorLogFields(rejection.fields),
         phraseCount: phraseCount ?? 0,
         delivery: 'gcs+batch',
-        bodyPreview: rejection.errorText,
       }, context);
       submitResponse = await submit(fallbackConfig);
-      submitErrorText = undefined;
+      submitErrorFields = undefined;
     }
   }
 
   if (!submitResponse.ok) {
-    await throwForSpeechError(provider, submitResponse, startedAt, context, submitErrorText);
+    await throwForSpeechError(provider, submitResponse, startedAt, context, submitErrorFields);
   }
 
   const submitData = await parseJsonBody<{ name?: string }>(submitResponse, provider, 'batch_submit', context);
@@ -628,9 +629,11 @@ async function runBatchRecognize(params: BatchRecognizeParams): Promise<Normaliz
         elapsedMs: Math.round(performance.now() - startedAt),
       }, context);
 
+      // The code only: transcribe.ts logs this message, and Google's
+      // `message` can quote the request it failed on (#2163).
       if (pollData.error) {
         throw new Error(
-          `Google Speech batchRecognize failed (${pollData.error.code}): ${pollData.error.message}`,
+          `Google Speech batchRecognize failed (${safeErrorToken(pollData.error.code) ?? 'unknown'})`,
         );
       }
 
@@ -652,7 +655,7 @@ async function runBatchRecognize(params: BatchRecognizeParams): Promise<Normaliz
 
       if (fileResult.error) {
         throw new Error(
-          `Google Speech batchRecognize file error (${fileResult.error.code}): ${fileResult.error.message}`,
+          `Google Speech batchRecognize file error (${safeErrorToken(fileResult.error.code) ?? 'unknown'})`,
         );
       }
 

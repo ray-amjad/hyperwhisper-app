@@ -260,7 +260,7 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
                 parakeet ? mode.LocalParakeetModel ?? mode.Model ?? string.Empty : mode.ModelType ?? mode.Model ?? string.Empty,
                 parakeet ? LocalTranscriptionEngine.Parakeet : LocalTranscriptionEngine.Whisper);
         }
-        if (!TryMapCloudProvider(mode.CloudProvider, out var provider)) return null;
+        if (!TryMapCloudProvider(SharedCoreBridge.EffectiveModeCloudProvider(mode.CloudProvider), out var provider)) return null;
         return new(
             FileTranscriptionRoute.Cloud,
             mode.CloudTranscriptionModel ?? string.Empty,

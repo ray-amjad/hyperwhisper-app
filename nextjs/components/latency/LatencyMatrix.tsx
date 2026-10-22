@@ -14,6 +14,7 @@ import {
   type LatencyVendorRow,
 } from "@/lib/latency/types";
 import { regionCity } from "@/lib/latency/fly-regions";
+import { TEXT_LINK } from "@/components/text-link";
 import { isRecord } from "@/src/lib/type-guards";
 
 const METRICS = [
@@ -87,6 +88,12 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   // Once the visitor has chosen a region by hand, geolocation stops having an
   // opinion — switching clip-length bucket must not quietly move them back.
   const regionPickedByUser = useRef(false);
+  // The matrix region and its table (#702). "Break down by model" adds a dozen
+  // rows at once, and a table row cannot tween, so the region tweens to the
+  // table's measured height instead (.t-resize) and the page under it glides
+  // rather than jumping 500 px in one frame.
+  const matrixRegion = useRef<HTMLDivElement>(null);
+  const matrixTable = useRef<HTMLTableElement>(null);
 
   const data = matrices[bucket];
   const { regions } = data;
@@ -136,6 +143,25 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
 
     return () => controller.abort();
   }, [regionsKey]);
+
+  // ResizeObserver reports after layout and before paint, so the region still
+  // holds its old height in the frame the rows change, and the transition
+  // starts from there. The first report only pins the height it already has.
+  // The region is observed too: a horizontal scrollbar that comes or goes
+  // changes its chrome (border + scrollbar) without changing the table.
+  useEffect(() => {
+    const region = matrixRegion.current;
+    const table = matrixTable.current;
+    if (!region || !table) return;
+    const observer = new ResizeObserver(() => {
+      const chrome = region.offsetHeight - region.clientHeight;
+      region.style.height = `${table.offsetHeight + chrome}px`;
+    });
+    observer.observe(table);
+    observer.observe(region);
+
+    return () => observer.disconnect();
+  }, [hasData]);
 
   // The region to actually highlight. A pick is remembered across bucket
   // switches — geolocation must not quietly undo it — but every bucket derives
@@ -280,7 +306,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
       <div className="flex flex-wrap items-center gap-6">
         <div className="flex flex-col gap-2">
           <span
-            className="text-xs uppercase tracking-widest text-gray-500"
+            className="text-xs uppercase tracking-widest text-gray-400"
             id="latency-metric-label"
           >
             Metric
@@ -310,7 +336,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
 
         <div className="flex flex-col gap-2">
           <span
-            className="text-xs uppercase tracking-widest text-gray-500"
+            className="text-xs uppercase tracking-widest text-gray-400"
             id="latency-bucket-label"
           >
             Clip length
@@ -341,7 +367,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
         {hasData ? (
           <>
             <div className="flex flex-col gap-2">
-              <span className="text-xs uppercase tracking-widest text-gray-500">
+              <span className="text-xs uppercase tracking-widest text-gray-400">
                 Detail
               </span>
               <button
@@ -364,7 +390,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
             </div>
 
             <div className="flex flex-col gap-2">
-              <span className="text-xs uppercase tracking-widest text-gray-500">
+              <span className="text-xs uppercase tracking-widest text-gray-400">
                 Row order
               </span>
               <button
@@ -390,7 +416,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
           <p className="text-lg text-gray-300">
             No measurements for this clip length yet.
           </p>
-          <p className="mt-2 text-sm text-gray-500">
+          <p className="mt-2 text-sm text-gray-400">
             Nothing has been recorded for &ldquo;{BUCKET_LABELS[bucket]}&rdquo; in
             the last {data.windowDays} days. Pick another clip length above — this
             page fills in as transcriptions run.
@@ -399,63 +425,74 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
       ) : (
         <>
           {/* Region highlight */}
-          <div className="mt-6 flex flex-wrap items-center gap-3 text-sm">
-            <MapPin className="h-4 w-4 text-purple-300" />
-            {activeHomeRegion ? (
-              <span className="text-gray-300">
-                Showing{" "}
-                <span className="font-semibold text-white">
-                  {homeCity ?? regionCity(activeHomeRegion)}
+          <div className="mt-6 text-sm">
+            <div className="flex flex-wrap items-center gap-3">
+              <MapPin className="h-4 w-4 text-purple-300" />
+              {activeHomeRegion ? (
+                <span className="text-gray-300">
+                  Showing{" "}
+                  <span className="font-semibold text-white">
+                    {homeCity ?? regionCity(activeHomeRegion)}
+                  </span>
                 </span>
-              </span>
-            ) : (
-              <span className="text-gray-500">Pick the region closest to you</span>
-            )}
-            <button
-              className="text-purple-300 underline underline-offset-4 transition hover:text-purple-200"
-              type="button"
-              onClick={() => setPickingRegion((open) => !open)}
-            >
-              {pickingRegion ? "close" : "change"}
-            </button>
+              ) : (
+                <span className="text-gray-400">Pick the region closest to you</span>
+              )}
+              <button
+                className={TEXT_LINK}
+                type="button"
+                onClick={() => setPickingRegion((open) => !open)}
+              >
+                {pickingRegion ? "close" : "change"}
+              </button>
+            </div>
+            {/* The chip row grows open from 0fr (#702) instead of arriving at
+                full height in one frame. It sits under the flex row rather than
+                in it, so no row gap lands before the reveal; pt-5 is the old
+                gap-3 plus pt-2. */}
             {pickingRegion ? (
-              <div className="flex w-full flex-wrap gap-2 pt-2">
-                {regions.map((region) => (
-                  <button
-                    key={region}
-                    aria-pressed={activeHomeRegion === region}
-                    className={`rounded-full border px-3 py-1 text-xs transition ${
-                      activeHomeRegion === region
-                        ? "border-purple-500 bg-purple-600/30 text-white"
-                        : "border-gray-700 text-gray-400 hover:text-white"
-                    }`}
-                    type="button"
-                    onClick={() => {
-                      regionPickedByUser.current = true;
-                      setHomeRegion(region);
-                      setHomeCity(regionCity(region));
-                      setPickingRegion(false);
-                    }}
-                  >
-                    {regionCity(region)}
-                  </button>
-                ))}
+              <div className="t-cell-reveal">
+                <div>
+                  <div className="flex flex-wrap gap-2 pt-5">
+                    {regions.map((region) => (
+                      <button
+                        key={region}
+                        aria-pressed={activeHomeRegion === region}
+                        className={`rounded-full border px-3 py-1 text-xs transition ${
+                          activeHomeRegion === region
+                            ? "border-purple-500 bg-purple-600/30 text-white"
+                            : "border-gray-700 text-gray-400 hover:text-white"
+                        }`}
+                        type="button"
+                        onClick={() => {
+                          regionPickedByUser.current = true;
+                          setHomeRegion(region);
+                          setHomeCity(regionCity(region));
+                          setPickingRegion(false);
+                        }}
+                      >
+                        {regionCity(region)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             ) : null}
           </div>
 
           {/* Matrix */}
           <div
+            ref={matrixRegion}
             aria-label="Latency matrix"
-            className="mt-6 overflow-x-auto rounded-lg border border-gray-800 bg-gray-950/80 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+            className="t-resize mt-6 overflow-x-auto overflow-y-hidden rounded-lg border border-gray-800 bg-gray-950/80 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
             role="region"
             // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
             tabIndex={0}
           >
-            <table className="w-full border-collapse text-sm">
+            <table ref={matrixTable} className="w-full border-collapse text-sm">
               <thead>
                 <tr>
-                  <th className="sticky left-0 z-20 bg-gray-950 px-4 py-3 text-left text-xs uppercase tracking-widest text-gray-500">
+                  <th className="sticky left-0 z-20 bg-gray-950 px-4 py-3 text-left text-xs uppercase tracking-widest text-gray-400">
                     {byModel ? "Provider / model" : "Provider"}
                   </th>
                   {regions.map((region) => (
@@ -477,7 +514,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                         }
                       >
                         {regionCity(region)}
-                        <span className="block text-[10px] uppercase tracking-wider text-gray-600">
+                        <span className="block text-[10px] uppercase tracking-wider text-gray-400">
                           {region}
                         </span>
                       </button>
@@ -587,7 +624,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
             </table>
           </div>
 
-          <p className="mt-4 text-sm text-gray-500">
+          <p className="mt-4 text-sm text-gray-400">
             {metric === "errorRate"
               ? "Share of attempts that failed, including ones a fallback provider rescued."
               : "Milliseconds, provider call only."}{" "}

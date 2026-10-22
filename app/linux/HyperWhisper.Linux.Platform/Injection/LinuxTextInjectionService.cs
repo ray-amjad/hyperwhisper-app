@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+using System.Text;
 using HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.Linux.Platform.Injection;
@@ -41,6 +43,26 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
     private readonly ISecureFieldGuard _secureFieldGuard;
     private readonly ICapturedTargetService _targets;
     private ClipboardSnapshot? _snapshot;
+    // #1514: the UTF-8 bytes of the last transcript this service wrote, once a restore of
+    // _snapshot was scheduled for it. It means "this transcript is on the clipboard and the
+    // user's content is due back". While the clipboard still holds exactly this transcript,
+    // StartSession keeps _snapshot instead of capturing the transcript. Guarded by _gate.
+    // #1590: a restore skips (and drops _snapshot) when the clipboard reads back as something
+    // other than the transcript in this field or _unscheduledTranscript. An unreadable clipboard
+    // restores as before (see ClipboardChangedSinceOwnWriteAsync).
+    private byte[]? _scheduledTranscript;
+    // The last transcript written with no restore scheduled for it yet. ScheduleClipboardRestore
+    // moves it to _scheduledTranscript; a session that starts while it is still set treats that
+    // transcript as left on the clipboard on purpose (restore off) and snapshots it afresh.
+    private byte[]? _unscheduledTranscript;
+    // Bumped by every StartSession. A restore records it with the snapshot it restores and clears
+    // state only while it is unchanged: a chained session keeps the SAME snapshot object, so a
+    // reference check cannot tell its snapshot from the one an in-flight restore read. Guarded by _gate.
+    private long _sessionGeneration;
+    // #1590: a dictation session is open (StartSession to EndSession). Only a CopyToClipboardAsync
+    // inside one is the dictation's copy-only delivery; outside one it is a Copy button press, the
+    // user's own copy. Guarded by _gate.
+    private bool _sessionOpen;
     private CapturedTarget? _capturedTarget;
     private CancellationTokenSource? _restoreCancellation;
     private int _clipboardHistoryPrivacyPolicy;
@@ -84,19 +106,46 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
         var result = _targets.Capture();
         _capturedTarget = result.IsSuccess ? result.Value : null;
     }
+    /// <summary>
+    /// Cancels a pending restore and snapshots the clipboard for this session.
+    /// CHAINED DICTATIONS (#1514, the Linux twin of #1496): when the last transcript this service
+    /// wrote had a restore scheduled, and the clipboard still holds exactly that transcript, the
+    /// clipboard is the app's, not the user's. Capturing it would make this session's restore
+    /// write the old transcript back and lose the user's clipboard, so the earlier snapshot is
+    /// kept. Linux has no clipboard change counter, so "nothing wrote since" is read from the
+    /// content: a user copy (other text, or other formats such as text/html) differs and is
+    /// snapshotted afresh, as before.
+    /// </summary>
     public void StartSession()
     {
         if (_disposed) return;
+        // Before the cancel: a restore already inside RestoreAsync may still finish, and must not
+        // clear the state this session is about to keep or replace.
+        lock (_gate) _sessionGeneration++;
         CancelPendingClipboardRestore();
+        PlatformResult<ClipboardSnapshot?>? result;
         try
         {
-            var result = Task.Run(async () => await _clipboard.CaptureAsync(CancellationToken.None).ConfigureAwait(false))
+            result = Task.Run(async () => await _clipboard.CaptureAsync(CancellationToken.None).ConfigureAwait(false))
                 .GetAwaiter().GetResult();
-            _snapshot = result.IsSuccess ? result.Value : null;
         }
-        catch { _snapshot = null; }
+        catch { result = null; }
+        lock (_gate)
+        {
+            _sessionOpen = true;
+            _unscheduledTranscript = null;
+            if (_snapshot is not null && _scheduledTranscript is not null && result is { IsSuccess: true }
+                && HoldsOnlyTranscript(result.Value, _scheduledTranscript))
+                return;
+            _scheduledTranscript = null;
+            _snapshot = result is { IsSuccess: true } ? result.Value : null;
+        }
     }
-    public void EndSession() => _capturedTarget = null;
+    public void EndSession()
+    {
+        _capturedTarget = null;
+        lock (_gate) _sessionOpen = false;
+    }
     public void CancelPendingClipboardRestore()
     {
         CancellationTokenSource? value;
@@ -110,22 +159,52 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
         if (_disposed || _snapshot is null) return;
         CancelPendingClipboardRestore();
         var cancellation = new CancellationTokenSource();
-        lock (_gate) _restoreCancellation = cancellation;
+        lock (_gate)
+        {
+            _restoreCancellation = cancellation;
+            // The transcript this session wrote now has a restore due, so a session started
+            // before it runs keeps the snapshot. With no write this session, the earlier mark stands.
+            if (_unscheduledTranscript is not null)
+            {
+                _scheduledTranscript = _unscheduledTranscript;
+                _unscheduledTranscript = null;
+            }
+        }
         _ = RestoreAfterDelayAsync(delay, cancellation);
     }
+    /// <summary>
+    /// Restores the snapshot now (cancel, start failure, stop error). Like the scheduled restore,
+    /// it leaves a user copy made since the last transcript write alone (#1590); a skip is not a failure.
+    /// </summary>
     public async ValueTask<PlatformResult> RestoreClipboardImmediatelyAsync(CancellationToken cancellationToken = default)
     {
         CancelPendingClipboardRestore();
-        if (_snapshot is null) return PlatformResult.Success();
-        var result = await TryRestoreAsync(_snapshot, cancellationToken).ConfigureAwait(false);
-        if (result.IsSuccess) _snapshot = null;
+        var (snapshot, expected, generation) = ReadSnapshot();
+        if (snapshot is null) return PlatformResult.Success();
+        if (await ClipboardChangedSinceOwnWriteAsync(expected, cancellationToken).ConfigureAwait(false))
+        {
+            ClearRestoredSnapshot(generation);
+            return PlatformResult.Success();
+        }
+        var result = await TryRestoreAsync(snapshot, cancellationToken).ConfigureAwait(false);
+        if (result.IsSuccess) ClearRestoredSnapshot(generation);
         return result;
     }
-    public ValueTask<PlatformResult> CopyToClipboardAsync(string text, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Copies <paramref name="text"/>. Inside a dictation session this is the copy-only delivery
+    /// (TranscriptionTextDelivery with auto-paste off), a transcript write a restore may replace.
+    /// Outside one it is a Copy button (history, Local API, account key): the user's copy, so it is
+    /// not marked, and a pending restore sees the clipboard changed and leaves it (#1590).
+    /// </summary>
+    public async ValueTask<PlatformResult> CopyToClipboardAsync(string text, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(text);
-        return _disposed ? ValueTask.FromResult(PlatformResult.Failure("injection_disposed", "The text injection service is disposed."))
-            : TrySetTextAsync(text, cancellationToken);
+        if (_disposed) return PlatformResult.Failure("injection_disposed", "The text injection service is disposed.");
+        bool sessionOpen;
+        lock (_gate) sessionOpen = _sessionOpen;
+        var result = await TrySetTextAsync(text, cancellationToken).ConfigureAwait(false);
+        if (result.IsSuccess && sessionOpen) MarkTranscriptWritten(text);
+        return result;
     }
     public async ValueTask<TextInjectionOutcome> InjectTranscriptAsync(string text, CancellationToken cancellationToken = default)
     {
@@ -133,8 +212,12 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
         if (_disposed) return TextInjectionOutcome.Failed;
         var target = _capturedTarget;
         if (target is null)
-            return (await TrySetTextAsync(text, cancellationToken).ConfigureAwait(false)).IsSuccess
-                ? TextInjectionOutcome.CopiedToClipboard : TextInjectionOutcome.Failed;
+        {
+            if ((await TrySetTextAsync(text, cancellationToken).ConfigureAwait(false)).IsFailure)
+                return TextInjectionOutcome.Failed;
+            MarkTranscriptWritten(text);
+            return TextInjectionOutcome.CopiedToClipboard;
+        }
 
         var focus = await TryFocusAsync(target, cancellationToken).ConfigureAwait(false);
         if (focus == TargetFocusState.Ready
@@ -143,6 +226,7 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
 
         var copied = await TrySetTextAsync(text, cancellationToken).ConfigureAwait(false);
         if (copied.IsFailure) return TextInjectionOutcome.Failed;
+        MarkTranscriptWritten(text);
         if (focus != TargetFocusState.Ready) return TextInjectionOutcome.CopiedToClipboard;
         if (await TryFocusAsync(target, cancellationToken).ConfigureAwait(false) != TargetFocusState.Ready)
             return TextInjectionOutcome.CopiedToClipboard;
@@ -159,8 +243,13 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
         try
         {
             await Task.Delay(delay < TimeSpan.Zero ? TimeSpan.Zero : delay, cancellation.Token);
-            if (_snapshot is not null && (await TryRestoreAsync(_snapshot, cancellation.Token).ConfigureAwait(false)).IsSuccess)
-                _snapshot = null;
+            var (snapshot, expected, generation) = ReadSnapshot();
+            if (snapshot is null) return;
+            // #1590: a copy made inside the restore window is the user's clipboard now.
+            if (await ClipboardChangedSinceOwnWriteAsync(expected, cancellation.Token).ConfigureAwait(false))
+                ClearRestoredSnapshot(generation);
+            else if ((await TryRestoreAsync(snapshot, cancellation.Token).ConfigureAwait(false)).IsSuccess)
+                ClearRestoredSnapshot(generation);
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         catch { }
@@ -170,6 +259,109 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
             cancellation.Dispose();
         }
     }
+    /// <summary>
+    /// Records that the clipboard now holds a transcript this service wrote. It drops the armed
+    /// mark: only a restore scheduled for this write (ScheduleClipboardRestore) arms it again, so
+    /// a transcript left with no restore (restore off) is the clipboard's content next session.
+    /// </summary>
+    private void MarkTranscriptWritten(string text)
+    {
+        var bytes = Encoding.UTF8.GetBytes(text);
+        lock (_gate)
+        {
+            _scheduledTranscript = null;
+            _unscheduledTranscript = bytes;
+        }
+    }
+
+    /// <summary>
+    /// The snapshot, the transcript a restore may write over (#1590: the last one this service
+    /// wrote since the snapshot, or the previous one a chained session kept it for; null when
+    /// nothing was written since), and the session generation, read together.
+    /// </summary>
+    private (ClipboardSnapshot? Snapshot, byte[]? Expected, long Generation) ReadSnapshot()
+    {
+        lock (_gate) return (_snapshot, _unscheduledTranscript ?? _scheduledTranscript, _sessionGeneration);
+    }
+
+    /// <summary>
+    /// Whether the clipboard no longer holds what a restore would replace (#1590, the Linux twin
+    /// of #1583): with no transcript written since the snapshot, any readable content is the
+    /// user's or newer; otherwise anything but exactly that transcript (other text, other formats,
+    /// an empty clipboard) was written by someone else. Linux has no change counter, so this
+    /// reads the content. A capture failure that proves the content is not a transcript write
+    /// (ChangedCaptureFailures) counts as changed. Any other read failure (no helper, the helper
+    /// failed, an incomplete capture, an exception) is unknown: false, and the restore runs as before.
+    /// </summary>
+    private async ValueTask<bool> ClipboardChangedSinceOwnWriteAsync(byte[]? expected, CancellationToken token)
+    {
+        PlatformResult<ClipboardSnapshot?> current;
+        try { current = await _clipboard.CaptureAsync(token).ConfigureAwait(false); }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+        catch { return false; }
+        if (current.IsFailure) return current.Error?.Code is { } code && ChangedCaptureFailures.Contains(code);
+        return expected is null || !HoldsOnlyTranscript(current.Value, expected);
+    }
+
+    /// <summary>
+    /// CommandClipboardBackend.CaptureAsync failures a transcript write cannot cause: larger than
+    /// any transcript (too_large) or more than 64 targets (invalid). clipboard_capture_incomplete
+    /// is not here: the backend returns it for any failed read of one target, a transient helper
+    /// failure included, so it cannot tell an undeliverable target from a busy X server.
+    /// </summary>
+    private static readonly FrozenSet<string> ChangedCaptureFailures = new[]
+    {
+        "clipboard_snapshot_too_large", "clipboard_snapshot_invalid",
+    }.ToFrozenSet(StringComparer.Ordinal);
+
+    /// <summary>Test seam (#1590): whether a snapshot is still held, i.e. a restore decision is pending.</summary>
+    internal bool HoldsSnapshot { get { lock (_gate) return _snapshot is not null; } }
+
+    /// <summary>The user's content is back on the clipboard: no snapshot or mark is current.</summary>
+    private void ClearRestoredSnapshot(long generation)
+    {
+        lock (_gate)
+        {
+            // A session that started meanwhile owns the state now, even when it kept the very
+            // snapshot this restore wrote (a chain): it schedules its own restore of it.
+            if (_sessionGeneration != generation) return;
+            _snapshot = null;
+            _scheduledTranscript = null;
+            _unscheduledTranscript = null;
+        }
+    }
+
+    // The UTF-8 plain-text targets this service's transcript writes publish (CommandClipboardBackend
+    // and the native owner), compared byte for byte; the legacy X11 aliases may be re-encoded by the
+    // owner, so they are allowed without a byte check; the privacy hint is ours too.
+    private static readonly string[] Utf8TextFormats = ["text/plain;charset=utf-8", "text/plain", "UTF8_STRING"];
+    private static readonly string[] LegacyTextFormats = ["STRING", "TEXT", "COMPOUND_TEXT"];
+    private const string PrivacyHintFormat = "x-kde-passwordManagerHint";
+
+    /// <summary>
+    /// Whether <paramref name="captured"/> is exactly a transcript write of <paramref name="transcript"/>:
+    /// at least one UTF-8 text target equal to it, every UTF-8 text target equal to it, and no
+    /// format a transcript write does not publish. Anything else (another text, an HTML or image
+    /// copy, an empty clipboard) is someone else's content.
+    /// </summary>
+    internal static bool HoldsOnlyTranscript(ClipboardSnapshot? captured, byte[] transcript)
+    {
+        if (captured is null || captured.Formats.Count == 0) return false;
+        var matched = false;
+        foreach (var (format, value) in captured.Formats)
+        {
+            if (Utf8TextFormats.Contains(format, StringComparer.OrdinalIgnoreCase))
+            {
+                if (!value.AsSpan().SequenceEqual(transcript)) return false;
+                matched = true;
+            }
+            else if (!LegacyTextFormats.Contains(format, StringComparer.Ordinal)
+                && !string.Equals(format, PrivacyHintFormat, StringComparison.Ordinal))
+                return false;
+        }
+        return matched;
+    }
+
     private async ValueTask<PlatformResult> TrySetTextAsync(string text, CancellationToken token)
     {
         try
@@ -203,7 +395,8 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
         if (_disposed) return;
         _disposed = true;
         CancelPendingClipboardRestore();
-        _snapshot = null; _capturedTarget = null;
+        lock (_gate) { _snapshot = null; _scheduledTranscript = null; _unscheduledTranscript = null; _sessionOpen = false; }
+        _capturedTarget = null;
         if (_clipboard is IDisposable disposable) disposable.Dispose();
         GC.SuppressFinalize(this);
     }

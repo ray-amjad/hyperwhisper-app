@@ -41,9 +41,15 @@ struct ModelStatusBar: View {
             Spacer()
 
             // Right: current mode name
+            // A mode name has no length cap: keep it on one line and give
+            // the engines the room (#1436). The full name is the tooltip.
             Text(modeName)
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: 260, alignment: .trailing)
+                .help(modeName)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 5)

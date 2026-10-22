@@ -15,7 +15,12 @@ public sealed class GeneralSettingsViewModel(SettingsViewModel settings)
     : SettingsSectionViewModel(settings);
 
 public sealed class SoundSettingsViewModel(SettingsViewModel settings)
-    : SettingsSectionViewModel(settings);
+    : SettingsSectionViewModel(settings)
+{
+    /// <summary>The microphone picker and its level test, at the top of the Microphone card.
+    /// Null on a shell without a recording workflow.</summary>
+    public MicrophonePickerViewModel? Microphone { get; internal set; }
+}
 
 public sealed class StorageSettingsViewModel(SettingsViewModel settings)
     : SettingsSectionViewModel(settings);

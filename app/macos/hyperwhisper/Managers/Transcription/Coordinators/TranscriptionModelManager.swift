@@ -369,8 +369,16 @@ class TranscriptionModelManager: ObservableObject {
             } catch {
                 AppLogger.models.error("Failed to prepare Qwen3 ASR provider: \(error.localizedDescription, privacy: .public)")
                 modelReadyState = .none
-                onStateChange?(.error(message: "Failed to prepare \(displayName)."))
-                if AppLogger.isErrorLoggingEnabled {
+                // Both compute units failed: show the error that says what to
+                // do next, not only "Failed to prepare".
+                let message = Qwen3AsrRuntimeLoad.isReportedAtSource(error)
+                    ? error.localizedDescription
+                    : "Failed to prepare \(displayName)."
+                onStateChange?(.error(message: message))
+                // A failed runtime load is already in Sentry with its real
+                // CoreML domain and code (Qwen3AsrRuntimeLoad.send).
+                if AppLogger.isErrorLoggingEnabled,
+                   !Qwen3AsrRuntimeLoad.isReportedAtSource(error) {
                     SentryService.capture(error: error, message: "Qwen3 ASR prepare failed", extras: ["modelId": modelId], tags: ["component": "models"])
                 }
             }
@@ -394,8 +402,13 @@ class TranscriptionModelManager: ObservableObject {
             do {
                 try await provider.prepareIfNeeded(language: extractLanguage(from: mode), modelId: modelId)
                 modelReadyState = .ready(name: displayName)
+            } catch is CancellationError {
+                AppLogger.models.info("Nemotron preparation cancelled")
             } catch {
                 AppLogger.models.error("Failed to prepare Nemotron: \(error.localizedDescription, privacy: .public)")
+                // A failed load (a broken variant, #1632) must not leave the status
+                // bar on Loading; the Library row offers Re-download.
+                modelReadyState = .none
             }
             return
         }
@@ -610,6 +623,12 @@ class TranscriptionModelManager: ObservableObject {
         } catch is CancellationError {
             AppLogger.models.info("Model switch cancelled")
             onStateChange?(.idle)
+        } catch TranscriptionError.modelNotDownloaded {
+            // A missing model file is an expected state (a restored mode, a
+            // deleted cache), not a load fault: show the Download prompt the
+            // Parakeet path shows, and send no Sentry event (#1985).
+            AppLogger.models.warning("Whisper \(target.rawValue, privacy: .public) is not downloaded")
+            modelReadyState = .unavailable(name: target.name)
         } catch {
             AppLogger.models.error("Failed to load model \(target.rawValue, privacy: .public): \(error.localizedDescription, privacy: .public)")
             modelReadyState = .none

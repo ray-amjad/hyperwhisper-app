@@ -63,7 +63,7 @@ The window moves through several states during a recording.
 | State | What you see |
 |---|---|
 | **Recording** | The waveform animates. The stop button is visible. The duration timer counts up. Only macOS has a duration timer |
-| **Pending Retry** (macOS only) | A yellow clock icon with a **Retry** button. This state appears when the audio file of the recording fails a readability test immediately after you stop |
+| **Pending Retry** (macOS only) | A yellow clock icon with a **Retry** button. This state appears when the audio file of the recording fails a readability test immediately after you stop. If you deleted the mode of the recording, the window shows "Mode was deleted" and a **Retry with...** menu. Select a mode to retry. The app sends nothing until you select a mode, and it keeps the audio file |
 | **Transcribing** | A spinner with a status message. The waveform stops |
 | **Post-processing** | A spinner with a status message. This state appears when AI post-processing is on and runs after transcription |
 | **Success** | A checkmark icon with "Pasted!". On macOS, the text is "Saved to Notes!" if you used Quick Capture. Windows has no Quick Capture and always shows "Pasted!". The window closes automatically after a moment |

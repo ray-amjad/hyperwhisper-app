@@ -60,6 +60,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 ; No user data lives in {app} (it lives in {localappdata}\HyperWhisper).
 Type: filesandordirs; Name: "{app}\runtimes"
 Type: filesandordirs; Name: "{app}\parakeet-engine"
+; The Whisper worker (issue #1194) ships its own Whisper.net runtimes.
+Type: filesandordirs; Name: "{app}\whisper-worker"
 
 [Files]
 ; Copy all published files from the ARM64 publish folder
@@ -154,6 +156,7 @@ begin
     // relaunched by the startup Run key on next login.
     KillProcess('{#MyAppExeName}');
     KillProcess('parakeet-engine.exe');
+    KillProcess('HyperWhisper.WhisperWorker.exe');
   end;
 
   if CurUninstallStep = usPostUninstall then begin

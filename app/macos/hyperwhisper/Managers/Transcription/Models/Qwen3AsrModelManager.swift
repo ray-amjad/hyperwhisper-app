@@ -10,7 +10,44 @@ final class Qwen3AsrModelManager: ObservableObject {
     enum Constants {
         static let modelId = "qwen3-asr-0.6b"
         static let displayName = "Qwen3 ASR"
-        static let sizeDescription = "~1.3 GB"
+        // Matches `downloadBytes` below; `ModelSizeLabelTests` pins the two together.
+        static let sizeDescription = "~1.9 GB"
+
+        /// Bytes the trimmed f32 download fetches: the sum of every file under
+        /// `f32/` in `FluidInference/qwen3-asr-0.6b-coreml` that
+        /// `shouldSkipRemotePath` keeps (measured 2026-10-07). The untrimmed
+        /// `Qwen3AsrModels.download` pulled 4.19 GB.
+        static let downloadBytes: Int64 = 1_880_834_670
+
+        /// Precision folder in the Hugging Face repo, and the last path
+        /// component of `Qwen3AsrModels.defaultCacheDirectory(variant: .f32)`.
+        static let remoteSubdirectory = "f32"
+
+        /// The entries directly under `f32/` that FluidAudio 0.15.2 reads:
+        /// `Qwen3AsrModels.load` opens the two `.mlmodelc` bundles, the
+        /// embeddings and `vocab.json`, and `modelsExist` probes the same set.
+        /// `metadata.json` is 2 KB and `downloadRepo` always fetched it.
+        static let requiredRemoteEntries: Set<String> = [
+            ModelNames.Qwen3ASR.audioEncoderFile,
+            ModelNames.Qwen3ASR.decoderStatefulFile,
+            ModelNames.Qwen3ASR.embeddingsFile,
+            "vocab.json",
+            "metadata.json",
+        ]
+
+        /// Skip predicate for `DownloadUtils.downloadSubdirectory`. The repo also
+        /// ships an `.mlpackage` source beside each `.mlmodelc` and the older
+        /// `qwen3_asr_audio_encoder.mlmodelc`, 2.31 GB in all. `load` takes a
+        /// `.mlmodelc` before it ever looks for an `.mlpackage`, and nothing
+        /// reads the old encoder. `downloadRepo` keeps every `.json` and `.bin`
+        /// file in the folder, and each of those bundles holds a `weight.bin`,
+        /// so the untrimmed download pulled all of them.
+        static func shouldSkipRemotePath(_ path: String) -> Bool {
+            let components = path.split(separator: "/", omittingEmptySubsequences: true)
+            guard components.first.map(String.init) == remoteSubdirectory else { return true }
+            guard components.count >= 2 else { return false }
+            return !requiredRemoteEntries.contains(String(components[1]))
+        }
     }
 
     @Published private(set) var isDownloaded: Bool = false
@@ -93,17 +130,27 @@ final class Qwen3AsrModelManager: ObservableObject {
         logger.info("Starting Qwen3 ASR f32 download")
 
         do {
-            _ = try await Qwen3AsrModels.download(
-                variant: .f32,
+            // `Qwen3AsrModels.download` takes no file filter, so call the
+            // downloader under it with one. Files land at
+            // `<repo folder>/f32/...`, the same place `download` put them.
+            let repoDirectory = Qwen3AsrModels.defaultCacheDirectory(variant: .f32)
+                .deletingLastPathComponent()
+            try await DownloadUtils.downloadSubdirectory(
+                .qwen3Asr,
+                subdirectory: Constants.remoteSubdirectory,
+                to: repoDirectory,
                 progressHandler: { progress in
                     Task { @MainActor in
-                        // Qwen3's download runs no compile phase, so FluidAudio's fraction tops out
-                        // at 0.5 (the download half of its 0–0.5 / 0.5–1.0 contract). Double it to
-                        // fill the ring; report() clamps to ≤ 1.0.
-                        controller.report(Constants.modelId, fraction: progress.fractionCompleted * 2.0)
+                        // `downloadSubdirectory` sweeps 0→1 by completed file count
+                        // (no 0–0.5 download half as in `downloadRepo`).
+                        controller.report(Constants.modelId, fraction: progress.fractionCompleted)
                     }
-                }
+                },
+                shouldSkip: { Constants.shouldSkipRemotePath($0) }
             )
+            guard Qwen3AsrModels.modelsExist(at: Qwen3AsrModels.defaultCacheDirectory(variant: .f32)) else {
+                throw Qwen3AsrError.modelNotFound(Constants.remoteSubdirectory)
+            }
             logger.info("Qwen3 ASR downloaded successfully")
         } catch is CancellationError {
             logger.info("Qwen3 ASR download cancelled")

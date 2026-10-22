@@ -51,6 +51,11 @@ struct CloudAccountSettingsSection: View {
                 Task { await fetchCredits(forceRefresh: true) }
             }
         }
+        // Issue #642: the red banner below the key field belongs to the key that
+        // failed. Leaving the page resets the field, so drop the error with it.
+        .onDisappear {
+            licenseManager.dismissLastError()
+        }
         .onReceive(NotificationCenter.default.publisher(for: .licenseStatusChanged)) { _ in
             // Identifier changes when the license is activated/deactivated, which
             // means a different credit pool — refetch so the balance stays correct.
@@ -72,6 +77,13 @@ struct CloudAccountSettingsSection: View {
             Button(LocalizedStringKey("common.ok")) { }
         } message: {
             Text(licenseManager.lastError ?? "alerts.license.failed.message".localized)
+        }
+        // Issue #1672: close the alerts before a page change removes this view.
+        .closesPresentationsOnPageChange(
+            isPresenting: showLicenseSuccess || showLicenseError
+        ) {
+            showLicenseSuccess = false
+            showLicenseError = false
         }
     }
 
@@ -127,6 +139,18 @@ struct CloudAccountSettingsSection: View {
                         TextField(LocalizedStringKey("settings.license.placeholder"), text: $licenseKeyInput)
                             .textFieldStyle(.roundedBorder)
                             .font(.system(.body, design: .monospaced))
+                            // Issue #642: an edit, a paste or Clear means the
+                            // error no longer names the key in the field.
+                            .onChange(of: licenseKeyInput) { _, _ in
+                                licenseManager.dismissLastError()
+                            }
+                        // #1489: text that cannot be a key keeps Activate off and says so.
+                        if LicenseKeyFormat.showsHint(licenseKeyInput) {
+                            Text(LocalizedStringKey("license.error.keyFormat"))
+                                .font(.caption)
+                                .foregroundColor(.red)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                         HStack(spacing: 12) {
                             Button(action: pasteOrClearInput) {
                                 if licenseKeyInput.isEmpty {
@@ -461,6 +485,7 @@ struct CloudAccountSettingsSection: View {
         let titleKey = licenseManager.isValidating ? "license.button.activating" : "license.button.activate"
         return Button(LocalizedStringKey(titleKey)) {
             Task {
+                // LicenseManager trims the key and refuses text that cannot be one (#1489).
                 let result = await licenseManager.activateLicense(licenseKeyInput)
                 if result.isValid {
                     showLicenseSuccess = true
@@ -471,7 +496,7 @@ struct CloudAccountSettingsSection: View {
             }
         }
         .buttonStyle(.borderedProminent)
-        .disabled(licenseKeyInput.isEmpty || licenseManager.isValidating)
+        .disabled(!LicenseKeyFormat.isPlausible(licenseKeyInput) || licenseManager.isValidating)
     }
 
     private func pasteOrClearInput() {

@@ -1,0 +1,24 @@
+id: no-wait-before-pipe-read
+language: swift
+severity: error
+message: "Read the subprocess pipe before waitUntilExit(), not after."
+note: |
+  A pipe holds about 64 KB. A child that writes more blocks on write until
+  someone reads, so waitUntilExit() before readDataToEndOfFile() never returns
+  and the calling thread hangs (#991: AppLogger ran `log show` this way in
+  both getRecentLogs and exportDiagnostics). Drain the pipe first, then wait,
+  or send the output to a file or FileHandle.nullDevice.
+  Test files are exempt: a test helper's tiny output cannot fill a pipe.
+files:
+  - "app/macos/**/*.swift"
+ignores:
+  - "**/RustCore/hyperwhisper_core.swift"
+  - "**/hyperwhisperTests/**"
+  - "**/hyperwhisperUITests/**"
+rule:
+  pattern: $P.waitUntilExit()
+  precedes:
+    stopBy: end
+    has:
+      stopBy: end
+      pattern: $H.readDataToEndOfFile()

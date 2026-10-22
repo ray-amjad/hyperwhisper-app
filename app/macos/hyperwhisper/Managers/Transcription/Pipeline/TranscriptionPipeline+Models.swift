@@ -68,7 +68,8 @@ extension TranscriptionPipeline {
         await modelCoordinator.refreshLocalRuntime(forModeId: modeId)
     }
 
-    /// Re-evaluate the selected Parakeet mode after its installed-model state changes.
+    /// Re-evaluate the selected Parakeet or Nemotron mode after its installed-model
+    /// state changes.
     @MainActor
     func refreshParakeetReadiness(forModeId modeId: String?) async {
         guard let modeId, UUID(uuidString: modeId) != nil else {
@@ -107,7 +108,21 @@ extension TranscriptionPipeline {
         }
         pendingParakeetReadinessModeId = nil
 
-        guard ParakeetModelManager.Constants.canonicalModelId(for: mode.model ?? "") != nil else {
+        // Nemotron shares this path: a Re-download of a broken variant (#1632)
+        // must prepare it again, or the status bar never returns to Ready.
+        // So does Whisper: a mode whose file was missing or truncated at launch
+        // says No Model until a download lands, and only a prepare makes it
+        // Ready (#1632). A Whisper mode that is already Ready is left alone, so
+        // downloading some other model does not reload it.
+        let modelId = mode.model ?? ""
+        let isFluidAudioModel = ParakeetModelManager.Constants.canonicalModelId(for: modelId) != nil
+            || NemotronModelManager.variant(forModelId: modelId) != nil
+        let isUnreadyWhisperModel: Bool = {
+            guard mapModelIdToWhisperModel(modelId.lowercased()) != nil else { return false }
+            if case .ready = modelCoordinator.modelReadyState { return false }
+            return true
+        }()
+        guard isFluidAudioModel || isUnreadyWhisperModel else {
             return
         }
 

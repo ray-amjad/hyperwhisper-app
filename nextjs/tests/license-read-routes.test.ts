@@ -16,7 +16,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  INTERNAL_SECRET,
   accountKeyRow,
   behaviour,
   calls,
@@ -33,16 +32,11 @@ import {
 } from "./license-read-routes-harness";
 import { LEAKY_EMAIL, leakyDbError, leakyLines, SESSION_INDEX } from "./db-error-fixture";
 
-const realSecret = process.env.HYPERWHISPER_INTERNAL_SECRET;
-
 test.before(() => {
-  process.env.HYPERWHISPER_INTERNAL_SECRET = INTERNAL_SECRET;
   silenceRouteLogging();
 });
 
 test.after(() => {
-  if (realSecret === undefined) delete process.env.HYPERWHISPER_INTERNAL_SECRET;
-  else process.env.HYPERWHISPER_INTERNAL_SECRET = realSecret;
   restoreRouteLogging();
 });
 

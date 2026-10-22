@@ -17,8 +17,19 @@ internal sealed class NativeX11ClipboardOwner : INativeClipboardOwner
     private const int SelectionNotify = 31;
     private const int PropModeReplace = 0;
     private const int AtomFormat = 32;
+    private const short PollIn = 0x1;
+    private const int EINTR = 4;
+    private const int EfdNonBlock = 0x800;
+    private const int EfdCloexec = 0x80000;
+    // Without an eventfd the loop falls back to the old 10 ms poll, so a request still gets picked up.
+    private const int FallbackPollMilliseconds = 10;
     private readonly ConcurrentQueue<OwnershipRequest> _requests = new();
-    private readonly AutoResetEvent _wake = new(false);
+    // Written by OwnAsync and Dispose, so the event loop can sleep in poll() until there is work.
+    private readonly int _wakeFd = -1;
+    private readonly PollFd[] _pollFds = new PollFd[2];
+    // Guards the eventfd against a late OwnAsync writing to it, or to a reused fd number, after Dispose closed it.
+    private readonly object _wakeGate = new();
+    private bool _wakeClosed;
     private readonly Thread? _thread;
     private readonly TaskCompletionSource<bool> _initialized = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private volatile bool _stopping;
@@ -37,6 +48,7 @@ internal sealed class NativeX11ClipboardOwner : INativeClipboardOwner
             _initialized.TrySetResult(false);
             return;
         }
+        _wakeFd = eventfd(0, EfdNonBlock | EfdCloexec);
         _thread = new Thread(EventLoop) { IsBackground = true, Name = "HyperWhisper X11 clipboard" };
         _thread.Start();
     }
@@ -57,7 +69,7 @@ internal sealed class NativeX11ClipboardOwner : INativeClipboardOwner
         var completion = new TaskCompletionSource<PlatformResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         cancellationToken.ThrowIfCancellationRequested();
         _requests.Enqueue(new OwnershipRequest(Clone(snapshot.Formats), completion, cancellationToken));
-        _wake.Set();
+        Wake();
         return await completion.Task.WaitAsync(ExternalProcessRunner.DefaultTimeout, cancellationToken).ConfigureAwait(false);
     }
 
@@ -86,7 +98,7 @@ internal sealed class NativeX11ClipboardOwner : INativeClipboardOwner
                     }
                     finally { Marshal.FreeHGlobal(storage); }
                 }
-                _wake.WaitOne(10);
+                WaitForWork();
             }
         }
         catch { _initialized.TrySetResult(false); FailPending(); }
@@ -97,6 +109,37 @@ internal sealed class NativeX11ClipboardOwner : INativeClipboardOwner
                 if (_window != IntPtr.Zero) _ = XDestroyWindow(_display, _window);
                 _ = XCloseDisplay(_display);
             }
+        }
+    }
+
+    // XPending above flushed every request and drained the event queue, so nothing is left unread when
+    // this blocks. The thread sleeps until the X server sends an event or Wake() writes the eventfd.
+    private void WaitForWork()
+    {
+        _pollFds[0] = new PollFd { fd = XConnectionNumber(_display), events = PollIn };
+        var count = 1;
+        if (_wakeFd >= 0)
+        {
+            _pollFds[1] = new PollFd { fd = _wakeFd, events = PollIn };
+            count = 2;
+        }
+        var ready = poll(_pollFds, (nuint)count, _wakeFd >= 0 ? -1 : FallbackPollMilliseconds);
+        if (ready < 0)
+        {
+            // A real poll failure must not turn the loop into a busy spin.
+            if (Marshal.GetLastPInvokeError() != EINTR) Thread.Sleep(FallbackPollMilliseconds);
+            return;
+        }
+        if (_wakeFd >= 0 && (_pollFds[1].revents & PollIn) != 0) _ = read(_wakeFd, out _, sizeof(ulong));
+    }
+
+    private void Wake()
+    {
+        lock (_wakeGate)
+        {
+            if (_wakeFd < 0 || _wakeClosed) return;
+            ulong one = 1;
+            _ = write(_wakeFd, ref one, sizeof(ulong));
         }
     }
 
@@ -179,10 +222,16 @@ internal sealed class NativeX11ClipboardOwner : INativeClipboardOwner
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _stopping = true;
-        _wake.Set();
-        _thread?.Join(TimeSpan.FromSeconds(2));
+        Wake();
+        var exited = _thread?.Join(TimeSpan.FromSeconds(2)) ?? true;
         FailPending();
-        _wake.Dispose();
+        // A thread that did not exit may still be in poll() on the fd, so it keeps it.
+        if (!exited || _wakeFd < 0) return;
+        lock (_wakeGate)
+        {
+            _wakeClosed = true;
+            _ = close(_wakeFd);
+        }
     }
 
     private sealed record OwnershipRequest(Dictionary<string, byte[]> Formats,
@@ -203,6 +252,18 @@ internal sealed class NativeX11ClipboardOwner : INativeClipboardOwner
         public IntPtr requestor; public IntPtr selection; public IntPtr target; public IntPtr property; public IntPtr time;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PollFd
+    {
+        public int fd; public short events; public short revents;
+    }
+
+    [DllImport("libc", SetLastError = true)] private static extern int poll([In, Out] PollFd[] fds, nuint nfds, int timeout);
+    [DllImport("libc", SetLastError = true)] private static extern int eventfd(uint initval, int flags);
+    [DllImport("libc", SetLastError = true)] private static extern nint read(int fd, out ulong value, nint count);
+    [DllImport("libc", SetLastError = true)] private static extern nint write(int fd, ref ulong value, nint count);
+    [DllImport("libc", SetLastError = true)] private static extern int close(int fd);
+    [DllImport("libX11.so.6")] private static extern int XConnectionNumber(IntPtr display);
     [DllImport("libX11.so.6")] private static extern IntPtr XOpenDisplay(IntPtr displayName);
     [DllImport("libX11.so.6")] private static extern int XCloseDisplay(IntPtr display);
     [DllImport("libX11.so.6")] private static extern IntPtr XDefaultRootWindow(IntPtr display);

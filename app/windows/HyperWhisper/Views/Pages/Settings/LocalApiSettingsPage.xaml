@@ -220,13 +220,13 @@
                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                    Margin="0,12,0,0"/>
 
-                        <StackPanel x:Name="ErrorRow" Orientation="Horizontal" Margin="0,8,0,0" Visibility="Collapsed">
-                            <TextBlock Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                        <DockPanel x:Name="ErrorRow" Margin="0,8,0,0" Visibility="Collapsed">
+                            <TextBlock DockPanel.Dock="Left" Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" FontSize="12"
                                        Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                             <TextBlock x:Name="ErrorText" FontSize="11"
                                        TextWrapping="Wrap"
                                        Foreground="{DynamicResource TextSecondaryBrush}"/>
-                        </StackPanel>
+                        </DockPanel>
                     </StackPanel>
                 </Border>
 

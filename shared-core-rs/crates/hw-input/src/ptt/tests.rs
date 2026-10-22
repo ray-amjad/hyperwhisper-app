@@ -323,6 +323,92 @@ fn push_to_talk_active_interference() {
     assert_eq!(d.state.state, PttState::Idle);
 }
 
+/// #2054: a hold is released and another key goes down inside the key-up
+/// debounce. The shortcut is no longer held, so the key is not interference:
+/// the pending release stops the recording and keeps it.
+#[test]
+fn a_key_pressed_after_releasing_a_hold_does_not_discard_the_recording() {
+    let cfg = PttConfig::new(2000, 100, true); // Windows / Linux values
+    let s = PttMachineState::idle();
+    let r = ptt_step(s, PttEvent::KeyDown, 0, cfg);
+    let r = ptt_step(r.state, PttEvent::ActivationTimeout, 250, cfg);
+    assert_eq!(r.signal, Some(PttSignal::StartRecording));
+    // 30 s of dictation, then the key is released.
+    let r = ptt_step(r.state, PttEvent::KeyUp, 30_250, cfg);
+    assert_eq!(r.transition.reason, PttReason::ReleasePending);
+    assert!(!r.state.key_down);
+    // 40 ms later the user presses Enter (Windows' hook dispatches
+    // Interference for any non-shortcut key while state == PttActive).
+    let r = ptt_step(r.state, PttEvent::Interference, 30_290, cfg);
+    assert_ne!(
+        r.signal,
+        Some(PttSignal::Interfered),
+        "released hold + next key within debounce discarded the recording (reason {:?})",
+        r.transition.reason
+    );
+    assert_eq!(r.signal, None);
+    assert!(r.timers.is_empty(), "the pending debounce must stay armed");
+    // The debounce then commits the release as a normal stop.
+    let r = ptt_step(
+        r.state,
+        PttEvent::KeyUpDebounceTimeout {
+            key_physically_held: false,
+        },
+        30_350,
+        cfg,
+    );
+    assert_eq!(r.signal, Some(PttSignal::StopRecording));
+    assert_eq!(r.transition.reason, PttReason::HoldReleaseStopped);
+}
+
+/// The same through the Linux driver, timers and arming included.
+#[test]
+fn interference_inside_a_hold_release_debounce_lets_the_release_stop() {
+    let mut d = Driver::linux(false);
+    d.press();
+    d.advance(250);
+    assert_eq!(d.pressed, 1);
+    d.release();
+
+    let result = d.send(PttEvent::Interference);
+    assert_eq!(result.signal, None);
+    assert_eq!(result.transition.reason, PttReason::Ignored);
+    assert!(!result.reset_keyboard_state);
+    assert_eq!(d.interfered, 0);
+
+    d.advance(100);
+    assert_eq!(d.released, 1);
+    assert_eq!(d.interfered, 0);
+    assert_eq!(d.reason(), PttReason::HoldReleaseStopped);
+    assert!(!d.interference_armed);
+}
+
+/// The guard keys on the release, not on the state: a hold that is still
+/// held, or held again after a spurious key-up, is still cancelled by another
+/// key — that is a keyboard shortcut.
+#[test]
+fn interference_while_a_hold_is_still_held_still_cancels() {
+    let mut d = Driver::linux(false);
+    d.press();
+    d.advance(250);
+    d.send(PttEvent::Interference);
+    assert_eq!(d.interfered, 1);
+    assert_eq!(d.reason(), PttReason::InterferenceStopped);
+
+    // A spurious key-up, the key back down inside the debounce, then a key.
+    let mut d = Driver::linux(false);
+    d.press();
+    d.advance(250);
+    d.release();
+    d.advance(40);
+    d.press();
+    assert_eq!(d.reason(), PttReason::Reacquired);
+    d.send(PttEvent::Interference);
+    assert_eq!(d.interfered, 1);
+    assert_eq!(d.released, 0);
+    assert_eq!(d.reason(), PttReason::InterferenceStopped);
+}
+
 // ===========================================================================
 // The two behaviours this change deliberately unifies
 // ===========================================================================

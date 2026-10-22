@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
 import { isRecord, retryWithBackoff, roundToTenth, roundUpToTenth, safeReadText } from './utils';
-import { CREDITS_PER_MINUTE } from './constants';
 
 // `lib/utils.ts` is small but sits under the two things that cost money:
 // `roundUpToTenth` is the round-up every credit charge goes through
@@ -81,7 +80,7 @@ describe('roundUpToTenth', () => {
     expect(roundUpToTenth(0.1)).toBe(0.1);
     expect(roundUpToTenth(0.3)).toBe(0.3);
     expect(roundUpToTenth(2.5)).toBe(2.5);
-    expect(roundUpToTenth(CREDITS_PER_MINUTE)).toBe(CREDITS_PER_MINUTE);
+    expect(roundUpToTenth(6.3)).toBe(6.3);
   });
 
   test('absorbs binary-float noise instead of billing an extra tenth for it', () => {

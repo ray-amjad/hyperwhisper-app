@@ -20,7 +20,7 @@ moduleMock.module(new URL("../src/content/blog.ts", import.meta.url).href, {
   namedExports: { getAllBlogPosts: async () => [] },
 });
 
-const BASE = "https://hyperwhisper.com";
+const BASE = "https://www.hyperwhisper.com";
 const appDir = new URL("../app/", import.meta.url);
 const pageFile = (path: string) => new URL(`[locale]${path}/page.tsx`, appDir);
 // The gate blog, choosing-a-model and latency use to 404 off English.
@@ -77,5 +77,34 @@ test("the dead #735 paths are gone", async () => {
   const all = [...localized, ...englishOnly.map((p) => p.slice(3))];
   for (const dead of ["/pricing", "/about", "/legal/privacy", "/legal/terms"]) {
     assert.ok(!all.includes(dead), `${dead} is listed`);
+  }
+});
+
+// #816: the apex redirects to www, so a URL the site declares canonical must
+// name www, or a crawler gets a redirect for every page.
+test("sitemap, hreflang and robots.txt all name the www host", async () => {
+  const { entries } = await load();
+  for (const { url, alternates } of entries) {
+    assert.ok(url.startsWith(`${BASE}/`), url);
+    for (const href of Object.values(alternates?.languages ?? {})) {
+      assert.ok(String(href).startsWith(`${BASE}/`), String(href));
+    }
+  }
+  const { default: robots } = await import("../app/robots");
+  assert.equal(robots().sitemap, `${BASE}/sitemap.xml`);
+});
+
+test("no app or lib file hard-codes the redirecting apex as a site URL", () => {
+  // Content links (privacy page, email footers, FAQ copy) only need to land
+  // somewhere; the declared URLs come from SITE_URL in lib/site-metadata.ts.
+  for (const file of [
+    "../app/sitemap.ts",
+    "../app/robots.ts",
+    "../app/[locale]/layout.tsx",
+    "../app/[locale]/blog/[slug]/page.tsx",
+    "../lib/localized-page-metadata.ts",
+  ]) {
+    const source = readFileSync(new URL(file, import.meta.url), "utf8");
+    assert.doesNotMatch(source, /https:\/\/hyperwhisper\.com/, file);
   }
 });

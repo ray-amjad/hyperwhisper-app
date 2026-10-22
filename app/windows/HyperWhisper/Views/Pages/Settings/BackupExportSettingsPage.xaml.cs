@@ -251,9 +251,9 @@ public partial class BackupExportSettingsPage : Page
     /// without a file dialog and a modal confirmation.
     /// </summary>
     /// <remarks>
-    /// Scoped to this page on purpose. The same import also writes modes, and that
-    /// path raises no ModeChanged, so state held elsewhere in the app is not brought
-    /// up to date here — that is a separate defect and a separate fix.
+    /// Scoped to this page on purpose. The same import also writes modes; the tray
+    /// menus and the status bar learn of those from the ModeChanged that
+    /// <see cref="BackupService"/> raises after its commit (issue #1592).
     /// </remarks>
     // internal (not private): test seam for HyperWhisper.SmokeTests via
     // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility

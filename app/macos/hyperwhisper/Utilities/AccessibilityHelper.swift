@@ -76,6 +76,13 @@ public class AccessibilityHelper {
     /// snapshotting the transcript. Consumed by that call; nil otherwise.
     var keptClipboardSnapshotChangeCount: Int?
 
+    /// `NSPasteboard.general.changeCount` the pending restore expects to find
+    /// (#1591): the count read right after the transcript write that armed it.
+    /// Any other count when the restore runs means something else wrote to the
+    /// clipboard since (the user's own copy), so the restore leaves that alone.
+    /// Set by `scheduleClipboardRestoration`; nil when no restore is pending.
+    var restoreExpectedChangeCount: Int?
+
     // MARK: - Async Paste Management
     /// The currently active paste task (if any)
     /// This allows us to cancel in-flight paste operations when starting a new one
@@ -98,6 +105,16 @@ public class AccessibilityHelper {
     /// a Mac that grants Accessibility; that is why such a test skips when
     /// `AXIsProcessTrusted()`. Release has no such property.
     var canPasteOverrideForTesting: (@MainActor () -> Bool)?
+
+    /// TEST SEAM, Debug builds only. Always nil in the app. When set,
+    /// `startRecordingSession()` awaits it in place of
+    /// `ClipboardSnapshotReader.shared.snapshot(caller:)`, so a test can hold the
+    /// record-start read open, act while it is in flight, and choose when and in
+    /// which order the reads return (#879). It drives the guards around that
+    /// await: the generation guard, the changeCount guard (the test writes to the
+    /// real pasteboard), and the state reset before the await. Release has no
+    /// such property and always reads through the shared 1 s reader.
+    var recordingStartSnapshotOverrideForTesting: (@MainActor () async -> [ClipboardItemData]?)?
     #endif
 
     // MARK: - Permission Polling Management

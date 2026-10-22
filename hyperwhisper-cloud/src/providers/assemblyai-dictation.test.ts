@@ -145,6 +145,9 @@ describe('Dictation validation and billing', () => {
     expect(dictationKeyterms('界'.repeat(80))).toHaveLength(1);
     expect(dictationKeyterms('界'.repeat(81))).toEqual(['界'.repeat(80)]);
   });
+  test('vocabulary keeps a leading dash or star that no space follows (issue #729)', () => {
+    expect(dictationKeyterms('-Xmx, *args, - bulleted')).toEqual(['-Xmx', '*args', 'bulleted']);
+  });
   test('all-in rate is shared by reservation and deduction without surcharges', () => {
     expect(resolveModel('assemblyai', 'dictation').ok).toBe(true);
     expect(resolveModel('assemblyai', 'dictation-medical').ok).toBe(false);

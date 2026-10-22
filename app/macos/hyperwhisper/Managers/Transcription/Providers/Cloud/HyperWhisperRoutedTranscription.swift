@@ -29,10 +29,10 @@ enum HyperWhisperRoutedTranscription {
     /// one the upload actually uses, regardless of which STT engine is
     /// dispatched server-side.
     ///
-    /// NOTE: `HyperWhisperCloudProvider.performDnsRecoveryReset()` calls
-    /// `sharedSession.reset(...)` on DNS-shaped failures. After this change
-    /// that reset drops in-flight uploads from AzureMAI and GoogleChirp too —
-    /// the correct behavior on a network flip since all three hit the same host.
+    /// NOTE: `resetSharedSessionAfterDnsFailure()` resets this session on
+    /// DNS-shaped failures, which drops in-flight uploads from every provider
+    /// on it — the correct behavior on a network flip since all three hit the
+    /// same host, and why that reset is rate-limited across all of them.
     static let sharedSession: URLSession = {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 120
@@ -157,36 +157,20 @@ enum HyperWhisperRoutedTranscription {
                         _ = try parseRoutedResponse(providerHeader: providerHeader, resp: resp)
                         return TranscriptionError.invalidResponse(details: "unexpected non-error response")
                     } catch let err as HwTranscriptionError {
-                        let creditDenial = Self.creditDenialContext(from: resp)
-                        if resp.status == 402, let invalidMessage = creditDenial.invalidExhaustedBalanceMessage {
-                            return TranscriptionError.invalidResponse(details: invalidMessage)
-                        }
-                        let (tooBigBytes, tooBigLimit) = RustCoreMapping.fileTooLargeContext(from: resp)
-                        return RustCoreMapping.mapTranscriptionError(
-                            err,
-                            providerName: providerDisplayName,
-                            insufficientCredits: (resp.status == 402),
-                            creditsRemaining: creditDenial.remaining,
-                            creditsRequired: creditDenial.required,
-                            fileTooLargeBytes: tooBigBytes,
-                            fileTooLargeLimit: tooBigLimit,
-                            // Same backend as the HW Cloud provider, so the same
-                            // 401/403 reaches HYPERWHISPER-T2 from here. Carry
-                            // the status rather than dropping it.
-                            httpStatus: Int(resp.status)
-                        )
+                        return Self.mapBackendError(err, resp: resp, providerName: providerDisplayName)
                     } catch {
                         return TranscriptionError.invalidResponse(details: error.localizedDescription)
                     }
                 },
                 onTransportError: { urlError in
                     // One-shot DNS-cache flush on a network flip (VPN/captive-portal/
-                    // tether swap). All three Fly providers share `session`, so a
-                    // reset re-resolves the host for the next attempt. Gated to one
-                    // flush per sequence by RustRetry; we additionally gate on the
-                    // DNS-shaped error codes so a generic blip doesn't reset the pool.
+                    // tether swap). All three Fly providers share `sharedSession`, so
+                    // a reset re-resolves the host for the next attempt. Gated to one
+                    // flush per sequence by RustRetry, to DNS-shaped error codes so a
+                    // generic blip doesn't reset the pool, and to one flush per 60 s
+                    // across every provider on the session.
                     if Self.isDnsError(urlError) {
-                        await Self.recoverDns(session: session)
+                        await Self.resetSharedSessionAfterDnsFailure()
                     }
                 }
             )
@@ -263,8 +247,39 @@ enum HyperWhisperRoutedTranscription {
         }
     }
 
+    // MARK: - Shared backend error mapping
+
+    /// Map a non-2xx response from the Fly transcribe backend to a
+    /// `TranscriptionError`. The one copy of this mapping for every provider on
+    /// `sharedSession` (`HyperWhisperCloudProvider`, `AzureMAIProvider`,
+    /// `GoogleChirpProvider`): each caller keeps its own core parser call and
+    /// hands the classified error here from its `parseError` closure.
+    ///
+    /// Enriches the core's classification from the response body: the HW-Cloud
+    /// 402 credit context (remaining/required, or the invalid-balance message),
+    /// the file-too-large context, and the HTTP status. The 401/403 that
+    /// HYPERWHISPER-T2 reports arrives here; the core drops the code when it
+    /// classifies the body, so it is read off the response instead.
+    static func mapBackendError(_ err: HwTranscriptionError, resp: HttpResponse, providerName: String) -> TranscriptionError {
+        let creditDenial = Self.creditDenialContext(from: resp)
+        if resp.status == 402, let invalidMessage = creditDenial.invalidExhaustedBalanceMessage {
+            return TranscriptionError.invalidResponse(details: invalidMessage)
+        }
+        let (tooBigBytes, tooBigLimit) = RustCoreMapping.fileTooLargeContext(from: resp)
+        return RustCoreMapping.mapTranscriptionError(
+            err,
+            providerName: providerName,
+            insufficientCredits: (resp.status == 402),
+            creditsRemaining: creditDenial.remaining,
+            creditsRequired: creditDenial.required,
+            fileTooLargeBytes: tooBigBytes,
+            fileTooLargeLimit: tooBigLimit,
+            httpStatus: Int(resp.status)
+        )
+    }
+
     /// Read the HW-Cloud 402 credit context from an error response body.
-    private static func creditDenialContext(from response: HttpResponse) -> (remaining: Int, required: Int, invalidExhaustedBalanceMessage: String?) {
+    static func creditDenialContext(from response: HttpResponse) -> (remaining: Int, required: Int, invalidExhaustedBalanceMessage: String?) {
         guard let json = try? JSONSerialization.jsonObject(with: response.body) as? [String: Any] else {
             return (0, 0, nil)
         }
@@ -280,9 +295,10 @@ enum HyperWhisperRoutedTranscription {
     // MARK: - DNS recovery (network-flip resilience)
 
     /// True for errors that look like a stale/poisoned DNS cache — typical after
-    /// a network flip (captive portal, VPN toggle, tether swap). Mirrors
-    /// `HyperWhisperCloudProvider.isDnsError`.
-    private static func isDnsError(_ error: URLError) -> Bool {
+    /// a network flip (captive portal, VPN toggle, tether swap). The one copy
+    /// for every provider on `sharedSession`: gates the pool flush in the
+    /// HyperWhisper Cloud warmup callback and in every transcribe retry.
+    static func isDnsError(_ error: URLError) -> Bool {
         switch error.code {
         case .dnsLookupFailed, .cannotFindHost, .cannotConnectToHost:
             return true
@@ -291,13 +307,48 @@ enum HyperWhisperRoutedTranscription {
         }
     }
 
-    /// One-shot URLSession pool flush so the next attempt re-resolves the host.
-    /// `reset` also cancels in-flight tasks on the shared session — acceptable on
-    /// a network flip since all three Fly providers hit the same host.
-    private static func recoverDns(session: URLSession) async {
+    /// Minimum time between two flushes of `sharedSession`, across every caller.
+    static let minDnsResetInterval: TimeInterval = 60
+
+    /// When `sharedSession` was last flushed. `.distantPast` = never. Internal
+    /// (not private) so a test can read it and put it back.
+    @MainActor static var lastDnsResetAt: Date = .distantPast
+
+    /// The clock the 60 s window reads. A seam for tests; production never
+    /// replaces it.
+    @MainActor static var dnsResetClock: () -> Date = { Date() }
+
+    /// What a flush does: reset the pool and return once the reset has
+    /// finished, so a retry does not start on the pool being flushed. A seam
+    /// for tests, so they can count flushes without cancelling real uploads;
+    /// production never replaces it.
+    @MainActor static var dnsResetAction: (URLSession) async -> Void = { session in
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             session.reset { continuation.resume() }
         }
-        AppLogger.network.debug("HW-routed DNS recovery: session reset")
+    }
+
+    /// One-shot pool flush so the next attempt re-resolves the host, gated by
+    /// ONE cross-call window shared by the HyperWhisper Cloud warmup, the Cloud
+    /// transcribe retry and the routed (Azure MAI, Google Chirp) transcribe
+    /// retry. A flush also cancels every in-flight task on the shared session,
+    /// so without the window a keepalive ticker flapping against a dead DNS
+    /// entry, or one provider's retry, could kill another provider's active
+    /// upload. RustRetry's per-sequence one-shot gate still applies inside a
+    /// single transcribe; this window layers on top of it.
+    ///
+    /// @MainActor serializes access to `lastDnsResetAt`; the window is claimed
+    /// before the await, so a second caller during the flush is absorbed.
+    /// Returns once the flush has finished: true when it flushed, false when
+    /// the window absorbed the call.
+    @MainActor
+    @discardableResult
+    static func resetSharedSessionAfterDnsFailure() async -> Bool {
+        let now = dnsResetClock()
+        if now.timeIntervalSince(lastDnsResetAt) < minDnsResetInterval { return false }
+        lastDnsResetAt = now
+        await dnsResetAction(sharedSession)
+        AppLogger.network.debug("DNS recovery: shared-session pool flushed")
+        return true
     }
 }

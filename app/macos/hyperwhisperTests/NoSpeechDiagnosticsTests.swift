@@ -239,12 +239,52 @@ struct NoSpeechDiagnosticsTests {
         // `mode_name` stays out: a Mode's name is user-typed content.
         #expect(payload.extras["backend_empty_transcript_without_flag"] as? Bool == false)
         #expect(payload.extras["mode_name"] == nil)
-        // Every extra must reach Sentry as sent: none may be a String under a
-        // key the redaction rule matches.
+        // Every extra must reach Sentry as sent: every key is on the exact
+        // allow-list (issue #805), and so are the tags, which the Logs path
+        // redacts by the same rule. This payload is built without an input
+        // device name, so the one tag that is deliberately redacted,
+        // `selected_input_device_name`, is absent here — it is covered by
+        // `theInputDeviceNameTagIsRedactedOnTheLogsPath` below.
+        #expect(payload.tags["selected_input_device_name"] == nil)
+        #expect(payload.extras.keys.allSatisfy { !SentryService.isRedactedExtraKey($0) })
+        #expect(payload.tags.keys.allSatisfy { !SentryService.isRedactedExtraKey($0) })
+        #expect(TranscriptionDiagnosticsService.errorIdentityAttributes(
+            for: NSError(domain: "fixture", code: 1)
+        ).keys.allSatisfy { !SentryService.isRedactedExtraKey($0) })
         #expect(payload.extras.allSatisfy {
             String(describing: SentryService.redactedValue(forKey: $0.key, value: $0.value))
                 == String(describing: $0.value)
         })
+    }
+
+    /// A microphone's name is one a person can rename ("<name>'s AirPods"), so
+    /// `selected_input_device_name` is off the allow-list (issue #805, review
+    /// round 1; #1364 ruling). This diagnostic is a Sentry Log, and the Logs
+    /// path redacts tags too. Every other tag and extra still survives.
+    @Test func theInputDeviceNameTagIsRedactedOnTheLogsPath() {
+        let payload = TranscriptionDiagnosticsService.buildPayload(
+            audio: audio(),
+            audioFileExists: true,
+            audioFileExtension: "wav",
+            modeIdentity: nil,
+            attemptDiagnostics: nil,
+            responseNoSpeechDetected: nil,
+            diagnosticStage: "live_recording",
+            diagnosticSource: "provider_no_speech",
+            presentation: TranscriptionDiagnosticsService.presentation(for: .noSpeech)!,
+            inputDeviceName: "Fixture Person's Headset"
+        )
+        let attributes = SentryService.mergeLogAttributes(
+            scopeExtras: [:], scopeTags: [:], extras: payload.extras, tags: payload.tags
+        )
+
+        #expect(payload.tags["selected_input_device_name"] == "Fixture Person's Headset")
+        #expect(SentryService.isRedactedExtraKey("selected_input_device_name"))
+        #expect(attributes["selected_input_device_name"] as? String == "[redacted]")
+        #expect(attributes["audio_file_extension"] as? String == "wav")
+        #expect(payload.tags.keys
+            .filter { $0 != "selected_input_device_name" }
+            .allSatisfy { !SentryService.isRedactedExtraKey($0) })
     }
 
     @Test func missingResponseMetadataUsesUnknown() {

@@ -336,6 +336,40 @@
 
         let unauthorized = parse_health_response(HwProvider::Elevenlabs, response(401, "{}"));
         assert!(!unauthorized.healthy);
+        assert_eq!(unauthorized.reason, HwHealthReason::Unauthorized);
+    }
+
+    /// Issue #779: the reason crosses the FFI intact, so the hosts switch on it
+    /// instead of keeping their own "400 means a bad key" vendor lists. Mirrors
+    /// `hw_net::health`'s own tests at the boundary every host calls.
+    #[test]
+    fn health_reason_crosses_the_ffi_for_every_provider() {
+        // Written out independently of the implementation's `match`.
+        let rejects_with_400 = [
+            "gemini",
+            "gemini_transcribe",
+            "gemini_transcribe_live",
+            "grok",
+        ];
+        for status in [200u16, 400, 401, 403, 429, 500] {
+            for provider in ALL_PROVIDERS {
+                let tag = hw_tag(&provider);
+                let want = match status {
+                    200 => HwHealthReason::Healthy,
+                    401 | 403 => HwHealthReason::Unauthorized,
+                    400 if tag == "elevenlabs" => HwHealthReason::Healthy,
+                    400 if rejects_with_400.contains(&tag) => HwHealthReason::Unauthorized,
+                    _ => HwHealthReason::Unreachable,
+                };
+                let verdict = parse_health_response(provider, response(status, "{}"));
+                assert_eq!(verdict.reason, want, "reason for {tag} {status}");
+                assert_eq!(
+                    verdict.healthy,
+                    want == HwHealthReason::Healthy,
+                    "healthy for {tag} {status}"
+                );
+            }
+        }
     }
 
     // -----------------------------------------------------------------------

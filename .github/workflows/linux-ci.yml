@@ -15,7 +15,6 @@ on:
     branches: [main]
     paths: &linux-paths
       - "app/shared-dotnet/**"
-      - "app/linux-spike/**"
       - "app/linux/**"
       - "shared-core-rs/**"
       - "shared-backup/**"
@@ -232,36 +231,10 @@ jobs:
             --configuration Release \
             --no-build
 
-      - name: Build and run Linux integration-spike tests
+      - name: Build and test the Avalonia Linux head
         shell: bash
         run: |
           set -euo pipefail
-          dotnet build \
-            app/linux-spike/HyperWhisper.LinuxSpike.Tests/HyperWhisper.LinuxSpike.Tests.csproj \
-            --configuration Release \
-            -p:TreatWarningsAsErrors=true
-          dotnet run \
-            --project app/linux-spike/HyperWhisper.LinuxSpike.Tests/HyperWhisper.LinuxSpike.Tests.csproj \
-            --configuration Release \
-            --no-build
-          dotnet build \
-            app/linux-spike/HyperWhisper.LinuxSpike.Probe/HyperWhisper.LinuxSpike.Probe.csproj \
-            --configuration Release \
-            -p:TreatWarningsAsErrors=true
-          dotnet run \
-            --project app/linux-spike/HyperWhisper.LinuxSpike.Probe/HyperWhisper.LinuxSpike.Probe.csproj \
-            --configuration Release \
-            --no-build
-
-      - name: Build and test Avalonia Linux head when present
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ ! -d app/linux ]]; then
-            echo "app/linux is not present yet; the integration spike is the current Linux head."
-            exit 0
-          fi
-
           mapfile -t solutions < <(find app/linux -maxdepth 2 -type f \
             \( -name '*.sln' -o -name '*.slnx' \) -print | sort)
           mapfile -t projects < <(find app/linux -type f -name '*.csproj' -print | sort)
@@ -313,7 +286,7 @@ jobs:
       # fail a release with nothing wrong in the tree.
       - name: Restore the end-to-end Whisper model
         id: whisper-model
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ${{ runner.temp }}/ggml-tiny.en.bin
           key: whisper-ggml-tiny-en-921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f
@@ -354,11 +327,14 @@ jobs:
           app/linux/scripts/run-ui-smoke.sh
           app/linux/scripts/run-ui-smoke-xwayland.sh
 
+          # Same ReadyToRun publish as linux-release.yml, so CI builds and
+          # package-tests the binaries that ship (#999).
           dotnet publish \
             app/linux/HyperWhisper.Linux/HyperWhisper.Linux.csproj \
             --configuration Release \
             --runtime linux-x64 \
             --self-contained true \
+            -p:PublishReadyToRun=true \
             --output artifacts/hyperwhisper-linux
 
           dotnet publish \
@@ -366,6 +342,7 @@ jobs:
             --configuration Release \
             --runtime linux-x64 \
             --self-contained true \
+            -p:PublishReadyToRun=true \
             --output artifacts/hyperwhisper-linux/parakeet-engine
 
           test -x artifacts/hyperwhisper-linux/HyperWhisper
@@ -395,6 +372,7 @@ jobs:
             app/linux/scripts/run-ui-smoke.sh \
             packaging/linux/scripts/build-deb.sh \
             packaging/linux/scripts/test-package.sh \
+            packaging/linux/scripts/test-cuda-package.sh \
             packaging/linux/scripts/generate-apt-repository.sh \
             packaging/linux/scripts/test-apt-repository.sh \
             packaging/linux/debian/postinst \
@@ -416,12 +394,21 @@ jobs:
               --architecture amd64
           )"
 
+          # build-deb.sh writes the optional CUDA 12 package next to the main
+          # one (issue #1002).
+          cuda_package_path="$(dirname "$package_path")/hyperwhisper-cuda_${version}_amd64.deb"
+
           test -s "$package_path"
+          test -s "$cuda_package_path"
           HYPERWHISPER_PACKAGE_VERSION="$version" \
             packaging/linux/scripts/test-package.sh "$package_path"
-          packaging/linux/scripts/test-apt-repository.sh "$package_path"
+          HYPERWHISPER_PACKAGE_VERSION="$version" \
+            packaging/linux/scripts/test-cuda-package.sh "$cuda_package_path" "$package_path"
+          packaging/linux/scripts/test-apt-repository.sh "$package_path" "$cuda_package_path"
           lintian --fail-on warning "$package_path"
+          lintian --fail-on warning "$cuda_package_path"
           dpkg-deb --info "$package_path"
+          dpkg-deb --info "$cuda_package_path"
 
       - name: Verify release policy and exact tested commit
         id: verified

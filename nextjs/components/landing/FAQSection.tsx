@@ -4,6 +4,7 @@ import { m } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { useState, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
+import { TEXT_LINK } from "@/components/text-link";
 
 // Parse markdown links [text](url) and convert to JSX
 function parseMarkdownLinks(text: string) {
@@ -24,7 +25,7 @@ function parseMarkdownLinks(text: string) {
     parts.push(
       <a
         key={`link-${match.index}`}
-        className="text-purple-400 hover:text-purple-300 transition-colors underline"
+        className={TEXT_LINK}
         href={url}
         rel="noopener noreferrer"
         target="_blank"
@@ -74,7 +75,7 @@ export default function FAQSection() {
   ];
 
   return (
-    <section className="px-6 py-20" id="faq">
+    <section className="py-20" id="faq">
       <m.div
         className="max-w-3xl mx-auto"
         initial={{ opacity: 0, y: 20 }}
@@ -140,7 +141,7 @@ export default function FAQSection() {
           <p className="text-gray-400">
             {t("contactPrompt")}{" "}
             <a
-              className="text-purple-400 hover:text-purple-300 transition-colors"
+              className={TEXT_LINK}
               href="mailto:hi@support.hyperwhisper.com"
             >
               hi@support.hyperwhisper.com

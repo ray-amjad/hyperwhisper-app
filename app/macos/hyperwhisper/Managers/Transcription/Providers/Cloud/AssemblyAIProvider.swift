@@ -34,17 +34,20 @@ import Foundation
 import OSLog
 
 class AssemblyAIProvider: TranscriptionProvider {
+    /// A stateless HTTP call: nothing per call is kept on the instance (#1425).
+    var supportsConcurrentPasses: Bool { true }
+
     private var apiKey: String = ""
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "AssemblyAIProvider")
 
     /// Shared URLSession for connection reuse across upload and polling steps.
-    private lazy var session: URLSession = URLSession(configuration: .default)
+    private lazy var session: URLSession = URLSession(configuration: .credentialBearing)
 
     /// Short-timeout session dedicated to the sync fast path — a single
     /// blocking call that must fail fast enough to still fall back to async,
     /// not `session`'s larger multi-step retry budget.
     private lazy var syncSession: URLSession = {
-        let config = URLSessionConfiguration.default
+        let config = URLSessionConfiguration.credentialBearing
         config.timeoutIntervalForRequest = Self.syncTimeoutSeconds
         config.timeoutIntervalForResource = Self.syncTimeoutSeconds
         return URLSession(configuration: config)
@@ -115,7 +118,7 @@ class AssemblyAIProvider: TranscriptionProvider {
                 vocabulary: RustCoreMapping.boostVocabularyTerms(from: vocabulary),
                 apiKey: apiKey, model: "dictation", shareAnonymousSpeedData: !LatencyOptOut.isEnabled
             )
-            let config = URLSessionConfiguration.default
+            let config = URLSessionConfiguration.credentialBearing
             config.timeoutIntervalForRequest = TimeInterval(assemblyaiDictationTimeoutMs()) / 1000
             config.timeoutIntervalForResource = config.timeoutIntervalForRequest
             let dictationSession = URLSession(configuration: config)
@@ -429,7 +432,8 @@ enum AssemblyAIDictationAudio {
             return source
         }
         // macOS recordings are CAF/M4A. Use the existing PCM16 converter.
-        let destination = FileManager.default.temporaryDirectory.appendingPathComponent("dictation-\(UUID().uuidString).wav")
+        // Pid-tagged so a launch after a crash sweeps it (issue #1581).
+        let destination = CloudTempAudioSweep.temporaryURL(.dictationWAV)
         do {
             _ = try await AudioFileConverter().convertAudioToWAV(from: source, to: destination)
             try Task.checkCancellation()

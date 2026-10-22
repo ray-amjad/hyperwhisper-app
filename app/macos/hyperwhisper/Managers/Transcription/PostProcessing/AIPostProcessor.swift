@@ -35,6 +35,14 @@ final class MutationSignal {
     /// pipeline's multi-segment branch, which doesn't need this distinction.
     var anyPartialFailure: Bool = false
 
+    /// `true` when a HyperWhisper Cloud run was refused before it started
+    /// because no account key is stored (issue #1487). The raw text still comes
+    /// back, so the in-app pipeline keeps its graceful fallback; the Local API
+    /// reads this to answer `MISSING_API_KEY`, the same refusal `/transcribe`
+    /// gives for the same mode. Every other provider failure leaves it `false`
+    /// and keeps the graceful `ok: true` + `post_processed: false` (#499).
+    var cloudAccountMissing: Bool = false
+
     /// The provider and model that ACTUALLY produced the returned text — not the
     /// ones stored on the Mode (issue #314). Every fallback inside this file
     /// (deprecated-model remap, provider-default substitution, installed-local-model
@@ -245,46 +253,10 @@ class AIPostProcessor: ObservableObject {
         var languageModel = mode.languageModel ?? ""
 
         if provider == .localLLM {
-            guard let localManager = localModelManager else {
-                AppLogger.transcription.info("AIPostProcessor [non-streaming]: localModelManager is nil — skipping local LLM post-processing")
+            guard let resolvedId = await resolveLocalLLM(languageModel: languageModel, passLabel: "non-streaming") else {
                 return text
             }
-            let installedModels = localManager.downloadedModels
-            guard !installedModels.isEmpty else {
-                AppLogger.transcription.warning("Local LLM selected but no downloaded weights available; returning original text.")
-                return text
-            }
-            if !installedModels.contains(where: { $0.id == languageModel }) {
-                let fallback = installedModels.first!
-                AppLogger.transcription.info("Using installed local model fallback: \(fallback.id, privacy: .public)")
-                languageModel = fallback.id
-            }
-            guard let server = llamaServerController else {
-                AppLogger.transcription.error("Server controller unavailable for local LLM; returning original text.")
-                onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: "controller unavailable"))
-                return text
-            }
-            do {
-                let resolved = installedModels.first(where: { $0.id == languageModel }) ?? installedModels.first!
-                guard let modelURL = resolved.localURL else {
-                    AppLogger.transcription.error("Local model file not found on disk; returning original text.")
-                    onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: "model file missing on disk"))
-                    return text
-                }
-                let resolvedId = try await ensureLocalRuntimeRunning(
-                    server: server,
-                    resolved: resolved,
-                    modelURL: modelURL
-                )
-                if resolvedId != languageModel {
-                    AppLogger.transcription.info("Using available local model: \(resolvedId, privacy: .public)")
-                    languageModel = resolvedId
-                }
-            } catch {
-                AppLogger.transcription.error("Local LLM runtime not ready: \(error.localizedDescription, privacy: .public)")
-                onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: error.localizedDescription))
-                return text
-            }
+            languageModel = resolvedId
         }
 
         // Claim LLM residency for the rest of this pass so a memory-pressure
@@ -416,7 +388,7 @@ class AIPostProcessor: ObservableObject {
                 AppLogger.network.debug("Request provider: \(provider.displayName, privacy: .public)")
                 AppLogger.logTranscription(.apiCall(endpoint: endpoint, status: 0))
                 
-                let (data, response) = try await URLSession.shared.data(for: request)
+                let (data, response) = try await CredentialNetworkCache.session.data(for: request)
                 
                 guard let httpResponse = response as? HTTPURLResponse else {
                     throw TranscriptionError.invalidResponse(details: nil)
@@ -572,6 +544,7 @@ class AIPostProcessor: ObservableObject {
             // isolation, mirroring how `PostProcessingService.cs` tracks
             // `anyApplied`/`anyFailed` per segment on the Windows side.
             var anyFailed = false
+            var anyCloudAccountMissing = false
             // Resolved provider/model (#314) are aggregated FIRST-NON-NIL rather
             // than last-write-wins: every segment shares one `mode`, so they can
             // only disagree if a provider fell back differently mid-request. A
@@ -610,6 +583,7 @@ class AIPostProcessor: ObservableObject {
                 )
                 anyMutated = anyMutated || segmentSignal.didMutate
                 anyFailed = anyFailed || !segmentSignal.didMutate
+                anyCloudAccountMissing = anyCloudAccountMissing || segmentSignal.cloudAccountMissing
                 if let segmentProvider = segmentSignal.resolvedProvider {
                     if let resolvedProvider {
                         if resolvedProvider != segmentProvider {
@@ -639,6 +613,7 @@ class AIPostProcessor: ObservableObject {
             // and would already make `anyMutated` false overall.
             signal.didMutate = anyMutated
             signal.anyPartialFailure = anyMutated && anyFailed
+            signal.cloudAccountMissing = anyCloudAccountMissing
             signal.resolvedProvider = resolvedProvider
             // Non-nil (a run happened) but unnamed, when the segments disagreed.
             signal.resolvedModel = modelsDisagreed ? "" : resolvedModel
@@ -798,45 +773,10 @@ class AIPostProcessor: ObservableObject {
         // Use the language model from the mode, with provider-aware fallback
         var languageModel = mode.languageModel ?? ""
 
-        guard let localManager = localModelManager else {
-            AppLogger.transcription.info("AIPostProcessor [streaming]: localModelManager is nil — skipping local LLM post-processing")
+        guard let resolvedId = await resolveLocalLLM(languageModel: languageModel, passLabel: "streaming") else {
             return text
         }
-        let installedModels = localManager.downloadedModels
-        guard !installedModels.isEmpty else {
-            AppLogger.transcription.warning("Local LLM selected but no downloaded weights available; returning original text.")
-            return text
-        }
-        if !installedModels.contains(where: { $0.id == languageModel }) {
-            let fallback = installedModels.first!
-            AppLogger.transcription.info("Using installed local model fallback: \(fallback.id, privacy: .public)")
-            languageModel = fallback.id
-        }
-        guard let server = llamaServerController else {
-            AppLogger.transcription.error("Server controller unavailable for local LLM; returning original text.")
-            onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: "controller unavailable"))
-            return text
-        }
-        do {
-            let resolved = installedModels.first(where: { $0.id == languageModel }) ?? installedModels.first!
-            guard let modelURL = resolved.localURL else {
-                AppLogger.transcription.error("Local model file not found on disk; returning original text.")
-                onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: "model file missing on disk"))
-                return text
-            }
-            let resolvedId = try await server.ensureRunning(
-                modelId: resolved.id,
-                modelURL: modelURL
-            )
-            if resolvedId != languageModel {
-                AppLogger.transcription.info("Using available local model: \(resolvedId, privacy: .public)")
-                languageModel = resolvedId
-            }
-        } catch {
-            AppLogger.transcription.error("Local LLM runtime not ready: \(error.localizedDescription, privacy: .public)")
-            onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: error.localizedDescription))
-            return text
-        }
+        languageModel = resolvedId
 
         // Claim LLM residency for the rest of this streaming pass (including the
         // SSE stream and any non-streaming fallback) so a memory-pressure event
@@ -996,7 +936,6 @@ class AIPostProcessor: ObservableObject {
             let evaluation = TranscriptionTextProcessing.evaluateCompletion(original: trimmed, content: trimmedBuffer, state: state)
             if !evaluation.accepted {
                 let reason: String
-                let bufferPreview = String(buffer.prefix(200))
                 switch evaluation.failure {
                 case .outputLimit:
                     reason = "Local AI reached its output limit"
@@ -1010,7 +949,9 @@ class AIPostProcessor: ObservableObject {
                 default:
                     reason = "Local AI returned an incomplete response"
                 }
-                AppLogger.transcription.warning("\(reason, privacy: .public) — delivering raw transcript · provider=\(provider.displayName, privacy: .public) · receivedAnyChunk=\(receivedAnyChunk) · bufferLen=\(buffer.count) · bufferPreview=\(bufferPreview, privacy: .public)")
+                // The length only, never the text: the buffer is the model's
+                // rewrite of the user's transcript (#1647).
+                AppLogger.transcription.warning("\(reason, privacy: .public) — delivering raw transcript · provider=\(provider.displayName, privacy: .public) · receivedAnyChunk=\(receivedAnyChunk) · bufferLen=\(buffer.count)")
                 emitStreamingUpdate("")
                 onPostProcessingError?(.localRuntimeUnavailable(reason: reason))
                 return trimmed
@@ -1079,19 +1020,22 @@ class AIPostProcessor: ObservableObject {
     ///
     /// API CONTRACT:
     /// - Endpoint: POST /post-process
-    /// - Request: JSON body with { text, prompt, license_key OR device_id }
+    /// - Request: JSON body with { text, prompt, license_key } (no account key: refused before the request, #1487)
     /// - Response: { corrected, cost: { usd, credits } }
     ///
     /// - Parameters:
     ///   - text: The transcribed text to enhance
     ///   - mode: The transcription mode for building the prompt
     ///   - applicationContext: Application context for prompt building
+    ///   - session: The session that sends the request. Tests pass a stubbed
+    ///     one (issue #936); every runtime caller keeps the default.
     /// - Returns: The AI-enhanced text, or original text if processing fails
-    private func performHyperWhisperCloudPostProcessing(
+    func performHyperWhisperCloudPostProcessing(
         text: String,
         mode: Mode?,
         applicationContext: ApplicationContext?,
-        mutationSignal: MutationSignal? = nil
+        mutationSignal: MutationSignal? = nil,
+        session: URLSession = CredentialNetworkCache.session
     ) async throws -> String {
         let signal = mutationSignal ?? MutationSignal()
         // STEP 1: Verify license manager is available
@@ -1100,15 +1044,27 @@ class AIPostProcessor: ObservableObject {
             return text
         }
 
-        // STEP 2: Check network connectivity
+        // STEP 2: Get authentication identifier (license key or device ID)
+        let (identifier, isLicensed) = licenseManager.getTranscriptionIdentifier()
+        AppLogger.network.debug("HyperWhisper Cloud post-processing · licensed=\(isLicensed, privacy: .public)")
+
+        // No account key: the backend answers 401 "License required" to a
+        // device-id request, so refuse here, as transcription already does
+        // (`HyperWhisperCloudEntitlement`). Fail-closed only — the server stays
+        // the authority. Checked before the offline guard so the Local API
+        // reports the configuration fault, not a network one (issue #1487).
+        guard isLicensed else {
+            AppLogger.transcription.warning("HyperWhisper Cloud post-processing skipped: no account key")
+            signal.cloudAccountMissing = true
+            onPostProcessingError?(TranscriptionError.cloudAccountRequired(provider: "HyperWhisper Cloud"))
+            return text
+        }
+
+        // STEP 3: Check network connectivity
         guard NetworkStatus.shared.isOnline else {
             AppLogger.transcription.warning("HyperWhisper Cloud post-processing skipped: Offline")
             return text
         }
-
-        // STEP 3: Get authentication identifier (license key or device ID)
-        let (identifier, isLicensed) = licenseManager.getTranscriptionIdentifier()
-        AppLogger.network.debug("HyperWhisper Cloud post-processing · licensed=\(isLicensed, privacy: .public)")
 
         // STEP 4: Build system prompt
         // Mode is required for prompt building - if nil, use a minimal prompt
@@ -1144,8 +1100,8 @@ class AIPostProcessor: ObservableObject {
                 systemInfo: systemInfo,
                 transcript: text,
                 baseUrl: NetworkConfig.hyperwhisperCloudURL,
-                licenseKey: isLicensed ? identifier : nil,
-                deviceId: isLicensed ? nil : identifier,
+                licenseKey: identifier,
+                deviceId: nil,
                 llmProviderHeader: cloudPPModel.llmProviderHeader,
                 llmModelHeader: cloudPPModel.llmModelHeader
             ))
@@ -1169,7 +1125,7 @@ class AIPostProcessor: ObservableObject {
                 AppLogger.network.debug("HyperWhisper Cloud post-processing attempt \(attempt, privacy: .public) of \(config.maxAttempts, privacy: .public)")
                 AppLogger.network.info("POST \(NetworkConfig.hyperwhisperCloudPostProcessEndpoint, privacy: .public)")
 
-                let (data, response) = try await URLSession.shared.data(for: request)
+                let (data, response) = try await session.data(for: request)
 
                 guard let httpResponse = response as? HTTPURLResponse else {
                     throw TranscriptionError.invalidResponse(details: "Invalid server response")
@@ -1235,12 +1191,17 @@ class AIPostProcessor: ObservableObject {
                 }
 
                 // Handle error responses
-                try self.handleHyperWhisperCloudError(statusCode: httpResponse.statusCode, data: data)
+                try Self.handleHyperWhisperCloudError(statusCode: httpResponse.statusCode, data: data)
                 throw TranscriptionError.invalidResponse(details: "HTTP \(httpResponse.statusCode)")
             }
         } catch {
             // FALLBACK: Return original text on failure
-            AppLogger.transcription.error("HyperWhisper Cloud post-processing failed: \(error.localizedDescription, privacy: .public)")
+            // A 5xx `serverError` carries the Cloud's `message`, which can hold an
+            // upstream provider's error body that echoes the transcript (#1669).
+            // The error's identity and status are public; its description is private.
+            let nsError = error as NSError
+            let serverStatus = TranscriptionError.serverStatus(of: error)
+            AppLogger.transcription.error("HyperWhisper Cloud post-processing failed · errorDomain=\(nsError.domain, privacy: .public) · errorCode=\(nsError.code, privacy: .public) · serverStatus=\(serverStatus, privacy: .public) · description=\(error.localizedDescription, privacy: .private)")
 
             // NOTIFY USER of actionable credential errors (can be fixed in Settings)
             if let transcriptionError = error as? TranscriptionError,
@@ -1252,8 +1213,9 @@ class AIPostProcessor: ObservableObject {
         }
     }
 
-    /// Handles HTTP error responses from HyperWhisper Cloud /post-process endpoint
-    private func handleHyperWhisperCloudError(statusCode: Int, data: Data) throws {
+    /// Handles HTTP error responses from HyperWhisper Cloud /post-process endpoint.
+    /// Reads no instance state, so it is `static` and tests call it directly (#936).
+    static func handleHyperWhisperCloudError(statusCode: Int, data: Data) throws {
         let responseString = String(data: data, encoding: .utf8) ?? "No response body"
         AppLogger.network.error("HyperWhisper Cloud post-processing error · status=\(statusCode, privacy: .public)")
 
@@ -1261,7 +1223,9 @@ class AIPostProcessor: ObservableObject {
         if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let errorMessage = errorJson["message"] as? String ?? errorJson["error"] as? String {
 
-            AppLogger.network.error("HyperWhisper Cloud API error · message=\(errorMessage, privacy: .public)")
+            // A failed upstream LLM call's message can carry that provider's
+            // error body, which can echo the transcript (#1669).
+            AppLogger.network.error("HyperWhisper Cloud API error · messageLen=\(errorMessage.count, privacy: .public) · message=\(errorMessage, privacy: .private)")
 
             switch statusCode {
             case 402:
@@ -1410,7 +1374,7 @@ class AIPostProcessor: ObservableObject {
             return try await performWithRetry(config: config) { attempt in
                 AppLogger.network.debug("Custom endpoint post-processing attempt \(attempt, privacy: .public) of \(config.maxAttempts, privacy: .public)")
 
-                let (data, response) = try await URLSession.shared.data(for: request)
+                let (data, response) = try await CredentialNetworkCache.session.data(for: request)
 
                 guard let httpResponse = response as? HTTPURLResponse else {
                     throw TranscriptionError.invalidResponse(details: "Invalid server response")
@@ -1454,7 +1418,10 @@ class AIPostProcessor: ObservableObject {
 
                 // Handle error responses
                 let responseString = String(data: data, encoding: .utf8) ?? "No response body"
-                AppLogger.network.error("Custom endpoint HTTP error \(httpResponse.statusCode, privacy: .public): \(responseString.prefix(200), privacy: .public)")
+                // The body is server text that can echo the request, and the
+                // request holds the transcript (#1669): length public, body private.
+                let preview = responseString.prefix(200)
+                AppLogger.network.error("Custom endpoint HTTP error \(httpResponse.statusCode, privacy: .public) · bodyLen=\(responseString.count, privacy: .public) · bodyPreview=\(preview, privacy: .private)")
 
                 switch httpResponse.statusCode {
                 case 401, 403:
@@ -1484,6 +1451,57 @@ class AIPostProcessor: ObservableObject {
     }
 
     // MARK: - Local Runtime Launch
+
+    /// Resolves the local LLM both post-processing passes run on: picks an
+    /// installed model (falling back to the first one when the mode's model is
+    /// not installed), then starts llama-server through `ensureLocalRuntimeRunning`,
+    /// so both passes get the same single retry on a transient launch failure.
+    /// Returns the model id the runtime really loaded, or nil when the caller
+    /// must return the original text (`onPostProcessingError` already fired
+    /// where the user needs to hear about it).
+    private func resolveLocalLLM(languageModel: String, passLabel: String) async -> String? {
+        guard let localManager = localModelManager else {
+            AppLogger.transcription.info("AIPostProcessor [\(passLabel, privacy: .public)]: localModelManager is nil — skipping local LLM post-processing")
+            return nil
+        }
+        let installedModels = localManager.downloadedModels
+        guard !installedModels.isEmpty else {
+            AppLogger.transcription.warning("Local LLM selected but no downloaded weights available; returning original text.")
+            return nil
+        }
+        var languageModel = languageModel
+        if !installedModels.contains(where: { $0.id == languageModel }) {
+            let fallback = installedModels.first!
+            AppLogger.transcription.info("Using installed local model fallback: \(fallback.id, privacy: .public)")
+            languageModel = fallback.id
+        }
+        guard let server = llamaServerController else {
+            AppLogger.transcription.error("Server controller unavailable for local LLM; returning original text.")
+            onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: "controller unavailable"))
+            return nil
+        }
+        do {
+            let resolved = installedModels.first(where: { $0.id == languageModel }) ?? installedModels.first!
+            guard let modelURL = resolved.localURL else {
+                AppLogger.transcription.error("Local model file not found on disk; returning original text.")
+                onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: "model file missing on disk"))
+                return nil
+            }
+            let resolvedId = try await ensureLocalRuntimeRunning(
+                server: server,
+                resolved: resolved,
+                modelURL: modelURL
+            )
+            if resolvedId != languageModel {
+                AppLogger.transcription.info("Using available local model: \(resolvedId, privacy: .public)")
+            }
+            return resolvedId
+        } catch {
+            AppLogger.transcription.error("Local LLM runtime not ready: \(error.localizedDescription, privacy: .public)")
+            onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: error.localizedDescription))
+            return nil
+        }
+    }
 
     /// Ensures the embedded llama-server is up, retrying ONCE on a transient launch
     /// failure (OOM, launch race). Deterministic capability/asset errors — Intel,

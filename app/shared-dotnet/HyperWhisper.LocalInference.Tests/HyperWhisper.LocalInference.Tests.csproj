@@ -7,7 +7,40 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
+  <!-- This harness loads a real model, and HyperWhisper.LocalInference carries
+       only Whisper.net's managed API since issue #1194: the same runtimes as
+       the Linux head. -->
+  <ItemGroup>
+    <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
+    <PackageReference Include="Whisper.net.Runtime.Vulkan" Version="1.9.1" />
+    <PackageReference Include="Whisper.net.Runtime.Cuda12" Version="1.9.1" />
+  </ItemGroup>
+
+  <!-- The marker rule calls the shared core (issue #1811), so this harness
+       loads the native library. Same resolution as
+       HyperWhisper.PhoneticConformance.Tests: Linux CI's shared-dotnet sweep
+       and a Windows or macOS developer build each find their own. -->
+  <PropertyGroup>
+    <SharedCoreRoot>$(MSBuildThisFileDirectory)../../../shared-core-rs/target</SharedCoreRoot>
+    <SharedCoreNativeLibrary Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(SharedCoreRoot)/x86_64-pc-windows-msvc/release/hyperwhisper_core.dll</SharedCoreNativeLibrary>
+    <SharedCoreNativeLibrary Condition="$([MSBuild]::IsOSPlatform('OSX'))">$(SharedCoreRoot)/release/libhyperwhisper_core.dylib</SharedCoreNativeLibrary>
+    <SharedCoreNativeLibrary Condition="'$(SharedCoreNativeLibrary)' == ''">$(SharedCoreRoot)/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so</SharedCoreNativeLibrary>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="../HyperWhisper.LocalInference/HyperWhisper.LocalInference.csproj" />
+    <!-- The vectors are the cross-platform contract, not a fixture of this
+         project: Rust, Windows and macOS run the same file. -->
+    <Content Include="../../../shared-conformance/whisper-marker-vectors.json"
+             Link="whisper-marker-vectors.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="$(SharedCoreNativeLibrary)" Condition="Exists('$(SharedCoreNativeLibrary)')">
+      <Link>%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
+
+  <Target Name="EnsureSharedCoreNativeLibrary" BeforeTargets="Build">
+    <Error Condition="!Exists('$(SharedCoreNativeLibrary)')"
+           Text="Build shared-core-rs in release mode before running the local-inference tests — expected $(SharedCoreNativeLibrary)." />
+  </Target>
 </Project>

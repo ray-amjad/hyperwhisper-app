@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>किसी दूसरे प्रोग्राम ने इतिहास डेटाबेस को लॉक कर रखा है। रिकॉर्डिंग रखी गई है और डेटाबेस खाली होते ही इतिहास में सहेज दी जाएगी।</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>यह रिकॉर्डिंग अभी इतिहास में सहेजी नहीं जा सकी। रिकॉर्डिंग रखी गई है और बाद में इतिहास में सहेज दी जाएगी।</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -366,6 +372,9 @@
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
+  </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>परीक्षण प्रोफ़ाइल पर उपलब्ध नहीं है। यह बिल्ड एक अलग ऐप-डेटा फ़ोल्डर का उपयोग करता है, इसलिए यह इंस्टॉल किए गए ऐप की लॉगिन प्रविष्टि नहीं बदलता।</value>
   </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>न्यूनतम किया हुआ लॉन्च करें</value>
@@ -790,6 +799,12 @@
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (सक्रिय नहीं)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (कोई API कुंजी नहीं)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -820,6 +835,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>फ़ाइल ट्रांसक्रिप्शन रद्द किया गया</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>फ़ाइल का ट्रांसक्रिप्शन हो रहा है...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -843,11 +861,11 @@
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>इस रिकॉर्डिंग को बनाने वाला मोड हटा दिया गया है, इसलिए इसे फिर से प्रयास नहीं किया गया। इतिहास में, रिकॉर्डिंग पर राइट-क्लिक करें और कोई दूसरा मोड चुनने के लिए "इसके साथ फिर से प्रयास करें..." चुनें।</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>रिकॉर्डिंग रुक गई — 20 मिनट की सुरक्षा सीमा पहुँच गई।</value>
@@ -1081,6 +1099,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Ctrl, Alt, Shift या Win जैसे एकल मॉडिफ़ायर शॉर्टकट समर्थित नहीं हैं। मॉडिफ़ायर के साथ कोई कुंजी या Ctrl+Win जैसा बहु-मॉडिफ़ायर शॉर्टकट इस्तेमाल करें।</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>बिना मॉडिफ़ायर वाला शॉर्टकट कोई फ़ंक्शन कुंजी या Esc होना चाहिए। कोई भी अन्य कुंजी टाइप करते समय सक्रिय हो जाएगी।</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>यह शॉर्टकट पहले से {0} के लिए इस्तेमाल हो रहा है ({1})</value>
   </data>
@@ -1121,6 +1142,9 @@ You must have at least one mode.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Windows ऐप्लिकेशन नियंत्रण ने {0} को ब्लॉक कर दिया है, जो HyperWhisper के लिए ज़रूरी फ़ाइल है। अपने IT व्यवस्थापक से HyperWhisper को अनुमति देने के लिए कहें, या Windows सुरक्षा में स्मार्ट ऐप नियंत्रण जाँचें।</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>
@@ -1152,6 +1176,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>मॉडल उपयोग में है</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} का उपयोग "{1}" मोड कर रहा है। इसे हटाने से पहले उस मोड को किसी दूसरे मॉडल पर बदलें।</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1286,6 +1316,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>यह खाता कुंजी जैसा नहीं दिखता।</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1306,8 +1339,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>एक रिकॉर्डिंग या फ़ाइल ट्रांसक्रिप्शन पहले से चल रहा है। पूरा होने पर फ़ाइल फिर से आज़माएँ।</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>यह फ़ाइल खाली है, इसलिए ट्रांसक्राइब करने के लिए कोई ऑडियो नहीं है।</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>यह फ़ाइल क्षतिग्रस्त है या ऐसी ऑडियो फ़ाइल नहीं है जिसे HyperWhisper पढ़ सके।</value>
   </data>
 
 
@@ -1690,6 +1732,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>और...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1984,11 +2029,35 @@ You can re-download it later.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>ऑडियो मंद करें</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>केवल HyperWhisper द्वारा उपयोग किया जाता है। रीस्टार्ट के बाद भी याद रहता है।</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>डिफ़ॉल्ट · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (कनेक्ट नहीं है)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>{1} के फिर से कनेक्ट होने तक {0} का उपयोग हो रहा है।</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>कोई माइक्रोफ़ोन कनेक्ट नहीं है। {0} के फिर से कनेक्ट होने पर HyperWhisper उसका उपयोग करेगा।</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>परीक्षण</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>रोकें</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

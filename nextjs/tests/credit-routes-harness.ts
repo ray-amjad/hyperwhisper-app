@@ -4,9 +4,10 @@
  * session) and `app/api/license/credits` (money out — HyperWhisper Cloud reads
  * the balance here and deducts against it).
  *
- * Both routes reach two collaborators at import time: the database layer
- * (`src/lib/db-layer.ts`) and the Stripe client (`lib/clients/stripe.ts`).
- * Both are replaced here with `mock.module`, so the tests run the REAL route
+ * Both routes reach three collaborators at import time: the database layer
+ * (`src/lib/db-layer.ts`), the Stripe client (`lib/clients/stripe.ts`) and the
+ * Upstash rate limiters (`lib/rate-limit.ts`, #2010). All three are replaced
+ * here with `mock.module`, so the tests run the REAL route
  * modules — the amount validation, the pricing arithmetic, the license-status
  * gate, the Stripe customer resolution and the reply shapes — with no
  * database, no Stripe account and no network.
@@ -53,7 +54,14 @@ export const calls = {
   customerList: [] as CustomerListQuery[],
   customerCreate: [] as Record<string, unknown>[],
   sessionCreate: [] as Record<string, unknown>[],
+  /** Every rate-limit check, in order: which limiter, keyed by what. */
+  rateLimit: [] as RateLimitCall[],
 };
+
+export interface RateLimitCall {
+  limiter: "licenseCreditsRateLimiter" | "checkoutRateLimiter";
+  identifier: string;
+}
 
 /** What the collaborators answer. Each test sets only what it cares about. */
 export const behaviour = {
@@ -77,7 +85,22 @@ export const behaviour = {
   sessionError: null as unknown,
   /** URL the created session carries. `null` models Stripe returning none. */
   sessionUrl: "https://checkout.stripe.test/c/pay/cs_test_1" as string | null,
+  /**
+   * Requests each fake limiter allows per identifier before refusing — an
+   * in-memory fixed count standing in for the Upstash sliding window.
+   * `Infinity` (the default) never refuses.
+   */
+  rateLimitMax: Number.POSITIVE_INFINITY,
+  /** Milliseconds from now at which a refused window frees a slot. */
+  rateLimitResetInMs: 42_000,
+  /** Thrown by every limiter when set — models Upstash being unreachable. */
+  rateLimitError: null as unknown,
+  /** Resolved by every limiter when set — models @upstash/ratelimit's timeout. */
+  rateLimitTimeout: false,
 };
+
+/** Requests counted so far, per `limiter|identifier`. */
+const rateLimitCounts = new Map<string, number>();
 
 export function accountKeyRow(
   overrides: Partial<AccountKeyRow> = {},
@@ -105,6 +128,8 @@ export function resetHarness(): void {
   calls.customerList.length = 0;
   calls.customerCreate.length = 0;
   calls.sessionCreate.length = 0;
+  calls.rateLimit.length = 0;
+  rateLimitCounts.clear();
 
   behaviour.rows = new Map();
   behaviour.lookupError = null;
@@ -116,6 +141,10 @@ export function resetHarness(): void {
   behaviour.createdCustomerId = "cus_created";
   behaviour.sessionError = null;
   behaviour.sessionUrl = "https://checkout.stripe.test/c/pay/cs_test_1";
+  behaviour.rateLimitMax = Number.POSITIVE_INFINITY;
+  behaviour.rateLimitResetInMs = 42_000;
+  behaviour.rateLimitError = null;
+  behaviour.rateLimitTimeout = false;
 }
 
 /** Puts a row in the fake database under its own `key`. */
@@ -131,7 +160,11 @@ export function storeRow(row: AccountKeyRow): AccountKeyRow {
  */
 export const logLines: string[] = [];
 
-const realConsole = { error: console.error, log: console.log };
+const realConsole = {
+  error: console.error,
+  log: console.log,
+  warn: console.warn,
+};
 
 export function silenceRouteLogging(): void {
   const capture =
@@ -141,11 +174,13 @@ export function silenceRouteLogging(): void {
     };
   console.error = capture("error");
   console.log = capture("log");
+  console.warn = capture("warn");
 }
 
 export function restoreRouteLogging(): void {
   console.error = realConsole.error;
   console.log = realConsole.log;
+  console.warn = realConsole.warn;
 }
 
 function moduleUrl(relative: string): string {
@@ -222,6 +257,30 @@ moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
   },
 });
 
+function fakeLimiter(name: RateLimitCall["limiter"]) {
+  return {
+    limit: async (identifier: string) => {
+      calls.rateLimit.push({ limiter: name, identifier });
+      if (behaviour.rateLimitError) throw behaviour.rateLimitError;
+      const reset = Date.now() + behaviour.rateLimitResetInMs;
+      if (behaviour.rateLimitTimeout) {
+        return { success: true, reset, reason: "timeout" };
+      }
+      const key = `${name}|${identifier}`;
+      const count = (rateLimitCounts.get(key) ?? 0) + 1;
+      rateLimitCounts.set(key, count);
+      return { success: count <= behaviour.rateLimitMax, reset };
+    },
+  };
+}
+
+moduleMock.module(moduleUrl("../lib/rate-limit.ts"), {
+  namedExports: {
+    licenseCreditsRateLimiter: fakeLimiter("licenseCreditsRateLimiter"),
+    checkoutRateLimiter: fakeLimiter("checkoutRateLimiter"),
+  },
+});
+
 /** Builds a POST request the way a native app or the web client sends one. */
 export function postRequest(
   path: string,
@@ -236,8 +295,14 @@ export function postRequest(
 }
 
 /** Builds a GET request with the given query string. */
-export function getRequest(path: string): NextRequest {
-  return new NextRequest(`https://hyperwhisper.test${path}`, { method: "GET" });
+export function getRequest(
+  path: string,
+  headers: Record<string, string> = {},
+): NextRequest {
+  return new NextRequest(`https://hyperwhisper.test${path}`, {
+    method: "GET",
+    headers,
+  });
 }
 
 /** The single session Stripe was asked to create. Fails loudly when absent. */
@@ -260,3 +325,5 @@ export const loadLicenseCreditsRoute = () =>
   import("@/app/api/license/credits/route");
 export const loadAccountCreditsRoute = () =>
   import("@/app/api/account/credits/route");
+export const loadCheckoutRedirectRoute = () =>
+  import("@/app/api/checkout/route");

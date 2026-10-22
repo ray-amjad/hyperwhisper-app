@@ -94,7 +94,7 @@ public static class TranscriptionTextProcessing
     /// Appends a language-aware trailing space so consecutive transcriptions
     /// don't run together, and skips it for languages that write without word
     /// spaces (CJK, Thai). An empty, null or "auto" language makes the core
-    /// detect CJK from the text itself.
+    /// detect a continuous script (CJK or Thai) from the text itself.
     /// </summary>
     public static string AppendTrailingSpace(string text, string? modeLanguage)
     {

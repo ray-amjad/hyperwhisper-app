@@ -3,6 +3,9 @@
   <data name="linux.overlay.recording" xml:space="preserve">
     <value>Snimanje</value>
   </data>
+  <data name="linux.settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Priguši zvuk</value>
+  </data>
   <data name="linux.ui.api.keys" xml:space="preserve">
     <value>API ključevi</value>
   </data>
@@ -20,5 +23,29 @@
   </data>
   <data name="linux.ui.start.recording" xml:space="preserve">
     <value>Započni snimanje</value>
+  </data>
+  <data name="linux.settings.sound.microphone.default" xml:space="preserve">
+    <value>Zadano · {0}</value>
+  </data>
+  <data name="linux.settings.sound.microphone.defaultNone" xml:space="preserve">
+    <value>Zadano</value>
+  </data>
+  <data name="linux.settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Koristi se {0} dok se {1} ponovno ne poveže.</value>
+  </data>
+  <data name="linux.settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (nije povezano)</value>
+  </data>
+  <data name="linux.settings.sound.microphone.stop" xml:space="preserve">
+    <value>Zaustavi</value>
+  </data>
+  <data name="linux.settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Koristi ga samo HyperWhisper. Pamti se i nakon ponovnog pokretanja.</value>
+  </data>
+  <data name="linux.settings.sound.microphone.test" xml:space="preserve">
+    <value>Testiraj</value>
+  </data>
+  <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve">
+    <value>Mikrofon nije moguće otvoriti.</value>
   </data>
 </root>

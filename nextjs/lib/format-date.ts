@@ -10,6 +10,14 @@ const DATE_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
   minute: "2-digit",
 };
 
+/**
+ * The Intl locale for a site locale. The `sr` catalogue is written in Latin
+ * script, but Intl's bare `sr` formats in Cyrillic, so it maps to `sr-Latn`.
+ */
+export function intlLocale(locale: string): string {
+  return locale === "sr" ? "sr-Latn" : locale;
+}
+
 /** Accepts a Date, ISO string, or Unix timestamp in seconds. */
 export function formatDate(
   date: string | Date | number,

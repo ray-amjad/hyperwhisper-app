@@ -106,7 +106,7 @@
                                     BorderBrush="{DynamicResource BorderBrush}">
                                 <Border.InputBindings>
                                     <MouseBinding MouseAction="LeftClick"
-                                                  Command="{Binding DataContext.ToggleGettingStartedStepCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                                  Command="{Binding DataContext.OpenGettingStartedStepCommand, RelativeSource={RelativeSource AncestorType=Page}}"
                                                   CommandParameter="{Binding Id}"/>
                                 </Border.InputBindings>
                                 <Border.Style>
@@ -275,15 +275,17 @@
                                     <ItemsControl ItemsSource="{Binding BulletPoints}" Margin="0,12,0,0">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                                    <TextBlock Text="&#x2022;" FontSize="12"
+                                                <!-- DockPanel, not a horizontal StackPanel: a horizontal
+                                                     StackPanel gives the text infinite width, so it never wraps (#639). -->
+                                                <DockPanel Margin="0,6,0,0">
+                                                    <TextBlock DockPanel.Dock="Left" Text="&#x2022;" FontSize="12"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                Margin="0,0,6,0" VerticalAlignment="Top"/>
                                                     <TextBlock utilities:InlineHtmlText.Runs="{Binding}"
                                                                FontSize="12"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                TextWrapping="Wrap"/>
-                                                </StackPanel>
+                                                </DockPanel>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>

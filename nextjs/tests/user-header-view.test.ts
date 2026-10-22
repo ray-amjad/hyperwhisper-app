@@ -214,3 +214,26 @@ test("the admin header hides the logo and shows the badge", async () => {
   assert.doesNotMatch(markup, />HyperWhisper</);
   assert.match(markup, /<button[^>]*>Sign Out<\/button>/);
 });
+
+test("a long email truncates and never wraps the logo or Sign Out (#1658)", async () => {
+  const email =
+    "aleksandra.wisniewska-kowalczyk+billing-notifications@northwind-industries-holdings.example.com";
+  const markup = await renderView({ user: { email } });
+
+  // The email shrinks and ellipsizes; the full address stays in a tooltip.
+  assert.match(
+    markup,
+    new RegExp(`<span class="[^"]*\\bmin-w-0\\b[^"]*\\btruncate\\b[^"]*" title="${email.replace(/[.+]/g, "\\$&")}">`),
+  );
+  // Its flex parent must be allowed to shrink too, or `truncate` never kicks in.
+  assert.match(markup, /<div class="flex min-w-0 items-center gap-4">/);
+  // The logo and the button keep their natural width on one line.
+  assert.match(markup, /<a class="shrink-0 whitespace-nowrap [^"]*"[^>]*>HyperWhisper<\/a>/);
+  assert.match(markup, /<button class="shrink-0 whitespace-nowrap [^"]*"[^>]*>Sign Out<\/button>/);
+});
+
+test("a missing email renders no empty tooltip", async () => {
+  const markup = await renderView({ user: { email: null } });
+
+  assert.doesNotMatch(markup, /title=/);
+});

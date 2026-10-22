@@ -384,6 +384,10 @@ public sealed class ModelLibraryViewModel : ViewModelBase, IDisposable
 
     public const string AllProviders = "All providers";
 
+    /// <summary>A local row was installed or removed (a download landed, a delete ran), so the
+    /// shell can re-read whether the selected mode's model is there (#1632).</summary>
+    public event EventHandler? InstalledModelsChanged;
+
     public ModelLibraryViewModel(
         PortableModelManager manager,
         ModelReadinessService? readiness = null,
@@ -778,12 +782,24 @@ public sealed class ModelLibraryViewModel : ViewModelBase, IDisposable
         if (_vocabularyFilter && !item.Capability.SupportsCustomVocabulary) return false;
         if (_cloudAvailableFilter && !item.Capability.CloudTierEligible) return false;
         if (_languageFilter is not null && !SupportsLanguage(item.Capability, _languageFilter)) return false;
-        if (string.IsNullOrWhiteSpace(_searchText)) return true;
-        var needle = _searchText.Trim();
-        return item.DisplayName.Contains(needle, StringComparison.OrdinalIgnoreCase)
-            || item.ProviderId.Contains(needle, StringComparison.OrdinalIgnoreCase)
-            || item.ProviderName.Contains(needle, StringComparison.OrdinalIgnoreCase)
-            || item.ModelId.Contains(needle, StringComparison.OrdinalIgnoreCase);
+        return MatchesSearch(item, _searchText);
+    }
+
+    /// <summary>
+    /// The search box (#2203), on Ray's decisions for macOS #1447 (PR #2168) and the same rule as
+    /// Windows #2169: every whitespace-separated word must match (AND), case-insensitively, as a
+    /// substring of the display name, the language pill, the provider id, the provider name or
+    /// the model id. Each word may match a different field, so <c>nemotron multilingual</c> and
+    /// <c>whisper base.en</c> find their row even though no one field holds the whole query.
+    /// The language pill is searched because <see cref="ManagedModelViewModel.DisplayName"/>
+    /// strips "(Multilingual)" out of the name into it; Windows searches its Tag the same way.
+    /// </summary>
+    private static bool MatchesSearch(ManagedModelViewModel item, string query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return true;
+        string?[] fields = [item.DisplayName, item.LanguageTag, item.ProviderId, item.ProviderName, item.ModelId];
+        return query.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
+            .All(word => fields.Any(field => field?.Contains(word, StringComparison.OrdinalIgnoreCase) ?? false));
     }
 
     /// <summary>
@@ -834,7 +850,9 @@ public sealed class ModelLibraryViewModel : ViewModelBase, IDisposable
 
     private void OnRowPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(ManagedModelViewModel.Installed)) UpdateSummaries();
+        if (e.PropertyName != nameof(ManagedModelViewModel.Installed)) return;
+        UpdateSummaries();
+        InstalledModelsChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnReadinessChanged(object? sender, ModelReadinessChangedEventArgs e)

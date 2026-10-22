@@ -15,9 +15,49 @@ Both platforms export to the same universal JSON format. On import, each platfor
 1. Detects the format (ZIP = legacy Windows `.hwbackup`, JSON with `version` = legacy macOS, JSON with `schemaVersion` = universal)
 2. Reads shared fields (modes, vocabulary, settings, API keys)
 3. Reads `platformExtensions.<thisPlatform>` for platform-specific fields
-4. Ignores unknown `platformExtensions` from the other platform but **preserves them** for round-trip fidelity
+4. Reads a foreign slice only under the rule below, and **preserves** every foreign slice for round-trip fidelity
 
-**Shared fields** live at the top level of each object (mode, vocabulary, settings) and are portable between platforms. **Platform-specific fields** go into `platformExtensions.<platform>` at each level. When one platform imports the other's backup, it reads the shared fields, ignores the other platform's extension slice, and writes that slice back out unchanged on the next export. See `examples/` for exact shapes.
+**Shared fields** live at the top level of each object (mode, vocabulary, settings) and are portable between platforms. **Platform-specific fields** go into `platformExtensions.<platform>` at each level. When one platform imports another's backup, it reads the shared fields and its own slice, and writes every other platform's slice back out unchanged on the next export. See `examples/` for exact shapes.
+
+**The one rule for reading a foreign slice.** A head reads a field from another platform's slice
+only when that field means the same thing there, and only as a FALLBACK: its own slice is read
+first, and an explicit own-slice value — `false` and `0` included — always wins. When its own slice
+has no value, the head reads the foreign slices in the fixed order `macos`, `windows`, `linux`
+(skipping its own) and takes the first value of the right type. A foreign slice is never written
+into, and every field not listed here is carried, not read. Where the table says "whole slice", the
+head treats its own slice, when present, as the complete record of those fields and reads the foreign
+slice only when its own slice is absent or unreadable (not a JSON object, or it does not deserialize):
+Windows omits a null field on export, so a missing key in a readable own slice means "none", and
+reading through it would bring a stale preserved value back. An unreadable own slice holds no record,
+so the peer's values beat the defaults.
+
+**One exception: the newer .NET slice wins (#1716).** When a mode holds a readable `windows` AND a
+readable `linux` slice, the slice with the strictly newer `modifiedDate` is the whole record of the
+per-mode fields both .NET heads share (the second row below, plus `enableScreenOCR`), whichever
+head is importing. Each head preserves the other's slice unchanged, so after a Windows → Linux (edit)
+→ Windows trip the file holds the edit in `linux` and the OLD values in the preserved `windows`
+slice; without this rule Windows restored the old values. A tie, or a missing `modifiedDate` on
+either side, keeps the own slice, so an unedited trip restores exactly what it did before. A date
+with no offset is read as UTC (both heads store UTC). macOS never takes part: it writes none of
+these fields.
+
+The same rule covers `cloudAccuracyTier`, `cloudPostProcessingModel` and `localPostProcessingModel`
+(#1747), which Linux writes only at the TOP level and Windows writes at the top level AND in its
+`windows` slice, where the slice value overrides the top-level one (the core fold,
+`normalize_universal_mode_value`, for the first two). When the `linux` slice wins — a newer
+`modifiedDate` on Windows; any readable `linux` slice the `windows` slice does not beat on Linux —
+each head reads these three from the top level and ignores the `windows` slice's copies (it hands
+the core the mode without that slice). When the `windows` slice wins — or is the only readable
+slice — its copies still override, on both heads: the core fold reads the first two, and each head
+reads `localPostProcessingModel` from that slice itself, else from the top level.
+The fields read this way today:
+
+| Field | Read by | Foreign source |
+|---|---|---|
+| per-mode `enableScreenOCR` | macOS, Windows, Linux | every other head's per-mode slice, same name (#1481, #1498) |
+| per-mode `customVocabulary`, `localEngine`, `localParakeetModel`, `providerType`, `modelType`, `isSystemProvided`, `createdDate`, `modifiedDate` | Windows, Linux | the other .NET head's per-mode slice (`linux` for Windows, `windows` for Linux), same names; whole slice, when the mode has no readable own slice OR the peer slice's `modifiedDate` is newer (#1716). macOS writes none of them (#1712) |
+| `soundEffectsVolume` (settings) | Linux | `platformExtensions.macos.settings.audio.soundEffectsVolume` |
+| `customEndpoints` (settings) | Linux | `platformExtensions.windows.settings.customEndpoints`, only when the file has no `linux.settings` object at all |
 
 > **Current cross-platform reality (as of 2026-06).** BOTH platforms now read/write the **full**
 > universal v2 format — settings, modes, and vocabulary. The mapping tables below describe a live
@@ -126,6 +166,12 @@ category-keyed extension above) and round-trip losslessly through the universal 
 | `pushToTalkDoublePressEnabled` | `SettingsManager.pushToTalkDoublePressEnabled` | — |
 | `quickCaptureEnabled` | `SettingsManager.quickCaptureEnabled` | — |
 | `quickCaptureModeId` | `SettingsManager.quickCaptureModeId` (UUID string, `""` = current mode) | — |
+| `keyboardShortcuts` | The KeyboardShortcuts combo of every `KeyboardShortcuts.Name` (`Extensions/KeyboardShortcuts+Names.swift`), keyed by its raw value: `{"carbonKeyCode": Int, "carbonModifiers": Int}` (the Carbon values the package itself persists), or `null` for an action with no shortcut. Written by `BackupKeyboardShortcuts` (#1481) | — |
+
+`keyboardShortcuts` restore rules (macOS, v1 and v2 alike): an absent map leaves every shortcut
+as it is — a backup written before #1481 has none; a name absent from the map leaves that shortcut
+alone; `null` clears it, exactly as clearing the recorder does; a name this build does not register
+is ignored. The core needs no change for it: it carries the macOS `shortcuts` category whole.
 
 Windows-only settings (go into `platformExtensions.windows.settings`; not yet
 shared at the top level). `autoIncreaseMicVolume` is also round-tripped by macOS
@@ -159,7 +205,7 @@ Linux-only settings go into `platformExtensions.linux.settings` (including `them
 | `pushToTalkDoublePressLock` | Linux push-to-talk latch preference | Bool. |
 | `autoIncreaseMicVolume` | Linux temporary microphone boost | Bool; restored after every recording. |
 | `keepMicrophoneWarm` | Linux microphone keep-warm preference | Bool. |
-| `audioEnvironmentPolicy` | Linux other-audio behavior | `unchanged`, `duck`, or `mute`. |
+| `audioEnvironmentPolicy` | Linux other-audio behavior | `unchanged`, `duck`, `mute`, or `muffle`. |
 | `autoDeleteEnabled` | Linux recording-history retention preference | Bool; enables startup/hourly transcript and app-owned audio cleanup. |
 | `autoDeleteDaysOld` | Linux recording-history retention age | Integer clamped to 1–365 days. |
 | `customEndpoints` | Linux custom post-processing endpoints | Windows-compatible array of `id`, `name`, `endpointURL`, and `modelName`; credentials remain in secure storage and are never exported. |
@@ -230,16 +276,46 @@ Windows-only mode fields (go into `platformExtensions.windows`):
 
 | Field | Windows Property | Default on Import |
 |---|---|---|
-| `modelType` | `Mode.ModelType` | Same as `model` |
-| `localEngine` | `Mode.LocalEngine` | `"whisper"` |
-| `localParakeetModel` | `Mode.LocalParakeetModel` | `null` |
-| `providerType` | `Mode.ProviderType` | Infer from `cloudProvider` |
-| `cloudAccuracyTier` | `Mode.CloudAccuracyTier` | `"High"` |
-| `enableScreenOCR` | `Mode.EnableScreenOCR` | `false` |
-| `customVocabulary` | `Mode.CustomVocabulary` | `null` |
-| `isSystemProvided` | `Mode.IsSystemProvided` | `false` |
-| `createdDate` | `Mode.CreatedDate` | Current UTC time |
-| `modifiedDate` | `Mode.ModifiedDate` | Current UTC time |
+| `modelType` | `Mode.ModelType` | the `linux` slice's (no `windows` slice, or a newer `linux` `modifiedDate`), else same as `model` |
+| `localEngine` | `Mode.LocalEngine` | the `linux` slice's (no `windows` slice, or a newer `linux` `modifiedDate`), else `"whisper"` |
+| `localParakeetModel` | `Mode.LocalParakeetModel` | the `linux` slice's (no `windows` slice, or a newer `linux` `modifiedDate`), else `null` |
+| `providerType` | `Mode.ProviderType` | the `linux` slice's (no `windows` slice, or a newer `linux` `modifiedDate`), else `"cloud"` when `model` is `"cloud"` or `cloudProvider` is set, otherwise `"local"`. A restored Cloud mode with a blank `cloudProvider` stores `"hyperwhisper"` (#1690) |
+| `cloudAccuracyTier` | `Mode.CloudAccuracyTier` | the top-level value when a newer `linux` slice wins (#1747), else this slice's, else the provider fold's or the top level's, else `"High"` |
+| `enableScreenOCR` | `Mode.EnableScreenOCR` | a newer `linux` slice's (by `modifiedDate`), else the `windows` slice's, else the `macos`, then the `linux`, slice's `enableScreenOCR`, else `false` |
+| `customVocabulary` | `Mode.CustomVocabulary` | the `linux` slice's (no `windows` slice, or a newer `linux` `modifiedDate`), else `null` |
+| `isSystemProvided` | `Mode.IsSystemProvided` | the `linux` slice's (no `windows` slice, or a newer `linux` `modifiedDate`), else `false` |
+| `createdDate` | `Mode.CreatedDate` | the `linux` slice's (no `windows` slice, or a newer `linux` `modifiedDate`), else current UTC time |
+| `modifiedDate` | `Mode.ModifiedDate` | the `linux` slice's (no `windows` slice, or a newer `linux` `modifiedDate`), else current UTC time |
+
+Linux writes the same eight per-mode fields (and `enableScreenOCR`, above) under the same names in
+`platformExtensions.linux`, and always writes every key
+(`null` included). Each .NET head reads them from its own slice when the mode has a readable one, else from
+the other .NET head's slice (#1712): Windows `UniversalBackupMapper.ReadPeerModeExtensions`, Linux
+`ApplicationBackupExport.ParseMode` (`PeerModeSlice`). So a mode's per-mode vocabulary and
+local engine survive a Windows → Linux or Linux → Windows restore. When the mode carries both slices,
+the one with the newer `modifiedDate` wins instead (#1716, `PeerSliceIsNewer` on both heads), so an
+edit made on the other .NET head survives the round trip back.
+
+`enableScreenOCR` is per-mode on all three heads, but the shared `Mode` object has no property for
+it, so each head writes it in its OWN slice: Windows `platformExtensions.windows`, Linux
+`platformExtensions.linux`, macOS `platformExtensions.macos` (below). Every head reads it under
+the foreign-slice rule in "How It Works": its own slice first (or, on a .NET head, the newer .NET
+slice — #1716), then the others in the order
+`macos`, `windows`, `linux`. So macOS falls back to `windows` then `linux`, Windows
+(`UniversalBackupMapper.MapToMode`) to `macos` then `linux`, and Linux
+(`ApplicationBackupExport.ParseMode`) to `macos` then `windows`, and screen OCR survives a restore
+on any head. Only a JSON Bool counts; an own-slice `false` beats a foreign `true`.
+
+macOS-only mode fields (go into `platformExtensions.macos`; added by #1481 — before it a macOS
+restore turned both OFF on every mode):
+
+| Field | macOS (Core Data) | Absent on Import |
+|---|---|---|
+| `enableScreenOCR` | `Mode.enableScreenOCR` | the `windows` / `linux` slice's `enableScreenOCR`, else the value of the local mode the row replaces or updates (same id, else the same-name row `.replace` deletes), else `false` |
+| `useStreamingTranscription` | `Mode.useStreamingTranscription` | the value of the local mode the row replaces or updates, else `false` |
+
+The legacy v1 macOS backup carries both as plain optional fields on each mode object, with the same
+absent-value rule (`PersistenceController.importModes`).
 </important>
 
 <important if="you are changing per-mode platformExtensions, foreign-slice retention, or unknown-key round-trip behavior">
@@ -250,7 +326,8 @@ platform's per-mode `platformExtensions` slice and persists it, then re-emits it
 survives a Windows round-trip. Linux slices obey the same rule. Storage: macOS
 `Mode.foreignPlatformExtensions` (Core Data, raw JSON); Windows and the shared C# Linux core use
 `Mode.ForeignPlatformExtensions` (EF Core, raw JSON column). Each platform's own slice always wins
-over a stale preserved copy on re-export. A mac→v2→Windows→v2→mac trip retains the `windows` mode
+over a stale preserved copy on re-export. On import, a preserved .NET slice can still win when its
+`modifiedDate` is newer (#1716, "How It Works"). A mac→v2→Windows→v2→mac trip retains the `windows` mode
 slice, and Linux-authored slices must likewise survive trips through either existing platform.
 
 **Foreign-slice passthrough, TOP LEVEL (all platforms).** The same rule applies to the backup's

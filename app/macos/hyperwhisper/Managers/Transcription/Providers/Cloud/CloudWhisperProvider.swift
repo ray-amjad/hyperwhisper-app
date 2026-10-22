@@ -42,7 +42,7 @@ class CloudWhisperProvider: TranscriptionProvider {
     /// Shared session for OpenAI / Groq transcription. Mobile/cellular-tuned;
     /// fail-fast on offline so the retry loop (not URLSession) owns backoff.
     private lazy var session: URLSession = {
-        let config = URLSessionConfiguration.default
+        let config = URLSessionConfiguration.credentialBearing
         config.timeoutIntervalForRequest = 60.0
         config.timeoutIntervalForResource = 120.0
         config.allowsCellularAccess = true

@@ -20,7 +20,8 @@ public sealed class LinuxAppPaths : IAppPaths
 
         var home = RequireAbsolute(environment.HomeDirectory, "HOME");
         DataDirectory = Child(XdgHome(environment, "XDG_DATA_HOME", Path.Combine(home, ".local/share")));
-        ConfigDirectory = Child(XdgHome(environment, "XDG_CONFIG_HOME", Path.Combine(home, ".config")));
+        XdgConfigHome = XdgHome(environment, "XDG_CONFIG_HOME", Path.Combine(home, ".config"));
+        ConfigDirectory = Child(XdgConfigHome);
         CacheDirectory = Child(XdgHome(environment, "XDG_CACHE_HOME", Path.Combine(home, ".cache")));
         StateDirectory = Child(XdgHome(environment, "XDG_STATE_HOME", Path.Combine(home, ".local/state")));
 
@@ -50,6 +51,10 @@ public sealed class LinuxAppPaths : IAppPaths
     public string RecordingsDirectory { get; }
     public string RuntimeDirectory { get; }
     public string TemporaryDirectory { get; }
+
+    // The XDG config home itself, without the app's own folder. Session-wide entries such as the
+    // XDG Autostart file belong here, not under ConfigDirectory (#2023).
+    internal string XdgConfigHome { get; }
 
     private static string XdgHome(IProcessEnvironment environment, string name, string fallback) =>
         AbsoluteOrNull(environment.Get(name)) ?? fallback;

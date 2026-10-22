@@ -132,7 +132,7 @@ Assert-True ([string]::IsNullOrWhiteSpace($linux.platformExtensions.linux.settin
 Assert-True ([string]::IsNullOrWhiteSpace($linux.platformExtensions.linux.settings.pushToTalkMode) -eq $false) "Linux push-to-talk mode must be populated."
 Assert-True ($linux.platformExtensions.linux.settings.pushToTalkDoublePressLock -is [bool]) "Linux push-to-talk double-lock must be boolean."
 Assert-True ($linux.platformExtensions.linux.settings.keepMicrophoneWarm -is [bool]) "Linux keepMicrophoneWarm must be boolean."
-Assert-True (@("unchanged", "duck", "mute") -contains $linux.platformExtensions.linux.settings.audioEnvironmentPolicy) "Linux audio environment policy must be valid."
+Assert-True (@("unchanged", "duck", "mute", "muffle") -contains $linux.platformExtensions.linux.settings.audioEnvironmentPolicy) "Linux audio environment policy must be valid."
 
 $linuxModes = @($linux.modes)
 Assert-True ($linuxModes.Count -gt 0) "Linux fixture must include at least one mode."

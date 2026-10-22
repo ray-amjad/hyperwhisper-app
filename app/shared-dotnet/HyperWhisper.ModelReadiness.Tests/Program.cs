@@ -25,6 +25,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("credential change hook is scoped", TestCredentialChangeAsync),
     ("provider metadata probes use fixed content-free requests", TestMetadataProbeRequestsAsync),
     ("provider metadata outcomes are bounded and explicit", TestMetadataProbeOutcomesAsync),
+    ("provider metadata folds a vendor 400 through the core grade", TestMetadataProbeRejectedKeyFoldsAsync),
     ("provider metadata cancellation propagates", TestMetadataProbeCancellationAsync),
     ("Meta readiness reports configured without a probe", TestMetaReadinessAsync),
 };
@@ -360,6 +361,11 @@ static Task TestPostProcessingCoverageAsync()
     Equal(expectedByok, rows.Count(x => x.Key.StartsWith("cloud/pp-byok/", StringComparison.Ordinal)));
     Equal(expectedTier, rows.Count(x => x.Key.StartsWith("cloud/pp-tier/", StringComparison.Ordinal)));
     True(rows.All(x => x.Workload == ModelWorkload.Text));
+    // A BYOK row is labelled with the catalog's model name, not its raw id.
+    Equal("GPT-6 Luna", rows.Single(x => x.Key == "cloud/pp-byok/openai/gpt-6-luna").DisplayName);
+    Equal("Claude Sonnet 5.5", rows.Single(x => x.Key == "cloud/pp-byok/anthropic/claude-sonnet-5-5").DisplayName);
+    True(rows.Where(x => x.Key.StartsWith("cloud/pp-byok/", StringComparison.Ordinal))
+        .All(x => !string.Equals(x.DisplayName, x.ModelId, StringComparison.Ordinal)));
     return Task.CompletedTask;
 }
 
@@ -492,17 +498,24 @@ static Task TestCredentialChangeAsync()
 static async Task TestMetadataProbeRequestsAsync()
 {
     const string secret = "provider-secret";
-    var expected = new Dictionary<string, (string Uri, string Header)>(StringComparer.OrdinalIgnoreCase)
+    // Speech providers are built by the Rust core (hw_net::health); the rows below pin what it
+    // sends so a drift shows up here. anthropic and cerebras are post-processing-only vendors
+    // the core has no provider for.
+    var expected = new Dictionary<string, (string Method, string Uri, string Header)>(StringComparer.OrdinalIgnoreCase)
     {
-        ["openai"] = ("https://api.openai.com/v1/models", "Authorization"),
-        ["groq"] = ("https://api.groq.com/openai/v1/models", "Authorization"),
-        ["grok"] = ("https://api.x.ai/v1/models", "Authorization"),
-        ["mistral"] = ("https://api.mistral.ai/v1/models", "Authorization"),
-        ["cerebras"] = ("https://api.cerebras.ai/v1/models", "Authorization"),
-        ["anthropic"] = ("https://api.anthropic.com/v1/models?limit=1", "x-api-key"),
-        ["gemini"] = ("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1", "x-goog-api-key"),
-        ["deepgram"] = ("https://api.deepgram.com/v1/projects?limit=1", "Authorization"),
-        ["elevenlabs"] = ("https://api.elevenlabs.io/v1/models", "xi-api-key"),
+        ["openai"] = ("GET", "https://api.openai.com/v1/models", "Authorization"),
+        ["groq"] = ("GET", "https://api.groq.com/openai/v1/models", "Authorization"),
+        ["grok"] = ("GET", "https://api.x.ai/v1/models", "Authorization"),
+        ["xai"] = ("GET", "https://api.x.ai/v1/models", "Authorization"),
+        ["mistral"] = ("GET", "https://api.mistral.ai/v1/models", "Authorization"),
+        ["cerebras"] = ("GET", "https://api.cerebras.ai/v1/models", "Authorization"),
+        ["anthropic"] = ("GET", "https://api.anthropic.com/v1/models?limit=1", "x-api-key"),
+        ["gemini"] = ("GET", "https://generativelanguage.googleapis.com/v1beta/models", "x-goog-api-key"),
+        ["gemini-transcribe"] = ("GET", "https://generativelanguage.googleapis.com/v1beta/models", "x-goog-api-key"),
+        ["deepgram"] = ("GET", "https://api.deepgram.com/v1/projects", "Authorization"),
+        ["elevenlabs"] = ("POST", "https://api.elevenlabs.io/v1/speech-to-text", "xi-api-key"),
+        ["soniox"] = ("GET", "https://api.soniox.com/v1/models", "Authorization"),
+        ["assemblyai"] = ("GET", "https://api.assemblyai.com/v2/transcript?limit=1", "Authorization"),
     };
     foreach (var (provider, requestExpectation) in expected)
     {
@@ -512,23 +525,55 @@ static async Task TestMetadataProbeRequestsAsync()
                 new Uri("https://attacker.example.test/inference")));
         Equal(ProviderHealthOutcome.Healthy, response.Outcome);
         var sent = transport.Requests.Single();
-        Equal(HttpMethod.Get, sent.Method);
+        Equal(requestExpectation.Method, sent.Method.Method);
         Equal(requestExpectation.Uri, sent.RequestUri!.AbsoluteUri);
         True(sent.Content is null && !sent.RequestUri.AbsoluteUri.Contains(secret, StringComparison.Ordinal));
         True(sent.Headers.Contains(requestExpectation.Header));
+        True(sent.Headers.GetValues(requestExpectation.Header).Any(value =>
+            value.Contains(secret, StringComparison.Ordinal)));
         True(!sent.Headers.SelectMany(header => header.Value).Any(value =>
             value.Contains("ignored-model", StringComparison.Ordinal)
             || value.Contains("attacker", StringComparison.Ordinal)));
     }
 
     var unsupportedTransport = new FakeMetadataTransport(_ => throw new InvalidOperationException("must not send"));
-    foreach (var provider in new[] { "hyperwhisper", "assemblyai", "soniox", "azure-mai", "google-chirp", "custom" })
+    foreach (var provider in new[] { "hyperwhisper", "azure-mai", "google-chirp", "meta", "custom" })
     {
         var unsupported = await new ProviderMetadataHealthProbe(unsupportedTransport).CheckAsync(
             new(provider, "model", ModelSurface.BatchTranscription, new(secret)));
         Equal(ProviderHealthOutcome.Unsupported, unsupported.Outcome);
     }
     Equal(0, unsupportedTransport.Requests.Count);
+}
+
+static async Task TestMetadataProbeRejectedKeyFoldsAsync()
+{
+    // Gemini, Gemini 3.5 Transcribe and xAI answer a bad key with HTTP 400 (#781). Every other
+    // provider's 400 is an unexpected status; ElevenLabs' empty-body STT probe reads 400/422 as
+    // a key that reached STT.
+    foreach (var item in new[]
+    {
+        ("gemini", HttpStatusCode.BadRequest, ProviderHealthOutcome.Unauthorized),
+        ("gemini-transcribe", HttpStatusCode.BadRequest, ProviderHealthOutcome.Unauthorized),
+        ("geminitranscribe", HttpStatusCode.BadRequest, ProviderHealthOutcome.Unauthorized),
+        ("grok", HttpStatusCode.BadRequest, ProviderHealthOutcome.Unauthorized),
+        ("xai", HttpStatusCode.BadRequest, ProviderHealthOutcome.Unauthorized),
+        ("openai", HttpStatusCode.BadRequest, ProviderHealthOutcome.Unreachable),
+        ("anthropic", HttpStatusCode.BadRequest, ProviderHealthOutcome.Unreachable),
+        ("soniox", HttpStatusCode.Unauthorized, ProviderHealthOutcome.Unauthorized),
+        ("assemblyai", (HttpStatusCode)429, ProviderHealthOutcome.RateLimited),
+        ("elevenlabs", HttpStatusCode.BadRequest, ProviderHealthOutcome.Healthy),
+        ("elevenlabs", HttpStatusCode.UnprocessableEntity, ProviderHealthOutcome.Healthy),
+        ("elevenlabs", HttpStatusCode.Unauthorized, ProviderHealthOutcome.Unauthorized),
+        ("elevenlabs", HttpStatusCode.InternalServerError, ProviderHealthOutcome.Unreachable),
+    })
+    {
+        var transport = new FakeMetadataTransport(_ => JsonResponse("not-json", item.Item2));
+        var result = await new ProviderMetadataHealthProbe(transport).CheckAsync(
+            new(item.Item1, "model", ModelSurface.BatchTranscription, new("secret")));
+        True(item.Item3 == result.Outcome, $"{item.Item1} {(int)item.Item2}: {result.Outcome}");
+        Equal(1, transport.Requests.Count);
+    }
 }
 
 static async Task TestMetadataProbeOutcomesAsync()

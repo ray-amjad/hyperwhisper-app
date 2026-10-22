@@ -289,8 +289,6 @@ final class OnboardingFlowModel: ObservableObject {
     @Published private(set) var hasAccessibilityPermission = false
     @Published private(set) var isPollingForAccessibility = false
     @Published private(set) var microphoneAuthorization: OnboardingMicrophoneAuthorization = .undetermined
-    /// Non-nil when the last permission request was refused. Drives the alert.
-    @Published var permissionErrorMessage: String?
 
     // MARK: Staged source configuration
 
@@ -302,6 +300,11 @@ final class OnboardingFlowModel: ObservableObject {
             invalidateLicenseValidation()
         }
     }
+    /// #1489: true when the trimmed key field could hold an account key
+    /// (`LicenseKeyFormat`). Test and Activate stay off, and nothing is sent, otherwise.
+    var isLicenseKeyPlausible: Bool { LicenseKeyFormat.isPlausible(licenseKeyInput) }
+    /// #1489: true when the field holds text that cannot be a key, so the hint shows.
+    var showsLicenseKeyFormatHint: Bool { LicenseKeyFormat.showsHint(licenseKeyInput) }
     @Published private(set) var selectedProvider: CloudProvider = .openai
     @Published var apiKeyInput: String = "" {
         didSet {
@@ -455,8 +458,8 @@ final class OnboardingFlowModel: ObservableObject {
     /// `everyEntryGuardInTheModelIsSweptHere`, which counts the guards in this file.
     /// So: add the guard, add the line, and let the sweep prove it.
     ///
-    /// The invariant is about METHODS. `licenseKeyInput`, `apiKeyInput` and
-    /// `permissionErrorMessage` are publicly settable and have `didSet` side
+    /// The invariant is about METHODS. `licenseKeyInput` and `apiKeyInput` are
+    /// publicly settable and have `didSet` side
     /// effects, and they are not guarded: a keystroke landing during the dismissal
     /// animation still runs `invalidateProviderValidation()`. That is allowed
     /// because those writes never leave this model, but it is a gap in the wording
@@ -602,10 +605,9 @@ final class OnboardingFlowModel: ObservableObject {
             let granted = await self.permissions.requestMicrophonePermission()
             guard !Task.isCancelled, self.isLive else { return }
             self.hasMicrophonePermission = granted
+            // #1508: a refusal is the user's choice, not an error. No alert: the
+            // step shows the notice inline from `microphoneAuthorization`.
             self.microphoneAuthorization = granted ? .authorized : .denied
-            if !granted {
-                self.permissionErrorMessage = "onboarding.error.microphone.denied".localized
-            }
             self.taskBox.clear(TaskKey.microphonePermission)
         }
         track(task, key: TaskKey.microphonePermission)
@@ -704,8 +706,8 @@ final class OnboardingFlowModel: ObservableObject {
         // drops the result; the key would still have gone out over the wire for a
         // flow the user closed.
         guard isLive else { return }
-        let key = licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty else { return }
+        guard isLicenseKeyPlausible else { return }
+        let key = LicenseKeyFormat.normalized(licenseKeyInput)
         isTestingKey = true
         licenseTestPassed = nil
         activationErrorMessage = nil
@@ -837,8 +839,8 @@ final class OnboardingFlowModel: ObservableObject {
         // check below covers an in-flight result landing late; this one covers the
         // call that would reach `license.activate` in the first place.
         guard isLive else { return }
-        let key = licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty, !isActivatingLicense else { return }
+        guard isLicenseKeyPlausible, !isActivatingLicense else { return }
+        let key = LicenseKeyFormat.normalized(licenseKeyInput)
         isActivatingLicense = true
         activationErrorMessage = nil
         let task = Task { [weak self] in

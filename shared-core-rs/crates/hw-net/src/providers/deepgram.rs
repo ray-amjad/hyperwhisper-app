@@ -225,6 +225,14 @@ pub fn build_transcribe_request(
     })
 }
 
+/// A non-JSON 2xx body is HTML when it starts with `<` or is served as `text/html`.
+fn looks_like_html(resp: &HttpResponse, trimmed: &str) -> bool {
+    trimmed.starts_with('<')
+        || resp
+            .header("Content-Type")
+            .is_some_and(|ct| ct.trim().to_ascii_lowercase().starts_with("text/html"))
+}
+
 /// Parse the Deepgram transcription response.
 ///
 /// Success shape: `{ "results": { "channels": [{ "alternatives": [{ "transcript": "..." }] }] } }`.
@@ -244,6 +252,14 @@ pub fn parse_transcribe_response(resp: &HttpResponse) -> Result<Transcript, Tran
     // as the transcript instead of hard-failing with a parse error.
     let trimmed = raw.trim();
     if !trimmed.is_empty() && !trimmed.starts_with('{') && !trimmed.starts_with('[') {
+        // An HTML page (a corporate proxy block, a captive portal, a CDN error page)
+        // is never a transcript: refuse it rather than paste markup. No body text
+        // goes into the message.
+        if looks_like_html(resp, trimmed) {
+            return Err(TranscriptionError::Parse {
+                message: "unexpected HTML response".to_string(),
+            });
+        }
         return Ok(Transcript {
             text: trimmed.to_string(),
             credits_remaining: None,
@@ -285,6 +301,9 @@ pub fn parse_transcribe_response(resp: &HttpResponse) -> Result<Transcript, Tran
 ///
 /// PARITY (macOS `DeepgramProvider.swift` switch + Windows `HandleErrorResponseAsync`):
 /// - 401 / 403 → `Unauthorized`
+/// - 402 → `QuotaExceeded` (`ASR_PAYMENT_REQUIRED`: the project is out of
+///   credits; same as `common::classify_http` and `retry::classify_error`)
+/// - 408 → `ProviderUnavailable` (request timeout is transient, same as 5xx)
 /// - 413 → `FileTooLarge`
 /// - 429 → `RateLimited { retry_after_secs }` (from `Retry-After`)
 /// - 5xx → `ProviderUnavailable`
@@ -295,6 +314,8 @@ fn classify_deepgram_http(resp: &HttpResponse, raw: &str) -> TranscriptionError 
 
     match status {
         401 | 403 => TranscriptionError::Unauthorized,
+        402 => TranscriptionError::QuotaExceeded,
+        408 => TranscriptionError::ProviderUnavailable { status },
         413 => TranscriptionError::FileTooLarge,
         429 => TranscriptionError::RateLimited {
             retry_after_secs: retry_after(resp),
@@ -590,6 +611,66 @@ mod tests {
     }
 
     #[test]
+    fn deepgram_200_html_page_is_not_a_transcript() {
+        // Issue #2074: a proxy / captive-portal page on HTTP 200 must not be pasted.
+        let resp = HttpResponse {
+            status: 200,
+            headers: vec![],
+            body: b"\n  <!DOCTYPE html><html><body>Blocked by proxy</body></html>".to_vec(),
+        };
+        assert_eq!(
+            parse_transcribe_response(&resp).unwrap_err(),
+            TranscriptionError::Parse {
+                message: "unexpected HTML response".into()
+            }
+        );
+    }
+
+    #[test]
+    fn text_html_content_type_2xx_is_refused_without_leaking_body() {
+        // A text/html reply is refused even when it does not start with `<`, and
+        // none of the body reaches the error message.
+        let resp = HttpResponse {
+            status: 200,
+            headers: vec![Header::new("content-type", "Text/HTML; charset=utf-8")],
+            body: b"Access denied by SecretCorp proxy".to_vec(),
+        };
+        match parse_transcribe_response(&resp).unwrap_err() {
+            TranscriptionError::Parse { message } => {
+                assert_eq!(message, "unexpected HTML response");
+                assert!(!message.contains("SecretCorp"));
+            }
+            other => panic!("expected Parse, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn plain_sentence_with_text_plain_content_type_is_still_a_transcript() {
+        let resp = HttpResponse {
+            status: 200,
+            headers: vec![Header::new("Content-Type", "text/plain")],
+            body: b"I think 3 < 4 is true".to_vec(),
+        };
+        assert_eq!(
+            parse_transcribe_response(&resp).unwrap().text,
+            "I think 3 < 4 is true"
+        );
+    }
+
+    #[test]
+    fn json_body_with_text_html_content_type_is_parsed_as_json() {
+        // The HTML check is only in the plain-text branch: JSON is parsed whatever
+        // the Content-Type says.
+        let resp = HttpResponse {
+            status: 200,
+            headers: vec![Header::new("Content-Type", "text/html")],
+            body: br#"{"results":{"channels":[{"alternatives":[{"transcript":"hi there"}]}]}}"#
+                .to_vec(),
+        };
+        assert_eq!(parse_transcribe_response(&resp).unwrap().text, "hi there");
+    }
+
+    #[test]
     fn empty_plain_text_2xx_body_is_no_speech() {
         // A blank/whitespace 2xx body is not a transcript — it falls through to the
         // JSON path, which fails to parse "" → Parse error (no transcript content).
@@ -685,5 +766,41 @@ mod tests {
                 message: "bad model".to_string()
             }
         );
+    }
+
+    fn err_resp(status: u16, body: &str) -> HttpResponse {
+        HttpResponse {
+            status,
+            headers: Vec::new(),
+            body: body.as_bytes().to_vec(),
+        }
+    }
+
+    #[test]
+    fn deepgram_402_is_quota_exceeded_like_every_other_provider() {
+        // Issue #2073: Deepgram answers 402 ASR_PAYMENT_REQUIRED when the project
+        // is out of credits. It fell into BadRequest ("the provider rejected the
+        // transcription request") instead of QuotaExceeded.
+        let body = r#"{"err_code":"ASR_PAYMENT_REQUIRED","err_msg":"Project does not have enough credits for an ASR request and does not have an overage agreement.","request_id":"x"}"#;
+        let err = parse_transcribe_response(&err_resp(402, body)).unwrap_err();
+        assert_eq!(
+            err,
+            TranscriptionError::QuotaExceeded,
+            "deepgram 402 classified as {err:?}"
+        );
+        assert_eq!(err, crate::retry::classify_error(402, body));
+    }
+
+    #[test]
+    fn deepgram_408_is_provider_unavailable_like_classify_http() {
+        // Issue #2073: a 408 request timeout is transient (retried like a 5xx),
+        // not the terminal BadRequest fallthrough.
+        let err = parse_transcribe_response(&err_resp(408, "")).unwrap_err();
+        assert_eq!(
+            err,
+            TranscriptionError::ProviderUnavailable { status: 408 },
+            "deepgram 408 classified as {err:?}"
+        );
+        assert_eq!(err, crate::retry::classify_error(408, ""));
     }
 }

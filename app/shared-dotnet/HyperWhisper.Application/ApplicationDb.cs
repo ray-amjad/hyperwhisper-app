@@ -42,7 +42,12 @@ public sealed class ApplicationDb(Func<HyperWhisperDbContext> createContext)
             // restored from another machine is the realistic route — and this
             // branch is exactly why nothing used to repair it (issue #536).
             var modes = await context.Modes.OrderBy(item => item.SortOrder).ToListAsync(cancellationToken);
-            if (DefaultModePolicy.Apply(modes))
+            // Both repairs run, then one save. `|` and not `||`: the second pass must run even
+            // when the first one changed something. The legacy-provider fold (issue #601) is the
+            // pass Windows and macOS run at startup; the EF migration this head shares with
+            // Windows folded only the rows that existed when it ran.
+            var changed = DefaultModePolicy.Apply(modes) | LegacyCloudProviderFold.Apply(modes);
+            if (changed)
                 await context.SaveChangesAsync(cancellationToken);
         }
         await transaction.CommitAsync(cancellationToken);

@@ -44,7 +44,8 @@ class MicrophonePermissionManager {
     /// Current microphone permission status
     @Published var hasMicrophonePermission: Bool = false
 
-    /// Whether to show permission denied alert
+    /// Whether to show permission denied alert. Set by the caller that wants the
+    /// alert (the recording paths), never by `requestMicrophonePermission()`.
     @Published var showPermissionDeniedAlert: Bool = false
 
     /// Error message for permission issues
@@ -119,9 +120,12 @@ class MicrophonePermissionManager {
                 )
             }
 
+            // The caller decides whether a refusal raises an alert (#1508). The
+            // recording paths set `showPermissionDeniedAlert` themselves; onboarding
+            // shows its own inline notice, and an alert raised here would stay
+            // pending behind the onboarding sheet and fire the moment it closed.
             if !granted {
                 errorMessage = "audio.error.permissionDenied".localized
-                showPermissionDeniedAlert = true
             }
 
             return granted
@@ -138,7 +142,6 @@ class MicrophonePermissionManager {
                 )
             }
             errorMessage = "audio.error.permissionDenied".localized
-            showPermissionDeniedAlert = true
             return false
 
         @unknown default:

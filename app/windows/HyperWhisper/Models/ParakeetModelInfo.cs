@@ -54,9 +54,24 @@ public class ParakeetModelInfo
     public string Size { get; }
 
     /// <summary>
-    /// Approximate total size in bytes (for progress calculation during download).
+    /// Total size in bytes (for progress calculation during download). Exact (the
+    /// sum of <see cref="FileSizes"/>) for the flat models; approximate for Qwen3.
     /// </summary>
     public long SizeInBytes { get; }
+
+    /// <summary>
+    /// EXACT byte size of each required file on Hugging Face, keyed by the names in
+    /// <see cref="OnnxFileNames"/> (#1598). The install check demands every size to
+    /// the byte, so an encoder cut short (which crashed the engine daemon before
+    /// READY while Model Library still said Installed) counts as not installed.
+    /// Null for Qwen3, whose export filenames vary; it relies on the load-failure
+    /// path in <see cref="HyperWhisper.Services.LocalModelHealth"/> instead.
+    ///
+    /// Measured from https://huggingface.co/api/models/{repo}/tree/main on
+    /// 2026-10-09. If a repo is re-exported, re-measure: a stale value makes the
+    /// model impossible to install.
+    /// </summary>
+    public IReadOnlyDictionary<string, long>? FileSizes { get; }
 
     /// <summary>
     /// Whether this model only supports English.
@@ -136,7 +151,8 @@ public class ParakeetModelInfo
         string[] supportedLanguages,
         string[] onnxFileNames,
         string huggingFaceRepo,
-        ParakeetEngine engine = ParakeetEngine.NemoTransducer)
+        ParakeetEngine engine = ParakeetEngine.NemoTransducer,
+        IReadOnlyDictionary<string, long>? fileSizes = null)
     {
         Id = id;
         DisplayName = displayName;
@@ -147,6 +163,7 @@ public class ParakeetModelInfo
         OnnxFileNames = onnxFileNames;
         HuggingFaceRepo = huggingFaceRepo;
         Engine = engine;
+        FileSizes = fileSizes;
     }
 
     /// <summary>
@@ -179,7 +196,7 @@ public class ParakeetModelInfo
             id: "parakeet-v2",
             displayName: "Parakeet v2 (English)",
             size: "661 MB",
-            sizeInBytes: 661_000_000,
+            sizeInBytes: 661_190_513,
             isEnglishOnly: true,
             supportedLanguages: ["en"],
             onnxFileNames:
@@ -189,13 +206,20 @@ public class ParakeetModelInfo
                 "joiner.int8.onnx",
                 "tokens.txt"
             ],
-            huggingFaceRepo: "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8"),
+            huggingFaceRepo: "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8",
+            fileSizes: new Dictionary<string, long>
+            {
+                ["encoder.int8.onnx"] = 652_184_296,
+                ["decoder.int8.onnx"] = 7_257_753,
+                ["joiner.int8.onnx"] = 1_739_080,
+                ["tokens.txt"] = 9_384,
+            }),
 
         new ParakeetModelInfo(
             id: "parakeet-v3",
             displayName: "Parakeet v3 (Multilingual)",
             size: "671 MB",
-            sizeInBytes: 671_000_000,
+            sizeInBytes: 670_478_772,
             isEnglishOnly: false,
             supportedLanguages:
             [
@@ -210,7 +234,14 @@ public class ParakeetModelInfo
                 "joiner.int8.onnx",
                 "tokens.txt"
             ],
-            huggingFaceRepo: "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8"),
+            huggingFaceRepo: "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
+            fileSizes: new Dictionary<string, long>
+            {
+                ["encoder.int8.onnx"] = 652_184_281,
+                ["decoder.int8.onnx"] = 11_845_275,
+                ["joiner.int8.onnx"] = 6_355_277,
+                ["tokens.txt"] = 93_939,
+            }),
 
         // Qwen3-ASR 0.6B (int8) — on-device multilingual ASR, CPU-only.
         // Unlike Parakeet (4 flat files), the Qwen3 model is a tree: conv_frontend
@@ -273,7 +304,7 @@ public class ParakeetModelInfo
             id: "nemotron-3.5-ml-560ms",
             displayName: "Nemotron 3.5 Streaming (Multilingual)",
             size: "~660 MB",
-            sizeInBytes: 682_000_000,
+            sizeInBytes: 682_215_356,
             isEnglishOnly: false,
             supportedLanguages:
             [
@@ -287,6 +318,13 @@ public class ParakeetModelInfo
                 "tokens.txt"
             ],
             huggingFaceRepo: "csukuangfj2/sherpa-onnx-nemotron-3.5-asr-streaming-0.6b-560ms-int8-2026-06-11",
-            engine: ParakeetEngine.NemotronMl)
+            engine: ParakeetEngine.NemotronMl,
+            fileSizes: new Dictionary<string, long>
+            {
+                ["encoder.int8.onnx"] = 657_601_403,
+                ["decoder.int8.onnx"] = 14_978_075,
+                ["joiner.int8.onnx"] = 9_504_438,
+                ["tokens.txt"] = 131_440,
+            })
     ];
 }

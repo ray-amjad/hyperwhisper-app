@@ -3,6 +3,9 @@
   <data name="linux.overlay.recording" xml:space="preserve">
     <value>กำลังบันทึก</value>
   </data>
+  <data name="linux.settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>ทำให้เสียงอู้อี้</value>
+  </data>
   <data name="linux.ui.api.keys" xml:space="preserve">
     <value>คีย์ API</value>
   </data>
@@ -20,5 +23,29 @@
   </data>
   <data name="linux.ui.start.recording" xml:space="preserve">
     <value>เริ่มการบันทึก</value>
+  </data>
+  <data name="linux.settings.sound.microphone.default" xml:space="preserve">
+    <value>ค่าเริ่มต้น · {0}</value>
+  </data>
+  <data name="linux.settings.sound.microphone.defaultNone" xml:space="preserve">
+    <value>ค่าเริ่มต้น</value>
+  </data>
+  <data name="linux.settings.sound.microphone.fallback" xml:space="preserve">
+    <value>กำลังใช้ {0} จนกว่า {1} จะเชื่อมต่ออีกครั้ง</value>
+  </data>
+  <data name="linux.settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (ไม่ได้เชื่อมต่อ)</value>
+  </data>
+  <data name="linux.settings.sound.microphone.stop" xml:space="preserve">
+    <value>หยุด</value>
+  </data>
+  <data name="linux.settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>ใช้โดย HyperWhisper เท่านั้น จดจำไว้แม้รีสตาร์ท</value>
+  </data>
+  <data name="linux.settings.sound.microphone.test" xml:space="preserve">
+    <value>ทดสอบ</value>
+  </data>
+  <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve">
+    <value>ไม่สามารถเปิดไมโครโฟนได้</value>
   </data>
 </root>

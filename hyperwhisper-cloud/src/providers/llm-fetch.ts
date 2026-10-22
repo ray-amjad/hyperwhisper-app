@@ -10,7 +10,8 @@
 // Here one timer covers the request AND the body read done in `read`.
 //
 // Error mapping. shouldFallback() only accepts an LLMRequestError with a 5xx
-// status, so the mapping is what lets a silent upstream reach the FALLBACK:
+// or 429 status, so the mapping is what lets a silent upstream reach the
+// FALLBACK:
 //   - our timer fired           -> LLMTimeoutError (an LLMRequestError, 504,
 //                                  provider). callWithRetry does NOT retry it on
 //                                  the same provider (review round 2): it goes
@@ -19,14 +20,17 @@
 //                                  a network error stays an untagged error
 //                                  (retried, not failed over), and the non-2xx
 //                                  handling in each caller keeps its own status
-//                                  (retried, and a 5xx then fails over).
+//                                  (retried, and a 5xx or 429 then fails over).
+//   - a 200 whose body is not JSON  -> LLMRequestError 502 via readLLMJson (#2065):
+//                                  an outage or proxy page is an upstream
+//                                  failure, so it is retried and then fails
+//                                  over like any other 5xx.
 
 import { LLMRequestError, LLMTimeoutError } from './llm-errors';
 
 /**
  * Floor of the per-attempt bound for one non-streaming LLM chat request
- * (headers and body together), and the flat first-byte bound for the
- * /assistant stream. Above the 15 s STT default in providers/utils.ts.
+ * (headers and body together). Above the 15 s STT default in providers/utils.ts.
  */
 export const LLM_REQUEST_TIMEOUT_MS = 20_000;
 
@@ -105,5 +109,29 @@ export async function fetchLLMWithTimeout<T>(
     throw error;
   } finally {
     clearTimeout(timeoutHandle);
+  }
+}
+
+/**
+ * Parse a 2xx LLM response body as JSON (#2065). Reads the body as text first,
+ * so an abort from fetchLLMWithTimeout's timer still surfaces as an abort (and
+ * becomes its LLMTimeoutError); only a body that arrived whole and is not JSON
+ * (an HTML outage page, a truncated body) becomes an LLMRequestError 502, which
+ * shouldFallback() fails over on. No part of the body goes in the message or
+ * the log: a 200 body can carry the user's transcript.
+ */
+export async function readLLMJson<T = unknown>(response: Response, provider: string, requestId: string): Promise<T> {
+  const raw = await response.text();
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    console.error('llm.non_json_response', {
+      provider,
+      requestId,
+      status: response.status,
+      contentType: response.headers.get('content-type') ?? 'unknown',
+      bodyLength: raw.length,
+    });
+    throw new LLMRequestError(`${provider} returned a non-JSON ${response.status} response`, 502, provider);
   }
 }

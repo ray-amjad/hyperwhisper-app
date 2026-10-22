@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Cita programma ir bloķējusi vēstures datubāzi. Ieraksts ir paturēts un tiks saglabāts vēsturē, kad datubāze atbrīvosies.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Šo ierakstu vēl neizdevās saglabāt vēsturē. Ieraksts ir paturēts un tiks saglabāts vēsturē vēlāk.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -366,6 +372,9 @@
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
+  </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Nav pieejams testa profilā. Šī versija izmanto atsevišķu lietotnes datu mapi, tāpēc tā nemaina instalētās lietotnes pieteikšanās ierakstu.</value>
   </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Palaist minimizētu</value>
@@ -790,6 +799,12 @@
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Nav aktivizēts)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (Nav API atslēgas)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -820,6 +835,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Faila transkripcija atcelta</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transkribē failu...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -843,11 +861,11 @@
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Režīms, ar kuru tika veikts šis ieraksts, ir izdzēsts, tāpēc atkārtots mēģinājums netika veikts. Sadaļā Vēsture ar peles labo pogu noklikšķiniet uz ieraksta un izvēlieties “Atkārtot ar...”, lai izvēlētos citu režīmu.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Ierakstīšana apturēta — sasniegts 20 minūšu drošības limits.</value>
@@ -1081,6 +1099,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Īsinājumtaustiņi ar vienu modifikatora taustiņu, piemēram, Ctrl, Alt, Shift vai Win, netiek atbalstīti. Izmantojiet taustiņu ar modifikatoriem vai vairāku modifikatoru kombināciju, piemēram, Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Īsinājumtaustiņam bez modifikatora jābūt funkciju taustiņam vai Esc. Jebkurš cits taustiņš nostrādātu rakstīšanas laikā.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Šis īsinājumtaustiņš jau tiek izmantots šeit: {0} ({1})</value>
   </data>
@@ -1121,6 +1142,9 @@ You must have at least one mode.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Windows lietojumprogrammu vadība bloķēja {0} — failu, kas nepieciešams HyperWhisper. Lūdziet IT administratoram atļaut HyperWhisper vai pārbaudiet viedo lietojumprogrammu vadību sadaļā Windows drošība.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>
@@ -1152,6 +1176,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Modelis tiek izmantots</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} izmanto režīms “{1}”. Pirms dzēšanas pārslēdziet šo režīmu uz citu modeli.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1286,6 +1316,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Tas neizskatās pēc konta atslēgas.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1306,8 +1339,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Jau notiek ierakstīšana vai faila transkribēšana. Mēģiniet failu vēlreiz, kad tā būs pabeigta.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Šis fails ir tukšs, tāpēc nav audio, ko transkribēt.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Šis fails ir bojāts vai nav audio fails, ko HyperWhisper var nolasīt.</value>
   </data>
 
   <!-- Mode Change Toast -->
@@ -1690,6 +1732,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Vairāk...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1984,11 +2029,35 @@ You can re-download it later.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Apslāpēt audio</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Izmanto tikai HyperWhisper. Tiek atcerēts arī pēc restartēšanas.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Noklusējums · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (nav pievienots)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Tiek izmantots {0}, līdz {1} tiks pievienots atkārtoti.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Nav pievienots neviens mikrofons. HyperWhisper izmantos {0}, kad tas tiks pievienots atkārtoti.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Pārbaudīt</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Apturēt</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

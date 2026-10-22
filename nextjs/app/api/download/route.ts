@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
 
+import { APPCAST_FETCH_TIMEOUT_MS } from "@/lib/shared/appcast";
+
 type Platform = "mac" | "windows";
 type WindowsArch = "x64" | "arm64";
-
-// Fail fast instead of holding a serverless function open for the full
-// platform max duration if the appcast origin is slow or hangs.
-const APPCAST_FETCH_TIMEOUT_MS = 3000;
 
 // Force this route to be evaluated on every request so we always
 // read the latest appcast and produce a fresh redirect.

@@ -52,6 +52,9 @@ protocol LicenseNetworkServing {
     func getCachedLicenseStatus() -> LicenseStatus?
     func getStoredLicenseKey() -> String?
     func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead
+    /// Reads the secure store itself, never this session's cached record.
+    /// Async so the blocking Keychain read stays off the main actor (#1408).
+    func readStoredLicenseKeyFromSecureStore() async -> RustLicenseStore.StoredLicenseKeyRead
     func clearStoredLicense() -> Bool
     func replaceStoredLicenseKeyForImport(_ licenseKey: String) -> Bool
 }
@@ -94,14 +97,21 @@ class LicenseNetworkService: LicenseNetworkServing {
     private let store: RustLicenseStore
 
     /// URLSession for API calls with timeout configuration
-    private let session: URLSession = {
-        let config = URLSessionConfiguration.default
+    private let session: URLSession
+
+    /// No URL cache (#1491): the validate body carries `license_key`, and a
+    /// `.default` session archived it into the on-disk `Cache.db`.
+    static func makeDefaultSession() -> URLSession {
+        let config = URLSessionConfiguration.credentialBearing
         config.timeoutIntervalForRequest = NetworkConfig.licenseValidationTimeout
         return URLSession(configuration: config)
-    }()
+    }
 
-    init(store: RustLicenseStore) {
+    /// - Parameter session: test seam only; production passes nothing and gets
+    ///   the configured default session.
+    init(store: RustLicenseStore, session: URLSession? = nil) {
         self.store = store
+        self.session = session ?? Self.makeDefaultSession()
     }
 
     // MARK: - License Activation
@@ -326,26 +336,30 @@ class LicenseNetworkService: LicenseNetworkServing {
                 // never for an onboarding probe.
                 //
                 // The delayed launch retry additionally supplies the key that
-                // was current when it was scheduled. Check that precondition
-                // immediately before the side-effecting FFI call, on MainActor,
-                // so it is serialized with LicenseManager activation/deactivation:
-                // if one of those operations wins while this request is in
-                // flight, a stale Active response cannot restore the old key.
+                // was current when it was scheduled. That precondition is
+                // checked inside `RustLicenseStore.performLicenseTransaction`,
+                // under the same lock every activation/deactivation write
+                // takes, so it is serialized with them: if one of those
+                // operations wins while this request is in flight, a stale
+                // Active response cannot restore the old key.
+                //
+                // The commit runs here, on the request task, NOT on the main
+                // actor: it ends in a synchronous Keychain write (SecItemUpdate,
+                // a blocking XPC round trip to securityd) that froze the whole
+                // app for 10 s when securityd was slow (HYPERWHISPER-10B, #1408).
                 //
                 // The core still owns entitlement semantics: an Active verdict
                 // stores the key, while a rejected replacement cannot overwrite
                 // the current key's global cache.
                 if mode.persistsResult {
-                    let persistence = await MainActor.run {
-                        Self.persistValidationVerdictIfCurrent(
-                            store: store,
-                            status: outcome.status,
-                            attemptedKey: trimmedKey,
-                            expectedStoredLicenseKey: expectedStoredLicenseKey,
-                            nowUnixSecs: RustLicenseTime.nowUTC(),
-                            isCancelled: withUnsafeCurrentTask { $0?.isCancelled ?? false }
-                        )
-                    }
+                    let persistence = Self.persistValidationVerdictIfCurrent(
+                        store: store,
+                        status: outcome.status,
+                        attemptedKey: trimmedKey,
+                        expectedStoredLicenseKey: expectedStoredLicenseKey,
+                        nowUnixSecs: RustLicenseTime.nowUTC(),
+                        isCancelled: withUnsafeCurrentTask { $0?.isCancelled ?? false }
+                    )
                     switch persistence {
                     case .persisted:
                         break
@@ -577,6 +591,12 @@ class LicenseNetworkService: LicenseNetworkServing {
         store.readStoredLicenseKey(retryAfterFailure: retryAfterFailure)
     }
 
+    /// A fresh Keychain read for a decision that must match what the next
+    /// launch sees (a failed Deactivate, #1490).
+    func readStoredLicenseKeyFromSecureStore() async -> RustLicenseStore.StoredLicenseKeyRead {
+        store.readStoredLicenseKeyFromSecureStore()
+    }
+
     // MARK: - License Data Management
 
     /// Clears all stored license data (key, customerId, lastValidation, status).
@@ -628,9 +648,18 @@ class LicenseNetworkService: LicenseNetworkServing {
     // MARK: - Validation persistence
 
     /// Persists a server verdict only while the caller's validation is still
-    /// current. Main-actor isolation makes the expected-key check and the
-    /// side-effecting Rust FFI call one serialized unit relative to
-    /// LicenseManager activation/deactivation.
+    /// current. For a `RustLicenseStore`, the expected-key check and the
+    /// side-effecting Rust FFI call run inside `performLicenseTransaction`,
+    /// under the store's `transactionLock` — the same lock its `set`/`delete`,
+    /// `clearLicenseRecord` and `replaceLicenseKeyForImport` take — so they
+    /// are one serialized unit relative to LicenseManager
+    /// activation/deactivation without any actor isolation. Reads outside the
+    /// transaction do not take that lock: they see the last committed record
+    /// and never wait on the Keychain write (#1424).
+    ///
+    /// Deliberately NOT `@MainActor`: the commit ends in a blocking Keychain
+    /// write, so it must run off the main thread (#1408). It touches no
+    /// main-actor state.
     ///
     /// A nil `expectedStoredLicenseKey` is the explicit-activation contract:
     /// an Active verdict may replace the currently stored key. The delayed
@@ -642,7 +671,6 @@ class LicenseNetworkService: LicenseNetworkServing {
         case storageFailed
     }
 
-    @MainActor
     static func persistValidationVerdictIfCurrent(
         store: KeyValueStore,
         status: HwLicenseStatus,

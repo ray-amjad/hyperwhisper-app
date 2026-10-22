@@ -24,6 +24,7 @@ import {
   behaviour,
   callCustomer,
   calls,
+  fakeEnv,
   grantRow,
   loadCustomerRouter,
   loadTRPC,
@@ -597,17 +598,11 @@ test("stripePortalUrl opens the portal for the first key with a Stripe customer"
   ];
   behaviour.portalUrl = "https://billing.stripe.test/session/bps_wanted";
 
-  const previous = process.env.NEXT_PUBLIC_SITE_URL;
-  process.env.NEXT_PUBLIC_SITE_URL = "https://staging.hyperwhisper.test";
-  try {
-    const result = await callCustomer("stripePortalUrl", ctx, "mutation");
-    assert.deepEqual(result, {
-      url: "https://billing.stripe.test/session/bps_wanted",
-    });
-  } finally {
-    if (previous === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
-    else process.env.NEXT_PUBLIC_SITE_URL = previous;
-  }
+  fakeEnv.NEXT_PUBLIC_SITE_URL = "https://staging.hyperwhisper.test";
+  const result = await callCustomer("stripePortalUrl", ctx, "mutation");
+  assert.deepEqual(result, {
+    url: "https://billing.stripe.test/session/bps_wanted",
+  });
 
   assert.deepEqual(onlyPortalSession(), {
     customer: "cus_wanted",
@@ -619,13 +614,9 @@ test("stripePortalUrl falls back to the production site for the return URL", asy
   const ctx = await contextFor(customerUser());
   behaviour.accountKeys = [accountKeyRow({ stripeCustomerId: "cus_1" })];
 
-  const previous = process.env.NEXT_PUBLIC_SITE_URL;
-  delete process.env.NEXT_PUBLIC_SITE_URL;
-  try {
-    await callCustomer("stripePortalUrl", ctx, "mutation");
-  } finally {
-    if (previous !== undefined) process.env.NEXT_PUBLIC_SITE_URL = previous;
-  }
+  // resetHarness left the fake env empty: no NEXT_PUBLIC_SITE_URL.
+  assert.equal(fakeEnv.NEXT_PUBLIC_SITE_URL, undefined);
+  await callCustomer("stripePortalUrl", ctx, "mutation");
 
   assert.equal(onlyPortalSession().return_url, "https://hyperwhisper.com/user");
 });

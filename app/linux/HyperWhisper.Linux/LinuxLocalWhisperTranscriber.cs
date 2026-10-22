@@ -3,9 +3,15 @@ using HyperWhisper.ModelManagement;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
+using HyperWhisper.Linux.Platform.SystemIntegration;
+using System.Runtime.Versioning;
 
 namespace HyperWhisper.Linux;
 
+// This file is also compiled into HyperWhisper.Linux.E2E.Tests, which has no
+// assembly-level SupportedOSPlatform("linux"); the type-level attribute keeps
+// CA1416 satisfied there for the Linux-only CUDA package checks (#1002).
+[SupportedOSPlatform("linux")]
 internal sealed class LinuxLocalWhisperTranscriber : IRecordedAudioTranscriber, IDisposable
 {
     private readonly string _modelsDirectory;
@@ -39,11 +45,16 @@ internal sealed class LinuxLocalWhisperTranscriber : IRecordedAudioTranscriber, 
             var displayName = _service.IsLoaded
                 ? DisplayNameForRuntime(_service.Runtime, preference)
                 : preference.DisplayName;
-            return modelPath is null
-                ? new TranscriptionBackendCapability(
+            // The status line names the missing hyperwhisper-cuda package (#1002).
+            // Results keep the plain runtime label, so history stays clean.
+            if (preference.Notice is not null) displayName = $"{displayName} · {preference.Notice}";
+            if (modelPath is null)
+                return new TranscriptionBackendCapability(
                     false,
                     displayName,
-                    probeFailure ?? $"Local Whisper is unavailable. Place a ggml .bin model in {_modelsDirectory} or set HYPERWHISPER_MODEL_PATH.")
+                    probeFailure ?? $"Local Whisper is unavailable. Place a ggml .bin model in {_modelsDirectory} or set HYPERWHISPER_MODEL_PATH.");
+            return preference.Unavailable
+                ? new TranscriptionBackendCapability(false, displayName, LinuxCudaPackage.MissingFailure)
                 : new TranscriptionBackendCapability(true, displayName);
         }
     }
@@ -80,6 +91,11 @@ internal sealed class LinuxLocalWhisperTranscriber : IRecordedAudioTranscriber, 
                 PortableTranscriptionErrorCode.BackendUnavailable,
                 modelFailure ?? Capability.UnavailableReason!,
                 Capability.DisplayName);
+        if (preference.Unavailable)
+            return PortableTranscriptionResult.Failed(
+                PortableTranscriptionErrorCode.BackendUnavailable,
+                LinuxCudaPackage.MissingFailure,
+                preference.DisplayName);
 
         await _loadGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -96,6 +112,9 @@ internal sealed class LinuxLocalWhisperTranscriber : IRecordedAudioTranscriber, 
                     cancellationToken).ConfigureAwait(false);
                 if (!loaded.IsSuccess)
                     return MapFailure(loaded, preference.DisplayName);
+                // Once per load, like the head's other stderr notices; backend names only (#1002).
+                if (preference.Notice is not null)
+                    try { Console.Error.WriteLine($"HyperWhisper whisper: CUDA requested but hyperwhisper-cuda is not installed; using {preference.Backend}."); } catch { }
                 if (!preference.AllowCpuFallback
                     && preference.Backend != LocalWhisperBackend.Cpu
                     && !RuntimeMatches(preference.Backend, loaded.Runtime))
@@ -112,7 +131,11 @@ internal sealed class LinuxLocalWhisperTranscriber : IRecordedAudioTranscriber, 
                 new LocalWhisperRequest(
                     audioPath,
                     NormalizeLanguage(language),
-                    IncludeWordTimestamps: requestWordTimestamps),
+                    IncludeWordTimestamps: requestWordTimestamps,
+                    // No window of a long recording is primed with the text decoded
+                    // before it, so a repeated phrase cannot replace the rest of the
+                    // speech (#1559, the Windows fix is #1560). Linux sends no prompt.
+                    MaxLastTextTokensZero: true),
                 cancellationToken).ConfigureAwait(false);
             return result.IsSuccess
                 ? PortableTranscriptionResult.Success(result.Text!, DisplayNameForRuntime(result.Runtime, preference)) with
@@ -220,10 +243,16 @@ internal sealed class LinuxLocalWhisperTranscriber : IRecordedAudioTranscriber, 
     }
 }
 
+/// <param name="Notice">Why the backend differs from the one chosen (the CUDA
+/// package is missing), or null.</param>
+/// <param name="Unavailable">The chosen backend cannot run and nothing may
+/// replace it.</param>
 internal sealed record LinuxWhisperRuntimePreference(
     LocalWhisperBackend Backend,
     bool AllowCpuFallback,
-    int GpuDevice = 0)
+    int GpuDevice = 0,
+    string? Notice = null,
+    bool Unavailable = false)
 {
     public string DisplayName => Backend switch
     {
@@ -254,11 +283,18 @@ internal sealed class EnvironmentWhisperRuntimePreferenceSource : ILinuxWhisperR
     };
 }
 
+[SupportedOSPlatform("linux")]
 internal sealed class LinuxWhisperRuntimePreferenceSource(
     IPrivateFileService files,
     IAppPaths paths,
-    IGpuInfoProvider gpu) : ILinuxWhisperRuntimePreferenceSource
+    IGpuInfoProvider gpu,
+    INativeRuntimeLocator? runtime = null) : ILinuxWhisperRuntimePreferenceSource
 {
+    // Read once: Whisper.net pins its native runtime for the whole process, so a
+    // hyperwhisper-cuda installed while the app runs takes effect on restart.
+    private readonly Lazy<INativeRuntimeLocator> _runtime =
+        new(() => runtime ?? new LinuxNativeRuntimeLocator());
+
     public LinuxWhisperRuntimePreference Resolve()
     {
         var settings = new PortableSettingsService(files, paths);
@@ -271,8 +307,15 @@ internal sealed class LinuxWhisperRuntimePreferenceSource(
             "1" => true,
             _ => settings.Get("allowLocalWhisperCpuFallback", true),
         };
+        return Resolve(configured, allowFallback);
+    }
+
+    /// <summary>What a picker choice resolves to on this machine, before it is saved.</summary>
+    internal LinuxWhisperRuntimePreference Resolve(string? configured, bool allowFallback)
+    {
+        configured ??= "auto";
         if (!string.Equals(configured, "auto", StringComparison.OrdinalIgnoreCase))
-            return new(EnvironmentWhisperRuntimePreferenceSource.Parse(configured), allowFallback);
+            return WithCudaPackage(EnvironmentWhisperRuntimePreferenceSource.Parse(configured), allowFallback);
         var detected = gpu.GetBestGpu();
         var backend = detected.Value switch
         {
@@ -280,6 +323,39 @@ internal sealed class LinuxWhisperRuntimePreferenceSource(
             { SupportsVulkan: true } => LocalWhisperBackend.Vulkan,
             _ => LocalWhisperBackend.Cpu,
         };
-        return new(backend, allowFallback);
+        return WithCudaPackage(backend, allowFallback);
+    }
+
+    /// <summary>
+    /// The Model Library's Whisper status line for the picker's choice: names the
+    /// missing hyperwhisper-cuda package and the backend Whisper uses instead (#1002).
+    /// Null when the choice runs as picked, and for "auto", whose GPU probe runs
+    /// subprocesses this UI-thread binding must not wait on.
+    /// </summary>
+    internal string? DescribeChoice(string? configured, bool allowFallback) =>
+        configured is null || string.Equals(configured, "auto", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : Describe(Resolve(configured, allowFallback));
+
+    internal static string? Describe(LinuxWhisperRuntimePreference preference)
+    {
+        if (preference.Notice is null) return null;
+        if (preference.Unavailable) return LinuxCudaPackage.MissingFailure;
+        var fallback = preference.Backend == LocalWhisperBackend.Vulkan ? "Vulkan" : "CPU";
+        return $"{preference.Notice}; Whisper falls back to {fallback}.";
+    }
+
+    /// <summary>CUDA 12 ships in hyperwhisper-cuda (#1002); without it, fall back.</summary>
+    private LinuxWhisperRuntimePreference WithCudaPackage(LocalWhisperBackend backend, bool allowFallback)
+    {
+        if (backend != LocalWhisperBackend.Cuda12) return new(backend, allowFallback);
+        var choice = LinuxCudaPackage.Choose(_runtime.Value, "whisper", NativeComputeBackend.Cuda, allowFallback);
+        var selected = choice.Backend switch
+        {
+            NativeComputeBackend.Vulkan => LocalWhisperBackend.Vulkan,
+            NativeComputeBackend.Cpu => LocalWhisperBackend.Cpu,
+            _ => LocalWhisperBackend.Cuda12,
+        };
+        return new(selected, allowFallback, Notice: choice.Notice, Unavailable: choice.Unavailable);
     }
 }

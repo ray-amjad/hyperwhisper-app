@@ -65,6 +65,20 @@
                             </Grid>
                         </Border>
 
+                        <!-- #1489: the field holds text that cannot be any key, so Test (and
+                             Activate on the next step) stay off. This says why. -->
+                        <StackPanel Visibility="{Binding ShowsLicenseKeyFormatHint, Converter={StaticResource OnboardingBoolToVisibility}}">
+                            <Border Style="{StaticResource OnboardingDividerStyle}"/>
+                            <Border Style="{StaticResource OnboardingCardBlockStyle}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource OnboardingErrorGlyphStyle}"/>
+                                    <TextBlock Style="{StaticResource OnboardingErrorNoteStyle}"
+                                               Width="500"
+                                               Text="{loc:Loc license.error.keyFormat}"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
                         <StackPanel Visibility="{Binding IsTestingKey, Converter={StaticResource OnboardingBoolToVisibility}}">
                             <Border Style="{StaticResource OnboardingDividerStyle}"/>
                             <Border Style="{StaticResource OnboardingCardRowStyle}">

@@ -19,6 +19,13 @@ public sealed record PortablePostProcessingResult(
     string? FailureMessage = null,
     string? Model = null)
 {
+    /// <summary>
+    /// The <see cref="FailureCode"/> for a HyperWhisper Cloud run refused
+    /// because no account key is stored (issue #1487). The Local API answers
+    /// <c>MISSING_API_KEY</c> for it, the same refusal <c>/transcribe</c> gives.
+    /// </summary>
+    public const string CloudAccountRequiredFailureCode = "postprocessing.cloud_account_required";
+
     public static PortablePostProcessingResult Applied(string text, string provider, string? model = null) =>
         new(text, true, provider, Model: model);
 

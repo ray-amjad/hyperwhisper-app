@@ -60,7 +60,7 @@ function PurchaseSuccessContent() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900/10 to-gray-900 flex items-center justify-center px-7 py-20">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900/10 to-gray-900 flex items-center justify-center py-20">
       <m.div
         animate={{ opacity: 1, scale: 1 }}
         className="max-w-xl w-full text-center"
@@ -100,7 +100,7 @@ function PurchaseSuccessContent() {
           initial={{ opacity: 0, y: 20 }}
           transition={{ duration: 0.5, delay: 0.5 }}
         >
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-[22px]">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-[22px]">
             {t("whatsNext")}
           </h2>
           <ul className="space-y-6">
@@ -113,7 +113,7 @@ function PurchaseSuccessContent() {
                   <p className="text-[15px] font-semibold text-gray-200 leading-snug">
                     {step.title}
                   </p>
-                  <p className="text-[13.5px] text-gray-500 mt-1.5 leading-relaxed">
+                  <p className="text-[13.5px] text-gray-400 mt-1.5 leading-relaxed">
                     {step.description}
                   </p>
                 </div>
@@ -147,7 +147,7 @@ function LoadingFallback() {
   const t = useTranslations("purchaseSuccess");
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900/10 to-gray-900 flex items-center justify-center px-7 py-20">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900/10 to-gray-900 flex items-center justify-center py-20">
       <div className="text-center">
         <div className="inline-flex items-center justify-center w-[82px] h-[82px] bg-gradient-to-r from-purple-600 to-blue-600 rounded-full mb-6 animate-pulse" />
         <p className="text-lg text-gray-400">{t("loading")}</p>

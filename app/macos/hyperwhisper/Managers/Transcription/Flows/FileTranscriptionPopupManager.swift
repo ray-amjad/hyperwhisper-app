@@ -7,12 +7,14 @@
 //
 //  PANEL CONFIGURATION:
 //  - Non-activating (doesn't steal focus from other apps)
-//  - Floats above fullscreen apps (screen saver level)
+//  - Floats above normal windows and fullscreen apps (floating level), but
+//    below modal panels so alerts and the open panel draw over it (#1438)
 //  - Can appear on all Spaces
 //  - Transparent background (SwiftUI handles the visual style)
 //
 //  POSITIONING:
-//  - Centered on the main screen
+//  - Top-right corner of the main screen, clear of the centre where alerts,
+//    sheets and the open panel are drawn (#1438)
 //  - Tracks screen changes to maintain position
 //
 //  PATTERN:
@@ -31,13 +33,13 @@ private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "FileTr
 ///
 /// **What This Does:**
 /// Creates and manages an NSPanel that displays the FileTranscriptionProgressPopup view
-/// centered on screen. The panel is non-activating and stays on top even when other
+/// in the top-right corner of the screen. The panel is non-activating and stays on top even when other
 /// apps are focused.
 ///
 /// **How It Works:**
 /// 1. `show()` is called with progress state and cancel callback
 /// 2. Creates an NSPanel with the FileTranscriptionProgressPopup SwiftUI view
-/// 3. Centers the panel on the main screen
+/// 3. Places the panel in the top-right corner of the main screen
 /// 4. Panel stays visible until `dismiss()` is called
 ///
 /// **Thread Safety:**
@@ -72,6 +74,9 @@ final class FileTranscriptionPopupManager {
     /// Popup panel height
     private let panelHeight: CGFloat = 110
 
+    /// Gap between the popup and the top-right edges of the visible frame
+    private let edgeMargin: CGFloat = 16
+
     // MARK: - Initialization
 
     private init() {}
@@ -86,7 +91,7 @@ final class FileTranscriptionPopupManager {
     ///
     /// **Behavior:**
     /// - Dismisses any existing popup before showing new one
-    /// - Creates non-activating panel centered on screen
+    /// - Creates non-activating panel in the top-right corner of the screen
     /// - Popup stays visible until `dismiss()` is called
     func show(progress: FileTranscriptionProgress, onCancel: @escaping () -> Void) {
         // Close any existing popup first
@@ -112,7 +117,7 @@ final class FileTranscriptionPopupManager {
         // Create the panel
         let panel = NSPanel(contentViewController: host)
         configurePanelAppearance(panel)
-        positionPanelCentered(panel)
+        positionPanelTopRight(panel)
 
         // Show the panel without activating the app
         panel.orderFrontRegardless()
@@ -144,15 +149,19 @@ final class FileTranscriptionPopupManager {
     /// **Panel Configuration:**
     /// - Non-activating: Doesn't steal focus from other apps
     /// - Floating: Stays above normal windows
-    /// - Screen saver level: Appears above fullscreen apps
+    /// - Floating level: above normal windows, below modal panels
     /// - Can join all spaces: Visible on all virtual desktops
     /// - Transparent: SwiftUI handles the visual style
     private func configurePanelAppearance(_ panel: NSPanel) {
         // Non-activating panel that doesn't become key
         panel.styleMask = [.nonactivatingPanel]
 
-        // Same level as recording dialog - appears above fullscreen apps
-        panel.level = .screenSaver
+        // Floating, not .screenSaver like the recording dialog: this HUD stays up
+        // for minutes while the user keeps using the app, and at .screenSaver it
+        // covered alerts, the open panel and the Model picker (#1438). .floating
+        // still sits above normal windows (and fullscreen apps, with the
+        // collection behaviour below) but under .modalPanel windows.
+        panel.level = .floating
 
         // Collection behavior for multi-space and fullscreen support
         panel.collectionBehavior = [
@@ -179,12 +188,15 @@ final class FileTranscriptionPopupManager {
         panel.contentView?.layer?.backgroundColor = NSColor.clear.cgColor
     }
 
-    /// Position the panel centered on the main screen
+    /// Position the panel in the top-right corner of the main screen
     ///
     /// **Positioning Logic:**
-    /// Centers the panel both horizontally and vertically on the main screen.
+    /// Alerts, sheets and the open panel are drawn centred, so a centred HUD
+    /// hid their text and took clicks meant for the window under it (#1438).
+    /// The top-right corner (where notifications sit) keeps it out of their way;
+    /// the bottom centre is taken by the recording dialog and its toasts.
     /// Falls back to NSPanel.center() if screen info unavailable.
-    private func positionPanelCentered(_ panel: NSPanel) {
+    private func positionPanelTopRight(_ panel: NSPanel) {
         guard let screen = NSScreen.main else {
             panel.center()
             return
@@ -192,16 +204,15 @@ final class FileTranscriptionPopupManager {
 
         let visible = screen.visibleFrame
 
-        // Center the panel on screen
-        let x = visible.origin.x + (visible.width - panelWidth) / 2
-        let y = visible.origin.y + (visible.height - panelHeight) / 2
+        let x = visible.maxX - panelWidth - edgeMargin
+        let y = visible.maxY - panelHeight - edgeMargin
 
         panel.setFrame(
             NSRect(x: x, y: y, width: panelWidth, height: panelHeight),
             display: true
         )
 
-        logger.debug("📍 Positioned popup at center (\(x), \(y))")
+        logger.debug("📍 Positioned popup at top-right (\(x), \(y))")
     }
 
     // MARK: - Space/Screen Change Handling
@@ -221,7 +232,7 @@ final class FileTranscriptionPopupManager {
             into: &obsTokens,
             panel: { [weak self] in self?.panel },
             repositionOnScreenChange: { [weak self] panel in
-                self?.positionPanelCentered(panel)
+                self?.positionPanelTopRight(panel)
             }
         )
     }

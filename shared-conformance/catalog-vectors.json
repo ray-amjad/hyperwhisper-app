@@ -1,5 +1,5 @@
 {
-  "description": "Cross-platform conformance vectors for the shared catalog decoders. Source of truth: shared-core-rs/crates/hw-catalog/src/cloud_stt.rs and models.rs, read through shared-core-rs/crates/hw-core/src/ffi_catalog.rs. Three stacks run these vectors through their own UniFFI binding: Rust (shared-core-rs/crates/hw-core/tests/catalog_vectors.rs), Swift (app/macos/hyperwhisperTests/CatalogConformanceVectorTests.swift) and C# (app/shared-dotnet/HyperWhisper.CatalogConformance.Tests/Program.cs). Regenerate with: cargo test -p hw-core --test catalog_vectors -- --ignored regenerate. `languagesRawCodeCount` pins the size of the raw upstream code list rather than its contents; `pickerLanguageCodes` pins the fold applied to it. A null `codes` means the catalog declares the set \"unverified\", so a picker keeps its full list.",
+  "description": "Cross-platform conformance vectors for the shared catalog decoders. Source of truth: shared-core-rs/crates/hw-catalog/src/cloud_stt.rs and models.rs, read through shared-core-rs/crates/hw-core/src/ffi_catalog.rs. Three stacks run these vectors through their own UniFFI binding: Rust (shared-core-rs/crates/hw-core/tests/catalog_vectors.rs), Swift (app/macos/hyperwhisperTests/CatalogConformanceVectorTests.swift) and C# (app/shared-dotnet/HyperWhisper.CatalogConformance.Tests/Program.cs). Regenerate with: cargo test -p hw-core --test catalog_vectors -- --ignored regenerate. `languagesRawCodeCount` pins the size of the raw upstream code list rather than its contents; `pickerLanguageCodes` pins the fold applied to it. A null `codes` means the catalog declares the set \"unverified\", so a picker keeps its full list. `effectiveModeCloudProvider` pins the provider a CLOUD mode runs on for a stored cloudProvider (null = omitted): blank means \"hyperwhisper\" (#1709).",
   "cloudSttEntries": [
     {
       "id": "groqWhisper",
@@ -216,15 +216,6 @@
           "previewStatus": false,
           "supportsCustomVocabulary": true,
           "streaming": null
-        },
-        {
-          "id": "grok-voice-transcribe-1.0",
-          "displayName": "Grok Voice Transcribe 1",
-          "creditsPerMinute": 1.67,
-          "isDefault": false,
-          "previewStatus": false,
-          "supportsCustomVocabulary": true,
-          "streaming": null
         }
       ]
     },
@@ -438,7 +429,7 @@
     {
       "id": "openaiWhisper",
       "displayName": "OpenAI Whisper",
-      "displayModel": "whisper-1",
+      "displayModel": "gpt-transcribe",
       "vendor": "openai",
       "vendorDisplayName": "OpenAI",
       "vendorLabel": "OpenAI",
@@ -520,6 +511,15 @@
           "id": "gpt-live-transcribe",
           "displayName": "GPT Live Transcribe",
           "creditsPerMinute": 17.0,
+          "isDefault": false,
+          "previewStatus": false,
+          "supportsCustomVocabulary": true,
+          "streaming": null
+        },
+        {
+          "id": "gpt-4o-mini-transcribe-2025-12-15",
+          "displayName": "GPT-4o Mini Transcribe (2025-12-15)",
+          "creditsPerMinute": 3.0,
           "isDefault": false,
           "previewStatus": false,
           "supportsCustomVocabulary": true,
@@ -743,7 +743,7 @@
     {
       "id": "gemini",
       "displayName": "Google Gemini",
-      "displayModel": "gemini-2.5-flash",
+      "displayModel": "gemini-3.8-flash",
       "vendor": "google",
       "vendorDisplayName": "Google",
       "vendorLabel": "Google",
@@ -780,13 +780,22 @@
       "previewStatus": false,
       "migrateFrom": [],
       "legacyCloudProviderAliases": [],
-      "defaultModelId": "gemini-2.5-flash",
+      "defaultModelId": "gemini-3.8-flash",
       "models": [
+        {
+          "id": "gemini-3.8-flash",
+          "displayName": "Gemini 3.8 Flash",
+          "creditsPerMinute": 3.0,
+          "isDefault": true,
+          "previewStatus": false,
+          "supportsCustomVocabulary": true,
+          "streaming": null
+        },
         {
           "id": "gemini-2.5-flash",
           "displayName": "Gemini 2.5 Flash",
           "creditsPerMinute": 2.4,
-          "isDefault": true,
+          "isDefault": false,
           "previewStatus": false,
           "supportsCustomVocabulary": true,
           "streaming": null
@@ -806,15 +815,6 @@
           "creditsPerMinute": 7.5,
           "isDefault": false,
           "previewStatus": false,
-          "supportsCustomVocabulary": true,
-          "streaming": null
-        },
-        {
-          "id": "gemini-3-flash-preview",
-          "displayName": "Gemini 3 Flash",
-          "creditsPerMinute": 3.0,
-          "isDefault": false,
-          "previewStatus": true,
           "supportsCustomVocabulary": true,
           "streaming": null
         },
@@ -929,10 +929,10 @@
       "models": [
         "geminiTranscribe/gemini-3.5-transcribe",
         "geminiTranscribe/gemini-3.5-transcribe-live",
+        "gemini/gemini-3.8-flash",
         "gemini/gemini-2.5-flash",
         "gemini/gemini-2.5-flash-lite",
         "gemini/gemini-2.5-pro",
-        "gemini/gemini-3-flash-preview",
         "gemini/gemini-3.1-pro-preview"
       ]
     },
@@ -989,7 +989,8 @@
         "openaiWhisper/gpt-4o-mini-transcribe",
         "openaiWhisper/whisper-1",
         "openaiWhisper/gpt-transcribe",
-        "openaiWhisper/gpt-live-transcribe"
+        "openaiWhisper/gpt-live-transcribe",
+        "openaiWhisper/gpt-4o-mini-transcribe-2025-12-15"
       ]
     },
     {
@@ -1009,8 +1010,7 @@
         "grokStt"
       ],
       "models": [
-        "grokStt/grok-voice-transcribe-2.0",
-        "grokStt/grok-voice-transcribe-1.0"
+        "grokStt/grok-voice-transcribe-2.0"
       ]
     }
   ],
@@ -1674,7 +1674,7 @@
   "modelsEntries": [
     {
       "provider": "anthropic",
-      "id": "claude-haiku-4-5",
+      "id": "claude-haiku-5-5",
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
@@ -1685,6 +1685,16 @@
     {
       "provider": "anthropic",
       "id": "claude-sonnet-5",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "supportsAllLanguages": true,
+      "languageCodes": [],
+      "voiceCapabilities": null
+    },
+    {
+      "provider": "anthropic",
+      "id": "claude-sonnet-5-5",
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
@@ -2165,6 +2175,100 @@
       "voiceCapabilities": null
     },
     {
+      "provider": "elevenLabs",
+      "id": "scribe_v2_medical",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": false,
+      "supportsAllLanguages": false,
+      "languageCodes": [
+        "af",
+        "am",
+        "ar",
+        "as",
+        "az",
+        "be",
+        "bg",
+        "bn",
+        "bs",
+        "ca",
+        "cs",
+        "cy",
+        "da",
+        "de",
+        "el",
+        "en",
+        "es",
+        "et",
+        "fa",
+        "fi",
+        "fr",
+        "gl",
+        "gu",
+        "ha",
+        "he",
+        "hi",
+        "hr",
+        "hu",
+        "hy",
+        "id",
+        "is",
+        "it",
+        "ja",
+        "jw",
+        "ka",
+        "kk",
+        "km",
+        "kn",
+        "ko",
+        "lb",
+        "ln",
+        "lo",
+        "lt",
+        "lv",
+        "mi",
+        "mk",
+        "ml",
+        "mn",
+        "mr",
+        "ms",
+        "mt",
+        "my",
+        "ne",
+        "nl",
+        "no",
+        "oc",
+        "pa",
+        "pl",
+        "ps",
+        "pt",
+        "ro",
+        "ru",
+        "sd",
+        "sk",
+        "sl",
+        "sn",
+        "so",
+        "sr",
+        "sv",
+        "sw",
+        "ta",
+        "te",
+        "tg",
+        "th",
+        "tl",
+        "tr",
+        "uk",
+        "ur",
+        "uz",
+        "vi",
+        "yo",
+        "yue",
+        "zh"
+      ],
+      "voiceCapabilities": null
+    },
+    {
       "provider": "gemini",
       "id": "gemini-2.5-flash",
       "kind": "voice",
@@ -2196,16 +2300,6 @@
     },
     {
       "provider": "gemini",
-      "id": "gemini-3-flash-preview",
-      "kind": "voice",
-      "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": true,
-      "supportsAllLanguages": true,
-      "languageCodes": [],
-      "voiceCapabilities": null
-    },
-    {
-      "provider": "gemini",
       "id": "gemini-3.1-flash-lite",
       "kind": "voice",
       "supportsCustomVocabulary": true,
@@ -2236,10 +2330,10 @@
     },
     {
       "provider": "gemini",
-      "id": "gemini-3.1-flash-lite",
-      "kind": "text",
-      "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
+      "id": "gemini-3.8-flash",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
       "languageCodes": [],
       "voiceCapabilities": null
@@ -2267,16 +2361,6 @@
     {
       "provider": "gemini",
       "id": "gemini-3.6-flash",
-      "kind": "text",
-      "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
-      "supportsAllLanguages": true,
-      "languageCodes": [],
-      "voiceCapabilities": null
-    },
-    {
-      "provider": "gemini",
-      "id": "gemini-3.7-flash",
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
@@ -2392,16 +2476,6 @@
     },
     {
       "provider": "grok",
-      "id": "grok-voice-transcribe-1.0",
-      "kind": "voice",
-      "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": true,
-      "supportsAllLanguages": true,
-      "languageCodes": [],
-      "voiceCapabilities": null
-    },
-    {
-      "provider": "grok",
       "id": "grok-voice-transcribe-2.0",
       "kind": "voice",
       "supportsCustomVocabulary": true,
@@ -2466,16 +2540,6 @@
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
-      "supportsAllLanguages": true,
-      "languageCodes": [],
-      "voiceCapabilities": null
-    },
-    {
-      "provider": "groq",
-      "id": "qwen/qwen3.6-27b",
-      "kind": "text",
-      "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
       "languageCodes": [],
       "voiceCapabilities": null
@@ -2686,7 +2750,7 @@
     },
     {
       "provider": "mistral",
-      "id": "mistral-medium-3.5",
+      "id": "mistral-medium-3-5",
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
@@ -2739,7 +2803,7 @@
       "id": "gpt-4o-mini-transcribe-2025-12-15",
       "kind": "voice",
       "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": false,
+      "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
       "languageCodes": [],
       "voiceCapabilities": null
@@ -2790,6 +2854,16 @@
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
+      "supportsAllLanguages": true,
+      "languageCodes": [],
+      "voiceCapabilities": null
+    },
+    {
+      "provider": "openai",
+      "id": "gpt-6-luna",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
       "languageCodes": [],
       "voiceCapabilities": null
@@ -2884,6 +2958,44 @@
         "zh"
       ],
       "voiceCapabilities": null
+    }
+  ],
+  "effectiveModeCloudProvider": [
+    {
+      "input": null,
+      "expected": "hyperwhisper"
+    },
+    {
+      "input": "",
+      "expected": "hyperwhisper"
+    },
+    {
+      "input": "  ",
+      "expected": "hyperwhisper"
+    },
+    {
+      "input": "hyperwhisper",
+      "expected": "hyperwhisper"
+    },
+    {
+      "input": "deepgram",
+      "expected": "deepgram"
+    },
+    {
+      "input": "Deepgram",
+      "expected": "deepgram"
+    },
+    {
+      "input": "googlespeech",
+      "expected": "hyperwhisper"
+    },
+    {
+      "input": "geminiTranscribe",
+      "expected": "geminitranscribe"
+    },
+    {
+      "input": "not-a-provider",
+      "expected": "not-a-provider"
     }
   ]
 }

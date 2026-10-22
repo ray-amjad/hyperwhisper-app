@@ -7,12 +7,12 @@
  * `auth.options.plugins.find((p) => p.id === "magic-link").options.sendMagicLink`
  * IS the closure under test. Nothing is re-implemented here.
  *
- * ONE module is mocked: `lib/clients/resend.ts`. That is the whole seam. It
- * also keeps `src/env/server.mjs` out of the graph (the real resend client is
- * its only route in from here), so no env var has to be set — not even
- * `SKIP_ENV_VALIDATION`. `@/src/db` is NOT mocked and does not need to be:
- * `drizzle()` tolerates an undefined connection URL at construction and
- * `drizzleAdapter` issues no query, and this test never makes one.
+ * ONE module is mocked: `lib/clients/resend.ts`. That is the whole seam.
+ * `src/env/server.mjs` is real (auth.ts and the db client read it, #682) with
+ * `SKIP_ENV_VALIDATION` set, since no secret is set here. `@/src/db` is NOT
+ * mocked and does not need to be: with no PLANETSCALE_DATABASE_URL it builds
+ * a client whose queries throw, `drizzleAdapter` issues no query, and this
+ * test never makes one.
  *
  * `src/lib/auth.ts` is imported once per process, so every case shares that one
  * instance and switches the stub's answer through `behaviour.result`.
@@ -21,6 +21,8 @@ import assert from "node:assert/strict";
 import test, { after, mock } from "node:test";
 
 import { sha256Hex } from "../lib/shared/sha256";
+
+process.env.SKIP_ENV_VALIDATION = "1";
 
 const RECIPIENT = "magic-link-probe@example.com";
 const MAGIC_URL = "https://x.test/magic";

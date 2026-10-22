@@ -107,11 +107,17 @@
                         </Grid.ColumnDefinitions>
 
                         <Grid Grid.Column="0" VerticalAlignment="Center">
+                            <!-- AcceptsReturn keeps every line of a pasted list; a single-line
+                                 TextBox keeps only the first (#1777). Enter itself still adds:
+                                 WordBox_PreviewKeyDown handles it before the box sees it. -->
                             <TextBox x:Name="WordBox"
                                      Background="Transparent"
                                      BorderThickness="0"
                                      Padding="0"
                                      FontSize="14"
+                                     AcceptsReturn="True"
+                                     MaxHeight="120"
+                                     VerticalScrollBarVisibility="Auto"
                                      VerticalAlignment="Center"
                                      PreviewKeyDown="WordBox_PreviewKeyDown"
                                      TextChanged="WordBox_TextChanged"/>
@@ -220,7 +226,7 @@
                                      BorderThickness="0"
                                      Padding="0"
                                      FontSize="14"
-                                     AcceptsReturn="False"
+                                     AcceptsReturn="True"
                                      TextWrapping="Wrap"
                                      VerticalAlignment="Stretch"
                                      VerticalContentAlignment="Stretch"

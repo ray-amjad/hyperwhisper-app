@@ -2,7 +2,6 @@ using System.IO;
 using System.Net.Http;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
-using HyperWhisper.Utilities;
 
 namespace HyperWhisper.Services;
 
@@ -21,7 +20,7 @@ public class LocalLlmModelService
 
     public LocalLlmModelService()
     {
-        EnsureModelsDirectory();
+        ModelDownloader.EnsureDirectory(ModelsDirectory, nameof(LocalLlmModelService));
     }
 
     public string GetModelPath(LocalLlmModelInfo model)
@@ -41,7 +40,7 @@ public class LocalLlmModelService
         {
             var actualSize = new FileInfo(modelPath).Length;
             var minimumExpectedSize = (long)(model.SizeInBytes * 0.95);
-            return actualSize >= minimumExpectedSize && HasGgufHeader(modelPath);
+            return actualSize >= minimumExpectedSize && ModelDownloader.HasMagicHeader(modelPath, GgufMagic);
         }
         catch (Exception ex)
         {
@@ -55,7 +54,7 @@ public class LocalLlmModelService
         IProgress<double>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        EnsureModelsDirectory();
+        ModelDownloader.EnsureDirectory(ModelsDirectory, nameof(LocalLlmModelService));
 
         var finalPath = GetModelPath(model);
         var tempPath = finalPath + ".download";
@@ -66,13 +65,13 @@ public class LocalLlmModelService
             return Result<string>.Success(finalPath);
         }
 
-        var diskCheck = EnsureDiskSpace(model);
+        var diskCheck = ModelDownloader.EnsureDiskSpace(ModelsDirectory, model.SizeInBytes, model.DisplayName, nameof(LocalLlmModelService));
         if (diskCheck.IsFailure)
         {
             return Result<string>.Failure(diskCheck.Error!);
         }
 
-        CleanupFile(tempPath);
+        ModelDownloader.CleanupFile(tempPath);
 
         LoggingService.Info("========== STARTING LOCAL LLM MODEL DOWNLOAD ==========");
         LoggingService.Info($"  Model: {model.DisplayName}");
@@ -96,7 +95,7 @@ public class LocalLlmModelService
             var buffer = new byte[81920];
             long totalBytesRead = 0;
             int bytesRead;
-            var lastLoggedPercent = -1;
+            var lastLoggedBand = DownloadProgressLog.NoBandLogged;
 
             await using (var fileStream = File.Create(tempPath))
             {
@@ -109,9 +108,8 @@ public class LocalLlmModelService
                     progress?.Report(Math.Min(progressValue, 0.999));
 
                     var currentPercent = (int)(progressValue * 100);
-                    if (currentPercent / 10 != lastLoggedPercent / 10)
+                    if (DownloadProgressLog.ShouldLog(currentPercent, ref lastLoggedBand))
                     {
-                        lastLoggedPercent = currentPercent;
                         LoggingService.Debug($"  Download progress: {currentPercent}% ({totalBytesRead:N0} / {expectedSize:N0} bytes)");
                     }
                 }
@@ -127,18 +125,18 @@ public class LocalLlmModelService
             // expectedSize, which falls back to the catalog estimate.
             if (contentLength.HasValue && totalBytesRead != contentLength.Value)
             {
-                CleanupFile(tempPath);
+                ModelDownloader.CleanupFile(tempPath);
                 LoggingService.Warn(
                     $"LocalLlmModelService: Truncated download for {model.DisplayName} " +
                     $"({totalBytesRead:N0} / {contentLength.Value:N0} bytes)");
                 return Result<string>.Failure(Loc.S("settings.models.download.failed", $"incomplete transfer ({totalBytesRead:N0} / {contentLength.Value:N0} bytes)"));
             }
 
-            await MoveDownloadedFileAsync(tempPath, finalPath, cancellationToken);
+            await ModelDownloader.MoveDownloadedFileAsync(tempPath, finalPath, nameof(LocalLlmModelService), cancellationToken);
 
             if (!IsModelDownloaded(model))
             {
-                CleanupFile(finalPath);
+                ModelDownloader.CleanupFile(finalPath);
                 LoggingService.Warn($"LocalLlmModelService: Downloaded file failed GGUF validation for {model.DisplayName}");
                 return Result<string>.Failure(Loc.S("settings.models.download.failed", Loc.S("settings.models.localLlm.invalidModelFile")));
             }
@@ -151,13 +149,13 @@ public class LocalLlmModelService
         }
         catch (OperationCanceledException)
         {
-            CleanupFile(tempPath);
+            ModelDownloader.CleanupFile(tempPath);
             LoggingService.Warn("LocalLlmModelService: Download cancelled, cleaned up partial file");
             return Result<string>.Failure(Loc.S("settings.models.download.cancelled"));
         }
         catch (Exception ex)
         {
-            CleanupFile(tempPath);
+            ModelDownloader.CleanupFile(tempPath);
             LoggingService.Error("LocalLlmModelService: Download failed", ex);
             return Result<string>.Failure(Loc.S("settings.models.download.failed", ex.Message), ex);
         }
@@ -182,85 +180,5 @@ public class LocalLlmModelService
             LoggingService.Error($"LocalLlmModelService: Failed to delete model {model.DisplayName}", ex);
             return Result.Failure(ex.Message, ex);
         }
-    }
-
-    private static Result EnsureDiskSpace(LocalLlmModelInfo model)
-    {
-        try
-        {
-            var root = Path.GetPathRoot(ModelsDirectory);
-            if (string.IsNullOrEmpty(root))
-            {
-                return Result.Success();
-            }
-
-            var driveInfo = new DriveInfo(root);
-            var requiredBytes = (long)(model.SizeInBytes * 1.1);
-            if (driveInfo.AvailableFreeSpace >= requiredBytes)
-            {
-                return Result.Success();
-            }
-
-            var needed = ByteSizeFormatter.FormatCompact(requiredBytes);
-            var available = ByteSizeFormatter.FormatCompact(driveInfo.AvailableFreeSpace);
-            return Result.Failure(Loc.S("settings.models.localLlm.diskSpace", model.DisplayName, needed, available));
-        }
-        catch (Exception ex)
-        {
-            LoggingService.Warn($"LocalLlmModelService: Disk space check failed: {ex.Message}");
-            return Result.Success();
-        }
-    }
-
-    private static void EnsureModelsDirectory()
-    {
-        if (!Directory.Exists(ModelsDirectory))
-        {
-            LoggingService.Info($"LocalLlmModelService: Creating models directory: {ModelsDirectory}");
-            Directory.CreateDirectory(ModelsDirectory);
-        }
-    }
-
-    private static void CleanupFile(string path)
-    {
-        if (File.Exists(path))
-        {
-            try { File.Delete(path); }
-            catch { /* Ignore cleanup errors */ }
-        }
-    }
-
-    private static async Task MoveDownloadedFileAsync(
-        string tempPath,
-        string finalPath,
-        CancellationToken cancellationToken)
-    {
-        const int maxAttempts = 6;
-
-        for (var attempt = 1; ; attempt++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            try
-            {
-                File.Move(tempPath, finalPath, overwrite: true);
-                return;
-            }
-            catch (Exception ex) when (
-                attempt < maxAttempts &&
-                ex is IOException or UnauthorizedAccessException)
-            {
-                LoggingService.Warn($"LocalLlmModelService: Model finalization attempt {attempt} failed: {ex.Message}");
-                await Task.Delay(TimeSpan.FromMilliseconds(250 * attempt), cancellationToken);
-            }
-        }
-    }
-
-    private static bool HasGgufHeader(string path)
-    {
-        Span<byte> header = stackalloc byte[GgufMagic.Length];
-        using var stream = File.OpenRead(path);
-        var bytesRead = stream.Read(header);
-        return bytesRead == GgufMagic.Length && header.SequenceEqual(GgufMagic);
     }
 }

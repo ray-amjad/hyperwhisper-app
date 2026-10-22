@@ -98,6 +98,21 @@ public class TranscriptionException : Exception
     /// <summary>Provider-specific diagnostics captured during the failed attempt.</summary>
     public TranscriptionProviderDiagnostics? ProviderDiagnostics { get; }
 
+    /// <summary>
+    /// True when a <see cref="TranscriptionErrorCode.QuotaExceeded"/> is the
+    /// HyperWhisper Cloud account being out of credits (Cloud's or the routed
+    /// path's 402), not a BYOK provider's quota. The code stays QuotaExceeded so
+    /// the in-app toast routing is unchanged; the Local API reads this to pick
+    /// the Cloud wording (#2089).
+    /// </summary>
+    public bool IsInsufficientCredits { get; init; }
+
+    /// <summary>
+    /// A user message that replaces the code's fixed one, for a failure the code alone
+    /// cannot explain: an Application Control block on the Parakeet engine (#2379).
+    /// </summary>
+    public string? UserMessage { get; init; }
+
     public TranscriptionException(
         TranscriptionErrorCode code,
         string message,
@@ -131,7 +146,7 @@ public class TranscriptionException : Exception
     /// <summary>
     /// Gets a user-friendly error message with recovery guidance.
     /// </summary>
-    public string GetUserMessage() => Code switch
+    public string GetUserMessage() => UserMessage ?? Code switch
     {
         TranscriptionErrorCode.ApiKeyMissing =>
             $"No API key configured for {ProviderName ?? "cloud provider"}. Add it in the Model Library API keys manager.",

@@ -1,5 +1,3 @@
-import { Metadata } from "next";
-
 import {
   CREDIT_FEE_RATE,
   CREDITS_PER_DOLLAR,
@@ -7,12 +5,14 @@ import {
   MIN_CREDIT_DOLLARS,
   computeCreditPurchase,
 } from "@/app/api/checkout/credits/validation";
+import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
-export const metadata: Metadata = {
-  title: "Refund Policy | HyperWhisper",
+export const generateMetadata = localizedPageMetadata({
+  path: "/legal/refund-policy",
+  title: "Refund Policy",
   description:
     "HyperWhisper refund policy for HyperWhisper Cloud credits, including the 14-day money back guarantee",
-};
+});
 
 // Every number on this page comes from the checkout's own constants, so the
 // policy cannot drift from what checkout charges.

@@ -5,6 +5,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/src/db";
+import { env } from "@/src/env/server.mjs";
 import { resend, DEFAULT_FROM_EMAIL } from "@/lib/clients/resend";
 import { sha256Hex } from "@/lib/shared/sha256";
 import { redactAddresses } from "@/lib/shared/redact";
@@ -14,6 +15,7 @@ import {
   magicLinkEmailText,
 } from "@/lib/templates/magic-link-email";
 import { licenseKeyPlugin } from "./auth-license-key-plugin";
+import { authRateLimitOptions } from "./auth-rate-limit-storage";
 
 /**
  * Read `name` / `statusCode` / `message` off whatever Resend put in the `error`
@@ -72,7 +74,7 @@ function resendErrorFieldsOf(error: unknown): {
 }
 
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL,
+  baseURL: env.BETTER_AUTH_URL,
   database: drizzleAdapter(db, { provider: "pg" }),
   // Explicit session config: Better Auth's defaults are a 7-day `expiresIn`
   // with a 1-day `updateAge`, which signed active users out after a hard week.
@@ -126,6 +128,12 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24, // refresh at most once a day
     deferSessionRefresh: true,
   },
+  // Better Auth's own rate-limit rules, counted in the site's Upstash so every
+  // Vercel instance shares one budget (#2010). `customStorage`, deliberately
+  // not `secondaryStorage`: the latter would also move sessions off Postgres.
+  // Fails open when Upstash is down or unconfigured. See
+  // `./auth-rate-limit-storage.ts`.
+  rateLimit: authRateLimitOptions(),
   user: {
     additionalFields: {
       role: {

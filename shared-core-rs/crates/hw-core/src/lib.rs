@@ -150,6 +150,15 @@ pub fn strip_wrapper_markers(text: String) -> String {
     hw_text::strip_wrapper_markers(&text)
 }
 
+/// Remove Whisper's non-speech markers (a blank-audio tag, `(silence)`,
+/// `[inaudible]`, `[ Music ]`, `(applause)` and kin) and trim. Marker-only input
+/// returns `""`; a bracket the speaker dictated survives. One rule for every
+/// head (issue #1811); cases in `shared-conformance/whisper-marker-vectors.json`.
+#[uniffi::export]
+pub fn strip_whisper_non_speech_markers(text: String) -> String {
+    hw_text::strip_whisper_non_speech_markers(&text)
+}
+
 /// Streaming-display sanitizer: content after the first start marker, markers stripped.
 #[uniffi::export]
 pub fn sanitize_streaming_buffer(buffer: String) -> String {
@@ -274,6 +283,18 @@ mod tests {
         assert_eq!(
             strip_wrapper_markers("Hello world<<END>>".to_string()),
             "Hello world"
+        );
+    }
+
+    #[test]
+    fn whisper_markers_go_and_dictated_brackets_stay() {
+        assert_eq!(
+            strip_whisper_non_speech_markers(" Hello. [ Music ] (applause)".to_string()),
+            "Hello."
+        );
+        assert_eq!(
+            strip_whisper_non_speech_markers("[TODO] (optional)".to_string()),
+            "[TODO] (optional)"
         );
     }
 

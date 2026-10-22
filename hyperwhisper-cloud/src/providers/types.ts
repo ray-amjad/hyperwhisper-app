@@ -214,13 +214,43 @@ export class EmptyTranscriptError extends ProviderUnavailableError {
  * AudioTooLargeError / UnsupportedAudioFormatError, which are deterministic
  * across providers and map to a fixed client error. `status` is the upstream
  * HTTP status that triggered it.
+ *
+ * Two texts (#2163). `message` is what every route LOGS, so `reason` must be
+ * content-free — a provider error code or `HTTP <status>`, never the
+ * upstream's error body, which can quote the user's audio settings,
+ * vocabulary or transcript. `clientMessage` is what /transcribe SENDS BACK to
+ * the caller in its 400, and may carry the upstream's own wording
+ * (`clientReason`) so the user still learns which language or format was
+ * refused. Never log `clientMessage`.
  */
 export class ProviderInputError extends Error {
   readonly status: number;
+  /** The client-facing text. May hold upstream body text: never log it. */
+  readonly clientMessage: string;
 
-  constructor(provider: string, status: number, reason: string) {
+  constructor(provider: string, status: number, reason: string, clientReason?: string) {
     super(`${provider} rejected input (${status}): ${reason}`);
     this.name = 'ProviderInputError';
+    this.status = status;
+    this.clientMessage = clientReason === undefined
+      ? this.message
+      : `${provider} rejected input (${status}): ${clientReason}`;
+  }
+}
+
+/**
+ * The upstream rejected OUR credentials for this provider (401, or 403 where
+ * the adapter opts in). The message is unchanged from the plain `Error` it
+ * replaces. Every provider has its own key, so the transcribe route tries the
+ * next sibling when the chain has one, and fails the request with today's 500
+ * when it does not. `status` is the upstream HTTP status.
+ */
+export class ProviderAuthError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ProviderAuthError';
     this.status = status;
   }
 }

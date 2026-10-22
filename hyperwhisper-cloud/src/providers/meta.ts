@@ -4,7 +4,8 @@
 import { META_MUSE_MAX_BYTES } from '../lib/constants';
 import { computeMetaMuseTranscriptionCost } from '../lib/cost-calculator';
 import { resolveProviderLanguage } from '../lib/language-codes';
-import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
+import { parsePcm16Wav } from '../lib/wav-header';
+import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   computeUploadTimeoutMs,
@@ -29,92 +30,17 @@ interface MetaResponse {
   audioDurationMs?: unknown;
 }
 
-function ascii(view: DataView, offset: number, length: number): string {
-  let value = '';
-  for (let index = 0; index < length; index++) {
-    value += String.fromCharCode(view.getUint8(offset + index));
-  }
-  return value;
-}
-
-function unsupported(contentType: string): UnsupportedAudioFormatError {
-  return new UnsupportedAudioFormatError('Meta Muse', contentType, META_ACCEPTED_FORMATS);
-}
-
 /** Parse and validate the exact RIFF/WAVE shape accepted by Meta's file API. */
 export function parseMetaWav(audio: ArrayBuffer, contentType: string): ParsedWav {
-  if (audio.byteLength < 12) throw unsupported(contentType);
-
-  const view = new DataView(audio);
-  if (ascii(view, 0, 4) !== 'RIFF' || ascii(view, 8, 4) !== 'WAVE') {
-    throw unsupported(contentType);
-  }
-
-  const riffEnd = view.getUint32(4, true) + 8;
-  if (riffEnd !== audio.byteLength) throw unsupported(contentType);
-
-  let offset = 12;
-  let format: {
-    audioFormat: number;
-    channels: number;
-    sampleRate: number;
-    byteRate: number;
-    blockAlign: number;
-    bitsPerSample: number;
-  } | undefined;
-  let dataBytes: number | undefined;
-
-  while (offset < riffEnd) {
-    if (offset + 8 > riffEnd) throw unsupported(contentType);
-    const chunkId = ascii(view, offset, 4);
-    const chunkSize = view.getUint32(offset + 4, true);
-    const chunkDataStart = offset + 8;
-    const chunkDataEnd = chunkDataStart + chunkSize;
-    const paddedChunkEnd = chunkDataEnd + (chunkSize & 1);
-    if (chunkDataEnd > riffEnd || paddedChunkEnd > riffEnd) throw unsupported(contentType);
-
-    if (chunkId === 'fmt ') {
-      if (format || chunkSize < 16) throw unsupported(contentType);
-      format = {
-        audioFormat: view.getUint16(chunkDataStart, true),
-        channels: view.getUint16(chunkDataStart + 2, true),
-        sampleRate: view.getUint32(chunkDataStart + 4, true),
-        byteRate: view.getUint32(chunkDataStart + 8, true),
-        blockAlign: view.getUint16(chunkDataStart + 12, true),
-        bitsPerSample: view.getUint16(chunkDataStart + 14, true),
-      };
-    } else if (chunkId === 'data') {
-      if (dataBytes !== undefined) throw unsupported(contentType);
-      dataBytes = chunkSize;
-    }
-
-    offset = paddedChunkEnd;
-  }
-
-  if (!format || dataBytes === undefined || dataBytes === 0) throw unsupported(contentType);
-  const expectedBlockAlign = format.channels * (format.bitsPerSample / 8);
-  const expectedByteRate = format.sampleRate * expectedBlockAlign;
-  if (
-    format.audioFormat !== 1
-    || format.channels !== 1
-    || format.bitsPerSample !== 16
-    || (format.sampleRate !== 16_000 && format.sampleRate !== 24_000)
-    || format.blockAlign !== expectedBlockAlign
-    || format.byteRate !== expectedByteRate
-    || dataBytes % format.blockAlign !== 0
-  ) {
-    throw unsupported(contentType);
-  }
-
-  const durationSeconds = dataBytes / format.byteRate;
-  if (durationSeconds > META_MAX_DURATION_SECONDS) {
-    throw new ProviderInputError('Meta Muse', 400, 'audio exceeds the 10 minute limit');
-  }
-
-  return {
-    durationSeconds,
-    sampleRate: format.sampleRate as 16_000 | 24_000,
-  };
+  const { durationSeconds, sampleRate } = parsePcm16Wav(audio, contentType, {
+    provider: 'Meta Muse',
+    acceptedFormats: META_ACCEPTED_FORMATS,
+    channels: 1,
+    sampleRates: [16_000, 24_000],
+    maxDurationSeconds: META_MAX_DURATION_SECONDS,
+    tooLongMessage: 'audio exceeds the 10 minute limit',
+  });
+  return { durationSeconds, sampleRate: sampleRate as ParsedWav['sampleRate'] };
 }
 
 export async function transcribeWithMeta(

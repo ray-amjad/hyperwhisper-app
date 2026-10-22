@@ -131,6 +131,9 @@
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>未命名</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>更多...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>转写文件</value>
   </data>
@@ -226,6 +229,12 @@
   </data>
   <data name="history.status.retrying" xml:space="preserve">
     <value>正在重试...</value>
+  </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>另一个程序锁定了历史记录数据库。录音已保留，数据库可用后将保存到历史记录。</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>此录音暂时无法保存到历史记录。录音已保留，稍后将保存到历史记录。</value>
   </data>
 
   <!-- Modes Page -->
@@ -408,6 +417,9 @@
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>登录时自动启动 HyperWhisper。</value>
+  </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>在测试配置文件中不可用。此版本使用单独的应用数据文件夹，因此不会更改已安装应用的登录项。</value>
   </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>最小化启动</value>
@@ -875,6 +887,12 @@
   <data name="status.model.ready" xml:space="preserve">
     <value>{0}（就绪）</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0}（未激活）</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0}（无 API 密钥）</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>加载失败</value>
   </data>
@@ -905,6 +923,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>已取消文件转写</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>正在转录文件...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>未知</value>
   </data>
@@ -928,11 +949,11 @@
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>转写失败：{0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>没有可用于重试的模式。</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>重试失败：{0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>创建此录音的模式已被删除，因此未重试。在历史记录中右键单击该录音，然后选择“使用...重试”来选择其他模式。</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>录音已停止 — 已达到 20 分钟的安全限制。</value>
@@ -1169,6 +1190,9 @@
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>不支持仅使用 Ctrl、Alt、Shift 或 Win 等单个修饰键的快捷键。请使用带修饰键的按键，或 Ctrl+Win 这样的多修饰键快捷键。</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>不含修饰键的快捷键只能是功能键或 Esc。其他任何键都会在您打字时触发。</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>该快捷键已用于{0}（{1}）</value>
   </data>
@@ -1209,6 +1233,9 @@
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>错误：{0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Windows 应用程序控制阻止了 HyperWhisper 所需的文件 {0}。请让您的 IT 管理员允许 HyperWhisper，或在 Windows 安全中心检查智能应用控制。</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>启用开机启动失败。请检查你是否有权限修改启动设置。</value>
@@ -1240,6 +1267,12 @@
     <value>删除 {0} 失败：
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>模型正在使用</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>“{1}”模式正在使用 {0}。请先将该模式切换到其他模型，然后再删除。</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1365,6 +1398,9 @@
   <data name="license.error.enterKey" xml:space="preserve">
     <value>请输入许可证密钥。</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>这看起来不像账户密钥。</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1390,8 +1426,17 @@
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>文件未找到</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>已有录音或文件转录正在进行。完成后请重新尝试该文件。</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>文件对于此提供商来说太大了。最大大小: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>此文件为空，没有可转写的音频。</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>此文件已损坏，或不是 HyperWhisper 可以读取的音频文件。</value>
   </data>
 
   <!-- Update UI -->
@@ -1844,12 +1889,36 @@
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>静音音频</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>柔化音频</value>
+  </data>
   <!-- Synced fallback strings -->
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>保持麦克风就绪</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>在两次录音之间保持一路静默的输入流，以减少启动延迟，对蓝牙麦克风尤其有效。</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>仅供 HyperWhisper 使用。重启后仍会保留。</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>默认 · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0}（未连接）</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>正在使用 {0}，直到 {1} 重新连接。</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>未连接麦克风。{0} 重新连接后，HyperWhisper 将使用它。</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>测试</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>停止</value>
   </data>
 
   <!-- Synced fallback strings -->

@@ -111,6 +111,21 @@ public class ModeService
     }
 
     /// <summary>
+    /// Raises <see cref="ModeChanged"/> for rows nothing here wrote: a restored
+    /// backup goes straight into the DbSet, so without this the tray menus and the
+    /// status bar keep the mode list they loaded at startup (issue #1592). Every
+    /// subscriber reloads the whole list, so the payload is only the selected mode.
+    /// GetSelectedMode already falls back to the default and then the first mode,
+    /// so null means the table is empty and there is nothing to show.
+    /// </summary>
+    public void NotifyModesChanged()
+    {
+        var payload = GetSelectedMode();
+        if (payload == null) return;
+        ModeChanged?.Invoke(this, payload);
+    }
+
+    /// <summary>
     /// Apply the shared decision (<c>hw-modes</c>, through
     /// <see cref="DefaultModePolicy"/>) to a context the caller is about to save.
     /// Returns whether anything changed.
@@ -289,7 +304,12 @@ public class ModeService
 
                     if (!string.IsNullOrEmpty(mode.CloudTranscriptionModel))
                     {
-                        var provider = CloudTranscriptionProviderExtensions.FromIdentifier(mode.CloudProvider);
+                        // A cloud mode's blank provider is HyperWhisper Cloud (the shared
+                        // rule, #1709); a local mode keeps the raw parse, whose None chains
+                        // every alias table.
+                        var provider = LocalModeModel.IsCloud(mode)
+                            ? CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider)
+                            : CloudTranscriptionProviderExtensions.FromIdentifier(mode.CloudProvider);
                         var normalizedModel = CloudTranscriptionModels.ResolveModelAlias(mode.CloudTranscriptionModel, provider);
                         if (!string.Equals(mode.CloudTranscriptionModel, normalizedModel, StringComparison.Ordinal))
                         {

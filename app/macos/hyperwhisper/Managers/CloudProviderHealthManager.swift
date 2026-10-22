@@ -685,10 +685,11 @@ final class CloudProviderHealthManager: ObservableObject {
         return await runHealthCheckWithRetry(force: force) {
             // RUST SHARED CORE (Wave 3 / M3-B.4): every STT provider's probe URL,
             // auth header, and 2xx/4xx verdict now comes from the core
-            // (`buildHealthRequest` + `parseHealthResponse`). The Gemini/Grok
-            // 400→.unauthorized special-case lives in `mapRustHealth` below; the
-            // routed/always-healthy short-circuit and the missing-key gate are
-            // handled above before we ever reach here.
+            // (`buildHealthRequest` + `parseHealthResponse`), and so does the
+            // reason a probe failed (`HwProviderHealth.reason`, issue #779);
+            // `mapRustHealth` below only maps it. The routed/always-healthy
+            // short-circuit and the missing-key gate are handled above before
+            // we ever reach here.
             return await self.performRustHealthCheck(for: provider, apiKey: apiKey)
         }
     }
@@ -718,9 +719,8 @@ final class CloudProviderHealthManager: ObservableObject {
     ///
     /// The core (`buildHealthRequest`) constructs the exact endpoint + auth the
     /// vendor expects; `RustHTTPExecutor` performs the I/O; `parseHealthResponse`
-    /// grades the status. We then fold the core's `(healthy, status)` verdict back
-    /// into the app's `ProviderHealth` via `mapRustHealth`, preserving the
-    /// Gemini/Grok 400→.unauthorized special-case.
+    /// grades the status and decides the reason. We then map the core's verdict
+    /// into the app's `ProviderHealth` via `mapRustHealth`.
     ///
     /// NOTE (behavioral diff, flagged for PR): ElevenLabs now probes
     /// `GET /v1/models` (the unified core/Windows endpoint) instead of the old
@@ -733,7 +733,7 @@ final class CloudProviderHealthManager: ObservableObject {
         do {
             let response = try await RustHTTPExecutor.execute(request, session: rustHealthSession)
             let verdict = parseHealthResponse(provider: hwProvider, resp: response)
-            return Self.mapRustHealth(verdict, for: provider)
+            return Self.mapRustHealth(verdict)
         } catch is CancellationError {
             // A cancelled probe should not be cached as a hard failure.
             return .unknown
@@ -747,31 +747,22 @@ final class CloudProviderHealthManager: ObservableObject {
         }
     }
 
-    /// Fold the core's `HwProviderHealth` verdict into the app's `ProviderHealth`.
+    /// Map the core's `HwProviderHealth` verdict onto the app's `ProviderHealth`.
     ///
-    /// - `healthy == true` → `.healthy`.
-    /// - 401 / 403 → `.unauthorized`.
-    /// - **Gemini, Gemini 3.5 Transcribe & Grok only**: HTTP 400 →
-    ///   `.unauthorized` (these vendors return 400 for an invalid key on the
-    ///   models endpoint; the core leaves 400 as `healthy=false` with the raw
-    ///   status and defers this auth interpretation to the platform).
-    /// - any other non-2xx → `.unreachable`.
-    static func mapRustHealth(_ health: HwProviderHealth, for provider: CloudProvider) -> ProviderHealth {
-        if health.healthy {
+    /// The core's `reason` already says why a probe failed — including the
+    /// vendors (Gemini, Gemini 3.5 Transcribe batch + Live, Grok) that answer an invalid key
+    /// with HTTP 400 rather than 401/403. macOS and Windows used to keep their
+    /// own copies of that vendor list, and they disagreed on Gemini 3.5
+    /// Transcribe (issue #779). Do not re-derive the reason from the raw status.
+    /// `shared-conformance/health-vectors.json` pins every provider x status;
+    /// `HealthConformanceVectorTests` replays it through here.
+    static func mapRustHealth(_ health: HwProviderHealth) -> ProviderHealth {
+        switch health.reason {
+        case .healthy:
             return .healthy
-        }
-        switch health.status {
-        case .some(401), .some(403):
+        case .unauthorized:
             return .unauthorized
-        case .some(400) where provider == .gemini || provider == .grok || provider == .geminiTranscribe:
-            // NOTE: Gemini/xAI return 400 (Bad Request) for invalid API keys,
-            // unlike OpenAI/Anthropic which return 401/403. Preserve the native
-            // special-case here. Gemini 3.5 Transcribe probes the same Google
-            // models endpoint (with header auth) and behaves identically —
-            // verified live — so it must be listed or a bad key reads as
-            // ".unreachable" instead of ".unauthorized".
-            return .unauthorized
-        default:
+        case .unreachable:
             return .unreachable
         }
     }

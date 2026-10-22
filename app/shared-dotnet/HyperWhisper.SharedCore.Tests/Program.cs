@@ -207,6 +207,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("retry policy retries transient responses deterministically", TestRetryAsync),
     ("the retry backoff budget stops a hard-down provider early", TestRetryBudgetAsync),
     ("unauthorized responses are classified without leaking provider bodies", TestUnauthorizedAsync),
+    ("HyperWhisper Cloud with no account key is CloudAccountRequired, not Unauthorized", TestCloudAccountRequiredAsync),
     ("cancellation stops in-flight HTTP and returns structured cancellation", TestCancellationAsync),
     ("Meta transport rechecks WAV limits retry auth and diagnostics", TestMetaTransportGuardsAsync),
     ("live strategies construct and parse all six provider protocols", TestLiveProvidersAsync),
@@ -238,6 +239,7 @@ var tests = new (string Name, Func<Task> Run)[]
     }),
     ("live protocol vocabulary keeps its own length drop and cap", TestLiveVocabularyAsync),
     ("inline base64 audio bodies assemble prefix + base64(file) + suffix", TestInlineBase64BodyAsync),
+    ("a Cloud upload asks for HTTP/2, falling back to HTTP/1.1", TestCloudUploadPrefersHttp2Async),
     ("typed multipart files survive the C# binding and keep audio file-backed", TestTypedMultipartFileAsync),
     ("live terminal-error policy comes from the shared core", () =>
     {
@@ -511,6 +513,44 @@ var tests = new (string Name, Func<Task> Run)[]
             new PortableModeIdentity("local", null, "  ")));
         return Task.CompletedTask;
     }),
+    // Replays shared-conformance/health-vectors.json through the C# binding
+    // (issue #779). The core decides why a provider health probe failed; the
+    // Linux probe (ProviderMetadataHealthProbe) reads that reason through
+    // SharedCoreBridge.GradeHealthResponse. Rust, Windows and macOS replay the
+    // same file through their own mapping.
+    ("provider health vectors match the core's reason across the binding", () =>
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "health-vectors.json");
+        Assert.True(File.Exists(path), $"health-vectors.json not found at {path}");
+        using var vectors = JsonDocument.Parse(File.ReadAllText(path));
+        var rows = vectors.RootElement.GetProperty("cases");
+        Assert.True(rows.GetArrayLength() >= 15 * 6, "health-vectors.json looks truncated");
+
+        foreach (var row in rows.EnumerateArray())
+        {
+            var providerName = row.GetProperty("provider").GetString()!;
+            var status = row.GetProperty("status").GetUInt16();
+            var label = $"{providerName} {status}";
+            Assert.True(
+                Enum.TryParse<uniffi.hyperwhisper_core.HwProvider>(providerName, out var provider),
+                $"{label}: the binding has no HwProvider named '{providerName}'");
+            var want = row.GetProperty("reason").GetString() switch
+            {
+                "healthy" => uniffi.hyperwhisper_core.HwHealthReason.Healthy,
+                "unauthorized" => uniffi.hyperwhisper_core.HwHealthReason.Unauthorized,
+                "unreachable" => uniffi.hyperwhisper_core.HwHealthReason.Unreachable,
+                var other => throw new InvalidOperationException($"{label}: unknown reason '{other}'"),
+            };
+
+            var verdict = uniffi.hyperwhisper_core.HyperwhisperCoreMethods.ParseHealthResponse(
+                provider, new uniffi.hyperwhisper_core.HttpResponse(status, [], []));
+            Assert.True(verdict.@reason == want, $"{label}: binding reason {verdict.@reason}, vectors say {want}");
+            Assert.True(verdict.@healthy == row.GetProperty("healthy").GetBoolean(), $"{label}: healthy flag");
+            Assert.True(SharedCoreBridge.GradeHealthResponse(provider, status) == want,
+                $"{label}: SharedCoreBridge.GradeHealthResponse disagrees");
+        }
+        return Task.CompletedTask;
+    }),
 };
 
 var failures = 0;
@@ -603,6 +643,37 @@ static async Task TestSingleShotProvidersAsync()
             Assert.Equal(HttpMethod.Post, handler.LastRequest!.Method);
             Assert.True(handler.LastBodyLength > 0);
         }
+    }
+    finally
+    {
+        File.Delete(audio);
+    }
+}
+
+/// <summary>
+/// Issue #982: <c>SendAsync</c> ignores <c>HttpClient.DefaultRequestVersion</c>,
+/// so a Rust-built request with no <c>Version</c> went out as HTTP/1.1. An
+/// HTTP/1.1 request cannot share a pooled HTTP/2 connection, so on Windows the
+/// first Cloud upload could not reuse the one its /warmup HEAD had opened.
+/// </summary>
+static async Task TestCloudUploadPrefersHttp2Async()
+{
+    var audio = TempWaveAudio();
+    try
+    {
+        var handler = new RecordingHandler((_, _) =>
+            Json("{\"text\":\"cloud text\",\"credits_remaining\":99}"));
+        using var service = new CloudTranscriptionService(handler, new StaticCredentials(), Sharing);
+        var result = await service.TranscribeAsync(new CloudTranscriptionRequest(
+            CloudTranscriptionProvider.HyperWhisperCloud,
+            audio,
+            "",
+            Language: "en",
+            BaseUrl: "https://routing.test"));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(HttpVersion.Version20, handler.LastRequest!.Version);
+        Assert.Equal(HttpVersionPolicy.RequestVersionOrLower, handler.LastRequest.VersionPolicy);
     }
     finally
     {
@@ -938,6 +1009,35 @@ static async Task TestUnauthorizedAsync()
         Assert.Equal(CloudTranscriptionErrorCode.Unauthorized, result.Failure!.Code);
         Assert.Equal(401, result.Failure.HttpStatus);
         Assert.DoesNotContain(hostileBody, result.Failure.Message);
+    }
+    finally
+    {
+        File.Delete(audio);
+    }
+}
+
+static async Task TestCloudAccountRequiredAsync()
+{
+    // Issue #1487: the Local API answers MISSING_API_KEY for this case on
+    // /transcribe and /post-process alike, so it must not share Unauthorized
+    // with a provider's 401 (which stays ENGINE_UNAVAILABLE on Linux).
+    var audio = TempAudio();
+    try
+    {
+        var handler = new RecordingHandler((_, _) => Json("{\"text\":\"never\"}"));
+        using var service = new CloudTranscriptionService(handler, new NoAccountKeyCredentials(), Sharing);
+        var result = await service.TranscribeAsync(new CloudTranscriptionRequest(
+            CloudTranscriptionProvider.HyperWhisperCloud,
+            audio,
+            "nova-3"));
+        Assert.Equal(CloudTranscriptionErrorCode.CloudAccountRequired, result.Failure!.Code);
+        Assert.True(handler.LastRequest is null);
+
+        var byok = await service.TranscribeAsync(new CloudTranscriptionRequest(
+            CloudTranscriptionProvider.OpenAi,
+            audio,
+            "whisper-1"));
+        Assert.Equal(CloudTranscriptionErrorCode.Unauthorized, byok.Failure!.Code);
     }
     finally
     {
@@ -2088,6 +2188,12 @@ static Task TestRustLiveStopSequenceAsync()
     }
     using (var cloud = Protocol(LiveTranscriptionProvider.HyperWhisperCloud))
     {
+        // No `ready` frame, no relay session: nothing will send session_complete,
+        // so the stop does not wait 10 s for it (issue #834).
+        Assert.Equal(
+            "SendMessage:{\"type\":\"stop\"}|Close",
+            Rendered(cloud.StopSequence(0)));
+        cloud.Parse(Utf8("{\"type\":\"ready\",\"sessionId\":\"s1\"}"));
         Assert.Equal(
             "SendMessage:{\"type\":\"stop\"}|WaitForSessionComplete:10000|Close",
             Rendered(cloud.StopSequence(0)));
@@ -2271,7 +2377,7 @@ static async Task TestLiveRecordedFailureSurvivesCloseAsync()
     var result = await new LiveCloudTranscriptionService(new DirectWebSocketFactory(socket))
         .TranscribeAsync(
             new LiveTranscriptionConfig(LiveTranscriptionProvider.HyperWhisperCloud, LicenseKey: "hw"),
-            LateAudio(320, socket, awaitFirstFrame: true));
+            AudioUntilRefused(320, socket));
     Assert.NotNull(result.Failure);
     Assert.Equal(LiveTranscriptionFailureCode.ProviderUnavailable, result.Failure!.Code);
     Assert.True(result.Failure.IsTerminal, "the recorded terminal verdict was overwritten by the close failure");
@@ -2367,9 +2473,14 @@ static async Task TestLiveCancelDuringDrainAsync()
 /// <paramref name="awaitFirstFrame"/> must stay FALSE for the late-transcript
 /// test. Waiting here would let the frame land while the audio loop is still
 /// running, which is a path that never needed the drain at all — the test would
-/// then pass without the fix and prove nothing. The failure test sets it, because
-/// its point is the opposite: the error frame has to be handled BEFORE the audio
-/// loop ends, so the session takes the skip-the-stop-sequence path.
+/// then pass without the fix and prove nothing. The failure test needs the
+/// opposite, and this flag cannot give it: <c>Served</c> counts a frame handed to
+/// the receive loop, not one it has recorded, so on some schedules the audio loop
+/// ended first and the error landed after the verdict froze (#1930). That test
+/// uses <see cref="AudioUntilRefused"/> instead. The cancel-during-drain test still
+/// sets it and does not depend on that ordering: its cancel is armed by the close,
+/// so it fires inside the drain whether the transcript was recorded before the
+/// stop or during the drain.
 /// </summary>
 static async IAsyncEnumerable<ReadOnlyMemory<byte>> LateAudio(
     int byteCount,
@@ -2382,6 +2493,34 @@ static async IAsyncEnumerable<ReadOnlyMemory<byte>> LateAudio(
     for (var attempt = 0; awaitFirstFrame && socket.Served == 0 && attempt < 1000; attempt++)
     {
         await Task.Delay(2);
+    }
+}
+
+/// <summary>
+/// Audio that ends only when the SERVICE stops pulling it.
+///
+/// The recorded-failure test needs the error frame handled BEFORE the audio loop
+/// ends, so the session takes the skip-the-stop-sequence path. Waiting for the
+/// socket to hand the frame out is not enough: the receive loop still has to parse
+/// it and record the verdict, and an audio loop that ran out of chunks in that gap
+/// stopped normally instead (#1930). So this keeps offering chunks, and the audio
+/// loop's own <c>state.Failure</c> check is what ends it — the session's real exit,
+/// not a timing guess. The 5 s bound only turns a verdict that never lands into a
+/// normal stop, which the test's assertions then report. It is a deadline and not
+/// a chunk count, because <c>Task.Delay(1)</c> sleeps a whole timer tick (about
+/// 15.6 ms on Windows) and a count would stretch with it.
+/// </summary>
+static async IAsyncEnumerable<ReadOnlyMemory<byte>> AudioUntilRefused(
+    int byteCount,
+    LateFrameStreamingWebSocket socket)
+{
+    yield return new byte[byteCount];
+    socket.MarkAudioDone();
+    var deadline = System.Diagnostics.Stopwatch.StartNew();
+    while (deadline.Elapsed < TimeSpan.FromSeconds(5))
+    {
+        await Task.Delay(1);
+        yield return new byte[byteCount];
     }
 }
 
@@ -2594,6 +2733,15 @@ sealed class StaticCredentials(string apiKey = "test-api-key") : ICloudCredentia
     }
 }
 
+/// <summary>A device identity and nothing else: no API key, no account key.</summary>
+sealed class NoAccountKeyCredentials : ICloudCredentialSource
+{
+    public ValueTask<CloudCredential?> GetCredentialAsync(
+        CloudTranscriptionProvider provider,
+        CancellationToken cancellationToken) =>
+        ValueTask.FromResult<CloudCredential?>(new CloudCredential(null, null, "test-device"));
+}
+
 sealed class ImmediateDelay : ICloudTranscriptionDelay
 {
     public List<TimeSpan> Delays { get; } = [];
@@ -2634,7 +2782,11 @@ sealed class RecordingHandler : HttpMessageHandler
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
-        LastRequest = new HttpRequestMessage(request.Method, request.RequestUri);
+        LastRequest = new HttpRequestMessage(request.Method, request.RequestUri)
+        {
+            Version = request.Version,
+            VersionPolicy = request.VersionPolicy,
+        };
         foreach (var header in request.Headers)
         {
             LastRequest.Headers.TryAddWithoutValidation(header.Key, header.Value);

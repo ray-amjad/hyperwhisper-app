@@ -848,8 +848,19 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
         if (completionTask == null || completionTask.IsCompleted)
             return;
 
+        // Only the receive loop can complete _sessionCompletedTcs. Once it has
+        // ended (a dead socket, where the stop frame was silently not sent),
+        // session_complete cannot arrive, so stop waiting with it (issue #834) -
+        // the same race the SharedCore stop runner makes on its receiveTask.
+        var receiveTask = _receiveTask;
+        if (receiveTask?.IsCompleted == true)
+            return;
+
         var timeoutTask = Task.Delay(timeout, cancellationToken);
-        await Task.WhenAny(completionTask, timeoutTask);
+        if (receiveTask == null)
+            await Task.WhenAny(completionTask, timeoutTask);
+        else
+            await Task.WhenAny(completionTask, receiveTask, timeoutTask);
     }
 
     private async Task WaitForSessionStartedAsync(CancellationToken cancellationToken)

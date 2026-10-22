@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { timingSafeEqualSecret } from "@/lib/security/timing-safe-secret";
 import { latencyIngestRateLimiter } from "@/lib/rate-limit";
+import { countFailOpen } from "@/lib/rate-limit-gate";
 import { bucketForSeconds } from "@/lib/latency/types";
 import { KNOWN_PROVIDERS } from "@/lib/latency/providers";
 import { db } from "@/src/db";
+import { env } from "@/src/env/server.mjs";
 import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
 import { sttLatencySamples } from "@/src/db/schema/stt-latency-samples";
 import { MAX_SAMPLES_PER_REQUEST, coarseCreatedAt, validateBatch } from "./validation";
@@ -26,7 +28,7 @@ const MAX_BODY_BYTES = 32 * 1024;
  */
 export async function POST(request: NextRequest) {
   const secret = request.headers.get("x-internal-secret");
-  if (!timingSafeEqualSecret(secret, process.env.HYPERWHISPER_INTERNAL_SECRET)) {
+  if (!timingSafeEqualSecret(secret, env.HYPERWHISPER_INTERNAL_SECRET)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -77,10 +79,13 @@ export async function POST(request: NextRequest) {
   // Keyed by region, not by IP: every machine in one Fly region shares an exit
   // address, so a per-IP limit would throttle the busiest region against itself.
   // This is a runaway-loop backstop, nothing more — the ceiling is far above
-  // real traffic.
+  // real traffic. Fails open: an Upstash outage must not drop the samples (#2136).
   const region = result.samples[0]?.flyRegion ?? "unknown";
-  const { success } = await latencyIngestRateLimiter.limit(region);
-  if (!success) {
+  const rateLimit = await countFailOpen(
+    () => latencyIngestRateLimiter.limit(region),
+    "latency ingest",
+  );
+  if (rateLimit.limited) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
 

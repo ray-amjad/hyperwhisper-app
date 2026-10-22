@@ -6,6 +6,7 @@ import { timingSafeEqualSecret } from "@/lib/security/timing-safe-secret";
 import { env } from "@/src/env/server.mjs";
 import { db } from "@/src/db";
 import { blogPosts } from "@/src/db/schema/blog-posts";
+import { sanitizeBlogHtml } from "@/src/content/sanitize-blog-html";
 
 /**
  * Outrank "publish_articles" webhook.
@@ -443,7 +444,12 @@ export async function POST(req: NextRequest) {
 
     const { article } = read;
     const markdown = article.content_markdown?.trim() ?? "";
-    const html = article.content_html?.trim() || markdownToHtml(markdown);
+    // Outrank's HTML is third-party content rendered raw on the main origin,
+    // so only the allow-listed article markup is stored (#2009). HTML that
+    // sanitises to nothing falls back to the markdown, as empty HTML did.
+    const html =
+      sanitizeBlogHtml(article.content_html?.trim() ?? "").trim() ||
+      sanitizeBlogHtml(markdownToHtml(markdown));
     const description = article.meta_description ?? article.description;
 
     if (!article.id || !article.title?.trim() || (!markdown && !html)) {

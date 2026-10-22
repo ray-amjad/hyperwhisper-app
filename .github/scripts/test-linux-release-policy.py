@@ -80,7 +80,8 @@ def main() -> None:
     )
     require(
         RELEASE,
-        "actions/upload-artifact@v4",
+        # Any pin: workflows pin actions by commit SHA (#2006).
+        "uses: actions/upload-artifact@",
         "dry-run packages must be retrievable for physical testing",
     )
     require(RELEASE, "retention-days: 14", "dry-run artifacts need bounded retention")

@@ -21,6 +21,9 @@ import Foundation
 import OSLog
 
 final class GrokSTTProvider: TranscriptionProvider {
+    /// A stateless HTTP call: nothing per call is kept on the instance (#1425).
+    var supportsConcurrentPasses: Bool { true }
+
     private enum Constants {
         static let maxUploadBytes: Int64 = 500 * 1024 * 1024 // 500 MB per docs
 
@@ -34,7 +37,7 @@ final class GrokSTTProvider: TranscriptionProvider {
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "GrokSTTProvider")
 
     private lazy var session: URLSession = {
-        let config = URLSessionConfiguration.default
+        let config = URLSessionConfiguration.credentialBearing
         config.timeoutIntervalForRequest = 60
         config.timeoutIntervalForResource = Constants.resourceTimeout
         config.waitsForConnectivity = false

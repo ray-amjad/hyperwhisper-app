@@ -167,253 +167,15 @@ extension RecordingTranscriptionFlow {
         streamingPreviewTextSnapshot = ""
         recordingLifecycle.audioLevel = 0
 
-        // DELIVERY MODE CLASSIFICATION:
-        // Decide up-front whether this session will type each chunk into the focused
-        // app (reliable targets) or accumulate in a preview bubble and paste once at
-        // the end (preview-only targets like terminals). Locked for the session — a
-        // mid-session focus switch does not split text between two delivery paths.
-        //
-        // Use the bundle ID captured by the recording flow before the recording
-        // panel was opened. A fresh frontmostApplication lookup here can race with
-        // the panel's appearance and silently misclassify the target as nil/self,
-        // which would route terminals into the live-insertion path and skip the
-        // preview bubble.
-        let targetBundleId = previousFrontmostBundleID
-        let requiresPreview = await AccessibilityHelper.shared.requiresStreamingPreviewFallback(bundleId: targetBundleId)
-        streamingTargetBundleId = targetBundleId
-        streamingDeliveryMode = requiresPreview ? .previewOnly : .directInsert
+        await classifyStreamingDeliveryMode(provider: provider)
 
-        AppLogger.audio.info(
-            "🎯 Streaming delivery mode=\(self.streamingDeliveryMode.rawValue, privacy: .public) target=\(targetBundleId ?? "unknown", privacy: .public) provider=\(provider, privacy: .public)"
-        )
-        SentryService.addBreadcrumb(
-            message: "Streaming delivery mode selected",
-            category: "audio.streaming",
-            data: [
-                "deliveryMode": streamingDeliveryMode.rawValue,
-                "target": targetBundleId ?? "unknown",
-                "provider": provider,
-                "attemptId": currentRecordingAttemptId ?? "none"
-            ]
-        )
-
-        if streamingDeliveryMode == .previewOnly {
-            await MainActor.run {
-                appState?.showStreamingPreview = true
-                if let appState = appState {
-                    StreamingPreviewWindowManager.shared.open(appState: appState)
-                }
-            }
-        }
-
-        // PROVIDER ROUTING:
-        // Create the appropriate client based on the selected provider.
-        //
-        // Every REMOTE arm now builds the SAME strategy —
-        // `RustLiveStreamingStrategy`, over `hw_net::live` — inside
-        // `StreamingTranscriptionClient`. The arms still differ, and that is the
-        // point: each one fetches and validates its OWN credential from the
-        // Keychain before a socket exists, with its own refusal message. The
-        // wire protocol is what collapsed, not the credential checks.
-        //
-        // The two on-device arms have no websocket protocol at all and keep
-        // their own dedicated clients.
-        let service: any StreamingClientProtocol
-        var apiKey: String?
-
-        switch selectedStreamingProvider {
-        case .deepgram:
-            // Deepgram direct streaming - requires user's Deepgram API key
-            let deepgramKey = KeychainManager.shared.getAPIKey(for: .deepgram)
-            guard !deepgramKey.isEmpty else {
-                AppLogger.audio.error("❌ Streaming failed: Deepgram API key not configured")
-                await cancelRecordingWithError("Deepgram API key not configured")
-                return
-            }
-            apiKey = deepgramKey
-            service = StreamingTranscriptionClient(
-                strategy: RustLiveStreamingStrategy(provider: selectedStreamingProvider),
-                streamingProvider: selectedStreamingProvider
-            )
-
-        case .elevenLabs:
-            // ElevenLabs direct streaming - requires user's ElevenLabs API key
-            let elevenLabsKey = KeychainManager.shared.getAPIKey(for: .elevenLabs)
-            guard !elevenLabsKey.isEmpty else {
-                AppLogger.audio.error("❌ Streaming failed: ElevenLabs API key not configured")
-                await cancelRecordingWithError("ElevenLabs API key not configured")
-                return
-            }
-            apiKey = elevenLabsKey
-            service = StreamingTranscriptionClient(
-                strategy: RustLiveStreamingStrategy(provider: selectedStreamingProvider),
-                streamingProvider: selectedStreamingProvider
-            )
-
-        case .openAI:
-            // OpenAI Realtime direct streaming - requires user's OpenAI API key
-            let openAIKey = KeychainManager.shared.getAPIKey(for: .openAI)
-            guard !openAIKey.isEmpty else {
-                AppLogger.audio.error("❌ Streaming failed: OpenAI API key not configured")
-                await cancelRecordingWithError("OpenAI API key not configured")
-                return
-            }
-            apiKey = openAIKey
-            service = StreamingTranscriptionClient(
-                strategy: RustLiveStreamingStrategy(provider: selectedStreamingProvider),
-                streamingProvider: selectedStreamingProvider
-            )
-
-        case .xai:
-            // xAI direct streaming - requires user's Grok/xAI API key
-            let xaiKey = KeychainManager.shared.getAPIKey(for: .grok)
-            guard !xaiKey.isEmpty else {
-                AppLogger.audio.error("❌ Streaming failed: xAI API key not configured")
-                await cancelRecordingWithError("SpaceXAI API key not configured")
-                return
-            }
-            apiKey = xaiKey
-            service = StreamingTranscriptionClient(
-                strategy: RustLiveStreamingStrategy(provider: selectedStreamingProvider),
-                streamingProvider: selectedStreamingProvider
-            )
-
-        case .gemini:
-            // Gemini 3.5 Transcribe Live direct streaming - requires the user's
-            // own Google Gemini API key.
-            let geminiKey = KeychainManager.shared.getAPIKey(for: .geminiTranscribe)
-            guard !geminiKey.isEmpty else {
-                AppLogger.audio.error("❌ Streaming failed: Gemini API key not configured")
-                await cancelRecordingWithError("Gemini API key not configured")
-                return
-            }
-            apiKey = geminiKey
-            service = StreamingTranscriptionClient(
-                strategy: RustLiveStreamingStrategy(provider: selectedStreamingProvider),
-                streamingProvider: selectedStreamingProvider
-            )
-
-        case .parakeetLocal:
-            // On-device Parakeet streaming. The model id in `model` is the
-            // Parakeet version identifier from settings (v2/v3).
-            if #available(macOS 13.0, *) {
-                let versionId = model ?? ParakeetModelManager.Constants.v3ModelId
-                let asrVersion: AsrModelVersion = versionId.lowercased().contains("v2") ? .v2 : .v3
-
-                // Model must already be downloaded — the UI layer surfaces
-                // the download flow. Bail with a clear error otherwise.
-                let directory = AsrModels.defaultCacheDirectory(for: asrVersion)
-                guard AsrModels.modelsExist(at: directory) else {
-                    AppLogger.audio.error("❌ Streaming failed: Parakeet model not downloaded")
-                    await cancelRecordingWithError("Parakeet model not downloaded. Open Settings → Models to install it.")
-                    return
-                }
-
-                service = LocalParakeetStreamingClient(version: asrVersion)
-            } else {
-                AppLogger.audio.error("❌ Streaming failed: Parakeet requires macOS 13+")
-                await cancelRecordingWithError("Parakeet streaming requires macOS 13 or later.")
-                return
-            }
-
-        case .nemotronLocal:
-            // On-device Nemotron 3.5 streaming. The model id (`nemotron-asr-3.5-latin` or
-            // `nemotron-asr-3.5-multilingual`) picks the on-disk variant. The current
-            // mode language flows in as the per-session prompt_id via setLanguage(_:).
-            if #available(macOS 14.0, *) {
-                let requestedId = model ?? NemotronModelManager.Constants.multilingualModelId
-                guard NemotronModelManager.variant(forModelId: requestedId) != nil else {
-                    AppLogger.audio.error("❌ Streaming failed: unknown Nemotron model id \(requestedId)")
-                    await cancelRecordingWithError("Unknown Nemotron model. Open Settings → Models to reconfigure.")
-                    return
-                }
-
-                // Variant fallback: if the requested variant isn't installed but
-                // the OTHER variant is, transparently use it so the user isn't
-                // hard-blocked by a stale AppStorage value. AppStorage is updated
-                // only AFTER the session starts successfully (see below) so a
-                // mid-startup failure doesn't silently rewrite the user's pinned
-                // preference.
-                let resolvedId: String
-                var pendingVariantPreferenceUpdate: String? = nil
-                if NemotronModelManager.isVariantInstalled(requestedId) {
-                    resolvedId = requestedId
-                } else {
-                    let other = requestedId == NemotronModelManager.Constants.multilingualModelId
-                        ? NemotronModelManager.Constants.latinModelId
-                        : NemotronModelManager.Constants.multilingualModelId
-                    guard NemotronModelManager.isVariantInstalled(other) else {
-                        AppLogger.audio.error("❌ Streaming failed: no Nemotron variant downloaded")
-                        await cancelRecordingWithError("Nemotron model not downloaded. Open Settings → Models to install it.")
-                        return
-                    }
-                    AppLogger.audio.warning("⚠️ Nemotron variant \(requestedId) not installed; falling back to \(other)")
-                    resolvedId = other
-                    pendingVariantPreferenceUpdate = other
-                }
-                guard let variant = NemotronModelManager.variant(forModelId: resolvedId) else {
-                    await cancelRecordingWithError("Unknown Nemotron variant after fallback.")
-                    return
-                }
-
-                // `normalizedLanguage` already carries the mode language (or "auto").
-                // Re-snap the language against the RESOLVED variant's allow-list:
-                // if we fell back from multilingual→latin and the user had "zh"
-                // pinned, feeding "zh" to the Latin model would produce garbage,
-                // so drop to auto-detect instead.
-                var langHint: String? = (normalizedLanguage == "auto" || normalizedLanguage.isEmpty) ? nil : normalizedLanguage
-                if let candidate = langHint,
-                   let supported = NemotronModelManager.supportedLanguages(forModelId: resolvedId),
-                   supported[candidate] == nil {
-                    AppLogger.audio.warning("⚠️ Nemotron language \(candidate) not supported by \(resolvedId); falling back to auto-detect")
-                    langHint = nil
-                }
-
-                self.pendingNemotronVariantPreferenceUpdate = pendingVariantPreferenceUpdate
-                let provider = transcriptionPipeline?.nemotronProviderForStreaming
-                service = LocalNemotronStreamingClient(variant: variant, language: langHint, provider: provider)
-            } else {
-                AppLogger.audio.error("❌ Streaming failed: Nemotron requires macOS 14+")
-                await cancelRecordingWithError("Nemotron streaming requires macOS 14 or later.")
-                return
-            }
-
-        default:
-            // HyperWhisper Cloud (default) - uses license key or device ID.
-            //
-            // NOTE this arm is a `default:`, not `case .hyperwhisperCloud:`, so a
-            // provider added to the enum and forgotten here does NOT fail the
-            // build - it silently starts a billed Cloud session. Adding a case
-            // above is the whole checklist; THIS switch will not remind you.
-            //
-            // Since issue #326 there are two backstops, and neither is here:
-            // `RustLiveStreamingStrategy.coreProvider` switches exhaustively, so
-            // a new remote provider fails to compile THERE — failing in the
-            // mapping is what stops a BYOK key being carried into a Cloud
-            // socket. And a provider with no `HwLiveProvider` at all (the two
-            // on-device engines) maps to nil there, so reaching this arm with
-            // one opens no socket rather than a billed Cloud one. Both live in
-            // a different file, and neither turns this `default:` into a
-            // checklist.
-            //
-            // The cloud tier is a path selector passed into the ONE cloud
-            // strategy, deliberately not its own StreamingTranscriptionProvider
-            // case: the credit and entitlement gate below keys off
-            // `provider == "hyperwhisperCloud"` and must keep matching.
-            //
-            // BASE URL IS NOT OPTIONAL HERE. `NetworkConfig.hyperwhisperCloudURL`
-            // points at staging under `#if DEBUG`; leaving it nil takes the
-            // core's production default and bills a developer's key against
-            // production. The core does the https→wss / http→ws substitution.
-            service = StreamingTranscriptionClient(
-                strategy: RustLiveStreamingStrategy(
-                    provider: selectedStreamingProvider,
-                    baseURL: NetworkConfig.hyperwhisperCloudURL,
-                    cloudTier: settingsManager?.streamingCloudTier
-                        ?? StreamingCloudTier.defaultCloudTier),
-                streamingProvider: selectedStreamingProvider
-            )
-        }
+        guard let client = await makeStreamingClient(
+            for: selectedStreamingProvider,
+            model: model,
+            normalizedLanguage: normalizedLanguage
+        ) else { return }
+        let service = client.service
+        let apiKey = client.apiKey
 
         // Log provider selection for analytics
         SentryService.addBreadcrumb(
@@ -494,6 +256,321 @@ extension RecordingTranscriptionFlow {
         // STREAMING CALLBACKS:
         // Set up handlers for transcript updates, session completion, and errors
 
+        wireStreamingStatusCallbacks(on: service, provider: provider)
+        wireStreamingTranscriptCallback(
+            on: service,
+            language: language,
+            selectedStreamingProvider: selectedStreamingProvider,
+            vocabulary: vocabulary,
+            suppressTextDeliveryForSession: suppressTextDeliveryForSession
+        )
+        wireStreamingOutcomeCallbacks(
+            on: service,
+            provider: provider,
+            streamingHealthProvider: streamingHealthProvider,
+            streamingCredentialGeneration: streamingCredentialGeneration
+        )
+
+        // BUILD SESSION CONFIG:
+        // Superset of all fields needed by any provider. Each strategy uses only its relevant fields.
+        let config = StreamingSessionConfig(
+            licenseKey: licenseKey,
+            deviceId: deviceId,
+            language: language,
+            vocabulary: vocabularyString,
+            apiKey: apiKey,
+            model: model,
+            fastFormatting: fastFormatting
+        )
+
+        // Start the streaming session
+        await startStreamingSession(
+            service,
+            config: config,
+            provider: provider,
+            model: model,
+            normalizedLanguage: normalizedLanguage
+        )
+    }
+
+    /// Picks this session's delivery mode and opens the preview bubble for a
+    /// preview-only target.
+    private func classifyStreamingDeliveryMode(provider: String) async {
+        // DELIVERY MODE CLASSIFICATION:
+        // Decide up-front whether this session will type each chunk into the focused
+        // app (reliable targets) or accumulate in a preview bubble and paste once at
+        // the end (preview-only targets like terminals). Locked for the session — a
+        // mid-session focus switch does not split text between two delivery paths.
+        //
+        // Use the bundle ID captured by the recording flow before the recording
+        // panel was opened. A fresh frontmostApplication lookup here can race with
+        // the panel's appearance and silently misclassify the target as nil/self,
+        // which would route terminals into the live-insertion path and skip the
+        // preview bubble.
+        let targetBundleId = previousFrontmostBundleID
+        let requiresPreview = await AccessibilityHelper.shared.requiresStreamingPreviewFallback(bundleId: targetBundleId)
+        streamingTargetBundleId = targetBundleId
+        streamingDeliveryMode = requiresPreview ? .previewOnly : .directInsert
+
+        AppLogger.audio.info(
+            "🎯 Streaming delivery mode=\(self.streamingDeliveryMode.rawValue, privacy: .public) target=\(targetBundleId ?? "unknown", privacy: .public) provider=\(provider, privacy: .public)"
+        )
+        SentryService.addBreadcrumb(
+            message: "Streaming delivery mode selected",
+            category: "audio.streaming",
+            data: [
+                "deliveryMode": streamingDeliveryMode.rawValue,
+                "target": targetBundleId ?? "unknown",
+                "provider": provider,
+                "attemptId": currentRecordingAttemptId ?? "none"
+            ]
+        )
+
+        if streamingDeliveryMode == .previewOnly {
+            await MainActor.run {
+                appState?.showStreamingPreview = true
+                if let appState = appState {
+                    StreamingPreviewWindowManager.shared.open(appState: appState)
+                }
+            }
+        }
+    }
+
+    /// Builds the client for the selected provider and fetches its BYOK key.
+    /// Returns nil after `cancelRecordingWithError` when the session must not
+    /// start (missing key, model not installed, unsupported macOS).
+    private func makeStreamingClient(
+        for selectedStreamingProvider: StreamingTranscriptionProvider,
+        model: String?,
+        normalizedLanguage: String
+    ) async -> (service: any StreamingClientProtocol, apiKey: String?)? {
+        // PROVIDER ROUTING:
+        // Create the appropriate client based on the selected provider.
+        //
+        // Every REMOTE arm now builds the SAME strategy —
+        // `RustLiveStreamingStrategy`, over `hw_net::live` — inside
+        // `StreamingTranscriptionClient`. The arms still differ, and that is the
+        // point: each one fetches and validates its OWN credential from the
+        // Keychain before a socket exists, with its own refusal message. The
+        // wire protocol is what collapsed, not the credential checks.
+        //
+        // The two on-device arms have no websocket protocol at all and keep
+        // their own dedicated clients.
+        let service: any StreamingClientProtocol
+        var apiKey: String?
+
+        switch selectedStreamingProvider {
+        case .deepgram:
+            // Deepgram direct streaming - requires user's Deepgram API key
+            let deepgramKey = KeychainManager.shared.getAPIKey(for: .deepgram)
+            guard !deepgramKey.isEmpty else {
+                AppLogger.audio.error("❌ Streaming failed: Deepgram API key not configured")
+                await cancelRecordingWithError("Deepgram API key not configured")
+                return nil
+            }
+            apiKey = deepgramKey
+            service = StreamingTranscriptionClient(
+                strategy: RustLiveStreamingStrategy(provider: selectedStreamingProvider),
+                streamingProvider: selectedStreamingProvider
+            )
+
+        case .elevenLabs:
+            // ElevenLabs direct streaming - requires user's ElevenLabs API key
+            let elevenLabsKey = KeychainManager.shared.getAPIKey(for: .elevenLabs)
+            guard !elevenLabsKey.isEmpty else {
+                AppLogger.audio.error("❌ Streaming failed: ElevenLabs API key not configured")
+                await cancelRecordingWithError("ElevenLabs API key not configured")
+                return nil
+            }
+            apiKey = elevenLabsKey
+            service = StreamingTranscriptionClient(
+                strategy: RustLiveStreamingStrategy(provider: selectedStreamingProvider),
+                streamingProvider: selectedStreamingProvider
+            )
+
+        case .openAI:
+            // OpenAI Realtime direct streaming - requires user's OpenAI API key
+            let openAIKey = KeychainManager.shared.getAPIKey(for: .openAI)
+            guard !openAIKey.isEmpty else {
+                AppLogger.audio.error("❌ Streaming failed: OpenAI API key not configured")
+                await cancelRecordingWithError("OpenAI API key not configured")
+                return nil
+            }
+            apiKey = openAIKey
+            service = StreamingTranscriptionClient(
+                strategy: RustLiveStreamingStrategy(provider: selectedStreamingProvider),
+                streamingProvider: selectedStreamingProvider
+            )
+
+        case .xai:
+            // xAI direct streaming - requires user's Grok/xAI API key
+            let xaiKey = KeychainManager.shared.getAPIKey(for: .grok)
+            guard !xaiKey.isEmpty else {
+                AppLogger.audio.error("❌ Streaming failed: xAI API key not configured")
+                await cancelRecordingWithError("SpaceXAI API key not configured")
+                return nil
+            }
+            apiKey = xaiKey
+            service = StreamingTranscriptionClient(
+                strategy: RustLiveStreamingStrategy(provider: selectedStreamingProvider),
+                streamingProvider: selectedStreamingProvider
+            )
+
+        case .gemini:
+            // Gemini 3.5 Transcribe Live direct streaming - requires the user's
+            // own Google Gemini API key.
+            let geminiKey = KeychainManager.shared.getAPIKey(for: .geminiTranscribe)
+            guard !geminiKey.isEmpty else {
+                AppLogger.audio.error("❌ Streaming failed: Gemini API key not configured")
+                await cancelRecordingWithError("Gemini API key not configured")
+                return nil
+            }
+            apiKey = geminiKey
+            service = StreamingTranscriptionClient(
+                strategy: RustLiveStreamingStrategy(provider: selectedStreamingProvider),
+                streamingProvider: selectedStreamingProvider
+            )
+
+        case .parakeetLocal:
+            // On-device Parakeet streaming. The model id in `model` is the
+            // Parakeet version identifier from settings (v2/v3).
+            if #available(macOS 13.0, *) {
+                let versionId = model ?? ParakeetModelManager.Constants.v3ModelId
+                let asrVersion: AsrModelVersion = versionId.lowercased().contains("v2") ? .v2 : .v3
+
+                // Model must already be downloaded — the UI layer surfaces
+                // the download flow. Bail with a clear error otherwise.
+                let directory = AsrModels.defaultCacheDirectory(for: asrVersion)
+                guard AsrModels.modelsExist(at: directory) else {
+                    AppLogger.audio.error("❌ Streaming failed: Parakeet model not downloaded")
+                    await cancelRecordingWithError("Parakeet model not downloaded. Open Settings → Models to install it.")
+                    return nil
+                }
+
+                service = LocalParakeetStreamingClient(version: asrVersion)
+            } else {
+                AppLogger.audio.error("❌ Streaming failed: Parakeet requires macOS 13+")
+                await cancelRecordingWithError("Parakeet streaming requires macOS 13 or later.")
+                return nil
+            }
+
+        case .nemotronLocal:
+            // On-device Nemotron 3.5 streaming. The model id (`nemotron-asr-3.5-latin` or
+            // `nemotron-asr-3.5-multilingual`) picks the on-disk variant. The current
+            // mode language flows in as the per-session prompt_id via setLanguage(_:).
+            guard let nemotronService = await makeNemotronStreamingClient(
+                model: model,
+                normalizedLanguage: normalizedLanguage
+            ) else { return nil }
+            service = nemotronService
+
+        default:
+            // HyperWhisper Cloud (default) - uses license key or device ID.
+            //
+            // NOTE this arm is a `default:`, not `case .hyperwhisperCloud:`, so a
+            // provider added to the enum and forgotten here does NOT fail the
+            // build - it silently starts a billed Cloud session. Adding a case
+            // above is the whole checklist; THIS switch will not remind you.
+            //
+            // Since issue #326 there are two backstops, and neither is here:
+            // `RustLiveStreamingStrategy.coreProvider` switches exhaustively, so
+            // a new remote provider fails to compile THERE — failing in the
+            // mapping is what stops a BYOK key being carried into a Cloud
+            // socket. And a provider with no `HwLiveProvider` at all (the two
+            // on-device engines) maps to nil there, so reaching this arm with
+            // one opens no socket rather than a billed Cloud one. Both live in
+            // a different file, and neither turns this `default:` into a
+            // checklist.
+            //
+            // The cloud tier is a path selector passed into the ONE cloud
+            // strategy, deliberately not its own StreamingTranscriptionProvider
+            // case: the credit and entitlement gate below keys off
+            // `provider == "hyperwhisperCloud"` and must keep matching.
+            //
+            // BASE URL IS NOT OPTIONAL HERE. `NetworkConfig.hyperwhisperCloudURL`
+            // points at staging under `#if DEBUG`; leaving it nil takes the
+            // core's production default and bills a developer's key against
+            // production. The core does the https→wss / http→ws substitution.
+            service = StreamingTranscriptionClient(
+                strategy: RustLiveStreamingStrategy(
+                    provider: selectedStreamingProvider,
+                    baseURL: NetworkConfig.hyperwhisperCloudURL,
+                    cloudTier: settingsManager?.streamingCloudTier
+                        ?? StreamingCloudTier.defaultCloudTier),
+                streamingProvider: selectedStreamingProvider
+            )
+        }
+
+        return (service, apiKey)
+    }
+
+    /// The `.nemotronLocal` arm of `makeStreamingClient`, including the
+    /// variant fallback. Returns nil after `cancelRecordingWithError`.
+    private func makeNemotronStreamingClient(
+        model: String?,
+        normalizedLanguage: String
+    ) async -> (any StreamingClientProtocol)? {
+        if #available(macOS 14.0, *) {
+            let requestedId = model ?? NemotronModelManager.Constants.multilingualModelId
+            guard NemotronModelManager.variant(forModelId: requestedId) != nil else {
+                AppLogger.audio.error("❌ Streaming failed: unknown Nemotron model id \(requestedId)")
+                await cancelRecordingWithError("Unknown Nemotron model. Open Settings → Models to reconfigure.")
+                return nil
+            }
+
+            // Variant fallback: if the requested variant isn't installed but
+            // the OTHER variant is, transparently use it so the user isn't
+            // hard-blocked by a stale AppStorage value. AppStorage is updated
+            // only AFTER the session starts successfully (see below) so a
+            // mid-startup failure doesn't silently rewrite the user's pinned
+            // preference.
+            let resolvedId: String
+            var pendingVariantPreferenceUpdate: String? = nil
+            if NemotronModelManager.isVariantInstalled(requestedId) {
+                resolvedId = requestedId
+            } else {
+                let other = requestedId == NemotronModelManager.Constants.multilingualModelId
+                    ? NemotronModelManager.Constants.latinModelId
+                    : NemotronModelManager.Constants.multilingualModelId
+                guard NemotronModelManager.isVariantInstalled(other) else {
+                    AppLogger.audio.error("❌ Streaming failed: no Nemotron variant downloaded")
+                    await cancelRecordingWithError("Nemotron model not downloaded. Open Settings → Models to install it.")
+                    return nil
+                }
+                AppLogger.audio.warning("⚠️ Nemotron variant \(requestedId) not installed; falling back to \(other)")
+                resolvedId = other
+                pendingVariantPreferenceUpdate = other
+            }
+            guard let variant = NemotronModelManager.variant(forModelId: resolvedId) else {
+                await cancelRecordingWithError("Unknown Nemotron variant after fallback.")
+                return nil
+            }
+
+            // `normalizedLanguage` already carries the mode language (or "auto").
+            // Re-snap the language against the RESOLVED variant's allow-list:
+            // if we fell back from multilingual→latin and the user had "zh"
+            // pinned, feeding "zh" to the Latin model would produce garbage,
+            // so drop to auto-detect instead.
+            var langHint: String? = (normalizedLanguage == "auto" || normalizedLanguage.isEmpty) ? nil : normalizedLanguage
+            if let candidate = langHint,
+               let supported = NemotronModelManager.supportedLanguages(forModelId: resolvedId),
+               supported[candidate] == nil {
+                AppLogger.audio.warning("⚠️ Nemotron language \(candidate) not supported by \(resolvedId); falling back to auto-detect")
+                langHint = nil
+            }
+
+            self.pendingNemotronVariantPreferenceUpdate = pendingVariantPreferenceUpdate
+            let provider = transcriptionPipeline?.nemotronProviderForStreaming
+            return LocalNemotronStreamingClient(variant: variant, language: langHint, provider: provider)
+        } else {
+            AppLogger.audio.error("❌ Streaming failed: Nemotron requires macOS 14+")
+            await cancelRecordingWithError("Nemotron streaming requires macOS 14 or later.")
+            return nil
+        }
+    }
+
+    /// Connection-state and audio-level callbacks.
+    private func wireStreamingStatusCallbacks(on service: any StreamingClientProtocol, provider: String) {
         // ON CONNECTION STATE CHANGE:
         // Update AppState with real-time connection status for UI feedback
         service.onConnectionStateChange = { [weak self] state in
@@ -519,7 +596,17 @@ extension RecordingTranscriptionFlow {
         service.onAudioLevel = { [weak self] level in
             self?.recordingLifecycle.audioLevel = level
         }
+    }
 
+    /// The transcript callback: filler words, voice commands and vocabulary on
+    /// each confirmed delta, then delivery by `streamingDeliveryMode`.
+    private func wireStreamingTranscriptCallback(
+        on service: any StreamingClientProtocol,
+        language: String?,
+        selectedStreamingProvider: StreamingTranscriptionProvider,
+        vocabulary: [VocabularyEntrySnapshot],
+        suppressTextDeliveryForSession: Bool
+    ) {
         // ON TRANSCRIPT UPDATE:
         // Route final deltas by delivery mode:
         //   - directInsert: type each chunk into the focused app as it arrives
@@ -651,7 +738,15 @@ extension RecordingTranscriptionFlow {
                 AppLogger.audio.debug("📝 Interim transcript received: chars=\(text.count, privacy: .public)")
             }
         }
+    }
 
+    /// Session-complete, provider-health and error callbacks.
+    private func wireStreamingOutcomeCallbacks(
+        on service: any StreamingClientProtocol,
+        provider: String,
+        streamingHealthProvider: CloudProvider?,
+        streamingCredentialGeneration: [CloudProvider: UInt64]?
+    ) {
         // ON SESSION COMPLETE:
         // Session ended normally, update credits and save transcript
         service.onSessionComplete = { [weak self] durationSeconds, creditsUsed in
@@ -757,20 +852,16 @@ extension RecordingTranscriptionFlow {
                 )
             }
         }
+    }
 
-        // BUILD SESSION CONFIG:
-        // Superset of all fields needed by any provider. Each strategy uses only its relevant fields.
-        let config = StreamingSessionConfig(
-            licenseKey: licenseKey,
-            deviceId: deviceId,
-            language: language,
-            vocabulary: vocabularyString,
-            apiKey: apiKey,
-            model: model,
-            fastFormatting: fastFormatting
-        )
-
-        // Start the streaming session
+    /// Starts the session, then the max-duration timer; unwinds on failure.
+    private func startStreamingSession(
+        _ service: any StreamingClientProtocol,
+        config: StreamingSessionConfig,
+        provider: String,
+        model: String?,
+        normalizedLanguage: String
+    ) async {
         do {
             try await service.startSession(config: config)
 

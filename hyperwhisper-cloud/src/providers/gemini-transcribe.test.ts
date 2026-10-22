@@ -17,6 +17,7 @@ import {
 } from './gemini-transcribe';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import { GEMINI_TRANSCRIBE_INLINE_MAX_BYTES } from '../lib/constants';
+import { captureNoSpeechEvent, captureProviderEvent } from './test-support';
 
 const originalFetch = globalThis.fetch;
 const ENV_KEYS = ['GEMINI_API_KEY', 'GOOGLE_GEMINI_API_KEY', 'STT_PROVIDER_TIMEOUT_MS'] as const;
@@ -76,29 +77,6 @@ function captureRequest(payload: unknown = sampleResponse()): Captured {
 
 function errorResponse(status: number, text = 'upstream said no') {
   globalThis.fetch = mock(async () => new Response(text, { status })) as unknown as typeof fetch;
-}
-
-/** Capture one provider log event without adding a process-wide mock module. */
-async function captureProviderEvent(
-  eventName: string,
-  run: () => Promise<unknown>,
-): Promise<Record<string, unknown>> {
-  const logged: unknown[][] = [];
-  const originalLog = console.log;
-  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
-  try {
-    await run();
-  } finally {
-    console.log = originalLog;
-  }
-  const event = logged.find((args) => args[0] === eventName);
-  if (!event) throw new Error(`${eventName} event was not logged`);
-  return event[1] as Record<string, unknown>;
-}
-
-/** Return the details object from the adapter's no-speech event. */
-async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
-  return captureProviderEvent('provider.no_speech', run);
 }
 
 describe('buildTranscriptionConfig — TRAP 2 (the mutual exclusion)', () => {

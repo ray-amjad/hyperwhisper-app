@@ -132,6 +132,28 @@ public static class TranscriptionApiKeyTypeExtensions
     };
 
     /// <summary>
+    /// The cloud transcription provider whose key lives in this slot — the
+    /// inverse of <c>CloudTranscriptionProvider.GetTranscriptionApiKeyType()</c>
+    /// (issue #1220). Every value has an arm, Meta included: a slot that maps to
+    /// <see cref="CloudTranscriptionProvider.None"/> never tells provider health
+    /// its key changed. Grok maps to Grok although the forward map returns null
+    /// for it (Grok reads go through the shared PostProcessingProvider.Grok key,
+    /// which is the same GrokApiKey slot).
+    /// </summary>
+    public static CloudTranscriptionProvider ToCloudTranscriptionProvider(this TranscriptionApiKeyType type) => type switch
+    {
+        TranscriptionApiKeyType.Deepgram => CloudTranscriptionProvider.Deepgram,
+        TranscriptionApiKeyType.AssemblyAI => CloudTranscriptionProvider.AssemblyAI,
+        TranscriptionApiKeyType.ElevenLabs => CloudTranscriptionProvider.ElevenLabs,
+        TranscriptionApiKeyType.Mistral => CloudTranscriptionProvider.Mistral,
+        TranscriptionApiKeyType.Soniox => CloudTranscriptionProvider.Soniox,
+        TranscriptionApiKeyType.Grok => CloudTranscriptionProvider.Grok,
+        TranscriptionApiKeyType.GeminiTranscribe => CloudTranscriptionProvider.GeminiTranscribe,
+        TranscriptionApiKeyType.Meta => CloudTranscriptionProvider.Meta,
+        _ => CloudTranscriptionProvider.None
+    };
+
+    /// <summary>
     /// Gets all transcription API key types as an array.
     /// Used for iterating in Settings UI and bulk operations.
     /// </summary>

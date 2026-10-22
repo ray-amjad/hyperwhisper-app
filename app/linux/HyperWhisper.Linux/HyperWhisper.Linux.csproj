@@ -42,6 +42,14 @@
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.29.0" />
   </ItemGroup>
 
+  <!-- Whisper.net's native runtimes live in each head since issue #1194;
+       HyperWhisper.LocalInference carries only the managed API. -->
+  <ItemGroup>
+    <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
+    <PackageReference Include="Whisper.net.Runtime.Vulkan" Version="1.9.1" />
+    <PackageReference Include="Whisper.net.Runtime.Cuda12" Version="1.9.1" />
+  </ItemGroup>
+
   <ItemGroup>
     <Content Include="../../windows/HyperWhisper/Resources/parakeet-engine/x64/silero_vad.onnx"
              Link="parakeet-engine/silero_vad.onnx"

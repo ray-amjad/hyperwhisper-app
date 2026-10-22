@@ -59,9 +59,9 @@ function assertNoLocaleCookieAnywhere(response: NextResponse) {
   );
 }
 
-// Every header except the cookie ones and the proxy's own x-pathname.
+// Every header except the cookie ones.
 function comparableHeaders(response: Response) {
-  const skip = new Set(["set-cookie", "x-middleware-set-cookie", "x-pathname"]);
+  const skip = new Set(["set-cookie", "x-middleware-set-cookie"]);
 
   const kept: [string, string][] = [];
 
@@ -77,7 +77,6 @@ for (const path of ENGLISH_ONLY_PATHS) {
     const response = await proxy(request(path));
 
     assertNoLocaleCookieAnywhere(response);
-    assert.equal(response.headers.get("x-pathname"), path);
   });
 
   test(`${path}: a later cookies.set does not bring NEXT_LOCALE back`, async () => {

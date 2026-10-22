@@ -12,10 +12,10 @@
  *
  * Only the collaborators at the edge are replaced with `mock.module`: Better
  * Auth (`src/lib/auth.ts`), the database layer (`src/lib/db-layer.ts`), the
- * shared Stripe client (`lib/clients/stripe.ts`), the `stripe` package (the
- * admin customers router builds its own client from it at load), the mailer
- * (`lib/services/email.ts`) and the rate limiters (`lib/rate-limit.ts`, which
- * would otherwise open an Upstash client). No bypass and no test license key
+ * Stripe clients (`lib/clients/stripe.ts`), the mailer
+ * (`lib/services/email.ts`), the rate limiters (`lib/rate-limit.ts`, which
+ * would otherwise open an Upstash client) and the validated server env
+ * (`src/env/server.mjs`, empty: the routers fall back to their defaults). No bypass and no test license key
  * reaches the source; who is signed in comes from the fake session alone, and
  * every identifier in the fixtures is a made-up string.
  *
@@ -23,9 +23,7 @@
  * the only way the tests reach the source. A test file that imports the route
  * itself would bind to the real collaborators, so do not.
  */
-import { createRequire } from "node:module";
 import { mock } from "node:test";
-import { pathToFileURL } from "node:url";
 
 import superjson from "superjson";
 
@@ -47,7 +45,11 @@ export interface DeviceRow {
 export const calls = {
   getSession: [] as Headers[],
   deviceCounts: [] as Array<number | undefined>,
-  devicesForLicense: [] as Array<{ licenseKeyId: string; days?: number }>,
+  devicesForLicense: [] as Array<{
+    licenseKeyId: string;
+    days?: number;
+    page?: { limit?: number; offset?: number; search?: string };
+  }>,
   stripeCustomersList: [] as Array<Record<string, unknown>>,
   /** Any other db-layer function a test did not expect to be reached. */
   otherDb: [] as string[],
@@ -58,13 +60,18 @@ export const behaviour = {
   session: null as { user: Record<string, unknown> } | null,
   deviceCounts: [] as DeviceCountRow[],
   devices: [] as DeviceRow[],
+  /** The total `getDevicesForLicense` reports; null means `devices.length`. */
+  deviceTotal: null as number | null,
   dbError: null as unknown,
   /** The one other db-layer function that throws `dbError` instead of refusing. */
   dbErrorOn: null as string | null,
   stripeCustomers: [] as Array<{ id: string }>,
   stripeError: null as unknown,
-  /** Thrown by the download email rate limiter when set: reaches download.ts's outer catch. */
-  downloadLimitError: null as unknown,
+  /**
+   * Thrown by download.ts's client-IP lookup when set: reaches its outer catch.
+   * Not the rate limiter, which fails open since #2136 and so never gets there.
+   */
+  downloadOuterError: null as unknown,
 };
 
 export function resetHarness(): void {
@@ -72,11 +79,12 @@ export function resetHarness(): void {
   behaviour.session = null;
   behaviour.deviceCounts = [];
   behaviour.devices = [];
+  behaviour.deviceTotal = null;
   behaviour.dbError = null;
   behaviour.dbErrorOn = null;
   behaviour.stripeCustomers = [];
   behaviour.stripeError = null;
-  behaviour.downloadLimitError = null;
+  behaviour.downloadOuterError = null;
 }
 
 function moduleUrl(relative: string): string {
@@ -135,10 +143,18 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
       if (behaviour.dbError) throw behaviour.dbError;
       return behaviour.deviceCounts;
     },
-    getDevicesForLicense: async (licenseKeyId: string, days?: number) => {
-      calls.devicesForLicense.push({ licenseKeyId, days });
+    DEVICES_PAGE_SIZE: 50,
+    getDevicesForLicense: async (
+      licenseKeyId: string,
+      days?: number,
+      page?: { limit?: number; offset?: number; search?: string },
+    ) => {
+      calls.devicesForLicense.push({ licenseKeyId, days, page });
       if (behaviour.dbError) throw behaviour.dbError;
-      return behaviour.devices;
+      return {
+        devices: behaviour.devices,
+        total: behaviour.deviceTotal ?? behaviour.devices.length,
+      };
     },
     ...Object.fromEntries(
       [
@@ -176,33 +192,35 @@ moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
         },
       },
     },
+    // The admin customers router's pinned refund client. Never called here.
+    stripeRefundApi: {},
   },
 });
-
-/** Stands in for the `stripe` package's default export. Never called here. */
-class FakeStripe {}
-
-// nextjs has no `"type": "module"`, so tsx loads the routers as CommonJS and
-// `import Stripe from "stripe"` becomes a `require` of the package's CJS entry.
-moduleMock.module(
-  pathToFileURL(createRequire(import.meta.url).resolve("stripe")).href,
-  { defaultExport: FakeStripe },
-);
 
 moduleMock.module(moduleUrl("../lib/services/email.ts"), {
   namedExports: { emailService: {} },
 });
 
+// The routers read site URL, support email and the database URL from the
+// validated env (#682). None is set here, as none was in process.env before.
+moduleMock.module(moduleUrl("../src/env/server.mjs"), {
+  namedExports: { env: {} },
+});
+
 moduleMock.module(moduleUrl("../lib/rate-limit.ts"), {
   namedExports: {
-    downloadEmailRateLimiter: {
-      limit: async () => {
-        if (behaviour.downloadLimitError) throw behaviour.downloadLimitError;
-        return { success: true };
-      },
-    },
+    downloadEmailRateLimiter: { limit: async () => ({ success: true }) },
     licenseValidateRateLimiter: { limit: async () => ({ success: true }) },
     latencyIngestRateLimiter: { limit: async () => ({ success: true }) },
+  },
+});
+
+moduleMock.module(moduleUrl("../server/api/routers/download-ip.ts"), {
+  namedExports: {
+    getClientIPFromHeaders: () => {
+      if (behaviour.downloadOuterError) throw behaviour.downloadOuterError;
+      return "203.0.113.1";
+    },
   },
 });
 

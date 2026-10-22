@@ -18,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithGemini } from './gemini';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import { GEMINI_INLINE_MAX_BYTES } from '../lib/constants';
+import { captureNoSpeechEvent } from './test-support';
 
 const originalFetch = globalThis.fetch;
 const ENV_KEYS = ['GEMINI_API_KEY', 'GOOGLE_GEMINI_API_KEY', 'STT_PROVIDER_TIMEOUT_MS'] as const;
@@ -77,25 +78,6 @@ function generateContentResponse(text: string, usageMetadata?: Record<string, un
     candidates: [{ content: { parts: [{ text }] } }],
     ...(usageMetadata ? { usageMetadata } : {}),
   };
-}
-
-/**
- * Swaps `console.log` for the duration of `run` and returns the details object of
- * the `provider.no_speech` event it logged. Same swap-the-global idiom as
- * `utils.test.ts` — no spy library is used anywhere in this suite.
- */
-async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
-  const logged: unknown[][] = [];
-  const originalLog = console.log;
-  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
-  try {
-    await run();
-  } finally {
-    console.log = originalLog;
-  }
-  const event = logged.find((args) => args[0] === 'provider.no_speech');
-  if (!event) throw new Error('no provider.no_speech event was logged');
-  return event[1] as Record<string, unknown>;
 }
 
 function promptTextOf(captured: Captured): string {
@@ -171,7 +153,7 @@ describe('transcribeWithGemini — request shape', () => {
     await transcribeWithGemini(audio(6), 'audio/mpeg');
 
     expect(captured.url).toBe(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent'
     );
     expect(inlineDataOf(captured).mime_type).toBe('audio/mp3');
     expect(inlineDataOf(captured).data).toBe(Buffer.from(new Uint8Array(6).fill(0x41)).toString('base64'));
@@ -196,6 +178,8 @@ describe('transcribeWithGemini — request shape', () => {
       ['gemini-2.5-pro', { thinkingBudget: 128 }],
       ['gemini-3-flash-preview', { thinkingLevel: 'minimal' }],
       ['gemini-3.1-pro-preview', { thinkingLevel: 'low' }],
+      // 3.8 Flash has no 'minimal' and cannot turn thinking off (#1019).
+      ['gemini-3.8-flash', { thinkingLevel: 'low' }],
       // An unrecognised model falls back to the 2.5-flash config.
       ['some-future-model', { thinkingBudget: 0 }],
     ];
@@ -289,7 +273,9 @@ describe('transcribeWithGemini — upstream error mapping', () => {
     const thrown = await transcribeWithGemini(audio(), 'audio/wav').catch((e) => e);
     expect(thrown).toBeInstanceOf(ProviderInputError);
     expect(thrown.status).toBe(400);
-    expect(thrown.message).toContain('unsupported audio mime type');
+    // The body reaches the client's text only, never the logged message (#2163).
+    expect(thrown.message).not.toContain('unsupported audio mime type');
+    expect(thrown.clientMessage).toContain('unsupported audio mime type');
   });
 
   test('a 200 with a body that is not JSON fails over rather than throwing a parse error', async () => {
@@ -359,7 +345,9 @@ describe('transcribeWithGemini — result and billing', () => {
       thoughtsTokenCount: 50,
     }))) as unknown as typeof fetch;
 
-    const result = await transcribeWithGemini(audio(), 'audio/wav');
+    // Pinned to 2.5 Flash, not the default: 3.8 Flash has ONE input rate, so it
+    // cannot tell text billing from audio billing.
+    const result = await transcribeWithGemini(audio(), 'audio/wav', undefined, undefined, { model: 'gemini-2.5-flash' });
 
     // gemini-2.5-flash: audio $1.00/M, text $0.30/M, output $2.50/M.
     // 1920 audio + 80 text + (100 + 50) output.
@@ -376,7 +364,7 @@ describe('transcribeWithGemini — result and billing', () => {
         candidatesTokenCount: 100,
         thoughtsTokenCount,
       }))) as unknown as typeof fetch;
-      const result = await transcribeWithGemini(audio(), 'audio/wav');
+      const result = await transcribeWithGemini(audio(), 'audio/wav', undefined, undefined, { model: 'gemini-2.5-flash' });
       return result.costUsd;
     };
 
@@ -460,9 +448,10 @@ describe('transcribeWithGemini — result and billing', () => {
     globalThis.fetch = mock(async () => Response.json(generateContentResponse('hello'))) as unknown as typeof fetch;
 
     // 480_000 bytes ≈ 1 minute at the 64 kbps estimate → 1920 audio tokens.
-    const result = await transcribeWithGemini(audio(480_000), 'audio/wav');
+    const result = await transcribeWithGemini(audio(480_000), 'audio/wav', undefined, undefined, { model: 'gemini-2.5-flash' });
     expect(result.durationSeconds).toBeCloseTo(60, 6);
-    // No usage total → no text tokens are invented, so it is audio-only billing.
+    // No usage total → no text tokens are invented, so it is audio-only billing
+    // (2.5 Flash audio $1.00/M).
     expect(result.costUsd).toBeCloseTo(1920 * 1e-6, 9);
   });
 

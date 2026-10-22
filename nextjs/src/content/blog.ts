@@ -4,6 +4,11 @@ import { desc } from "drizzle-orm";
 
 import { db } from "@/src/db";
 import { blogPosts, type BlogPostRow } from "@/src/db/schema/blog-posts";
+import {
+  lazyLoadBodyImages,
+  scrollableBodyTables,
+} from "@/src/content/blog-html";
+import { sanitizeBlogHtml } from "@/src/content/sanitize-blog-html";
 
 const BLOG_LOCALE = "en";
 
@@ -52,6 +57,29 @@ function rowToPost(row: BlogPostRow): BlogPost {
   };
 }
 
+/**
+ * True while `next build` prerenders, false in the server that serves and
+ * revalidates the built pages. The same test as src/content/latency.ts; read at
+ * call time rather than module load, so both paths can be exercised in one
+ * test process.
+ */
+function isBuildPrerender(): boolean {
+  return process.env.NEXT_PHASE === "phase-production-build";
+}
+
+/**
+ * A database failure is handled the way getLatencyMatrix handles it (#2072):
+ *
+ *  - During `next build` it is logged and the blog ships empty, so a deploy
+ *    does not depend on Postgres being reachable from the builder. The first
+ *    revalidation fills it in.
+ *  - At runtime it propagates. Next caches a returned value as a good render,
+ *    so an empty list during a background revalidation would replace the blog
+ *    with "No posts yet.", 404 every post and drop them from the sitemap.
+ *    Throwing keeps the last good page in the ISR cache.
+ *
+ * An empty TABLE is not a failure: no rows renders "No posts yet." on both.
+ */
 async function readAllPosts(): Promise<BlogPost[]> {
   try {
     const rows = await db
@@ -62,7 +90,11 @@ async function readAllPosts(): Promise<BlogPost[]> {
       .filter((row) => row.locale === BLOG_LOCALE)
       .map(rowToPost);
   } catch (err) {
-    console.error("[blog] failed to load posts from DB:", err);
+    if (!isBuildPrerender()) throw err;
+    console.error(
+      "[blog] database unreachable while prerendering; shipping no posts and letting revalidation fill them in:",
+      err,
+    );
     return [];
   }
 }
@@ -79,7 +111,15 @@ export async function getBlogPosts(): Promise<BlogPostSummary[]> {
 export async function getBlogPost(slug: string): Promise<BlogPost | null> {
   const normalizedSlug = normalizeSlug(slug);
   const posts = await readAllPosts();
-  return posts.find((item) => item.slug === normalizedSlug) ?? null;
+  const stored = posts.find((item) => item.slug === normalizedSlug);
+  if (!stored) return null;
+  // Sanitise again on read, so a row stored before the webhook sanitised its
+  // HTML is covered too (#2009). It runs first, so the lazy-load attributes
+  // added below are never stripped.
+  const post = { ...stored, html: sanitizeBlogHtml(stored.html) };
+
+  // Only the post being shown needs its stored body rewritten (#919, #2112).
+  return { ...post, html: scrollableBodyTables(lazyLoadBodyImages(post.html)) };
 }
 
 export async function getAllBlogPosts(): Promise<BlogPostSummary[]> {

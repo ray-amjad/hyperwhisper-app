@@ -28,6 +28,8 @@ public enum LinuxRecordingOverlayCompletion
     Pasted,
     Copied,
     SecureField,
+    /// <summary>The transcript is saved, but neither the paste nor the clipboard write landed (#1703).</summary>
+    CopyFailed,
 }
 
 public enum LinuxRecordingOverlayError

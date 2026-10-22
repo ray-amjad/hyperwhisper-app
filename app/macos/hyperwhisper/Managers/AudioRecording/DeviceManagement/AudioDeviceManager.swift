@@ -76,8 +76,8 @@ private func readAudioDeviceNotificationSnapshot(
 ///
 /// **Responsibilities:**
 /// - Enumerate available input devices
-/// - Track selected device
-/// - Apply/restore system default device
+/// - Track HyperWhisper's own microphone choice (`preferredDevice`) and whether its
+///   device is connected (`selectedDevice`). The macOS default input is never changed.
 /// - Monitor input volume metrics
 /// - Update active device information
 ///
@@ -140,7 +140,9 @@ class AudioDeviceManager {
     nonisolated(unsafe) private var devicesListenerBlock: AudioObjectPropertyListenerBlock?
     nonisolated(unsafe) private var defaultDeviceListenerBlock: AudioObjectPropertyListenerBlock?
 
-    /// Callback invoked whenever a previously selected device disappears and we fall back to system default.
+    /// Callback invoked whenever the selected device disappears. Recording falls back to the
+    /// system default meanwhile; `preferredDevice` is kept so the device is used again when
+    /// it reappears.
     var onSelectedDeviceInvalidated: ((AudioDevice) -> Void)?
 
     private let notificationSnapshotProvider: NotificationSnapshotProvider
@@ -179,8 +181,20 @@ class AudioDeviceManager {
     /// List of available audio input devices
     @Published private(set) var availableDevices: [AudioDevice] = []
 
-    /// Currently selected device (nil = system default)
+    /// The chosen device while it is connected; `nil` means HyperWhisper records from the
+    /// macOS default input (no choice, or the chosen device is unplugged).
     @Published var selectedDevice: AudioDevice?
+
+    /// HyperWhisper's saved microphone choice, kept while its device is unplugged.
+    /// `nil` means "Default": follow the macOS default input.
+    ///
+    /// Mirrored into `MicrophoneRoutingStore.shared` so capture code that is not on the
+    /// main actor (`StreamingAudioCapture`) opens the same device.
+    @Published private(set) var preferredDevice: MicrophoneChoice? {
+        didSet {
+            MicrophoneRoutingStore.shared.preferredDeviceUID = preferredDevice?.uid
+        }
+    }
 
     /// UID of the system's default input device (for UI display)
     /// This updates whenever the device list is refreshed or when
@@ -440,7 +454,7 @@ class AudioDeviceManager {
         if let selected = selectedDevice,
            selected.uid == snapshot.selectedDeviceUID,
            snapshot.devices.contains(where: { $0.uid == selected.uid }) == false {
-            AppLogger.audio.warning("Selected microphone UID \(selected.uid, privacy: .public) disappeared - reverting to system default")
+            AppLogger.audio.warning("Selected microphone UID \(selected.uid, privacy: .public) disappeared - recording from the system default until it returns")
             selectedDevice = nil
             if AppLogger.isErrorLoggingEnabled {
                 SentryService.addBreadcrumb(
@@ -454,6 +468,33 @@ class AudioDeviceManager {
             }
             onSelectedDeviceInvalidated?(selected)
         }
+
+        // The chosen device is back: use it again, no restart needed. The metrics above
+        // were read for the default input, so ask for one more scan for the chosen device
+        // instead of doing CoreAudio reads here on the main actor.
+        if reconnectPreferredDeviceIfPresent(in: snapshot.devices) {
+            requestNotificationRefresh(reason: .coreAudioDeviceList)
+        }
+    }
+
+    /// Select the chosen device again if it is connected and not yet selected.
+    /// - Returns: `true` if `selectedDevice` changed.
+    private func reconnectPreferredDeviceIfPresent(in devices: [AudioDevice]) -> Bool {
+        guard selectedDevice == nil,
+              let preferredDevice,
+              let device = devices.first(where: { $0.uid == preferredDevice.uid }) else {
+            return false
+        }
+        AppLogger.audio.info("Chosen microphone reconnected - recording from it again")
+        if AppLogger.isErrorLoggingEnabled {
+            SentryService.addBreadcrumb(
+                message: "Chosen audio device reconnected",
+                category: "audio.devices",
+                data: ["selectedDeviceUID": device.uid]
+            )
+        }
+        selectedDevice = device
+        return true
     }
 
     private func reportNotificationScan(
@@ -551,13 +592,14 @@ class AudioDeviceManager {
         availableDevices = devices
 
         // Update the system default device UID for UI display
-        // This allows the menu to show "(Default)" next to the system's default input device
+        // This lets the pickers label the "Default · <device>" option
         systemDefaultDeviceUID = CoreAudioDeviceHelper.getSystemDefaultInputDeviceUID()
 
-        // If the previously selected device is no longer available, fall back to system default.
+        // If the selected device is no longer available, record from the system default
+        // until it returns. The choice itself (`preferredDevice`) is kept.
         if let selected = selectedDevice,
            devices.first(where: { $0.id == selected.id }) == nil {
-            AppLogger.audio.warning("Selected microphone UID \(selected.uid, privacy: .public) disappeared - reverting to system default")
+            AppLogger.audio.warning("Selected microphone UID \(selected.uid, privacy: .public) disappeared - recording from the system default until it returns")
             selectedDevice = nil
             if AppLogger.isErrorLoggingEnabled {
                 SentryService.addBreadcrumb(
@@ -578,6 +620,8 @@ class AudioDeviceManager {
             }
         }
 
+        _ = reconnectPreferredDeviceIfPresent(in: devices)
+
         updateInputVolumeMetrics()
 
         let durationMs = Int(Date().timeIntervalSince(scanStart) * 1000)
@@ -592,102 +636,40 @@ class AudioDeviceManager {
 
     // MARK: - Device Selection
 
-    /// Select a specific input device
+    /// Choose the microphone HyperWhisper records from.
     ///
-    /// **What This Does:**
-    /// Updates the selected device property and immediately applies it at the system level
-    /// so Bluetooth devices have time to connect before the next recording.
+    /// Saves the choice for HyperWhisper only. It does NOT change the macOS default input,
+    /// so other apps keep theirs; recording opens the chosen device directly (see
+    /// `MicrophoneCaptureRouting`).
     ///
     /// **Parameters:**
-    /// - `device`: The device to select, or nil for system default
+    /// - `device`: The device to use, or nil to follow the macOS default input
     func selectDevice(_ device: AudioDevice?) {
+        preferredDevice = device.map { MicrophoneChoice(uid: $0.uid, name: $0.name) }
         selectedDevice = device
         updateInputVolumeMetrics()
 
         if let device = device {
-            AppLogger.audio.info("Selected input device: \(device.name)")
+            AppLogger.audio.info("Selected input device: \(device.name, privacy: .public)")
         } else {
             AppLogger.audio.info("Selected system default input device")
         }
-
-        // Apply immediately so Bluetooth devices have time to connect before recording starts.
-        applySelectedInputDeviceIfNeeded()
     }
 
-    // MARK: - Device Switching
-
-    /// Apply the selected device by temporarily setting system default
+    /// Restore a saved choice at launch (or when onboarding rolls back a preview).
     ///
-    /// **What This Does:**
-    /// 1. If a device is selected, find its CoreAudio ID
-    /// 2. Get current system default device ID
-    /// 3. If different, store previous ID and switch to selected device
-    ///
-    /// **Why System Default:**
-    /// AVAudioEngine uses the system default input device. To use a specific device,
-    /// we temporarily change the system default, then restore it after recording.
-    ///
-    /// **Important:**
-    /// The selected device becomes the system default until the user chooses a different
-    /// input. This avoids expensive device swaps on every recording toggle (especially for
-    /// Bluetooth microphones like AirPods).
-    ///
-    /// **Fallback Behavior:**
-    /// If the selected device's UID cannot be resolved (device disconnected, Bluetooth
-    /// device reconnected with different UID, etc.), this method will:
-    /// 1. Clear the selectedDevice to nil (falling back to system default)
-    /// 2. Trigger the onSelectedDeviceInvalidated callback to clear persisted preference
-    /// 3. Return false to indicate the fallback occurred
-    ///
-    /// **Returns:**
-    /// - `true` if no device was selected (using system default) or device was successfully applied
-    /// - `false` if the selected device was invalid and we fell back to system default
-    @discardableResult
-    func applySelectedInputDeviceIfNeeded() -> Bool {
-        guard let selected = selectedDevice else { return true }
-
-        // Find CoreAudio device ID from UID
-        // DEVICE VALIDATION: If the UID lookup fails, the device is no longer available
-        // This can happen when:
-        // - Bluetooth device disconnected and reconnected (may get new UID)
-        // - USB device unplugged
-        // - Device list in menu was stale when user selected it
-        guard let desiredID = CoreAudioDeviceHelper.findAudioDeviceID(byUID: selected.uid) else {
-            AppLogger.audio.warning("⚠️ Unable to resolve AudioDeviceID for UID: \(selected.uid) - device may have disconnected, falling back to system default")
-
-            // FALLBACK: Clear the invalid selection and revert to system default
-            // This ensures recording will use whatever macOS considers the current default
-            // input device, rather than failing silently with no audio
-            selectedDevice = nil
-
-            // Notify listeners (e.g., AudioRecordingManager) to clear persisted preference
-            // This prevents the app from trying to restore an invalid device on next launch
-            if let callback = onSelectedDeviceInvalidated {
-                callback(selected)
-            }
-
-            // Refresh device list to ensure UI shows current available devices
-            updateAvailableDevices(reason: .manual)
-
-            return false
+    /// Unlike `selectDevice`, the choice is kept even when its device is not connected:
+    /// `selectedDevice` stays nil (recording uses the default) until it reappears.
+    func restorePreferredDevice(_ choice: MicrophoneChoice?) {
+        preferredDevice = choice
+        selectedDevice = choice.flatMap { choice in
+            availableDevices.first(where: { $0.uid == choice.uid })
         }
+        updateInputVolumeMetrics()
 
-        // Get current system default
-        guard let currentID = CoreAudioDeviceHelper.getSystemDefaultInputDeviceID() else {
-            AppLogger.audio.warning("⚠️ Unable to read current default input device")
-            return true // Not a device selection failure, just can't read current default
+        if let choice, selectedDevice == nil {
+            AppLogger.audio.notice("Saved microphone \(choice.uid, privacy: .public) is not connected - recording from the system default until it returns")
         }
-
-        // Only switch if different
-        if currentID != desiredID {
-            if CoreAudioDeviceHelper.setSystemDefaultInputDevice(to: desiredID) {
-                AppLogger.audio.info("🎚️ Switched system default input to: \(selected.name)")
-            } else {
-                AppLogger.audio.warning("⚠️ Failed to switch system default input to UID: \(selected.uid, privacy: .public)")
-            }
-        }
-
-        return true
     }
 
     // MARK: - Volume Metrics

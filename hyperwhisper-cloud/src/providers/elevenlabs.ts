@@ -11,8 +11,8 @@ import {
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  readJson200,
   splitVocabularyTerms,
-  unparsedBodyKind,
 } from './utils';
 
 // ElevenLabs treats mp3 as the *fallback* container rather than one it matches
@@ -137,60 +137,44 @@ export async function transcribeWithElevenLabs(
 
   // Bun's `response.json()` has been observed to throw "Failed to parse JSON"
   // on gzip+chunked ElevenLabs 200 responses, even though the same payload
-  // parses cleanly in Node. Read as text first, then JSON.parse — both
-  // sidesteps the Bun quirk and surfaces actionable diagnostics if the body
-  // is ever genuinely empty or non-JSON in future.
-  const rawText = await response.text();
-  if (!rawText) {
-    const ct = response.headers.get('content-type') ?? 'unknown';
-    const ce = response.headers.get('content-encoding') ?? 'none';
-    logProviderEvent(provider, 'empty_body', {
-      elapsedMs: Math.round(performance.now() - startTime),
-      contentType: ct,
-      contentEncoding: ce,
-    }, context);
-    // A malformed/empty 200 body is recoverable by failing over, not by
-    // 500ing a request the siblings could serve.
-    throw new ProviderUnavailableError('ElevenLabs', `empty 200 body (content-type=${ct}, content-encoding=${ce})`, {
-      kind: 'bad_response',
-      status: response.status,
-      elapsedMs: Math.round(performance.now() - startTime),
-    });
-  }
-  let data: {
-    text?: string;
-    language_code?: string;
-    language_probability?: number;
-    words?: Array<{ start: number; end: number; text: string }>;
-  };
-  try {
-    data = JSON.parse(rawText);
-  } catch (parseError) {
-    const ct = response.headers.get('content-type') ?? 'unknown';
+  // parses cleanly in Node, so the body is read as text first. A body that
+  // breaks mid-read, is empty, is not JSON or is not an object (`null`) is
+  // recoverable by failing over, not by 500ing a request the siblings could
+  // serve. (#2064, #2151)
+  const data = await readJson200<{
+    text: unknown;
+    language_code: string;
+    language_probability: number;
+    words: unknown;
+  }>(provider, 'ElevenLabs', response, startTime, context);
+
+  // A `text` that is present but not a string is a broken body too: `.trim()`
+  // below would throw a TypeError and answer a 500.
+  if (data.text !== undefined && data.text !== null && typeof data.text !== 'string') {
     logProviderEvent(provider, 'parse_error', {
       elapsedMs: Math.round(performance.now() - startTime),
-      contentType: ct,
-      contentEncoding: response.headers.get('content-encoding') ?? 'none',
-      bodyLength: rawText.length,
-      bodyKind: unparsedBodyKind(rawText),
+      field: 'text',
+      fieldType: typeof data.text,
     }, context);
-    // A non-JSON 200 body is recoverable by failing over, not by 500ing a
-    // request the siblings could serve.
-    throw new ProviderUnavailableError('ElevenLabs', `non-JSON 200 body (content-type=${ct}, len=${rawText.length})`, {
+    throw new ProviderUnavailableError('ElevenLabs', 'malformed 200 response body', {
       kind: 'bad_response',
       status: response.status,
       elapsedMs: Math.round(performance.now() - startTime),
     });
   }
 
-  // Calculate duration from word timings
+  // Calculate duration from word timings. Only a finite number counts: a
+  // missing or odd `words` field leaves it 0, never a TypeError.
   let duration = 0;
-  if (data.words && data.words.length > 0) {
-    const lastWord = data.words[data.words.length - 1];
-    duration = lastWord.end;
+  if (Array.isArray(data.words) && data.words.length > 0) {
+    const lastWord: unknown = data.words[data.words.length - 1];
+    const end = typeof lastWord === 'object' && lastWord !== null ? (lastWord as { end?: unknown }).end : undefined;
+    if (typeof end === 'number' && Number.isFinite(end)) {
+      duration = end;
+    }
   }
 
-  const transcript = data.text || '';
+  const transcript = typeof data.text === 'string' ? data.text : '';
 
   if (!transcript || transcript.trim().length === 0) {
     // A parsed JSON 200 with no text: ElevenLabs processed the audio and found

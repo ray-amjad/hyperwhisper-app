@@ -1274,7 +1274,7 @@
       },
       "expected": {
         "cloudProvider": "gemini",
-        "cloudTranscriptionModel": "gemini-3.1-flash-lite",
+        "cloudTranscriptionModel": "gemini-2.5-flash-lite",
         "cloudTranscriptionDomain": null,
         "cloudAccuracyTier": "elevenLabsScribeV2",
         "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
@@ -1290,7 +1290,7 @@
       },
       "expected": {
         "cloudProvider": "gemini",
-        "cloudTranscriptionModel": "gemini-3.6-flash",
+        "cloudTranscriptionModel": "gemini-3.8-flash",
         "cloudTranscriptionDomain": null,
         "cloudAccuracyTier": "elevenLabsScribeV2",
         "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
@@ -1942,7 +1942,7 @@
       },
       "expected": {
         "cloudProvider": null,
-        "cloudTranscriptionModel": "gemini-3.6-flash",
+        "cloudTranscriptionModel": "gemini-3.8-flash",
         "cloudTranscriptionDomain": null,
         "cloudAccuracyTier": "elevenLabsScribeV2",
         "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"

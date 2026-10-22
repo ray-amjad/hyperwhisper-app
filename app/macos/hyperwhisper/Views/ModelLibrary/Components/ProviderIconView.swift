@@ -86,15 +86,27 @@ struct ProviderIconView: View {
         let color: Color
     }
 
-    private var overlayBadge: Badge? {
+    /// The SF Symbol drawn over the tile for `status`, or nil for none.
+    /// A not-downloaded local model (`.downloadable`) gets no badge: it is
+    /// free, so the padlock (legend: "Locked") would lie, and the row's
+    /// download button already says it is not downloaded (#1448).
+    static func badgeSymbol(for status: LibraryModelStatus) -> String? {
         switch status {
-        case .locked, .downloadable:
-            return Badge(symbol: "lock.fill", color: .primary.opacity(0.85))
+        case .locked:
+            return "lock.fill"
         case .error:
-            return Badge(symbol: "exclamationmark.triangle.fill", color: .orange)
-        case .enabled:
+            return "exclamationmark.triangle.fill"
+        case .enabled, .downloadable:
             return nil
         }
+    }
+
+    private var overlayBadge: Badge? {
+        guard let symbol = Self.badgeSymbol(for: status) else { return nil }
+        if case .error = status {
+            return Badge(symbol: symbol, color: .orange)
+        }
+        return Badge(symbol: symbol, color: .primary.opacity(0.85))
     }
 
     /// Per-provider brand colors (hex from each vendor's official brand/site),

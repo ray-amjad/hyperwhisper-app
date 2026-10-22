@@ -18,10 +18,10 @@ export const DEFAULT_LLM_PROVIDER: LLMProvider = 'cerebras';
 export const LLM_PROVIDER_NAMES: Record<LLMProvider, string> = {
   cerebras: 'cerebras-gpt-oss-120b',
   groq: 'groq-gpt-oss-120b',
-  anthropic: 'claude-haiku-4-5',
+  anthropic: 'claude-haiku-5-5',
   grok: 'xai-grok-4.3',
   openai: 'openai-gpt-5.6-luna',
-  gemini: 'gemini-2.5-flash',
+  gemini: 'gemini-3.8-flash',
   mistral: 'mistral-small-latest',
 };
 
@@ -78,22 +78,26 @@ const LLM_PROVIDER_RETRIES: Record<LLMProvider, number> = {
 };
 
 // Per-provider allowlist of valid X-LLM-Model ids, with the default first. The
-// resolved model is threaded through callWithRetry to the openai/gemini/mistral
-// clients, which put it in the request body (the other 4 providers ignore it).
+// resolved model is threaded through callWithRetry to the anthropic/openai/
+// gemini/mistral clients, which put it in the request body (the other 3
+// providers ignore it).
 // Only gemini allows more than one model today. MUST match the model ids in
 // shared-app-classification/cloud-pp-catalog.json.
 const LLM_PROVIDER_MODELS: Record<LLMProvider, { default: string; allowed: readonly string[] }> = {
   cerebras: { default: 'gpt-oss-120b', allowed: ['gpt-oss-120b'] },
   groq: { default: 'openai/gpt-oss-120b', allowed: ['openai/gpt-oss-120b'] },
-  anthropic: { default: 'claude-haiku-4-5', allowed: ['claude-haiku-4-5'] },
+  anthropic: { default: 'claude-haiku-5-5', allowed: ['claude-haiku-5-5'] },
   grok: { default: 'grok-4.3', allowed: ['grok-4.3'] },
   // gpt-5-mini / gpt-5-nano lose their only snapshots 2026-12-11. They are no
   // longer allowlisted, so an old client still sending either id resolves to the
   // default and is billed at the luna rate (the open-mistral-nemo precedent).
   openai: { default: 'gpt-5.6-luna', allowed: ['gpt-5.6-luna'] },
+  // Google limits gemini-2.5-* to past users, so a request with no (or an
+  // unknown) X-LLM-Model resolves to 3.8 Flash, the cloud-pp-catalog.json
+  // isDefault row. The 2.5 ids stay allowed for clients that ask for them.
   gemini: {
-    default: 'gemini-2.5-flash',
-    allowed: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3.8-flash'],
+    default: 'gemini-3.8-flash',
+    allowed: ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'],
   },
   mistral: { default: 'mistral-small-latest', allowed: ['mistral-small-latest'] },
 };
@@ -148,25 +152,34 @@ export function resolveLLMModel(provider: LLMProvider, request: Request): string
  * retry would only make the caller wait that long again before the fallback
  * provider gets its turn. An upstream-returned 504, any other non-2xx and a
  * network error are still retried.
+ *
+ * `retryRateLimit: false` also refuses a 429 (#1568). The caller sets it when a
+ * fallback provider is next: the vendor has just said no, and the fallback has
+ * its own rate limit. The fallback call itself keeps the default, because it
+ * has no further provider to try (Ray, #1568 decision 2).
  */
-export function isRetryableLLMError(error: Error): boolean {
-  return !(error instanceof LLMTimeoutError);
+export function isRetryableLLMError(error: Error, retryRateLimit = true): boolean {
+  if (error instanceof LLMTimeoutError) return false;
+  if (!retryRateLimit && error instanceof LLMRequestError && error.status === 429) return false;
+  return true;
 }
 
 /**
  * Retry LLM call with exponential backoff. `model` is the resolved (allowlisted)
- * model id — the openai/gemini/mistral clients send it as the request model; the
- * other providers ignore it.
+ * model id — the anthropic/openai/gemini/mistral clients send it as the request
+ * model; the other providers ignore it. See isRetryableLLMError for
+ * `retryRateLimit`.
  */
 export async function callWithRetry(
   provider: LLMProvider,
   payload: CorrectionRequestPayload,
   requestId: string,
-  model: string
+  model: string,
+  { retryRateLimit = true }: { retryRateLimit?: boolean } = {}
 ): Promise<Awaited<ReturnType<typeof requestCerebrasChat>>> {
   return retryWithBackoff(
     () => {
-      if (provider === 'anthropic') return requestAnthropicChat(payload, requestId);
+      if (provider === 'anthropic') return requestAnthropicChat(payload, requestId, undefined, model);
       if (provider === 'grok') return requestXaiGrokChat(payload, requestId);
       if (provider === 'openai') return requestOpenAIChat(payload, requestId, model);
       if (provider === 'gemini') return requestGeminiChat(payload, requestId, model);
@@ -179,7 +192,7 @@ export async function callWithRetry(
       maxRetries: LLM_PROVIDER_RETRIES[provider],
       initialDelayMs: 1000,
       backoffMultiplier: 2,
-      shouldRetry: isRetryableLLMError,
+      shouldRetry: (error) => isRetryableLLMError(error, retryRateLimit),
       onRetry: (attempt, error, delayMs) => {
         console.warn(`[llm] ${provider} failed - retrying`, {
           attempt,
@@ -192,10 +205,15 @@ export async function callWithRetry(
 }
 
 /**
- * Check if an error should trigger provider fallback (5xx).
+ * Check if an error should trigger provider fallback: an LLMRequestError with a
+ * 5xx or a 429 status (#1565). A 429 is the provider rate-limiting us, and the
+ * fallback vendor has its own, separate rate limit, so a different vendor does
+ * fix it. Every other 4xx is our own bad request and stays excluded: a
+ * different vendor would reject it too.
  */
 export function shouldFallback(error: unknown): boolean {
-  return error instanceof LLMRequestError && error.status >= 500 && error.status <= 599;
+  if (!(error instanceof LLMRequestError)) return false;
+  return error.status === 429 || (error.status >= 500 && error.status <= 599);
 }
 
 export { buildCorrectionRequest };

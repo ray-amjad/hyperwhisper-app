@@ -153,9 +153,9 @@ pub use mode::{
     missing_required_mode_keys, mode_key_classification, mode_name_comparison_key,
     mode_name_conflict, mode_name_taken_failure, validate_mode, ModeKeyClass, ModeOperation,
     ModeValidationInput, MODE_CUSTOM_VOCABULARY_MAX_TERMS, MODE_CUSTOM_VOCABULARY_TERM_MAX_CHARS,
-    MODE_LANGUAGE_MAX_CHARS, MODE_NAME_MAX_CHARS, MODE_POST_PROCESSING_MODE_MAX,
-    MODE_POST_PROCESSING_MODE_MIN, MODE_PRESET_MAX_CHARS, MODE_PROMPT_MAX_CHARS,
-    MODE_SORT_ORDER_MAX, MODE_SORT_ORDER_MIN, REQUIRED_MODE_KEYS,
+    MODE_GEMINI_PROMPT_MAX_CHARS, MODE_LANGUAGE_MAX_CHARS, MODE_NAME_MAX_CHARS,
+    MODE_POST_PROCESSING_MODE_MAX, MODE_POST_PROCESSING_MODE_MIN, MODE_PRESET_MAX_CHARS,
+    MODE_PROMPT_MAX_CHARS, MODE_SORT_ORDER_MAX, MODE_SORT_ORDER_MIN, REQUIRED_MODE_KEYS,
 };
 pub use origin::{check_origin, OriginDecision, OriginHeaders};
 pub use token::{

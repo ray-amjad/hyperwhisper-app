@@ -164,6 +164,23 @@ extension RecordingTranscriptionFlow {
         recordingMaxDurationTimer = nil
         let wavReadyStart = Date()
         guard let result = await recordingLifecycle.stopRecording(cancelled: cancelled) else {
+            // #1359: the recorder did not stop within 5 s, so there is no finalised
+            // file to transcribe. Show the error and end the session the way a
+            // failed start does. The WAV and its session row stay on disk for
+            // `CrashRecoveryManager`, so nothing here deletes them.
+            if recordingLifecycle.lastStopTimedOut {
+                AccessibilityHelper.shared.endRecordingSession()
+                await MainActor.run {
+                    appState?.recordingState = .idle
+                    appState?.showRecordingDialog = false
+                    appState?.isStreamingShortcutTriggered = false
+                    KeyboardShortcuts.disable(.cancelRecording)
+                    appState?.showError(AudioError.recorderStopTimedOut.localizedDescription)
+                }
+                clearActiveSessionMode()
+                powerActivityManager.endPowerActivity()
+                return
+            }
             await MainActor.run {
                 appState?.recordingState = .idle
             }
@@ -179,10 +196,11 @@ extension RecordingTranscriptionFlow {
         // Now we match the cleanup done by cancelRecordingWithError() and the streaming
         // cancel path: delete the file, delete the session, reset all UI state.
         if cancelled {
+            // stopRecording(cancelled:) already deleted this recording's session row
+            // (#1359: the current session may belong to a recording started since).
             if let url = result.url {
                 try? FileManager.default.removeItem(at: url)
             }
-            await recordingLifecycle.sessionManager.deleteCurrentSession()
             await MainActor.run {
                 appState?.recordingState = .idle
                 appState?.showRecordingDialog = false
@@ -305,9 +323,7 @@ extension RecordingTranscriptionFlow {
                 // carrying — does the file exist, how big is it, and did the user
                 // move the folder off the default or off the home volume.
                 let recordingsFolder = settingsManager?.recordingsFolder ?? ""
-                let defaultRecordingsFolder = FileManager.default
-                    .urls(for: .documentDirectory, in: .userDomainMask).first?
-                    .appendingPathComponent("hyperwhisper/recordings").path
+                let defaultRecordingsFolder = StorageSettingsManager.defaultRecordingsFolderURL?.path
                 let unreadableFileSize = (try? FileManager.default.attributesOfItem(atPath: audioURL.path)[.size] as? Int64) ?? -1
                 SentryService.addBreadcrumb(
                     message: "Audio file unreadable after wait",
@@ -324,21 +340,32 @@ extension RecordingTranscriptionFlow {
                     ]
                 )
             }
+            // Persist failed attempt to history so user can retry later — one write.
+            let failedRowWrite = Task {
+                await PersistenceController.shared.createFailedTranscriptInBackground(
+                    duration: recordingDuration,
+                    mode: sessionModeName,
+                    audioFilePath: audioURL.path,
+                    failedReason: "Audio file could not be read",
+                    errorText: "Error: Audio file could not be read"
+                )
+            }
             await MainActor.run {
                 appState?.recordingState = .idle
                 appState?.lastTranscription = "Error: \("audio.error.readFile".localized)"
                 appState?.pendingRetryAudioPath = audioURL.path
+                // #1636: the pill's Retry completes THIS row. The write itself
+                // is handed over, in the same turn as the path that shows the
+                // Retry button, so a Retry that ends before the row lands
+                // awaits it instead of saving a second row.
+                appState?.pendingRetryFailedRowWrite = failedRowWrite
+                // #1643: the Quick Capture context ends with this session, so
+                // the Retry keeps its routing here: Notes, not a paste.
+                appState?.pendingRetryIsQuickCapture = quickCaptureContext != nil
                 appState?.showRecordingDialog = true
                 KeyboardShortcuts.disable(.cancelRecording)
             }
-            // Persist failed attempt to history so user can retry later — one write.
-            _ = await PersistenceController.shared.createFailedTranscriptInBackground(
-                duration: recordingDuration,
-                mode: sessionModeName,
-                audioFilePath: audioURL.path,
-                failedReason: "Audio file could not be read",
-                errorText: "Error: Audio file could not be read"
-            )
+            _ = await failedRowWrite.value
 
             powerActivityManager.endPowerActivity()
             return
@@ -507,137 +534,25 @@ extension RecordingTranscriptionFlow {
                 // Quick Capture always routes to Notes, regardless of the
                 // `pasteResultText` setting. The user opted in by binding a
                 // dedicated shortcut and toggling the feature on.
-                let isQuickCaptureRouting = (quickCaptureContext != nil)
-
-                // ONBOARDING: the transcript is surfaced inline in the onboarding
-                // window only and must NEVER paste into another app, regardless of
-                // the user's global `pasteResultText` setting. The delivery primitives
-                // themselves refuse to emit while the gate is suppressed, but we ALSO
-                // skip at the caller here: if we let `handleAutoPaste` reach the guarded
-                // `sendPasteCommand`, it returns false and the failure branch would pop
-                // the recording dialog *behind* the onboarding sheet. So the batch
-                // caller must not enter delivery at all. `TextDeliveryGate.isSuppressed`
-                // tracks the onboarding sheet's lifetime; the explicit `.onboarding`
-                // trigger term is belt-and-suspenders. `lastTranscription` was already
-                // set above (line ~467), which the onboarding view observes to render
-                // "You said …".
-                let suppressForOnboarding = RecordingTextDeliveryPolicy.shouldSuppress(
+                //
+                // Delivery (onboarding suppression, paste or Notes, clipboard
+                // fallback, the "Pasted!" state) is shared with the pending-file
+                // Retry (#1636): see `deliverBatchTranscript`.
+                deliverBatchTranscript(
+                    transcriptionResult,
+                    transcriptionMode: transcriptionMode,
                     sessionStartedSuppressed: sessionStartedWithTextDeliverySuppressed,
-                    currentlySuppressed: TextDeliveryGate.isSuppressed,
-                    trigger: RecordingTriggerSource(rawValue: trigger) ?? .unknown
+                    trigger: RecordingTriggerSource(rawValue: trigger) ?? .unknown,
+                    isQuickCaptureRouting: quickCaptureContext != nil,
+                    pasteStart: pasteStart
                 )
-                let shouldDeliverText = !suppressForOnboarding
-                    && (isQuickCaptureRouting
-                        || (settingsManager?.pasteResultText ?? false))
-
-                if suppressForOnboarding {
-                    // The onboarding view owns this result. Do not misclassify
-                    // intentional suppression as a paste failure or leave the
-                    // floating recording dialog open behind the onboarding sheet.
-                    appState?.transcriptionPasteFailed = false
-                    appState?.showRecordingDialog = false
-                    appState?.isStreamingShortcutTriggered = false
-                } else if shouldDeliverText, let settings = settingsManager {
-                    var processedText = transcriptionResult.text
-
-                    // REMOVE TRAILING PERIOD:
-                    // When enabled, strip the final period from transcriptions (but preserve ellipsis).
-                    // Applied after post-processing but before smart spacing and auto-paste.
-                    if transcriptionMode?.removeTrailingPeriod == true {
-                        processedText = TranscriptionTextProcessing.removeTrailingPeriod(processedText)
-                    }
-
-                    // Snapshot for the Quick Capture path: Notes wants a fresh-note
-                    // transcript before any paste-target adjustments below mutate it.
-                    let notesText = processedText
-
-                    // AUTOCAPITALIZE INSERT:
-                    // Lowercase the first letter when the caret is mid-sentence
-                    // in the focused text field. Sentence-start / unknown context
-                    // pass through unchanged. Any AX failure returns .unknown so
-                    // the text is left alone.
-                    if settings.autocapitalizeInsert {
-                        let context = AccessibilityHelper.shared.cursorContextOfFocusedElement()
-                        processedText = AutocapitalizeInsert.apply(processedText, context: context)
-                    }
-
-                    // SMART SPACING FOR CONSECUTIVE TRANSCRIPTIONS:
-                    // Adds trailing space based on language to enable seamless consecutive dictation.
-                    // - Space-delimited languages (English, Danish, German, etc.): adds trailing space
-                    // - CJK languages (Japanese, Chinese, Korean): no trailing space (words aren't separated by spaces)
-                    // - Auto-detect mode: analyzes text content for CJK characters
-                    //
-                    // This solves the issue where consecutive recordings would paste without spacing:
-                    // "Hello world.How are you?" → "Hello world. How are you?"
-                    let modeLanguage = transcriptionMode?.language ?? "en"
-                    let spacedText = SmartSpacing.appendTrailingSpace(processedText, modeLanguage: modeLanguage)
-
-                    // Drives the success toast: "Saved to Notes!" vs "Pasted!".
-                    // Set synchronously before the delivery await so RecordingDialog
-                    // sees the correct value when `lastTranscription` changes — the
-                    // Notes await can block 0.5–2s on cold launch, long enough for
-                    // the dialog to render "Pasted!" first if we set this later.
-                    appState?.lastDeliveryWasQuickCapture = isQuickCaptureRouting
-
-                    // Quick Capture sessions go to Notes; everything else uses the
-                    // accessibility-driven paste into the previously focused app.
-                    Task { @MainActor in
-                        let delivered: Bool
-                        if isQuickCaptureRouting {
-                            // Notes gets the un-paste-adjusted transcript:
-                            // AutocapitalizeInsert reads the *previously focused*
-                            // app's caret context (Slack/Safari/etc) and would
-                            // demote a brand-new note's first letter; SmartSpacing's
-                            // trailing space is for seamless paste, not a fresh note.
-                            delivered = await NotesDestination.send(text: notesText)
-                        } else {
-                            delivered = await autoPasteHandler.handleAutoPaste(spacedText)
-                        }
-
-                        // Paste runs concurrently with the Core Data write, so its
-                        // latency is logged here rather than in the flow-completion line.
-                        let pasteElapsedMs = Int(Date().timeIntervalSince(pasteStart) * 1000)
-                        if delivered {
-                            appState?.transcriptionPasteFailed = false
-                            appState?.showRecordingDialog = false
-                            appState?.isStreamingShortcutTriggered = false
-                            if isQuickCaptureRouting {
-                                AppLogger.audio.info("✅ Quick Capture: saved to Notes — closing dialog · pasteMs=\(pasteElapsedMs)")
-                            } else {
-                                AppLogger.audio.info("✅ Auto-paste succeeded - closing dialog · pasteMs=\(pasteElapsedMs)")
-                            }
-                        } else {
-                            // Paste path: text is on the clipboard.
-                            // Quick Capture path: NotesDestination has surfaced the banner.
-                            appState?.transcriptionPasteFailed = true
-                            appState?.showRecordingDialog = true
-                            AppLogger.audio.info("📋 Text delivery failed - keeping dialog open · pasteMs=\(pasteElapsedMs)")
-                        }
-                    }
-                } else {
-                    // AUTO-PASTE DISABLED: Keep dialog open
-                    AppLogger.audio.info("📋 Auto-paste disabled - transcription in dialog only")
-                    appState?.transcriptionPasteFailed = true
-                    appState?.showRecordingDialog = true
-                }
-
-                // PRIVACY: Don't log actual transcription text - users export diagnostic logs
-                let wordCount = transcriptionResult.text.split(separator: " ").count
-                AppLogger.audio.info("✅ Transcription complete: \(transcriptionResult.text.count) chars, \(wordCount) words")
             }
 
             // Persist the completed transcript on the serial background writer.
             // Runs AFTER paste was dispatched, so paste latency is independent of it.
             if let processingTranscriptID {
                 let coreDataStart = Date()
-                await PersistenceController.shared.updateTranscriptWithTranscriptionInBackground(
-                    transcriptID: processingTranscriptID,
-                    transcribedText: transcriptionResult.rawText,
-                    postProcessedText: transcriptionResult.wasPostProcessed ? transcriptionResult.text : nil,
-                    transcriptionProvider: transcriptionResult.provider,
-                    postProcessingProvider: transcriptionResult.postProcessingProvider,
-                    wordTimestampsJSON: transcriptionResult.timestamps?.wordTimestampsJSON()
-                )
+                await Self.saveBatchTranscript(transcriptionResult, to: processingTranscriptID)
                 coreDataUpdateMs = Int(Date().timeIntervalSince(coreDataStart) * 1000)
                 AppLogger.audio.info("✅ Updated transcript with transcription")
             }

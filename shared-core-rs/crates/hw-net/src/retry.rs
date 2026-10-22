@@ -109,7 +109,7 @@ use crate::contract::{RetryDecision, TranscriptionError};
 // would make this path classify a `{"message":"...billing..."}` 429 as terminal
 // QuotaExceeded while classify_http + macOS treat it as retryable RateLimited).
 // The agreement tests below stay as regression guards.
-use crate::providers::common::{error_message, is_quota_error};
+use crate::providers::common::{error_message, is_out_of_credits_body, is_quota_error};
 
 /// Total transcription attempts before giving up (unified across platforms).
 /// Attempts 1..=7 may retry; the 8th (and beyond) is terminal.
@@ -158,7 +158,8 @@ pub const MAX_RETRY_AFTER_SECS: u64 = 10;
 ///
 /// PARITY (matches `providers::common::classify_http` and macOS
 /// `CloudWhisperProvider.swift`):
-/// - 401 / 403 → `Unauthorized`
+/// - 401 / 403 → `QuotaExceeded` for an out-of-credits body
+///   (`providers::common::is_out_of_credits_body`), else `Unauthorized`
 /// - 402 → `QuotaExceeded`
 /// - 413 → `FileTooLarge`
 /// - 429 → `QuotaExceeded` when the body signals quota exhaustion
@@ -178,6 +179,7 @@ pub fn classify_error(status: u16, body: &str) -> TranscriptionError {
     let json: Option<serde_json::Value> = serde_json::from_str(body).ok();
 
     match status {
+        401 | 403 if is_out_of_credits_body(body) => TranscriptionError::QuotaExceeded,
         401 | 403 => TranscriptionError::Unauthorized,
         402 => TranscriptionError::QuotaExceeded,
         408 => TranscriptionError::ProviderUnavailable { status },

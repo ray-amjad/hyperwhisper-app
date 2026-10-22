@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - macOS ve Windows için Yapay Zeka Sesli Transkripsiyon",
-    "description": "Yapay zeka destekli sesli transkripsiyonla 5x daha hızlı yazın. HyperWhisper, sesinizi macOS ve Windows'ta inanılmaz doğrulukla metne dönüştürür. Doğal konuşun ve kelimelerinizin anında ekrana geldiğini görün."
+    "title": "HyperWhisper - macOS, Windows ve Linux için Yapay Zeka Sesli Transkripsiyon",
+    "description": "Yapay zeka destekli sesli transkripsiyonla 5x daha hızlı yazın. HyperWhisper, sesinizi macOS, Windows ve Linux'ta inanılmaz doğrulukla metne dönüştürür. Doğal konuşun ve kelimelerinizin anında ekrana geldiğini görün."
   },
   "navbar": {
     "features": "Özellikler",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "İnternetsiz kullanabilir miyim?",
-        "answer": "Kesinlikle. HyperWhisper, Mac'inizde veya Windows bilgisayarınızda yerel yapay zeka modelleriyle tamamen çevrimdışı kullanılabilir - internet gerekmez. En yüksek doğruluk ve hız isteyen kullanıcılar için farklı bulut sağlayıcıları üzerinden isteğe bağlı bulut işleme de sunuyoruz."
+        "answer": "Kesinlikle. HyperWhisper, Mac'inizde, Windows veya Linux bilgisayarınızda yerel yapay zeka modelleriyle tamamen çevrimdışı kullanılabilir - internet gerekmez. En yüksek doğruluk ve hız isteyen kullanıcılar için farklı bulut sağlayıcıları üzerinden isteğe bağlı bulut işleme de sunuyoruz."
       },
       "apiKey": {
         "question": "API erişimi için ödeme yapmam gerekiyor mu?",
@@ -175,16 +175,16 @@
         "answer": "Çevrimdışı transkripsiyon için Whisper modelinin birden fazla boyutunu sunuyoruz (OpenAI tarafından geliştirilmiştir, 99+ dili destekler). Ayrıca NVidia'nın Parakeet modellerini de sunuyoruz (25+ dili destekler).\n      \n      Çevrimdışı son işleme için Gemma 3 modelinin birden fazla boyutunu sunuyoruz (Google tarafından geliştirilmiştir)."
       },
       "compatibility": {
-        "question": "Tüm Mac ve Windows uygulamalarında çalışıyor mu?",
+        "question": "Tüm uygulamalarımda çalışıyor mu?",
         "answer": "Evet, yazabildiğiniz her yerde çalışır. E-posta yazarken, belge oluştururken, kod yazarken veya sohbet ederken. Kısayola basın, konuşun ve kelimelerinizin anında göründüğünü izleyin."
       },
       "privacy": {
         "question": "Gizliliğim nasıl korunuyor?",
-        "answer": "Yerel mod kullanırken hiçbir veri Mac'inizden veya Windows bilgisayarınızdan çıkmaz.\n\nBulut transkripsiyonu kullanırken verileriniz seçtiğiniz bulut sağlayıcısına gönderilir (ör. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox veya Google Gemini).\n\nBunu [Proxyman](https://proxyman.io) gibi bir ağ denetleyicisi, [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) gibi bir ağ monitoru ile veya [GitHub'daki kaynak kodu](https://github.com/ray-amjad/hyperwhisper-app) okuyarak kendiniz doğrulayabilirsiniz."
+        "answer": "Yerel mod kullanırken hiçbir veri Mac'inizden, Windows veya Linux bilgisayarınızdan çıkmaz.\n\nBulut transkripsiyonu kullanırken verileriniz seçtiğiniz bulut sağlayıcısına gönderilir (ör. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox veya Google Gemini).\n\nBunu [Proxyman](https://proxyman.io) gibi bir ağ denetleyicisi, [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) gibi bir ağ monitoru ile veya [GitHub'daki kaynak kodu](https://github.com/ray-amjad/hyperwhisper-app) okuyarak kendiniz doğrulayabilirsiniz."
       },
       "cloud": {
         "question": "HyperWhisper Cloud nedir?",
-        "answer": "HyperWhisper Cloud, hızlıca başlamak isteyen daha az teknik kullanıcılara yönelik yerleşik bir bulut transkripsiyon hizmetidir.\n\nKullandıkça öde mantığıyla çalışan kredilerdir. En az $5 ile yükleme yapabilir ($1 başına 1.000 kredi) ve bunları yalnızca transkripsiyon yaptıkça harcarsınız. İlk kredi satın alımınız Account Key'inizi otomatik olarak oluşturur, dolayısıyla satın alınacak başka bir şey yoktur.\n    \nDört doğruluk düzeyi sunuyoruz: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) ve Highest (Grok STT, yeni kurulumlar için varsayılan ve SpaceXAI Grok STT tarafından desteklenir). Sonradan işleme otomatiktir ve varsayılan olarak akıl yürütmesiz Grok 4.1 Fast kullanır. Kaç kredi tükettiğiniz dışında hiçbir şey saklamıyoruz ve kullandığımız her yukarı akış sağlayıcısında sizi model eğitiminden çıkardık. Ayrıntılar için [Veri Gizliliği kılavuzumuza](https://hyperwhisper.com/docs/data-privacy) bakın.\n\nKrediler, sağlayıcıların kendi işleme maliyetine göre harcanır — transkripsiyonda hiçbir kâr payı yoktur. Ödeme adımında, ayrı bir kalem olarak gösterilen sabit %6 ödeme işleme ücreti eklenir. Kullanılmayan krediler 12 ay sonra sona erer (aşağıya bakın).\n\nİçiniz rahat olsun diye, uygulamanın tamamı Apache-2.0 altında açık kaynaktır — Cloud arka ucu dahil. Uygulamanız ile aracılık ettiğimiz sağlayıcılar arasında çalışan her kod satırını [GitHub'da](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud) okuyabilirsiniz."
+        "answer": "HyperWhisper Cloud, hızlıca başlamak isteyen daha az teknik kullanıcılara yönelik yerleşik bir bulut transkripsiyon hizmetidir.\n\nKullandıkça öde mantığıyla çalışan kredilerdir. En az $5 ile yükleme yapabilir ($1 başına 1.000 kredi) ve bunları yalnızca transkripsiyon yaptıkça harcarsınız. İlk kredi satın alımınız Account Key'inizi otomatik olarak oluşturur, dolayısıyla satın alınacak başka bir şey yoktur.\n    \nHyperWhisper Cloud, Groq Whisper'dan ElevenLabs Scribe v2'ye kadar 12 transkripsiyon sağlayıcısı sunar ([tam listeye ve ücretlere](https://hyperwhisper.com/docs/cloud-credits) bakın). Yeni kurulumlar ElevenLabs Scribe v2 ile başlar. Sonradan işleme otomatiktir ve yeni kurulumlar Claude Haiku 5.5 ile başlar. Kaç kredi tükettiğiniz dışında hiçbir şey saklamıyoruz ve kullandığımız her yukarı akış sağlayıcısında sizi model eğitiminden çıkardık. Ayrıntılar için [Veri Gizliliği kılavuzumuza](https://hyperwhisper.com/docs/data-privacy) bakın.\n\nKrediler, sağlayıcıların kendi işleme maliyetine göre harcanır — transkripsiyonda hiçbir kâr payı yoktur. Ödeme adımında, ayrı bir kalem olarak gösterilen sabit %6 ödeme işleme ücreti eklenir. Kullanılmayan krediler 12 ay sonra sona erer (aşağıya bakın).\n\nİçiniz rahat olsun diye, uygulamanın tamamı Apache-2.0 altında açık kaynaktır — Cloud arka ucu dahil. Uygulamanız ile aracılık ettiğimiz sağlayıcılar arasında çalışan her kod satırını [GitHub'da](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud) okuyabilirsiniz."
       },
       "dataTraining": {
         "question": "Ses verilerim yapay zekâ modellerini eğitmek için kullanılacak mı?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Sistem gereksinimleri nelerdir?",
-        "answer": "Mac için: macOS 14 veya üzeri, Apple Silicon ve Intel desteklenir. Windows için: Windows 10/11, x64 veya ARM64. En iyi performans için 8 GB RAM önerilir."
+        "answer": "Mac için: macOS 14 veya üzeri, Apple Silicon ve Intel desteklenir. Windows için: Windows 10/11, x64 veya ARM64. Linux v1 için: amd64 üzerinde Ubuntu 22.04 veya üzeri ya da Debian 12 veya üzeri. En iyi performans için 8 GB RAM önerilir."
       },
       "madeBy": {
         "question": "Bunu kim yaptı?",
@@ -272,7 +272,31 @@
     "homebrewTitle": "Homebrew ile kur",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Kopyala",
-    "copied": "Kopyalandı!"
+    "copied": "Kopyalandı!",
+    "linuxSubtitle": "64 bit Intel/AMD sistemler için Debian paketi",
+    "downloadLinux": "Linux için indir",
+    "downloadLinuxVersion": "Linux için v{version} indir",
+    "linuxReleaseNotes": "Sağlama toplamları ve sürüm notları",
+    "linuxInstallTitle": "Debian paketini kur",
+    "linuxTargets": "Linux v1, amd64 üzerinde Ubuntu 22.04+ ve Debian 12+ sürümlerini hedefler.",
+    "linuxReplaceVersion": "VERSION ifadesini indirdiğiniz sürümle değiştirin.",
+    "linuxInstallCommandLabel": "Debian kurulum komutu",
+    "linuxInputGroupNote": "input grubuna katıldıktan sonra oturumu kapatıp yeniden açın. Üyelik isteğe bağlıdır, ancak genel kısayollar ve otomatik yapıştırma için gereklidir.",
+    "aptTitle": "Kendi APT deponuzu barındırın",
+    "aptBody": "Linux sürümleri ayrıca statik bir APT deposu arşivi içerir. HyperWhisper şu anda herkese açık bir APT uç noktası işletmiyor; imzalı ve kendi barındırdığınız kurulum, masaüstü yardımcı bileşenleri, gizlilik ayrıntıları ve kaldırma için Linux kurulum kılavuzuna bakın.",
+    "linuxGuideCta": "Linux kurulum kılavuzunu okuyun"
+  },
+  "olderVersions": {
+    "title": "Eski Sürümler",
+    "subtitle": "HyperWhisper'ın tüm sürümlerine göz atın ve indirin",
+    "errorLoading": "Sürümler yüklenirken hata oluştu: {error}",
+    "unknownError": "Bir hata oluştu",
+    "loading": "Sürümler yükleniyor...",
+    "latest": "En yeni",
+    "build": "Derleme {number}",
+    "downloadDmg": "DMG indir",
+    "downloadExe": "EXE indir",
+    "unknownSize": "Bilinmiyor"
   },
   "purchaseSuccess": {
     "title": "Her şey hazır!",
@@ -289,7 +313,7 @@
     "loading": "Yükleniyor..."
   },
   "footer": {
-    "tagline": "macOS ve Windows için yapay zeka destekli sesli transkripsiyonla 5x daha hızlı yazın.",
+    "tagline": "macOS, Windows ve Linux için yapay zeka destekli sesli transkripsiyonla 5x daha hızlı yazın.",
     "product": "Ürün",
     "resources": "Kaynaklar",
     "company": "Şirket",
@@ -389,6 +413,39 @@
   "openSource": {
     "heading": "Açık kaynak. Saklayacak hiçbir şey yok.",
     "body": "HyperWhisper, Apache-2.0 altında tamamen açık kaynaktır — hem masaüstü uygulamaları hem de Cloud arka ucu. Mikrofonunuzu dinleyen bir uygulama, yalnızca güveneceğiniz değil, doğrulayabileceğiniz bir şey olmalıdır: her satırı okuyun, sesinizin tam olarak nereye gittiğini denetleyin ve asla kilitlenmeyeceğinizi bilin — kod sizindir, sonsuza dek fork edip kendiniz barındırabilirsiniz. Bağımsız geliştirici Ray Amjad tarafından açıkta inşa edildi.",
-    "cta": "GitHub'da görüntüle"
+    "cta": "GitHub'da görüntüle",
+    "metaTitle": "Açık Kaynak | HyperWhisper",
+    "metaDescription": "HyperWhisper, Apache-2.0 altında tamamen açık kaynaktır — hem masaüstü uygulamaları hem de Cloud arka ucu. Kodu okuyun, sesinizin nereye gittiğini denetleyin, fork edin ve sonsuza dek kendiniz barındırın.",
+    "eyebrow": "Açık kaynak",
+    "lead": "HyperWhisper artık Apache-2.0 altında tamamen açık kaynak — hem masaüstü uygulamaları hem de Cloud arka ucu.",
+    "intro": "Mikrofonunuzu dinleyen bir uygulama, yalnızca güveneceğiniz değil, doğrulayabileceğiniz bir şey olmalıdır. Bu yüzden her şeyi açtık. HyperWhisper'ın her satırını — macOS, Windows ve Linux uygulamalarını ve Cloud transkripsiyon arka ucunu — okuyabilir, sesinizin tam olarak nereye gittiğini görebilir ve asla kilitlenmeyeceğinizi bilebilirsiniz. Projenin tamamı <license>Apache-2.0 lisansı</license> altında <github>GitHub'da</github> yer alıyor.",
+    "whyHeading": "Neden önemli",
+    "whyVerify": "<strong>Güvenmekle yetinmeyin, doğrulayın.</strong> Her satırı okuyun ve sesinizin tam olarak nereye gittiğini denetleyin. Mikrofon erişimi olan bir uygulama, körü körüne güvenilen değil, incelenebilen bir şey olmalıdır.",
+    "whyNoLockIn": "<strong>Kilitlenme yok.</strong> Kod Apache-2.0 lisanslıdır — saklamanız, uyarlamanız ve kendi koşullarınızda çalıştırmanız için sizindir. İş akışınız asla rehin tutulmaz.",
+    "whyFork": "<strong>Fork edin ve kendiniz barındırın.</strong> Depoyu klonlayın, kendiniz derleyin ya da kendi Cloud arka ucunuzu çalıştırın. İhtiyacınız olan her şey herkese açık.",
+    "whyOpen": "<strong>Açıkta inşa edildi.</strong> HyperWhisper, bağımsız geliştirici Ray Amjad tarafından herkesin gözü önünde geliştiriliyor. Issue'lar, tartışmalar ve sürümlerin hepsi açıkta gerçekleşir.",
+    "licenseHeading": "Zaten bir lisans satın aldınız mı?",
+    "licenseIntro": "HyperWhisper artık açık kaynak ve ücretli transkripsiyon HyperWhisper Cloud kredileriyle çalışıyor. Geçişten önce bir lisans satın aldıysanız, sizinle şöyle ilgileniyoruz — <mail>{email}</mail> adresine e-posta göndermeniz yeterli, gerisini elle halledeceğiz.",
+    "licenseRecent": "<strong>Son 30 gün içinde satın aldıysanız:</strong> iade süresi içindesiniz. Satın alma bedelinizin tamamını iade edeceğiz — soru sorulmadan. <refund>Bize bir not göndermeniz</refund> yeterli.",
+    "licenseOlder": "<strong>30 günden daha uzun süre önce satın aldıysanız:</strong> ödediğiniz tutarı HyperWhisper Cloud kredisine dönüştüreceğiz — satın alma bedelinin tamamı, hesabınıza zaten eklenmiş olan $5 kredi düşülerek. <credits>Bize e-posta gönderin</credits>, kalan bakiyeyi hesabınıza tanımlayalım.",
+    "contributeHeading": "Katkıda bulunmak ister misiniz?",
+    "contributeBody": "Hata bildirimleri, özellik fikirleri ve pull request'ler memnuniyetle karşılanır. <github>GitHub'da</github> bir issue açın veya bir tartışma başlatın."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper artık tamamen açık kaynak",
+    "shortText": "Artık açık kaynak",
+    "learnMore": "Daha fazla bilgi",
+    "dismiss": "Duyuruyu kapat"
+  },
+  "notFound": {
+    "title": "Sayfa bulunamadı",
+    "heading": "Bu sayfa mevcut değil",
+    "description": "Bağlantı bozuk olabilir veya sayfa taşınmış olabilir.",
+    "home": "Ana sayfaya git",
+    "download": "HyperWhisper'ı indir"
+  },
+  "signIn": {
+    "magicLinkExpired": "Bu giriş bağlantısının süresi dolmuş veya bağlantı zaten kullanılmış. Yeni bir bağlantı almak için e-posta adresinizi girin.",
+    "magicLinkFailed": "Bu bağlantıyla giriş yapmanızı sağlayamadık. Yeni bir bağlantı almak için e-posta adresinizi girin."
   }
 }

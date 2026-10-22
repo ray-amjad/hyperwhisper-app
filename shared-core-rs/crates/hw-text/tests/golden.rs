@@ -149,6 +149,32 @@ fn trailing_space_empty_language_means_auto() {
     assert_eq!(append_trailing_space("Hello world.", " en "), "Hello world. ");
 }
 
+/// Thai under "auto" (or no language) must join like Thai under "th": no space
+/// (issue #1163). `contains_cjk` excludes Thai, so the auto branch reads the text
+/// with `is_continuous_script`.
+#[test]
+fn trailing_space_auto_thai_matches_explicit_th() {
+    assert_eq!(append_trailing_space("สวัสดีครับ", "auto"), "สวัสดีครับ");
+    for language in ["auto", "AUTO", "", "  "] {
+        assert_eq!(
+            append_trailing_space("สวัสดีครับ", language),
+            append_trailing_space("สวัสดีครับ", "th"),
+            "language {language:?}"
+        );
+    }
+    // Every no-space script agrees with its own code under auto.
+    for (text, code) in [
+        ("今日はいい天気ですね。", "ja"),
+        ("世界", "zh"),
+        ("안녕하세요", "ko"),
+        ("ผมชอบ", "th"),
+    ] {
+        assert_eq!(append_trailing_space(text, "auto"), append_trailing_space(text, code), "{code}");
+    }
+    // Space-delimited text under auto still gets its space.
+    assert_eq!(append_trailing_space("Привет мир", "auto"), "Привет мир ");
+}
+
 // ---- autocapitalize (unified on macOS: pronoun + acronym guards) ----------
 
 #[test]

@@ -315,8 +315,8 @@ test("a reported failure reaches posthog with no licence key on it", async () =>
     operation: "buy_credits",
     status: 400,
   });
-  // This app's PostHog init has no `before_send` and no redaction (#739), so
-  // anything that reaches here ships verbatim.
+  // The PostHog init's `before_send` (#1897) is only a backstop for the URL,
+  // so the key must not reach the error tracker at all (#739).
   assert.equal(
     JSON.stringify(captured[0]).includes("HW-TEST"),
     false,

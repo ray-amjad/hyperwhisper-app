@@ -64,7 +64,7 @@ class TranscriptionPipeline: ObservableObject {
             // A dictation just ended, or failed. Model preparation requested
             // while one was in flight was deferred rather than run — see
             // `ModePreparationGate` — because `prepareModel` cancels
-            // `currentTask`, which spans post-processing, and
+            // the running tasks, which span post-processing, and
             // `prepareLocalRuntime` can SIGTERM llama-server out from under a
             // local post-processing request. Tell AppState to run what it held
             // back; deferring without this call would be #318 in a new place
@@ -118,9 +118,6 @@ class TranscriptionPipeline: ObservableObject {
     /// Handles custom vocabulary replacements.
     let vocabularyProcessor = VocabularyProcessor()
 
-    /// Manages transcription result caching.
-    let cache = TranscriptionResultCache()
-
     /// Handles retry logic for failed transcriptions.
     var retryHandler: TranscriptionRetryController!
 
@@ -135,8 +132,18 @@ class TranscriptionPipeline: ObservableObject {
     /// Tracks which settings manager the AI post-processor is bound to.
     weak var aiPostProcessorSettingsReference: SettingsManager?
 
-    /// Current transcription task (for cancellation).
-    var currentTask: Task<TranscriptionResult, Error>?
+    /// The running transcription task of each kind (for cancellation and
+    /// supersede). A newer request replaces only its own kind's entry (#1425).
+    var runningTasks: [TranscriptionJobKind: Task<TranscriptionResult, Error>] = [:]
+
+    /// Each kind's own state. `state` publishes the merge of the two.
+    var jobStates: [TranscriptionJobKind: TranscriptionState] = [:]
+
+    /// Asks before a second file job replaces the running one (#1425).
+    let fileJobs = FileJobGate()
+
+    /// Keeps a dictation and a file job off an engine that runs one pass at a time.
+    let engineAccess = TranscriptionEngineAccess()
 
     /// Metadata from the provider attempt that most recently threw no-speech.
     var lastFailedAttemptDiagnostics: TranscriptionAttemptDiagnostics?
@@ -318,8 +325,12 @@ class TranscriptionPipeline: ObservableObject {
         retryHandler = TranscriptionRetryController(transcriptionPipeline: self)
 
         // Sync model coordinator state back to the manager.
+        // It reports a model preparation's `.idle`/`.error`, which must not
+        // hide a dictation or file job still running (#1425).
         modelCoordinator.onStateChange = { [weak self] newState in
-            self?.state = newState
+            guard let self else { return }
+            guard !self.jobStates.values.contains(where: { $0.isActiveRun }) else { return }
+            self.state = newState
         }
 
         // Defer any @Published mutations to avoid publishing within view updates.
@@ -386,6 +397,8 @@ class TranscriptionPipeline: ObservableObject {
             // matching cached AsrManager so the next transcription re-reads
             // from disk instead of serving the stale in-memory weights.
             let provider = parakeetProvider
+            // Weak back-reference so a failed load marks the version broken (#1632).
+            provider?.modelManager = modelManager
             modelManager.onVersionInvalidated = { [weak provider] version in
                 await provider?.invalidateRuntime(for: version)
             }

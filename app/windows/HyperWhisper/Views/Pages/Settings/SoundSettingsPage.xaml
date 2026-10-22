@@ -2,6 +2,7 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:loc="clr-namespace:HyperWhisper.Localization"
+      xmlns:controls="clr-namespace:HyperWhisper.Views.Controls"
       Background="Transparent">
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="{StaticResource PagePadding}">
@@ -38,7 +39,10 @@
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="130"/>
+                            <!-- 200 like the Shortcuts page's ComboBoxes: the longest label (bg
+                                 "Приглушаване на звука", 141 px in Segoe UI 13) plus the 42 px of
+                                 text margin and chevron the ComboBox template leaves. -->
+                            <ColumnDefinition Width="200"/>
                         </Grid.ColumnDefinitions>
 
                         <StackPanel>
@@ -54,6 +58,7 @@
                                   SelectionChanged="MediaControlModeComboBox_SelectionChanged">
                             <ComboBoxItem Tag="off" Content="{loc:Loc settings.sound.mediaControl.off}"/>
                             <ComboBoxItem Tag="muteAudio" Content="{loc:Loc settings.sound.mediaControl.muteAudio}"/>
+                            <ComboBoxItem Tag="muffleAudio" Content="{loc:Loc settings.sound.mediaControl.muffleAudio}"/>
                         </ComboBox>
                     </Grid>
 
@@ -63,6 +68,96 @@
             <!-- Microphone Card -->
             <Border Style="{StaticResource CardStyle}" Margin="0,0,0,20">
                 <StackPanel>
+                    <!-- Microphone picker. DataContext is a MicrophonePickerViewModel,
+                         set by the code-behind; the rows come from MainViewModel's
+                         one saved choice, shared with the tray and onboarding. -->
+                    <StackPanel x:Name="MicrophonePickerRow" Margin="0,0,0,12">
+                        <!-- The subtitle has its own row across the whole card, not the
+                             column left of the ComboBox: squeezed beside the picker it was
+                             one line short of its text in zh-Hans (214px for 217px), and
+                             any translation can be longer. Full width, it wraps freely. -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="260"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Text="{loc:Loc menu.microphone}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       Margin="0,0,12,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
+
+                            <TextBlock Grid.Row="1" Grid.ColumnSpan="2"
+                                       Text="{loc:Loc settings.sound.microphone.subtitle}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,4,0,0" TextWrapping="Wrap"/>
+
+                            <ComboBox x:Name="MicrophoneComboBox" Grid.Column="1"
+                                      VerticalAlignment="Center"
+                                      AutomationProperties.Name="{loc:Loc menu.microphone}"
+                                      ItemsSource="{Binding Options}"
+                                      SelectedItem="{Binding SelectedOption, Mode=TwoWay}"
+                                      HorizontalContentAlignment="Stretch"
+                                      IsEnabled="{Binding CanPick}">
+                                <!-- Only the device name is ellipsized, so the closed box
+                                     always shows " (not connected)" in full (it read
+                                     "…Virtual  (not" at 260px). -->
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ToolTip="{Binding Label}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding LabelPrefix}"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding LabelName}"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding LabelSuffix}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
+
+                        <!-- Saved device unplugged: one amber line, the choice is kept. -->
+                        <TextBlock Text="{Binding FallbackMessage}"
+                                   FontSize="11" Foreground="{DynamicResource WarningBrush}"
+                                   Margin="0,6,0,0" TextWrapping="Wrap">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasFallback}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <!-- Level bar + Test. Idle: empty and grey; nothing is open. -->
+                        <Grid Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <controls:SegmentedLevelBar VerticalAlignment="Center"
+                                                        Level="{Binding Level}"
+                                                        Active="{Binding IsTesting}"/>
+
+                            <Button Grid.Column="1" Margin="12,0,0,0" MinWidth="72"
+                                    Style="{StaticResource MacButtonStyle}"
+                                    Content="{Binding TestButtonText}"
+                                    Command="{Binding ToggleTestCommand}"
+                                    IsEnabled="{Binding CanTest}"/>
+                        </Grid>
+                    </StackPanel>
+
                     <!-- Auto-increase Mic Volume -->
                     <Grid>
                         <Grid.ColumnDefinitions>

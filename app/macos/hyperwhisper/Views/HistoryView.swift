@@ -65,7 +65,29 @@ private struct HistoryItemSnapshot: Identifiable, Hashable {
     let audioFilePath: String?
     let trimmedAudioFilePath: String?
 
-    var id: NSManagedObjectID { objectID }
+    /// The row's ForEach identity. A value type wrapping `objectID`, NOT the
+    /// `NSManagedObjectID` itself — see `HistoryRowID` for why (#1459).
+    var id: HistoryRowID { HistoryRowID(objectID: objectID) }
+}
+
+/// ForEach identity of one History list row.
+///
+/// The row's selection `.tag` is the bare `NSManagedObjectID` (the type of the
+/// List's selection set). When the ForEach identity was that same class, an
+/// in-place removal of any row except the newest one (detail-pane Delete,
+/// context-menu Delete, multi-select Delete) made the sidebar List re-bind
+/// the surviving row views off by one: the NSTableView removed the right
+/// row, but the row after the deleted one vanished from the screen and the
+/// last row drew twice until the List was rebuilt (#1459). The data was
+/// right; only the rendering was wrong. Wrapping the same object ID in a
+/// struct keeps identity and equality exactly as before, and the diff then
+/// re-binds every surviving row to its own snapshot. Measured on macOS 26
+/// against the real HistoryView: a boxed ID, a URI string or the transcript
+/// UUID all render correctly; the bare class ID fails every time.
+///
+/// Keep it a value type. Do not switch the ForEach back to `objectID`.
+struct HistoryRowID: Hashable {
+    let objectID: NSManagedObjectID
 }
 
 private struct HistorySectionSnapshot: Identifiable, Hashable {
@@ -452,19 +474,11 @@ private final class HistoryViewModel: ObservableObject {
     }
 
     private func refreshAvailableModes() {
-        let allModes = PersistenceController.shared.fetchAllModes()
-
-        if NetworkStatus.shared.isOnline {
-            availableModes = allModes
-            return
-        }
-
-        availableModes = allModes.filter { mode in
-            let isCloudModel = (mode.model ?? "").lowercased() == "cloud"
-            let processingMode = PostProcessingMode(rawValue: mode.postProcessingMode) ?? .off
-            let hasCloudPostProcessing = processingMode.requiresInternet
-            return !isCloudModel && !hasCloudPostProcessing
-        }
+        // Shared with the recording dialog's pending-file mode picker (#1617).
+        availableModes = RetryModeChoices.available(
+            from: PersistenceController.shared.fetchAllModes(),
+            isOnline: NetworkStatus.shared.isOnline
+        )
     }
 
     private func observeTranscriptChanges() {
@@ -474,19 +488,27 @@ private final class HistoryViewModel: ObservableObject {
             queue: .main
         ) { [weak self] notification in
             Task { @MainActor [weak self] in
-                guard let self, self.containsTranscriptChanges(notification) else { return }
-                self.enqueueCurrentQuery()
+                guard let self else { return }
+                // A mode added, renamed or deleted while History is open (the
+                // Modes page, the Local API) must reach "Retry with..." now: a
+                // deleted mode left in the list showed as "Unknown" (#1620).
+                if HistoryViewModel.containsChanges(to: "Mode", in: notification) {
+                    self.refreshAvailableModes()
+                }
+                if HistoryViewModel.containsChanges(to: "Transcript", in: notification) {
+                    self.enqueueCurrentQuery()
+                }
             }
         }
     }
 
-    private func containsTranscriptChanges(_ notification: Notification) -> Bool {
+    private static func containsChanges(to entityName: String, in notification: Notification) -> Bool {
         let keys = [NSInsertedObjectsKey, NSUpdatedObjectsKey, NSDeletedObjectsKey]
         for key in keys {
             guard let objects = notification.userInfo?[key] as? Set<NSManagedObject> else {
                 continue
             }
-            if objects.contains(where: { $0.entity.name == "Transcript" }) {
+            if objects.contains(where: { $0.entity.name == entityName }) {
                 return true
             }
         }
@@ -513,6 +535,10 @@ private struct HistoryScreen: View, Equatable {
     @StateObject private var viewModel = HistoryViewModel()
     @State private var selectedTranscriptIDs: Set<NSManagedObjectID> = []
     @State private var actionHandler: TranscriptActionHandler?
+    /// Which build of the List holds keyboard focus. Keyed by the list identity
+    /// so the List rebuilt by `.id(viewModel.listIdentity)` is a different focus
+    /// target from the one it replaced (#1460, see HistoryListFocus).
+    @FocusState private var focusedList: HistoryViewModel.ListIdentity?
 
     static func == (lhs: HistoryScreen, rhs: HistoryScreen) -> Bool {
         ObjectIdentifier(lhs.transcriptionPipeline) == ObjectIdentifier(rhs.transcriptionPipeline)
@@ -563,6 +589,34 @@ private struct HistoryScreen: View, Equatable {
         .onChange(of: viewModel.loadedObjectIDs) { _, ids in
             selectedTranscriptIDs.formIntersection(ids)
         }
+        .onChange(of: viewModel.listIdentity) { oldIdentity, newIdentity in
+            // #1460: a rebuild (a retry inserting a newest row) tears down the
+            // focused table. The selection survives, but AppKit draws it as the
+            // grey inactive highlight and arrow keys stop working until a click.
+            // Hand focus to the rebuilt List, but only if the old one had it, so
+            // a rebuild caused by typing in the search field never steals focus.
+            guard let target = HistoryListFocus.identityToRefocus(
+                focused: focusedList,
+                old: oldIdentity,
+                new: newIdentity
+            ) else { return }
+            // Next main-loop turn: the rebuilt table must be in the window first.
+            DispatchQueue.main.async {
+                focusedList = target
+            }
+        }
+        .onChange(of: focusedList) { previous, now in
+            // The same hand-off when SwiftUI reports the old table's focus loss
+            // only after the identity change above has already run.
+            guard let target = HistoryListFocus.identityToRefocusAfterFocusLoss(
+                previous: previous,
+                now: now,
+                current: viewModel.listIdentity
+            ) else { return }
+            DispatchQueue.main.async {
+                focusedList = target
+            }
+        }
     }
 
     private var historyList: some View {
@@ -581,6 +635,9 @@ private struct HistoryScreen: View, Equatable {
             List(selection: $selectedTranscriptIDs) {
                 ForEach(viewModel.sections) { section in
                     Section(header: Text(formatSectionDate(section.date))) {
+                        // Identifiable: rows key off HistoryItemSnapshot.id
+                        // (HistoryRowID), never the bare NSManagedObjectID
+                        // the .tag uses — see #1459.
                         ForEach(section.items) { item in
                             TranscriptRow(
                                 item: item,
@@ -609,6 +666,7 @@ private struct HistoryScreen: View, Equatable {
                 }
             }
             .listStyle(.sidebar)
+            .focused($focusedList, equals: viewModel.listIdentity)
             // Rebuild the NSTableView-backed List (instead of diffing rows in
             // place) when the query changes or when the newest row changes —
             // the two transitions where in-place diffing mis-reuses row views.
@@ -651,6 +709,11 @@ private struct HistoryScreen: View, Equatable {
             }
             .keyboardShortcut(.delete, modifiers: [])
         } else {
+            // The snapshot only knows the path is set. Check the file itself, so
+            // a row whose audio was moved or deleted doesn't offer a retry the
+            // detail pane already calls unavailable (#1455).
+            let audioOnDisk = audioFileIsOnDisk(item)
+
             if item.canRetry {
                 Button(action: { retryTranscript(item.objectID) }) {
                     Label {
@@ -659,26 +722,32 @@ private struct HistoryScreen: View, Equatable {
                         Image(systemName: "arrow.clockwise")
                     }
                 }
-                .disabled(isRetrying(item))
+                .disabled(isRetrying(item) || !audioOnDisk)
 
                 Divider()
             }
 
             if item.hasAudioPath {
-                Menu {
-                    ForEach(viewModel.availableModes, id: \.objectID) { mode in
-                        Button {
-                            retryTranscript(item.objectID, with: mode)
-                        } label: {
-                            Text(mode.name ?? "Unknown")
+                if audioOnDisk {
+                    Menu {
+                        ForEach(viewModel.availableModes, id: \.objectID) { mode in
+                            Button {
+                                retryTranscript(item.objectID, with: mode)
+                            } label: {
+                                Text(MenuItemText.bounded(mode.name ?? "Unknown")) // #1436
+                            }
                         }
+                    } label: {
+                        retryWithLabel
                     }
-                } label: {
-                    Label {
-                        Text(localized: "history.context.retryWith")
-                    } icon: {
-                        Image(systemName: "arrow.triangle.2.circlepath")
+                } else {
+                    // .disabled on a context-menu Menu only grays its items; the
+                    // submenu header stays live and still opens. A disabled Button
+                    // with the same label is the item that actually greys out.
+                    Button(action: {}) {
+                        retryWithLabel
                     }
+                    .disabled(true)
                 }
 
                 Divider()
@@ -691,6 +760,7 @@ private struct HistoryScreen: View, Equatable {
                     Image(systemName: "doc.on.doc")
                 }
             }
+            .disabled((item.postProcessedText ?? item.text).isEmpty)
 
             Divider()
 
@@ -833,6 +903,20 @@ private struct HistoryScreen: View, Equatable {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(NSColor.windowBackgroundColor))
+    }
+
+    private var retryWithLabel: some View {
+        Label {
+            Text(localized: "history.context.retryWith")
+        } icon: {
+            Image(systemName: "arrow.triangle.2.circlepath")
+        }
+    }
+
+    /// True when the row's original audio file is on disk right now.
+    private func audioFileIsOnDisk(_ item: HistoryItemSnapshot) -> Bool {
+        guard let path = item.audioFilePath else { return false }
+        return FileManager.default.fileExists(atPath: path)
     }
 
     private func isRetrying(_ item: HistoryItemSnapshot) -> Bool {
@@ -1006,6 +1090,82 @@ enum AudioFileState {
     case missing
 }
 
+/// #1460: after `.id(listIdentity)` rebuilds the History List, which list
+/// build should get keyboard focus back, if any. Only a rebuild of the list
+/// that held focus hands it on; focus elsewhere (the search field, the detail
+/// pane) is left alone.
+enum HistoryListFocus {
+    static func identityToRefocus<Identity: Equatable>(
+        focused: Identity?,
+        old: Identity,
+        new: Identity
+    ) -> Identity? {
+        guard old != new, let focused, focused == old else { return nil }
+        return new
+    }
+
+    /// Focus left the list (`now` is nil). If it was held by a list build that
+    /// has since been replaced, the loss is the rebuild's, not the user's, so
+    /// the current build gets it back. A user clicking elsewhere leaves focus
+    /// from the current build, which stays put.
+    static func identityToRefocusAfterFocusLoss<Identity: Equatable>(
+        previous: Identity?,
+        now: Identity?,
+        current: Identity
+    ) -> Identity? {
+        guard now == nil, let previous, previous != current else { return nil }
+        return current
+    }
+}
+
+/// #1460: the History player's elapsed-time label and resume point.
+enum HistoryPlaybackClock {
+    /// "elapsed / total", e.g. "1m 5s / 97m 16s". Elapsed is clamped into the
+    /// file so a timer tick past the end never reads longer than the file.
+    static func label(
+        elapsed: TimeInterval,
+        duration: TimeInterval,
+        format: (TimeInterval) -> String = formatDuration
+    ) -> String {
+        let total = duration.isFinite ? max(0, duration) : 0
+        let shown = elapsed.isFinite ? min(max(0, elapsed), total) : 0
+        return "\(format(shown)) / \(format(total))"
+    }
+
+    /// Where Play starts from a stored position: the position itself, or the
+    /// start of the file when the position is at (or past) the end.
+    static func startTime(position: TimeInterval, duration: TimeInterval) -> TimeInterval {
+        guard position.isFinite, duration.isFinite, position > 0, position < duration else {
+            return 0
+        }
+        return position
+    }
+}
+
+/// What pressing Play in the History detail pane should do.
+///
+/// #1456: the "file exists" flag is cached when the row's metadata loads, so a
+/// file moved away while the row stays open used to make Play do nothing at
+/// all. Play re-checks the disk at press time instead of trusting the cache.
+enum HistoryPlaybackStart: Equatable {
+    /// The selected file is on disk: open it and play.
+    case play(URL)
+    /// The selected file is gone (or there is none): re-check the row's audio
+    /// so the pane shows the missing-audio state instead of a dead ▶.
+    case audioGone
+
+    static func resolve(
+        path: String?,
+        cachedExists: Bool,
+        fileExists: (String) -> Bool = { FileManager.default.fileExists(atPath: $0) }
+    ) -> HistoryPlaybackStart {
+        guard let path, !path.isEmpty, cachedExists, fileExists(path) else {
+            return .audioGone
+        }
+        return .play(URL(fileURLWithPath: path))
+    }
+}
+
 // MARK: - Transcript Detail View
 
 /// Detailed view of a single transcript.
@@ -1032,6 +1192,10 @@ private struct TranscriptDetailView: View {
     @State private var editedText = ""
     @State private var audioPlayer: AVAudioPlayer?
     @State private var isPlaying = false
+    /// Where playback stands while nothing is playing: the paused point, or a
+    /// point picked on the waveform before Play (#1460). While playing, the
+    /// player's own currentTime is the source of truth.
+    @State private var playbackPosition: TimeInterval = 0
 
     /// Cancellable completion timer that flips `isPlaying` back off when playback
     /// reaches the end. Stored so pause / replay / source-toggle / disappear can
@@ -1377,13 +1541,26 @@ private struct TranscriptDetailView: View {
                 }
                 .buttonStyle(.plain)
 
-                // Waveform visualization - uses selected audio path (original or trimmed)
-                WaveformVisualizer(audioFilePath: selectedAudioFilePath)
-                    .frame(height: 60)
+                // Waveform + elapsed time (#1460). The timeline only ticks while
+                // playing; paused, it shows the stored position.
+                TimelineView(.animation(minimumInterval: 0.1, paused: !isPlaying)) { _ in
+                    let elapsed = currentPlaybackTime
+                    let duration = playbackDuration
+                    HStack {
+                        // Uses the selected audio path (original or trimmed).
+                        // A click seeks; a drag scrubs and seeks on release.
+                        WaveformVisualizer(
+                            audioFilePath: selectedAudioFilePath,
+                            progress: WaveformScrub.fraction(atTime: elapsed, duration: duration),
+                            onSeek: { fraction in seek(toFraction: fraction) }
+                        )
+                        .frame(height: 60)
 
-                Text(formatDuration(selectedAudioDuration))
-                    .font(.caption)
-                    .monospacedDigit()
+                        Text(HistoryPlaybackClock.label(elapsed: elapsed, duration: duration))
+                            .font(.caption)
+                            .monospacedDigit()
+                    }
+                }
             }
             .padding()
         }
@@ -1432,29 +1609,41 @@ private struct TranscriptDetailView: View {
             playbackCompletionWorkItem?.cancel()
             playbackCompletionWorkItem = nil
             audioPlayer?.pause()
+            if let audioPlayer {
+                playbackPosition = audioPlayer.currentTime
+            }
             isPlaying = false
         } else {
             // Use selectedAudioFilePath to play either original or trimmed audio
-            // based on the user's toggle selection
-            if let audioPath = selectedAudioFilePath, selectedAudioPathExists {
+            // based on the user's toggle selection. The cached exists flag can be
+            // stale (#1456), so the disk is checked again here.
+            switch HistoryPlaybackStart.resolve(path: selectedAudioFilePath, cachedExists: selectedAudioPathExists) {
+            case .audioGone:
+                historyViewLogger.warning("Play pressed but the selected audio file is gone; re-checking the row's audio")
+                Task { await refreshAudioMetadata() }
+            case .play(let url):
                 do {
-                    let url = URL(fileURLWithPath: audioPath)
-                    let player = try AVAudioPlayer(contentsOf: url)
-                    audioPlayer = player
+                    // Resume the paused player when it still holds this file, so
+                    // Play after Pause continues where it stopped (#1460).
+                    let player: AVAudioPlayer
+                    if let existing = audioPlayer, existing.url == url {
+                        player = existing
+                    } else {
+                        player = try AVAudioPlayer(contentsOf: url)
+                        audioPlayer = player
+                    }
+                    player.currentTime = HistoryPlaybackClock.startTime(
+                        position: playbackPosition,
+                        duration: player.duration
+                    )
                     player.play()
                     isPlaying = true
-
-                    // Set up a cancellable completion handler. Cancel any prior
-                    // timer first so stacked closures can't desync the button.
-                    playbackCompletionWorkItem?.cancel()
-                    let workItem = DispatchWorkItem {
-                        isPlaying = false
-                        playbackCompletionWorkItem = nil
-                    }
-                    playbackCompletionWorkItem = workItem
-                    DispatchQueue.main.asyncAfter(deadline: .now() + player.duration, execute: workItem)
+                    scheduleCompletion(for: player)
                 } catch {
                     historyViewLogger.error("Error playing audio: \(error, privacy: .public)")
+                    // The file can vanish between the check and the open. Re-check
+                    // so a gone file drops the pane to the missing-audio banner.
+                    Task { await refreshAudioMetadata() }
                 }
             }
         }
@@ -1469,6 +1658,52 @@ private struct TranscriptDetailView: View {
         audioPlayer?.stop()
         audioPlayer = nil
         isPlaying = false
+        playbackPosition = 0
+    }
+
+    /// Flips the play/pause button back off when the player reaches the end.
+    /// Cancels any prior timer first so stacked closures can't desync the
+    /// button, and times from the current position, so a resume or a seek
+    /// re-arms it for the time actually left.
+    private func scheduleCompletion(for player: AVAudioPlayer) {
+        playbackCompletionWorkItem?.cancel()
+        let workItem = DispatchWorkItem {
+            isPlaying = false
+            playbackPosition = 0
+            playbackCompletionWorkItem = nil
+        }
+        playbackCompletionWorkItem = workItem
+        let remaining = max(0, player.duration - player.currentTime)
+        DispatchQueue.main.asyncAfter(deadline: .now() + remaining, execute: workItem)
+    }
+
+    /// Where playback is now: the live player while playing, else the stored
+    /// position (paused point, or where a click on the waveform put it).
+    private var currentPlaybackTime: TimeInterval {
+        if isPlaying, let audioPlayer {
+            return audioPlayer.currentTime
+        }
+        return playbackPosition
+    }
+
+    /// The open player's duration, else the cached duration of the selected file.
+    private var playbackDuration: TimeInterval {
+        if let audioPlayer, audioPlayer.duration > 0 {
+            return audioPlayer.duration
+        }
+        return selectedAudioDuration
+    }
+
+    /// Click-to-seek on the waveform (#1460). Playing: jump there and keep
+    /// playing. Paused or stopped: the next Play starts there.
+    private func seek(toFraction fraction: Double) {
+        let time = WaveformScrub.time(atFraction: fraction, duration: playbackDuration)
+        playbackPosition = time
+        guard let audioPlayer else { return }
+        audioPlayer.currentTime = time
+        if isPlaying {
+            scheduleCompletion(for: audioPlayer)
+        }
     }
     
     private var actionsBar: some View {
@@ -1480,7 +1715,10 @@ private struct TranscriptDetailView: View {
             } label: {
                 Label(LocalizedStringKey("common.copy"), systemImage: "doc.on.doc")
             }
-            
+            // A failed import has no text (#1427); copying "" would only empty
+            // the user's clipboard.
+            .disabled(displayedText.isEmpty)
+
             // RETRY BUTTON:
             // Shows for failed transcriptions when audio file exists
             if isFailedTranscript && canRetry {

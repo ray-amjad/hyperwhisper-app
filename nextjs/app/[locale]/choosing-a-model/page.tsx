@@ -4,6 +4,7 @@ import ModelPicker from "@/components/choosing-a-model/ModelPicker";
 import { getMeasuredLatency } from "@/src/content/choosing-a-model";
 import { CLOUD_MODELS, DEVICE_MODELS } from "@/lib/choosing-a-model/catalog";
 import { englishStaticPageMetadata } from "@/lib/site-metadata";
+import { TEXT_LINK } from "@/components/text-link";
 
 export const dynamic = "force-static";
 export const revalidate = 3600;
@@ -12,7 +13,16 @@ const TITLE = "Choosing a speech-to-text model";
 const DESCRIPTION =
   "Tell us what matters — accuracy, speed, cost or privacy — and see which of the speech-to-text models HyperWhisper ships actually fits, cloud and on-device ranked side by side.";
 
-export async function generateMetadata() {
+// #815: the English-only check runs here too. A notFound() thrown only from the
+// page left this English metadata (and the layout's "index, follow") in the RSC
+// payload, which is what the browser shows on /de/choosing-a-model. Thrown here, Next
+// resolves the [locale] 404's metadata instead.
+export async function generateMetadata({ params }: Props) {
+  const { locale } = await params;
+  if (locale !== "en") {
+    notFound();
+  }
+
   return englishStaticPageMetadata({
     path: "/choosing-a-model",
     title: TITLE,
@@ -138,7 +148,7 @@ export default async function ChoosingAModelPage({ params }: Props) {
             <dd className="mt-1">
               Word error rate comes from the{" "}
               <a
-                className="text-purple-300 underline underline-offset-4 transition hover:text-purple-200"
+                className={TEXT_LINK}
                 href="https://artificialanalysis.ai/speech-to-text/non-streaming"
                 rel="noopener noreferrer"
                 target="_blank"
@@ -192,7 +202,7 @@ export default async function ChoosingAModelPage({ params }: Props) {
               <span className="text-gray-200">Measured clip</span> is our own
               median from the last 90 days — the same measurements behind{" "}
               <a
-                className="text-purple-300 underline underline-offset-4 transition hover:text-purple-200"
+                className={TEXT_LINK}
                 href="/en/latency"
               >
                 the latency page

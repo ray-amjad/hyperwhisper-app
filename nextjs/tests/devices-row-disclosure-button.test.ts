@@ -71,7 +71,7 @@ moduleMock.module(moduleUrl("../lib/trpc/client.ts"), {
             }),
           },
           forLicense: {
-            useQuery: (_input: unknown, opts: { enabled?: boolean }) => {
+            useInfiniteQuery: (_input: unknown, opts: { enabled?: boolean }) => {
               forLicenseCalls.push(opts);
 
               return { data: undefined, isLoading: false };

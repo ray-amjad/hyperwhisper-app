@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Drugi program je zaključao bazu podataka povijesti. Snimka je sačuvana i bit će spremljena u povijest kad se baza podataka oslobodi.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Ova snimka još se nije mogla spremiti u povijest. Snimka je sačuvana i bit će spremljena u povijest kasnije.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -366,6 +372,9 @@
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
+  </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Nije dostupno na testnom profilu. Ova verzija koristi zasebnu mapu s podacima aplikacije pa ne mijenja stavku prijave instalirane aplikacije.</value>
   </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Pokreni minimizirano</value>
@@ -790,6 +799,12 @@ Ova radnja se ne može poništiti.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Nije aktivirano)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (Nema API ključa)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -820,6 +835,9 @@ Ova radnja se ne može poništiti.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transkripcija datoteke otkazana</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transkribiranje datoteke...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -843,11 +861,11 @@ Ova radnja se ne može poništiti.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Način rada koji je napravio ovu snimku je izbrisan, pa ponovni pokušaj nije pokrenut. U Povijesti desnom tipkom miša kliknite snimku i odaberite „Pokušaj ponovno s...” da biste odabrali drugi način rada.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Snimanje zaustavljeno — dostignut je sigurnosni limit od 20 minuta.</value>
@@ -1081,6 +1099,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Prečaci s jednim modifikatorom kao što su Ctrl, Alt, Shift ili Win nisu podržani. Upotrijebite tipku s modifikatorima ili prečac s više modifikatora, primjerice Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Prečac bez modifikatora mora biti funkcijska tipka ili Esc. Bilo koja druga tipka aktivirala bi se dok tipkate.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Ovaj se prečac već koristi za {0} ({1})</value>
   </data>
@@ -1121,6 +1142,9 @@ You must have at least one mode.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Kontrola aplikacija u sustavu Windows blokirala je {0}, datoteku koja je potrebna HyperWhisperu. Zamolite IT administratora da dopusti HyperWhisper ili provjerite Pametnu kontrolu aplikacija u Sigurnosti sustava Windows.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>
@@ -1152,6 +1176,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Model se koristi</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} koristi način „{1}”. Prije brisanja prebacite taj način na drugi model.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1286,6 +1316,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>To ne izgleda kao ključ računa.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1306,8 +1339,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Snimanje ili transkripcija datoteke već je u tijeku. Pokušajte ponovno s datotekom kada završi.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Ova je datoteka prazna, pa nema zvuka za transkripciju.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Ova je datoteka oštećena ili nije zvučna datoteka koju HyperWhisper može pročitati.</value>
   </data>
 
 
@@ -1690,6 +1732,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Više...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1984,11 +2029,35 @@ You can re-download it later.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Priguši zvuk</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Koristi ga samo HyperWhisper. Pamti se i nakon ponovnog pokretanja.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Zadano · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (nije povezano)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Koristi se {0} dok se {1} ponovno ne poveže.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Nijedan mikrofon nije povezan. HyperWhisper će koristiti {0} kada se ponovno poveže.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Testiraj</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Zaustavi</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

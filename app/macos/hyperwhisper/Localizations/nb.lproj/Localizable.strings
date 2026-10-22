@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostikk eksportert";
 "alerts.export.diagnostics.success.message" = "Alle diagnostikklogger er eksportert vellykket.";
 "alerts.export.diagnostics.saveFailed.message" = "Kunne ikke lagre diagnostikk til valgt plassering: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostikk eksportert uten systemlogger";
+"alerts.export.diagnostics.noSystemLogs.message" = "Diagnostikkfilen ble lagret, men appens systemlogger kunne ikke leses, så system-logs.txt inneholder bare årsaken. Årsak: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Eksporter oppdateringslogger for støtte";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Fullfør introduksjon";
 
 "onboarding.setupLater.button" = "Konfigurer senere";
-"onboarding.error.microphone.denied" = "Mikrofontillatelse nektet. Vennligst gi tillatelse i Systeminnstillinger.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Start ved pålogging";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Av";
 "settings.general.mediaControl.mode.mute" = "Demp lyd";
+"settings.general.mediaControl.mode.muffle" = "Dump lyd";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,9 +324,17 @@
 "settings.sound.soundEffects.title" = "Spill av lydeffekter";
 "settings.sound.soundEffects.info" = "Spill av lydsignaler når opptak starter og stopper.";
 "settings.sound.mediaControl.title" = "Mediekontroll under opptak";
-"settings.sound.mediaControl.info" = "Velg hvordan HyperWhisper håndterer annen lyd mens du tar opp. 'Av' lar lyden være uendret, 'Demp lyd' demper systemutgangen under opptak og gjenoppretter den etterpå.";
+"settings.sound.mediaControl.info" = "Velg hvordan HyperWhisper håndterer annen lyd mens du tar opp. 'Av' lar lyden være uendret, 'Demp lyd' demper systemutgangen under opptak og gjenoppretter den etterpå, og 'Dump lyd' lar den spille svakt, som fra rommet ved siden av.";
+"settings.sound.microphone.title" = "Mikrofon";
+"settings.sound.microphone.subtitle" = "Brukes bare av HyperWhisper. Huskes etter omstart.";
+"microphone.picker.default" = "Standard · %@";
+"microphone.picker.notConnected" = "%@ (ikke tilkoblet)";
+"microphone.picker.fallback" = "Bruker %1$@ til %2$@ kobles til igjen.";
+"settings.sound.microphone.test" = "Test";
+"settings.sound.microphone.stop" = "Stopp";
+"settings.sound.microphone.level" = "Inngangsnivå";
 "settings.sound.autoIncreaseMicVolume.title" = "Øk mikrofonvolumet automatisk";
-"settings.sound.autoIncreaseMicVolume.info" = "Setter automatisk mikrofoninngangsvolum til maks når opptak starter, og gjenoppretter deretter det opprinnelige nivået når opptak stopper. Gjelder bare når du bruker systemets standardinngangsenhet.";
+"settings.sound.autoIncreaseMicVolume.info" = "Setter automatisk inngangsvolumet for mikrofonen HyperWhisper tar opp fra til maksimum når opptaket starter, og gjenoppretter det opprinnelige nivået når opptaket stopper. Mikrofoner uten programvarestyrt volum endres ikke.";
 "settings.sound.vad.title" = "Fjern stillhet før transkripsjon";
 "settings.sound.vad.info" = "Detekterer og fjerner automatisk ledende og etterfølgende stillhet ved hjelp av AI-stemmedeteksjon. Dette kan forbedre transkripsjonsnøyaktighet og redusere behandlingstid.";
 
@@ -336,6 +346,9 @@
 "settings.storage.choose.button" = "Velg...";
 "settings.storage.dialog.select" = "Velg mappe";
 "settings.storage.dialog.message" = "Velg en mappe for å lagre opptak";
+"settings.storage.folderRefused.title" = "Denne mappen kan ikke brukes";
+"settings.storage.folderRefused.notWritable" = "Du har ikke tillatelse til å skrive til «%@», så HyperWhisper kan ikke lagre opptak der. Opptaksmappen ble ikke endret.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper kunne ikke opprette denne mappen: %@ Opptaksmappen ble ikke endret.";
 "settings.storage.storeAsM4A.title" = "Komprimer opptak til M4A";
 "settings.storage.storeAsM4A.subtitle" = "Konverterer WAV-opptak til mindre filer etter transkripsjon. Slå av for å beholde originale WAV-filer (større men tapsfrie).";
 
@@ -383,6 +396,7 @@
 
 "settings.shortcuts.changeMode.title" = "Endre modus";
 "settings.shortcuts.changeMode.subtitle" = "Fungerer bare under opptak";
+"settings.shortcuts.conflict.alert" = "Denne hurtigtasten kan ikke brukes fordi den allerede brukes av «%@».";
 
 "settings.shortcuts.reset.button" = "Tilbakestill til standardverdier";
 "settings.shortcuts.reset.dialog.title" = "Tilbakestill tastatursnarveier";
@@ -434,6 +448,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Lim inn fra utklippstavle";
 "settings.license.clearInput" = "Tøm";
+"license.error.keyFormat" = "Dette ser ikke ut som en kontonøkkel.";
 "settings.license.recovery.prompt" = "Glemt lisensnøkkelen din?";
 "settings.license.recovery.button" = "Gå til kundeportal";
 "settings.license.daily.title" = "Daglig transkripsjon";
@@ -576,6 +591,8 @@
 "onboarding.configure.cloud.note" = "Kreditter er forhåndsbetalt og deles på tvers av alle Mac-er som er logget inn med denne nøkkelen. Inaktiv tid koster ingenting.";
 "onboarding.source.note" = "Ombestemmer du deg senere, gjentas bare dette ene trinnet. Alt annet du har satt opp, forblir intakt.";
 "onboarding.permissions.note" = "Hopper du over Tilgjengelighet, går transkripsjoner til utklippstavlen, klare til å limes inn. Å slå det på senere tar ett klikk.";
+"onboarding.permissions.microphone.denied" = "Ikke tillatt. Slå på HyperWhisper i Systeminnstillinger, og kom så tilbake hit.";
+"onboarding.permissions.continueNeedsMicrophone" = "Fortsett krever mikrofonen. Tillat den ovenfor, eller velg Konfigurer senere.";
 "onboarding.welcome.task1.title" = "Velg hvordan transkripsjon kjører";
 "onboarding.welcome.task1.caption" = "I vår sky, på denne Mac-en, eller via en leverandørkonto du allerede betaler for.";
 "onboarding.welcome.task2.title" = "Sjekk mikrofonen din";
@@ -683,6 +700,10 @@ Rediger disse modusene for å velge en annen modell før du fjerner den.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Slett modus?";
 "modes.delete.confirm.message" = "Dette vil fjerne den valgte modusen. Denne handlingen kan ikke angres.";
+"modes.editor.discard.title" = "Forkaste ulagrede endringer?";
+"modes.editor.discard.message" = "Endringene dine i denne modusen er ikke lagret.";
+"modes.editor.discard.keepEditing" = "Fortsett å redigere";
+"modes.editor.discard.button" = "Forkast";
 "modes.header.title" = "Moduser";
 "modes.header.subtitle" = "Opprett tilpassede profiler for ulike kontekster og arbeidsflyter";
 "modes.header.create" = "Opprett modus";
@@ -727,7 +748,7 @@ Rediger disse modusene for å velge en annen modell før du fjerner den.";
 "modes.postProcessing.apiKeyMissing" = "%@ API-nøkkel ikke konfigurert. Legg den til i Innstillinger for å aktivere etterbehandling.";
 "modes.postProcessing.configure" = "Konfigurer i Innstillinger";
 "modes.postProcessing.modelRecommendation" = "Vi anbefaler å bruke GPT-4.1 Nano for den beste balansen mellom hastighet og kvalitet.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Lokal etterbehandling krever en nedlastet lokal modell.";
 "modes.postProcessing.download" = "Last ned i Innstillinger";
@@ -787,12 +808,15 @@ Rediger disse modusene for å velge en annen modell før du fjerner den.";
 "modes.field.name.placeholder" = "f.eks. møtenotater";
 "modes.field.name.editPlaceholder" = "Modusnavn";
 "modes.field.name.defaultLocked" = "Dette er standardmodusen, så navnet kan ikke endres. Du kan gi alle andre moduser nytt navn.";
+"modes.field.name.taken" = "Det finnes allerede en modus med det navnet.";
 "modes.field.model" = "Modell";
 "modes.field.provider" = "Leverandør";
 "modes.provider.local" = "Lokal";
 "modes.provider.cloud" = "Sky";
 "modes.notice.noLocalModels.title" = "Ingen lokale modeller installert";
 "modes.notice.noLocalModels.subtitle" = "Installer en modell i Innstillinger først";
+"modes.model.notInstalledFormat" = "%@ (ikke installert)";
+"modes.notice.modelNotInstalled" = "Modellen for denne modusen er ikke installert. Lagring beholder den. Last den ned i Modellbiblioteket, eller velg en annen modell.";
 "modes.model.pricing" = "Prising: $%.6f / minutt (faktureres per sekund)";
 "modes.button.create" = "Opprett modus";
 "modes.button.delete" = "Slett modus";
@@ -811,8 +835,9 @@ Rediger disse modusene for å velge en annen modell før du fjerner den.";
 "transcripts.delete.single.message" = "Dette vil permanent slette dette opptaket og lydfilen.";
 "transcripts.delete.multiple.title" = "Slett %d opptak?";
 "transcripts.delete.multiple.message" = "Dette vil permanent slette %d opptak og deres lydfiler.\n\nDenne handlingen kan ikke angres.";
-"transcripts.delete.multiple.confirm" = "Slett alle";
+"transcripts.delete.multiple.confirm" = "Slett %d opptak";
 "transcripts.retry.error.title" = "Nytt forsøk mislyktes";
+"transcripts.retry.error.modeDeleted" = "Modusen som laget dette opptaket er slettet, så det ble ikke prøvd på nytt. Høyreklikk på opptaket i Historikk og velg \"Prøv igjen med...\" for å velge en annen modus.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Velg opptaksmappe";
@@ -863,8 +888,8 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "recording.retry.inProgress" = "Prøver på nytt…";
 "recording.retry.count" = "Prøv igjen (%d)";
 "recording.retry.failed.missing" = "Nytt forsøk mislyktes: Lydfil ikke funnet";
-"recording.retry.failed.error" = "Nytt forsøk mislyktes: %@";
 "recording.retry.pending" = "Klar til å prøve på nytt – klikk for å transkribere";
+"recording.retry.modeDeleted" = "Modusen ble slettet";
 "recording.cancel.dialog.title" = "Avbryt opptak?";
 "recording.cancel.dialog.message" = "Dette vil forkaste det nåværende opptaket.";
 "recording.cancel.dialog.confirm" = "Avbryt opptak";
@@ -891,6 +916,7 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "audio.error.microphonePermission" = "Mikrofontillatelse ikke gitt";
 "audio.error.microphoneInUse" = "HyperWhisper får ikke tilgang til mikrofonen fordi en annen app for øyeblikket bruker den. Pause den andre appen eller bytt inngangskilder, og prøv deretter igjen.";
 "audio.error.audioSystemNotResponding" = "Lyden i macOS svarer ikke, så mikrofonen kunne ikke starte. Prøv igjen om litt. Hvis dette fortsetter, start Mac-en på nytt.";
+"audio.error.recorderStopTimedOut" = "Lyden i macOS sluttet å svare mens opptaket ble lagret, så det ble ikke transkribert. Lyden er tatt vare på: HyperWhisper prøver å gjenopprette den neste gang appen starter.";
 "audio.error.createEngine" = "Kunne ikke opprette lydmotor";
 "audio.error.noInput" = "Ingen lydinngang tilgjengelig";
 "audio.error.createFile" = "Kunne ikke opprette lydfil";
@@ -918,6 +944,9 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "transcription.error.providerNotAvailable.provider" = "%@ er ikke tilgjengelig. Sjekk innstillingene dine og prøv igjen.";
 "transcription.error.providerNotAvailable.detail" = "%@ er ikke tilgjengelig: %@";
 "transcription.error.modelNotDownloaded" = "Vennligst last ned en modell først";
+"transcription.error.modelNotDownloaded.modelAndMode" = "%1$@ bruker %2$@, som ikke er lastet ned. Last den ned i Modellbibliotek.";
+"transcription.error.modelNotDownloaded.model" = "%1$@ er ikke lastet ned. Last den ned i Modellbibliotek.";
+"transcription.error.openModelLibrary" = "Åpne Modellbibliotek";
 "transcription.error.modelProtected" = "Denne modellen kan ikke slettes";
 "transcription.error.audioFileNotFound" = "Lydfil ikke funnet";
 "transcription.error.network.detail" = "Nettverksfeil: %@";
@@ -964,10 +993,15 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "transcription.guidance.quotaExceeded" = "Legg til kreditter til din %@ konto eller oppdater faktureringsdetaljene dine";
 "transcription.guidance.timeout" = "Forespørselen tok for lang tid. Sjekk internettshastigheten din og prøv igjen.";
 "transcription.error.noSpeechDetected" = "Ingen tale oppdaget i opptaket.";
+"transcription.error.audioTooShort" = "Opptaket er for kort til å transkriberes. Ta opp lenger.";
 "transcription.guidance.noSpeechDetected" = "Tips:\n• Snakk tydelig inn i mikrofonen\n• Hold tasten lengre før du snakker\n• Sjekk at mikrofonen din fungerer\n• Sørg for at riktig inngangsenhet er valgt";
 "transcription.guidance.needsNativeRelaunch" = "Avslutt og åpne HyperWhisper nativt på nytt for å bruke lokal etterbehandling.";
 "transcription.guidance.localRuntimeUnavailable" = "Prøv igjen, eller velg en mindre lokal modell i modusinnstillingene.";
 "transcription.error.localRuntimeUnavailable" = "Lokal AI ble ikke ferdig — den rå transkripsjonen ble beholdt.";
+"transcription.error.postProcessingPreflight.unauthorized" = "%@ avviste API-nøkkelen din — den rå transkripsjonen ble beholdt.";
+"transcription.error.postProcessingPreflight.unreachable" = "Får ikke kontakt med %@ — den rå transkripsjonen ble beholdt.";
+"transcription.error.postProcessingPreflight.notInstalled" = "%@ er ikke installert — den rå transkripsjonen ble beholdt.";
+"transcription.error.postProcessingPreflight.unavailable" = "%@ er ikke tilgjengelig — den rå transkripsjonen ble beholdt.";
 "transcription.error.localSpeechModelEvicted" = "Talemodellen ble lastet ut for å frigjøre minne og kunne ikke lastes inn igjen. Lukk noen apper og prøv på nytt.";
 "settings.backup.localDownload.title" = "Vil du laste ned lokale modeller?";
 "settings.backup.localDownload.message" = "%d av modusene du gjenopprettet, bruker lokale AI-modeller som ikke er lastet ned ennå.";
@@ -975,6 +1009,11 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "settings.backup.localDownload.dismiss" = "Avvis";
 "modelLibrary.local.requiresAppleSilicon" = "Krever Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Start på nytt nativt";
+"modelLibrary.remove.confirm.title" = "Vil du fjerne %@?";
+"modelLibrary.remove.confirm.message" = "Du må laste den ned på nytt (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Du må laste den ned på nytt.";
+"modelLibrary.remove.confirm.button" = "Fjern";
+"settings.models.inUse.localAPI" = "En Local API-forespørsel bruker denne modellen akkurat nå. Prøv igjen når den er ferdig.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Utilstrekkelige kreditter. Legg til flere kreditter i Innstillinger.";
@@ -1039,7 +1078,12 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "settings.backup.import.subtitle" = "Gjenopprett innstillinger fra en sikkerhetskopifil";
 "settings.backup.import.button" = "Importer...";
 "settings.backup.import.panel.title" = "Importer innstillinger";
-"settings.backup.import.success" = "Import fullført: %d moduser, %d ordforrådelementer importert";
+"settings.backup.import.result" = "Import fullført: %@";
+"settings.backup.import.result.settings" = "innstillinger gjenopprettet";
+"settings.backup.import.result.modes" = "%d moduser importert";
+"settings.backup.import.result.vocabulary" = "%d ordforrådelementer importert";
+"settings.backup.import.complete" = "Import fullført";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Kunne ikke lese sikkerhetskopifil";
 "settings.backup.import.error.decode" = "Ugyldig sikkerhetskopfilformat";
 "settings.backup.import.error.decode.keyNotFound" = "Mangler påkrevd felt: %@";
@@ -1049,6 +1093,14 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "settings.backup.import.error.decode.corruptedField" = "Skadet verdi for felt: %@";
 "settings.backup.import.error.version" = "Sikkerhetskopifil er fra en nyere versjon";
 "settings.backup.import.error.unknown" = "Import mislyktes";
+"settings.backup.import.error.storeModes" = "Modusene kunne ikke lagres, så de ble ikke endret.";
+"settings.backup.import.error.storeModesAndVocabulary" = "Modusene kunne ikke lagres, så moduser og ordforråd ble ikke endret.";
+"settings.backup.import.error.storeVocabulary" = "Ordforrådet kunne ikke lagres, så det ble ikke endret.";
+"settings.backup.import.error.storeVocabularyAfterModes" = "Modusene ble importert, men ordforrådet kunne ikke lagres, så det ble ikke endret.";
+"settings.backup.import.error.storeLicense" = "Lisensnøkkelen kunne ikke importeres sikkert.";
+"settings.backup.import.error.storeSettingsRestored" = "Innstillingene ble ikke endret.";
+"settings.backup.import.error.storeOtherSections" = "De andre valgte delene ble tatt i bruk.";
+"settings.backup.import.apiKeysFailed" = "Disse API-nøklene kunne ikke lagres i nøkkelringen og ble ikke gjenopprettet: %@. Skriv dem inn på nytt i Innstillinger.";
 "settings.backup.import.confirm.title" = "Importer innstillinger?";
 "settings.backup.import.confirm.message" = "Dette vil erstatte eksisterende moduser og ordforråd med de fra sikkerhetskopifilen. Innstillinger vil også bli oppdatert.";
 "settings.backup.import.confirm.button" = "Importer";
@@ -1058,6 +1110,7 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "settings.backup.info.note" = "Sikkerhetskopier inkluderer innstillinger, moduser og ordforråd. Opptak og transkripsjoner er ikke inkludert.";
 "settings.backup.result.success.title" = "Vellykket";
 "settings.backup.result.error.title" = "Feil";
+"settings.backup.result.incomplete.title" = "Import ufullstendig";
 "settings.backup.export.choose.subtitle" = "Velg hva som skal inkluderes i sikkerhetskopifilen";
 "settings.backup.export.section.settings" = "Innstillinger";
 "settings.backup.export.section.modes" = "Modi";
@@ -1083,6 +1136,17 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "transcribe.file.error.format.title" = "Ustøttet format";
 "transcribe.file.error.format.message" = ".%@ filer støttes ikke av %@. Støttede formater: %@";
 "transcribe.file.error.read" = "Kan ikke lese den valgte filen.";
+"transcribe.file.error.webm" = "WebM støttes ikke. Konverter filen til MP3, M4A eller WAV, og prøv igjen.";
+"transcribe.file.busy.title" = "En fil blir allerede transkribert.";
+"transcribe.file.busy.message" = "Vil du avbryte den og starte denne?";
+"transcribe.file.busy.keepRunning" = "Fortsett";
+"transcribe.file.busy.cancelAndStart" = "Avbryt og start";
+"transcribe.file.error.notAudio" = "Filen «%@» er ikke gyldig lyd. Den kan være skadet eller i et format macOS ikke kan dekode.";
+"transcribe.file.error.empty" = "Filen «%@» er tom. Den inneholder ingen lyd å transkribere.";
+"transcribe.file.error.permission" = "HyperWhisper kan ikke lese filen «%@». Sjekk filens tillatelser.";
+"transcribe.file.error.folderPermission" = "HyperWhisper kan ikke åpne en mappe som inneholder filen «%@». Sjekk tillatelsene for den mappen.";
+"transcribe.file.error.privacy" = "Personverninnstillingene i macOS hindret HyperWhisper i å lese filen «%@». Tillat det i Systeminnstillinger > Personvern og sikkerhet > Full disktilgang.";
+"transcribe.file.error.tooShort" = "Denne filen er for kort til å transkriberes (%@ s).";
 "transcribe.file.error.copy" = "Kunne ikke kopiere fil til opptaksmappe.";
 "transcribe.file.error.video.title" = "Ingen lyd i video";
 "transcribe.file.error.video.noAudio" = "Denne videofilen inneholder ikke et lydspor. Vennligst velg en video med lyd eller en lydfil.";
@@ -1109,3 +1173,4 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "settings.storage.maxRecordingDuration.hour" = "1 time";
 "settings.storage.maxRecordingDuration.hours" = "%d timer";
 "settings.storage.maxRecordingDuration.off" = "Av";
+"settings.api_server.status.stopping" = "Stopper…";

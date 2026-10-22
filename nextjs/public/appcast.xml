@@ -513,21 +513,6 @@
             </description>
         </item>
         <item>
-            <title>2.25.0</title>
-            <pubDate>Fri, 20 Feb 2026 04:33:27 +0000</pubDate>
-            <sparkle:version>84</sparkle:version>
-            <sparkle:shortVersionString>2.25.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
-            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.25.0.dmg" length="19522602" type="application/octet-stream" sparkle:edSignature="W3ByPfvETNv4r3Ero90a0eJV/ppqdi0ui9UAXizAapH3PEbmYMTrEeM+EDrs2qDqoOmTzjQgfSKMb+kOPLk1Ag=="/>
-            <description>
-                <![CDATA[
-                <ul>
-                    <li>New status bar in the content area shows local model download and loading state</li><li>Preset picker polished with clearer provider hints and improved layout</li><li>Fixed streaming WebSocket failures that could leave the app in a hung state</li>
-                </ul>
-                ]]>
-            </description>
-        </item>
-        <item>
             <title>2.24.4</title>
             <pubDate>Thu, 19 Feb 2026 12:00:38 +0900</pubDate>
             <sparkle:version>82</sparkle:version>

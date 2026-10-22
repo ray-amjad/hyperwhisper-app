@@ -345,7 +345,7 @@
 				71D982762ED74D8800A377A6 /* XCRemoteSwiftPackageReference "mediaremote-adapter" */,
 				71ATOMIC2EF8B00000000001 /* XCRemoteSwiftPackageReference "swift-atomics" */,
 				718C2CFD2EDDE83A00A255D5 /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */,
-				71FLYFOX2F0B000000000001 /* XCRemoteSwiftPackageReference "FlyingFox" */,
+				71FLYFOX2F0B000000000003 /* XCLocalSwiftPackageReference "Vendor/FlyingFox" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7142EF102E50808900DA9A2D /* Products */;
@@ -856,6 +856,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		71FLYFOX2F0B000000000003 /* XCLocalSwiftPackageReference "Vendor/FlyingFox" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Vendor/FlyingFox;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		7118D5CA2E5E8E39000F525A /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -885,8 +892,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sindresorhus/LaunchAtLogin-Modern";
 			requirement = {
-				branch = main;
-				kind = branch;
+				kind = revision;
+				revision = a04ec1c363be3627734f6dad757d82f5d4fa8fcc;
 			};
 		};
 		719EC7CF2E53428100880D18 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
@@ -917,16 +924,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/ejbills/mediaremote-adapter.git";
 			requirement = {
-				branch = master;
-				kind = branch;
-			};
-		};
-		71FLYFOX2F0B000000000001 /* XCRemoteSwiftPackageReference "FlyingFox" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/swhitty/FlyingFox.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.21.0;
+				kind = revision;
+				revision = 5b6afde3f501a3da567e23bf7f23d562938a1809;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -969,7 +968,6 @@
 		};
 		71FLYFOX2F0B000000000002 /* FlyingFox */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 71FLYFOX2F0B000000000001 /* XCRemoteSwiftPackageReference "FlyingFox" */;
 			productName = FlyingFox;
 		};
 /* End XCSwiftPackageProductDependency section */

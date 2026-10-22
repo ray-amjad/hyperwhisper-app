@@ -79,7 +79,7 @@ fn is_no_space_code(code: &str) -> bool {
 /// regional variant falls back to its two-character prefix (`"zh-CN"` → `"zh"`).
 /// `""` and `"auto"` are not no-space languages — with no declared language the
 /// caller has nothing to go on, and [`append_trailing_space`] falls back to
-/// [`contains_cjk`] instead.
+/// [`is_continuous_script`] instead.
 pub fn is_no_space_language(language_code: &str) -> bool {
     // `append_trailing_space` already trims before it gets here; trimming again
     // is free and keeps a head that passes a raw settings value honest.
@@ -168,10 +168,12 @@ pub fn append_trailing_space(text: &str, mode_language: &str) -> String {
     // STEP 3: decide based on language. An absent language is "auto": the
     // platforms pass an empty string when the mode has no language set (Windows
     // `SmartSpacing.cs` checks `string.IsNullOrEmpty`), and treating that as an
-    // explicit code would append a space to CJK text.
+    // explicit code would append a space to CJK text. The auto branch reads the
+    // text with `is_continuous_script`, not `contains_cjk`, so Thai under
+    // "auto" gets no space, the same as under "th" (issue #1163).
     let language = mode_language.trim();
     let should_add_space = if language.is_empty() || language.eq_ignore_ascii_case(AUTOMATIC_CODE) {
-        !contains_cjk(text)
+        !is_continuous_script(text)
     } else {
         !is_no_space_language(language)
     };

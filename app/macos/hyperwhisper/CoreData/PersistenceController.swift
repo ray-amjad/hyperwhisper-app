@@ -17,132 +17,7 @@
 
 import CoreData
 import Foundation
-
-// MARK: - Mode Name Policy
-
-enum ModeNamePolicy {
-    static func normalized(_ name: String) -> String? {
-        let canonical = name.precomposedStringWithCanonicalMapping
-        let characters = Array(canonical)
-        guard let first = characters.firstIndex(where: hasMeaningfulScalar),
-              let last = characters.lastIndex(where: hasMeaningfulScalar) else {
-            return nil
-        }
-
-        return String(characters[first...last]).precomposedStringWithCanonicalMapping
-    }
-
-    static func storageName(_ proposed: String, replacing existing: String?) -> String {
-        normalized(proposed) ?? existing.flatMap { normalized($0) } ?? "Untitled"
-    }
-
-    static func comparisonKey(_ name: String) -> String? {
-        normalized(name)?.folding(
-            options: [.caseInsensitive],
-            locale: Locale(identifier: "en_US_POSIX")
-        )
-    }
-
-    private static func hasMeaningfulScalar(_ character: Character) -> Bool {
-        character.unicodeScalars.contains(where: isMeaningful)
-    }
-
-    private static func isMeaningful(_ scalar: Unicode.Scalar) -> Bool {
-        switch scalar.properties.generalCategory {
-        case .control, .format, .spaceSeparator, .lineSeparator, .paragraphSeparator,
-             .nonspacingMark, .spacingMark, .enclosingMark, .unassigned:
-            return false
-        default:
-            return true
-        }
-    }
-}
-
-// MARK: - Mode Snapshot
-
-/// Thread-safe, value-type copy of the Mode properties needed for background
-/// validation during recording start. Core Data managed objects are tied to
-/// their context's queue, so this snapshot allows safe access from any thread.
-struct ModeSnapshot: Sendable {
-    let id: UUID
-    let name: String
-    let model: String
-    /// The Mode's transcription language, exactly as stored — including the
-    /// literal `"auto"`. Kept raw so the snapshot stays a faithful copy;
-    /// `ModeSnapshot.effectiveLanguage(_:)` below is what maps `"auto"` onto
-    /// `nil` for the providers.
-    /// Added for #318: the language is a model-preparation input (it selects the
-    /// English-optimized whisper weights), so anything keyed on this snapshot
-    /// has to be able to see it change.
-    let language: String?
-    let cloudProvider: String
-    let rawCloudProvider: String?
-    let postProcessingMode: Int16
-    let postProcessingProvider: String
-    let rawPostProcessingProvider: String?
-    let languageModel: String?
-    let enableScreenOCR: Bool
-    let sortOrder: Int16
-
-    init(_ mode: Mode) {
-        self.id = mode.id ?? UUID()
-        self.name = mode.name ?? "Default"
-        self.model = mode.model ?? "base"
-        self.language = mode.language
-        self.cloudProvider = mode.cloudProvider ?? "hyperwhisper"
-        self.rawCloudProvider = mode.cloudProvider
-        self.postProcessingMode = mode.postProcessingMode
-        self.postProcessingProvider = mode.postProcessingProvider ?? "hyperwhisper"
-        self.rawPostProcessingProvider = mode.postProcessingProvider
-        self.languageModel = mode.languageModel
-        self.enableScreenOCR = mode.enableScreenOCR
-        self.sortOrder = mode.sortOrder
-    }
-
-    /// The language value that actually reaches a transcription provider:
-    /// lowercased, with the sentinel `"auto"` collapsed onto `nil` so the
-    /// provider auto-detects.
-    ///
-    /// The ONE copy of this rule (#318). It used to be written out four times —
-    /// `TranscriptionModelManager.extractLanguage(from:)`,
-    /// `TranscriptionProviderRouter.extractLanguage(from:)`, the `languageArg`
-    /// closure in `TranscriptionPipeline.transcribeWithDetails`, and
-    /// `ASRPreparationKey.init` — and the last of those is a cache KEY over the
-    /// first: if one copy were ever hardened (trim whitespace, treat `""` as
-    /// unset) and the key's were not, a Mode whose language is `" auto"` would
-    /// get a changed effective language while the key compared equal,
-    /// `removeDuplicates()` would swallow the emission and the model would never
-    /// re-prepare. That is #318 again, on the language axis. Harden it here, and
-    /// the key moves with the providers by construction.
-    ///
-    /// Lives on `ModeSnapshot` because the key reads a snapshot while the other
-    /// three read a `Mode`; a `String?` in and a `String?` out is the only shape
-    /// all four can share.
-    static func effectiveLanguage(_ raw: String?) -> String? {
-        guard let lowered = raw?.lowercased() else { return nil }
-        return lowered == "auto" ? nil : lowered
-    }
-}
-
-// MARK: - Vocabulary Entry Snapshot
-
-/// Thread-safe, value-type copy of a Vocabulary entry for use on the recording
-/// hot path. Core Data managed objects are tied to their context's queue, so
-/// this snapshot allows safe access from streaming callbacks on any thread.
-struct VocabularyEntrySnapshot: Sendable {
-    let word: String
-    let replacement: String?
-}
-
-// MARK: - Auto-Delete Transaction Snapshot
-
-/// Plain values produced by the serial writer after an auto-delete transaction
-/// commits. No managed object or context crosses the writer queue boundary.
-struct AutoDeleteTransactionSnapshot: Sendable {
-    let audioPaths: [String]
-    let transcriptsDeleted: Int
-    let hasMore: Bool
-}
+import SQLite3
 
 // MARK: - Persistence Controller
 
@@ -153,6 +28,25 @@ class PersistenceController: ObservableObject {
     
     /// Singleton instance for app-wide access
     static let shared = PersistenceController()
+
+    /// The one `HyperWhisper` model every container in this process uses (#1653).
+    ///
+    /// `NSPersistentContainer(name:)` loads a NEW model instance each time it is
+    /// called. With two or more loaded, `+[Transcript entity]` cannot tell them
+    /// apart, so `Transcript(context:)` can take another model's entity: the
+    /// insert then has no store, `obtainPermanentIDs` throws and the write
+    /// saves nothing. The unit tests build many in-memory controllers at once
+    /// and hit this; one shared model removes the ambiguity.
+    ///
+    /// Build every `HyperWhisper` container on this model, never by name. A
+    /// missing model stops the app here, as a failed store load already does.
+    static let managedObjectModel: NSManagedObjectModel = {
+        guard let url = Bundle.main.url(forResource: "HyperWhisper", withExtension: "momd"),
+              let model = NSManagedObjectModel(contentsOf: url) else {
+            fatalError("Core Data model HyperWhisper.momd is missing from the app bundle")
+        }
+        return model
+    }()
 
     /// True when THIS launch seeded the default modes — i.e. a genuine fresh
     /// install (no modes existed yet). Used to gate first-run onboarding so
@@ -261,7 +155,7 @@ class PersistenceController: ObservableObject {
     init(inMemory: Bool = false) {
         // Use NSPersistentCloudKitContainer so the Cloud store can mirror to iCloud.
         // The Local store is configured without `cloudKitContainerOptions` and stays on disk only.
-        container = NSPersistentCloudKitContainer(name: "HyperWhisper")
+        container = NSPersistentCloudKitContainer(name: "HyperWhisper", managedObjectModel: Self.managedObjectModel)
 
         if inMemory {
             // Single in-memory store for tests/previews. CloudKit mirroring is disabled.
@@ -382,6 +276,10 @@ class PersistenceController: ObservableObject {
             // `geminiTranscribe`, so running this first would leave nothing to do
             // and then let the older migration write the value again.
             migrateGoogleChirp3TierIfNeeded()
+            // BEFORE repairModeNamesOnLaunch: that pass renames a duplicate
+            // name with a " 2" suffix, and a leaked row is gone sooner if it
+            // is never renamed in the first place (issue #1509).
+            purgeLeakedLocalAPITransientModesOnLaunch()
             repairModeNamesOnLaunch()
             repairBrokenLocalModesOnLaunch()
             repairStaleProcessingTranscriptsOnLaunch()
@@ -420,6 +318,13 @@ class PersistenceController: ObservableObject {
 
         if repaired > 0 { save() }
         return repaired
+    }
+
+    private func purgeLeakedLocalAPITransientModesOnLaunch() {
+        let purged = purgeLeakedLocalAPITransientModes()
+        if purged > 0 {
+            AppLogger.coreData.info("Launch repair deleted \(purged, privacy: .public) leaked Local API transient mode(s)")
+        }
     }
 
     private func repairModeNamesOnLaunch() {
@@ -635,7 +540,7 @@ class PersistenceController: ObservableObject {
     /// CloudKit mirroring is NOT enabled during this write — it happens on first launch
     /// of the main container, which will push the rows up from the local cloud store file.
     private static func writeVocabularySnapshots(_ snapshots: [VocabularySnapshot], to url: URL) throws {
-        let tempContainer = NSPersistentContainer(name: "HyperWhisper")
+        let tempContainer = NSPersistentContainer(name: "HyperWhisper", managedObjectModel: managedObjectModel)
         let desc = NSPersistentStoreDescription(url: url)
         desc.configuration = cloudConfigurationName
         desc.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
@@ -776,71 +681,6 @@ class PersistenceController: ObservableObject {
         }
     }
 
-    // MARK: - Google Chirp 3 → Gemini 3.5 Transcribe Tier Migration
-
-    /// Every persisted `cloudAccuracyTier` value that catalog v8 retired, mapped
-    /// onto `geminiTranscribe`. Mirrors the entry's `migrateFrom` list in
-    /// `shared-app-classification/cloud-stt-catalog.json` and the SQL in the
-    /// Windows/Linux migration `20260827090000_MigrateGoogleChirp3TierToGeminiTranscribe`.
-    private static let retiredGoogleChirp3TierValues: Set<String> = [
-        "googlechirp3", "googlechirp", "google-chirp", "chirp", "chirp_3", "googlespeech",
-    ]
-
-    /// What the Chirp 3 → Gemini 3.5 Transcribe migration writes back to one
-    /// stored mode row. `nil` fields are left as they are.
-    struct GoogleChirp3TierRewrite: Equatable {
-        var accuracyTier: String?
-        var transcriptionModel: String?
-    }
-
-    /// The rewrite a single stored row earns, or `nil` for "leave this row
-    /// alone". Pure, so the provider guard below is testable without standing up
-    /// a Core Data stack.
-    ///
-    /// SCOPED TO HYPERWHISPER CLOUD MODES, mirroring the `WHERE CloudProvider =`
-    /// clause of the `20260508120000_MigrateRemovedDeepgramModels` precedent.
-    /// `cloudAccuracyTier` is only meaningful for HW-Cloud modes, but a mode
-    /// switched from HW-Cloud+Chirp3 to a BYOK provider KEEPS the stale tier —
-    /// and several BYOK providers store an empty `cloudTranscriptionModel` (Grok's
-    /// single model is catalogued under the id `""`). Without the guard, such a
-    /// row matches on the stale tier, trips the `storedModel.isEmpty` branch and
-    /// has Google's `gemini-3.5-transcribe` stamped onto it — which the next
-    /// dictation then POSTs to xAI.
-    ///
-    /// A nil/empty provider counts as HyperWhisper Cloud, matching
-    /// `createOrUpdateMode`'s `?? "hyperwhisper"` default.
-    static func googleChirp3TierRewrite(
-        cloudProvider: String?,
-        cloudAccuracyTier: String?,
-        cloudTranscriptionModel: String?
-    ) -> GoogleChirp3TierRewrite? {
-        let storedTier = (cloudAccuracyTier ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-        guard retiredGoogleChirp3TierValues.contains(storedTier) else { return nil }
-
-        let resolvedProvider = CloudProvider.parse(cloudProvider) ?? .hyperwhisper
-        guard resolvedProvider == .hyperwhisper else { return nil }
-
-        var rewrite = GoogleChirp3TierRewrite(
-            accuracyTier: CloudAccuracyTier.geminiTranscribe.rawValue,
-            transcriptionModel: nil
-        )
-
-        // `chirp_3` is not a model of the new tier, so the editor would
-        // fall back to the tier default on next open anyway — write it
-        // now so the stored row is honest and the first transcription
-        // sends a valid X-STT-Model. A model the user picked that is NOT
-        // Chirp's is left alone; it cannot exist on this tier today, but
-        // silently overwriting a deliberate choice is the worse failure.
-        let storedModel = (cloudTranscriptionModel ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        if storedModel.isEmpty || storedModel.caseInsensitiveCompare("chirp_3") == .orderedSame {
-            rewrite.transcriptionModel = CloudAccuracyTier.geminiTranscribe.defaultModelId
-        }
-        return rewrite
-    }
-
     /// One-time data migration for the retired `googleChirp3` accuracy tier.
     ///
     /// Catalog v8 replaced Chirp 3 with Gemini 3.5 Transcribe as Google's cloud
@@ -903,111 +743,6 @@ class PersistenceController: ObservableObject {
                 metadata: CoreDataSaveDiagnostics.contextShape(context)
             )
         }
-    }
-
-    // MARK: - Broken Local Post-Processing Mode Repair
-
-    /// Outcome of a `repairBrokenLocalModes` pass.
-    struct LocalModeRepairResult {
-        /// Names of modes whose post-processing was silently turned off.
-        var disabledModeNames: [String] = []
-        /// Model ids referenced by modes that were LEFT as `.local` but whose
-        /// weights aren't downloaded yet (capable hardware, restore flow only) —
-        /// candidates for a batched "Download all" prompt.
-        var pendingDownloadModelIds: Set<String> = []
-    }
-
-    /// Silently repairs broken on-device (`.local`) post-processing modes by turning
-    /// post-processing OFF (`postProcessingMode = 0`). We NEVER substitute a cloud
-    /// LLM — on failure the user's text is delivered raw or post-processing is off,
-    /// never silently routed to the cloud.
-    ///
-    /// A `.local` mode is broken when the machine can't run the local runtime
-    /// (Intel), it has no model selected, or its selected model isn't usable. On
-    /// capable hardware running under Rosetta the mode is LEFT intact (a native
-    /// relaunch fixes it — see `SystemCapability.needsNativeRelaunch`).
-    ///
-    /// - Parameters:
-    ///   - capability: hardware/runtime capability — drives the Intel gate.
-    ///   - isCataloged: true if a model id is a known downloadable local model.
-    ///   - isDownloaded: true if a model id's weights are present and usable on disk.
-    ///   - keepPendingDownloads: when true (restore on capable hardware), a `.local`
-    ///     mode whose model is cataloged-but-not-downloaded is LEFT as `.local` and
-    ///     reported in `pendingDownloadModelIds` instead of being turned off. When
-    ///     false (launch), such a mode is turned off like any other missing model.
-    @discardableResult
-    func repairBrokenLocalModes(
-        capability: SystemCapability,
-        isCataloged: (String) -> Bool,
-        isDownloaded: (String) -> Bool,
-        keepPendingDownloads: Bool
-    ) -> LocalModeRepairResult {
-        var result = LocalModeRepairResult()
-        let context = container.viewContext
-        let request: NSFetchRequest<Mode> = Mode.fetchRequest()
-
-        let localRawValue = PostProcessingMode.local.rawValue
-        let offRawValue = PostProcessingMode.off.rawValue
-
-        func disable(_ mode: Mode, reason: String) {
-            let name = mode.name ?? "Untitled"
-            mode.postProcessingMode = offRawValue
-            result.disabledModeNames.append(name)
-            // Greppable support-visibility line (there is no UI signal for a silent repair).
-            AppLogger.coreData.info("PP disabled for Mode · modeId=\(mode.id?.uuidString ?? "nil", privacy: .public) · preset=\(PresetType.reportingValue(for: mode), privacy: .public): \(reason, privacy: .public)")
-        }
-
-        do {
-            let modes = try context.fetch(request)
-            for mode in modes where mode.postProcessingMode == localRawValue {
-                // Hardware gate first — on Intel never keep/offer a local mode.
-                guard capability.isAppleSiliconHardware else {
-                    disable(mode, reason: "unsupported hardware (Intel)")
-                    continue
-                }
-                let modelId = (mode.languageModel ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !modelId.isEmpty else {
-                    disable(mode, reason: "no local model selected")
-                    continue
-                }
-                if isDownloaded(modelId) {
-                    continue // healthy — model present and usable
-                }
-                // Not downloaded. On restore (capable HW) keep the intent for a
-                // cataloged model and offer a re-download; otherwise turn it off.
-                if keepPendingDownloads, isCataloged(modelId) {
-                    result.pendingDownloadModelIds.insert(modelId)
-                    continue
-                }
-                disable(mode, reason: isCataloged(modelId) ? "model not downloaded" : "model not available")
-            }
-
-            if context.hasChanges {
-                try context.save()
-            }
-        } catch {
-            let nsError = error as NSError
-            // One event, not two: the sibling SentryService.capture that used to
-            // sit here was ungated, stack-trace fingerprinted, and carried the
-            // recent_logs blob. `site` now says which caller failed.
-            AppLogger.logCoreData(
-                .save(site: "repair_broken_local_modes", contextKey: CoreDataSaveDiagnostics.viewContextKey),
-                error: nsError,
-                metadata: CoreDataSaveDiagnostics.contextShape(context)
-            )
-        }
-
-        return result
-    }
-
-    /// Filesystem-backed `isDownloaded` check for the launch/restore repair: a model
-    /// is "present" when its GGUF file exists on disk. (Model id == GGUF filename.)
-    /// Checksum validity isn't known synchronously at launch — an invalid file that
-    /// exists is caught later by the mode editor and never causes data loss because
-    /// the streaming fallback always returns the raw transcript.
-    static func localModelFileExists(_ modelId: String) -> Bool {
-        let url = LocalModelManager.modelsDirectory.appendingPathComponent(modelId)
-        return FileManager.default.fileExists(atPath: url.path)
     }
 
     /// Launch hook: repairs broken `.local` modes every launch (cheap; saves only on
@@ -1171,59 +906,6 @@ class PersistenceController: ObservableObject {
         return changes
     }
 
-    // MARK: - Save Operations
-    
-    /// Saves the view context if there are changes
-    /// Core Data automatically posts NSManagedObjectContextDidSave notification when saving
-    func save() {
-        let context = container.viewContext
-        
-        // Early return if no changes to save (performance optimization)
-        guard context.hasChanges else {
-            // Nothing pending means somebody else drained this context, so it
-            // still accepts writes. Without this the streak below could only
-            // grow: `hyperwhisperApp` and the Local API's modes endpoint both
-            // save the shared `viewContext` directly, and a stale streak would
-            // report a healthy context as unwritable.
-            CoreDataSaveDiagnostics.recordSuccess(contextKey: CoreDataSaveDiagnostics.viewContextKey)
-            return
-        }
-
-        do {
-            // Persist changes to the Core Data store
-            // Core Data automatically posts notification
-            try context.save()
-            CoreDataSaveDiagnostics.recordSuccess(contextKey: CoreDataSaveDiagnostics.viewContextKey)
-        } catch {
-            // In production, handle this error appropriately
-            let nsError = error as NSError
-            // WHY THE SHAPE MATTERS HERE (Sentry HYPERWHISPER-VC): this path has
-            // no `rollback()`, unlike the background writer below. One rejected
-            // row therefore stays pending on the view context and every later
-            // save fails on it — which is what 19 events, 4 hours apart, from a
-            // single process actually were. `pending_*` growing across a streak
-            // says that; a stack trace cannot.
-            //
-            // Read here rather than before the `do`: a save that throws keeps its
-            // pending changes (that is the poisoning), so the sets are intact,
-            // and a save that works pays nothing for this.
-            let shape = CoreDataSaveDiagnostics.contextShape(context)
-            // One event, not two. The duplicate `SentryService.capture` that
-            // used to follow this line carried the same message with a
-            // stack-trace fingerprint, which is how one fault became both
-            // HYPERWHISPER-VB and HYPERWHISPER-VC.
-            AppLogger.logCoreData(
-                .save(site: PersistenceController.viewContextSaveSite, contextKey: CoreDataSaveDiagnostics.viewContextKey),
-                error: nsError,
-                metadata: shape
-            )
-        }
-    }
-
-    /// Save-site slug for the `viewContext` save. A constant so the log line, the
-    /// Sentry tag and the failure streak cannot drift apart.
-    private static let viewContextSaveSite = "view_context_save"
-
     /// Save-site slug for the serial background writer.
     private static let writerSaveSite = "background_writer"
 
@@ -1372,7 +1054,7 @@ class PersistenceController: ObservableObject {
     /// out only after the save commits. A fetch or save failure returns `nil`, so
     /// callers must not unlink any files or record successful cleanup state.
     func deleteTranscriptsOlderThanInBackground(_ cutoffDate: Date) async -> AutoDeleteTransactionSnapshot? {
-        return await performWriteRequiringSave(deleteWinsConflicts: true) { context -> AutoDeleteTransactionSnapshot? in
+        let snapshot = await performWriteRequiringSave(deleteWinsConflicts: true) { context -> AutoDeleteTransactionSnapshot? in
             let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
             request.predicate = NSPredicate(format: "date < %@", cutoffDate as NSDate)
             request.sortDescriptors = [NSSortDescriptor(keyPath: \Transcript.date, ascending: true)]
@@ -1395,23 +1077,26 @@ class PersistenceController: ObservableObject {
             }
 
             let batch = Array(transcripts.prefix(Self.autoDeleteBatchLimit))
-            var paths: [String] = []
+            // Same file list as History's Delete, including the unrecorded
+            // derived files (#1513). Collected before any row is deleted so
+            // the ownership check sees only the rows that survive this batch.
+            let paths = Self.audioFilePathsToDelete(for: batch, in: context)
             for transcript in batch {
-                if let audioPath = transcript.audioFilePath {
-                    paths.append(audioPath)
-                }
-                if let trimmedPath = transcript.value(forKey: "trimmedAudioFilePath") as? String {
-                    paths.append(trimmedPath)
-                }
                 context.delete(transcript)
             }
 
             return AutoDeleteTransactionSnapshot(
                 audioPaths: paths,
                 transcriptsDeleted: batch.count,
-                hasMore: transcripts.count > batch.count
+                hasMore: transcripts.count > batch.count,
+                transcriptIDs: batch.compactMap(\.id)
             )
         }
+        // Only once the delete committed: stop the retries of the expired rows.
+        if let snapshot {
+            Self.stopRetries(ofDeleted: snapshot.transcriptIDs)
+        }
+        return snapshot
     }
 
     /// Debounced (cancel-previous) view-context re-faulting. After ~3s of write
@@ -1462,6 +1147,7 @@ class PersistenceController: ObservableObject {
                         for duplicate in existing.dropFirst() {
                             context.delete(duplicate)
                         }
+                        Self.stopRetries(ofDeleted: existing.dropFirst().compactMap(\.id))
                         AppLogger.coreData.warning(
                             "Collapsed duplicate processing transcripts for audio path: \(normalizedPath, privacy: .public) (\(existing.count, privacy: .public) -> 1)"
                         )
@@ -1540,32 +1226,46 @@ class PersistenceController: ObservableObject {
     /// and near-now dedup as the `@MainActor` variant, but no `processPendingChanges()`
     /// and no view-context `refreshAllObjects()` — the merge notification refreshes
     /// HistoryView, and maintenance is debounced off the hot path.
+    ///
+    /// - Parameter completesFailedRowByRetry: the row was saved as FAILED and a
+    ///   retry is completing it (#1636). Clears `failedReason` (History reads
+    ///   any non-empty one as a failure, so a completed row that kept it would
+    ///   still show as failed; a processing row has none) and counts the retry
+    ///   (`retryCount` + 1, `lastRetryDate`) as History's own Retry does
+    ///   (`TranscriptionRetryController`).
+    /// - Returns: whether the row was found and the write was saved.
+    @discardableResult
     func updateTranscriptWithTranscriptionInBackground(
         transcriptID: NSManagedObjectID,
         transcribedText: String,
         postProcessedText: String? = nil,
         transcriptionProvider: String? = nil,
         postProcessingProvider: String? = nil,
-        wordTimestampsJSON: String? = nil
-    ) async {
-        await performWrite { context in
+        wordTimestampsJSON: String? = nil,
+        completesFailedRowByRetry: Bool = false
+    ) async -> Bool {
+        let result = await performWriteReportingSave { context -> Bool in
             guard let transcript = try? context.existingObject(with: transcriptID) as? Transcript else {
                 AppLogger.coreData.warning("updateTranscriptWithTranscriptionInBackground: transcript row not found (cancel race?) — skipping")
-                return
+                return false
             }
 
             transcript.text = postProcessedText ?? transcribedText
             transcript.setValue("completed", forKey: "status")
-            transcript.setValue(transcribedText, forKey: "transcribedText")
-            if let postProcessedText {
-                transcript.setValue(postProcessedText, forKey: "postProcessedText")
+            if completesFailedRowByRetry {
+                transcript.setValue(nil, forKey: "failedReason")
+                let currentRetryCount = transcript.value(forKey: "retryCount") as? Int16 ?? 0
+                transcript.setValue(currentRetryCount + 1, forKey: "retryCount")
+                transcript.setValue(Date(), forKey: "lastRetryDate")
             }
+            transcript.setValue(transcribedText, forKey: "transcribedText")
+            // Always overwrite (including clearing to nil) — see the @MainActor variant.
+            transcript.setValue(postProcessedText, forKey: "postProcessedText")
             if let transcriptionProvider {
                 transcript.setValue(transcriptionProvider, forKey: "transcriptionProvider")
             }
-            if let postProcessingProvider {
-                transcript.setValue(postProcessingProvider, forKey: "postProcessingProvider")
-            }
+            // Always overwrite, in step with `postProcessedText` — see the @MainActor variant.
+            transcript.setValue(postProcessingProvider, forKey: "postProcessingProvider")
             // Always overwrite (including clearing to nil) — see the @MainActor variant.
             transcript.setValue(wordTimestampsJSON, forKey: "wordTimestampsJSON")
 
@@ -1593,95 +1293,55 @@ class PersistenceController: ObservableObject {
 
                             if isNearInTime && (isNearInDuration || sameText) {
                                 context.delete(candidate)
+                                Self.stopRetries(ofDeleted: [candidate.id].compactMap { $0 })
                                 AppLogger.coreData.warning("Removed transient duplicate transcript for path: \(audioPath, privacy: .public)")
                             }
                         }
                     }
                 }
             }
+            return true
         }
+        return result.value && result.saved
     }
 
     /// Mark a transcript failed on the serial writer.
+    ///
+    /// - Parameters:
+    ///   - countsRetry: a retry failed this row (#1815). Counts it
+    ///     (`retryCount` + 1, `lastRetryDate`) as History's own Retry does.
+    ///   - transcriptionProvider: the engine that failed, the same kind of
+    ///     value a completed row stores ("Tiny (Multilingual)", "Parakeet TDT"),
+    ///     so History can show which engine failed (#1518). `nil` leaves the
+    ///     column as it is, as the completed-row writes do.
+    /// - Returns: whether the row was found and the write was saved.
+    @discardableResult
     func markTranscriptFailedInBackground(
         transcriptID: NSManagedObjectID,
         failedReason: String,
-        errorText: String
-    ) async {
-        await performWrite { context in
+        errorText: String,
+        countsRetry: Bool = false,
+        transcriptionProvider: String? = nil
+    ) async -> Bool {
+        let result = await performWriteReportingSave { context -> Bool in
             guard let transcript = try? context.existingObject(with: transcriptID) as? Transcript else {
                 AppLogger.coreData.warning("markTranscriptFailedInBackground: transcript row not found — skipping")
-                return
+                return false
             }
             transcript.setValue("failed", forKey: "status")
             transcript.setValue(failedReason, forKey: "failedReason")
             transcript.text = errorText
-        }
-    }
-
-    /// Finalize a recording session on stop in ONE serial write — collapses the
-    /// old `updateRecordingSessionOnStop` + audioFormat mutation + save.
-    func updateRecordingSessionOnStopInBackground(
-        sessionID: NSManagedObjectID,
-        audioFilePath: String,
-        duration: TimeInterval,
-        audioFormat: String
-    ) async {
-        await performWrite { context in
-            guard let session = try? context.existingObject(with: sessionID) as? RecordingSession else {
-                AppLogger.coreData.warning("updateRecordingSessionOnStopInBackground: session row not found — skipping")
-                return
+            if countsRetry {
+                let currentRetryCount = transcript.value(forKey: "retryCount") as? Int16 ?? 0
+                transcript.setValue(currentRetryCount + 1, forKey: "retryCount")
+                transcript.setValue(Date(), forKey: "lastRetryDate")
             }
-            session.audioFilePath = audioFilePath
-            session.durationInSeconds = duration
-            session.endTime = Date()
-            session.audioFormat = audioFormat
-        }
-    }
-
-    /// Update a transcript's audio file path (and its recording session's path)
-    /// on the serial writer — used by the background M4A conversion path.
-    func updateTranscriptAudioFilePathInBackground(
-        transcriptID: NSManagedObjectID,
-        newPath: String
-    ) async {
-        await performWrite { context in
-            guard let transcript = try? context.existingObject(with: transcriptID) as? Transcript else {
-                AppLogger.coreData.warning("updateTranscriptAudioFilePathInBackground: transcript row not found — skipping")
-                return
+            if let transcriptionProvider {
+                transcript.setValue(transcriptionProvider, forKey: "transcriptionProvider")
             }
-            transcript.audioFilePath = newPath
-            if let session = transcript.recordingSession {
-                session.audioFilePath = newPath
-            }
+            return true
         }
-    }
-
-    /// Delete a recording session on the serial writer, then remove its audio file
-    /// off the main thread. Reads the path inside the writer so nothing crosses a
-    /// context boundary.
-    func deleteRecordingSessionInBackground(
-        sessionID: NSManagedObjectID,
-        deleteAudioFile: Bool = true
-    ) async {
-        let filePathToRemove: String? = await performWrite { context -> String? in
-            guard let session = try? context.existingObject(with: sessionID) as? RecordingSession else {
-                AppLogger.coreData.debug("deleteRecordingSessionInBackground: session row not found — skipping")
-                return nil
-            }
-            let path = deleteAudioFile ? session.audioFilePath : nil
-            context.delete(session)
-            return path
-        }
-
-        if let filePathToRemove {
-            do {
-                try FileManager.default.removeItem(atPath: filePathToRemove)
-                AppLogger.audio.debug("Deleted incomplete audio file: \(filePathToRemove, privacy: .public)")
-            } catch {
-                AppLogger.audio.debug("Could not delete incomplete audio file (may not exist): \(error.localizedDescription)")
-            }
-        }
+        return result.value && result.saved
     }
 
     // MARK: - Transcript Operations
@@ -1728,6 +1388,7 @@ class PersistenceController: ObservableObject {
                         for duplicate in existing.dropFirst() {
                             context.delete(duplicate)
                         }
+                        Self.stopRetries(ofDeleted: existing.dropFirst().compactMap(\.id))
                         AppLogger.coreData.warning(
                             "Collapsed duplicate processing transcripts for audio path: \(normalizedPath, privacy: .public) (\(existing.count, privacy: .public) -> 1)"
                         )
@@ -1776,7 +1437,9 @@ class PersistenceController: ObservableObject {
     /// - Parameters:
     ///   - transcript: The transcript to update (currently in "processing" state)
     ///   - transcribedText: The transcribed text (or error message if transcription failed)
-    ///   - postProcessedText: Optional AI-enhanced version of the text
+    ///   - postProcessedText: The delivered text when it differs from the raw text (AI
+    ///     post-processing, or with it off, filler removal, voice commands and
+    ///     Vocabulary swaps); nil clears the field. See `TranscriptionResult.historyPostProcessedText`.
     ///
     /// Auto-refresh mechanism:
     /// 1. Updates the transcript's text and status from "processing" to "completed"
@@ -1797,20 +1460,24 @@ class PersistenceController: ObservableObject {
         // Store the raw transcribed text
         transcript.setValue(transcribedText, forKey: "transcribedText")
 
-        // Store the post-processed text if available
-        if let postProcessedText = postProcessedText {
-            transcript.setValue(postProcessedText, forKey: "postProcessedText")
-        }
+        // Store the delivered text. Always overwrite, including clearing to
+        // nil: History, the Recording dialog and `GET /recordings/{id}` all
+        // read `postProcessedText` before `text`, so a Retry whose new text
+        // equals its raw text would otherwise keep showing the old run's
+        // text (issue #1638).
+        transcript.setValue(postProcessedText, forKey: "postProcessedText")
 
         // Store the transcription provider (e.g., "LibWhisper", "HyperWhisper Cloud", "OpenAI Whisper")
         if let provider = transcriptionProvider {
             transcript.setValue(provider, forKey: "transcriptionProvider")
         }
 
-        // Store the post-processing provider if available
-        if let provider = postProcessingProvider {
-            transcript.setValue(provider, forKey: "postProcessingProvider")
-        }
+        // Store the post-processing provider. Always overwrite, including
+        // clearing to nil, in step with `postProcessedText`: a Retry with AI
+        // off (or an AI step that left the text unchanged) has no provider,
+        // and keeping the old run's one would badge non-AI text as AI in
+        // History and in `GET /recordings/{id}`.
+        transcript.setValue(postProcessingProvider, forKey: "postProcessingProvider")
 
         // Store segment/word timestamps JSON blob (basis: raw_text). Always
         // overwrite — including clearing to nil when the caller supplies none.
@@ -1848,6 +1515,7 @@ class PersistenceController: ObservableObject {
 
                         if isNearInTime && (isNearInDuration || sameText) {
                             container.viewContext.delete(candidate)
+                            Self.stopRetries(ofDeleted: [candidate.id].compactMap { $0 })
                             AppLogger.coreData.warning("Removed transient duplicate transcript for path: \(audioPath, privacy: .public)")
                         }
                     }
@@ -1870,7 +1538,9 @@ class PersistenceController: ObservableObject {
     }
 
     private struct TrimmedPathUpdate: Sendable {
-        let unownedPreviousPath: String?
+        /// The replaced trimmed file and its derived upload copy (#1513), when
+        /// no transcript owns them any more. Empty when nothing is unowned.
+        let unownedPreviousPaths: [String]
     }
 
     /// Sets the trimmed audio file path for a transcript on the serial writer.
@@ -1901,7 +1571,7 @@ class PersistenceController: ObservableObject {
             // with the corrected collision-safe WAV path. Delete the prior
             // artifact only after no transcript owns it and the path is not the
             // original recording. The delete runs after this transaction saves.
-            var unownedPreviousPath: String?
+            var unownedPreviousPaths: [String] = []
             if let previousPath,
                previousPath != trimmedPath,
                previousPath != originalPath {
@@ -1914,11 +1584,19 @@ class PersistenceController: ObservableObject {
                 ownersRequest.fetchLimit = 1
 
                 if let owners = try? context.count(for: ownersRequest), owners == 0 {
-                    unownedPreviousPath = previousPath
+                    // The old trimmed WAV may also have a `.m4a` upload copy
+                    // that no column records (#1513). The shared helper adds it
+                    // unless a transcript (this one included, with its new
+                    // path) still records or derives it.
+                    unownedPreviousPaths = Self.audioFilePathsToDelete(
+                        for: [TranscriptRecordedAudioPaths(audioFilePath: nil, trimmedAudioFilePath: previousPath)],
+                        excluding: [],
+                        in: context
+                    )
                 }
             }
 
-            return TrimmedPathUpdate(unownedPreviousPath: unownedPreviousPath)
+            return TrimmedPathUpdate(unownedPreviousPaths: unownedPreviousPaths)
         }
 
         guard let update else {
@@ -1929,8 +1607,8 @@ class PersistenceController: ObservableObject {
             return false
         }
 
-        if let previousPath = update.unownedPreviousPath {
-            _ = await FileDeletion.deleteFiles(at: [previousPath])
+        if !update.unownedPreviousPaths.isEmpty {
+            _ = await FileDeletion.deleteFiles(at: update.unownedPreviousPaths)
             AppLogger.coreData.info("Removed replaced trimmed audio artifact")
         }
 
@@ -1949,32 +1627,16 @@ class PersistenceController: ObservableObject {
             return
         }
         
-        // DELETE AUDIO FILES FROM DISK:
-        // Remove the original audio file if it exists
-        if let audioFilePath = transcript.audioFilePath,
-           FileManager.default.fileExists(atPath: audioFilePath) {
-            do {
-                try FileManager.default.removeItem(atPath: audioFilePath)
-                AppLogger.coreData.info("Deleted audio file: \(audioFilePath, privacy: .public)")
-            } catch {
-                AppLogger.coreData.error("Failed to delete audio file: \(error.localizedDescription, privacy: .public)")
-            }
-        }
-
-        // DELETE TRIMMED AUDIO FILE FROM DISK:
-        // Remove the VAD-trimmed audio file if it exists
-        // This prevents orphaned trimmed files from accumulating
-        if let trimmedPath = transcript.value(forKey: "trimmedAudioFilePath") as? String,
-           FileManager.default.fileExists(atPath: trimmedPath) {
-            do {
-                try FileManager.default.removeItem(atPath: trimmedPath)
-                AppLogger.coreData.info("Deleted trimmed audio file: \(trimmedPath, privacy: .public)")
-            } catch {
-                AppLogger.coreData.error("Failed to delete trimmed audio file: \(error.localizedDescription, privacy: .public)")
-            }
-        }
-
         let context = container.viewContext
+
+        // DELETE AUDIO FILES FROM DISK:
+        // The original, the VAD-trimmed file, and the unrecorded files derived
+        // from them (#1513) — one list shared with bulk delete and auto-delete.
+        for path in Self.audioFilePathsToDelete(for: [transcript], in: context) {
+            removeTranscriptAudioFile(atPath: path)
+        }
+
+        Self.stopRetries(ofDeleted: [transcript.id].compactMap { $0 })
         context.delete(transcript)
         save()
     }
@@ -1995,31 +1657,28 @@ class PersistenceController: ObservableObject {
         }
         
         // DELETE AUDIO FILES FROM DISK:
-        // Remove associated audio files for each transcript (both original and trimmed)
-        validTranscripts.forEach { transcript in
-            // Delete original audio file
-            if let audioFilePath = transcript.audioFilePath,
-               FileManager.default.fileExists(atPath: audioFilePath) {
-                do {
-                    try FileManager.default.removeItem(atPath: audioFilePath)
-                    AppLogger.coreData.info("Deleted audio file: \(audioFilePath, privacy: .public)")
-                } catch {
-                    AppLogger.coreData.error("Failed to delete audio file: \(error.localizedDescription, privacy: .public)")
-                }
-            }
-            // Delete trimmed audio file (VAD-processed version)
-            if let trimmedPath = transcript.value(forKey: "trimmedAudioFilePath") as? String,
-               FileManager.default.fileExists(atPath: trimmedPath) {
-                do {
-                    try FileManager.default.removeItem(atPath: trimmedPath)
-                    AppLogger.coreData.info("Deleted trimmed audio file: \(trimmedPath, privacy: .public)")
-                } catch {
-                    AppLogger.coreData.error("Failed to delete trimmed audio file: \(error.localizedDescription, privacy: .public)")
-                }
-            }
-            context.delete(transcript)
+        // Every file of every selected transcript: original, trimmed, and the
+        // unrecorded files derived from them (#1513). Collected for the whole
+        // selection before any row is deleted, so the ownership check sees
+        // exactly the transcripts that survive.
+        let transcriptsToDelete = Array(validTranscripts)
+        for path in Self.audioFilePathsToDelete(for: transcriptsToDelete, in: context) {
+            removeTranscriptAudioFile(atPath: path)
         }
+        Self.stopRetries(ofDeleted: transcriptsToDelete.compactMap(\.id))
+        transcriptsToDelete.forEach { context.delete($0) }
         save()
+    }
+
+    /// Removes one transcript audio file if it exists, logging the outcome.
+    private func removeTranscriptAudioFile(atPath path: String) {
+        guard FileManager.default.fileExists(atPath: path) else { return }
+        do {
+            try FileManager.default.removeItem(atPath: path)
+            AppLogger.coreData.info("Deleted audio file: \(path, privacy: .public)")
+        } catch {
+            AppLogger.coreData.error("Failed to delete audio file: \(error.localizedDescription, privacy: .public)")
+        }
     }
     
     // MARK: - Mode Operations
@@ -2094,418 +1753,18 @@ class PersistenceController: ObservableObject {
             )
         }
     }
-
-    /// Inserts the one mode a fresh install creates, unconditionally.
-    ///
-    /// `initializeDefaultModes()` owns WHEN the store may be seeded — its
-    /// `count > 0 → return` guard is the "existing users are never re-seeded"
-    /// contract and does not move. This owns WHAT gets written, and it is
-    /// separate because onboarding needs the same row on a path that guard
-    /// deliberately refuses to act on: the flagged default mode has been deleted
-    /// while other modes remain, so the store is not empty but the default is
-    /// missing.
-    ///
-    /// The alternative — letting `createOrUpdateMode` create it — is NOT
-    /// equivalent and was the bug this fixes. Its CREATE branch hardcodes
-    /// `isSystemProvided = false` and `sortOrder = maxSortOrder + 1`, against
-    /// the seed's `true` and `0`, and the row is permanent because
-    /// `initializeDefaultModes()` returns early once any mode exists.
-    ///
-    /// ⚠️ `Mode`'s Core Data attribute defaults are hostile — an unwritten field
-    /// inherits a stale legacy value (`whisper-1`, `claudeHaiku`, `openai`,
-    /// `en`, `base`) rather than a null. `applySeededValues` is where every
-    /// column is written explicitly and where that list is documented; do not
-    /// thin it out, and do not hand-roll a second copy of it here.
-    ///
-    /// - Parameter persist: `false` when the caller owns the save — the
-    ///   first-launch path saves with its own diagnostics.
-    @discardableResult
-    func seedDefaultMode(persist: Bool = true) -> Mode {
-        let mode = Mode(context: container.viewContext)
-        mode.applySeededValues(SeededModeValues.forCurrentRegion)
-        if persist { save() }
-        return mode
-    }
-
-    /// Fetches all modes sorted by sortOrder
-    /// - Returns: Array of modes
-    func fetchAllModes() -> [Mode] {
-        let request: NSFetchRequest<Mode> = Mode.fetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Mode.sortOrder, ascending: true)]
-        
-        do {
-            return try container.viewContext.fetch(request)
-        } catch {
-            AppLogger.coreData.error("Failed to fetch modes: \(error, privacy: .public)")
-            SentryService.capture(error: error, message: "Failed to fetch all modes", tags: ["component": "PersistenceController", "operation": "fetchAllModes"])
-            return []
-        }
-    }
-
-    /// Fetch all mode properties on a background context. Recording UI uses
-    /// these snapshots so SwiftUI menu/dialog re-evaluation never fault-fills
-    /// Mode managed objects on the main context during recording start.
-    func fetchAllModeSnapshotsInBackground() async -> [ModeSnapshot] {
-        let context = container.newBackgroundContext()
-        return await context.perform {
-            let request: NSFetchRequest<Mode> = Mode.fetchRequest()
-            request.sortDescriptors = [NSSortDescriptor(keyPath: \Mode.sortOrder, ascending: true)]
-
-            do {
-                return try context.fetch(request).map(ModeSnapshot.init)
-            } catch {
-                AppLogger.coreData.error("Failed to fetch mode snapshots in background: \(error, privacy: .public)")
-                return []
-            }
-        }
-    }
-    
-    /// Finds the default mode
-    /// - Returns: The default mode, if it exists
-    func findDefaultMode() -> Mode? {
-        let request: NSFetchRequest<Mode> = Mode.fetchRequest()
-        request.predicate = NSPredicate(format: "isDefault == YES")
-        request.fetchLimit = 1
-        
-        do {
-            return try container.viewContext.fetch(request).first
-        } catch {
-            AppLogger.coreData.error("Failed to fetch default mode: \(error, privacy: .public)")
-            SentryService.capture(error: error, message: "Failed to fetch default mode", tags: ["component": "PersistenceController", "operation": "findDefaultMode"])
-            return nil
-        }
-    }
-
-    /// Fetch a specific mode by its identifier. RETRIEVAL FLOW:
-    /// 1. Convert the stored string UUID into an actual UUID instance.
-    /// 2. Execute a lightweight Core Data fetch limited to a single result.
-    /// 3. Return the mode (or nil when the identifier is malformed/not found).
-    func fetchMode(withId id: String) -> Mode? {
-        guard let uuid = UUID(uuidString: id) else { return nil }
-        let request: NSFetchRequest<Mode> = Mode.fetchRequest()
-        request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
-        request.fetchLimit = 1
-
-        do {
-            return try container.viewContext.fetch(request).first
-        } catch {
-            AppLogger.coreData.error("Failed to fetch mode by id: \(error, privacy: .public)")
-            SentryService.capture(error: error, message: "Failed to fetch mode by id", tags: ["component": "PersistenceController", "operation": "modeWithId"])
-            return nil
-        }
-    }
-
-    /// Fetch a specific mode by identifier on a background context, then return
-    /// the corresponding viewContext object for UI/main-actor consumers.
-    func fetchModeInBackground(withId id: String) async -> Mode? {
-        guard let uuid = UUID(uuidString: id) else { return nil }
-        let context = container.newBackgroundContext()
-        let objectID = await context.perform { () -> NSManagedObjectID? in
-            let request: NSFetchRequest<Mode> = Mode.fetchRequest()
-            request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
-            request.fetchLimit = 1
-
-            do {
-                return try context.fetch(request).first?.objectID
-            } catch {
-                AppLogger.coreData.error("Failed to fetch mode ID in background: \(error, privacy: .public)")
-                return nil
-            }
-        }
-
-        guard let objectID else { return nil }
-        return await MainActor.run {
-            guard let object = try? container.viewContext.existingObject(with: objectID) else {
-                return nil
-            }
-            return object as? Mode
-        }
-    }
-
-    /// Fetch a mode by name with a targeted predicate.
-    /// This avoids loading/sorting the full mode table when only a fallback match is needed.
-    func fetchMode(byName name: String) -> Mode? {
-        let request: NSFetchRequest<Mode> = Mode.fetchRequest()
-        request.predicate = NSPredicate(format: "name == %@", name)
-        request.fetchLimit = 1
-
-        do {
-            return try container.viewContext.fetch(request).first
-        } catch {
-            AppLogger.coreData.error("Failed to fetch mode by name: \(error, privacy: .public)")
-            SentryService.capture(error: error, message: "Failed to fetch mode by name", tags: ["component": "PersistenceController", "operation": "modeWithName"])
-            return nil
-        }
-    }
-
-    /// Fetch a mode's properties on a background context to avoid blocking the main thread.
-    /// Returns a thread-safe value-type snapshot instead of a managed object.
-    /// Fixes Sentry HYPERWHISPER-KP (DB on Main Thread during Recording Start).
-    func fetchModeSnapshotInBackground(withId id: String) async -> ModeSnapshot? {
-        guard let uuid = UUID(uuidString: id) else { return nil }
-        let context = container.newBackgroundContext()
-        return await context.perform {
-            let request: NSFetchRequest<Mode> = Mode.fetchRequest()
-            request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
-            request.fetchLimit = 1
-            do {
-                guard let mode = try context.fetch(request).first else { return nil }
-                return ModeSnapshot(mode)
-            } catch {
-                AppLogger.coreData.error("Failed to fetch mode snapshot: \(error, privacy: .public)")
-                return nil
-            }
-        }
-    }
-
-    /// Resolve a transcription mode without running fetch requests on the main context.
-    ///
-    /// The stop/retry paths are called while SwiftUI is transitioning recording UI state.
-    /// Keep the fallback chain equivalent to the recording hot-path logic:
-    /// mode id -> mode name -> default mode.
-    func resolveTranscriptionModeInBackground(
-        id: String,
-        fallbackName: String,
-        allowDefaultFallback: Bool = true
-    ) async -> Mode? {
-        let context = container.newBackgroundContext()
-        let objectID = await context.perform { () -> NSManagedObjectID? in
-            if let uuid = UUID(uuidString: id) {
-                let byId: NSFetchRequest<Mode> = Mode.fetchRequest()
-                byId.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
-                byId.fetchLimit = 1
-                if let mode = try? context.fetch(byId).first {
-                    return mode.objectID
-                }
-            }
-
-            let byName: NSFetchRequest<Mode> = Mode.fetchRequest()
-            byName.predicate = NSPredicate(format: "name == %@", fallbackName)
-            byName.fetchLimit = 1
-            if let mode = try? context.fetch(byName).first {
-                return mode.objectID
-            }
-
-            guard allowDefaultFallback else { return nil }
-
-            let byDefault: NSFetchRequest<Mode> = Mode.fetchRequest()
-            byDefault.predicate = NSPredicate(format: "isDefault == YES")
-            byDefault.fetchLimit = 1
-            return try? context.fetch(byDefault).first?.objectID
-        }
-
-        guard let objectID else { return nil }
-        return await MainActor.run {
-            guard let object = try? container.viewContext.existingObject(with: objectID) else {
-                return nil
-            }
-            return object as? Mode
-        }
-    }
-    
-    /// Creates or updates a mode
-    /// - Parameters:
-    ///   - name: Mode name
-    ///   - preset: Preset type
-    ///   - language: Language code
-    ///   - model: Model ID
-    ///   - punctuation: Enable punctuation
-    ///   - capitalization: Enable capitalization
-    ///   - profanityFilter: Enable profanity filter
-    ///   - customInstructions: Custom instructions for "custom" preset
-    /// - Returns: The created or updated mode
-    @discardableResult
-    func createOrUpdateMode(
-        id: UUID? = nil,
-        name: String,
-        preset: String,
-        language: String,
-        model: String,
-        punctuation: Bool,
-        capitalization: Bool,
-        profanityFilter: Bool,
-        customInstructions: String? = nil,
-        languageModel: String? = nil,
-        cloudProvider: String? = nil,
-        cloudTranscriptionModel: String? = nil,
-        postProcessingMode: Int16 = 1,  // Default to cloud (1)
-        postProcessingProvider: String? = nil,
-        englishSpelling: String? = nil,
-        userSystemPrompt: String? = nil,
-        useStreamingTranscription: Bool = false,
-        cloudAccuracyTier: String? = nil,
-        removeTrailingPeriod: Bool = false,
-        enableScreenOCR: Bool = false,
-        geminiCustomPrompt: String? = nil,
-        cloudPostProcessingModel: String? = nil,
-        cloudTranscriptionDomain: String? = nil,
-        foreignPlatformExtensions: String? = nil,
-        persist: Bool = true,
-        restoringFromBackup: Bool = false,
-        in suppliedContext: NSManagedObjectContext? = nil
-    ) -> Mode {
-        let context = suppliedContext ?? container.viewContext
-        
-        // Check if mode exists (for update)
-        var mode: Mode?
-        if let id = id {
-            let request: NSFetchRequest<Mode> = Mode.fetchRequest()
-            request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-            request.fetchLimit = 1
-            mode = try? context.fetch(request).first
-        }
-        
-        // Create new mode if not found
-        if mode == nil {
-            mode = Mode(context: context)
-            mode?.id = id ?? UUID()
-            mode?.createdDate = Date()
-            mode?.isSystemProvided = false
-            
-            // Set sort order for new mode
-            let request: NSFetchRequest<Mode> = Mode.fetchRequest()
-            let maxSortOrder = (try? context.fetch(request).map(\.sortOrder).max()) ?? 0
-            mode?.sortOrder = maxSortOrder == .max ? .max : maxSortOrder + 1
-        }
-        
-        // Update mode properties.
-        //
-        // The default mode's name is fixed (issue #536). The editor disables the
-        // field and says so; here the stored name is kept rather than an error
-        // raised, because this is also the path a backup restore and an
-        // onboarding rollback take, and neither should be abandoned over a field
-        // its caller did not mean to change. `ModesEndpoint` checks first so the
-        // API can say no out loud.
-        //
-        // A restore is exempt. It is not a rename: it replays a whole store, and
-        // which row carries the flag afterwards is decided by the backup, not by
-        // whichever row happens to hold it right now. Holding the lock here
-        // would keep the LOCAL name on a row the backup renamed — and Windows
-        // and Linux (`ApplicationBackupSelection.ApplyModes`, which does a plain
-        // `SetValues`) restore the backup's name — so the same file would land
-        // with different mode names per platform, which is the divergence this
-        // issue exists to remove. `importModes` settles the flag straight after,
-        // and `enforceDefaultModeInvariant()` backstops the whole set.
-        if let existing = mode, !restoringFromBackup, !DefaultModePolicy.canRename(existing, to: name) {
-            AppLogger.coreData.warning(
-                "createOrUpdateMode: refused to rename the default mode · its name is fixed"
-            )
-        } else {
-            mode?.name = ModeNamePolicy.storageName(name, replacing: mode?.name)
-        }
-        mode?.preset = preset
-        mode?.language = LanguageData.canonicalLanguageCode(language)
-        mode?.model = model
-        mode?.punctuation = punctuation
-        mode?.capitalization = capitalization
-        mode?.profanityFilter = profanityFilter
-        mode?.customInstructions = customInstructions ?? ""
-        let trimmedUserPrompt = userSystemPrompt?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if trimmedUserPrompt.isEmpty {
-            mode?.userSystemPrompt = nil
-        } else {
-            mode?.userSystemPrompt = String(trimmedUserPrompt.prefix(2000))
-        }
-
-        let modeEnum = PostProcessingMode(rawValue: postProcessingMode) ?? .cloud
-        let normalizedLanguageModel: String
-        if modeEnum == .local {
-            normalizedLanguageModel = languageModel ?? PostProcessingProvider.localLLM.defaultModel
-        } else {
-            normalizedLanguageModel = languageModel ?? "gpt-5.6-luna"
-        }
-
-        mode?.languageModel = normalizedLanguageModel
-        // Canonicalise on the WRITE path: this is the single funnel every mode
-        // write goes through (GUI edit, Local API PATCH, backup restore), so a
-        // camelCase id from a Windows/Linux backup — `geminiTranscribe` — is
-        // stored in the lowercase form every reader and every picker tag below
-        // expects. An id this build does not model passes through verbatim.
-        mode?.cloudProvider = CloudProvider.canonicalStorageValue(cloudProvider) ?? "hyperwhisper"
-        // cloudTranscriptionModel is assigned below, after the accuracy tier is
-        // resolved, so an omitted model derives from the resolved tier's catalog
-        // default (e.g. scribe_v2) instead of persisting a stale "whisper-1".
-        mode?.postProcessingMode = postProcessingMode
-
-        // A provider this app DERIVES is written in its canonical cross-platform
-        // spelling — HyperWhisper Cloud is "hyperwhispercloud", the token Windows
-        // and the Linux/portable head already store. A provider the CALLER
-        // supplied is stored verbatim: the Local API contract on both heads is
-        // "tolerant on read, verbatim on write" (`ModesEndpoints.cs:106,397`
-        // normalise neither create nor patch), and a restore must round-trip a
-        // foreign head's string unchanged. Every reader folds the spellings back
-        // together through `PostProcessingProvider(rawValue:)`.
-        if modeEnum == .local {
-            mode?.postProcessingProvider = PostProcessingProvider.localLLM.storageValue
-        } else if let provider = postProcessingProvider {
-            mode?.postProcessingProvider = provider
-        } else {
-            mode?.postProcessingProvider = modeEnum.defaultProvider?.storageValue
-                ?? PostProcessingProvider.hyperwhisper.storageValue
-        }
-        // An omitted spelling lands on the system region's variant, the same value
-        // the GUI seeds into a new mode. Callers that forward an existing mode's
-        // value (onboarding, backup restore) still pass it through unchanged.
-        mode?.englishSpelling = englishSpelling ?? EnglishSpelling.defaultForCurrentRegion.rawValue
-        mode?.useStreamingTranscription = useStreamingTranscription
-        // API/MCP-created cloud modes that omit the accuracy tier should land on
-        // the SAME recommended engine the GUI seeds for new modes
-        // (ElevenLabs Scribe v2), not the legacy `fromStorageValue(nil)` fallback
-        // (deepgramNova3). Non-empty values still flow through `fromStorageValue`
-        // so legacy aliases keep migrating correctly.
-        let resolvedAccuracyTier = (cloudAccuracyTier?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
-            ? CloudAccuracyTier.elevenLabsScribeV2.rawValue
-            : CloudAccuracyTier.fromStorageValue(cloudAccuracyTier).rawValue
-        mode?.cloudAccuracyTier = resolvedAccuracyTier
-        // Derive an omitted transcription model so the API/MCP path never
-        // persists a misleading "whisper-1". For HyperWhisper Cloud modes the
-        // engine is chosen by the accuracy tier, so use the tier's catalog
-        // default (mirrors the seedDefaultModes fix). For direct BYOK providers
-        // (openai / soniox / …) there is no accuracy tier — fall back to THAT
-        // provider's own default model, otherwise a tier-derived id like
-        // "scribe_v2" would be persisted and sent to e.g. OpenAI and rejected.
-        let resolvedCloudProvider = CloudProvider.parse(mode?.cloudProvider) ?? .hyperwhisper
-        mode?.cloudTranscriptionModel = cloudTranscriptionModel
-            ?? (resolvedCloudProvider == .hyperwhisper
-                ? (CloudAccuracyTier(rawValue: resolvedAccuracyTier)?.defaultModelId ?? "")
-                : CloudTranscriptionModels.defaultModel(for: resolvedCloudProvider))
-        mode?.removeTrailingPeriod = removeTrailingPeriod
-        mode?.enableScreenOCR = enableScreenOCR
-        // Preserve a foreign (non-macOS) per-mode platformExtensions blob captured
-        // on a v2 import (H4). Only assign when explicitly provided so an unrelated
-        // GUI/API mode edit (which passes nil) never wipes a stored foreign slice.
-        if let foreignPlatformExtensions {
-            mode?.foreignPlatformExtensions = foreignPlatformExtensions
-        }
-        let trimmedGeminiPrompt = geminiCustomPrompt?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if trimmedGeminiPrompt.isEmpty {
-            mode?.geminiCustomPrompt = nil
-        } else {
-            mode?.geminiCustomPrompt = String(trimmedGeminiPrompt.prefix(2000))
-        }
-        // Same alignment for post-processing: an absent model should land on the
-        // GUI's recommended engine (Claude Haiku), not the legacy
-        // `fromStorageValue(nil)` fallback (grokFast). Non-empty values still go
-        // through `fromStorageValue` to preserve legacy migration.
-        let resolvedPostProcessingModel = (cloudPostProcessingModel?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
-            ? CloudPostProcessingModel.claudeHaiku.rawValue
-            : CloudPostProcessingModel.fromStorageValue(cloudPostProcessingModel).rawValue
-        mode?.cloudPostProcessingModel = resolvedPostProcessingModel
-        let trimmedDomain = cloudTranscriptionDomain?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        mode?.cloudTranscriptionDomain = trimmedDomain.isEmpty ? nil : trimmedDomain
-        mode?.modifiedDate = Date()
-
-        if persist {
-            save()
-        }
-
-        return mode!
-    }
     
     /// Deletes a mode
     /// - Parameter mode: The mode to delete
     /// - Note: The caller is responsible for ensuring at least one mode remains
     func deleteMode(_ mode: Mode) {
+        deleteModeWithoutSaving(mode)
+        save()
+    }
+
+    /// `deleteMode` without its save: the backup import (issue #1613) deletes
+    /// inside one transaction and saves once at the end.
+    private func deleteModeWithoutSaving(_ mode: Mode) {
         let context = container.viewContext
         let wasDefault = mode.isDefault
         context.delete(mode)
@@ -2515,280 +1774,180 @@ class PersistenceController: ObservableObject {
         if wasDefault {
             DefaultModePolicy.apply(to: fetchAllModes())
         }
-        save()
     }
 
-    /// Make exactly one mode the default again, if something left the store with
-    /// two or with none.
+    /// Imports a backup's modes and vocabulary, each section as ONE store
+    /// transaction (issue #1613).
     ///
-    /// Every write above keeps the invariant, so this is for the rows nothing
-    /// here wrote: a backup restored from another machine, and a store that was
-    /// already broken before this shipped. Idempotent, and it saves nothing when
-    /// there is nothing to repair.
-    @discardableResult
-    func enforceDefaultModeInvariant() -> Bool {
-        guard DefaultModePolicy.apply(to: fetchAllModes()) else { return false }
-        save()
-        AppLogger.coreData.info(
-            "Repaired the default-mode flag · exactly one mode is the default again"
-        )
-        return true
-    }
-    
-    // MARK: - RecordingSession Operations
-    //
-    // NOTE: Session create/update/delete live on RecordingSessionManager +
-    // performWriteRequiringSave (serial background writer context), NOT here.
-    // A pre-refactor synchronous pair (`createRecordingSession(deviceId:...)` /
-    // `updateRecordingSessionWithResult`) used to live in this section — it
-    // inserted + saved a RecordingSession directly on `container.viewContext`
-    // (main thread, no `perform`/`performAndWait`), which reproduced Sentry
-    // HYPERWHISPER-SH / HYPERWHISPER-R0 ("DB on Main Thread at Recording
-    // Start"). It had no remaining callers after the async rewrite, so it was
-    // deleted rather than fixed in place — do not reintroduce a synchronous
-    // viewContext insert/save for RecordingSession here.
-
-    // MARK: - Vocabulary Operations
-    
-    /// Adds a new vocabulary item to Core Data
-    /// - Parameters:
-    ///   - word: The word/phrase to recognize
-    ///   - replacement: Optional replacement text
-    /// - Returns: True if added successfully, false if duplicate
-    func addVocabularyItem(
-        word: String,
-        replacement: String?,
-        excludingId: UUID? = nil,
-        source: String? = "manual"
-    ) -> Bool {
+    /// Every row used to be saved on its own (`createOrUpdateMode`,
+    /// `deleteMode`, `addVocabularyItem` and the default-flag pass each
+    /// saved), so a crash, a kill or a failed save part-way left a silent
+    /// partial import. Now each section's rows are written to `viewContext`
+    /// with no save, and one `save()` commits that section. A failed save
+    /// rolls the context back and throws, so nothing half-applied stays
+    /// pending (the plain `save()` only logs, and its rejected row would
+    /// poison every later save) and the caller can tell the user exactly
+    /// which section failed.
+    ///
+    /// Why one save per section, not one for both: `Mode` lives in the
+    /// `Local` store and `Vocabulary` in the `Cloud` one. A single save writes
+    /// each store in its own SQLite transaction, with no two-phase commit, so
+    /// it could commit the modes, fail the vocabulary, and a rollback could
+    /// not undo the committed modes. Saving the sections one after the other
+    /// makes each outcome known: modes first (with the default-mode repair in
+    /// the same save), then the vocabulary only if the modes committed.
+    ///
+    /// Pass `nil` for a section the user did not select. An empty array still
+    /// runs that section (for modes, the default-mode repair).
+    ///
+    /// - Throws: `BackupStoreImportError`, after the rollback. Changes the
+    ///   context held BEFORE the import are saved first so the rollback cannot
+    ///   discard them; if that save fails, this throws (as a failure of the
+    ///   first selected section) before importing anything.
+    @MainActor
+    func importBackupStore(
+        modes backupModes: [BackupMode]?,
+        modeResolution: ModeConflictResolution,
+        vocabulary backupItems: [BackupVocabularyItem]?,
+        vocabularyResolution: VocabularyConflictResolution
+    ) throws -> BackupStoreImportResult {
         let context = container.viewContext
+        let saveSite = "backup_import"
 
-        // Normalize input (trim whitespace)
-        let normalizedWord = word.trimmingCharacters(in: .whitespacesAndNewlines)
-        let normalizedReplacement = replacement?.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        // Reject empty/whitespace-only words. An empty word would later compile
-        // to the regex "\b\b" in VocabularyProcessor, matching every word
-        // boundary and corrupting the entire transcript.
-        guard !normalizedWord.isEmpty else {
-            return false
-        }
-
-        // Check for duplicate (exclude the item being edited)
-        if vocabularyItemExists(word: normalizedWord, excludingId: excludingId) {
-            return false
-        }
-        
-        // Create new vocabulary item
-        let vocabItem = Vocabulary(context: context)
-        vocabItem.id = UUID()
-        vocabItem.word = normalizedWord
-        vocabItem.replacement = normalizedReplacement?.isEmpty == true ? nil : normalizedReplacement
-        vocabItem.setValue(source, forKey: "source")
-        vocabItem.createdDate = Date()
-        
-        // Set sort order (add to end)
-        let maxSortOrder = fetchAllVocabularyItems().map { $0.sortOrder }.max() ?? 0
-        vocabItem.sortOrder = maxSortOrder + 1
-        
-        save()
-        return true
-    }
-    
-    /// Checks if a vocabulary item with the given word already exists
-    /// - Parameter word: The word to check
-    /// - Returns: True if exists, false otherwise
-    func vocabularyItemExists(word: String, excludingId: UUID? = nil) -> Bool {
-        let request: NSFetchRequest<Vocabulary> = Vocabulary.fetchRequest()
-        let trimmedWord = word.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if let excludingId = excludingId {
-            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-                NSPredicate(format: "word ==[c] %@", trimmedWord),
-                NSPredicate(format: "id != %@", excludingId as CVarArg)
-            ])
-        } else {
-            request.predicate = NSPredicate(format: "word ==[c] %@", trimmedWord)
-        }
-        request.fetchLimit = 1
-
-        do {
-            let count = try container.viewContext.count(for: request)
-            return count > 0
-        } catch {
-            AppLogger.coreData.error("Failed to check vocabulary existence: \(error, privacy: .public)")
-            SentryService.capture(error: error, message: "Failed to check vocabulary existence", tags: ["component": "PersistenceController", "operation": "vocabularyItemExists"])
-            return false
-        }
-    }
-    
-    /// Deletes a vocabulary item
-    /// - Parameter item: The vocabulary item to delete
-    func deleteVocabularyItem(_ item: Vocabulary) {
-        let context = container.viewContext
-        context.delete(item)
-        save()
-    }
-    
-    /// Deletes a vocabulary item by ID
-    /// - Parameter id: The ID of the vocabulary item to delete
-    func deleteVocabularyItem(byId id: UUID) {
-        let request: NSFetchRequest<Vocabulary> = Vocabulary.fetchRequest()
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        request.fetchLimit = 1
-        
-        do {
-            if let item = try container.viewContext.fetch(request).first {
-                deleteVocabularyItem(item)
-            }
-        } catch {
-            AppLogger.logCoreData(.delete(entity: "Vocabulary"), error: error)
-            SentryService.capture(error: error, message: "Failed to delete vocabulary item", tags: ["component": "PersistenceController", "operation": "deleteVocabularyItem"])
-        }
-    }
-    
-    /// Fetch all vocabulary entries on a background context to avoid blocking the main thread.
-    /// Returns thread-safe value-type snapshots instead of managed objects, so callers can
-    /// hold them in callbacks that fire on arbitrary threads.
-    /// Same rationale as `fetchModeSnapshotInBackground` (DB on Main Thread during Recording Start).
-    func fetchVocabularyEntriesInBackground() async -> [VocabularyEntrySnapshot] {
-        let context = container.newBackgroundContext()
-        return await context.perform {
-            let request: NSFetchRequest<Vocabulary> = Vocabulary.fetchRequest()
-            request.sortDescriptors = [NSSortDescriptor(keyPath: \Vocabulary.word, ascending: true)]
+        // The rollback below must undo the import and nothing else, so commit
+        // whatever was pending before it starts.
+        if context.hasChanges {
             do {
-                return try context.fetch(request).compactMap { item in
-                    guard let word = item.word else { return nil }
-                    return VocabularyEntrySnapshot(word: word, replacement: item.replacement)
-                }
+                try saveBackupImportChanges(context: context)
             } catch {
-                AppLogger.coreData.error("Failed to fetch vocabulary entries: \(error, privacy: .public)")
-                SentryService.capture(error: error, message: "Failed to fetch vocabulary entries", tags: ["component": "PersistenceController", "operation": "fetchVocabularyEntriesInBackground"])
-                return []
+                AppLogger.logCoreData(
+                    .save(site: saveSite, contextKey: CoreDataSaveDiagnostics.viewContextKey),
+                    error: error as NSError,
+                    metadata: CoreDataSaveDiagnostics.contextShape(context)
+                )
+                throw BackupStoreImportError(
+                    failedSection: backupModes != nil ? .modes : .vocabulary,
+                    committed: BackupStoreImportResult(),
+                    underlying: error
+                )
             }
+        }
+
+        var result = BackupStoreImportResult()
+
+        if let backupModes {
+            let modes = applyImportedModes(backupModes, resolution: modeResolution)
+            do {
+                try saveBackupImportSection(context: context, saveSite: saveSite)
+            } catch {
+                AppLogger.coreData.error("Backup import: the modes save failed and was rolled back · no mode or vocabulary row was changed")
+                throw BackupStoreImportError(failedSection: .modes, committed: BackupStoreImportResult(), underlying: error)
+            }
+            result.modesImported = modes.imported
+            result.modesSkipped = modes.skipped
+            result.modeIdRemap = modes.idRemap
+            AppLogger.coreData.info("Backup import: modes committed · \(modes.imported) imported, \(modes.skipped) skipped")
+        }
+
+        if let backupItems {
+            let vocabulary = applyImportedVocabulary(backupItems, resolution: vocabularyResolution)
+            do {
+                try saveBackupImportSection(context: context, saveSite: saveSite)
+            } catch {
+                AppLogger.coreData.error("Backup import: the vocabulary save failed and was rolled back · no vocabulary row was changed")
+                throw BackupStoreImportError(failedSection: .vocabulary, committed: result, underlying: error)
+            }
+            result.vocabularyImported = vocabulary.imported
+            result.vocabularySkipped = vocabulary.skipped
+            AppLogger.coreData.info("Backup import: vocabulary committed · \(vocabulary.imported) imported, \(vocabulary.skipped) skipped")
+        }
+
+        return result
+    }
+
+    /// Saves one staged backup-import section. A failed save rolls the whole
+    /// context back (the section's staged rows and nothing else: the import
+    /// saved everything else first) and rethrows.
+    @MainActor
+    private func saveBackupImportSection(context: NSManagedObjectContext, saveSite: String) throws {
+        do {
+            if context.hasChanges {
+                try saveBackupImportChanges(context: context)
+            }
+            AppLogger.logCoreData(.save(site: saveSite, contextKey: CoreDataSaveDiagnostics.viewContextKey))
+        } catch {
+            // Read the shape BEFORE the rollback empties the pending sets.
+            let shape = CoreDataSaveDiagnostics.contextShape(context)
+            context.rollback()
+            AppLogger.logCoreData(
+                .save(site: saveSite, contextKey: CoreDataSaveDiagnostics.viewContextKey),
+                error: error as NSError,
+                metadata: shape
+            )
+            throw error
         }
     }
 
-    /// Fetches all vocabulary items sorted by word
-    /// - Returns: Array of vocabulary items
-    func fetchAllVocabularyItems() -> [Vocabulary] {
-        let request: NSFetchRequest<Vocabulary> = Vocabulary.fetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Vocabulary.word, ascending: true)]
-        
-        do {
-            return try container.viewContext.fetch(request)
-        } catch {
-            AppLogger.coreData.error("Failed to fetch vocabulary: \(error, privacy: .public)")
-            SentryService.capture(error: error, message: "Failed to fetch vocabulary", tags: ["component": "PersistenceController", "operation": "fetchAllVocabularyItems"])
-            return []
-        }
+    /// Saves a backup import's changes in a bounded time, or throws (#1626).
+    ///
+    /// A plain `context.save()` has two ways to never come back when SQLite
+    /// itself refuses the write:
+    /// - Busy lock: Core Data waits for another process's write lock with no
+    ///   limit. Neither `NSPersistentStoreTimeoutOption` nor a `busy_timeout`
+    ///   pragma bounds that wait (measured on macOS 26). So before each
+    ///   `context.save()` take the write lock on every store the save writes,
+    ///   on our own connections within one 10 s deadline, hold them all until
+    ///   the line before the save, and let them go together (Core Data's own
+    ///   connection cannot take a lock ours hold, so they cannot be held
+    ///   through it). A lock another process takes in the short gap between
+    ///   that release and Core Data's own BEGIN still waits. The gap cannot be
+    ///   handed over either: on macOS 26 a raw `fcntl` lock this process takes
+    ///   on the WAL-index write byte blocks Core Data's own save too, because
+    ///   SQLite's locks there belong to its open file, not to the process.
+    /// - Constraint: a refused statement (`SQLITE_CONSTRAINT`, e.g. a trigger)
+    ///   reads to Core Data as an optimistic-locking failure. With a merging
+    ///   policy it retries, then ends the process ("Unable to recover from
+    ///   optimistic locking failure"). So save under `NSErrorMergePolicy`,
+    ///   which throws the conflicts instead. Real conflicts (a row another
+    ///   context changed since the import read it) are resolved ONCE with the
+    ///   context's own policy and the save is tried again; a failure with no
+    ///   conflict to resolve, or a second failure, is thrown.
+    @MainActor
+    private func saveBackupImportChanges(context: NSManagedObjectContext) throws {
+        try Self.saveWithoutRetryLoop(
+            context: context,
+            lockingStoresAt: Self.storeFileURLsWritten(by: context),
+            lockTimeout: Self.backupImportWriteLockTimeout
+        )
     }
-    
-    // MARK: - Fetch Requests
-    
-    /// Fetches all transcripts sorted by date
-    /// - Returns: Array of transcripts
-    func fetchAllTranscripts() -> [Transcript] {
-        let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Transcript.date, ascending: false)]
-        
-        do {
-            return try container.viewContext.fetch(request)
-        } catch {
-            AppLogger.coreData.error("Failed to fetch transcripts: \(error, privacy: .public)")
-            SentryService.capture(error: error, message: "Failed to fetch transcripts", tags: ["component": "PersistenceController", "operation": "fetchAllTranscripts"])
-            return []
-        }
-    }
-    
-    /// Searches transcripts by text
-    /// - Parameter searchText: Text to search for
-    /// - Returns: Array of matching transcripts
-    func searchTranscripts(containing searchText: String) -> [Transcript] {
-        let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
-        request.predicate = NSPredicate(format: "text CONTAINS[cd] %@", searchText)
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Transcript.date, ascending: false)]
-        
-        do {
-            return try container.viewContext.fetch(request)
-        } catch {
-            AppLogger.coreData.error("Failed to search transcripts: \(error, privacy: .public)")
-            SentryService.capture(error: error, message: "Failed to search transcripts", tags: ["component": "PersistenceController", "operation": "searchTranscripts"])
-            return []
-        }
-    }
-    
-    // MARK: - Usage Tracking Operations
-    
-    /// Gets or creates the usage tracking record
-    /// There should only be one UsageTracking record in the database
-    /// - Returns: The usage tracking record
-    func getOrCreateUsageTracking() -> UsageTracking {
-        let request: NSFetchRequest<UsageTracking> = UsageTracking.fetchRequest()
-        request.fetchLimit = 1
-        
-        do {
-            let results = try container.viewContext.fetch(request)
-            if let existing = results.first {
-                return existing
-            }
-        } catch {
-            AppLogger.coreData.error("Failed to fetch usage tracking: \(error, privacy: .public)")
-            SentryService.capture(error: error, message: "Failed to fetch usage tracking", tags: ["component": "PersistenceController", "operation": "getOrCreateUsageTracking"])
-        }
-        
-        // Create new usage tracking record
-        let usage = UsageTracking(context: container.viewContext)
-        usage.id = UUID()
-        usage.dailyTranscriptionSeconds = 0
-        usage.totalModelsDownloaded = 0
-        usage.lastResetDate = Date()
-        usage.firstUsageDate = Date()
-        usage.licenseStatus = "trial"
-        
-        save()
-        return usage
-    }
-    
-    // NOTE: usage WRITES (updateDailyUsage / updateModelDownloadCount /
-    // resetDailyUsage) were removed — the Rust hw-license core owns usage
-    // tracking now. The getters below remain solely for the one-shot
-    // Core Data → UserDefaults seed in RustLicenseStore.
 
-    /// Gets current daily usage in seconds
-    /// - Returns: Number of seconds used today
-    func getDailyUsage() -> Int64 {
-        let usage = getOrCreateUsageTracking()
-        
-        // Check if we need to reset (new day)
-        if let lastReset = usage.lastResetDate {
-            let calendar = Calendar.current
-            if !calendar.isDateInToday(lastReset) {
-                // Reset for new day
-                usage.dailyTranscriptionSeconds = 0
-                usage.lastResetDate = Date()
-                save()
-                return 0
+    /// The on-disk SQLite files the context's pending changes are written to.
+    /// An in-memory (`/dev/null`) store has no file and no other writer.
+    @MainActor
+    private static func storeFileURLsWritten(by context: NSManagedObjectContext) -> [URL] {
+        guard let coordinator = context.persistentStoreCoordinator else { return [] }
+        let pending = context.insertedObjects.union(context.updatedObjects).union(context.deletedObjects)
+        let entityNames = Set(pending.compactMap { $0.entity.name })
+        return coordinator.persistentStores.compactMap { store in
+            guard store.type == NSSQLiteStoreType,
+                  let url = store.url,
+                  url.isFileURL,
+                  url.path != "/dev/null" else { return nil }
+            // A store with no named configuration holds every entity.
+            guard let entities = coordinator.managedObjectModel.entities(forConfigurationName: store.configurationName) else {
+                return url
             }
+            return entities.contains { entityNames.contains($0.name ?? "") } ? url : nil
         }
-        
-        return usage.dailyTranscriptionSeconds
     }
-    
-    /// Gets the count of downloaded models
-    /// - Returns: Number of models downloaded
-    func getModelDownloadCount() -> Int16 {
-        let usage = getOrCreateUsageTracking()
-        return usage.totalModelsDownloaded
-    }
-    
-    // MARK: - Bulk Import Operations (Backup/Restore)
 
-    /// Imports modes from backup data with conflict resolution
+    /// Writes backup modes into `viewContext` with conflict resolution. Saves
+    /// NOTHING: `importBackupStore` commits or rolls back the whole section.
     ///
     /// CONFLICT RESOLUTION:
     /// - .skip: Don't import if mode with same name exists (case-insensitive)
-    /// - .replace: Delete existing mode, import new one
+    /// - .replace: Update the local counterpart in place (same id, else the
+    ///   first same-name row; issue #1479) and delete any other same-name row
     /// - .keepBoth: Import as "Mode Name (imported)"
     ///
     /// - Parameters:
@@ -2798,10 +1957,12 @@ class PersistenceController: ObservableObject {
     ///
     /// `@MainActor`: the entire import runs against `container.viewContext`, which is bound to
     /// the main queue. Pinning this method to the main actor enforces that queue confinement at
-    /// compile time so no caller can reach the fetch/save/delete work off-queue (Core Data
-    /// undefined behavior). The only caller today (`BackupManager`) is already main-actor isolated.
+    /// compile time so no caller can reach the fetch/delete work off-queue (Core Data
+    /// undefined behavior). Every fetch below includes the context's unsaved inserts and
+    /// excludes its unsaved deletes, so later rows see earlier ones exactly as they did when
+    /// each row was saved on its own.
     @MainActor
-    func importModes(_ backupModes: [BackupMode], resolution: ModeConflictResolution) -> (imported: Int, skipped: Int, idRemap: [UUID: UUID]) {
+    private func applyImportedModes(_ backupModes: [BackupMode], resolution: ModeConflictResolution) -> (imported: Int, skipped: Int, idRemap: [UUID: UUID]) {
         var imported = 0
         var skipped = 0
         var idRemap: [UUID: UUID] = [:]
@@ -2815,6 +1976,20 @@ class PersistenceController: ObservableObject {
             }
             let hasConflict = !conflicts.isEmpty
 
+            // #1481: a backup without enableScreenOCR / useStreamingTranscription
+            // (one written before they were exported) keeps the value of the
+            // local mode this row replaces or updates: the same id first, then
+            // the first same-name row. That row is updated in place (issue
+            // #1479); `.replace` deletes any other same-name row below. With no
+            // such row (a new mode, or `.keepBoth`'s copy) the value is
+            // `false`, which is what every restore wrote before.
+            let localCounterpart: Mode? = (hasConflict && resolution == .keepBoth)
+                ? nil
+                : (fetchAllModes().first { $0.id == backupMode.id } ?? conflicts.first)
+            let restoredScreenOCR = backupMode.enableScreenOCR ?? localCounterpart?.enableScreenOCR ?? false
+            let restoredStreaming = backupMode.useStreamingTranscription
+                ?? localCounterpart?.useStreamingTranscription ?? false
+
             if hasConflict {
                 switch resolution {
                 case .skip:
@@ -2823,17 +1998,56 @@ class PersistenceController: ObservableObject {
                     continue
 
                 case .replace:
-                    // Replace every row whose stored canonical name conflicts.
-                    // Re-fetch on the next iteration so duplicate backup rows use
-                    // last-one-wins semantics without retaining deleted objects.
-                    for existingMode in conflicts where !existingMode.isDeleted {
-                        deleteMode(existingMode)
+                    // Issue #1479: the local counterpart is updated in place
+                    // below. Every OTHER same-name row is still deleted.
+                    // Re-fetch on the next iteration so duplicate backup rows
+                    // use last-one-wins semantics without retaining deleted
+                    // objects.
+                    for existingMode in conflicts where !existingMode.isDeleted && existingMode !== localCounterpart {
+                        deleteModeWithoutSaving(existingMode)
                     }
-                    // Fall through to create new mode
 
                 case .keepBoth:
                     // Will create with modified name below
                     break
+                }
+            }
+
+            // Issue #1479: ONE in-place path for every row that has a local
+            // counterpart (same id first, else — `.replace` only — the first
+            // same-name row; `.keepBoth` with a name conflict has none and
+            // makes a copy). The counterpart object is handed to
+            // `createOrUpdateMode` as `updating:`, so the update never depends
+            // on an `id ==` predicate fetch matching an id changed earlier in
+            // this same unsaved import. The row keeps its object (Z_PK),
+            // `sortOrder` and `createdDate`, so importing your own backup again
+            // changes nothing; every other column ends as a fresh create from
+            // this backup row would (`createOrUpdateMode` writes them all,
+            // including a nil `foreignPlatformExtensions`), bar the #1481
+            // fallbacks above.
+            let inPlaceTarget: Mode? = (localCounterpart?.isDeleted == false) ? localCounterpart : nil
+            if let keeper = inPlaceTarget {
+                if keeper.id != backupMode.id {
+                    // A same-name row with ANOTHER id is a different mode that
+                    // happens to share the name, so it takes what a create
+                    // gives: the backup's id (as the re-created row had) and
+                    // `isSystemProvided == false`. Only a row whose id IS the
+                    // backup row's keeps the seeded flag; otherwise a user mode
+                    // named like the seeded one would inherit it.
+                    keeper.id = backupMode.id
+                    keeper.isSystemProvided = false
+                }
+                if resolution == .replace {
+                    // A create starts with `isDefault == false` and is promoted
+                    // only by the `DefaultModePolicy.apply` below when the
+                    // backup row is the default, or by the final repair. The
+                    // flag is cleared the same way whether the counterpart was
+                    // found by id or by name, so which local row ends as the
+                    // default never depends on a row's name. `.skip` and
+                    // `.keepBoth` keep the local flag, as before #1479: they
+                    // only reach here for a same-id row with no name conflict,
+                    // and they never promised to restore the backup's default.
+                    keeper.isDefault = false
                 }
             }
 
@@ -2890,29 +2104,33 @@ class PersistenceController: ObservableObject {
                 // backup restores the same way on both platforms.
                 englishSpelling: backupMode.englishSpelling ?? "",
                 userSystemPrompt: backupMode.userSystemPrompt,
+                useStreamingTranscription: restoredStreaming,
                 cloudAccuracyTier: normalized.accuracyTier
                     ?? CloudAccuracyTier.fromStorageValue(backupMode.cloudAccuracyTier).rawValue,
                 removeTrailingPeriod: backupMode.removeTrailingPeriod ?? false,
+                enableScreenOCR: restoredScreenOCR,
                 geminiCustomPrompt: backupMode.geminiCustomPrompt,
                 cloudPostProcessingModel: backupMode.cloudPostProcessingModel,
                 cloudTranscriptionDomain: backupMode.cloudTranscriptionDomain,
                 foreignPlatformExtensions: backupMode.foreignPlatformExtensions,
-                restoringFromBackup: true
+                // One save for the whole import (issue #1613).
+                persist: false,
+                restoringFromBackup: true,
+                updating: inPlaceTarget
             )
 
             // Update isDefault flag if this mode should be default
             // Only set as default if the original was default AND we're not in keepBoth mode
             if backupMode.isDefault && !(hasConflict && resolution == .keepBoth) {
                 // Clear existing default(s) first. Re-fetch here rather than reusing
-                // `existingModes`: under `.replace`, `deleteMode` above deletes and
-                // saves managed objects on earlier iterations, so that captured array
-                // can hold invalidated objects (reading/writing them is a Core Data
+                // `existingModes`: under `.replace`, the delete above removes managed
+                // objects on earlier iterations, so that captured array can hold
+                // deleted objects (reading/writing them is a Core Data
                 // use-after-delete). The fresh fetch never returns deleted objects;
                 // `!mode.isDeleted` guards any in-flight, unsaved delete.
                 // One decision, three heads (issue #536): the flag moves onto the
                 // imported mode and off every other row in the same pass.
                 DefaultModePolicy.apply(to: fetchAllModes(), preferred: finalId)
-                save()
             }
 
             imported += 1
@@ -2922,14 +2140,20 @@ class PersistenceController: ObservableObject {
         // the field existed, or one whose default row was skipped as a conflict
         // — used to restore a store with NO default mode (issue #536). Nothing
         // repaired it: `initializeDefaultModes()` returns early whenever any
-        // mode exists.
-        enforceDefaultModeInvariant()
+        // mode exists. The same repair as `enforceDefaultModeInvariant()`,
+        // without its save.
+        if DefaultModePolicy.apply(to: fetchAllModes()) {
+            AppLogger.coreData.info(
+                "Repaired the default-mode flag · exactly one mode is the default again"
+            )
+        }
 
-        AppLogger.coreData.info("Mode import complete: \(imported) imported, \(skipped) skipped")
+        AppLogger.coreData.info("Mode import staged: \(imported) imported, \(skipped) skipped")
         return (imported, skipped, idRemap)
     }
 
-    /// Imports vocabulary items from backup data with conflict resolution
+    /// Writes backup vocabulary into `viewContext` with conflict resolution.
+    /// Saves NOTHING: `importBackupStore` commits or rolls back the whole section.
     ///
     /// CONFLICT RESOLUTION:
     /// - .skip: Don't import if word already exists (case-insensitive)
@@ -2940,16 +2164,27 @@ class PersistenceController: ObservableObject {
     ///   - resolution: How to handle conflicts
     /// - Returns: Tuple with counts of imported and skipped items
     ///
-    /// `@MainActor`: like `importModes`, all work runs against `container.viewContext` (main
+    /// `@MainActor`: like `applyImportedModes`, all work runs against `container.viewContext` (main
     /// queue). Pinning to the main actor enforces that queue confinement at compile time.
     @MainActor
-    func importVocabulary(_ backupItems: [BackupVocabularyItem], resolution: VocabularyConflictResolution) -> (imported: Int, skipped: Int) {
+    private func applyImportedVocabulary(_ backupItems: [BackupVocabularyItem], resolution: VocabularyConflictResolution) -> (imported: Int, skipped: Int) {
+        let context = container.viewContext
         var imported = 0
         var skipped = 0
+        // Highest sortOrder so far, read once and then advanced per insert —
+        // the same "add to end" order `addVocabularyItem` gives each row.
+        var maxSortOrder: Int16?
 
-        for item in backupItems {
-            let normalizedWord = item.word.trimmingCharacters(in: .whitespacesAndNewlines)
+        // A backup made before #1475 can carry a word with line breaks inside it. It
+        // imports as one word per non-empty line, the way the add field saves a paste
+        // (#1777); each line carries the item's replacement and source. A blank word
+        // stays one empty entry, so it is still counted as skipped below.
+        let entries = backupItems.flatMap { item -> [(String, BackupVocabularyItem)] in
+            let lines = Self.vocabularyWordLines(from: item.word)
+            return lines.isEmpty ? [("", item)] : lines.map { ($0, item) }
+        }
 
+        for (normalizedWord, item) in entries {
             // Skip empty/whitespace-only words. An empty word would later compile
             // to the regex "\b\b" in VocabularyProcessor, matching every word
             // boundary and corrupting the entire transcript.
@@ -2958,8 +2193,11 @@ class PersistenceController: ObservableObject {
                 continue
             }
 
-            // Check for existing item
-            let exists = vocabularyItemExists(word: normalizedWord)
+            // Check for an existing item. A FETCH, not `vocabularyItemExists`'s
+            // count: nothing is saved until the end now, and a fetch evaluates
+            // the context's unsaved inserts too, so a word repeated in the same
+            // backup still finds the row an earlier entry staged.
+            let exists = importedVocabularyItemExists(word: normalizedWord)
 
             if exists {
                 switch resolution {
@@ -2977,25 +2215,54 @@ class PersistenceController: ObservableObject {
                         existing.word = normalizedWord
                         existing.replacement = normalizedReplacement?.isEmpty == true ? nil : normalizedReplacement
                         existing.setValue(item.source, forKey: "source")
-                        save()
                         imported += 1
                         continue
                     }
-                    // Fall through to add new item
+                    // A case-insensitive match the lowercase compare above missed.
+                    // `addVocabularyItem` refused these as duplicates, so they
+                    // stay skipped.
+                    skipped += 1
+                    continue
                 }
             }
 
-            // Add the vocabulary item. `addVocabularyItem` can return false (e.g. a
-            // duplicate that wasn't removed), in which case nothing was persisted — count
-            // it as skipped so the success summary doesn't overstate what was saved.
-            if addVocabularyItem(word: normalizedWord, replacement: item.replacement, source: item.source) {
-                imported += 1
-            } else {
-                skipped += 1
-            }
+            // Add the vocabulary item: `addVocabularyItem`'s insert, without its save.
+            let normalizedReplacement = item.replacement?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let vocabItem = Vocabulary(context: context)
+            vocabItem.id = UUID()
+            vocabItem.word = normalizedWord
+            vocabItem.replacement = normalizedReplacement?.isEmpty == true ? nil : normalizedReplacement
+            vocabItem.setValue(item.source, forKey: "source")
+            vocabItem.createdDate = Date()
+
+            let currentMax = maxSortOrder ?? (fetchAllVocabularyItems()
+                .filter { $0 !== vocabItem }
+                .map { $0.sortOrder }
+                .max() ?? 0)
+            // Int16: clamp at .max (as the mode path does) rather than trap on overflow.
+            vocabItem.sortOrder = currentMax == .max ? .max : currentMax + 1
+            maxSortOrder = vocabItem.sortOrder
+            imported += 1
         }
 
-        AppLogger.coreData.info("Vocabulary import complete: \(imported) imported, \(skipped) skipped")
+        AppLogger.coreData.info("Vocabulary import staged: \(imported) imported, \(skipped) skipped")
         return (imported, skipped)
+    }
+
+    /// Whether `word` (trimmed, case-insensitive) is already in the vocabulary,
+    /// counting rows this import staged but has not saved yet.
+    private func importedVocabularyItemExists(word: String) -> Bool {
+        let request: NSFetchRequest<Vocabulary> = Vocabulary.fetchRequest()
+        request.predicate = NSPredicate(format: "word ==[c] %@", word)
+        request.includesPendingChanges = true
+
+        do {
+            let matches = try container.viewContext.fetch(request)
+            return !matches.isEmpty
+        } catch {
+            AppLogger.coreData.error("Failed to check vocabulary existence: \(error, privacy: .public)")
+            SentryService.capture(error: error, message: "Failed to check vocabulary existence", tags: ["component": "PersistenceController", "operation": "importedVocabularyItemExists"])
+            return false
+        }
     }
 }

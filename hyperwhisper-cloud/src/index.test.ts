@@ -49,10 +49,10 @@ mock.module('./lib/redis', () => ({
 const originalPort = process.env.PORT;
 delete process.env.PORT;
 
-const { default: server, SERVER_IDLE_TIMEOUT_SECONDS } = await import('./index');
+const { default: server, SERVER_IDLE_TIMEOUT_SECONDS, SHUTDOWN_DRAIN_MS } = await import('./index');
+const { MAX_AUDIO_SIZE_BYTES } = await import('./lib/constants');
 const { INTERACTIONS_TIMEOUT_MS } = await import('./providers/gemini-transcribe');
 const { LLM_REQUEST_TIMEOUT_MS } = await import('./providers/llm-fetch');
-const { ANTHROPIC_STREAM_IDLE_TIMEOUT_MS } = await import('./providers/anthropic');
 const { deductCredits, drainPendingDeductions } = await import('./middleware/credits');
 const { reportLatencySamples } = await import('./lib/latency-report');
 const { createStreamingEvents } = await import('./routes/ws-streaming-deepgram');
@@ -332,7 +332,7 @@ describe('unhandled errors', () => {
     expect(raw).not.toContain(LEAKY);
   });
 
-  test('logs the full cause server-side under the same id the client was given', async () => {
+  test('logs the cause server-side under the same id the client was given', async () => {
     ipBlockedError = new Error(LEAKY);
 
     const body = await (await send('/usage?license_key=HW-ROUTINE-FIXTURE')).json() as { error_id: string };
@@ -340,7 +340,26 @@ describe('unhandled errors', () => {
     const logged = logPayloads.find((entry) => entry.event.startsWith('Unhandled error'));
     expect(logged).toBeDefined();
     expect(logged!.event).toContain(body.error_id);
-    expect(logged!.args[1]).toBe(ipBlockedError);
+    // One JSON line (#2163): name, redacted + capped message, stack frames.
+    const fields = JSON.parse(logged!.args[1] as string) as { errorName: string; message: string; stack: string[] };
+    expect(fields.errorName).toBe('Error');
+    expect(fields.message).toBe(`Error: ${LEAKY}`);
+    expect(fields.stack.length).toBeGreaterThan(0);
+    expect(fields.stack.every((frame) => frame.startsWith('at '))).toBe(true);
+  });
+
+  test('never logs a serialized upstream payload or more than 200 characters of message (#2163)', async () => {
+    const MARKER = 'SECRET_TRANSCRIPT_MARKER_2163';
+    ipBlockedError = new Error(`upstream said {"error":{"message":"${MARKER}"}} ${'x'.repeat(400)}`);
+
+    await send('/usage?license_key=HW-ROUTINE-FIXTURE');
+
+    const logged = logPayloads.find((entry) => entry.event.startsWith('Unhandled error'));
+    expect(logged).toBeDefined();
+    const line = JSON.stringify(logged!.args);
+    expect(line).not.toContain(MARKER);
+    const fields = JSON.parse(logged!.args[1] as string) as { message: string };
+    expect(fields.message.length).toBeLessThanOrEqual(200 + '<truncated>'.length);
   });
 
   test('gives each failure its own id so two reports are distinguishable', async () => {
@@ -378,8 +397,52 @@ describe('the exported Bun server', () => {
     expect(server.idleTimeout).toBeGreaterThan(LLM_REQUEST_TIMEOUT_MS / 1000);
   });
 
-  test('the /assistant stream idle bound fires before Bun drops the client', () => {
-    expect(ANTHROPIC_STREAM_IDLE_TIMEOUT_MS).toBeLessThan(server.idleTimeout * 1000);
+  // #2011: the route buffers the whole upload on a 1 GB machine. Bun's body
+  // limit and the route's Content-Length gate read one constant, 128 MB.
+  test('Bun\'s body limit is the route\'s 128 MB upload cap', () => {
+    expect(MAX_AUDIO_SIZE_BYTES).toBe(128 * 1024 * 1024);
+    expect(server.maxRequestBodySize).toBe(MAX_AUDIO_SIZE_BYTES);
+  });
+
+  test('the shutdown drain fits inside Fly\'s 120 s kill_timeout', () => {
+    expect(SHUTDOWN_DRAIN_MS).toBeGreaterThan(60_000);
+    expect(SHUTDOWN_DRAIN_MS).toBeLessThan(120_000);
+  });
+
+  // The real server, on a real socket. A declared size past the cap is refused
+  // by Bun itself, before the route runs or any body is read.
+  test('the served config refuses a declared upload past the cap with 413', async () => {
+    const live = Bun.serve({ ...server, port: 0 });
+    try {
+      const statusLine = await new Promise<string>((resolve, reject) => {
+        let reply = '';
+        Bun.connect({
+          hostname: '127.0.0.1',
+          port: Number(live.port),
+          socket: {
+            open(socket) {
+              socket.write(
+                'POST /transcribe?account_key=k HTTP/1.1\r\n' +
+                'Host: 127.0.0.1\r\n' +
+                'Content-Type: audio/wav\r\n' +
+                `Content-Length: ${MAX_AUDIO_SIZE_BYTES + 1}\r\n\r\n`,
+              );
+            },
+            data(socket, data) {
+              reply += data.toString();
+              if (reply.includes('\r\n')) {
+                socket.end();
+                resolve(reply.split('\r\n')[0]);
+              }
+            },
+            error(_socket, error) { reject(error); },
+          },
+        }).catch(reject);
+      });
+      expect(statusLine).toStartWith('HTTP/1.1 413');
+    } finally {
+      live.stop(true);
+    }
   });
 });
 

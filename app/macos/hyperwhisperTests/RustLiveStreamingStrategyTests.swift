@@ -267,6 +267,8 @@ struct RustLiveStreamingStrategyTests {
             baseURL: "https://relay.test",
             cloudTier: "deepgramNova3"
         )
+        // The wait is only for a session the relay started (issue #834).
+        _ = strategy.parseMessage(#"{"type":"ready","sessionId":"s-1"}"#)
         let steps = strategy.stopSequence()
 
         // COUNT INSIDE THE GUARD, not in an `#expect` above it. `#expect`
@@ -283,6 +285,27 @@ struct RustLiveStreamingStrategyTests {
         }
         #expect(text == #"{"type":"stop"}"#)
         #expect(timeout == 10.0)
+    }
+
+    @Test("HyperWhisper Cloud stop skips the session_complete wait when no ready frame arrived")
+    func hyperWhisperCloudStopSequenceWithoutReady() throws {
+        // Issue #834 / HYPERWHISPER-YD: with no `ready` there is no relay
+        // session to flush, so the 10 s wait could only time out.
+        let (strategy, _) = try connected(
+            .hyperwhisperCloud,
+            config(licenseKey: "HW-1"),
+            baseURL: "https://relay.test",
+            cloudTier: "deepgramNova3"
+        )
+        let steps = strategy.stopSequence()
+
+        guard steps.count == 2,
+              case let .sendText(text) = steps[0],
+              case .closeWebSocket = steps[1] else {
+            Issue.record("unexpected never-started HyperWhisper Cloud stop shape: \(steps)")
+            return
+        }
+        #expect(text == #"{"type":"stop"}"#)
     }
 
     @Test("Deepgram's stop waits half a second BETWEEN Finalize and CloseStream")

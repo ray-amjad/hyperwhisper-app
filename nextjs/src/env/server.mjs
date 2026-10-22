@@ -3,8 +3,20 @@
  * This file is included in `/next.config.mjs` which ensures the app isn't built with invalid env vars.
  * It has to be a `.mjs`-file to be imported there.
  */
-import { serverSchema, serverEnv } from "./schema.mjs";
-import { env as clientEnv, formatErrors } from "./client.mjs";
+import { serverSchema, serverEnv } from "./schema.server.mjs";
+import { env as clientEnv } from "./client.mjs";
+
+// Lives here, not in client.mjs, so the client module needs no zod type (#917).
+const formatErrors = (
+  /** @type {import('zod').ZodFormattedError<Map<string,string>,string>} */
+  errors,
+) =>
+  Object.entries(errors)
+    .map(([name, value]) => {
+      if (value && "_errors" in value)
+        return `${name}: ${value._errors.join(", ")}\n`;
+    })
+    .filter(Boolean);
 
 if (!process.env.SKIP_ENV_VALIDATION) {
   const _serverEnv = serverSchema.safeParse(serverEnv);

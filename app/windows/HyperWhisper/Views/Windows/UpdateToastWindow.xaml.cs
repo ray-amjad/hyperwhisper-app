@@ -3,6 +3,7 @@ using System.Windows.Input;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using HyperWhisper.Services;
+using HyperWhisper.Utilities;
 
 namespace HyperWhisper.Views.Windows;
 
@@ -58,9 +59,10 @@ public partial class UpdateToastWindow : Window
 
     private void PositionBottomRight()
     {
-        var workArea = SystemParameters.WorkArea;
-        Left = workArea.Right - Width - 16;
-        Top = workArea.Bottom - Height - 16;
+        // The primary monitor's work area in its own DIP, not
+        // SystemParameters.WorkArea, which keeps the DPI the app started at.
+        MonitorWorkArea.Place(this, MonitorWorkArea.Primary, workArea =>
+            new System.Windows.Point(workArea.Right - Width - 16, workArea.Bottom - Height - 16));
     }
 
     private void AnimateIn()

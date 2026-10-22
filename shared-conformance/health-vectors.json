@@ -1,0 +1,635 @@
+{
+  "description": "Cross-platform conformance vectors for a cloud provider health probe's verdict (issue #779). Source of truth: shared-core-rs/crates/hw-net/src/health.rs parse_health_response, which decides `reason` (healthy / unauthorized / unreachable) for every provider; `healthy` is always reason == healthy. 401/403 are unauthorized for every provider; 400 is unauthorized for Gemini, GeminiTranscribe, GeminiTranscribeLive and Grok (they answer an invalid key with 400); ElevenLabs' STT probe sends an empty body, so its 400/422 are healthy; everything else is unreachable. `provider` is the core's HwProvider variant name. Replayed by Rust (shared-core-rs/crates/hw-net/tests/health_vectors.rs), Windows (app/windows/HyperWhisper.SmokeTests, through CloudProviderHealthService.MapHealthVerdict), the portable .NET head (app/shared-dotnet/HyperWhisper.SharedCore.Tests, through the C# binding) and macOS (app/macos/hyperwhisperTests/HealthConformanceVectorTests.swift, through CloudProviderHealthManager.mapRustHealth). Regenerate: cd shared-core-rs && cargo test -p hw-net --test health_vectors -- --ignored regenerate",
+  "cases": [
+    {
+      "provider": "HyperWhisperCloud",
+      "status": 200,
+      "healthy": true,
+      "reason": "healthy"
+    },
+    {
+      "provider": "HyperWhisperCloud",
+      "status": 400,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "HyperWhisperCloud",
+      "status": 401,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "HyperWhisperCloud",
+      "status": 403,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "HyperWhisperCloud",
+      "status": 422,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "HyperWhisperCloud",
+      "status": 429,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "HyperWhisperCloud",
+      "status": 500,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Openai",
+      "status": 200,
+      "healthy": true,
+      "reason": "healthy"
+    },
+    {
+      "provider": "Openai",
+      "status": 400,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Openai",
+      "status": 401,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Openai",
+      "status": 403,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Openai",
+      "status": 422,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Openai",
+      "status": 429,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Openai",
+      "status": 500,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Groq",
+      "status": 200,
+      "healthy": true,
+      "reason": "healthy"
+    },
+    {
+      "provider": "Groq",
+      "status": 400,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Groq",
+      "status": 401,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Groq",
+      "status": 403,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Groq",
+      "status": 422,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Groq",
+      "status": 429,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Groq",
+      "status": 500,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Elevenlabs",
+      "status": 200,
+      "healthy": true,
+      "reason": "healthy"
+    },
+    {
+      "provider": "Elevenlabs",
+      "status": 400,
+      "healthy": true,
+      "reason": "healthy"
+    },
+    {
+      "provider": "Elevenlabs",
+      "status": 401,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Elevenlabs",
+      "status": 403,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Elevenlabs",
+      "status": 422,
+      "healthy": true,
+      "reason": "healthy"
+    },
+    {
+      "provider": "Elevenlabs",
+      "status": 429,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Elevenlabs",
+      "status": 500,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Mistral",
+      "status": 200,
+      "healthy": true,
+      "reason": "healthy"
+    },
+    {
+      "provider": "Mistral",
+      "status": 400,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Mistral",
+      "status": 401,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Mistral",
+      "status": 403,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Mistral",
+      "status": 422,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Mistral",
+      "status": 429,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Mistral",
+      "status": 500,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Grok",
+      "status": 200,
+      "healthy": true,
+      "reason": "healthy"
+    },
+    {
+      "provider": "Grok",
+      "status": 400,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Grok",
+      "status": 401,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Grok",
+      "status": 403,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Grok",
+      "status": 422,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Grok",
+      "status": 429,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Grok",
+      "status": 500,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Deepgram",
+      "status": 200,
+      "healthy": true,
+      "reason": "healthy"
+    },
+    {
+      "provider": "Deepgram",
+      "status": 400,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Deepgram",
+      "status": 401,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Deepgram",
+      "status": 403,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Deepgram",
+      "status": 422,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Deepgram",
+      "status": 429,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Deepgram",
+      "status": 500,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Soniox",
+      "status": 200,
+      "healthy": true,
+      "reason": "healthy"
+    },
+    {
+      "provider": "Soniox",
+      "status": 400,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Soniox",
+      "status": 401,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Soniox",
+      "status": 403,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Soniox",
+      "status": 422,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Soniox",
+      "status": 429,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Soniox",
+      "status": 500,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Assemblyai",
+      "status": 200,
+      "healthy": true,
+      "reason": "healthy"
+    },
+    {
+      "provider": "Assemblyai",
+      "status": 400,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Assemblyai",
+      "status": 401,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Assemblyai",
+      "status": 403,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Assemblyai",
+      "status": 422,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Assemblyai",
+      "status": 429,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Assemblyai",
+      "status": 500,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Gemini",
+      "status": 200,
+      "healthy": true,
+      "reason": "healthy"
+    },
+    {
+      "provider": "Gemini",
+      "status": 400,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Gemini",
+      "status": 401,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Gemini",
+      "status": 403,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Gemini",
+      "status": 422,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Gemini",
+      "status": 429,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Gemini",
+      "status": 500,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "AzureMai",
+      "status": 200,
+      "healthy": true,
+      "reason": "healthy"
+    },
+    {
+      "provider": "AzureMai",
+      "status": 400,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "AzureMai",
+      "status": 401,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "AzureMai",
+      "status": 403,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "AzureMai",
+      "status": 422,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "AzureMai",
+      "status": 429,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "AzureMai",
+      "status": 500,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "GoogleChirp",
+      "status": 200,
+      "healthy": true,
+      "reason": "healthy"
+    },
+    {
+      "provider": "GoogleChirp",
+      "status": 400,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "GoogleChirp",
+      "status": 401,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "GoogleChirp",
+      "status": 403,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "GoogleChirp",
+      "status": 422,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "GoogleChirp",
+      "status": 429,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "GoogleChirp",
+      "status": 500,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "GeminiTranscribe",
+      "status": 200,
+      "healthy": true,
+      "reason": "healthy"
+    },
+    {
+      "provider": "GeminiTranscribe",
+      "status": 400,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "GeminiTranscribe",
+      "status": 401,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "GeminiTranscribe",
+      "status": 403,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "GeminiTranscribe",
+      "status": 422,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "GeminiTranscribe",
+      "status": 429,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "GeminiTranscribe",
+      "status": 500,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "GeminiTranscribeLive",
+      "status": 200,
+      "healthy": true,
+      "reason": "healthy"
+    },
+    {
+      "provider": "GeminiTranscribeLive",
+      "status": 400,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "GeminiTranscribeLive",
+      "status": 401,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "GeminiTranscribeLive",
+      "status": 403,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "GeminiTranscribeLive",
+      "status": 422,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "GeminiTranscribeLive",
+      "status": 429,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "GeminiTranscribeLive",
+      "status": 500,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Meta",
+      "status": 200,
+      "healthy": true,
+      "reason": "healthy"
+    },
+    {
+      "provider": "Meta",
+      "status": 400,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Meta",
+      "status": 401,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Meta",
+      "status": 403,
+      "healthy": false,
+      "reason": "unauthorized"
+    },
+    {
+      "provider": "Meta",
+      "status": 422,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Meta",
+      "status": 429,
+      "healthy": false,
+      "reason": "unreachable"
+    },
+    {
+      "provider": "Meta",
+      "status": 500,
+      "healthy": false,
+      "reason": "unreachable"
+    }
+  ]
+}

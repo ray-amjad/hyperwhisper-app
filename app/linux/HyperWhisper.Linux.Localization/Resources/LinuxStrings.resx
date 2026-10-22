@@ -177,6 +177,15 @@
   <data name="linux.settings.general.errorLogging.subtitle" xml:space="preserve"><value>Sends crash reports only. Your transcriptions are never sent.</value></data>
   <data name="linux.settings.sound.autoIncreaseMicVolume.subtitle" xml:space="preserve"><value>Boosts a quiet mic to 90% while recording, then restores it.</value></data>
   <data name="linux.settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve"><value>Keeps the mic open between recordings to cut startup delay.</value></data>
+  <data name="linux.settings.sound.mediaControl.muffleAudio" xml:space="preserve"><value>Muffle audio</value></data>
+  <data name="linux.settings.sound.microphone.default" xml:space="preserve"><value>Default · {0}</value></data>
+  <data name="linux.settings.sound.microphone.defaultNone" xml:space="preserve"><value>Default</value></data>
+  <data name="linux.settings.sound.microphone.fallback" xml:space="preserve"><value>Using {0} until {1} is reconnected.</value></data>
+  <data name="linux.settings.sound.microphone.notConnected" xml:space="preserve"><value>{0} (not connected)</value></data>
+  <data name="linux.settings.sound.microphone.stop" xml:space="preserve"><value>Stop</value></data>
+  <data name="linux.settings.sound.microphone.subtitle" xml:space="preserve"><value>Used by HyperWhisper only. Remembered across restarts.</value></data>
+  <data name="linux.settings.sound.microphone.test" xml:space="preserve"><value>Test</value></data>
+  <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve"><value>The microphone could not be opened.</value></data>
   <data name="linux.settings.storage.notice" xml:space="preserve"><value>A new folder affects new recordings only.</value></data>
   <data name="linux.settings.storage.storeAsM4A.subtitle" xml:space="preserve"><value>Converts recordings to smaller files after transcription.</value></data>
   <data name="linux.settings.backup.export.subtitle" xml:space="preserve"><value>Save settings, modes and vocabulary to a file you can restore later.</value></data>
@@ -333,6 +342,7 @@
   <data name="linux.overlay.error.no_speech" xml:space="preserve"><value>No speech detected</value></data>
   <data name="linux.overlay.error.provider" xml:space="preserve"><value>Speech provider unavailable</value></data>
   <data name="linux.overlay.error.permission" xml:space="preserve"><value>Permission required</value></data>
+  <data name="linux.overlay.error.copy" xml:space="preserve"><value>Copy failed</value></data>
   <data name="linux.overlay.error.unknown" xml:space="preserve"><value>Something went wrong</value></data>
   <data name="linux.overlay.mode_changed" xml:space="preserve"><value>Mode changed</value></data>
   <data name="linux.overlay.secure_field" xml:space="preserve"><value>Copied — secure field protected</value></data>

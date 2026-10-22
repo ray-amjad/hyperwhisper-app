@@ -504,6 +504,61 @@ mod tests {
         }
     }
 
+    /// #1709: a CLOUD mode with no stored `cloudProvider` runs on HyperWhisper
+    /// Cloud. Blank and whitespace read as `"hyperwhisper"`; every other value is
+    /// exactly what `normalize_cloud_provider` stores, so the read rule and the
+    /// storage rule cannot disagree on a non-blank value.
+    #[test]
+    fn effective_mode_cloud_provider_blank_means_hyperwhisper_cloud() {
+        let c = catalog();
+        for blank in [None, Some(""), Some("   "), Some("\t\n")] {
+            assert_eq!(
+                c.effective_mode_cloud_provider(blank),
+                "hyperwhisper",
+                "blank cloudProvider {blank:?} must mean HyperWhisper Cloud"
+            );
+        }
+        for input in ["hyperwhisper", "deepgram", "Deepgram", "googlespeech", "geminiTranscribe", "not-a-provider"] {
+            assert_eq!(
+                Some(c.effective_mode_cloud_provider(Some(input))),
+                c.normalize_cloud_provider(Some(input)).provider,
+                "non-blank `{input}` must read exactly as normalize_cloud_provider stores it"
+            );
+        }
+        // The storage rule itself is untouched: blank still passes through.
+        assert_eq!(c.normalize_cloud_provider(None).provider, None);
+        assert_eq!(c.normalize_cloud_provider(Some("")).provider.as_deref(), Some(""));
+    }
+
+    /// Runs the `effectiveModeCloudProvider` rows of
+    /// `shared-conformance/catalog-vectors.json` — the same rows the Swift, C#
+    /// and `hw-core` runners read through their bindings.
+    #[test]
+    fn effective_mode_cloud_provider_matches_conformance_vectors() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../shared-conformance/catalog-vectors.json");
+        let raw = std::fs::read_to_string(&path).expect("catalog-vectors.json must exist");
+        let doc: serde_json::Value = serde_json::from_str(&raw).expect("catalog-vectors.json must parse");
+        let rows = doc["effectiveModeCloudProvider"]
+            .as_array()
+            .expect("catalog-vectors.json must carry effectiveModeCloudProvider rows");
+        assert!(rows.len() >= 7, "expected the full effectiveModeCloudProvider vector set");
+        let c = catalog();
+        for row in rows {
+            let input = row["input"].as_str();
+            let expected = row["expected"].as_str().expect("every row names its expected provider");
+            assert_eq!(
+                c.effective_mode_cloud_provider(input),
+                expected,
+                "effectiveModeCloudProvider drift on input {input:?}"
+            );
+        }
+        assert!(
+            rows.iter().any(|r| r["input"].is_null()),
+            "no vector exercises a null cloudProvider"
+        );
+    }
+
     // --- Misses --------------------------------------------------------------
 
     #[test]

@@ -17,6 +17,7 @@ import {
   type AuthContext,
   validateAuth,
 } from '../middleware/auth';
+import { keyRateLimitResponse } from '../middleware/rate-limit';
 import { prepareTranscriptionAudio } from './transcribe-audio';
 import {
   extractDomain,
@@ -196,6 +197,18 @@ export async function prepareTranscriptionRequest(
     return authResult.response;
   }
   logEvent(requestId, startTime, 'transcribe.auth_done', authDiagnosticsForLog(authResult.diagnostics));
+
+  // Per-key rate limit, after auth and before the audio is buffered or any
+  // credits are held (middleware/rate-limit.ts, #2010).
+  const rateLimited = await keyRateLimitResponse('/transcribe', authResult.value.licenseKey);
+  if (rateLimited) {
+    logEvent(requestId, startTime, 'transcribe.request_rejected', {
+      reason: 'rate_limited',
+      flyRequestId,
+      status: rateLimited.status,
+    });
+    return rateLimited;
+  }
 
   const audioPreparation = await prepareTranscriptionAudio({
     c,

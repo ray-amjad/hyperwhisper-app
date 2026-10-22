@@ -35,7 +35,7 @@ export default function HeroSection() {
   }, []);
 
   return (
-    <section className="relative min-h-[90vh] flex flex-col items-center justify-center px-6 pt-12 pb-20 overflow-hidden">
+    <section className="relative min-h-[90vh] flex flex-col items-center justify-center pt-12 pb-20 overflow-hidden">
       {/* Background gradient */}
       <div className="absolute inset-0 -z-10">
         <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-700 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob" />
@@ -53,7 +53,7 @@ export default function HeroSection() {
         <m.div className="mb-8 flex justify-center" variants={chunk}>
           <img
             alt={t("logoAlt")}
-            className="w-40 h-40 rounded-2xl shadow-2xl"
+            className="w-40 h-40 rounded-[20%] shadow-2xl outline-1 -outline-offset-1 outline-white/10"
             src="/icon/512.png"
           />
         </m.div>
@@ -106,7 +106,7 @@ export default function HeroSection() {
           className="flex gap-4 justify-center items-center"
           variants={chunk}
         >
-          <span className="text-sm text-gray-500">{t("availableOn")}</span>
+          <span className="text-sm text-gray-400">{t("availableOn")}</span>
           <div className="flex gap-3 flex-wrap justify-center">
             <div className="px-3 py-1 bg-gray-800 rounded-lg border border-gray-700">
               <span className="text-sm text-gray-300">{t("macos")}</span>

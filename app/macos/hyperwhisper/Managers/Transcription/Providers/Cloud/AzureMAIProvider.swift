@@ -13,6 +13,9 @@
 import Foundation
 
 class AzureMAIProvider: TranscriptionProvider {
+    /// A stateless HTTP call: nothing per call is kept on the instance (#1425).
+    var supportsConcurrentPasses: Bool { true }
+
     private let licenseManager: LicenseManager
     private let creditManager: HyperWhisperCloudManager
 

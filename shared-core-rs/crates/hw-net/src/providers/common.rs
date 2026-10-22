@@ -281,7 +281,9 @@ pub fn parse_text_response(resp: &HttpResponse) -> Result<Transcript, Transcript
 /// handling in the shipped providers.
 ///
 /// PARITY:
-/// - 401 / 403 → `Unauthorized`
+/// - 401 / 403 → `QuotaExceeded` when the body says the account is out of
+///   credits ([`is_out_of_credits_body`]: ElevenLabs 401 `quota_exceeded`, xAI
+///   403 "used all available credits"), else `Unauthorized`
 /// - 402 → `QuotaExceeded`
 /// - 413 → `FileTooLarge`
 /// - 429 → `QuotaExceeded` when the OpenAI-style error body signals quota
@@ -298,7 +300,8 @@ pub fn classify_http(resp: &HttpResponse, raw: &str) -> TranscriptionError {
 }
 
 /// The shared status-code skeleton behind [`classify_http`]: 401/403 →
-/// `Unauthorized`, 402 → `QuotaExceeded`, 408 → `ProviderUnavailable`, 413 →
+/// `Unauthorized` (`QuotaExceeded` for an out-of-credits body), 402 →
+/// `QuotaExceeded`, 408 → `ProviderUnavailable`, 413 →
 /// `FileTooLarge`, 429 → quota-vs-rate-limited (via [`is_quota_error`]), 5xx →
 /// `ProviderUnavailable`, other 4xx → `BadRequest` with a message from
 /// `extract_message`.
@@ -318,6 +321,7 @@ pub fn classify_http_with_message(
     let json: Option<serde_json::Value> = serde_json::from_str(raw).ok();
 
     match status {
+        401 | 403 if is_out_of_credits_body(raw) => TranscriptionError::QuotaExceeded,
         401 | 403 => TranscriptionError::Unauthorized,
         402 => TranscriptionError::QuotaExceeded,
         408 => TranscriptionError::ProviderUnavailable { status },
@@ -360,6 +364,46 @@ pub(crate) fn is_quota_error(json: Option<&serde_json::Value>) -> bool {
         || kind == "insufficient_quota"
         || msg.contains("quota")
         || msg.contains("billing")
+}
+
+/// Body markers that mean the user's own provider account is out of credits or
+/// over its spending limit. Each one is specific enough that no bad-key body
+/// carries it.
+///
+/// PARITY: the same list as `QUOTA_EXHAUSTED_MARKERS` in
+/// `hyperwhisper-cloud/src/providers/utils.ts` (issue #1228), checked here on
+/// 401 / 403 only (issue #2073). A 429 keeps the narrower [`is_quota_error`]
+/// check, so a 429 that names a quota only at the top level stays a retryable
+/// `RateLimited` (see `retry`'s agreement tests).
+/// - `quota_exceeded` / `insufficient_quota`: whole-word, case-sensitive
+///   (ElevenLabs answers 401 `{"detail":{"status":"quota_exceeded",…}}`).
+/// - the xAI 403 phrases: case-insensitive.
+const OUT_OF_CREDITS_CODES: &[&str] = &["quota_exceeded", "insufficient_quota"];
+const OUT_OF_CREDITS_PHRASES: &[&str] = &[
+    "used all available credits",
+    "doesn't have any credits",
+    "does not have any credits",
+    "monthly spending limit",
+];
+
+/// True when an error body says the provider account is out of credits
+/// ([`OUT_OF_CREDITS_CODES`], [`OUT_OF_CREDITS_PHRASES`]). Matched on the raw
+/// text, not parsed, like the Cloud check.
+/// pub(crate): shared with `retry::classify_error`.
+pub(crate) fn is_out_of_credits_body(raw: &str) -> bool {
+    let is_word = |c: char| c.is_ascii_alphanumeric() || c == '_';
+    let has_word = |needle: &str| {
+        raw.match_indices(needle).any(|(i, _)| {
+            let before = raw[..i].chars().next_back();
+            let after = raw[i + needle.len()..].chars().next();
+            !before.is_some_and(is_word) && !after.is_some_and(is_word)
+        })
+    };
+    if OUT_OF_CREDITS_CODES.iter().any(|code| has_word(code)) {
+        return true;
+    }
+    let lower = raw.to_lowercase();
+    OUT_OF_CREDITS_PHRASES.iter().any(|p| lower.contains(p))
 }
 
 /// Best-effort error message: `error.message`, then top-level `message`/`error`
@@ -521,5 +565,107 @@ mod tests {
             classify_http(&resp, ""),
             crate::retry::classify_error(408, "")
         );
+    }
+
+    fn err_resp(status: u16, body: &str) -> HttpResponse {
+        HttpResponse {
+            status,
+            headers: Vec::new(),
+            body: body.as_bytes().to_vec(),
+        }
+    }
+
+    // Issue #2073: a BYOK account that is out of credits must read as
+    // QuotaExceeded, not as a bad key. Bodies are the providers' real replies
+    // (the same ones hyperwhisper-cloud's QUOTA_EXHAUSTED_MARKERS match).
+    const ELEVENLABS_401_OUT_OF_CREDITS: &str = r#"{"detail":{"type":"invalid_request","code":"quota_exceeded","message":"This request exceeds your quota of 248524. You have 211 credits remaining, while 530 credits are required for this request.","status":"quota_exceeded"}}"#;
+    const XAI_403_OUT_OF_CREDITS: &str = r#"{"code":"The caller does not have permission to execute the specified operation","error":"Your team abc has either used all available credits or reached its monthly spending limit. To continue making API requests, please purchase more credits or raise your spending limit."}"#;
+
+    #[test]
+    fn elevenlabs_401_quota_exceeded_is_quota_not_bad_key() {
+        let err = crate::providers::elevenlabs::parse_transcribe_response(&err_resp(
+            401,
+            ELEVENLABS_401_OUT_OF_CREDITS,
+        ))
+        .unwrap_err();
+        assert_eq!(
+            err,
+            TranscriptionError::QuotaExceeded,
+            "out-of-credits 401 classified as {err:?}"
+        );
+    }
+
+    #[test]
+    fn grok_403_credits_exhausted_is_quota_not_bad_key() {
+        let err = crate::providers::grok::parse_transcribe_response(&err_resp(
+            403,
+            XAI_403_OUT_OF_CREDITS,
+        ))
+        .unwrap_err();
+        assert_eq!(
+            err,
+            TranscriptionError::QuotaExceeded,
+            "credits-exhausted 403 classified as {err:?}"
+        );
+    }
+
+    #[test]
+    fn out_of_credits_markers_cover_the_cloud_list() {
+        for body in [
+            r#"{"error":{"code":"insufficient_quota"}}"#,
+            r#"{"error":"Your team abc doesn't have any credits yet."}"#,
+            r#"{"error":"Your team abc does not have any credits yet."}"#,
+            r#"{"error":"Reached its MONTHLY SPENDING LIMIT"}"#,
+            "quota_exceeded",
+        ] {
+            for status in [401u16, 403] {
+                assert_eq!(
+                    classify_http(&err_resp(status, body), body),
+                    TranscriptionError::QuotaExceeded,
+                    "status={status} body={body}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn plain_bad_key_401_403_stay_unauthorized() {
+        // Not every 401/403 is quota: a wrong key must still say the key is wrong,
+        // and a marker inside a longer word is not a marker.
+        for body in [
+            "",
+            r#"{"error":{"message":"Incorrect API key provided: sk-abc.","type":"invalid_request_error","code":"invalid_api_key"}}"#,
+            r#"{"detail":{"status":"invalid_api_key","message":"Invalid API key"}}"#,
+            r#"{"error":"Incorrect API key provided"}"#,
+            r#"{"detail":{"status":"quota_exceeded_soon"}}"#,
+            r#"{"error":"you do not have permission; check your quota"}"#,
+        ] {
+            for status in [401u16, 403] {
+                assert_eq!(
+                    classify_http(&err_resp(status, body), body),
+                    TranscriptionError::Unauthorized,
+                    "status={status} body={body}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn out_of_credits_401_403_agree_with_retry_classifier() {
+        // retry.rs module doc: the two classifiers agree on every status.
+        for (status, body) in [
+            (401u16, ELEVENLABS_401_OUT_OF_CREDITS),
+            (403, XAI_403_OUT_OF_CREDITS),
+            (401, r#"{"error":"Incorrect API key provided"}"#),
+            (403, ""),
+        ] {
+            let via_parse = classify_http(&err_resp(status, body), body);
+            let via_retry = crate::retry::classify_error(status, body);
+            assert_eq!(via_parse, via_retry, "status={status} body={body}");
+            assert!(
+                !crate::retry::is_retryable(&via_retry),
+                "status={status} must stay terminal"
+            );
+        }
     }
 }

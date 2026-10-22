@@ -260,9 +260,9 @@ mod tests {
         assert_eq!(p.api_style.as_deref(), Some("anthropic"));
         assert_eq!(p.llm_provider, "anthropic");
         let dm = c.default_model("anthropic").unwrap();
-        assert_eq!(dm.id, "claude-haiku-4-5");
-        assert_eq!(dm.price_per_m_input, Some(1.00));
-        assert_eq!(dm.price_per_m_output, Some(5.00));
+        assert_eq!(dm.id, "claude-haiku-5-5");
+        assert_eq!(dm.price_per_m_input, Some(0.10));
+        assert_eq!(dm.price_per_m_output, Some(0.50));
     }
 
     // --- Golden: case-insensitive lookup ------------------------------------
@@ -290,11 +290,13 @@ mod tests {
     #[test]
     fn multi_model_default_and_visible_models() {
         let c = catalog();
-        // gemini lists gemini-2.5-flash (default) + 2.5-flash-lite + 3.8-flash.
+        // gemini lists gemini-3.8-flash (default) + 2.5-flash + 2.5-flash-lite.
+        // Google limits the 2.5 models to past users, so 3.8 Flash is the default.
         let models = c.models("gemini");
         assert_eq!(models.len(), 3);
         let dm = c.default_model("gemini").unwrap();
-        assert_eq!(dm.id, "gemini-2.5-flash");
+        assert_eq!(dm.id, "gemini-3.8-flash");
+        assert!(c.model("gemini", "gemini-2.5-flash").is_some());
         // Specific lookup.
         let lite = c.model("gemini", "gemini-2.5-flash-lite").unwrap();
         assert_eq!(lite.price_per_m_input, Some(0.10));

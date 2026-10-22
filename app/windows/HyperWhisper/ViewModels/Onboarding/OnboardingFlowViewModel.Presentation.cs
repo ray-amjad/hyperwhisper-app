@@ -23,6 +23,7 @@ using System.ComponentModel;
 using System.Globalization;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
+using AccountKeyFormat = HyperWhisper.CloudAccount.AccountKeyFormat;
 
 namespace HyperWhisper.ViewModels.Onboarding;
 
@@ -335,12 +336,20 @@ public sealed partial class OnboardingFlowViewModel
 
     public string SelectedProviderDisplayName => SelectedProvider.GetDisplayName();
 
-    private string TrimmedLicenseKey => LicenseKeyInput.Trim();
-
     private string TrimmedApiKey => ApiKeyInput.Trim();
 
-    /// <summary>Testing is refused on an empty field, exactly as macOS disables the button.</summary>
-    public bool CanTestAccessKey => !IsTestingKey && TrimmedLicenseKey.Length > 0;
+    /// <summary>
+    /// #1489: the trimmed field text could be a key. Empty, over 64 characters, whitespace
+    /// inside or any non-ASCII character cannot be, so Test and Activate stay off and nothing
+    /// is sent. Loose on purpose: no HW- pattern, because imported Polar-era keys must work.
+    /// </summary>
+    public bool IsLicenseKeyPlausible => AccountKeyFormat.IsPlausible(LicenseKeyInput);
+
+    /// <summary>The field holds text that cannot be a key, so the hint shows under it.</summary>
+    public bool ShowsLicenseKeyFormatHint => AccountKeyFormat.ShowsHint(LicenseKeyInput);
+
+    /// <summary>Testing is refused on an empty or implausible field, exactly as macOS disables the button.</summary>
+    public bool CanTestAccessKey => !IsTestingKey && IsLicenseKeyPlausible;
 
     public bool CanTestProviderKey => !IsTestingKey && TrimmedApiKey.Length > 0;
 
@@ -387,7 +396,7 @@ public sealed partial class OnboardingFlowViewModel
     // SETUP STEP
     // =========================================================================
 
-    public bool CanActivateLicense => !IsActivatingLicense && TrimmedLicenseKey.Length > 0;
+    public bool CanActivateLicense => !IsActivatingLicense && IsLicenseKeyPlausible;
 
     /// <summary>
     /// "Save API key" now probes before it writes, so it shares IsTestingKey with
@@ -779,7 +788,11 @@ public sealed partial class OnboardingFlowViewModel
                 nameof(SelectedModelSizeText), nameof(DownloadButtonText), nameof(HasSelectedModel),
                 nameof(ShowsDownloadButton), nameof(SourceSummary)
             },
-            [nameof(LicenseKeyInput)] = new[] { nameof(CanTestAccessKey), nameof(CanActivateLicense) },
+            [nameof(LicenseKeyInput)] = new[]
+            {
+                nameof(CanTestAccessKey), nameof(CanActivateLicense),
+                nameof(IsLicenseKeyPlausible), nameof(ShowsLicenseKeyFormatHint)
+            },
             [nameof(ApiKeyInput)] = new[]
             {
                 nameof(CanTestProviderKey), nameof(CanSaveProviderKey), nameof(MaskedApiKey)

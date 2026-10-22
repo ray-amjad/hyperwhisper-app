@@ -18,6 +18,8 @@ internal static class DaemonTests
             ("an auto language joins VAD segments from the text", AutoLanguageSegmentJoin),
             ("an auto-language join reads both sides of the boundary", AutoLanguageSegmentJoinIsSymmetric),
             ("an auto-language join does not depend on where the VAD split", AutoLanguageJoinIsBoundaryIndependent),
+            ("--segment-join parses to the host's separator", SegmentJoinArgument),
+            ("a host-decided separator wins over the language", SegmentJoinOverridesLanguage),
         };
 
         var failures = 0;
@@ -138,6 +140,26 @@ internal static class DaemonTests
         Equal("これはtestです", JoinLikeDaemon("auto", ["これはtestです"]));
         Equal("これはtestです", JoinLikeDaemon("auto", ["これは", "test", "です"]));
         Equal("これはtestです", JoinLikeDaemon("auto", ["これ", "はtest", "です"]));
+    }
+
+    // The Windows host decides the join from the core and passes it (#902), so
+    // the daemon's own language lookup is only the fallback.
+    private static void SegmentJoinArgument()
+    {
+        string[] Args(params string[] extra) => new[] { "--model", "m" }.Concat(extra).ToArray();
+        Equal<string?>("", DaemonOptions.Parse(Args("--segment-join", "none"))!.SegmentJoin);
+        Equal<string?>(" ", DaemonOptions.Parse(Args("--segment-join", "space"))!.SegmentJoin);
+        Equal<string?>(null, DaemonOptions.Parse(Args("--language", "ja"))!.SegmentJoin);
+        True(DaemonOptions.Parse(Args("--segment-join", "tab")) == null, "an unknown --segment-join is rejected");
+    }
+
+    private static void SegmentJoinOverridesLanguage()
+    {
+        // "en" alone joins with a space and "ja" alone without; the host's answer wins either way.
+        Equal("hello world", EngineSession.JoinSegments("ja", " ", new[] { "hello", "world" }));
+        Equal("これはテスト", EngineSession.JoinSegments("en", "", new[] { "これは", "テスト" }));
+        Equal("これはテスト", EngineSession.JoinSegments("auto", "", new[] { "これは", " ", "テスト" }));
+        Equal("hello world", EngineSession.JoinSegments("en", null, new[] { "hello", "world" }));
     }
 
     /// <summary>

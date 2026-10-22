@@ -175,12 +175,6 @@ impl From<hw_license::usage::UsageSnapshot> for UsageSnapshot {
 // validate
 // ===========================================================================
 
-/// The `/api/license/validate` endpoint URL.
-#[uniffi::export]
-pub fn license_validate_url() -> String {
-    hw_license::validate::VALIDATE_URL.to_string()
-}
-
 /// Build the POST `/api/license/validate` request.
 #[uniffi::export]
 pub fn license_build_validate_request(
@@ -213,18 +207,6 @@ pub fn license_parse_validate_response(body: Vec<u8>) -> ValidationOutcome {
 // cache (constants + store-taking fns)
 // ===========================================================================
 
-/// 24h validation cache TTL (seconds).
-#[uniffi::export]
-pub fn license_validation_cache_secs() -> i64 {
-    hw_license::cache::VALIDATION_CACHE_SECS
-}
-
-/// 7-day offline grace period (seconds).
-#[uniffi::export]
-pub fn license_offline_grace_secs() -> i64 {
-    hw_license::cache::OFFLINE_GRACE_SECS
-}
-
 /// 24h remote-override TTL (seconds).
 #[uniffi::export]
 pub fn license_remote_override_ttl_secs() -> i64 {
@@ -232,30 +214,16 @@ pub fn license_remote_override_ttl_secs() -> i64 {
 }
 
 #[uniffi::export]
-pub fn license_store_license_key(store: Arc<dyn KeyValueStore>, key: String) {
-    hw_license::cache::store_license_key(&KvAdapter(store), &key)
-}
-
-#[uniffi::export]
 pub fn license_stored_license_key(store: Arc<dyn KeyValueStore>) -> Option<String> {
     hw_license::cache::stored_license_key(&KvAdapter(store))
 }
 
-#[uniffi::export]
-pub fn license_update_validation_cache(
-    store: Arc<dyn KeyValueStore>,
-    status: HwLicenseStatus,
-    now_unix_secs: i64,
-) {
-    hw_license::cache::update_validation_cache(&KvAdapter(store), status.into(), now_unix_secs)
-}
-
 /// Persist a server validation verdict for the attempted key: stores the key on
 /// a valid (`Active`) verdict, and updates the validation cache only when the
-/// verdict is valid or the attempted key matches the stored key. Prefer this
-/// over the raw `license_update_validation_cache` after a validate response —
-/// it prevents a rejected *replacement* key from clobbering the stored key's
-/// cached status (a 24h lockout for a valid user).
+/// verdict is valid or the attempted key matches the stored key. This is the
+/// only FFI write path for a validate response: it prevents a rejected
+/// *replacement* key from clobbering the stored key's cached status (a 24h
+/// lockout for a valid user).
 #[uniffi::export]
 pub fn license_persist_validation_verdict(
     store: Arc<dyn KeyValueStore>,
@@ -471,6 +439,15 @@ mod tests {
         s.clone()
     }
 
+    /// Write the validation cache the way the bridge's own adapter would: the
+    /// foreign store through `KvAdapter`, the mirrored status through its
+    /// `From` impl. The cache writer has no FFI export of its own (heads write
+    /// a verdict through `license_persist_validation_verdict`), so the tests
+    /// that need a cached validation seed it here.
+    fn seed_validation_cache(s: &Arc<TestStore>, status: HwLicenseStatus, now_unix_secs: i64) {
+        hw_license::cache::update_validation_cache(&KvAdapter(kv(s)), status.into(), now_unix_secs)
+    }
+
     /// A distinct label per FFI status arm, written independently of the `From`
     /// impls under test. The exhaustive `match` also fails to compile if a new
     /// arm is added without a test.
@@ -515,7 +492,7 @@ mod tests {
     #[test]
     fn validate_url_is_the_production_endpoint() {
         assert_eq!(
-            license_validate_url(),
+            hw_license::validate::VALIDATE_URL,
             "https://www.hyperwhisper.com/api/license/validate"
         );
     }
@@ -534,7 +511,7 @@ mod tests {
             text,
             r#"{"license_key":"KEY-AAA","device_id":"device-BBB","device_name":"host-CCC"}"#
         );
-        assert_eq!(req.url, license_validate_url());
+        assert_eq!(req.url, hw_license::validate::VALIDATE_URL);
         assert_eq!(req.content_type, "application/json");
     }
 
@@ -669,8 +646,8 @@ mod tests {
 
     #[test]
     fn cache_window_constants_match_their_documented_durations() {
-        assert_eq!(license_validation_cache_secs(), CACHE_SECS);
-        assert_eq!(license_offline_grace_secs(), GRACE_SECS);
+        assert_eq!(hw_license::cache::VALIDATION_CACHE_SECS, CACHE_SECS);
+        assert_eq!(hw_license::cache::OFFLINE_GRACE_SECS, GRACE_SECS);
         assert_eq!(license_remote_override_ttl_secs(), 86_400);
     }
 
@@ -686,7 +663,7 @@ mod tests {
         ];
         for (tag, persisted) in expected {
             let s = store();
-            license_update_validation_cache(kv(&s), status_from_tag(tag), 1_700_000_000);
+            seed_validation_cache(&s, status_from_tag(tag), 1_700_000_000);
             assert_eq!(s.raw(K_CACHED_STATUS).as_deref(), Some(persisted), "{tag}");
             assert_eq!(
                 s.raw(K_LAST_VALIDATION).as_deref(),
@@ -727,7 +704,7 @@ mod tests {
     fn should_revalidate_flips_at_the_validation_cache_boundary() {
         let s = store();
         let t0 = 1_700_000_000;
-        license_update_validation_cache(kv(&s), HwLicenseStatus::Active, t0);
+        seed_validation_cache(&s, HwLicenseStatus::Active, t0);
         assert!(!license_should_revalidate(kv(&s), t0));
         assert!(!license_should_revalidate(kv(&s), t0 + CACHE_SECS));
         assert!(license_should_revalidate(kv(&s), t0 + CACHE_SECS + 1));
@@ -739,7 +716,7 @@ mod tests {
         assert!(license_should_revalidate(kv(&s), 1_700_000_000));
 
         let t0 = 1_700_000_000;
-        license_update_validation_cache(kv(&s), HwLicenseStatus::Active, t0);
+        seed_validation_cache(&s, HwLicenseStatus::Active, t0);
         // A clock correction that moves time backwards must not make the cache
         // look permanently fresh.
         assert!(license_should_revalidate(kv(&s), t0 - 1));
@@ -749,7 +726,7 @@ mod tests {
     fn cached_status_expires_at_the_offline_grace_boundary() {
         let s = store();
         let t0 = 1_700_000_000;
-        license_update_validation_cache(kv(&s), HwLicenseStatus::Active, t0);
+        seed_validation_cache(&s, HwLicenseStatus::Active, t0);
         assert!(license_cached_status_within_grace(kv(&s), t0 + GRACE_SECS).is_some());
         assert!(license_cached_status_within_grace(kv(&s), t0 + GRACE_SECS + 1).is_none());
     }
@@ -763,10 +740,10 @@ mod tests {
         let s = store();
         assert!(license_stored_license_key(kv(&s)).is_none());
 
-        license_store_license_key(kv(&s), "   ".to_string());
+        hw_license::cache::store_license_key(&KvAdapter(kv(&s)), "   ");
         assert!(s.raw(K_LICENSE_KEY).is_none());
 
-        license_store_license_key(kv(&s), "HW-KEY-1".to_string());
+        hw_license::cache::store_license_key(&KvAdapter(kv(&s)), "HW-KEY-1");
         assert_eq!(
             license_stored_license_key(kv(&s)).as_deref(),
             Some("HW-KEY-1")
@@ -873,7 +850,7 @@ mod tests {
     fn offline_fallback_uses_the_cached_status_and_customer_within_grace() {
         let s = store();
         let t0 = 1_700_000_000;
-        license_update_validation_cache(kv(&s), HwLicenseStatus::Active, t0);
+        seed_validation_cache(&s, HwLicenseStatus::Active, t0);
         s.seed(K_CUSTOMER_ID, "cus_444");
 
         let outcome = license_offline_fallback_outcome(kv(&s), t0 + DAY);
@@ -890,7 +867,7 @@ mod tests {
     fn offline_fallback_for_a_cached_non_active_status_is_not_valid() {
         let s = store();
         let t0 = 1_700_000_000;
-        license_update_validation_cache(kv(&s), HwLicenseStatus::Expired, t0);
+        seed_validation_cache(&s, HwLicenseStatus::Expired, t0);
 
         let outcome = license_offline_fallback_outcome(kv(&s), t0 + DAY);
         assert!(!outcome.is_valid);
@@ -905,7 +882,7 @@ mod tests {
     fn offline_fallback_past_the_grace_period_is_invalid_with_no_customer() {
         let s = store();
         let t0 = 1_700_000_000;
-        license_update_validation_cache(kv(&s), HwLicenseStatus::Active, t0);
+        seed_validation_cache(&s, HwLicenseStatus::Active, t0);
         s.seed(K_CUSTOMER_ID, "cus_555");
 
         let outcome = license_offline_fallback_outcome(kv(&s), t0 + GRACE_SECS + 1);

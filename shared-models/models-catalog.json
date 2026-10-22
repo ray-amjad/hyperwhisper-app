@@ -1,7 +1,7 @@
 {
   "$schema": "./schema.json",
   "schemaVersion": 1,
-  "lastUpdated": "2026-09-25",
+  "lastUpdated": "2026-10-18",
   "models": [
     {
       "provider": "appleSpeech",
@@ -61,7 +61,7 @@
       "kind": "voice",
       "displayName": "GPT-4o Mini Transcribe (2025-12-15)",
       "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": false,
+      "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
       "supportsAllLanguages": true
     },
@@ -294,6 +294,17 @@
       "platforms": ["macos", "windows"],
       "supportedLanguages": ["af", "am", "ar", "as", "az", "be", "bg", "bn", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "fa", "fi", "fr", "gl", "gu", "ha", "he", "hi", "hr", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "lb", "ln", "lo", "lt", "lv", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sd", "sk", "sl", "sn", "so", "sr", "sv", "sw", "ta", "te", "tg", "th", "tl", "tr", "uk", "ur", "uz", "vi", "yo", "yue", "zh"]
     },
+    {
+      "provider": "elevenLabs",
+      "id": "scribe_v2_medical",
+      "kind": "voice",
+      "displayName": "Scribe v2 Medical",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "supportedLanguages": ["af", "am", "ar", "as", "az", "be", "bg", "bn", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "fa", "fi", "fr", "gl", "gu", "ha", "he", "hi", "hr", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "lb", "ln", "lo", "lt", "lv", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sd", "sk", "sl", "sn", "so", "sr", "sv", "sw", "ta", "te", "tg", "th", "tl", "tr", "uk", "ur", "uz", "vi", "yo", "yue", "zh"],
+      "notes": "Clinical-audio variant of scribe_v2 on the same batch endpoint and rate, with keyterm prompting (#2201). ElevenLabs lists it as 'Same features, languages, pricing, and API as Scribe v2' (elevenlabs.io/docs/overview/models), so supportedLanguages is scribe_v2's. BYOK only: hyperwhisper-cloud stt-models.ts has no row for it."
+    },
 
     {
       "provider": "mistral",
@@ -317,6 +328,17 @@
       "supportedLanguages": ["af", "ar", "az", "be", "bg", "bn", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fr", "gl", "gu", "he", "hi", "hr", "hu", "id", "it", "ja", "kk", "kn", "ko", "lt", "lv", "mk", "ml", "mr", "ms", "nl", "no", "pa", "pl", "pt", "ro", "ru", "sk", "sl", "sq", "sr", "sv", "sw", "ta", "te", "th", "tl", "tr", "uk", "ur", "vi", "zh"]
     },
 
+    {
+      "provider": "gemini",
+      "id": "gemini-3.8-flash",
+      "kind": "voice",
+      "displayName": "Gemini 3.8 Flash",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportsAllLanguages": true,
+      "notes": "Default Gemini transcription model since #1019 (Google limits the 2.5 models to past users since 2026-09-18 and points new projects at 3.8 Flash). Distinct from the `kind: text` gemini-3.8-flash entry; disambiguated by `kind`."
+    },
     {
       "provider": "gemini",
       "id": "gemini-2.5-flash",
@@ -357,16 +379,6 @@
       "platforms": ["macos", "windows"],
       "supportsAllLanguages": true,
       "notes": "GA replacement for gemini-3.1-flash-lite-preview. BYOK-only for native transcription."
-    },
-    {
-      "provider": "gemini",
-      "id": "gemini-3-flash-preview",
-      "kind": "voice",
-      "displayName": "Gemini 3 Flash",
-      "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": true,
-      "platforms": ["macos", "windows"],
-      "supportsAllLanguages": true
     },
     {
       "provider": "gemini",
@@ -411,32 +423,34 @@
       "availableViaHyperWhisperCloud": true,
       "platforms": ["windows"],
       "supportsAllLanguages": true,
-      "notes": "SpaceXAI Grok Voice Transcribe 2. `/v1/stt` took no `model` parameter when this row was written, so it carried an empty id until 2026-09-19; upstream now accepts `grok-voice-transcribe-2.0` (its default) and `grok-voice-transcribe-1.0`, and we send 2.0 explicitly. The empty id still resolves to this row, through the legacy-blank rule in `hw-catalog::models::entry()`, so persisted modes keep working. supportsAllLanguages: Grok transcription auto-detects and is NOT language-limited — the 25-code list in macOS STTCapabilities is only an ITN number/currency formatting allowlist (per SpaceXAI docs), so it is intentionally NOT mirrored here."
-    },
-    {
-      "provider": "grok",
-      "id": "grok-voice-transcribe-1.0",
-      "kind": "voice",
-      "displayName": "Grok Voice Transcribe 1",
-      "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": true,
-      "platforms": ["windows"],
-      "supportsAllLanguages": true,
-      "notes": "SpaceXAI Grok Voice Transcribe 1. This is the model every Grok mode saved before 2026-09-19 actually ran, back when `/v1/stt` took no `model` parameter and xAI served only one. It is listed so those users can stay on it deliberately instead of being moved to 2 in silence. Same 25-code ITN allowlist, same `keyterm` support and the same price as 2. WARNING: SpaceXAI say 1.0 `will be deprecated in the coming weeks`. When upstream retires it, delete this row too — see the `notes` on the `grokStt` entry in cloud-stt-catalog.json for the migrateFrom step."
+      "notes": "SpaceXAI Grok Voice Transcribe 2. `/v1/stt` took no `model` parameter when this row was written, so it carried an empty id until 2026-09-19; upstream now accepts `grok-voice-transcribe-2.0` (its default), and we send 2.0 explicitly. xAI ended `grok-voice-transcribe-1.0` on 2026-10-02 and routes it to 2.0 at the same price, so its row is gone; a saved 1.0 id resolves to this row through `hw-catalog::model_alias` (GROK_ALIASES). The empty id still resolves to this row, through the legacy-blank rule in `hw-catalog::models::entry()`, so persisted modes keep working. supportsAllLanguages: Grok transcription auto-detects and is NOT language-limited — the 25-code list in macOS STTCapabilities is only an ITN number/currency formatting allowlist (per SpaceXAI docs), so it is intentionally NOT mirrored here."
     },
 
     {
       "provider": "anthropic",
-      "id": "claude-haiku-4-5",
+      "id": "claude-haiku-5-5",
       "kind": "text",
+      "displayName": "Claude Haiku 5.5",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
-      "platforms": ["macos", "windows"]
+      "platforms": ["macos", "windows"],
+      "notes": "Replaced claude-haiku-4-5 (2026-10) as the BYOK Haiku row and the HyperWhisper Cloud anthropic engine; kept in sync with cloud-pp-catalog.json. Saved claude-haiku-4-5 modes redirect here."
+    },
+    {
+      "provider": "anthropic",
+      "id": "claude-sonnet-5-5",
+      "kind": "text",
+      "displayName": "Claude Sonnet 5.5",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "notes": "BYOK-only native-app catalog addition (2026-10). Replaced claude-sonnet-4-5, whose saved modes redirect here."
     },
     {
       "provider": "anthropic",
       "id": "claude-sonnet-5",
       "kind": "text",
+      "displayName": "Claude Sonnet 5",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
@@ -446,32 +460,26 @@
       "provider": "groq",
       "id": "openai/gpt-oss-120b",
       "kind": "text",
+      "displayName": "GPT OSS 120B",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"]
     },
     {
       "provider": "groq",
-      "id": "qwen/qwen3.6-27b",
-      "kind": "text",
-      "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
-      "platforms": ["macos", "windows"],
-      "notes": "BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts."
-    },
-    {
-      "provider": "groq",
       "id": "qwen/qwen3.8-27b",
       "kind": "text",
+      "displayName": "Qwen 3.8 27B",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
-      "notes": "BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts. Preview tier in GroqCloud, like qwen/qwen3.6-27b."
+      "notes": "BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts. Preview tier in GroqCloud. Replaced qwen/qwen3.6-27b (2026-10), whose saved modes redirect here."
     },
     {
       "provider": "cerebras",
       "id": "gpt-oss-120b",
       "kind": "text",
+      "displayName": "GPT OSS 120B",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
@@ -481,6 +489,7 @@
       "provider": "cerebras",
       "id": "qwen-3.8-27b",
       "kind": "text",
+      "displayName": "Qwen 3.8 27B",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
@@ -490,6 +499,7 @@
       "provider": "grok",
       "id": "grok-4.3",
       "kind": "text",
+      "displayName": "Grok 4.3",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"]
@@ -498,6 +508,7 @@
       "provider": "grok",
       "id": "grok-4.5",
       "kind": "text",
+      "displayName": "Grok 4.5",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
@@ -507,6 +518,7 @@
       "provider": "grok",
       "id": "grok-4.6",
       "kind": "text",
+      "displayName": "Grok 4.6",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
@@ -515,17 +527,9 @@
 
     {
       "provider": "gemini",
-      "id": "gemini-3.7-flash",
-      "kind": "text",
-      "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
-      "platforms": ["macos", "windows"],
-      "notes": "Released 2026-08-13. BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts. Distinct from the existing `kind: voice` gemini entries in this catalog; disambiguated by `kind`."
-    },
-    {
-      "provider": "gemini",
       "id": "gemini-3.8-flash",
       "kind": "text",
+      "displayName": "Gemini 3.8 Flash",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
@@ -535,6 +539,7 @@
       "provider": "gemini",
       "id": "gemini-3.6-flash",
       "kind": "text",
+      "displayName": "Gemini 3.6 Flash",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
@@ -544,6 +549,7 @@
       "provider": "gemini",
       "id": "gemini-3.1-pro-preview",
       "kind": "text",
+      "displayName": "Gemini 3.1 Pro",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
@@ -551,17 +557,9 @@
     },
     {
       "provider": "gemini",
-      "id": "gemini-3.1-flash-lite",
-      "kind": "text",
-      "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
-      "platforms": ["macos", "windows"],
-      "notes": "GA replacement for gemini-3.1-flash-lite-preview. BYOK-only native-app catalog entry."
-    },
-    {
-      "provider": "gemini",
       "id": "gemini-3.5-flash-lite",
       "kind": "text",
+      "displayName": "Gemini 3.5 Flash Lite",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
@@ -572,16 +570,28 @@
       "provider": "openai",
       "id": "gpt-5.6-luna",
       "kind": "text",
+      "displayName": "GPT-5.6 Luna",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
       "notes": "OpenAI's named replacement for gpt-4.1-nano (retires 2026-10-23) and gpt-5-nano (removed 2026-12-11); also the redirect target for gpt-5 and gpt-5-mini. Routed through HyperWhisper Cloud as the only OpenAI model (hyperwhisper-cloud llm-provider.ts, #1018); kept in sync with cloud-pp-catalog.json. Distinct from the existing `kind: voice` openai entries in this catalog; disambiguated by `kind`."
+    },
+    {
+      "provider": "openai",
+      "id": "gpt-6-luna",
+      "kind": "text",
+      "displayName": "GPT-6 Luna",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "notes": "BYOK-only native-app catalog addition (2026-10) — NOT routed through hyperwhisper-cloud's llm-provider.ts; gpt-5.6-luna stays the Cloud OpenAI model."
     },
 
     {
       "provider": "mistral",
       "id": "mistral-small-latest",
       "kind": "text",
+      "displayName": "Mistral Small",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
@@ -589,8 +599,9 @@
     },
     {
       "provider": "mistral",
-      "id": "mistral-medium-3.5",
+      "id": "mistral-medium-3-5",
       "kind": "text",
+      "displayName": "Mistral Medium 3.5",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
@@ -601,6 +612,7 @@
       "provider": "mistral",
       "id": "open-mistral-nemo",
       "kind": "text",
+      "displayName": "Mistral Nemo",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
@@ -611,6 +623,7 @@
       "provider": "hyperwhisper",
       "id": "hyperwhisper-cloud",
       "kind": "text",
+      "displayName": "HyperWhisper Cloud",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
       "platforms": ["macos"],

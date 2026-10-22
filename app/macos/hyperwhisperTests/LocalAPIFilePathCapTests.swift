@@ -251,8 +251,8 @@ struct LocalAPIFilePathCapTests {
 
     /// The `file` branch rethrows the refusal instead of flattening it.
     ///
-    /// The `do`/`catch` around staging existed to turn any staging failure into
-    /// `FILE_ACCESS_DENIED` + "Cannot read <path>" + a Full Disk Access hint.
+    /// The `do`/`catch` around staging turns any staging failure into
+    /// `FILE_ACCESS_DENIED` + "Cannot read <path>" (`cannotReadError(after:)`).
     /// The cap throws through that same call, so without an `APIInputError`
     /// passthrough the caller of a 60 MiB file is told to check permissions on a
     /// file they can read perfectly well, with a code the .NET head never sends
@@ -269,7 +269,7 @@ struct LocalAPIFilePathCapTests {
                 "the passthrough arm must rethrow the error it caught, unchanged")
 
         guard let passthrough = stagingCall.range(of: "catch let inputError as APIInputError"),
-              let fallback = stagingCall.range(of: ".fileAccessDenied") else {
+              let fallback = stagingCall.range(of: "Self.cannotReadError(after:") else {
             throw FilePathCapError.anchorNotFound("both catch arms around the staging call")
         }
         #expect(passthrough.lowerBound < fallback.lowerBound,

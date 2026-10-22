@@ -6,9 +6,9 @@
 //
 //   1. Fallback routing. post-process.ts decides whether to retry on another
 //      provider by calling `shouldFallback(error)`, which only says yes for a
-//      5xx `status` on the error object. That `status` is attached here. So the
-//      status this file puts on a thrown error IS the fallback decision, and a
-//      429 or a 400 must stay on the same provider.
+//      5xx or 429 `status` on the error object. That `status` is attached here.
+//      So the status this file puts on a thrown error IS the fallback decision:
+//      a 429 fails over (#1565), and a 400 must stay on the same provider.
 //   2. Fail-closed billing. A response whose `usage` block is missing or has
 //      drifted must still be billed, via a char-based estimate — never at 0.
 //   3. Per-provider body quirks. GPT-5 rejects `temperature: 0`, so the OpenAI
@@ -240,7 +240,7 @@ describe('request body construction', () => {
     expect(lastBody().temperature).toBe(0);
   });
 
-  test('gemini disables thinking on the 2.5-flash and 3.8-flash families only', async () => {
+  test('gemini sends the lowest thinking level on the 2.5-flash and 3.8-flash families only', async () => {
     // Both families default to a dynamic thinking budget and bill thinking
     // tokens as output — pure cost on a text-cleanup call.
     await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash');
@@ -250,9 +250,12 @@ describe('request body construction', () => {
     expect(lastBody().reasoning_effort).toBe('none');
 
     // Cloud-routed since 2026-09; at $3.75/1M output, thinking tokens are the
-    // single most expensive thing this model can do on a cleanup call.
+    // single most expensive thing this model can do on a cleanup call. 3.8 Flash
+    // cannot turn thinking off and rejects 'minimal' with a 400 (measured on the
+    // compat surface 2026-10-15), so its floor is 'low' — never 'none' or
+    // 'minimal'. A 400 is not retried on another provider.
     await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-3.8-flash');
-    expect(lastBody().reasoning_effort).toBe('none');
+    expect(lastBody().reasoning_effort).toBe('low');
 
     await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-3.0-pro');
     expect(lastBody()).not.toHaveProperty('reasoning_effort');
@@ -423,15 +426,29 @@ describe('upstream error propagation', () => {
     expect(shouldFallback(error)).toBe(true);
   });
 
-  test.each([400, 401, 403, 404, 422, 429])('keeps an upstream %i on the same provider', async (status) => {
+  test.each([400, 401, 403, 404, 422])('keeps an upstream %i on the same provider', async (status) => {
     handler = () => new Response('client error', { status });
 
     const error = await captureError(() => requestCerebrasChat(PAYLOAD, 'req-1'));
 
     expect(errorStatus(error)).toBe(status);
-    // A 429 is the provider rate-limiting us and a 4xx is our own bad request.
-    // Neither is fixed by re-sending the same request to a different vendor.
+    // A 4xx other than 429 is our own bad request. It is not fixed by
+    // re-sending the same request to a different vendor.
     expect(shouldFallback(error)).toBe(false);
+  });
+
+  test('tags an upstream 429 so post-process falls back to the next provider', async () => {
+    handler = () => new Response('rate limited', { status: 429 });
+
+    const error = await captureError(() => requestCerebrasChat(PAYLOAD, 'req-1'));
+
+    expect(error).toBeInstanceOf(LLMRequestError);
+    expect(errorStatus(error)).toBe(429);
+    expect(errorProvider(error)).toBe('cerebras');
+    expect((error as Error).message).toBe('Cerebras chat failed with status 429');
+    // #1565: a 429 is the provider rate-limiting us. The fallback vendor has its
+    // own, separate rate limit, so a different vendor does fix it.
+    expect(shouldFallback(error)).toBe(true);
   });
 
   test('tags the failing provider, not the one that will take over', async () => {

@@ -75,9 +75,36 @@ for foreign_runtime in \
         exit 1
     fi
 done
+# The CUDA 12 backends ship only in hyperwhisper-cuda (issue #1002); see
+# test-cuda-package.sh. The main package must not carry either copy.
+for cuda_runtime in runtimes/cuda12 runtimes/linux-x64/native/cuda12; do
+    if [[ -e "$ROOTFS/usr/lib/hyperwhisper/$cuda_runtime" ]]; then
+        echo "CUDA runtime was packaged in the main package: $cuda_runtime" >&2
+        exit 1
+    fi
+done
+# Managed .NET assemblies are *.dll too, so this asks for PE images without a
+# CLR header: Windows native DLLs such as onnxruntime.dll.
+windows_native_dlls="$(python3 "$SCRIPT_DIR/find-windows-native-dlls.py" "$ROOTFS/usr/lib/hyperwhisper")"
+if [[ -n "$windows_native_dlls" ]]; then
+    echo "Windows native DLLs were packaged:" >&2
+    printf '%s\n' "$windows_native_dlls" >&2
+    exit 1
+fi
+# Installed size must stay under 500 MB (512000 KiB), both on disk and in the
+# Installed-Size field apt shows the user.
+installed_kib="$(du -sk "$ROOTFS" | awk '{print $1}')"
+declared_kib="$(dpkg-deb --field "$PACKAGE_PATH" Installed-Size)"
+for size_kib in "$installed_kib" "$declared_kib"; do
+    if ((size_kib >= 512000)); then
+        echo "Installed size ${size_kib} KiB is not under 500 MB." >&2
+        exit 1
+    fi
+done
+grep -qw 'hyperwhisper-cuda' <<< "$(dpkg-deb --field "$PACKAGE_PATH" Suggests)"
+
 for runtime_library in \
     "$ROOTFS/usr/lib/hyperwhisper/runtimes/linux-x64/libwhisper.so" \
-    "$ROOTFS/usr/lib/hyperwhisper/runtimes/cuda12/linux-x64/libwhisper.so" \
     "$ROOTFS/usr/lib/hyperwhisper/runtimes/vulkan/linux-x64/libwhisper.so"; do
     assert_file "$runtime_library"
     if readelf -d "$runtime_library" | grep -Eq '(RPATH|RUNPATH)'; then
@@ -137,4 +164,4 @@ if find "$ROOTFS" -type f -perm /0002 -print -quit | grep -q .; then
     exit 1
 fi
 
-echo "PASS package structure, permissions, dependencies, and maintainer scripts"
+echo "PASS package structure, permissions, dependencies, and maintainer scripts (installed ${installed_kib} KiB, no CUDA, no Windows native DLLs)"

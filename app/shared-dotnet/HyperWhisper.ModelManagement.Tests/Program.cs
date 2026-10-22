@@ -22,6 +22,12 @@ await CheckAsync("catalog matches authoritative Windows registries", () =>
         "Nemotron production locale metadata changed");
     Assert(PortableModelCatalog.Parakeet.Count(m => m.SupportsStreaming) == 3,
         "local streaming model metadata changed");
+    Assert(PortableModelCatalog.Parakeet.Where(m => m.Layout == ManagedModelLayout.FixedFiles)
+            .All(m => m.Artifacts.All(a => a.ExactSizeBytes > 0) && m.Artifacts.Sum(a => a.ExactSizeBytes) == m.ApproximateSizeBytes),
+        "flat Parakeet/Nemotron file sizes are not pinned");
+    Assert(PortableModelCatalog.Parakeet.Single(m => m.Id == "parakeet-v2").Artifacts
+            .Single(a => a.RelativePath == "encoder.int8.onnx").ExactSizeBytes == 652_184_296,
+        "Parakeet v2 encoder size drifted from the Windows table");
     Assert(PortableModelCatalog.LocalLlm.Count(m => m.IsRecommended) == 1, "recommended LLM must be unique");
     Assert(PortableModelCatalog.All.SelectMany(m => m.Artifacts).All(a => a.DownloadUri.Scheme == "https"),
         "catalog contains a non-HTTPS artifact");
@@ -124,6 +130,48 @@ await CheckAsync("fixed-file installed state requires every non-empty artifact",
     return Task.CompletedTask;
 });
 
+await CheckAsync("a Whisper file cut short is not installed (#1632)", () =>
+{
+    using var scope = new Scope(new StaticHandler([1]));
+    var model = PortableModelCatalog.Whisper.Single(m => m.Id == "base");
+    var path = scope.Manager.GetInstalledPath(model);
+    // Sparse files: the check reads the length and the 4-byte ggml magic only.
+    void WriteSized(long length)
+    {
+        using var output = new FileStream(path, FileMode.Create, FileAccess.Write);
+        output.Write("lmgg"u8);
+        output.SetLength(length);
+    }
+    WriteSized(147_951_465);
+    Assert(scope.Manager.IsInstalled(model), "exact-size Whisper Base not detected");
+    WriteSized(142_033_406); // the #1598 repro: Base cut to 96%
+    Assert(!scope.Manager.IsInstalled(model), "Whisper Base cut to 96% counted as installed");
+    WriteSized(147_951_464);
+    Assert(!scope.Manager.IsInstalled(model), "Whisper Base one byte short counted as installed");
+    return Task.CompletedTask;
+});
+
+await CheckAsync("a Parakeet encoder cut short is not installed (#1632)", () =>
+{
+    using var scope = new Scope(new StaticHandler([1]));
+    foreach (var model in PortableModelCatalog.Parakeet.Where(m => m.Layout == ManagedModelLayout.FixedFiles))
+    {
+        var directory = scope.Manager.GetInstalledPath(model);
+        Directory.CreateDirectory(directory);
+        foreach (var artifact in model.Artifacts)
+        {
+            using var output = new FileStream(Path.Combine(directory, artifact.RelativePath), FileMode.Create, FileAccess.Write);
+            output.SetLength(artifact.ExactSizeBytes!.Value);
+        }
+        Assert(scope.Manager.IsInstalled(model), $"exact-size {model.Id} not detected");
+        var encoder = Path.Combine(directory, "encoder.int8.onnx");
+        using (var output = new FileStream(encoder, FileMode.Open, FileAccess.Write))
+            output.SetLength(output.Length - 1_000_000);
+        Assert(!scope.Manager.IsInstalled(model), $"{model.Id} with a truncated encoder counted as installed");
+    }
+    return Task.CompletedTask;
+});
+
 await CheckAsync("existing symlinks cannot redirect model writes", async () =>
 {
     if (OperatingSystem.IsWindows()) return;
@@ -207,7 +255,7 @@ await CheckAsync("failed directory promotion restores previous install", async (
     Assert(!Directory.EnumerateDirectories(Path.GetDirectoryName(final)!, "*.replaced").Any(), "backup directory leaked");
 });
 
-Console.WriteLine($"{15 - failures}/15 tests passed");
+Console.WriteLine($"{17 - failures}/17 tests passed");
 return failures == 0 ? 0 : 1;
 
 async Task CheckAsync(string name, Func<Task> run)

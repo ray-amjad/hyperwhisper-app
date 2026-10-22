@@ -23,7 +23,7 @@ import UserHeader from "@/components/user/UserHeader";
  *   a stale, signed-in UI
  *
  * Layout Variations:
- * - Admins: Full-width with sidebar on left
+ * - Admins: Full-width with sidebar on left (a menu bar on top below md)
  * - Regular users: Centered content with max-width (like customer portal)
  */
 export default async function UserLayout({
@@ -49,19 +49,15 @@ export default async function UserLayout({
     <UserProvider email={user.email || ""} isAdmin={isAdmin}>
       <SessionRefresher locale={locale} />
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <div className="flex">
-          {/* Sidebar - Only visible for admins */}
+        <div className="flex flex-col md:flex-row">
+          {/* Sidebar - Only visible for admins. Below md it is a menu bar
+              above the content (#1330). */}
           {isAdmin && <UserSidebar locale={locale} />}
 
-          {/* Main Content. min-w-0 lets a customer's column shrink to the
-              viewport, so a long masked Account Key truncates on a phone
-              (#1328). Admins keep the old sizing: beside the fixed sidebar,
-              min-w-0 crushes the wide admin tables to a few px on a phone. */}
-          <div
-            className={`flex-1 flex flex-col min-h-screen${
-              isAdmin ? "" : " min-w-0"
-            }`}
-          >
+          {/* Main Content. min-w-0 lets the column shrink to the viewport, so
+              a long masked Account Key truncates on a phone (#1328) and a wide
+              admin table scrolls inside its own wrapper (#1330). */}
+          <div className="flex-1 flex flex-col min-h-screen min-w-0">
             <UserHeader user={user} locale={locale} isAdmin={isAdmin} />
             <main
               className={`flex-1 ${

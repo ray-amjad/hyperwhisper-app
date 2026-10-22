@@ -72,6 +72,27 @@ public sealed class TranscriptionWorkflow : IDisposable
         }
     }
 
+    /// <summary>
+    /// The busy refusal <see cref="TranscribeFileAsync"/> would give right now,
+    /// or null. Starts nothing and changes no state.
+    /// </summary>
+    /// <remarks>
+    /// Lets a caller that must do expensive work BEFORE handing a file over (the
+    /// Local API's ffmpeg conversion, issue #1572) refuse first, with the very
+    /// result the workflow's own check builds. It mirrors that check's order: an
+    /// unavailable backend answers null here, because the workflow answers that
+    /// case as unavailable, not busy. Advisory only — the state can change
+    /// before the caller's <see cref="TranscribeFileAsync"/>, whose own check
+    /// still decides.
+    /// </remarks>
+    public PortableTranscriptionResult? FileTranscriptionBusyRefusal()
+    {
+        lock (_sync)
+        {
+            return _transcriber.Capability.IsAvailable && IsActiveState(_state) ? BusyLocked() : null;
+        }
+    }
+
     public void RefreshDevices()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -500,8 +521,10 @@ public sealed class TranscriptionWorkflow : IDisposable
         if (!result.IsSuccess)
             return await CompleteTerminalFailureAsync(
                 transcript,
-                $"workflow.{result.Failure?.Code.ToString().ToLowerInvariant() ?? "empty_result"}",
-                result.Failure?.Message ?? "The transcription backend returned no text.",
+                // A backend that answers with no text heard no speech: a silent
+                // recording, or one Whisper only marked as non-speech (issue #1742).
+                $"workflow.{result.Failure?.Code.ToString().ToLowerInvariant() ?? "no_speech"}",
+                result.Failure?.Message ?? "No speech was detected.",
                 result.Failure?.Code ?? PortableTranscriptionErrorCode.TranscriptionFailed,
                 operation,
                 result.Provider,
@@ -512,9 +535,17 @@ public sealed class TranscriptionWorkflow : IDisposable
         {
             operation.Token.ThrowIfCancellationRequested();
             var rawText = result.Text!.Trim();
+            // The local engine's own vocabulary correction (the Parakeet
+            // family's phonetic pass). It runs HERE, once, after rawText is
+            // kept, so the History row's raw transcript is the engine's own
+            // text, as it is for Whisper; it used to run inside the router,
+            // together with an unanchored substring pass, so TranscribedText
+            // already held the swaps and SpeechOutputProcessor's \b pass then
+            // applied every replacement row a second time (issue #1622).
+            var correctedText = ApplyLocalEngineVocabularyCorrection(rawText, request);
             string? postProcessedText = null;
             var (processingInput, postProcessingProvider) =
-                await ApplyPostProcessingAsync(rawText, request, operation.Token).ConfigureAwait(false);
+                await ApplyPostProcessingAsync(correctedText, request, operation.Token).ConfigureAwait(false);
 
             var output = SpeechOutputProcessor.Process(new SpeechOutputProcessingRequest(
                 processingInput,
@@ -606,6 +637,27 @@ public sealed class TranscriptionWorkflow : IDisposable
                 result.Provider,
                 audioPath,
                 deleteOwnedAudioOnTerminalFailure).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Runs the transcriber's local engine vocabulary correction over its raw
+    /// text, when it has one (<see cref="ILocalEngineVocabularyCorrection"/>).
+    /// Every other transcriber gets <paramref name="rawText"/> back. A failure
+    /// degrades to the raw text: a vocabulary pass must never fail a
+    /// transcription that already succeeded.
+    /// </summary>
+    private string ApplyLocalEngineVocabularyCorrection(string rawText, TranscriptionWorkflowRequest request)
+    {
+        if (_transcriber is not ILocalEngineVocabularyCorrection corrector) return rawText;
+        try
+        {
+            var corrected = corrector.ApplyLocalVocabularyCorrection(rawText, request);
+            return string.IsNullOrWhiteSpace(corrected) ? rawText : corrected.Trim();
+        }
+        catch (Exception)
+        {
+            return rawText;
         }
     }
 

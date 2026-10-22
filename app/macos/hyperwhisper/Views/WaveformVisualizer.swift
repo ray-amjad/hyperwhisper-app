@@ -47,10 +47,46 @@ actor WaveformCache {
     }
 }
 
+// MARK: - Playhead / Seek Math
+
+/// Pure position math for the History player's waveform (#1460): where the
+/// playhead sits, and which time a click on the waveform seeks to. The bars
+/// fill the waveform's whole width, so x / width is the fraction of the file.
+enum WaveformScrub {
+    /// The fraction (0...1) of the waveform's width at `x`. A click past either
+    /// end clamps to that end; a zero-width (not yet laid out) view gives 0.
+    static func fraction(atX x: CGFloat, width: CGFloat) -> Double {
+        guard width > 0, x.isFinite else { return 0 }
+        return min(1, max(0, Double(x / width)))
+    }
+
+    /// The playback time a seek to `fraction` lands on, clamped to the file.
+    static func time(atFraction fraction: Double, duration: TimeInterval) -> TimeInterval {
+        guard duration.isFinite, duration > 0, fraction.isFinite else { return 0 }
+        return min(1, max(0, fraction)) * duration
+    }
+
+    /// Where the playhead sits for `time` in a file of `duration`, or nil when
+    /// the duration is unknown (no playhead is better than one pinned at 0).
+    static func fraction(atTime time: TimeInterval, duration: TimeInterval) -> Double? {
+        guard duration.isFinite, duration > 0, time.isFinite else { return nil }
+        return min(1, max(0, time / duration))
+    }
+}
+
 // MARK: - Waveform Visualizer View
 
 struct WaveformVisualizer: View {
     let audioFilePath: String?
+    /// Playback position as a fraction of the file (0...1). nil draws no playhead.
+    var progress: Double? = nil
+    /// Called with the clicked fraction (0...1) of the file. nil makes the
+    /// waveform display-only, with no seek gesture.
+    var onSeek: ((Double) -> Void)? = nil
+
+    /// Where the pointer is while the user drags across the waveform, so the
+    /// playhead follows the drag before the seek lands on release.
+    @State private var dragFraction: Double? = nil
     @State private var waveformSamples: [Float] = []
     @State private var isLoading = true
     @State private var duration: TimeInterval = 0
@@ -73,15 +109,23 @@ struct WaveformVisualizer: View {
                 }
                 .frame(maxHeight: .infinity)
             } else if !waveformSamples.isEmpty {
-                // Waveform display
-                HStack(alignment: .center, spacing: barSpacing) {
+                // Waveform display. Each bar gets an equal slice of the full
+                // width (#1460), so bar i sits at i / count of the file and the
+                // playhead and click-to-seek line up with the audio they show.
+                HStack(alignment: .center, spacing: 0) {
                     ForEach(0..<waveformSamples.count, id: \.self) { index in
                         WaveformBar(
                             amplitude: CGFloat(waveformSamples[index]),
                             maxHeight: geometry.size.height
                         )
+                        .frame(maxWidth: .infinity)
                     }
                 }
+                .overlay(alignment: .leading) {
+                    playhead(width: geometry.size.width)
+                }
+                .contentShape(Rectangle())
+                .gesture(seekGesture(width: geometry.size.width), including: onSeek == nil ? .none : .all)
             } else {
                 // No audio data
                 HStack(spacing: barSpacing) {
@@ -102,6 +146,32 @@ struct WaveformVisualizer: View {
         }
     }
     
+    // MARK: - Playhead + Seek
+
+    @ViewBuilder
+    private func playhead(width: CGFloat) -> some View {
+        if let fraction = dragFraction ?? progress {
+            Rectangle()
+                .fill(Color.primary.opacity(0.85))
+                .frame(width: 2)
+                .offset(x: max(0, min(width - 2, CGFloat(fraction) * width - 1)))
+                .allowsHitTesting(false)
+        }
+    }
+
+    /// A click (zero-distance drag) seeks to the clicked point; a drag moves the
+    /// playhead with the pointer and seeks once on release.
+    private func seekGesture(width: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+            .onChanged { value in
+                dragFraction = WaveformScrub.fraction(atX: value.location.x, width: width)
+            }
+            .onEnded { value in
+                dragFraction = nil
+                onSeek?(WaveformScrub.fraction(atX: value.location.x, width: width))
+            }
+    }
+
     // MARK: - Waveform Loading
     
     private func loadWaveform() {

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Text;
 using System.Windows.Input;
 using HyperWhisper.PortableApplication.Persistence;
 
@@ -219,7 +220,8 @@ public sealed class BackupViewModel : ViewModelBase
         {
             Status.Busy("Exporting universal backup…");
             var selection = new BackupExportSelection(ExportSettings, ExportModes, ExportVocabulary, ExportCredentials);
-            await File.WriteAllTextAsync(Path, await _service.ExportAsync(selection, cancellationToken), cancellationToken);
+            var json = await _service.ExportAsync(selection, cancellationToken);
+            await WriteOwnerOnlyAsync(Path, json, cancellationToken);
             OperationSummary = $"Exported settings: {ExportSettings}; modes: {ExportModes}; vocabulary: {ExportVocabulary}; "
                 + $"API keys: {ExportCredentials}. Account, license, and entitlement keys were excluded.";
             Status.Success("Universal backup exported");
@@ -229,6 +231,29 @@ public sealed class BackupViewModel : ViewModelBase
         catch (UnauthorizedAccessException) { Status.Failure("backup.export_denied", "Permission to write the universal backup file was denied."); }
         catch (InvalidOperationException) { Status.Failure("backup.export_invalid", "The generated universal backup failed validation."); }
         catch (Exception) { Status.Failure("backup.export_failed", "Could not export the universal backup."); }
+    }
+
+    // #2153: a backup can hold plaintext API keys, so on Unix it is owner-only (0600) like the
+    // credential store it is read from. UnixCreateMode covers a new file; an existing file is
+    // opened without truncation and tightened on the handle first, so the secret is never written
+    // into a world-readable file and a file we cannot chmod is left as it was.
+    private static async Task WriteOwnerOnlyAsync(string path, string contents, CancellationToken cancellationToken)
+    {
+        const UnixFileMode ownerOnly = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        var options = new FileStreamOptions
+        {
+            Mode = FileMode.OpenOrCreate,
+            Access = FileAccess.Write,
+            Share = FileShare.None,
+            Options = FileOptions.Asynchronous
+        };
+        if (!OperatingSystem.IsWindows())
+            options.UnixCreateMode = ownerOnly;
+        await using var output = new FileStream(path, options);
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(output.SafeFileHandle, ownerOnly);
+        output.SetLength(0);
+        await output.WriteAsync(Encoding.UTF8.GetBytes(contents), cancellationToken);
     }
 
     public async Task ImportAsync(CancellationToken cancellationToken = default)

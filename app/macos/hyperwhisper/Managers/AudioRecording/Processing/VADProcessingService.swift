@@ -208,7 +208,10 @@ class VADProcessingService {
                 // STEP 4: Convert every large trimmed WAV to M4A.
                 // The trimmer has decoded the source and written new LPCM/WAV bytes,
                 // so the source extension must not bypass the upload-size guard.
-                let finalURL = await convertTrimmedToM4AIfNeeded(validatedURL, context: context)
+                // A cancelled caller skips the conversion; it removes the WAV.
+                let finalURL = Task.isCancelled
+                    ? validatedURL
+                    : await convertTrimmedToM4AIfNeeded(validatedURL, context: context)
 
                 return VADProcessingResult(
                     finalAudioURL: finalURL,
@@ -225,6 +228,18 @@ class VADProcessingService {
                     originalAudioURL: audioURL
                 )
             }
+
+        } catch is CancellationError {
+            // The caller was cancelled (#1743: a deleted row's Retry). Not a
+            // VAD failure: no breadcrumb. The trimmer wrote no file, and the
+            // caller checks for the cancel before it transcribes anything.
+            AppLogger.audio.info("\(logPrefix, privacy: .public)VAD stopped: the caller was cancelled")
+            return VADProcessingResult(
+                finalAudioURL: audioURL,
+                trimResult: nil,
+                wasProcessed: false,
+                originalAudioURL: audioURL
+            )
 
         } catch TrimError.noSpeechDetected {
             // SPECIAL CASE: No speech detected in audio
@@ -402,7 +417,9 @@ class VADProcessingService {
         let fileSizeMB = Double(fileSize) / (1024 * 1024)
         AppLogger.audio.info("🔄 \(logPrefix, privacy: .public)Trimmed WAV file is \(String(format: "%.1f", fileSizeMB), privacy: .public)MB - converting to M4A")
 
-        let m4aURL = wavURL.deletingPathExtension().appendingPathExtension("m4a")
+        // No Core Data column records this file. Every transcript delete path
+        // finds it from the trimmed path through the same rule (#1513).
+        let m4aURL = TranscriptAudioFiles.uploadCopyURL(forTrimmedWAV: wavURL)
 
         // Remove any existing M4A file from previous attempts
         try? FileManager.default.removeItem(at: m4aURL)

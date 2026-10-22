@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
@@ -6,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using HyperWhisper.Data.Entities;
+using VocabularyWords = HyperWhisper.PortableApplication.Persistence.VocabularyWords;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
@@ -188,9 +190,27 @@ public partial class VocabularyPage : Page
         var replacement = string.IsNullOrEmpty(ReplacementBox.Text) ? null : ReplacementBox.Text;
 
         var source = _editingId.HasValue ? _editingSource : "manual";
-        if (!_vocabularyService.TryAdd(word, replacement, out var error, excludeId: _editingId, source: source))
+
+        // Issue #1777: a pasted multi-line text becomes one word per non-empty line.
+        // Each line gets the usual empty and duplicate checks, and the replacement
+        // (which may span lines) goes with every line. Blank text stays one entry,
+        // so TryAdd still answers "Word cannot be empty."
+        var lines = VocabularyWords.SplitLines(word);
+        if (lines.Count == 0)
+            lines = [word];
+        var refused = new List<(string Line, string? Error)>();
+        foreach (var line in lines)
         {
-            ErrorText.Text = error ?? "Unable to add word.";
+            if (!_vocabularyService.TryAdd(line, replacement, out var lineError, excludeId: _editingId, source: source))
+                refused.Add((line, lineError));
+        }
+
+        if (refused.Count == lines.Count)
+        {
+            // Nothing was added: the field keeps its text, as before.
+            ErrorText.Text = lines.Count == 1
+                ? (refused.FirstOrDefault().Error ?? "Unable to add word.")
+                : RefusedLinesMessage(refused);
             ErrorText.Visibility = Visibility.Visible;
             return;
         }
@@ -213,7 +233,18 @@ public partial class VocabularyPage : Page
         UpdateActionChipsEnabled();
         WordBox.Focus();
         RefreshList();
+
+        // Some lines of a paste can be refused while others are added; name only the
+        // refused ones. Set after the field is cleared, whose TextChanged hides the error.
+        if (refused.Count > 0)
+        {
+            ErrorText.Text = RefusedLinesMessage(refused);
+            ErrorText.Visibility = Visibility.Visible;
+        }
     }
+
+    private static string RefusedLinesMessage(List<(string Line, string? Error)> refused) =>
+        $"Not added: {string.Join(", ", refused.Select(r => r.Line))}. {refused[0].Error ?? "Unable to add word."}";
 
     private void EditButton_Click(object sender, RoutedEventArgs e)
     {

@@ -10,6 +10,9 @@
 import Foundation
 
 final class MetaMuseProvider: TranscriptionProvider {
+    /// A stateless HTTP call: nothing per call is kept on the instance (#1425).
+    var supportsConcurrentPasses: Bool { true }
+
     static let modelID = "muse-voice-transcribe-1.0"
     static let maxUploadBytes: Int64 = 32 * 1024 * 1024
     /// Bounded source envelope for containers that can shrink during WAV normalization.
@@ -20,7 +23,7 @@ final class MetaMuseProvider: TranscriptionProvider {
     private let execute: RustRetry.Executor
     private let isOnline: () -> Bool
     private lazy var session: URLSession = {
-        let configuration = URLSessionConfiguration.default
+        let configuration = URLSessionConfiguration.credentialBearing
         configuration.timeoutIntervalForRequest = 120
         configuration.timeoutIntervalForResource = 600
         configuration.waitsForConnectivity = false

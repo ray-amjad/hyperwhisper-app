@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 import { formatUsd } from '../lib/cost-calculator';
 import { logEvent, machineUptimeMs } from '../lib/logging';
-import { deductCredits } from '../middleware/credits';
+import { deductCredits, logDeductionFailure } from '../middleware/credits';
 import type { TranscriptionResult } from '../providers/types';
 import type { SttProviderId } from '../lib/stt-models';
 import type { PreparedTranscriptionRequest } from './transcribe-preparation';
@@ -92,7 +92,8 @@ export function completeTranscription({
         stt_provider: providerName,
         stt_model: reportedModel || undefined,
       },
-      clientIP
+      clientIP,
+      { onFailure: logDeductionFailure(requestId, startTime, '/transcribe') }
     ).catch(console.error);
   }
 

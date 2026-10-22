@@ -321,7 +321,7 @@ public sealed class CloudTranscriptionService : IDisposable
         if (usesLicense ? string.IsNullOrWhiteSpace(licenseKey) : string.IsNullOrWhiteSpace(apiKey))
         {
             throw new CloudFailureException(new CloudTranscriptionFailure(
-                CloudTranscriptionErrorCode.Unauthorized,
+                usesLicense ? CloudTranscriptionErrorCode.CloudAccountRequired : CloudTranscriptionErrorCode.Unauthorized,
                 usesLicense ? "A HyperWhisper account key is required." : "A provider API key is required.",
                 request.Provider));
         }

@@ -145,9 +145,11 @@ pub fn migrate_cloud_pp_model(value: Option<&str>) -> String {
         "groq" | "groq-gpt-oss-120b" | "groqgptoss120b" | "openai/gpt-oss-120b" => {
             "groq:openai/gpt-oss-120b".to_string()
         }
-        "anthropic" | "claude-haiku-4-5" | "claude-haiku-4.5" | "claudehaiku" => {
-            "anthropic:claude-haiku-4-5".to_string()
-        }
+        // The frozen backup value stays anthropic:claude-haiku-4-5 (backup-vectors.json
+        // asserts it); every head resolves it to Haiku 5.5. A bare claude-haiku-5-5 is
+        // accepted here like the macOS / Windows switches do, so it is not sent to Grok.
+        "anthropic" | "claude-haiku-5-5" | "claude-haiku-4-5" | "claude-haiku-4.5"
+        | "claudehaiku" => "anthropic:claude-haiku-4-5".to_string(),
         "grok" | "grok-4.3" | "grokfast" | "grok-4-1-fast-non-reasoning"
         | "grok-4.1-fast-non-reasoning" | "grok-4-fast-non-reasoning"
         | "grok-4-1-fast-reasoning" | "grok-4-fast-reasoning" => "grok:grok-4.3".to_string(),
@@ -247,6 +249,19 @@ mod tests {
             "groq:openai/gpt-oss-120b"
         );
         assert_eq!(migrate_cloud_pp_model(Some("grokFast")), "grok:grok-4.3");
+    }
+
+    /// A bare `claude-haiku-5-5` (the 2026-10 successor) is an Anthropic value,
+    /// not an unknown one: it must not fall through to `grok:grok-4.3`.
+    #[test]
+    fn pp_bare_haiku_5_5_stays_anthropic() {
+        for value in ["claude-haiku-5-5", "Claude-Haiku-5-5", " claude-haiku-5-5 "] {
+            assert_eq!(
+                migrate_cloud_pp_model(Some(value)),
+                "anthropic:claude-haiku-4-5",
+                "{value} must restore onto the Anthropic engine"
+            );
+        }
     }
 
     #[test]

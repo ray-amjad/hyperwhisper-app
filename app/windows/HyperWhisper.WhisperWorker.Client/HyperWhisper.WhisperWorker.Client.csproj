@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The app side of the Whisper worker (issue #1194): the stdio protocol, the
+       client that starts, loads, idles out and restarts the worker, and the WAV
+       writer the app hands audio over with. Plain net10.0 with no Whisper.net,
+       so the app process never loads a Whisper or ggml DLL, and so its tests
+       build and run on Linux. The worker exe shares the protocol from here. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="HyperWhisper" />
+    <InternalsVisibleTo Include="HyperWhisper.WhisperWorker" />
+    <InternalsVisibleTo Include="HyperWhisper.WhisperWorker.Tests" />
+    <InternalsVisibleTo Include="HyperWhisper.SmokeTests" />
+  </ItemGroup>
+
+</Project>

@@ -58,8 +58,10 @@ public static partial class SharedCoreBridge
     /// than <c>" "</c>.
     /// <para>
     /// The single source of truth for the CJK join policy (issue #286). Callers
-    /// that used to keep a private <c>ja|zh|ko|yue</c> table — the parakeet
-    /// daemon, the Linux live-delivery path — read it from here, which also
+    /// that used to keep a private <c>ja|zh|ko|yue</c> table — the ARM64 managed
+    /// parakeet daemon, the Linux live-delivery path, and the Windows host, which
+    /// passes the x64 C++ daemon its join as <c>--segment-join</c> (#902) — read
+    /// it from here, which also
     /// gains them <c>th</c> and the explicit <c>zh-TW</c> / <c>zh-Hans</c> /
     /// <c>zh-Hant</c> spellings.
     /// </para>

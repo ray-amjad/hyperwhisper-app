@@ -3,12 +3,11 @@ using System.Net;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
-using HyperWhisper.Services.LocalApi.Endpoints;
+using HyperWhisper.LocalApi;
 using HyperWhisper.Services.Transcription;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -92,7 +91,13 @@ public sealed class LocalApiServer : INotifyPropertyChanged
 
     private WebApplication? _app;
     private Task? _runTask;
+    private Task? _stopTask;
     private readonly object _lifecycleLock = new();
+
+    // Kestrel's own wait for in-flight requests is 2 s (Stop below). Quit
+    // waits a little past it so a cancelled request can reach its finally
+    // and delete its scratch file before the process exits (#1476).
+    private static readonly TimeSpan ShutdownStopWait = TimeSpan.FromSeconds(3);
 
     private LocalApiServer() { }
 
@@ -224,8 +229,10 @@ public sealed class LocalApiServer : INotifyPropertyChanged
             if (_app == null) return;
             var app = _app;
             _app = null;
-            // ast-grep-ignore: no-discarded-task-run -- this runs inside lock (_lifecycleLock); awaiting shutdown while holding the lock would block every other lifecycle call
-            _ = Task.Run(async () =>
+            // Not awaited: this runs inside lock (_lifecycleLock), and awaiting
+            // shutdown while holding the lock would block every other lifecycle
+            // call. Shutdown waits on the stored task, bounded, at Quit.
+            _stopTask = Task.Run(async () =>
             {
                 try { await app.StopAsync(TimeSpan.FromSeconds(2)); } catch { /* shutting down */ }
                 try { await app.DisposeAsync(); } catch { /* shutting down */ }
@@ -247,6 +254,25 @@ public sealed class LocalApiServer : INotifyPropertyChanged
     public void Shutdown()
     {
         Stop();
+
+        // Stop only starts the host's shutdown, and the process used to exit
+        // 8 ms later, so a request still running never reached the finally
+        // that deletes its decoded upload or snapshot (#1476). Wait, bounded,
+        // only when a request holds a scratch file; then delete what is left.
+        if (LocalApiScratchFiles.InFlightCount == 0)
+        {
+            return;
+        }
+
+        Task? stopTask;
+        lock (_lifecycleLock) { stopTask = _stopTask; }
+        try { stopTask?.Wait(ShutdownStopWait); } catch { /* shutting down */ }
+
+        var deleted = LocalApiScratchFiles.DeleteInFlight();
+        if (deleted > 0)
+        {
+            LoggingService.Info($"LocalApiServer: deleted {deleted} scratch file(s) of interrupted /transcribe requests");
+        }
     }
 
     /// <summary>Restart so dependency changes take effect.</summary>
@@ -277,180 +303,128 @@ public sealed class LocalApiServer : INotifyPropertyChanged
     // MARK: - Kestrel host construction
 
     /// <summary>
-    /// Construct the Kestrel host and its route table. <c>internal</c> so the
-    /// smoke suite can assert the configured limits on the REAL host rather
-    /// than on a look-alike it built itself; nothing binds a socket until
-    /// <c>StartAsync</c>.
+    /// Construct the shared Local API server (<see cref="PortableLocalApi"/>)
+    /// over this head's backend. <c>internal</c> so the smoke suite can drive
+    /// the REAL host rather than a look-alike it built itself; nothing binds a
+    /// socket until <c>StartAsync</c>.
     /// </summary>
-    internal WebApplication BuildApp(int preferredPort)
+    /// <remarks>
+    /// <para>
+    /// Since issue #356 item 6 this head no longer has a route table of its own.
+    /// The shared server owns the routes, the DNS-rebind origin guard, the
+    /// bearer check, the body and upload limits and the <c>file</c> path
+    /// policy, the same code the Linux head runs. Windows plugs in through the
+    /// option hooks, each of which is null, and so absent, on Linux:
+    /// </para>
+    /// <list type="bullet">
+    ///   <item><description>
+    ///     <see cref="PortableLocalApiOptions.AuthorizedRequestGate"/> is the
+    ///     first-run gate below.
+    ///   </description></item>
+    ///   <item><description>
+    ///     <see cref="PortableLocalApiOptions.AllowedFileRoots"/>,
+    ///     <see cref="PortableLocalApiOptions.IsAdditionalAllowedFile"/> and
+    ///     <see cref="PortableLocalApiOptions.VerifyOpenedFile"/> are the
+    ///     recordings roots and the opened-handle check (#740), in
+    ///     <see cref="LocalApiFilePolicy"/>.
+    ///   </description></item>
+    ///   <item><description>
+    ///     <see cref="PortableLocalApiOptions.OriginRejected"/> keeps the
+    ///     warning this head logged for a refused Host/Origin.
+    ///   </description></item>
+    /// </list>
+    /// <para>
+    /// <paramref name="bearerToken"/> is for the smoke suite only, which drives
+    /// the real host with a throwaway token instead of the DPAPI one. Start()
+    /// never passes it.
+    /// </para>
+    /// </remarks>
+    internal WebApplication BuildApp(int preferredPort, string? bearerToken = null)
     {
-        var builder = WebApplication.CreateSlimBuilder();
-        builder.Logging.ClearProviders();
-        builder.Logging.SetMinimumLevel(LogLevel.Warning);
-
-        builder.WebHost.ConfigureKestrel(options =>
+        var options = new PortableLocalApiOptions(
+            bearerToken ?? BearerToken,
+            preferredPort,
+            LocalApiLimits.MaxRequestBytes,
+            checked((int)LocalApiLimits.MaxUploadBytes),
+            AllowedFileRoots: LocalApiFilePolicy.AllowedRoots)
         {
-            // Transcription/post-processing jobs can run much longer than
-            // Kestrel's defaults — match macOS's 600 s ceiling.
-            options.Limits.KeepAliveTimeout = TimeSpan.FromSeconds(600);
-            options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(600);
-            // Bound the body at the shared 50 MiB cap. Without this line
-            // Kestrel keeps its own 30,000,000-byte default — an accidental cap
-            // at a number no other head enforces. See LocalApiLimits.
-            LocalApiLimits.ApplyRequestBodyLimit(options);
-            options.Listen(IPAddress.Loopback, preferredPort);
-        });
+            AuthorizedRequestGate = OnboardingGateAsync,
+            IsAdditionalAllowedFile = LocalApiFilePolicy.IsAdditionalAllowedFile,
+            VerifyOpenedFile = LocalApiFilePolicy.VerifyOpenedFile,
+            OriginRejected = ctx => LoggingService.Warn(
+                $"LocalApiServer: rejected request with disallowed Host/Origin (possible DNS-rebinding) — {ctx.Request.Method} {ctx.Request.Path}"),
+        };
 
-        var app = builder.Build();
-
-        // DNS-rebind guard — runs before EVERY route, including the
-        // unauthenticated /health, and before the bearer check. Windows had no
-        // such guard until issue #289; this is macOS's, shared through
-        // hw-localapi rather than transliterated a second time. The guard runs
-        // first on purpose: checking the token first would tell an
-        // unauthenticated rebound page whether its guess was right.
-        app.Use(async (ctx, next) =>
+        return PortableLocalApi.Build([], options, new WindowsLocalApiBackend(this), builder =>
         {
-            // `Connection.LocalPort` is the port this connection actually
-            // arrived on, so it is right even in the window between the bind
-            // and `ListeningPort` being published. macOS needs the same
-            // fallback and reads it off the live FlyingFox socket.
-            var boundPort = ctx.Connection.LocalPort > 0 ? ctx.Connection.LocalPort : ListeningPort;
-            var decision = LocalApiOriginGuard.Decide(ctx, boundPort);
-            if (!HyperwhisperCoreMethods.LocalApiOriginDecisionIsAllowed(decision))
+            builder.Logging.ClearProviders();
+            builder.Logging.SetMinimumLevel(LogLevel.Warning);
+            builder.WebHost.ConfigureKestrel(kestrel =>
             {
-                LoggingService.Warn($"LocalApiServer: rejected request with disallowed Host/Origin (possible DNS-rebinding) — {decision}");
-                await WriteFailureAsync(ctx, HyperwhisperCoreMethods.LocalApiForbiddenOriginFailure());
-                return;
-            }
-
-            await next();
+                // Transcription/post-processing jobs can run much longer than
+                // Kestrel's defaults — match macOS's 600 s ceiling.
+                kestrel.Limits.KeepAliveTimeout = TimeSpan.FromSeconds(600);
+                kestrel.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(600);
+            });
         });
+    }
 
-        // Auth middleware — runs before any route except /health.
-        app.Use(async (ctx, next) =>
+    /// <summary>
+    /// First-run gate — one gate for the whole mutating surface, run after the
+    /// origin guard and the bearer check.
+    /// </summary>
+    /// <remarks>
+    /// The onboarding window stages the DEFAULT MODE ROW and the active Mode
+    /// selection, then blind-restores its snapshot on "Set Up Later" with no
+    /// version check. A client that PATCHed that row while the flow sat on
+    /// the Try It step had its write destroyed silently. In the other
+    /// direction /transcribe loads a model into the very
+    /// TranscriptionRuntime.Orchestrator and Parakeet provider the Try It
+    /// step is using.
+    ///
+    /// The rule is per-METHOD rather than per-route on purpose: the reads
+    /// (/health, /models, GET /modes, /recordings) are harmless and stay
+    /// available for a client that is mid-poll, while every write and every
+    /// engine-driving call is refused — including one added to the shared
+    /// server later, which is exactly the leak the per-call-site shape had.
+    ///
+    /// ENGINE_UNAVAILABLE, not a new code: the wire codes are a closed
+    /// fourteen shared with macOS through hw-localapi.
+    /// </remarks>
+    internal static async ValueTask<bool> OnboardingGateAsync(HttpContext ctx)
+    {
+        ArgumentNullException.ThrowIfNull(ctx);
+        if (IsReadOnlyMethod(ctx.Request.Method) || !OnboardingSession.IsActive)
         {
-            if (string.Equals(ctx.Request.Path, "/health", StringComparison.OrdinalIgnoreCase))
-            {
-                await next();
-                return;
-            }
+            return true;
+        }
 
-            if (!LocalApiAuth.Authorize(ctx.Request.Headers["Authorization"].ToString(), BearerToken))
-            {
-                await WriteUnauthorizedAsync(ctx);
-                return;
-            }
-
-            await next();
-        });
-
-        // First-run middleware — one gate for the whole mutating surface.
-        //
-        // The onboarding window stages the DEFAULT MODE ROW and the active Mode
-        // selection, then blind-restores its snapshot on "Set Up Later" with no
-        // version check. A client that PATCHed that row while the flow sat on
-        // the Try It step had its write destroyed silently. In the other
-        // direction /transcribe loads a model into the very
-        // TranscriptionRuntime.Orchestrator and Parakeet provider the Try It
-        // step is using.
-        //
-        // The rule is per-METHOD rather than per-route on purpose: the reads
-        // (/health, /models, GET /modes, /recordings) are harmless and stay
-        // available for a client that is mid-poll, while every write and every
-        // engine-driving call is refused — including one added to this server
-        // later, which is exactly the leak the per-call-site shape had.
-        //
-        // ENGINE_UNAVAILABLE, not a new code: the wire codes are a closed
-        // fourteen shared with macOS through hw-localapi
-        // (crates/hw-localapi/src/failure.rs), and a fifteenth would fail that
-        // crate's conformance test and break the macOS decoder.
-        app.Use(async (ctx, next) =>
-        {
-            if (!IsReadOnlyMethod(ctx.Request.Method) && OnboardingSession.IsActive)
-            {
-                LoggingService.Info(
-                    $"LocalApiServer: refused {ctx.Request.Method} {ctx.Request.Path} while the first-run window is open");
-                await WriteOnboardingBusyAsync(ctx);
-                return;
-            }
-
-            await next();
-        });
-
-        // Route table — phase 3: /health, /models, /modes, /transcribe,
-        // /post-process, /recordings/*. Full endpoint parity with macOS.
-        HealthEndpoints.Map(app, this);
-        ModelsEndpoints.Map(app, this);
-        ModesEndpoints.Map(app, this);
-        TranscribeEndpoints.Map(app, this);
-        PostProcessEndpoints.Map(app, this);
-        RecordingsEndpoints.Map(app, this);
-
-        return app;
+        LoggingService.Info(
+            $"LocalApiServer: refused {ctx.Request.Method} {ctx.Request.Path} while the first-run window is open");
+        var failure = HyperwhisperCoreMethods.LocalApiBusinessFailure(
+            HwLocalApiErrorCode.EngineUnavailable, OnboardingBusyMessage, OnboardingBusyHint);
+        // 200, like every other business failure on this server.
+        ctx.Response.StatusCode = failure.httpStatus;
+        ctx.Response.ContentType = "application/json; charset=utf-8";
+        await ctx.Response.WriteAsync(failure.json);
+        return false;
     }
 
     /// <summary>
     /// GET and HEAD read; everything else writes, drives the shared
     /// transcription engine, or both. Internal so the smoke suite asserts on the
-    /// same predicate the middleware runs rather than a second copy of it.
+    /// same predicate the gate runs rather than a second copy of it.
     /// </summary>
     internal static bool IsReadOnlyMethod(string? method) =>
         string.Equals(method, "GET", StringComparison.OrdinalIgnoreCase)
         || string.Equals(method, "HEAD", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>The message and hint the first-run middleware answers with.</summary>
+    /// <summary>The message and hint the first-run gate answers with.</summary>
     internal const string OnboardingBusyMessage =
         "HyperWhisper first-run setup is open and owns the default Mode and the local transcription engine";
 
     internal const string OnboardingBusyHint =
         "Finish or dismiss the HyperWhisper setup window, then retry.";
-
-    private static async Task WriteOnboardingBusyAsync(HttpContext ctx)
-    {
-        var envelope = new ApiFailureEnvelope
-        {
-            Error = new ApiError
-            {
-                Code = LocalApiErrorCode.EngineUnavailable,
-                Message = OnboardingBusyMessage,
-                Hint = OnboardingBusyHint
-            }
-        };
-
-        // 200, like every other business failure on this server; see
-        // LocalApiResponder.Failure.
-        ctx.Response.StatusCode = 200;
-        ctx.Response.ContentType = "application/json; charset=utf-8";
-        await ctx.Response.WriteAsync(
-            System.Text.Json.JsonSerializer.Serialize(envelope, LocalApiResponder.JsonOptions));
-    }
-
-    private static async Task WriteUnauthorizedAsync(HttpContext ctx)
-    {
-        // `hint: null` keeps this response byte-identical to what Windows sent
-        // before #289 — macOS's 401 carries a hint naming its own discovery
-        // file, and that is the one part of the envelope that legitimately
-        // differs per platform.
-        ctx.Response.Headers["WWW-Authenticate"] = "Bearer realm=\"hyperwhisper\"";
-        await WriteFailureAsync(ctx, HyperwhisperCoreMethods.LocalApiUnauthorizedFailure(null));
-    }
-
-    /// <summary>
-    /// Write a shared-core failure verbatim: its status, and its already-encoded
-    /// envelope.
-    ///
-    /// The status comes from Rust rather than from this file, which is the
-    /// point of the envelope half of issue #289 — Linux returned 404/413/503/408
-    /// for business outcomes the docs mandate 200 for, because each platform
-    /// decided the status itself.
-    /// </summary>
-    private static async Task WriteFailureAsync(HttpContext ctx, HwLocalApiFailure failure)
-    {
-        ctx.Response.StatusCode = failure.httpStatus;
-        ctx.Response.ContentType = "application/json; charset=utf-8";
-        await ctx.Response.WriteAsync(failure.json);
-    }
 
     private static int ExtractPort(WebApplication app)
     {

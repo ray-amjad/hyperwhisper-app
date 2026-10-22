@@ -204,6 +204,71 @@ fn anthropic_body_keeps_the_cacheable_system_block() {
         .contains("Slack"));
 }
 
+fn anthropic_body_bytes(model: &str) -> String {
+    let mut p = params(LlmProvider::Anthropic);
+    p.model = model.to_string();
+    match build_llm_request(&p).unwrap().body {
+        Body::Bytes { data, .. } => String::from_utf8(data).expect("body is UTF-8"),
+        other => panic!("expected a Bytes body, got {other:?}"),
+    }
+}
+
+#[test]
+fn anthropic_thinking_is_turned_off_per_model() {
+    // Haiku 5.5 and Sonnet 5 think by default; `disabled` is their off switch.
+    for model in ["claude-haiku-5-5", "claude-sonnet-5"] {
+        let mut p = params(LlmProvider::Anthropic);
+        p.model = model.to_string();
+        let body = body_json(&build_llm_request(&p).unwrap());
+        assert_eq!(body["thinking"], serde_json::json!({ "type": "disabled" }), "{model}");
+    }
+    // Sonnet 5.5 400s on `disabled`; `between_tools` alone is its off switch.
+    let mut p = params(LlmProvider::Anthropic);
+    p.model = "claude-sonnet-5-5".to_string();
+    let body = body_json(&build_llm_request(&p).unwrap());
+    assert_eq!(body["thinking"], serde_json::json!({ "type": "between_tools" }));
+    // Models that do not think unless asked get no field at all.
+    for model in ["claude-sonnet-4-6", "claude-haiku-4-5", "claude-sonnet-4-5", "test-model"] {
+        let mut p = params(LlmProvider::Anthropic);
+        p.model = model.to_string();
+        let body = body_json(&build_llm_request(&p).unwrap());
+        assert!(body.get("thinking").is_none(), "{model} must send no thinking field");
+    }
+}
+
+#[test]
+fn anthropic_body_bytes_are_pinned() {
+    // The exact bytes, so a model that needs no thinking field keeps the body it
+    // shipped with, and the two thinking variants differ from it only by the
+    // trailing `thinking` key.
+    let base = concat!(
+        r#"{"model":"claude-sonnet-4-6","max_tokens":8192,"#,
+        r#""system":[{"type":"text","text":"You clean up transcripts.","cache_control":{"type":"ephemeral"}}],"#,
+        r#""messages":[{"role":"user","content":"App: Slack\n\n--TRANSCRIPT--\nhello there\n--ENDTRANSCRIPT--"}]}"#,
+    );
+    let sorted = |s: &str| -> String {
+        // serde_json without `preserve_order` writes keys sorted; normalise the
+        // expectation the same way so the pin holds under either feature set.
+        serde_json::to_string(&serde_json::from_str::<serde_json::Value>(s).unwrap()).unwrap()
+    };
+    assert_eq!(anthropic_body_bytes("claude-sonnet-4-6"), sorted(base));
+    let with = |model: &str, thinking: &str| {
+        let s = base
+            .replace("claude-sonnet-4-6", model)
+            .trim_end_matches('}')
+            .to_string();
+        sorted(&format!("{s},\"thinking\":{thinking}}}"))
+    };
+    assert_eq!(
+        anthropic_body_bytes("claude-haiku-5-5"),
+        with("claude-haiku-5-5", r#"{"type":"disabled"}"#)
+    );
+    assert_eq!(
+        anthropic_body_bytes("claude-sonnet-5-5"),
+        with("claude-sonnet-5-5", r#"{"type":"between_tools"}"#)
+    );
+}
+
 #[test]
 fn groq_sends_the_completion_cap() {
     let request = build_llm_request(&params(LlmProvider::Groq)).unwrap();

@@ -428,6 +428,19 @@ mod normalize_universal_mode_tests {
     }
 
     #[test]
+    fn a_backed_up_grok_1_0_mode_restores_onto_2_0() {
+        // xAI ended grok-voice-transcribe-1.0 on 2026-10-02 (#1908). A backup
+        // written before then must restore onto 2.0, with or without a provider.
+        let out = run(json!({
+            "cloudProvider": "grok",
+            "cloudTranscriptionModel": "grok-voice-transcribe-1.0"
+        }));
+        assert_eq!(out["cloudTranscriptionModel"], "grok-voice-transcribe-2.0");
+        let out = run(json!({ "cloudTranscriptionModel": "grok-voice-transcribe-1.0" }));
+        assert_eq!(out["cloudTranscriptionModel"], "grok-voice-transcribe-2.0");
+    }
+
+    #[test]
     fn model_alias_chains_every_table_when_no_provider_is_given() {
         let out = run(json!({ "cloudTranscriptionModel": "scribe_v1" }));
         assert_eq!(out["cloudTranscriptionModel"], "scribe_v2");

@@ -84,3 +84,24 @@ public interface ITranscriptionProvider
     /// </summary>
     string Name { get; }
 }
+
+/// <summary>
+/// A local engine that has its own vocabulary correction to run over its raw
+/// output (the Parakeet family's phonetic pass, issue #283).
+///
+/// The engine does NOT run it inside its own <c>TranscribeAsync</c>:
+/// <see cref="Transcription.TranscriptionOrchestrator"/> calls this once, right
+/// after it has kept the engine's text as <c>RawText</c>, and before its own
+/// <c>\b</c>-anchored <see cref="VocabularyProcessor"/> pass. So the History row's
+/// raw transcript is the engine's own text, as it is for Whisper, and each
+/// vocabulary pass runs exactly once per transcription (issue #1596).
+/// </summary>
+public interface ILocalVocabularyCorrection
+{
+    /// <summary>
+    /// Returns <paramref name="rawText"/> with the engine's own vocabulary
+    /// correction applied. Must never throw: on any failure it returns
+    /// <paramref name="rawText"/> unchanged.
+    /// </summary>
+    string ApplyLocalVocabularyCorrection(string rawText);
+}

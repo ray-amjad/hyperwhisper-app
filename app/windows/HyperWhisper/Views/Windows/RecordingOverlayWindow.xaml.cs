@@ -11,6 +11,7 @@ using HyperWhisper.Data.Entities;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
+using HyperWhisper.Utilities;
 
 namespace HyperWhisper.Views.Windows;
 
@@ -253,10 +254,23 @@ public partial class RecordingOverlayWindow : Window
 
     private void PositionOverlay()
     {
-        var screen = SystemParameters.WorkArea;
         var xRatio = SettingsService.Instance.RecordingOverlayXRatio;
         var yRatio = SettingsService.Instance.RecordingOverlayYRatio;
 
+        // The primary monitor's work area in its own DIP, not
+        // SystemParameters.WorkArea, which keeps the DPI the app started at and
+        // misplaces the overlay after a live scale change (issue #1501).
+        MonitorWorkArea.Place(this, MonitorWorkArea.Primary,
+            screen => OverlayTopLeft(screen, Width, Height, xRatio, yRatio));
+    }
+
+    /// <summary>
+    /// Where the overlay goes in a work area, in the work area's DIP: the saved
+    /// position when one is saved and its centre is still on screen, else bottom
+    /// centre with a 20 px margin. Pure, so the smoke suite can pin it.
+    /// </summary>
+    internal static System.Windows.Point OverlayTopLeft(Rect screen, double width, double height, double xRatio, double yRatio)
+    {
         if (xRatio >= 0 && yRatio >= 0)
         {
             // Restore from saved ratios
@@ -264,21 +278,18 @@ public partial class RecordingOverlayWindow : Window
             double y = yRatio * screen.Height;
 
             // Validate: ensure center point is on-screen
-            double centerX = x + Width / 2;
-            double centerY = y + Height / 2;
+            double centerX = x + width / 2;
+            double centerY = y + height / 2;
 
             if (centerX >= screen.Left && centerX <= screen.Right &&
                 centerY >= screen.Top && centerY <= screen.Bottom)
             {
-                Left = x;
-                Top = y;
-                return;
+                return new System.Windows.Point(x, y);
             }
         }
 
         // Default: bottom center with 20px margin
-        Left = (screen.Width - Width) / 2;
-        Top = screen.Height - Height - 20;
+        return new System.Windows.Point((screen.Width - width) / 2, screen.Height - height - 20);
     }
 
     private void SetupSpinnerAnimation()
@@ -629,9 +640,6 @@ public partial class RecordingOverlayWindow : Window
     {
         if (!IsVisible) return;
 
-        var workArea = SystemParameters.WorkArea;
-        if (workArea.Width <= 0 || workArea.Height <= 0) return;
-
         // Debounce: restart timer on each move to coalesce rapid updates
         if (_positionSaveTimer == null)
         {
@@ -640,11 +648,17 @@ public partial class RecordingOverlayWindow : Window
             {
                 _positionSaveTimer.Stop();
 
-                var wa = SystemParameters.WorkArea;
-                if (wa.Width <= 0 || wa.Height <= 0) return;
+                // The ratio of the overlay's physical position to the primary
+                // work area's physical size: the same ratio PositionOverlay
+                // multiplies by that work area in its own DIP, whatever the
+                // overlay's own DPI is now (issue #1501).
+                var primary = MonitorWorkArea.Primary();
+                if (primary is not { } wa) return;
+                var at = MonitorWorkArea.Rebase(new System.Windows.Point(Left, Top),
+                    MonitorWorkArea.WindowScale(this), MonitorWorkArea.Scale.Identity);
 
-                SettingsService.Instance.RecordingOverlayXRatio = Left / wa.Width;
-                SettingsService.Instance.RecordingOverlayYRatio = Top / wa.Height;
+                SettingsService.Instance.RecordingOverlayXRatio = at.X / wa.WorkAreaPixels.Width;
+                SettingsService.Instance.RecordingOverlayYRatio = at.Y / wa.WorkAreaPixels.Height;
             };
         }
 

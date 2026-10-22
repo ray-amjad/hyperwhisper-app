@@ -775,13 +775,22 @@ public partial class HistoryViewModel : ViewModelBase
         if (SelectedTranscript == null || !SelectedTranscript.CanRetry) return;
 
         var transcript = SelectedTranscript;
-        var mode = ModeService.Instance.GetAllModes()
-            .FirstOrDefault(m => m.Name == transcript.Mode)
-            ?? ModeService.Instance.GetDefaultMode();
+
+        // REFUSAL (#1644, the rule Ray set for macOS in #1440 / #1617): no
+        // default-mode fallback. When the mode that made the recording is gone,
+        // send nothing and leave the row as it was; the user picks a mode with
+        // "Retry With...", which calls RetryWithModeAsync directly.
+        var mode = RetryModeResolver.ResolveOriginalMode(
+            ModeService.Instance.GetAllModes(), transcript.Mode);
 
         if (mode == null)
         {
-            WpfMessageBox.Show(Loc.S("errors.noModeForRetry"), Loc.S("common.error"), MessageBoxButton.OK, MessageBoxImage.Error);
+            LoggingService.Warn($"HistoryViewModel: Retry refused for transcript {transcript.Id}: its mode no longer exists; no request sent");
+            WpfMessageBox.Show(
+                Loc.S(RetryModeResolver.ModeDeletedMessageKey),
+                Loc.S("common.error"),
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
             return;
         }
 

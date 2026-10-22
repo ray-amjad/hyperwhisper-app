@@ -8,6 +8,8 @@ var tests = new (string Name, Func<Task> Run)[]
 {
     ("activation validates and securely stores the key", ActivationStoresKey),
     ("activation validates required fields before HTTP", ActivationInputValidation),
+    ("the account key format check refuses only text that cannot be a key", AccountKeyFormatCases),
+    ("an implausible account key never reaches HTTP", ImplausibleKeyIsRefusedBeforeHttp),
     ("rejected activation neither stores nor leaks the key", RejectedActivationIsRedacted),
     ("a 200 invalid verdict cannot activate", InvalidVerdictCannotActivate),
     ("status reads secure storage and returns account details", StatusReturnsDetails),
@@ -91,6 +93,56 @@ static async Task ActivationInputValidation()
     Assert(missingDevice.Failure?.Code == CloudAccountFailureCode.InvalidRequest, "missing device was accepted");
     Assert(nul.Failure?.Code == CloudAccountFailureCode.InvalidRequest, "NUL field was accepted");
     Assert(handler.CallCount == 0, "invalid activation reached HTTP");
+}
+
+// #1489. A loose check: no HW- pattern, because imported Polar-era keys must still activate.
+static Task AccountKeyFormatCases()
+{
+    var sixtyFour = new string('A', AccountKeyFormat.MaximumLength);
+    var cases = new (string? Text, bool Plausible, bool Hint)[]
+    {
+        (null, false, false),
+        ("", false, false),
+        ("   \t\r\n ", false, false),
+        ("HW-ABCD-EFGH-JKLM-NPQR", true, false),
+        ("HW-ABCD-EFGH-JKLM-NPQR\n", true, false),
+        ("  HW-ABCD-EFGH-JKLM-NPQR\r\n", true, false),
+        ("3f2a9c1e-7b4d-4e8a-9c2f-5d6e7f8a9b0c", true, false),
+        ("legacykey0123abcdef", true, false),
+        (sixtyFour, true, false),
+        (sixtyFour + "A", false, true),
+        ("HW-ABCD EFGH", false, true),
+        ("HW-ABCD\tEFGH", false, true),
+        ("HW-ABCD\nEFGH", false, true),
+        ("HW-ABCD\u00A0EFGH", false, true),
+        ("HW-ABCD\0EFGH", false, true),
+        ("مفتاح-الحساب", false, true),
+        ("HW-ABCD-\U0001F511", false, true),
+        ("Thanks for your purchase! Your key is below.", false, true),
+    };
+    foreach (var (text, plausible, hint) in cases)
+    {
+        var shown = text is null ? "null" : $"'{text.Replace("\n", "\\n")}'";
+        Assert(AccountKeyFormat.IsPlausible(text) == plausible, $"IsPlausible({shown}) should be {plausible}");
+        Assert(AccountKeyFormat.ShowsHint(text) == hint, $"ShowsHint({shown}) should be {hint}");
+    }
+    Assert(AccountKeyFormat.Normalize(" HW-ABCD\r\n") == "HW-ABCD", "the key was not trimmed");
+    Assert(AccountKeyFormat.Normalize(null) == string.Empty, "null did not normalise to empty");
+    return Task.CompletedTask;
+}
+
+static async Task ImplausibleKeyIsRefusedBeforeHttp()
+{
+    var handler = new StubHandler((_, _) => throw new InvalidOperationException("HTTP should not run"));
+    var store = new MemoryCredentialStore();
+    using var service = Service(store, handler);
+    foreach (var key in new[] { new string('A', 65), "two words", "clé-de-compte" })
+    {
+        var result = await service.ActivateAsync(new(key, "device", "host"));
+        Assert(result.Failure?.Code == CloudAccountFailureCode.InvalidRequest, $"implausible key '{key}' was accepted");
+    }
+    Assert(handler.CallCount == 0, "an implausible key reached HTTP");
+    Assert(store.StoredText is null, "an implausible key was stored");
 }
 
 static async Task RejectedActivationIsRedacted()

@@ -109,54 +109,48 @@ const MUTANTS = [
   },
   {
     name: "refund a grant a second time",
-    from: "    if (clawback <= 0) {\n      return { status: \"duplicate\", refundedAmount: 0 };\n    }",
-    to: "    if (clawback < 0) {\n      return { status: \"duplicate\", refundedAmount: 0 };\n    }",
+    from: "    if (refundNow <= 0) {\n      return { status: \"duplicate\", refundedAmount: 0, removedAmount: 0 };\n    }",
+    to: "    if (refundNow < 0) {\n      return { status: \"duplicate\", refundedAmount: 0, removedAmount: 0 };\n    }",
   },
   {
-    name: "claw back only what is left on the refunded grant",
-    from: "    const clawback = originalAmount - alreadyRefunded;",
-    to: "    const clawback = originalAmount - alreadyRefunded - (originalAmount - Number((await tx.execute<{ r: string }>(sql`SELECT remaining_amount AS r FROM credit_grants WHERE id = ${grant.id}`)).rows[0].r));",
+    name: "ignore the caller's refunded total and refund the whole grant",
+    from: "      Math.max(0, data.refundedCreditsTotal ?? originalAmount)",
+    to: "      Math.max(0, originalAmount)",
   },
   {
-    // EQUIVALENT MUTANT, kept on the record. The drawdown loop reads the same
-    // rows the clamp sums (active, unexpired, remaining > 0, same account), and
-    // it takes at most each row's remaining amount. So without the clamp the
-    // loop still stops at the active balance. The clamp test below proves the
-    // floor at zero holds; it cannot tell which of the two lines made it hold.
-    name: "do not clamp the clawback at the active balance (equivalent — the loop is bounded by the same rows)",
-    equivalent: true,
-    from: "    let toClawback = Math.min(\n      clawback,\n      await getActiveGrantsTotal(tx, grant.user_id)\n    );",
-    to: "    let toClawback = clawback;",
+    name: "do not cap the refunded total at the grant",
+    from: "    const refundedTotal = Math.min(\n      originalAmount,\n      Math.max(0, data.refundedCreditsTotal ?? originalAmount)\n    );",
+    to: "    const refundedTotal = Math.max(0, data.refundedCreditsTotal ?? originalAmount);",
   },
   {
-    name: "draw the clawback latest-to-expire first",
-    from: "        CASE WHEN id = ${grant.id} THEN 0 ELSE 1 END,\n        expires_at ASC,",
-    to: "        CASE WHEN id = ${grant.id} THEN 0 ELSE 1 END,\n        expires_at DESC NULLS LAST,",
+    name: "treat the caller's total as this refund's share, not a running total",
+    from: "    const refundNow = refundedTotal - alreadyRefunded;",
+    to: "    const refundNow = refundedTotal;",
   },
   {
-    name: "draw the clawback without the refunded grant first",
-    from: "        CASE WHEN id = ${grant.id} THEN 0 ELSE 1 END,\n",
-    to: "        CASE WHEN id = ${grant.id} THEN 1 ELSE 0 END,\n",
+    name: "remove the refund's value even when the grant has less left",
+    from: "    const removedAmount = Math.min(remainingAmount, refundNow);",
+    to: "    const removedAmount = refundNow;",
   },
   {
-    name: "claw back from expired grants too",
-    from: "        AND status = 'active'\n        AND ${ACTIVE_GRANT_EXPIRY}\n      ORDER BY\n        CASE",
-    to: "        AND status = 'active'\n      ORDER BY\n        CASE",
+    name: "record only what was removed, not the refunded value",
+    from: "        refundedAmount: refundedTotal.toString(),",
+    to: "        refundedAmount: (alreadyRefunded + removedAmount).toString(),",
   },
   {
-    name: "claw back from any account",
-    from: "      WHERE user_id = ${grant.user_id}\n        AND remaining_amount > 0",
-    to: "      WHERE remaining_amount > 0",
+    name: "close a partly refunded grant that still has credits",
+    from: "        status: newRemaining <= 0 ? \"refunded\" : grant.status,",
+    to: "        status: \"refunded\",",
   },
   {
-    name: "record only this refund, not the running refunded total",
-    from: "        refundedAmount: (alreadyRefunded + clawback).toString(),",
-    to: "        refundedAmount: alreadyRefunded.toString(),",
+    name: "leave a drained refunded grant active",
+    from: "        status: newRemaining <= 0 ? \"refunded\" : grant.status,",
+    to: "        status: grant.status,",
   },
   {
-    name: "leave the refunded grant active",
-    from: "        status: \"refunded\",",
-    to: "        status: \"active\",",
+    name: "report the requested value as removed",
+    from: "      refundedAmount: refundNow,\n      removedAmount,\n",
+    to: "      refundedAmount: refundNow,\n      removedAmount: refundNow,\n",
   },
   {
     name: "do not reconcile the cache after a refund",

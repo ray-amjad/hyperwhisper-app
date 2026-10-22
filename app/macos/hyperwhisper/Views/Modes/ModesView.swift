@@ -81,6 +81,11 @@ struct ModesView: View {
         return ids
     }
 
+    /// Every mode's id and name, for the editor's taken-name check (issue #1435).
+    private var modeNameEntries: [ModeNameEntry] {
+        modes.map { ModeNameEntry(id: $0.id, name: $0.name) }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header section
@@ -100,6 +105,7 @@ struct ModesView: View {
             ModeEditorView(
                 configuration: .create,
                 availableModelIds: downloadedLocalModelIds,
+                existingModes: modeNameEntries,
                 licenseActive: ModeEditorDefaults.treatsLicenseAsActive(
                     status: licenseManager.licenseStatus,
                     storedKey: licenseManager.storedLicenseKeyReadForSeeding()
@@ -144,6 +150,7 @@ struct ModesView: View {
                     initiateDeleteMode(mode)
                 }),
                 availableModelIds: downloadedLocalModelIds,
+                existingModes: modeNameEntries,
                 onSave: { updatedModeData in
                     // Update the Core Data entity. The default mode's name is
                     // fixed (issue #536): the editor disables the field, so this
@@ -219,6 +226,17 @@ struct ModesView: View {
         } message: {
             Text("You cannot delete your last remaining mode. Create a new mode first, then you can delete this one.")
         }
+        // Issue #1672: close the Create / Edit Mode sheet (and the delete
+        // prompts) before a page change removes this view.
+        .closesPresentationsOnPageChange(
+            isPresenting: showingCreateMode || selectedMode != nil || showingDeleteConfirm || showingLastModeAlert
+        ) {
+            showingCreateMode = false
+            selectedMode = nil
+            showingDeleteConfirm = false
+            modeToDelete = nil
+            showingLastModeAlert = false
+        }
     }
 
     // MARK: - Header Section
@@ -284,30 +302,16 @@ struct ModesView: View {
     /// 3. If the deleted mode was currently selected, automatically switch to the first remaining mode
     ///    (by sort order, which is index 0 in the list)
     /// 4. If no modes remain after deletion, clear the selected mode ID to prevent "mode not found" errors
+    ///
+    /// All four steps live in `PersistenceController.deleteModeAndReconcileSelection`,
+    /// which Local API `DELETE /modes/:id` shares. It reads the mode's id BEFORE
+    /// the delete: read afterwards it is nil, and step 3 never ran (issue #1439).
     private func deleteMode(_ mode: Mode) {
-        // STEP 1: Delete from Core Data
-        PersistenceController.shared.deleteMode(mode)
-
-        // STEP 2: Cleanup per-mode model mapping in settings
-        if let modeId = mode.id?.uuidString {
-            settingsManager.defaultModelByMode.removeValue(forKey: modeId)
-        }
-
-        // STEP 3: Handle mode selection if the deleted mode was currently selected
-        if appState.selectedModeId == mode.id?.uuidString {
-            // Fetch all remaining modes AFTER deletion to ensure we get the current state
-            let remainingModes = PersistenceController.shared.fetchAllModes()
-
-            if let firstMode = remainingModes.first {
-                // Select the first remaining mode (index 0 by sort order)
-                appState.selectMode(firstMode, persist: true)
-                AppLogger.ui.info("Deleted selected mode, switched to first remaining mode · modeId=\(firstMode.id?.uuidString ?? "nil", privacy: .public) · preset=\(PresetType.reportingValue(for: firstMode), privacy: .public)")
-            } else {
-                // No modes left - clear the selection to prevent errors
-                appState.clearModeSelection()
-                AppLogger.ui.warning("Deleted last mode, cleared mode selection")
-            }
-        }
+        PersistenceController.shared.deleteModeAndReconcileSelection(
+            mode,
+            appState: appState,
+            settingsManager: settingsManager
+        )
     }
 }
 

@@ -118,15 +118,16 @@ class AudioConverter {
     /// - Returns: Audio samples as Float32 array at 16kHz mono
     /// - Throws: ConversionError or system errors
     func convert(from url: URL, options: ConversionOptions = .default) async throws -> [Float] {
-        return try await withCheckedThrowingContinuation { continuation in
-            Task {
-                do {
-                    let samples = try await performConversion(from: url, options: options)
-                    continuation.resume(returning: samples)
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
+        let conversion = Task {
+            try await performConversion(from: url, options: options)
+        }
+        // The conversion task is unstructured, so forward the caller's cancel:
+        // each read loop below then stops at its next chunk (#1743, a deleted
+        // row's Retry decoding a long recording for VAD).
+        return try await withTaskCancellationHandler {
+            try await conversion.value
+        } onCancel: {
+            conversion.cancel()
         }
     }
     
@@ -208,6 +209,8 @@ class AudioConverter {
         logger.info("🔄 Starting chunked conversion...")
         
         while framesRead < totalFrames {
+            try Task.checkCancellation()
+
             // Calculate chunk size (don't exceed remaining frames)
             let remainingFrames = totalFrames - framesRead
             let framesToRead = min(AVAudioFrameCount(remainingFrames), chunkSize)
@@ -338,6 +341,10 @@ class AudioConverter {
         logger.info("🔄 AVAssetReader fallback: decoding audio...")
 
         while reader.status == .reading {
+            if Task.isCancelled {
+                reader.cancelReading()
+                throw CancellationError()
+            }
             guard let sampleBuffer = readerOutput.copyNextSampleBuffer() else { break }
             defer { CMSampleBufferInvalidate(sampleBuffer) }
 
@@ -495,6 +502,7 @@ class AudioConverter {
         var framesRead: AVAudioFramePosition = 0
         
         while framesRead < totalFrames {
+            try Task.checkCancellation()
             let framesToRead = min(AVAudioFrameCount(totalFrames - framesRead), chunkSize)
             
             guard let buffer = AVAudioPCMBuffer(

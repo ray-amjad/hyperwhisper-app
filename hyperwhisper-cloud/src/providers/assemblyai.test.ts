@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { couldRouteThroughSync, transcribeWithAssemblyAI } from './assemblyai';
 import { ProviderInputError, ProviderUnavailableError } from './types';
+import { captureNoSpeechEvent, captureProviderEvent } from './test-support';
 
 const originalFetch = globalThis.fetch;
 
@@ -77,25 +78,6 @@ function mockAsyncFlow(opts: {
     throw new Error(`Unexpected fetch: ${method} ${url}`);
   }) as unknown as typeof fetch;
   return calls;
-}
-
-/**
- * Swaps `console.log` for the duration of `run` and returns the details object of
- * the first `provider.<event>` event it logged. Same swap-the-global idiom as
- * `utils.test.ts` — no spy library is used anywhere in this suite.
- */
-async function captureEvent(event: string, run: () => Promise<unknown>): Promise<Record<string, unknown>> {
-  const logged: unknown[][] = [];
-  const originalLog = console.log;
-  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
-  try {
-    await run();
-  } finally {
-    console.log = originalLog;
-  }
-  const found = logged.find((args) => args[0] === `provider.${event}`);
-  if (!found) throw new Error(`no provider.${event} event was logged`);
-  return found[1] as Record<string, unknown>;
 }
 
 /** A 200 whose body stream dies mid-read: `text()` rejects after a partial chunk. */
@@ -230,7 +212,7 @@ describe('transcribeWithAssemblyAI — sync fast path behavior', () => {
 
   test('the sync no_speech log event records the upstream duration, and null when there is none', async () => {
     globalThis.fetch = mock(async () => jsonResponse({ text: '   ', audio_duration_ms: 1000 })) as unknown as typeof fetch;
-    const reported = await captureEvent('no_speech',
+    const reported = await captureNoSpeechEvent(
       () => transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/wav', 'en-US'),
     );
     expect(reported.upstreamDurationSeconds).toBe(1);
@@ -238,7 +220,7 @@ describe('transcribeWithAssemblyAI — sync fast path behavior', () => {
     // No `audio_duration_ms`: the byte-estimate fallback lives below the empty
     // check, so nothing must stand in for the number AssemblyAI never sent.
     globalThis.fetch = mock(async () => jsonResponse({ text: '' })) as unknown as typeof fetch;
-    const missing = await captureEvent('no_speech',
+    const missing = await captureNoSpeechEvent(
       () => transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/wav', 'en-US'),
     );
     expect(missing.upstreamDurationSeconds).toBeNull();
@@ -477,13 +459,13 @@ describe('transcribeWithAssemblyAI — async polling, billing, and cleanup', () 
 
   test('the async no_speech log event records the upstream duration, and null when there is none', async () => {
     mockAsyncFlow({ pollBodies: [{ status: 200, body: { status: 'completed', text: '', audio_duration: 10 } }] });
-    const reported = await captureEvent('no_speech',
+    const reported = await captureNoSpeechEvent(
       () => transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'en-US'),
     );
     expect(reported.upstreamDurationSeconds).toBe(10);
 
     mockAsyncFlow({ pollBodies: [{ status: 200, body: { status: 'completed', text: '' } }] });
-    const missing = await captureEvent('no_speech',
+    const missing = await captureNoSpeechEvent(
       () => transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'en-US'),
     );
     expect(missing.upstreamDurationSeconds).toBeNull();
@@ -517,7 +499,7 @@ describe('transcribeWithAssemblyAI — async polling, billing, and cleanup', () 
       ],
     });
 
-    const details = await captureEvent('parse_error', async () => {
+    const details = await captureProviderEvent('provider.parse_error', async () => {
       expect((await transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'en-US')).text).toBe('recovered');
     });
     expect(details).toMatchObject({ phase: 'poll', failure: 'parse', polls: 1, contentType: 'text/html', bodyLength: html.length, bodyKind: 'html' });
@@ -533,7 +515,7 @@ describe('transcribeWithAssemblyAI — async polling, billing, and cleanup', () 
       ],
     });
 
-    const details = await captureEvent('parse_error', async () => {
+    const details = await captureProviderEvent('provider.parse_error', async () => {
       expect((await transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'en-US')).text).toBe('recovered');
     });
     expect(details).toMatchObject({ phase: 'poll', failure: 'read', polls: 1, contentType: 'application/json', errorName: 'Error' });

@@ -31,12 +31,22 @@ public partial class GeneralSettingsPage : Page
     /// </summary>
     private void InitializeSettings()
     {
-        // Load launch at startup state from registry
+        // Load launch at startup state from registry.
+        // #1471: on an isolated app-data profile the shared HKCU Run value
+        // belongs to the installed app, so this build never reads or changes
+        // it. The box shows unticked and disabled, with a note saying why.
+        var startupAvailable = StartupService.IsAvailable;
+        var startupEnabled = startupAvailable && StartupService.Instance.IsEnabled;
         LaunchAtStartupCheckbox.Checked -= LaunchAtStartupCheckbox_Checked;
         LaunchAtStartupCheckbox.Unchecked -= LaunchAtStartupCheckbox_Unchecked;
-        LaunchAtStartupCheckbox.IsChecked = StartupService.Instance.IsEnabled;
-        LaunchAtStartupCheckbox.Checked += LaunchAtStartupCheckbox_Checked;
-        LaunchAtStartupCheckbox.Unchecked += LaunchAtStartupCheckbox_Unchecked;
+        LaunchAtStartupCheckbox.IsChecked = startupEnabled;
+        LaunchAtStartupCheckbox.IsEnabled = startupAvailable;
+        LaunchAtStartupIsolatedNote.Visibility = startupAvailable ? Visibility.Collapsed : Visibility.Visible;
+        if (startupAvailable)
+        {
+            LaunchAtStartupCheckbox.Checked += LaunchAtStartupCheckbox_Checked;
+            LaunchAtStartupCheckbox.Unchecked += LaunchAtStartupCheckbox_Unchecked;
+        }
 
         // Load launch minimized state from settings
         LaunchMinimizedCheckbox.Checked -= LaunchMinimizedCheckbox_Checked;
@@ -85,7 +95,7 @@ public partial class GeneralSettingsPage : Page
         var buildVersion = version?.Revision.ToString() ?? "0";
         VersionText.Text = Loc.S("settings.version.detail", shortVersion, buildVersion);
 
-        LoggingService.Debug($"GeneralSettingsPage: Initialized (startup={StartupService.Instance.IsEnabled}, launchMinimized={SettingsService.Instance.LaunchMinimized}, minimizeToTray={SettingsService.Instance.MinimizeToTray}, showRecordingWindow={SettingsService.Instance.ShowRecordingWindow}, errorLogging={SettingsService.Instance.EnableErrorLogging}, shareSpeedData={SettingsService.Instance.ShareAnonymousSpeedData}, autoUpdate={SettingsService.Instance.CheckForUpdatesAutomatically})");
+        LoggingService.Debug($"GeneralSettingsPage: Initialized (startup={startupEnabled}, startupAvailable={startupAvailable}, launchMinimized={SettingsService.Instance.LaunchMinimized}, minimizeToTray={SettingsService.Instance.MinimizeToTray}, showRecordingWindow={SettingsService.Instance.ShowRecordingWindow}, errorLogging={SettingsService.Instance.EnableErrorLogging}, shareSpeedData={SettingsService.Instance.ShareAnonymousSpeedData}, autoUpdate={SettingsService.Instance.CheckForUpdatesAutomatically})");
     }
 
     // =========================================================================
@@ -94,6 +104,11 @@ public partial class GeneralSettingsPage : Page
 
     private void LaunchAtStartupCheckbox_Checked(object sender, RoutedEventArgs e)
     {
+        if (!StartupService.IsAvailable)
+        {
+            return;
+        }
+
         var success = StartupService.Instance.Enable();
         if (!success)
         {
@@ -115,6 +130,11 @@ public partial class GeneralSettingsPage : Page
 
     private void LaunchAtStartupCheckbox_Unchecked(object sender, RoutedEventArgs e)
     {
+        if (!StartupService.IsAvailable)
+        {
+            return;
+        }
+
         var success = StartupService.Instance.Disable();
         if (!success)
         {

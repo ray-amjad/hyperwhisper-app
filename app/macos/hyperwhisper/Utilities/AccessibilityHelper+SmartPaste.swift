@@ -245,7 +245,8 @@ extension AccessibilityHelper {
                 { self.isSecureFieldFocused() }
             ) {
                 logger.info("🔒 Secure field focused. Skipping auto-paste for safety.")
-                scheduleClipboardRestoration(settings: settings)
+                scheduleClipboardRestoration(settings: settings,
+                                             transcriptChangeCount: transcriptChangeCount)
                 self.reportPasteOutcome(.secureField, attempt: attempt)
                 return .secureField
             }
@@ -342,7 +343,8 @@ extension AccessibilityHelper {
                 // dialog stays open and the transcript is left on the clipboard for a
                 // manual Cmd+V, so a restore would only overwrite it (#1034).
                 if failureOutcome.withholdsTextOnPurpose {
-                    scheduleClipboardRestoration(settings: settings)
+                    scheduleClipboardRestoration(settings: settings,
+                                                 transcriptChangeCount: transcriptChangeCount)
                 } else {
                     keepClipboardSnapshotForNextRecording(transcriptChangeCount: transcriptChangeCount,
                                                           settings: settings)
@@ -355,7 +357,8 @@ extension AccessibilityHelper {
 
             // Skip clipboard restoration for remote desktop apps — the remote session may need
             // the clipboard content available for subsequent manual pastes
-            scheduleClipboardRestoration(settings: isRemoteDesktop ? nil : settings)
+            scheduleClipboardRestoration(settings: isRemoteDesktop ? nil : settings,
+                                         transcriptChangeCount: transcriptChangeCount)
 
             logger.info("✅ Successfully auto-pasted into focused input (async)")
             self.reportPasteOutcome(.success, attempt: attempt)

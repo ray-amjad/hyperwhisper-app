@@ -297,6 +297,12 @@ public static class CloudTranscriptionModels
             Description = "Latest model with keyterm prompting (up to 100 terms)",
             Provider = CloudTranscriptionProvider.ElevenLabs,
             IsPopular = true
+        },
+        new CloudTranscriptionModel
+        {
+            Id = "scribe_v2_medical",
+            Description = "Scribe v2 tuned for clinical audio. Keyterm prompting (up to 100 terms) highlights drug names and medical phrases. Same rate as Scribe v2.",
+            Provider = CloudTranscriptionProvider.ElevenLabs
         }
     };
 
@@ -351,13 +357,23 @@ public static class CloudTranscriptionModels
 
     /// <summary>
     /// Google Gemini transcription models.
-    /// - gemini-2.5-flash: Fast, cost-effective (default)
+    /// - gemini-3.8-flash: Current Flash model (default since #1019 — Google limits
+    ///   the 2.5 models to accounts that used them before 2026-09-18)
+    /// - gemini-2.5-flash: Fast, cost-effective
     /// - gemini-2.5-flash-lite: Cheapest option
     /// - gemini-2.5-pro: Highest quality
     /// - gemini-3.x: Current and preview models
+    /// The default itself is read from cloud-stt-catalog.json (see GetDefault).
     /// </summary>
     public static readonly CloudTranscriptionModel[] Gemini = new[]
     {
+        new CloudTranscriptionModel
+        {
+            Id = "gemini-3.8-flash",
+            Description = "Current Flash model - the default for new keys",
+            Provider = CloudTranscriptionProvider.Gemini,
+            IsPopular = true
+        },
         new CloudTranscriptionModel
         {
             Id = "gemini-2.5-flash",
@@ -393,12 +409,6 @@ public static class CloudTranscriptionModels
         },
         new CloudTranscriptionModel
         {
-            Id = "gemini-3-flash-preview",
-            Description = "Next-gen flash model (preview)",
-            Provider = CloudTranscriptionProvider.Gemini
-        },
-        new CloudTranscriptionModel
-        {
             Id = "gemini-3.1-pro-preview",
             Description = "Next-gen pro model - highest quality (preview)",
             Provider = CloudTranscriptionProvider.Gemini
@@ -424,19 +434,19 @@ public static class CloudTranscriptionModels
 
     // =========================================================================
     // GROK MODELS
-    // xAI Grok speech-to-text. Two models, sent as the `model` field — the
-    // endpoint took no such parameter before 2026-09-19, which is why this
-    // entry carried an empty id until then.
+    // xAI Grok speech-to-text, sent as the `model` field — the endpoint took no
+    // such parameter before 2026-09-19, which is why this entry carried an
+    // empty id until then.
     // =========================================================================
 
     /// <summary>
     /// xAI Grok transcription.
     /// </summary>
     /// <remarks>
-    /// <c>grok-voice-transcribe-1.0</c> is listed because it is the model the
-    /// empty id always ran — it was the only model xAI served. Keeping it means
-    /// a user chooses 2 rather than being moved onto it by a release of ours.
-    /// SpaceXAI price the two the same and have announced 1.0's deprecation.
+    /// xAI ended <c>grok-voice-transcribe-1.0</c> on 2026-10-02 and routes it to
+    /// 2.0 at the same price, so its row is gone (#1908). A stored 1.0 id
+    /// resolves to 2.0 through <c>ResolveModelAlias</c> (hw-catalog
+    /// <c>GROK_ALIASES</c>).
     /// </remarks>
     public static readonly CloudTranscriptionModel[] Grok = new[]
     {
@@ -447,14 +457,6 @@ public static class CloudTranscriptionModels
             Provider = CloudTranscriptionProvider.Grok,
             PricePerMinute = 0.0016667m,
             IsPopular = true
-        },
-        new CloudTranscriptionModel
-        {
-            Id = "grok-voice-transcribe-1.0",
-            Description = "SpaceXAI's previous speech-to-text model, at the same price. Announced for deprecation — prefer Grok Voice Transcribe 2.",
-            Provider = CloudTranscriptionProvider.Grok,
-            PricePerMinute = 0.0016667m,
-            IsPopular = false
         }
     };
 

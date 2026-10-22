@@ -393,4 +393,121 @@ mod tests {
             "parakeet".to_string()
         );
     }
+
+    /// Every mirror converts both ways, and the way back must be lossless. Each
+    /// field gets a value no other field shares, so a swapped or dropped field
+    /// cannot come back equal.
+    #[test]
+    fn every_mirror_round_trips_back_to_the_leaf_type() {
+        let accumulation = no_speech::SignalAccumulation {
+            sample_count: 48_000,
+            non_silent_count: 1_234,
+            sum_squares: 0.5,
+            peak: 0.25,
+        };
+        let mirrored = HwSignalAccumulation::from(accumulation);
+        assert_eq!(mirrored.sample_count, 48_000);
+        assert_eq!(mirrored.non_silent_count, 1_234);
+        assert_eq!(mirrored.sum_squares, 0.5);
+        assert_eq!(mirrored.peak, 0.25);
+        assert_eq!(no_speech::SignalAccumulation::from(mirrored), accumulation);
+
+        let input = no_speech::NoSpeechInput {
+            analysis_succeeded: true,
+            decoded_sample_count: Some(16_000),
+            empty_transcript_without_flag: false,
+            backend_no_speech_detected: true,
+            peak_dbfs: -12.5,
+            rms_dbfs: -33.25,
+            non_silent_ratio: 0.0625,
+        };
+        let mirrored = HwNoSpeechInput::from(input);
+        assert!(mirrored.analysis_succeeded);
+        assert_eq!(mirrored.decoded_sample_count, Some(16_000));
+        assert!(!mirrored.empty_transcript_without_flag);
+        assert!(mirrored.backend_no_speech_detected);
+        assert_eq!(mirrored.peak_dbfs, -12.5);
+        assert_eq!(mirrored.rms_dbfs, -33.25);
+        assert_eq!(mirrored.non_silent_ratio, 0.0625);
+        assert_eq!(no_speech::NoSpeechInput::from(mirrored), input);
+
+        // The flipped flags and the `None` count are the other half of each field.
+        let unknown = no_speech::NoSpeechInput {
+            analysis_succeeded: false,
+            decoded_sample_count: None,
+            empty_transcript_without_flag: true,
+            backend_no_speech_detected: false,
+            ..input
+        };
+        assert_eq!(
+            no_speech::NoSpeechInput::from(HwNoSpeechInput::from(unknown)),
+            unknown
+        );
+
+        let mode = no_speech::ModeIdentity {
+            provider_type: Some("cloud".into()),
+            cloud_provider: Some("deepgram".into()),
+            local_engine: Some("parakeet".into()),
+        };
+        let mirrored = HwModeIdentity::from(mode.clone());
+        assert_eq!(mirrored.provider_type.as_deref(), Some("cloud"));
+        assert_eq!(mirrored.cloud_provider.as_deref(), Some("deepgram"));
+        assert_eq!(mirrored.local_engine.as_deref(), Some("parakeet"));
+        assert_eq!(no_speech::ModeIdentity::from(mirrored), mode);
+
+        let blank = no_speech::ModeIdentity::default();
+        assert_eq!(
+            no_speech::ModeIdentity::from(HwModeIdentity::from(blank.clone())),
+            blank
+        );
+    }
+
+    /// The Windows enum relies on the variant order, so no variant may map to a
+    /// neighbour in either direction.
+    #[test]
+    fn every_outcome_round_trips_to_the_same_variant() {
+        for outcome in [
+            no_speech::NoSpeechOutcome::Skip,
+            no_speech::NoSpeechOutcome::EmptyRecording,
+            no_speech::NoSpeechOutcome::NoSpeech,
+        ] {
+            let mirrored = HwNoSpeechOutcome::from(outcome);
+            assert_eq!(no_speech::NoSpeechOutcome::from(mirrored), outcome);
+        }
+    }
+
+    /// The heads read the five thresholds through the C symbols in
+    /// `hyperwhisper_coreFFI.h`, not through the Rust functions. Call those
+    /// symbols and compare bit for bit: the silence threshold is an `f32`, and a
+    /// widened or rounded value moves the boundary for every sample.
+    #[test]
+    fn the_thresholds_cross_the_c_abi_bit_for_bit() {
+        fn call<T>(scaffolding: extern "C" fn(&mut uniffi::RustCallStatus) -> T) -> T {
+            let mut status = uniffi::RustCallStatus::default();
+            let value = scaffolding(&mut status);
+            assert!(matches!(status.code, uniffi::RustCallStatusCode::Success));
+            value
+        }
+
+        assert_eq!(
+            call(uniffi_hyperwhisper_core_fn_func_audio_silence_threshold).to_bits(),
+            no_speech::SILENCE_THRESHOLD.to_bits()
+        );
+        assert_eq!(
+            call(uniffi_hyperwhisper_core_fn_func_audio_minimum_dbfs).to_bits(),
+            (-120.0_f64).to_bits()
+        );
+        assert_eq!(
+            call(uniffi_hyperwhisper_core_fn_func_no_speech_confirmed_silence_peak_dbfs).to_bits(),
+            (-50.0_f64).to_bits()
+        );
+        assert_eq!(
+            call(uniffi_hyperwhisper_core_fn_func_no_speech_low_signal_rms_dbfs).to_bits(),
+            (-38.0_f64).to_bits()
+        );
+        assert_eq!(
+            call(uniffi_hyperwhisper_core_fn_func_no_speech_low_signal_non_silent_ratio).to_bits(),
+            0.06_f64.to_bits()
+        );
+    }
 }

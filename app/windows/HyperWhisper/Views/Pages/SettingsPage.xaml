@@ -19,8 +19,9 @@
         <!-- Sidebar Navigation -->
         <Border Grid.Column="0" Background="{DynamicResource SidebarBackgroundBrush}"
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
-            <StackPanel>
-                <!-- Section List -->
+            <!-- Section List. The Border's direct child, not inside a StackPanel, so
+                 it gets the page's height and its own ScrollViewer scrolls when the
+                 window is shrunk to a short work area (issue #1500). -->
                 <ListBox x:Name="SectionList" Background="Transparent" BorderThickness="0"
                          SelectionChanged="SectionList_SelectionChanged"
                          Padding="8,14,8,0">
@@ -130,7 +131,6 @@
                         </StackPanel>
                     </ListBoxItem>
                 </ListBox>
-            </StackPanel>
         </Border>
 
         <!-- Content Area - Frame for section pages -->

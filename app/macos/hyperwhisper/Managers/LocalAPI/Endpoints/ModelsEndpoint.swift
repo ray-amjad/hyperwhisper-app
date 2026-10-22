@@ -74,12 +74,13 @@ enum ModelsEndpoint {
         }
     }
 
-    private static func parseSizeMB(_ description: String?) -> Double? {
+    static func parseSizeMB(_ description: String?) -> Double? {
         guard let s = description?.lowercased() else { return nil }
-        // Accept "474 MB", "2.96 GB", "1.5 gb", "Built-in" (returns nil) etc.
+        // Accept "474 MB", "2.96 GB", "1.5 gb", "~665 MB", "Built-in" (returns nil) etc.
         if s.contains("built-in") { return nil }
         let scanner = Scanner(string: s)
-        scanner.charactersToBeSkipped = .whitespaces
+        // The Nemotron and Qwen3 labels lead with "~", which scanDouble refuses.
+        scanner.charactersToBeSkipped = CharacterSet.whitespaces.union(CharacterSet(charactersIn: "~"))
         var value: Double = 0
         guard scanner.scanDouble(&value) else { return nil }
         if s.contains("gb") { return value * 1024 }

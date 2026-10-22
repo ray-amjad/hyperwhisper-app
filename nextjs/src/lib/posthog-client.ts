@@ -1,10 +1,35 @@
 import type { PostHog } from "posthog-js";
 
 import { env } from "@env/client.mjs";
+import {
+  hasAccountKeyParam,
+  redactAccountKeyFromEvent,
+  withoutAccountKeyParams,
+} from "@/src/lib/account-key-redaction";
 
 const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
 
 let client: Promise<PostHog | null> | undefined;
+
+/**
+ * Takes the Account Key out of the address bar, on every page, before PostHog
+ * reads it (#1901). `init` stores the page URL as `$initial_current_url` and
+ * sends it in the `/flags/` request body, which `before_send` never sees. A
+ * URL with no key is left alone: rewriting it would re-encode its query.
+ */
+export function stripAccountKeyFromAddressBar(): void {
+  if (typeof window === "undefined") return;
+
+  const { href } = window.location;
+
+  if (!hasAccountKeyParam(href)) return;
+
+  window.history.replaceState(
+    window.history.state,
+    "",
+    withoutAccountKeyParams(href),
+  );
+}
 
 /**
  * Loads `posthog-js` in its own chunk and initialises it. The import and the
@@ -16,9 +41,15 @@ async function importAndInit(apiKey: string): Promise<PostHog | null> {
   try {
     const { default: posthog } = await import("posthog-js");
 
+    stripAccountKeyFromAddressBar();
     posthog.init(apiKey, {
       api_host: env.NEXT_PUBLIC_POSTHOG_HOST ?? DEFAULT_POSTHOG_HOST,
       person_profiles: "always",
+      // Unhandled errors and rejections reach error tracking once PostHog has
+      // loaded (#739). `before_send` below redacts them like any other event.
+      capture_exceptions: true,
+      // The Account Key can be in the page URL (#1897): never send it.
+      before_send: redactAccountKeyFromEvent,
     });
 
     return posthog;

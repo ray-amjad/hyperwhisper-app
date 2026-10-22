@@ -131,6 +131,9 @@
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>名称未設定</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>その他...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>ファイルを文字起こし</value>
   </data>
@@ -226,6 +229,12 @@
   </data>
   <data name="history.status.retrying" xml:space="preserve">
     <value>再試行中...</value>
+  </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>別のプログラムが履歴データベースをロックしています。録音は保持されており、データベースが空き次第、履歴に保存されます。</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>この録音をまだ履歴に保存できませんでした。録音は保持されており、後で履歴に保存されます。</value>
   </data>
 
   <!-- Modes Page -->
@@ -408,6 +417,9 @@
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>ログイン時にHyperWhisperを自動的に起動します。</value>
+  </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>テスト用プロファイルでは利用できません。このビルドは別のアプリデータフォルダーを使用するため、インストール済みアプリのログイン項目は変更しません。</value>
   </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>最小化して起動</value>
@@ -875,6 +887,12 @@
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (準備完了)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (未有効化)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (APIキーなし)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>読み込み失敗</value>
   </data>
@@ -905,6 +923,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>ファイルの文字起こしをキャンセルしました</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>ファイルを文字起こし中...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>不明</value>
   </data>
@@ -928,11 +949,11 @@
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>文字起こしに失敗しました: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>再試行に使用できるモードがありません。</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>再試行に失敗しました: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>この録音を作成したモードは削除されたため、再試行されませんでした。履歴で録音を右クリックし、「再試行...」を選んで別のモードを選択してください。</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>録音が停止しました — 20分の安全制限に達しました。</value>
@@ -1169,6 +1190,9 @@
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Ctrl、Alt、Shift、Win などの修飾キー単体のショートカットはサポートされていません。修飾キーと組み合わせたキー、または Ctrl+Win のような複数修飾キーのショートカットを使用してください。</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>修飾キーのないショートカットには、ファンクションキーまたは Esc のみ使用できます。それ以外のキーは入力中にも反応してしまいます。</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>このショートカットは既に{0}に割り当てられています（{1}）</value>
   </data>
@@ -1209,6 +1233,9 @@
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>エラー: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Windows のアプリケーション制御により、HyperWhisper に必要なファイル {0} がブロックされました。IT 管理者に HyperWhisper の許可を依頼するか、Windows セキュリティでスマート アプリ コントロールを確認してください。</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>起動時に開始の有効化に失敗しました。スタートアップ設定を変更する権限があるか確認してください。</value>
@@ -1240,6 +1267,12 @@
     <value>{0}の削除に失敗しました:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>使用中のモデル</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} はモード「{1}」で使用されています。削除する前に、そのモードを別のモデルに切り替えてください。</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1365,6 +1398,9 @@
   <data name="license.error.enterKey" xml:space="preserve">
     <value>ライセンスキーを入力してください。</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>アカウントキーの形式ではないようです。</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1390,8 +1426,17 @@
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>ファイルが見つかりません</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>録音またはファイルの文字起こしが既に実行中です。完了してからもう一度ファイルをお試しください。</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>このプロバイダーにはファイルが大きすぎます。最大サイズ: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>このファイルは空のため、文字起こしする音声がありません。</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>このファイルは破損しているか、HyperWhisper が読み込めるオーディオファイルではありません。</value>
   </data>
 
   <!-- Update UI -->
@@ -1844,12 +1889,36 @@
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>音声をミュート</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>音声をこもらせる</value>
+  </data>
   <!-- Synced fallback strings -->
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>マイクを待機状態に保つ</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>録音と録音の間も静かな入力ストリームを開いたままにして、開始時の遅延を減らします。Bluetooth マイクで特に効果があります。</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>HyperWhisper でのみ使用されます。再起動後も保持されます。</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>デフォルト · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0}（未接続）</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>{1} が再接続されるまで {0} を使用します。</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>マイクが接続されていません。{0} が再接続されると、HyperWhisper はそれを使用します。</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>テスト</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>停止</value>
   </data>
 
   <!-- Synced fallback strings -->

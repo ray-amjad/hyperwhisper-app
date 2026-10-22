@@ -37,8 +37,19 @@ public partial class HyperWhisperCloudService
         // Get fresh credentials at request time (matches macOS behavior)
         var (identifier, isLicensed) = LicenseManager.Instance.GetTranscriptionIdentifier();
 
+        // Fail fast, as transcription does: the backend answers 401 "License
+        // required" to a device-id request, so an unlicensed call is doomed.
+        // The Local API turns this into MISSING_API_KEY (issue #1487).
+        if (!isLicensed)
+        {
+            throw new TranscriptionException(
+                TranscriptionErrorCode.CloudAccountRequired,
+                "HyperWhisper Cloud requires an account key",
+                "HyperWhisper Cloud");
+        }
+
         LoggingService.Info("========== HYPERWHISPER CLOUD POST-PROCESS ==========");
-        LoggingService.Info($"  Auth: {(isLicensed ? "License Key" : "Device Credits")}");
+        LoggingService.Info("  Auth: License Key");
         LoggingService.Info($"  Text length: {text.Length} chars");
         LoggingService.Debug($"  Prompt length: {prompt.Length} chars");
 
@@ -46,18 +57,9 @@ public partial class HyperWhisperCloudService
         var body = new Dictionary<string, string>
         {
             ["text"] = text,
-            ["prompt"] = prompt
+            ["prompt"] = prompt,
+            ["license_key"] = identifier
         };
-
-        // Add authentication using fresh credentials
-        if (isLicensed)
-        {
-            body["license_key"] = identifier;
-        }
-        else
-        {
-            body["device_id"] = identifier;
-        }
 
         var jsonBody = JsonSerializer.Serialize(body);
 
@@ -86,7 +88,7 @@ public partial class HyperWhisperCloudService
 
                 // Snapshot the current client so a concurrent rebuild can't dispose it mid-flight.
                 var client = Volatile.Read(ref _httpClient);
-                var response = await client.SendAsync(request, cancellationToken);
+                using var response = await client.SendAsync(request, cancellationToken);
                 LoggingService.Debug($"  Post-process response: status={(int)response.StatusCode} · httpVersion={response.Version}");
 
                 if (!response.IsSuccessStatusCode)

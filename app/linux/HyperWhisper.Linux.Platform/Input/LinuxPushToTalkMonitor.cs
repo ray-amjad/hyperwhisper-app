@@ -46,7 +46,10 @@ public sealed class LinuxPushToTalkMonitor : IPushToTalkMonitor
     /// <summary>One slot per <see cref="PortablePttTimer"/>, indexed by the enum.</summary>
     private readonly IDisposable?[] _timers = new IDisposable?[3];
     private bool _disposed;
-    public LinuxPushToTalkMonitor() : this(new LinuxGlobalShortcutService(), new PushToTalkScheduler()) { }
+    // Push-to-talk is held, so a modifier-only chord must report its press, not
+    // wait for its release like the interaction shortcuts do (#1511).
+    public LinuxPushToTalkMonitor()
+        : this(new LinuxGlobalShortcutService(X11ModifierOnlyTrigger.OnPress), new PushToTalkScheduler()) { }
     internal LinuxPushToTalkMonitor(IGlobalShortcutService shortcuts, IPushToTalkScheduler? scheduler = null)
     {
         _shortcuts = shortcuts; _scheduler = scheduler ?? new PushToTalkScheduler();

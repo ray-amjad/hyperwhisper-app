@@ -50,7 +50,8 @@ import { transcribeWithAssemblyAIDictation } from './assemblyai-dictation';
 import { MEDICAL_DOMAIN } from '../lib/stt-models';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, readErrorBodyPreview, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson } from './utils';
+import { computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson } from './utils';
+import { readUpstreamError, upstreamErrorLogFields, upstreamErrorReason, type UpstreamErrorRead } from './upstream-error';
 
 const ASSEMBLYAI_BASE = 'https://api.assemblyai.com';
 const ASSEMBLYAI_SYNC_BASE = 'https://sync.assemblyai.com';
@@ -250,7 +251,8 @@ function filterKeytermsByWordCount(terms: string[]): string[] {
 }
 
 /** Map an upstream HTTP failure to the right chain-control error. */
-function throwForStatus(status: number, bodyPreview: string): never {
+function throwForStatus({ fields, classifierText }: UpstreamErrorRead): never {
+  const { status } = fields;
   if (status === 401 || status === 403) {
     throw new Error('AssemblyAI API key is invalid or unauthorized');
   }
@@ -266,7 +268,9 @@ function throwForStatus(status: number, bodyPreview: string): never {
   if (status >= 500) {
     throw new ProviderUnavailableError('AssemblyAI', `upstream 5xx: ${status}`);
   }
-  throw new ProviderInputError('AssemblyAI', status, bodyPreview || `HTTP ${status}`);
+  // The message (logged) names the error code only; the body preview stays
+  // in the client's 400, as before (#2163).
+  throw new ProviderInputError('AssemblyAI', status, upstreamErrorReason(fields), classifierText || `HTTP ${status}`);
 }
 
 /**
@@ -339,8 +343,8 @@ async function transcribeWithAssemblyAISync(
   }
 
   if (!response.ok) {
-    const bodyPreview = await readErrorBodyPreview(response);
-    logProviderEvent(provider, 'sync_fallback', { reason: 'http_error', status: response.status, bodyPreview }, context);
+    const { fields } = await readUpstreamError(response);
+    logProviderEvent(provider, 'sync_fallback', { reason: 'http_error', ...upstreamErrorLogFields(fields) }, context);
     return null;
   }
 
@@ -487,7 +491,26 @@ export async function transcribeWithAssemblyAI(
   logProviderEvent(provider, 'prepare', {
     model, medical, audioBytes: audio.byteLength, contentType, language: language || 'auto',
   }, context);
+  const uploadUrl = await uploadAudio(audio, apiKey, context);
 
+  // ── 2. Create the transcript job ──
+  const { createBody, keyterms } = buildTranscriptJob(uploadUrl, language, initialPrompt, medical, model);
+  const transcriptId = await createTranscriptJob(createBody, apiKey, context);
+
+  logProviderEvent(provider, 'job_created', { model, medical, transcriptId, keytermCount: keyterms.length }, context);
+
+  // ── 3. Poll until completed / error ──
+  return pollUntilTerminal(transcriptId, apiKey, context, { model, medical, keyterms, audio, startedAt });
+}
+
+/** Step 1 of the async flow: upload the raw audio bytes and return the
+ * `upload_url` AssemblyAI hands back. */
+async function uploadAudio(
+  audio: ArrayBuffer,
+  apiKey: string,
+  context: ProviderRequestContext,
+): Promise<string> {
+  const provider = 'assemblyai';
   const uploadResp = await fetchWithTimeout(provider, `${ASSEMBLYAI_BASE}/v2/upload`, {
     method: 'POST',
     headers: { ...authHeaders(apiKey), 'Content-Type': 'application/octet-stream' },
@@ -495,19 +518,30 @@ export async function transcribeWithAssemblyAI(
   }, context, computeUploadTimeoutMs(audio.byteLength));
 
   if (!uploadResp.ok) {
-    const bodyPreview = await readErrorBodyPreview(uploadResp);
-    logProviderEvent(provider, 'http_error', { phase: 'upload', status: uploadResp.status, bodyPreview }, context);
-    throwForStatus(uploadResp.status, bodyPreview);
+    const upstreamError = await readUpstreamError(uploadResp);
+    logProviderEvent(provider, 'http_error', { phase: 'upload', ...upstreamErrorLogFields(upstreamError.fields) }, context);
+    throwForStatus(upstreamError);
   }
 
-  const uploadUrl = await readRequiredJsonString(uploadResp, {
+  return readRequiredJsonString(uploadResp, {
     provider: 'AssemblyAI',
     field: 'upload_url',
     malformedMessage: 'malformed upload response',
     missingMessage: 'upload returned no upload_url',
   });
+}
 
-  // ── 2. Create the transcript job ──
+/** Step 2a of the async flow: the transcript-job request body. Pure, so the
+ * `language_code` and `speech_models` rules can be tested without `fetch`.
+ * Also returns the keyterms it put in the body: the caller logs their count
+ * and bills the keyterms add-on on it. */
+export function buildTranscriptJob(
+  uploadUrl: string,
+  language: string | undefined,
+  initialPrompt: string | undefined,
+  medical: boolean,
+  model: string,
+): { createBody: Record<string, unknown>; keyterms: string[] } {
   // `speech_models` is a priority/fallback list: AssemblyAI tries each model in
   // order and falls back to the next for languages the prior one doesn't cover.
   // universal-3-5-pro natively supports 18 languages, so we append universal-2 to reach
@@ -549,6 +583,16 @@ export async function transcribeWithAssemblyAI(
     createBody.domain = MEDICAL_DOMAIN_VALUE;
   }
 
+  return { createBody, keyterms };
+}
+
+/** Step 2b of the async flow: create the transcript job and return its id. */
+async function createTranscriptJob(
+  createBody: Record<string, unknown>,
+  apiKey: string,
+  context: ProviderRequestContext,
+): Promise<string> {
+  const provider = 'assemblyai';
   const createResp = await fetchWithTimeout(provider, `${ASSEMBLYAI_BASE}/v2/transcript`, {
     method: 'POST',
     headers: { ...authHeaders(apiKey), 'Content-Type': 'application/json' },
@@ -556,21 +600,34 @@ export async function transcribeWithAssemblyAI(
   }, context);
 
   if (!createResp.ok) {
-    const bodyPreview = await readErrorBodyPreview(createResp);
-    logProviderEvent(provider, 'http_error', { phase: 'create', status: createResp.status, bodyPreview }, context);
-    throwForStatus(createResp.status, bodyPreview);
+    const upstreamError = await readUpstreamError(createResp);
+    logProviderEvent(provider, 'http_error', { phase: 'create', ...upstreamErrorLogFields(upstreamError.fields) }, context);
+    throwForStatus(upstreamError);
   }
 
-  const transcriptId = await readRequiredJsonString(createResp, {
+  return readRequiredJsonString(createResp, {
     provider: 'AssemblyAI',
     field: 'id',
     malformedMessage: 'malformed create response',
     missingMessage: 'create returned no transcript id',
   });
+}
 
-  logProviderEvent(provider, 'job_created', { model, medical, transcriptId, keytermCount: keyterms.length }, context);
-
-  // ── 3. Poll until completed / error ──
+/** Step 3 of the async flow: poll the transcript until it is completed or
+ * failed, then decode and bill the result. Always deletes the transcript. */
+async function pollUntilTerminal(
+  transcriptId: string,
+  apiKey: string,
+  context: ProviderRequestContext,
+  { model, medical, keyterms, audio, startedAt }: {
+    model: string;
+    medical: boolean;
+    keyterms: string[];
+    audio: ArrayBuffer;
+    startedAt: number;
+  },
+): Promise<TranscriptionResult> {
+  const provider = 'assemblyai';
   // Wrap polling in try/finally so the created transcript is deleted on ANY exit
   // path (success, throw, or poll-deadline) — otherwise a timeout/throw leaks the
   // job upstream. Best-effort; failures are logged but never mask the result.
@@ -592,11 +649,11 @@ export async function transcribeWithAssemblyAI(
       if (!pollResp.ok) {
         // Transient poll error — retry until the deadline rather than failing the
         // whole job on a single blip; hard-fail only on auth.
-        const bodyPreview = await readErrorBodyPreview(pollResp);
+        const { fields } = await readUpstreamError(pollResp);
         if (pollResp.status === 401 || pollResp.status === 403) {
           throw new Error('AssemblyAI API key is invalid or unauthorized');
         }
-        logProviderEvent(provider, 'poll_http_error', { status: pollResp.status, bodyPreview, polls }, context);
+        logProviderEvent(provider, 'poll_http_error', { ...upstreamErrorLogFields(fields), polls }, context);
         continue;
       }
 
@@ -675,8 +732,10 @@ export async function transcribeWithAssemblyAI(
 
       if (job.status === 'error') {
         // Failed transcript returns HTTP 200 + status:"error" — a bad-input signal.
-        logProviderEvent(provider, 'job_error', { model, polls, message: job.error }, context);
-        throw new ProviderInputError('AssemblyAI', 422, job.error || 'transcription failed');
+        // `job.error` is AssemblyAI's free text and is never logged (#2163):
+        // its length only. It still reaches the client's 400.
+        logProviderEvent(provider, 'job_error', { model, polls, errorMessageLength: job.error?.length ?? 0 }, context);
+        throw new ProviderInputError('AssemblyAI', 422, 'transcription failed', job.error || 'transcription failed');
       }
       // queued | processing → keep polling
     }

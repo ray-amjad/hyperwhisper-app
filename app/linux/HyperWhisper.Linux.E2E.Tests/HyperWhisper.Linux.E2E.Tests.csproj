@@ -7,6 +7,15 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
+  <!-- This harness loads a real model, and HyperWhisper.LocalInference carries
+       only Whisper.net's managed API since issue #1194: the same runtimes as
+       the Linux head. -->
+  <ItemGroup>
+    <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
+    <PackageReference Include="Whisper.net.Runtime.Vulkan" Version="1.9.1" />
+    <PackageReference Include="Whisper.net.Runtime.Cuda12" Version="1.9.1" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.Application/HyperWhisper.Application.csproj" />
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.LocalInference/HyperWhisper.LocalInference.csproj" />

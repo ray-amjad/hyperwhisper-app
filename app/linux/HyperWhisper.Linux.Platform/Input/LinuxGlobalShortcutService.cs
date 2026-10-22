@@ -22,7 +22,7 @@ public sealed class LinuxGlobalShortcutService : IGlobalShortcutService, IShortc
     private readonly object _gate = new();
     private readonly IEvdevSourceFactory _sourceFactory;
     private readonly IGlobalShortcutDiagnostics? _diagnostics;
-    private readonly EvdevShortcutFilter _filter = new();
+    private readonly EvdevShortcutFilter _filter;
     private readonly IGlobalShortcutService? _x11;
     private IReadOnlyList<IEvdevSource> _sources = [];
     private CancellationTokenSource? _cancellation;
@@ -30,16 +30,21 @@ public sealed class LinuxGlobalShortcutService : IGlobalShortcutService, IShortc
     private bool _disposed;
     private volatile bool _interferenceArmed;
 
-    public LinuxGlobalShortcutService() : this(new LinuxKeyboardSourceFactory(), null,
-        IsTrueXorgSession() ? new X11GlobalShortcutService() : null) { }
+    public LinuxGlobalShortcutService() : this(X11ModifierOnlyTrigger.OnCleanRelease) { }
+
+    /// <param name="modifierOnly">When a modifier-only shortcut fires, on X11 (#1511) and evdev (#1725).</param>
+    internal LinuxGlobalShortcutService(X11ModifierOnlyTrigger modifierOnly) : this(new LinuxKeyboardSourceFactory(), null,
+        IsTrueXorgSession() ? new X11GlobalShortcutService(modifierOnly) : null, modifierOnly) { }
 
     internal LinuxGlobalShortcutService(
         IEvdevSourceFactory sourceFactory,
         IGlobalShortcutDiagnostics? diagnostics) : this(sourceFactory, diagnostics, null) { }
 
     internal LinuxGlobalShortcutService(IEvdevSourceFactory sourceFactory,
-        IGlobalShortcutDiagnostics? diagnostics, IGlobalShortcutService? x11)
+        IGlobalShortcutDiagnostics? diagnostics, IGlobalShortcutService? x11,
+        X11ModifierOnlyTrigger modifierOnly = X11ModifierOnlyTrigger.OnCleanRelease)
     {
+        _filter = new EvdevShortcutFilter(modifierOnly);
         _sourceFactory = sourceFactory ?? throw new ArgumentNullException(nameof(sourceFactory));
         _diagnostics = diagnostics;
         _x11 = x11;

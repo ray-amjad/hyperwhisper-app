@@ -17,14 +17,14 @@
                     Background="{DynamicResource InfoBackgroundBrush}"
                     BorderBrush="{DynamicResource InfoBorderBrush}"
                     BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,16">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets"
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Left" Text="&#xE946;" FontFamily="Segoe MDL2 Assets"
                                Foreground="{DynamicResource InfoForegroundBrush}"
                                VerticalAlignment="Center" Margin="0,0,8,0" FontSize="14"/>
                     <TextBlock Text="{loc:Loc mode.editor.arm64.info}"
                                Foreground="{DynamicResource InfoForegroundBrush}"
                                TextWrapping="Wrap" FontSize="12"/>
-                </StackPanel>
+                </DockPanel>
             </Border>
 
             <!-- ============================================================
@@ -286,15 +286,15 @@
                             Background="{DynamicResource InfoBackgroundBrush}"
                             BorderBrush="{DynamicResource InfoBorderBrush}"
                             BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,16">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets"
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Left" Text="&#xE946;" FontFamily="Segoe MDL2 Assets"
                                        Foreground="{DynamicResource InfoForegroundBrush}"
                                        VerticalAlignment="Top" Margin="0,2,8,0" FontSize="14"/>
                             <TextBlock x:Name="VocabularyWarningText"
                                        Text="{loc:Loc mode.editor.warning.vocabularyUnsupported}"
                                        Foreground="{DynamicResource InfoForegroundBrush}"
                                        TextWrapping="Wrap" FontSize="12"/>
-                        </StackPanel>
+                        </DockPanel>
                     </Border>
 
                     <!-- Deepgram Nova-3 Auto-Detect Warning -->
@@ -302,14 +302,14 @@
                             Background="{DynamicResource InfoBackgroundBrush}"
                             BorderBrush="{DynamicResource InfoBorderBrush}"
                             BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,16">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets"
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Left" Text="&#xE946;" FontFamily="Segoe MDL2 Assets"
                                        Foreground="{DynamicResource InfoForegroundBrush}"
                                        VerticalAlignment="Top" Margin="0,2,8,0" FontSize="14"/>
                             <TextBlock Text="{loc:Loc mode.editor.warning.nova3AutoDetect}"
                                        Foreground="{DynamicResource InfoForegroundBrush}"
                                        TextWrapping="Wrap" FontSize="12"/>
-                        </StackPanel>
+                        </DockPanel>
                     </Border>
 
                     <!-- Language -->
@@ -547,11 +547,11 @@
                                          TextWrapping="Wrap"
                                          AcceptsReturn="True"
                                          VerticalScrollBarVisibility="Auto"
-                                         MaxLength="2000"
+                                         MaxLength="8000"
                                          Height="100"
                                          Margin="0,4,0,0"
                                          TextChanged="UserPromptBox_TextChanged"/>
-                                <TextBlock x:Name="UserPromptCharCount" Text="0/2000" FontSize="11"
+                                <TextBlock x:Name="UserPromptCharCount" Text="0/8000" FontSize="11"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            HorizontalAlignment="Right" Margin="0,4,0,0"/>
                             </StackPanel>

@@ -33,7 +33,7 @@ public class AudioPlaybackService : IDisposable
     // =========================================================================
 
     private WaveOutEvent? _waveOut;
-    private AudioFileReader? _audioFile;
+    private DecodedAudioFile? _audioFile;
     private System.Timers.Timer? _positionTimer;
     private bool _disposed;
 
@@ -99,9 +99,11 @@ public class AudioPlaybackService : IDisposable
             }
 
             // Load the new file
-            _audioFile = new AudioFileReader(audioPath);
+            // AudioFileDecoder, not AudioFileReader: History keeps a cloud-mode imported
+            // file as is, and a WAVE_FORMAT_EXTENSIBLE WAV would go to ACM and fail (#1450).
+            _audioFile = AudioFileDecoder.Open(audioPath);
             _waveOut = new WaveOutEvent();
-            _waveOut.Init(_audioFile);
+            _waveOut.Init(CreatePlaybackProvider(_audioFile));
 
             // Subscribe to playback stopped event
             _waveOut.PlaybackStopped += OnPlaybackStopped;
@@ -179,7 +181,7 @@ public class AudioPlaybackService : IDisposable
         // Reset position to beginning
         if (_audioFile != null)
         {
-            _audioFile.Position = 0;
+            _audioFile.Stream.Position = 0;
         }
 
         LoggingService.Debug("AudioPlaybackService: Stopped playback");
@@ -218,7 +220,7 @@ public class AudioPlaybackService : IDisposable
             position = TotalDuration;
         }
 
-        _audioFile.CurrentTime = position;
+        _audioFile.Stream.CurrentTime = position;
         PositionChanged?.Invoke(position);
     }
 
@@ -226,15 +228,31 @@ public class AudioPlaybackService : IDisposable
     // PRIVATE METHODS
     // =========================================================================
 
+    /// <summary>
+    /// What WaveOut plays. A file NAudio's AudioFileReader opened plays exactly as it always
+    /// did. Anything with more than two channels is folded to mono first: WinMM takes a
+    /// multichannel stream only as WAVE_FORMAT_EXTENSIBLE, which NAudio does not hand it, and
+    /// History has one speaker to play back anyway.
+    /// </summary>
+    internal static IWaveProvider CreatePlaybackProvider(DecodedAudioFile audio)
+    {
+        if (audio.WaveFormat.Channels > 2)
+        {
+            return AudioFileDecoder.ToMono(audio.Samples).ToWaveProvider();
+        }
+
+        return audio.Stream is AudioFileReader reader ? reader : audio.Samples.ToWaveProvider();
+    }
+
     private void OnPlaybackStopped(object? sender, StoppedEventArgs e)
     {
         StopPositionTimer();
 
         // Check if we reached the end of the file
-        if (_audioFile != null && _audioFile.Position >= _audioFile.Length)
+        if (_audioFile != null && _audioFile.Stream.Position >= _audioFile.Stream.Length)
         {
             // Reset to beginning
-            _audioFile.Position = 0;
+            _audioFile.Stream.Position = 0;
             PositionChanged?.Invoke(TimeSpan.Zero);
             PlaybackEnded?.Invoke();
             LoggingService.Debug("AudioPlaybackService: Playback ended (reached end of file)");
@@ -256,7 +274,7 @@ public class AudioPlaybackService : IDisposable
         {
             if (_audioFile != null)
             {
-                PositionChanged?.Invoke(_audioFile.CurrentTime);
+                PositionChanged?.Invoke(_audioFile.Stream.CurrentTime);
             }
         };
         _positionTimer.Start();

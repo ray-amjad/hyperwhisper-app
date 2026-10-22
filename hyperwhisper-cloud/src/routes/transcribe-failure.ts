@@ -5,7 +5,7 @@ import {
   servedNameFor,
   type SttProviderId,
 } from '../lib/stt-models';
-import type { ProviderInputError } from '../providers/types';
+import type { ProviderAuthError, ProviderInputError } from '../providers/types';
 
 interface AttemptFailure {
   provider: SttProviderId;
@@ -23,6 +23,7 @@ interface ProviderChainFailureInput {
   attemptFailures: AttemptFailure[];
   lastError: Error | undefined;
   lastInputError: ProviderInputError | undefined;
+  lastAuthError?: ProviderAuthError;
   sawUnavailable: boolean;
 }
 
@@ -37,8 +38,25 @@ export function providerChainFailureResponse({
   attemptFailures,
   lastError,
   lastInputError,
+  lastAuthError,
   sawUnavailable,
 }: ProviderChainFailureInput): Response {
+  // One provider rejected OUR key and no sibling could serve the request. The
+  // key is the fault to surface: a 400 would blame the user's input and a 429
+  // would invite retries against a key that will keep failing. Same 500 and
+  // message a bad key gave before the chain tried siblings for it.
+  if (lastAuthError) {
+    logEvent(requestId, startTime, 'transcribe.request_fail', {
+      kind: 'non_retryable',
+      provider,
+      fallbackCount,
+      attemptFailures,
+      status: lastAuthError.status,
+      message: lastAuthError.message,
+    });
+    return errorResponse(500, 'Transcription failed', lastAuthError.message, { requestId });
+  }
+
   // Every provider rejected the input with a non-auth 4xx and none was merely
   // unavailable. The input itself is the problem, so a retry will not help.
   if (lastInputError && !sawUnavailable) {

@@ -145,6 +145,14 @@ enum LocalAPIResponder {
     /// (`RustRetry.swift`), which turns a Rust `HwTranscriptionError` into the
     /// `TranscriptionError` this function consumes, and is upstream of it.
     static func mapTranscriptionError(_ error: Error) -> (LocalAPIErrorCode, String, String?) {
+        // A request-shape error the head already worded (issue #1493: a
+        // missing Whisper model, a named Nemotron model that is not
+        // installed) passes through verbatim. The shared table has no row
+        // that carries those words: its INVALID_REQUEST row has no hint, and
+        // its MODEL_NOT_INSTALLED message ignores the `model` slot.
+        if let input = error as? TranscribeEndpoint.APIInputError {
+            return (input.code, input.message, input.hint)
+        }
         let (reason, params) = transcriptionFailure(for: error)
         let failure = localApiMapTranscriptionError(reason: reason, params: params)
         return (LocalAPIErrorCode(shared: failure.code), failure.message, failure.hint)
@@ -230,12 +238,14 @@ enum LocalAPIResponder {
             // billing prose, and the shared row carries the action in its hint.
             return (.quotaExceeded, slots(provider: provider))
         case .insufficientCredits:
-            // Same row. The `remaining`/`required` counts are dropped for the
-            // same reason the provider message is: the shared row's hint says
-            // what to do, and no other head has the numbers to render.
-            return (.quotaExceeded, slots())
+            // HyperWhisper Cloud's 402: its own row, because the BYOK row's
+            // hint points at a provider billing page Cloud does not have
+            // (#2089). The `remaining`/`required` counts are dropped: the
+            // shared row's hint says what to do, and no other head has the
+            // numbers to render.
+            return (.insufficientCredits, slots())
         default:
-            // Four cases stay here on purpose, and each would need a wording
+            // Five cases stay here on purpose, and each would need a wording
             // decision no head has made:
             //
             // * `.maxRetriesExceeded` and `.streamingInterrupted` — the
@@ -249,6 +259,9 @@ enum LocalAPIResponder {
             //   comment says the raw `reason` is for logs and must not be
             //   shown. ENGINE_UNAVAILABLE would put the wrong noun on the one
             //   route (`/post-process`) that produces it.
+            // * `.audioTooShort` — the engine is fine, so ENGINE_UNAVAILABLE
+            //   (what its old `providerNotAvailable` form gave) is wrong, and
+            //   the closed shared set has no "too short" reason (#1427).
             //
             // The generic row passes `localizedDescription` through verbatim,
             // which is exactly what this arm always did.

@@ -73,10 +73,14 @@ public sealed class LinuxSingleInstanceCoordinator : ISingleInstanceCoordinator
 
 public sealed class LinuxAutostartService : IAutostartService
 {
+    private const string OwnedMarker = "X-HyperWhisper-Autostart=true";
     private readonly string _path;
+    private readonly string _legacyPath;
     private readonly string _executable;
     private readonly IPrivateFileService _files;
     public LinuxAutostartService() : this(new LinuxAppPaths(), LaunchPath(Environment.ProcessPath ?? string.Empty, File.Exists), new LinuxPrivateFileService()) { }
+    private LinuxAutostartService(LinuxAppPaths paths, string executable, IPrivateFileService files)
+        : this(paths.XdgConfigHome, paths.ConfigDirectory, executable, files) { }
 
     // The .deb's /usr/bin/hyperwhisper sets MALLOC_ARENA_MAX before the runtime starts (#1088),
     // and ProcessPath is always the real binary, so a login start would skip it.
@@ -84,8 +88,16 @@ public sealed class LinuxAutostartService : IAutostartService
         processPath == "/usr/lib/hyperwhisper/HyperWhisper" && exists("/usr/bin/hyperwhisper")
             ? "/usr/bin/hyperwhisper"
             : processPath;
-    internal LinuxAutostartService(IAppPaths paths, string executable, IPrivateFileService files)
-    { _path = Path.Combine(paths.ConfigDirectory, "autostart", "hyperwhisper.desktop"); _executable = executable; _files = files; }
+    // The XDG Autostart spec reads only $XDG_CONFIG_HOME/autostart/. Builds before #2023 wrote the
+    // entry under the app's own config folder, where no session looks, so Enable and Disable also
+    // remove that stray copy.
+    internal LinuxAutostartService(string xdgConfigHome, string appConfigDirectory, string executable, IPrivateFileService files)
+    {
+        _path = Path.Combine(xdgConfigHome, "autostart", "hyperwhisper.desktop");
+        _legacyPath = Path.Combine(appConfigDirectory, "autostart", "hyperwhisper.desktop");
+        _executable = executable;
+        _files = files;
+    }
     public PlatformResult<bool> IsEnabled()
     {
         var read = _files.ReadAllText(_path);
@@ -97,8 +109,24 @@ public sealed class LinuxAutostartService : IAutostartService
         if (!Path.IsPathFullyQualified(_executable) || !File.Exists(_executable)) return PlatformResult.Failure("autostart.executable_missing", "The application executable is unavailable.");
         var quoted = _executable.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)
             .Replace("`", "\\`", StringComparison.Ordinal).Replace("$", "\\$", StringComparison.Ordinal);
-        var content = $"[Desktop Entry]\nType=Application\nName=HyperWhisper\nExec=\"{quoted}\"\nTerminal=false\nX-GNOME-Autostart-enabled=true\n";
-        return _files.WriteAllTextAtomically(_path, content);
+        var content = $"[Desktop Entry]\nType=Application\nName=HyperWhisper\nExec=\"{quoted}\"\nTerminal=false\nX-GNOME-Autostart-enabled=true\n{OwnedMarker}\n";
+        var written = _files.WriteAllTextAtomically(_path, content);
+        RemoveLegacyEntry();
+        return written;
     }
-    public PlatformResult Disable() => _files.Delete(_path);
+    // Startup calls Disable on every launch while the switch is off. GNOME Tweaks and KDE's
+    // Autostart page copy the .deb's launcher to this same path, so delete only an entry this
+    // service wrote. Its own entry is owner-only and reads back; a world-readable copy fails the
+    // private read with private_file_insecure, and any failed read counts as not ours.
+    public PlatformResult Disable()
+    {
+        RemoveLegacyEntry();
+        var read = _files.ReadAllText(_path);
+        return read.IsSuccess && read.Value is not null && read.Value.Contains(OwnedMarker, StringComparison.Ordinal)
+            ? _files.Delete(_path)
+            : PlatformResult.Success();
+    }
+    // Best effort: no session reads the stray copy, so failing to delete it must not turn a
+    // working switch into a reported failure.
+    private void RemoveLegacyEntry() => _files.Delete(_legacyPath);
 }

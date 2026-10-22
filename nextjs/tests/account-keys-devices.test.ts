@@ -384,8 +384,9 @@ describe("getDevicesForLicense", () => {
     await seedDevice(lic, "mid", daysAgo(10));
     await seedDevice(other, "foreign", daysAgo(0));
 
-    const rows = await L.getDevicesForLicense(lic);
+    const { devices: rows, total } = await L.getDevicesForLicense(lic);
 
+    assert.equal(total, 3);
     assert.deepEqual(
       rows.map((r) => [r.deviceId, r.deviceName]),
       [
@@ -405,12 +406,139 @@ describe("getDevicesForLicense", () => {
     await seedDevice(lic, "edge", daysAgo(29));
     await seedDevice(lic, "new", daysAgo(1));
 
-    const rows = await L.getDevicesForLicense(lic, 30);
+    const { devices: rows, total } = await L.getDevicesForLicense(lic, 30);
 
+    assert.equal(total, 2);
     assert.deepEqual(
       rows.map((r) => r.deviceId),
       ["new", "edge"],
     );
+  });
+});
+
+describe("getDevicesForLicense paging and search (#1661)", () => {
+  // 120 devices, one per minute, so the order is known: dev-000 is newest.
+  async function seedMany(lic: string, n: number): Promise<void> {
+    const now = Date.now();
+    await db.insert(schema.deviceValidations).values(
+      Array.from({ length: n }, (_, i) => {
+        const at = new Date(now - i * 60_000);
+        return {
+          licenseKeyId: lic,
+          deviceId: `dev-${String(i).padStart(3, "0")}`,
+          deviceName: `Mac ${i}`,
+          createdAt: at,
+          lastValidatedAt: at,
+        };
+      }),
+    );
+  }
+
+  test("returns 50 rows by default and the full total", async () => {
+    await seedUser("u1");
+    const lic = await seedKey("HW-PG1", "u1");
+    await seedMany(lic, 120);
+
+    const { devices, total } = await L.getDevicesForLicense(lic);
+
+    assert.equal(L.DEVICES_PAGE_SIZE, 50);
+    assert.equal(devices.length, 50);
+    assert.equal(total, 120);
+    assert.equal(devices[0].deviceId, "dev-000");
+    assert.equal(devices[49].deviceId, "dev-049");
+  });
+
+  test("limit and offset walk the list with no gap and no repeat", async () => {
+    await seedUser("u1");
+    const lic = await seedKey("HW-PG2", "u1");
+    await seedMany(lic, 120);
+
+    const seen: string[] = [];
+    for (let offset = 0; offset < 120; offset += 50) {
+      const page = await L.getDevicesForLicense(lic, undefined, { limit: 50, offset });
+      assert.equal(page.total, 120);
+      seen.push(...page.devices.map((d) => d.deviceId));
+    }
+
+    assert.equal(seen.length, 120);
+    assert.equal(new Set(seen).size, 120);
+    assert.equal(seen[50], "dev-050");
+    assert.equal(seen[119], "dev-119");
+  });
+
+  test("tied timestamps page in device id order", async () => {
+    await seedUser("u1");
+    const lic = await seedKey("HW-PG3", "u1");
+    const at = daysAgo(1);
+    for (const id of ["c", "a", "d", "b"]) await seedDevice(lic, id, at);
+
+    const first = await L.getDevicesForLicense(lic, undefined, { limit: 2, offset: 0 });
+    const second = await L.getDevicesForLicense(lic, undefined, { limit: 2, offset: 2 });
+
+    assert.deepEqual(
+      [...first.devices, ...second.devices].map((d) => d.deviceId),
+      ["a", "b", "c", "d"],
+    );
+  });
+
+  test("search matches the name or the id, case-insensitive, and counts only matches", async () => {
+    await seedUser("u1");
+    const lic = await seedKey("HW-PG4", "u1");
+    const other = await seedKey("HW-PG5", "u1");
+    await seedDevice(lic, "abc-111", daysAgo(1), "Studio MacBook");
+    await seedDevice(lic, "xyz-studio", daysAgo(2), null);
+    await seedDevice(lic, "def-222", daysAgo(3), "Office PC");
+    await seedDevice(other, "studio-elsewhere", daysAgo(0), "Studio");
+
+    const { devices, total } = await L.getDevicesForLicense(lic, undefined, {
+      search: "  STUDIO ",
+    });
+
+    assert.equal(total, 2);
+    assert.deepEqual(
+      devices.map((d) => d.deviceId),
+      ["abc-111", "xyz-studio"],
+    );
+  });
+
+  test("LIKE wildcards in the search match only themselves", async () => {
+    await seedUser("u1");
+    const lic = await seedKey("HW-PG6", "u1");
+    await seedDevice(lic, "plain", daysAgo(1), "Plain Mac");
+    await seedDevice(lic, "pct", daysAgo(2), "100% Mac");
+    await seedDevice(lic, "under_score", daysAgo(3), null);
+    await seedDevice(lic, "back", daysAgo(4), "C:\\Mac");
+
+    const pct = await L.getDevicesForLicense(lic, undefined, { search: "%" });
+    const under = await L.getDevicesForLicense(lic, undefined, { search: "_" });
+    const slash = await L.getDevicesForLicense(lic, undefined, { search: "\\" });
+
+    assert.deepEqual(pct.devices.map((d) => d.deviceId), ["pct"]);
+    assert.equal(pct.total, 1);
+    assert.deepEqual(under.devices.map((d) => d.deviceId), ["under_score"]);
+    assert.deepEqual(slash.devices.map((d) => d.deviceId), ["back"]);
+  });
+
+  test("search and the window combine, and a page past the end is empty with the total", async () => {
+    await seedUser("u1");
+    const lic = await seedKey("HW-PG7", "u1");
+    await seedDevice(lic, "mac-old", daysAgo(40), "Mac");
+    await seedDevice(lic, "mac-new", daysAgo(1), "Mac");
+
+    const inWindow = await L.getDevicesForLicense(lic, 30, { search: "mac" });
+    const past = await L.getDevicesForLicense(lic, undefined, { offset: 50 });
+
+    assert.deepEqual(inWindow.devices.map((d) => d.deviceId), ["mac-new"]);
+    assert.equal(inWindow.total, 1);
+    assert.deepEqual(past.devices, []);
+    assert.equal(past.total, 2);
+  });
+});
+
+describe("escapeLikePattern", () => {
+  test("escapes the three LIKE metacharacters and nothing else", () => {
+    assert.equal(L.escapeLikePattern("a%b_c\\d"), "a\\%b\\_c\\\\d");
+    assert.equal(L.escapeLikePattern("Ray's Mac"), "Ray's Mac");
   });
 });
 

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 import { Hono } from 'hono';
 import { computeCerebrasChatCost, computeGroqChatCost, creditsForCost } from '../lib/cost-calculator';
 
@@ -51,12 +51,22 @@ function buildApp(): Hono {
   return app;
 }
 
-function postProcessRequest(body: Record<string, unknown>, headers: Record<string, string> = {}): Request {
+// A `new Request` built in-process carries no Content-Length, but every real
+// client's JSON POST does, and the route requires it (the pre-parse size gate).
+function jsonRequest(raw: string, headers: Record<string, string> = {}): Request {
   return new Request('http://localhost/post-process', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
-    body: JSON.stringify(body),
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': String(Buffer.byteLength(raw)),
+      ...headers,
+    },
+    body: raw,
   });
+}
+
+function postProcessRequest(body: Record<string, unknown>, headers: Record<string, string> = {}): Request {
+  return jsonRequest(JSON.stringify(body), headers);
 }
 
 // Default fetch mock: any request to the license credits-recording endpoint
@@ -238,7 +248,109 @@ describe('postProcessRoute LLM provider chain', () => {
     expect(response.headers.get('X-LLM-Provider')).toBe('groq-gpt-oss-120b');
   });
 
-  test('returns 500 without falling back when the primary provider fails with a non-5xx error', async () => {
+  // #1565: a Cerebras 429 ended the request with a 500 (llm_failed_no_fallback)
+  // because shouldFallback() took a 5xx only. Groq has its own rate limit, so
+  // the fallback does fix a Cerebras 429.
+  test('falls back to groq when cerebras rate-limits with a 429', async () => {
+    let cerebrasCalls = 0;
+    let groqCalls = 0;
+    withProviders({
+      'api.cerebras.ai': () => {
+        cerebrasCalls += 1;
+        return new Response('rate limited', { status: 429 });
+      },
+      'api.groq.com': () => {
+        groqCalls += 1;
+        return Response.json(chatCompletion('Hello from groq.'));
+      },
+    });
+    const logSpy = spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      const response = await buildApp().fetch(
+        postProcessRequest({ text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' })
+      );
+      const body = await response.json() as { corrected: string };
+
+      expect(response.status).toBe(200);
+      expect(body.corrected).toBe('Hello from groq.');
+      expect(response.headers.get('X-LLM-Provider')).toBe('groq-gpt-oss-120b');
+      // cerebras keeps 0 same-provider retries: one 429, then straight to groq.
+      expect(cerebrasCalls).toBe(1);
+      expect(groqCalls).toBe(1);
+
+      const events = logSpy.mock.calls
+        .map((call) => String(call[0]))
+        .filter((raw) => raw.startsWith('{') && raw.includes('"event":"post_process.'))
+        .map((raw) => JSON.parse(raw) as Record<string, unknown>);
+      const fallbackStart = events.filter((line) => line.event === 'post_process.llm_fallback_start');
+      expect(fallbackStart).toHaveLength(1);
+      expect(fallbackStart[0]).toMatchObject({ requestedProvider: 'cerebras', provider: 'groq' });
+      expect(events.some((line) => line.reason === 'llm_failed_no_fallback')).toBe(false);
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
+  // #1568: groq keeps 3 same-provider retries, but a 429 from the requested
+  // provider skips them (1 s + 2 s + 4 s of waiting on a vendor that just said
+  // no) and goes straight to the fallback.
+  test('a groq 429 falls over to cerebras at once, with exactly 1 groq call', async () => {
+    let groqCalls = 0;
+    let cerebrasCalls = 0;
+    withProviders({
+      'api.groq.com': () => {
+        groqCalls += 1;
+        return new Response('rate limited', { status: 429 });
+      },
+      'api.cerebras.ai': () => {
+        cerebrasCalls += 1;
+        return Response.json(chatCompletion('Hello from cerebras.'));
+      },
+    });
+
+    const response = await buildApp().fetch(
+      postProcessRequest(
+        { text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' },
+        { 'X-LLM-Provider': 'groq' }
+      )
+    );
+    const body = await response.json() as { corrected: string };
+
+    expect(response.status).toBe(200);
+    expect(body.corrected).toBe('Hello from cerebras.');
+    expect(response.headers.get('X-LLM-Provider')).toBe('cerebras-gpt-oss-120b');
+    expect(groqCalls).toBe(1);
+    expect(cerebrasCalls).toBe(1);
+  });
+
+  // #1568 decision 2: the fallback has no provider after it, so a 429 from the
+  // fallback keeps its same-provider retries (groq: 1 attempt + 3 retries).
+  test('a 429 from the fallback provider keeps its same-provider retries', async () => {
+    let cerebrasCalls = 0;
+    let groqCalls = 0;
+    withProviders({
+      'api.cerebras.ai': () => {
+        cerebrasCalls += 1;
+        return new Response('rate limited', { status: 429 });
+      },
+      'api.groq.com': () => {
+        groqCalls += 1;
+        return new Response('rate limited', { status: 429 });
+      },
+    });
+
+    const response = await buildApp().fetch(
+      postProcessRequest({ text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' })
+    );
+
+    expect(response.status).toBe(500);
+    expect(cerebrasCalls).toBe(1);
+    expect(groqCalls).toBe(4);
+    // Real exponential backoff on the groq fallback (1 s + 2 s + 4 s).
+  }, 15000);
+
+  test('returns 500 without falling back when the primary provider fails with a 4xx other than 429', async () => {
     let groqCalled = false;
     withProviders({
       'api.cerebras.ai': () => new Response('bad request', { status: 400 }),
@@ -576,15 +688,193 @@ describe('postProcessRoute request gates', () => {
       },
     });
 
-    const response = await buildApp().fetch(new Request('http://localhost/post-process', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{"text": "hello wrld", "prompt":',
-    }));
+    const response = await buildApp().fetch(jsonRequest('{"text": "hello wrld", "prompt":'));
     const body = await response.json() as { error: string };
 
     expect(response.status).toBe(400);
     expect(body.error).toBe('Invalid JSON');
     expect(providerCalled).toBe(false);
+  });
+});
+
+describe('postProcessRoute size gate', () => {
+  beforeEach(() => {
+    cachedLicense = { isValid: true, credits: 1000, cachedAt: 'cached' };
+    ipBlocked = false;
+    cacheReads.length = 0;
+    process.env.CEREBRAS_API_KEY = 'test-cerebras-key';
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  function trackProvider(): { called: boolean } {
+    const state = { called: false };
+    withProviders({
+      'api.cerebras.ai': () => {
+        state.called = true;
+        return Response.json(chatCompletion('Hello world.'));
+      },
+    });
+    return state;
+  }
+
+  test('a Content-Length over 2 MB gets 413 before the body is read or auth runs', async () => {
+    const provider = trackProvider();
+    const request = postProcessRequest(
+      { text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk-oversized' },
+      { 'Content-Length': '3000000' },
+    );
+
+    const response = await buildApp().fetch(request);
+    const body = await response.json() as { error: string; max_size_bytes: number; content_length: number };
+
+    expect(response.status).toBe(413);
+    expect(body.error).toBe('Request too large');
+    expect(body.max_size_bytes).toBe(2 * 1024 * 1024);
+    expect(body.content_length).toBe(3_000_000);
+    expect(request.bodyUsed).toBe(false);
+    expect(cacheReads).toEqual([]);
+    expect(provider.called).toBe(false);
+  });
+
+  test('a request with no Content-Length gets 400 and never reaches auth', async () => {
+    const provider = trackProvider();
+    const response = await buildApp().fetch(new Request('http://localhost/post-process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk-noheader' }),
+    }));
+    const body = await response.json() as { error: string };
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe('Missing Content-Length');
+    expect(cacheReads).toEqual([]);
+    expect(provider.called).toBe(false);
+  });
+
+  test('a non-numeric Content-Length gets 400', async () => {
+    const response = await buildApp().fetch(postProcessRequest(
+      { text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk-bad' },
+      { 'Content-Length': 'abc' },
+    ));
+    const body = await response.json() as { error: string };
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe('Invalid Content-Length');
+    expect(cacheReads).toEqual([]);
+  });
+
+  test('a normal 1 KB body still reaches auth and the provider', async () => {
+    const provider = trackProvider();
+    const text = 'hello wrld '.repeat(90);
+    const response = await buildApp().fetch(
+      postProcessRequest({ text, prompt: 'fix grammar', account_key: 'lk-normal' })
+    );
+
+    expect(response.status).toBe(200);
+    expect(cacheReads).toEqual(['lk-normal']);
+    expect(provider.called).toBe(true);
+  });
+
+  test('a real body of exactly 2 MB passes the gate and is parsed', async () => {
+    const provider = trackProvider();
+    const limit = 2 * 1024 * 1024;
+    const base = { text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk-edge', pad: '' };
+    const raw = JSON.stringify({ ...base, pad: 'a'.repeat(limit - Buffer.byteLength(JSON.stringify(base))) });
+    expect(Buffer.byteLength(raw)).toBe(limit);
+
+    const response = await buildApp().fetch(jsonRequest(raw));
+
+    expect(response.status).toBe(200);
+    expect(cacheReads).toEqual(['lk-edge']);
+    expect(provider.called).toBe(true);
+  });
+
+  test('one byte over 2 MB gets 413', async () => {
+    const response = await buildApp().fetch(postProcessRequest(
+      { text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk-over' },
+      { 'Content-Length': String(2 * 1024 * 1024 + 1) },
+    ));
+
+    expect(response.status).toBe(413);
+    expect(cacheReads).toEqual([]);
+  });
+
+});
+
+// A 500's `message` is a fixed string (#2066). The failure's own text can hold
+// an upstream provider's error body or the name of a missing server env var;
+// that belongs in the logs, never in the reply.
+describe('postProcessRoute 500 replies do not echo the failure text', () => {
+  const GENERIC = 'The language model request failed. Please try again.';
+  const originalAnthropicKey = process.env.ANTHROPIC_API_KEY;
+  const UPSTREAM_BODY = '{"type":"error","error":{"type":"invalid_request_error","message":"UPSTREAM-INTERNAL-DETAIL org_abc123"}}';
+
+  beforeEach(() => {
+    cachedLicense = { isValid: true, credits: 1000, cachedAt: 'cached' };
+    process.env.CEREBRAS_API_KEY = 'test-cerebras-key';
+    process.env.GROQ_API_KEY = 'test-groq-key';
+    process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    if (originalAnthropicKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+    else process.env.ANTHROPIC_API_KEY = originalAnthropicKey;
+  });
+
+  async function readFailure(response: Response) {
+    const body = await response.json() as { error: string; message: string; requestId?: string };
+    expect(response.status).toBe(500);
+    expect(body.error).toBe('Post-processing failed');
+    expect(body.message).toBe(GENERIC);
+    expect(body.requestId).toBeString();
+    return body;
+  }
+
+  test('an upstream error body from a provider with no fallback is not echoed', async () => {
+    withProviders({ 'api.anthropic.com': () => new Response(UPSTREAM_BODY, { status: 400 }) });
+
+    const body = await readFailure(await buildApp().fetch(
+      postProcessRequest({ text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' }, { 'X-LLM-Provider': 'anthropic' })
+    ));
+
+    expect(JSON.stringify(body)).not.toContain('UPSTREAM-INTERNAL-DETAIL');
+  });
+
+  test('a missing provider key is not named to the client', async () => {
+    delete process.env.CEREBRAS_API_KEY;
+    withProviders({});
+
+    const body = await readFailure(await buildApp().fetch(
+      postProcessRequest({ text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' })
+    ));
+
+    expect(JSON.stringify(body)).not.toContain('CEREBRAS_API_KEY');
+  });
+
+  test('the fallback provider\'s error body is not echoed when both providers fail', async () => {
+    withProviders({
+      'api.cerebras.ai': () => new Response('server error', { status: 500 }),
+      'api.groq.com': () => new Response(UPSTREAM_BODY, { status: 500 }),
+    });
+
+    const body = await readFailure(await buildApp().fetch(
+      postProcessRequest({ text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' })
+    ));
+
+    expect(JSON.stringify(body)).not.toContain('UPSTREAM-INTERNAL-DETAIL');
+  }, 15000);
+
+  test('a reply with no extractable text gets the same fixed message', async () => {
+    withProviders({
+      'api.cerebras.ai': () => Response.json({ choices: [{ message: {}, finish_reason: 'stop' }], usage: usage() }),
+    });
+
+    await readFailure(await buildApp().fetch(
+      postProcessRequest({ text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' })
+    ));
   });
 });
