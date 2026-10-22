@@ -59,6 +59,12 @@ export function providerChainFailureResponse({
 
   // Every provider rejected the input with a non-auth 4xx and none was merely
   // unavailable. The input itself is the problem, so a retry will not help.
+  //
+  // A rejection from a provider gets a fixed message: the upstream's wording
+  // never reaches the client (#2131). A rejection the server wrote itself
+  // (`fromProvider` false: a WebSocket-only model, a missing explicit
+  // language, audio over a cap) is our own hint and is sent as before.
+  // `message` is content-free either way (#2163), so the log keeps it.
   if (lastInputError && !sawUnavailable) {
     logEvent(requestId, startTime, 'transcribe.request_fail', {
       kind: 'all_providers_rejected_input',
@@ -68,13 +74,17 @@ export function providerChainFailureResponse({
       message: lastInputError.message,
     });
     return errorResponse(400, 'Transcription input rejected',
-      `No transcription provider accepted this request: ${lastInputError.message}`,
+      lastInputError.fromProvider
+        ? 'No transcription provider accepted this audio or its settings (for example the language).'
+        : `No transcription provider accepted this request: ${lastInputError.message}`,
       { requestId, provider },
     );
   }
 
   // A self-only chain has no sibling that can absorb the failure. A 429 would
-  // incorrectly tell the client that a fallback retry is available.
+  // incorrectly tell the client that a fallback retry is available. The error
+  // is a network or parse failure the user cannot act on: log it, never echo
+  // it (#2131).
   if (isSelfOnly(provider)) {
     logEvent(requestId, startTime, 'transcribe.request_fail', {
       kind: 'self_only_chain_failed',
@@ -84,7 +94,7 @@ export function providerChainFailureResponse({
       message: lastError?.message,
     });
     return errorResponse(502, `${servedNameFor(provider)} unavailable`,
-      lastError?.message ?? `${servedNameFor(provider)} is currently unavailable. Please try again shortly.`,
+      `${servedNameFor(provider)} is currently unavailable. Please try again shortly.`,
       { requestId, provider },
     );
   }

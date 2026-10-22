@@ -19,9 +19,9 @@
  * the only way the tests reach the endpoint. A test file that imports the
  * plugin path itself would bind to the real collaborators, so do not.
  */
-import { mock } from "node:test";
-
 import type { AccountKeyRow } from "@/src/lib/db-layer";
+
+import { consoleSilencer, moduleMock, moduleUrl } from "./module-mock";
 
 export interface SessionRow {
   token: string;
@@ -133,39 +133,10 @@ export function resetHarness(): void {
  */
 export const logLines: string[] = [];
 
-const realConsole = { log: console.log };
+const endpointLogging = consoleSilencer(["log"], logLines);
 
-export function silenceEndpointLogging(): void {
-  console.log = (...args: unknown[]): void => {
-    logLines.push(args.map((a) => String(a)).join(" "));
-  };
-}
-
-export function restoreEndpointLogging(): void {
-  console.log = realConsole.log;
-}
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
-
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrow the tracker to the one method used here rather
- * than bumping the types in a test-only change.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: {
-      namedExports?: Record<string, unknown>;
-      defaultExport?: unknown;
-    },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+export const silenceEndpointLogging = endpointLogging.silence;
+export const restoreEndpointLogging = endpointLogging.restore;
 
 moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
   namedExports: {

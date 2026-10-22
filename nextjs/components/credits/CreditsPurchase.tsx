@@ -19,6 +19,7 @@ import { showEmailError } from "@/src/lib/credits-email";
 import { watchForAbandonedRedirect } from "@/src/lib/abandoned-redirect";
 import { createBuyCreditsHandler } from "@/src/lib/buy-credits";
 import { reportClientError } from "@/lib/shared/report-client-error";
+import { ErrorReveal } from "@/components/ErrorReveal";
 
 const PRESETS = [5, 10] as const;
 
@@ -387,15 +388,13 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
                 No field shakes here: the button is disarmed while the email or
                 the amount is invalid, so the only error a buyer can reach is
                 the server refusing the checkout, which no field caused. */}
-            <div className="t-error-reveal" data-open={error ? "" : undefined}>
-              <div>
-                {error && (
-                  <p className="text-sm text-red-400 mt-4" role="alert">
-                    {error}
-                  </p>
-                )}
-              </div>
-            </div>
+            <ErrorReveal>
+              {error && (
+                <p className="text-sm text-red-400 mt-4" role="alert">
+                  {error}
+                </p>
+              )}
+            </ErrorReveal>
 
             <Button
               className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold mt-6"

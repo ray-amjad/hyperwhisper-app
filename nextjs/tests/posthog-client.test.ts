@@ -6,21 +6,11 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import test, { mock } from "node:test";
+import test from "node:test";
 
 import { redactAccountKeyFromEvent } from "../src/lib/account-key-redaction";
 
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: {
-      namedExports?: Record<string, unknown>;
-      defaultExport?: unknown;
-    },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+import { moduleMock } from "./module-mock";
 
 const env: Record<string, string | undefined> = {};
 
