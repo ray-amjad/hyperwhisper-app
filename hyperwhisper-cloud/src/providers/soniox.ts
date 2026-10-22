@@ -143,13 +143,9 @@ export async function transcribeWithSoniox(
     }, context, computeUploadTimeoutMs(audio.byteLength));
 
     if (!uploadResp.ok) {
-
       throw await providerHttpError(provider, uploadResp, startedAt, context, {
-
         ...HTTP_ERROR_POLICY,
-
         logDetails: { phase: 'upload' },
-
       });
     }
     fileId = await readRequiredJsonString(uploadResp, {
@@ -184,13 +180,9 @@ export async function transcribeWithSoniox(
     }, context);
 
     if (!createResp.ok) {
-
       throw await providerHttpError(provider, createResp, startedAt, context, {
-
         ...HTTP_ERROR_POLICY,
-
         logDetails: { phase: 'create' },
-
       });
     }
     transcriptionId = await readRequiredJsonString(createResp, {
@@ -281,13 +273,9 @@ export async function transcribeWithSoniox(
     }, context);
 
     if (!transcriptResp.ok) {
-
       throw await providerHttpError(provider, transcriptResp, startedAt, context, {
-
         ...HTTP_ERROR_POLICY,
-
         logDetails: { phase: 'transcript' },
-
       });
     }
 

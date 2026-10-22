@@ -513,13 +513,9 @@ async function uploadAudio(
   }, context, computeUploadTimeoutMs(audio.byteLength));
 
   if (!uploadResp.ok) {
-
     throw await providerHttpError(provider, uploadResp, startedAt, context, {
-
       ...HTTP_ERROR_POLICY,
-
       logDetails: { phase: 'upload' },
-
     });
   }
 
@@ -601,13 +597,9 @@ async function createTranscriptJob(
   }, context);
 
   if (!createResp.ok) {
-
     throw await providerHttpError(provider, createResp, startedAt, context, {
-
       ...HTTP_ERROR_POLICY,
-
       logDetails: { phase: 'create' },
-
     });
   }
 
