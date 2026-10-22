@@ -311,16 +311,14 @@ for (const { file, path, en } of PAGES) {
       );
       assert.deepEqual(
         resolved.openGraph.images.map((image) => String(image.url)),
-        [1024, 512, 256, 128].map(
-          (size) => `https://www.hyperwhisper.com/icon/${size}.png`,
-        ),
+        ["https://www.hyperwhisper.com/og-image.png"],
         where,
       );
-      assert.equal(resolved.twitter.card, "summary", where);
+      assert.equal(resolved.twitter.card, "summary_large_image", where);
       assert.equal(resolved.twitter.creator, "@theramjad", where);
       assert.deepEqual(
         resolved.twitter.images.map((image) => String(image.url)),
-        ["https://www.hyperwhisper.com/icon/256.png"],
+        ["https://www.hyperwhisper.com/og-image.png"],
         where,
       );
     }

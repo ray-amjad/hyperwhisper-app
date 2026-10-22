@@ -13,7 +13,7 @@ namespace HyperWhisper.Services;
 
 public partial class HyperWhisperCloudService
 {
-    private static HttpClient CreateHttpClient()
+    internal static HttpClient CreateHttpClient()
     {
         var handler = new SocketsHttpHandler
         {
@@ -71,10 +71,19 @@ public partial class HyperWhisperCloudService
     /// </summary>
     public void PrewarmConnection()
     {
-        if (DateTime.UtcNow - _lastWarmupAt < WarmupMinInterval)
-            return;
+        _ = PrewarmConnectionAsync();
+    }
 
-        SendWarmup();
+    /// <summary>
+    /// <see cref="PrewarmConnection"/>, returning the warmup task so a test can
+    /// await it. A call inside the debounce window returns a completed task.
+    /// </summary>
+    internal Task PrewarmConnectionAsync()
+    {
+        if (_utcNow() - _lastWarmupAt < WarmupMinInterval)
+            return Task.CompletedTask;
+
+        return SendWarmup();
     }
 
     /// <summary>
@@ -85,15 +94,18 @@ public partial class HyperWhisperCloudService
     /// </summary>
     public void PrewarmConnectionForced()
     {
-        SendWarmup();
+        _ = SendWarmup();
     }
 
-    private void SendWarmup()
+    // Returns the warmup task; the public callers discard it (fire-and-forget),
+    // a test awaits it. Never faults: the body catches everything.
+    internal Task SendWarmup()
     {
-        _lastWarmupAt = DateTime.UtcNow;
+        _lastWarmupAt = _utcNow();
 
-        // ast-grep-ignore: no-discarded-task-run -- SendWarmup is on the hotkey-down path; HttpClient.SendAsync can write headers synchronously on a warm pool, so the hop is the point
-        _ = Task.Run(async () =>
+        // SendWarmup is on the hotkey-down path; HttpClient.SendAsync can write
+        // headers synchronously on a warm pool, so the Task.Run hop is the point.
+        return Task.Run(async () =>
         {
             // Snapshot the current client so a concurrent rebuild (DNS recovery)
             // can't dispose it out from under us mid-flight.
@@ -127,7 +139,7 @@ public partial class HyperWhisperCloudService
     /// to gate a one-shot HttpClient rebuild in the warmup callback and the
     /// transcribe retry.
     /// </summary>
-    private static bool IsDnsError(Exception ex)
+    internal static bool IsDnsError(Exception ex)
     {
         for (Exception? cur = ex; cur != null; cur = cur.InnerException)
         {
@@ -168,10 +180,11 @@ public partial class HyperWhisperCloudService
     private void RebuildHttpClient()
     {
         if (_disposed) return;
-        if (DateTime.UtcNow - _lastRebuildAt < MinRebuildInterval) return;
-        _lastRebuildAt = DateTime.UtcNow;
+        var now = _utcNow();
+        if (now - _lastRebuildAt < MinRebuildInterval) return;
+        _lastRebuildAt = now;
 
-        var fresh = CreateHttpClient();
+        var fresh = _createClient();
         Interlocked.Exchange(ref _httpClient, fresh);
         LoggingService.Info("HyperWhisperCloudService: HttpClient rebuilt (DNS recovery)");
     }

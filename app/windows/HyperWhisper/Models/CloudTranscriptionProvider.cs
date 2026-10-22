@@ -206,7 +206,7 @@ public static class CloudTranscriptionProviderExtensions
     /// <c>openapi.yaml</c> marks <c>cloudProvider</c> optional, so
     /// <c>POST /modes</c> with <c>"model":"cloud"</c> and no
     /// <c>cloudProvider</c> stores null, and so did every older build. macOS
-    /// reads that nil as <c>"hyperwhisper"</c> (<c>ModeModels.swift</c>,
+    /// reads that nil as <c>"hyperwhisper"</c> (<c>ModeData.swift</c>,
     /// <c>ModeCard.swift</c>, <c>CloudSTTCatalog.swift</c>); Windows read it as
     /// <see cref="CloudTranscriptionProvider.None"/>, so the Modes card said
     /// "None" and every transcription failed with "Unknown cloud provider: None"

@@ -8,25 +8,23 @@ import { transcribeWithXaiGrok } from './xai-stt';
 import { resolveModel } from '../lib/stt-models';
 import { EmptyTranscriptError, ProviderInputError, ProviderUnavailableError } from './types';
 import { captureNoSpeechEvent } from './test-support';
+import { stubEnv } from '../test-support/env';
 
 const originalFetch = globalThis.fetch;
-const ENV_KEYS = ['XAI_API_KEY', 'GROK_API_KEY'] as const;
-const savedEnv: Record<string, string | undefined> = {};
+let restoreEnv: Array<() => void> = [];
 
 const audio = (bytes = 1_000) => new ArrayBuffer(bytes);
 
 beforeEach(() => {
-  for (const key of ENV_KEYS) savedEnv[key] = process.env[key];
-  process.env.XAI_API_KEY = 'test-key';
-  delete process.env.GROK_API_KEY;
+  restoreEnv = [
+    stubEnv('XAI_API_KEY', 'test-key'),
+    stubEnv('GROK_API_KEY', undefined),
+  ];
 });
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  for (const key of ENV_KEYS) {
-    if (savedEnv[key] === undefined) delete process.env[key];
-    else process.env[key] = savedEnv[key];
-  }
+  for (const restore of restoreEnv) restore();
 });
 
 function captureRequest(body: unknown) {
