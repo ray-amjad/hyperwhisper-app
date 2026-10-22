@@ -153,3 +153,22 @@ struct SilentMicrophoneWatcherTests {
         #expect(shown.count == 10)
     }
 }
+
+/// Where the warning panel goes relative to the recording pill (#2411).
+struct SilentMicWarningPlacementTests {
+    private let size = CGSize(width: 280, height: 26)
+    private let screen = NSRect(x: 0, y: 0, width: 1440, height: 900)
+
+    @Test func goesCentredBelowThePillWhenThereIsRoom() {
+        let pill = NSRect(x: 620, y: 40, width: 200, height: 40)
+        let frame = SilentMicWarningWindowManager.frame(size: size, below: pill, gap: 6, within: screen)
+        #expect(frame.midX == pill.midX)
+        #expect(frame.maxY == pill.minY - 6)
+    }
+
+    @Test func goesAboveThePillAtTheBottomEdge() {
+        let pill = NSRect(x: 620, y: 0, width: 200, height: 40)
+        let frame = SilentMicWarningWindowManager.frame(size: size, below: pill, gap: 6, within: screen)
+        #expect(frame.minY == pill.maxY + 6)
+    }
+}

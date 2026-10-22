@@ -454,6 +454,26 @@ struct RecordingDialog: View {
                 .clipped()
         }
         .padding(.horizontal, 8)
+        // #2411: "No sound from {mic}" beside the pill, only while this
+        // recording face is on screen. Leaving it (stop, cancel prompt, loading,
+        // error, close) hides the warning.
+        .onAppear { syncSilentMicrophoneWarning() }
+        .onDisappear { SilentMicWarningWindowManager.shared.hide() }
+        .onChange(of: liveMetrics.isMicrophoneSilent) { _, _ in
+            syncSilentMicrophoneWarning()
+        }
+        .onChange(of: audioManager.activeInputDeviceName) { _, _ in
+            syncSilentMicrophoneWarning()
+        }
+    }
+
+    /// Show or hide the #2411 silent-mic warning to match `liveMetrics`.
+    private func syncSilentMicrophoneWarning() {
+        if liveMetrics.isMicrophoneSilent {
+            SilentMicWarningWindowManager.shared.show(deviceName: audioManager.activeInputDeviceName)
+        } else {
+            SilentMicWarningWindowManager.shared.hide()
+        }
     }
 
     /// Loading state - spinner with text
