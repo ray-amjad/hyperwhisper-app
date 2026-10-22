@@ -28,20 +28,6 @@ public static class StreamingTranscriptionSessionFactory
             );
         }
 
-        if (apiKeyType.HasValue && !ApiKeyService.IsValidKeyFormat(apiKeyType.Value, apiKey))
-        {
-            return Result<StreamingTranscriptionClient>.Failure(
-                $"Invalid API key format for {provider.DisplayName()}"
-            );
-        }
-
-        if (postProcessingApiKeyType.HasValue && !ApiKeyService.IsValidKeyFormat(postProcessingApiKeyType.Value, apiKey))
-        {
-            return Result<StreamingTranscriptionClient>.Failure(
-                $"Invalid API key format for {provider.DisplayName()}"
-            );
-        }
-
         var config = new StreamingSessionConfig(
             LicenseKey: LicenseManager.Instance.GetStoredLicenseKey(),
             DeviceId: DeviceIdService.Instance.GetDeviceId(),

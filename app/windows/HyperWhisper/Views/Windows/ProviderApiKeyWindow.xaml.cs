@@ -13,15 +13,13 @@ public partial class ProviderApiKeyWindow : Window
     private readonly string _apiKeyUrl;
     private readonly Func<string?> _getKey;
     private readonly Func<string?, PlatformContracts.PlatformResult> _setKey;
-    private readonly Func<string?, bool> _validateKey;
-    private readonly string _invalidMessage;
 
     public ProviderApiKeyWindow(CloudTranscriptionProvider provider)
     {
         var pairedProvider = provider.GetApiKeyProvider();
         if (pairedProvider != PostProcessingProvider.None)
         {
-            (_displayName, _apiKeyUrl, _getKey, _setKey, _validateKey, _invalidMessage) =
+            (_displayName, _apiKeyUrl, _getKey, _setKey) =
                 CreatePostProcessingTarget(pairedProvider);
         }
         else
@@ -35,8 +33,6 @@ public partial class ProviderApiKeyWindow : Window
             _apiKeyUrl = keyType.GetApiKeyUrl();
             _getKey = () => ApiKeyService.Instance.GetApiKey(keyType);
             _setKey = key => ApiKeyService.Instance.SetApiKey(keyType, key);
-            _validateKey = key => ApiKeyService.IsValidKeyFormat(keyType, key);
-            _invalidMessage = Loc.S("providerApiKey.invalid.message", _displayName);
         }
 
         InitializeComponent();
@@ -45,7 +41,7 @@ public partial class ProviderApiKeyWindow : Window
 
     public ProviderApiKeyWindow(PostProcessingProvider provider)
     {
-        (_displayName, _apiKeyUrl, _getKey, _setKey, _validateKey, _invalidMessage) =
+        (_displayName, _apiKeyUrl, _getKey, _setKey) =
             CreatePostProcessingTarget(provider);
 
         InitializeComponent();
@@ -114,12 +110,7 @@ public partial class ProviderApiKeyWindow : Window
             return;
         }
 
-        if (!_validateKey(key))
-        {
-            WpfMessageBox.Show(_invalidMessage, Loc.S("providerApiKey.invalid.title"), MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
+        // Any non-blank text is a key: there is no shape check (ApiKeyService.IsValidKeyFormat).
         // On failure the window stays open with the typed key, so the user can retry.
         if (!TryWriteKey(key)) return;
         DialogResult = true;
@@ -145,17 +136,14 @@ public partial class ProviderApiKeyWindow : Window
         return false;
     }
 
-    private static (string displayName, string apiKeyUrl, Func<string?> getKey, Func<string?, PlatformContracts.PlatformResult> setKey, Func<string?, bool> validateKey, string invalidMessage)
+    private static (string displayName, string apiKeyUrl, Func<string?> getKey, Func<string?, PlatformContracts.PlatformResult> setKey)
         CreatePostProcessingTarget(PostProcessingProvider provider)
     {
-        var displayName = provider.ToDisplayName();
         return (
-            displayName,
+            provider.ToDisplayName(),
             GetPostProcessingApiKeyUrl(provider),
             () => ApiKeyService.Instance.GetApiKey(provider),
-            key => ApiKeyService.Instance.SetApiKey(provider, key),
-            key => ApiKeyService.IsValidKeyFormat(provider, key),
-            Loc.S("providerApiKey.invalid.message", displayName)
+            key => ApiKeyService.Instance.SetApiKey(provider, key)
         );
     }
 

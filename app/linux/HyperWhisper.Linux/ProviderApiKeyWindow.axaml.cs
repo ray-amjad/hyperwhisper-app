@@ -19,7 +19,6 @@ public partial class ProviderApiKeyWindow : Window
 {
     private readonly CredentialManagementViewModel? _credentials;
     private readonly string _account = string.Empty;
-    private readonly string _displayName = string.Empty;
     private readonly string _apiKeyUrl = string.Empty;
 
     public ProviderApiKeyWindow() => AvaloniaXamlLoader.Load(this);
@@ -29,7 +28,6 @@ public partial class ProviderApiKeyWindow : Window
     {
         _credentials = credentials ?? throw new ArgumentNullException(nameof(credentials));
         _account = account;
-        _displayName = displayName;
         _apiKeyUrl = apiKeyUrl ?? string.Empty;
 
         credentials.SelectAccount(account);
@@ -78,7 +76,7 @@ public partial class ProviderApiKeyWindow : Window
         Close();
     }
 
-    private async void OnSave(object? sender, RoutedEventArgs e)
+    private void OnSave(object? sender, RoutedEventArgs e)
     {
         if (_credentials is null) { Close(); return; }
         var secret = (this.FindControl<TextBox>("ProviderKeyInput")?.Text ?? string.Empty).Trim();
@@ -89,18 +87,9 @@ public partial class ProviderApiKeyWindow : Window
         // key. Clearing is what the Clear button is for, and it is right next to Save.
         if (string.IsNullOrWhiteSpace(secret)) { Close(); return; }
 
-        // Windows refuses a key that cannot be one, before it ever reaches the store
-        // (ProviderApiKeyWindow.xaml.cs:112-116). Linux saved anything, so a pasted account id or
-        // a truncated key became a "configured" provider that then failed at transcription time
-        // with a bare 401.
-        if (!IsValidKeyFormat(_account, secret))
-        {
-            await ConfirmWindow.ShowNoticeAsync(this,
-                L("providerApiKey.invalid.title"),
-                LF("providerApiKey.invalid.message", _displayName));
-            return;
-        }
-
+        // No shape check after this: a key only has to be non-blank. Vendors change their key
+        // formats (Google's newer Gemini keys do not start with "AIza", which a prefix rule here
+        // refused), and a wrong key fails at the provider, which says so.
         _credentials.SelectAccount(_account);
         _credentials.Secret = secret;
         if (_credentials.SaveCommand.CanExecute(null)) _credentials.SaveCommand.Execute(null);
@@ -115,41 +104,6 @@ public partial class ProviderApiKeyWindow : Window
             return;
         }
         Close();
-    }
-
-    /// <summary>
-    /// Windows' two key-shape tables, keyed on the credential-store account id Linux carries.
-    /// The prefixes and lengths come from <c>ApiKeyService.IsValidKeyFormat(PostProcessingProvider)</c>
-    /// (Services/ApiKeyService.cs:113-144) and <c>TranscriptionApiKeyType.GetKeyPrefix</c> /
-    /// <c>GetMinLength</c> (Models/TranscriptionApiKeyType.cs:90-115). Where a provider appears in
-    /// both - Gemini, Grok, Mistral - both tables already agree, which is why one table works here.
-    ///
-    /// An account the tables do not name is accepted rather than refused. Windows' post-processing
-    /// switch falls through to <c>false</c>, but it only ever sees its own six enum members; the
-    /// transcription table is the open-ended one and it falls through to a length of 10. A custom
-    /// or newly added provider must not become unconfigurable on Linux alone.
-    /// </summary>
-    internal static bool IsValidKeyFormat(string account, string? key)
-    {
-        if (string.IsNullOrWhiteSpace(key)) return false;
-        var (prefix, minLength) = account switch
-        {
-            "OpenAIApiKey" => ("sk-", 21),
-            "AnthropicApiKey" => ("sk-ant-", 21),
-            "GroqApiKey" => ("gsk_", 21),
-            "CerebrasApiKey" => ("csk-", 21),
-            "GrokApiKey" => ("xai-", 20),
-            "GeminiApiKey" or "GeminiTranscribeApiKey" => ("AIza", 30),
-            "DeepgramApiKey" => (null, 32),
-            "AssemblyAIApiKey" => (null, 32),
-            "ElevenLabsApiKey" => (null, 20),
-            "MistralApiKey" => (null, 20),
-            "SonioxApiKey" => (null, 10),
-            "MetaApiKey" => (null, 10),
-            _ => ((string?)null, 10),
-        };
-        if (key.Length < minLength) return false;
-        return prefix is null || key.StartsWith(prefix, StringComparison.Ordinal);
     }
 
     private void OnCancel(object? sender, RoutedEventArgs e) => Close();
