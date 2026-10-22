@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { Fragment, useId, useMemo, useState } from "react";
 import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
@@ -43,6 +43,43 @@ function reportContext(
   }
 
   return context;
+}
+
+/**
+ * #768: a summary value that pops in, one character at a time, when it
+ * changes. The first render is the plain text, so the server markup and the
+ * first paint are as before. Each later change remounts the characters (the
+ * key), which replays their `.t-number-pop-char` animation with no reflow
+ * trick. A screen reader reads the whole value from the `sr-only` copy; the
+ * split characters are hidden from it.
+ */
+function PopValue({ text, delay = 0 }: { text: string; delay?: number }) {
+  const [shown, setShown] = useState(text);
+  const [changes, setChanges] = useState(0);
+
+  // The "adjust state while rendering" pattern from the React docs: no effect,
+  // so the new value never paints once without its animation.
+  if (text !== shown) {
+    setShown(text);
+    setChanges(changes + 1);
+  }
+  if (changes === 0) return text;
+
+  return (
+    <Fragment key={changes}>
+      <span className="sr-only">{text}</span>
+      {Array.from(text).map((char, index) => (
+        <span
+          key={index}
+          aria-hidden="true"
+          className="t-number-pop-char"
+          style={{ animationDelay: `${delay + index * 40}ms` }}
+        >
+          {char}
+        </span>
+      ))}
+    </Fragment>
+  );
 }
 
 /**
@@ -282,35 +319,41 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
                 </button>
               </div>
 
+              {/* The field grows open from 0fr (#702) instead of arriving at
+                  full height in one frame. */}
               {isCustom && (
-                <div className="mt-3">
-                  {/* HeroUI still sets aria-label to the placeholder, but a
-                      caller's aria-labelledby reaches the <input> as given and
-                      wins over aria-label in the accessible name. */}
-                  <Input
-                    aria-labelledby={`${amountLabelId} ${customTitleId}`}
-                    type="number"
-                    value={customAmount}
-                    onChange={(e) => {
-                      setCustomAmount(e.target.value);
-                      setError(null);
-                    }}
-                    placeholder={t("customPlaceholder", {
-                      min: MIN_CREDIT_DOLLARS,
-                      max: MAX_CREDIT_DOLLARS,
-                    })}
-                    variant="bordered"
-                    size="lg"
-                    min={MIN_CREDIT_DOLLARS}
-                    max={MAX_CREDIT_DOLLARS}
-                    step={1}
-                    startContent={<span className="text-gray-400">$</span>}
-                    classNames={{
-                      inputWrapper:
-                        "bg-gray-900/60 border-gray-700 data-[hover=true]:border-gray-600 group-data-[focus=true]:border-purple-500",
-                      input: "text-white",
-                    }}
-                  />
+                <div className="t-cell-reveal">
+                  <div>
+                    <div className="mt-3">
+                      {/* HeroUI still sets aria-label to the placeholder, but a
+                          caller's aria-labelledby reaches the <input> as given and
+                          wins over aria-label in the accessible name. */}
+                      <Input
+                        aria-labelledby={`${amountLabelId} ${customTitleId}`}
+                        type="number"
+                        value={customAmount}
+                        onChange={(e) => {
+                          setCustomAmount(e.target.value);
+                          setError(null);
+                        }}
+                        placeholder={t("customPlaceholder", {
+                          min: MIN_CREDIT_DOLLARS,
+                          max: MAX_CREDIT_DOLLARS,
+                        })}
+                        variant="bordered"
+                        size="lg"
+                        min={MIN_CREDIT_DOLLARS}
+                        max={MAX_CREDIT_DOLLARS}
+                        step={1}
+                        startContent={<span className="text-gray-400">$</span>}
+                        classNames={{
+                          inputWrapper:
+                            "bg-gray-900/60 border-gray-700 data-[hover=true]:border-gray-600 group-data-[focus=true]:border-purple-500",
+                          input: "text-white",
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -320,24 +363,39 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
               <div className="flex justify-between text-gray-400 mb-2">
                 <span>{t("summaryCredits")}</span>
                 <span className="text-gray-200">
-                  {credits.toLocaleString()}
+                  <PopValue text={credits.toLocaleString()} />
                 </span>
               </div>
               <div className="flex justify-between text-gray-400 mb-2">
                 <span>{t("summaryFee")}</span>
-                <span className="text-gray-200">${feeUsd.toFixed(2)}</span>
+                <span className="text-gray-200">
+                  <PopValue text={`$${feeUsd.toFixed(2)}`} />
+                </span>
               </div>
               <div className="flex justify-between font-semibold text-white border-t border-gray-800 pt-2 mt-2">
                 <span>{t("summaryTotal")}</span>
-                <span>${totalUsd.toFixed(2)}</span>
+                {/* Last in the stagger, so the eye lands on the charge. */}
+                <span>
+                  <PopValue delay={120} text={`$${totalUsd.toFixed(2)}`} />
+                </span>
               </div>
             </div>
 
-            {error && (
-              <p className="text-sm text-red-400 mt-4" role="alert">
-                {error}
-              </p>
-            )}
+            {/* #749: the wrapper stays mounted and the message reveals in it
+                (.t-error-reveal), so the button below moves down over 280 ms
+                instead of in one frame. The alert still mounts with its text.
+                No field shakes here: the button is disarmed while the email or
+                the amount is invalid, so the only error a buyer can reach is
+                the server refusing the checkout, which no field caused. */}
+            <div className="t-error-reveal" data-open={error ? "" : undefined}>
+              <div>
+                {error && (
+                  <p className="text-sm text-red-400 mt-4" role="alert">
+                    {error}
+                  </p>
+                )}
+              </div>
+            </div>
 
             <Button
               className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold mt-6"

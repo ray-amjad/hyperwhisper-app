@@ -386,7 +386,7 @@ struct BackupGeneralSettings: Codable {
 
 /// Audio-related settings
 /// Source: AudioSettingsManager
-/// NOTE: selectedMicrophoneId is excluded (device-specific)
+/// NOTE: selectedMicrophoneId and selectedMicrophoneName are excluded (device-specific)
 struct BackupAudioSettings: Codable {
     let autoIncreaseMicVolume: Bool
     let mediaControlMode: String

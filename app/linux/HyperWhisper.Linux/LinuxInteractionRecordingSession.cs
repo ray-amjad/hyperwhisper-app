@@ -600,6 +600,8 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
 
     private void PrepareAudio(string deviceId)
     {
+        // Spec: a recording starting stops the Settings → Sound microphone test, before capture opens.
+        _viewModel.Microphone?.LevelTest.Stop();
         _services.MicrophoneKeepWarm.SuspendForRecording();
         Volatile.Write(ref _audioPrepared, 1);
         if (_viewModel.Settings.AutoIncreaseMicVolume) _ = _services.MicrophoneVolume.BoostIfNeeded(deviceId);
