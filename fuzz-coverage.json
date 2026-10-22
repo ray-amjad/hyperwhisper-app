@@ -695,6 +695,23 @@
       ],
       "licensed": false,
       "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY in #hw-qa). core DLL from e976d796 (no shared-core-rs change since). local-api: GUI + manual HTTP probes of every route clean; contract quirks (HTTP 200 business failures, MODE_NOT_FOUND for recordings) are deliberate. streaming: settings walked, no session started (no keys, secondary instance has no hotkey). modes: Codex ran out of steps before switch/delete; built-in-mode delete and active-mode delete still unwalked. PC dropped off tailnet ~40s mid local-api."
+    },
+    {
+      "at": "2026-10-22T20:18:19Z",
+      "platform": "linux",
+      "commit": "568d4bac",
+      "routes": [
+        "vocabulary",
+        "provider-settings",
+        "modes"
+      ],
+      "status": "1-filed",
+      "issues": [
+        2484,
+        2226
+      ],
+      "licensed": false,
+      "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY in #hw-qa). Filed #2484 API Keys raw error code + Stored: True/False; commented #2226 Home stays highlighted. Vocabulary dedupe/trim OK; emoji typing via xdotool did not land (driver, not app). Modes: Codex spent steps on create/edit, never reached switch/delete active mode - push that next time. English Spelling empty combo is deliberate (ModesViewModel.Editor.cs:288)."
     }
   ]
 }
