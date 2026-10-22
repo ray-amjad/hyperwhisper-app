@@ -26,10 +26,10 @@ import {
   computeUploadTimeoutMs,
   fetchWithTimeout,
   logProviderEvent,
+  providerHttpError,
   splitVocabularyTerms,
   readJson200,
 } from './utils';
-import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
 
 const MAX_PHRASES = 100;
 const MAX_PHRASE_LEN = 50;
@@ -222,36 +222,21 @@ export async function transcribeWithAzureMai(
   }, context, computeUploadTimeoutMs(audio.byteLength));
 
   if (!response.ok) {
-    // Never the body: it can quote the phrase list (#2163).
-    const { fields } = await readUpstreamError(response);
-    const elapsedMs = Math.round(performance.now() - startedAt);
-    const kind = response.status >= 500 ? 'upstream_5xx' : response.status === 429 ? 'rate_limit' : 'http_error';
-
-    logProviderEvent(provider, 'http_error', {
-      elapsedMs,
-      ...upstreamErrorLogFields(fields),
-      kind,
-    }, context);
-
-    if (response.status === 401) {
-      throw new Error('Azure Speech subscription key is invalid or expired');
-    }
-    if (response.status === 403) {
-      // 403 from Azure Speech is usually "subscription suspended" or
-      // "quota exceeded for free tier", not "wrong key".
-      throw new Error('Azure Speech subscription is disabled or out of quota');
-    }
-    if (response.status === 402) {
-      throw new Error('Azure Speech account has insufficient funds');
-    }
-    if (response.status === 429) {
-      throw new ProviderUnavailableError('Azure MAI', 'rate limit exceeded');
-    }
-    if (response.status >= 500) {
-      throw new ProviderUnavailableError('Azure MAI', `upstream 5xx: ${response.status}`);
-    }
-
-    throw new Error(`Azure MAI error: ${response.status}`);
+    // The helper logs content-free fields only: the body can quote the phrase
+    // list (#2163). Every status but 429 and 5xx ends the request — azure-mai
+    // is self-only, so there is no sibling to try.
+    throw await providerHttpError(provider, response, startedAt, context, {
+      label: 'Azure MAI',
+      authStatuses: [],
+      terminalStatuses: {
+        401: 'Azure Speech subscription key is invalid or expired',
+        // 403 from Azure Speech is usually "subscription suspended" or
+        // "quota exceeded for free tier", not "wrong key".
+        403: 'Azure Speech subscription is disabled or out of quota',
+        402: 'Azure Speech account has insufficient funds',
+      },
+      otherStatusError: (status) => new Error(`Azure MAI error: ${status}`),
+    });
   }
 
   // A 200 whose body is cut off, not JSON, not an object, or breaks mid-read

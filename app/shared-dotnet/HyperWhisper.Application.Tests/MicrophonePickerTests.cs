@@ -22,6 +22,7 @@ static class MicrophonePickerTests
         await SavedChoiceSurvivesARelaunchAsync(Path.Combine(root, "relaunch"));
         await DefaultSavesNothingAndFollowsTheOsDefaultAsync(Path.Combine(root, "default"));
         await UnplugFallsBackAndReplugReturnsAsync(Path.Combine(root, "unplug"));
+        await VirtualDefaultIsSkippedButAVirtualPickIsKeptAsync(Path.Combine(root, "virtual"));
         await HomeAndSettingsShareOneChoiceAsync(Path.Combine(root, "shell"));
         await PickerIgnoresNullAndKeepsSelectionAcrossRefillsAsync(Path.Combine(root, "refill"));
         await SameNamedDevicesKeepTheExactPickAsync(Path.Combine(root, "same-name"));
@@ -106,6 +107,41 @@ static class MicrophonePickerTests
         Check(!app.Picker.IsSavedDeviceMissing && app.Picker.FallbackNotice is null, "the amber line outlived the replug");
         Check(app.Picker.Choices.All(choice => choice.Kind != MicrophoneChoiceKind.Disconnected), "the (not connected) row outlived the replug");
         Check(await app.RecordOnceAsync() == replugged.Id, "the next recording after the replug did not use the saved device");
+    }
+
+    // #2408, end to end through the workflow: a virtual OS default (a PulseAudio null-sink source
+    // named after VB-CABLE) is skipped by Default and by the unplugged stand-in, the Default row names
+    // the device that records, and a hand-picked virtual device still records.
+    private static async Task VirtualDefaultIsSkippedButAVirtualPickIsKeptAsync(string root)
+    {
+        var cable = new AudioInputDevice("vb_cable_source", "VB-Cable Virtual Source", IsDefault: true);
+        var builtIn = BuiltIn with { IsDefault = false };
+        await using var app = await Harness.CreateAsync(root, [cable, builtIn, Scarlett]);
+        Check(app.Picker.SelectedChoice?.Kind == MicrophoneChoiceKind.SystemDefault, "a fresh profile with a virtual default does not start on Default");
+        Check(app.Picker.Choices[0].Label == $"Default · {builtIn.Name}", $"the Default row reads '{app.Picker.Choices[0].Label}'");
+        Check(app.Picker.SkippedVirtualDefault, "the picker does not report the skipped virtual default");
+        Check(app.Picker.Choices.Any(choice => choice.DeviceId == cable.Id), "the virtual device left the picker list");
+        Check(await app.RecordOnceAsync() == builtIn.Id, "Default recorded from the virtual OS default");
+
+        // A hand pick of the virtual device is kept.
+        app.Picker.SelectedChoice = app.Picker.Choices.Single(choice => choice.DeviceId == cable.Id);
+        Check(!app.Picker.SkippedVirtualDefault, "a hand-picked virtual device still reports a skip");
+        Check(await app.RecordOnceAsync() == cable.Id, "a hand-picked virtual device was overridden");
+
+        // A chosen physical device unplugged, with a virtual default: a physical input stands in.
+        app.Picker.SelectedChoice = app.Picker.Choices.Single(choice => choice.DeviceId == Scarlett.Id);
+        app.Devices.Available = [cable, builtIn];
+        app.Workflow.RefreshDevices();
+        Check(app.Picker.FallbackNotice == $"Using {builtIn.Name} until {Scarlett.Name} is reconnected.",
+            $"the amber line reads '{app.Picker.FallbackNotice}'");
+        Check(await app.RecordOnceAsync() == builtIn.Id, "the stand-in for an unplugged device was the virtual default");
+
+        // Only virtual inputs left: the OS default records (better than nothing).
+        app.Picker.SelectedChoice = app.Picker.Choices[0];
+        app.Devices.Available = [cable];
+        app.Workflow.RefreshDevices();
+        Check(app.Picker.Choices[0].Label == $"Default · {cable.Name}", $"an all-virtual Default row reads '{app.Picker.Choices[0].Label}'");
+        Check(await app.RecordOnceAsync() == cable.Id, "an all-virtual machine did not record from the OS default");
     }
 
     private static async Task HomeAndSettingsShareOneChoiceAsync(string root)

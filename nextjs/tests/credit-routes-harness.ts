@@ -51,6 +51,7 @@ export const calls = {
   deductCreditBalance: [] as DeductCall[],
   customerList: [] as CustomerListQuery[],
   customerCreate: [] as Record<string, unknown>[],
+  customerRetrieve: [] as string[],
   sessionCreate: [] as Record<string, unknown>[],
   /** Every rate-limit check, in order: which limiter, keyed by what. */
   rateLimit: [] as RateLimitCall[],
@@ -79,6 +80,13 @@ export const behaviour = {
   existingCustomers: [] as Array<{ id: string }>,
   /** Id `stripe.customers.create` hands back. */
   createdCustomerId: "cus_created",
+  /**
+   * Email `stripe.customers.retrieve` reports per customer id. An id absent
+   * here reads as the email of the stored row that caches it, so a cached
+   * customer belongs to its key unless a test says otherwise; `null` models a
+   * deleted customer.
+   */
+  customerEmails: {} as Record<string, string | null>,
   /** Thrown by `stripe.checkout.sessions.create` when set. */
   sessionError: null as unknown,
   /** URL the created session carries. `null` models Stripe returning none. */
@@ -125,6 +133,7 @@ export function resetHarness(): void {
   calls.deductCreditBalance.length = 0;
   calls.customerList.length = 0;
   calls.customerCreate.length = 0;
+  calls.customerRetrieve.length = 0;
   calls.sessionCreate.length = 0;
   calls.rateLimit.length = 0;
   rateLimitCounts.clear();
@@ -137,6 +146,7 @@ export function resetHarness(): void {
   behaviour.balanceAfterDeduct = 3_200;
   behaviour.existingCustomers = [];
   behaviour.createdCustomerId = "cus_created";
+  behaviour.customerEmails = {};
   behaviour.sessionError = null;
   behaviour.sessionUrl = "https://checkout.stripe.test/c/pay/cs_test_1";
   behaviour.rateLimitMax = Number.POSITIVE_INFINITY;
@@ -203,6 +213,16 @@ moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
         create: async (params: Record<string, unknown>) => {
           calls.customerCreate.push(params);
           return { id: behaviour.createdCustomerId };
+        },
+        retrieve: async (id: string) => {
+          calls.customerRetrieve.push(id);
+          const email =
+            id in behaviour.customerEmails
+              ? behaviour.customerEmails[id]
+              : Array.from(behaviour.rows.values()).find(
+                  (row) => row.stripeCustomerId === id,
+                )?.email;
+          return email === null ? { id, deleted: true } : { id, email };
         },
       },
       checkout: {

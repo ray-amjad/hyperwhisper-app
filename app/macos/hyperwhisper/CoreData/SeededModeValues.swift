@@ -67,7 +67,7 @@ struct SeededModeValues: Equatable {
     let postProcessingMode: Int16
     let postProcessingProvider: String
 
-    /// `"<engineId>:<modelId>"`, stored VERBATIM. `ModeModels.swift`'s
+    /// `"<engineId>:<modelId>"`, stored VERBATIM. `CloudPostProcessingModel.swift`'s
     /// `CloudPostProcessingModel.fromStorageValue` falls back to **Grok** on a
     /// value it cannot split, so dropping the engine prefix would silently seed
     /// the wrong vendor.

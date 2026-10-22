@@ -3,6 +3,7 @@ import { transcribeWithAzureMai } from './azure-mai';
 import { getProviderDef } from '../lib/stt-models';
 import { AudioTooLargeError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
 import { captureNoSpeechEvent } from './test-support';
+import { saveEnv } from '../test-support/env';
 
 const originalFetch = globalThis.fetch;
 const ENV_KEYS = [
@@ -11,18 +12,15 @@ const ENV_KEYS = [
   'AZURE_SPEECH_KEY_NORTHEUROPE',
   'AZURE_SPEECH_KEY_SOUTHEASTASIA',
 ] as const;
-const savedEnv: Record<string, string | undefined> = {};
+let restoreEnv: Array<() => void> = [];
 
 beforeEach(() => {
-  for (const key of ENV_KEYS) savedEnv[key] = process.env[key];
+  restoreEnv = ENV_KEYS.map((key) => saveEnv(key));
 });
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  for (const key of ENV_KEYS) {
-    if (savedEnv[key] === undefined) delete process.env[key];
-    else process.env[key] = savedEnv[key];
-  }
+  for (const restore of restoreEnv) restore();
 });
 
 function successResponse(text = 'hello world', locale = 'en-US') {
