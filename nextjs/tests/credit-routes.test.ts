@@ -18,6 +18,8 @@
 import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, describe, test } from "node:test";
 
+import Stripe from "stripe";
+
 import {
   accountKeyRow,
   behaviour,
@@ -512,39 +514,54 @@ describe("POST /api/checkout/credits — the top-up path", () => {
 });
 
 describe("POST /api/checkout/credits — Stripe faults", () => {
-  test("answers 500 with the reason when Stripe returns no checkout URL", async () => {
+  // The 500 body is the fixed error alone: the throw's own message goes to the
+  // server log only (#2311). A Stripe developer message names the customer id
+  // and the key mode, and it used to ride along in `details`.
+  const FIXED_500 = { error: "Failed to create checkout session" };
+
+  test("answers a fixed 500 when Stripe returns no checkout URL", async () => {
     behaviour.sessionUrl = null;
     const { POST } = await loadCheckoutCreditsRoute();
 
     const response = await POST(postRequest(CHECKOUT_PATH, { amount: 5 }));
-    const body = await readJson(response);
 
     assert.equal(response.status, 500);
-    assert.equal(body.error, "Failed to create checkout session");
-    assert.equal(body.details, "No checkout URL returned from Stripe");
+    assert.deepEqual(await readJson(response), FIXED_500);
   });
 
-  test("answers 500 with the Stripe message when the session call throws", async () => {
-    behaviour.sessionError = new Error("card_declined at session create");
+  test("a Stripe error naming the customer stays out of the body, and in the log", async () => {
+    logLines.length = 0;
+    storeRow(accountKeyRow({ key: GRANTED_KEY, stripeCustomerId: "cus_Q8leakedCustomer" }));
+    behaviour.sessionError = new Stripe.errors.StripeInvalidRequestError({
+      type: "invalid_request_error",
+      message:
+        "No such customer: 'cus_Q8leakedCustomer'; a similar object exists in live mode, but a test mode key was used to make this request.",
+    });
     const { POST } = await loadCheckoutCreditsRoute();
 
-    const response = await POST(postRequest(CHECKOUT_PATH, { amount: 5 }));
-    const body = await readJson(response);
+    const response = await POST(
+      postRequest(CHECKOUT_PATH, { amount: 5, licenseKey: GRANTED_KEY }),
+    );
+    const text = await response.text();
 
     assert.equal(response.status, 500);
-    assert.equal(body.error, "Failed to create checkout session");
-    assert.equal(body.details, "card_declined at session create");
+    assert.equal(onlySessionCreate().customer, "cus_Q8leakedCustomer");
+    assert.doesNotMatch(text, /cus_|No such customer|live mode|test mode/, text);
+    assert.deepEqual(JSON.parse(text), FIXED_500);
+    assert.ok(
+      logLines.some((line) => line.includes("No such customer")),
+      logLines.join("\n"),
+    );
   });
 
-  test("reports a non-Error throw as unknown, rather than crashing the route", async () => {
+  test("a non-Error throw answers the same fixed 500, rather than crashing the route", async () => {
     behaviour.sessionError = "stripe exploded";
     const { POST } = await loadCheckoutCreditsRoute();
 
     const response = await POST(postRequest(CHECKOUT_PATH, { amount: 5 }));
-    const body = await readJson(response);
 
     assert.equal(response.status, 500);
-    assert.equal(body.details, "Unknown error");
+    assert.deepEqual(await readJson(response), FIXED_500);
   });
 });
 
@@ -563,7 +580,6 @@ describe("POST /api/checkout/credits — a DrizzleQueryError stays out of the lo
     assert.deepEqual(leakyLines([text]), [], text);
     assert.deepEqual(JSON.parse(text), {
       error: "Failed to create checkout session",
-      details: "Database error",
     });
     assert.deepEqual(leakyLines(logLines), []);
     assert.ok(logLines.some((line) => line.includes(SESSION_INDEX)), logLines.join("\n"));

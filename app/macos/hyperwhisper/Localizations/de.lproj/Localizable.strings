@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "Akustische Signale beim Starten und Stoppen der Aufnahme abspielen.";
 "settings.sound.mediaControl.title" = "Medienkontrolle während der Aufnahme";
 "settings.sound.mediaControl.info" = "Wählen Sie aus, wie HyperWhisper während der Aufnahme mit anderen Audiodaten umgeht. „Aus“ lässt den Ton unverändert, „Mute Audio“ schaltet die Systemausgabe während der Aufnahme stumm und stellt sie danach wieder her, und „Audio dämpfen“ lässt ihn leise weiterlaufen, wie aus dem Nebenraum.";
+"settings.sound.microphone.title" = "Mikrofon";
+"settings.sound.microphone.subtitle" = "Wird nur von HyperWhisper verwendet. Bleibt nach einem Neustart erhalten.";
+"microphone.picker.default" = "Standard · %@";
+"microphone.picker.notConnected" = "%@ (nicht verbunden)";
+"microphone.picker.fallback" = "%1$@ wird verwendet, bis %2$@ wieder verbunden ist.";
+"settings.sound.microphone.test" = "Testen";
+"settings.sound.microphone.stop" = "Stoppen";
+"settings.sound.microphone.level" = "Eingangspegel";
 "settings.sound.autoIncreaseMicVolume.title" = "Mikrofonlautstärke automatisch erhöhen";
-"settings.sound.autoIncreaseMicVolume.info" = "Stellt die Mikrofoneingangslautstärke automatisch auf den Maximalwert ein, wenn die Aufnahme beginnt, und stellt dann den ursprünglichen Pegel wieder her, wenn die Aufnahme stoppt. Gilt nur, wenn das Standardeingabegerät des Systems verwendet wird.";
+"settings.sound.autoIncreaseMicVolume.info" = "Stellt die Eingangslautstärke des Mikrofons, mit dem HyperWhisper aufnimmt, beim Start der Aufnahme automatisch auf den Maximalwert ein und stellt den ursprünglichen Pegel wieder her, wenn die Aufnahme stoppt. Mikrofone ohne softwaregesteuerte Lautstärke bleiben unverändert.";
 "settings.sound.vad.title" = "Entfernen Sie die Stille vor der Transkription";
 "settings.sound.vad.info" = "Erkennt und entfernt automatisch vorangehende und nachgestellte Stille mithilfe der KI-Spracherkennung. Dies kann die Transkriptionsgenauigkeit verbessern und die Verarbeitungszeit verkürzen.";
 
@@ -1165,3 +1173,4 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "settings.storage.maxRecordingDuration.hour" = "1 Stunde";
 "settings.storage.maxRecordingDuration.hours" = "%d Stunden";
 "settings.storage.maxRecordingDuration.off" = "Aus";
+"settings.api_server.status.stopping" = "Wird beendet…";

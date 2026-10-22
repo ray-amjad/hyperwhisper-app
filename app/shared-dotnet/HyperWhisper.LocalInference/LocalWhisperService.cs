@@ -243,8 +243,16 @@ public sealed class LocalWhisperService : ILocalWhisperService
                     FileShare.Read,
                     81920,
                     FileOptions.Asynchronous | FileOptions.SequentialScan);
-                await foreach (var _ in processor
-                    .ProcessAsync(stream, cancellationToken)
+                // Whisper.net reads only a 16 kHz WAV, so a PCM WAV at any other
+                // rate (a 22,050 Hz Local API upload) is resampled here first
+                // (issue #1007). Every other file goes to Whisper.net as before.
+                var resampled = await Task.Run(
+                    () => WaveResampler.TryReadAs16kMono(stream, cancellationToken),
+                    cancellationToken).ConfigureAwait(false);
+                if (resampled is null) stream.Position = 0;
+                await foreach (var _ in (resampled is null
+                        ? processor.ProcessAsync(stream, cancellationToken)
+                        : processor.ProcessAsync(resampled, cancellationToken))
                     .WithCancellation(cancellationToken)
                     .ConfigureAwait(false))
                 {
@@ -467,5 +475,250 @@ public sealed class LocalWhisperService : ILocalWhisperService
         _factoryOptions = null;
         _verifiedOnLoad = false;
         return Task.CompletedTask;
+    }
+}
+
+/// <summary>
+/// Turns an integer PCM WAV at any sample rate but 16 kHz into the 16 kHz mono
+/// samples Whisper.net needs. Whisper.net's own reader refuses every other rate
+/// ("Only 16KHz sample rate is supported."), and the service reported that as a
+/// bare "Local Whisper transcription failed." (issue #1007).
+/// </summary>
+internal static class WaveResampler
+{
+    internal const int TargetRate = 16_000;
+
+    // Windowed-sinc kernel: zero crossings each side, and table points per crossing.
+    private const int ZeroCrossings = 8;
+    private const int TableResolution = 512;
+    private static readonly float[] Kernel = BuildKernel();
+
+    /// <summary>
+    /// The file's audio at 16 kHz mono, or null when Whisper.net should read the
+    /// file itself, as it always did: a 16 kHz WAV, a file that is not a RIFF
+    /// WAVE, or a format Whisper.net refuses at any rate (float, 12-bit). Channels
+    /// are averaged, as Whisper.net does. Reads from the stream's current position.
+    /// </summary>
+    internal static float[]? TryReadAs16kMono(Stream stream, CancellationToken cancellationToken = default)
+    {
+        using var reader = new BinaryReader(stream, Encoding.ASCII, leaveOpen: true);
+        if (!TryReadFormat(reader, out var channels, out var sampleRate, out var bitsPerSample, out var dataBytes))
+            return null;
+        if (sampleRate == TargetRate) return null;
+        var frameSize = channels * (bitsPerSample / 8);
+        // A streamed WAV can declare more data than it holds; read what is there.
+        if (stream.CanSeek) dataBytes = Math.Min(dataBytes, Math.Max(0, stream.Length - stream.Position));
+        var frames = dataBytes / frameSize;
+        var source = new float[4096];
+        var output = new float[(int)Math.Ceiling(frames * (double)TargetRate / sampleRate)];
+        var resampler = new Streaming(sampleRate, frames, output);
+        var raw = new byte[frameSize * 4096];
+        long read = 0;
+        while (read < frames)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var want = (int)Math.Min(4096, frames - read);
+            var got = ReadFull(stream, raw, want * frameSize) / frameSize;
+            if (got == 0) break;
+            for (var frame = 0; frame < got; frame++)
+            {
+                var sum = 0f;
+                for (var channel = 0; channel < channels; channel++)
+                    sum += Sample(raw, (frame * channels + channel) * (bitsPerSample / 8), bitsPerSample);
+                source[frame] = sum / channels;
+            }
+            resampler.Push(source.AsSpan(0, got));
+            read += got;
+        }
+        return resampler.Finish(read);
+    }
+
+    /// <summary>Resamples a whole buffer at once (the test seam for the filter).</summary>
+    internal static float[] Resample(ReadOnlySpan<float> source, int sampleRate)
+    {
+        var output = new float[(int)Math.Ceiling(source.Length * (double)TargetRate / sampleRate)];
+        var resampler = new Streaming(sampleRate, source.Length, output);
+        resampler.Push(source);
+        return resampler.Finish(source.Length);
+    }
+
+    private static bool TryReadFormat(
+        BinaryReader reader,
+        out int channels,
+        out int sampleRate,
+        out int bitsPerSample,
+        out long dataBytes)
+    {
+        channels = sampleRate = bitsPerSample = 0;
+        dataBytes = 0;
+        try
+        {
+            if (new string(reader.ReadChars(4)) != "RIFF") return false;
+            _ = reader.ReadUInt32();
+            if (new string(reader.ReadChars(4)) != "WAVE") return false;
+            var haveFormat = false;
+            while (true)
+            {
+                var id = new string(reader.ReadChars(4));
+                var size = reader.ReadUInt32();
+                if (id == "data")
+                {
+                    if (!haveFormat) return false;
+                    dataBytes = size;
+                    return true;
+                }
+                if (id == "fmt " && size >= 16)
+                {
+                    var format = reader.ReadUInt16();
+                    channels = reader.ReadUInt16();
+                    sampleRate = (int)Math.Min(reader.ReadUInt32(), int.MaxValue);
+                    _ = reader.ReadUInt32();
+                    _ = reader.ReadUInt16();
+                    bitsPerSample = reader.ReadUInt16();
+                    var rest = size - 16;
+                    // WAVE_FORMAT_EXTENSIBLE carries the real format in its
+                    // sub-format GUID; only PCM's is read here, as in Whisper.net.
+                    if (format == 0xFFFE && rest >= 24)
+                    {
+                        _ = reader.ReadBytes(8);
+                        format = reader.ReadUInt16();
+                        if (!reader.ReadBytes(14).AsSpan().SequenceEqual(PcmSubFormatTail)) return false;
+                        rest -= 24;
+                    }
+                    if (format != 1 || channels == 0 || sampleRate is < 1_000 or > 768_000
+                        || bitsPerSample is not (8 or 16 or 24 or 32))
+                        return false;
+                    haveFormat = true;
+                    Skip(reader, rest + (size & 1));
+                    continue;
+                }
+                Skip(reader, size + (size & 1));
+            }
+        }
+        catch (EndOfStreamException)
+        {
+            return false;
+        }
+    }
+
+    // KSDATAFORMAT_SUBTYPE_PCM after its first two bytes: 0000-0010-8000-00aa00389b71.
+    private static readonly byte[] PcmSubFormatTail =
+        [0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71];
+
+    private static void Skip(BinaryReader reader, long bytes)
+    {
+        var stream = reader.BaseStream;
+        if (stream.CanSeek)
+        {
+            if (stream.Position + bytes > stream.Length) throw new EndOfStreamException();
+            stream.Seek(bytes, SeekOrigin.Current);
+            return;
+        }
+        for (; bytes > 0; bytes -= 4096)
+            if (reader.ReadBytes((int)Math.Min(bytes, 4096)).Length == 0) throw new EndOfStreamException();
+    }
+
+    private static int ReadFull(Stream stream, byte[] buffer, int count)
+    {
+        var total = 0;
+        while (total < count)
+        {
+            var got = stream.Read(buffer, total, count - total);
+            if (got == 0) break;
+            total += got;
+        }
+        return total;
+    }
+
+    private static float Sample(byte[] raw, int offset, int bitsPerSample) => bitsPerSample switch
+    {
+        8 => (raw[offset] - 128) / 128f,
+        16 => BitConverter.ToInt16(raw, offset) / 32768f,
+        24 => ((raw[offset] | raw[offset + 1] << 8 | raw[offset + 2] << 16) << 8 >> 8) / 8388608f,
+        _ => BitConverter.ToInt32(raw, offset) / 2147483648f,
+    };
+
+    private static float[] BuildKernel()
+    {
+        var table = new float[ZeroCrossings * TableResolution + 2];
+        for (var i = 0; i < table.Length; i++)
+        {
+            var x = (double)i / TableResolution;
+            if (x >= ZeroCrossings) break;
+            var sinc = i == 0 ? 1 : Math.Sin(Math.PI * x) / (Math.PI * x);
+            // Blackman window over [-ZeroCrossings, ZeroCrossings].
+            var w = 0.42 + 0.5 * Math.Cos(Math.PI * x / ZeroCrossings) + 0.08 * Math.Cos(2 * Math.PI * x / ZeroCrossings);
+            table[i] = (float)(sinc * w);
+        }
+        return table;
+    }
+
+    /// <summary>
+    /// A windowed-sinc resampler fed in blocks. Going down, the kernel is
+    /// stretched to the 16 kHz Nyquist, so speech above 8 kHz does not alias
+    /// back into the band Whisper hears. Each output is normalised by its own
+    /// weight sum, so the first and last few milliseconds keep their level.
+    /// </summary>
+    private sealed class Streaming(int sampleRate, long totalFrames, float[] output)
+    {
+        private readonly double _step = (double)sampleRate / TargetRate;
+        // Filter units per source sample: below 1 when going down (low-pass at 8 kHz).
+        private readonly double _scale = Math.Min(1.0, (double)TargetRate / sampleRate);
+        private readonly double _reach = ZeroCrossings / Math.Min(1.0, (double)TargetRate / sampleRate);
+        private float[] _buffer = new float[4096];
+        private long _bufferStart;
+        private int _bufferCount;
+        private int _next;
+
+        public void Push(ReadOnlySpan<float> samples)
+        {
+            if (_bufferCount + samples.Length > _buffer.Length)
+                Array.Resize(ref _buffer, Math.Max(_buffer.Length * 2, _bufferCount + samples.Length));
+            samples.CopyTo(_buffer.AsSpan(_bufferCount));
+            _bufferCount += samples.Length;
+            Emit(final: false);
+        }
+
+        public float[] Finish(long framesRead)
+        {
+            Emit(final: true);
+            // A file shorter than its header said ends where its audio ends.
+            var produced = (int)Math.Min(_next, Math.Ceiling(framesRead / _step));
+            return produced == output.Length ? output : output[..produced];
+        }
+
+        private void Emit(bool final)
+        {
+            var available = _bufferStart + _bufferCount;
+            while (_next < output.Length)
+            {
+                var center = _next * _step;
+                var last = (long)Math.Floor(center + _reach);
+                if (!final && last >= available && available < totalFrames) break;
+                var first = Math.Max(_bufferStart, (long)Math.Ceiling(center - _reach));
+                last = Math.Min(last, available - 1);
+                double sum = 0, weights = 0;
+                for (var index = first; index <= last; index++)
+                {
+                    var position = Math.Abs(index - center) * _scale * TableResolution;
+                    var slot = (int)position;
+                    if (slot >= ZeroCrossings * TableResolution) continue;
+                    var fraction = (float)(position - slot);
+                    var weight = Kernel[slot] + (Kernel[slot + 1] - Kernel[slot]) * fraction;
+                    sum += weight * _buffer[index - _bufferStart];
+                    weights += weight;
+                }
+                output[_next++] = weights > 0 ? (float)(sum / weights) : 0f;
+            }
+            // Keep only the samples the next output can still reach.
+            var keepFrom = Math.Min(available, Math.Max(_bufferStart, (long)Math.Ceiling(_next * _step - _reach)));
+            var drop = (int)(keepFrom - _bufferStart);
+            if (drop > 0)
+            {
+                Array.Copy(_buffer, drop, _buffer, 0, _bufferCount - drop);
+                _bufferCount -= drop;
+                _bufferStart = keepFrom;
+            }
+        }
     }
 }

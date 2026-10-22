@@ -11,7 +11,7 @@ import type { WSMessageReceive } from 'hono/ws';
 import { computeDeepgramTranscriptionCost, creditsForCost } from '../lib/cost-calculator';
 import { createMemoryCreditHoldStore, type MemoryCreditHoldStore } from '../lib/credit-hold-store-memory';
 import type { AuthContext } from '../middleware/auth';
-import { FakeClientSocket, FakeUpstreamSocketBase, fakeContext } from './ws-streaming-test-support';
+import { FakeClientSocket, FakeStreamingTimers, FakeUpstreamSocketBase, fakeContext } from './ws-streaming-test-support';
 
 let cachedLicenseValue: { isValid: boolean; credits: number; cachedAt: string } | null = null;
 
@@ -22,7 +22,8 @@ mock.module('../lib/redis', () => ({
   cacheLicense: async () => {},
 }));
 
-const { createStreamingEvents, wsStreamingPreflight } = await import('./ws-streaming-deepgram');
+const { DEEPGRAM_VENDOR, createStreamingEvents, wsStreamingPreflight } = await import('./ws-streaming-deepgram');
+const { createStreamingEventsFor } = await import('./ws-streaming-shared');
 const { drainPendingDeductions } = await import('../middleware/credits');
 const {
   drainPendingHoldReleases,
@@ -368,4 +369,207 @@ describe('a dropped session charge logs credits.deduction_failed (#820)', () => 
       expect(lines).toEqual([]);
     });
   }
+});
+
+// Issue #801: the keepalive ping, the hold renewal and the open deadline run on
+// timers too slow to wait for (30 s, 2 min). They are driven through the
+// `timers` seam of `createStreamingEventsFor` with a hand-fired fake clock.
+describe('session timers (#801)', () => {
+  const MINUTE = 60_000;
+  let clock: FakeStreamingTimers;
+
+  beforeEach(() => {
+    clock = new FakeStreamingTimers();
+  });
+
+  function timedEvents(hold: CreditHold | undefined, sessionAuth: AuthContext = auth(100)) {
+    return createStreamingEventsFor(DEEPGRAM_VENDOR, holdContext(sessionAuth, hold), clock.timers);
+  }
+
+  async function openTimedSession(hold: CreditHold | undefined, sessionAuth?: AuthContext) {
+    const events = timedEvents(hold, sessionAuth);
+    const client = new HoldsClientSocket();
+    events.onOpen(new Event('open'), client);
+    upstreamSockets[upstreamSockets.length - 1]!.handshake();
+    return { events, client };
+  }
+
+  /** Count the session's calls to `hold.renew()`, still running the real one. */
+  function countRenewals(hold: CreditHold): { count: number } {
+    const calls = { count: 0 };
+    const renew = hold.renew.bind(hold);
+    hold.renew = () => {
+      calls.count += 1;
+      return renew();
+    };
+    return calls;
+  }
+
+  describe('keepalive ping', () => {
+    test('sends exactly {"type":"ping"} every 30 s while the client socket is open', async () => {
+      const { events, client } = await openTimedSession(undefined);
+      expect(clock.intervals.map((timer) => timer.ms)).toEqual([30_000]);
+      const before = client.sent.length;
+
+      clock.tickInterval();
+      expect(client.sent.slice(before)).toEqual(['{"type":"ping"}']);
+      clock.tickInterval();
+      expect(client.messagesOfType('ping')).toHaveLength(2);
+
+      await events.onClose();
+    });
+
+    test('sends nothing to a client socket that is no longer open', async () => {
+      const { events, client } = await openTimedSession(undefined);
+      const before = client.sent.length;
+
+      for (const state of [0, 2, 3]) {
+        client.readyState = state;
+        clock.tickInterval();
+      }
+      expect(client.sent.slice(before)).toEqual([]);
+
+      await events.onClose();
+    });
+
+    test('the session end clears the interval it armed', async () => {
+      const { events } = await openTimedSession(undefined);
+      expect(clock.intervals[0]!.cleared).toBe(false);
+      await events.onClose();
+      expect(clock.intervals[0]!.cleared).toBe(true);
+    });
+  });
+
+  describe('open deadline', () => {
+    test('an upgrade whose socket never opens gives its hold back at 30 s', async () => {
+      const sessionAuth = auth(100);
+      const { hold } = await reserveSessionHold(sessionAuth, 1, BLOCK);
+      timedEvents(hold, sessionAuth);
+      expect(clock.timeouts.map((timer) => timer.ms)).toEqual([30_000]);
+      expect(store.outstandingMilli(ACCOUNT)).toBe(BLOCK * 1000);
+
+      clock.fireTimeout();
+      await settle();
+
+      expect(hold.released).toBe(true);
+      expect(store.outstandingMilli(ACCOUNT)).toBe(0);
+      expect(charges).toEqual([]);
+    });
+
+    test('a socket that opened clears the deadline, and a late firing keeps the hold', async () => {
+      const sessionAuth = auth(100);
+      const { hold } = await reserveSessionHold(sessionAuth, 1, BLOCK);
+      const { events } = await openTimedSession(hold, sessionAuth);
+      expect(clock.timeouts[0]!.cleared).toBe(true);
+
+      // A deadline already due when the socket opened still runs its callback.
+      clock.timeouts[0]!.fn();
+      await settle();
+      expect(hold.released).toBe(false);
+      expect(store.outstandingMilli(ACCOUNT)).toBe(BLOCK * 1000);
+
+      await events.onClose();
+    });
+
+    test('a session that ends before its socket opens clears the deadline', async () => {
+      const sessionAuth = auth(100);
+      const { hold } = await reserveSessionHold(sessionAuth, 1, BLOCK);
+      const events = timedEvents(hold, sessionAuth);
+      await events.onClose();
+      expect(clock.timeouts[0]!.cleared).toBe(true);
+    });
+
+    test('no hold, no deadline', () => {
+      timedEvents(undefined);
+      expect(clock.timeouts).toEqual([]);
+    });
+  });
+
+  describe('hold renewal', () => {
+    test('a paused session renews its hold once 2 min have passed, and not before', async () => {
+      const sessionAuth = auth(100);
+      const { hold } = await reserveSessionHold(sessionAuth, 1, BLOCK);
+      const renewals = countRenewals(hold);
+      const { events } = await openTimedSession(hold, sessionAuth);
+
+      clock.nowMs += 2 * MINUTE - 1;
+      clock.tickInterval();
+      expect(renewals.count).toBe(0);
+
+      clock.nowMs += 1;
+      clock.tickInterval();
+      expect(renewals.count).toBe(1);
+
+      // The renewal restarts the 2 min clock.
+      clock.tickInterval();
+      clock.nowMs += 2 * MINUTE - 1;
+      clock.tickInterval();
+      expect(renewals.count).toBe(1);
+      clock.nowMs += 1;
+      clock.tickInterval();
+      expect(renewals.count).toBe(2);
+
+      await tick();
+      expect(hold.heldCredits).toBe(BLOCK);
+      expect(hold.released).toBe(false);
+      await events.onClose();
+    });
+
+    test('no renewal while a top-up is in flight, and a landed top-up restarts the clock', async () => {
+      const sessionAuth = auth(100);
+      // A one-credit hold is ten seconds of Nova-3: ten seconds asks for a top-up.
+      const { hold } = await reserveSessionHold(sessionAuth, 1, 1);
+      const renewals = countRenewals(hold);
+      const { events } = await openTimedSession(hold, sessionAuth);
+
+      clock.nowMs += 2 * MINUTE;
+      for (let s = 0; s < 10; s += 1) events.onMessage(second());
+      clock.tickInterval();
+      expect(renewals.count).toBe(0);
+
+      await tick();
+      expect(hold.heldCredits).toBe(1 + BLOCK);
+      clock.tickInterval();
+      expect(renewals.count).toBe(0);
+
+      clock.nowMs += 2 * MINUTE - 1;
+      clock.tickInterval();
+      expect(renewals.count).toBe(0);
+      clock.nowMs += 1;
+      clock.tickInterval();
+      expect(renewals.count).toBe(1);
+
+      await tick();
+      await events.onClose();
+    });
+
+    test('a session with no hold, or a degraded one, never renews', async () => {
+      const { events } = await openTimedSession(undefined);
+      clock.nowMs += 10 * MINUTE;
+      clock.tickInterval();
+      await events.onClose();
+
+      setCreditHoldStoreForTests({
+        reserve: async () => { throw new Error('upstash down'); },
+        release: async () => { throw new Error('upstash down'); },
+      });
+      const originalError = console.error;
+      console.error = () => {};
+      try {
+        const sessionAuth = auth(100);
+        const { hold } = await reserveSessionHold(sessionAuth, 0.5, BLOCK);
+        expect(hold.degraded).toBe(true);
+        const renewals = countRenewals(hold);
+        clock = new FakeStreamingTimers();
+        const degraded = await openTimedSession(hold, sessionAuth);
+        clock.nowMs += 10 * MINUTE;
+        clock.tickInterval();
+        expect(renewals.count).toBe(0);
+        await degraded.events.onClose();
+        await settle();
+      } finally {
+        console.error = originalError;
+      }
+    });
+  });
 });
