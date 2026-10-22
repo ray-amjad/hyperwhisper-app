@@ -663,6 +663,22 @@
       ],
       "licensed": false,
       "note": "Unlicensed Debug (staging). Start-up keychain prompt for 'HyperWhisper Local API token' asked for the login password; Denied it. sshd-session local-network notification would not dismiss via KVM click; harmless, bottom-right. KVM cannot type non-ASCII (snowman) so unicode key input untested. Percy profile has leftover modes (PR 1758 Whisper Base etc.)."
+    },
+    {
+      "at": "2026-10-22T04:27:29Z",
+      "platform": "linux",
+      "commit": "b55b040f",
+      "routes": [
+        "updates",
+        "streaming",
+        "home-and-tray"
+      ],
+      "status": "1-commented",
+      "issues": [
+        2226
+      ],
+      "licensed": false,
+      "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY). Contact Support / speed-comparison links show 'could not be opened' because the box has no xdg-open: environment, not filed. Window resize/maximise and Streaming start with real audio not covered. Home double-highlight (#2226) still on main."
     }
   ]
 }
