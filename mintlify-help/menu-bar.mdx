@@ -23,7 +23,7 @@ HyperWhisper stays in your menu bar (macOS) or system tray (Windows). You can st
     | **Start/Stop Recording** / **Stop Recording** | Starts or stops the recording. The item shows your shortcut on the right. If you use Push-to-Talk instead, the item shows a Push-to-Talk hint, for example "Hold FN". |
     | **History** | Opens the main window to the History view. |
     | **Settings** | Opens the main window to the Settings view. |
-    | **Microphone** | Submenu with all available input devices. A checkmark shows the active device. The system default device has the label "(Default)". Click a device to switch to it immediately. |
+    | **Microphone** | Submenu with **Default · &lt;device&gt;** first, which follows the macOS default input, then all available input devices. A checkmark shows your choice. If your saved device is unplugged, it shows as **&lt;name&gt; (not connected)**. Click a device to switch to it immediately. This is the same choice as **Settings → Sound → Microphone**. |
     | **Select Mode** | Submenu with all your transcription modes. A checkmark shows the active mode. Click a mode to switch to it. |
     | **Transcribe File** | Submenu with all your modes. Select a mode. Then select an audio file or a video file to transcribe. |
     | **Help Center** | Opens [hyperwhisper.com/docs](https://hyperwhisper.com/docs). |
@@ -39,6 +39,7 @@ HyperWhisper stays in your menu bar (macOS) or system tray (Windows). You can st
     - The app keeps your microphone and mode selections from the menu across sessions.
     - If you set a global toggle shortcut, the menu shows a keyboard hint next to **Start/Stop Recording**. If you set Push-to-Talk instead, the menu shows the Push-to-Talk key hint (for example, "Hold FN" or "Hold ⌃").
     - To start the app without the main window, enable **Launch Minimized** in Settings → General.
+    - After you close the main window with **⌘W**, you can open it again from the app menus. **HyperWhisper → Settings...** (**⌘,**) opens the main window on Settings. **Window → HyperWhisper** (**⌘0**) brings the main window back. With an active license, this item reads **HyperWhisper Pro**.
   </Tab>
   <Tab title="Windows">
     ## System Tray Icon
@@ -55,7 +56,7 @@ HyperWhisper stays in your menu bar (macOS) or system tray (Windows). You can st
     | **Start/Stop Recording** / **Stop Recording** | Starts or stops the recording. The item is disabled during a transcription or a model load. The item is also disabled when no microphone device or mode is selected. |
     | **History** | Opens the main window to the History view. |
     | **Settings** | Opens the main window to the Settings view. |
-    | **Microphone** | Submenu with all available input devices. A checkmark shows the active device. Click a device to switch to it. |
+    | **Microphone** | Submenu with **Default · &lt;device&gt;** first, which follows the Windows default input, then all available input devices. A checkmark shows your choice. Click a device to switch to it. This is the same choice as **Settings → Sound → Microphone**. |
     | **Select Mode** | Submenu with your transcription modes. A checkmark shows the active mode. Click a mode to switch to it. |
     | **Transcribe File** | Submenu with your modes. Select a mode to open the file picker and transcribe an audio file. |
     | **Help Center** | Opens [hyperwhisper.com/docs](https://hyperwhisper.com/docs). |

@@ -6,9 +6,9 @@
  *
  * `formatLogArgs` renders a console call the way Node does (`util.inspect` for
  * anything that is not a string), so a test sees the stack, `params`, `cause`
- * and `detail` that a production log line would carry.
+ * and `detail` that a production log line would carry. It is defined in
+ * `module-mock.ts`, beside the console capture that uses it.
  */
-import { inspect } from "node:util";
 
 import { DrizzleQueryError } from "drizzle-orm";
 import { DatabaseError } from "pg";
@@ -49,9 +49,7 @@ export function leakyDbError(
   return new DrizzleQueryError(LEAKY_SQL, [LEAKY_KEY, LEAKY_EMAIL, "cs_leak_1"], pg);
 }
 
-export function formatLogArgs(args: unknown[]): string {
-  return args.map((a) => (typeof a === "string" ? a : inspect(a, { depth: 6 }))).join(" ");
-}
+export { formatLogArgs } from "./module-mock";
 
 /** Every line that carries the address or the key, in any case. */
 export function leakyLines(lines: string[]): string[] {

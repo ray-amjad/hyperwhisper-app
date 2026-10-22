@@ -93,24 +93,18 @@ enum TranscribeEndpoint {
 
         let started = Date()
         let text: String
-        // The language the engine reported for THIS run. Captured on the very
-        // next line after the awaited `transcribe`, before the health calls and
-        // before any other read of the provider, because `detectedLanguage` is
-        // per-provider mutable state and this is the ordering its own contract
-        // asks for. That contract rests on "transcriptions are serialized per
-        // session", which the GUI honours and two overlapping Local API
-        // requests against the same provider instance do not — the same
-        // pre-existing hazard `lastTimestamps` below is already read under.
-        // Closing it properly means returning per-call metadata from
-        // `TranscriptionProvider.transcribe`, across all eighteen conformers;
-        // that is a protocol change and is not made here.
+        // The language and timestamps the engine reported for THIS run. Both
+        // come back in the call's own `TranscriptionOutcome` (#754), not off
+        // the provider instance, which the GUI pipeline and overlapping Local
+        // API requests share.
         //
-        // Local Whisper is the exception (issue #1465). Its passes supersede
-        // each other, so overlapping requests cancelled one another; they now
-        // queue on the one shared provider, and the queued pass returns its
-        // own text, timestamps and language.
+        // Local Whisper also queues (issue #1465). Its passes supersede each
+        // other, so overlapping requests cancelled one another; they now queue
+        // on the one shared provider, and the queued pass returns its own
+        // outcome.
         let detectedLanguage: String?
         var whisperTimestamps: TranscriptionTimestamps?
+        var providerTimestamps: TranscriptionTimestamps?
         do {
             if let whisper {
                 let pass = try await whisper.transcribeQueuedForLocalAPI(
@@ -124,13 +118,23 @@ enum TranscribeEndpoint {
                 detectedLanguage = pass.detectedLanguage
                 whisperTimestamps = pass.timestamps
             } else {
-                text = try await resolution.provider.transcribe(
-                    audioURL: fileURL,
-                    language: language,
-                    mode: resolution.mode,
-                    vocabulary: resolution.vocabulary
-                )
-                detectedLanguage = resolution.provider.detectedLanguage
+                let outcome: TranscriptionOutcome
+                do {
+                    outcome = try await resolution.provider.transcribeDetailed(
+                        audioURL: fileURL,
+                        language: language,
+                        mode: resolution.mode,
+                        vocabulary: resolution.vocabulary
+                    )
+                } catch let failure as TranscriptionAttemptFailure {
+                    // The Local API reports no attempt diagnostics. Unwrap here
+                    // so the catch below (health feedback, error mapping) sees
+                    // the provider's ORIGINAL error, exactly as before.
+                    throw failure.underlying
+                }
+                text = outcome.text
+                detectedLanguage = outcome.detectedLanguage
+                providerTimestamps = outcome.timestamps
             }
             if let cloudProviderType {
                 if let credentialGeneration {
@@ -187,7 +191,7 @@ enum TranscribeEndpoint {
         // engine could produce them → graceful omission for cloud/other engines).
         let timestamps = granularities.isEmpty
             ? nil
-            : (whisper != nil ? whisperTimestamps : resolution.provider.lastTimestamps)
+            : (whisper != nil ? whisperTimestamps : providerTimestamps)
         let segments = timestamps.map { ts in
             ts.segments.map { TranscribeSegment(id: $0.id, start: $0.start, end: $0.end, text: $0.text) }
         }

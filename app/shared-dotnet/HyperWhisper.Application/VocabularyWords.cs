@@ -8,6 +8,12 @@ namespace HyperWhisper.PortableApplication.Persistence;
 /// </summary>
 public static class VocabularyWords
 {
+    /// <summary>
+    /// The longest word a backup import accepts (#2390). A provider prompt only ever uses the first
+    /// 80 characters of a term (hw-text MAX_VOCABULARY_TERM_CHARS), so this is far above any real word.
+    /// </summary>
+    public const int MaxWordChars = 1000;
+
     // The characters Foundation's CharacterSet.newlines holds, so all three heads split alike.
     private static readonly char[] LineBreaks = ['\n', '\u000B', '\u000C', '\r', '\u0085', '\u2028', '\u2029'];
 
