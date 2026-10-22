@@ -4813,6 +4813,92 @@ internal static class Program
                     "a MainWindow was built after the startup was aborted");
             });
 
+            // Issue #2386. The 46 theme brushes in Brushes.xaml took their Color
+            // from a {DynamicResource}, so they could not freeze, and every
+            // {DynamicResource XBrush} consumer hooked their Changed event. WPF
+            // drops a dead hook only when the brush raises Changed, so each page
+            // visit left ~33-412 handlers behind for good. The brushes now live
+            // frozen inside each theme's colour dictionary, and a theme switch
+            // swaps the whole dictionary, which re-resolves every consumer.
+            Run("theme brushes are frozen in light and dark, and a resource reference follows the switch - issue #2386", () =>
+            {
+                var app = EnsureSmokeApplication();
+                var theme = ThemeService.Instance;
+                var wasDark = theme.IsDarkMode;
+
+                // The key list comes from the light dictionary itself, so a
+                // brush added later is covered without editing this case.
+                var lightDictionary = new ResourceDictionary
+                {
+                    Source = new Uri("pack://application:,,,/HyperWhisper;component/Themes/LightColors.xaml")
+                };
+                var darkDictionary = new ResourceDictionary
+                {
+                    Source = new Uri("pack://application:,,,/HyperWhisper;component/Themes/DarkColors.xaml")
+                };
+                var brushKeys = lightDictionary.Keys.OfType<string>()
+                    .Where(key => lightDictionary[key] is System.Windows.Media.Brush)
+                    .OrderBy(key => key, StringComparer.Ordinal)
+                    .ToList();
+                var darkBrushKeys = darkDictionary.Keys.OfType<string>()
+                    .Where(key => darkDictionary[key] is System.Windows.Media.Brush)
+                    .OrderBy(key => key, StringComparer.Ordinal)
+                    .ToList();
+                Assert(brushKeys.Count == 46, $"the light theme should define the 46 theme brushes, found {brushKeys.Count}");
+                Assert(brushKeys.SequenceEqual(darkBrushKeys),
+                    $"light and dark must define the same brushes; only in one: {string.Join(", ", brushKeys.Except(darkBrushKeys).Concat(darkBrushKeys.Except(brushKeys)))}");
+
+                // Nothing outside the theme dictionary may define these keys
+                // again: a second, unfrozen copy would win the lookup.
+                foreach (var merged in app.Resources.MergedDictionaries)
+                {
+                    if (merged.Source?.ToString().Contains("Colors.xaml") == true)
+                        continue;
+                    var shadow = brushKeys.Where(merged.Contains).ToList();
+                    Assert(shadow.Count == 0,
+                        $"{merged.Source} redefines theme brushes: {string.Join(", ", shadow)}");
+                }
+
+                var consumer = new System.Windows.Controls.TextBlock();
+                consumer.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "TextPrimaryBrush");
+                // A theme switch re-resolves the trees of the app's windows, so
+                // the consumer sits in one (never shown) as a page would.
+                var host = new Window { Content = consumer };
+
+                try
+                {
+                    foreach (var dark in new[] { false, true, false })
+                    {
+                        theme.ApplyTheme(dark ? HyperWhisper.Models.ThemeMode.Dark : HyperWhisper.Models.ThemeMode.Light);
+                        var label = dark ? "dark" : "light";
+                        var expected = dark ? darkDictionary : lightDictionary;
+
+                        foreach (var key in brushKeys)
+                        {
+                            var brush = app.TryFindResource(key) as System.Windows.Media.SolidColorBrush;
+                            Assert(brush is not null, $"{label}: '{key}' does not resolve to a SolidColorBrush");
+                            Assert(brush!.IsFrozen, $"{label}: '{key}' is not frozen, so every consumer hooks its Changed event");
+                            var want = ((System.Windows.Media.SolidColorBrush)expected[key]).Color;
+                            Assert(brush.Color == want, $"{label}: '{key}' is {brush.Color}, the {label} theme says {want}");
+                        }
+
+                        var shown = ((System.Windows.Media.SolidColorBrush)consumer.Foreground).Color;
+                        var primary = (System.Windows.Media.Color)expected["TextPrimary"];
+                        Assert(shown == primary,
+                            $"{label}: a SetResourceReference consumer shows {shown}, not the theme's TextPrimary {primary}");
+                    }
+
+                    var lightPrimary = ((System.Windows.Media.SolidColorBrush)lightDictionary["TextPrimaryBrush"]).Color;
+                    var darkPrimary = ((System.Windows.Media.SolidColorBrush)darkDictionary["TextPrimaryBrush"]).Color;
+                    Assert(lightPrimary != darkPrimary, "light and dark TextPrimaryBrush are the same colour, so the switch above proved nothing");
+                }
+                finally
+                {
+                    host.Close();
+                    theme.ApplyTheme(wasDark ? HyperWhisper.Models.ThemeMode.Dark : HyperWhisper.Models.ThemeMode.Light);
+                }
+            });
+
             // Issue #510. The heading said "Edit Endpoint" and Window.Title still
             // said "Add Endpoint", so the taskbar entry and Alt+Tab named the
             // wrong operation. The two now come from one string, and this asserts

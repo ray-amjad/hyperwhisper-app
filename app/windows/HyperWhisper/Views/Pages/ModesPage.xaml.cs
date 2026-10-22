@@ -172,12 +172,12 @@ public partial class ModesPage : Page
                 if (localIcon != null)
                 {
                     localIcon.Text = "\uE7BA"; // Warning icon
-                    localIcon.Foreground = (System.Windows.Media.Brush)System.Windows.Application.Current.Resources["WarningBrush"];
+                    localIcon.SetResourceReference(TextBlock.ForegroundProperty, "WarningBrush");
                 }
                 if (localText != null)
                 {
                     localText.Text = Loc.S("modes.arm64.notAvailable");
-                    localText.Foreground = (System.Windows.Media.Brush)System.Windows.Application.Current.Resources["WarningBrush"];
+                    localText.SetResourceReference(TextBlock.ForegroundProperty, "WarningBrush");
                 }
                 return;
             }
@@ -210,12 +210,10 @@ public partial class ModesPage : Page
 
             if (localIcon != null && localText != null)
             {
-                var brush = isDownloaded
-                    ? (System.Windows.Media.Brush)System.Windows.Application.Current.Resources["SuccessBrush"]
-                    : (System.Windows.Media.Brush)System.Windows.Application.Current.Resources["WarningBrush"];
+                var brushKey = isDownloaded ? "SuccessBrush" : "WarningBrush";
 
-                localIcon.Foreground = brush;
-                localText.Foreground = brush;
+                localIcon.SetResourceReference(TextBlock.ForegroundProperty, brushKey);
+                localText.SetResourceReference(TextBlock.ForegroundProperty, brushKey);
             }
         }
     }

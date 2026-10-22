@@ -18,10 +18,11 @@ namespace HyperWhisper.Services;
 /// 4. Swap ResourceDictionaries at runtime for seamless theme switching
 ///
 /// HOW THEME SWITCHING WORKS:
-/// 1. Theme colors are defined in LightColors.xaml and DarkColors.xaml
-/// 2. Brushes.xaml uses DynamicResource to reference these colors
-/// 3. When theme changes, we swap the color ResourceDictionary in App.Resources
-/// 4. All UI elements using DynamicResource update automatically
+/// 1. LightColors.xaml and DarkColors.xaml each define the theme's colors AND
+///    its frozen brushes (frozen so no consumer hooks their Changed event, #2386)
+/// 2. When theme changes, we swap that whole ResourceDictionary in App.Resources
+/// 3. All UI elements using DynamicResource (or SetResourceReference in code)
+///    update automatically; a brush copied with FindResource does not
 ///
 /// SYSTEM THEME DETECTION:
 /// Windows stores the app theme preference in the registry at:
@@ -232,8 +233,8 @@ public class ThemeService
                 app.Resources.MergedDictionaries.Remove(currentColorDict);
             }
 
-            // Load and insert the new color dictionary at the beginning
-            // (so it's available before Brushes.xaml references it)
+            // Load and insert the new color dictionary at the beginning,
+            // where App.xaml declares it
             var newColorDict = new ResourceDictionary
             {
                 Source = dark ? DarkThemeUri : LightThemeUri
