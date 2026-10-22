@@ -124,8 +124,11 @@ function drizzleAccountKeyToRow(row: typeof accountKeys.$inferSelect): AccountKe
 // License Keys
 // ---------------------------------------------------------------------------
 
-export async function insertAccountKey(data: AccountKeyInsert): Promise<AccountKeyRow | null> {
-  const [row] = await db
+export async function insertAccountKey(
+  data: AccountKeyInsert,
+  executor: DbExecutor = db
+): Promise<AccountKeyRow | null> {
+  const [row] = await executor
     .insert(accountKeys)
     .values({
       key: data.key,
@@ -298,6 +301,11 @@ export async function getGrantedEmails(): Promise<string[]> {
 // date, so keep its `creditDollarsForClaim` eras in step with any change here.
 const INTERNAL_BUNDLE_CREDITS = 5000;
 
+// First key of the two-int advisory lock that serialises internal mints per
+// email (the second is hashtext(email)). Any constant works; it only keeps
+// these locks apart from any other advisory lock on the database.
+const GRANT_LICENSE_LOCK_CLASS = 2481;
+
 /**
  * Mint a fresh internal-bundle license for an email: generate a collision-free
  * key, ensure the user exists, insert the license as "granted", and grant the
@@ -307,45 +315,75 @@ const INTERNAL_BUNDLE_CREDITS = 5000;
  * caller is the grant-license endpoint (driven by the ACS claim flow), which
  * mints only when the email has no granted key. licenses-for-email is read-only
  * and never mints. Throws on any failure.
+ *
+ * CONCURRENCY (#2481): the caller's "no granted key yet" read is outside any
+ * lock, so several calls for one email (a double-clicked claim, a retry, an
+ * overlapping backfill) can all reach here. The whole mint runs in ONE
+ * transaction that first takes a per-email advisory lock and then re-reads the
+ * granted keys: the first caller mints, and every caller queued behind it
+ * finds that key and gets it back with no new key and no second credit grant.
+ * The lock also serialises the user insert, so a brand-new email no longer
+ * trips `user_email_unique` for the losers. Several Vercel instances share it,
+ * because it lives in Postgres.
  */
 export async function provisionAccountKeyForEmail(email: string): Promise<AccountKeyRow> {
   const normalizedEmail = email.toLowerCase().trim();
 
-  // Generate a unique license key with collision check
-  let key = "";
-  for (let i = 0; i < 5; i++) {
-    key = generateLicenseKey();
-    const collision = await findAccountByKey(key);
-    if (!collision) break;
-    if (i === 4) {
-      throw new Error("Failed to generate unique license key");
+  return db.transaction(async (tx) => {
+    // Released at COMMIT/ROLLBACK, so it is safe behind a transaction pooler.
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(${GRANT_LICENSE_LOCK_CLASS}, hashtext(${normalizedEmail}))`
+    );
+
+    const [granted] = await tx
+      .select()
+      .from(accountKeys)
+      .where(and(eq(accountKeys.email, normalizedEmail), eq(accountKeys.status, "granted")))
+      .orderBy(desc(accountKeys.createdAt))
+      .limit(1);
+    if (granted) return drizzleAccountKeyToRow(granted);
+
+    // Generate a unique license key with collision check
+    let key = "";
+    for (let i = 0; i < 5; i++) {
+      key = generateLicenseKey();
+      const collision = await tx.query.accountKeys.findFirst({
+        where: eq(accountKeys.key, key),
+      });
+      if (!collision) break;
+      if (i === 4) {
+        throw new Error("Failed to generate unique license key");
+      }
     }
-  }
 
-  const name = normalizedEmail.split("@")[0];
-  const userResult = await getOrCreateUser(normalizedEmail, { name });
-  if (!userResult) {
-    throw new Error("Failed to create user");
-  }
+    const name = normalizedEmail.split("@")[0];
+    const userResult = await getOrCreateUser(normalizedEmail, { name }, tx);
+    if (!userResult) {
+      throw new Error("Failed to create user");
+    }
 
-  const license = await insertAccountKey({
-    key,
-    email: normalizedEmail,
-    userId: userResult.id,
-    status: "granted",
+    const license = await insertAccountKey(
+      {
+        key,
+        email: normalizedEmail,
+        userId: userResult.id,
+        status: "granted",
+      },
+      tx
+    );
+    if (!license) {
+      throw new Error("Failed to insert license key");
+    }
+
+    await grantCreditLotInTransaction(tx, {
+      userId: license.userId,
+      amount: INTERNAL_BUNDLE_CREDITS,
+      sourceType: "internal_bundle",
+      sourceId: license.id,
+    });
+
+    return license;
   });
-  if (!license) {
-    throw new Error("Failed to insert license key");
-  }
-
-  await grantCreditLot({
-    userId: license.userId,
-    amount: INTERNAL_BUNDLE_CREDITS,
-    sourceType: "internal_bundle",
-    sourceId: license.id,
-  });
-
-  return license;
 }
 
 // ---------------------------------------------------------------------------
@@ -1155,10 +1193,11 @@ export async function logSentEmail(data: {
 
 export async function getOrCreateUser(
   email: string,
-  metadata?: { name?: string; stripeCustomerId?: string }
+  metadata?: { name?: string; stripeCustomerId?: string },
+  executor: DbExecutor = db
 ): Promise<UserResult | null> {
   // Check if user exists
-  const existing = await db.query.user.findFirst({
+  const existing = await executor.query.user.findFirst({
     where: eq(user.email, email.toLowerCase().trim()),
   });
   if (existing) return { id: existing.id, email: existing.email };
@@ -1169,7 +1208,7 @@ export async function getOrCreateUser(
   // it. The magic-link plugin flips emailVerified to true on the first
   // successful sign-in, which is the only point where ownership is verified.
   const userId = crypto.randomUUID();
-  const [newUser] = await db
+  const [newUser] = await executor
     .insert(user)
     .values({
       id: userId,
@@ -1181,7 +1220,7 @@ export async function getOrCreateUser(
   if (!newUser) return null;
 
   // Also insert an account record so the user can sign in via magic link
-  await db.insert(account).values({
+  await executor.insert(account).values({
     id: `magic-link-${userId}`,
     accountId: userId,
     providerId: "magic-link",
