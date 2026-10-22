@@ -79,6 +79,11 @@ class RecordingLifecycle {
     /// Last successfully recorded file (for retry)
     @Published var lastRecordingURL: URL?
 
+    /// True while the live "mic hears nothing" warning should show (#2411):
+    /// capture has run 2 s and no block has peaked at -60 dBFS or above yet.
+    /// Batch and streaming both drive it; see `beginSilentMicrophoneWatch()`.
+    @Published private(set) var isMicrophoneSilent = false
+
     // MARK: - File References
 
     /// Temporary raw PCM file (CAF format)
@@ -94,6 +99,12 @@ class RecordingLifecycle {
 
     /// Timer for updating duration display
     private var recordingTimer: Timer?
+
+    /// The #2411 rule for the recording that is capturing now.
+    private var silentMicWatcher = SilentMicrophoneWatcher()
+
+    /// Ticks `silentMicWatcher`, so the warning also fires when no audio arrives.
+    private var silentMicTimer: Timer?
 
     /// Microphone permission status
     var hasMicrophonePermission: Bool = false
@@ -169,6 +180,11 @@ class RecordingLifecycle {
 
         simpleRecorder.onCaptureLost = { [weak self] in
             self?.onCaptureLost?()
+        }
+
+        // Batch capture's block peaks feed the silent-mic warning (#2411).
+        simpleRecorder.onInputPeakDbfs = { [weak self] peakDbfs in
+            self?.observeInputPeak(dbfs: peakDbfs)
         }
     }
 
@@ -627,6 +643,7 @@ class RecordingLifecycle {
         recordingGeneration &+= 1
         recordingStartTime = Date()
         startDurationTimer()
+        beginSilentMicrophoneWatch()
 
         AppLogger.audio.info("Started recording to file: \(wavURL.lastPathComponent, privacy: .public)")
 
@@ -725,6 +742,7 @@ class RecordingLifecycle {
         recordingStartTime = nil
         recordingTimer?.invalidate()
         recordingTimer = nil
+        endSilentMicrophoneWatch()
     }
 
     /// Stop recording and optionally convert to M4A
@@ -827,6 +845,7 @@ class RecordingLifecycle {
         // below, where a new start could install a recorder this stop would retire.
         self.audioLevel = 0
         self.recordingDuration = 0
+        endSilentMicrophoneWatch()
 
         // STEP 0.5 (#1359): take ownership of this recording's file URLs and session
         // row before the first suspension. A new recording can start during the waits
@@ -1623,6 +1642,62 @@ class RecordingLifecycle {
         recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             guard let self = self, let start = self.recordingStartTime else { return }
             self.recordingDuration = Date().timeIntervalSince(start)
+        }
+    }
+
+    // MARK: - Silent Microphone Warning (#2411)
+
+    /// Monotonic seconds for `silentMicWatcher`; immune to wall-clock changes.
+    nonisolated private static func silentMicClock() -> TimeInterval {
+        ProcessInfo.processInfo.systemUptime
+    }
+
+    /// Capture has actually started: arm the warning for this recording.
+    ///
+    /// Batch calls it in STEP 7 of `startRecording()`, once the recorder is live.
+    /// Streaming calls it when `startSession` returns, which is after the capture
+    /// engine started, so a connection still opening never counts as silence.
+    func beginSilentMicrophoneWatch() {
+        silentMicWatcher.start(at: Self.silentMicClock())
+        publishSilentMicWarning()
+
+        silentMicTimer?.invalidate()
+        silentMicTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            self.silentMicWatcher.tick(at: RecordingLifecycle.silentMicClock())
+            self.publishSilentMicWarning()
+            // Disarmed for the rest of this recording: nothing left to tick.
+            if self.silentMicWatcher.phase == .heard {
+                self.silentMicTimer?.invalidate()
+                self.silentMicTimer = nil
+            }
+        }
+    }
+
+    /// One block's peak, from batch (`SimpleRecorder`) or streaming capture.
+    /// Ignored while no recording is being watched.
+    func observeInputPeak(dbfs: Float) {
+        silentMicWatcher.observe(peakDbfs: dbfs, at: Self.silentMicClock())
+        publishSilentMicWarning()
+    }
+
+    /// Stop, cancel or error: hide the warning and disarm.
+    func endSilentMicrophoneWatch() {
+        silentMicTimer?.invalidate()
+        silentMicTimer = nil
+        silentMicWatcher.stop()
+        publishSilentMicWarning()
+    }
+
+    /// Publish only on change: the watcher is consulted ~40 times a second.
+    private func publishSilentMicWarning() {
+        let warning = silentMicWatcher.isWarning
+        guard warning != isMicrophoneSilent else { return }
+        isMicrophoneSilent = warning
+        if warning {
+            AppLogger.audio.notice("No sound from the microphone for \(SilentMicrophoneWatcher.warnAfter, privacy: .public)s of capture - showing the silent-mic warning")
+        } else {
+            AppLogger.audio.info("Silent-mic warning hidden")
         }
     }
 

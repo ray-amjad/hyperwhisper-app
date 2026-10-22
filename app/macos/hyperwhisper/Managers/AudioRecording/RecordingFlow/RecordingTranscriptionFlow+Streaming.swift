@@ -61,6 +61,7 @@ extension RecordingTranscriptionFlow {
         streamingTargetBundleId = nil
         sessionStartedWithTextDeliverySuppressed = false
         recordingLifecycle.audioLevel = 0
+        recordingLifecycle.endSilentMicrophoneWatch()
 
         if cancelService {
             await serviceToCancel?.cancel()
@@ -166,6 +167,7 @@ extension RecordingTranscriptionFlow {
         streamingAccumulatedText = ""
         streamingPreviewTextSnapshot = ""
         recordingLifecycle.audioLevel = 0
+        recordingLifecycle.endSilentMicrophoneWatch()
 
         await classifyStreamingDeliveryMode(provider: provider)
 
@@ -596,6 +598,12 @@ extension RecordingTranscriptionFlow {
         service.onAudioLevel = { [weak self] level in
             self?.recordingLifecycle.audioLevel = level
         }
+
+        // ON INPUT PEAK (#2411): block peaks in dBFS for the live
+        // "mic hears nothing" warning, same rule as the batch recorder.
+        service.onInputPeakDbfs = { [weak self] peakDbfs in
+            self?.recordingLifecycle.observeInputPeak(dbfs: peakDbfs)
+        }
     }
 
     /// The transcript callback: filler words, voice commands and vocabulary on
@@ -834,6 +842,7 @@ extension RecordingTranscriptionFlow {
             self.streamingDeliveryMode = .directInsert
             self.streamingTargetBundleId = nil
             self.recordingLifecycle.audioLevel = 0
+            self.recordingLifecycle.endSilentMicrophoneWatch()
 
             self.powerActivityManager.endPowerActivity()
             AccessibilityHelper.shared.endRecordingSession()
@@ -888,6 +897,10 @@ extension RecordingTranscriptionFlow {
                 ]
             )
 
+            // `startSession` returns only once the capture engine is running, so
+            // the silent-mic clock starts at real capture, never while connecting.
+            recordingLifecycle.beginSilentMicrophoneWatch()
+
             // Start max duration safety timer (user setting: 0 = no limit).
             streamingStartTime = Date()
             streamingMaxDurationTimer?.invalidate()
@@ -932,6 +945,7 @@ extension RecordingTranscriptionFlow {
             streamingDeliveryMode = .directInsert
             streamingTargetBundleId = nil
             recordingLifecycle.audioLevel = 0
+            recordingLifecycle.endSilentMicrophoneWatch()
             pendingNemotronVariantPreferenceUpdate = nil
             await MainActor.run {
                 appState?.recordingState = .idle
@@ -987,6 +1001,7 @@ extension RecordingTranscriptionFlow {
             streamingDeliveryMode = .directInsert
             streamingTargetBundleId = nil
             recordingLifecycle.audioLevel = 0
+            recordingLifecycle.endSilentMicrophoneWatch()
             pendingNemotronVariantPreferenceUpdate = nil
             await MainActor.run {
                 appState?.showStreamingPreview = false
@@ -1135,6 +1150,7 @@ extension RecordingTranscriptionFlow {
         streamingTargetBundleId = nil
         sessionStartedWithTextDeliverySuppressed = false
         recordingLifecycle.audioLevel = 0
+        recordingLifecycle.endSilentMicrophoneWatch()
 
         // Update UI state
         await MainActor.run {
