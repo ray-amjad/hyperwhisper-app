@@ -110,8 +110,8 @@ public sealed class TranscriptionWorkflow : IDisposable
             {
                 _audioDevices = result.Value ?? [];
                 if (_selectedDeviceId is null || !_audioDevices.Any(item => item.Id == _selectedDeviceId))
-                    _selectedDeviceId = _audioDevices.FirstOrDefault(item => item.IsDefault)?.Id
-                        ?? _audioDevices.FirstOrDefault()?.Id;
+                    // #2408: the automatic pick, not the raw OS default, which may be a virtual device.
+                    _selectedDeviceId = MicrophoneSelection.AutomaticPick(_audioDevices)?.Id;
                 if (_state == TranscriptionWorkflowState.Idle)
                     SetStateLocked(_state, BuildAvailabilityMessage(), null);
             }
