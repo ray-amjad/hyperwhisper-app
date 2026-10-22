@@ -12,31 +12,6 @@ namespace HyperWhisper.Models;
 /// These models are used for serializing/deserializing .hwbackup.json files
 /// that can be exchanged between macOS and Windows.
 /// </summary>
-/// <summary>
-/// Reads a JSON number whose value is a whole number (<c>2</c>, <c>2.0</c>, <c>2e0</c>) as an
-/// <see cref="int"/>, matching the shared core's <c>integral_i64</c>. A fractional number, a
-/// string or any other token throws <see cref="JsonException"/>, as the default converter does.
-/// Writes a plain integer.
-/// </summary>
-public sealed class IntegralInt32JsonConverter : JsonConverter<int>
-{
-    public override int Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        if (reader.TokenType != JsonTokenType.Number)
-            throw new JsonException($"Expected a whole number, got {reader.TokenType}.");
-        if (reader.TryGetInt32(out var value))
-            return value;
-        if (reader.TryGetDouble(out var number)
-            && Math.Floor(number) == number
-            && number >= int.MinValue && number <= int.MaxValue)
-            return (int)number;
-        throw new JsonException("Expected a whole number that fits in an Int32.");
-    }
-
-    public override void Write(Utf8JsonWriter writer, int value, JsonSerializerOptions options)
-        => writer.WriteNumberValue(value);
-}
-
 public class UniversalBackup
 {
     // Default 0 (not 2): a legacy macOS v1 backup has "version" but no "schemaVersion" key.
@@ -195,9 +170,11 @@ public class UniversalStorageSettings
 public class UniversalAdvancedSettings
 {
     [JsonPropertyName("maxRecordingDuration")]
+    [JsonConverter(typeof(IntegralNullableInt32JsonConverter))]
     public int? MaxRecordingDuration { get; set; }
 
     [JsonPropertyName("typingSpeedWPM")]
+    [JsonConverter(typeof(IntegralNullableInt32JsonConverter))]
     public int? TypingSpeedWPM { get; set; }
 
     /// <summary>Unknown keys of the <c>advanced</c> section.</summary>
@@ -263,6 +240,7 @@ public class UniversalMode
     public bool IsDefault { get; set; }
 
     [JsonPropertyName("sortOrder")]
+    [JsonConverter(typeof(IntegralInt32JsonConverter))]
     public int SortOrder { get; set; }
 
     [JsonPropertyName("punctuation")]
@@ -290,6 +268,7 @@ public class UniversalMode
     public string? CloudTranscriptionDomain { get; set; }
 
     [JsonPropertyName("postProcessingMode")]
+    [JsonConverter(typeof(IntegralInt32JsonConverter))]
     public int PostProcessingMode { get; set; }
 
     [JsonPropertyName("postProcessingProvider")]
@@ -346,6 +325,7 @@ public class UniversalVocabularyItem
     public string? Replacement { get; set; }
 
     [JsonPropertyName("sortOrder")]
+    [JsonConverter(typeof(IntegralInt32JsonConverter))]
     public int SortOrder { get; set; }
 
     [JsonPropertyName("source")]
@@ -544,4 +524,46 @@ public class WindowsSettingsExtensions
 
     [JsonPropertyName("customEndpoints")]
     public List<CustomPostProcessingEndpoint>? CustomEndpoints { get; set; }
+}
+
+/// <summary>
+/// Reads a JSON number whose value is a whole number (<c>2</c>, <c>2.0</c>, <c>2e0</c>) as an
+/// <see cref="int"/>, matching the shared core's <c>integral_i64</c>. A fractional number, a
+/// string or any other token throws <see cref="JsonException"/>, as the default converter does.
+/// Writes a plain integer. Put it on every field the schema types <c>"integer"</c> (#2115).
+/// </summary>
+public sealed class IntegralInt32JsonConverter : JsonConverter<int>
+{
+    public override int Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.Number)
+            throw new JsonException($"Expected a whole number, got {reader.TokenType}.");
+        if (reader.TryGetInt32(out var value))
+            return value;
+        if (reader.TryGetDouble(out var number)
+            && Math.Floor(number) == number
+            && number >= int.MinValue && number <= int.MaxValue)
+            return (int)number;
+        throw new JsonException("Expected a whole number that fits in an Int32.");
+    }
+
+    public override void Write(Utf8JsonWriter writer, int value, JsonSerializerOptions options)
+        => writer.WriteNumberValue(value);
+}
+
+/// <summary>The <see cref="int"/>? twin of <see cref="IntegralInt32JsonConverter"/>: JSON <c>null</c> reads as null.</summary>
+public sealed class IntegralNullableInt32JsonConverter : JsonConverter<int?>
+{
+    private static readonly IntegralInt32JsonConverter Inner = new();
+
+    public override bool HandleNull => true;
+
+    public override int? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => reader.TokenType == JsonTokenType.Null ? null : Inner.Read(ref reader, typeof(int), options);
+
+    public override void Write(Utf8JsonWriter writer, int? value, JsonSerializerOptions options)
+    {
+        if (value is int number) writer.WriteNumberValue(number);
+        else writer.WriteNullValue();
+    }
 }

@@ -13489,6 +13489,11 @@ internal static class Program
                     return path;
                 }
                 var wholeFloatPath = WriteVariant("float", "2.0");
+                // Every field the schema types "integer" is read by value too (sortOrder here).
+                Assert(integralJson.Contains("\"sortOrder\":1", StringComparison.Ordinal),
+                    "the #2115 fixture did not serialize the vocabulary sortOrder as 1");
+                File.WriteAllText(wholeFloatPath, File.ReadAllText(wholeFloatPath)
+                    .Replace("\"sortOrder\":1", "\"sortOrder\":1.0", StringComparison.Ordinal));
                 var fractionalPath = WriteVariant("fraction", "2.5");
                 var stringPath = WriteVariant("string", "\"2\"");
                 try

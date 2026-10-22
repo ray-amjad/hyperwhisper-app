@@ -523,5 +523,11 @@ public sealed partial class ApplicationBackupService(
     private static JsonObject? ReadObject(string? json) { try { return string.IsNullOrWhiteSpace(json) ? null : JsonNode.Parse(json) as JsonObject; } catch (JsonException) { return null; } }
     private static string? String(JsonObject? value, string key) => value?[key] is null ? null : value[key]!.GetValue<string?>();
     private static bool Bool(JsonObject? value, string key, bool fallback = false) => value?[key]?.GetValue<bool?>() ?? fallback;
-    private static int Int(JsonObject value, string key) => value[key]?.GetValue<int?>() ?? 0;
+    // By value, like the core (#2115): `"sortOrder": 1.0` is 1. A fraction or a string still throws.
+    private static int Int(JsonObject value, string key) => value[key] switch
+    {
+        null => 0,
+        var node when TryReadIntegralInt32(node, out var result) => result,
+        _ => throw new InvalidOperationException($"{key} must be an integer.")
+    };
 }

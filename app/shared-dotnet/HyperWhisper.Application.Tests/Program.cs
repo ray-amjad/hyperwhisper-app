@@ -378,6 +378,18 @@ try
         "a fractional schemaVersion 2.5 was accepted");
     Assert(backupService.Inspect(WithRawSchemaVersion("3.0")).Error?.Code == "backup.unsupported_version",
         "schemaVersion 3.0 was accepted");
+    // The same by-value read covers every field the schema types "integer" (sortOrder, postProcessingMode).
+    var wholeFloatFields = JsonNode.Parse(wholeFloatVersion)!.AsObject();
+    var wholeFloatMode = wholeFloatFields["modes"]!.AsArray()[0]!.AsObject();
+    wholeFloatMode["sortOrder"] = JsonNode.Parse("0.0");
+    wholeFloatMode["postProcessingMode"] = JsonNode.Parse("0.0");
+    wholeFloatFields["vocabulary"]!.AsArray()[0]!["sortOrder"] = JsonNode.Parse("1.0");
+    var wholeFloatFieldsImport = await backupService.ImportAsync(wholeFloatFields.ToJsonString());
+    Assert(wholeFloatFieldsImport.IsSuccess,
+        $"a backup with whole-float sortOrder / postProcessingMode was refused: {wholeFloatFieldsImport.Error?.Code} {wholeFloatFieldsImport.Error?.Message}");
+    var fractionalSortOrder = JsonNode.Parse(exported)!.AsObject();
+    fractionalSortOrder["vocabulary"]!.AsArray()[0]!["sortOrder"] = JsonNode.Parse("1.5");
+    Assert(backupService.Inspect(fractionalSortOrder.ToJsonString()).IsFailure, "a fractional vocabulary sortOrder 1.5 was accepted");
     var extendedBackup = JsonNode.Parse(exported)!.AsObject();
     var extensionSlices = extendedBackup["platformExtensions"]!.AsObject();
     extensionSlices["windows"] = new JsonObject { ["futureWindows"] = 17 };
