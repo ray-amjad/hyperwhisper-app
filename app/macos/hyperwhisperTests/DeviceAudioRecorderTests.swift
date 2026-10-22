@@ -62,11 +62,26 @@ struct DeviceAudioRecorderTests {
         #expect(abs(DeviceAudioRecorder.powerDb(of: tenth) + 20) < 0.01)
     }
 
+    /// #2411: the silent-mic warning reads the block PEAK, not the RMS.
+    @Test func peakIsTheLargestSampleInDecibels() throws {
+        let silent = try Self.inputBuffer(sampleRate: 48_000, channels: 1, frames: 480, value: 0)
+        #expect(DeviceAudioRecorder.peakDb(of: silent) == DeviceAudioRecorder.silentPowerDb)
+
+        let buffer = try Self.inputBuffer(sampleRate: 48_000, channels: 1, frames: 480, value: 0)
+        let data = try #require(buffer.floatChannelData)
+        data[0][100] = -0.001  // one -60 dBFS sample in an otherwise silent block
+        #expect(abs(DeviceAudioRecorder.peakDb(of: buffer) + 60) < 0.01)
+        // Its RMS is far below -60, which is why RMS is not used for the warning.
+        #expect(DeviceAudioRecorder.powerDb(of: buffer) < -80)
+    }
+
     @Test func meteringIsOnByDefaultAndIdleIsSilent() {
         // A fake default device: this test must never read real hardware.
         let recorder = DeviceAudioRecorder(deviceID: 0, url: nil, defaultInputDeviceID: { nil })
         #expect(recorder.isMeteringEnabled)
         #expect(recorder.averagePower(forChannel: 0) == DeviceAudioRecorder.silentPowerDb)
+        recorder.updateMeters()
+        #expect(recorder.peakPower(forChannel: 0) == DeviceAudioRecorder.silentPowerDb)
         // Stopping a recorder that never started is a no-op, and a meter-only one has no file.
         recorder.stop()
         #expect(recorder.deleteRecording())

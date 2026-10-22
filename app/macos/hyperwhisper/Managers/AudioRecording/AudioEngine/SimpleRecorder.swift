@@ -147,6 +147,11 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// through its error path; the file holds what was captured until then.
     var onCaptureLost: (() -> Void)?
 
+    /// Called on the main actor with each meter tick's PEAK level in dBFS, for the
+    /// live "mic hears nothing" warning (#2411). Only reads of the recorder that is
+    /// still installed are delivered, like `audioLevel`.
+    var onInputPeakDbfs: ((Float) -> Void)?
+
     // MARK: - Recording Settings
 
     /// Whisper-optimized recording format
@@ -186,6 +191,18 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// The meter read. Test seam: a test swaps in a fake to see which thread it
     /// runs on and how many reads are in flight. Production never changes it.
     var meterReader: MeterReader = SimpleRecorder.defaultMeterReader
+
+    /// Reads the peak level in dBFS. Runs on `meterQueue` straight after
+    /// `meterReader`, whose `updateMeters()` refreshed it (#2411).
+    typealias PeakReader = @Sendable (any LiveAudioRecording) -> Float
+
+    /// The production peak read: the recorder's `peakPower(forChannel: 0)`.
+    nonisolated static let defaultPeakReader: PeakReader = { recorder in
+        recorder.peakPower(forChannel: 0)
+    }
+
+    /// The peak read. Test seam, like `meterReader`. Production never changes it.
+    var peakReader: PeakReader = SimpleRecorder.defaultPeakReader
 
     /// Dedicated **serial** queue for the meter read (`updateMeters` + `averagePower`)
     /// (Sentry HYPERWHISPER-KB). Not `recorderStartQueue`: a meter read stuck on
@@ -738,10 +755,38 @@ class SimpleRecorder: NSObject, ObservableObject {
         let generation = startGeneration
         let recorderID = ObjectIdentifier(recorder)
         let reader = meterReader
+        let peakRead = self.peakReader
         let queue = meterQueue
         Task { [weak self] in
-            let level = await SimpleRecorder.readLevel(from: recorder, on: queue, using: reader)
-            self?.finishMeterRead(level: level, recorderID: recorderID, generation: generation)
+            let reading = await SimpleRecorder.readLevelAndPeak(
+                from: recorder,
+                on: queue,
+                using: reader,
+                peakReader: peakRead
+            )
+            self?.finishMeterRead(
+                level: reading.level,
+                peakDbfs: reading.peakDbfs,
+                recorderID: recorderID,
+                generation: generation
+            )
+        }
+    }
+
+    /// `readLevel`, plus the peak read in the same block on `queue`, so both come
+    /// from the one `updateMeters()` (#2411).
+    nonisolated static func readLevelAndPeak(
+        from recorder: any LiveAudioRecording,
+        on queue: DispatchQueue,
+        using reader: @escaping MeterReader,
+        peakReader: @escaping PeakReader
+    ) async -> (level: Float, peakDbfs: Float) {
+        await withCheckedContinuation { continuation in
+            queue.async {
+                let level = reader(recorder)
+                let peak = peakReader(recorder)
+                continuation.resume(returning: (level: level, peakDbfs: peak))
+            }
         }
     }
 
@@ -765,12 +810,13 @@ class SimpleRecorder: NSObject, ObservableObject {
 
     /// Back on the main actor: clear the in-flight flag, and publish the level only
     /// if the recorder that was read is still the live one of the same start.
-    private func finishMeterRead(level: Float, recorderID: ObjectIdentifier, generation: Int) {
+    private func finishMeterRead(level: Float, peakDbfs: Float, recorderID: ObjectIdentifier, generation: Int) {
         meterReadInFlight = false
         guard generation == startGeneration,
               let recorder,
               ObjectIdentifier(recorder) == recorderID else { return }
         audioLevel = level
+        onInputPeakDbfs?(peakDbfs)
     }
 
     /// Read a recorder's built-in meter and normalize it. Blocking: call it only
