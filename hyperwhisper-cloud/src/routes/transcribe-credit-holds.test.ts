@@ -9,6 +9,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Hono } from 'hono';
 import { pcm16Wav } from '../test-support/wav';
+import { opusOgg } from '../test-support/ogg';
 import { createMemoryCreditHoldStore, type MemoryCreditHoldStore } from '../lib/credit-hold-store-memory';
 import type { CreditHoldStore } from '../lib/credit-hold-store';
 import { saveEnv, stubEnv } from '../test-support/env';
@@ -33,6 +34,7 @@ mock.module('../lib/redis', () => ({
 const { transcribeRoute } = await import('./transcribe');
 const { postProcessRoute } = await import('./post-process');
 const { drainPendingDeductions } = await import('../middleware/credits');
+const { estimateCreditsForProviderFallbacks } = await import('./transcribe-audio');
 const { drainPendingHoldReleases, setCreditHoldStoreForTests } = await import('../middleware/credit-holds');
 
 const originalFetch = globalThis.fetch;
@@ -519,5 +521,79 @@ describe('a dropped charge logs credits.deduction_failed (#820)', () => {
       .toEqual([200, 200, 500]);
     expect(charges).toHaveLength(3);
     expect([...transcribed.lines, ...postProcessed.lines, ...extractFailed.lines]).toEqual([]);
+  });
+});
+
+// Issue #2483: the default route used to reserve Content-Length at 64 kbps, so
+// an hour of 8 kbps Opus (3.6 MB) was held as 450 s. It now holds the duration
+// read from the container. The grok chain prices its hold at its costliest
+// fallback, so the balance here is what half an hour on it reserves: more than
+// the old 450 s hold, less than the real hour.
+describe('the default route holds credits for the decoded duration (#2483)', () => {
+  let restoreXaiKey: () => void;
+  let xaiCalls: number;
+  const halfHourCredits = estimateCreditsForProviderFallbacks(0, 'grok', undefined, false, undefined, 'en', 1800);
+
+  beforeEach(() => {
+    restoreXaiKey = stubEnv('XAI_API_KEY', 'test-xai-key');
+    xaiCalls = 0;
+    const licenceAndMeta = globalThis.fetch;
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes('api.x.ai')) {
+        xaiCalls += 1;
+        return Response.json({ text: 'served', duration: 3, request_id: 'xai-1' });
+      }
+      return licenceAndMeta(input, init);
+    }) as unknown as typeof fetch;
+  });
+
+  afterEach(() => {
+    restoreXaiKey();
+  });
+
+  function grokRequest(audio: ArrayBuffer, contentType = 'audio/ogg'): Request {
+    const body = new Uint8Array(audio);
+    return new Request(`http://localhost/transcribe?account_key=${ACCOUNT}&language=en`, {
+      method: 'POST',
+      headers: { 'Content-Type': contentType, 'Content-Length': String(body.byteLength), 'X-STT-Provider': 'grok' },
+      body,
+    });
+  }
+
+  test('a half-hour balance is refused an hour of 8 kbps Opus', async () => {
+    cachedCredits = halfHourCredits;
+    expect(estimateCreditsForProviderFallbacks(0, 'grok', undefined, false, undefined, 'en', 450)).toBeLessThan(halfHourCredits);
+    const audio = opusOgg({ seconds: 3600 });
+    expect(audio.byteLength).toBeLessThan(4_000_000);
+
+    const response = await buildApp().fetch(grokRequest(audio));
+    await settle();
+
+    expect(response.status).toBe(402);
+    const body = await response.json() as { error: string; credits_required?: number };
+    expect(body.error).toBe('Insufficient credits');
+    expect(xaiCalls).toBe(0);
+    expect(charges).toEqual([]);
+    expect(store.outstandingMilli(ACCOUNT)).toBe(0);
+  });
+
+  test('the same balance is refused an hour of unknown low-bitrate audio (8 kbps fallback)', async () => {
+    cachedCredits = halfHourCredits;
+    const response = await buildApp().fetch(grokRequest(new Uint8Array(3_600_000).fill(0x5A).buffer, 'audio/webm'));
+    await settle();
+
+    expect(response.status).toBe(402);
+    expect(xaiCalls).toBe(0);
+  });
+
+  test('a short Opus file on the same balance is served', async () => {
+    cachedCredits = halfHourCredits;
+    const response = await buildApp().fetch(grokRequest(opusOgg({ seconds: 3 })));
+    await settle();
+
+    expect(response.status).toBe(200);
+    expect(xaiCalls).toBe(1);
+    expect(charges).toHaveLength(1);
+    expect(store.outstandingMilli(ACCOUNT)).toBe(0);
   });
 });
