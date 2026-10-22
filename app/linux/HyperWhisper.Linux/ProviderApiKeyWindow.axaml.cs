@@ -19,7 +19,6 @@ public partial class ProviderApiKeyWindow : Window
 {
     private readonly CredentialManagementViewModel? _credentials;
     private readonly string _account = string.Empty;
-    private readonly string _displayName = string.Empty;
     private readonly string _apiKeyUrl = string.Empty;
 
     public ProviderApiKeyWindow() => AvaloniaXamlLoader.Load(this);
@@ -29,7 +28,6 @@ public partial class ProviderApiKeyWindow : Window
     {
         _credentials = credentials ?? throw new ArgumentNullException(nameof(credentials));
         _account = account;
-        _displayName = displayName;
         _apiKeyUrl = apiKeyUrl ?? string.Empty;
 
         credentials.SelectAccount(account);
