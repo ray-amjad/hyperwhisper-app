@@ -624,7 +624,8 @@ public partial class MainWindow : Window
                 }
 
                 if (e.PropertyName == nameof(MainViewModel.AudioDevices) ||
-                    e.PropertyName == nameof(MainViewModel.SelectedAudioDevice))
+                    e.PropertyName == nameof(MainViewModel.SelectedAudioDevice) ||
+                    e.PropertyName == nameof(MainViewModel.MicrophoneResolution))
                 {
                     Dispatcher.Invoke(RefreshMicrophoneMenu);
                 }
@@ -832,9 +833,34 @@ public partial class MainWindow : Window
             return;
         }
 
+        // The same rows as Settings -> Sound, from the same saved choice: "Default ·
+        // <Windows default>" first (checked when nothing is saved), then each
+        // device (checked when it is the saved one and connected). A saved device
+        // that is unplugged checks nothing here; Settings shows "(not connected)".
+        var resolution = _viewModel.MicrophoneResolution;
+        var followsDefault = resolution == null || resolution.Source == MicrophoneSource.SystemDefault;
+        var defaultLabel = MicrophoneSelection.DefaultLabel(resolution?.DefaultDevice?.Name);
+        var defaultItem = new System.Windows.Forms.ToolStripMenuItem(MenuItemText.Bound(defaultLabel))
+        {
+            ToolTipText = MenuItemText.Tooltip(defaultLabel),
+            Checked = followsDefault,
+            Enabled = !IsOnboardingOpen,
+        };
+        defaultItem.Click += (s, e) =>
+        {
+            if (!_viewModel.SelectMicrophone(null))
+                return;
+
+            LoggingService.Info("System tray: Microphone set to follow the Windows default");
+        };
+        _microphoneMenu.DropDownItems.Add(defaultItem);
+        _microphoneMenu.DropDownItems.Add(new System.Windows.Forms.ToolStripSeparator());
+
         foreach (var device in devices)
         {
-            bool isSelected = selectedDevice != null && selectedDevice.DeviceNumber == device.DeviceNumber;
+            bool isSelected = resolution?.Source == MicrophoneSource.Saved
+                && selectedDevice != null
+                && selectedDevice.DeviceNumber == device.DeviceNumber;
 
             // A device name comes from its driver, not from us, and nothing caps
             // it either — same submenu, same Win32 constraint, so it is bounded

@@ -3,8 +3,9 @@
 //
 // CREDIT SYSTEM:
 // - 1 credit = $0.001 USD (micro-dollar precision)
-// - Default transcription cost: ~5.5 credits per audio minute (Deepgram Nova-3)
-// - Trial users: 100 credits (~18 minutes on the default tier) + IP rate limiting
+// - Minutes are estimated at 1.67 credits per audio minute, the default Cloud STT
+//   rate (CREDITS_PER_MINUTE in hyperwhisper-cloud/src/lib/constants.ts, #1657)
+// - Trial users: 100 credits + IP rate limiting
 // - Licensed users: Credits purchased via Polar meters (pay-as-you-go)
 //
 // API ENDPOINT: GET /usage?identifier=<device_id_or_license_key>
@@ -12,8 +13,8 @@
 // RESPONSE FORMAT:
 // {
 //   "credits_remaining": 150.5,
-//   "minutes_remaining": 24,
-//   "credits_per_minute": 6.3,
+//   "minutes_remaining": 90,
+//   "credits_per_minute": 1.67,
 //   "is_licensed": false,
 //   "is_anonymous": true,
 //   "resets_at": "2024-01-16T00:00:00Z",
@@ -57,7 +58,7 @@ public class HyperWhisperCloudCredits
     /// <summary>
     /// Current cost per audio minute in credits.
     /// Varies based on backend provider costs.
-    /// Default Deepgram Nova-3 pricing is ~5.5 credits/minute.
+    /// The server sends 1.67, the default Cloud STT rate (#1657).
     /// </summary>
     [JsonPropertyName("credits_per_minute")]
     public double CreditsPerMinute { get; set; }
@@ -106,7 +107,7 @@ public class HyperWhisperCloudCredits
 
     /// <summary>
     /// Formatted balance string for display.
-    /// Example: "$0.15 remaining (~24 minutes)"
+    /// Example: "$0.15 remaining (~90 minutes)"
     /// </summary>
     [JsonIgnore]
     public string FormattedBalance
@@ -163,24 +164,5 @@ public class HyperWhisperCloudCredits
             var local = ResetsAt.Value.ToLocalTime();
             return $"Resets at {local:h:mm tt}";
         }
-    }
-
-    // =========================================================================
-    // FACTORY METHODS
-    // =========================================================================
-
-    /// <summary>
-    /// Creates an empty/unknown credits object for error states.
-    /// </summary>
-    public static HyperWhisperCloudCredits Empty()
-    {
-        return new HyperWhisperCloudCredits
-        {
-            CreditsRemaining = 0,
-            MinutesRemaining = 0,
-            CreditsPerMinute = 6.3, // Default estimate
-            IsLicensed = false,
-            IsAnonymous = false
-        };
     }
 }
