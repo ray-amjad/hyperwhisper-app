@@ -127,13 +127,15 @@ export function resetHarness(): void {
 }
 
 /**
- * The endpoint logs one audit line on the success path. Swallow it so the run
- * stays readable, and keep the lines so the tests can assert on them — the
- * audit line is the only record of who signed in with which key.
+ * The endpoint logs one structured line per attempt: `log` on success, `warn`
+ * on a refusal, `error` when the session could not be created. Swallow them so
+ * the run stays readable, and keep the lines (each prefixed with its level) so
+ * the tests can assert on them — Better Auth answers a refusal as HTTP 200, so
+ * this line is the only record of what happened.
  */
 export const logLines: string[] = [];
 
-const endpointLogging = consoleSilencer(["log"], logLines);
+const endpointLogging = consoleSilencer(["log", "warn", "error"], logLines);
 
 export const silenceEndpointLogging = endpointLogging.silence;
 export const restoreEndpointLogging = endpointLogging.restore;
