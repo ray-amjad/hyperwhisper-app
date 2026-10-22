@@ -42,7 +42,7 @@ export default function FooterSection() {
         translated.
       */
       { label: t("links.blog"), href: "/en/blog", raw: true },
-      { label: "Open Source", href: "/open-source" },
+      { label: t("links.openSource"), href: "/open-source" },
     ],
     [t("company")]: [
       { label: t("links.about"), href: "/" },
