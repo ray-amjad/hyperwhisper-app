@@ -252,6 +252,28 @@ try
     Assert((await service.ImportAsync(emptyModes.ToJsonString(), BackupImportSelection.All)).Error?.Code == "backup.no_modes",
         "an explicitly empty replace-all modes section wiped or bypassed the mode invariant");
 
+    // Issue #2390: a 200,000-character word froze the Linux Vocabulary page for minutes on every
+    // visit. Import refuses it at its path and stores nothing; a word at the cap still imports.
+    var vocabularyBeforeLongWord = (await vocabulary.ListAsync()).Select(item => item.Word).Order().ToList();
+    var longWord = full.DeepClone().AsObject();
+    longWord["vocabulary"] = new JsonArray(new JsonObject
+    {
+        ["id"] = Guid.NewGuid().ToString("D"), ["word"] = new string('w', 200_000), ["replacement"] = "r",
+        ["sortOrder"] = 0, ["source"] = "manual",
+    });
+    var longWordInspect = service.Inspect(longWord.ToJsonString());
+    Assert(longWordInspect.Error is { Code: "backup.invalid", Message: "The universal backup failed validation at vocabulary[0].word." },
+        $"a 200,000-character vocabulary word was not refused at vocabulary[0].word: {longWordInspect.Error?.Code} {longWordInspect.Error?.Message}");
+    Assert((await service.ImportAsync(longWord.ToJsonString(), BackupImportSelection.All)).Error?.Code == "backup.invalid",
+        "a 200,000-character vocabulary word was imported");
+    Assert(vocabularyBeforeLongWord.SequenceEqual((await vocabulary.ListAsync()).Select(item => item.Word).Order()),
+        "a refused long-word import changed the vocabulary");
+    longWord["vocabulary"]![0]!["word"] = "short\n" + new string('w', 1_001);
+    Assert(service.Inspect(longWord.ToJsonString()).Error?.Code == "backup.invalid",
+        "an over-long line inside a multi-line vocabulary word was not refused");
+    longWord["vocabulary"]![0]!["word"] = new string('w', VocabularyWords.MaxWordChars);
+    Assert(service.Inspect(longWord.ToJsonString()).IsSuccess, "a vocabulary word at the length cap was refused");
+
     var rollback = full.DeepClone().AsObject();
     rollback["modes"]![0]!["name"] = "Must Roll Back";
     files.FailWrites = true;
