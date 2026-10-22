@@ -10,7 +10,8 @@ mock.module('../lib/redis', () => ({
   cacheLicense: async () => {},
 }));
 
-const { transcribeRoute, estimateCreditsForProviderFallbacks } = await import('./transcribe');
+const { transcribeRoute } = await import('./transcribe');
+const { estimateCreditsForProviderFallbacks } = await import('./transcribe-audio');
 const { drainPendingDeductions } = await import('../middleware/credits');
 
 const originalFetch = globalThis.fetch;
