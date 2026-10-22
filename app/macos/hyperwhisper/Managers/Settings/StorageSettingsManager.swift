@@ -119,12 +119,12 @@ class StorageSettingsManager: ObservableObject {
     private var lastFallbackChainFailed = false
 
     /// Asks the user to choose a folder after the Documents question was
-    /// answered and no fallback could be created (#773). The real prompt is a
-    /// modal NSAlert, so a test swaps in a recorder.
+    /// answered and no fallback could be created (#773). The real prompt is an
+    /// NSAlert, so a test swaps in a recorder.
     lazy var requestStorageRecoveryPrompt: () -> Void = { [weak self] in
         guard let self else { return }
         // Next turn of the run loop, so the SwiftUI alert that called us is gone.
-        Task { @MainActor [weak self] in _ = self?.presentStorageRecoveryPrompt() }
+        Task { @MainActor [weak self] in _ = await self?.presentStorageRecoveryPrompt() }
     }
 
     // MARK: - Initialization
