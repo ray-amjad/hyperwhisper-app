@@ -448,3 +448,10 @@ body {
     animation: none;
   }
 }
+
+/* A visitor who dismissed the open-source banner on an earlier visit: hidden
+   from first paint, before LayoutWrapper's effect reads localStorage (#849).
+   The mark is set by the blocking script in components/layout/HtmlDocument.tsx. */
+html[data-os-banner="dismissed"] [data-os-banner-root] {
+  display: none;
+}
