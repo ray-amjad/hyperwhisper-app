@@ -647,6 +647,22 @@
       ],
       "licensed": false,
       "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY). Codex drives: 0 defects on all 3. Hand probes: backup import of empty/non-JSON/random/wrong-version/wrong-type/dupe all refused cleanly; 200k-char vocab word imports and freezes UI ~3min per Vocabulary visit (#2390); export appVersion hard-coded 1.0.0 (#2391). Local API: auth/rebind guard/port clamp ok; MODE_NOT_FOUND for missing recording is deliberate (#289). Avalonia managed file picker: type folder in path bar, not full path in File name."
+    },
+    {
+      "at": "2026-10-22T01:46:13Z",
+      "platform": "mac",
+      "commit": "7961036a",
+      "routes": [
+        "provider-settings",
+        "updates",
+        "modes"
+      ],
+      "status": "nothing-found",
+      "issues": [
+        0
+      ],
+      "licensed": false,
+      "note": "Unlicensed Debug (staging). Start-up keychain prompt for 'HyperWhisper Local API token' asked for the login password; Denied it. sshd-session local-network notification would not dismiss via KVM click; harmless, bottom-right. KVM cannot type non-ASCII (snowman) so unicode key input untested. Percy profile has leftover modes (PR 1758 Whisper Base etc.)."
     }
   ]
 }
