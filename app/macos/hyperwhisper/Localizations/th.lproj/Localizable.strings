@@ -885,6 +885,7 @@
 "streaming.loading.streaming" = "รอเสียงพูด...";
 "streaming.state.reconnecting" = "กำลังเชื่อมต่อใหม่...";
 "recording.stop.help" = "หยุดการบันทึก (%@)";
+"recording.warning.micSilent" = "ไม่มีเสียงจาก %@";
 "recording.retry" = "ลองใหม่";
 "recording.retry.inProgress" = "กำลังลองใหม่…";
 "recording.retry.count" = "ลองใหม่ (%d)";

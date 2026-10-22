@@ -885,6 +885,7 @@
 "streaming.loading.streaming" = "جارٍ انتظار الكلام...";
 "streaming.state.reconnecting" = "جارٍ إعادة الاتصال...";
 "recording.stop.help" = "إيقاف التسجيل (%@)";
+"recording.warning.micSilent" = "لا يوجد صوت من %@";
 "recording.retry" = "إعادة المحاولة";
 "recording.retry.inProgress" = "جارٍ المحاولة…";
 "recording.retry.count" = "إعادة المحاولة (%d)";

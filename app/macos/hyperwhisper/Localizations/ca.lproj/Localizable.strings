@@ -885,6 +885,7 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "streaming.loading.streaming" = "Esperant la parla...";
 "streaming.state.reconnecting" = "Reconnectant...";
 "recording.stop.help" = "Aturar gravació (%@)";
+"recording.warning.micSilent" = "No hi ha so de %@";
 "recording.retry" = "Reintentar";
 "recording.retry.inProgress" = "Reintentant…";
 "recording.retry.count" = "Reintentar (%d)";

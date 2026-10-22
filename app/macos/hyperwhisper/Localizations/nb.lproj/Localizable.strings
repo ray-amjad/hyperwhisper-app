@@ -885,6 +885,7 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "streaming.loading.streaming" = "Venter på tale...";
 "streaming.state.reconnecting" = "Kobler til på nytt...";
 "recording.stop.help" = "Stopp opptak (%@)";
+"recording.warning.micSilent" = "Ingen lyd fra %@";
 "recording.retry" = "Prøv igjen";
 "recording.retry.inProgress" = "Prøver på nytt…";
 "recording.retry.count" = "Prøv igjen (%d)";

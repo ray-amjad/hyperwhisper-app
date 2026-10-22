@@ -885,6 +885,7 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "streaming.loading.streaming" = "Menunggu pertuturan...";
 "streaming.state.reconnecting" = "Menyambung semula...";
 "recording.stop.help" = "Henti Rakaman (%@)";
+"recording.warning.micSilent" = "Tiada bunyi daripada %@";
 "recording.retry" = "Cuba Semula";
 "recording.retry.inProgress" = "Mencuba Semula…";
 "recording.retry.count" = "Cuba Semula (%d)";
