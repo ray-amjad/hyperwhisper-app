@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, m } from "framer-motion";
 
 import { ICON_SWAP } from "@/lib/icon-swap";
+import { ErrorReveal } from "@/components/ErrorReveal";
 
 interface License {
   id: string;
@@ -146,16 +147,21 @@ export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
                   {isActive ? "Active" : "Inactive"}
                 </span>
               </div>
-              {/* Its own line, so the message never takes the key's width (#1325). */}
-              <p
-                aria-live="polite"
-                className="mt-1.5 text-xs text-red-400 empty:hidden"
-                role="status"
-              >
-                {copyFailed
-                  ? "Copy failed — reveal the key and copy it by hand"
-                  : null}
-              </p>
+              {/* Its own line, so the message never takes the key's width (#1325).
+                  #2286: it reveals instead of arriving in one frame. The live
+                  region stays mounted, so the wrapper opens on `open`, and its
+                  gap is padding inside the clip. */}
+              <ErrorReveal className="" open={copyFailed}>
+                <p
+                  aria-live="polite"
+                  className="pt-1.5 text-xs text-red-400 empty:hidden"
+                  role="status"
+                >
+                  {copyFailed
+                    ? "Copy failed — reveal the key and copy it by hand"
+                    : null}
+                </p>
+              </ErrorReveal>
             </div>
           );
         })}

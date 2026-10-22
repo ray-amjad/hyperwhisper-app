@@ -116,7 +116,7 @@ This card deletes the recordings that are older than an age that you set. Automa
     The **Delete Now** button runs the same cleanup immediately. A confirmation dialog opens first. HyperWhisper then shows the number of deleted transcripts. macOS has no equivalent button.
   </Tab>
   <Tab title="Linux">
-    The card is **Automatic Cleanup**. Select the checkbox. Then give the number of days in the **Delete recordings older than** box. The permitted range is 1 to 365 days. Cleanup runs at startup, once per hour, and when you click **Delete Now**. A confirmation dialog opens first, and HyperWhisper then shows the number of deleted recordings. The button applies the configured age cutoff; it does not delete recent items.
+    The card is **Automatic Cleanup**. Select the checkbox. Then give the number of days in the **Delete recordings older than** box. The permitted range is 1 to 365 days. The box accepts digits only, and Linux saves the value when you leave the box. A value outside the range changes to the nearest permitted value. Cleanup runs at startup, once per hour, and when you click **Delete Now**. A confirmation dialog opens first, and HyperWhisper then shows the number of deleted recordings. The button applies the configured age cutoff; it does not delete recent items.
 
     Linux deletes only regular files inside its fixed XDG recordings folder. Imported source files and symbolic-link targets are retained.
   </Tab>

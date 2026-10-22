@@ -772,7 +772,10 @@ struct MenuBarIconView: View {
                     mode.postProcessingMode = 0  // PostProcessingMode.off
                     AppLogger.ui.info("🔄 Disabled post-processing on mode · modeId=\(mode.id?.uuidString ?? "nil", privacy: .public) · preset=\(PresetType.reportingValue(for: mode), privacy: .public) (was using Gemma)")
                 }
-                try? persistenceController.container.viewContext.save()
+                let saved = !hasGemmaMode || LaunchMigrationSave.save(
+                    persistenceController.container.viewContext,
+                    site: "launch_migration_gemma3"
+                )
 
                 // Silently clean up leftover Gemma model files
                 if hasGemmaFiles {
@@ -780,7 +783,11 @@ struct MenuBarIconView: View {
                     AppLogger.ui.info("🗑️ Cleaned up Gemma model files at \(gemmaDir.path, privacy: .public)")
                 }
 
-                didShowGemmaMigrationAlert = true
+                // A failed save leaves the flag unset, so the next launch
+                // retries: the loop above only touches Modes still on Gemma 3.
+                if saved {
+                    didShowGemmaMigrationAlert = true
+                }
             } else {
                 // No Gemma usage found — mark as done silently
                 didShowGemmaMigrationAlert = true
@@ -811,9 +818,7 @@ struct MenuBarIconView: View {
                 if !transcripts.isEmpty { didChange = true }
             }
 
-            if didChange {
-                try? context.save()
-            }
+            let saved = !didChange || LaunchMigrationSave.save(context, site: "launch_migration_qwen_to_local_llm")
 
             // Clean up old Qwen model directory
             let oldQwenDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -823,7 +828,10 @@ struct MenuBarIconView: View {
                 AppLogger.ui.info("Cleaned up old Qwen model directory at \(oldQwenDir.path, privacy: .public)")
             }
 
-            didMigrateQwenToLocalLLM = true
+            // Only after the save: a re-run is safe, it matches only `local_qwen` rows.
+            if saved {
+                didMigrateQwenToLocalLLM = true
+            }
         }
 
         // GEMMA 4 12B ID CASING MIGRATION: rewrite stored uppercase model id to lowercase
@@ -843,11 +851,10 @@ struct MenuBarIconView: View {
                 didChange = true
             }
 
-            if didChange {
-                try? context.save()
+            // Only after the save: a re-run is safe, it matches only the old id.
+            if !didChange || LaunchMigrationSave.save(context, site: "launch_migration_gemma4_12b_id") {
+                didMigrateGemma12bIdCasing = true
             }
-
-            didMigrateGemma12bIdCasing = true
         }
 
         // AUTO-DELETE CLEANUP SERVICE:
@@ -1344,7 +1351,7 @@ struct MenuBarIconView: View {
             alert.messageText = "alerts.export.failed.title".localized
             alert.informativeText = "alerts.export.logs.failed.message".localized
             alert.alertStyle = .warning
-            alert.runModal()
+            ModelessAlert.show(alert)
             return
         }
         
@@ -1368,14 +1375,14 @@ struct MenuBarIconView: View {
                     successAlert.messageText = "alerts.export.logs.success.title".localized
                     successAlert.informativeText = "alerts.export.logs.success.message".localized
                     successAlert.alertStyle = .informational
-                    successAlert.runModal()
+                    ModelessAlert.show(successAlert)
                 } catch {
                     // Show error alert
                     let alert = NSAlert()
                     alert.messageText = "alerts.export.failed.title".localized
                     alert.informativeText = "alerts.export.logs.saveFailed.message".localized(arguments: error.localizedDescription)
                     alert.alertStyle = .warning
-                    alert.runModal()
+                    ModelessAlert.show(alert)
                 }
             }
         }
@@ -1390,7 +1397,7 @@ struct MenuBarIconView: View {
                 alert.messageText = "alerts.export.failed.title".localized
                 alert.informativeText = "alerts.export.diagnostics.failed.message".localized
                 alert.alertStyle = .warning
-                alert.runModal()
+                ModelessAlert.show(alert)
                 return
             }
             
@@ -1425,14 +1432,14 @@ struct MenuBarIconView: View {
                             successAlert.informativeText = "alerts.export.diagnostics.noSystemLogs.message".localized(arguments: reason)
                             successAlert.alertStyle = .warning
                         }
-                        successAlert.runModal()
+                        ModelessAlert.show(successAlert)
                     } catch {
                         // Show error alert
                         let alert = NSAlert()
                         alert.messageText = "alerts.export.failed.title".localized
                         alert.informativeText = "alerts.export.diagnostics.saveFailed.message".localized(arguments: error.localizedDescription)
                         alert.alertStyle = .warning
-                        alert.runModal()
+                        ModelessAlert.show(alert)
                     }
                 } else {
                     // Clean up temporary file if user cancelled
@@ -1499,5 +1506,37 @@ struct MainWindowCommands: Commands {
             return
         }
         openWindow(id: "mainWindow")
+    }
+}
+
+/// Save step for the one-time Mode migrations in `hyperwhisperApp.init` (#1063).
+///
+/// Those migrations used `try? save()` and set their `@AppStorage` done-flag
+/// whatever happened, so a save that failed was never retried and never
+/// logged. This reports the failure the way `PersistenceController.save()`
+/// does (site tag, context shape, the `viewContext` failure streak) and tells
+/// the caller whether to set its flag. No `rollback()` here: what the shared
+/// `viewContext` does with a rejected row is a wider decision.
+@MainActor
+enum LaunchMigrationSave {
+
+    /// Saves `context`. `true` means the migration's edits are on disk.
+    static func save(
+        _ context: NSManagedObjectContext,
+        site: String,
+        contextKey: String = CoreDataSaveDiagnostics.viewContextKey
+    ) -> Bool {
+        do {
+            try context.save()
+            AppLogger.logCoreData(.save(site: site, contextKey: contextKey))
+            return true
+        } catch {
+            AppLogger.logCoreData(
+                .save(site: site, contextKey: contextKey),
+                error: error as NSError,
+                metadata: CoreDataSaveDiagnostics.contextShape(context)
+            )
+            return false
+        }
     }
 }
