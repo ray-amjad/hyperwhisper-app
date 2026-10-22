@@ -27701,10 +27701,6 @@ internal static class Program
     }
 
     /// <summary>
-    /// Scripted HttpMessageHandler: counts sends and delegates each attempt to
-    /// the supplied responder (which may throw, hang on the token, or respond).
-    /// </summary>
-    /// <summary>
     /// Issue #1036: a <see cref="HyperWhisperCloudService"/> on a fake clock
     /// (<see cref="Now"/>), whose every HttpClient (the first one and each DNS
     /// rebuild) sends through one <see cref="StubHandler"/>.
@@ -27728,6 +27724,10 @@ internal static class Program
         public void Dispose() => Service.Dispose();
     }
 
+    /// <summary>
+    /// Scripted HttpMessageHandler: counts sends and delegates each attempt to
+    /// the supplied responder (which may throw, hang on the token, or respond).
+    /// </summary>
     private sealed class StubHandler : HttpMessageHandler
     {
         private readonly Func<CancellationToken, Task<HttpResponseMessage>> _respond;
