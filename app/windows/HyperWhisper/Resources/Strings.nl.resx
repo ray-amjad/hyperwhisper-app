@@ -562,36 +562,6 @@
   <data name="settings.api.invalidKey.title" xml:space="preserve">
     <value>Ongeldige sleutel</value>
   </data>
-  <data name="settings.api.invalidKey.openai" xml:space="preserve">
-    <value>Ongeldige indeling van de API-sleutel. Sleutels van OpenAI beginnen met "sk-".</value>
-  </data>
-  <data name="settings.api.invalidKey.groq" xml:space="preserve">
-    <value>Ongeldige indeling van de API-sleutel. Sleutels van Groq beginnen met "gsk_".</value>
-  </data>
-  <data name="settings.api.invalidKey.anthropic" xml:space="preserve">
-    <value>Ongeldige indeling van de API-sleutel. Sleutels van Anthropic beginnen met "sk-ant-".</value>
-  </data>
-  <data name="settings.api.invalidKey.gemini" xml:space="preserve">
-    <value>Ongeldige indeling van de API-sleutel. API-sleutels van Google beginnen met "AIza".</value>
-  </data>
-  <data name="settings.api.invalidKey.cerebras" xml:space="preserve">
-    <value>Ongeldige indeling van de API-sleutel. Sleutels van Cerebras beginnen met "csk-".</value>
-  </data>
-  <data name="settings.api.invalidKey.deepgram" xml:space="preserve">
-    <value>Ongeldige indeling van de API-sleutel. Sleutels van Deepgram zijn minstens 32 tekens lang.</value>
-  </data>
-  <data name="settings.api.invalidKey.assemblyai" xml:space="preserve">
-    <value>Ongeldige indeling van de API-sleutel. Sleutels van AssemblyAI zijn minstens 32 tekens lang.</value>
-  </data>
-  <data name="settings.api.invalidKey.elevenlabs" xml:space="preserve">
-    <value>Ongeldige indeling van de API-sleutel. Sleutels van ElevenLabs beginnen met "sk_".</value>
-  </data>
-  <data name="settings.api.invalidKey.mistral" xml:space="preserve">
-    <value>Ongeldige indeling van de API-sleutel. Sleutels van Mistral zijn minstens 20 tekens lang.</value>
-  </data>
-  <data name="settings.api.invalidKey.grok" xml:space="preserve">
-    <value>Ongeldig API-sleutelformaat. Grok-sleutels moeten beginnen met "xai-" en minimaal 20 tekens lang zijn.</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>Tonen</value>
   </data>
@@ -1520,12 +1490,6 @@ Je kunt het later opnieuw downloaden.</value>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
-  <data name="settings.api.invalidKey.soniox" xml:space="preserve">
-    <value>Ongeldig API-sleutelformaat. Soniox-sleutels moeten minimaal 10 tekens lang zijn.</value>
-  </data>
-  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
-    <value>Ongeldig API-sleutelformaat. Gemini 3.5 Transcribe-sleutels moeten beginnen met "AIza" en minimaal 30 tekens lang zijn.</value>
-  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Asynchrone meertalige transcriptie via Soniox</value>
   </data>
@@ -2265,9 +2229,6 @@ Je kunt het later opnieuw downloaden.</value>
   </data>
   <data name="settings.api.provider.meta.description" xml:space="preserve">
     <value>Meta Muse Voice Transcribe 1.0 - batchtranscriptie met je eigen Meta Model API-sleutel</value>
-  </data>
-  <data name="settings.api.invalidKey.meta" xml:space="preserve">
-    <value>Ongeldige indeling van de Meta API-sleutel. Voer de volledige sleutel uit Meta for Developers in.</value>
   </data>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
     <value>Gebruik je eigen Meta Model API-sleutel voor batchtranscriptie met Muse</value>

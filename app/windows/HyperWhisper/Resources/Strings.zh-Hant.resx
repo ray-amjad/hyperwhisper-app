@@ -562,36 +562,6 @@
   <data name="settings.api.invalidKey.title" xml:space="preserve">
     <value>金鑰無效</value>
   </data>
-  <data name="settings.api.invalidKey.openai" xml:space="preserve">
-    <value>API 金鑰格式無效。OpenAI 金鑰必須以「sk-」開頭。</value>
-  </data>
-  <data name="settings.api.invalidKey.groq" xml:space="preserve">
-    <value>API 金鑰格式無效。Groq 金鑰必須以「gsk_」開頭。</value>
-  </data>
-  <data name="settings.api.invalidKey.anthropic" xml:space="preserve">
-    <value>API 金鑰格式無效。Anthropic 金鑰必須以「sk-ant-」開頭。</value>
-  </data>
-  <data name="settings.api.invalidKey.gemini" xml:space="preserve">
-    <value>API 金鑰格式無效。Google API 金鑰必須以「AIza」開頭。</value>
-  </data>
-  <data name="settings.api.invalidKey.cerebras" xml:space="preserve">
-    <value>API 金鑰格式無效。Cerebras 金鑰必須以「csk-」開頭。</value>
-  </data>
-  <data name="settings.api.invalidKey.deepgram" xml:space="preserve">
-    <value>API 金鑰格式無效。Deepgram 金鑰至少須包含 32 個字元。</value>
-  </data>
-  <data name="settings.api.invalidKey.assemblyai" xml:space="preserve">
-    <value>API 金鑰格式無效。AssemblyAI 金鑰至少須包含 32 個字元。</value>
-  </data>
-  <data name="settings.api.invalidKey.elevenlabs" xml:space="preserve">
-    <value>API 金鑰格式無效。ElevenLabs 金鑰必須以「sk_」開頭。</value>
-  </data>
-  <data name="settings.api.invalidKey.mistral" xml:space="preserve">
-    <value>API 金鑰格式無效。Mistral 金鑰至少須包含 20 個字元。</value>
-  </data>
-  <data name="settings.api.invalidKey.grok" xml:space="preserve">
-    <value>API 金鑰格式無效。Grok 金鑰必須以 「xai-」 開頭，且至少包含 20 個字元。</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>顯示</value>
   </data>
@@ -1519,12 +1489,6 @@
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
-  <data name="settings.api.invalidKey.soniox" xml:space="preserve">
-    <value>API 金鑰格式無效。Soniox 金鑰至少需要 10 個字元。</value>
-  </data>
-  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
-    <value>API 金鑰格式無效。Gemini 3.5 Transcribe 金鑰必須以 「AIza」 開頭，且至少包含 30 個字元。</value>
-  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>透過 Soniox 進行非同步多語言轉錄</value>
   </data>
@@ -2264,9 +2228,6 @@
   </data>
   <data name="settings.api.provider.meta.description" xml:space="preserve">
     <value>Meta Muse Voice Transcribe 1.0 - 使用您自己的 Meta Model API 金鑰進行批次轉錄</value>
-  </data>
-  <data name="settings.api.invalidKey.meta" xml:space="preserve">
-    <value>Meta API 金鑰格式無效。請輸入 Meta for Developers 提供的完整金鑰。</value>
   </data>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
     <value>使用您自己的 Meta Model API 金鑰進行 Muse 批次轉錄</value>

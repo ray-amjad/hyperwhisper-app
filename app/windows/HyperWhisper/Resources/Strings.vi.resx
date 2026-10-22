@@ -562,36 +562,6 @@
   <data name="settings.api.invalidKey.title" xml:space="preserve">
     <value>Invalid Key</value>
   </data>
-  <data name="settings.api.invalidKey.openai" xml:space="preserve">
-    <value>Invalid API key format. OpenAI keys should start with 'sk-'.</value>
-  </data>
-  <data name="settings.api.invalidKey.groq" xml:space="preserve">
-    <value>Invalid API key format. Groq keys should start with 'gsk_'.</value>
-  </data>
-  <data name="settings.api.invalidKey.anthropic" xml:space="preserve">
-    <value>Invalid API key format. Anthropic keys should start with 'sk-ant-'.</value>
-  </data>
-  <data name="settings.api.invalidKey.gemini" xml:space="preserve">
-    <value>Invalid API key format. Google API keys should start with 'AIza'.</value>
-  </data>
-  <data name="settings.api.invalidKey.cerebras" xml:space="preserve">
-    <value>Invalid API key format. Cerebras keys should start with 'csk-'.</value>
-  </data>
-  <data name="settings.api.invalidKey.deepgram" xml:space="preserve">
-    <value>Invalid API key format. Deepgram keys should be at least 32 characters.</value>
-  </data>
-  <data name="settings.api.invalidKey.assemblyai" xml:space="preserve">
-    <value>Invalid API key format. AssemblyAI keys should be at least 32 characters.</value>
-  </data>
-  <data name="settings.api.invalidKey.elevenlabs" xml:space="preserve">
-    <value>Invalid API key format. ElevenLabs keys should start with 'sk_'.</value>
-  </data>
-  <data name="settings.api.invalidKey.mistral" xml:space="preserve">
-    <value>Invalid API key format. Mistral keys should be at least 20 characters.</value>
-  </data>
-  <data name="settings.api.invalidKey.grok" xml:space="preserve">
-    <value>Định dạng khóa API không hợp lệ. Khóa Grok phải bắt đầu bằng "xai-" và có ít nhất 20 ký tự.</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>Show</value>
   </data>
@@ -1519,12 +1489,6 @@ You can re-download it later.</value>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
-  <data name="settings.api.invalidKey.soniox" xml:space="preserve">
-    <value>Định dạng khóa API không hợp lệ. Khóa Soniox phải có ít nhất 10 ký tự.</value>
-  </data>
-  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
-    <value>Định dạng khóa API không hợp lệ. Khóa Gemini 3.5 Transcribe phải bắt đầu bằng "AIza" và có ít nhất 30 ký tự.</value>
-  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Phiên âm đa ngôn ngữ bất đồng bộ qua Soniox</value>
   </data>
@@ -2264,9 +2228,6 @@ You can re-download it later.</value>
   </data>
   <data name="settings.api.provider.meta.description" xml:space="preserve">
     <value>Meta Muse Voice Transcribe 1.0 - batch transcription with your own Meta Model API key</value>
-  </data>
-  <data name="settings.api.invalidKey.meta" xml:space="preserve">
-    <value>Invalid Meta API key format. Enter the complete key from Meta for Developers.</value>
   </data>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
     <value>Use your own Meta Model API key for Muse batch transcription</value>

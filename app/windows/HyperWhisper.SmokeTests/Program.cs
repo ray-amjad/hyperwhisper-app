@@ -14302,6 +14302,60 @@ internal static class Program
                     "an unrelated Deepgram key edit discarded a valid Google outcome");
             });
 
+            Run("BYOK key check: no vendor prefix, so a Gemini key that does not start with AIza saves", () =>
+            {
+                // Google's newer Gemini keys do not start with "AIza". The prefix rule
+                // refused them with "Invalid API key format" on Windows and Linux; a
+                // wrong key fails at the provider anyway. Only blank and short are refused.
+                var newGeminiKey = "AQ." + new string('k', 37);
+                Assert(ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.GeminiTranscribe, newGeminiKey),
+                    "a Gemini 3.5 Transcribe key that does not start with AIza is refused");
+                Assert(ApiKeyService.IsValidKeyFormat(PostProcessingProvider.Gemini, newGeminiKey),
+                    "a Gemini post-processing key that does not start with AIza is refused");
+                Assert(ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.GeminiTranscribe, "AIza" + new string('k', 35)),
+                    "an AIza Gemini key is refused");
+
+                // The same for every other vendor that had a prefix rule.
+                var unprefixed = new string('k', ApiKeyService.MinKeyLength);
+                foreach (var provider in new[]
+                {
+                    PostProcessingProvider.OpenAI, PostProcessingProvider.Anthropic, PostProcessingProvider.Groq,
+                    PostProcessingProvider.Grok, PostProcessingProvider.Gemini, PostProcessingProvider.Cerebras,
+                    PostProcessingProvider.Mistral,
+                })
+                {
+                    Assert(ApiKeyService.IsValidKeyFormat(provider, unprefixed),
+                        $"a {provider} key with no vendor prefix is refused");
+                    Assert(!ApiKeyService.IsValidKeyFormat(provider, unprefixed[1..]),
+                        $"a {provider} key shorter than {ApiKeyService.MinKeyLength} characters is accepted");
+                    Assert(!ApiKeyService.IsValidKeyFormat(provider, "   "), $"a blank {provider} key is accepted");
+                    Assert(!ApiKeyService.IsValidKeyFormat(provider, null), $"a null {provider} key is accepted");
+                }
+                foreach (var type in Enum.GetValues<TranscriptionApiKeyType>())
+                {
+                    var min = type.GetMinLength();
+                    Assert(min <= ApiKeyService.MinKeyLength, $"{type} needs {min} characters, over the shared floor");
+                    Assert(ApiKeyService.IsValidKeyFormat(type, new string('k', min)),
+                        $"a {type} key with no vendor prefix is refused");
+                    Assert(!ApiKeyService.IsValidKeyFormat(type, new string('k', min - 1)),
+                        $"a {type} key shorter than {min} characters is accepted");
+                    // Whitespace around a paste does not count toward the length.
+                    Assert(!ApiKeyService.IsValidKeyFormat(type, " " + new string('k', min - 1) + " "),
+                        $"padding made a short {type} key long enough");
+                }
+                Assert(!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.None, newGeminiKey),
+                    "a key for no provider is accepted");
+                Assert(!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.HyperWhisperCloud, newGeminiKey),
+                    "a key for HyperWhisper Cloud, which takes none, is accepted");
+
+                // And it reaches the store: what the Model Library modal does on Save.
+                var apiKeys = new ApiKeyService(new InMemoryCredentialBackend());
+                Assert(apiKeys.SetApiKey(TranscriptionApiKeyType.GeminiTranscribe, newGeminiKey).IsSuccess,
+                    "the store refused a non-AIza Gemini 3.5 Transcribe key");
+                Assert(apiKeys.GetApiKey(TranscriptionApiKeyType.GeminiTranscribe) == newGeminiKey,
+                    "the stored Gemini 3.5 Transcribe key does not read back");
+            });
+
             Run("issue #650: /health key_present for the HW-Cloud rows follows the account key /transcribe refuses on", () =>
             {
                 var cloudTranscription = new[]

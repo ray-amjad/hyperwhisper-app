@@ -60,6 +60,10 @@ if (args is [ProviderApiKeySaveFailureRenderTests.ProbeArgument])
 {
     Environment.Exit(ProviderApiKeySaveFailureRenderTests.RunProbe());
 }
+if (args is [ProviderApiKeyNonAizaGeminiRenderTests.ProbeArgument])
+{
+    Environment.Exit(ProviderApiKeyNonAizaGeminiRenderTests.RunProbe());
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -133,6 +137,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("the Backup page shows an inspect failure and clears it on a good file (#2124)", BackupErrorRenderTests.RunAsync),
     ("a History revisit with nothing changed does not reload the list; a period change or a write still does (#2099)", HistoryRevisitRenderTests.RunAsync),
     ("a failed provider-key save leaves no typed key in the shared credentials view model (#1388)", ProviderApiKeySaveFailureRenderTests.RunAsync),
+    ("a Gemini key that does not start with AIza saves from the provider-key modal with no Invalid API Key notice", ProviderApiKeyNonAizaGeminiRenderTests.RunAsync),
 };
 
 foreach (var test in tests)

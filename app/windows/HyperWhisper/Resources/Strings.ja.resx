@@ -622,36 +622,6 @@
   <data name="settings.api.invalidKey.title" xml:space="preserve">
     <value>無効なキー</value>
   </data>
-  <data name="settings.api.invalidKey.openai" xml:space="preserve">
-    <value>無効なAPIキー形式です。OpenAIキーは「sk-」で始まる必要があります。</value>
-  </data>
-  <data name="settings.api.invalidKey.groq" xml:space="preserve">
-    <value>無効なAPIキー形式です。Groqキーは「gsk_」で始まる必要があります。</value>
-  </data>
-  <data name="settings.api.invalidKey.anthropic" xml:space="preserve">
-    <value>無効なAPIキー形式です。Anthropicキーは「sk-ant-」で始まる必要があります。</value>
-  </data>
-  <data name="settings.api.invalidKey.gemini" xml:space="preserve">
-    <value>無効なAPIキー形式です。Google APIキーは「AIza」で始まる必要があります。</value>
-  </data>
-  <data name="settings.api.invalidKey.cerebras" xml:space="preserve">
-    <value>無効なAPIキー形式です。Cerebrasキーは「csk-」で始まる必要があります。</value>
-  </data>
-  <data name="settings.api.invalidKey.deepgram" xml:space="preserve">
-    <value>無効なAPIキー形式です。Deepgramキーは32文字以上である必要があります。</value>
-  </data>
-  <data name="settings.api.invalidKey.assemblyai" xml:space="preserve">
-    <value>無効なAPIキー形式です。AssemblyAIキーは32文字以上である必要があります。</value>
-  </data>
-  <data name="settings.api.invalidKey.elevenlabs" xml:space="preserve">
-    <value>無効なAPIキー形式です。ElevenLabsキーは「sk_」で始まる必要があります。</value>
-  </data>
-  <data name="settings.api.invalidKey.mistral" xml:space="preserve">
-    <value>無効なAPIキー形式です。Mistralキーは20文字以上である必要があります。</value>
-  </data>
-  <data name="settings.api.invalidKey.grok" xml:space="preserve">
-    <value>APIキーの形式が無効です。GrokキーはXAI-」で始まり、20文字以上である必要があります。</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>表示</value>
   </data>
@@ -1598,12 +1568,6 @@
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
-  <data name="settings.api.invalidKey.soniox" xml:space="preserve">
-    <value>APIキーの形式が無効です。SonioxのキーはRobot 10文字以上必要です。</value>
-  </data>
-  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
-    <value>APIキーの形式が無効です。Gemini 3.5 Transcribeキーは「AIza」で始まり、30文字以上である必要があります。</value>
-  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Sonioxによる非同期多言語文字起こし</value>
   </data>
@@ -2269,9 +2233,6 @@
   </data>
   <data name="settings.api.provider.meta.description" xml:space="preserve">
     <value>Meta Muse Voice Transcribe 1.0 - ご自分の Meta Model API キーによるバッチ文字起こし</value>
-  </data>
-  <data name="settings.api.invalidKey.meta" xml:space="preserve">
-    <value>Meta API キーの形式が正しくありません。Meta for Developers のキーを省略せずに入力してください。</value>
   </data>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
     <value>ご自分の Meta Model API キーを使って Muse でバッチ文字起こしを行います</value>

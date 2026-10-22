@@ -84,32 +84,21 @@ public static class TranscriptionApiKeyTypeExtensions
     };
 
     /// <summary>
-    /// Gets the expected key prefix for format validation.
-    /// Returns null if the provider has no specific prefix requirement.
-    /// </summary>
-    public static string? GetKeyPrefix(this TranscriptionApiKeyType type) => type switch
-    {
-        TranscriptionApiKeyType.Grok => "xai-",
-        TranscriptionApiKeyType.GeminiTranscribe => "AIza",
-        // Deepgram, AssemblyAI, ElevenLabs, and Mistral have no specific prefix
-        _ => null
-    };
-
-    /// <summary>
     /// Gets the minimum key length for format validation.
-    /// Keys shorter than this are considered invalid.
+    /// Keys shorter than this are considered invalid. There is deliberately no
+    /// prefix rule: vendors change key formats, and Google's newer Gemini keys
+    /// do not start with "AIza". Never above ApiKeyService.MinKeyLength, so a
+    /// vendor that shortens its keys is not refused here either.
     /// </summary>
     public static int GetMinLength(this TranscriptionApiKeyType type) => type switch
     {
-        TranscriptionApiKeyType.Deepgram => 32,
-        TranscriptionApiKeyType.AssemblyAI => 32,
+        TranscriptionApiKeyType.Deepgram => 20,
+        TranscriptionApiKeyType.AssemblyAI => 20,
         TranscriptionApiKeyType.ElevenLabs => 20,
         TranscriptionApiKeyType.Mistral => 20,
         TranscriptionApiKeyType.Soniox => 10,
         TranscriptionApiKeyType.Grok => 20,
-        // Matches ApiKeyService.IsValidKeyFormat(PostProcessingProvider.Gemini):
-        // "AIza" + length >= 30. Same key shape, so keep the same rule.
-        TranscriptionApiKeyType.GeminiTranscribe => 30,
+        TranscriptionApiKeyType.GeminiTranscribe => 20,
         TranscriptionApiKeyType.Meta => 10,
         _ => 10
     };

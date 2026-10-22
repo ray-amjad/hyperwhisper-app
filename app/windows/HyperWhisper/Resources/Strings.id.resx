@@ -562,36 +562,6 @@
   <data name="settings.api.invalidKey.title" xml:space="preserve">
     <value>Kunci Tidak Valid</value>
   </data>
-  <data name="settings.api.invalidKey.openai" xml:space="preserve">
-    <value>Format kunci API tidak valid. Kunci OpenAI harus dimulai dengan 'sk-'.</value>
-  </data>
-  <data name="settings.api.invalidKey.groq" xml:space="preserve">
-    <value>Format kunci API tidak valid. Kunci Groq harus dimulai dengan 'gsk_'.</value>
-  </data>
-  <data name="settings.api.invalidKey.anthropic" xml:space="preserve">
-    <value>Format kunci API tidak valid. Kunci Anthropic harus dimulai dengan 'sk-ant-'.</value>
-  </data>
-  <data name="settings.api.invalidKey.gemini" xml:space="preserve">
-    <value>Format kunci API tidak valid. Kunci API Google harus dimulai dengan 'AIza'.</value>
-  </data>
-  <data name="settings.api.invalidKey.cerebras" xml:space="preserve">
-    <value>Format kunci API tidak valid. Kunci Cerebras harus dimulai dengan 'csk-'.</value>
-  </data>
-  <data name="settings.api.invalidKey.deepgram" xml:space="preserve">
-    <value>Format kunci API tidak valid. Kunci Deepgram harus memiliki setidaknya 32 karakter.</value>
-  </data>
-  <data name="settings.api.invalidKey.assemblyai" xml:space="preserve">
-    <value>Format kunci API tidak valid. Kunci AssemblyAI harus memiliki setidaknya 32 karakter.</value>
-  </data>
-  <data name="settings.api.invalidKey.elevenlabs" xml:space="preserve">
-    <value>Format kunci API tidak valid. Kunci ElevenLabs harus dimulai dengan 'sk_'.</value>
-  </data>
-  <data name="settings.api.invalidKey.mistral" xml:space="preserve">
-    <value>Format kunci API tidak valid. Kunci Mistral harus memiliki setidaknya 20 karakter.</value>
-  </data>
-  <data name="settings.api.invalidKey.grok" xml:space="preserve">
-    <value>Format kunci API tidak valid. Kunci Grok harus dimulai dengan "xai-" dan memiliki setidaknya 20 karakter.</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>Tampilkan</value>
   </data>
@@ -1520,12 +1490,6 @@ Anda dapat mengunduhnya lagi nanti.</value>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
-  <data name="settings.api.invalidKey.soniox" xml:space="preserve">
-    <value>Format kunci API tidak valid. Kunci Soniox harus minimal 10 karakter.</value>
-  </data>
-  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
-    <value>Format kunci API tidak valid. Kunci Gemini 3.5 Transcribe harus dimulai dengan "AIza" dan memiliki setidaknya 30 karakter.</value>
-  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Transkripsi multibahasa asinkron via Soniox</value>
   </data>
@@ -2265,9 +2229,6 @@ Anda dapat mengunduhnya lagi nanti.</value>
   </data>
   <data name="settings.api.provider.meta.description" xml:space="preserve">
     <value>Meta Muse Voice Transcribe 1.0 - transkripsi batch dengan kunci API Meta Model Anda sendiri</value>
-  </data>
-  <data name="settings.api.invalidKey.meta" xml:space="preserve">
-    <value>Format kunci API Meta tidak valid. Masukkan kunci lengkap dari Meta for Developers.</value>
   </data>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
     <value>Gunakan kunci API Meta Model Anda sendiri untuk transkripsi batch Muse</value>

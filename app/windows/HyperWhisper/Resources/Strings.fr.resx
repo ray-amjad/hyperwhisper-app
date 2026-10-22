@@ -562,36 +562,6 @@
   <data name="settings.api.invalidKey.title" xml:space="preserve">
     <value>Clé non valide</value>
   </data>
-  <data name="settings.api.invalidKey.openai" xml:space="preserve">
-    <value>Format de clé API non valide. Les clés OpenAI doivent commencer par « sk- ».</value>
-  </data>
-  <data name="settings.api.invalidKey.groq" xml:space="preserve">
-    <value>Format de clé API non valide. Les clés Groq doivent commencer par « gsk_ ».</value>
-  </data>
-  <data name="settings.api.invalidKey.anthropic" xml:space="preserve">
-    <value>Format de clé API non valide. Les clés Anthropic doivent commencer par « sk-ant- ».</value>
-  </data>
-  <data name="settings.api.invalidKey.gemini" xml:space="preserve">
-    <value>Format de clé API non valide. Les clés API Google doivent commencer par « AIza ».</value>
-  </data>
-  <data name="settings.api.invalidKey.cerebras" xml:space="preserve">
-    <value>Format de clé API non valide. Les clés Cerebras doivent commencer par « csk- ».</value>
-  </data>
-  <data name="settings.api.invalidKey.deepgram" xml:space="preserve">
-    <value>Format de clé API non valide. Les clés Deepgram doivent comporter au moins 32 caractères.</value>
-  </data>
-  <data name="settings.api.invalidKey.assemblyai" xml:space="preserve">
-    <value>Format de clé API non valide. Les clés AssemblyAI doivent comporter au moins 32 caractères.</value>
-  </data>
-  <data name="settings.api.invalidKey.elevenlabs" xml:space="preserve">
-    <value>Format de clé API non valide. Les clés ElevenLabs doivent commencer par « sk_ ».</value>
-  </data>
-  <data name="settings.api.invalidKey.mistral" xml:space="preserve">
-    <value>Format de clé API non valide. Les clés Mistral doivent comporter au moins 20 caractères.</value>
-  </data>
-  <data name="settings.api.invalidKey.grok" xml:space="preserve">
-    <value>Format de clé API invalide. Les clés Grok doivent commencer par « xai- » et comporter au moins 20 caractères.</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>Afficher</value>
   </data>
@@ -1520,12 +1490,6 @@ Vous pourrez le télécharger à nouveau plus tard.</value>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
-  <data name="settings.api.invalidKey.soniox" xml:space="preserve">
-    <value>Format de clé API invalide. Les clés Soniox doivent comporter au moins 10 caractères.</value>
-  </data>
-  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
-    <value>Format de clé API invalide. Les clés Gemini 3.5 Transcribe doivent commencer par « AIza » et comporter au moins 30 caractères.</value>
-  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Transcription asynchrone multilingue via Soniox</value>
   </data>
@@ -2265,9 +2229,6 @@ Vous pourrez le télécharger à nouveau plus tard.</value>
   </data>
   <data name="settings.api.provider.meta.description" xml:space="preserve">
     <value>Meta Muse Voice Transcribe 1.0 - transcription par lots avec votre propre clé API Meta Model</value>
-  </data>
-  <data name="settings.api.invalidKey.meta" xml:space="preserve">
-    <value>Format de clé API Meta non valide. Saisissez la clé complète depuis Meta for Developers.</value>
   </data>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
     <value>Utilisez votre propre clé API Meta Model pour la transcription par lots Muse</value>

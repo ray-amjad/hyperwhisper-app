@@ -118,38 +118,29 @@ public partial class ProviderApiKeyWindow : Window
     }
 
     /// <summary>
-    /// Windows' two key-shape tables, keyed on the credential-store account id Linux carries.
-    /// The prefixes and lengths come from <c>ApiKeyService.IsValidKeyFormat(PostProcessingProvider)</c>
-    /// (Services/ApiKeyService.cs:113-144) and <c>TranscriptionApiKeyType.GetKeyPrefix</c> /
-    /// <c>GetMinLength</c> (Models/TranscriptionApiKeyType.cs:90-115). Where a provider appears in
-    /// both - Gemini, Grok, Mistral - both tables already agree, which is why one table works here.
+    /// Windows' key-length rule, keyed on the credential-store account id Linux carries: the
+    /// lengths come from <c>ApiKeyService.IsValidKeyFormat(PostProcessingProvider)</c>
+    /// (<c>MinKeyLength</c>) and <c>TranscriptionApiKeyType.GetMinLength</c>.
     ///
-    /// An account the tables do not name is accepted rather than refused. Windows' post-processing
-    /// switch falls through to <c>false</c>, but it only ever sees its own six enum members; the
-    /// transcription table is the open-ended one and it falls through to a length of 10. A custom
-    /// or newly added provider must not become unconfigurable on Linux alone.
+    /// There is deliberately no prefix rule. Vendors change their key formats: Google's newer
+    /// Gemini keys do not start with "AIza", and an "AIza" rule refused working keys. A wrong key
+    /// fails at the provider, which says so.
+    ///
+    /// An account the table does not name is accepted at a length of 10, as Windows' transcription
+    /// table does. A custom or newly added provider must not become unconfigurable on Linux alone.
     /// </summary>
     internal static bool IsValidKeyFormat(string account, string? key)
     {
         if (string.IsNullOrWhiteSpace(key)) return false;
-        var (prefix, minLength) = account switch
+        var minLength = account switch
         {
-            "OpenAIApiKey" => ("sk-", 21),
-            "AnthropicApiKey" => ("sk-ant-", 21),
-            "GroqApiKey" => ("gsk_", 21),
-            "CerebrasApiKey" => ("csk-", 21),
-            "GrokApiKey" => ("xai-", 20),
-            "GeminiApiKey" or "GeminiTranscribeApiKey" => ("AIza", 30),
-            "DeepgramApiKey" => (null, 32),
-            "AssemblyAIApiKey" => (null, 32),
-            "ElevenLabsApiKey" => (null, 20),
-            "MistralApiKey" => (null, 20),
-            "SonioxApiKey" => (null, 10),
-            "MetaApiKey" => (null, 10),
-            _ => ((string?)null, 10),
+            "SonioxApiKey" or "MetaApiKey" => 10,
+            "OpenAIApiKey" or "AnthropicApiKey" or "GroqApiKey" or "CerebrasApiKey" or "GrokApiKey"
+                or "GeminiApiKey" or "GeminiTranscribeApiKey" or "DeepgramApiKey" or "AssemblyAIApiKey"
+                or "ElevenLabsApiKey" or "MistralApiKey" => 20,
+            _ => 10,
         };
-        if (key.Length < minLength) return false;
-        return prefix is null || key.StartsWith(prefix, StringComparison.Ordinal);
+        return key.Trim().Length >= minLength;
     }
 
     private void OnCancel(object? sender, RoutedEventArgs e) => Close();

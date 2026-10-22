@@ -562,36 +562,6 @@
   <data name="settings.api.invalidKey.title" xml:space="preserve">
     <value>Geçersiz Anahtar</value>
   </data>
-  <data name="settings.api.invalidKey.openai" xml:space="preserve">
-    <value>Geçersiz API anahtarı biçimi. OpenAI anahtarları 'sk-' ile başlamalıdır.</value>
-  </data>
-  <data name="settings.api.invalidKey.groq" xml:space="preserve">
-    <value>Geçersiz API anahtarı biçimi. Groq anahtarları 'gsk_' ile başlamalıdır.</value>
-  </data>
-  <data name="settings.api.invalidKey.anthropic" xml:space="preserve">
-    <value>Geçersiz API anahtarı biçimi. Anthropic anahtarları 'sk-ant-' ile başlamalıdır.</value>
-  </data>
-  <data name="settings.api.invalidKey.gemini" xml:space="preserve">
-    <value>Geçersiz API anahtarı biçimi. Google API anahtarları 'AIza' ile başlamalıdır.</value>
-  </data>
-  <data name="settings.api.invalidKey.cerebras" xml:space="preserve">
-    <value>Geçersiz API anahtarı biçimi. Cerebras anahtarları 'csk-' ile başlamalıdır.</value>
-  </data>
-  <data name="settings.api.invalidKey.deepgram" xml:space="preserve">
-    <value>Geçersiz API anahtarı biçimi. Deepgram anahtarları en az 32 karakter olmalıdır.</value>
-  </data>
-  <data name="settings.api.invalidKey.assemblyai" xml:space="preserve">
-    <value>Geçersiz API anahtarı biçimi. AssemblyAI anahtarları en az 32 karakter olmalıdır.</value>
-  </data>
-  <data name="settings.api.invalidKey.elevenlabs" xml:space="preserve">
-    <value>Geçersiz API anahtarı biçimi. ElevenLabs anahtarları 'sk_' ile başlamalıdır.</value>
-  </data>
-  <data name="settings.api.invalidKey.mistral" xml:space="preserve">
-    <value>Geçersiz API anahtarı biçimi. Mistral anahtarları en az 20 karakter olmalıdır.</value>
-  </data>
-  <data name="settings.api.invalidKey.grok" xml:space="preserve">
-    <value>Geçersiz API anahtarı biçimi. Grok anahtarları "xai-" ile başlamalı ve en az 20 karakter uzunluğunda olmalıdır.</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>Göster</value>
   </data>
@@ -1520,12 +1490,6 @@ Daha sonra yeniden indirebilirsiniz.</value>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
-  <data name="settings.api.invalidKey.soniox" xml:space="preserve">
-    <value>Geçersiz API anahtarı biçimi. Soniox anahtarları en az 10 karakter olmalıdır.</value>
-  </data>
-  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
-    <value>Geçersiz API anahtarı biçimi. Gemini 3.5 Transcribe anahtarları "AIza" ile başlamalı ve en az 30 karakter uzunluğunda olmalıdır.</value>
-  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Soniox aracılığıyla asenkron çok dilli transkripsiyon</value>
   </data>
@@ -2265,9 +2229,6 @@ Daha sonra yeniden indirebilirsiniz.</value>
   </data>
   <data name="settings.api.provider.meta.description" xml:space="preserve">
     <value>Meta Muse Voice Transcribe 1.0 - kendi Meta Model API anahtarınızla toplu transkripsiyon</value>
-  </data>
-  <data name="settings.api.invalidKey.meta" xml:space="preserve">
-    <value>Geçersiz Meta API anahtarı biçimi. Meta for Developers'daki anahtarın tamamını girin.</value>
   </data>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
     <value>Muse toplu transkripsiyonu için kendi Meta Model API anahtarınızı kullanın</value>

@@ -161,7 +161,11 @@ static void AllCatalogsLoad()
     // amber line when the saved microphone is unplugged and no other input is connected).
     // 874 -> 876 (#2219, #2294): `status.model.notActivated` and `status.model.noApiKey` are
     // new (the Windows status bar with no licence or no API key instead of Ready).
-    Equal(876,PortableLocalizer.BaseKeyCount, "base key count");
+    // 876 -> 863: the thirteen per-provider `settings.api.invalidKey.<provider>` keys are
+    // retired. They told the user a key "should start with" a prefix, and the Windows and
+    // Linux key checks no longer test one (Google's newer Gemini keys do not start with
+    // "AIza"). Every refusal now says `providerApiKey.invalid.message`.
+    Equal(863,PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

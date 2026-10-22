@@ -562,36 +562,6 @@
   <data name="settings.api.invalidKey.title" xml:space="preserve">
     <value>잘못된 키</value>
   </data>
-  <data name="settings.api.invalidKey.openai" xml:space="preserve">
-    <value>API 키 형식이 올바르지 않습니다. OpenAI 키는 "sk-"로 시작해야 합니다.</value>
-  </data>
-  <data name="settings.api.invalidKey.groq" xml:space="preserve">
-    <value>API 키 형식이 올바르지 않습니다. Groq 키는 "gsk_"로 시작해야 합니다.</value>
-  </data>
-  <data name="settings.api.invalidKey.anthropic" xml:space="preserve">
-    <value>API 키 형식이 올바르지 않습니다. Anthropic 키는 "sk-ant-"로 시작해야 합니다.</value>
-  </data>
-  <data name="settings.api.invalidKey.gemini" xml:space="preserve">
-    <value>API 키 형식이 올바르지 않습니다. Google API 키는 "AIza"로 시작해야 합니다.</value>
-  </data>
-  <data name="settings.api.invalidKey.cerebras" xml:space="preserve">
-    <value>API 키 형식이 올바르지 않습니다. Cerebras 키는 "csk-"로 시작해야 합니다.</value>
-  </data>
-  <data name="settings.api.invalidKey.deepgram" xml:space="preserve">
-    <value>API 키 형식이 올바르지 않습니다. Deepgram 키는 32자 이상이어야 합니다.</value>
-  </data>
-  <data name="settings.api.invalidKey.assemblyai" xml:space="preserve">
-    <value>API 키 형식이 올바르지 않습니다. AssemblyAI 키는 32자 이상이어야 합니다.</value>
-  </data>
-  <data name="settings.api.invalidKey.elevenlabs" xml:space="preserve">
-    <value>API 키 형식이 올바르지 않습니다. ElevenLabs 키는 "sk_"로 시작해야 합니다.</value>
-  </data>
-  <data name="settings.api.invalidKey.mistral" xml:space="preserve">
-    <value>API 키 형식이 올바르지 않습니다. Mistral 키는 20자 이상이어야 합니다.</value>
-  </data>
-  <data name="settings.api.invalidKey.grok" xml:space="preserve">
-    <value>API 키 형식이 올바르지 않습니다. Grok 키는 "xai-"로 시작하고 20자 이상이어야 합니다.</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>표시</value>
   </data>
@@ -1520,12 +1490,6 @@
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
-  <data name="settings.api.invalidKey.soniox" xml:space="preserve">
-    <value>유효하지 않은 API 키 형식입니다. Soniox 키는 10자 이상이어야 합니다.</value>
-  </data>
-  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
-    <value>API 키 형식이 올바르지 않습니다. Gemini 3.5 Transcribe 키는 "AIza"로 시작하고 30자 이상이어야 합니다.</value>
-  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Soniox를 통한 비동기 다국어 전사</value>
   </data>
@@ -2265,9 +2229,6 @@
   </data>
   <data name="settings.api.provider.meta.description" xml:space="preserve">
     <value>Meta Muse Voice Transcribe 1.0 - 내 Meta Model API 키를 사용한 일괄 전사</value>
-  </data>
-  <data name="settings.api.invalidKey.meta" xml:space="preserve">
-    <value>Meta API 키 형식이 올바르지 않습니다. Meta for Developers에서 받은 전체 키를 입력하세요.</value>
   </data>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
     <value>Muse 일괄 전사에 내 Meta Model API 키 사용</value>

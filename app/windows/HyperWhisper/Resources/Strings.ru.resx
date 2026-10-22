@@ -562,36 +562,6 @@
   <data name="settings.api.invalidKey.title" xml:space="preserve">
     <value>Недействительный ключ</value>
   </data>
-  <data name="settings.api.invalidKey.openai" xml:space="preserve">
-    <value>Неверный формат ключа API. Ключи OpenAI начинаются с «sk-».</value>
-  </data>
-  <data name="settings.api.invalidKey.groq" xml:space="preserve">
-    <value>Неверный формат ключа API. Ключи Groq начинаются с «gsk_».</value>
-  </data>
-  <data name="settings.api.invalidKey.anthropic" xml:space="preserve">
-    <value>Неверный формат ключа API. Ключи Anthropic начинаются с «sk-ant-».</value>
-  </data>
-  <data name="settings.api.invalidKey.gemini" xml:space="preserve">
-    <value>Неверный формат ключа API. Ключи API Google начинаются с «AIza».</value>
-  </data>
-  <data name="settings.api.invalidKey.cerebras" xml:space="preserve">
-    <value>Неверный формат ключа API. Ключи Cerebras начинаются с «csk-».</value>
-  </data>
-  <data name="settings.api.invalidKey.deepgram" xml:space="preserve">
-    <value>Неверный формат ключа API. В ключах Deepgram должно быть не менее 32 символов.</value>
-  </data>
-  <data name="settings.api.invalidKey.assemblyai" xml:space="preserve">
-    <value>Неверный формат ключа API. В ключах AssemblyAI должно быть не менее 32 символов.</value>
-  </data>
-  <data name="settings.api.invalidKey.elevenlabs" xml:space="preserve">
-    <value>Неверный формат ключа API. Ключи ElevenLabs начинаются с «sk_».</value>
-  </data>
-  <data name="settings.api.invalidKey.mistral" xml:space="preserve">
-    <value>Неверный формат ключа API. В ключах Mistral должно быть не менее 20 символов.</value>
-  </data>
-  <data name="settings.api.invalidKey.grok" xml:space="preserve">
-    <value>Неверный формат ключа API. Ключи Grok должны начинаться с «xai-» и содержать не менее 20 символов.</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>Показать</value>
   </data>
@@ -1520,12 +1490,6 @@
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
-  <data name="settings.api.invalidKey.soniox" xml:space="preserve">
-    <value>Неверный формат ключа API. Ключи Soniox должны содержать не менее 10 символов.</value>
-  </data>
-  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
-    <value>Неверный формат ключа API. Ключи Gemini 3.5 Transcribe должны начинаться с «AIza» и содержать не менее 30 символов.</value>
-  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Асинхронная многоязычная транскрипция через Soniox</value>
   </data>
@@ -2265,9 +2229,6 @@
   </data>
   <data name="settings.api.provider.meta.description" xml:space="preserve">
     <value>Meta Muse Voice Transcribe 1.0 - пакетная транскрипция с вашим собственным ключом Meta Model API</value>
-  </data>
-  <data name="settings.api.invalidKey.meta" xml:space="preserve">
-    <value>Неверный формат ключа API Meta. Введите ключ из Meta for Developers целиком.</value>
   </data>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
     <value>Пакетная транскрипция в Muse с вашим собственным ключом Meta Model API</value>

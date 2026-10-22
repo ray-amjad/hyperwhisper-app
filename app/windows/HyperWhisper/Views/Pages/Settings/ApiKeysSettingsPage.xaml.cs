@@ -23,7 +23,6 @@ public partial class ApiKeysSettingsPage : Page
     private sealed class SharedApiKeyCard
     {
         public required PostProcessingProvider Provider { get; init; }
-        public required string InvalidKeyLocalizationKey { get; init; }
         public required string LogLabel { get; init; }
         public required PasswordBox FirstKeyBox { get; init; }
         public required PasswordBox SecondKeyBox { get; init; }
@@ -77,7 +76,6 @@ public partial class ApiKeysSettingsPage : Page
         _openAIApiKeyCard = new SharedApiKeyCard
         {
             Provider = PostProcessingProvider.OpenAI,
-            InvalidKeyLocalizationKey = "settings.api.invalidKey.openai",
             LogLabel = "OpenAI",
             FirstKeyBox = OpenAITranscriptionKeyBox,
             SecondKeyBox = OpenAIPostKeyBox,
@@ -89,7 +87,6 @@ public partial class ApiKeysSettingsPage : Page
         _groqApiKeyCard = new SharedApiKeyCard
         {
             Provider = PostProcessingProvider.Groq,
-            InvalidKeyLocalizationKey = "settings.api.invalidKey.groq",
             LogLabel = "Groq",
             FirstKeyBox = GroqTranscriptionKeyBox,
             SecondKeyBox = GroqPostKeyBox,
@@ -101,7 +98,6 @@ public partial class ApiKeysSettingsPage : Page
         _geminiApiKeyCard = new SharedApiKeyCard
         {
             Provider = PostProcessingProvider.Gemini,
-            InvalidKeyLocalizationKey = "settings.api.invalidKey.gemini",
             LogLabel = "Gemini",
             FirstKeyBox = GeminiTranscriptionKeyBox,
             SecondKeyBox = GeminiKeyBox,
@@ -113,7 +109,6 @@ public partial class ApiKeysSettingsPage : Page
         _grokApiKeyCard = new SharedApiKeyCard
         {
             Provider = PostProcessingProvider.Grok,
-            InvalidKeyLocalizationKey = "settings.api.invalidKey.grok",
             LogLabel = "Grok",
             FirstKeyBox = GrokKeyBox,
             SecondKeyBox = GrokPostKeyBox,
@@ -211,7 +206,7 @@ public partial class ApiKeysSettingsPage : Page
 
     private void SaveSharedApiKey(SharedApiKeyCard card, object sender)
     {
-        var key = card.KeyBoxFor(sender).Password;
+        var key = card.KeyBoxFor(sender).Password.Trim();
         if (string.IsNullOrWhiteSpace(key))
         {
             if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(card.Provider, null), card.LogLabel, clearing: true))
@@ -226,7 +221,7 @@ public partial class ApiKeysSettingsPage : Page
             if (!ApiKeyService.IsValidKeyFormat(card.Provider, key))
             {
                 WpfMessageBox.Show(
-                    Loc.S(card.InvalidKeyLocalizationKey),
+                    Loc.S("providerApiKey.invalid.message", card.Provider.ToDisplayName()),
                     Loc.S("settings.api.invalidKey.title"),
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -330,7 +325,7 @@ public partial class ApiKeysSettingsPage : Page
 
     private void AnthropicSaveButton_Click(object sender, RoutedEventArgs e)
     {
-        var key = AnthropicKeyBox.Password;
+        var key = AnthropicKeyBox.Password.Trim();
         if (string.IsNullOrWhiteSpace(key))
         {
             if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Anthropic, null), "Anthropic", clearing: true))
@@ -345,7 +340,7 @@ public partial class ApiKeysSettingsPage : Page
             if (!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.Anthropic, key))
             {
                 WpfMessageBox.Show(
-                    Loc.S("settings.api.invalidKey.anthropic"),
+                    Loc.S("providerApiKey.invalid.message", PostProcessingProvider.Anthropic.ToDisplayName()),
                     Loc.S("settings.api.invalidKey.title"),
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -504,7 +499,7 @@ public partial class ApiKeysSettingsPage : Page
 
     private void CerebrasSaveButton_Click(object sender, RoutedEventArgs e)
     {
-        var key = CerebrasKeyBox.Password;
+        var key = CerebrasKeyBox.Password.Trim();
         if (string.IsNullOrWhiteSpace(key))
         {
             if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Cerebras, null), "Cerebras", clearing: true))
@@ -519,7 +514,7 @@ public partial class ApiKeysSettingsPage : Page
             if (!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.Cerebras, key))
             {
                 WpfMessageBox.Show(
-                    Loc.S("settings.api.invalidKey.cerebras"),
+                    Loc.S("providerApiKey.invalid.message", PostProcessingProvider.Cerebras.ToDisplayName()),
                     Loc.S("settings.api.invalidKey.title"),
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -568,7 +563,7 @@ public partial class ApiKeysSettingsPage : Page
 
     private void DeepgramSaveButton_Click(object sender, RoutedEventArgs e)
     {
-        var key = DeepgramKeyBox.Password;
+        var key = DeepgramKeyBox.Password.Trim();
         if (string.IsNullOrWhiteSpace(key))
         {
             if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Deepgram, null), "Deepgram", clearing: true))
@@ -583,7 +578,7 @@ public partial class ApiKeysSettingsPage : Page
             if (!ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.Deepgram, key))
             {
                 WpfMessageBox.Show(
-                    Loc.S("settings.api.invalidKey.deepgram"),
+                    Loc.S("providerApiKey.invalid.message", TranscriptionApiKeyType.Deepgram.GetDisplayName()),
                     Loc.S("settings.api.invalidKey.title"),
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -632,7 +627,7 @@ public partial class ApiKeysSettingsPage : Page
 
     private void AssemblyAISaveButton_Click(object sender, RoutedEventArgs e)
     {
-        var key = AssemblyAIKeyBox.Password;
+        var key = AssemblyAIKeyBox.Password.Trim();
         if (string.IsNullOrWhiteSpace(key))
         {
             if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.AssemblyAI, null), "AssemblyAI", clearing: true))
@@ -647,7 +642,7 @@ public partial class ApiKeysSettingsPage : Page
             if (!ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.AssemblyAI, key))
             {
                 WpfMessageBox.Show(
-                    Loc.S("settings.api.invalidKey.assemblyai"),
+                    Loc.S("providerApiKey.invalid.message", TranscriptionApiKeyType.AssemblyAI.GetDisplayName()),
                     Loc.S("settings.api.invalidKey.title"),
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -696,7 +691,7 @@ public partial class ApiKeysSettingsPage : Page
 
     private void ElevenLabsSaveButton_Click(object sender, RoutedEventArgs e)
     {
-        var key = ElevenLabsKeyBox.Password;
+        var key = ElevenLabsKeyBox.Password.Trim();
         if (string.IsNullOrWhiteSpace(key))
         {
             if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.ElevenLabs, null), "ElevenLabs", clearing: true))
@@ -711,7 +706,7 @@ public partial class ApiKeysSettingsPage : Page
             if (!ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.ElevenLabs, key))
             {
                 WpfMessageBox.Show(
-                    Loc.S("settings.api.invalidKey.elevenlabs"),
+                    Loc.S("providerApiKey.invalid.message", TranscriptionApiKeyType.ElevenLabs.GetDisplayName()),
                     Loc.S("settings.api.invalidKey.title"),
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -760,7 +755,7 @@ public partial class ApiKeysSettingsPage : Page
 
     private void MistralSaveButton_Click(object sender, RoutedEventArgs e)
     {
-        var key = MistralKeyBox.Password;
+        var key = MistralKeyBox.Password.Trim();
         if (string.IsNullOrWhiteSpace(key))
         {
             if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Mistral, null), "Mistral", clearing: true))
@@ -775,7 +770,7 @@ public partial class ApiKeysSettingsPage : Page
             if (!ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.Mistral, key))
             {
                 WpfMessageBox.Show(
-                    Loc.S("settings.api.invalidKey.mistral"),
+                    Loc.S("providerApiKey.invalid.message", TranscriptionApiKeyType.Mistral.GetDisplayName()),
                     Loc.S("settings.api.invalidKey.title"),
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -824,7 +819,7 @@ public partial class ApiKeysSettingsPage : Page
 
     private void SonioxSaveButton_Click(object sender, RoutedEventArgs e)
     {
-        var key = SonioxKeyBox.Password;
+        var key = SonioxKeyBox.Password.Trim();
         if (string.IsNullOrWhiteSpace(key))
         {
             if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Soniox, null), "Soniox", clearing: true))
@@ -839,7 +834,7 @@ public partial class ApiKeysSettingsPage : Page
             if (!ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.Soniox, key))
             {
                 WpfMessageBox.Show(
-                    Loc.S("settings.api.invalidKey.soniox"),
+                    Loc.S("providerApiKey.invalid.message", TranscriptionApiKeyType.Soniox.GetDisplayName()),
                     Loc.S("settings.api.invalidKey.title"),
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -884,7 +879,7 @@ public partial class ApiKeysSettingsPage : Page
 
     private void MetaSaveButton_Click(object sender, RoutedEventArgs e)
     {
-        var key = MetaKeyBox.Password;
+        var key = MetaKeyBox.Password.Trim();
         if (string.IsNullOrWhiteSpace(key))
         {
             if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Meta, null), "Meta", clearing: true))
@@ -899,7 +894,7 @@ public partial class ApiKeysSettingsPage : Page
             if (!ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.Meta, key))
             {
                 WpfMessageBox.Show(
-                    Loc.S("settings.api.invalidKey.meta"),
+                    Loc.S("providerApiKey.invalid.message", TranscriptionApiKeyType.Meta.GetDisplayName()),
                     Loc.S("settings.api.invalidKey.title"),
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -948,7 +943,7 @@ public partial class ApiKeysSettingsPage : Page
 
     private void GeminiTranscribeSaveButton_Click(object sender, RoutedEventArgs e)
     {
-        var key = GeminiTranscribeKeyBox.Password;
+        var key = GeminiTranscribeKeyBox.Password.Trim();
         if (string.IsNullOrWhiteSpace(key))
         {
             if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.GeminiTranscribe, null), "Gemini 3.5 Transcribe", clearing: true))
@@ -963,7 +958,7 @@ public partial class ApiKeysSettingsPage : Page
             if (!ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.GeminiTranscribe, key))
             {
                 WpfMessageBox.Show(
-                    Loc.S("settings.api.invalidKey.geminiTranscribe"),
+                    Loc.S("providerApiKey.invalid.message", TranscriptionApiKeyType.GeminiTranscribe.GetDisplayName()),
                     Loc.S("settings.api.invalidKey.title"),
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);

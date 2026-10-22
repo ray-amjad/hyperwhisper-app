@@ -562,36 +562,6 @@
   <data name="settings.api.invalidKey.title" xml:space="preserve">
     <value>Ungültiger Schlüssel</value>
   </data>
-  <data name="settings.api.invalidKey.openai" xml:space="preserve">
-    <value>Ungültiges API-Schlüsselformat. OpenAI-Schlüssel sollten mit „sk-“ beginnen.</value>
-  </data>
-  <data name="settings.api.invalidKey.groq" xml:space="preserve">
-    <value>Ungültiges API-Schlüsselformat. Groq-Schlüssel sollten mit „gsk_“ beginnen.</value>
-  </data>
-  <data name="settings.api.invalidKey.anthropic" xml:space="preserve">
-    <value>Ungültiges API-Schlüsselformat. Anthropic-Schlüssel sollten mit „sk-ant-“ beginnen.</value>
-  </data>
-  <data name="settings.api.invalidKey.gemini" xml:space="preserve">
-    <value>Ungültiges API-Schlüsselformat. Google-API-Schlüssel sollten mit „AIza“ beginnen.</value>
-  </data>
-  <data name="settings.api.invalidKey.cerebras" xml:space="preserve">
-    <value>Ungültiges API-Schlüsselformat. Cerebras-Schlüssel sollten mit „csk-“ beginnen.</value>
-  </data>
-  <data name="settings.api.invalidKey.deepgram" xml:space="preserve">
-    <value>Ungültiges API-Schlüsselformat. Deepgram-Schlüssel sollten mindestens 32 Zeichen lang sein.</value>
-  </data>
-  <data name="settings.api.invalidKey.assemblyai" xml:space="preserve">
-    <value>Ungültiges API-Schlüsselformat. AssemblyAI-Schlüssel sollten mindestens 32 Zeichen lang sein.</value>
-  </data>
-  <data name="settings.api.invalidKey.elevenlabs" xml:space="preserve">
-    <value>Ungültiges API-Schlüsselformat. ElevenLabs-Schlüssel sollten mit „sk_“ beginnen.</value>
-  </data>
-  <data name="settings.api.invalidKey.mistral" xml:space="preserve">
-    <value>Ungültiges API-Schlüsselformat. Mistral-Schlüssel sollten mindestens 20 Zeichen lang sein.</value>
-  </data>
-  <data name="settings.api.invalidKey.grok" xml:space="preserve">
-    <value>Ungültiges API-Schlüsselformat. Grok-Schlüssel müssen mit „xai-" beginnen und mindestens 20 Zeichen lang sein.</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>Anzeigen</value>
   </data>
@@ -1520,12 +1490,6 @@ Sie können es später erneut herunterladen.</value>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
-  <data name="settings.api.invalidKey.soniox" xml:space="preserve">
-    <value>Ungültiges API-Schlüsselformat. Soniox-Schlüssel müssen mindestens 10 Zeichen lang sein.</value>
-  </data>
-  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
-    <value>Ungültiges API-Schlüsselformat. Gemini 3.5 Transcribe-Schlüssel müssen mit „AIza" beginnen und mindestens 30 Zeichen lang sein.</value>
-  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Asynchrone mehrsprachige Transkription über Soniox</value>
   </data>
@@ -2265,9 +2229,6 @@ Sie können es später erneut herunterladen.</value>
   </data>
   <data name="settings.api.provider.meta.description" xml:space="preserve">
     <value>Meta Muse Voice Transcribe 1.0 - Stapeltranskription mit Ihrem eigenen Meta-Model-API-Schlüssel</value>
-  </data>
-  <data name="settings.api.invalidKey.meta" xml:space="preserve">
-    <value>Ungültiges Meta-API-Schlüsselformat. Geben Sie den vollständigen Schlüssel aus Meta for Developers ein.</value>
   </data>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
     <value>Eigenen Meta-Model-API-Schlüssel für die Muse-Stapeltranskription verwenden</value>
