@@ -424,6 +424,10 @@ final class LocalAPIServer: ObservableObject {
                 try await httpServer.waitUntilListening(timeout: listenTimeout)
                 let port = await Self.extractPort(from: httpServer)
                 await MainActor.run {
+                    // A server stop() let go of while it was still coming up
+                    // (more likely now an ephemeral bind waits 30 s) must not
+                    // publish itself as running or rewrite the discovery file.
+                    guard self.server === httpServer else { return }
                     self.listeningPort = port
                     self.isRunning = port > 0
                     if port > 0 {
