@@ -3,6 +3,7 @@
 import { LicenseKeysCard, CloudCreditsCard, CreditHistoryCard, BillingCard } from "@/components/customer/dashboard";
 import { api } from "@/lib/trpc/client";
 import { ErrorReveal } from "@/components/ErrorReveal";
+import { Spinner } from "@/components/ui/Spinner";
 
 interface UserDashboardClientProps {
   user: {
@@ -62,7 +63,7 @@ export default function UserDashboardClient({
       {isLoading ? (
         <div className="bg-white/5 rounded-xl border border-white/10 p-5">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+            <Spinner className="w-4 h-4 text-emerald-400" />
             <span className="text-gray-400 text-sm">Loading Account Keys...</span>
           </div>
         </div>
