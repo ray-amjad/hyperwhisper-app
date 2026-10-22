@@ -134,11 +134,18 @@ final class LocalAPIServer: ObservableObject {
     /// not finished by then is stuck, not slow.
     nonisolated static let releaseWait: Duration = .seconds(2)
 
-    /// How long a bind waits for FlyingFox to report it is listening before it
-    /// reads the silence as a taken port and falls back to an ephemeral one.
-    /// FlyingFox's own default. A bind refused with EADDRINUSE never reports
-    /// at all, so this wait is also how long that fallback takes.
+    /// How long a bind to the persisted port waits for FlyingFox to report it is
+    /// listening before it reads the silence as a taken port and falls back to
+    /// an ephemeral one. FlyingFox's own default. A bind refused with EADDRINUSE
+    /// never resumes that wait, so this is also how long the fallback takes.
     nonisolated static let listenWait: TimeInterval = 5
+
+    /// How long a bind to an ephemeral port waits. It has no fallback, so a
+    /// timeout there only shows an error while the server may still come up;
+    /// a run task starved past 5 s (a busy main actor at launch, a loaded test
+    /// host) must not end in that error (issue #2398). The test probes wait the
+    /// same.
+    nonisolated static let ephemeralListenWait: TimeInterval = 30
 
     // MARK: - Environment (issue #1838)
 
@@ -408,7 +415,9 @@ final class LocalAPIServer: ObservableObject {
         // short timeout on waitUntilListening, then retry with port 0.
 
         // Wait until the kernel has assigned a port, then write the discovery file.
-        let listenTimeout = self.listenTimeout
+        let listenTimeout = preferredPort == 0
+            ? max(self.listenTimeout, Self.ephemeralListenWait)
+            : self.listenTimeout
         Task { [weak self] in
             guard let self else { return }
             do {
@@ -464,6 +473,10 @@ final class LocalAPIServer: ObservableObject {
                     return
                 }
                 await MainActor.run {
+                    // A stop() or a failed run (which set its own error) during
+                    // the ephemeral wait has already let this server go; its
+                    // timeout is not the current server's error.
+                    guard self.server === httpServer else { return }
                     self.lastError = error.localizedDescription
                     AppLogger.network.error("LocalAPI server failed to start · \(error.localizedDescription, privacy: .public)")
                 }
@@ -1147,7 +1160,7 @@ final class LocalAPISwitchProbe {
         // `run()` starts on the main actor, which another suite in the test
         // host can hold for seconds (synchronous Core Data tests); FlyingFox's
         // default 5 s wait then times out before the server has begun.
-        try await server.waitUntilListening(timeout: 30)
+        try await server.waitUntilListening(timeout: LocalAPIServer.ephemeralListenWait)
         guard let bound = await server.listeningAddress, case .ip4(_, let port) = bound, port > 0 else {
             throw ProbeError.noPort
         }

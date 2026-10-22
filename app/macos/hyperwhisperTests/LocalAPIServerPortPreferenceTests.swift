@@ -57,6 +57,7 @@ struct LocalAPIServerPortPreferenceTests {
     @Test func aTakenPersistedPortIsGivenUpForAnEphemeralOneThatIsThenPersisted() async throws {
         // The app's listen wait: a bind refused with EADDRINUSE reports nothing,
         // so this wait running out is what sends the server to an ephemeral port.
+        // The ephemeral retry then waits `ephemeralListenWait`, as in the app.
         let fixture = try Fixture(listenTimeout: LocalAPIServer.listenWait)
         defer { fixture.removeFiles() }
         let holder = try PortHolder()
