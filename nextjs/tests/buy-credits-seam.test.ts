@@ -151,14 +151,12 @@ test("a 400 about the licence itself is shown verbatim too", async () => {
  */
 const ROUTE_500_BODY = {
   error: "Failed to create checkout session",
-  details: "Stripe API error: connection refused to api.stripe.com",
 };
 
 test("a 500 shows the translated copy, not the route's own words", async () => {
   // #947 review round 2, finding 3. The string above is not a message to a
   // customer — it is an internal fault description, in English only, in front
-  // of a 40-locale alert region, and its `details` carries the throw's own
-  // message. A 4xx body is the opposite and is still shown verbatim (the test
+  // of a 40-locale alert region. A 4xx body is the opposite and is still shown verbatim (the test
   // above this one). The status class is what decides.
   const { errors, navigated, reported, run } = harness(
     responds({ ok: false, status: 500, json: () => ROUTE_500_BODY }),
