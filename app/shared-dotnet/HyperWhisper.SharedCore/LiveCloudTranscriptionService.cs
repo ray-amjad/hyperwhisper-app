@@ -76,17 +76,9 @@ public sealed class LiveCloudTranscriptionService
             var clock = System.Diagnostics.Stopwatch.StartNew();
             await using var socket = _webSockets.Create();
             using var sessionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            using (var connectCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            if (await ConnectAsync(socket, protocol, state, cancellationToken).ConfigureAwait(false) is { } timedOut)
             {
-                connectCancellation.CancelAfter(ConnectTimeout);
-                try
-                {
-                    await socket.ConnectAsync(protocol.ConnectOptions, connectCancellation.Token).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-                {
-                    return Failed(state, LiveTranscriptionFailureCode.Timeout, "The streaming connection timed out.");
-                }
+                return timedOut;
             }
             Observe(state, "connected");
 
@@ -107,97 +99,17 @@ public sealed class LiveCloudTranscriptionService
                 await WaitForStartAsync(state, receiveTask, protocol.StartTimeout, cancellationToken).ConfigureAwait(false);
             }
 
-            await foreach (var chunk in audio.WithCancellation(cancellationToken).ConfigureAwait(false))
-            {
-                if (state.Failure is not null || state.Completed.Task.IsCompleted)
-                {
-                    break;
-                }
-                if (chunk.Length == 0)
-                {
-                    continue;
-                }
-                if (chunk.Length > MaxAudioChunkBytes)
-                {
-                    state.Failure = new LiveTranscriptionFailure(
-                        LiveTranscriptionFailureCode.BufferLimit,
-                        "An audio chunk exceeded the 256 KiB streaming limit.",
-                        config.Provider);
-                    break;
-                }
-                if ((chunk.Length & 1) != 0)
-                {
-                    state.Failure = new LiveTranscriptionFailure(
-                        LiveTranscriptionFailureCode.InvalidRequest,
-                        "PCM16 audio chunks must contain complete 16-bit samples.",
-                        config.Provider);
-                    break;
-                }
-                var frame = protocol.EncodeAudio(chunk.Span);
-                await socket.SendAsync(frame.Data, frame.Type, cancellationToken).ConfigureAwait(false);
-                state.AudioChunksSent++;
-                // The send opportunity comes AFTER this chunk, which is the order
-                // this head has always used and the opposite of Windows'. It
-                // matters for one provider: OpenAI's periodic commit then covers
-                // the chunk just appended instead of leaving it for the next one,
-                // so no audio is held back a round. Either order is correct on
-                // the wire — a commit always follows the appends it claims — and
-                // the core cannot tell them apart, because it is told a byte
-                // count and a clock reading and nothing else.
-                foreach (var control in protocol.AudioOpportunityFrames(clock.ElapsedMilliseconds))
-                {
-                    await socket.SendAsync(control.Data, control.Type, cancellationToken).ConfigureAwait(false);
-                }
-            }
+            await PumpAudioAsync(socket, protocol, audio, state, clock, cancellationToken).ConfigureAwait(false);
 
-            // Whether this session is stopping normally, decided BEFORE the stop
-            // sequence runs and reused by the post-close drain below. A session
-            // that already failed, or that the provider already finished, has
-            // nothing left to drain and must not be charged for waiting.
-            var stoppingNormally = state.Failure is null && !state.Completed.Task.IsCompleted;
-            if (stoppingNormally)
-            {
-                // Publish the stop BEFORE the first stop frame goes out, so the
-                // receive loop reads a provider "complete" that answers THIS
-                // stop as terminal. It is what lets a turn-boundary provider
-                // (Gemini) ignore a mid-stream completion and still honour the
-                // one that ends the session — see
-                // ILiveTranscriptionProtocol.CompleteEndsSessionBeforeStop.
-                state.StopRequested = true;
-                Observe(state, "draining");
-                await RunStopSequenceAsync(
-                    socket,
-                    protocol.StopSequence(clock.ElapsedMilliseconds),
-                    receiveTask,
-                    state,
-                    cancellationToken).ConfigureAwait(false);
-            }
+            var stoppingNormally = await StopIfRunningAsync(socket, protocol, receiveTask, state, clock, cancellationToken)
+                .ConfigureAwait(false);
 
             // Everything from here on is the peer answering a half-close this
             // head chose to send. What the receive loop records in that window is
             // no longer allowed to change the verdict — see BeginPostClose.
             state.BeginPostClose();
-            using (var closeCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
-            {
-                closeCancellation.CancelAfter(CloseTimeout);
-                try
-                {
-                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, closeCancellation.Token).ConfigureAwait(false);
-                    await DrainAfterCloseAsync(stoppingNormally, receiveTask, closeCancellation.Token).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-                {
-                    // Bounded shutdown already achieved; disposal aborts the socket.
-                }
-            }
-            sessionCancellation.Cancel();
-            try
-            {
-                await receiveTask.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (sessionCancellation.IsCancellationRequested)
-            {
-            }
+            await CloseAndJoinAsync(socket, receiveTask, sessionCancellation, stoppingNormally, cancellationToken)
+                .ConfigureAwait(false);
 
             // A cancel that landed anywhere inside the bounded close — which is
             // now a window with a drain in it, not the microsecond it used to be
@@ -215,47 +127,240 @@ public sealed class LiveCloudTranscriptionService
             // reading them.
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (state.SettledFailure is not null)
-            {
-                return new LiveTranscriptionResult(null, state.SettledFailure, state.AudioChunksSent, state.MessagesReceived);
-            }
-            var finalized = HyperwhisperCoreMethods.FinalizeStreamingText(state.Transcript.ToString());
-            if (string.IsNullOrWhiteSpace(finalized))
-            {
-                return Failed(state, LiveTranscriptionFailureCode.NoSpeech, "No speech was detected in the streaming session.");
-            }
-            Observe(state, "completed");
-            return new LiveTranscriptionResult(finalized, null, state.AudioChunksSent, state.MessagesReceived);
+            return BuildResult(state);
         }
-        catch (LiveProtocolException exception)
+        catch (Exception exception) when (IsSessionFailure(exception))
         {
-            return new LiveTranscriptionResult(null, exception.Failure, state.AudioChunksSent, state.MessagesReceived);
-        }
-        catch (OperationCanceledException)
-        {
-            return Failed(state, LiveTranscriptionFailureCode.Cancelled, "Streaming transcription was cancelled.");
-        }
-        catch (InvalidDataException)
-        {
-            return Failed(state, LiveTranscriptionFailureCode.BufferLimit, "A streaming provider message exceeded the 1 MiB limit.");
-        }
-        catch (WebSocketException)
-        {
-            return Failed(state, LiveTranscriptionFailureCode.Network, "The streaming connection failed.");
-        }
-        catch (HttpRequestException)
-        {
-            return Failed(state, LiveTranscriptionFailureCode.Network, "The streaming provider could not be reached.");
-        }
-        catch (IOException)
-        {
-            return Failed(state, LiveTranscriptionFailureCode.Network, "The streaming transport failed.");
-        }
-        catch (InvalidOperationException)
-        {
-            return Failed(state, LiveTranscriptionFailureCode.Unknown, "The streaming session could not be completed.");
+            return FailureFor(state, exception);
         }
     }
+
+    /// <summary>
+    /// Connects, bounded by <c>ConnectTimeout</c>. Returns the timeout failure,
+    /// or <c>null</c> once the socket is open. A cancel from the CALLER is not a
+    /// timeout and propagates.
+    /// </summary>
+    private static async Task<LiveTranscriptionResult?> ConnectAsync(
+        IStreamingWebSocket socket,
+        ILiveTranscriptionProtocol protocol,
+        SessionState state,
+        CancellationToken cancellationToken)
+    {
+        using var connectCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        connectCancellation.CancelAfter(ConnectTimeout);
+        try
+        {
+            await socket.ConnectAsync(protocol.ConnectOptions, connectCancellation.Token).ConfigureAwait(false);
+            return null;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return Failed(state, LiveTranscriptionFailureCode.Timeout, "The streaming connection timed out.");
+        }
+    }
+
+    /// <summary>
+    /// Sends the caller's audio until it ends, the session fails, or the provider
+    /// finishes. A chunk this head refuses records its failure on the state and
+    /// stops the pump; the stop sequence then reads that failure.
+    /// </summary>
+    private static async Task PumpAudioAsync(
+        IStreamingWebSocket socket,
+        ILiveTranscriptionProtocol protocol,
+        IAsyncEnumerable<ReadOnlyMemory<byte>> audio,
+        SessionState state,
+        System.Diagnostics.Stopwatch clock,
+        CancellationToken cancellationToken)
+    {
+        await foreach (var chunk in audio.WithCancellation(cancellationToken).ConfigureAwait(false))
+        {
+            if (state.Failure is not null || state.Completed.Task.IsCompleted)
+            {
+                break;
+            }
+            if (chunk.Length == 0)
+            {
+                continue;
+            }
+            if (TryRejectChunk(chunk, state.Provider) is { } rejected)
+            {
+                state.Failure = rejected;
+                break;
+            }
+            var frame = protocol.EncodeAudio(chunk.Span);
+            await socket.SendAsync(frame.Data, frame.Type, cancellationToken).ConfigureAwait(false);
+            state.AudioChunksSent++;
+            // The send opportunity comes AFTER this chunk, which is the order
+            // this head has always used and the opposite of Windows'. It
+            // matters for one provider: OpenAI's periodic commit then covers
+            // the chunk just appended instead of leaving it for the next one,
+            // so no audio is held back a round. Either order is correct on
+            // the wire — a commit always follows the appends it claims — and
+            // the core cannot tell them apart, because it is told a byte
+            // count and a clock reading and nothing else.
+            foreach (var control in protocol.AudioOpportunityFrames(clock.ElapsedMilliseconds))
+            {
+                await socket.SendAsync(control.Data, control.Type, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Runs the stop sequence when the session is still live, and says whether it
+    /// did. The answer is decided BEFORE the stop sequence runs and reused by the
+    /// post-close drain in <see cref="CloseAndJoinAsync"/>. A session that already
+    /// failed, or that the provider already finished, has nothing left to drain
+    /// and must not be charged for waiting.
+    /// </summary>
+    private async Task<bool> StopIfRunningAsync(
+        IStreamingWebSocket socket,
+        ILiveTranscriptionProtocol protocol,
+        Task receiveTask,
+        SessionState state,
+        System.Diagnostics.Stopwatch clock,
+        CancellationToken cancellationToken)
+    {
+        var stoppingNormally = state.Failure is null && !state.Completed.Task.IsCompleted;
+        if (!stoppingNormally)
+        {
+            return false;
+        }
+        // Publish the stop BEFORE the first stop frame goes out, so the
+        // receive loop reads a provider "complete" that answers THIS
+        // stop as terminal. It is what lets a turn-boundary provider
+        // (Gemini) ignore a mid-stream completion and still honour the
+        // one that ends the session — see
+        // ILiveTranscriptionProtocol.CompleteEndsSessionBeforeStop.
+        state.StopRequested = true;
+        Observe(state, "draining");
+        await RunStopSequenceAsync(
+            socket,
+            protocol.StopSequence(clock.ElapsedMilliseconds),
+            receiveTask,
+            state,
+            cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
+    /// <summary>
+    /// The two bounds this head enforces on an outbound audio chunk, or
+    /// <c>null</c> when the chunk may be sent.
+    /// </summary>
+    private static LiveTranscriptionFailure? TryRejectChunk(
+        ReadOnlyMemory<byte> chunk,
+        LiveTranscriptionProvider provider)
+    {
+        if (chunk.Length > MaxAudioChunkBytes)
+        {
+            return new LiveTranscriptionFailure(
+                LiveTranscriptionFailureCode.BufferLimit,
+                "An audio chunk exceeded the 256 KiB streaming limit.",
+                provider);
+        }
+        if ((chunk.Length & 1) != 0)
+        {
+            return new LiveTranscriptionFailure(
+                LiveTranscriptionFailureCode.InvalidRequest,
+                "PCM16 audio chunks must contain complete 16-bit samples.",
+                provider);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// The one close: bounded by <c>CloseTimeout</c>, with the post-close drain
+    /// inside the same bound (see <see cref="DrainAfterCloseAsync"/>), then the
+    /// receive loop is stopped and joined. A faulted receive loop surfaces from
+    /// the join, where <see cref="TranscribeAsync"/> classifies it. A cancel from
+    /// the CALLER is swallowed by the drain; <see cref="TranscribeAsync"/> tests
+    /// its token again after this returns.
+    /// </summary>
+    private static async Task CloseAndJoinAsync(
+        IStreamingWebSocket socket,
+        Task receiveTask,
+        CancellationTokenSource sessionCancellation,
+        bool stoppingNormally,
+        CancellationToken cancellationToken)
+    {
+        using (var closeCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+        {
+            closeCancellation.CancelAfter(CloseTimeout);
+            try
+            {
+                await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, closeCancellation.Token).ConfigureAwait(false);
+                await DrainAfterCloseAsync(stoppingNormally, receiveTask, closeCancellation.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                // Bounded shutdown already achieved; disposal aborts the socket.
+            }
+        }
+        sessionCancellation.Cancel();
+        try
+        {
+            await receiveTask.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (sessionCancellation.IsCancellationRequested)
+        {
+        }
+    }
+
+    /// <summary>
+    /// The session's verdict once the close is done: the settled failure, or the
+    /// finalized transcript, or <c>NoSpeech</c> when nothing was said.
+    /// </summary>
+    private LiveTranscriptionResult BuildResult(SessionState state)
+    {
+        if (state.SettledFailure is not null)
+        {
+            return new LiveTranscriptionResult(null, state.SettledFailure, state.AudioChunksSent, state.MessagesReceived);
+        }
+        var finalized = HyperwhisperCoreMethods.FinalizeStreamingText(state.Transcript.ToString());
+        if (string.IsNullOrWhiteSpace(finalized))
+        {
+            return Failed(state, LiveTranscriptionFailureCode.NoSpeech, "No speech was detected in the streaming session.");
+        }
+        Observe(state, "completed");
+        return new LiveTranscriptionResult(finalized, null, state.AudioChunksSent, state.MessagesReceived);
+    }
+
+    /// <summary>
+    /// The exception types <see cref="TranscribeAsync"/> turns into a result;
+    /// anything else propagates. It tests the TYPE and nothing else, so running
+    /// it as a filter, before the unwind, reads no session state early.
+    /// </summary>
+    private static bool IsSessionFailure(Exception exception) => exception is LiveProtocolException
+        or OperationCanceledException
+        or InvalidDataException
+        or WebSocketException
+        or HttpRequestException
+        or IOException
+        or InvalidOperationException;
+
+    /// <summary>
+    /// Maps an exception that ended <see cref="TranscribeAsync"/> to its result,
+    /// in the order the catch arms used to run. A protocol failure carries its
+    /// own verdict; every other arm goes through <see cref="Failed"/>, so a
+    /// failure the session already recorded still outranks it.
+    /// </summary>
+    private static LiveTranscriptionResult FailureFor(SessionState state, Exception exception) => exception switch
+    {
+        LiveProtocolException protocolFailure =>
+            new(null, protocolFailure.Failure, state.AudioChunksSent, state.MessagesReceived),
+        OperationCanceledException =>
+            Failed(state, LiveTranscriptionFailureCode.Cancelled, "Streaming transcription was cancelled."),
+        InvalidDataException =>
+            Failed(state, LiveTranscriptionFailureCode.BufferLimit, "A streaming provider message exceeded the 1 MiB limit."),
+        WebSocketException =>
+            Failed(state, LiveTranscriptionFailureCode.Network, "The streaming connection failed."),
+        HttpRequestException =>
+            Failed(state, LiveTranscriptionFailureCode.Network, "The streaming provider could not be reached."),
+        IOException =>
+            Failed(state, LiveTranscriptionFailureCode.Network, "The streaming transport failed."),
+        InvalidOperationException =>
+            Failed(state, LiveTranscriptionFailureCode.Unknown, "The streaming session could not be completed."),
+        _ => throw new ArgumentOutOfRangeException(nameof(exception)),
+    };
 
     /// <summary>
     /// Holds the session open, bounded by <c>CloseTimeout</c>, until the receive
@@ -276,7 +381,7 @@ public sealed class LiveCloudTranscriptionService
     ///
     /// Here the close is write-only. <see cref="LiveStopAction.Close"/> ends the
     /// step loop without closing, and the bounded <c>CloseAsync</c> in
-    /// <see cref="TranscribeAsync"/> reaches <c>ClientStreamingWebSocket</c>,
+    /// <see cref="CloseAndJoinAsync"/> reaches <c>ClientStreamingWebSocket</c>,
     /// which calls <c>CloseOutputAsync</c> — it returns the moment the close frame
     /// is written and never waits for the peer. Microseconds later
     /// <c>sessionCancellation.Cancel()</c> kills the receive loop. So on this head
@@ -308,8 +413,8 @@ public sealed class LiveCloudTranscriptionService
     ///
     /// <see cref="Task.WhenAny(Task[])"/> deliberately does not observe
     /// <paramref name="receiveTask"/>'s exceptions: a faulted receive loop must
-    /// surface at the <c>await receiveTask</c> in <see cref="TranscribeAsync"/>,
-    /// which classifies it, and not be thrown from inside the close block, whose
+    /// surface at the <c>await receiveTask</c> in <see cref="CloseAndJoinAsync"/>,
+    /// where <see cref="TranscribeAsync"/> classifies it, and not be thrown from inside the close block, whose
     /// only <c>catch</c> is for the timeout.
     /// </summary>
     private static async Task DrainAfterCloseAsync(
@@ -346,7 +451,7 @@ public sealed class LiveCloudTranscriptionService
     /// deadline to race the session against.
     ///
     /// <see cref="LiveStopAction.Close"/> ends the loop WITHOUT closing here. The
-    /// bounded <c>CloseAsync</c> block in <see cref="TranscribeAsync"/> performs
+    /// bounded <c>CloseAsync</c> block in <see cref="CloseAndJoinAsync"/> performs
     /// the one close, because it also has to run on the paths that skip the stop
     /// sequence entirely (a failure, or a session the provider already finished),
     /// and it is the only thing that bounds the close with <c>CloseTimeout</c>.
@@ -632,8 +737,8 @@ public sealed class LiveCloudTranscriptionService
     /// <c>state.SettledFailure</c> is provably <c>null</c> — before the receive
     /// loop is started, and on the success path that has just tested it — so
     /// nothing moves for them.</item>
-    /// <item>The <c>Cancelled</c> arm and the four transport/state catch arms in
-    /// <see cref="TranscribeAsync"/> all unwind AFTER the receive loop may have
+    /// <item>The <c>Cancelled</c> arm and the four transport/state arms of
+    /// <see cref="FailureFor"/> all unwind AFTER the receive loop may have
     /// concluded, and are exactly the arms that were discarding it.</item>
     /// </list>
     ///

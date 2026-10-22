@@ -107,6 +107,12 @@ public class TranscriptionException : Exception
     /// </summary>
     public bool IsInsufficientCredits { get; init; }
 
+    /// <summary>
+    /// A user message that replaces the code's fixed one, for a failure the code alone
+    /// cannot explain: an Application Control block on the Parakeet engine (#2379).
+    /// </summary>
+    public string? UserMessage { get; init; }
+
     public TranscriptionException(
         TranscriptionErrorCode code,
         string message,
@@ -140,7 +146,7 @@ public class TranscriptionException : Exception
     /// <summary>
     /// Gets a user-friendly error message with recovery guidance.
     /// </summary>
-    public string GetUserMessage() => Code switch
+    public string GetUserMessage() => UserMessage ?? Code switch
     {
         TranscriptionErrorCode.ApiKeyMissing =>
             $"No API key configured for {ProviderName ?? "cloud provider"}. Add it in the Model Library API keys manager.",

@@ -165,6 +165,12 @@ public partial class SettingsService
     // GETTING STARTED
     // =========================================================================
 
+    /// <summary>
+    /// Legacy: the Home rows a user had CLICKED, which used to be read as done.
+    /// Since #638 nothing reads it for completion (the rows tick from real app
+    /// state) and nothing writes it; it stays so backup export/import and older
+    /// settings.json files keep their shape.
+    /// </summary>
     public string GettingStartedCompletedSteps
     {
         get => _settings.GettingStartedCompletedSteps ?? "";
