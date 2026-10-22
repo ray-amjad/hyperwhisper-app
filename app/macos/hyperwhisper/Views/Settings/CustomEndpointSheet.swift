@@ -83,6 +83,18 @@ struct CustomEndpointSheet: View {
         existingEndpoint != nil
     }
 
+    /// The edited endpoint's stored verdict ("Previously verified" /
+    /// "Previously failed") while the form still shows its saved URL and
+    /// model, and `.none` once either differs (issue #935).
+    private var storedTestResult: TestResultState {
+        guard let endpoint = existingEndpoint,
+              let success = endpoint.lastTestSuccess,
+              buildFullEndpointURL() == endpoint.endpointURL,
+              (selectedTab == .custom ? modelName : selectedModel) == endpoint.modelName
+        else { return .none }
+        return success ? .success(preview: "Previously verified") : .failure(error: "Previously failed")
+    }
+
     /// Title for the sheet
     private var sheetTitle: String {
         isEditing ? "Edit Endpoint" : "Add Endpoint"
@@ -290,7 +302,7 @@ struct CustomEndpointSheet: View {
                 .textFieldStyle(.roundedBorder)
                 .onChange(of: endpointURL) { _, _ in
                     validationError = nil
-                    testResult = .none
+                    testResult = storedTestResult
                 }
             Text("Base URL of your local server")
                 .font(.caption)
@@ -306,7 +318,7 @@ struct CustomEndpointSheet: View {
                 .textFieldStyle(.roundedBorder)
                 .onChange(of: endpointURL) { _, _ in
                     validationError = nil
-                    testResult = .none
+                    testResult = storedTestResult
                 }
             Text("Full URL to the OpenAI-compatible chat completions endpoint")
                 .font(.caption)
@@ -537,7 +549,7 @@ struct CustomEndpointSheet: View {
         // Clear previous state
         availableModels = []
         modelFetchError = nil
-        testResult = .none
+        testResult = storedTestResult
 
         // Auto-fill name and URL based on tab (only if they're empty or default values)
         let currentNameIsDefault = name.isEmpty || name == "Ollama" || name == "LMStudio"
@@ -619,10 +631,10 @@ struct CustomEndpointSheet: View {
             selectedTab = .custom
         }
 
-        // Set initial test result based on stored status
-        if let success = endpoint.lastTestSuccess {
-            testResult = success ? .success(preview: "Previously verified") : .failure(error: "Previously failed")
-        }
+        // Set initial test result based on stored status. Setting endpointURL
+        // above fires its onChange after this returns, and that handler
+        // restores the same stored status rather than clearing it.
+        testResult = storedTestResult
 
         // Fetch models if on Ollama/LMStudio tab
         if selectedTab == .ollama || selectedTab == .lmstudio {
