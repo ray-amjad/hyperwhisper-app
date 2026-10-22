@@ -222,6 +222,9 @@ public partial class MainViewModel : ViewModelBase
         ShowTranscribingRequested?.Invoke(this, EventArgs.Empty);
 
         Transcript? transcript = null;
+        // Set once the success/copied hide is scheduled; the finally then leaves
+        // the overlay up for it instead of hiding at once (#983).
+        var overlayHideDeferred = false;
 
         try
         {
@@ -360,18 +363,9 @@ public partial class MainViewModel : ViewModelBase
                     ["durationSeconds"] = ((int)durationSeconds).ToString()
                 });
 
-            switch (pasteResult)
-            {
-                case SmartPasteResult.Pasted:
-                    ShowSuccessRequested?.Invoke(this, EventArgs.Empty);
-                    await Task.Delay(400);
-                    break;
-                case SmartPasteResult.SecureFieldSkipped:
-                case SmartPasteResult.CopiedToClipboard:
-                    ShowCopiedRequested?.Invoke(this, EventArgs.Empty);
-                    await Task.Delay(500);
-                    break;
-            }
+            // The success/copied state holds on a deferred hide, not on an await
+            // here, so the finally below unblocks the hotkey at once (#983).
+            overlayHideDeferred = ShowPasteEndState(pasteResult);
         }
         catch (Exception ex)
         {
@@ -395,7 +389,8 @@ public partial class MainViewModel : ViewModelBase
             // See tasks/windows/phils-feedback/05-processing-audio-stuck-state.md
             EnsureTranscriptTerminalStatus(transcript);
 
-            HideOverlayRequested?.Invoke(this, EventArgs.Empty);
+            if (!overlayHideDeferred)
+                HideOverlayRequested?.Invoke(this, EventArgs.Empty);
             try
             {
                 await CleanupStreamingSessionAsync();
