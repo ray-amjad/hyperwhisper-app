@@ -171,17 +171,21 @@ public sealed partial class ModesViewModel : ViewModelBase
         ApplyEditorTo(mode, customEndpointId);
         IReadOnlyDictionary<string, System.Text.Json.JsonElement>? settingsSnapshot = null;
         byte[]? previousCredential = null;
-        var credentialTouched = customEndpointId is not null && !string.IsNullOrWhiteSpace(CustomEndpointApiKey);
+        var writesCredential = customEndpointId is not null && !string.IsNullOrWhiteSpace(CustomEndpointApiKey);
+        // Set only once the stored key has been read (issue #2236). A failed read leaves it false,
+        // so the rollback does not take "nothing read" for "nothing stored" and delete the key.
+        var credentialTouched = false;
         try
         {
             if (customEndpointId is { } id)
             {
                 settingsSnapshot = _settings!.Snapshot();
-                if (credentialTouched)
+                if (writesCredential)
                 {
                     var previous = _credentials!.Read("HyperWhisper", $"CustomEndpoint_{id:D}");
                     if (previous.IsFailure) throw new InvalidOperationException(previous.Error!.Message);
                     previousCredential = previous.Value;
+                    credentialTouched = true;
                 }
                 PersistCustomEndpoint(id);
             }

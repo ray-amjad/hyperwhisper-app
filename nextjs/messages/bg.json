@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Функции",
-    "pricing": "Цени",
     "faq": "ЧЗВ",
     "support": "Поддръжка",
     "download": "Изтегляне",
@@ -20,7 +19,6 @@
     "githubAria": "Вижте HyperWhisper в GitHub"
   },
   "hero": {
-    "openSourceBadge": "Отворен код · Apache-2.0",
     "logoAlt": "Лого на HyperWhisper",
     "headline": "Пишете, създавайте и творете",
     "headlineAccent": "5x по-бързо с AI",
@@ -97,57 +95,6 @@
     "accuracyRate": "Точност",
     "languagesSupported": "Поддържани езици",
     "providersSupported": "Поддържани доставчици"
-  },
-  "pricing": {
-    "title": "Без абонаменти. Никога.",
-    "subtitle": "Плащате веднъж, ползвате завинаги. И ние мразим абонаментите.",
-    "guarantee": "14-дневна гаранция за връщане на парите",
-    "guaranteeExtended": "ако не сте напълно доволни.",
-    "learnMore": "Научете повече",
-    "free": {
-      "name": "Безплатно",
-      "price": "$0",
-      "period": "завинаги",
-      "description": "Идеално за изпробване на HyperWhisper",
-      "cta": "Изтеглете безплатно",
-      "features": {
-        "transcriptionLimit": "5 минути транскрипция на ден",
-        "basicModes": "Основни режими за транскрипция",
-        "offlineTranscription": "Офлайн транскрипция",
-        "apiTranscription": "API транскрипция (със собствени ключове)",
-        "postProcessing": "Пост-обработка на текст",
-        "providers": "9+ доставчика за избор",
-        "lifetimeUpdates": "Доживотни актуализации",
-        "cloudLimited": "HyperWhisper Cloud (ограничено ползване)",
-        "customVocabulary": "Персонализиран речник",
-        "prioritySupport": "Приоритетна поддръжка"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "доживотно",
-      "description": "Еднократна покупка, неограничена мощност завинаги",
-      "cta": "Купи сега - Доживотен достъп",
-      "mostPopular": "Най-популярен",
-      "features": {
-        "unlimitedTranscription": "Неограничена транскрипция",
-        "allModes": "Всички режими за транскрипция",
-        "offlineTranscription": "Офлайн транскрипция",
-        "apiTranscription": "API транскрипция (със собствени ключове)",
-        "postProcessing": "Пост-обработка на текст",
-        "providers": "9+ доставчика за избор",
-        "lifetimeUpdates": "Доживотни актуализации",
-        "cloudCredits": "HyperWhisper Cloud ($5 в кредити)",
-        "customVocabulary": "Персонализиран речник",
-        "prioritySupport": "Приоритетна поддръжка"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise и персонализирани цени",
-      "description": "Отстъпки за обем, SSO, приоритетна поддръжка, вътрешен хостинг и персонализирани интеграции",
-      "cta": "Свържете се с продажби"
-    }
   },
   "faq": {
     "title": "Често задавани въпроси",
@@ -252,10 +199,7 @@
     "downloadButton": "Изтеглете HyperWhisper",
     "errorGeneric": "Нещо се обърка. Моля, опитайте отново.",
     "errorEmail": "Въведете валиден имейл адрес.",
-    "errorNetwork": "Мрежова грешка. Проверете връзката си и опитайте отново.",
-    "thankYouTitle": "Благодарим!",
     "downloadStarted": "Изтеглянето ви трябва да започне автоматично.",
-    "manualDownload": "Изтеглянето не започна? Кликнете тук",
     "skipAndDownloadButton": "Пропусни и изтегли"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Изтегляне",
       "roadmap": "Пътна карта",
       "helpCenter": "Център за помощ",
-      "manageBilling": "Управление на плащания",
       "customerPortal": "Клиентски портал",
       "olderVersions": "По-стари версии",
       "blog": "Блог",

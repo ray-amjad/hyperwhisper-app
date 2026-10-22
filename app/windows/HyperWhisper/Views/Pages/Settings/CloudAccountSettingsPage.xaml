@@ -140,7 +140,7 @@
                             <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,12">
                                 <TextBlock Text="{loc:Loc settings.credits.accountInfo.costPerMinute}" FontSize="12"
                                            Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                <TextBlock x:Name="CreditsCostPerMinuteText" Text="~6.3 credits" FontSize="13" FontWeight="Medium"
+                                <TextBlock x:Name="CreditsCostPerMinuteText" Text="~1.7 credits" FontSize="13" FontWeight="Medium"
                                            Foreground="{DynamicResource TextPrimaryBrush}"/>
                             </StackPanel>
 

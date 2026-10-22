@@ -51,9 +51,9 @@ const MUTANTS = [
   {
     file: CHECKOUT,
     test: CREDIT_TEST,
-    name: "send a DB error's message as details",
-    from: 'details: safeErrorMessage(error, "Unknown error"),',
-    to: 'details: error instanceof Error ? error.message : "Unknown error",',
+    name: "send the throw's message as details (#1049, #2311)",
+    from: '{ error: "Failed to create checkout session" },',
+    to: '{ error: "Failed to create checkout session", details: error instanceof Error ? error.message : "Unknown error" },',
   },
   {
     file: CREDITS,
