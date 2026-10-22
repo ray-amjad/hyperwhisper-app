@@ -80,7 +80,7 @@ export default function UserDashboardClient({
       ) : (
         <div className="bg-white/5 rounded-xl border border-white/10 p-5 text-center">
           <p className="text-gray-400">No Account Keys found</p>
-          <a href="/" className="text-emerald-400 hover:text-emerald-300 text-sm mt-2 inline-block">
+          <a href="/" className="text-emerald-400 hover:text-emerald-300 transition-colors text-sm mt-2 inline-block">
             Get an Account Key →
           </a>
         </div>
@@ -92,7 +92,7 @@ export default function UserDashboardClient({
       {/* Help */}
       <p className="text-sm text-gray-400">
         Need help?{" "}
-        <a href="mailto:hi@support.hyperwhisper.com" className="text-gray-400 hover:text-white">
+        <a href="mailto:hi@support.hyperwhisper.com" className="text-gray-400 hover:text-white transition-colors">
           hi@support.hyperwhisper.com
         </a>
       </p>
