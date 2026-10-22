@@ -182,8 +182,8 @@ const MUTANTS = [
     source: PLUGIN,
     test: PLUGIN_TEST,
     name: "log a refusal at `log` instead of `warn`",
-    from: "} else if (outcome === \"rejected\") {",
-    to: "} else if (outcome === \"never\") {",
+    from: '} else if (outcome === "rejected") {',
+    to: '} else if (outcome === "never") {',
   },
   {
     source: PLUGIN,
@@ -197,7 +197,7 @@ const MUTANTS = [
     test: PLUGIN_TEST,
     name: "write no line for the revocation race",
     from: 'reason: "revoked_mid_sign_in",',
-    to: 'reason: undefined,',
+    to: "reason: undefined,",
   },
   {
     source: PLUGIN,
