@@ -81,7 +81,7 @@ export const Navbar = () => {
     <>
       <img
         alt="HyperWhisper Logo"
-        className="w-8 h-8 rounded-lg"
+        className="w-8 h-8 rounded-lg outline-1 -outline-offset-1 outline-white/10"
         src="/icon/128.png"
       />
       <p className="font-bold text-white">HyperWhisper</p>

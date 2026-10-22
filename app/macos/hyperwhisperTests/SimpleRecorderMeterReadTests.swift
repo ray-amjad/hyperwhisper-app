@@ -91,7 +91,7 @@ private final class RecordingStopper: @unchecked Sendable {
     var ranOnMainThread: Bool? { state.withLock { $0.ranOnMainThread } }
     var readsInProgressAtStop: Int? { state.withLock { $0.readsInProgressAtStop } }
 
-    func stop(_ recorder: AVAudioRecorder) {
+    func stop(_ recorder: any LiveAudioRecording) {
         let onMain = Thread.isMainThread
         let inProgress = reader.readsInProgress
         state.withLock { current in

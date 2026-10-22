@@ -97,14 +97,11 @@ struct OutputSettingsSection: View {
             get: { settingsManager.autocapitalizeInsert },
             set: { newValue in
                 if newValue && !AccessibilityHelper.shared.hasAccessibilityPermission() {
-                    let granted = presentAutocapitalizeAccessibilityAlert()
-                    if granted {
-                        // User clicked Open Settings — leave toggle ON; the
-                        // cursor probe silently no-ops until permission lands.
-                        settingsManager.autocapitalizeInsert = true
-                    } else {
-                        // User cancelled — revert.
-                        settingsManager.autocapitalizeInsert = false
+                    // The toggle stays OFF until the user answers.
+                    presentAutocapitalizeAccessibilityAlert { granted in
+                        // Open Settings — turn the toggle ON; the cursor probe
+                        // silently no-ops until permission lands. Cancel — leave it OFF.
+                        settingsManager.autocapitalizeInsert = granted
                     }
                 } else {
                     settingsManager.autocapitalizeInsert = newValue
@@ -113,19 +110,23 @@ struct OutputSettingsSection: View {
         )
     }
 
-    /// Returns true if the user clicked "Open Settings", false if cancelled.
-    @discardableResult
-    private func presentAutocapitalizeAccessibilityAlert() -> Bool {
+    /// Calls `completion` with true if the user clicked "Open Settings", false if cancelled.
+    ///
+    /// Modeless, not runModal (issue #1734): runModal held the main actor until the
+    /// click, and the Local API (@MainActor) answered nothing meanwhile.
+    private func presentAutocapitalizeAccessibilityAlert(completion: @escaping (Bool) -> Void) {
         let alert = NSAlert()
         alert.messageText = "audio.alert.accessibility.title".localized
         alert.informativeText = "settings.output.autocapitalizeInsert.permissionMessage".localized
         alert.addButton(withTitle: "audio.alert.accessibility.open".localized)
         alert.addButton(withTitle: "common.cancel".localized)
 
-        if alert.runModal() == .alertFirstButtonReturn {
-            AccessibilityHelper.shared.openAccessibilitySettings()
-            return true
+        ModelessAlert.show(alert) { response in
+            let granted = response == .alertFirstButtonReturn
+            if granted {
+                AccessibilityHelper.shared.openAccessibilitySettings()
+            }
+            completion(granted)
         }
-        return false
     }
 }

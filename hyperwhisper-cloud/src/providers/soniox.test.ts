@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithSoniox } from './soniox';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
+import { captureNoSpeechEvent, captureProviderEvent } from './test-support';
 
 const originalFetch = globalThis.fetch;
 
@@ -97,25 +98,6 @@ const completedPoll = (body: Record<string, unknown> = {}) => ({
   status: 200,
   body: { status: 'completed', audio_duration_ms: 120_000, ...body },
 });
-
-/**
- * Swaps `console.log` for the duration of `run` and returns the details object of
- * the first `provider.<event>` event it logged. Same swap-the-global idiom as
- * `utils.test.ts` — no spy library is used anywhere in this suite.
- */
-async function captureEvent(event: string, run: () => Promise<unknown>): Promise<Record<string, unknown>> {
-  const logged: unknown[][] = [];
-  const originalLog = console.log;
-  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
-  try {
-    await run();
-  } finally {
-    console.log = originalLog;
-  }
-  const found = logged.find((args) => args[0] === `provider.${event}`);
-  if (!found) throw new Error(`no provider.${event} event was logged`);
-  return found[1] as Record<string, unknown>;
-}
 
 /** A 200 whose body stream dies mid-read: `text()` rejects after a partial chunk. */
 function readErrorResponse(status: number): Response {
@@ -353,7 +335,7 @@ describe('transcribeWithSoniox — poll loop', () => {
       transcriptStatus: { status: 200, body: { text: 'recovered' } },
     });
 
-    const details = await captureEvent('parse_error', async () => {
+    const details = await captureProviderEvent('provider.parse_error', async () => {
       expect((await transcribeWithSoniox(SMALL_AUDIO, 'audio/wav')).text).toBe('recovered');
     });
     expect(details).toMatchObject({ phase: 'poll', failure: 'parse', polls: 1, contentType: 'text/html', bodyLength: html.length, bodyKind: 'html' });
@@ -370,7 +352,7 @@ describe('transcribeWithSoniox — poll loop', () => {
       transcriptStatus: { status: 200, body: { text: 'recovered' } },
     });
 
-    const details = await captureEvent('parse_error', async () => {
+    const details = await captureProviderEvent('provider.parse_error', async () => {
       expect((await transcribeWithSoniox(SMALL_AUDIO, 'audio/wav')).text).toBe('recovered');
     });
     expect(details).toMatchObject({ phase: 'poll', failure: 'read', polls: 1, contentType: 'application/json', errorName: 'Error' });
@@ -448,7 +430,7 @@ describe('transcribeWithSoniox — transcript fetch and billing', () => {
       pollBodies: [completedPoll()],
       transcriptStatus: { status: 200, body: { text: '   ', tokens: [{ language: 'en' }] } },
     });
-    const reported = await captureEvent('no_speech', () => transcribeWithSoniox(SMALL_AUDIO, 'audio/wav'));
+    const reported = await captureNoSpeechEvent(() => transcribeWithSoniox(SMALL_AUDIO, 'audio/wav'));
     expect(reported.upstreamDurationSeconds).toBe(120);
 
     // No `audio_duration_ms` on any poll: the local accumulator is still 0, which
@@ -457,7 +439,7 @@ describe('transcribeWithSoniox — transcript fetch and billing', () => {
       pollBodies: [{ status: 200, body: { status: 'completed' } }],
       transcriptStatus: { status: 200, body: { text: '' } },
     });
-    const missing = await captureEvent('no_speech', () => transcribeWithSoniox(SMALL_AUDIO, 'audio/wav'));
+    const missing = await captureNoSpeechEvent(() => transcribeWithSoniox(SMALL_AUDIO, 'audio/wav'));
     expect(missing.upstreamDurationSeconds).toBeNull();
   }, 10_000);
 

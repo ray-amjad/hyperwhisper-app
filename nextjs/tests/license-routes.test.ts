@@ -12,7 +12,7 @@
  * `license-routes-harness.ts`; the route modules themselves are the real ones.
  */
 import assert from "node:assert/strict";
-import { after, before, beforeEach, describe, test } from "node:test";
+import { after, afterEach, before, beforeEach, describe, test } from "node:test";
 
 import {
   accountKeyRow,
@@ -237,6 +237,64 @@ describe("POST /api/license/validate", () => {
     });
     // The balance belongs to the key's owner, not to the key.
     assert.deepEqual(calls.getCreditBalance, ["user_42"]);
+  });
+
+  describe("credit_pool_id (#2026)", () => {
+    const POOL_SECRET = "test-pool-secret-0123456789abcdef0123456789";
+    const realPoolSecret = process.env.CREDIT_POOL_ID_SECRET;
+
+    afterEach(() => {
+      if (realPoolSecret === undefined) delete process.env.CREDIT_POOL_ID_SECRET;
+      else process.env.CREDIT_POOL_ID_SECRET = realPoolSecret;
+    });
+
+    async function poolIdFor(key: string): Promise<unknown> {
+      const { POST } = await loadValidateRoute();
+      const response = await POST(
+        postRequest(VALIDATE_PATH, { license_key: key, include_credits: true }),
+      );
+      assert.equal(response.status, 200);
+      return (await readJson(response)).credit_pool_id;
+    }
+
+    test("is the same for every key one user holds, and differs across users", async () => {
+      process.env.CREDIT_POOL_ID_SECRET = POOL_SECRET;
+      storeRow(accountKeyRow({ key: GRANTED_KEY, id: "row_a", userId: "user_42" }));
+      storeRow(accountKeyRow({ key: "HW-TEST-0000-0002", id: "row_b", userId: "user_42" }));
+      storeRow(accountKeyRow({ key: "HW-TEST-0000-0003", id: "row_c", userId: "user_43" }));
+
+      const first = await poolIdFor(GRANTED_KEY);
+      const second = await poolIdFor("HW-TEST-0000-0002");
+      const other = await poolIdFor("HW-TEST-0000-0003");
+
+      assert.match(String(first), /^[0-9a-f]{64}$/);
+      assert.equal(second, first);
+      assert.notEqual(other, first);
+      // Opaque: the raw user id never leaves the site.
+      assert.ok(!String(first).includes("user_42"));
+    });
+
+    test("is absent when CREDIT_POOL_ID_SECRET is unset", async () => {
+      delete process.env.CREDIT_POOL_ID_SECRET;
+      storeRow(accountKeyRow({ key: GRANTED_KEY, userId: "user_42" }));
+      const { POST } = await loadValidateRoute();
+
+      const response = await POST(
+        postRequest(VALIDATE_PATH, { license_key: GRANTED_KEY, include_credits: true }),
+      );
+
+      assert.ok(!("credit_pool_id" in (await readJson(response))));
+    });
+
+    test("is never sent without include_credits", async () => {
+      process.env.CREDIT_POOL_ID_SECRET = POOL_SECRET;
+      storeRow(accountKeyRow({ key: GRANTED_KEY, userId: "user_42" }));
+      const { POST } = await loadValidateRoute();
+
+      const response = await POST(postRequest(VALIDATE_PATH, { license_key: GRANTED_KEY }));
+
+      assert.deepEqual(await readJson(response), { valid: true });
+    });
   });
 
   test("normalises a missing stripe_customer_id to null, and always sends the field", async () => {

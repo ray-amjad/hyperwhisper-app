@@ -179,7 +179,7 @@ struct LocalEngineVocabularyOnceTests {
     @Test func thePipelineKeepsTheRawTextAndCorrectsOnce() throws {
         let afterTranscribe = try ProductionSource.slice(
             of: Self.pipelineSource,
-            from: "text = try await provider.transcribe(",
+            from: "outcome = try await provider.transcribeDetailed(",
             to: "let result = TranscriptionResult("
         )
         #expect(afterTranscribe.components(separatedBy: "applyLocalEngineVocabularyCorrection(").count - 1 == 1)
@@ -209,7 +209,7 @@ struct LocalEngineVocabularyOnceTests {
     @Test func theLocalAPICorrectsOnceBeforeTheDeterministicPasses() throws {
         let handle = try ProductionSource.slice(
             of: Self.endpointSource,
-            from: "text = try await resolution.provider.transcribe(",
+            from: "outcome = try await resolution.provider.transcribeDetailed(",
             to: "let response = TranscribeResponse("
         )
         let correction = try #require(handle.range(of: "applyLocalEngineVocabularyCorrection("))
