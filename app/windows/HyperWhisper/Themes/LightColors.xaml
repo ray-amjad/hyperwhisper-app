@@ -93,7 +93,7 @@
          so it follows the next theme switch.
     -->
 
-<!-- Primary Accent Brushes -->
+    <!-- Primary Accent Brushes -->
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" po:Freeze="True"/>
     <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentColorHover}" po:Freeze="True"/>
     <SolidColorBrush x:Key="AccentPressedBrush" Color="{StaticResource AccentColorPressed}" po:Freeze="True"/>

@@ -4826,8 +4826,9 @@ internal static class Program
                 var theme = ThemeService.Instance;
                 var wasDark = theme.IsDarkMode;
 
-                // The key list comes from the light dictionary itself, so a
-                // brush added later is covered without editing this case.
+                // The key list comes from the light dictionary itself, so every
+                // brush is checked; the count pins the 46 that #2386 moved, so a
+                // brush added or lost on the way fails here first.
                 var lightDictionary = new ResourceDictionary
                 {
                     Source = new Uri("pack://application:,,,/HyperWhisper;component/Themes/LightColors.xaml")
