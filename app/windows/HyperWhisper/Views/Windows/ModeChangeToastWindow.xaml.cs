@@ -90,12 +90,16 @@ public partial class ModeChangeToastWindow : Window
                         anchor.Top - Height - 12);
                 }
 
-                // Fallback: center on screen, position as if recording overlay is at bottom
-                return new System.Windows.Point(
-                    (workArea.Width - Width) / 2,
-                    workArea.Bottom - Height - 80);
+                return FallbackPosition(workArea, Width, Height);
             });
     }
+
+    /// <summary>
+    /// With no recording overlay: centred in the work area (offset by its Left, which
+    /// a taskbar docked left moves, #1940), where the overlay would sit at the bottom.
+    /// </summary>
+    internal static System.Windows.Point FallbackPosition(Rect workArea, double width, double height) =>
+        new(workArea.Left + (workArea.Width - width) / 2, workArea.Bottom - height - 80);
 
     private void AnimateIn()
     {
