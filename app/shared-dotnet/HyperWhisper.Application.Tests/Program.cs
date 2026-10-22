@@ -1552,6 +1552,18 @@ try
                 new[] { "capabilities.json", "logs/events.jsonl", "system.json" }),
             "about diagnostics did not enforce the exact archive allowlist");
 
+    // #2391: the shell hands the head's real version (the one About shows) to backup export,
+    // so a Linux backup no longer claims the old hard-coded "1.0.0".
+    using (var versionShell = new ApplicationShellViewModel(database, reloadedSettings, about: about))
+    {
+        var versionBackupPath = Path.Combine(root, "version.hwbackup");
+        versionShell.Backup.Path = versionBackupPath;
+        await versionShell.Backup.ExportAsync();
+        Assert(!versionShell.Backup.Status.HasError
+            && JsonNode.Parse(File.ReadAllText(versionBackupPath))!["appVersion"]!.GetValue<string>() == "1.2.3",
+            $"shell backup export did not stamp the About app version: {versionShell.Backup.Status.ErrorCode}");
+    }
+
     Console.WriteLine("HyperWhisper.Application persistence tests passed.");
     return 0;
 }
