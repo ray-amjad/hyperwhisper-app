@@ -148,10 +148,10 @@ export default function UserSidebar({ locale }: UserSidebarProps) {
           <li key={item.name}>
             <Link
               href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 motion-reduce:transition-none ${
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg border transition-[background-color,color,border-color] duration-200 motion-reduce:transition-none ${
                 isActive
-                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                  : "text-gray-400 hover:bg-white/5 hover:text-white"
+                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                  : "border-transparent text-gray-400 hover:bg-white/5 hover:text-white"
               }`}
               // Fires only for an in-app navigation, never for a
               // modifier, middle or new-tab click.
