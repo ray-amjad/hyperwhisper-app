@@ -111,6 +111,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("lifecycle diagnostics expose only fixed fields", LifecycleDiagnosticsAreContentFree),
     ("M4A storage performs a real private FFmpeg encode", M4aStorageEncodes),
     ("M4A history playback performs a real FFmpeg decode", M4aPlaybackDecodes),
+    ("History m4a Load returns before ffmpeg finishes and holds Play and Seek (#1004)", FfmpegPlaybackOffUiThreadTests.LoadReturnsBeforeDecodeAndHoldsPlay),
+    ("a new History selection kills the old ffmpeg decode and keeps no temporary WAV (#1004)", FfmpegPlaybackOffUiThreadTests.NewSelectionKillsTheOldDecode),
+    ("a failed background decode reports through PlaybackFailed (#1004)", FfmpegPlaybackOffUiThreadTests.FailedDecodeReportsThroughPlaybackFailed),
+    ("disposing the player kills a running decode (#1004)", FfmpegPlaybackOffUiThreadTests.DisposeKillsTheDecode),
     ("anonymous speed opt-out is scoped to HyperWhisper Cloud", LatencyOptOutIsScoped),
     ("production batch transcription preserves the full retry envelope", BatchRetryBudgetIsUnbounded),
     ("Silero detector preserves bounded recurrent state", SileroDetectorStateIsBounded),
@@ -584,6 +588,8 @@ static async Task M4aPlaybackDecodes()
         using var playback = new InspectingPlaybackService();
         using var decoding = new FfmpegDecodingAudioPlaybackService(playback, new StaticPaths(directory), ffmpeg);
         var loaded = decoding.Load(source);
+        // The decode runs off the caller's thread (#1004); wait for it before reading the result.
+        await decoding.PendingLoad;
         Assert(loaded.IsSuccess && decoding.LoadedFilePath == source, "M4A playback wrapper did not preserve the history path");
         Assert(playback.LoadedPath is not null && Path.GetExtension(playback.LoadedPath) == ".wav"
             && File.Exists(playback.LoadedPath), "M4A playback did not decode a temporary WAV");
@@ -612,6 +618,7 @@ static async Task M4aPlaybackDecodes()
         using var wavPlayback = new InspectingPlaybackService();
         using var wavDecoding = new FfmpegDecodingAudioPlaybackService(wavPlayback, new StaticPaths(directory), ffmpeg);
         var wavLoaded = wavDecoding.Load(listChunkWav);
+        await wavDecoding.PendingLoad;
         Assert(wavLoaded.IsSuccess, "a non-canonical imported WAV did not fall back to the decode");
         Assert(wavDecoding.LoadedFilePath == listChunkWav, "the fallback lost the history path");
         Assert(wavPlayback.LoadAttempts is [var first, var second]
