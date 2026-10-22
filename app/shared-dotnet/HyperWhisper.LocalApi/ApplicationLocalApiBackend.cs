@@ -45,17 +45,16 @@ public sealed partial class ApplicationLocalApiBackend : ILocalApiBackend
     /// un-patchable forever, naming a field the client never sent, which is the
     /// same fault the <c>sortOrder</c> note below warns about.
     ///
-    /// THOSE ROWS ARE NOT ONLY HISTORICAL, and this head does not repair them.
-    /// <c>ModesViewModel.CloudProviders</c> still offers both ids to the GUI mode
-    /// editor and its save path writes the choice verbatim, so a Linux user can
-    /// create one today; and unlike Windows
+    /// Since issue #601 this head repairs those rows the way Windows
     /// (<c>ModeService.NormalizeLegacyCloudModeValues</c>, plus the EF migration
     /// <c>20260608120000_NormalizeCloudProviderValues</c>) and macOS
-    /// (<c>PersistenceController.normalizeCloudProviderIfNeeded</c>), nothing
-    /// folds the stored column at startup. Such a mode cannot transcribe at all
-    /// here, for the base-URL reason
-    /// <see cref="ApplyTranscriptionOverrides"/> records. Both gaps are outside
-    /// the Local API and are filed rather than fixed here.
+    /// (<c>PersistenceController.normalizeCloudProviderIfNeeded</c>) do: once at
+    /// startup (<c>LegacyCloudProviderFold</c> from <c>ApplicationDb.InitializeAsync</c>),
+    /// and the GUI mode editor neither offers the two ids nor saves one. A row
+    /// written between startups (a raw DB write, an older peer) can still hold
+    /// one until the next launch, which is why the ids stay in this set. Such a
+    /// mode cannot transcribe here until it is folded, for the base-URL reason
+    /// <see cref="ApplyTranscriptionOverrides"/> records.
     /// </remarks>
     private static readonly HashSet<string> CloudProviders = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -81,6 +80,7 @@ public sealed partial class ApplicationLocalApiBackend : ILocalApiBackend
     private readonly VocabularyRepository? _vocabulary;
     private readonly Func<Mode?, SpeechOutputProcessingOptions>? _outputOptions;
     private readonly IPrivateFileService _privateFiles;
+    private readonly DurableAudioImportService? _audioImport;
     private readonly string _recordingsDirectory;
     private readonly string _appVersion;
     private readonly SemaphoreSlim _recordingToggle = new(1, 1);
@@ -96,7 +96,8 @@ public sealed partial class ApplicationLocalApiBackend : ILocalApiBackend
         string appVersion,
         ILocalApiPostProcessor? postProcessor = null,
         VocabularyRepository? vocabulary = null,
-        Func<Mode?, SpeechOutputProcessingOptions>? outputOptions = null)
+        Func<Mode?, SpeechOutputProcessingOptions>? outputOptions = null,
+        DurableAudioImportService? audioImport = null)
     {
         _modes = modes ?? throw new ArgumentNullException(nameof(modes));
         _history = history ?? throw new ArgumentNullException(nameof(history));
@@ -109,6 +110,10 @@ public sealed partial class ApplicationLocalApiBackend : ILocalApiBackend
         _postProcessor = postProcessor;
         _vocabulary = vocabulary;
         _outputOptions = outputOptions;
+        // Optional, and only the Linux head supplies it: the ffmpeg conversion
+        // Transcribe File already runs, reused for a non-WAV upload to a local
+        // Parakeet mode (issue #1572). Null keeps /transcribe as it was.
+        _audioImport = audioImport;
     }
 
     public ValueTask<HealthSnapshot> GetHealthAsync(CancellationToken cancellationToken)

@@ -115,7 +115,7 @@ struct PhoneticConformanceVectorTests {
         }
     }
 
-    /// The wrappers the on-device providers actually call have to agree with the
+    /// The wrapper the on-device providers actually call has to agree with the
     /// raw binding. A future edit that re-adds a native pre-pass — a trim, a
     /// normalization, a filter — in front of one of them breaks here rather than
     /// silently changing what users see.
@@ -144,11 +144,9 @@ struct PhoneticConformanceVectorTests {
             #expect(actual == vector.expected.text, "\(vector.name)")
         }
 
-        for vector in document.substringCases {
-            let actual = VocabularyProcessor.applySubstringVocabulary(
-                to: vector.text, vocabulary: rows(vector.entries))
-            #expect(actual == vector.expected, "\(vector.name)")
-        }
+        // No substring wrapper any more: no macOS provider runs the substring
+        // pass since issue #1622, so `VocabularyProcessor` no longer has one.
+        // The raw binding is still pinned to the vectors above.
     }
 
     /// A decision table is only proof while it still has a row in every bucket

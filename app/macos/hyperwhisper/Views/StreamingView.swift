@@ -682,12 +682,10 @@ struct StreamingView: View {
         cloudProviderHealthManager.refresh(provider, force: force)
     }
 
-    private var languageCloudProviderId: String {
-        selectedProvider == .xai ? CloudProvider.grok.rawValue : CloudProvider.hyperwhisper.rawValue
-    }
-
-    private var languageCloudModelId: String {
-        selectedProvider == .xai ? "" : "nova-3"
+    /// The shared-catalog entry whose language set the cloud picker offers.
+    /// See `StreamingTranscriptionProvider.languageCatalogEntryId(cloudTier:)`.
+    private var languageCatalogEntryId: String? {
+        selectedProvider.languageCatalogEntryId(cloudTier: settingsManager.streamingCloudTier)
     }
 
     // MARK: - Warning Row Helper
@@ -846,14 +844,16 @@ struct StreamingView: View {
                 nemotronLanguagePicker
                     .frame(width: 200, alignment: .trailing)
             } else {
-                // Use LanguageSelectionView with cloud provider settings
+                // The selected provider's own language set, from the shared
+                // catalog. A provider the catalog leaves unverified (Gemini)
+                // keeps the full list. The picker's enforceAllowedLanguage()
+                // resets a saved language that falls outside the new set.
                 // showLabel: false since this section already has its own label
                 LanguageSelectionView(
                     language: $settingsManager.streamingLanguage,
                     provider: .cloud,
                     model: "cloud",
-                    cloudProviderId: languageCloudProviderId,
-                    cloudModelId: languageCloudModelId,
+                    cloudTierId: languageCatalogEntryId,
                     showLabel: false
                 )
                 .frame(width: 200, alignment: .trailing)
@@ -996,6 +996,29 @@ struct StreamingView: View {
             KeyboardShortcuts.Recorder(for: .startStreaming) { _ in
                 NotificationCenter.default.post(name: .shortcutDidChange, object: nil)
             }
+        }
+    }
+}
+
+// MARK: - Language picker resolution
+
+extension StreamingTranscriptionProvider {
+    /// The shared-catalog entry id whose language set the Streaming settings
+    /// picker offers for this provider, or nil for an on-device engine (those
+    /// read their own model registries).
+    ///
+    /// HyperWhisper Cloud answers with the selected live tier, clamped exactly
+    /// as the live route clamps it. The ids are catalog entry ids, never a key
+    /// space of their own, so the picker asks the one catalog the core reads.
+    func languageCatalogEntryId(cloudTier: String?) -> String? {
+        switch self {
+        case .hyperwhisperCloud: return StreamingCloudTier.normalizedCloudTier(cloudTier)
+        case .deepgram: return "deepgramNova3"
+        case .elevenLabs: return "elevenLabsScribeV2"
+        case .openAI: return "openaiWhisper"
+        case .gemini: return "geminiTranscribe"
+        case .xai: return "grokStt"
+        case .parakeetLocal, .nemotronLocal: return nil
         }
     }
 }

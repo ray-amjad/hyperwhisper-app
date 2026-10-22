@@ -3,6 +3,9 @@
   <data name="linux.overlay.recording" xml:space="preserve">
     <value>Gravant</value>
   </data>
+  <data name="linux.settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Esmorteir àudio</value>
+  </data>
   <data name="linux.ui.api.keys" xml:space="preserve">
     <value>Claus d'API</value>
   </data>
@@ -20,5 +23,29 @@
   </data>
   <data name="linux.ui.start.recording" xml:space="preserve">
     <value>Començar a gravar</value>
+  </data>
+  <data name="linux.settings.sound.microphone.default" xml:space="preserve">
+    <value>Per defecte · {0}</value>
+  </data>
+  <data name="linux.settings.sound.microphone.defaultNone" xml:space="preserve">
+    <value>Per defecte</value>
+  </data>
+  <data name="linux.settings.sound.microphone.fallback" xml:space="preserve">
+    <value>S'utilitza {0} fins que es torni a connectar {1}.</value>
+  </data>
+  <data name="linux.settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (no connectat)</value>
+  </data>
+  <data name="linux.settings.sound.microphone.stop" xml:space="preserve">
+    <value>Atura</value>
+  </data>
+  <data name="linux.settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Només l'utilitza HyperWhisper. Es recorda entre reinicis.</value>
+  </data>
+  <data name="linux.settings.sound.microphone.test" xml:space="preserve">
+    <value>Prova</value>
+  </data>
+  <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve">
+    <value>No s'ha pogut obrir el micròfon.</value>
   </data>
 </root>

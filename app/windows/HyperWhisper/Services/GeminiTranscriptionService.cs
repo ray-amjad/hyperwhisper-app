@@ -66,7 +66,7 @@ public class GeminiTranscriptionService : ApiKeyTranscriptionServiceBase
     // =========================================================================
 
     public GeminiTranscriptionService(HttpMessageHandler? httpHandler = null)
-        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "gemini-2.5-flash", httpHandler: httpHandler)
+        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "gemini-3.8-flash", httpHandler: httpHandler)
     {
     }
 

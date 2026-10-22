@@ -5,8 +5,9 @@
 //  Issue #795: every macOS transcription failure used to send the Mode's `name`
 //  to Sentry as the `modeName` extra. A Mode's name is free text the user typed
 //  — the app itself only ever writes the one name a fresh install seeds — so
-//  the field was user content, not metadata, and the `isRedactedExtraKey`
-//  deny-list (`transcript` / `text` / `prompt`) never matched it.
+//  the field was user content, not metadata, and the old `isRedactedExtraKey`
+//  substring deny-list (`transcript` / `text` / `prompt`) never matched it.
+//  Since issue #805 that rule is an exact allow-list of key names.
 //
 //  This is the macOS twin of the Windows assertion in
 //  `app/windows/HyperWhisper.SmokeTests/Program.cs`:
@@ -75,7 +76,11 @@ struct TranscriptionFailureExtrasTests {
             stageElapsedMs: 1_200,
             totalElapsedMs: 4_500,
             stageTimeline: ["start=10ms@10ms", "transcribe=1200ms@4500ms (failed)"],
-            transcriptionState: "error",
+            // The state the pipeline really holds at the capture: `.error`
+            // carrying the error's text, which can embed the recording path.
+            transcriptionState: .error(
+                message: "The file couldn't be opened at /Users/example/Documents/hyperwhisper/recordings/recording-1.wav"
+            ),
             recordingSessionID: "nil"
         )
     }
@@ -382,6 +387,41 @@ struct TranscriptionFailureExtrasTests {
         #expect(Self.extras(httpStatus: 429)["errorHttpStatus"] as? Int == 429)
         #expect(Set(Self.extras(httpStatus: 429).keys)
                 == Self.expectedFailureExtraKeys.union(["errorHttpStatus"]))
+    }
+
+    // MARK: - Every key reaches Sentry intact (issue #805)
+
+    /// Every failure key is on `SentryService.allowedExtraKeys`, so `beforeSend`
+    /// leaves every value as sent. `transcriptionState` and
+    /// `isHyperwhisperTranscription` failed this under the old substring rule,
+    /// because both contain "transcript".
+    @Test func noFailureKeyIsRedactedByBeforeSend() {
+        for extras in [Self.extras(httpStatus: nil), Self.extras(httpStatus: 429)] {
+            #expect(extras.keys.allSatisfy { !SentryService.isRedactedExtraKey($0) })
+            for (key, value) in extras {
+                #expect(
+                    String(describing: SentryService.redactedValue(forKey: key, value: value))
+                        == String(describing: value),
+                    "\(key) loses its value in beforeSend"
+                )
+            }
+        }
+    }
+
+    /// The pipeline sets `.error(message: error.localizedDescription)` right
+    /// before it builds this payload, so the state's `description` carries raw
+    /// error text. The allow-listed key must report the case name and nothing
+    /// else.
+    @Test func theTranscriptionStateIsTheCaseNameWithoutTheErrorText() {
+        let state = Self.extras()["transcriptionState"] as? String
+
+        #expect(state == "error")
+        #expect(TranscriptionState.idle.reportingName == "idle")
+        #expect(TranscriptionState.transcribing(provider: "openai", progress: 0.5).reportingName
+                == "transcribing")
+        #expect(TranscriptionState.postProcessing.reportingName == "post_processing")
+        #expect(TranscriptionState.error(message: "/Users/example/secret.wav").reportingName
+                == "error")
     }
 
     /// The provider/error axes the Sentry issues are triaged on.

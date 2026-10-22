@@ -19,6 +19,15 @@ public class AudioRecorderService : IDisposable
     private string? _tempFilePath;
     private readonly System.Diagnostics.Stopwatch _stopwatch = new();
 
+    // PCM bytes handed to _writer for the current recording. Guarded by
+    // _writerLock, so a buffer counts only if it reached the file.
+    private long _capturedBytes;
+
+    /// <summary>
+    /// Bytes per frame of the recording format below (16-bit mono).
+    /// </summary>
+    internal const int RecordingBlockAlign = 2;
+
     // Mic volume boost fields
     private const float MicVolumeBoostThreshold = 0.5f;
     private const float MicVolumeBoostTarget = 0.9f;
@@ -46,6 +55,23 @@ public class AudioRecorderService : IDisposable
     public event Action<float>? AudioLevelChanged;
 
     /// <summary>
+    /// PCM bytes the capture device delivered to the last recording's file,
+    /// final once <see cref="StopRecording"/> has returned. Zero means the
+    /// WAV is a bare header (issue #750).
+    /// </summary>
+    public long CapturedAudioBytes
+    {
+        get { lock (_writerLock) return _capturedBytes; }
+    }
+
+    /// <summary>
+    /// True when a recording holds no whole audio frame, so there is nothing to
+    /// transcribe. A recording with one frame or more is never empty, however
+    /// short: the check is "the device sent nothing", not "the clip is short".
+    /// </summary>
+    public static bool IsEmptyCapture(long capturedBytes) => capturedBytes < RecordingBlockAlign;
+
+    /// <summary>
     /// Starts recording audio from the specified device.
     /// </summary>
     /// <param name="deviceNumber">The device number to record from (from AudioDeviceService).</param>
@@ -69,7 +95,11 @@ public class AudioRecorderService : IDisposable
                 BufferMilliseconds = 100
             };
 
-            _writer = new WaveFileWriter(_tempFilePath, _waveIn.WaveFormat);
+            lock (_writerLock)
+            {
+                _writer = new WaveFileWriter(_tempFilePath, _waveIn.WaveFormat);
+                _capturedBytes = 0;
+            }
 
             _waveIn.DataAvailable += OnDataAvailable;
             _waveIn.RecordingStopped += OnRecordingStopped;
@@ -178,36 +208,16 @@ public class AudioRecorderService : IDisposable
         // racing StopRecording()/CleanupRecording() disposing the writer
         lock (_writerLock)
         {
-            _writer?.Write(e.Buffer, 0, e.BytesRecorded);
+            if (_writer != null && e.BytesRecorded > 0)
+            {
+                _writer.Write(e.Buffer, 0, e.BytesRecorded);
+                _capturedBytes += e.BytesRecorded;
+            }
         }
 
-        // Compute RMS over the buffer (log-scaled perceptual level)
-        double sumSquares = 0;
-        int sampleCount = 0;
-        for (int i = 0; i + 1 < e.BytesRecorded; i += 2)
-        {
-            short sample = BitConverter.ToInt16(e.Buffer, i);
-            double norm = sample / 32768.0;
-            sumSquares += norm * norm;
-            sampleCount++;
-        }
-
-        float normalized = 0f;
-        if (sampleCount > 0)
-        {
-            double rms = Math.Sqrt(sumSquares / sampleCount);
-            // Convert to dB, floor at -60 dB for silence
-            double db = 20.0 * Math.Log10(Math.Max(rms, 1e-6));
-            // Map -60 dB → 0.0, -6 dB → 1.0 (soft clip above)
-            normalized = (float)Math.Clamp((db + 60.0) / 54.0, 0.0, 1.0);
-        }
-
-        // Fast-attack / slow-decay envelope follower
-        // Attack: immediate jump up. Decay: exponential fall (~200ms at 16kHz/50ms buffers = ~0.78 per buffer)
-        if (normalized > _displayedLevel)
-            _displayedLevel = normalized;                      // fast attack
-        else
-            _displayedLevel = Math.Max(normalized, _displayedLevel * 0.85f);  // slow decay
+        // RMS -> dB -> fast-attack / slow-decay envelope, shared with the
+        // onboarding and Settings "Test" meters so they all move the same way.
+        _displayedLevel = AudioLevelMath.NextLevel(e.Buffer, e.BytesRecorded, _displayedLevel);
 
         AudioLevelChanged?.Invoke(_displayedLevel);
     }
@@ -316,12 +326,12 @@ public class AudioRecorderService : IDisposable
                 var ordinalMatch = activeEndpoints[deviceNumber];
 
                 if (!string.IsNullOrEmpty(targetName) &&
-                    !ordinalMatch.FriendlyName.StartsWith(targetName, StringComparison.OrdinalIgnoreCase))
+                    !GetFriendlyName(ordinalMatch).StartsWith(targetName, StringComparison.OrdinalIgnoreCase))
                 {
                     // Names don't line up - still trust the ordinal position (it's the
                     // more reliable signal) but log it so name-format drift is visible.
                     LoggingService.Debug(
-                        $"AudioRecorderService: Ordinal-resolved capture endpoint '{ordinalMatch.FriendlyName}' " +
+                        $"AudioRecorderService: Ordinal-resolved capture endpoint '{GetFriendlyName(ordinalMatch)}' " +
                         $"doesn't prefix-match WaveIn device #{deviceNumber} name '{targetName}'; using it anyway");
                 }
 
@@ -338,7 +348,7 @@ public class AudioRecorderService : IDisposable
             foreach (var device in activeEndpoints)
             {
                 if (string.IsNullOrEmpty(targetName) ||
-                    !device.FriendlyName.StartsWith(targetName, StringComparison.OrdinalIgnoreCase))
+                    !GetFriendlyName(device).StartsWith(targetName, StringComparison.OrdinalIgnoreCase))
                     continue;
 
                 if (nameMatch != null)
@@ -376,6 +386,32 @@ public class AudioRecorderService : IDisposable
         return enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Communications);
     }
 
+    /// <summary>
+    /// The endpoint's Core Audio <c>FriendlyName</c>, from
+    /// <see cref="CaptureDeviceNameCache"/> when this endpoint ID was read before.
+    /// A <c>FriendlyName</c> read is a ~50 ms property-store call, and the
+    /// dictation start runs on the UI thread (#980).
+    ///
+    /// Only the cache is new: a failed name read still throws, exactly as the
+    /// direct property read did. If the endpoint ID itself cannot be read, the
+    /// name is read directly and not cached.
+    /// </summary>
+    private static string GetFriendlyName(MMDevice device)
+    {
+        string? endpointId;
+        try
+        {
+            endpointId = device.ID;
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Debug($"AudioRecorderService: Failed to read capture endpoint ID, reading its name uncached - {ex.Message}");
+            endpointId = null;
+        }
+
+        return CaptureDeviceNameCache.Shared.GetOrRead(endpointId, () => device.FriendlyName);
+    }
+
     private static void DisposeCaptureDevice(MMDevice? device, string context)
     {
         if (device == null)
@@ -399,6 +435,9 @@ public class AudioRecorderService : IDisposable
     /// <param name="deviceNumber">The NAudio WaveIn index of the device being recorded (-1 = system default).</param>
     public void BoostMicVolume(int deviceNumber)
     {
+        // Runs on the UI thread before the mic opens (#980): log its cost so a
+        // run on the PC can read it.
+        var timer = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             using var enumerator = new MMDeviceEnumerator();
@@ -407,7 +446,7 @@ public class AudioRecorderService : IDisposable
 
             if (currentVolume >= MicVolumeBoostThreshold)
             {
-                LoggingService.Debug($"AudioRecorderService: Mic volume already healthy ({currentVolume:P0}); skipping boost to avoid Windows volume OSD (device: {_captureDevice.FriendlyName})");
+                LoggingService.Debug($"AudioRecorderService: Mic volume already healthy ({currentVolume:P0}); skipping boost to avoid Windows volume OSD (device: {GetFriendlyName(_captureDevice)})");
                 _captureDevice.Dispose();
                 _captureDevice = null;
                 _originalMicVolume = null;
@@ -416,7 +455,7 @@ public class AudioRecorderService : IDisposable
 
             if (Math.Abs(currentVolume - MicVolumeBoostTarget) <= MicVolumeTolerance)
             {
-                LoggingService.Debug($"AudioRecorderService: Mic volume already near target ({currentVolume:P0}); skipping boost (device: {_captureDevice.FriendlyName})");
+                LoggingService.Debug($"AudioRecorderService: Mic volume already near target ({currentVolume:P0}); skipping boost (device: {GetFriendlyName(_captureDevice)})");
                 _captureDevice.Dispose();
                 _captureDevice = null;
                 _originalMicVolume = null;
@@ -424,7 +463,7 @@ public class AudioRecorderService : IDisposable
             }
 
             _originalMicVolume = currentVolume;
-            LoggingService.Info($"AudioRecorderService: Boosting low mic volume from {_originalMicVolume:P0} to {MicVolumeBoostTarget:P0} (device: {_captureDevice.FriendlyName})");
+            LoggingService.Info($"AudioRecorderService: Boosting low mic volume from {_originalMicVolume:P0} to {MicVolumeBoostTarget:P0} (device: {GetFriendlyName(_captureDevice)})");
             _captureDevice.AudioEndpointVolume.MasterVolumeLevelScalar = MicVolumeBoostTarget;
         }
         catch (Exception ex)
@@ -433,6 +472,10 @@ public class AudioRecorderService : IDisposable
             _originalMicVolume = null;
             _captureDevice?.Dispose();
             _captureDevice = null;
+        }
+        finally
+        {
+            LoggingService.Debug($"AudioRecorderService: BoostMicVolume took {timer.Elapsed.TotalMilliseconds:F1} ms (device #{deviceNumber})");
         }
     }
 
@@ -482,7 +525,7 @@ public class AudioRecorderService : IDisposable
         {
             using var enumerator = new MMDeviceEnumerator();
             using var device = ResolveCaptureDevice(enumerator, deviceNumber);
-            return (device.AudioEndpointVolume.MasterVolumeLevelScalar, device.FriendlyName);
+            return (device.AudioEndpointVolume.MasterVolumeLevelScalar, GetFriendlyName(device));
         }
         catch (Exception ex)
         {

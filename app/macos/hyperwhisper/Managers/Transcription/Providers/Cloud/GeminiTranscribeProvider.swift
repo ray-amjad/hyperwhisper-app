@@ -37,13 +37,16 @@
 import Foundation
 
 class GeminiTranscribeProvider: TranscriptionProvider {
+    /// A stateless HTTP call: nothing per call is kept on the instance (#1425).
+    var supportsConcurrentPasses: Bool { true }
+
     private var apiKey: String = ""
 
     /// The whole request body — JSON plus the base64 audio — is uploaded in one
     /// shot, so the resource budget only has to cover 14 MB of audio (~19 MB
     /// encoded) rather than a multi-GB file.
     private lazy var session: URLSession = {
-        let config = URLSessionConfiguration.default
+        let config = URLSessionConfiguration.credentialBearing
         config.timeoutIntervalForRequest = 120
         config.timeoutIntervalForResource = 600
         config.waitsForConnectivity = false

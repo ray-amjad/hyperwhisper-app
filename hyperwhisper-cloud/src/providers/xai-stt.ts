@@ -15,6 +15,7 @@ import {
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  splitVocabularyTerms,
 } from './utils';
 
 const XAI_STT_URL = 'https://api.x.ai/v1/stt';
@@ -69,28 +70,18 @@ function normalizedFormattingLanguage(language?: string): string | undefined {
   return SUPPORTED_FORMATTING_LANGUAGES.has(normalized) ? normalized : undefined;
 }
 
-/** Split a comma/newline vocabulary prompt into xAI `keyterm` values. */
+/**
+ * Split a comma/newline vocabulary prompt into xAI `keyterm` values, sanitized
+ * like the canonical `sanitize_vocabulary_word` the BYOK path routes through.
+ * An over-long term is dropped, not truncated: 50 characters is xAI's limit.
+ */
 function toKeyterms(initialPrompt: string): string[] {
-  const seen = new Set<string>();
-  const terms: string[] = [];
-  for (const raw of initialPrompt.split(/[,\n;]+/)) {
-    // Strip angle brackets and collapse whitespace runs, matching the canonical
-    // `sanitize_vocabulary_word` the BYOK path routes through — an imported
-    // backup can carry either.
-    const term = raw
-      .trim()
-      .replace(/^[-*]\s*/, '')
-      .replace(/[<>]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-    if (term.length === 0 || term.length > MAX_KEYTERM_CHARS) continue;
-    const key = term.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    terms.push(term);
-    if (terms.length === MAX_KEYTERMS) break;
-  }
-  return terms;
+  return splitVocabularyTerms(initialPrompt, {
+    maxTerms: MAX_KEYTERMS,
+    maxTermChars: MAX_KEYTERM_CHARS,
+    sanitize: true,
+    overLongTerm: 'drop',
+  });
 }
 
 export async function transcribeWithXaiGrok(

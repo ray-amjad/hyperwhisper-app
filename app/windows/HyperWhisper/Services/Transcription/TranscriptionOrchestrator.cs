@@ -231,7 +231,9 @@ public class TranscriptionOrchestrator : IDisposable
         }
         else
         {
-            (rawText, transcriptionProvider, diagnostics) = await TranscribeLocalAsync(audioPath, language, localTranscriptionProvider, cancellationToken);
+            // The same vocabulary the cloud branch gets. On-device Whisper uses it as
+            // its initial prompt for audio of up to 30 s (#1564).
+            (rawText, transcriptionProvider, diagnostics) = await TranscribeLocalAsync(audioPath, language, vocabulary, localTranscriptionProvider, cancellationToken);
         }
 
         // STEP 2: Check for empty result
@@ -263,6 +265,17 @@ public class TranscriptionOrchestrator : IDisposable
                 providerDiagnostics: diagnostics);
         }
 
+        // STEP 2b: the local engine's own vocabulary correction (the Parakeet
+        // family's phonetic pass). It runs HERE, after rawText is kept, so the
+        // History row's raw transcript is the engine's own text, exactly as it is
+        // for Whisper; it used to run inside the engine, so RawText already held
+        // the swaps (issue #1596). It runs once, and only for a local engine that
+        // has one. Everything below works on the corrected text, and the \b
+        // vocabulary pass in STEP 3 then runs once over it.
+        var correctedText = mode.ProviderType == "cloud"
+            ? rawText
+            : ApplyLocalEngineVocabularyCorrection(rawText, localTranscriptionProvider);
+
         // STEP 3: Post-processing.
         //
         // Two halves, and only the FIRST is optional. The AI rewrite is the
@@ -276,14 +289,14 @@ public class TranscriptionOrchestrator : IDisposable
         // caller that declines the rewrite, so /transcribe returned text with no
         // vocabulary replacement (issue #495) and no break commands or filler
         // removal (issue #498) — contradicting the comments inside that very arm.
-        string finalText = rawText;
+        string finalText = correctedText;
         string? postProcessedText = null;
         string? postProcessingProvider = null;
 
         if (applyAiPostProcessing && mode.PostProcessingMode != 0)
         {
             LoggingService.Info("TranscriptionOrchestrator: Starting post-processing");
-            var postProcessingResult = await _postProcessingService.ProcessPreservingBreaksAsync(rawText, mode, applicationContext, cancellationToken);
+            var postProcessingResult = await _postProcessingService.ProcessPreservingBreaksAsync(correctedText, mode, applicationContext, cancellationToken);
             // Apply vocabulary replacements whether or not AI post-processing succeeded.
             // Matches macOS + v1.6: when post-processing fails/skips, ProcessAsync returns the
             // original transcription, and the user's vocabulary corrections must still be applied.
@@ -358,7 +371,7 @@ public class TranscriptionOrchestrator : IDisposable
         CancellationToken cancellationToken,
         double? knownDurationSeconds = null)
     {
-        var providerType = CloudTranscriptionProviderExtensions.FromIdentifier(mode.CloudProvider);
+        var providerType = CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider);
 
         LoggingService.LogPerformanceMarker("TranscriptionOrchestrator", $"Cloud transcription via {providerType}");
 
@@ -474,6 +487,7 @@ public class TranscriptionOrchestrator : IDisposable
     private async Task<(string text, string provider, TranscriptionProviderDiagnostics? diagnostics)> TranscribeLocalAsync(
         string audioPath,
         string? language,
+        IReadOnlyList<string>? vocabulary,
         ITranscriptionProvider? provider,
         CancellationToken cancellationToken)
     {
@@ -501,7 +515,11 @@ public class TranscriptionOrchestrator : IDisposable
         LoggingService.LogPerformanceMarker("TranscriptionOrchestrator", "Local transcription");
 
         var attemptSw = System.Diagnostics.Stopwatch.StartNew();
-        var result = await provider.TranscribeAsync(audioPath, language, cancellationToken: cancellationToken);
+        // An engine with its own vocabulary pass (the Parakeet family, STEP 2b)
+        // takes the vocabulary there, not in the decode, so it still gets none
+        // here, exactly as before. Whisper gets it as its initial prompt (#1564).
+        var decodeVocabulary = provider is ILocalVocabularyCorrection ? null : vocabulary;
+        var result = await provider.TranscribeAsync(audioPath, language, decodeVocabulary, cancellationToken);
         attemptSw.Stop();
 
         // A local engine may expose its own record; take it when it does, so the
@@ -515,6 +533,32 @@ public class TranscriptionOrchestrator : IDisposable
         };
 
         return (result, provider.Name, diagnostics);
+    }
+
+    /// <summary>
+    /// Runs the local engine's own vocabulary correction over its raw text, when
+    /// it has one (<see cref="ILocalVocabularyCorrection"/>; the Parakeet family).
+    /// Whisper and every other provider get <paramref name="rawText"/> back.
+    /// A failure is logged and degrades to the raw text: a vocabulary pass must
+    /// never fail a transcription that already succeeded.
+    /// </summary>
+    private static string ApplyLocalEngineVocabularyCorrection(string rawText, ITranscriptionProvider? provider)
+    {
+        if (provider is not ILocalVocabularyCorrection corrector)
+        {
+            return rawText;
+        }
+
+        try
+        {
+            var corrected = corrector.ApplyLocalVocabularyCorrection(rawText);
+            return string.IsNullOrWhiteSpace(corrected) ? rawText : corrected;
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"TranscriptionOrchestrator: Local vocabulary correction failed, using the raw text: {ex.Message}");
+            return rawText;
+        }
     }
 
     // =========================================================================

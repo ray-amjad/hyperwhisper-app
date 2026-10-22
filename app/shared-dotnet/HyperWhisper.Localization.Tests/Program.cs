@@ -126,7 +126,42 @@ static void AllCatalogsLoad()
     // held "Nova 3 General" and "Nova 3 Medical", 2 model names in 40 files that the name
     // gate missed because it read only the quoted form (#837). Both Streaming pages read
     // the catalog now.
-    Equal(851, PortableLocalizer.BaseKeyCount, "base key count");
+    // 851 -> 852: `errors.microphoneSentNoAudio` is new (#750, PR #1355). Windows tells
+    // the user the microphone sent no audio instead of "No speech detected".
+    // 852 -> 853: `transcripts.delete.failed` is new (#974). Windows History and
+    // Delete Now tell the user a delete SQLite refused removed nothing.
+    // 853 -> 855 (#1574): two Windows keys landed without this bump, because Linux CI
+    // does not run on a Strings.resx-only change:
+    //   errors.applicationControl.blocked                    (#933, PR #1368)
+    //   settings.general.launchAtLogin.isolatedProfileNote   (#1471, PR #1556)
+    // 855 -> 855 (#1644): `errors.retryModeDeleted` is new (Windows History Retry refuses
+    // a row whose mode was deleted instead of running the default mode), and
+    // `errors.noModeForRetry` is gone, its only use removed by the same change.
+    // 855 -> 856 (#1574): `errors.fileTranscriptionBusy` is new (PR #1760, Windows only).
+    // 856 -> 858 (#1452): `errors.fileEmpty` and `errors.fileUnreadable` are new (Windows
+    // Transcribe File names an empty, damaged or non-audio file instead of NAudio's text).
+    // 858 -> 860 (#1468): `settings.models.alert.cannotDelete.title` and `.message` are new
+    // (Windows Model Library "model in use" delete warning, which showed the raw key).
+    // 860 -> 861 (#1519): `status.fileTranscribing` is new (the Windows status bar says a
+    // file is being transcribed instead of "Ready - Press Ctrl+Alt to record").
+    // 861 -> 862 (#1754): `menu.mode.more` is new (the Windows tray mode menus cap at 50
+    // modes and put the rest behind a "More" entry).
+    // 862 -> 863: `settings.sound.mediaControl.muffleAudio` is new (the Windows Sound
+    // settings "Muffle audio" media-control mode).
+    // 863 -> 864 (#1489): `license.error.keyFormat` is new (the hint under the account key
+    // field when the text cannot be any key; Windows and Linux).
+    // 864 -> 865 (#1631): `settings.shortcuts.error.typingKey` is new (the Windows shortcut
+    // recorder refuses a bare typing key such as Tab or a letter, as Linux has since #628).
+    // 865 -> 867 (#1589): `history.savedLater.databaseLocked` and `.writeFailed` are new
+    // (Windows toast when the History insert is refused and the row is saved later).
+    // 867 -> 873: the Windows Settings -> Sound microphone picker adds
+    // `settings.sound.microphone.subtitle`, `.default`, `.notConnected`, `.fallback`,
+    // `.test` and `.stop` (its title reuses `menu.microphone`).
+    // 873 -> 874: `settings.sound.microphone.fallbackNoDevice` is new (the Windows picker's
+    // amber line when the saved microphone is unplugged and no other input is connected).
+    // 874 -> 876 (#2219, #2294): `status.model.notActivated` and `status.model.noApiKey` are
+    // new (the Windows status bar with no licence or no API key instead of Ready).
+    Equal(876,PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

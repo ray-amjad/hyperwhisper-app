@@ -90,6 +90,13 @@ class AudioRecordingManager: NSObject, ObservableObject {
     // CoreAudio reads when Combine mirrors an invalidated device during a route change.
     @Published var selectedDevice: AudioDevice? = nil
 
+    /// HyperWhisper's saved microphone choice, kept while its device is unplugged
+    /// (`nil` = "Default", follow the macOS default input). Mirrors
+    /// `AudioDeviceManager.preferredDevice`. The Settings picker and the menu-bar
+    /// Microphone menu both read this and write through `selectDevice(_:)`, so a change
+    /// in one shows in the other at once.
+    @Published private(set) var preferredMicrophone: MicrophoneChoice?
+
     /// Current system input volume slider value (0.0 - 1.0)
     /// Read by AudioDeviceManager from CoreAudio APIs
     @Published var inputVolumeScalar: Float?
@@ -103,7 +110,7 @@ class AudioRecordingManager: NSObject, ObservableObject {
     @Published var activeInputDeviceIdentifier: String?
 
     /// UID of the system's default input device
-    /// Used to show "(Default)" indicator next to the system default in the microphone menu
+    /// Used to label the "Default · <device>" option in the microphone pickers
     @Published var systemDefaultDeviceUID: String?
 
     /// Duration of current recording in seconds.
@@ -136,6 +143,10 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// short-lived metering session (see `startInputLevelPreview()`), publishing
     /// here. Kept off `liveMetrics` because this drives a single, isolated screen.
     @Published var idleInputLevel: Float = 0
+
+    /// True while the Settings → Sound microphone `Test` is running (its button reads
+    /// `Stop`). Cleared when the test times out, is stopped, or a recording starts.
+    @Published private(set) var isMicrophoneTestRunning = false
 
     // MARK: - Dependencies (Weak References)
 
@@ -202,18 +213,38 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// Store subscriptions to prevent deallocation
     private var cancellables = Set<AnyCancellable>()
 
-    /// Lightweight metering recorder for the onboarding input-level preview.
-    /// Writes to /dev/null with metering enabled; never produces a file.
-    private var inputLevelPreviewRecorder: AVAudioRecorder?
+    /// Lightweight metering recorder for the input-level preview (onboarding and the
+    /// Settings microphone test). Never produces a file: an `AVAudioRecorder` writing to
+    /// /dev/null on the default input, or a meter-only `DeviceAudioRecorder` on the
+    /// chosen microphone.
+    private var inputLevelPreviewRecorder: (any LiveAudioRecording)?
+
+    /// Bumped by every preview start and stop, so a chosen-device preview that is still
+    /// opening off the main actor knows it was superseded and discards itself.
+    private var inputLevelPreviewGeneration = 0
+
+    /// Ends the Settings microphone test after its duration.
+    private var microphoneTestTimeoutTask: Task<Void, Never>?
 
     /// Polling task that samples `inputLevelPreviewRecorder` at ~30 FPS.
     private var inputLevelPreviewTask: Task<Void, Never>?
+
+    /// Serial queue for the preview's blocking meter read, so a stuck AudioQueue
+    /// lock never freezes the main thread (same fix as `SimpleRecorder`, #1104).
+    private let inputLevelPreviewMeterQueue = DispatchQueue(
+        label: "com.hyperwhisper.input-level-preview.meter",
+        qos: .userInitiated
+    )
+
+    /// True while a preview meter read is pending; a tick that finds it set is
+    /// skipped. Not cleared by a stop: a stuck read is still stuck.
+    private var inputLevelPreviewReadInFlight = false
     
     /// Observer for UserDefaults changes
     private var defaultsObserver: NSObjectProtocol?
 
-    /// Observer for settings changes that affect microphone keep-warm
-    private var keepWarmSettingsObserver: NSObjectProtocol?
+    /// Watches the keepMicrophoneWarm setting off the main actor (#1648)
+    private var keepWarmDefaultsObserver: KeepWarmDefaultsObserver?
 
     /// Observer for Accessibility permission grants, used to re-arm Push to Talk
     private var accessibilityObserver: NSObjectProtocol?
@@ -285,9 +316,7 @@ class AudioRecordingManager: NSObject, ObservableObject {
         if let observer = defaultsObserver {
             NotificationCenter.default.removeObserver(observer)
         }
-        if let observer = keepWarmSettingsObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
+        keepWarmDefaultsObserver?.invalidate()
         if let observer = accessibilityObserver {
             NotificationCenter.default.removeObserver(observer)
         }
@@ -340,35 +369,47 @@ class AudioRecordingManager: NSObject, ObservableObject {
             providerHealthManager: providerHealthManager
         )
 
-        // Clear saved preference if the selected microphone disappears (e.g., Bluetooth device removed).
-        deviceManager.onSelectedDeviceInvalidated = { [weak self] lostDevice in
-            AppLogger.audio.warning("Clearing persisted microphone preference for missing device UID: \(lostDevice.uid, privacy: .public)")
-            self?.settingsManager?.selectedMicrophoneId = ""
+        // The chosen microphone disappearing (Bluetooth off, USB unplugged) does NOT clear
+        // the saved choice: recording uses the default meanwhile, and the device manager
+        // selects the chosen device again when it reappears.
+        deviceManager.onSelectedDeviceInvalidated = { lostDevice in
+            AppLogger.audio.notice("Chosen microphone \(lostDevice.uid, privacy: .public) disconnected - keeping the choice, recording from the default until it returns")
         }
 
         // Update available devices on launch
         updateAvailableDevices(reason: .initialBootstrap)
 
-        // MICROPHONE RESTORATION: Restore the user's previously selected microphone if still available
-        // This runs on app launch to ensure the same device is used across sessions
-        // The savedId is persisted via @AppStorage in SettingsManager
+        // MICROPHONE RESTORATION: restore the saved choice, connected or not. A choice whose
+        // device is missing is kept (shown as "<name> (not connected)") and used again as
+        // soon as the device appears. `selectedMicrophoneId` has always held the CoreAudio
+        // UID, so choices saved by earlier builds restore unchanged.
         if let savedId = settingsManager?.selectedMicrophoneId, !savedId.isEmpty {
-            if let savedDevice = availableDevices.first(where: { $0.id == savedId }) {
-                AppLogger.audio.info("Restoring saved microphone selection on launch: \(savedDevice.name, privacy: .public)")
-                selectDevice(savedDevice)
-            } else {
-                // Device no longer available (disconnected Bluetooth, unplugged USB, etc.)
-                // Clear the preference so we don't keep trying to restore a missing device
-                AppLogger.audio.warning("Saved microphone not found on launch, clearing preference: \(savedId, privacy: .public)")
-                settingsManager?.selectedMicrophoneId = ""
+            let savedName = settingsManager?.selectedMicrophoneName ?? ""
+            switch MicrophoneResolution.resolve(savedUID: savedId, savedName: savedName, devices: availableDevices) {
+            case .chosen(let device):
+                AppLogger.audio.info("Restoring saved microphone selection on launch: \(device.name, privacy: .public)")
+                deviceManager.restorePreferredDevice(MicrophoneChoice(uid: device.uid, name: device.name))
+                // Backfill the name for choices saved before names were stored.
+                if savedName != device.name {
+                    settingsManager?.selectedMicrophoneName = device.name
+                }
+            case .chosenNotConnected(let choice):
+                AppLogger.audio.notice("Saved microphone not connected on launch, keeping the choice: \(savedId, privacy: .public)")
+                deviceManager.restorePreferredDevice(choice)
+            case .systemDefault:
+                break
             }
         }
 
         // Setup Push to Talk
         setupPushToTalkObserver()
         setupPushToTalk()
-        setupKeepWarmObserver()
-        syncKeepWarmConfiguration()
+        // The one launch-time read of keepMicrophoneWarm stays on the main
+        // actor, as before. Every later change arrives through the off-main
+        // observer, seeded with this value (HYPERWHISPER-10D, #1648).
+        let keepWarmEnabled = settingsManager?.keepMicrophoneWarm ?? false
+        setupKeepWarmObserver(initialValue: keepWarmEnabled)
+        syncKeepWarmConfiguration(enabled: keepWarmEnabled)
 
         AppLogger.audio.info("AudioRecordingManager configured with dependencies")
     }
@@ -418,26 +459,26 @@ class AudioRecordingManager: NSObject, ObservableObject {
         }
     }
 
-    private func setupKeepWarmObserver() {
-        if let observer = keepWarmSettingsObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
+    /// Watches keepMicrophoneWarm without touching the main actor on a
+    /// defaults write (HYPERWHISPER-10D, #1648). The observer reads the key on
+    /// a background queue and calls back on the main actor only when the value
+    /// changed, so an unrelated key's write does no main-actor work.
+    private func setupKeepWarmObserver(initialValue: Bool) {
+        keepWarmDefaultsObserver?.invalidate()
 
-        keepWarmSettingsObserver = NotificationCenter.default.addObserver(
-            forName: UserDefaults.didChangeNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.syncKeepWarmConfiguration()
-            }
+        let observer = KeepWarmDefaultsObserver(initialValue: initialValue) { [weak self] enabled in
+            self?.syncKeepWarmConfiguration(enabled: enabled)
         }
+        observer.start()
+        keepWarmDefaultsObserver = observer
     }
 
-    private func syncKeepWarmConfiguration() {
+    /// Applies the keep-warm setting. `enabled` is passed in, never read here,
+    /// so this main-actor method makes no UserDefaults read.
+    private func syncKeepWarmConfiguration(enabled: Bool) {
         keepWarmManager.updateActiveInputDevice(uid: activeInputDeviceIdentifier, name: activeInputDeviceName)
         keepWarmManager.setPermissionGranted(hasMicrophonePermission)
-        keepWarmManager.setEnabled(settingsManager?.keepMicrophoneWarm ?? false)
+        keepWarmManager.setEnabled(enabled)
     }
 
     /// DUPLICATE HANDLER PREVENTION:
@@ -749,6 +790,9 @@ class AudioRecordingManager: NSObject, ObservableObject {
         deviceManager.$selectedDevice
             .assign(to: &$selectedDevice)
 
+        deviceManager.$preferredDevice
+            .assign(to: &$preferredMicrophone)
+
         deviceManager.$inputVolumeScalar
             .assign(to: &$inputVolumeScalar)
 
@@ -917,8 +961,10 @@ class AudioRecordingManager: NSObject, ObservableObject {
     }
 
     /// Retry transcription for a previously recorded file that failed before transcription
-    func retryTranscriptionFromPendingFile() {
-        recordingTranscriptionFlow.retryPendingFile()
+    /// - Parameter pickedMode: the mode picked in the recording dialog after the
+    ///   recording's own mode was deleted (#1617); `nil` uses the session's mode.
+    func retryTranscriptionFromPendingFile(with pickedMode: PendingRetryModeChoice? = nil) {
+        recordingTranscriptionFlow.retryPendingFile(with: pickedMode)
     }
 
     // MARK: - Public API: Push to Talk
@@ -993,53 +1039,137 @@ class AudioRecordingManager: NSObject, ObservableObject {
         deviceManager.updateAvailableDevices(reason: reason)
     }
 
-    /// Select a specific audio input device for recording
+    /// Choose the microphone HyperWhisper records from.
     ///
     /// **What This Does:**
-    /// Sets the selected device which will be used for next recording.
-    /// Updates volume metrics for the newly selected device.
+    /// Saves the choice (UID and name) for HyperWhisper only — the macOS default input is
+    /// NOT changed, so other apps keep theirs. The next recording, the level preview,
+    /// streaming capture and keep-warm open the chosen device directly.
     ///
     /// **Parameters:**
-    /// - `device`: The device to select (nil restores system default)
+    /// - `device`: The device to use (nil = follow the macOS default input)
     ///
     /// **When to Call:**
-    /// When user selects a device from the picker in settings
+    /// From the Settings → Sound picker, the menu-bar Microphone menu and onboarding.
     func selectDevice(_ device: AudioDevice?) {
         deviceManager.selectDevice(device)
+        settingsManager?.selectedMicrophoneId = device?.uid ?? ""
+        settingsManager?.selectedMicrophoneName = device?.name ?? ""
     }
 
-    // MARK: - Public API: Onboarding Input-Level Preview
+    /// Restore a saved choice by UID, keeping it even when its device is not connected.
+    /// Onboarding uses this to roll a previewed choice back to the one saved before.
+    func restoreMicrophoneChoice(uid: String?) {
+        guard let uid, !uid.isEmpty else {
+            selectDevice(nil)
+            return
+        }
+        let savedName = settingsManager?.selectedMicrophoneId == uid
+            ? (settingsManager?.selectedMicrophoneName ?? "")
+            : ""
+        let resolution = MicrophoneResolution.resolve(savedUID: uid, savedName: savedName, devices: availableDevices)
+        let choice: MicrophoneChoice
+        switch resolution {
+        case .chosen(let device):
+            choice = MicrophoneChoice(uid: device.uid, name: device.name)
+        case .chosenNotConnected(let missing):
+            choice = missing
+        case .systemDefault:
+            selectDevice(nil)
+            return
+        }
+        deviceManager.restorePreferredDevice(choice)
+        settingsManager?.selectedMicrophoneId = choice.uid
+        settingsManager?.selectedMicrophoneName = choice.name
+    }
 
-    /// Start a lightweight metering session so the onboarding microphone step can
-    /// show a live input level **without** starting a real recording.
+    // MARK: - Public API: Input-Level Preview (Onboarding, Settings Test)
+
+    /// Start a lightweight metering session so the onboarding microphone step and the
+    /// Settings microphone test can show a live input level **without** starting a
+    /// real recording.
     ///
-    /// Backed by an `AVAudioRecorder` writing to `/dev/null` with metering
-    /// enabled, sampled at ~30 FPS and normalized (-60…0 dB → 0…1) exactly like
-    /// `SimpleRecorder.updateMeter()`. The recorder captures whatever the system
-    /// default input is at start time; `selectDevice(_:)` switches that default,
-    /// so call `startInputLevelPreview()` again after changing the device to
-    /// re-point it.
+    /// Meters the device HyperWhisper would record from right now: the chosen
+    /// microphone when it is connected and is not the macOS default (a meter-only
+    /// `DeviceAudioRecorder`, opened off the main actor), otherwise the default input
+    /// (an `AVAudioRecorder` writing to `/dev/null`). Levels are normalized
+    /// (-60…0 dB → 0…1) exactly like `SimpleRecorder.readNormalizedLevel`. Call it again
+    /// after changing the device to re-point it.
     ///
     /// No-ops (and releases any prior session) if microphone permission is
     /// missing or a real recording is active — the preview must never contend
     /// with the recording capture path or leak the mic.
-    func startInputLevelPreview() {
+    ///
+    /// - Returns: `true` if a preview is running or opening.
+    @discardableResult
+    func startInputLevelPreview() -> Bool {
         // Restart cleanly if already running (e.g. the device changed).
         stopInputLevelPreview()
 
         guard hasMicrophonePermission else {
             AppLogger.audio.info("Input-level preview skipped — microphone permission not granted")
-            return
+            return false
         }
         guard !isRecording else {
             AppLogger.audio.info("Input-level preview skipped — a recording is in progress")
-            return
+            return false
         }
 
-        // Ensure the chosen device is the active system default before we open
-        // the metering recorder, so the preview reflects the picked device.
-        deviceManager.applySelectedInputDeviceIfNeeded()
+        inputLevelPreviewGeneration &+= 1
+        let generation = inputLevelPreviewGeneration
 
+        // Decide from cached state; the device lookup itself happens off the main actor.
+        let pinnedUID = MicrophoneResolution
+            .resolve(savedUID: preferredMicrophone?.uid, savedName: nil, devices: availableDevices)
+            .pinnedDeviceUID(systemDefaultUID: systemDefaultDeviceUID)
+
+        guard let pinnedUID else {
+            return startDefaultInputLevelPreview()
+        }
+
+        let queue = inputLevelPreviewMeterQueue
+        queue.async {
+            var opened: DeviceAudioRecorder?
+            if let deviceID = CoreAudioDeviceHelper.findAudioDeviceID(byUID: pinnedUID) {
+                let recorder = DeviceAudioRecorder(deviceID: deviceID, url: nil)
+                if recorder.record() {
+                    opened = recorder
+                }
+            }
+            let result = opened
+            Task { @MainActor [weak self] in
+                self?.finishChosenDevicePreviewStart(result, generation: generation)
+            }
+        }
+        AppLogger.audio.info("Input-level preview opening the chosen microphone")
+        return true
+    }
+
+    /// Back on the main actor after a chosen-device preview tried to open.
+    private func finishChosenDevicePreviewStart(_ recorder: DeviceAudioRecorder?, generation: Int) {
+        guard generation == inputLevelPreviewGeneration, !isRecording else {
+            // Superseded by a stop, a restart or a recording: release it.
+            if let recorder {
+                let queue = inputLevelPreviewMeterQueue
+                queue.async {
+                    SimpleRecorder.stopAndReleaseLater(recorder, on: queue, using: SimpleRecorder.defaultRecorderStopper)
+                }
+            }
+            return
+        }
+        guard let recorder else {
+            AppLogger.audio.warning("Input-level preview could not open the chosen microphone - previewing the default input")
+            if !startDefaultInputLevelPreview() {
+                stopInputLevelPreview()
+            }
+            return
+        }
+        installInputLevelPreview(recorder)
+        AppLogger.audio.info("Input-level preview started on the chosen microphone")
+    }
+
+    /// The preview on the macOS default input. Main actor, as it always was.
+    private func startDefaultInputLevelPreview() -> Bool {
         let settings: [String: Any] = [
             AVFormatIDKey: Int(kAudioFormatLinearPCM),
             AVSampleRateKey: 16000.0,
@@ -1054,49 +1184,105 @@ class AudioRecordingManager: NSObject, ObservableObject {
             recorder.isMeteringEnabled = true
             guard recorder.record() else {
                 AppLogger.audio.warning("Input-level preview recorder failed to start")
-                return
+                return false
             }
-            inputLevelPreviewRecorder = recorder
-            inputLevelPreviewTask = Task { [weak self] in
-                while !Task.isCancelled {
-                    self?.sampleInputLevelPreview()
-                    try? await Task.sleep(nanoseconds: 33_000_000) // ~30 FPS
-                }
-            }
+            installInputLevelPreview(recorder)
             AppLogger.audio.info("Input-level preview started")
+            return true
         } catch {
             AppLogger.audio.error("Failed to start input-level preview: \(error.localizedDescription, privacy: .public)")
+            return false
         }
     }
 
-    /// Stop the onboarding input-level preview and release the microphone.
-    /// Safe to call repeatedly; also invoked when onboarding is dismissed and
-    /// whenever a real recording starts.
+    private func installInputLevelPreview(_ recorder: any LiveAudioRecording) {
+        inputLevelPreviewRecorder = recorder
+        inputLevelPreviewTask = Task { [weak self] in
+            while !Task.isCancelled {
+                self?.sampleInputLevelPreview()
+                try? await Task.sleep(nanoseconds: 33_000_000) // ~30 FPS
+            }
+        }
+    }
+
+    /// Stop the input-level preview and release the microphone.
+    /// Safe to call repeatedly; also invoked when onboarding is dismissed, when the
+    /// Settings microphone test ends, and whenever a real recording starts.
+    ///
+    /// The `stop()` runs on `inputLevelPreviewMeterQueue`, behind any read in
+    /// flight, so a read and a stop of the same recorder never overlap and a read
+    /// stuck on the AudioQueue lock cannot freeze the main thread here (#1359).
+    /// Nothing waits for it: the preview writes no file, so there is nothing to
+    /// finalise.
     func stopInputLevelPreview() {
+        inputLevelPreviewGeneration &+= 1
         inputLevelPreviewTask?.cancel()
         inputLevelPreviewTask = nil
-        inputLevelPreviewRecorder?.stop()
-        inputLevelPreviewRecorder = nil
+        if let recorder = inputLevelPreviewRecorder {
+            inputLevelPreviewRecorder = nil
+            let queue = inputLevelPreviewMeterQueue
+            queue.async {
+                SimpleRecorder.stopAndReleaseLater(recorder, on: queue, using: SimpleRecorder.defaultRecorderStopper)
+            }
+        }
         idleInputLevel = 0
+        microphoneTestTimeoutTask?.cancel()
+        microphoneTestTimeoutTask = nil
+        if isMicrophoneTestRunning {
+            isMicrophoneTestRunning = false
+        }
     }
 
-    /// Sample the preview recorder's average power and publish a normalized level.
-    /// Mirrors `SimpleRecorder.updateMeter()` (-60 dB silence floor, 0 dB ceiling).
+    /// Sample the preview recorder's level on `inputLevelPreviewMeterQueue` and
+    /// publish it here. Uses `SimpleRecorder.readNormalizedLevel` (-60 dB silence
+    /// floor, 0 dB ceiling). At most one read in flight; the read holds the
+    /// recorder, and a result for a recorder that was stopped or replaced
+    /// meanwhile is dropped.
     private func sampleInputLevelPreview() {
-        guard let recorder = inputLevelPreviewRecorder else { return }
-        recorder.updateMeters()
-        let power = recorder.averagePower(forChannel: 0)
-        let minDb: Float = -60
-        let maxDb: Float = 0
-        let normalized: Float
-        if power <= minDb {
-            normalized = 0
-        } else if power >= maxDb {
-            normalized = 1
-        } else {
-            normalized = (power - minDb) / (maxDb - minDb)
+        guard !inputLevelPreviewReadInFlight,
+              let recorder = inputLevelPreviewRecorder else { return }
+        inputLevelPreviewReadInFlight = true
+        let queue = inputLevelPreviewMeterQueue
+        Task { [weak self] in
+            let level = await SimpleRecorder.readLevel(
+                from: recorder,
+                on: queue,
+                using: SimpleRecorder.defaultMeterReader
+            )
+            guard let self else { return }
+            self.inputLevelPreviewReadInFlight = false
+            guard self.inputLevelPreviewRecorder === recorder else { return }
+            self.idleInputLevel = level
         }
-        idleInputLevel = normalized
+    }
+
+    // MARK: - Public API: Settings Microphone Test
+
+    /// How long the Settings microphone test keeps the microphone open.
+    nonisolated static let microphoneTestDuration: TimeInterval = 10
+
+    /// Open the chosen microphone (the default while it is unplugged) for
+    /// `duration` seconds and show its level. Starting again restarts the timer.
+    ///
+    /// Visiting Settings never opens the microphone; only this does. The test stops on
+    /// `stopMicrophoneTest()`, after `duration`, or when a recording starts (the
+    /// recording-start hook calls `stopInputLevelPreview()`).
+    func startMicrophoneTest(duration: TimeInterval = AudioRecordingManager.microphoneTestDuration) {
+        guard startInputLevelPreview() else { return }
+        isMicrophoneTestRunning = true
+        microphoneTestTimeoutTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            self?.stopMicrophoneTest()
+        }
+        AppLogger.audio.info("Microphone test started")
+    }
+
+    /// End the Settings microphone test, if one is running.
+    func stopMicrophoneTest() {
+        guard isMicrophoneTestRunning else { return }
+        stopInputLevelPreview()
+        AppLogger.audio.info("Microphone test stopped")
     }
 
     // MARK: - Public API: Crash Recovery
@@ -1152,5 +1338,160 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// - When app becomes active (to detect permission changes)
     func checkMicrophonePermission() {
         permissionManager.checkMicrophonePermission()
+    }
+}
+
+// MARK: - Keep-Warm Defaults Observer (HYPERWHISPER-10D, #1648)
+
+/// Watches `UserDefaults.didChangeNotification` for a change of the
+/// `keepMicrophoneWarm` setting, reading it OFF the main actor.
+///
+/// The old observer hopped to the main actor on every defaults write in the
+/// process and read `keepMicrophoneWarm` through `@AppStorage` there. When
+/// cfprefsd held its lock, that read froze the app for 10 s
+/// (HYPERWHISPER-10D, the same fault as HYPERWHISPER-Y0 / #880).
+///
+/// Now:
+/// - The notification is taken on the posting thread (`queue: nil`) and does
+///   no read there, since a write on the main thread posts on the main thread.
+///   It only schedules one read on `readQueue`, a serial background queue, so a
+///   slow cfprefsd parks that queue and never the main thread.
+/// - A burst of writes coalesces: while a read is scheduled but not started,
+///   further notifications add nothing. The scheduled read runs after them, so
+///   it still sees their values.
+/// - The read decodes the value exactly as `@AppStorage(AudioDefaultsKey.keepMicrophoneWarm)`
+///   with a default of `false` does.
+/// - `onChange` runs on the main actor ONLY when the value differs from the
+///   last value seen, so an unrelated key's write does no main-actor work.
+///
+/// Thread safety: `lastValue`, `readScheduled` and `isInvalidated` are only
+/// touched under `lock`. The notification can arrive on any thread, and the
+/// read runs on `readQueue`.
+final class KeepWarmDefaultsObserver: @unchecked Sendable {
+
+    /// Reads the setting exactly as `@AppStorage(AudioDefaultsKey.keepMicrophoneWarm)`
+    /// with a default of `false` does: a stored Bool, else the default.
+    static func isKeepMicrophoneWarmEnabled(in defaults: UserDefaults) -> Bool {
+        (defaults.object(forKey: AudioDefaultsKey.keepMicrophoneWarm) as? Bool) ?? false
+    }
+
+    private let defaults: UserDefaults
+    private let notificationCenter: NotificationCenter
+    private let readQueue: DispatchQueue
+    private let onChange: @MainActor (Bool) -> Void
+
+    private let lock = NSLock()
+    /// The last value handed to `onChange` (or the seed). Guarded by `lock`.
+    private var lastValue: Bool
+    /// True while a read is queued on `readQueue` and has not started yet.
+    /// Guarded by `lock`.
+    private var readScheduled = false
+    /// Set by `invalidate()`. Guarded by `lock`.
+    private var isInvalidated = false
+    /// The block observer's token. Guarded by `lock`.
+    private var token: NSObjectProtocol?
+
+    /// - Parameters:
+    ///   - defaults: The store to read, `UserDefaults.standard` in the app (the
+    ///     store `@AppStorage` uses). A test passes a private suite.
+    ///   - initialValue: The value the caller has already applied, so the
+    ///     first notification only calls `onChange` if the setting has moved
+    ///     away from it.
+    ///   - notificationCenter: Where `UserDefaults.didChangeNotification` is posted.
+    ///   - readQueue: A SERIAL queue for the read. Never the main queue.
+    ///   - onChange: Called on the main actor with the new value, once per change.
+    init(
+        defaults: UserDefaults = .standard,
+        initialValue: Bool,
+        notificationCenter: NotificationCenter = .default,
+        readQueue: DispatchQueue = DispatchQueue(
+            label: "com.hyperwhisper.keepWarm.settingsRead",
+            qos: .utility
+        ),
+        onChange: @escaping @MainActor (Bool) -> Void
+    ) {
+        self.defaults = defaults
+        self.lastValue = initialValue
+        self.notificationCenter = notificationCenter
+        self.readQueue = readQueue
+        self.onChange = onChange
+    }
+
+    deinit {
+        invalidate()
+    }
+
+    /// Starts observing. Calling it again does nothing.
+    func start() {
+        lock.lock()
+        defer { lock.unlock() }
+        guard token == nil, !isInvalidated else { return }
+        // object: nil, as before: any defaults instance's write may be the
+        // one that changed the key. queue: nil, so the block runs on the
+        // posting thread and only schedules the read (see `scheduleRead`).
+        token = notificationCenter.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            self?.scheduleRead()
+        }
+    }
+
+    /// Stops observing and drops any read still queued. Safe to call more than once.
+    func invalidate() {
+        lock.lock()
+        isInvalidated = true
+        let token = self.token
+        self.token = nil
+        lock.unlock()
+        if let token {
+            notificationCenter.removeObserver(token)
+        }
+    }
+
+    private func scheduleRead() {
+        lock.lock()
+        if isInvalidated || readScheduled {
+            lock.unlock()
+            return
+        }
+        readScheduled = true
+        lock.unlock()
+
+        readQueue.async { [weak self] in
+            self?.readAndDeliverIfChanged()
+        }
+    }
+
+    /// Runs on `readQueue`.
+    private func readAndDeliverIfChanged() {
+        // Clear the flag BEFORE the read, so a write that lands during the
+        // read schedules one more read and is not lost.
+        lock.lock()
+        readScheduled = false
+        let invalidatedBeforeRead = isInvalidated
+        lock.unlock()
+        guard !invalidatedBeforeRead else { return }
+
+        // The cfprefsd round trip, off the main actor.
+        let value = Self.isKeepMicrophoneWarmEnabled(in: defaults)
+
+        lock.lock()
+        let changed = !isInvalidated && value != lastValue
+        if changed {
+            lastValue = value
+        }
+        lock.unlock()
+        guard changed else { return }
+
+        // The serial read queue hands values out in order, and the main queue
+        // runs them in that order, so the last delivered value is the latest.
+        let onChange = self.onChange
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated {
+                onChange(value)
+            }
+        }
     }
 }

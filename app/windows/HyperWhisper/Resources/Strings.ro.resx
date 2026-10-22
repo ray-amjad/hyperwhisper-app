@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Un alt program a blocat baza de date a istoricului. Înregistrarea a fost păstrată și va fi salvată în istoric când baza de date devine liberă.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Această înregistrare nu a putut fi salvată încă în istoric. Înregistrarea a fost păstrată și va fi salvată în istoric mai târziu.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -366,6 +372,9 @@
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
+  </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Indisponibil pe un profil de test. Această versiune folosește un folder separat pentru datele aplicației, deci nu modifică intrarea de autentificare a aplicației instalate.</value>
   </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Porniți minimizat</value>
@@ -717,6 +726,9 @@
   <data name="errors.noSpeechDetected" xml:space="preserve">
     <value>No speech detected in the recording.</value>
   </data>
+  <data name="errors.microphoneSentNoAudio" xml:space="preserve">
+    <value>Microfonul selectat nu a trimis niciun sunet. Verifică dispozitivul de intrare și încearcă din nou.</value>
+  </data>
 
   <!-- Alerts -->
 
@@ -736,6 +748,9 @@
     <value>Aceasta va șterge permanent %d înregistrări și fișierele audio.
 
 Această acțiune nu poate fi anulată.</value>
+  </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Nu s-a șters nimic. Istoricul a rămas neschimbat. Încearcă din nou.</value>
   </data>
 
   <!-- Audio Errors -->
@@ -784,6 +799,12 @@ Această acțiune nu poate fi anulată.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Neactivat)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (Fără cheie API)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -814,6 +835,9 @@ Această acțiune nu poate fi anulată.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transcrierea fișierului a fost anulată</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Se transcrie fișierul...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -837,11 +861,11 @@ Această acțiune nu poate fi anulată.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Modul care a realizat această înregistrare a fost șters, așa că nu s-a reîncercat. În Istoric, faceți clic dreapta pe înregistrare și alegeți „Reîncercați cu...” pentru a selecta alt mod.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Înregistrarea s-a oprit — limita de siguranță de 20 de minute a fost atinsă.</value>
@@ -1075,6 +1099,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Scurtăturile cu un singur modificator, precum Ctrl, Alt, Shift sau Win, nu sunt acceptate. Folosește o tastă cu modificatori sau o scurtătură cu mai mulți modificatori, de exemplu Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>O comandă rapidă fără tastă modificatoare trebuie să fie o tastă funcțională sau Esc. Orice altă tastă s-ar declanșa în timp ce tastați.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Această scurtătură este deja folosită pentru {0} ({1})</value>
   </data>
@@ -1115,6 +1142,9 @@ You must have at least one mode.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Controlul aplicațiilor Windows a blocat {0}, un fișier de care HyperWhisper are nevoie. Roagă administratorul IT să permită HyperWhisper sau verifică Controlul inteligent al aplicațiilor din Securitate Windows.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>
@@ -1146,6 +1176,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Model în uz</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} este folosit de modul „{1}”. Comutați acel mod pe alt model înainte de a-l șterge.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1280,6 +1316,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Aceasta nu pare a fi o cheie de cont.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1300,8 +1339,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>O înregistrare sau o transcriere de fișier rulează deja. Încercați din nou fișierul când se termină.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Acest fișier este gol, deci nu există audio de transcris.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Acest fișier este deteriorat sau nu este un fișier audio pe care HyperWhisper îl poate citi.</value>
   </data>
 
   <!-- Mode Change Toast -->
@@ -1684,6 +1732,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Mai multe...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1978,11 +2029,35 @@ You can re-download it later.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Estompați audio</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Folosit doar de HyperWhisper. Reținut după repornire.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Implicit · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (neconectat)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Se folosește {0} până când {1} este reconectat.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Niciun microfon nu este conectat. HyperWhisper va folosi {0} când este reconectat.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Testează</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Oprește</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

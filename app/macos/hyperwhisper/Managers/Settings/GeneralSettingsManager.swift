@@ -7,7 +7,7 @@
 //  dock visibility, update checking, and error logging.
 //
 //  RESPONSIBILITIES:
-//  - Launch at login configuration (via LaunchAtLogin package)
+//  - Launch at login configuration (via LaunchAtLoginManager)
 //  - Dock visibility toggle
 //  - Window display preferences
 //  - Automatic update checks
@@ -16,7 +16,7 @@
 //  ARCHITECTURE:
 //  - @AppStorage for automatic UserDefaults persistence
 //  - Observable for reactive UI updates
-//  - LaunchAtLogin package for reliable login item management
+//  - LaunchAtLoginManager for login item management, off the main thread
 //
 
 import Foundation
@@ -35,13 +35,43 @@ class GeneralSettingsManager: ObservableObject {
 
     // MARK: - Launch & Startup Settings
 
-    /// Whether to launch the app at login
-    /// Routes through LaunchAtLoginManager (native SMAppService wrapper) to avoid the
+    /// Whether the app launches at login, as last read from the system.
+    ///
+    /// A cache, not the source of truth: the login item lives in the system and
+    /// the user can change it in System Settings while the app runs. Reading it
+    /// is a blocking XPC call, so this property never reads it (#853, Sentry
+    /// HYPERWHISPER-SY) — call `refreshLaunchAtLogin()` first when the answer
+    /// must be current. Every write goes through `setLaunchAtLogin(_:)`, which
+    /// stores the state the system reports after the change.
+    ///
+    /// Routes through LaunchAtLoginManager (native login-item wrapper) to avoid the
     /// LaunchAtLogin package's Binding(get:set:) pattern, which infinite-recurses through
     /// SerialExecutor.isMainExecutor.getter on macOS 26.2 (Sentry HYPERWHISPER-3V).
-    var launchAtLogin: Bool {
-        get { LaunchAtLoginManager.isEnabled }
-        set { LaunchAtLoginManager.setEnabled(newValue) }
+    @Published private(set) var launchAtLogin: Bool = false
+
+    /// The login-item calls behind `launchAtLogin`. Tests pass a fake.
+    private let launchAtLoginService: LaunchAtLoginManager.Service
+
+    init(launchAtLoginService: LaunchAtLoginManager.Service = .mainApp) {
+        self.launchAtLoginService = launchAtLoginService
+    }
+
+    /// Re-reads the login item off the main thread, stores it, and returns it.
+    @discardableResult
+    func refreshLaunchAtLogin() async -> Bool {
+        let actual = await LaunchAtLoginManager.readIsEnabled(using: launchAtLoginService)
+        launchAtLogin = actual
+        return actual
+    }
+
+    /// Registers or unregisters the login item off the main thread, then stores
+    /// and returns the state the system reports afterwards — which differs from
+    /// `enabled` when the system rejects the change.
+    @discardableResult
+    func setLaunchAtLogin(_ enabled: Bool) async -> Bool {
+        let actual = await LaunchAtLoginManager.setEnabled(enabled, using: launchAtLoginService)
+        launchAtLogin = actual
+        return actual
     }
 
     /// Whether to show the app in the dock

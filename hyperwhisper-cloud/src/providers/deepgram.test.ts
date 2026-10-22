@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithDeepgram } from './deepgram';
-import { EmptyTranscriptError, ProviderInputError, ProviderUnavailableError } from './types';
+import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
+import { captureNoSpeechEvent } from './test-support';
 
 const originalFetch = globalThis.fetch;
 
@@ -32,25 +33,6 @@ function mockFetchOnce(handler: (url: string, init?: RequestInit) => Response | 
     init: () => capturedInit,
     params: () => new URL(capturedUrl).searchParams,
   };
-}
-
-/**
- * Swaps `console.log` for the duration of `run` and returns the details object of
- * the `provider.no_speech` event it logged. Same swap-the-global idiom as
- * `utils.test.ts` — no spy library is used anywhere in this suite.
- */
-async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
-  const logged: unknown[][] = [];
-  const originalLog = console.log;
-  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
-  try {
-    await run();
-  } finally {
-    console.log = originalLog;
-  }
-  const event = logged.find((args) => args[0] === 'provider.no_speech');
-  if (!event) throw new Error('no provider.no_speech event was logged');
-  return event[1] as Record<string, unknown>;
 }
 
 describe('transcribeWithDeepgram — configuration', () => {
@@ -223,10 +205,12 @@ describe('transcribeWithDeepgram — successful response handling', () => {
 });
 
 describe('transcribeWithDeepgram — upstream error mapping', () => {
-  test('401 maps to a plain (non-fallback) Error', async () => {
+  test('401 maps to a ProviderAuthError, not a failover signal', async () => {
     mockFetchOnce(() => new Response('unauthorized', { status: 401 }));
-    await expect(transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-US'))
-      .rejects.toThrow('Deepgram API key is invalid or expired');
+    const error = await transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-US').catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ProviderAuthError);
+    expect(error).not.toBeInstanceOf(ProviderUnavailableError);
+    expect((error as Error).message).toBe('Deepgram API key is invalid or expired');
   });
 
   test('402 maps to ProviderUnavailableError (billing exhaustion, fails over to a sibling)', async () => {

@@ -181,8 +181,10 @@ pub const MODE_NAME_MAX_CHARS: usize = 100;
 pub const MODE_LANGUAGE_MAX_CHARS: usize = 32;
 /// Longest `preset`, in Unicode scalar values.
 pub const MODE_PRESET_MAX_CHARS: usize = 64;
-/// Longest `userSystemPrompt` / `geminiCustomPrompt`, in Unicode scalar values.
-pub const MODE_PROMPT_MAX_CHARS: usize = 2000;
+/// Longest `userSystemPrompt`, in Unicode scalar values.
+pub const MODE_PROMPT_MAX_CHARS: usize = 8000;
+/// Longest `geminiCustomPrompt`, in Unicode scalar values.
+pub const MODE_GEMINI_PROMPT_MAX_CHARS: usize = 2000;
 /// Most `customVocabulary` terms.
 pub const MODE_CUSTOM_VOCABULARY_MAX_TERMS: usize = 1000;
 /// Longest single `customVocabulary` term, in Unicode scalar values.
@@ -378,13 +380,16 @@ pub fn validate_mode(input: &ModeValidationInput) -> Option<Failure> {
         }
     }
 
-    for prompt in [&input.user_system_prompt, &input.gemini_custom_prompt]
-        .into_iter()
-        .flatten()
-    {
-        if prompt.chars().count() > MODE_PROMPT_MAX_CHARS {
+    for (prompt, max_chars) in [
+        (&input.user_system_prompt, MODE_PROMPT_MAX_CHARS),
+        (&input.gemini_custom_prompt, MODE_GEMINI_PROMPT_MAX_CHARS),
+    ] {
+        if prompt
+            .as_ref()
+            .is_some_and(|prompt| prompt.chars().count() > max_chars)
+        {
             return Some(invalid(format!(
-                "Mode prompt exceeds {MODE_PROMPT_MAX_CHARS} characters."
+                "Mode prompt exceeds {max_chars} characters."
             )));
         }
     }
@@ -528,8 +533,8 @@ mod tests {
         missing_required_mode_keys, mode_key_classification, mode_name_comparison_key,
         mode_name_conflict, mode_name_taken_failure, validate_mode, ModeKeyClass, ModeOperation,
         ModeValidationInput, KNOWN_MODE_KEYS, MODE_CUSTOM_VOCABULARY_MAX_TERMS,
-        MODE_CUSTOM_VOCABULARY_TERM_MAX_CHARS, MODE_NAME_MAX_CHARS, MODE_PROMPT_MAX_CHARS,
-        PLATFORM_ONLY_MODE_KEYS, READ_ONLY_MODE_KEYS, REQUIRED_MODE_KEYS,
+        MODE_CUSTOM_VOCABULARY_TERM_MAX_CHARS, MODE_GEMINI_PROMPT_MAX_CHARS, MODE_NAME_MAX_CHARS,
+        MODE_PROMPT_MAX_CHARS, PLATFORM_ONLY_MODE_KEYS, READ_ONLY_MODE_KEYS, REQUIRED_MODE_KEYS,
     };
     use crate::failure::LocalApiErrorCode;
 
@@ -803,6 +808,13 @@ mod tests {
         );
         assert_eq!(
             message(ModeValidationInput {
+                user_system_prompt: Some("u".repeat(8001)),
+                ..ModeValidationInput::new(ModeOperation::Patch)
+            }),
+            "Mode prompt exceeds 8000 characters."
+        );
+        assert_eq!(
+            message(ModeValidationInput {
                 custom_vocabulary: Some(
                     vec!["t".repeat(MODE_CUSTOM_VOCABULARY_TERM_MAX_CHARS + 1)]
                 ),
@@ -847,7 +859,7 @@ mod tests {
             },
             ModeValidationInput {
                 user_system_prompt: Some("u".repeat(MODE_PROMPT_MAX_CHARS)),
-                gemini_custom_prompt: Some("g".repeat(MODE_PROMPT_MAX_CHARS)),
+                gemini_custom_prompt: Some("g".repeat(MODE_GEMINI_PROMPT_MAX_CHARS)),
                 ..ModeValidationInput::new(ModeOperation::Patch)
             },
             ModeValidationInput {

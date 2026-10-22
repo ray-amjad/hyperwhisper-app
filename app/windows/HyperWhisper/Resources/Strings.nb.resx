@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Et annet program har låst historikkdatabasen. Opptaket er beholdt og blir lagret i historikken når databasen er ledig.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Dette opptaket kunne ikke lagres i historikken ennå. Opptaket er beholdt og blir lagret i historikken senere.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -366,6 +372,9 @@
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
+  </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Ikke tilgjengelig i en testprofil. Denne versjonen bruker en egen mappe for appdata, så den endrer ikke påloggingsoppføringen til den installerte appen.</value>
   </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Start minimert</value>
@@ -717,6 +726,9 @@
   <data name="errors.noSpeechDetected" xml:space="preserve">
     <value>No speech detected in the recording.</value>
   </data>
+  <data name="errors.microphoneSentNoAudio" xml:space="preserve">
+    <value>Den valgte mikrofonen sendte ingen lyd. Kontroller inndataenheten din og prøv igjen.</value>
+  </data>
 
   <!-- Alerts -->
 
@@ -736,6 +748,9 @@
     <value>Dette vil permanent slette %d opptak og deres lydfiler.
 
 Denne handlingen kan ikke angres.</value>
+  </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Ingenting ble slettet. Historikken din er uendret. Prøv igjen.</value>
   </data>
 
   <!-- Audio Errors -->
@@ -784,6 +799,12 @@ Denne handlingen kan ikke angres.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Ikke aktivert)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (Ingen API-nøkkel)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -814,6 +835,9 @@ Denne handlingen kan ikke angres.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Filtranskripsjon avbrutt</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transkriberer fil...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -837,11 +861,11 @@ Denne handlingen kan ikke angres.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Modusen som laget dette opptaket er slettet, så det ble ikke prøvd igjen. Høyreklikk på opptaket i Historikk, og velg «Prøv igjen med...» for å velge en annen modus.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Opptak stoppet — 20-minutters sikkerhetsgrense nådd.</value>
@@ -1075,6 +1099,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Snarveier med bare én modifikatortast som Ctrl, Alt, Shift eller Win støttes ikke. Bruk en tast med modifikatorer eller en snarvei med flere modifikatorer, for eksempel Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>En snarvei uten modifikatortast må være en funksjonstast eller Esc. Alle andre taster ville blitt utløst mens du skriver.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Denne snarveien brukes allerede til {0} ({1})</value>
   </data>
@@ -1115,6 +1142,9 @@ You must have at least one mode.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Windows-appkontroll blokkerte {0}, en fil HyperWhisper trenger. Be IT-administratoren din om å tillate HyperWhisper, eller sjekk Smart appkontroll i Windows-sikkerhet.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>
@@ -1146,6 +1176,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Modellen er i bruk</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} brukes av modusen «{1}». Bytt modusen til en annen modell før du sletter den.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1280,6 +1316,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Dette ser ikke ut som en kontonøkkel.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1300,8 +1339,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Et opptak eller en filtranskripsjon pågår allerede. Prøv filen på nytt når den er ferdig.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Denne filen er tom, så det finnes ingen lyd å transkribere.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Denne filen er skadet eller er ikke en lydfil HyperWhisper kan lese.</value>
   </data>
 
   <!-- Mode Change Toast -->
@@ -1684,6 +1732,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Mer...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1978,11 +2029,35 @@ You can re-download it later.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Dump lyd</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Brukes bare av HyperWhisper. Huskes etter omstart.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Standard · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (ikke tilkoblet)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Bruker {0} til {1} kobles til igjen.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Ingen mikrofon er tilkoblet. HyperWhisper bruker {0} når den kobles til igjen.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Prøv</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Stopp</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

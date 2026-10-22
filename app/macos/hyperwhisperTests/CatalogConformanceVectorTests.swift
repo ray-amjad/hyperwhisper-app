@@ -18,6 +18,7 @@
 //    cd shared-core-rs && cargo test -p hw-core --test catalog_vectors -- --ignored regenerate
 //
 
+import CoreData
 import Foundation
 import Testing
 @testable import HyperWhisper
@@ -31,6 +32,12 @@ struct CatalogConformanceVectorTests {
         let vendorGroups: [VendorGroupVector]
         let pickerLanguageCodes: [PickerVector]
         let modelsEntries: [ModelsEntryVector]
+        let effectiveModeCloudProvider: [EffectiveCloudProviderVector]
+    }
+
+    struct EffectiveCloudProviderVector: Decodable {
+        let input: String?
+        let expected: String
     }
 
     struct EntryVector: Decodable {
@@ -277,6 +284,156 @@ struct CatalogConformanceVectorTests {
         )
     }
 
+    /// The codes the Mode editor's language picker offers for a HyperWhisper
+    /// Cloud tier and model, built the way `ModeEditorView` builds them.
+    private static func modeEditorPickerCodes(_ tier: CloudAccuracyTier, modelId: String) -> [String] {
+        LanguageSelectionView.allowedLanguageInfos(
+            provider: .cloud,
+            model: modelId,
+            cloudProviderId: tier.sttProvider,
+            cloudModelId: modelId,
+            cloudTierId: tier.rawValue
+        ).map(\.code)
+    }
+
+    /// The picker rows a vector's codes keep, matched on primary subtag the
+    /// way `LanguageSelectionView.catalogLanguageInfos` matches them.
+    private static func tierRows(_ codes: [String]) -> Set<String> {
+        let allowed = Set(codes.map { $0.lowercased() })
+        return Set(LanguageData.allLanguages.map(\.code).filter {
+            allowed.contains(LanguageSelectionView.primarySubtag(of: $0))
+        })
+    }
+
+    @Test("The Mode editor picker never offers more than a HyperWhisper Cloud model supports (#831)")
+    func modeEditorPickerFollowsTheTierVectors() throws {
+        let auto = LanguageData.automaticCode
+        var tierChecked = 0
+        for want in try Self.vectors().pickerLanguageCodes {
+            guard let codes = want.codes, let tier = CloudAccuracyTier(rawValue: want.id) else { continue }
+            let rows = Self.tierRows(codes)
+            for model in CloudSTTCatalog.shared.models(forEntryId: want.id) {
+                let label = "\(want.id)/\(model.id)"
+                let got = Set(Self.modeEditorPickerCodes(tier, modelId: model.id))
+                let perModel = STTCapabilities.languages(providerId: tier.sttProvider, modelId: model.id)
+                if perModel.isEmpty {
+                    // No per-model row: the tier's catalog set, never the full list.
+                    #expect(got == rows, "\(label): the picker must offer the tier's catalog set")
+                    tierChecked += 1
+                } else {
+                    // A vendor-confirmed per-model set wins, even when narrower.
+                    #expect(
+                        got.subtracting([auto]) == Set(perModel.map(\.code)).subtracting([auto]),
+                        "\(label): the picker must offer the model's own set"
+                    )
+                }
+            }
+        }
+        #expect(tierChecked > 0, "no tier model without a per-model row was checked")
+
+        // The issue's case: GPT Transcribe, the OpenAI tier's default, has no
+        // STTCapabilities row and used to fall through to every language.
+        let openai = try #require(try Self.vectors().pickerLanguageCodes.first { $0.id == "openaiWhisper" }?.codes)
+        let gpt = Self.modeEditorPickerCodes(.openaiWhisper, modelId: "gpt-transcribe")
+        #expect(STTCapabilities.languages(providerId: "openai", modelId: "gpt-transcribe").isEmpty)
+        #expect(Set(gpt) == Self.tierRows(openai))
+        #expect(gpt.count < LanguageData.allLanguages.count, "gpt-transcribe must not offer every language")
+        #expect(gpt.first == LanguageData.automaticCode)
+    }
+
+    @Test("A per-model set narrower than its tier stays narrow on HyperWhisper Cloud")
+    func modeEditorPickerKeepsPerModelSets() throws {
+        let assembly = try #require(try Self.vectors().pickerLanguageCodes.first { $0.id == "assemblyAI" }?.codes)
+        let u35 = Set(Self.modeEditorPickerCodes(.assemblyAI, modelId: "universal-3-5-pro"))
+        let vendor = Set(STTCapabilities.languages(providerId: "assemblyai", modelId: "universal-3-5-pro").map(\.code))
+        #expect(!vendor.isEmpty)
+        #expect(u35.subtracting([LanguageData.automaticCode]) == vendor.subtracting([LanguageData.automaticCode]))
+        #expect(u35.count < Self.tierRows(assembly).count, "Universal 3.5 Pro must not widen to the AssemblyAI tier set")
+
+        let medical = Set(Self.modeEditorPickerCodes(.assemblyAI, modelId: "universal-3-5-pro-medical"))
+        let medicalVendor = Set(STTCapabilities.languages(providerId: "assemblyai", modelId: "universal-3-5-pro-medical").map(\.code))
+        #expect(!medicalVendor.isEmpty)
+        #expect(medical.subtracting([LanguageData.automaticCode]) == medicalVendor.subtracting([LanguageData.automaticCode]))
+    }
+
+    /// The codes the Mode editor's language picker offers for a BYOK
+    /// provider and model, built the way `ModeEditorView` builds them.
+    private static func byokPickerCodes(_ provider: CloudProvider, modelId: String) -> [String] {
+        LanguageSelectionView.allowedLanguageInfos(
+            provider: .cloud,
+            model: modelId,
+            cloudProviderId: provider.rawValue,
+            cloudModelId: modelId,
+            cloudTierId: ModeEditorView.languageFilterCatalogEntryId(
+                cloudProvider: provider,
+                cloudTier: .fromStorageValue(nil), // ignored off HyperWhisper Cloud
+                modelId: modelId
+            )
+        ).map(\.code)
+    }
+
+    @Test("The BYOK Mode editor picker offers a catalogued model's catalog set, not every language (#1942)")
+    func byokPickerFollowsTheCatalog() throws {
+        let vectors = try Self.vectors().pickerLanguageCodes
+        let all = Set(LanguageData.allLanguages.map(\.code))
+
+        // The issue's two models: no STTCapabilities row, and every language before.
+        let openai = try #require(vectors.first { $0.id == "openaiWhisper" }?.codes)
+        for modelId in ["gpt-transcribe", "gpt-4o-mini-transcribe-2025-12-15"] {
+            #expect(STTCapabilities.languages(providerId: "openai", modelId: modelId).isEmpty)
+            #expect(
+                ModeEditorView.languageFilterCatalogEntryId(cloudProvider: .openai, cloudTier: .fromStorageValue(nil), modelId: modelId)
+                    == "openaiWhisper"
+            )
+            let got = Self.byokPickerCodes(.openai, modelId: modelId)
+            #expect(Set(got) == Self.tierRows(openai), "\(modelId): the picker must offer the catalog set")
+            #expect(got.count < LanguageData.allLanguages.count, "\(modelId) must not offer every language")
+            #expect(got.first == LanguageData.automaticCode)
+        }
+
+        // Every BYOK model the app lists: a per-model row wins; else a
+        // catalogued model gets its entry's set; else (not catalogued, or the
+        // catalog set is unverified) the full list, as before.
+        var catalogChecked = 0
+        for model in CloudTranscriptionModels.availableModels where model.provider != .hyperwhisper {
+            let label = "\(model.provider.rawValue)/\(model.id)"
+            let got = Set(Self.byokPickerCodes(model.provider, modelId: model.id))
+            let perModel = STTCapabilities.languages(providerId: model.provider.rawValue, modelId: model.id)
+            let entryId = CloudSTTCatalog.shared.byokEntryId(cloudProvider: model.provider.rawValue, modelId: model.id)
+            let codes = entryId.flatMap { id in vectors.first { $0.id == id }?.codes }
+            if !perModel.isEmpty {
+                #expect(
+                    got.subtracting([LanguageData.automaticCode])
+                        == Set(perModel.map(\.code)).subtracting([LanguageData.automaticCode]),
+                    "\(label): the picker must offer the model's own set"
+                )
+            } else if let codes {
+                #expect(got == Self.tierRows(codes), "\(label): the picker must offer the catalog set")
+                catalogChecked += 1
+            } else {
+                #expect(got == all, "\(label): an uncatalogued model keeps the full list")
+            }
+        }
+        #expect(catalogChecked >= 2, "the BYOK catalog path checked only \(catalogChecked) models")
+    }
+
+    @Test("A BYOK provider resolves only the catalog entry that lists its model (#1942)")
+    func byokEntryIdNeedsProviderAndModel() {
+        let catalog = CloudSTTCatalog.shared
+        #expect(catalog.byokEntryId(cloudProvider: "openai", modelId: "gpt-transcribe") == "openaiWhisper")
+        #expect(catalog.byokEntryId(cloudProvider: "OpenAI", modelId: "GPT-Transcribe") == "openaiWhisper")
+        // A model the catalog does not list for that provider resolves nothing.
+        #expect(catalog.byokEntryId(cloudProvider: "openai", modelId: "not-a-model") == nil)
+        #expect(catalog.byokEntryId(cloudProvider: "groq", modelId: "gpt-transcribe") == nil)
+        #expect(catalog.byokEntryId(cloudProvider: "", modelId: "gpt-transcribe") == nil)
+        // HyperWhisper Cloud keeps the selected tier.
+        #expect(
+            ModeEditorView.languageFilterCatalogEntryId(
+                cloudProvider: .hyperwhisper, cloudTier: .openaiWhisper, modelId: "gpt-transcribe"
+            ) == "openaiWhisper"
+        )
+    }
+
     @Test("models-catalog lookups match the shared vectors")
     func modelsEntriesMatchTheVectors() throws {
         let expected = try Self.vectors().modelsEntries
@@ -308,6 +465,58 @@ struct CatalogConformanceVectorTests {
             #expect(support.supportsAll == want.supportsAllLanguages, "\(label).supportsAllLanguages")
             #expect(support.codes == Set(want.languageCodes), "\(label).languageCodes")
         }
+    }
+
+    @Test("A mode's effective cloud provider matches the shared vectors (#1709)")
+    func effectiveModeCloudProviderMatchesTheVectors() throws {
+        let vectors = try Self.vectors().effectiveModeCloudProvider
+        #expect(vectors.contains { $0.input == nil }, "no vector covers a nil cloudProvider")
+        for want in vectors {
+            let label = want.input.map { "\"\($0)\"" } ?? "nil"
+            #expect(
+                cloudSttEffectiveModeCloudProvider(value: want.input) == want.expected,
+                "\(label): shared core answer"
+            )
+            // This head takes the core's answer only for a blank value and
+            // keeps a non-blank value as stored.
+            let blank = want.input?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true
+            #expect(
+                CloudProvider.effectiveModeStorageValue(want.input) == (blank ? Optional(want.expected) : want.input),
+                "\(label): CloudProvider.effectiveModeStorageValue"
+            )
+        }
+        #expect(CloudProvider.forMode(nil) == .hyperwhisper)
+        #expect(CloudProvider.forMode("") == .hyperwhisper)
+        #expect(CloudProvider.forMode("   ") == .hyperwhisper)
+        #expect(CloudProvider.forMode("deepgram") == .deepgram)
+        #expect(CloudProvider.effectiveModeStorageValue("") == CloudProvider.hyperwhisper.rawValue)
+        #expect(CloudProvider.effectiveModeStorageValue(" \t") == CloudProvider.hyperwhisper.rawValue)
+        // A non-blank id this build does not model passes through as stored.
+        #expect(CloudProvider.effectiveModeStorageValue("someFutureVendor") == "someFutureVendor")
+    }
+
+    /// Every blank spelling reads as HyperWhisper Cloud in the mode readers too
+    /// (card, snapshot, editor data), the same answer the router gives (#1709).
+    @MainActor
+    @Test("A blank stored cloudProvider reads as HyperWhisper Cloud in the mode readers (#1709)")
+    func blankStoredCloudProviderReadsAsHyperWhisperInModeReaders() {
+        let persistence = PersistenceController(inMemory: true)
+        for stored in [nil, "", "   "] as [String?] {
+            let mode = Mode(context: persistence.container.viewContext)
+            mode.id = UUID()
+            mode.model = "cloud"
+            mode.cloudProvider = stored
+            let label = stored.map { "\"\($0)\"" } ?? "nil"
+            #expect(ModeSnapshot(mode).cloudProvider == CloudProvider.hyperwhisper.rawValue, "\(label): ModeSnapshot")
+            #expect(ModeSnapshot(mode).rawCloudProvider == stored, "\(label): ModeSnapshot raw value")
+            #expect(ModeData(from: mode).cloudProvider == CloudProvider.hyperwhisper.rawValue, "\(label): ModeData")
+        }
+        let byok = Mode(context: persistence.container.viewContext)
+        byok.id = UUID()
+        byok.model = "cloud"
+        byok.cloudProvider = "deepgram"
+        #expect(ModeSnapshot(byok).cloudProvider == "deepgram")
+        #expect(ModeData(from: byok).cloudProvider == "deepgram")
     }
 
     @Test("The vectors cover every polymorphic branch")

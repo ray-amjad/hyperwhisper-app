@@ -10,6 +10,7 @@ using HyperWhisper.Linux.Overlay;
 using System.Globalization;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
+using HyperWhisper.PortableApplication.ViewModels;
 using HyperWhisper.LocalInference;
 using HyperWhisper.LocalApi;
 using HyperWhisper.SpeechOutput;
@@ -20,6 +21,45 @@ using HyperWhisper.ModelReadiness;
 using System.Diagnostics;
 
 [assembly: SupportedOSPlatform("linux")]
+
+// A real Avalonia window needs a real windowing platform, and Avalonia allows one per process, so
+// the #1629 render test re-runs this harness under xvfb-run in this mode.
+if (args is [ModeEditorEngineSwitchRenderTests.ProbeArgument])
+{
+    Environment.Exit(await ModeEditorEngineSwitchRenderTests.RunProbeAsync());
+}
+if (args is [ModeEditorSourceSegmentRenderTests.ProbeArgument])
+{
+    Environment.Exit(await ModeEditorSourceSegmentRenderTests.RunProbeAsync());
+}
+if (args is [MediaControlComboRenderTests.ProbeArgument])
+{
+    Environment.Exit(await MediaControlComboRenderTests.RunProbeAsync());
+}
+if (args is [BackendPickerPageLeaveRenderTests.ProbeArgument])
+{
+    Environment.Exit(BackendPickerPageLeaveRenderTests.RunProbe());
+}
+if (args is [MicrophonePickerRenderTests.ProbeArgument])
+{
+    Environment.Exit(MicrophonePickerRenderTests.RunProbe());
+}
+if (args is [BackupErrorRenderTests.ProbeArgument])
+{
+    Environment.Exit(BackupErrorRenderTests.RunProbe());
+}
+if (args is [AutoDeleteDaysCommitRenderTests.ProbeArgument])
+{
+    Environment.Exit(AutoDeleteDaysCommitRenderTests.RunProbe());
+}
+if (args is [HistoryRevisitRenderTests.ProbeArgument])
+{
+    Environment.Exit(HistoryRevisitRenderTests.RunProbe());
+}
+if (args is [ProviderApiKeySaveFailureRenderTests.ProbeArgument])
+{
+    Environment.Exit(ProviderApiKeySaveFailureRenderTests.RunProbe());
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -43,15 +83,22 @@ var tests = new (string Name, Func<Task> Run)[]
     ("live delivered final is not injected twice", LiveDeliveredFinalIsNotDuplicated),
     ("production live sink forwards partial and final updates", LiveSinkForwardsUpdates),
     ("cloud provider storage values route deterministically", CloudProviderStorageRoutes),
+    ("a cloud mode with a blank cloudProvider reads as HyperWhisper Cloud on its card", BlankCloudProviderReadsAsHyperWhisperCloud),
     ("audio restoration is never caller-cancelled", AudioRestorationIsNonCancelable),
     ("recording refuses every kind when no input device is selected", RecordingRefusesWithoutInputDevice),
+    ("a silent recording reads No speech detected, not Transcription failed", SilentRecordingReadsNoSpeech),
     ("live models are provider-specific", LiveModelsAreProviderSpecific),
     ("local and cloud live sessions select isolated engines", LiveEngineRoutingIsIsolated),
     ("production Whisper backend selection reaches inference", WhisperBackendSelectionReachesInference),
     ("local Whisper timestamps route through portable result", LocalWhisperTimestampsRoute),
+    ("local Whisper turns off past-text carry-over without timestamps", LocalWhisperNoCarryOverWithoutTimestamps),
     ("production Whisper CPU fallback policy is enforced", WhisperCpuFallbackPolicyIsEnforced),
     ("production Whisper settings select detected and explicit backends", WhisperSettingsSelectBackends),
+    ("Model Library Whisper line names a missing hyperwhisper-cuda package", ModelLibraryWhisperLineNamesMissingCudaPackage),
     ("Local API post-processing matches Windows transient modes", LocalApiPostProcessingTransientModes),
+    ("Local API post-processing refuses a Cloud run with no account key", LocalApiPostProcessingCloudAccountRequired),
+    ("Local API post-processing answers a deleted mode_id as MODE_NOT_FOUND", LocalApiPostProcessingDeletedModeNotFound),
+    ("Local API /health key_present for hyperwhisper follows the account key", LocalApiHealthCloudKeyFollowsAccountKey),
     ("mode cycling is deterministic and wraps", ModeCyclingIsDeterministic),
     ("the Local API preferred port clamps, refuses and reads like the control", LocalApiPortEntryRules),
     ("typed tray actions route without unsafe overlap", TypedTrayActionsRouteSafely),
@@ -73,6 +120,19 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a second launch hands off and exits 0, a second smoke run fails", SecondLaunchHandsOff),
     ("a failed instance acquire exits 1 from the main loop", AcquireFailureExitsOne),
     ("a shutdown signal runs the quit once, then the watchdog or the runtime default", ShutdownSignalsRouteToQuit),
+    ("streaming language picker offers the selected provider's catalog set", StreamingLanguagePickerFollowsProvider),
+    ("a real Avalonia ComboBox shows Automatic after a provider or tier change resets the language", StreamingLanguageComboShowsResetToAutomatic),
+    ("a finished batch dictation leaves the status bar reading Ready (#958)", RecordingStatusAfterStopTests.BatchStopLeavesReady),
+    ("a failed clipboard write shows Copy failed on the overlay and a paste-failed status line (#1703, #1402)", RecordingStatusAfterStopTests.FailedCopyShowsCopyFailed),
+    ("the mode editor's local model combo shows the engine's model after an engine change (#1629)", ModeEditorEngineSwitchRenderTests.RunAsync),
+    ("every Source segment in the mode editor shows its whole label (#635)", ModeEditorSourceSegmentRenderTests.RunAsync),
+    ("the Sound page's media-control ComboBox shows its whole label in every long culture", MediaControlComboRenderTests.RunAsync),
+    ("leaving Model Library keeps the Whisper and LLM backend picks in the view model and settings.json (#1967)", BackendPickerPageLeaveRenderTests.RunAsync),
+    ("Settings → Sound shows the saved microphone (not connected) with the fallback line, an idle level bar, and Default clears it for Home too", MicrophonePickerRenderTests.RunAsync),
+    ("the Storage auto-delete days box applies nothing until it loses focus (#2199)", AutoDeleteDaysCommitRenderTests.RunAsync),
+    ("the Backup page shows an inspect failure and clears it on a good file (#2124)", BackupErrorRenderTests.RunAsync),
+    ("a History revisit with nothing changed does not reload the list; a period change or a write still does (#2099)", HistoryRevisitRenderTests.RunAsync),
+    ("a failed provider-key save leaves no typed key in the shared credentials view model (#1388)", ProviderApiKeySaveFailureRenderTests.RunAsync),
 };
 
 foreach (var test in tests)
@@ -378,20 +438,44 @@ static async Task OnboardingModeReadiness()
     // UnifiedModelCatalog.LoadBundled() and reads the REAL bundled
     // cloud-stt-catalog.json. Without that a catalog row could go missing and
     // every synthetic case would still pass.
+    //
+    // This used to probe Azure MAI through `microsoftazurespeech`, which the onboarding's own
+    // alias switch mapped to `azure-mai`. Since issue #601 that id goes through the shared fold
+    // and reads as HyperWhisper Cloud (below), so the bundled-catalog probe uses a BYOK vendor
+    // whose provider id is its catalog id.
     var bundled = new LinuxOnboardingModeReadiness(credentials, localModels);
-    foreach (var azureModel in new[] { "mai-transcribe-2", "mai-transcribe-1.5" })
+    foreach (var openAiModel in new[] { "whisper-1", "gpt-4o-transcribe" })
     {
         Assert(await bundled.IsReadyAsync(new Mode
         {
-            ProviderType = "cloud", CloudProvider = "microsoftazurespeech",
-            CloudTranscriptionModel = azureModel,
-        }), $"the real bundled catalog rejected Azure MAI model '{azureModel}'");
+            ProviderType = "cloud", CloudProvider = "openai",
+            CloudTranscriptionModel = openAiModel,
+        }), $"the real bundled catalog rejected OpenAI model '{openAiModel}'");
     }
     Assert(!await bundled.IsReadyAsync(new Mode
     {
-        ProviderType = "cloud", CloudProvider = "microsoftazurespeech",
-        CloudTranscriptionModel = "mai-transcribe-3",
+        ProviderType = "cloud", CloudProvider = "openai",
+        CloudTranscriptionModel = "whisper-9",
     }), "a model id the catalog does not carry was accepted");
+
+    // Issue #601 gap 3. The retired standalone ids go through the SHARED fold, the one the Local
+    // API, the startup pass and the Mode editor use: they are HyperWhisper Cloud modes, ready
+    // exactly when the licence is. The old hand-written switch sent `googlespeech` to
+    // `google-chirp`, which no catalog provider carries since v8, so onboarding kept rejecting a
+    // mode the Local API reported as folded.
+    Assert(LinuxOnboardingModeReadiness.NormalizeCloudProvider("googlespeech") == "hyperwhisper"
+        && LinuxOnboardingModeReadiness.NormalizeCloudProvider(" microsoftAzureSpeech ") == "hyperwhisper"
+        && LinuxOnboardingModeReadiness.NormalizeCloudProvider("xai") == "grok"
+        && LinuxOnboardingModeReadiness.NormalizeCloudProvider(" OpenAI ") == "openai",
+        "onboarding's provider fold disagrees with the shared normalize_cloud_provider");
+    foreach (var legacy in new[] { "googlespeech", "googleSpeech", "microsoftazurespeech", "microsoftAzureSpeech" })
+    {
+        Assert(await bundled.IsReadyAsync(new Mode { ProviderType = "cloud", CloudProvider = legacy }),
+            $"a legacy '{legacy}' mode with a licence was not ready; it is a HyperWhisper Cloud mode");
+        Assert(!await new LinuxOnboardingModeReadiness(new OnboardingCredentials(), localModels)
+                .IsReadyAsync(new Mode { ProviderType = "cloud", CloudProvider = legacy }),
+            $"a legacy '{legacy}' mode with no licence was accepted");
+    }
 }
 
 static async Task M4aStorageEncodes()
@@ -1216,6 +1300,42 @@ static Task CloudProviderStorageRoutes()
     return Task.CompletedTask;
 }
 
+// #1709. The mode card, the status bar, the editor and the router used to give four answers for a
+// Cloud mode with no stored provider. The card and the status bar read it through the shared rule
+// now: blank (including whitespace) is HyperWhisper Cloud, and a non-blank id keeps its own meaning.
+static Task BlankCloudProviderReadsAsHyperWhisperCloud()
+{
+    foreach (var value in new string?[] { null, "", "   ", "hyperwhisper", "HyperWhisper", "hyperwhispercloud", "hyperwhisper_cloud" })
+        Assert(ModeProviderLineConverter.IsHyperWhisperCloud(value),
+            $"cloudProvider {(value is null ? "<null>" : $"'{value}'")} did not read as HyperWhisper Cloud");
+    foreach (var value in new[] { "deepgram", "elevenlabs", "googlespeech", "microsoftazurespeech" })
+        Assert(!ModeProviderLineConverter.IsHyperWhisperCloud(value),
+            $"cloudProvider '{value}' read as HyperWhisper Cloud; only a blank value changes meaning");
+
+    var statusBar = new StatusBarModelConverter();
+    var explicitLabel = statusBar.Convert(
+        new Mode { ProviderType = "cloud", CloudProvider = "hyperwhisper", CloudAccuracyTier = "elevenLabsScribeV2" },
+        typeof(string), null, CultureInfo.InvariantCulture) as string;
+    foreach (var blank in new string?[] { null, "", "   " })
+    {
+        var label = statusBar.Convert(
+            new Mode { ProviderType = "cloud", CloudProvider = blank, CloudAccuracyTier = "elevenLabsScribeV2" },
+            typeof(string), null, CultureInfo.InvariantCulture) as string;
+        Assert(label == explicitLabel && !string.IsNullOrWhiteSpace(label),
+            $"status bar read '{label}' for a blank-provider cloud mode, not the tier label '{explicitLabel}'");
+    }
+    // #1908: a stored retired Grok 1.0 mode is named by its 2.0 successor, not drawn as a raw id.
+    var retired = statusBar.Convert(
+        new Mode { ProviderType = "cloud", CloudProvider = "grok", CloudTranscriptionModel = "grok-voice-transcribe-1.0" },
+        typeof(string), null, CultureInfo.InvariantCulture) as string;
+    var successor = statusBar.Convert(
+        new Mode { ProviderType = "cloud", CloudProvider = "grok", CloudTranscriptionModel = "grok-voice-transcribe-2.0" },
+        typeof(string), null, CultureInfo.InvariantCulture) as string;
+    Assert(retired == successor && retired != "grok-voice-transcribe-1.0",
+        $"status bar read '{retired}' for a stored Grok 1.0 mode, not the 2.0 label '{successor}'");
+    return Task.CompletedTask;
+}
+
 static async Task AudioRestorationIsNonCancelable()
 {
     var environment = new FakeAudioEnvironmentSession();
@@ -1247,6 +1367,21 @@ static Task RecordingRefusesWithoutInputDevice()
     var selected = LinuxRecordingInputDeviceGate.Check("alsa_input.pci-0000_00_1f.3.analog-stereo");
     Assert(selected.IsSuccess && selected.Error is null,
         "the input device gate refused a real enumerated microphone");
+    return Task.CompletedTask;
+}
+
+// Issue #1742: the workflow reports a transcript that is empty after Whisper's
+// non-speech markers are stripped as workflow.no_speech. The batch stop path
+// must hand that code to the overlay; every other failure stays one code.
+static Task SilentRecordingReadsNoSpeech()
+{
+    Assert(LinuxRecordingOverlayErrorMapper.FromCode(
+            LinuxInteractionRecordingSession.FailureCodeFor("workflow.no_speech"), transcription: true)
+        == LinuxRecordingOverlayError.NoSpeechDetected,
+        "a silent recording did not reach the no-speech overlay");
+    foreach (var other in new string?[] { null, "workflow.transcriptionfailed", "workflow.backend_failed", "workflow.persistence_failed" })
+        Assert(LinuxInteractionRecordingSession.FailureCodeFor(other) == "workflow.transcription_failed",
+            $"a workflow failure ({other ?? "null"}) changed its overlay code");
     return Task.CompletedTask;
 }
 
@@ -1314,10 +1449,20 @@ static async Task LocalWhisperTimestampsRoute()
         new TranscriptionWorkflowRequest(Language: "en", StoreWordTimestamps: true));
     Assert(result.IsSuccess && fixture.Service.LastRequest?.IncludeWordTimestamps == true,
         "portable timestamp preference did not reach local Whisper");
+    Assert(fixture.Service.LastRequest?.MaxLastTextTokensZero == true,
+        "local Whisper still primes each window with the text before it (#1559)");
     Assert(result.Timestamps is { Segments.Count: 1, Words.Count: 2 }
         && result.Timestamps.RawText == "Ray GPU route"
         && result.Timestamps.Words![0].Word == "Ray",
         "local Whisper timestamps were not mapped into the provider-neutral result");
+}
+
+static async Task LocalWhisperNoCarryOverWithoutTimestamps()
+{
+    using var fixture = new WhisperTranscriberFixture(LocalWhisperBackend.Cpu, allowFallback: true, RuntimeFor(LocalWhisperBackend.Cpu));
+    var result = await fixture.Transcriber.TranscribeAsync(fixture.AudioPath, "en");
+    Assert(result.IsSuccess && fixture.Service.LastRequest is { MaxLastTextTokensZero: true, IncludeWordTimestamps: false },
+        "local Whisper still primes each window with the text before it (#1559)");
 }
 
 static async Task WhisperCpuFallbackPolicyIsEnforced()
@@ -1351,16 +1496,110 @@ static Task WhisperSettingsSelectBackends()
     {
         Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND", null);
         Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", null);
+        var nvidia = new FixedGpu(new GpuInfo { Name = "NVIDIA", SupportsCuda = true, SupportsVulkan = true });
         var detected = new LinuxWhisperRuntimePreferenceSource(
-            new MissingPrivateFiles(), new StaticPaths(root),
-            new FixedGpu(new GpuInfo { Name = "NVIDIA", SupportsCuda = true, SupportsVulkan = true }));
+            new MissingPrivateFiles(), new StaticPaths(root), nvidia,
+            new FixedRuntime(NativeComputeBackend.Cpu, NativeComputeBackend.Vulkan, NativeComputeBackend.Cuda));
         Assert(detected.Resolve() == new LinuxWhisperRuntimePreference(LocalWhisperBackend.Cuda12, true),
             "automatic selection did not prefer detected CUDA 12");
+
+        // Issue #1002: without the hyperwhisper-cuda package, CUDA falls back to
+        // Vulkan and the status names the package.
+        var noCudaPackage = new LinuxWhisperRuntimePreferenceSource(
+            new MissingPrivateFiles(), new StaticPaths(root), nvidia,
+            new FixedRuntime(NativeComputeBackend.Cpu, NativeComputeBackend.Vulkan));
+        var fallback = noCudaPackage.Resolve();
+        Assert(fallback == new LinuxWhisperRuntimePreference(LocalWhisperBackend.Vulkan, true,
+                Notice: HyperWhisper.Linux.Platform.SystemIntegration.LinuxCudaPackage.MissingNotice),
+            "a CUDA choice without hyperwhisper-cuda did not fall back to Vulkan");
+        using (var fixture = new WhisperTranscriberFixture(fallback, "Vulkan"))
+        {
+            var capability = fixture.Transcriber.Capability;
+            Assert(capability.IsAvailable
+                    && capability.DisplayName.Contains("install the hyperwhisper-cuda package", StringComparison.Ordinal),
+                "the Whisper status did not name the hyperwhisper-cuda package");
+        }
+
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND", "cuda12");
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", "0");
+        var strict = new LinuxWhisperRuntimePreferenceSource(
+            new MissingPrivateFiles(), new StaticPaths(root), nvidia,
+            new FixedRuntime(NativeComputeBackend.Cpu)).Resolve();
+        Assert(strict.Unavailable && strict.Backend == LocalWhisperBackend.Cuda12,
+            "strict CUDA without hyperwhisper-cuda or Vulkan was not reported unavailable");
+        using (var fixture = new WhisperTranscriberFixture(strict, "Cpu"))
+        {
+            Assert(!fixture.Transcriber.Capability.IsAvailable, "strict missing CUDA still reported available");
+            var failed = fixture.Transcriber.TranscribeAsync(fixture.AudioPath, "en").GetAwaiter().GetResult();
+            Assert(!failed.IsSuccess
+                    && failed.Failure?.Code == PortableTranscriptionErrorCode.BackendUnavailable
+                    && failed.Failure.Message.Contains("hyperwhisper-cuda", StringComparison.Ordinal)
+                    && fixture.Service.LoadOptions is null,
+                "strict missing CUDA did not fail with the install hint before loading");
+        }
 
         Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND", "vulkan");
         Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", "0");
         Assert(detected.Resolve() == new LinuxWhisperRuntimePreference(LocalWhisperBackend.Vulkan, false),
             "explicit strict Vulkan setting was not honored");
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND", previousBackend);
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", previousFallback);
+    }
+    return Task.CompletedTask;
+}
+
+// Issue #1002: picking CUDA 12 without hyperwhisper-cuda falls back silently unless the Model
+// Library's Whisper line (SettingsLocalWhisperRuntimeStatus, bound to LocalWhisperRuntimeStatus)
+// says so. Wired the way MainWindow wires it; the runtime has no cuda12 library.
+static Task ModelLibraryWhisperLineNamesMissingCudaPackage()
+{
+    var previousBackend = Environment.GetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND");
+    var previousFallback = Environment.GetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK");
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-whisper-line-{Guid.NewGuid():N}");
+    try
+    {
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND", null);
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", null);
+        var nvidia = new FixedGpu(new GpuInfo { Name = "NVIDIA", SupportsCuda = true, SupportsVulkan = true });
+        LinuxWhisperRuntimePreferenceSource Source(params NativeComputeBackend[] backends) =>
+            new(new MissingPrivateFiles(), new StaticPaths(root), nvidia, new FixedRuntime(backends));
+        var settings = new SettingsViewModel(
+            new PortableSettingsService(new MissingPrivateFiles(), Path.Combine(root, "settings.json")),
+            localWhisperRuntimeStatus: "Mode-selected transcription");
+        settings.LocalWhisperBackendNotice = Source(NativeComputeBackend.Cpu, NativeComputeBackend.Vulkan).DescribeChoice;
+        var changes = new List<string?>();
+        settings.PropertyChanged += (_, e) => changes.Add(e.PropertyName);
+
+        settings.LocalWhisperBackend = "cuda12";
+        Assert(changes.Contains(nameof(SettingsViewModel.LocalWhisperRuntimeStatus)),
+            "picking CUDA 12 did not refresh the Whisper line");
+        Assert(settings.LocalWhisperRuntimeStatus.Contains(
+                "CUDA is not installed (install the hyperwhisper-cuda package); Whisper falls back to Vulkan.",
+                StringComparison.Ordinal),
+            $"the Whisper line did not name the missing package and the Vulkan fallback: {settings.LocalWhisperRuntimeStatus}");
+
+        settings.LocalWhisperBackend = "vulkan";
+        Assert(!settings.LocalWhisperRuntimeStatus.Contains("hyperwhisper-cuda", StringComparison.Ordinal),
+            "the CUDA notice stayed on the Whisper line after picking Vulkan");
+
+        settings.LocalWhisperBackendNotice = Source(NativeComputeBackend.Cpu).DescribeChoice;
+        settings.LocalWhisperBackend = "cuda12";
+        Assert(settings.LocalWhisperRuntimeStatus.EndsWith(
+                "CUDA is not installed (install the hyperwhisper-cuda package); Whisper falls back to CPU.",
+                StringComparison.Ordinal),
+            $"the Whisper line did not name the CPU fallback: {settings.LocalWhisperRuntimeStatus}");
+        settings.AllowLocalWhisperCpuFallback = false;
+        Assert(settings.LocalWhisperRuntimeStatus.EndsWith(
+                HyperWhisper.Linux.Platform.SystemIntegration.LinuxCudaPackage.MissingFailure, StringComparison.Ordinal),
+            $"the Whisper line did not say strict CUDA cannot run: {settings.LocalWhisperRuntimeStatus}");
+
+        settings.LocalWhisperBackendNotice = Source(
+            NativeComputeBackend.Cpu, NativeComputeBackend.Vulkan, NativeComputeBackend.Cuda).DescribeChoice;
+        Assert(settings.LocalWhisperRuntimeStatus == "Current process capability: Mode-selected transcription.",
+            $"an installed hyperwhisper-cuda still got a notice: {settings.LocalWhisperRuntimeStatus}");
     }
     finally
     {
@@ -1376,6 +1615,183 @@ static string RuntimeFor(LocalWhisperBackend backend) => backend switch
     LocalWhisperBackend.Vulkan => "Vulkan: test runtime",
     _ => "Cpu: test runtime",
 };
+
+static async Task LocalApiPostProcessingCloudAccountRequired()
+{
+    // Issue #1487 (Ray, inbox #298): no account key on a HyperWhisper Cloud
+    // run is MISSING_API_KEY, as on /transcribe. Any other skip keeps the
+    // generic refusal this head already sent.
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-local-api-pp-key-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+    try
+    {
+        var database = new ApplicationDb(new StaticPaths(root));
+        await database.MigrateAsync();
+        var repository = new ModeRepository(database);
+        var processor = new CapturingPostProcessor
+        {
+            Result = PortablePostProcessingResult.Skipped(
+                "raw",
+                PortablePostProcessingResult.CloudAccountRequiredFailureCode,
+                "HyperWhisper Cloud requires an account key."),
+        };
+        var adapter = new LinuxLocalApiPostProcessor(processor, repository);
+        try
+        {
+            _ = await adapter.ProcessAsync(
+                new PostProcessRequest("raw", null, null, "Translate to French", null, null),
+                CancellationToken.None);
+            throw new InvalidOperationException("a Cloud run with no account key was not refused");
+        }
+        catch (LocalApiFailureException failure)
+        {
+            Assert(failure.Code == "MISSING_API_KEY", $"expected MISSING_API_KEY, got {failure.Code}");
+            Assert(failure.HttpStatus == 200, $"a business failure must be HTTP 200, got {failure.HttpStatus}");
+            Assert(failure.Hint?.Contains("HyperWhisper Cloud", StringComparison.Ordinal) == true,
+                $"the hint does not name the Cloud settings page: {failure.Hint}");
+        }
+
+        processor.Result = PortablePostProcessingResult.Skipped(
+            "raw", "postprocessing.missingcredential", "A provider API key is required.");
+        try
+        {
+            _ = await adapter.ProcessAsync(
+                new PostProcessRequest("raw", null, null, "Translate to French", "openai", "gpt-test"),
+                CancellationToken.None);
+            throw new InvalidOperationException("a skipped BYOK run was answered ok");
+        }
+        catch (LocalApiFailureException)
+        {
+            throw new InvalidOperationException("a BYOK missing key was reported as the Cloud account refusal");
+        }
+        catch (InvalidOperationException ex) when (ex.Message == "Local post-processing is unavailable for this request.")
+        {
+        }
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
+// Issue #1935: a well-formed mode_id that names no stored mode was an
+// ArgumentException here, which the middleware answers HTTP 400
+// INVALID_REQUEST. Windows, and this head's own GET /modes/<id>, answer HTTP
+// 200 MODE_NOT_FOUND with "No mode with id '<id>'".
+static async Task LocalApiPostProcessingDeletedModeNotFound()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-local-api-pp-mode-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+    try
+    {
+        var database = new ApplicationDb(new StaticPaths(root));
+        await database.MigrateAsync();
+        var processor = new CapturingPostProcessor();
+        var adapter = new LinuxLocalApiPostProcessor(processor, new ModeRepository(database));
+        var deleted = Guid.NewGuid().ToString("D");
+        try
+        {
+            _ = await adapter.ProcessAsync(
+                new PostProcessRequest("raw", $" {deleted} ", null, null, null, null),
+                CancellationToken.None);
+            throw new InvalidOperationException("a deleted mode_id was not refused");
+        }
+        catch (LocalApiFailureException failure)
+        {
+            Assert(failure.Code == "MODE_NOT_FOUND", $"expected MODE_NOT_FOUND, got {failure.Code}");
+            Assert(failure.HttpStatus == 200, $"a business failure must be HTTP 200, got {failure.HttpStatus}");
+            Assert(failure.Message == $"No mode with id '{deleted}'", $"unexpected message: {failure.Message}");
+        }
+
+        // A malformed id is still a malformed request.
+        try
+        {
+            _ = await adapter.ProcessAsync(
+                new PostProcessRequest("raw", "not-a-guid", null, null, null, null),
+                CancellationToken.None);
+            throw new InvalidOperationException("a malformed mode_id was not refused");
+        }
+        catch (ArgumentException)
+        {
+        }
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
+// Issue #650: /health reported key_present:true for `hyperwhisper` (both
+// lists) on a profile with no account key, because a device identity counted as
+// a credential, while /transcribe refuses the same provider with
+// MISSING_API_KEY. Drives the real catalog the Local API backend serves.
+static async Task LocalApiHealthCloudKeyFollowsAccountKey()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-health-key-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+    try
+    {
+        var store = new MemoryCredentialStore();
+        // A device identity that resolves: the old fallback answered true on it.
+        var identity = new FixedDeviceIdentity();
+        using var http = new HttpClient();
+        var catalog = new LinuxLocalApiCapabilityCatalog(
+            new HyperWhisper.ModelManagement.PortableModelManager(new StaticPaths(root), http),
+            new NoLocalTranscriber(),
+            store,
+            identity,
+            new PortableSettingsService(new MissingPrivateFiles(), Path.Combine(root, "settings.json")));
+        // The source and the predicate /transcribe uses:
+        // CloudTranscriptionService.CreateParams refuses an account-key provider
+        // whose LicenseKey is null or whitespace.
+        var transcribeSource = new HyperWhisper.TranscriptionRouting.CredentialStoreCloudCredentialSource(store, identity);
+
+        static ProviderStatus Row(IReadOnlyList<ProviderStatus> rows, string id) =>
+            rows.SingleOrDefault(row => row.Id == id)
+                ?? throw new InvalidOperationException($"/health has no {id} row");
+
+        async Task Expect(bool present, string label)
+        {
+            var credential = await transcribeSource.GetCredentialAsync(
+                CloudTranscriptionProvider.HyperWhisperCloud, CancellationToken.None);
+            Assert(!string.IsNullOrWhiteSpace(credential?.LicenseKey) == present,
+                $"{label}: the /transcribe credential read disagrees with the test's expectation");
+            foreach (var (list, rows) in new[]
+            {
+                ("providers", catalog.TranscriptionProviders),
+                ("post_processing_providers", catalog.PostProcessingProviders),
+            })
+            {
+                var row = Row(rows, "hyperwhisper");
+                Assert(row.KeyPresent == present,
+                    $"{label}: {list} hyperwhisper key_present={row.KeyPresent}, /transcribe would {(present ? "run" : "refuse")}");
+                Assert((row.Status == "credential_required") == !present,
+                    $"{label}: {list} hyperwhisper status {row.Status}");
+            }
+            // /models: the hyperwhisper Cloud models are usable (`installed`, the
+            // Linux wire name for enabled) only when /transcribe would run them.
+            var cloudModels = catalog.Models
+                .Where(model => model.Provider.Equals("hyperwhisper", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            Assert(cloudModels.Length > 0, $"{label}: /models lists no hyperwhisper Cloud model");
+            foreach (var model in cloudModels)
+                Assert(model.Installed == present,
+                    $"{label}: /models {model.Id} enabled={model.Installed}, /transcribe would {(present ? "run" : "refuse")}");
+        }
+
+        await Expect(false, "no account key");
+        store.Values["LicenseKey"] = System.Text.Encoding.UTF8.GetBytes("   ");
+        await Expect(false, "whitespace-only account key");
+        store.Values["LicenseKey"] = System.Text.Encoding.UTF8.GetBytes("account-value");
+        await Expect(true, "stored account key");
+        store.Values.Remove("LicenseKey");
+        await Expect(false, "account key removed");
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
 
 static async Task LocalApiPostProcessingTransientModes()
 {
@@ -1697,6 +2113,165 @@ static Task WindowStartupGateRetriesOnlyWhatFailed()
     return Task.CompletedTask;
 }
 
+static Task StreamingLanguagePickerFollowsProvider()
+{
+    // #1346, the Linux sibling of #832 (PR #1345): the picker bound every language whatever the
+    // provider. Windows' half of this check is the SmokeTests "#832" case.
+    var root = Path.Combine(Path.GetTempPath(), $"hw-streaming-languages-{Guid.NewGuid():N}");
+    var settings = new SettingsViewModel(new PortableSettingsService(new MissingPrivateFiles(), Path.Combine(root, "settings.json")));
+    var streaming = new StreamingSettingsViewModel(settings);
+    string[] Codes() => streaming.Languages.Select(option => option.Code).ToArray();
+    var everyLanguage = SharedCoreBridge.AllLanguages().Count(language => language.Code != "auto") + 1;
+
+    var languagesNotified = 0;
+    streaming.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(StreamingSettingsViewModel.Languages)) languagesNotified++; };
+
+    settings.StreamingProvider = "elevenlabs";
+    var elevenLabs = Codes();
+    Assert(elevenLabs.Contains("am"), "ElevenLabs streaming must offer Amharic (am)");
+    Assert(elevenLabs.Contains("sw"), "ElevenLabs streaming must offer Swahili (sw)");
+    Assert(elevenLabs[0] == "auto", $"Automatic must be the first row, got {elevenLabs[0]}");
+    Assert(languagesNotified == 1, $"a provider change must re-notify Languages once, got {languagesNotified}");
+
+    settings.StreamingProvider = "deepgram";
+    var deepgram = Codes();
+    Assert(!deepgram.Contains("am"), "Deepgram streaming must not offer Amharic (am)");
+    Assert(!deepgram.Contains("sw"), "Deepgram streaming must not offer Swahili (sw)");
+    Assert(deepgram.Contains("en") && deepgram[0] == "auto", "Deepgram streaming must still offer Automatic and English");
+    Assert(deepgram.Length < everyLanguage, "Deepgram streaming must not bind the unfiltered list");
+
+    // The provider -> entry mapping, one row per cloud provider, on the Linux storage spellings.
+    Assert(StreamingSettingsViewModel.LanguageCatalogEntryId("deepgram", null) == "deepgramNova3", "deepgram entry");
+    Assert(StreamingSettingsViewModel.LanguageCatalogEntryId("elevenlabs", null) == "elevenLabsScribeV2", "elevenLabs entry");
+    Assert(StreamingSettingsViewModel.LanguageCatalogEntryId("openai", null) == "openaiWhisper", "openAI entry");
+    Assert(StreamingSettingsViewModel.LanguageCatalogEntryId("geminiTranscribe", null) == "geminiTranscribe", "gemini entry");
+    Assert(StreamingSettingsViewModel.LanguageCatalogEntryId("grok", null) == "grokStt", "xAI entry");
+    Assert(StreamingSettingsViewModel.LanguageCatalogEntryId("parakeetLocal", null) is null, "a local provider has no catalog entry");
+
+    // An unverified set (Gemini) and a local provider keep the full list.
+    settings.StreamingProvider = "geminiTranscribe";
+    Assert(Codes().Length == everyLanguage, "Gemini's unverified set must keep the full list");
+    settings.StreamingProvider = "parakeetLocal";
+    Assert(Codes().Length == everyLanguage, "a local provider must keep the full list");
+
+    // HyperWhisper Cloud follows the selected live tier, clamped like the route.
+    settings.StreamingProvider = "hyperwhisper";
+    foreach (var tier in settings.StreamingCloudTiers)
+    {
+        settings.StreamingCloudTier = tier;
+        Assert(StreamingSettingsViewModel.LanguageCatalogEntryId(settings.StreamingProvider, settings.StreamingCloudTier) == tier,
+            $"live tier {tier} must reach the picker unchanged");
+    }
+    // Only deepgramNova3 and geminiTranscribe are live tiers in the catalog (elevenLabsScribeV2
+    // has no streaming model and clamps to Deepgram). Gemini's unverified set keeps Swahili.
+    Assert(settings.StreamingCloudTiers.Contains("geminiTranscribe"), "geminiTranscribe must be a live tier");
+    settings.StreamingCloudTier = "geminiTranscribe";
+    Assert(Codes().Contains("sw"), "the Gemini live tier must offer Swahili");
+    settings.StreamingCloudTier = "notATier";
+    Assert(!Codes().Contains("sw"), "an unknown live tier clamps to Deepgram, which does not offer Swahili");
+
+    // Region rows survive by primary subtag.
+    settings.StreamingProvider = "elevenlabs";
+    foreach (var regional in new[] { "en-GB", "en-US", "pt-BR" })
+    {
+        if (SharedCoreBridge.AllLanguages().Any(language => language.Code == regional))
+            Assert(Codes().Contains(regional), $"{regional} must survive an entry that declares its base code");
+    }
+
+    // A saved language outside the new set resets to Automatic; one inside it is kept.
+    settings.StreamingLanguage = "sw";
+    Assert(settings.StreamingLanguage == "sw" && streaming.SelectedLanguage?.Code == "sw", "a Swahili pick must be kept on ElevenLabs");
+    settings.StreamingProvider = "deepgram";
+    Assert(settings.StreamingLanguage == "auto", $"a saved Swahili must reset when the provider becomes Deepgram, got {settings.StreamingLanguage}");
+    Assert(streaming.SelectedLanguage?.Code == "auto", "the picker must show Automatic after the reset");
+    settings.StreamingLanguage = "en";
+    settings.StreamingProvider = "elevenlabs";
+    Assert(settings.StreamingLanguage == "en", "a saved English must be kept across a provider change");
+
+    // A stale saved pair is caught on load too.
+    var loaded = new SettingsViewModel(new PortableSettingsService(
+        new FixedSettingsFile("""{"streaming.provider":"deepgram","streaming.language":"sw"}"""),
+        Path.Combine(root, "settings.json")));
+    var loadedStreaming = new StreamingSettingsViewModel(loaded);
+    loaded.Load();
+    Assert(loaded.StreamingLanguage == "auto", $"a saved Swahili on Deepgram must reset on load, got {loaded.StreamingLanguage}");
+    Assert(!loadedStreaming.Languages.Any(option => option.Code == "sw"), "the loaded Deepgram picker must not offer Swahili");
+
+    // A valid saved pair survives Load whatever order Load writes the three keys in: Swahili on
+    // the HyperWhisper Cloud Gemini live tier must not be checked against the default Deepgram tier.
+    var cloudLoaded = new SettingsViewModel(new PortableSettingsService(
+        new FixedSettingsFile("""{"streaming.provider":"hyperwhisper","streaming.cloudTier":"geminiTranscribe","streaming.language":"sw"}"""),
+        Path.Combine(root, "settings.json")));
+    var cloudStreaming = new StreamingSettingsViewModel(cloudLoaded);
+    cloudLoaded.Load();
+    Assert(cloudLoaded.StreamingCloudTier == "geminiTranscribe", $"the saved Gemini live tier must load, got {cloudLoaded.StreamingCloudTier}");
+    Assert(cloudLoaded.StreamingLanguage == "sw", $"a saved Swahili on the Gemini live tier must survive load, got {cloudLoaded.StreamingLanguage}");
+    Assert(cloudStreaming.SelectedLanguage?.Code == "sw", "the loaded picker must show Swahili");
+
+    // A stale saved Cloud pair (Swahili on the Deepgram live tier) still resets on load.
+    var staleCloud = new SettingsViewModel(new PortableSettingsService(
+        new FixedSettingsFile("""{"streaming.provider":"hyperwhisper","streaming.cloudTier":"deepgramNova3","streaming.language":"sw"}"""),
+        Path.Combine(root, "settings.json")));
+    _ = new StreamingSettingsViewModel(staleCloud);
+    staleCloud.Load();
+    Assert(staleCloud.StreamingLanguage == "auto", $"a saved Swahili on the Deepgram live tier must reset on load, got {staleCloud.StreamingLanguage}");
+    return Task.CompletedTask;
+}
+
+static Task StreamingLanguageComboShowsResetToAutomatic()
+{
+    // #1346 verify round: ElevenLabs + Swahili, then Deepgram, left the real picker BLANK. A
+    // plain view model check passed, because the fault is in the binding round trip: Avalonia
+    // clears a selection the new ItemsSource lacks, writes null back, re-reads the getter's
+    // "Automatic" fallback mid-swap without showing it, and then skips every later "Automatic"
+    // notification as unchanged. So this drives a real Avalonia ComboBox, bound the way
+    // MainWindow.axaml binds StreamingLanguageInput. No platform is needed for selection.
+    var root = Path.Combine(Path.GetTempPath(), $"hw-streaming-combo-{Guid.NewGuid():N}");
+    var settings = new SettingsViewModel(new PortableSettingsService(new MissingPrivateFiles(), Path.Combine(root, "settings.json")));
+    var streaming = new StreamingSettingsViewModel(settings);
+    var combo = new Avalonia.Controls.ComboBox { DataContext = streaming };
+    combo.Bind(Avalonia.Controls.ItemsControl.ItemsSourceProperty,
+        new Avalonia.Data.Binding(nameof(StreamingSettingsViewModel.Languages)));
+    combo.Bind(Avalonia.Controls.Primitives.SelectingItemsControl.SelectedItemProperty,
+        new Avalonia.Data.Binding(nameof(StreamingSettingsViewModel.SelectedLanguage)) { Mode = Avalonia.Data.BindingMode.TwoWay });
+    string Shown() => (combo.SelectedItem as StreamingLanguageOption)?.Code ?? "<blank>";
+    void Settle() => Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+    settings.StreamingProvider = "elevenlabs";
+    Settle();
+    combo.SelectedItem = streaming.Languages.First(option => option.Code == "sw");
+    Settle();
+    Assert(settings.StreamingLanguage == "sw" && Shown() == "sw", $"the user's Swahili pick must reach the settings, shown {Shown()}");
+
+    settings.StreamingProvider = "deepgram";
+    Settle();
+    Assert(settings.StreamingLanguage == "auto", $"Swahili must reset on Deepgram, got {settings.StreamingLanguage}");
+    Assert(Shown() == "auto", $"the picker must show Automatic after the provider reset, shown {Shown()}");
+
+    settings.StreamingProvider = "elevenlabs";
+    Settle();
+    Assert(Shown() == "auto", $"the picker must still show Automatic back on ElevenLabs, shown {Shown()}");
+
+    // The same reset through a HyperWhisper Cloud live-tier change.
+    settings.StreamingProvider = "hyperwhisper";
+    settings.StreamingCloudTier = "geminiTranscribe";
+    Settle();
+    combo.SelectedItem = streaming.Languages.First(option => option.Code == "sw");
+    Settle();
+    Assert(settings.StreamingLanguage == "sw" && Shown() == "sw", $"Swahili must be pickable on the Gemini live tier, shown {Shown()}");
+    settings.StreamingCloudTier = "deepgramNova3";
+    Settle();
+    Assert(settings.StreamingLanguage == "auto", $"Swahili must reset on the Deepgram live tier, got {settings.StreamingLanguage}");
+    Assert(Shown() == "auto", $"the picker must show Automatic after the tier reset, shown {Shown()}");
+
+    // A language both sets offer is kept and stays shown.
+    combo.SelectedItem = streaming.Languages.First(option => option.Code == "en");
+    settings.StreamingProvider = "elevenlabs";
+    Settle();
+    Assert(settings.StreamingLanguage == "en" && Shown() == "en", $"English must stay shown across a provider change, shown {Shown()}");
+    return Task.CompletedTask;
+}
+
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException(message);
@@ -1715,6 +2290,11 @@ sealed class WhisperTranscriberFixture : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-whisper-route-{Guid.NewGuid():N}");
     public WhisperTranscriberFixture(LocalWhisperBackend backend, bool allowFallback, string runtime)
+        : this(new LinuxWhisperRuntimePreference(backend, allowFallback), runtime)
+    {
+    }
+
+    public WhisperTranscriberFixture(LinuxWhisperRuntimePreference preference, string runtime)
     {
         Directory.CreateDirectory(_root);
         File.WriteAllBytes(Path.Combine(_root, "ggml-test.bin"), [1]);
@@ -1722,7 +2302,7 @@ sealed class WhisperTranscriberFixture : IDisposable
         File.WriteAllBytes(AudioPath, [1]);
         Service = new FakeLocalWhisperService(runtime);
         Transcriber = new LinuxLocalWhisperTranscriber(
-            _root, Service, new FixedWhisperPreferences(new(backend, allowFallback)));
+            _root, Service, new FixedWhisperPreferences(preference));
     }
     public string AudioPath { get; }
     public FakeLocalWhisperService Service { get; }
@@ -1778,6 +2358,9 @@ sealed class CapturingPostProcessor : ITranscriptionPostProcessor
     /// </summary>
     public string? ResolvedModel { get; set; }
 
+    /// <summary>When set, returned as-is instead of an applied result.</summary>
+    public PortablePostProcessingResult? Result { get; set; }
+
     public Task<PortablePostProcessingResult> ProcessAsync(
         string transcript,
         Mode mode,
@@ -1793,14 +2376,61 @@ sealed class CapturingPostProcessor : ITranscriptionPostProcessor
         Mode = mode;
         Context = applicationContext;
         return Task.FromResult(
-            PortablePostProcessingResult.Applied($"processed {transcript}", "test-provider", ResolvedModel));
+            Result ?? PortablePostProcessingResult.Applied($"processed {transcript}", "test-provider", ResolvedModel));
     }
+}
+
+/// <summary>Reports a packaged Whisper library for exactly the given backends.</summary>
+sealed class FixedRuntime(params NativeComputeBackend[] backends) : INativeRuntimeLocator
+{
+    public NativeRuntimeCapabilities Capabilities =>
+        new("linux-x64", "X64", true, false, true, backends.ToHashSet());
+    public PlatformResult<string> FindLibrary(string component, NativeComputeBackend backend) =>
+        backends.Contains(backend)
+            ? PlatformResult<string>.Success($"/opt/test/{backend}/lib{component}.so")
+            : PlatformResult<string>.Failure("native_runtime.library_not_found", "missing");
+    public PlatformResult<string> FindExecutable(string component) =>
+        PlatformResult<string>.Failure("native_runtime.executable_not_found", "missing");
 }
 
 sealed class FixedGpu(GpuInfo? gpu) : IGpuInfoProvider
 {
     public PlatformResult<GpuInfo?> GetBestGpu() => PlatformResult<GpuInfo?>.Success(gpu);
     public void ClearCache() { }
+}
+
+sealed class FixedSettingsFile(string json) : IPrivateFileService
+{
+    public PlatformResult WriteAllBytesAtomically(string path, ReadOnlySpan<byte> contents) => PlatformResult.Success();
+    public PlatformResult WriteAllTextAtomically(string path, string contents) => PlatformResult.Success();
+    public PlatformResult<byte[]?> ReadAllBytes(string path) => PlatformResult<byte[]?>.Success(null);
+    public PlatformResult<string?> ReadAllText(string path) => PlatformResult<string?>.Success(json);
+    public PlatformResult Delete(string path) => PlatformResult.Success();
+    public PlatformResult<bool> IsRestrictedToCurrentUser(string path) => PlatformResult<bool>.Success(true);
+}
+
+sealed class MemoryCredentialStore : ICredentialStore
+{
+    public Dictionary<string, byte[]> Values { get; } = [];
+    public PlatformResult<byte[]?> Read(string resource, string account) =>
+        PlatformResult<byte[]?>.Success(resource == "HyperWhisper" && Values.TryGetValue(account, out var value)
+            ? value.ToArray()
+            : null);
+    public PlatformResult Write(string resource, string account, ReadOnlySpan<byte> value) => PlatformResult.Success();
+    public PlatformResult Delete(string resource, string account) => PlatformResult.Success();
+}
+
+sealed class FixedDeviceIdentity : IDeviceIdentityProvider
+{
+    public PlatformResult<DeviceIdentity> GetDeviceIdentity() =>
+        PlatformResult<DeviceIdentity>.Success(new("device-id", DeviceIdentitySource.PlatformMachineId));
+}
+
+sealed class NoLocalTranscriber : IRecordedAudioTranscriber
+{
+    public TranscriptionBackendCapability Capability { get; } = new(false, "None", "Not configured");
+    public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, string? language, CancellationToken cancellationToken = default) =>
+        Task.FromResult(PortableTranscriptionResult.Failed(PortableTranscriptionErrorCode.BackendUnavailable, "Not configured"));
 }
 
 sealed class MissingPrivateFiles : IPrivateFileService

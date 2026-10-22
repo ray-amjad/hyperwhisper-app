@@ -1,0 +1,105 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- HyperWhisper.WhisperWorker.exe (issue #1194): every Windows on-device
+       Whisper load and transcription runs here, driven by the app over JSON
+       lines on stdio. Whisper.net's Vulkan backend keeps the GPU out of its
+       idle state for as long as the process that used it lives, so the app
+       stops this process after five idle minutes and the GPU drops to P8.
+
+       Plain net10.0 (no -windows TFM): it needs no Windows API, and the same
+       project builds and answers `ready` on Linux, where the tests run it.
+       build-release.ps1 publishes it self-contained for win-x64 / win-arm64
+       into {app}\whisper-worker\. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>HyperWhisper.WhisperWorker</RootNamespace>
+    <AssemblyName>HyperWhisper.WhisperWorker</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <ApplicationIcon Condition="Exists('..\HyperWhisper\Assets\app.ico')">..\HyperWhisper\Assets\app.ico</ApplicationIcon>
+    <Version>1.14.0</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <!-- The runtime packages carry every platform's binaries. RuntimeIdentifiers
+         lets `dotnet restore` resolve both Windows RIDs for the release publish. -->
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <!-- D4: the shared project carries only Whisper.net; each head picks its
+       native runtimes. Windows: Vulkan first, then CPU, then CPU without AVX.
+       No Cuda12. -->
+  <ItemGroup>
+    <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
+    <PackageReference Include="Whisper.net.Runtime.NoAvx" Version="1.9.1" />
+    <PackageReference Include="Whisper.net.Runtime.Vulkan" Version="1.9.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\shared-dotnet\HyperWhisper.LocalInference\HyperWhisper.LocalInference.csproj" />
+    <ProjectReference Include="..\HyperWhisper.WhisperWorker.Client\HyperWhisper.WhisperWorker.Client.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="HyperWhisper.WhisperWorker.Tests" />
+  </ItemGroup>
+
+  <!-- The shared Rust core. LocalWhisperService strips Whisper's non-speech
+       markers through HyperWhisper.SharedCore, which P/Invokes
+       hyperwhisper_core, so the worker carries its own copy next to its exe
+       (the default native resolver probes the app base directory). The Windows
+       DLLs are the ones the app ships, from ..\HyperWhisper\Resources\rust-core\.
+       A Linux dev build takes the .so from a local cargo build, when there is
+       one, so the end-to-end tests can transcribe. -->
+  <PropertyGroup>
+    <_WorkerRustCoreX64>..\HyperWhisper\Resources\rust-core\x64\hyperwhisper_core.dll</_WorkerRustCoreX64>
+    <_WorkerRustCoreArm64>..\HyperWhisper\Resources\rust-core\arm64\hyperwhisper_core.dll</_WorkerRustCoreArm64>
+    <_WorkerRustCoreLinux>..\..\..\shared-core-rs\target\x86_64-unknown-linux-gnu\release\libhyperwhisper_core.so</_WorkerRustCoreLinux>
+    <_WorkerRustCoreLinux Condition="!Exists('$(_WorkerRustCoreLinux)')">..\..\..\shared-core-rs\target\release\libhyperwhisper_core.so</_WorkerRustCoreLinux>
+  </PropertyGroup>
+
+  <ItemGroup Condition="('$(RuntimeIdentifier)' == 'win-x64' Or ('$(RuntimeIdentifier)' == '' And '$(OS)' == 'Windows_NT')) And Exists('$(_WorkerRustCoreX64)')">
+    <Content Include="$(_WorkerRustCoreX64)" Link="hyperwhisper_core.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-arm64' And Exists('$(_WorkerRustCoreArm64)')">
+    <Content Include="$(_WorkerRustCoreArm64)" Link="hyperwhisper_core.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == '' And '$(OS)' != 'Windows_NT' And Exists('$(_WorkerRustCoreLinux)')">
+    <Content Include="$(_WorkerRustCoreLinux)" Link="libhyperwhisper_core.so" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- A release publish without the core DLL would load models and then fail
+       every transcription, so it fails the publish instead, as the app does. -->
+  <Target Name="EnsureWorkerRustCoreDll" BeforeTargets="Publish"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <Error Condition="'$(RuntimeIdentifier)' == 'win-x64' And !Exists('$(_WorkerRustCoreX64)')"
+           Text="hyperwhisper_core.dll (x64) is missing from app\windows\HyperWhisper\Resources\rust-core\x64\. The Whisper worker ships the same DLL as the app. See Resources/rust-core/README.md." />
+    <Error Condition="'$(RuntimeIdentifier)' == 'win-arm64' And !Exists('$(_WorkerRustCoreArm64)')"
+           Text="hyperwhisper_core.dll (arm64) is missing from app\windows\HyperWhisper\Resources\rust-core\arm64\. The Whisper worker ships the same DLL as the app. See Resources/rust-core/README.md." />
+  </Target>
+
+  <!-- The Whisper.net runtime packages copy every platform's natives (Linux,
+       macOS, x86, both Windows architectures). A Windows publish keeps only its
+       own: the same rules the app used while it carried Whisper.net. -->
+  <Target Name="FilterWhisperRuntimesForWindowsRid" AfterTargets="ComputeFilesToPublish"
+          Condition="$(RuntimeIdentifier.StartsWith('win-'))">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/](linux|linux-musl|osx|macos)-'))" />
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/](noavx|vulkan)[\\/](linux-[^\\/]+|win-x86)[\\/]'))" />
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="'$(RuntimeIdentifier)' == 'win-x64' And $([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/]win-(arm64|x86)[\\/]'))" />
+      <!-- The Metal shader is a macOS-only asset of Whisper.net.Runtime. -->
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="'%(ResolvedFileToPublish.RelativePath)' == 'ggml-metal.metal'" />
+      <!-- ARM64 runs the CPU runtime only: the NoAvx and Vulkan packages ship no win-arm64 payload. -->
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="'$(RuntimeIdentifier)' == 'win-arm64' And $([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/](win-x64|win-x86|noavx|vulkan)[\\/]'))" />
+    </ItemGroup>
+  </Target>
+
+</Project>

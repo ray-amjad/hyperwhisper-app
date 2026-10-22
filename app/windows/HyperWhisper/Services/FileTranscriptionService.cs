@@ -1,6 +1,8 @@
 using System.IO;
+using System.Runtime.InteropServices;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
+using HyperWhisper.Localization;
 using HyperWhisper.Models;
 
 namespace HyperWhisper.Services;
@@ -17,7 +19,7 @@ namespace HyperWhisper.Services;
 /// - M4A - Apple audio format (NAudio via MediaFoundation)
 ///
 /// NAudio PIPELINE:
-/// AudioFileReader → ToMono() → WdlResamplingSampleProvider → WaveFileWriter (16-bit PCM)
+/// AudioFileDecoder → MonoFoldSampleProvider → WdlResamplingSampleProvider → WaveFileWriter (16-bit PCM)
 ///
 /// FUTURE PHASES:
 /// - FLAC, OGG support (requires additional NAudio packages)
@@ -46,6 +48,24 @@ public static class FileTranscriptionService
     public static string FileFilter =>
         "Audio Files (*.wav;*.mp3;*.m4a)|*.wav;*.mp3;*.m4a|All Files (*.*)|*.*";
 
+    /// <summary>
+    /// Shown for a 0-byte file. NAudio says "Unable to read beyond the end of the stream" (#1452).
+    /// </summary>
+    internal static string EmptyFileMessage => Loc.S("errors.fileEmpty");
+
+    /// <summary>
+    /// Shown for a file the decoders reject: a truncated or corrupt WAV, or a non-audio file
+    /// with an audio extension. NAudio and Media Foundation word it as "Not a WAVE file - no
+    /// RIFF header" or "The byte stream type of the given URL is unsupported" (#1452).
+    /// </summary>
+    internal static string UnreadableAudioMessage => Loc.S("errors.fileUnreadable");
+
+    /// <summary>
+    /// FACILITY_MF: every Media Foundation error HRESULT is 0xC00Dxxxx.
+    /// </summary>
+    private const int MediaFoundationErrorMask = unchecked((int)0xFFFF0000);
+    private const int MediaFoundationErrorPrefix = unchecked((int)0xC00D0000);
+
     // =========================================================================
     // PUBLIC METHODS
     // =========================================================================
@@ -58,8 +78,8 @@ public static class FileTranscriptionService
     /// - Otherwise: converts to temp file and returns new path
     ///
     /// CONVERSION PIPELINE:
-    /// 1. AudioFileReader - Reads any format (WAV, MP3, M4A) via MediaFoundation
-    /// 2. ToMono() - Converts stereo to mono if needed
+    /// 1. AudioFileDecoder - Reads any format (WAV, MP3, M4A); an Extensible PCM/float WAV without ACM
+    /// 2. AudioFileDecoder.ToMono - Averages any channel count down to mono
     /// 3. WdlResamplingSampleProvider - Resamples to 16kHz if needed
     /// 4. WaveFileWriter - Writes 16kHz mono 16-bit PCM WAV to temp file
     ///
@@ -91,6 +111,13 @@ public static class FileTranscriptionService
             return Result<string>.Failure($"Unsupported audio format: {extension}. Please use WAV, MP3, or M4A.");
         }
 
+        // GUARD CLAUSE: An empty file holds no audio
+        if (new FileInfo(inputPath).Length == 0)
+        {
+            LoggingService.Warn($"FileTranscriptionService: File is empty - {inputPath}");
+            return Result<string>.Failure(EmptyFileMessage);
+        }
+
         try
         {
             // Run conversion on background thread to avoid blocking UI
@@ -104,7 +131,10 @@ public static class FileTranscriptionService
                     return Result<string>.Success(inputPath);
                 }
 
-                using var reader = new AudioFileReader(inputPath);
+                // AudioFileDecoder, not AudioFileReader: a WAVE_FORMAT_EXTENSIBLE PCM or
+                // float WAV (every ffmpeg WAV with more than two channels) would go to ACM
+                // and fail with "NoDriver calling acmFormatSuggest" (#1450).
+                using var reader = AudioFileDecoder.Open(inputPath);
                 cancellationToken.ThrowIfCancellationRequested();
 
                 // CONVERSION NEEDED: Create temp file for converted audio
@@ -115,12 +145,9 @@ public static class FileTranscriptionService
 
                 try
                 {
-                    // STEP 1: Convert to mono if stereo
-                    ISampleProvider sampleProvider = reader;
-                    if (reader.WaveFormat.Channels > 1)
-                    {
-                        sampleProvider = reader.ToMono();
-                    }
+                    // STEP 1: Fold to mono by averaging every channel. NAudio's ToMono()
+                    // handles exactly two channels and throws on a 5.1 file.
+                    ISampleProvider sampleProvider = AudioFileDecoder.ToMono(reader.Samples);
 
                     // STEP 2: Resample to 16kHz if needed
                     if (reader.WaveFormat.SampleRate != WhisperSampleRate)
@@ -155,12 +182,35 @@ public static class FileTranscriptionService
             LoggingService.Info("FileTranscriptionService: Conversion cancelled");
             throw;
         }
+        catch (Exception ex) when (IsUnreadableAudio(ex))
+        {
+            LoggingService.Warn($"FileTranscriptionService: File is not readable audio - {ex.GetType().Name}: {ex.Message}");
+            return Result<string>.Failure(UnreadableAudioMessage, ex);
+        }
         catch (Exception ex)
         {
             LoggingService.Error($"FileTranscriptionService: Conversion failed - {ex.Message}", ex);
             return Result<string>.Failure($"Failed to convert audio file: {ex.Message}", ex);
         }
     }
+
+    /// <summary>
+    /// True when <paramref name="ex"/> says the file's bytes are not audio the decoders can
+    /// read, as opposed to a fault of the machine (a locked file, a full disk, a missing
+    /// codec driver), whose own message stays the clearer one.
+    /// </summary>
+    internal static bool IsUnreadableAudio(Exception ex) => ex switch
+    {
+        // A WAV cut off inside its header (WaveFileReader).
+        EndOfStreamException => true,
+        // "Not a WAVE file - no RIFF header", "Invalid WAV file - No fmt chunk found".
+        FormatException => true,
+        // Mp3FileReader: "Invalid MP3 file - no MP3 Frames Detected".
+        InvalidDataException => true,
+        // Media Foundation, e.g. MF_E_UNSUPPORTED_BYTESTREAM_TYPE (0xC00D36C4) for a text file named .mp3.
+        COMException com => (com.HResult & MediaFoundationErrorMask) == MediaFoundationErrorPrefix,
+        _ => false,
+    };
 
     private static void WriteWaveFile16Cancellable(
         string outputPath,
@@ -207,7 +257,7 @@ public static class FileTranscriptionService
 
     /// <summary>
     /// Gets the duration of an audio file in seconds.
-    /// Uses NAudio's AudioFileReader to handle multiple formats.
+    /// Uses AudioFileDecoder (NAudio's AudioFileReader, plus Extensible PCM/float WAVs).
     ///
     /// RESULT PATTERN:
     /// Returns Result&lt;double&gt; with:
@@ -227,7 +277,7 @@ public static class FileTranscriptionService
 
         try
         {
-            using var reader = new AudioFileReader(filePath);
+            using var reader = AudioFileDecoder.Open(filePath);
             double duration = reader.TotalTime.TotalSeconds;
             LoggingService.Debug($"FileTranscriptionService: Audio duration = {duration:F2}s");
             return Result<double>.Success(duration);

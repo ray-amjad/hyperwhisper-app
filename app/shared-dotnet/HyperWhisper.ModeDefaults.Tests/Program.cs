@@ -64,7 +64,7 @@ Assert(hyper.PostProcessingProvider == "hyperwhispercloud", "the seeded post-pro
 
 // C2: keep the engine:model prefix. macOS' parser falls back to GROK on a value
 // it cannot split, so a bare model id would silently change the model there.
-Assert(hyper.CloudPostProcessingModel == "anthropic:claude-haiku-4-5",
+Assert(hyper.CloudPostProcessingModel == "anthropic:claude-haiku-5-5",
     "the post-processing model did not resolve from the shared catalog, or lost its engine prefix");
 
 Assert(hyper.EnglishSpelling == "british", "GB locale seed is incorrect");

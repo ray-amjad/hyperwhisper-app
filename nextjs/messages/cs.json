@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - AI přepis hlasu pro macOS a Windows",
-    "description": "Pište 5x rychleji s AI přepisem hlasu. HyperWhisper přepisuje váš hlas s neuvěřitelnou přesností na macOS i Windows. Mluvte přirozeně a sledujte, jak se vaše slova okamžitě zobrazují."
+    "title": "HyperWhisper - AI přepis hlasu pro macOS, Windows a Linux",
+    "description": "Pište 5x rychleji s AI přepisem hlasu. HyperWhisper přepisuje váš hlas s neuvěřitelnou přesností na macOS, Windows i Linux. Mluvte přirozeně a sledujte, jak se vaše slova okamžitě zobrazují."
   },
   "navbar": {
     "features": "Funkce",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Můžu to používat bez internetu?",
-        "answer": "Rozhodně. HyperWhisper lze na Macu i na počítači s Windows používat zcela offline pomocí lokálních AI modelů - internet není potřeba. Pro uživatele, kteří chtějí maximální přesnost a rychlost, nabízíme také volitelné cloudové zpracování přes různé cloudové poskytovatele."
+        "answer": "Rozhodně. HyperWhisper lze na Macu, na počítači s Windows i na počítači s Linuxem používat zcela offline pomocí lokálních AI modelů - internet není potřeba. Pro uživatele, kteří chtějí maximální přesnost a rychlost, nabízíme také volitelné cloudové zpracování přes různé cloudové poskytovatele."
       },
       "apiKey": {
         "question": "Musím platit za API přístup?",
@@ -175,16 +175,16 @@
         "answer": "Pro offline přepis nabízíme více velikostí modelu Whisper (od OpenAI, podporuje 99+ jazyků). Nabízíme také modely Parakeet od NVidia (podporují 25+ jazyků).\n      \n      Pro offline následné zpracování nabízíme více velikostí modelu Gemma 3 (od Google)."
       },
       "compatibility": {
-        "question": "Funguje to se všemi aplikacemi na Macu a Windows?",
+        "question": "Funguje to se všemi mými aplikacemi?",
         "answer": "Ano, funguje to všude, kde můžete psát. Ať už píšete e-maily, dokumenty, kód nebo chatujete. Stačí stisknout zkratku, mluvit a sledovat, jak se vaše slova okamžitě objeví."
       },
       "privacy": {
         "question": "Jak je chráněno moje soukromí?",
-        "answer": "Při použití lokálního režimu žádná data nikdy neopustí váš Mac ani váš počítač s Windows.\n\nPři cloudovém přepisu jsou vaše data odeslána cloudovému poskytovateli, kterého si vyberete (např. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox nebo Google Gemini).\n\nMůžete si to sami ověřit pomocí síťového inspektoru, jako je [Proxyman](https://proxyman.io), síťového monitoru, jako je [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), nebo přečtením [zdrojového kódu na GitHubu](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Při použití lokálního režimu žádná data nikdy neopustí váš Mac, váš počítač s Windows ani váš počítač s Linuxem.\n\nPři cloudovém přepisu jsou vaše data odeslána cloudovému poskytovateli, kterého si vyberete (např. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox nebo Google Gemini).\n\nMůžete si to sami ověřit pomocí síťového inspektoru, jako je [Proxyman](https://proxyman.io), síťového monitoru, jako je [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), nebo přečtením [zdrojového kódu na GitHubu](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Co je HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud je vestavěná cloudová transkripce zaměřená na méně technické uživatele, kteří chtějí rychle začít.\n\nFunguje na kreditech s platbou podle spotřeby. Dobíjíte už od $5 (1 000 kreditů za $1) a utrácíte je jen při přepisu. Váš první nákup kreditů automaticky vytvoří váš Account Key, takže není nic dalšího ke koupi.\n    \nNabízíme čtyři úrovně přesnosti: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) a Highest (Grok STT, výchozí pro nové instalace a poháněný SpaceXAI Grok STT). Následné zpracování je automatické a ve výchozím nastavení používá Grok 4.1 Fast bez uvažování. Neukládáme nic kromě toho, kolik kreditů jste spotřebovali, a u každého poskytovatele, kterého využíváme, jsme vás odhlásili z trénování modelů. Podrobnosti najdete v našem [průvodci ochranou soukromí dat](https://hyperwhisper.com/docs/data-privacy).\n\nKredity se utrácejí za vlastní cenu zpracování poskytovatelů — bez jakékoli přirážky na transkripci. Při platbě se přidává pevný poplatek 6% za zpracování platby, zobrazený jako samostatná položka. Nevyužité kredity vyprší po 12 měsících (viz níže).\n\nPro klid v duši je celá aplikace open source pod licencí Apache-2.0 — včetně Cloud backendu. Můžete si přečíst každý řádek kódu, který běží mezi vaší aplikací a poskytovateli, na které směrujeme [na GitHubu](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud je vestavěná cloudová transkripce zaměřená na méně technické uživatele, kteří chtějí rychle začít.\n\nFunguje na kreditech s platbou podle spotřeby. Dobíjíte už od $5 (1 000 kreditů za $1) a utrácíte je jen při přepisu. Váš první nákup kreditů automaticky vytvoří váš Account Key, takže není nic dalšího ke koupi.\n    \nHyperWhisper Cloud vám nabízí 12 poskytovatelů přepisu, od Groq Whisper po ElevenLabs Scribe v2 (viz [úplný seznam a ceny](https://hyperwhisper.com/docs/cloud-credits)). Nové instalace začínají s ElevenLabs Scribe v2. Následné zpracování je automatické a nové instalace začínají s Claude Haiku 5.5. Neukládáme nic kromě toho, kolik kreditů jste spotřebovali, a u každého poskytovatele, kterého využíváme, jsme vás odhlásili z trénování modelů. Podrobnosti najdete v našem [průvodci ochranou soukromí dat](https://hyperwhisper.com/docs/data-privacy).\n\nKredity se utrácejí za vlastní cenu zpracování poskytovatelů — bez jakékoli přirážky na transkripci. Při platbě se přidává pevný poplatek 6% za zpracování platby, zobrazený jako samostatná položka. Nevyužité kredity vyprší po 12 měsících (viz níže).\n\nPro klid v duši je celá aplikace open source pod licencí Apache-2.0 — včetně Cloud backendu. Můžete si přečíst každý řádek kódu, který běží mezi vaší aplikací a poskytovateli, na které směrujeme [na GitHubu](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Budou má hlasová data použita k trénování modelů AI?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Jaké jsou systémové požadavky?",
-        "answer": "Pro Mac: macOS 14 nebo novější, podporován Apple Silicon i Intel. Pro Windows: Windows 10/11, x64 nebo ARM64. Pro optimální výkon doporučujeme 8 GB RAM."
+        "answer": "Pro Mac: macOS 14 nebo novější, podporován Apple Silicon i Intel. Pro Windows: Windows 10/11, x64 nebo ARM64. Pro Linux v1: Ubuntu 22.04 nebo novější či Debian 12 nebo novější, na amd64. Pro optimální výkon doporučujeme 8 GB RAM."
       },
       "madeBy": {
         "question": "Kdo to vytvořil?",
@@ -272,7 +272,31 @@
     "homebrewTitle": "Instalace přes Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Kopírovat",
-    "copied": "Zkopírováno!"
+    "copied": "Zkopírováno!",
+    "linuxSubtitle": "Balíček Debian pro 64bitové systémy Intel/AMD",
+    "downloadLinux": "Stáhnout pro Linux",
+    "downloadLinuxVersion": "Stáhnout pro Linux v{version}",
+    "linuxReleaseNotes": "Kontrolní součty a poznámky k vydání",
+    "linuxInstallTitle": "Instalace balíčku Debian",
+    "linuxTargets": "Linux v1 cílí na Ubuntu 22.04+ a Debian 12+ na amd64.",
+    "linuxReplaceVersion": "Nahraďte VERSION verzí, kterou jste stáhli.",
+    "linuxInstallCommandLabel": "Instalační příkaz pro Debian",
+    "linuxInputGroupNote": "Po přidání do skupiny input se odhlaste a znovu přihlaste. Členství je volitelné, ale globální zkratky a automatické vkládání ho vyžadují.",
+    "aptTitle": "Vlastní repozitář APT",
+    "aptBody": "Vydání pro Linux obsahují také archiv statického repozitáře APT. HyperWhisper v současnosti neprovozuje veřejný server APT; nastavení podepsaného vlastního repozitáře, desktopové doplňky, informace o soukromí a odinstalaci najdete v průvodci instalací pro Linux.",
+    "linuxGuideCta": "Přečíst průvodce instalací pro Linux"
+  },
+  "olderVersions": {
+    "title": "Starší verze",
+    "subtitle": "Procházejte a stahujte všechna vydání HyperWhisper",
+    "errorLoading": "Chyba při načítání verzí: {error}",
+    "unknownError": "Došlo k chybě",
+    "loading": "Načítání verzí...",
+    "latest": "Nejnovější",
+    "build": "Sestavení {number}",
+    "downloadDmg": "Stáhnout DMG",
+    "downloadExe": "Stáhnout EXE",
+    "unknownSize": "Neznámá"
   },
   "purchaseSuccess": {
     "title": "Hotovo!",
@@ -289,7 +313,7 @@
     "loading": "Načítání..."
   },
   "footer": {
-    "tagline": "Pište 5x rychleji s AI přepisem hlasu pro macOS a Windows.",
+    "tagline": "Pište 5x rychleji s AI přepisem hlasu pro macOS, Windows a Linux.",
     "product": "Produkt",
     "resources": "Zdroje",
     "company": "Společnost",
@@ -389,6 +413,39 @@
   "openSource": {
     "heading": "Otevřený zdroj. Nic ke skrývání.",
     "body": "HyperWhisper je plně open source pod licencí Apache-2.0 — desktopové aplikace i Cloud backend. Aplikace, která poslouchá váš mikrofon, by měla být něco, co si můžete ověřit, ne jen čemu věříte: přečtěte si každý řádek, prověřte přesně, kam jde váš zvuk, a mějte jistotu, že nikdy nebudete uzamčeni — kód je váš, můžete ho forknout a hostovat sami navždy. Vytvořeno otevřeně nezávislým tvůrcem Ray Amjad.",
-    "cta": "Zobrazit na GitHubu"
+    "cta": "Zobrazit na GitHubu",
+    "metaTitle": "Otevřený zdroj | HyperWhisper",
+    "metaDescription": "HyperWhisper je plně open source pod licencí Apache-2.0 — desktopové aplikace i Cloud backend. Čtěte kód, prověřte, kam jde váš zvuk, forkněte ho a hostujte sami navždy.",
+    "eyebrow": "Otevřený zdroj",
+    "lead": "HyperWhisper je nyní plně open source pod licencí Apache-2.0 — desktopové aplikace i Cloud backend.",
+    "intro": "Aplikace, která poslouchá váš mikrofon, by měla být něco, co si můžete ověřit, ne jen čemu musíte věřit. Proto jsme otevřeli všechno. Můžete si přečíst každý řádek HyperWhisper — aplikace pro macOS, Windows a Linux i cloudový backend pro přepis — přesně vidět, kam jde váš zvuk, a vědět, že nikdy nebudete uzamčeni. Celý projekt najdete na <github>GitHubu</github> pod <license>licencí Apache-2.0</license>.",
+    "whyHeading": "Proč na tom záleží",
+    "whyVerify": "<strong>Ověřujte, nevěřte.</strong> Přečtěte si každý řádek a prověřte přesně, kam jde váš zvuk. Aplikace s přístupem k mikrofonu by měla jít zkontrolovat, ne jen brát na víru.",
+    "whyNoLockIn": "<strong>Žádné uzamčení.</strong> Kód je pod Apache-2.0 — můžete si ho ponechat, upravit a provozovat podle svého. Váš pracovní postup nikdy nebude rukojmím.",
+    "whyFork": "<strong>Forkněte a hostujte sami.</strong> Naklonujte repozitář, sestavte si ho sami nebo spusťte vlastní Cloud backend. Vše, co potřebujete, je veřejné.",
+    "whyOpen": "<strong>Vyvíjeno otevřeně.</strong> HyperWhisper veřejně vyvíjí nezávislý tvůrce Ray Amjad. Issues, diskuse i vydání probíhají otevřeně.",
+    "licenseHeading": "Už jste si koupili licenci?",
+    "licenseIntro": "HyperWhisper je nyní open source a placený přepis běží na kreditech HyperWhisper Cloud. Pokud jste si licenci koupili před touto změnou, takto se o vás postaráme — stačí napsat na <mail>{email}</mail> a vše vyřešíme ručně.",
+    "licenseRecent": "<strong>Koupeno za posledních 30 dní:</strong> jste v lhůtě pro vrácení peněz. Vrátíme vám celou částku za nákup — bez otázek. Stačí nám <refund>poslat zprávu</refund>.",
+    "licenseOlder": "<strong>Koupeno před více než 30 dny:</strong> převedeme, co jste zaplatili, na kredity HyperWhisper Cloud — celou kupní cenu po odečtení $5 v kreditech, které už máte na účtu. <credits>Napište nám</credits> a zbytek vám připíšeme.",
+    "contributeHeading": "Chcete přispět?",
+    "contributeBody": "Hlášení chyb, nápady na funkce i pull requesty jsou vítány. Založte issue nebo zahajte diskusi <github>na GitHubu</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper je nyní plně open source",
+    "shortText": "Nyní open source",
+    "learnMore": "Zjistit více",
+    "dismiss": "Zavřít oznámení"
+  },
+  "notFound": {
+    "title": "Stránka nenalezena",
+    "heading": "Tato stránka neexistuje",
+    "description": "Odkaz může být nefunkční nebo byla stránka přesunuta.",
+    "home": "Přejít na úvodní stránku",
+    "download": "Stáhnout HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Platnost tohoto přihlašovacího odkazu vypršela nebo už byl použit. Zadejte svůj e-mail a získejte nový.",
+    "magicLinkFailed": "S tímto odkazem jsme vás nemohli přihlásit. Zadejte svůj e-mail a získejte nový."
   }
 }

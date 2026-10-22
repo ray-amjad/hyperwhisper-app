@@ -11,12 +11,12 @@ namespace HyperWhisper.Models;
 public class LanguageModelInfo
 {
     /// <summary>
-    /// The model ID used in API requests (e.g., "gpt-4.1-mini", "claude-3-haiku-20240307").
+    /// The model ID used in API requests (e.g., "gpt-5.6-luna", "claude-3-haiku-20240307").
     /// </summary>
     public string Id { get; }
 
     /// <summary>
-    /// Human-readable name for UI display (e.g., "GPT-4.1 Mini", "Claude 3 Haiku").
+    /// Human-readable name for UI display (e.g., "GPT-5.6 Luna", "Claude 3 Haiku").
     /// </summary>
     public string DisplayName { get; }
 
@@ -57,20 +57,22 @@ public class LanguageModelInfo
         // OpenAI Models
         // GPT-4.1 and GPT-5 series - text-focused models optimized for writing tasks
         new("gpt-5.6-luna", "GPT-5.6 Luna", PostProcessingProvider.OpenAI, "Latest generation, fastest"),
-        new("gpt-4.1-mini", "GPT-4.1 Mini", PostProcessingProvider.OpenAI, "Balanced (recommended)"),
-        new("gpt-4.1", "GPT-4.1", PostProcessingProvider.OpenAI, "High quality"),
+        new("gpt-6-luna", "GPT-6 Luna", PostProcessingProvider.OpenAI, "Newest generation, fast"),
+        // gpt-4.1 / gpt-4.1-mini rows removed (#1907): OpenAI removes both 2027-01-14 (notice
+        // 2026-10-14), and MigrateModelId sends them to gpt-6-luna, OpenAI's named replacement.
         // gpt-5 / gpt-5-mini / gpt-5-nano rows removed (#1018): OpenAI removes them
         // 2026-12-11, and MigrateModelId sends all 3 to gpt-5.6-luna.
-        new("gpt-5.1", "GPT-5.1", PostProcessingProvider.OpenAI, "Latest flagship"),
+        // gpt-5.1 / gpt-5.4-nano rows removed (#1209): OpenAI removes them 2027-04-01.
         new("gpt-5.2", "GPT-5.2", PostProcessingProvider.OpenAI, "Advanced flagship"),
-        new("gpt-5.4-nano", "GPT-5.4 Nano", PostProcessingProvider.OpenAI, "Fast, lightweight"),
         new("gpt-5.4-mini", "GPT-5.4 Mini", PostProcessingProvider.OpenAI, "Latest generation, balanced"),
         new("gpt-5.4", "GPT-5.4", PostProcessingProvider.OpenAI, "Latest generation, highest quality"),
 
         // Anthropic Models
         // Claude series - known for nuanced text understanding
-        new("claude-haiku-4-5", "Claude 4.5 Haiku", PostProcessingProvider.Anthropic, "Fast and affordable"),
-        new("claude-sonnet-4-5", "Claude 4.5 Sonnet", PostProcessingProvider.Anthropic, "High quality"),
+        // claude-haiku-4-5 / claude-sonnet-4-5 rows removed (2026-10): MigrateModelId
+        // sends both, and every older alias, to their 5.5 successors.
+        new("claude-haiku-5-5", "Claude Haiku 5.5", PostProcessingProvider.Anthropic, "Fast and affordable"),
+        new("claude-sonnet-5-5", "Claude Sonnet 5.5", PostProcessingProvider.Anthropic, "Latest Sonnet model, highest quality"),
         new("claude-sonnet-4-6", "Claude 4.6 Sonnet", PostProcessingProvider.Anthropic, "High quality, capable Sonnet model"),
         new("claude-sonnet-5", "Claude Sonnet 5", PostProcessingProvider.Anthropic, "Latest, most capable Sonnet model"),
 
@@ -78,7 +80,6 @@ public class LanguageModelInfo
         // Ultra-fast inference via specialized hardware
         new("openai/gpt-oss-120b", "GPT OSS 120B", PostProcessingProvider.Groq, "Fast, high quality"),
         new("openai/gpt-oss-20b", "GPT OSS 20B", PostProcessingProvider.Groq, "Fast, lightweight"),
-        new("qwen/qwen3.6-27b", "Qwen 3.6 27B", PostProcessingProvider.Groq, "Capable Qwen, strong quality-to-speed ratio"),
         new("qwen/qwen3.8-27b", "Qwen 3.8 27B", PostProcessingProvider.Groq, "Latest Qwen, strong quality-to-speed ratio"),
 
         // xAI Grok Models
@@ -88,22 +89,23 @@ public class LanguageModelInfo
 
         // Google Gemini Models
         // Fast and efficient models via OpenAI-compatible endpoint
-        new("gemini-3-flash-preview", "Gemini 3 Flash", PostProcessingProvider.Gemini, "Pro-level intelligence"),
-        new("gemini-3.5-flash", "Gemini 3.5 Flash", PostProcessingProvider.Gemini, "Most intelligent flash, frontier agentic performance"),
-        new("gemini-3.6-flash", "Gemini 3.6 Flash", PostProcessingProvider.Gemini, "Capable flash model, frontier performance for agentic tasks"),
-        new("gemini-3.7-flash", "Gemini 3.7 Flash", PostProcessingProvider.Gemini, "Capable flash model, frontier performance for agentic tasks"),
+        // gemini-3.5-flash / gemini-3.7-flash rows removed: Google deprecated both 2026-10-08
+        // and routes them to 3.6 / 3.8 Flash; MigrateModelId does too. 3.8 Flash is first
+        // because the first row is the provider default (matches macOS).
         new("gemini-3.8-flash", "Gemini 3.8 Flash", PostProcessingProvider.Gemini, "Latest flash model, frontier performance for agentic tasks"),
+        new("gemini-3.6-flash", "Gemini 3.6 Flash", PostProcessingProvider.Gemini, "Capable flash model, frontier performance for agentic tasks"),
         new("gemini-2.5-flash", "Gemini 2.5 Flash", PostProcessingProvider.Gemini, "Fast and efficient"),
         new("gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite", PostProcessingProvider.Gemini, "Lightweight, fastest"),
         new("gemini-3.5-flash-lite", "Gemini 3.5 Flash Lite", PostProcessingProvider.Gemini, "Latest lightweight flash, fast and cost-efficient"),
         new("gemini-2.5-pro", "Gemini 2.5 Pro", PostProcessingProvider.Gemini, "High quality, advanced reasoning"),
         new("gemini-3.1-pro-preview", "Gemini 3.1 Pro", PostProcessingProvider.Gemini, "Latest pro-level intelligence"),
-        new("gemini-3.1-flash-lite", "Gemini 3.1 Flash Lite", PostProcessingProvider.Gemini, "Lightweight, fast and cost-efficient"),
+        // gemini-3.1-flash-lite row removed (#798): Google shuts it down 2027-05-07,
+        // and MigrateModelId sends it to gemini-3.5-flash-lite.
 
         // Mistral Models
         // Fast, multilingual models via OpenAI-compatible endpoint
         new("mistral-small-latest", "Mistral Small", PostProcessingProvider.Mistral, "Fast, multilingual"),
-        new("mistral-medium-3.5", "Mistral Medium 3.5", PostProcessingProvider.Mistral, "High quality, multilingual, balanced cost"),
+        new("mistral-medium-3-5", "Mistral Medium 3.5", PostProcessingProvider.Mistral, "High quality, multilingual, balanced cost"),
 
         // Cerebras Models
         // Ultra-fast inference on custom silicon
@@ -132,15 +134,32 @@ public class LanguageModelInfo
         "gpt-5-nano" => "gpt-5.6-luna",
         "gpt-5-mini" => "gpt-5.6-luna",
         "gpt-5" => "gpt-5.6-luna",
+        // OpenAI removes both 2027-04-01 (#1209). gpt-5.4-nano goes to OpenAI's named
+        // replacement, gpt-6-luna; gpt-5.1 to gpt-5.6-luna, as for gpt-5 (OpenAI's named
+        // gpt-6-sol is ~50x the price for this task). Matches macOS.
+        "gpt-5.4-nano" => "gpt-6-luna",
+        "gpt-5.1" => "gpt-5.6-luna",
+        // OpenAI removes gpt-4.1 2027-01-14 (notice 2026-10-14) and names gpt-6-luna.
+        "gpt-4.1" => "gpt-6-luna",
+        // Same notice for gpt-4.1-mini, same named replacement (#1907). Matches macOS.
+        "gpt-4.1-mini" => "gpt-6-luna",
         // Anthropic model ID migrations
-        "claude-3-haiku-20240307" => "claude-haiku-4-5",
-        "claude-3-5-haiku-latest" => "claude-haiku-4-5",
-        "claude-haiku-4.5" => "claude-haiku-4-5",
-        "claude-haiku-4-5-latest" => "claude-haiku-4-5",
-        "claude-sonnet-4-20250514" => "claude-sonnet-4-5",
-        "claude-sonnet-4-0" => "claude-sonnet-4-5",
-        "claude-sonnet-4-5-latest" => "claude-sonnet-4-5",
+        // Haiku 4.5 and Sonnet 4.5 left the picker 2026-10; each old id maps
+        // straight to its final row (matches macOS).
+        "claude-3-haiku-20240307" => "claude-haiku-5-5",
+        "claude-3-5-haiku-latest" => "claude-haiku-5-5",
+        "claude-haiku-4.5" => "claude-haiku-5-5",
+        "claude-haiku-4-5" => "claude-haiku-5-5",
+        "claude-haiku-4-5-latest" => "claude-haiku-5-5",
+        "claude-haiku-4-5-20251001" => "claude-haiku-5-5",
+        "claude-sonnet-4-20250514" => "claude-sonnet-5-5",
+        "claude-sonnet-4-0" => "claude-sonnet-5-5",
+        "claude-sonnet-4-5" => "claude-sonnet-5-5",
+        "claude-sonnet-4-5-latest" => "claude-sonnet-5-5",
+        "claude-sonnet-4-5-20250929" => "claude-sonnet-5-5",
         "claude-sonnet-4-6-latest" => "claude-sonnet-4-6",
+        // Groq: qwen3.6 left the picker 2026-10 for its successor (matches macOS).
+        "qwen/qwen3.6-27b" => "qwen/qwen3.8-27b",
         // Groq model removals
         // Shut down by Groq 2026-03-09 → openai/gpt-oss-120b (GroqCloud deprecation notice).
         // Missed when the 2026-07-17 removals were mapped below, so it stayed in the
@@ -181,6 +200,9 @@ public class LanguageModelInfo
         // Mistral: open-mistral-nemo weights retired 2026-07-31 → mistral-small-latest
         // (the redirect used on macOS).
         "open-mistral-nemo" => "mistral-small-latest",
+        // Mistral's API id is mistral-medium-3-5 (#2200); the dotted id the picker
+        // used to save is not a Mistral model id.
+        "mistral-medium-3.5" => "mistral-medium-3-5",
         // Local LLM: migrated from Qwen 3.5 to Gemma 4 (matches macOS).
         "Qwen3.5-4B-Q4_K_M.gguf" => "gemma-4-E2B-it-Q4_K_M.gguf",
         "Qwen3.5-9B-Q4_K_M.gguf" => "gemma-4-E4B-it-Q4_K_M.gguf",
@@ -193,9 +215,19 @@ public class LanguageModelInfo
         "gemma-3-12b-it" => "gemini-3.8-flash",
         "gemma-3-27b-it" => "gemini-3.8-flash",
         "gemini-3-pro-preview" => "gemini-3.1-pro-preview",
-        "gemini-3.1-flash-lite-preview" => "gemini-3.1-flash-lite",
+        // gemini-3.1-flash-lite shuts down 2027-05-07; Google names gemini-3.5-flash-lite
+        // (#798). Both older lite ids go straight there (matches macOS).
+        "gemini-3.1-flash-lite" => "gemini-3.5-flash-lite",
+        "gemini-3.1-flash-lite-preview" => "gemini-3.5-flash-lite",
         "gemini-2.0-flash" => "gemini-3.6-flash",
-        "gemini-2.0-flash-lite" => "gemini-3.1-flash-lite",
+        "gemini-2.0-flash-lite" => "gemini-3.5-flash-lite",
+        // Google deprecated both 2026-10-08 and routes their API requests to these
+        // successors (Gemini API changelog). No shutdown date yet. Matches macOS.
+        "gemini-3.5-flash" => "gemini-3.6-flash",
+        "gemini-3.7-flash" => "gemini-3.8-flash",
+        // Left the picker 2026-10. 3.8 Flash on every route: HyperWhisper Cloud does not
+        // serve 3.6 (PARITY: hw-catalog GEMINI_ALIASES, macOS, shared-dotnet Migrate).
+        "gemini-3-flash-preview" => "gemini-3.8-flash",
         _ => oldId
     };
 

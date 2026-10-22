@@ -10,19 +10,31 @@ import { requestOpenAICompatibleChat } from './openai-compat-chat';
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai';
 
 // The 2.5-flash and 3.8-flash families default to a dynamic thinking budget and
-// bill thinking tokens as output — wasted latency/cost for simple text cleanup.
-// Gemini's OpenAI-compat surface disables thinking via reasoning_effort: 'none'.
-// Listed per family rather than matched on a generic /gemini-\d+.*flash/ so an id
-// we have not checked (e.g. a future 3.x flash, or any -pro id) keeps its own
-// default instead of silently inheriting this one.
+// bill thinking tokens as output — wasted latency/cost for simple text cleanup —
+// so each is sent the lowest reasoning_effort it accepts. Listed per family rather
+// than matched on a generic /gemini-\d+.*flash/ so an id we have not checked (e.g.
+// a future 3.x flash, or any -pro id) keeps its own default instead of silently
+// inheriting one of these. First match wins, so keep a longer prefix above a
+// shorter one it extends.
 //
-// UNVERIFIED for 3.8: the sibling transcription client (gemini.ts thinkingConfig)
-// maps every gemini-3* id to thinkingLevel: 'minimal' and gives a zero budget only
-// to 2.5-flash/flash-lite, i.e. this repo already assumes a 3.x model may not
-// accept fully disabled thinking. No published source confirms whether the
-// OpenAI-compat surface accepts reasoning_effort: 'none' for a 3.x id, and a 400
-// here would NOT fall back — shouldFallback() retries 5xx only.
-const THINKING_DISABLED_PREFIXES = ['gemini-2.5-flash', 'gemini-3.8-flash'] as const;
+// - 2.5-flash: 'none' turns thinking off.
+// - 3.8-flash: thinking cannot be turned off; its levels are low/medium/high
+//   (https://ai.google.dev/gemini-api/docs/thinking, read 2026-10-07). Measured on
+//   the OpenAI-compat surface 2026-10-15: 'minimal' is a 400 ("Thinking level
+//   MINIMAL is not supported for this model"), while 'none' is a 200 that still
+//   thinks — about the same hidden tokens as 'low'. So send 'low', the floor the
+//   docs name, rather than rely on Google quietly remapping 'none'. A 400 here
+//   would NOT fall back: shouldFallback() fails over on a 5xx or 429 only. This
+//   matches the transcription client (gemini.ts thinkingConfig).
+const REASONING_EFFORT_BY_PREFIX: ReadonlyArray<readonly [prefix: string, effort: string]> = [
+  ['gemini-2.5-flash', 'none'],
+  ['gemini-3.8-flash', 'low'],
+];
+
+/** The reasoning_effort to send for a model id, or undefined to send none. */
+function geminiReasoningEffort(model: string): string | undefined {
+  return REASONING_EFFORT_BY_PREFIX.find(([prefix]) => model.startsWith(prefix))?.[1];
+}
 
 export async function requestGeminiChat(
   payload: CorrectionRequestPayload,
@@ -42,15 +54,12 @@ export async function requestGeminiChat(
       errorLogLabel: 'Gemini API',
       errorChatLabel: 'Gemini chat',
       buildBody: (body, requestModel) => {
-        // Thinking off for the families listed in THINKING_DISABLED_PREFIXES; see
-        // the constant for why the list is explicit and what is unverified on 3.8.
-        const disableThinking = THINKING_DISABLED_PREFIXES.some((prefix) =>
-          requestModel.startsWith(prefix)
-        );
+        // Lowest accepted thinking level per family; see REASONING_EFFORT_BY_PREFIX.
+        const reasoningEffort = geminiReasoningEffort(requestModel);
         return {
           model: requestModel,
           ...body,
-          ...(disableThinking ? { reasoning_effort: 'none' } : {}),
+          ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
           stream: false,
         };
       },

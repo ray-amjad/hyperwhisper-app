@@ -36,6 +36,23 @@ sudo apt install ./hyperwhisper_VERSION_amd64.deb
 Replace `VERSION` with the version in the downloaded filename. Using `apt`
 installs the app and its desktop dependencies together.
 
+### Install NVIDIA CUDA support (optional)
+
+The main package does not include the NVIDIA CUDA 12 backends. To use CUDA for
+local Whisper or for local Gemma post-processing, download
+`hyperwhisper-cuda_VERSION_amd64.deb` from the same release and install it. Its
+version must match the version of the main package:
+
+```bash
+sudo apt install ./hyperwhisper-cuda_VERSION_amd64.deb
+```
+
+Without this package, a CUDA choice uses Vulkan instead, or the CPU if the CPU
+fallback is on, and the status says "CUDA is not installed (install the
+hyperwhisper-cuda package)". If neither is available, transcription stops with
+"The CUDA backend is not installed. Install the hyperwhisper-cuda package, or
+choose Vulkan or CPU."
+
 Launch HyperWhisper from your application menu or from a terminal:
 
 ```bash

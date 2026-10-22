@@ -47,10 +47,10 @@ This page lists the most common problems and their fixes. Go to the symptom that
 
     <Tabs>
       <Tab title="macOS">
-        Click the HyperWhisper icon in the menu bar. Move the pointer over **Microphone**. Make sure that your device is in the list and selected. Then open **System Settings → Sound → Input**. Make sure that the device is in this list.
+        Open **Settings → Sound** and look at the **Microphone** picker. You can also click the HyperWhisper icon in the menu bar and move the pointer over **Microphone**. Make sure that your device is in the list and selected. Then open **System Settings → Sound → Input**. Make sure that the device is in this list.
       </Tab>
       <Tab title="Windows">
-        Right-click the HyperWhisper tray icon. Move the pointer over **Microphone**. Then select your device. Open **Settings → System → Sound**. Make sure that the device is enabled.
+        In HyperWhisper, open **Settings → Sound** and select your device in the **Microphone** picker. You can also right-click the HyperWhisper tray icon and move the pointer over **Microphone**. Then open Windows **Settings → System → Sound**. Make sure that the device is enabled.
       </Tab>
     </Tabs>
 
@@ -125,10 +125,14 @@ This page lists the most common problems and their fixes. Go to the symptom that
 
     <Tabs>
       <Tab title="macOS">
+        The alert names the mode and the model, for example: "&lt;Mode&gt; uses &lt;Model&gt;, which is not downloaded. Download it in Model Library." If this occurs when you transcribe a file, the alert also has an **Open Model Library** button.
+
         Open **Model Library** and find the model that you use. Look at its status. If the model shows a **Download** button, click the button. If the model is downloaded and the transcription still fails, remove the model and download it again.
       </Tab>
       <Tab title="Windows">
         Open **Model Library** and find the model in your settings. If the status shows that the model is missing, download it again. If the Parakeet daemon crashes or times out again and again, quit the app and open it again. A crash during a transcription can leave the daemon in an incorrect state.
+
+        If you see "Windows Application Control blocked &lt;file&gt;, a file HyperWhisper needs. Ask your IT administrator to allow HyperWhisper, or check Smart App Control in Windows Security.", a Windows policy stopped a HyperWhisper file from loading, for example the Parakeet daemon. Ask your IT administrator to allow HyperWhisper, or check **Smart App Control** in **Windows Security**.
       </Tab>
     </Tabs>
   </Accordion>
@@ -235,6 +239,8 @@ Grant the permission at **System Settings → Privacy & Security → Screen Reco
     **For HyperWhisper Cloud:** Add credits from the billing dashboard. To open the dashboard, go to **Settings → HyperWhisper Cloud**. For the credit rates, see [Pricing & Cloud Credits](/licensing).
 
     **For BYOK providers:** Log in to the billing page of the provider. Then add credits or increase your quota limit. For the links, see [Providers](/choosing-a-provider).
+
+    Some providers report an empty account with an authentication status code. HyperWhisper shows these as this quota error, not as an invalid API key: an ElevenLabs 401 response with `quota_exceeded`, and a SpaceXAI 403 response that says the account used all available credits.
   </Accordion>
 
   <Accordion title="Provider temporarily unavailable (server errors)">
@@ -267,6 +273,8 @@ Grant the permission at **System Settings → Privacy & Security → Screen Reco
 
   <Accordion title="Insufficient disk space">
     The models are from about 39–78 MB (Whisper Tiny) to 2.9–3.1 GB (Whisper Large). The size changes with the platform. If your disk is almost full, the download fails or stops near the end.
+
+    On Windows, HyperWhisper checks the free space before a Whisper or local LLM download starts. It needs the size of the model plus 10%. If there is not enough space, the download does not start, and you see "Not enough disk space to download" with the model name, the space needed, and the space available.
 
     **Fix:** Make more disk space available. Then start the download again. You can also select a smaller model. For most users, Whisper Small gives a good balance of accuracy and size. Its size is 466–488 MB and changes with the platform.
 
@@ -360,10 +368,10 @@ Enable or disable this option in **Settings → Sound → Keep Microphone Warm**
 
 <Tabs>
   <Tab title="macOS">
-    Click the HyperWhisper icon in the menu bar. Move the pointer over **Microphone**. Then select the correct device. A checkmark shows the active device.
+    Open **Settings → Sound** and select the correct device in the **Microphone** picker. You can also click the HyperWhisper icon in the menu bar, move the pointer over **Microphone**, and select the device. A checkmark shows the active device.
   </Tab>
   <Tab title="Windows">
-    Right-click the HyperWhisper tray icon. Move the pointer over **Microphone**. Then select the correct device.
+    Open **Settings → Sound** and select the correct device in the **Microphone** picker. You can also right-click the HyperWhisper tray icon, move the pointer over **Microphone**, and select the device.
   </Tab>
 </Tabs>
 
@@ -371,10 +379,10 @@ Enable or disable this option in **Settings → Sound → Keep Microphone Warm**
 
 <Tabs>
   <Tab title="macOS">
-    If your selected device disconnects during a recording, HyperWhisper clears the selection. HyperWhisper then uses the macOS default input device. The active recording can fail.
+    If your selected device disconnects during a recording, HyperWhisper keeps your choice. The recording continues on the macOS default input device, in the same file. Later recordings use your device again when it is reconnected.
   </Tab>
   <Tab title="Windows">
-    If you remove the selected device, HyperWhisper matches it by name when the device returns. If the name is not in the list, HyperWhisper selects the first available device.
+    If you remove the selected device, HyperWhisper keeps your choice and uses the Windows default input device until the device is reconnected. When the device returns, HyperWhisper matches it by name and changes back to it.
   </Tab>
 </Tabs>
 
@@ -396,6 +404,8 @@ The app log makes the diagnosis much faster:
 <Tabs>
   <Tab title="macOS">
     Open the **Debug** menu in the menu bar of the app. Select **Export Update Logs…**. For a more complete bundle, select **Export Diagnostics…**. Then attach the exported log file.
+
+    If HyperWhisper cannot read its system logs, **Export Diagnostics…** still saves the file. The alert "Diagnostics Exported Without System Logs" appears, and `system-logs.txt` in the file holds only the reason.
   </Tab>
   <Tab title="Windows">
     Press `Win + R`. Paste `%LOCALAPPDATA%\HyperWhisper\Logs` and press Enter. Then attach the most recent `hyperwhisper-YYYY-MM-DD.log` file.

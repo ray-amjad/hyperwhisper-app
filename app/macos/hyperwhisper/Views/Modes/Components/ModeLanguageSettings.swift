@@ -65,6 +65,11 @@ struct LanguageSelectionView: View {
     // Optional cloud context for dynamic filtering
     var cloudProviderId: String? = nil
     var cloudModelId: String? = nil
+    /// A shared-catalog entry id (`deepgramNova3`, `elevenLabsScribeV2`, …).
+    /// When set on a cloud picker, the allowed set is the catalog's own answer
+    /// for that entry (`CloudSTTCatalog.pickerLanguageCodes(forEntryId:)`),
+    /// unless the `STTCapabilities` provider/model lookup has its own set.
+    var cloudTierId: String? = nil
     // When false, only shows the picker without the label row (for embedding in other layouts)
     var showLabel: Bool = true
 
@@ -104,7 +109,8 @@ struct LanguageSelectionView: View {
             provider: provider,
             model: model,
             cloudProviderId: cloudProviderId,
-            cloudModelId: cloudModelId
+            cloudModelId: cloudModelId,
+            cloudTierId: cloudTierId
         )
     }
 
@@ -119,8 +125,13 @@ struct LanguageSelectionView: View {
         provider: ProviderType,
         model: String,
         cloudProviderId: String?,
-        cloudModelId: String?
+        cloudModelId: String?,
+        cloudTierId: String? = nil
     ) -> [LanguageData.LanguageInfo] {
+        // A vendor-confirmed per-model set wins: it can be narrower than its
+        // tier (AssemblyAI Universal 3.5 Pro is 18 languages, its tier 99).
+        // The tier's catalog set answers for a model `STTCapabilities` does
+        // not list, which used to fall through to every language (#831).
         if provider == .cloud, let pid = cloudProviderId, let mid = cloudModelId {
             let languageSpecs = STTCapabilities.languages(providerId: pid, modelId: mid)
             if !languageSpecs.isEmpty {
@@ -129,6 +140,11 @@ struct LanguageSelectionView: View {
                 }
                 return LanguageData.prioritizeAutomatic(infos)
             }
+        }
+        if provider == .cloud,
+           let tierId = cloudTierId,
+           let infos = catalogLanguageInfos(forEntryId: tierId) {
+            return infos
         }
         if provider == .local, model == Self.parakeetModelIdentifier {
             let infos = LanguageData.languages(for: Self.parakeetLanguageCodes, context: "Parakeet language filter")
@@ -156,6 +172,30 @@ struct LanguageSelectionView: View {
         return LanguageData.prioritizeAutomatic(LanguageData.allLanguages)
     }
 
+    /// The picker rows a shared-catalog entry declares, or nil when the catalog
+    /// does not know the set (`"unverified"`, or an unknown id) so the caller
+    /// keeps its full list.
+    ///
+    /// The catalog folds to primary subtags (`en`, `pt`, `zh`) while the picker
+    /// also lists region and script rows (`en-GB`, `pt-BR`, `zh-TW`), so a row
+    /// matches on its primary subtag, as `CloudSTTCatalog.pickerLanguageCodes`
+    /// instructs. Matching by exact code would drop every region row.
+    static func catalogLanguageInfos(forEntryId entryId: String) -> [LanguageData.LanguageInfo]? {
+        guard let codes = CloudSTTCatalog.shared.pickerLanguageCodes(forEntryId: entryId) else {
+            return nil
+        }
+        let allowed = Set(codes.map { $0.lowercased() })
+        let infos = LanguageData.allLanguages.filter { allowed.contains(primarySubtag(of: $0.code)) }
+        guard !infos.isEmpty else { return nil }
+        return LanguageData.prioritizeAutomatic(infos)
+    }
+
+    /// `en-GB` → `en`, `zh_TW` → `zh`, `yue` → `yue`. A plain split on purpose:
+    /// the catalog fold already uses the picker's own codes, so no alias map.
+    static func primarySubtag(of code: String) -> String {
+        String(code.prefix { $0 != "-" && $0 != "_" }).lowercased()
+    }
+
     private var allowedLanguages: [(code: String, name: String)] {
         LanguageData.pickerTuples(from: allowedLanguageInfos)
     }
@@ -181,6 +221,7 @@ struct LanguageSelectionView: View {
                     .onAppear { enforceAllowedLanguage() }
                     .onChange(of: cloudModelId) { _, _ in enforceAllowedLanguage() }
                     .onChange(of: cloudProviderId) { _, _ in enforceAllowedLanguage() }
+                    .onChange(of: cloudTierId) { _, _ in enforceAllowedLanguage() }
                     .onChange(of: model) { _, _ in enforceAllowedLanguage() }
                     Spacer()
                 }
@@ -199,6 +240,7 @@ struct LanguageSelectionView: View {
                 .onAppear { enforceAllowedLanguage() }
                 .onChange(of: cloudModelId) { _, _ in enforceAllowedLanguage() }
                 .onChange(of: cloudProviderId) { _, _ in enforceAllowedLanguage() }
+                .onChange(of: cloudTierId) { _, _ in enforceAllowedLanguage() }
                 .onChange(of: model) { _, _ in enforceAllowedLanguage() }
             }
         } else {

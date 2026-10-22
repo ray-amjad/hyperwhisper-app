@@ -349,6 +349,13 @@ enum STTCapabilities {
                         id: "scribe_v2",
                         languages: STTLanguageTemplates.elevenLabsScribeV2,
                         notes: "Latest generation Scribe model with improved accuracy. Supports custom vocabulary with keyterm prompting (up to 100 terms)."
+                    ),
+                    // ElevenLabs: "Same features, languages, pricing, and API as Scribe v2"
+                    // (elevenlabs.io/docs/overview/models), so it shares Scribe v2's set (#2201).
+                    STTModelSpec(
+                        id: "scribe_v2_medical",
+                        languages: STTLanguageTemplates.elevenLabsScribeV2,
+                        notes: "Scribe v2 tuned for clinical audio. Supports custom vocabulary with keyterm prompting (up to 100 terms) for drug names and medical phrases."
                     )
                 ]
             ),
@@ -392,17 +399,6 @@ enum STTCapabilities {
                 ]
             ),
             STTProviderSpec(
-                id: "hyperwhisper",
-                authKeyName: "",
-                models: [
-                    STTModelSpec(
-                        id: "nova-3",
-                        languages: STTLanguageTemplates.nova3General,
-                        notes: "HyperWhisper Cloud streaming (Deepgram Nova-3 backend)."
-                    )
-                ]
-            ),
-            STTProviderSpec(
                 id: "grok",
                 authKeyName: "Grok",
                 lastVerifiedAt: "2026-04-22",
@@ -411,9 +407,12 @@ enum STTCapabilities {
                     // `ModeEditorView.languageFilterCloudModelId` passes through
                     // unresolved. A Grok mode saved before 2026-09-19 carries
                     // "", because `/v1/stt` had no `model` parameter then; a
-                    // mode saved since carries one of the two real ids. All
-                    // three must be here or the Language picker silently drops
-                    // its filter and offers every language.
+                    // mode saved since carries the real id. Both must be here
+                    // or the Language picker silently drops its filter and
+                    // offers every language. (A stored
+                    // `grok-voice-transcribe-1.0`, retired 2026-10-02, is
+                    // resolved to 2.0 by `resolveModelAlias` when the mode is
+                    // loaded, before it reaches this lookup — #1908.)
                     STTModelSpec(
                         id: "",
                         languages: STTLanguageTemplates.grokFormattingLanguages,
@@ -421,11 +420,6 @@ enum STTCapabilities {
                     ),
                     STTModelSpec(
                         id: "grok-voice-transcribe-2.0",
-                        languages: STTLanguageTemplates.grokFormattingLanguages,
-                        notes: "SpaceXAI Grok speech-to-text. The language setting only enables number/currency formatting — transcription works on any spoken language."
-                    ),
-                    STTModelSpec(
-                        id: "grok-voice-transcribe-1.0",
                         languages: STTLanguageTemplates.grokFormattingLanguages,
                         notes: "SpaceXAI Grok speech-to-text. The language setting only enables number/currency formatting — transcription works on any spoken language."
                     )

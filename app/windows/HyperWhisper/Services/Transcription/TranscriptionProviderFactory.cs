@@ -203,8 +203,9 @@ public class TranscriptionProviderFactory : IDisposable
     /// </summary>
     public static bool IsHyperWhisperCloudActive(Mode? mode)
     {
-        if (mode?.ProviderType?.Equals("cloud", StringComparison.OrdinalIgnoreCase) != true) return false;
-        return CloudTranscriptionProviderExtensions.FromIdentifier(mode.CloudProvider)
+        // Exactly "cloud", like the orchestrator (#1548): a legacy "Cloud" row runs on-device.
+        if (mode == null || !LocalModeModel.IsCloud(mode)) return false;
+        return CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider)
             == CloudTranscriptionProvider.HyperWhisperCloud;
     }
 
@@ -241,31 +242,10 @@ public class TranscriptionProviderFactory : IDisposable
     /// </summary>
     public static string? GetApiKeyForProvider(CloudTranscriptionProvider provider)
     {
-        return provider switch
-        {
-            // Shared keys with post-processing
-            CloudTranscriptionProvider.OpenAI => ApiKeyService.Instance.GetApiKey(PostProcessingProvider.OpenAI),
-            CloudTranscriptionProvider.Groq => ApiKeyService.Instance.GetApiKey(PostProcessingProvider.Groq),
-            CloudTranscriptionProvider.Gemini => ApiKeyService.Instance.GetApiKey(PostProcessingProvider.Gemini),
-            CloudTranscriptionProvider.Grok => ApiKeyService.Instance.GetApiKey(PostProcessingProvider.Grok),
-
-            // Transcription-only providers
-            CloudTranscriptionProvider.Deepgram => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.Deepgram),
-            CloudTranscriptionProvider.AssemblyAI => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.AssemblyAI),
-            CloudTranscriptionProvider.ElevenLabs => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.ElevenLabs),
-            CloudTranscriptionProvider.Mistral => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.Mistral),
-            CloudTranscriptionProvider.Soniox => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.Soniox),
-            // Own key slot — deliberately NOT PostProcessingProvider.Gemini.
-            CloudTranscriptionProvider.GeminiTranscribe => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.GeminiTranscribe),
-            CloudTranscriptionProvider.Meta => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.Meta),
-
-            // HyperWhisper-Cloud-routed providers don't need an API key
-            CloudTranscriptionProvider.HyperWhisperCloud => null,
-            CloudTranscriptionProvider.MicrosoftAzureSpeech => null,
-            CloudTranscriptionProvider.GoogleSpeech => null,
-
-            _ => null
-        };
+        // The shared map (issue #1220). HyperWhisper-Cloud-routed providers
+        // (HyperWhisperCloud, MicrosoftAzureSpeech, GoogleSpeech) and None have
+        // no key slot, so they answer null as before.
+        return ApiKeyService.Instance.GetApiKey(provider);
     }
 
     // =========================================================================

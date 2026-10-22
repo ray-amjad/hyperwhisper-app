@@ -24,7 +24,7 @@ public class ModeToSubtitleConverter : IValueConverter
         if (mode.ProviderType == "cloud")
         {
             // Cloud mode: show provider and model (e.g., "OpenAI · Whisper-1")
-            var provider = CloudTranscriptionProviderExtensions.FromIdentifier(mode.CloudProvider);
+            var provider = CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider);
             var providerName = provider.GetDisplayName();
 
             // HyperWhisper Cloud: just show provider name (only one model)

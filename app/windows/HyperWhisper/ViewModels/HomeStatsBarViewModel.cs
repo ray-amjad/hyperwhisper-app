@@ -125,8 +125,15 @@ public partial class HomeStatsBarViewModel : ObservableObject
         {
             // One call now, not three: the shared core buckets every period in a
             // single pass over the rows.
-            snapshot = await _statisticsService
-                .GetAsync(TypingSpeedWpm, DateTimeOffset.UtcNow, TimeZoneInfo.Local)
+            //
+            // Task.Run, not just ConfigureAwait(false): Microsoft.Data.Sqlite's
+            // async calls complete synchronously, so without the hop the whole
+            // read and word count ran on the dispatcher before the first await
+            // yielded (#1486: 140 ms p50 per Home visit at 20k transcripts).
+            var typingSpeedWpm = TypingSpeedWpm;
+            snapshot = await Task.Run(() => _statisticsService
+                    .GetAsync(typingSpeedWpm, DateTimeOffset.UtcNow, TimeZoneInfo.Local)
+                    .AsTask())
                 .ConfigureAwait(false);
         }
         catch (Exception ex)

@@ -698,17 +698,20 @@ public partial class HistoryViewModel : ViewModelBase
         if (result != MessageBoxResult.Yes) return;
 
         // Mark as deleting
-        foreach (var vm in SelectedTranscripts)
+        var deleting = SelectedTranscripts.ToList();
+        foreach (var vm in deleting)
         {
             vm.IsDeleting = true;
         }
 
-        var ids = SelectedTranscripts.Select(t => t.Id).ToList();
+        var ids = deleting.Select(t => t.Id).ToList();
 
-        await Task.Run(() =>
+        var deleteResult = await Task.Run(() => _historyService.DeleteTranscripts(ids));
+        if (deleteResult.IsFailure)
         {
-            _historyService.DeleteTranscripts(ids);
-        });
+            ReportDeleteFailed(deleting, deleteResult.Error);
+            return;
+        }
 
         ClearSelection();
     }
@@ -728,15 +731,38 @@ public partial class HistoryViewModel : ViewModelBase
 
         transcript.IsDeleting = true;
 
-        await Task.Run(() =>
+        var deleteResult = await Task.Run(() => _historyService.DeleteTranscript(transcript.Id));
+        if (deleteResult.IsFailure)
         {
-            _historyService.DeleteTranscript(transcript.Id);
-        });
+            ReportDeleteFailed(new[] { transcript }, deleteResult.Error);
+            return;
+        }
 
         if (SelectedTranscript?.Id == transcript.Id)
         {
             ClearSelection();
         }
+    }
+
+    /// <summary>
+    /// A delete SQLite refused (#974). It was one SaveChanges, so nothing was
+    /// deleted: put the rows back to full opacity, keep the selection (the rows
+    /// still exist) and tell the user, instead of leaving them at 50% forever.
+    /// HistoryService already logged the ids/count and the exception.
+    /// </summary>
+    private static void ReportDeleteFailed(IEnumerable<TranscriptViewModel> rows, string? error)
+    {
+        foreach (var vm in rows)
+        {
+            vm.IsDeleting = false;
+        }
+
+        // The failed Result carries the localized transcripts.delete.failed copy.
+        WpfMessageBox.Show(
+            error ?? Loc.S("transcripts.delete.failed"),
+            Loc.S("common.error"),
+            MessageBoxButton.OK,
+            MessageBoxImage.Error);
     }
 
     // =========================================================================
@@ -749,13 +775,22 @@ public partial class HistoryViewModel : ViewModelBase
         if (SelectedTranscript == null || !SelectedTranscript.CanRetry) return;
 
         var transcript = SelectedTranscript;
-        var mode = ModeService.Instance.GetAllModes()
-            .FirstOrDefault(m => m.Name == transcript.Mode)
-            ?? ModeService.Instance.GetDefaultMode();
+
+        // REFUSAL (#1644, the rule Ray set for macOS in #1440 / #1617): no
+        // default-mode fallback. When the mode that made the recording is gone,
+        // send nothing and leave the row as it was; the user picks a mode with
+        // "Retry With...", which calls RetryWithModeAsync directly.
+        var mode = RetryModeResolver.ResolveOriginalMode(
+            ModeService.Instance.GetAllModes(), transcript.Mode);
 
         if (mode == null)
         {
-            WpfMessageBox.Show(Loc.S("errors.noModeForRetry"), Loc.S("common.error"), MessageBoxButton.OK, MessageBoxImage.Error);
+            LoggingService.Warn($"HistoryViewModel: Retry refused for transcript {transcript.Id}: its mode no longer exists; no request sent");
+            WpfMessageBox.Show(
+                Loc.S(RetryModeResolver.ModeDeletedMessageKey),
+                Loc.S("common.error"),
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
             return;
         }
 

@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Databázi historie zamkl jiný program. Nahrávka byla zachována a do historie se uloží, jakmile se databáze uvolní.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Tuto nahrávku se zatím nepodařilo uložit do historie. Nahrávka byla zachována a do historie se uloží později.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -366,6 +372,9 @@
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
+  </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Není k dispozici v testovacím profilu. Toto sestavení používá samostatnou složku dat aplikace, takže nemění položku přihlášení nainstalované aplikace.</value>
   </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Spustit minimalizovaně</value>
@@ -717,6 +726,9 @@
   <data name="errors.noSpeechDetected" xml:space="preserve">
     <value>No speech detected in the recording.</value>
   </data>
+  <data name="errors.microphoneSentNoAudio" xml:space="preserve">
+    <value>Vybraný mikrofon neposlal žádný zvuk. Zkontroluj vstupní zařízení a zkus to znovu.</value>
+  </data>
 
   <!-- Alerts -->
 
@@ -736,6 +748,9 @@
     <value>Tímto trvale smažete %d nahrávek a jejich zvukové soubory.
 
 Tuto akci nelze vrátit zpět.</value>
+  </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Nic nebylo smazáno. Historie zůstala beze změny. Zkus to znovu.</value>
   </data>
 
   <!-- Audio Errors -->
@@ -784,6 +799,12 @@ Tuto akci nelze vrátit zpět.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Neaktivováno)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (Chybí klíč API)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -814,6 +835,9 @@ Tuto akci nelze vrátit zpět.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Přepis souboru byl zrušen</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Přepisuji soubor...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -837,11 +861,11 @@ Tuto akci nelze vrátit zpět.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Režim, který vytvořil tento záznam, byl smazán, a proto se pokus neopakoval. V Historii klikněte na záznam pravým tlačítkem a zvolte „Opakovat pomocí...“, abyste vybrali jiný režim.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Nahrávání zastaveno — dosažen bezpečnostní limit 20 minut.</value>
@@ -1075,6 +1099,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Zkratky s jedním modifikátorem, jako je Ctrl, Alt, Shift nebo Win, nejsou podporovány. Použijte klávesu s modifikátory nebo zkratku s více modifikátory, například Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Zkratka bez modifikátoru musí být funkční klávesa nebo Esc. Jakákoli jiná klávesa by se spouštěla při psaní.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Tato zkratka se už používá pro {0} ({1})</value>
   </data>
@@ -1115,6 +1142,9 @@ You must have at least one mode.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Řízení aplikací Windows zablokovalo {0}, soubor, který HyperWhisper potřebuje. Požádej správce IT, aby HyperWhisper povolil, nebo zkontroluj Inteligentní řízení aplikací v Zabezpečení Windows.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>
@@ -1146,6 +1176,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Model se používá</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} používá režim „{1}“. Před smazáním přepněte tento režim na jiný model.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1280,6 +1316,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Tohle nevypadá jako klíč účtu.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1300,8 +1339,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Už probíhá nahrávání nebo přepis souboru. Zkuste soubor znovu, až skončí.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Tento soubor je prázdný, takže neobsahuje žádný zvuk k přepisu.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Tento soubor je poškozený nebo to není zvukový soubor, který HyperWhisper dokáže přečíst.</value>
   </data>
 
 
@@ -1684,6 +1732,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Další...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1978,11 +2029,35 @@ You can re-download it later.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Zastřít zvuk</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Používá jen HyperWhisper. Zůstane zapamatováno i po restartu.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Výchozí · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (nepřipojeno)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Používá se {0}, dokud nebude znovu připojeno {1}.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Není připojen žádný mikrofon. HyperWhisper použije {0}, až bude znovu připojeno.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Vyzkoušet</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Zastavit</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

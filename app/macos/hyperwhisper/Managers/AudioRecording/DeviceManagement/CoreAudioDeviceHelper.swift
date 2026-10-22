@@ -145,6 +145,7 @@ class CoreAudioDeviceHelper {
     /// 1. Check if device has input streams (excludes output-only devices)
     /// 2. Verify input channel count > 0
     /// 3. Exclude system aggregate devices (CADefaultDeviceAggregate, etc.)
+    ///    and HyperWhisper's own muffle aggregate
     /// 4. Map to AudioDevice struct with name and UID
     ///
     /// **Returns:**
@@ -262,6 +263,12 @@ class CoreAudioDeviceHelper {
                (deviceName.contains("CA") && deviceName.contains("Aggregate")) ||
                deviceName.contains("System") ||
                (deviceName.contains("Default") && deviceName.contains("Aggregate")) {
+                continue
+            }
+
+            // Filter out HyperWhisper's own private muffle aggregate (it has
+            // the tap as an input stream while Muffle Audio is running)
+            if AudioMuffler.isMuffleAggregate(uid: uid, name: deviceName) {
                 continue
             }
 

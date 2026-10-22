@@ -176,7 +176,7 @@ struct ModeEditorDefaultsTests {
         let create = try ProductionSource.slice(
             of: Self.editorPath,
             from: "let seededProvider = ModeEditorDefaults.initialProvider(",
-            to: "private func sortedModelIds() -> [String] {"
+            to: "private func localPickerModelIds() -> [String] {"
         )
         #expect(create.contains("let seededModel = ModeEditorDefaults.initialLocalModel(availableModelIds: availableModelIds)"))
         #expect(create.contains("_language = State(initialValue: ModeEditorDefaults.initialLanguage("))
@@ -188,12 +188,24 @@ struct ModeEditorDefaultsTests {
     }
 
     @Test func thePickerSortsWithTheSameTable() throws {
-        let sort = try ProductionSource.slice(
+        // The On-device picker lists localPickerModelIds() (issue #1434) ...
+        let editor = try ProductionSource.code(of: Self.editorPath)
+        #expect(editor.contains("ForEach(localPickerModelIds(), id: \\.self)"))
+        // ... which delegates to the resolver with the installed ids ...
+        let rows = try ProductionSource.slice(
             of: Self.editorPath,
-            from: "private func sortedModelIds() -> [String] {",
-            to: "private func displayName(for id: String) -> String {"
+            from: "private func localPickerModelIds() -> [String] {",
+            to: "private func localPickerLabel(for id: String) -> String {"
         )
-        #expect(sort.contains("ModeEditorDefaults.sortedLocalModelIds(availableModelIds)"))
+        #expect(rows.contains("ModeEditorDefaults.localPickerModelIds("))
+        #expect(rows.contains("availableModelIds: availableModelIds"))
+        // ... which sorts with the same table the CREATE seed uses.
+        let sort = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Views/Modes/ModeEditorDefaults.swift",
+            from: "static func localPickerModelIds(availableModelIds: [String], missingLocalModelId: String?) -> [String] {",
+            to: "static func onDeviceModel("
+        )
+        #expect(sort.contains("sortedLocalModelIds(availableModelIds)"))
     }
 
     // MARK: - ModesView passes the licence to the CREATE sheet

@@ -18,7 +18,8 @@ info:
     HTTP 4xx is reserved for protocol failures: malformed JSON (400), missing
     or invalid bearer token (401), or a rejected Host/Origin header (403 — a
     DNS-rebinding guard applied to every route, including the unauthenticated
-    /health, on every platform).
+    /health, on every platform). On macOS, a request head over 8 KiB a line
+    or 64 KiB in total gets a bare 431 and the connection closes.
   version: "1.0.0"
 servers:
   - url: http://127.0.0.1:{port}
@@ -183,6 +184,10 @@ paths:
         skip (post-processing off for the resolved mode, or an empty system
         prompt) on Windows and Linux, and either that or a provider failure on
         macOS. Handle both the `ok: false` envelope and `post_processed: false`.
+
+        One case is the same on every platform: a HyperWhisper Cloud run with
+        no account key stored answers `ok: false` / `MISSING_API_KEY`, the same
+        refusal `/transcribe` gives for that mode.
       requestBody:
         required: true
         content:
@@ -270,7 +275,8 @@ paths:
     post:
       summary: Start the microphone, or stop it and transcribe
       description: |
-        Linux only. macOS and Windows do not serve this path. The route takes no
+        Works on Linux only. macOS does not serve this path. Windows answers it with
+        `ok: false` and the code `ENGINE_UNAVAILABLE`. The route takes no
         request body and no `mode_id`, so it uses the current Mode.
 
         When the recorder is idle, the call starts it. When the recorder is
@@ -298,7 +304,8 @@ paths:
     post:
       summary: Stop the microphone and keep no transcript
       description: |
-        Linux only. macOS and Windows do not serve this path. The route takes no
+        Works on Linux only. macOS does not serve this path. Windows answers it with
+        `ok: false` and the code `ENGINE_UNAVAILABLE`. The route takes no
         request body. It stops the recorder at any point and writes no
         transcript.
       responses:
@@ -418,7 +425,7 @@ components:
     Mode:
       description: >-
         A key that is not listed here is IGNORED, on every platform. That is
-        what makes the "Windows only" keys below safe to send from a
+        what makes the "Windows and Linux" keys below safe to send from a
         cross-platform client. The seven `required` keys are required on
         `POST /modes` only; a body missing one is refused on every platform
         with HTTP 200 and `INVALID_REQUEST`, naming the keys that are
@@ -453,7 +460,7 @@ components:
         capitalization: { type: boolean }
         profanityFilter: { type: boolean }
         customInstructions: { type: string, nullable: true }
-        userSystemPrompt: { type: string, nullable: true, maxLength: 2000 }
+        userSystemPrompt: { type: string, nullable: true, maxLength: 8000 }
         isDefault: { type: boolean, nullable: true }
         isSystemProvided: { type: boolean, nullable: true }
         sortOrder:
@@ -486,10 +493,8 @@ components:
             the provider but PINS the tier the Mode already had, which may not be
             the tier the name implies. Send only the keys you are changing.
             A Mode that ALREADY holds a legacy name is not rewritten by this
-            endpoint and is reported as stored. Windows and macOS fold such a row
-            once at app startup; Linux does not, and there a Mode still holding
-            one of these two names cannot transcribe at all. PATCH the same
-            `cloudProvider` back, on its own, to fold it.
+            endpoint and is reported as stored. Windows, macOS and Linux fold such
+            a row once at app startup.
         postProcessingMode:
           type: integer
           minimum: 0
@@ -516,18 +521,18 @@ components:
         cloudPostProcessingModel:
           type: string
           nullable: true
-          description: "On create, an omitted or empty value resolves to `anthropic:claude-haiku-4-5`."
+          description: "On create, an omitted or empty value resolves to `anthropic:claude-haiku-5-5`."
         cloudTranscriptionDomain: { type: string, nullable: true }
-        localEngine: { type: string, nullable: true, description: "Windows only. macOS ignores this key and never returns it. Defaults to `whisper` on create." }
-        localParakeetModel: { type: string, nullable: true, description: "Windows only. macOS ignores this key and never returns it." }
-        localPostProcessingModel: { type: string, nullable: true, description: "Windows only. macOS ignores this key and never returns it." }
+        localEngine: { type: string, nullable: true, description: "Windows and Linux. macOS ignores this key and never returns it. Defaults to `whisper` on create." }
+        localParakeetModel: { type: string, nullable: true, description: "Windows and Linux. macOS ignores this key and never returns it." }
+        localPostProcessingModel: { type: string, nullable: true, description: "Windows and Linux. macOS ignores this key and never returns it." }
         customVocabulary:
           type: array
           nullable: true
           maxItems: 1000
           items: { type: string, maxLength: 200 }
-          description: "Windows only. macOS ignores this key and never returns it."
-        providerType: { type: string, nullable: true, description: "Windows only. macOS ignores this key and never returns it." }
+          description: "Windows and Linux. macOS ignores this key and never returns it."
+        providerType: { type: string, nullable: true, description: "Windows and Linux. macOS ignores this key and never returns it. Windows accepts `local` or `cloud` in any casing, stores it lowercase, and refuses any other value with INVALID_REQUEST. A mode written before that rule may still return another value; Windows runs it on-device. Linux stores any value other than `cloud` as `local` and does not refuse it." }
 
     ModePatch:
       description: >-
@@ -566,7 +571,7 @@ components:
         capitalization: { type: boolean }
         profanityFilter: { type: boolean }
         customInstructions: { type: string, nullable: true }
-        userSystemPrompt: { type: string, nullable: true, maxLength: 2000 }
+        userSystemPrompt: { type: string, nullable: true, maxLength: 8000 }
         isDefault: { type: boolean, nullable: true }
         sortOrder:
           type: integer
@@ -593,10 +598,8 @@ components:
             the provider but PINS the tier the Mode already had, which may not be
             the tier the name implies. Send only the keys you are changing.
             A Mode that ALREADY holds a legacy name is not rewritten by this
-            endpoint and is reported as stored. Windows and macOS fold such a row
-            once at app startup; Linux does not, and there a Mode still holding
-            one of these two names cannot transcribe at all. PATCH the same
-            `cloudProvider` back, on its own, to fold it.
+            endpoint and is reported as stored. Windows, macOS and Linux fold such
+            a row once at app startup.
         postProcessingMode:
           type: integer
           minimum: 0
@@ -611,16 +614,16 @@ components:
         geminiCustomPrompt: { type: string, nullable: true, maxLength: 2000 }
         cloudPostProcessingModel: { type: string, nullable: true }
         cloudTranscriptionDomain: { type: string, nullable: true }
-        localEngine: { type: string, nullable: true, description: "Windows only. macOS ignores this key." }
-        localParakeetModel: { type: string, nullable: true, description: "Windows only. macOS ignores this key." }
-        localPostProcessingModel: { type: string, nullable: true, description: "Windows only. macOS ignores this key." }
+        localEngine: { type: string, nullable: true, description: "Windows and Linux. macOS ignores this key." }
+        localParakeetModel: { type: string, nullable: true, description: "Windows and Linux. macOS ignores this key." }
+        localPostProcessingModel: { type: string, nullable: true, description: "Windows and Linux. macOS ignores this key." }
         customVocabulary:
           type: array
           nullable: true
           maxItems: 1000
           items: { type: string, maxLength: 200 }
-          description: "Windows only. macOS ignores this key."
-        providerType: { type: string, nullable: true, description: "Windows only. macOS ignores this key." }
+          description: "Windows and Linux. macOS ignores this key."
+        providerType: { type: string, nullable: true, description: "Windows and Linux. macOS ignores this key. Windows accepts `local` or `cloud` in any casing, stores it lowercase, and refuses any other value with INVALID_REQUEST. A mode written before that rule may still return another value; Windows runs it on-device. Linux stores any value other than `cloud` as `local` and does not refuse it." }
 
     ModeResponse:
       type: object
@@ -708,7 +711,15 @@ components:
             The model to run. Optional. It is echoed back unvalidated, and it
             wins over everything the Mode holds. Omit it to let the `engine`
             choose, and read `mode_id` above for what happens when the Mode and
-            the `engine` disagree about the model.
+            the `engine` disagree about the model. `whisperLocal` (and its
+            aliases) is the exception: sent with `engine` and no `mode_id`, it
+            needs a `model` (for example `base.en`), and a missing or blank one
+            is refused with `INVALID_REQUEST` on all three platforms (macOS
+            and Windows answer HTTP 200 with the message "A Whisper model is
+            required."; Linux answers HTTP 400). `nemotron` with no `model` tries
+            `nemotron-asr-3.5-multilingual`; on macOS, sent with `engine` and no
+            `mode_id`, the `MODEL_NOT_INSTALLED` message names that model when it
+            is not installed.
         language:
           type: string
         timestamp_granularities:

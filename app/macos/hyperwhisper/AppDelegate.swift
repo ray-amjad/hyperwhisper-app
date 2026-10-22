@@ -82,7 +82,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let env = Bundle.main.object(forInfoDictionaryKey: "SentryEnvironment") as? String ?? "production"
             SentryService.setTag("environment", env)
         }
-        
+
+        // CREDENTIAL CACHE PURGE (#1491): builds before this one let the
+        // account key and BYOK API keys reach the on-disk URL cache. Clear it
+        // once, off the main thread, since removing the rows touches disk.
+        DispatchQueue.global(qos: .utility).async {
+            CredentialNetworkCache.purgeLegacyCachedCredentialsIfNeeded()
+        }
+
         // FIX: Monitor window closing to ensure app returns to accessory mode (hidden from Dock)
         // when "Show in Dock" is disabled and the last window is closed.
         NotificationCenter.default.addObserver(
@@ -136,13 +143,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
+    /// Files opened with Finder "Open With" or `open -a HyperWhisper <file>` (issue #656).
+    ///
+    /// `Info.plist` declares the Transcribe File picker's types as Viewer/Alternate
+    /// document types, so this receives them. On a cold launch it runs BEFORE
+    /// `applicationDidFinishLaunching` and before `HyperWhisperApp.bootstrapAppServices()`
+    /// has wired the pipeline, so the router queues the files and starts them once
+    /// bootstrap configures it. Each file is transcribed with the selected Mode.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        MainActor.assumeIsolated {
+            let accepted = OpenedFileRouter.shared.open(urls)
+            // A deliberate open: like a Dock click, `launchMinimized` must not take
+            // away the window this ends on (History).
+            if !accepted.isEmpty {
+                HyperWhisperApp.suppressLaunchMinimizedHide()
+            }
+        }
+    }
+
     /// Cleanly shut down the Local API server so the port file is removed
     /// and FlyingFox releases the bound port, and flush any Core Data writes
     /// still queued on the serial background writer (e.g. a completion write
-    /// racing a quick Cmd-Q right after paste).
+    /// racing a quick Cmd-Q right after paste). Also remove the tmp file of any
+    /// model download still in flight: it dies with the process and nothing
+    /// resumes it (#1723).
     func applicationWillTerminate(_ notification: Notification) {
         LocalAPIServer.shared.stop()
         PersistenceController.shared.drainWriterOnTerminate()
+        PartialDownloadCleanup.removeOpenDownloadTempFiles()
     }
 
     /// Stops the Local API server while the system is going to sleep.

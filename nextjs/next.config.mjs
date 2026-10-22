@@ -3,6 +3,9 @@ import { fileURLToPath } from 'node:url';
 
 import createNextIntlPlugin from 'next-intl/plugin';
 
+import { blogLinkRedirects } from './config/redirects.mjs';
+import { securityHeaderRoutes } from './config/security-headers.mjs';
+
 /**
  * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation.
  * This is especially useful for Docker builds.
@@ -23,6 +26,20 @@ const nextConfig = {
         // pnpm-lock.yaml; pin the workspace root to this directory so
         // Turbopack doesn't have to guess (and warn) about it.
         root: fileURLToPath(new URL('.', import.meta.url)),
+    },
+    // #842: anti-framing and the 4 simple security headers on every route.
+    async headers() {
+        return securityHeaderRoutes;
+    },
+    // #1377: 3 URL families that blog posts link to and that 404 otherwise.
+    async redirects() {
+        return blogLinkRedirects;
+    },
+    experimental: {
+        // app/global-not-found.tsx serves unmatched URLs (/de/zzz) on their own
+        // route, so it can read the request locale. As app/not-found.tsx it ran
+        // on every page and its headers() read made every route dynamic (#843).
+        globalNotFound: true,
     },
 };
 

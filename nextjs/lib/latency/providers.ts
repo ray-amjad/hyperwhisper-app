@@ -77,7 +77,6 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
     vendorDisplayName: "SpaceXAI",
     models: [
       { id: "grok-voice-transcribe-2.0", displayName: "Grok Voice Transcribe 2", isDefault: true },
-      { id: "grok-voice-transcribe-1.0", displayName: "Grok Voice Transcribe 1", isDefault: false },
     ],
   },
   {
@@ -114,6 +113,7 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
       { id: "whisper-1", displayName: "Whisper" },
       { id: "gpt-transcribe", displayName: "GPT Transcribe", isDefault: true },
       { id: "gpt-live-transcribe", displayName: "GPT Live Transcribe" },
+      { id: "gpt-4o-mini-transcribe-2025-12-15", displayName: "GPT-4o Mini Transcribe (2025-12-15)" },
     ],
   },
   {
@@ -145,10 +145,10 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
     vendor: "google",
     vendorDisplayName: "Google",
     models: [
-      { id: "gemini-2.5-flash", displayName: "Gemini 2.5 Flash", isDefault: true },
+      { id: "gemini-3.8-flash", displayName: "Gemini 3.8 Flash", isDefault: true },
+      { id: "gemini-2.5-flash", displayName: "Gemini 2.5 Flash" },
       { id: "gemini-2.5-flash-lite", displayName: "Gemini 2.5 Flash Lite" },
       { id: "gemini-2.5-pro", displayName: "Gemini 2.5 Pro" },
-      { id: "gemini-3-flash-preview", displayName: "Gemini 3 Flash" },
       { id: "gemini-3.1-pro-preview", displayName: "Gemini 3.1 Pro" },
     ],
   },
@@ -206,6 +206,35 @@ export const KNOWN_PROVIDERS: readonly string[] = STT_CATALOG.map(
  */
 export const RETIRED_PROVIDERS: readonly string[] = ["google-chirp"];
 
+/**
+ * Models the catalog dropped while the window still holds their rows, by
+ * backend provider id, each with the name the app's Model dropdown last gave it.
+ *
+ * Unlike a retired provider, a retired model stays on the page: its rows are
+ * real measurements of that model, and this page reports what a measurement
+ * WAS. So the row keeps its own line under the vendor, named as the app named
+ * it, sorted after every catalogued model. It is never folded into its
+ * successor's row, even when the backend now serves the old id as the new
+ * model (Ray, 2026-10-18, #1978): those timings came from the old model.
+ *
+ * Without an entry here a retired id falls through to the unmapped case and
+ * prints its raw id, which reads as a row someone forgot to finish.
+ *
+ *  - `grok-voice-transcribe-1.0` — removed from every catalog in #1974 (#1908);
+ *    hyperwhisper-cloud aliases it to 2.0 for old app builds.
+ */
+export const RETIRED_MODELS: Readonly<Record<string, readonly CatalogModel[]>> = {
+  grok: [{ id: "grok-voice-transcribe-1.0", displayName: "Grok Voice Transcribe 1" }],
+};
+
+function resolveRetiredModel(
+  providerId: string,
+  modelId: string | null,
+): CatalogModel | undefined {
+  if (!modelId) return undefined;
+  return RETIRED_MODELS[providerId]?.find((model) => model.id === modelId);
+}
+
 /** The name the app's Provider dropdown shows for a vendor key. */
 export function vendorDisplayName(vendorKey: string): string {
   const entry = STT_CATALOG.find((candidate) => candidate.vendor === vendorKey);
@@ -246,7 +275,10 @@ export const UNREPORTED_MODEL_LABEL = "Model not reported";
 /** The name the app's Model dropdown shows for one stored row's model. */
 export function modelDisplayName(providerId: string, modelId: string | null): string {
   if (!modelId) return UNREPORTED_MODEL_LABEL;
-  return resolveModel(providerId, modelId)?.displayName ?? modelId;
+  return (
+    (resolveModel(providerId, modelId) ?? resolveRetiredModel(providerId, modelId))
+      ?.displayName ?? modelId
+  );
 }
 
 /**
@@ -276,15 +308,23 @@ export function isDefaultModel(providerId: string, modelId: string | null): bool
  * catalog does not know sorts last, so a model the edge service starts reporting
  * before this mirror is updated appears at the bottom of its vendor instead of
  * silently taking someone else's place. A row that names no model sorts last for
- * the same reason — it belongs under the named ones, not among them.
+ * the same reason — it belongs under the named ones, not among them. A retired
+ * model (`RETIRED_MODELS`) sits between the two: after every catalogued model,
+ * before an unknown or unreported one.
  */
 export function modelSortIndex(providerId: string, modelId: string | null): number {
-  const resolved = resolveModel(providerId, modelId);
-  if (!resolved) return Number.MAX_SAFE_INTEGER;
   let index = 0;
+  const resolved = resolveModel(providerId, modelId);
   for (const entry of STT_CATALOG) {
     for (const model of entry.models) {
-      if (entry.sttProvider === providerId && model === resolved) return index;
+      if (resolved && entry.sttProvider === providerId && model === resolved) return index;
+      index += 1;
+    }
+  }
+  const retired = resolveRetiredModel(providerId, modelId);
+  for (const [retiredProvider, models] of Object.entries(RETIRED_MODELS)) {
+    for (const model of models) {
+      if (retired && retiredProvider === providerId && model === retired) return index;
       index += 1;
     }
   }

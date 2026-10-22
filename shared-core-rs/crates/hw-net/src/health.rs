@@ -37,18 +37,22 @@
 //!   treat as **healthy**; 401/403 mean the key is unauthorized. See
 //!   [`parse_health_response`]'s ElevenLabs branch.
 //! - **Gemini, Gemini 3.5 Transcribe & Grok treat HTTP 400 as unauthorized.**
-//!   These vendors return 400 for an invalid key on the models endpoint (macOS +
-//!   Windows both special-case this). [`parse_health_response`] folds 400 into
-//!   "not healthy" for them; the *reason* mapping (400 ⇒ unauthorized rather than
-//!   unreachable) lives on the hosts, which must list the Gemini-Transcribe
-//!   provider alongside `gemini`/`grok` or a bad key reads as "unreachable".
+//!   These vendors return 400 for an invalid key on the models endpoint.
+//!   [`parse_health_response`] decides the [`HealthReason`] here, so a 400 from
+//!   them is [`HealthReason::Unauthorized`] and the hosts read the reason rather
+//!   than keeping their own vendor list. Issue #779: Windows' copy of that list
+//!   left out Gemini 3.5 Transcribe, so the same bad key read "Provider
+//!   unreachable" on Windows and "Key invalid" on macOS.
+//!   `shared-conformance/health-vectors.json` pins every provider x status.
 //! - **Routed/HW-Cloud providers** (`HyperWhisperCloud`, `AzureMai`,
 //!   `GoogleChirp`) need no API key and are treated as always reachable on both
 //!   platforms (`performHealthCheck` returns `.healthy` immediately). We still
 //!   build a real `GET <base>/health` request for callers that want to probe the
 //!   HW Cloud edge; [`parse_health_response`] grades it by 2xx like the others.
 
-use crate::contract::{Header, HttpMethod, HttpRequest, HttpResponse, Provider, ProviderHealth};
+use crate::contract::{
+    Header, HealthReason, HttpMethod, HttpRequest, HttpResponse, Provider, ProviderHealth,
+};
 
 /// Default HyperWhisper Cloud base URL used for routed providers' health probe
 /// when no `base_url` override is supplied. The real platform passes the base via
@@ -220,36 +224,70 @@ fn build_routed(base_url: Option<&str>) -> HttpRequest {
 /// Parse a health-check response into a [`ProviderHealth`] verdict.
 ///
 /// PARITY (macOS `CloudProviderHealthManager` per-provider switches + Windows
-/// `PerformTranscriptionHealthCheckAsync`):
-/// - 2xx → healthy.
-/// - 401 / 403 → not healthy (unauthorized).
+/// `PerformTranscriptionHealthCheckAsync`). The [`HealthReason`]:
+/// - 2xx → `Healthy`.
+/// - 401 / 403 → `Unauthorized`, for every provider.
 /// - **ElevenLabs** (STT-capability probe, `POST /v1/speech-to-text` with an empty
-///   body): 400 / 422 also → **healthy** — a "bad request"/"unprocessable" verdict
+///   body): 400 / 422 also → **`Healthy`** — a "bad request"/"unprocessable" verdict
 ///   means the key is valid and *can reach STT*; only the (deliberately empty) body
 ///   was rejected. 401/403 still mean unauthorized.
-/// - **Gemini & Grok**: 400 also → not healthy (these vendors return 400 for an
-///   invalid key — special-cased on both platforms).
-/// - anything else (other 4xx, 5xx, etc.) → not healthy (unreachable).
+/// - **Gemini, Gemini 3.5 Transcribe (both modes) & Grok**: 400 → `Unauthorized`
+///   (these vendors return 400 for an invalid key).
+/// - anything else (other 4xx, 429, 5xx, etc.) → `Unreachable`.
 ///
-/// The boolean `healthy` collapses macOS's `.healthy` vs `.unauthorized`/
-/// `.unreachable` into a single reachable-and-authorized verdict; the raw status
-/// is preserved in `ProviderHealth.status` so the caller can distinguish causes.
+/// `healthy` is `reason == Healthy`, kept for callers that need only the yes/no
+/// answer; the raw status is preserved in `ProviderHealth.status`. Hosts map the
+/// reason onto their own states and must not re-derive it from the status.
 pub fn parse_health_response(provider: Provider, resp: &HttpResponse) -> ProviderHealth {
     let status = resp.status;
-    let healthy = match provider {
-        // ElevenLabs probes STT with an empty body: a 400/422 ("bad request" /
-        // "unprocessable" — body rejected) proves the key can reach STT, so it is
-        // healthy. 401/403 fall through to not-healthy below.
-        Provider::Elevenlabs => {
-            (200..=299).contains(&status) || status == 400 || status == 422
-        }
-        _ => (200..=299).contains(&status),
-    };
+    let reason = health_reason(provider, status);
 
     ProviderHealth {
         provider,
-        healthy,
+        healthy: reason == HealthReason::Healthy,
         status: Some(status),
+        reason,
+    }
+}
+
+/// The one place that decides why a probe status means what it means.
+fn health_reason(provider: Provider, status: u16) -> HealthReason {
+    if (200..=299).contains(&status) {
+        return HealthReason::Healthy;
+    }
+    // ElevenLabs probes STT with an empty body: a 400/422 ("bad request" /
+    // "unprocessable" — body rejected) proves the key can reach STT, so it is
+    // healthy. 401/403 fall through to unauthorized below.
+    if provider == Provider::Elevenlabs && matches!(status, 400 | 422) {
+        return HealthReason::Healthy;
+    }
+    if matches!(status, 401 | 403) || (status == 400 && rejects_bad_key_with_400(provider)) {
+        return HealthReason::Unauthorized;
+    }
+    HealthReason::Unreachable
+}
+
+/// Vendors whose models endpoint answers an invalid key with HTTP 400 rather
+/// than 401/403. Both Gemini 3.5 Transcribe modes share one Google key and probe
+/// the same endpoint as Gemini, so all three Google arms are listed. An
+/// exhaustive `match`, so a new provider has to be placed on one side of it.
+fn rejects_bad_key_with_400(provider: Provider) -> bool {
+    match provider {
+        Provider::Gemini
+        | Provider::GeminiTranscribe
+        | Provider::GeminiTranscribeLive
+        | Provider::Grok => true,
+        Provider::HyperWhisperCloud
+        | Provider::Openai
+        | Provider::Groq
+        | Provider::Elevenlabs
+        | Provider::Mistral
+        | Provider::Deepgram
+        | Provider::Soniox
+        | Provider::Assemblyai
+        | Provider::AzureMai
+        | Provider::GoogleChirp
+        | Provider::Meta => false,
     }
 }
 
@@ -264,6 +302,24 @@ mod tests {
             .find(|h| h.name.eq_ignore_ascii_case(name))
             .map(|h| h.value.as_str())
     }
+
+    const ALL_PROVIDERS: [Provider; 15] = [
+        Provider::HyperWhisperCloud,
+        Provider::Openai,
+        Provider::Groq,
+        Provider::Elevenlabs,
+        Provider::Mistral,
+        Provider::Grok,
+        Provider::Deepgram,
+        Provider::Soniox,
+        Provider::Assemblyai,
+        Provider::Gemini,
+        Provider::AzureMai,
+        Provider::GoogleChirp,
+        Provider::GeminiTranscribe,
+        Provider::GeminiTranscribeLive,
+        Provider::Meta,
+    ];
 
     fn resp(status: u16) -> HttpResponse {
         HttpResponse {
@@ -422,12 +478,72 @@ mod tests {
 
     #[test]
     fn status_400_not_healthy_for_all_providers() {
-        // 400 is not 2xx → not healthy regardless of provider. (Gemini/Grok
-        // semantically map 400 → unauthorized; here it's simply "not healthy".)
+        // 400 is not 2xx → not healthy for every provider but ElevenLabs.
         for p in [Provider::Gemini, Provider::Grok, Provider::Openai] {
             let h = parse_health_response(p, &resp(400));
             assert!(!h.healthy, "provider={p:?}");
             assert_eq!(h.status, Some(400));
+        }
+    }
+
+    #[test]
+    fn status_401_403_is_unauthorized_for_every_provider() {
+        for p in ALL_PROVIDERS {
+            for status in [401u16, 403] {
+                let h = parse_health_response(p, &resp(status));
+                assert_eq!(h.reason, HealthReason::Unauthorized, "{p:?} {status}");
+                assert!(!h.healthy);
+            }
+        }
+    }
+
+    #[test]
+    fn status_400_is_unauthorized_only_for_the_google_and_xai_arms() {
+        // Issue #779: Windows' host copy of this list left out Gemini 3.5
+        // Transcribe. The list is written out here independently of the
+        // implementation's `match`.
+        let rejects_with_400 = [
+            Provider::Gemini,
+            Provider::GeminiTranscribe,
+            Provider::GeminiTranscribeLive,
+            Provider::Grok,
+        ];
+        for p in ALL_PROVIDERS {
+            let h = parse_health_response(p, &resp(400));
+            let want = if p == Provider::Elevenlabs {
+                HealthReason::Healthy
+            } else if rejects_with_400.contains(&p) {
+                HealthReason::Unauthorized
+            } else {
+                HealthReason::Unreachable
+            };
+            assert_eq!(h.reason, want, "provider={p:?}");
+        }
+    }
+
+    #[test]
+    fn rate_limit_and_server_errors_are_unreachable_for_every_provider() {
+        for p in ALL_PROVIDERS {
+            for status in [404u16, 429, 500, 503] {
+                let h = parse_health_response(p, &resp(status));
+                assert_eq!(h.reason, HealthReason::Unreachable, "{p:?} {status}");
+            }
+        }
+    }
+
+    #[test]
+    fn healthy_flag_always_agrees_with_the_reason() {
+        for p in ALL_PROVIDERS {
+            for status in [
+                0u16, 200, 204, 299, 300, 400, 401, 403, 404, 422, 429, 500, 599,
+            ] {
+                let h = parse_health_response(p, &resp(status));
+                assert_eq!(
+                    h.healthy,
+                    h.reason == HealthReason::Healthy,
+                    "{p:?} {status}"
+                );
+            }
         }
     }
 
@@ -445,6 +561,7 @@ mod tests {
         for status in [200u16, 400, 422] {
             let h = parse_health_response(Provider::Elevenlabs, &resp(status));
             assert!(h.healthy, "elevenlabs status={status} should be healthy");
+            assert_eq!(h.reason, HealthReason::Healthy);
             assert_eq!(h.status, Some(status));
         }
     }

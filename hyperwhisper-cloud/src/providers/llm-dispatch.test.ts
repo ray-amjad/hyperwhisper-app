@@ -64,6 +64,16 @@ describe('resolveLLMModel', () => {
     expect(resolveLLMModel('mistral', requestWith({ 'x-llm-model': 'open-mistral-nemo' }))).toBe('mistral-small-latest');
   });
 
+  test('an old client sending a Claude Haiku 4.5 id is served Haiku 5.5, never a 400', () => {
+    // No alias table: a retired id is not allowlisted, so it takes the provider
+    // default, the same fallback as open-mistral-nemo above.
+    expect(defaultModelFor('anthropic')).toBe('claude-haiku-5-5');
+    expect(resolveLLMModel('anthropic', requestWith({ 'x-llm-model': 'claude-haiku-5-5' }))).toBe('claude-haiku-5-5');
+    expect(resolveLLMModel('anthropic', requestWith({ 'x-llm-model': 'claude-haiku-4-5' }))).toBe('claude-haiku-5-5');
+    expect(resolveLLMModel('anthropic', requestWith({ 'x-llm-model': 'claude-haiku-4-5-20251001' }))).toBe('claude-haiku-5-5');
+    expect(resolveLLMModel('anthropic', requestWith({ 'x-llm-model': 'Claude-Haiku-4-5-20251001' }))).toBe('claude-haiku-5-5');
+  });
+
   test('returns the provider default for missing or invalid model', () => {
     for (const provider of ALL_PROVIDERS) {
       expect(resolveLLMModel(provider, requestWith({}))).toBe(defaultModelFor(provider));
@@ -73,15 +83,19 @@ describe('resolveLLMModel', () => {
 
   test('rejects a model that belongs to a different provider', () => {
     // gpt-5.6-luna is valid for openai but not for gemini → default.
-    expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gpt-5.6-luna' }))).toBe('gemini-2.5-flash');
+    expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gpt-5.6-luna' }))).toBe('gemini-3.8-flash');
   });
 
-  test('adding gemini-3.8-flash did not move the gemini default', () => {
-    // A typo'd or BYOK-only gemini-3.x id must still fall back to 2.5-flash,
-    // not to the newest allowlisted model.
-    expect(defaultModelFor('gemini')).toBe('gemini-2.5-flash');
-    expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gemini-3.7-flash' }))).toBe('gemini-2.5-flash');
-    expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gemini-3.8-flassh' }))).toBe('gemini-2.5-flash');
+  test('the gemini default is 3.8 Flash, and the 2.5 ids stay selectable', () => {
+    // Google limits gemini-2.5-* to past users, so a blank, typo'd or BYOK-only
+    // gemini id falls back to 3.8 Flash. A client that asks for a 2.5 id by
+    // name still gets it.
+    expect(defaultModelFor('gemini')).toBe('gemini-3.8-flash');
+    expect(resolveLLMModel('gemini', requestWith({}))).toBe('gemini-3.8-flash');
+    expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gemini-3.7-flash' }))).toBe('gemini-3.8-flash');
+    expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gemini-3.8-flassh' }))).toBe('gemini-3.8-flash');
+    expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gemini-2.5-flash' }))).toBe('gemini-2.5-flash');
+    expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gemini-2.5-flash-lite' }))).toBe('gemini-2.5-flash-lite');
   });
 });
 
@@ -131,8 +145,9 @@ describe('servedLLMName', () => {
 
   test('non-default multi-model models echo the resolved model, not the default', () => {
     expect(servedLLMName('gemini', 'gemini-2.5-flash-lite')).toBe('gemini-2.5-flash-lite');
+    expect(servedLLMName('gemini', 'gemini-2.5-flash')).toBe('gemini-2.5-flash');
+    expect(servedLLMName('gemini', 'gemini-2.5-flash')).not.toBe(LLM_PROVIDER_NAMES.gemini);
     expect(servedLLMName('gemini', 'gemini-3.8-flash')).toBe('gemini-3.8-flash');
-    expect(servedLLMName('gemini', 'gemini-3.8-flash')).not.toBe(LLM_PROVIDER_NAMES.gemini);
   });
 
   test('the retired open-mistral-nemo has no served name of its own', () => {
@@ -160,11 +175,14 @@ describe('fallback map', () => {
 });
 
 describe('shouldFallback', () => {
-  test('accepts only normalized 5xx request errors', () => {
+  test('accepts only normalized 5xx and 429 request errors', () => {
     expect(shouldFallback(new LLMRequestError('upstream failed', 500, 'openai'))).toBe(true);
     expect(shouldFallback(new LLMRequestError('upstream failed', 599, 'openai'))).toBe(true);
+    // #1565: the fallback vendor has its own rate limit, so a 429 fails over.
+    expect(shouldFallback(new LLMRequestError('rate limited', 429, 'openai'))).toBe(true);
     expect(shouldFallback(new LLMRequestError('bad request', 400, 'openai'))).toBe(false);
-    expect(shouldFallback(new LLMRequestError('rate limited', 429, 'openai'))).toBe(false);
+    expect(shouldFallback(new LLMRequestError('too early', 428, 'openai'))).toBe(false);
+    expect(shouldFallback(new LLMRequestError('header too large', 431, 'openai'))).toBe(false);
   });
 
   test('rejects arbitrary errors that look like provider failures', () => {
@@ -215,7 +233,7 @@ describe('allowlist parity', () => {
   interface PpCatalogProvider {
     id: string;
     llmProvider: string;
-    models: { id: string }[];
+    models: { id: string; isDefault?: boolean }[];
   }
 
   // The providers that bill per-model. The other four have a single flat rate
@@ -292,6 +310,28 @@ describe('allowlist parity', () => {
       for (const model of __tables.LLM_PROVIDER_MODELS[provider].allowed) {
         fromAllowlist.push(`${provider}/${model}`);
       }
+    }
+
+    expect(fromAllowlist.sort()).toEqual(fromCatalog.sort());
+  });
+
+  test('each provider default is the cloud-pp-catalog.json isDefault row, listed first', async () => {
+    // A client resolves a blank model to the catalog isDefault row and sends it
+    // as X-LLM-Model. A request with no X-LLM-Model resolves to the default
+    // here. The two must name the same model, or the answer depends on which
+    // client sent the request.
+    const catalog = (await Bun.file(PP_CATALOG_PATH).json()) as { providers: PpCatalogProvider[] };
+    const fromCatalog: string[] = [];
+    const fromAllowlist: string[] = [];
+
+    for (const provider of catalog.providers) {
+      const defaults = provider.models.filter((m) => m.isDefault === true).map((m) => m.id);
+      fromCatalog.push(`${provider.llmProvider}/${defaults.join('+')}`);
+    }
+    for (const provider of ALL_PROVIDERS) {
+      const { default: defaultModel, allowed } = __tables.LLM_PROVIDER_MODELS[provider];
+      expect(`${provider}/${allowed[0]}`).toBe(`${provider}/${defaultModel}`);
+      fromAllowlist.push(`${provider}/${defaultModel}`);
     }
 
     expect(fromAllowlist.sort()).toEqual(fromCatalog.sort());

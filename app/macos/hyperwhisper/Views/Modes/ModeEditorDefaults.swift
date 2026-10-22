@@ -2,8 +2,9 @@
 //  ModeEditorDefaults.swift
 //  HyperWhisper
 //
-//  Pure seeds for the CREATE branch of ModeEditorView (issue #873), and the
-//  order the On-device picker lists installed models in.
+//  Pure seeds for the CREATE branch of ModeEditorView (issue #873), the
+//  order the On-device picker lists installed models in, and the EDIT
+//  branch's handling of a stored model that is not installed (issue #1434).
 //
 
 import Foundation
@@ -105,6 +106,72 @@ enum ModeEditorDefaults {
         isEnglishOnlyModel(provider: provider, model: model) ? "en" : LanguageData.automaticCode
     }
 
+    // MARK: - Edit: the mode's stored model (issue #1434)
+
+    /// What the EDIT sheet opens on for a mode's stored transcription model.
+    struct EditModelSelection: Equatable {
+        let provider: ProviderType
+        let model: String
+        /// The stored local model when it is not on the installed list (not
+        /// downloaded, or deleted in Model Library); nil otherwise.
+        let missingLocalModelId: String?
+    }
+
+    /// The EDIT sheet opens on the model the mode STORES, installed or not.
+    ///
+    /// It used to open on the first installed model when the stored one was
+    /// missing (and on Cloud when nothing was installed), so Save with no change
+    /// wrote that substitute, and an English-only substitute also rewrote the
+    /// language to `en` (issue #1434). The missing id is reported instead, so
+    /// the picker can list it as not installed and the sheet can say so.
+    ///
+    /// The Cloud test is the transcription router's own
+    /// (`TranscriptionProviderRouter.selectProvider`): nil becomes `""`, the
+    /// value is trimmed, an empty result runs as Cloud, and `"cloud"` matches
+    /// in any case. So a nil, empty, whitespace-only or padded/any-case
+    /// `"cloud"` model opens on Cloud and Save writes `"cloud"`. None is ever
+    /// reported missing, so none gets a bogus "(not installed)" row, a local
+    /// substitute, or a `"base"` it never ran as.
+    static func editModelSelection(storedModel: String?, availableModelIds: [String]) -> EditModelSelection {
+        let stored = storedModel ?? ""
+        let routed = stored.trimmingCharacters(in: .whitespacesAndNewlines)
+        if routed.isEmpty || routed.lowercased() == "cloud" {
+            return EditModelSelection(provider: .cloud, model: stored, missingLocalModelId: nil)
+        }
+        let missing: String? = availableModelIds.contains(stored) ? nil : stored
+        return EditModelSelection(provider: .local, model: stored, missingLocalModelId: missing)
+    }
+
+    /// Rows of the On-device Model picker: the missing stored model first (so
+    /// the selection always matches a row), then the installed models in
+    /// picker order.
+    static func localPickerModelIds(availableModelIds: [String], missingLocalModelId: String?) -> [String] {
+        let sorted = sortedLocalModelIds(availableModelIds)
+        guard let missing = missingLocalModelId, !sorted.contains(missing) else { return sorted }
+        return [missing] + sorted
+    }
+
+    /// Local model kept when the sheet (re)enters On-device: the current one
+    /// if it is installed or is the mode's own missing model, else the first
+    /// installed model. Never the missing model for a mode that did not store it.
+    static func onDeviceModel(current: String, availableModelIds: [String], missingLocalModelId: String?) -> String {
+        if availableModelIds.contains(current) || current == missingLocalModelId {
+            return current
+        }
+        return sortedLocalModelIds(availableModelIds).first ?? current
+    }
+
+    /// The `model` value Save persists.
+    static func savedModel(provider: ProviderType, model: String, availableModelIds: [String]) -> String {
+        if provider == .cloud { return "cloud" }
+        return model.isEmpty ? (sortedLocalModelIds(availableModelIds).first ?? "base") : model
+    }
+
+    /// The `language` value Save persists for the model it persists.
+    static func savedLanguage(provider: ProviderType, savedModel: String, language: String) -> String {
+        isEnglishOnlyModel(provider: provider, model: savedModel) ? "en" : language
+    }
+
     // MARK: - Post-processing
 
     /// Post-processing a brand-new mode opens on. HyperWhisper Cloud
@@ -114,5 +181,44 @@ enum ModeEditorDefaults {
     /// needs no key and no extra download. Every other seed keeps Cloud.
     static func initialPostProcessingMode(licenseActive: Bool, availableModelIds: [String]) -> PostProcessingMode {
         initialProvider(licenseActive: licenseActive, availableModelIds: availableModelIds) == .local ? .off : .cloud
+    }
+}
+
+// MARK: - Name uniqueness (issue #1435)
+
+/// The id and stored name of one Mode, as the editor's name check reads it.
+/// A value type so the check runs without a Core Data context.
+struct ModeNameEntry: Equatable {
+    let id: UUID?
+    let name: String?
+}
+
+extension ModeEditorDefaults {
+
+    /// Whether the editor's name is already used by another mode, by the same
+    /// rule the Local API's `MODE_NAME_TAKEN` uses: `ModeNamePolicy.normalized`
+    /// on the candidate, then the shared core's `localApiModeNameConflict`
+    /// (trim, then lowercase) against every OTHER mode's stored name.
+    ///
+    /// - `editing` is the mode being edited (nil when creating). It is left out
+    ///   of the comparison by id, and a name equal to its stored name is never
+    ///   a conflict — the Local API PATCH checks only when the name changes, so
+    ///   a mode that already shares a name (written by an older build) can
+    ///   still save its other settings.
+    /// - A blank name is not a conflict: the editor already refuses it.
+    static func nameIsTaken(
+        _ proposedName: String,
+        editing: ModeNameEntry?,
+        existingModes: [ModeNameEntry]
+    ) -> Bool {
+        guard let candidate = ModeNamePolicy.normalized(proposedName) else { return false }
+        if let editing, candidate == editing.name { return false }
+        let otherNames = existingModes
+            .filter { entry in
+                guard let editing else { return true }
+                return entry.id != editing.id
+            }
+            .compactMap { $0.name }
+        return localApiModeNameConflict(candidate: candidate, otherNames: otherNames)
     }
 }

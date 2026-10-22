@@ -49,11 +49,12 @@ public class ModeOfflineVisibilityConverter : IValueConverter
     ///
     /// It is deliberately NOT the macOS <c>ModeData.isOfflineCapable</c> ported
     /// across. macOS reads <c>model == "cloud"</c>; on Windows the mode editor
-    /// seeds <c>Model = "cloud"</c> on a NEW mode and never clears it when the
-    /// user switches that mode to On-device (<c>ModeEditorWindow.xaml.cs:61</c>,
-    /// <c>:2144</c>), so the macOS test would call a perfectly local mode a cloud
-    /// one. The two halves of the QUESTION are the same on both platforms;
-    /// the fields that answer it are not.
+    /// has rewritten <c>Model</c> on save only since #1477
+    /// (<c>LocalModeModel.ApplyOnDevice</c> / <c>ApplyCloud</c>), and rows saved
+    /// before that, or written by the Local API, can still hold a <c>Model</c>
+    /// that contradicts <c>ProviderType</c>, so the macOS test would call a
+    /// perfectly local mode a cloud one. The two halves of the QUESTION are the
+    /// same on both platforms; the fields that answer it are not.
     ///
     /// Nor is it "the named model is in the on-device catalogue". A row can name
     /// a Whisper type or a local LLM the app no longer ships — an old backup, or

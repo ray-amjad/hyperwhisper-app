@@ -40,8 +40,7 @@ public partial class StreamingSettingsPage : Page
         StreamingShortcutBox.DisplayText = _settings.StreamingShortcut.ToDisplayString();
         UpdateStreamingShortcutConflict();
 
-        LanguageBox.ItemsSource = LanguageInfo.AllLanguages;
-        LanguageBox.SelectedValue = _settings.StreamingLanguage;
+        RefreshLanguageOptions();
 
         SelectComboBoxItemByTag(ProviderBox, _settings.StreamingProvider);
         // A model name is a proper noun and lives in the catalog only. These 2 rows used to
@@ -92,6 +91,7 @@ public partial class StreamingSettingsPage : Page
         if ((ProviderBox.SelectedItem as ComboBoxItem)?.Tag is string provider)
         {
             _settings.StreamingProvider = provider;
+            RefreshLanguageOptions();
             UpdateProviderPanels();
             LoggingService.Info($"StreamingSettingsPage: Streaming provider set to {provider}");
         }
@@ -294,6 +294,8 @@ public partial class StreamingSettingsPage : Page
         if (CloudTierBox.SelectedValue is string tier)
         {
             _settings.StreamingCloudTier = tier;
+            // Each live tier declares its own language set.
+            RefreshLanguageOptions();
             // The Deepgram tier drops vocabulary in auto-detect and the Gemini tier
             // does not, so the warning below the picker changes with this selection.
             UpdateVocabularyWarning();
@@ -315,6 +317,80 @@ public partial class StreamingSettingsPage : Page
         => CloudSttCatalog.Shared.GetById(tierId)?.DisplayName ?? tierId;
 
     private sealed record CloudTierChoice(string Id, string Label);
+
+    /// <summary>
+    /// Binds the language picker to the selected provider's own language set and
+    /// resets a saved language that falls outside it to the first row
+    /// ("Automatic") - the same reset macOS's LanguageSelectionView
+    /// enforceAllowedLanguage() applies. Without it a stale value would stay
+    /// selected and keep being sent (#832).
+    /// </summary>
+    private void RefreshLanguageOptions()
+    {
+        var provider = StreamingTranscriptionProviderExtensions.FromStorageValue(_settings.StreamingProvider);
+        var allowed = AllowedLanguages(LanguageCatalogEntryId(provider, _settings.StreamingCloudTier));
+        var language = ResolveAllowedLanguage(_settings.StreamingLanguage, allowed);
+
+        // Rebinding ItemsSource fires SelectionChanged with a null value; keep it
+        // from writing anything while the list is swapped.
+        var wasInitializing = _isInitializing;
+        _isInitializing = true;
+        LanguageBox.ItemsSource = allowed;
+        LanguageBox.SelectedValue = language;
+        _isInitializing = wasInitializing;
+
+        if (!string.Equals(language, _settings.StreamingLanguage, System.StringComparison.Ordinal))
+        {
+            LoggingService.Info($"StreamingSettingsPage: Streaming language {_settings.StreamingLanguage} is not offered by {provider}; reset to {language}");
+            _settings.StreamingLanguage = language;
+        }
+    }
+
+    /// <summary>
+    /// The shared-catalog entry whose language set the picker offers for a
+    /// streaming provider. HyperWhisper Cloud answers with the selected live
+    /// tier, clamped as the live route clamps it. Mirrors macOS
+    /// StreamingTranscriptionProvider.languageCatalogEntryId(cloudTier:).
+    /// </summary>
+    internal static string? LanguageCatalogEntryId(StreamingTranscriptionProvider provider, string? cloudTier)
+        => provider switch
+        {
+            StreamingTranscriptionProvider.HyperWhisperCloud => SettingsService.NormalizeStreamingCloudTier(cloudTier),
+            StreamingTranscriptionProvider.Deepgram => "deepgramNova3",
+            StreamingTranscriptionProvider.ElevenLabs => "elevenLabsScribeV2",
+            StreamingTranscriptionProvider.OpenAI => "openaiWhisper",
+            StreamingTranscriptionProvider.GeminiTranscribe => "geminiTranscribe",
+            StreamingTranscriptionProvider.Xai => "grokStt",
+            _ => null
+        };
+
+    /// <summary>
+    /// The picker rows a catalog entry declares, matched on primary subtag so a
+    /// region row (en-GB, pt-BR) survives a tier that declares its base code. An
+    /// entry the catalog leaves "unverified" (or an unknown id) keeps the full list.
+    /// </summary>
+    internal static IReadOnlyList<LanguageInfo> AllowedLanguages(string? entryId)
+    {
+        var allowed = CloudSttCatalog.Shared.PickerLanguageCodesForId(entryId);
+        if (allowed is not { Count: > 0 }) return LanguageInfo.AllLanguages;
+
+        var filtered = LanguageInfo.AllLanguages
+            .Where(lang => allowed.Contains(LibraryLanguageFilter.BaseNormalize(lang.Code)))
+            .ToList();
+        return filtered.Count > 0 ? filtered : LanguageInfo.AllLanguages;
+    }
+
+    /// <summary>
+    /// The saved language when the picker offers it, otherwise the picker's first
+    /// row - "Automatic", which the catalog always lists first.
+    /// </summary>
+    internal static string ResolveAllowedLanguage(string current, IReadOnlyList<LanguageInfo> allowed)
+    {
+        if (allowed.Count == 0) return current;
+        return allowed.Any(lang => string.Equals(lang.Code, current, System.StringComparison.Ordinal))
+            ? current
+            : allowed[0].Code;
+    }
 
     private static void SelectComboBoxItemByTag(System.Windows.Controls.ComboBox comboBox, string tag)
     {

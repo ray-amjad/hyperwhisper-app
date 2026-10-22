@@ -23,6 +23,8 @@ public partial class ModeEditorWindow : Window
     public ModeEditorWindow(Mode mode)
     {
         InitializeComponent();
+        // 700 DIP is taller than a 1080p work area at 175%; the body scrolls (issue #1500).
+        WindowWorkAreaFit.Attach(this);
         _mode = mode;
         _isCreateMode = false;
 
@@ -48,6 +50,8 @@ public partial class ModeEditorWindow : Window
     public ModeEditorWindow(bool isCreateMode)
     {
         InitializeComponent();
+        // 700 DIP is taller than a 1080p work area at 175%; the body scrolls (issue #1500).
+        WindowWorkAreaFit.Attach(this);
         _isCreateMode = isCreateMode;
 
         // Create a new mode with sensible defaults
@@ -124,15 +128,15 @@ public partial class ModeEditorWindow : Window
             SourceOnDeviceSegment.Visibility = Visibility.Collapsed;
 
             // If the current mode uses an unavailable local engine, switch to cloud.
-            if (_mode.ProviderType == "local" && !IsLocalEngineSupported(_mode.LocalEngine))
+            if (!LocalModeModel.IsCloud(_mode) && !IsLocalEngineSupported(_mode.LocalEngine))
             {
-                _mode.ProviderType = "cloud";
+                LocalModeModel.ApplyCloud(_mode);
                 _mode.CloudProvider = "hyperwhisper"; // Default to HyperWhisper Cloud (no API key needed)
             }
         }
-        else if (_mode.ProviderType == "local" && !IsLocalEngineSupported(_mode.LocalEngine))
+        else if (!LocalModeModel.IsCloud(_mode) && !IsLocalEngineSupported(_mode.LocalEngine))
         {
-            _mode.ProviderType = "cloud";
+            LocalModeModel.ApplyCloud(_mode);
             _mode.CloudProvider = "hyperwhisper";
         }
 
@@ -505,7 +509,7 @@ public partial class ModeEditorWindow : Window
             .Where(m => m.IsAvailable)
             .ToList();
 
-        // Retired/unavailable models (e.g. ElevenLabs scribe_v1) are excluded from the
+        // Retired/unavailable models (e.g. ElevenLabs Scribe v1) are excluded from the
         // "pick a new one" list above, but if the Mode's CURRENT selection is one of
         // them, keep it visible here rather than silently falling through to
         // SelectedIndex = 0 below and switching the user's mode to a different model
@@ -778,7 +782,7 @@ public partial class ModeEditorWindow : Window
         // The credits caption and description are per-model.
         UpdateCloudAccuracyDescription();
         // Tier/model can flip catalog vocab support (Deepgram → Chirp 3 hides the
-        // field; scribe_v2 → scribe_v1 likewise). Refresh the warning so the user
+        // field; Scribe v2 → Scribe v1 likewise). Refresh the warning so the user
         // doesn't enter terms that the send-path gate will drop.
         UpdateAllWarnings();
         // The routed upstream provider (and the model within it) changes the
@@ -1163,6 +1167,13 @@ public partial class ModeEditorWindow : Window
         // UpdateSourcePanels sets the API-key warning with the correct provider for
         // each source (HW Cloud → no key; BYOK → the combo provider; local → cleared).
         UpdateSourcePanels(source);
+        // The Language row's visibility follows the SOURCE as well as the local
+        // model: leaving an English-only local model (Parakeet v2, Whisper *.en)
+        // for a cloud source must bring the picker back, and returning to one must
+        // hide it and force English again (#1641). Runs before the list filter, in
+        // the same order as LocalModelCombo_SelectionChanged, so the filter sees
+        // the forced "en" and keeps it selected.
+        AutoSelectEnglishForModel();
         UpdateLanguagesForSelectedModel();
         UpdateAllWarnings();
         UpdateSaveButtonState();
@@ -1428,7 +1439,7 @@ public partial class ModeEditorWindow : Window
 
     private void UserPromptBox_TextChanged(object sender, TextChangedEventArgs e)
     {
-        UserPromptCharCount.Text = $"{UserPromptBox.Text.Length}/2000";
+        UserPromptCharCount.Text = $"{UserPromptBox.Text.Length}/8000";
     }
 
     private void GeminiCustomPromptBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -1466,26 +1477,9 @@ public partial class ModeEditorWindow : Window
             return;
         }
 
-        // Check if API key is configured for this provider
-        bool hasKey = cloudProvider switch
-        {
-            // These share API keys with post-processing providers
-            CloudTranscriptionProvider.OpenAI => ApiKeyService.Instance.HasApiKey(PostProcessingProvider.OpenAI),
-            CloudTranscriptionProvider.Groq => ApiKeyService.Instance.HasApiKey(PostProcessingProvider.Groq),
-            CloudTranscriptionProvider.Gemini => ApiKeyService.Instance.HasApiKey(PostProcessingProvider.Gemini),
-            CloudTranscriptionProvider.Grok => ApiKeyService.Instance.HasApiKey(PostProcessingProvider.Grok),
-
-            // These have their own transcription API keys
-            CloudTranscriptionProvider.Deepgram => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.Deepgram),
-            CloudTranscriptionProvider.AssemblyAI => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.AssemblyAI),
-            CloudTranscriptionProvider.ElevenLabs => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.ElevenLabs),
-            CloudTranscriptionProvider.Mistral => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.Mistral),
-            CloudTranscriptionProvider.Soniox => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.Soniox),
-            CloudTranscriptionProvider.GeminiTranscribe => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.GeminiTranscribe),
-            CloudTranscriptionProvider.Meta => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.Meta),
-
-            _ => false
-        };
+        // Check if API key is configured for this provider (the shared key
+        // map, issue #1220: shared post-processing key or own slot).
+        bool hasKey = cloudProvider is { } provider && ApiKeyService.Instance.HasApiKey(provider);
 
         if (!hasKey)
         {
@@ -1752,6 +1746,8 @@ public partial class ModeEditorWindow : Window
             Content = new ModelsSettingsPage()
         };
 
+        // 760 DIP is taller than a 1080p work area at 175% (issue #1500).
+        WindowWorkAreaFit.Attach(settingsWindow);
         settingsWindow.ShowDialog();
 
         LoadPostProcessingModels(PostProcessingProvider.LocalLlm);
@@ -1797,6 +1793,10 @@ public partial class ModeEditorWindow : Window
 
         if (_mode.ProviderType == "cloud")
         {
+            // The On-device arm below writes a local id into Model; put the cloud
+            // sentinel back so macOS does not restore this mode as local (#1477).
+            LocalModeModel.ApplyCloud(_mode);
+
             // HyperWhisper Cloud is its own source segment; "Your provider" is BYOK.
             if (transcriptionSource == "hwcloud")
             {
@@ -1864,6 +1864,11 @@ public partial class ModeEditorWindow : Window
             {
                 _mode.ModelType = modelId;
             }
+
+            // A new mode is seeded Model = "cloud" / CloudProvider = "hyperwhisper"
+            // (constructor above). Rewrite both so the row stops saying "cloud":
+            // macOS and Linux route on those two fields when a backup crosses (#1477).
+            LocalModeModel.ApplyOnDevice(_mode);
         }
 
         if (LanguageCombo.SelectedItem is ComboBoxItem langItem)
@@ -2015,8 +2020,8 @@ public partial class ModeEditorWindow : Window
             var cloudAccuracyTier = SelectedCloudTierId();
 
             // HW Cloud accuracy tiers: catalog flags whether the chosen tier +
-            // model supports custom vocabulary (ElevenLabs scribe_v1 doesn't
-            // while scribe_v2 does). Prefer the
+            // model supports custom vocabulary (ElevenLabs Scribe v1 doesn't
+            // while Scribe v2 does). Prefer the
             // per-model flag so the warning matches the send-path gate. If the
             // tier string is null/empty (initial render, catalog load failure)
             // suppress the warning rather than guess.
@@ -2035,29 +2040,48 @@ public partial class ModeEditorWindow : Window
             {
                 showWarning = true;
             }
-            else if (cloudProvider == "elevenlabs" && cloudModel == "scribe_v1")
+            // Your own provider (BYOK): the shared models catalog says per model
+            // (#681). The generic warning text applies.
+            else if (!isHyperWhisperCloud
+                && ByokVocabularyUnsupported(
+                    CloudTranscriptionProviderExtensions.FromIdentifier(cloudProvider), cloudModel))
             {
                 showWarning = true;
-                warningText = Loc.S("mode.editor.warning.vocabularyUnsupported.elevenlabs");
-            }
-            // Deepgram base and whisper models don't support vocabulary
-            else if (cloudProvider == "deepgram")
-            {
-                if (cloudModel?.StartsWith("base") == true)
-                {
-                    showWarning = true;
-                    warningText = Loc.S("mode.editor.warning.vocabularyUnsupported.deepgramBase");
-                }
-                else if (cloudModel?.StartsWith("whisper") == true)
-                {
-                    showWarning = true;
-                    warningText = Loc.S("mode.editor.warning.vocabularyUnsupported.deepgramWhisper");
-                }
             }
         }
 
         VocabularyWarning.Visibility = showWarning ? Visibility.Visible : Visibility.Collapsed;
         VocabularyWarningText.Text = warningText;
+    }
+
+    /// <summary>
+    /// Whether a BYOK (your own provider) transcription model does NOT support
+    /// custom vocabulary, read from <c>shared-models/models-catalog.json</c> (#681).
+    ///
+    /// True only when the catalog HAS a voice row for (provider, model) and that
+    /// row says vocabulary is unsupported. <see cref="SharedModelsCatalog.SupportsCustomVocabulary"/>
+    /// answers false on a catalog MISS, so asking it alone would warn on an empty
+    /// or uncatalogued id; this suppresses the warning instead of guessing, the
+    /// same rule the HyperWhisper Cloud branch follows. Row existence is read
+    /// through <see cref="SharedModelsCatalog.DisplayName"/>, which is null only
+    /// when the row is not catalogued (every cloud voice row carries a name, and
+    /// SmokeTests asserts that for every registry row) or the core cannot answer.
+    /// HyperWhisper Cloud and <see cref="CloudTranscriptionProvider.None"/> are
+    /// never BYOK and always answer false.
+    ///
+    /// Static so SmokeTests can check it against the catalog without a window.
+    /// </summary>
+    internal static bool ByokVocabularyUnsupported(CloudTranscriptionProvider provider, string? modelId)
+    {
+        if (provider is CloudTranscriptionProvider.None or CloudTranscriptionProvider.HyperWhisperCloud)
+            return false;
+        if (string.IsNullOrEmpty(modelId))
+            return false;
+
+        var key = SharedModelsCatalog.CatalogKey(provider);
+        if (SharedModelsCatalog.DisplayName(key, CatalogKind.Voice, modelId) is null)
+            return false;
+        return !SharedModelsCatalog.SupportsCustomVocabulary(key, CatalogKind.Voice, modelId);
     }
 
     /// <summary>
@@ -2096,8 +2120,10 @@ public partial class ModeEditorWindow : Window
     }
 
     /// <summary>
-    /// Auto-selects English language for English-only models.
-    /// Also disables language dropdown for English-only cloud models.
+    /// Auto-selects English language for English-only local models and hides the
+    /// language row; shows and enables it again for every other model and source.
+    /// Every handler that can change the source or the local model must call this
+    /// (#1641: the source segment did not, so the row stayed hidden on Cloud).
     /// </summary>
     private void AutoSelectEnglishForModel()
     {

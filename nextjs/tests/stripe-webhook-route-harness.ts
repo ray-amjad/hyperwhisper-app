@@ -6,15 +6,16 @@
  * (`lib/services/stripe-webhook.ts`) already has its own harness and its own
  * suite. The route owns a different job, and that job was untested: it decides
  * whether a request is authentic at all (the HMAC gate), whether the session
- * is paid, which of the three handlers receives it, and what status a handler
+ * is paid, which of the two handlers receives it, and what status a handler
  * fault turns into. A wrong answer on any of those either drops a paid
  * purchase or accepts a forged one.
  *
- * The route reaches two collaborators at import time: the Stripe client
- * (`lib/clients/stripe.ts`, for `webhooks.constructEvent`) and the three
- * handlers in `lib/services/stripe-webhook.ts`. Both are replaced here with
- * `mock.module`, so the tests run the REAL route module with no Stripe
- * account, no database and no network.
+ * The route reaches three collaborators at import time: the Stripe client
+ * (`lib/clients/stripe.ts`, for `webhooks.constructEvent`), the two handlers
+ * in `lib/services/stripe-webhook.ts`, and the validated server env
+ * (`src/env/server.mjs`, for `STRIPE_WEBHOOK_SECRET`, #682). All are replaced
+ * here with `mock.module`, so the tests run the REAL route module with no
+ * Stripe account, no database and no network.
  *
  * Mocking at the module boundary is what the repo's CLAUDE.md asks for: the
  * signature check stays in the source and no test key and no bypass is added
@@ -46,7 +47,6 @@ export interface CreditPurchaseCall {
 /** Everything the route asked its collaborators to do, in call order. */
 export const calls = {
   constructEvent: [] as ConstructEventCall[],
-  licensePurchase: [] as Record<string, unknown>[],
   creditPurchase: [] as CreditPurchaseCall[],
   chargeRefunded: [] as Record<string, unknown>[],
 };
@@ -60,8 +60,6 @@ export const behaviour = {
   verifiedEvent: null as Record<string, unknown> | null,
   /** Message the verifier throws with when `verifiedEvent` is null. */
   verifyError: "No signatures found matching the expected signature for payload",
-  /** Thrown by `handleLicensePurchase` when set. */
-  licenseError: null as unknown,
   /** Thrown by `handleCreditPurchase` when set. */
   creditError: null as unknown,
   /** Thrown by `handleChargeRefunded` when set. */
@@ -70,17 +68,23 @@ export const behaviour = {
 
 export function resetHarness(): void {
   calls.constructEvent.length = 0;
-  calls.licensePurchase.length = 0;
   calls.creditPurchase.length = 0;
   calls.chargeRefunded.length = 0;
 
   behaviour.verifiedEvent = null;
   behaviour.verifyError =
     "No signatures found matching the expected signature for payload";
-  behaviour.licenseError = null;
   behaviour.creditError = null;
   behaviour.refundError = null;
+
+  for (const key of Object.keys(fakeEnv)) delete fakeEnv[key];
 }
+
+/**
+ * The fake validated env the route reads `STRIPE_WEBHOOK_SECRET` from. The
+ * route reads it per request, so a test may change it between calls.
+ */
+export const fakeEnv: Record<string, string | undefined> = {};
 
 /**
  * A `checkout.session.completed`-shaped event. Only the fields the route reads
@@ -190,14 +194,12 @@ moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
   },
 });
 
+moduleMock.module(moduleUrl("../src/env/server.mjs"), {
+  namedExports: { env: fakeEnv },
+});
+
 moduleMock.module(moduleUrl("../lib/services/stripe-webhook.ts"), {
   namedExports: {
-    handleLicensePurchase: async (
-      session: Record<string, unknown>,
-    ): Promise<void> => {
-      calls.licensePurchase.push(session);
-      if (behaviour.licenseError) throw behaviour.licenseError;
-    },
     handleCreditPurchase: async (
       session: Record<string, unknown>,
       eventId: string,

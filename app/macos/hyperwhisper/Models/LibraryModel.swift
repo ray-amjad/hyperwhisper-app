@@ -228,6 +228,45 @@ struct LibraryModel: Identifiable, Hashable {
         providerKey != .appleSpeech
     }
 
+    /// An installed local model whose load failed (its manager flagged it broken,
+    /// #1632): the files are on disk but unusable, so the row offers Re-download
+    /// instead of Remove.
+    var needsRedownload: Bool {
+        guard case .offline(_, let installed, _) = location,
+              installed,
+              case .downloadable = status else { return false }
+        return true
+    }
+
+    // MARK: Remove confirmation (#1527)
+
+    /// The download size the Remove confirmation quotes, or nil when the row
+    /// has none to show (a cloud row, or an offline row with no size), so the
+    /// message drops its size clause instead of printing "()".
+    var removalSizeDescription: String? {
+        guard case .offline(let sizeDescription, _, _) = location,
+              let size = sizeDescription?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !size.isEmpty else {
+            return nil
+        }
+        return size
+    }
+
+    /// "Remove <display name>?". `localize` is injectable so a test can pin the
+    /// format without depending on the process language.
+    func removalConfirmationTitle(localize: (String) -> String = { $0.localized }) -> String {
+        String(format: localize("modelLibrary.remove.confirm.title"), displayName)
+    }
+
+    /// "You will need to download it again (<size>).", or the same sentence
+    /// without the size when the row has none.
+    func removalConfirmationMessage(localize: (String) -> String = { $0.localized }) -> String {
+        guard let size = removalSizeDescription else {
+            return localize("modelLibrary.remove.confirm.messageNoSize")
+        }
+        return String(format: localize("modelLibrary.remove.confirm.message"), size)
+    }
+
     /// The model id without the LibraryModel-style provider prefix. Each row
     /// constructs `id` as `"<providerPrefix>-<canonical>"` so the prefix has to
     /// come off cleanly before talking to the manager that owns the underlying

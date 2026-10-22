@@ -49,40 +49,22 @@ struct PostProcessingModels {
             provider: .openai
         ),
         PostProcessingModel(
-            id: "gpt-4.1-mini",
-            displayName: "GPT-4.1 Mini",
+            id: "gpt-6-luna",
+            displayName: "GPT-6 Luna",
             isAvailable: true,
-            description: "models.postProcessing.gpt4.1.mini.description".localized,
+            description: "Newest generation, fast",
             provider: .openai
         ),
-        PostProcessingModel(
-            id: "gpt-4.1",
-            displayName: "GPT-4.1",
-            isAvailable: true,
-            description: "models.postProcessing.gpt4.1.description".localized,
-            provider: .openai
-        ),
+        // gpt-4.1 / gpt-4.1-mini rows removed (#1907): OpenAI removes both 2027-01-14 (notice
+        // 2026-10-14), and deprecatedModelMappings redirects them to gpt-6-luna, OpenAI's named replacement.
         // gpt-5 / gpt-5-mini / gpt-5-nano rows removed (#1018): OpenAI removes them
         // 2026-12-11, and deprecatedModelMappings redirects all 3 to gpt-5.6-luna.
-        PostProcessingModel(
-            id: "gpt-5.1",
-            displayName: "GPT-5.1",
-            isAvailable: true,
-            description: "models.postProcessing.gpt5.1.description".localized,
-            provider: .openai
-        ),
+        // gpt-5.1 / gpt-5.4-nano rows removed (#1209): OpenAI removes them 2027-04-01.
         PostProcessingModel(
             id: "gpt-5.2",
             displayName: "GPT-5.2",
             isAvailable: true,
             description: "models.postProcessing.gpt5.2.description".localized,
-            provider: .openai
-        ),
-        PostProcessingModel(
-            id: "gpt-5.4-nano",
-            displayName: "GPT-5.4 Nano",
-            isAvailable: true,
-            description: "Fast, lightweight",
             provider: .openai
         ),
         PostProcessingModel(
@@ -100,18 +82,20 @@ struct PostProcessingModels {
             provider: .openai
         ),
         // MARK: - Anthropic Models
+        // claude-haiku-4-5 / claude-sonnet-4-5 rows removed (2026-10):
+        // deprecatedModelMappings redirects both to their 5.5 successors.
         PostProcessingModel(
-            id: "claude-haiku-4-5",
-            displayName: "Claude 4.5 Haiku",
+            id: "claude-haiku-5-5",
+            displayName: "Claude Haiku 5.5",
             isAvailable: true,
-            description: "models.postProcessing.claude4.5.haiku.description".localized,
+            description: "Fast, cost-efficient Haiku model",
             provider: .anthropic
         ),
         PostProcessingModel(
-            id: "claude-sonnet-4-5",
-            displayName: "Claude 4.5 Sonnet",
+            id: "claude-sonnet-5-5",
+            displayName: "Claude Sonnet 5.5",
             isAvailable: true,
-            description: "High quality, latest Sonnet model",
+            description: "Latest Sonnet model, highest quality",
             provider: .anthropic
         ),
         PostProcessingModel(
@@ -130,20 +114,8 @@ struct PostProcessingModels {
         ),
 
         // MARK: - Google Gemini Models
-        PostProcessingModel(
-            id: "gemini-3-flash-preview",
-            displayName: "Gemini 3 Flash",
-            isAvailable: true,
-            description: "models.postProcessing.gemini3.flash.description".localized,
-            provider: .gemini
-        ),
-        PostProcessingModel(
-            id: "gemini-3.5-flash",
-            displayName: "Gemini 3.5 Flash",
-            isAvailable: true,
-            description: "Most intelligent flash model, frontier performance for agentic tasks",
-            provider: .gemini
-        ),
+        // gemini-3.5-flash / gemini-3.7-flash rows removed: Google deprecated both
+        // 2026-10-08 and routes them to 3.6 / 3.8 Flash; deprecatedModelMappings does too.
         PostProcessingModel(
             id: "gemini-2.5-flash",
             displayName: "Gemini 2.5 Flash",
@@ -172,23 +144,11 @@ struct PostProcessingModels {
             description: "Latest pro-level intelligence",
             provider: .gemini
         ),
-        PostProcessingModel(
-            id: "gemini-3.1-flash-lite",
-            displayName: "Gemini 3.1 Flash Lite",
-            isAvailable: true,
-            description: "Lightweight, fast and cost-efficient",
-            provider: .gemini
-        ),
+        // gemini-3.1-flash-lite row removed (#798): Google shuts it down 2027-05-07,
+        // and deprecatedModelMappings redirects it to gemini-3.5-flash-lite.
         PostProcessingModel(
             id: "gemini-3.6-flash",
             displayName: "Gemini 3.6 Flash",
-            isAvailable: true,
-            description: "Capable flash model, frontier performance for agentic tasks",
-            provider: .gemini
-        ),
-        PostProcessingModel(
-            id: "gemini-3.7-flash",
-            displayName: "Gemini 3.7 Flash",
             isAvailable: true,
             description: "Capable flash model, frontier performance for agentic tasks",
             provider: .gemini
@@ -221,13 +181,6 @@ struct PostProcessingModels {
             displayName: "GPT OSS 20B",
             isAvailable: true,
             description: "models.postProcessing.groq.gptoss.20b.description".localized,
-            provider: .groq
-        ),
-        PostProcessingModel(
-            id: "qwen/qwen3.6-27b",
-            displayName: "Qwen 3.6 27B",
-            isAvailable: true,
-            description: "Capable Qwen, strong quality-to-speed ratio",
             provider: .groq
         ),
         PostProcessingModel(
@@ -286,7 +239,7 @@ struct PostProcessingModels {
             provider: .mistral
         ),
         PostProcessingModel(
-            id: "mistral-medium-3.5",
+            id: "mistral-medium-3-5",
             displayName: "Mistral Medium 3.5",
             isAvailable: true,
             description: "High quality, multilingual, balanced cost",
@@ -344,14 +297,37 @@ struct PostProcessingModels {
             "gpt-5-nano": "gpt-5.6-luna",
             "gpt-5-mini": "gpt-5.6-luna",
             "gpt-5": "gpt-5.6-luna",
+            // OpenAI removes both 2027-04-01 (#1209). gpt-5.4-nano goes to OpenAI's
+            // named replacement, gpt-6-luna. For gpt-5.1 OpenAI names gpt-6-sol; we use
+            // gpt-5.6-luna, as for gpt-5 above (sol is ~50x the price for this task).
+            "gpt-5.4-nano": "gpt-6-luna",
+            "gpt-5.1": "gpt-5.6-luna",
+            // OpenAI removes gpt-4.1 2027-01-14 (notice 2026-10-14) and names gpt-6-luna.
+            "gpt-4.1": "gpt-6-luna",
+            // Same notice for gpt-4.1-mini, same named replacement (#1907).
+            "gpt-4.1-mini": "gpt-6-luna",
         ],
         .anthropic: [
-            // Deprecated 2026-02-16: claude-haiku-4.5 → claude-haiku-4-5
-            "claude-haiku-4.5": "claude-haiku-4-5",
-            "claude-3-5-haiku-latest": "claude-haiku-4-5",
-            "claude-sonnet-4-5-20250929": "claude-sonnet-4-5",
-            // Alias for claude-sonnet-4-20250514, retired 2026-06-15 → claude-sonnet-4-5
-            "claude-sonnet-4-0": "claude-sonnet-4-5",
+            // Haiku 4.5 and Sonnet 4.5 left the picker 2026-10 for their 5.5
+            // successors. Every older alias points straight at the final row:
+            // resolvedModelId does not chain, and only applies a mapping whose
+            // target is a live picker row.
+            "claude-haiku-4-5": "claude-haiku-5-5",
+            "claude-haiku-4.5": "claude-haiku-5-5",
+            "claude-3-5-haiku-latest": "claude-haiku-5-5",
+            "claude-haiku-4-5-20251001": "claude-haiku-5-5",
+            "claude-sonnet-4-5": "claude-sonnet-5-5",
+            "claude-sonnet-4-5-20250929": "claude-sonnet-5-5",
+            // Alias for claude-sonnet-4-20250514, retired 2026-06-15
+            "claude-sonnet-4-0": "claude-sonnet-5-5",
+            // #1083: these five were redirected on Windows and shared-dotnet only, so a
+            // Mode restored from either ran the Anthropic default here instead.
+            // PARITY: shared-conformance/pp-model-redirect-vectors.json.
+            "claude-3-haiku-20240307": "claude-haiku-5-5",
+            "claude-haiku-4-5-latest": "claude-haiku-5-5",
+            "claude-sonnet-4-20250514": "claude-sonnet-5-5",
+            "claude-sonnet-4-5-latest": "claude-sonnet-5-5",
+            "claude-sonnet-4-6-latest": "claude-sonnet-4-6",
         ],
         .cerebras: [
             // Deprecated 2026-02-16: llama-3.3-70b → gpt-oss-120b
@@ -378,9 +354,20 @@ struct PostProcessingModels {
         ],
         .gemini: [
             "gemini-3-pro-preview": "gemini-3.1-pro-preview",
-            "gemini-3.1-flash-lite-preview": "gemini-3.1-flash-lite",
+            // gemini-3.1-flash-lite shuts down 2027-05-07; Google names
+            // gemini-3.5-flash-lite (#798). Both older lite ids go straight there.
+            "gemini-3.1-flash-lite": "gemini-3.5-flash-lite",
+            "gemini-3.1-flash-lite-preview": "gemini-3.5-flash-lite",
             "gemini-2.0-flash": "gemini-3.6-flash",
-            "gemini-2.0-flash-lite": "gemini-3.1-flash-lite",
+            "gemini-2.0-flash-lite": "gemini-3.5-flash-lite",
+            // Google deprecated both 2026-10-08 and routes their API requests to these
+            // successors (Gemini API changelog). No shutdown date yet.
+            "gemini-3.5-flash": "gemini-3.6-flash",
+            "gemini-3.7-flash": "gemini-3.8-flash",
+            // The preview left the picker 2026-10. 3.8 Flash on every route
+            // (HyperWhisper Cloud does not serve 3.6). PARITY: hw-catalog
+            // GEMINI_ALIASES, Windows MigrateModelId, shared-dotnet Migrate.
+            "gemini-3-flash-preview": "gemini-3.8-flash",
             // Gemma hosted models left the Gemini API 2026-03-08. 3.8 Flash, not
             // 2.5 Flash: Google gates 2.5 to past users since 2026-09-18 (#1019).
             // Matches Windows MigrateModelId, so a mode restored from Windows keeps
@@ -398,6 +385,11 @@ struct PostProcessingModels {
             "moonshotai/kimi-k2-instruct": "openai/gpt-oss-120b",
             // Shut down by Groq 2026-03-09 → openai/gpt-oss-120b (matches Windows)
             "meta-llama/llama-4-maverick-17b-128e-instruct": "openai/gpt-oss-120b",
+            // Left the picker 2026-10 for its successor (matches Windows)
+            "qwen/qwen3.6-27b": "qwen/qwen3.8-27b",
+            // Decommissioned by Groq 2026-07-17 (#1083: Windows and shared-dotnet
+            // already mapped it; macOS ran the Groq default instead).
+            "mixtral-8x7b-32768": "openai/gpt-oss-120b",
         ],
         .grok: [
             // Retired 2026-05-15 — all grok-4-* fast variants redirect to grok-4.3.
@@ -409,6 +401,9 @@ struct PostProcessingModels {
         ],
         .localLLM: [
             // Migrated from Qwen 3.5 to Gemma 4 (2026-04)
+            // No arm for the uppercase `gemma-4-12B-it-Q4_K_M.gguf` (Windows has one):
+            // macOS rewrites it once at launch (hyperwhisperApp.swift) and the mode
+            // editor matches it case-insensitively (#1083 keeps that as is).
             "Qwen3.5-4B-Q4_K_M.gguf": "gemma-4-E2B-it-Q4_K_M.gguf",
             "Qwen3.5-9B-Q4_K_M.gguf": "gemma-4-E4B-it-Q4_K_M.gguf",
         ],
@@ -417,6 +412,9 @@ struct PostProcessingModels {
             // successor, but we redirect to mistral-small-latest — already in
             // this list and the HyperWhisper Cloud default for Mistral.
             "open-mistral-nemo": "mistral-small-latest",
+            // Mistral's API id is mistral-medium-3-5 (#2200); the dotted id
+            // the picker used to save is not a Mistral model id.
+            "mistral-medium-3.5": "mistral-medium-3-5",
         ]
     ]
 

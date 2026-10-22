@@ -10,13 +10,14 @@ import {
   fetchWithTimeout,
   isExplicitLanguage,
   providerHttpError,
-  readErrorBodyPreview,
+  quotaExhaustedReason,
   readRequiredJsonString,
   readPollJson,
   splitVocabularyTerms,
   upstreamDurationOrNull,
 } from './utils';
-import { EmptyTranscriptError, ProviderInputError, ProviderUnavailableError } from './types';
+import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
+import { readUpstreamError } from './upstream-error';
 import type { TranscriptionResult } from './types';
 
 describe('computeUploadTimeoutMs (size-scaled audio-upload budget)', () => {
@@ -249,21 +250,23 @@ describe('fetchWithTimeout', () => {
   });
 });
 
-describe('readErrorBodyPreview', () => {
+// The classifier text replaced readErrorBodyPreview (#2163) with the same
+// truncation, so the quota and adaptation classifiers see the same text.
+describe('readUpstreamError classifierText', () => {
   test('returns the full body when at or under the 500-char preview limit', async () => {
     const body = 'x'.repeat(500);
-    expect(await readErrorBodyPreview(new Response(body))).toBe(body);
+    expect((await readUpstreamError(new Response(body))).classifierText).toBe(body);
   });
 
   test('truncates bodies over 500 chars and appends an ellipsis', async () => {
     const body = 'y'.repeat(600);
-    const preview = await readErrorBodyPreview(new Response(body));
-    expect(preview).toBe(`${'y'.repeat(500)}...`);
+    const { classifierText } = await readUpstreamError(new Response(body));
+    expect(classifierText).toBe(`${'y'.repeat(500)}...`);
   });
 
   test('returns a placeholder when the body cannot be read', async () => {
     const unreadable = { text: () => { throw new Error('stream already used'); } } as unknown as Response;
-    expect(await readErrorBodyPreview(unreadable)).toBe('<unreadable>');
+    expect((await readUpstreamError(unreadable)).classifierText).toBe('<unreadable>');
   });
 });
 
@@ -299,9 +302,10 @@ describe('providerHttpError (shared non-2xx classification for the sync STT adap
   const policy = { label: 'TestProvider', authMessage: 'TestProvider API key is invalid' };
   const at = (status: number, body = 'boom') => new Response(body, { status });
 
-  test('auth statuses throw a plain Error (a sibling retry cannot fix a bad key)', async () => {
+  test('auth statuses throw a ProviderAuthError (the route decides whether a sibling can try)', async () => {
     const err = await providerHttpError('test', at(401), performance.now(), {}, policy);
-    expect(err).toBeInstanceOf(Error);
+    expect(err).toBeInstanceOf(ProviderAuthError);
+    expect((err as ProviderAuthError).status).toBe(401);
     expect(err).not.toBeInstanceOf(ProviderUnavailableError);
     expect(err.message).toBe('TestProvider API key is invalid');
   });
@@ -340,11 +344,43 @@ describe('providerHttpError (shared non-2xx classification for the sync STT adap
     expect(optedIn.message).toBe('TestProvider unavailable: insufficient funds');
   });
 
-  test('other 4xx become a ProviderInputError carrying the body preview', async () => {
+  test('an out-of-credits body fails over as insufficient funds, whatever status carries it', async () => {
+    // ElevenLabs' real answer when the plan ran out of credits (issue #1228).
+    const elevenLabs = '{"detail":{"type":"invalid_request","code":"quota_exceeded","message":"This request exceeds your quota of 248524. You have 211 credits remaining, while 530 credits are required for this request.","status":"quota_exceeded"}}';
+    const quota = await providerHttpError('test', at(401, elevenLabs), performance.now(), {}, {
+      ...policy,
+      attachUnavailableDetails: true,
+    }) as ProviderUnavailableError;
+    expect(quota).toBeInstanceOf(ProviderUnavailableError);
+    expect(quota.message).toBe('TestProvider unavailable: insufficient funds (quota_exceeded)');
+    expect(quota.status).toBe(401);
+
+    const openAi = await providerHttpError('test', at(429, '{"error":{"code":"insufficient_quota"}}'), performance.now(), {}, policy);
+    expect(openAi.message).toBe('TestProvider unavailable: insufficient funds (insufficient_quota)');
+
+    const xai = await providerHttpError('test', at(403, '{"error":"Your team abc has either used all available credits or reached its monthly spending limit."}'), performance.now(), {}, {
+      ...policy,
+      authStatuses: [401, 403],
+    });
+    expect(xai.message).toBe('TestProvider unavailable: insufficient funds (credits_exhausted)');
+  });
+
+  test('a quota marker on a non-billing status is not read as out of credits', async () => {
+    const err = await providerHttpError('test', at(400, '{"detail":"quota_exceeded"}'), performance.now(), {}, policy);
+    expect(err).toBeInstanceOf(ProviderInputError);
+    expect(quotaExhaustedReason(500, 'quota_exceeded')).toBeNull();
+    expect(quotaExhaustedReason(401, 'unauthorized')).toBeNull();
+  });
+
+  test('other 4xx become a ProviderInputError: the code in the message, the body preview for the client only', async () => {
     const err = await providerHttpError('test', at(400, 'bad language code'), performance.now(), {}, policy);
     expect(err).toBeInstanceOf(ProviderInputError);
     expect((err as ProviderInputError).status).toBe(400);
-    expect(err.message).toContain('bad language code');
+    expect(err.message).toBe('TestProvider rejected input (400): HTTP 400');
+    expect((err as ProviderInputError).clientMessage).toBe('TestProvider rejected input (400): bad language code');
+
+    const coded = await providerHttpError('test', at(400, '{"error":{"code":"invalid_language","message":"bad language code"}}'), performance.now(), {}, policy);
+    expect(coded.message).toBe('TestProvider rejected input (400): invalid_language');
   });
 
   test('an empty error body falls back to the bare status in the message', async () => {
@@ -387,8 +423,11 @@ describe('providerHttpError (shared non-2xx classification for the sync STT adap
       model: 'test-model',
       status: 429,
       kind: 'rate_limit',
-      bodyPreview: 'boom',
+      bodyLength: 4,
     });
+    // Never the body (#2163).
+    expect(logged[0][1]).not.toHaveProperty('bodyPreview');
+    expect(JSON.stringify(logged)).not.toContain('boom');
   });
 });
 
@@ -408,12 +447,14 @@ describe('splitVocabularyTerms (shared vocabulary-prompt splitter)', () => {
     expect(splitVocabularyTerms('  a  ,   ,b\t', NO_LIMITS)).toEqual(['a', 'b']);
   });
 
-  test('strips a leading bullet marker, with or without a following space', () => {
-    expect(splitVocabularyTerms('- a\n* b\n-c\n*d', NO_LIMITS)).toEqual(['a', 'b', 'c', 'd']);
+  test('strips a leading bullet marker only when whitespace follows it (issue #729)', () => {
+    expect(splitVocabularyTerms('- a\n* b\n-\tc\n-Xmx\n*args', NO_LIMITS)).toEqual(['a', 'b', 'c', '-Xmx', '*args']);
   });
 
-  test('a term that is only a bullet marker is dropped', () => {
+  test('a term that is only a bullet marker is dropped, sanitizing or not', () => {
     expect(splitVocabularyTerms('-,*,a', NO_LIMITS)).toEqual(['a']);
+    expect(splitVocabularyTerms('foo\n-\n*\n- \nbar', NO_LIMITS)).toEqual(['foo', 'bar']);
+    expect(splitVocabularyTerms('foo\n-\n*\n- \nbar', { maxTerms: 100, sanitize: true })).toEqual(['foo', 'bar']);
   });
 
   test('inner whitespace is preserved by default', () => {
@@ -457,6 +498,29 @@ describe('splitVocabularyTerms (shared vocabulary-prompt splitter)', () => {
     // 'a' + 5 spaces + 'b' is 7 chars raw but 3 once joined, so the cap sees 3.
     expect(splitVocabularyTerms('a     b', { maxTerms: 100, maxTermChars: 4, joinWordsWith: '_' }))
       .toEqual(['a_b']);
+  });
+
+  test('sanitize strips <>, collapses whitespace and de-duplicates case-insensitively', () => {
+    expect(splitVocabularyTerms('<HyperWhisper>, hyperwhisper,  spaced   out ', { maxTerms: 100, sanitize: true }))
+      .toEqual(['HyperWhisper', 'spaced out']);
+    // A duplicate does not use up a slot.
+    expect(splitVocabularyTerms('a, A, b', { maxTerms: 2, sanitize: true })).toEqual(['a', 'b']);
+  });
+
+  test('sanitize strips a bullet only when a space follows it (issue #729)', () => {
+    expect(splitVocabularyTerms('-Xmx, *args, - bulleted, * starred', { maxTerms: 100, sanitize: true }))
+      .toEqual(['-Xmx', '*args', 'bulleted', 'starred']);
+  });
+
+  test('overLongTerm truncates by code point, or drops by default', () => {
+    expect(splitVocabularyTerms('x'.repeat(100), { maxTerms: 100, maxTermChars: 80, overLongTerm: 'truncate' }))
+      .toEqual(['x'.repeat(80)]);
+    // Supplementary characters are 2 UTF-16 units each; none is split in half.
+    expect(splitVocabularyTerms('😀'.repeat(81), { maxTerms: 100, maxTermChars: 80, overLongTerm: 'truncate' }))
+      .toEqual(['😀'.repeat(80)]);
+    expect(splitVocabularyTerms(`ok,${'x'.repeat(51)}`, { maxTerms: 100, maxTermChars: 50, overLongTerm: 'drop' }))
+      .toEqual(['ok']);
+    expect(splitVocabularyTerms(`ok,${'x'.repeat(51)}`, { maxTerms: 100, maxTermChars: 50 })).toEqual(['ok']);
   });
 
   test('an empty prompt yields no terms', () => {

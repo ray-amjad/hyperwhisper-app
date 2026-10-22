@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "诊断已导出";
 "alerts.export.diagnostics.success.message" = "所有诊断日志已成功导出。";
 "alerts.export.diagnostics.saveFailed.message" = "无法将诊断信息保存到所选位置：%@";
+"alerts.export.diagnostics.noSystemLogs.title" = "已导出诊断信息，但不含系统日志";
+"alerts.export.diagnostics.noSystemLogs.message" = "诊断文件已保存，但无法读取应用的系统日志，因此 system-logs.txt 中只有原因。原因：%@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "导出更新日志以供支持";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "完成引导";
 
 "onboarding.setupLater.button" = "稍后设置";
-"onboarding.error.microphone.denied" = "麦克风权限被拒绝。请在系统设置中授予权限。";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "开机启动";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "关闭";
 "settings.general.mediaControl.mode.mute" = "静音音频";
+"settings.general.mediaControl.mode.muffle" = "柔化音频";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,9 +324,17 @@
 "settings.sound.soundEffects.title" = "播放音效";
 "settings.sound.soundEffects.info" = "在录音开始和停止时播放音频提示。";
 "settings.sound.mediaControl.title" = "录音时媒体控制";
-"settings.sound.mediaControl.info" = "选择录音时 HyperWhisper 对其他音频的处理方式。“关闭”保持原样，“静音音频”会在录音时静音系统输出并在之后恢复。";
+"settings.sound.mediaControl.info" = "选择录音时 HyperWhisper 对其他音频的处理方式。“关闭”保持原样，“静音音频”会在录音时静音系统输出并在之后恢复，“柔化音频”则让音频继续轻声播放，仿佛来自隔壁房间。";
+"settings.sound.microphone.title" = "麦克风";
+"settings.sound.microphone.subtitle" = "仅供 HyperWhisper 使用。重启后仍会保留。";
+"microphone.picker.default" = "默认 · %@";
+"microphone.picker.notConnected" = "%@（未连接）";
+"microphone.picker.fallback" = "正在使用 %1$@，直到 %2$@ 重新连接。";
+"settings.sound.microphone.test" = "测试";
+"settings.sound.microphone.stop" = "停止";
+"settings.sound.microphone.level" = "输入电平";
 "settings.sound.autoIncreaseMicVolume.title" = "自动提高麦克风音量";
-"settings.sound.autoIncreaseMicVolume.info" = "录音开始时自动将麦克风输入音量调到最大，停止后恢复原值。仅适用于系统默认输入设备。";
+"settings.sound.autoIncreaseMicVolume.info" = "开始录音时，自动将 HyperWhisper 录音所用麦克风的输入音量调到最大，并在录音停止后恢复原来的音量。没有软件音量控制的麦克风将保持不变。";
 "settings.sound.vad.title" = "转写前移除静音";
 "settings.sound.vad.info" = "使用 AI 语音检测自动去除前后静音，可提高转写准确度并缩短处理时间。";
 
@@ -336,6 +346,9 @@
 "settings.storage.choose.button" = "选择...";
 "settings.storage.dialog.select" = "选择文件夹";
 "settings.storage.dialog.message" = "选择一个文件夹保存录音";
+"settings.storage.folderRefused.title" = "无法使用此文件夹";
+"settings.storage.folderRefused.notWritable" = "你没有写入“%@”的权限，因此 HyperWhisper 无法在其中保存录音。录音文件夹未更改。";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper 无法创建此文件夹：%@ 录音文件夹未更改。";
 "settings.storage.storeAsM4A.title" = "将录音压缩为 M4A";
 "settings.storage.storeAsM4A.subtitle" = "转写后将 WAV 录音转换为更小的文件。关闭则保留原始 WAV（更大但无损）。";
 
@@ -383,6 +396,7 @@
 
 "settings.shortcuts.changeMode.title" = "切换模式";
 "settings.shortcuts.changeMode.subtitle" = "仅在录音时有效";
+"settings.shortcuts.conflict.alert" = "无法使用此键盘快捷键，因为“%@”已在使用它。";
 
 "settings.shortcuts.reset.button" = "恢复默认";
 "settings.shortcuts.reset.dialog.title" = "重置键盘快捷键";
@@ -434,6 +448,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "从剪贴板粘贴";
 "settings.license.clearInput" = "清除";
+"license.error.keyFormat" = "这看起来不像账户密钥。";
 "settings.license.recovery.prompt" = "忘记许可证密钥？";
 "settings.license.recovery.button" = "前往客户门户";
 "settings.license.daily.title" = "每日转写";
@@ -576,6 +591,8 @@
 "onboarding.configure.cloud.note" = "额度为预付制，由使用此密钥登录的每台 Mac 共享。空闲时间不消耗额度。";
 "onboarding.source.note" = "之后改变主意只会重新执行这一步。您设置的其他内容都不会丢失。";
 "onboarding.permissions.note" = "跳过辅助功能，转写结果会进入剪贴板，随时可粘贴。之后开启只需一次点击。";
+"onboarding.permissions.microphone.denied" = "未允许。请在“系统设置”中打开 HyperWhisper，然后回到这里。";
+"onboarding.permissions.continueNeedsMicrophone" = "继续需要麦克风。请在上方允许，或选择“稍后设置”。";
 "onboarding.welcome.task1.title" = "选择转录的运行方式";
 "onboarding.welcome.task1.caption" = "在我们的云端、这台 Mac 上，或通过您已付费的服务商账户。";
 "onboarding.welcome.task2.title" = "检查您的麦克风";
@@ -683,6 +700,10 @@
 // MARK: - Modes
 "modes.delete.confirm.title" = "删除模式？";
 "modes.delete.confirm.message" = "这将删除所选模式。此操作无法撤销。";
+"modes.editor.discard.title" = "放弃未保存的更改？";
+"modes.editor.discard.message" = "你对此模式的更改尚未保存。";
+"modes.editor.discard.keepEditing" = "继续编辑";
+"modes.editor.discard.button" = "放弃";
 "modes.header.title" = "模式";
 "modes.header.subtitle" = "为不同场景和工作流创建自定义配置";
 "modes.header.create" = "创建模式";
@@ -727,7 +748,7 @@
 "modes.postProcessing.apiKeyMissing" = "%@ API 密钥未配置。请在设置中添加以启用后处理。";
 "modes.postProcessing.configure" = "在设置中配置";
 "modes.postProcessing.modelRecommendation" = "我们推荐使用 GPT-4.1 Nano，以获得最佳速度与质量平衡。";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "本地后处理需要已下载的本地模型。";
 "modes.postProcessing.download" = "在设置中下载";
@@ -788,12 +809,15 @@
 "modes.field.name.placeholder" = "例如：会议记录";
 "modes.field.name.editPlaceholder" = "模式名称";
 "modes.field.name.defaultLocked" = "这是默认模式，因此无法更改其名称。你可以重命名其他任何模式。";
+"modes.field.name.taken" = "已存在同名模式。";
 "modes.field.model" = "模型";
 "modes.field.provider" = "提供商";
 "modes.provider.local" = "本地";
 "modes.provider.cloud" = "云端";
 "modes.notice.noLocalModels.title" = "未安装本地模型";
 "modes.notice.noLocalModels.subtitle" = "先在设置中安装模型";
+"modes.model.notInstalledFormat" = "%@（未安装）";
+"modes.notice.modelNotInstalled" = "此模式的模型未安装。保存时会保留它。请在模型库中下载，或选择其他模型。";
 "modes.model.pricing" = "价格：$%.6f / 分钟（按秒计费）";
 "modes.button.create" = "创建模式";
 "modes.button.delete" = "删除模式";
@@ -812,8 +836,9 @@
 "transcripts.delete.single.message" = "这将永久删除该录音及其音频文件。";
 "transcripts.delete.multiple.title" = "删除 %d 条录音？";
 "transcripts.delete.multiple.message" = "这将永久删除 %d 条录音及其音频文件。\n\n此操作无法撤销。";
-"transcripts.delete.multiple.confirm" = "全部删除";
+"transcripts.delete.multiple.confirm" = "删除 %d 条录音";
 "transcripts.retry.error.title" = "重试失败";
+"transcripts.retry.error.modeDeleted" = "创建此录音的模式已被删除，因此未重试。请在历史记录中右键点击该录音，然后选择\"重试并使用...\"以选择其他模式。";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "选择录音文件夹";
@@ -864,8 +889,8 @@
 "recording.retry.inProgress" = "正在重试…";
 "recording.retry.count" = "重试（%d）";
 "recording.retry.failed.missing" = "重试失败：找不到音频文件";
-"recording.retry.failed.error" = "重试失败：%@";
 "recording.retry.pending" = "可重试 – 点击开始转写";
+"recording.retry.modeDeleted" = "模式已被删除";
 "recording.cancel.dialog.title" = "取消录音？";
 "recording.cancel.dialog.message" = "这将丢弃当前录音。";
 "recording.cancel.dialog.confirm" = "取消录音";
@@ -892,6 +917,7 @@
 "audio.error.microphonePermission" = "未授予麦克风权限";
 "audio.error.microphoneInUse" = "HyperWhisper 无法访问麦克风，因为其他应用正在使用。请暂停其他应用或切换输入后再试。";
 "audio.error.audioSystemNotResponding" = "macOS 音频没有响应，因此无法启动麦克风。请稍后重试。如果问题持续出现，请重新启动 Mac。";
+"audio.error.recorderStopTimedOut" = "保存录音时 macOS 音频停止响应，因此未进行转写。音频已保留：HyperWhisper 会在下次启动时尝试恢复。";
 "audio.error.createEngine" = "无法创建音频引擎";
 "audio.error.noInput" = "无可用音频输入";
 "audio.error.createFile" = "无法创建音频文件";
@@ -919,6 +945,9 @@
 "transcription.error.providerNotAvailable.provider" = "%@ 不可用。请检查设置并重试。";
 "transcription.error.providerNotAvailable.detail" = "%@ 不可用：%@";
 "transcription.error.modelNotDownloaded" = "请先下载模型";
+"transcription.error.modelNotDownloaded.modelAndMode" = "模式“%1$@”使用的 %2$@ 尚未下载。请在模型库中下载。";
+"transcription.error.modelNotDownloaded.model" = "%1$@ 尚未下载。请在模型库中下载。";
+"transcription.error.openModelLibrary" = "打开模型库";
 "transcription.error.modelProtected" = "此模型无法删除";
 "transcription.error.audioFileNotFound" = "未找到音频文件";
 "transcription.error.network.detail" = "网络错误：%@";
@@ -965,10 +994,15 @@
 "transcription.guidance.quotaExceeded" = "为你的 %@ 账户充值或更新账单信息";
 "transcription.guidance.timeout" = "请求时间过长。检查网络速度后重试。";
 "transcription.error.noSpeechDetected" = "录音中未检测到语音。";
+"transcription.error.audioTooShort" = "录音太短，无法转写。请录制更长时间。";
 "transcription.guidance.noSpeechDetected" = "提示：\n• 请清晰地对着麦克风说话\n• 说话前按住按键更久一些\n• 检查麦克风是否正常工作\n• 确认已选择正确的输入设备";
 "transcription.guidance.needsNativeRelaunch" = "请退出并以原生方式重新打开 HyperWhisper，以使用本地后处理。";
 "transcription.guidance.localRuntimeUnavailable" = "请重试，或在模式设置中选择更小的本地模型。";
 "transcription.error.localRuntimeUnavailable" = "本地 AI 未能完成处理 — 已为你保留原始转写文本。";
+"transcription.error.postProcessingPreflight.unauthorized" = "%@ 拒绝了你的 API 密钥 — 已为你保留原始转写文本。";
+"transcription.error.postProcessingPreflight.unreachable" = "无法连接到 %@ — 已为你保留原始转写文本。";
+"transcription.error.postProcessingPreflight.notInstalled" = "%@ 未安装 — 已为你保留原始转写文本。";
+"transcription.error.postProcessingPreflight.unavailable" = "%@ 不可用 — 已为你保留原始转写文本。";
 "transcription.error.localSpeechModelEvicted" = "为释放内存，语音模型已被卸载且无法重新加载。请关闭部分应用后重试。";
 "settings.backup.localDownload.title" = "要下载本地模型吗？";
 "settings.backup.localDownload.message" = "在已恢复的模式中，有 %d 个使用了尚未下载的设备端 AI 模型。";
@@ -976,6 +1010,11 @@
 "settings.backup.localDownload.dismiss" = "忽略";
 "modelLibrary.local.requiresAppleSilicon" = "需要 Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "以原生方式重新启动";
+"modelLibrary.remove.confirm.title" = "移除 %@？";
+"modelLibrary.remove.confirm.message" = "你需要重新下载它（%@）。";
+"modelLibrary.remove.confirm.messageNoSize" = "你需要重新下载它。";
+"modelLibrary.remove.confirm.button" = "移除";
+"settings.models.inUse.localAPI" = "一个 Local API 请求正在使用此模型。请在它完成后重试。";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "额度不足。请在设置中添加更多额度。";
@@ -1040,7 +1079,12 @@
 "settings.backup.import.subtitle" = "从备份文件恢复设置";
 "settings.backup.import.button" = "导入...";
 "settings.backup.import.panel.title" = "导入设置";
-"settings.backup.import.success" = "导入完成：已导入 %d 个模式、%d 个词汇";
+"settings.backup.import.result" = "导入完成：%@";
+"settings.backup.import.result.settings" = "已恢复设置";
+"settings.backup.import.result.modes" = "已导入 %d 个模式";
+"settings.backup.import.result.vocabulary" = "已导入 %d 个词汇";
+"settings.backup.import.complete" = "导入完成";
+"settings.backup.import.result.separator" = "，";
 "settings.backup.import.error.read" = "无法读取备份文件";
 "settings.backup.import.error.decode" = "备份文件格式无效";
 "settings.backup.import.error.decode.keyNotFound" = "缺少必填字段：%@";
@@ -1050,6 +1094,14 @@
 "settings.backup.import.error.decode.corruptedField" = "字段值已损坏：%@";
 "settings.backup.import.error.version" = "备份文件来自更高版本";
 "settings.backup.import.error.unknown" = "导入失败";
+"settings.backup.import.error.storeModes" = "无法保存模式，因此模式保持不变。";
+"settings.backup.import.error.storeModesAndVocabulary" = "无法保存模式，因此模式和词汇均保持不变。";
+"settings.backup.import.error.storeVocabulary" = "无法保存词汇，因此词汇保持不变。";
+"settings.backup.import.error.storeVocabularyAfterModes" = "模式已导入，但无法保存词汇，因此词汇保持不变。";
+"settings.backup.import.error.storeLicense" = "无法安全导入许可证密钥。";
+"settings.backup.import.error.storeSettingsRestored" = "设置保持不变。";
+"settings.backup.import.error.storeOtherSections" = "其他所选部分已应用。";
+"settings.backup.import.apiKeysFailed" = "以下 API 密钥无法保存到钥匙串，因此未能恢复：%@。请在设置中重新输入。";
 "settings.backup.import.confirm.title" = "导入设置？";
 "settings.backup.import.confirm.message" = "这将用备份文件中的内容替换你当前的模式和词汇，并更新设置。";
 "settings.backup.import.confirm.button" = "导入";
@@ -1059,6 +1111,7 @@
 "settings.backup.info.note" = "备份包含设置、模式和词汇，不包含录音和转写。";
 "settings.backup.result.success.title" = "成功";
 "settings.backup.result.error.title" = "错误";
+"settings.backup.result.incomplete.title" = "导入未完成";
 "settings.backup.export.choose.subtitle" = "选择要包含在备份文件中的内容";
 "settings.backup.export.section.settings" = "设置";
 "settings.backup.export.section.modes" = "模式";
@@ -1084,6 +1137,17 @@
 "transcribe.file.error.format.title" = "不支持的格式";
 "transcribe.file.error.format.message" = ".%@ 文件不受 %@ 支持。支持的格式：%@";
 "transcribe.file.error.read" = "无法读取所选文件。";
+"transcribe.file.error.webm" = "不支持 WebM。请将文件转换为 MP3、M4A 或 WAV 后重试。";
+"transcribe.file.busy.title" = "已有一个文件正在转写。";
+"transcribe.file.busy.message" = "要取消它并开始这个文件吗？";
+"transcribe.file.busy.keepRunning" = "继续运行";
+"transcribe.file.busy.cancelAndStart" = "取消并开始";
+"transcribe.file.error.notAudio" = "文件“%@”不是有效的音频。文件可能已损坏，或者是 macOS 无法解码的格式。";
+"transcribe.file.error.empty" = "文件“%@”是空的，没有可转写的音频。";
+"transcribe.file.error.permission" = "HyperWhisper 无法读取文件“%@”。请检查该文件的权限。";
+"transcribe.file.error.folderPermission" = "HyperWhisper 无法打开包含文件“%@”的文件夹。请检查该文件夹的权限。";
+"transcribe.file.error.privacy" = "macOS 隐私设置阻止了 HyperWhisper 读取文件“%@”。请在“系统设置”>“隐私与安全性”>“完全磁盘访问权限”中允许。";
+"transcribe.file.error.tooShort" = "此文件太短，无法转写（%@ 秒）。";
 "transcribe.file.error.copy" = "无法将文件复制到录音文件夹。";
 "transcribe.file.error.video.title" = "视频无音频";
 "transcribe.file.error.video.noAudio" = "该视频文件不包含音轨。请选择带音频的视频或音频文件。";
@@ -1110,3 +1174,4 @@
 "settings.storage.maxRecordingDuration.hour" = "1 小时";
 "settings.storage.maxRecordingDuration.hours" = "%d 小时";
 "settings.storage.maxRecordingDuration.off" = "关闭";
+"settings.api_server.status.stopping" = "正在停止…";

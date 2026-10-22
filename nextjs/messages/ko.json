@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - macOS 및 Windows용 AI 음성 전사",
-    "description": "AI 음성 전사로 5배 더 빠르게 작성하세요. HyperWhisper는 macOS와 Windows에서 놀라운 정확도로 음성을 전사합니다. 자연스럽게 말하면 텍스트가 즉시 나타납니다."
+    "title": "HyperWhisper - macOS, Windows 및 Linux용 AI 음성 전사",
+    "description": "AI 음성 전사로 5배 더 빠르게 작성하세요. HyperWhisper는 macOS, Windows, Linux에서 놀라운 정확도로 음성을 전사합니다. 자연스럽게 말하면 텍스트가 즉시 나타납니다."
   },
   "navbar": {
     "features": "기능",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "인터넷 없이 사용할 수 있나요?",
-        "answer": "물론입니다. HyperWhisper는 로컬 AI 모델을 사용해 Mac 또는 Windows PC에서 완전히 오프라인으로 동작합니다. 인터넷이 필요 없습니다. 최대 정확도와 속도를 원하는 사용자를 위해 다양한 클라우드 제공업체를 통한 선택형 클라우드 처리도 제공합니다."
+        "answer": "물론입니다. HyperWhisper는 로컬 AI 모델을 사용해 Mac, Windows PC 또는 Linux PC에서 완전히 오프라인으로 동작합니다. 인터넷이 필요 없습니다. 최대 정확도와 속도를 원하는 사용자를 위해 다양한 클라우드 제공업체를 통한 선택형 클라우드 처리도 제공합니다."
       },
       "apiKey": {
         "question": "API 사용에 비용이 드나요?",
@@ -175,16 +175,16 @@
         "answer": "오프라인 전사용으로 Whisper 모델의 다양한 크기(제작: OpenAI, 99+ 언어 지원)를 제공합니다. 또한 NVIDIA의 Parakeet 모델(25+ 언어 지원)도 제공합니다.\n      \n      오프라인 후처리용으로는 Gemma 3 모델의 다양한 크기(제작: Google)를 제공합니다."
       },
       "compatibility": {
-        "question": "모든 Mac/Windows 앱에서 동작하나요?",
+        "question": "제가 쓰는 모든 앱에서 동작하나요?",
         "answer": "네, 입력할 수 있는 모든 곳에서 동작합니다. 이메일 작성, 문서 작성, 코딩, 채팅 등 어디서든 가능합니다. 단축키를 누르고 말하면 텍스트가 즉시 나타납니다."
       },
       "privacy": {
         "question": "개인정보는 어떻게 보호되나요?",
-        "answer": "로컬 모드를 사용할 때는 어떤 데이터도 Mac이나 Windows PC 밖으로 나가지 않습니다.\n\n클라우드 전사를 사용할 경우 데이터는 사용자가 선택한 클라우드 제공업체(OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox, Google Gemini 등)로 전송됩니다.\n\n[Proxyman](https://proxyman.io) 같은 네트워크 검사 도구나 [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) 같은 네트워크 모니터로, 또는 [GitHub의 소스 코드](https://github.com/ray-amjad/hyperwhisper-app)를 읽어 직접 확인할 수 있습니다."
+        "answer": "로컬 모드를 사용할 때는 어떤 데이터도 Mac, Windows PC, Linux PC 밖으로 나가지 않습니다.\n\n클라우드 전사를 사용할 경우 데이터는 사용자가 선택한 클라우드 제공업체(OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox, Google Gemini 등)로 전송됩니다.\n\n[Proxyman](https://proxyman.io) 같은 네트워크 검사 도구나 [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) 같은 네트워크 모니터로, 또는 [GitHub의 소스 코드](https://github.com/ray-amjad/hyperwhisper-app)를 읽어 직접 확인할 수 있습니다."
       },
       "cloud": {
         "question": "HyperWhisper Cloud란 무엇인가요?",
-        "answer": "HyperWhisper Cloud는 빠르게 시작하고 싶은, 기술에 익숙하지 않은 사용자를 위한 내장형 클라우드 전사 기능입니다.\n\n사용량 기반 크레딧입니다. 최소 $5($1당 1,000크레딧)부터 충전하고, 전사할 때만 사용합니다. 첫 크레딧 구매 시 Account Key가 자동으로 생성되므로, 따로 구매할 것이 없습니다.\n    \n정확도는 네 단계를 제공합니다: Medium(Groq), Medium(Deepgram Nova 3), High(ElevenLabs Scribe v2), 그리고 Highest(Grok STT, 신규 설치의 기본값이며 SpaceXAI Grok STT 기반). 후처리는 자동이며 기본값은 Grok 4.1 Fast non-reasoning입니다. 사용한 크레딧 양 외에는 아무것도 저장하지 않으며, 저희가 사용하는 모든 상위 제공업체에서 모델 학습 사용을 거부(opt-out)하도록 설정해 두었습니다. 자세한 내용은 [데이터 개인정보 보호 가이드](https://hyperwhisper.com/docs/data-privacy)를 참고하세요.\n\n크레딧은 제공업체 자체의 처리 비용 그대로 사용되며, 전사에 마진을 붙이지 않습니다. 결제 시 6%의 정액 결제 처리 수수료가 별도 항목으로 추가됩니다. 사용하지 않은 크레딧은 12개월 후 만료됩니다(아래 참조).\n\n안심하실 수 있도록, Cloud 백엔드를 포함해 앱 전체가 Apache-2.0 아래에서 오픈 소스입니다. 당신의 앱과 저희가 프록시하는 제공업체 사이에서 실행되는 모든 코드를 [GitHub에서](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud) 읽어 보실 수 있습니다."
+        "answer": "HyperWhisper Cloud는 빠르게 시작하고 싶은, 기술에 익숙하지 않은 사용자를 위한 내장형 클라우드 전사 기능입니다.\n\n사용량 기반 크레딧입니다. 최소 $5($1당 1,000크레딧)부터 충전하고, 전사할 때만 사용합니다. 첫 크레딧 구매 시 Account Key가 자동으로 생성되므로, 따로 구매할 것이 없습니다.\n    \nHyperWhisper Cloud는 Groq Whisper부터 ElevenLabs Scribe v2까지 12개의 전사 제공업체를 제공합니다([전체 목록 및 요금](https://hyperwhisper.com/docs/cloud-credits) 참고). 신규 설치는 ElevenLabs Scribe v2로 시작합니다. 후처리는 자동이며 신규 설치는 Claude Haiku 5.5로 시작합니다. 사용한 크레딧 양 외에는 아무것도 저장하지 않으며, 저희가 사용하는 모든 상위 제공업체에서 모델 학습 사용을 거부(opt-out)하도록 설정해 두었습니다. 자세한 내용은 [데이터 개인정보 보호 가이드](https://hyperwhisper.com/docs/data-privacy)를 참고하세요.\n\n크레딧은 제공업체 자체의 처리 비용 그대로 사용되며, 전사에 마진을 붙이지 않습니다. 결제 시 6%의 정액 결제 처리 수수료가 별도 항목으로 추가됩니다. 사용하지 않은 크레딧은 12개월 후 만료됩니다(아래 참조).\n\n안심하실 수 있도록, Cloud 백엔드를 포함해 앱 전체가 Apache-2.0 아래에서 오픈 소스입니다. 당신의 앱과 저희가 프록시하는 제공업체 사이에서 실행되는 모든 코드를 [GitHub에서](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud) 읽어 보실 수 있습니다."
       },
       "dataTraining": {
         "question": "제 음성 데이터가 AI 모델 학습에 사용되나요?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "시스템 요구사항은 무엇인가요?",
-        "answer": "Mac: macOS 14 이상, Apple Silicon 및 Intel 지원. Windows: Windows 10/11, x64 또는 ARM64. 최적 성능을 위해 8GB RAM을 권장합니다."
+        "answer": "Mac: macOS 14 이상, Apple Silicon 및 Intel 지원. Windows: Windows 10/11, x64 또는 ARM64. Linux v1: amd64 기반 Ubuntu 22.04 이상 또는 Debian 12 이상. 최적 성능을 위해 8GB RAM을 권장합니다."
       },
       "madeBy": {
         "question": "누가 만들었나요?",
@@ -272,7 +272,31 @@
     "homebrewTitle": "Homebrew로 설치",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "복사",
-    "copied": "복사됨!"
+    "copied": "복사됨!",
+    "linuxSubtitle": "64비트 Intel/AMD 시스템용 Debian 패키지",
+    "downloadLinux": "Linux용 다운로드",
+    "downloadLinuxVersion": "Linux v{version}용 다운로드",
+    "linuxReleaseNotes": "체크섬 및 릴리스 노트",
+    "linuxInstallTitle": "Debian 패키지 설치",
+    "linuxTargets": "Linux v1은 amd64 기반의 Ubuntu 22.04+ 및 Debian 12+를 대상으로 합니다.",
+    "linuxReplaceVersion": "VERSION을 다운로드한 버전으로 바꾸세요.",
+    "linuxInstallCommandLabel": "Debian 설치 명령어",
+    "linuxInputGroupNote": "input 그룹에 가입한 후에는 로그아웃했다가 다시 로그인하세요. 그룹 가입은 선택 사항이지만, 전역 단축키와 자동 붙여넣기에는 필요합니다.",
+    "aptTitle": "APT 저장소 직접 호스팅",
+    "aptBody": "Linux 릴리스에는 정적 APT 저장소 아카이브도 포함되어 있습니다. HyperWhisper는 현재 공개 APT 엔드포인트를 운영하지 않습니다. 서명된 자체 호스팅 설정, 데스크톱 연동 구성 요소, 개인정보 세부 사항, 제거 방법은 Linux 설치 가이드를 참고하세요.",
+    "linuxGuideCta": "Linux 설치 가이드 읽기"
+  },
+  "olderVersions": {
+    "title": "이전 버전",
+    "subtitle": "HyperWhisper의 모든 릴리스를 둘러보고 다운로드하세요",
+    "errorLoading": "버전을 불러오는 중 오류가 발생했습니다: {error}",
+    "unknownError": "오류가 발생했습니다",
+    "loading": "버전을 불러오는 중...",
+    "latest": "최신",
+    "build": "빌드 {number}",
+    "downloadDmg": "DMG 다운로드",
+    "downloadExe": "EXE 다운로드",
+    "unknownSize": "알 수 없음"
   },
   "purchaseSuccess": {
     "title": "모두 준비됐어요!",
@@ -289,7 +313,7 @@
     "loading": "불러오는 중..."
   },
   "footer": {
-    "tagline": "macOS 및 Windows용 AI 음성 전사로 5배 더 빠르게 작성하세요.",
+    "tagline": "macOS, Windows 및 Linux용 AI 음성 전사로 5배 더 빠르게 작성하세요.",
     "product": "제품",
     "resources": "리소스",
     "company": "회사",
@@ -389,6 +413,39 @@
   "openSource": {
     "heading": "오픈 소스. 숨길 것이 없습니다.",
     "body": "HyperWhisper는 데스크톱 앱과 Cloud 백엔드 모두 Apache-2.0 아래에서 완전히 오픈 소스입니다. 당신의 마이크를 듣는 앱이라면, 그저 신뢰하는 것이 아니라 직접 검증할 수 있어야 합니다. 모든 코드를 읽고, 당신의 오디오가 정확히 어디로 가는지 감사하며, 결코 종속되지 않는다는 것을 확인하세요. 코드는 당신의 것이며, 언제까지나 자유롭게 포크하고 직접 호스팅할 수 있습니다. 인디 메이커 Ray Amjad가 공개적으로 개발합니다.",
-    "cta": "GitHub에서 보기"
+    "cta": "GitHub에서 보기",
+    "metaTitle": "오픈 소스 | HyperWhisper",
+    "metaDescription": "HyperWhisper는 데스크톱 앱과 Cloud 백엔드 모두 Apache-2.0 아래에서 완전히 오픈 소스입니다. 코드를 읽고, 오디오가 어디로 가는지 감사하고, 포크하여 언제까지나 직접 호스팅하세요.",
+    "eyebrow": "오픈 소스",
+    "lead": "HyperWhisper가 이제 데스크톱 앱과 Cloud 백엔드 모두 Apache-2.0 아래에서 완전한 오픈 소스가 되었습니다.",
+    "intro": "당신의 마이크를 듣는 앱이라면 그저 신뢰하는 것이 아니라 직접 검증할 수 있어야 합니다. 그래서 저희는 모든 것을 공개했습니다. macOS, Windows, Linux 앱과 Cloud 전사 백엔드까지 HyperWhisper의 모든 코드를 읽고, 오디오가 정확히 어디로 가는지 확인하며, 결코 종속되지 않는다는 것을 알 수 있습니다. 전체 프로젝트는 <license>Apache-2.0 라이선스</license>로 <github>GitHub</github>에 공개되어 있습니다.",
+    "whyHeading": "왜 중요한가요",
+    "whyVerify": "<strong>신뢰하지 말고 검증하세요.</strong> 모든 코드를 읽고 오디오가 정확히 어디로 가는지 감사하세요. 마이크 접근 권한이 있는 앱이라면 그저 믿고 맡길 것이 아니라 직접 살펴볼 수 있어야 합니다.",
+    "whyNoLockIn": "<strong>종속 없음.</strong> 코드는 Apache-2.0 라이선스로, 원하는 대로 보관하고 수정하며 실행할 수 있습니다. 당신의 워크플로가 볼모로 잡히는 일은 결코 없습니다.",
+    "whyFork": "<strong>포크하고 직접 호스팅하세요.</strong> 저장소를 클론해 직접 빌드하거나, 자체 Cloud 백엔드를 운영할 수 있습니다. 필요한 모든 것이 공개되어 있습니다.",
+    "whyOpen": "<strong>공개적으로 개발합니다.</strong> HyperWhisper는 인디 메이커 Ray Amjad가 공개적으로 개발합니다. 이슈, 토론, 릴리스가 모두 공개적으로 진행됩니다.",
+    "licenseHeading": "이미 라이선스를 구매하셨나요?",
+    "licenseIntro": "HyperWhisper는 이제 오픈 소스이며, 유료 전사는 HyperWhisper Cloud 크레딧으로 이용합니다. 전환 전에 라이선스를 구매하셨다면 다음과 같이 도와드립니다. <mail>{email}</mail>로 이메일을 보내 주시면 직접 처리해 드리겠습니다.",
+    "licenseRecent": "<strong>최근 30일 이내에 구매하신 경우:</strong> 환불 기간 내에 해당합니다. 어떤 이유도 묻지 않고 구매 금액 전액을 환불해 드립니다. <refund>메시지만 보내 주세요</refund>.",
+    "licenseOlder": "<strong>30일보다 이전에 구매하신 경우:</strong> 결제하신 금액을 HyperWhisper Cloud 크레딧으로 전환해 드립니다. 전체 구매 금액에서 이미 계정에 추가된 $5 크레딧을 뺀 금액입니다. <credits>이메일을 보내 주시면</credits> 잔액을 적용해 드리겠습니다.",
+    "contributeHeading": "기여하고 싶으신가요?",
+    "contributeBody": "버그 리포트, 기능 아이디어, 풀 리퀘스트 모두 환영합니다. <github>GitHub에서</github> 이슈를 열거나 토론을 시작하세요."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper가 이제 완전한 오픈 소스입니다",
+    "shortText": "이제 오픈 소스입니다",
+    "learnMore": "자세히 알아보기",
+    "dismiss": "공지 닫기"
+  },
+  "notFound": {
+    "title": "페이지를 찾을 수 없습니다",
+    "heading": "이 페이지는 존재하지 않습니다",
+    "description": "링크가 잘못되었거나 페이지가 이동되었을 수 있습니다.",
+    "home": "홈페이지로 이동",
+    "download": "HyperWhisper 다운로드"
+  },
+  "signIn": {
+    "magicLinkExpired": "이 로그인 링크는 만료되었거나 이미 사용되었습니다. 새 링크를 받으려면 이메일을 입력하세요.",
+    "magicLinkFailed": "해당 링크로 로그인하지 못했습니다. 새 링크를 받으려면 이메일을 입력하세요."
   }
 }

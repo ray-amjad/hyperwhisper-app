@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - Transkripsi Suara AI untuk macOS & Windows",
-    "description": "Tulis 5x lebih pantas dengan transkripsi suara berkuasa AI. HyperWhisper mentranskripsikan suara anda dengan ketepatan luar biasa pada macOS dan Windows. Bercakap secara semula jadi dan lihat perkataan anda muncul serta-merta."
+    "title": "HyperWhisper - Transkripsi Suara AI untuk macOS, Windows & Linux",
+    "description": "Tulis 5x lebih pantas dengan transkripsi suara berkuasa AI. HyperWhisper mentranskripsikan suara anda dengan ketepatan luar biasa pada macOS, Windows dan Linux. Bercakap secara semula jadi dan lihat perkataan anda muncul serta-merta."
   },
   "navbar": {
     "features": "Ciri",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Boleh saya guna tanpa internet?",
-        "answer": "Sudah tentu. HyperWhisper boleh digunakan sepenuhnya luar talian pada Mac atau PC Windows anda menggunakan model AI setempat - internet tidak diperlukan. Untuk pengguna yang mahukan ketepatan dan kelajuan maksimum, kami juga menawarkan pemprosesan awan pilihan melalui pelbagai penyedia."
+        "answer": "Sudah tentu. HyperWhisper boleh digunakan sepenuhnya luar talian pada Mac, PC Windows atau komputer Linux anda menggunakan model AI setempat - internet tidak diperlukan. Untuk pengguna yang mahukan ketepatan dan kelajuan maksimum, kami juga menawarkan pemprosesan awan pilihan melalui pelbagai penyedia."
       },
       "apiKey": {
         "question": "Adakah saya perlu bayar untuk akses API?",
@@ -175,16 +175,16 @@
         "answer": "Untuk transkripsi luar talian, kami menawarkan pelbagai saiz model Whisper (dibangunkan oleh OpenAI, menyokong 99+ bahasa). Kami juga menawarkan model Parakeet daripada NVidia (menyokong 25+ bahasa).\n      \n      Untuk pascapemprosesan luar talian, kami menawarkan pelbagai saiz model Gemma 3 (dibangunkan oleh Google)."
       },
       "compatibility": {
-        "question": "Adakah ia berfungsi dengan semua aplikasi Mac dan Windows?",
+        "question": "Adakah ia berfungsi dengan semua aplikasi saya?",
         "answer": "Ya, ia berfungsi di mana-mana sahaja anda boleh menaip. Sama ada anda menulis emel, dokumen, kod atau berbual. Hanya tekan pintasan, bercakap, dan lihat perkataan anda muncul serta-merta."
       },
       "privacy": {
         "question": "Bagaimana privasi saya dilindungi?",
-        "answer": "Apabila menggunakan mod setempat, tiada data yang keluar dari Mac atau PC Windows anda.\n\nApabila menggunakan transkripsi awan, data anda dihantar kepada penyedia awan yang anda pilih (contohnya OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox atau Google Gemini).\n\nAnda boleh sahkan sendiri dengan pemerhati rangkaian seperti [Proxyman](https://proxyman.io), pemantau rangkaian seperti [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), atau dengan membaca [kod sumber di GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Apabila menggunakan mod setempat, tiada data yang keluar dari Mac, PC Windows atau komputer Linux anda.\n\nApabila menggunakan transkripsi awan, data anda dihantar kepada penyedia awan yang anda pilih (contohnya OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox atau Google Gemini).\n\nAnda boleh sahkan sendiri dengan pemerhati rangkaian seperti [Proxyman](https://proxyman.io), pemantau rangkaian seperti [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), atau dengan membaca [kod sumber di GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Apa itu HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud ialah transkripsi awan terbina dalam yang disasarkan kepada pengguna kurang teknikal yang mahu bermula dengan cepat.\n\nIa kredit bayar sambil guna. Anda menambah nilai serendah $5 (1,000 kredit setiap $1) dan membelanjakannya hanya semasa anda membuat transkripsi. Pembelian kredit pertama anda secara automatik mencipta Account Key anda, jadi tiada apa-apa lagi untuk dibeli.\n    \nKami menawarkan empat tahap ketepatan: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) dan Highest (Grok STT, lalai untuk pemasangan baharu dan dikuasakan oleh SpaceXAI Grok STT). Pemprosesan pasca adalah automatik dan lalainya Grok 4.1 Fast non-reasoning. Kami tidak menyimpan apa-apa selain berapa banyak kredit yang anda gunakan, dan kami telah menarik anda keluar daripada latihan model pada setiap penyedia huluan yang kami guna. Lihat [panduan Privasi Data](https://hyperwhisper.com/docs/data-privacy) kami untuk butiran.\n\nKredit dibelanjakan pada kos pemprosesan penyedia sendiri — tiada tokokan pada transkripsi. Pembayaran menambah yuran pemprosesan pembayaran tetap 6%, ditunjukkan sebagai item baris berasingan. Kredit yang tidak digunakan tamat tempoh selepas 12 bulan (lihat di bawah).\n\nUntuk ketenangan fikiran, keseluruhan aplikasi adalah sumber terbuka di bawah Apache-2.0 — termasuk backend Cloud. Anda boleh membaca setiap baris kod yang berjalan antara aplikasi anda dan penyedia yang kami proksi [di GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud ialah transkripsi awan terbina dalam yang disasarkan kepada pengguna kurang teknikal yang mahu bermula dengan cepat.\n\nIa kredit bayar sambil guna. Anda menambah nilai serendah $5 (1,000 kredit setiap $1) dan membelanjakannya hanya semasa anda membuat transkripsi. Pembelian kredit pertama anda secara automatik mencipta Account Key anda, jadi tiada apa-apa lagi untuk dibeli.\n    \nHyperWhisper Cloud memberi anda 12 penyedia transkripsi, daripada Groq Whisper hingga ElevenLabs Scribe v2 (lihat [senarai penuh dan kadar](https://hyperwhisper.com/docs/cloud-credits)). Pemasangan baharu bermula dengan ElevenLabs Scribe v2. Pemprosesan pasca adalah automatik dan pemasangan baharu bermula dengan Claude Haiku 5.5. Kami tidak menyimpan apa-apa selain berapa banyak kredit yang anda gunakan, dan kami telah menarik anda keluar daripada latihan model pada setiap penyedia huluan yang kami guna. Lihat [panduan Privasi Data](https://hyperwhisper.com/docs/data-privacy) kami untuk butiran.\n\nKredit dibelanjakan pada kos pemprosesan penyedia sendiri — tiada tokokan pada transkripsi. Pembayaran menambah yuran pemprosesan pembayaran tetap 6%, ditunjukkan sebagai item baris berasingan. Kredit yang tidak digunakan tamat tempoh selepas 12 bulan (lihat di bawah).\n\nUntuk ketenangan fikiran, keseluruhan aplikasi adalah sumber terbuka di bawah Apache-2.0 — termasuk backend Cloud. Anda boleh membaca setiap baris kod yang berjalan antara aplikasi anda dan penyedia yang kami proksi [di GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Adakah data suara saya akan digunakan untuk melatih model AI?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Apakah keperluan sistem?",
-        "answer": "Untuk Mac: macOS 14 atau lebih baharu, menyokong Apple Silicon dan Intel. Untuk Windows: Windows 10/11, x64 atau ARM64. 8GB RAM disyorkan untuk prestasi optimum."
+        "answer": "Untuk Mac: macOS 14 atau lebih baharu, menyokong Apple Silicon dan Intel. Untuk Windows: Windows 10/11, x64 atau ARM64. Untuk Linux v1: Ubuntu 22.04 atau lebih baharu, atau Debian 12 atau lebih baharu, pada amd64. 8GB RAM disyorkan untuk prestasi optimum."
       },
       "madeBy": {
         "question": "Siapa yang membangunkan ini?",
@@ -272,7 +272,31 @@
     "homebrewTitle": "Pasang melalui Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Salin",
-    "copied": "Disalin!"
+    "copied": "Disalin!",
+    "linuxSubtitle": "Pakej Debian untuk sistem Intel/AMD 64-bit",
+    "downloadLinux": "Muat turun untuk Linux",
+    "downloadLinuxVersion": "Muat turun untuk Linux v{version}",
+    "linuxReleaseNotes": "Checksum dan nota keluaran",
+    "linuxInstallTitle": "Pasang pakej Debian",
+    "linuxTargets": "Linux v1 menyasarkan Ubuntu 22.04+ dan Debian 12+ pada amd64.",
+    "linuxReplaceVersion": "Gantikan VERSION dengan versi yang anda muat turun.",
+    "linuxInstallCommandLabel": "Arahan pemasangan Debian",
+    "linuxInputGroupNote": "Log keluar dan log masuk semula selepas menyertai kumpulan input. Keahlian adalah pilihan, tetapi pintasan global dan tampal automatik memerlukannya.",
+    "aptTitle": "Hos sendiri repositori APT",
+    "aptBody": "Keluaran Linux juga disertakan dengan arkib repositori APT statik. HyperWhisper buat masa ini tidak mengendalikan endpoint APT awam; lihat panduan pemasangan Linux untuk persediaan hos sendiri yang ditandatangani, komponen pendamping desktop, butiran privasi dan cara menyahpasang.",
+    "linuxGuideCta": "Baca panduan pemasangan Linux"
+  },
+  "olderVersions": {
+    "title": "Versi Lama",
+    "subtitle": "Layari dan muat turun semua keluaran HyperWhisper",
+    "errorLoading": "Ralat memuatkan versi: {error}",
+    "unknownError": "Ralat telah berlaku",
+    "loading": "Memuatkan versi...",
+    "latest": "Terkini",
+    "build": "Binaan {number}",
+    "downloadDmg": "Muat turun DMG",
+    "downloadExe": "Muat turun EXE",
+    "unknownSize": "Tidak diketahui"
   },
   "purchaseSuccess": {
     "title": "Semuanya sedia!",
@@ -289,7 +313,7 @@
     "loading": "Memuatkan..."
   },
   "footer": {
-    "tagline": "Tulis 5x lebih pantas dengan transkripsi suara berkuasa AI untuk macOS & Windows.",
+    "tagline": "Tulis 5x lebih pantas dengan transkripsi suara berkuasa AI untuk macOS, Windows & Linux.",
     "product": "Produk",
     "resources": "Sumber",
     "company": "Syarikat",
@@ -389,6 +413,39 @@
   "openSource": {
     "heading": "Sumber terbuka. Tiada apa-apa untuk disembunyikan.",
     "body": "HyperWhisper sepenuhnya sumber terbuka di bawah Apache-2.0 — kedua-dua aplikasi desktop dan backend Cloud. Aplikasi yang mendengar mikrofon anda sepatutnya sesuatu yang boleh anda sahkan, bukan sekadar percaya: baca setiap baris, audit dengan tepat ke mana audio anda pergi, dan ketahui yang anda tidak akan sekali-kali terkurung — kod itu milik anda untuk difork dan dihos sendiri selamanya. Dibina secara terbuka oleh pereka indie Ray Amjad.",
-    "cta": "Lihat di GitHub"
+    "cta": "Lihat di GitHub",
+    "metaTitle": "Sumber Terbuka | HyperWhisper",
+    "metaDescription": "HyperWhisper sepenuhnya sumber terbuka di bawah Apache-2.0 — kedua-dua aplikasi desktop dan backend Cloud. Baca kodnya, audit ke mana audio anda pergi, fork, dan hos sendiri selamanya.",
+    "eyebrow": "Sumber Terbuka",
+    "lead": "HyperWhisper kini sepenuhnya sumber terbuka di bawah Apache-2.0 — kedua-dua aplikasi desktop dan backend Cloud.",
+    "intro": "Aplikasi yang mendengar mikrofon anda sepatutnya sesuatu yang boleh anda sahkan, bukan sekadar percaya. Oleh itu, kami membuka segala-galanya. Anda boleh membaca setiap baris HyperWhisper — aplikasi macOS, Windows dan Linux, serta backend transkripsi Cloud — melihat dengan tepat ke mana audio anda pergi, dan tahu bahawa anda tidak akan sekali-kali terkurung. Keseluruhan projek ini berada di <github>GitHub</github> di bawah <license>lesen Apache-2.0</license>.",
+    "whyHeading": "Mengapa ia penting",
+    "whyVerify": "<strong>Sahkan, jangan sekadar percaya.</strong> Baca setiap baris dan audit dengan tepat ke mana audio anda pergi. Aplikasi dengan akses mikrofon sepatutnya sesuatu yang boleh anda periksa, bukan sekadar diterima bulat-bulat.",
+    "whyNoLockIn": "<strong>Tiada kurungan.</strong> Kod ini berlesen Apache-2.0 — milik anda untuk disimpan, diubah suai dan dijalankan mengikut cara anda sendiri. Aliran kerja anda tidak akan sekali-kali dijadikan tebusan.",
+    "whyFork": "<strong>Fork dan hos sendiri.</strong> Klon repo, bina sendiri, atau jalankan backend Cloud anda sendiri. Semua yang anda perlukan tersedia secara awam.",
+    "whyOpen": "<strong>Dibina secara terbuka.</strong> HyperWhisper dibangunkan secara awam oleh pereka indie Ray Amjad. Isu, perbincangan dan keluaran semuanya berlaku secara terbuka.",
+    "licenseHeading": "Sudah membeli lesen?",
+    "licenseIntro": "HyperWhisper kini sumber terbuka, dan transkripsi berbayar menggunakan kredit HyperWhisper Cloud. Jika anda membeli lesen sebelum peralihan ini, beginilah cara kami menjaga anda — hanya hantar e-mel ke <mail>{email}</mail> dan kami akan menguruskannya secara manual.",
+    "licenseRecent": "<strong>Dibeli dalam 30 hari yang lalu:</strong> anda masih dalam tempoh bayaran balik. Kami akan membayar balik pembelian anda sepenuhnya — tanpa sebarang soalan. Hanya <refund>hantar mesej kepada kami</refund>.",
+    "licenseOlder": "<strong>Dibeli lebih daripada 30 hari yang lalu:</strong> kami akan menukar jumlah yang anda bayar kepada kredit HyperWhisper Cloud — harga pembelian penuh, tolak kredit $5 yang telah ditambah ke akaun anda. <credits>Hantar e-mel kepada kami</credits> dan kami akan memasukkan bakinya.",
+    "contributeHeading": "Ingin menyumbang?",
+    "contributeBody": "Laporan pepijat, idea ciri dan pull request semuanya dialu-alukan. Buka isu atau mulakan perbincangan <github>di GitHub</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper kini sepenuhnya sumber terbuka",
+    "shortText": "Kini sumber terbuka",
+    "learnMore": "Ketahui lebih lanjut",
+    "dismiss": "Tutup pengumuman"
+  },
+  "notFound": {
+    "title": "Halaman tidak ditemui",
+    "heading": "Halaman ini tidak wujud",
+    "description": "Pautan mungkin rosak, atau halaman mungkin telah dipindahkan.",
+    "home": "Pergi ke halaman utama",
+    "download": "Muat turun HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Pautan log masuk ini telah tamat tempoh atau sudah digunakan. Masukkan e-mel anda untuk mendapatkan pautan baharu.",
+    "magicLinkFailed": "Kami tidak dapat log masuk anda dengan pautan itu. Masukkan e-mel anda untuk mendapatkan pautan baharu."
   }
 }

@@ -168,11 +168,7 @@ extension RecordingTranscriptionFlow {
         // recording panel is .nonactivatingPanel, opening it can race with
         // NSWorkspace's frontmostApplication update.
         // Critical for: AUTO-PASTE (need PID), STREAMING DELIVERY MODE (need bundle ID)
-        let frontmostApp = NSWorkspace.shared.frontmostApplication
-        previousFrontmostPID = frontmostApp?.processIdentifier
-        previousFrontmostBundleID = frontmostApp?.bundleIdentifier
-        autoPasteHandler.setPreviousFrontmostApp(pid: previousFrontmostPID,
-                                                 bundleID: previousFrontmostBundleID)
+        capturePasteTarget()
 
         // ═══════════════════════════════════════════════════════════════════════════
         // STREAMING CHECK: Check if streaming shortcut was triggered
@@ -379,11 +375,9 @@ extension RecordingTranscriptionFlow {
         // 6.5. PLAY START SOUND EFFECT & APPLY MEDIA CONTROL
         if let settings = settingsManager, settings.enableSoundEffects {
             SoundEffectsManager.shared.playStartSound(volume: settings.soundEffectsVolume)
-            // Wait for chime to finish before muting other media, but don't block recording start
-            Task {
-                try? await Task.sleep(for: .milliseconds(350))
-                recordingLifecycle.applyMediaControl()
-            }
+            // Wait for chime to finish before muting other media, but don't block recording start.
+            // The lifecycle owns the delayed task: stopping the recording cancels it.
+            recordingLifecycle.applyMediaControl(after: .milliseconds(350))
         } else {
             recordingLifecycle.applyMediaControl()
         }
@@ -517,8 +511,9 @@ extension RecordingTranscriptionFlow {
                 return
             }
 
-            // Clipboard snapshot for restoration after auto-paste
-            AccessibilityHelper.shared.startRecordingSession()
+            // Clipboard snapshot for restoration after auto-paste. The pasteboard
+            // read runs off the main actor with a 1 s deadline (#879).
+            await AccessibilityHelper.shared.startRecordingSession()
 
             // Capture screen OCR text if enabled on this mode
             var screenOCRText: String? = nil
@@ -529,7 +524,8 @@ extension RecordingTranscriptionFlow {
                 if let text = screenOCRText {
                     AppLogger.audio.info("Screen OCR captured: \(text.count, privacy: .public) characters")
                     #if DEBUG
-                    AppLogger.audio.debug("Screen OCR content: \(text, privacy: .public)")
+                    // The OCR text is whatever is on the user's screen (#1680).
+                    AppLogger.audio.debug("Screen OCR content: \(text, privacy: .private)")
                     #endif
                 }
             }
@@ -542,6 +538,21 @@ extension RecordingTranscriptionFlow {
 
             logPreflightCheckpoint(.contextCaptureComplete)
         }
+    }
+
+    // MARK: - Paste Target
+
+    /// Captures the app a transcript is pasted into: whichever app is
+    /// frontmost NOW. A recording start calls it before the dialog shows; a
+    /// pending-file Retry calls it at the click (#1636), since the user may be
+    /// in another app by then than when the failed recording began. The PID and
+    /// bundle ID go to `autoPasteHandler` as a pair (PID-reuse guard).
+    func capturePasteTarget() {
+        let frontmostApp = NSWorkspace.shared.frontmostApplication
+        previousFrontmostPID = frontmostApp?.processIdentifier
+        previousFrontmostBundleID = frontmostApp?.bundleIdentifier
+        autoPasteHandler.setPreviousFrontmostApp(pid: previousFrontmostPID,
+                                                 bundleID: previousFrontmostBundleID)
     }
 
     // MARK: - Background Validation Helpers
@@ -612,26 +623,26 @@ extension RecordingTranscriptionFlow {
 
         // Stop the recording and capture result for cleanup.
         // Pass cancelled: true to skip file finalization — the raw file has no
-        // useful audio and will be deleted below (fixes HYPERWHISPER-F1).
+        // useful audio and stopRecording deletes it and its session row
+        // (fixes HYPERWHISPER-F1). Not the manager's current session here: since #1359 it
+        // may belong to a recording started during the stop wait.
         let result = await recordingLifecycle.stopRecording(cancelled: true)
 
-        // Fallback: if deleteCurrentSession doesn't catch the file (session already
-        // cleared by stopRecording's error path), delete it directly.
+        // #1359: a stop that timed out kept its WAV and session row for crash
+        // recovery, and the user must be told so; that outranks the validation message.
+        let stopTimedOut = recordingLifecycle.lastStopTimedOut
+
+        // Fallback: delete a file the stop handed back.
         if let url = result?.url, FileManager.default.fileExists(atPath: url.path) {
             try? FileManager.default.removeItem(at: url)
             AppLogger.audio.info("Deleted orphaned audio file from cancelled recording")
         }
 
-        // Clean up orphaned Core Data session and its audio file.
-        // stopRecording() finalizes the file and updates the session entity,
-        // deleteCurrentSession() then removes both.
-        await recordingLifecycle.sessionManager.deleteCurrentSession()
-
         await MainActor.run {
             appState?.recordingState = .idle
             appState?.showRecordingDialog = false
             appState?.isStreamingShortcutTriggered = false  // Reset streaming shortcut flag
-            appState?.showError(message)
+            appState?.showError(stopTimedOut ? AudioError.recorderStopTimedOut.localizedDescription : message)
         }
 
         // Cleanup
@@ -641,6 +652,24 @@ extension RecordingTranscriptionFlow {
         currentRecordingAttemptId = nil
         currentRecordingTriggerSource = .unknown
         quickCaptureContext = nil
+    }
+
+    /// The microphone went away mid-recording and neither it nor the macOS default
+    /// input could be reopened, so capture has stopped. End the recording now, the
+    /// way the max-duration auto-stop does, and tell the user: the audio up to the
+    /// loss is transcribed, and the error says the recording was cut short instead of
+    /// the app sitting in "Recording" while nothing is captured.
+    func handleRecordingCaptureLost() async {
+        guard recordingLifecycle.isRecording, !isStopInProgress else { return }
+        AppLogger.audio.error("Microphone lost mid-recording and no input could be reopened - ending the recording")
+        SentryService.addBreadcrumb(
+            message: "Recording ended: microphone lost mid-recording",
+            category: "audio.recording",
+            level: .warning
+        )
+        appState?.showError(AudioError.noMicrophoneAvailable.localizedDescription)
+        currentRecordingTriggerSource = .autoStop
+        await handleStopRecordingWithTranscription(mode: activeSessionModeName, cancelled: false)
     }
 
     private func armRecordingMaxDurationTimer(mode: String, attemptId: String) {

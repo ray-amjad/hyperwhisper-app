@@ -169,6 +169,11 @@ public partial class HyperWhisperCloudService
             }
         }
 
-        throw new TranscriptionException(code, message, "HyperWhisper Cloud", statusCode, retryAfter);
+        // This is HyperWhisper Cloud's own endpoint, so its 402 is always the
+        // account's credits, never a BYOK provider's quota.
+        throw new TranscriptionException(code, message, "HyperWhisper Cloud", statusCode, retryAfter)
+        {
+            IsInsufficientCredits = statusCode == 402,
+        };
     }
 }

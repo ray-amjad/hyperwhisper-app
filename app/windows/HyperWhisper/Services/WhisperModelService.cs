@@ -50,16 +50,7 @@ public class WhisperModelService
 
     public WhisperModelService()
     {
-        EnsureModelsDirectory();
-    }
-
-    private void EnsureModelsDirectory()
-    {
-        if (!Directory.Exists(ModelsDirectory))
-        {
-            LoggingService.Info($"WhisperModelService: Creating models directory: {ModelsDirectory}");
-            Directory.CreateDirectory(ModelsDirectory);
-        }
+        ModelDownloader.EnsureDirectory(ModelsDirectory, nameof(WhisperModelService));
     }
 
     // =========================================================================
@@ -79,7 +70,14 @@ public class WhisperModelService
     }
 
     /// <summary>
-    /// Checks if a model is downloaded.
+    /// Checks if a model is downloaded and usable.
+    ///
+    /// The file must be EXACTLY the catalog byte size (#1598). The ggerganov
+    /// ggml-*.bin files are fixed, so any other size is a damaged file: one cut to
+    /// 96% kept its GGML header, passed the old ">= 95%" check, showed "Ready" and
+    /// "Installed", and then failed every transcription. A model that failed to
+    /// load this session (<see cref="LocalModelHealth"/>) also counts as not
+    /// installed, so Model Library offers it for download again.
     /// </summary>
     public bool IsModelDownloaded(WhisperModelInfo model)
     {
@@ -89,11 +87,15 @@ public class WhisperModelService
             return false;
         }
 
+        if (LocalModelHealth.IsBroken(modelPath))
+        {
+            return false;
+        }
+
         try
         {
             var actualSize = new FileInfo(modelPath).Length;
-            var minimumExpectedSize = (long)(model.SizeInBytes * 0.95);
-            return actualSize >= minimumExpectedSize && HasGgmlHeader(modelPath);
+            return actualSize == model.SizeInBytes && ModelDownloader.HasMagicHeader(modelPath, GgmlMagic);
         }
         catch (Exception ex)
         {
@@ -115,8 +117,8 @@ public class WhisperModelService
     /// 3. Save to local models directory
     ///
     /// PROGRESS CALCULATION:
-    /// Uses the model's SizeInBytes property to calculate download progress.
-    /// This is approximate since actual file sizes may vary slightly.
+    /// Uses the response Content-Length, falling back to the model's SizeInBytes
+    /// (the exact catalog byte size, which the finished file must match).
     ///
     /// RESULT PATTERN:
     /// Returns Result<string> containing the model path on success.
@@ -132,7 +134,7 @@ public class WhisperModelService
         IProgress<double>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        EnsureModelsDirectory();
+        ModelDownloader.EnsureDirectory(ModelsDirectory, nameof(WhisperModelService));
 
         var modelPath = GetModelPath(model);
         var tempPath = modelPath + ".download";
@@ -144,7 +146,14 @@ public class WhisperModelService
             return Result<string>.Success(modelPath);
         }
 
-        CleanupFile(tempPath);
+        // Drop a leftover partial first, so it does not count against the free space.
+        ModelDownloader.CleanupFile(tempPath);
+
+        var diskCheck = ModelDownloader.EnsureDiskSpace(ModelsDirectory, model.SizeInBytes, model.DisplayName, nameof(WhisperModelService));
+        if (diskCheck.IsFailure)
+        {
+            return Result<string>.Failure(diskCheck.Error!);
+        }
 
         LoggingService.Info($"========== STARTING MODEL DOWNLOAD ==========");
         LoggingService.Info($"  Model: {model.DisplayName}");
@@ -174,6 +183,7 @@ public class WhisperModelService
             var buffer = new byte[81920]; // 80 KB buffer
             long totalBytesRead = 0;
             int bytesRead;
+            var lastLoggedBand = DownloadProgressLog.NoBandLogged;
 
             using (var fileStream = File.Create(tempPath))
             {
@@ -186,9 +196,9 @@ public class WhisperModelService
                     double progressValue = (double)totalBytesRead / expectedSize;
                     progress?.Report(Math.Min(progressValue, 1.0)); // Cap at 100%
 
-                    // Log progress every 10%
+                    // Log progress once per 10% band
                     int currentPercent = (int)(progressValue * 100);
-                    if (currentPercent % 10 == 0)
+                    if (DownloadProgressLog.ShouldLog(currentPercent, ref lastLoggedBand))
                     {
                         LoggingService.Debug($"  Download progress: {currentPercent}% ({totalBytesRead:N0} / {expectedSize:N0} bytes)");
                     }
@@ -198,16 +208,18 @@ public class WhisperModelService
             LoggingService.Info($"  Download complete: {totalBytesRead:N0} bytes written");
             LoggingService.Info($"========== MODEL DOWNLOAD COMPLETE ==========");
 
-            if (File.Exists(modelPath))
-            {
-                File.Delete(modelPath);
-            }
-            File.Move(tempPath, modelPath);
+            // Retried: a virus scanner can hold the fresh file for a moment (#695).
+            // Not cancellable: every byte is on disk, so a late cancel still installs it.
+            await ModelDownloader.MoveDownloadedFileAsync(tempPath, modelPath, nameof(WhisperModelService), CancellationToken.None);
+
+            // A fresh file replaces the one that failed to load (#1598). Clear the
+            // mark before the check below, which would otherwise reject it.
+            LocalModelHealth.ClearBroken(modelPath);
 
             if (!IsModelDownloaded(model))
             {
-                CleanupFile(modelPath);
-                LoggingService.Warn($"WhisperModelService: Downloaded file failed GGML validation for {model.DisplayName}");
+                ModelDownloader.CleanupFile(modelPath);
+                LoggingService.Warn($"WhisperModelService: Downloaded file failed validation for {model.DisplayName} (got {totalBytesRead:N0} bytes, catalog size {model.SizeInBytes:N0}, needs the exact size and a GGML header)");
                 return Result<string>.Failure(Loc.S("settings.models.download.failed", Loc.S("settings.models.localLlm.invalidModelFile")));
             }
 
@@ -217,7 +229,7 @@ public class WhisperModelService
         catch (OperationCanceledException)
         {
             // Clean up partial download
-            CleanupFile(tempPath);
+            ModelDownloader.CleanupFile(tempPath);
             LoggingService.Warn($"WhisperModelService: Download cancelled, cleaned up partial file");
 
             // CANCELLATION: Return specific failure message
@@ -226,7 +238,7 @@ public class WhisperModelService
         catch (Exception ex)
         {
             // Clean up partial download
-            CleanupFile(tempPath);
+            ModelDownloader.CleanupFile(tempPath);
             LoggingService.Error($"WhisperModelService: Download failed", ex);
 
             // FAILURE: Return error with exception details
@@ -249,6 +261,7 @@ public class WhisperModelService
                 File.Delete(path);
             }
 
+            LocalModelHealth.ClearBroken(path);
             return Result.Success();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
@@ -256,22 +269,5 @@ public class WhisperModelService
             LoggingService.Error($"WhisperModelService: Failed to delete model {model.DisplayName}", ex);
             return Result.Failure(ex.Message, ex);
         }
-    }
-
-    private static void CleanupFile(string path)
-    {
-        if (File.Exists(path))
-        {
-            try { File.Delete(path); }
-            catch { /* Ignore cleanup errors */ }
-        }
-    }
-
-    private static bool HasGgmlHeader(string path)
-    {
-        Span<byte> header = stackalloc byte[GgmlMagic.Length];
-        using var stream = File.OpenRead(path);
-        var bytesRead = stream.Read(header);
-        return bytesRead == GgmlMagic.Length && header.SequenceEqual(GgmlMagic);
     }
 }

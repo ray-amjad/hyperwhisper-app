@@ -34,7 +34,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "The upstream model identifier used by the provider's API (e.g. \"nova-3-general\", \"claude-haiku-4-5\"). Combined with `provider` to form a unique key — the same id string can appear under multiple providers (e.g. `gpt-oss-120b` exists under both Groq with the `openai/` prefix and Cerebras without it)."
+          "description": "The upstream model identifier used by the provider's API (e.g. \"nova-3-general\", \"claude-haiku-5-5\"). Combined with `provider` to form a unique key — the same id string can appear under multiple providers (e.g. `gpt-oss-120b` exists under both Groq with the `openai/` prefix and Cerebras without it)."
         },
         "provider": {
           "type": "string",

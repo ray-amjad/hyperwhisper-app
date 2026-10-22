@@ -45,7 +45,12 @@ class RecordingSessionManager {
 
     /// Session creation is scheduled after the recorder is live so the
     /// Recording Start transaction does not include a Core Data insert.
-    private var pendingRecordingSessionCreation: Task<Void, Never>?
+    private var pendingRecordingSessionCreation: Task<NSManagedObjectID?, Never>?
+
+    /// Bumped by every new schedule and by `detachCurrentSession()`. A deferred create
+    /// publishes into `currentRecordingSession` only while its generation is still the
+    /// latest, so a stopping recording's late insert cannot overwrite the next one's.
+    private var sessionGeneration = 0
 
     // MARK: - Session Creation
 
@@ -84,26 +89,44 @@ class RecordingSessionManager {
     ) {
         pendingRecordingSessionCreation?.cancel()
         currentRecordingSession = nil
+        sessionGeneration += 1
+        let generation = sessionGeneration
 
         pendingRecordingSessionCreation = Task { [weak self] in
-            guard let self else { return }
-            _ = await self.createRecordingSession(
+            guard let self else { return nil }
+            return await self.createRecordingSession(
                 deviceId: deviceId,
                 deviceName: deviceName,
                 sampleRate: sampleRate,
                 channelCount: channelCount,
                 audioFormat: audioFormat,
                 audioFilePath: audioFilePath,
-                startTime: startTime
-            )
+                startTime: startTime,
+                generation: generation
+            )?.objectID
         }
+    }
+
+    /// Hand the current session (or its pending create) to a stopping recording and
+    /// forget it here (#1359). `stopRecording()` waits up to 5 s for the recorder, and
+    /// a new recording can start in that window; it must find no session to clobber,
+    /// and the stop must not resolve, finalise or delete the new recording's row.
+    func detachCurrentSession() -> DetachedRecordingSession {
+        let detached = DetachedRecordingSession(
+            session: currentRecordingSession,
+            pendingCreation: pendingRecordingSessionCreation
+        )
+        sessionGeneration += 1
+        pendingRecordingSessionCreation = nil
+        currentRecordingSession = nil
+        return detached
     }
 
     /// Return the active session, awaiting deferred creation when a rapid
     /// stop/cancel arrives before the background save has completed.
     func resolveCurrentSession() async -> RecordingSession? {
         if let pendingRecordingSessionCreation {
-            await pendingRecordingSessionCreation.value
+            _ = await pendingRecordingSessionCreation.value
             self.pendingRecordingSessionCreation = nil
         }
 
@@ -117,7 +140,8 @@ class RecordingSessionManager {
         channelCount: Int,
         audioFormat: String,
         audioFilePath: String? = nil,
-        startTime: Date
+        startTime: Date,
+        generation: Int
     ) async -> RecordingSession? {
         let container = PersistenceController.shared.container
         let sessionId = UUID()
@@ -148,11 +172,15 @@ class RecordingSessionManager {
         guard let objectID,
               let session = (try? container.viewContext.existingObject(with: objectID)) as? RecordingSession else {
             AppLogger.coreData.error("Recording session background save failed; continuing without session tracking")
-            currentRecordingSession = nil
+            if generation == sessionGeneration {
+                currentRecordingSession = nil
+            }
             return nil
         }
 
-        currentRecordingSession = session
+        if generation == sessionGeneration {
+            currentRecordingSession = session
+        }
 
         AppLogger.audio.info("📝 Created recording session: \(sessionId.uuidString)")
 
@@ -220,5 +248,20 @@ class RecordingSessionManager {
         }
 
         AppLogger.audio.info("🗑️ Deleted incomplete recording session")
+    }
+}
+
+/// A stopping recording's session, taken out of `RecordingSessionManager` by
+/// `detachCurrentSession()` so a recording that starts meanwhile cannot reach it.
+@MainActor
+struct DetachedRecordingSession {
+    let session: RecordingSession?
+    let pendingCreation: Task<NSManagedObjectID?, Never>?
+
+    /// The session row, awaiting a deferred create that had not finished yet.
+    func resolve() async -> RecordingSession? {
+        guard let pendingCreation else { return session }
+        guard let objectID = await pendingCreation.value else { return nil }
+        return (try? PersistenceController.shared.container.viewContext.existingObject(with: objectID)) as? RecordingSession
     }
 }

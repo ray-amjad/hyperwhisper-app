@@ -38,7 +38,7 @@ pub(super) fn connect(config: &LiveConfig) -> Result<LiveConnect, LiveError> {
     // model, so an unpinned session would change model without a release.
     query.push(
         "model",
-        crate::providers::grok::resolve_model(config.model.as_deref().unwrap_or_default()),
+        &crate::providers::grok::resolve_model(config.model.as_deref().unwrap_or_default()),
     );
     query.push_literal("sample_rate=16000");
     query.push_literal("encoding=pcm");

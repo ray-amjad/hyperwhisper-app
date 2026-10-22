@@ -34,10 +34,11 @@ struct BackupSettingsSection: View {
 
     // MARK: - Import State
 
-    /// The file the user picked to import, and what it contains (drives the options sheet).
-    @State private var importURL: URL?
-    @State private var importContents: BackupContents?
-    @State private var showImportSheet = false
+    /// The file the user picked to import, and what it contains. Non-nil presents the options
+    /// sheet; Cancel / Import set it back to nil. Driven by `.sheet(item:)` so the sheet content
+    /// always receives the picked file (issue #1398: the `isPresented` + `if let` form drew an
+    /// empty sheet).
+    @State private var importRequest: BackupImportRequest?
 
     // MARK: - Result State
 
@@ -47,6 +48,9 @@ struct BackupSettingsSection: View {
     @State private var resultMessage = ""
     /// Whether result is success or error
     @State private var resultIsSuccess = false
+    /// The import applied, but some BYOK keys did not reach the Keychain. The
+    /// alert then must not be titled "Error" over an "Import complete" body.
+    @State private var resultIsIncomplete = false
 
     /// Local-LLM model ids referenced by restored `.local` modes that aren't
     /// downloaded yet (capable hardware only) — drives the re-download prompt.
@@ -71,23 +75,22 @@ struct BackupSettingsSection: View {
 
             infoNoteView
         }
-        .sheet(isPresented: $showImportSheet) {
-            if let url = importURL, let contents = importContents {
-                BackupImportOptionsSheet(
-                    fileName: url.lastPathComponent,
-                    contents: contents,
-                    preview: backupManager.vocabularyMergePreview(at: url),
-                    onCancel: { showImportSheet = false },
-                    onImport: { options in
-                        showImportSheet = false
-                        Task { await performImport(from: url, options: options) }
-                    }
-                )
-            }
+        .sheet(item: $importRequest) { request in
+            BackupImportOptionsSheet(
+                fileName: request.url.lastPathComponent,
+                contents: request.contents,
+                preview: backupManager.vocabularyMergePreview(at: request.url),
+                onCancel: { importRequest = nil },
+                onImport: { options in
+                    let url = request.url
+                    importRequest = nil
+                    Task { await performImport(from: url, options: options) }
+                }
+            )
         }
-        .alert(resultIsSuccess ? "settings.backup.result.success.title" : "settings.backup.result.error.title",
-               isPresented: $showResultAlert) {
+        .alert(resultAlertTitle, isPresented: $showResultAlert) {
             Button("common.ok", role: .cancel) {
+                resultIsIncomplete = false
                 // Chain the local-model re-download prompt after the result alert so
                 // two alerts never contend for presentation.
                 if !pendingLocalDownloadIds.isEmpty {
@@ -116,6 +119,16 @@ struct BackupSettingsSection: View {
                 ),
                 pendingLocalDownloadIds.count
             ))
+        }
+        // Issue #1672: close the import sheet and the alerts before a page
+        // change removes this view. The file picker is an AppKit panel, which
+        // the page change does not wait for.
+        .closesPresentationsOnPageChange(
+            isPresenting: importRequest != nil || showResultAlert || showLocalDownloadPrompt
+        ) {
+            importRequest = nil
+            showResultAlert = false
+            showLocalDownloadPrompt = false
         }
     }
 
@@ -264,6 +277,12 @@ struct BackupSettingsSection: View {
         }
     }
 
+    private var resultAlertTitle: LocalizedStringKey {
+        if resultIsSuccess { return "settings.backup.result.success.title" }
+        if resultIsIncomplete { return "settings.backup.result.incomplete.title" }
+        return "settings.backup.result.error.title"
+    }
+
     private func selectImportFile() async {
         // Present open dialog
         let panel = NSOpenPanel()
@@ -285,9 +304,7 @@ struct BackupSettingsSection: View {
             return
         }
 
-        importURL = url
-        importContents = contents
-        showImportSheet = true
+        importRequest = BackupImportRequest(url: url, contents: contents)
     }
 
     private func performImport(from url: URL, options: ImportOptions) async {
@@ -296,11 +313,9 @@ struct BackupSettingsSection: View {
         if result.success {
             resultIsSuccess = true
             pendingLocalDownloadIds = result.pendingLocalDownloadModelIds
-            resultMessage = String(
-                format: NSLocalizedString("settings.backup.import.success", value: "Import complete: %d modes, %d vocabulary items imported", comment: ""),
-                result.modesImported,
-                result.vocabularyImported
-            )
+            // Describe what was actually applied, so a settings-only import does not
+            // read as "0 modes, 0 vocabulary items" (#1406).
+            resultMessage = result.successMessage(options: options)
         } else if result.partialSuccess {
             resultIsSuccess = false
             pendingLocalDownloadIds = result.pendingLocalDownloadModelIds
@@ -310,8 +325,27 @@ struct BackupSettingsSection: View {
             resultMessage = result.errorMessage ?? NSLocalizedString("settings.backup.import.error.unknown", value: "Import failed", comment: "")
         }
 
+        // Name every BYOK provider whose key did not reach the Keychain. The
+        // rest of the import still applied, but the alert must not read as a
+        // clean success while those providers are unconfigured.
+        if let apiKeysFailure = result.apiKeysFailureMessage {
+            resultIsIncomplete = resultIsSuccess
+            resultIsSuccess = false
+            resultMessage += "\n\n" + apiKeysFailure
+        }
+
         showResultAlert = true
     }
+}
+
+// MARK: - Import Request
+
+/// One pick of a file to import: the file and what it contains. Each pick gets a fresh `id`, so
+/// picking the same file again presents the sheet again.
+struct BackupImportRequest: Identifiable {
+    let id = UUID()
+    let url: URL
+    let contents: BackupContents
 }
 
 // MARK: - Import Options Sheet

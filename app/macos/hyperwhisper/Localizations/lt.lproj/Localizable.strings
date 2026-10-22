@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostika eksportuota";
 "alerts.export.diagnostics.success.message" = "Visi diagnostikos žurnalai sėkmingai eksportuoti.";
 "alerts.export.diagnostics.saveFailed.message" = "Nepavyko išsaugoti diagnostikos pasirinktoje vietoje: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostika eksportuota be sistemos žurnalų";
+"alerts.export.diagnostics.noSystemLogs.message" = "Diagnostikos failas išsaugotas, bet programos sistemos žurnalų nepavyko perskaityti, todėl system-logs.txt yra tik priežastis. Priežastis: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Eksportuoti atnaujinimo žurnalus pagalbai";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Atlikti registraciją";
 
 "onboarding.setupLater.button" = "Nustatyti vėliau";
-"onboarding.error.microphone.denied" = "Mikrofo leidimas atmestas. Suteikite leidimą Sistemos nustatymuose.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Paleisti prisijungus";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Išjungta";
 "settings.general.mediaControl.mode.mute" = "Nutildyti audio";
+"settings.general.mediaControl.mode.muffle" = "Prislopinti audio";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,9 +324,17 @@
 "settings.sound.soundEffects.title" = "Groti garso efektus";
 "settings.sound.soundEffects.info" = "Groti garso signalus, kai įrašymas pradedamas ir sustabdomas.";
 "settings.sound.mediaControl.title" = "Medijos valdymas įrašant";
-"settings.sound.mediaControl.info" = "Pasirinkite, kaip HyperWhisper valdys kitą audio įrašant. 'Išjungta' palieka audio nepakeitą, 'Nutildyti audio' nutildo sistemos išvestį įrašymo metu ir vėliau ją atkuria.";
+"settings.sound.mediaControl.info" = "Pasirinkite, kaip HyperWhisper valdys kitą audio įrašant. 'Išjungta' palieka audio nepakeitą, 'Nutildyti audio' nutildo sistemos išvestį įrašymo metu ir vėliau ją atkuria, o 'Prislopinti audio' leidžia jį tyliai, tarsi iš gretimo kambario.";
+"settings.sound.microphone.title" = "Mikrofonas";
+"settings.sound.microphone.subtitle" = "Naudoja tik HyperWhisper. Įsimenama ir po paleidimo iš naujo.";
+"microphone.picker.default" = "Numatytasis · %@";
+"microphone.picker.notConnected" = "%@ (neprijungtas)";
+"microphone.picker.fallback" = "Naudojamas %1$@, kol vėl bus prijungtas %2$@.";
+"settings.sound.microphone.test" = "Tikrinti";
+"settings.sound.microphone.stop" = "Stabdyti";
+"settings.sound.microphone.level" = "Įvesties lygis";
 "settings.sound.autoIncreaseMicVolume.title" = "Automatiškai padidinti mikrofo garsumą";
-"settings.sound.autoIncreaseMicVolume.info" = "Automatiškai nustatoma maksimali mikrofo įvesties garsumo lygi pradėjus įrašymą, tada atkuriamas pradinis lygis baigus įrašymui. Taikoma tik naudojant numatytąjį sistemos įvesties įrenginį.";
+"settings.sound.autoIncreaseMicVolume.info" = "Pradėjus įrašymą automatiškai nustato didžiausią mikrofono, iš kurio įrašo HyperWhisper, įvesties garsumą, o sustabdžius įrašymą atkuria pradinį lygį. Mikrofonai be programinio garsumo valdymo nekeičiami.";
 "settings.sound.vad.title" = "Pašalinti tylos prieš transkripciją";
 "settings.sound.vad.info" = "Automatiškai aptinka ir pašalina pradinę ir galinę tylą naudodama AI balso aptikimą. Tai gali pagerinti transkriptsiniu tikslumą ir sumažinti apdorojimo laiką.";
 
@@ -336,6 +346,9 @@
 "settings.storage.choose.button" = "Pasirinkti...";
 "settings.storage.dialog.select" = "Pasirinkti aplanką";
 "settings.storage.dialog.message" = "Pasirinkite aplanką įrašams saugoti";
+"settings.storage.folderRefused.title" = "Šio aplanko naudoti negalima";
+"settings.storage.folderRefused.notWritable" = "Neturite leidimo rašyti į „%@“, todėl HyperWhisper negali ten išsaugoti įrašų. Įrašų aplankas nepakeistas.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper nepavyko sukurti šio aplanko: %@ Įrašų aplankas nepakeistas.";
 "settings.storage.storeAsM4A.title" = "Suspausti įrašus į M4A";
 "settings.storage.storeAsM4A.subtitle" = "Konvertuoja WAV įrašus į mažesnius failus po transkriptsiniu. Išjunkite, kad išlaikytumėte originalius WAV failus (didesni, bet be nuostolių).";
 
@@ -383,6 +396,7 @@
 
 "settings.shortcuts.changeMode.title" = "Keisti režimą";
 "settings.shortcuts.changeMode.subtitle" = "Veikia tik įrašant";
+"settings.shortcuts.conflict.alert" = "Šio spartųjų klavišų derinio negalima naudoti, nes jį jau naudoja „%@“.";
 
 "settings.shortcuts.reset.button" = "Atstatyti į numatytuosius";
 "settings.shortcuts.reset.dialog.title" = "Atstatyti klaviatūros nuorodas";
@@ -434,6 +448,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Įklijuoti iš iškarpinės";
 "settings.license.clearInput" = "Išvalyti";
+"license.error.keyFormat" = "Tai nepanašu į paskyros raktą.";
 "settings.license.recovery.prompt" = "Pamiršote licencijos raktą?";
 "settings.license.recovery.button" = "Eiti prie kliento portalo";
 "settings.license.daily.title" = "Kasdieninė transkripija";
@@ -576,6 +591,8 @@
 "onboarding.configure.cloud.note" = "Kreditai yra iš anksto apmokėti ir bendri visiems Mac, prisijungusiems su šiuo raktu. Prastovos laikas nieko nekainuoja.";
 "onboarding.source.note" = "Jei vėliau apsigalvosite, teks pakartoti tik šį vieną žingsnį. Visa kita, ką sukonfigūravote, išlieka.";
 "onboarding.permissions.note" = "Praleiskite Pritaikymą neįgaliesiems ir transkripcijos pateks į iškarpinę, paruoštos įklijuoti. Įjungti vėliau užtrunka vieną spustelėjimą.";
+"onboarding.permissions.microphone.denied" = "Neleidžiama. Įjunkite HyperWhisper sistemos nustatymuose ir grįžkite čia.";
+"onboarding.permissions.continueNeedsMicrophone" = "Norint tęsti, reikia mikrofono. Leiskite jį aukščiau arba pasirinkite Nustatyti vėliau.";
 "onboarding.welcome.task1.title" = "Pasirinkite, kaip veiks transkripcija";
 "onboarding.welcome.task1.caption" = "Mūsų debesyje, šiame Mac, arba per teikėjo paskyrą, už kurią jau mokate.";
 "onboarding.welcome.task2.title" = "Patikrinkite mikrofoną";
@@ -683,6 +700,10 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 // MARK: - Modes
 "modes.delete.confirm.title" = "Ištrinti režimą?";
 "modes.delete.confirm.message" = "Tai pašalins pasirinktą režimą. Šis veiksmas negali būti atšauktas.";
+"modes.editor.discard.title" = "Atmesti neišsaugotus pakeitimus?";
+"modes.editor.discard.message" = "Šio režimo pakeitimai neišsaugoti.";
+"modes.editor.discard.keepEditing" = "Tęsti redagavimą";
+"modes.editor.discard.button" = "Atmesti";
 "modes.header.title" = "Režimai";
 "modes.header.subtitle" = "Sukurkite pasirinktus profilius skirtingiems kontekstams ir darbo eigoms";
 "modes.header.create" = "Sukurti režimą";
@@ -727,7 +748,7 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 "modes.postProcessing.apiKeyMissing" = "%@ API raktas nesukonfigūruotas. Pridėkite jį nustatymuose, jei norite suaktyvinti post apdorojimą.";
 "modes.postProcessing.configure" = "Sukonfigūruoti nustatymuose";
 "modes.postProcessing.modelRecommendation" = "Rekomenduojame naudoti GPT-4.1 Nano geriausioms greičio ir kokybės balanso.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Vietinis post apdorojimas reikalauja atsisiųsto vietinio modelio.";
 "modes.postProcessing.download" = "Atsisiųsti nustatymuose";
@@ -787,12 +808,15 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 "modes.field.name.placeholder" = "pvz., susitikimo pastabos";
 "modes.field.name.editPlaceholder" = "Režimo vardas";
 "modes.field.name.defaultLocked" = "Tai numatytasis režimas, todėl jo pavadinimo keisti negalima. Bet kurį kitą režimą galite pervadinti.";
+"modes.field.name.taken" = "Režimas tokiu pavadinimu jau yra.";
 "modes.field.model" = "Modelis";
 "modes.field.provider" = "Teikėjas";
 "modes.provider.local" = "Vietinis";
 "modes.provider.cloud" = "Debesys";
 "modes.notice.noLocalModels.title" = "Nėra instaliuotų vietinių modelių";
 "modes.notice.noLocalModels.subtitle" = "Pirmiausia instaliuokite modelį nustatymuose";
+"modes.model.notInstalledFormat" = "%@ (neįdiegtas)";
+"modes.notice.modelNotInstalled" = "Šio režimo modelis neįdiegtas. Išsaugojus jis paliekamas. Atsisiųskite jį Modelių bibliotekoje arba pasirinkite kitą modelį.";
 "modes.model.pricing" = "Kainos: $%.6f / minutę (apmokestinta per sekundę)";
 "modes.button.create" = "Sukurti režimą";
 "modes.button.delete" = "Ištrinti režimą";
@@ -811,8 +835,9 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 "transcripts.delete.single.message" = "Tai visam laikui ištrins šį įrašymą ir jo audio failą.";
 "transcripts.delete.multiple.title" = "Ištrinti %d įrašymų?";
 "transcripts.delete.multiple.message" = "Tai visam laikui ištrins %d įrašymus ir jų audio failus.\n\nŠis veiksmas negali būti atšauktas.";
-"transcripts.delete.multiple.confirm" = "Ištrinti visus";
+"transcripts.delete.multiple.confirm" = "Ištrinti įrašymus: %d";
 "transcripts.retry.error.title" = "Pakartojimas nepavyko";
+"transcripts.retry.error.modeDeleted" = "Režimas, kuriuo padarytas šis įrašas, ištrintas, todėl bandymas nekartotas. Istorijoje dešiniuoju pelės mygtuku spustelėkite įrašą ir pasirinkite \"Bandyti su...\", kad parinktumėte kitą režimą.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Pasirinkti įrašų aplanką";
@@ -863,8 +888,8 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "recording.retry.inProgress" = "Bandau iš naujo…";
 "recording.retry.count" = "Bandyti iš naujo (%d)";
 "recording.retry.failed.missing" = "Pakartojimas nepavyko: audio failas nerastas";
-"recording.retry.failed.error" = "Pakartojimas nepavyko: %@";
 "recording.retry.pending" = "Paruošta pakartoti – spustelėkite, jei norite transkripcijos";
+"recording.retry.modeDeleted" = "Režimas ištrintas";
 "recording.cancel.dialog.title" = "Atšaukti įrašymą?";
 "recording.cancel.dialog.message" = "Tai atsisakys dabarinio įrašymo.";
 "recording.cancel.dialog.confirm" = "Atšaukti įrašymą";
@@ -891,6 +916,7 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "audio.error.microphonePermission" = "Mikrofo leidimas negrąžintas";
 "audio.error.microphoneInUse" = "HyperWhisper negali pasiekti mikrofo, nes jį naudoja kita programa. Pristabdykite kitą programą arba perjunkitės įėjimai, tada bandykite iš naujo.";
 "audio.error.audioSystemNotResponding" = "macOS garsas nereaguoja, todėl mikrofono nepavyko įjungti. Po akimirkos bandykite dar kartą. Jei tai kartojasi, iš naujo paleiskite „Mac“.";
+"audio.error.recorderStopTimedOut" = "Įrašo saugojimo metu macOS garso sistema nustojo reaguoti, todėl jis nebuvo transkribuotas. Garsas išsaugotas: HyperWhisper bandys jį atkurti kitą kartą paleidus programą.";
 "audio.error.createEngine" = "Nepavyko sukurti audio variklės";
 "audio.error.noInput" = "Nėra audio įvesties prieinamos";
 "audio.error.createFile" = "Nepavyko sukurti audio failo";
@@ -918,6 +944,9 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "transcription.error.providerNotAvailable.provider" = "%@ nėra pasiekiama. Patikrinkite savo nustatymus ir bandykite iš naujo.";
 "transcription.error.providerNotAvailable.detail" = "%@ nėra pasiekiama: %@";
 "transcription.error.modelNotDownloaded" = "Pirmiausia atsisiųskite modelį";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Režimas %1$@ naudoja modelį %2$@, kuris neatsisiųstas. Atsisiųskite jį Modelių bibliotekoje.";
+"transcription.error.modelNotDownloaded.model" = "Modelis %1$@ neatsisiųstas. Atsisiųskite jį Modelių bibliotekoje.";
+"transcription.error.openModelLibrary" = "Atidaryti Modelių biblioteką";
 "transcription.error.modelProtected" = "Šis modelis negali būti ištrintas";
 "transcription.error.audioFileNotFound" = "Audio failas nerastas";
 "transcription.error.network.detail" = "Tinklo klaida: %@";
@@ -964,10 +993,15 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "transcription.guidance.quotaExceeded" = "Pridėkite nuopelnus savo %@ paskyrai arba atnaujinkite savo sąskaitymo duomenis";
 "transcription.guidance.timeout" = "Užklausa užtruko per ilgai. Patikrinkite savo interneto greitį ir bandykite iš naujo.";
 "transcription.error.noSpeechDetected" = "Neaptiktas joks balsas įrašyme.";
+"transcription.error.audioTooShort" = "Įrašas per trumpas, kad būtų transkribuotas. Įrašykite ilgiau.";
 "transcription.guidance.noSpeechDetected" = "Patarimai:\n• Kalbėkite aiškiai į mikrofon\n• Laikykite raktą ilgiau prieš pradėdami kalbėti\n• Patikrinkite, ar jūsų mikrofon veikia\n• Įsitikinkite, kad pasirinktas teisingas įvesties įrenginys";
 "transcription.guidance.needsNativeRelaunch" = "Uždarykite ir vėl atidarykite HyperWhisper natyviai, kad galėtumėte naudoti vietinį papildomą apdorojimą.";
 "transcription.guidance.localRuntimeUnavailable" = "Bandykite dar kartą arba režimo nustatymuose pasirinkite mažesnį vietinį modelį.";
 "transcription.error.localRuntimeUnavailable" = "Vietiniam DI nepavyko baigti apdorojimo — jūsų neapdorotas nuorašas išsaugotas.";
+"transcription.error.postProcessingPreflight.unauthorized" = "%@: API raktas atmestas — jūsų neapdorotas nuorašas išsaugotas.";
+"transcription.error.postProcessingPreflight.unreachable" = "%@: nepavyko prisijungti — jūsų neapdorotas nuorašas išsaugotas.";
+"transcription.error.postProcessingPreflight.notInstalled" = "%@: neįdiegta — jūsų neapdorotas nuorašas išsaugotas.";
+"transcription.error.postProcessingPreflight.unavailable" = "%@: paslauga nepasiekiama — jūsų neapdorotas nuorašas išsaugotas.";
 "transcription.error.localSpeechModelEvicted" = "Kalbos modelis buvo iškrautas atminčiai atlaisvinti ir jo nepavyko įkelti iš naujo. Uždarykite kelias programas ir bandykite dar kartą.";
 "settings.backup.localDownload.title" = "Atsisiųsti vietinius modelius?";
 "settings.backup.localDownload.message" = "%d iš jūsų atkurtų režimų naudoja įrenginyje veikiančius DI modelius, kurie dar neatsisiųsti.";
@@ -975,6 +1009,11 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "settings.backup.localDownload.dismiss" = "Atmesti";
 "modelLibrary.local.requiresAppleSilicon" = "Reikia Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Paleisti iš naujo natyviai";
+"modelLibrary.remove.confirm.title" = "Pašalinti %@?";
+"modelLibrary.remove.confirm.message" = "Turėsite jį atsisiųsti iš naujo (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Turėsite jį atsisiųsti iš naujo.";
+"modelLibrary.remove.confirm.button" = "Pašalinti";
+"settings.models.inUse.localAPI" = "Local API užklausa šiuo metu naudoja šį modelį. Bandykite dar kartą, kai ji baigsis.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nepakanka kreditų. Pridėkite daugiau kreditų nustatymuose.";
@@ -1039,7 +1078,12 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "settings.backup.import.subtitle" = "Atkurti nustatymus iš atsarginio kopijos failo";
 "settings.backup.import.button" = "Importuoti...";
 "settings.backup.import.panel.title" = "Importuoti nustatymai";
-"settings.backup.import.success" = "Importas atliktas: %d režimi, %d žodyno dalykos importuoti";
+"settings.backup.import.result" = "Importas atliktas: %@";
+"settings.backup.import.result.settings" = "nustatymai atkurti";
+"settings.backup.import.result.modes" = "importuota režimų: %d";
+"settings.backup.import.result.vocabulary" = "importuota žodyno elementų: %d";
+"settings.backup.import.complete" = "Importas atliktas";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Nepavyko skaityti atsarginio kopijos failo";
 "settings.backup.import.error.decode" = "Neteisinas atsarginio kopijos failo formatas";
 "settings.backup.import.error.decode.keyNotFound" = "Trūksta privalomo lauko: %@";
@@ -1049,6 +1093,14 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "settings.backup.import.error.decode.corruptedField" = "Sugadinta lauko reikšmė: %@";
 "settings.backup.import.error.version" = "Atsarginio kopijos failas iš naujesnės versijos";
 "settings.backup.import.error.unknown" = "Importas nepavyko";
+"settings.backup.import.error.storeModes" = "Režimų nepavyko išsaugoti, todėl jie liko nepakeisti.";
+"settings.backup.import.error.storeModesAndVocabulary" = "Režimų nepavyko išsaugoti, todėl režimai ir žodynas liko nepakeisti.";
+"settings.backup.import.error.storeVocabulary" = "Žodyno nepavyko išsaugoti, todėl jis liko nepakeistas.";
+"settings.backup.import.error.storeVocabularyAfterModes" = "Režimai importuoti, bet žodyno nepavyko išsaugoti, todėl jis liko nepakeistas.";
+"settings.backup.import.error.storeLicense" = "Licencijos rakto nepavyko saugiai importuoti.";
+"settings.backup.import.error.storeSettingsRestored" = "Nustatymai liko nepakeisti.";
+"settings.backup.import.error.storeOtherSections" = "Kitos pasirinktos dalys pritaikytos.";
+"settings.backup.import.apiKeysFailed" = "Šių API raktų nepavyko įrašyti į raktinę, todėl jie nebuvo atkurti: %@. Įveskite juos dar kartą nustatymuose.";
 "settings.backup.import.confirm.title" = "Importuoti nustatymai?";
 "settings.backup.import.confirm.message" = "Tai pakeis jūsų esamus režimus ir žodyną iš atsarginio kopijos failo. Nustatymai taip pat bus atnaujinti.";
 "settings.backup.import.confirm.button" = "Importuoti";
@@ -1058,6 +1110,7 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "settings.backup.info.note" = "Atsarginės kopijos apima nustatymus, režimus ir žodyną. Įrašai ir transkriptsiniu neįtrauki.";
 "settings.backup.result.success.title" = "Sėkmė";
 "settings.backup.result.error.title" = "Klaida";
+"settings.backup.result.incomplete.title" = "Importavimas nebaigtas";
 "settings.backup.export.choose.subtitle" = "Pasirinkite, ką įtraukti į atsarginės kopijos failą";
 "settings.backup.export.section.settings" = "Nustatymai";
 "settings.backup.export.section.modes" = "Režimai";
@@ -1083,6 +1136,17 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "transcribe.file.error.format.title" = "Nepalaikomas formatas";
 "transcribe.file.error.format.message" = ".%@ failai nepalaikomi %@. Palaikomi formatai: %@";
 "transcribe.file.error.read" = "Negalima skaityti pasirinktą failą.";
+"transcribe.file.error.webm" = "WebM nepalaikomas. Konvertuokite failą į MP3, M4A arba WAV ir bandykite dar kartą.";
+"transcribe.file.busy.title" = "Failas jau transkribuojamas.";
+"transcribe.file.busy.message" = "Atšaukti jį ir pradėti šį?";
+"transcribe.file.busy.keepRunning" = "Tęsti";
+"transcribe.file.busy.cancelAndStart" = "Atšaukti ir pradėti";
+"transcribe.file.error.notAudio" = "Failas „%@“ nėra tinkamas garso failas. Jis gali būti sugadintas arba tokio formato, kurio macOS negali iškoduoti.";
+"transcribe.file.error.empty" = "Failas „%@“ tuščias. Jame nėra garso, kurį būtų galima transkribuoti.";
+"transcribe.file.error.permission" = "HyperWhisper negali perskaityti failo „%@“. Patikrinkite failo teises.";
+"transcribe.file.error.folderPermission" = "HyperWhisper negali atidaryti aplanko, kuriame yra failas „%@“. Patikrinkite to aplanko teises.";
+"transcribe.file.error.privacy" = "macOS privatumo nustatymai neleido HyperWhisper perskaityti failo „%@“. Leiskite tai skiltyje Sistemos nustatymai > Privatumas ir sauga > Visa prieiga prie disko.";
+"transcribe.file.error.tooShort" = "Šis failas per trumpas, kad būtų transkribuotas (%@ s).";
 "transcribe.file.error.copy" = "Nepavyko kopijuoti failo į įrašų aplanką.";
 "transcribe.file.error.video.title" = "Jokios audio vaizdo";
 "transcribe.file.error.video.noAudio" = "Šiame vaizdo faile nėra audio takelio. Pasirinkite video su audio arba audio failą.";
@@ -1109,3 +1173,4 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "settings.storage.maxRecordingDuration.hour" = "1 valanda";
 "settings.storage.maxRecordingDuration.hours" = "%d val.";
 "settings.storage.maxRecordingDuration.off" = "Išjungta";
+"settings.api_server.status.stopping" = "Stabdoma…";

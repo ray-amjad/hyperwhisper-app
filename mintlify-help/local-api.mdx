@@ -19,15 +19,14 @@ The server is **off by default**. You turn it on one time in Settings. It stays 
     2. Set the toggle to **on**. The status line then shows the bound address and the last four characters of your bearer token.
   </Tab>
   <Tab title="Linux">
-    1. Open the main window, then click **Settings**. Scroll to the **Local API** section.
-    2. Check **Enable the loopback-only local API**.
-    3. Click **Save settings**. The status line then shows the result of the start.
+    1. Open the main window, then click **Settings**. Then click **Local API** in the sidebar.
+    2. Check the box next to **Server disabled**. The label changes to **Server enabled**, and the status line then shows the bound address.
 
-    Linux shows the same fields as the other platforms in one list, not in tabs.
+    Linux saves each change automatically. There is no Save button.
   </Tab>
 </Tabs>
 
-When the server runs, the panel shows three tabs on macOS and Windows: **Connection**, **MCP setup**, and **cURL**. Linux shows the same content as one list.
+When the server runs, the panel shows three tabs on every platform: **Connection**, **MCP setup**, and **cURL**.
 
 ## Connection tab
 
@@ -37,7 +36,7 @@ The Connection tab shows the current values that you need to make requests to th
 |---|---|
 | **Port** | The port that the server listens on. The **Copy** button copies the port to the clipboard. |
 | **Bearer token** | Hidden by default. Click **Reveal** to show the full value. Click **Copy** to copy the token. Click the regenerate button to make a new token (see the next section). |
-| **Port file** | The full path of the discovery file. The **Show** button opens the file in Finder (macOS) or Explorer (Windows). Linux shows the path in a read-only field that you can copy. |
+| **Port file** | The full path of the discovery file. The **Show** button opens the file in Finder (macOS) or Explorer (Windows). On Linux, the **Show** button opens the folder of the file in your file manager. |
 
 If an error occurs after the server starts (for example, the port is already in use), an orange warning appears below these fields.
 
@@ -51,7 +50,7 @@ Authorization: Bearer <token>
 
 HyperWhisper makes the token the first time the server starts. macOS keeps the token in the Keychain. Windows keeps the token in a DPAPI-protected file at `%LOCALAPPDATA%\HyperWhisper\local-api-token.bin`. Linux keeps the token in an owner-only file at `$XDG_DATA_HOME/hyperwhisper/local-api-token`. The token stays the same across restarts. You do not update your scripts each time.
 
-To make a new token, click the regenerate button. This button is a circular arrows icon on macOS, a rotate button on Windows, and a **Regenerate** button on Linux. The previous token stops immediately. Update each MCP client and each script that cached the old token. These clients and scripts can read the new value from the discovery file.
+To make a new token, click the regenerate button. This button is a circular arrows icon on macOS, a rotate button on Windows, and a refresh icon with the tooltip **Regenerate** on Linux. The previous token stops immediately. Update each MCP client and each script that cached the old token. These clients and scripts can read the new value from the discovery file.
 
 ### Host and Origin check
 
@@ -200,6 +199,8 @@ The server has no fixed port. At the first start, it asks the operating system f
 
 If the kept port is not free at a later start, for example because a different program took it, the server does not fail. It asks the operating system for a new free port and writes the new port into the discovery file. To make a script that always finds the server, read the port from the discovery file.
 
+On macOS, when you set the Local API switch to off, the status shows **Stopping…** until the old server releases its port, then **Server disabled**. If you set the switch to on again before the port is released, HyperWhisper waits up to 2 seconds for it. After that, it asks the operating system for a new free port.
+
 <Note>
   Linux is different. It gives you a **Preferred port** box, and the default is `51671`. HyperWhisper tries that port first. If the port is taken, it asks the operating system for any free loopback port instead, and it writes the port that it really got into the discovery file. Set the box to `0` to always ask for a free port.
 
@@ -211,6 +212,8 @@ If the kept port is not free at a later start, for example because a different p
 A `/transcribe` or a `/post-process` call is slow. A large local model, or a slow cloud model, needs 30 to 90 seconds, and sometimes more. On macOS, the server allows 10 minutes for one request. On Windows and on Linux, the server sets no limit on the time of one request.
 
 Set the timeout of your own HTTP client higher than its default value. Many clients apply a short default timeout. Such a client reports a failure while the transcription is still in progress.
+
+On macOS, `/transcribe` calls on a local Whisper model run one at a time, in the order they arrive. A later call waits for the earlier calls, so set your timeout to include that wait. A dictation in the app has priority over a running call. That call then returns `ok: false` with the code `TRANSCRIPTION_FAILED` and the message "Cancelled by a newer transcription request." Send the request again.
 
 ## Available endpoints
 
@@ -235,7 +238,7 @@ The [OpenAPI reference](/api-reference/local-api/openapi.yaml) gives the full re
 
 ### The recording routes on Linux
 
-The Linux build serves two routes that drive the live microphone. The macOS and the Windows builds do not serve them. Neither route takes a body, and both answer with the state of the recorder:
+The Linux build serves two routes that drive the live microphone. The macOS build does not serve them. Windows answers them with `ok: false` and the code `ENGINE_UNAVAILABLE`: recording control is not available through the Local API on Windows. Neither route takes a body, and both answer with the state of the recorder:
 
 ```json
 { "ok": true, "recording": { "is_recording": true, "state": "recording" } }
@@ -297,7 +300,7 @@ The same fold applies to a Mode you write. `POST /modes` or `PATCH /modes/{id}` 
 </Warning>
 
 <Note>
-  A Mode that already holds `"cloudProvider": "googlespeech"` or `"microsoftazurespeech"` is not changed by these endpoints, and `GET /modes` reports the value that is stored. Windows and macOS fold such a Mode once when the app starts. Linux does not, and on Linux a Mode that still holds one of these two names cannot transcribe. Send a `PATCH` with only `cloudProvider`, set to the same value, to fold it.
+  A Mode that already holds `"cloudProvider": "googlespeech"` or `"microsoftazurespeech"` is not changed by these endpoints, and `GET /modes` reports the value that is stored. Windows, macOS, and Linux fold such a Mode once when the app starts.
 </Note>
 
 ### Mode write rules
@@ -328,9 +331,11 @@ A local Mode on Linux names its engine in `localEngine`. The value is one of two
 
 A different `localEngine`, or a model that is not in the list of its engine, returns an **HTTP 400** with the code `INVALID_REQUEST`. The model must also be one of the voice models that `GET /models` reports.
 
-To write a cloud Mode instead, send `"providerType": "cloud"`. A `"model": "cloud"` sets the same thing.
+To write a cloud Mode instead, send `"providerType": "cloud"` and a `cloudProvider`. A `"model": "cloud"` sets the same thing. If you omit `cloudProvider`, Windows and Linux run the Mode on HyperWhisper Cloud, and `GET /modes` still reports it without the key. Linux refuses an empty `cloudProvider` string, or a `cloudProvider` that is not in its provider list. It returns an **HTTP 400** with the code `INVALID_REQUEST`.
 
 Windows accepts the same two field names, but it applies no list of accepted values to them. Only Linux refuses an unknown `localEngine` or an unknown local model.
+
+On Windows, a PATCH that changes a cloud Mode to `"providerType": "local"` must also name the local model in `model` (or in `localParakeetModel` for the `parakeet` engine). Without it, Windows returns `INVALID_REQUEST` and does not pick a model for you. A local Mode stores its local model ID in `model`, and `GET /modes` reports `cloudProvider: null` for it.
 
 <Note>
   The platforms are different in two ways. On macOS, `GET /models` accepts the `?kind=` and `?installed_only=` query parameters to filter the catalog. Windows and Linux ignore these parameters and always return the full catalog.
@@ -338,7 +343,7 @@ Windows accepts the same two field names, but it applies no list of accepted val
   Windows and Linux accept and return five more mode fields than macOS: `localEngine`, `localParakeetModel`, `localPostProcessingModel`, `customVocabulary`, and `providerType`. These fields hold the settings that have no macOS equivalent. macOS ignores these keys when you send them, and never returns them. On Linux, `localEngine` and `localParakeetModel` are the only way to select a local model — read [Local models on Linux](#local-models-on-linux).
 </Note>
 
-The `providers` array includes `key_present`, `reachable`, and `status`. A Meta key reports `status: "configured"` and `reachable: false`. Meta has no safe empty request for key validation. A transcription validates the key for that request, but the health endpoint stays conservative. macOS and Windows use the same status.
+The `providers` array includes `key_present`, `reachable`, and `status`. For HyperWhisper Cloud, `key_present` reports whether HyperWhisper has your Cloud account key. A Meta key reports `status: "configured"` and `reachable: false`. Meta has no safe empty request for key validation. A transcription validates the key for that request, but the health endpoint stays conservative. macOS and Windows use the same status.
 
 ## Next steps
 

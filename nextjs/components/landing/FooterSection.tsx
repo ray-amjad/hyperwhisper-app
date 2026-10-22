@@ -3,15 +3,23 @@
 import { Link as HeroUILink } from "@heroui/link";
 import { Divider } from "@heroui/divider";
 import { Github, Linkedin, Twitter } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 
 import { Link } from "@/src/i18n/navigation";
 import { useDownloadModal } from "@/contexts/DownloadModalContext";
+import { useSiteHref } from "@/src/i18n/use-site-href";
 
 export default function FooterSection() {
   const { openModal } = useDownloadModal();
   const t = useTranslations("footer");
-  const locale = useLocale();
+  /*
+    #1170: on an English-only page (/en/latency, /en/choosing-a-model,
+    /en/blog) a locale link would point at /en/..., an ordinary page that
+    writes NEXT_LOCALE=en. There, after hydration, every site link is a native
+    <a> that follows the saved NEXT_LOCALE, and stays /en with none
+    (see siteHref).
+  */
+  const { nativeLinks, siteHref } = useSiteHref();
 
   const footerLinks = {
     [t("product")]: [
@@ -58,7 +66,7 @@ export default function FooterSection() {
             <div className="flex items-center gap-2 mb-4">
               <img
                 alt="HyperWhisper Logo"
-                className="w-10 h-10 rounded-xl"
+                className="w-10 h-10 rounded-xl outline-1 -outline-offset-1 outline-white/10"
                 src="/icon/128.png"
               />
               <span className="text-xl font-bold text-white">HyperWhisper</span>
@@ -70,7 +78,7 @@ export default function FooterSection() {
           {Object.entries(footerLinks).map(([category, links]) => (
             <div key={category}>
               <h3 className="font-semibold text-white mb-3">{category}</h3>
-              <ul className="space-y-2">
+              <ul className="space-y-2 break-words hyphens-auto">
                 {/*
                   IMPORTANT: Use native <a> for anchor links (/#features, /#pricing).
                   Do NOT use next-intl Link for hash navigation - it breaks anchor scrolling.
@@ -84,12 +92,12 @@ export default function FooterSection() {
                       >
                         {link.label}
                       </button>
-                    ) : link.href.includes("#") || "raw" in link ? (
+                    ) : link.href.includes("#") ||
+                      "raw" in link ||
+                      (nativeLinks && link.href.startsWith("/")) ? (
                       <a
                         className="text-sm text-gray-400 hover:text-white transition-colors"
-                        href={link.href.startsWith("/#")
-                          ? `/${locale}${link.href.slice(1)}`
-                          : link.href}
+                        href={"raw" in link ? link.href : siteHref(link.href)}
                       >
                         {link.label}
                       </a>

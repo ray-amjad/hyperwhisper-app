@@ -1,6 +1,33 @@
+import type { Metadata } from "next";
+
+import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 
+import { firstParam } from "./first-param";
+
 import CreditsPurchase from "@/components/credits/CreditsPurchase";
+import { localizedPageMetadata } from "@/lib/localized-page-metadata";
+
+type Props = {
+  params: Promise<{ locale: string }>;
+};
+
+const localizedMetadata = localizedPageMetadata({ path: "/credits" });
+
+// The page's own title and description, from the strings the page renders as
+// its heading (#707). Without them it fell back to the home page's title and
+// description.
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const metadata = await localizedMetadata({ params });
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "buyCredits" });
+
+  return {
+    ...metadata,
+    title: t("title"),
+    description: t("subtitle"),
+  };
+}
 
 /**
  * Credits Page
@@ -19,11 +46,11 @@ export default async function CreditsPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ id?: string; license_key?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await params;
   const { id, license_key } = await searchParams;
-  const raw = id ?? license_key ?? "";
+  const raw = firstParam(id) ?? firstParam(license_key) ?? "";
 
   if (raw.startsWith("HW-")) {
     redirect(
@@ -32,7 +59,7 @@ export default async function CreditsPage({
   }
 
   return (
-    <main className="min-h-screen bg-black px-6 py-24 md:py-28">
+    <main className="min-h-screen bg-black py-24 md:py-28">
       <CreditsPurchase locale={locale} />
     </main>
   );

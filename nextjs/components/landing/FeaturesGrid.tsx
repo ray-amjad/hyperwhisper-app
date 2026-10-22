@@ -114,7 +114,7 @@ export default function FeaturesGrid() {
   ];
 
   return (
-    <section className="px-6 py-20" id="features">
+    <section className="py-20" id="features">
       {/* The wrapper does not animate: an opacity fade here would multiply
           with each card's own fade below (#877). */}
       <div className="max-w-6xl mx-auto">

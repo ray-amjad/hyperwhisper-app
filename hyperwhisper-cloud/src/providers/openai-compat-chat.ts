@@ -8,11 +8,12 @@
 // allowlisted model, tagged vs untagged missing-key errors, extra body
 // fields) are unchanged.
 
-import { isRecord, safeReadText } from '../lib/utils';
+import { isRecord } from '../lib/utils';
 import { estimateUsageFromChars, isGroqUsage, type GroqUsage } from '../lib/cost-calculator';
 import type { CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError } from './llm-errors';
-import { computeLLMRequestTimeoutMs, fetchLLMWithTimeout, promptCharCount, transcriptCharCount } from './llm-fetch';
+import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
+import { computeLLMRequestTimeoutMs, fetchLLMWithTimeout, promptCharCount, readLLMJson, transcriptCharCount } from './llm-fetch';
 
 export type OpenAICompatChatResult = { raw: unknown; usage?: GroqUsage; costUsd: number };
 
@@ -76,12 +77,12 @@ export async function requestOpenAICompatibleChat(
     },
     async (response) => {
       if (!response.ok) {
-        const errorText = await safeReadText(response);
+        // Never the body: an LLM 400 can quote the transcript or prompt it
+        // rejected (#2163). Status, error code/type and request id only.
+        const { fields } = await readUpstreamError(response);
         console.error(`${config.errorLogLabel} returned error`, {
           requestId,
-          status: response.status,
-          statusText: response.statusText,
-          errorText,
+          ...upstreamErrorLogFields(fields),
         });
         throw new LLMRequestError(
           `${config.errorChatLabel} failed with status ${response.status}`,
@@ -90,7 +91,7 @@ export async function requestOpenAICompatibleChat(
         );
       }
 
-      const json: unknown = await response.json();
+      const json = await readLLMJson(response, config.providerTag, requestId);
       const usage = isRecord(json) && isGroqUsage(json['usage']) ? (json['usage'] as GroqUsage) : undefined;
       return { json, usage };
     },

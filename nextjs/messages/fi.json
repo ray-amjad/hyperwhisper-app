@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - AI-äänitranskriptio macOS:lle ja Windowsille",
-    "description": "Kirjoita 5x nopeammin AI-pohjaisella äänitranskriptiolla. HyperWhisper litteroi puheesi huipputarkasti macOS:ssä ja Windowsissa. Puhu luonnollisesti ja katso, miten sanat ilmestyvät heti."
+    "title": "HyperWhisper - AI-äänitranskriptio macOS:lle, Windowsille ja Linuxille",
+    "description": "Kirjoita 5x nopeammin AI-pohjaisella äänitranskriptiolla. HyperWhisper litteroi puheesi huipputarkasti macOS:ssä, Windowsissa ja Linuxissa. Puhu luonnollisesti ja katso, miten sanat ilmestyvät heti."
   },
   "navbar": {
     "features": "Ominaisuudet",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Voinko käyttää sitä ilman internetiä?",
-        "answer": "Ehdottomasti. HyperWhisper toimii täysin offline-tilassa Macillasi tai Windows-tietokoneellasi paikallisten AI-mallien avulla - internetyhteyttä ei tarvita. Käyttäjille, jotka haluavat maksimaalisen tarkkuuden ja nopeuden, tarjoamme myös valinnaisen pilvikäsittelyn eri pilvipalveluntarjoajien kautta."
+        "answer": "Ehdottomasti. HyperWhisper toimii täysin offline-tilassa Macillasi, Windows-tietokoneellasi tai Linux-tietokoneellasi paikallisten AI-mallien avulla - internetyhteyttä ei tarvita. Käyttäjille, jotka haluavat maksimaalisen tarkkuuden ja nopeuden, tarjoamme myös valinnaisen pilvikäsittelyn eri pilvipalveluntarjoajien kautta."
       },
       "apiKey": {
         "question": "Täytyykö API-käytöstä maksaa?",
@@ -175,16 +175,16 @@
         "answer": "Offline-litterointiin tarjoamme useita kokoja Whisper-mallista (OpenAI:n tekemä, tukee 99+ kieltä). Tarjoamme myös NVidia's Parakeet -malleja (tukee 25+ kieltä).\n      \n      Offline-jälkikäsittelyyn tarjoamme useita kokoja Gemma 3 -mallista (Googlen tekemä)."
       },
       "compatibility": {
-        "question": "Toimiiko se kaikissa Mac- ja Windows-sovelluksissa?",
+        "question": "Toimiiko se kaikissa sovelluksissani?",
         "answer": "Kyllä, se toimii kaikkialla missä voit kirjoittaa. Olitpa kirjoittamassa sähköposteja, asiakirjoja, koodia tai chattaamassa. Paina pikanäppäintä, puhu ja näe sanojesi ilmestyvän heti."
       },
       "privacy": {
         "question": "Miten yksityisyyteni suojataan?",
-        "answer": "Kun käytät paikallista tilaa, mitään dataa ei poistu Maciltasi tai Windows-tietokoneeltasi.\n\nKun käytät pilvilitterointia, datasi lähetetään valitsemallesi pilvipalveluntarjoajalle (esim. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox tai Google Gemini).\n\nVoit varmistaa tämän itse verkkoliikennettä tarkkailevalla työkalulla, kuten [Proxyman](https://proxyman.io), verkkomonitorilla, kuten [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), tai lukemalla [lähdekoodin GitHubissa](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Kun käytät paikallista tilaa, mitään dataa ei poistu Maciltasi, Windows-tietokoneeltasi tai Linux-tietokoneeltasi.\n\nKun käytät pilvilitterointia, datasi lähetetään valitsemallesi pilvipalveluntarjoajalle (esim. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox tai Google Gemini).\n\nVoit varmistaa tämän itse verkkoliikennettä tarkkailevalla työkalulla, kuten [Proxyman](https://proxyman.io), verkkomonitorilla, kuten [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), tai lukemalla [lähdekoodin GitHubissa](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Mikä on HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud on sisäänrakennettu pilvitranskriptio, joka on suunnattu vähemmän teknisille käyttäjille, jotka haluavat päästä nopeasti alkuun.\n\nSe on käytön mukaan maksettavia krediittejä. Lataat tiliä jo 5 $ alkaen (1 000 krediittiä / 1 $) ja käytät niitä vain transkriboidessasi. Ensimmäinen krediittiostosi luo automaattisesti Account Keysi, joten muuta ei tarvitse ostaa.\n    \nTarjoamme neljä tarkkuustasoa: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) ja Highest (Grok STT, oletus uusille asennuksille ja SpaceXAI Grok STT:n voimalla). Jälkikäsittely on automaattinen ja käyttää oletuksena Grok 4.1 Fast -mallia ilman päättelyä. Emme tallenna mitään muuta kuin sen, kuinka monta krediittiä kulutit, ja olemme jättäneet sinut pois mallien koulutuksesta jokaisella käyttämällämme taustapalveluntarjoajalla. Katso lisätiedot [tietosuojaoppaastamme](https://hyperwhisper.com/docs/data-privacy).\n\nKrediitit käytetään palveluntarjoajien omaan käsittelykustannukseen — ei katetta transkriptiosta. Kassalla lisätään kiinteä 6 %:n maksunkäsittelymaksu, joka näytetään erillisenä rivinä. Käyttämättömät krediitit vanhenevat 12 kuukauden kuluttua (katso alta).\n\nMielenrauhan vuoksi koko sovellus on avointa lähdekoodia Apache-2.0-lisenssillä — mukaan lukien Cloud-taustajärjestelmä. Voit lukea jokaisen koodirivin, joka suoritetaan sovelluksesi ja niiden palveluntarjoajien välillä, joille toimimme välityspalvelimena, [GitHubissa](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud on sisäänrakennettu pilvitranskriptio, joka on suunnattu vähemmän teknisille käyttäjille, jotka haluavat päästä nopeasti alkuun.\n\nSe on käytön mukaan maksettavia krediittejä. Lataat tiliä jo 5 $ alkaen (1 000 krediittiä / 1 $) ja käytät niitä vain transkriboidessasi. Ensimmäinen krediittiostosi luo automaattisesti Account Keysi, joten muuta ei tarvitse ostaa.\n    \nHyperWhisper Cloud tarjoaa sinulle 12 litterointipalveluntarjoajaa Groq Whisperistä ElevenLabs Scribe v2:een (katso [koko luettelo ja hinnat](https://hyperwhisper.com/docs/cloud-credits)). Uudet asennukset käyttävät aluksi ElevenLabs Scribe v2:ta. Jälkikäsittely on automaattinen, ja uudet asennukset käyttävät aluksi Claude Haiku 5.5:tä. Emme tallenna mitään muuta kuin sen, kuinka monta krediittiä kulutit, ja olemme jättäneet sinut pois mallien koulutuksesta jokaisella käyttämällämme taustapalveluntarjoajalla. Katso lisätiedot [tietosuojaoppaastamme](https://hyperwhisper.com/docs/data-privacy).\n\nKrediitit käytetään palveluntarjoajien omaan käsittelykustannukseen — ei katetta transkriptiosta. Kassalla lisätään kiinteä 6 %:n maksunkäsittelymaksu, joka näytetään erillisenä rivinä. Käyttämättömät krediitit vanhenevat 12 kuukauden kuluttua (katso alta).\n\nMielenrauhan vuoksi koko sovellus on avointa lähdekoodia Apache-2.0-lisenssillä — mukaan lukien Cloud-taustajärjestelmä. Voit lukea jokaisen koodirivin, joka suoritetaan sovelluksesi ja niiden palveluntarjoajien välillä, joille toimimme välityspalvelimena, [GitHubissa](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Käytetäänkö äänidataani tekoälymallien kouluttamiseen?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Mitkä ovat järjestelmävaatimukset?",
-        "answer": "Mac: macOS 14 tai uudempi, tuki sekä Apple Siliconille että Intelille. Windows: Windows 10/11, x64 tai ARM64. 8GB RAM suositellaan optimaaliseen suorituskykyyn."
+        "answer": "Mac: macOS 14 tai uudempi, tuki sekä Apple Siliconille että Intelille. Windows: Windows 10/11, x64 tai ARM64. Linux v1: Ubuntu 22.04 tai uudempi tai Debian 12 tai uudempi, amd64. 8GB RAM suositellaan optimaaliseen suorituskykyyn."
       },
       "madeBy": {
         "question": "Kuka tämän teki?",
@@ -272,7 +272,31 @@
     "homebrewTitle": "Asenna Homebrew'lla",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Kopioi",
-    "copied": "Kopioitu!"
+    "copied": "Kopioitu!",
+    "linuxSubtitle": "Debian-paketti 64-bittisille Intel/AMD-järjestelmille",
+    "downloadLinux": "Lataa Linuxille",
+    "downloadLinuxVersion": "Lataa Linuxille v{version}",
+    "linuxReleaseNotes": "Tarkistussummat ja julkaisutiedot",
+    "linuxInstallTitle": "Asenna Debian-paketti",
+    "linuxTargets": "Linux v1 tukee järjestelmiä Ubuntu 22.04+ ja Debian 12+ amd64-alustalla.",
+    "linuxReplaceVersion": "Korvaa VERSION lataamasi version numerolla.",
+    "linuxInstallCommandLabel": "Debianin asennuskomento",
+    "linuxInputGroupNote": "Kirjaudu ulos ja takaisin sisään, kun olet liittynyt input-ryhmään. Jäsenyys on valinnainen, mutta yleiset pikanäppäimet ja automaattinen liittäminen edellyttävät sitä.",
+    "aptTitle": "Isännöi omaa APT-repositoriota",
+    "aptBody": "Linux-julkaisuihin sisältyy myös staattinen APT-repositorioarkisto. HyperWhisper ei tällä hetkellä ylläpidä julkista APT-päätepistettä; katso Linux-asennusoppaasta ohjeet allekirjoitettuun, itse isännöityyn käyttöönottoon, työpöytäintegraatioon, tietosuojaan ja poistamiseen.",
+    "linuxGuideCta": "Lue Linux-asennusopas"
+  },
+  "olderVersions": {
+    "title": "Vanhemmat versiot",
+    "subtitle": "Selaa ja lataa kaikki HyperWhisperin julkaisut",
+    "errorLoading": "Virhe versioiden latauksessa: {error}",
+    "unknownError": "Tapahtui virhe",
+    "loading": "Ladataan versioita...",
+    "latest": "Uusin",
+    "build": "Koontiversio {number}",
+    "downloadDmg": "Lataa DMG",
+    "downloadExe": "Lataa EXE",
+    "unknownSize": "Tuntematon"
   },
   "purchaseSuccess": {
     "title": "Valmista tuli!",
@@ -289,7 +313,7 @@
     "loading": "Ladataan..."
   },
   "footer": {
-    "tagline": "Kirjoita 5x nopeammin AI-pohjaisella äänitranskriptiolla macOS:lle ja Windowsille.",
+    "tagline": "Kirjoita 5x nopeammin AI-pohjaisella äänitranskriptiolla macOS:lle, Windowsille ja Linuxille.",
     "product": "Tuote",
     "resources": "Resurssit",
     "company": "Yritys",
@@ -389,6 +413,39 @@
   "openSource": {
     "heading": "Avoin lähdekoodi. Ei mitään salattavaa.",
     "body": "HyperWhisper on täysin avointa lähdekoodia Apache-2.0-lisenssillä — niin työpöytäsovellukset kuin Cloud-taustajärjestelmäkin. Sovelluksen, joka kuuntelee mikrofoniasi, pitäisi olla jotain, jonka voit varmistaa, ei vain luottaa siihen: lue jokainen rivi, tarkista tarkalleen, minne äänesi menee, ja tiedä, ettet jää koskaan lukkoon — koodi on sinun forkattavaksesi ja itse isännöitäväksesi ikuisesti. Rakennettu avoimesti indie-tekijä Ray Amjadin toimesta.",
-    "cta": "Katso GitHubissa"
+    "cta": "Katso GitHubissa",
+    "metaTitle": "Avoin lähdekoodi | HyperWhisper",
+    "metaDescription": "HyperWhisper on täysin avointa lähdekoodia Apache-2.0-lisenssillä — niin työpöytäsovellukset kuin Cloud-taustajärjestelmäkin. Lue koodi, tarkista, minne äänesi menee, forkkaa se ja isännöi sitä itse ikuisesti.",
+    "eyebrow": "Avoin lähdekoodi",
+    "lead": "HyperWhisper on nyt täysin avointa lähdekoodia Apache-2.0-lisenssillä — niin työpöytäsovellukset kuin Cloud-taustajärjestelmäkin.",
+    "intro": "Mikrofoniasi kuuntelevan sovelluksen pitäisi olla jotain, minkä voit varmistaa, eikä vain jotain, mihin luotat. Siksi avasimme kaiken. Voit lukea HyperWhisperin jokaisen rivin — macOS-, Windows- ja Linux-sovellukset sekä Cloud-litteroinnin taustajärjestelmän — nähdä tarkalleen, minne äänesi menee, ja tietää, ettet koskaan jää lukkoon. Koko projekti löytyy <github>GitHubista</github> <license>Apache-2.0-lisenssillä</license>.",
+    "whyHeading": "Miksi sillä on väliä",
+    "whyVerify": "<strong>Varmista, älä luota sokeasti.</strong> Lue jokainen rivi ja tarkista tarkalleen, minne äänesi menee. Sovelluksen, jolla on pääsy mikrofoniin, pitäisi olla tarkastettavissa, eikä vain uskon varassa.",
+    "whyNoLockIn": "<strong>Ei lukkiutumista.</strong> Koodi on Apache-2.0-lisensoitua — sinun pidettäväksesi, muokattavaksesi ja ajettavaksesi omilla ehdoillasi. Työnkulkuasi ei koskaan pidetä panttivankina.",
+    "whyFork": "<strong>Forkkaa ja isännöi itse.</strong> Kloonaa repo, käännä se itse tai pyöritä omaa Cloud-taustajärjestelmääsi. Kaikki tarvittava on julkista.",
+    "whyOpen": "<strong>Rakennettu avoimesti.</strong> HyperWhisperiä kehittää julkisesti indie-tekijä Ray Amjad. Issuet, keskustelut ja julkaisut tapahtuvat kaikki avoimesti.",
+    "licenseHeading": "Ostitko jo lisenssin?",
+    "licenseIntro": "HyperWhisper on nyt avointa lähdekoodia, ja maksullinen litterointi toimii HyperWhisper Cloud -krediiteillä. Jos ostit lisenssin ennen muutosta, pidämme sinusta huolen näin — lähetä vain sähköpostia osoitteeseen <mail>{email}</mail>, niin hoidamme asian käsin.",
+    "licenseRecent": "<strong>Ostettu viimeisten 30 päivän aikana:</strong> olet palautusajan sisällä. Hyvitämme ostoksesi kokonaan — mitään kyselemättä. <refund>Lähetä meille vain viesti</refund>.",
+    "licenseOlder": "<strong>Ostettu yli 30 päivää sitten:</strong> muutamme maksamasi summan HyperWhisper Cloud -krediiteiksi — koko ostohinnan, josta vähennetään tilillesi jo lisätyt krediitit ($5). <credits>Lähetä meille sähköpostia</credits>, niin lisäämme saldon.",
+    "contributeHeading": "Haluatko osallistua?",
+    "contributeBody": "Virheraportit, ominaisuusideat ja pull requestit ovat kaikki tervetulleita. Avaa issue tai aloita keskustelu <github>GitHubissa</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper on nyt täysin avointa lähdekoodia",
+    "shortText": "Nyt avointa lähdekoodia",
+    "learnMore": "Lue lisää",
+    "dismiss": "Sulje ilmoitus"
+  },
+  "notFound": {
+    "title": "Sivua ei löytynyt",
+    "heading": "Tätä sivua ei ole olemassa",
+    "description": "Linkki voi olla rikki, tai sivu on ehkä siirretty.",
+    "home": "Siirry etusivulle",
+    "download": "Lataa HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Tämä kirjautumislinkki on vanhentunut tai jo käytetty. Anna sähköpostiosoitteesi saadaksesi uuden.",
+    "magicLinkFailed": "Emme voineet kirjata sinua sisään tällä linkillä. Anna sähköpostiosoitteesi saadaksesi uuden."
   }
 }

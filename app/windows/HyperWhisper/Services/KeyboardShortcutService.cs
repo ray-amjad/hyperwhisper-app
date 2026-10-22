@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -9,6 +8,8 @@ using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Platform;
 using PlatformContracts = HyperWhisper.Platform.Abstractions;
+using static HyperWhisper.Services.ModifierChordGate;
+using static HyperWhisper.Services.Platform.LowLevelKeyboardHook;
 
 namespace HyperWhisper.Services;
 
@@ -16,14 +17,11 @@ namespace HyperWhisper.Services;
 /// Registers and tracks global keyboard shortcuts (named).
 /// - RegisterHotKey is used for non-modifier combos so the system delivers WM_HOTKEY.
 /// - A low-level hook tracks modifier-only shortcuts and key-up events for push-to-talk.
+///   A modifier-only shortcut triggers on release, and only when no other key joined it
+///   (see <see cref="ModifierChordGate"/>, issue #1497).
 /// </summary>
 public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGlobalShortcutService
 {
-    private const int WH_KEYBOARD_LL = 13;
-    private const int WM_KEYDOWN = 0x0100;
-    private const int WM_KEYUP = 0x0101;
-    private const int WM_SYSKEYDOWN = 0x0104;
-    private const int WM_SYSKEYUP = 0x0105;
     private const int WM_HOTKEY = 0x0312;
 
     private const uint MOD_ALT = 0x0001;
@@ -31,53 +29,14 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
     private const uint MOD_SHIFT = 0x0004;
     private const uint MOD_WIN = 0x0008;
 
-    private const int VK_LCONTROL = 0xA2;
-    private const int VK_RCONTROL = 0xA3;
-    private const int VK_LMENU = 0xA4;   // Alt
-    private const int VK_RMENU = 0xA5;
-    private const int VK_LSHIFT = 0xA0;
-    private const int VK_RSHIFT = 0xA1;
-    private const int VK_LWIN = 0x5B;
-    private const int VK_RWIN = 0x5C;
-
-    // Generic virtual key codes (some keyboards/drivers send these instead of L/R variants)
-    private const int VK_CONTROL = 0x11;
-    private const int VK_MENU = 0x12;     // Generic Alt
-    private const int VK_SHIFT = 0x10;
-
-    private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool UnhookWindowsHookEx(IntPtr hhk);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
-    private static extern IntPtr GetModuleHandle(string? lpModuleName);
+    // The virtual-key constants live in ModifierChordGate with the modifier tests,
+    // and the WH_KEYBOARD_LL plumbing in LowLevelKeyboardHook.
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
-
-    [DllImport("user32.dll")]
-    private static extern short GetAsyncKeyState(int vKey);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct KBDLLHOOKSTRUCT
-    {
-        public uint vkCode;
-        public uint scanCode;
-        public uint flags;
-        public uint time;
-        public IntPtr dwExtraInfo;
-    }
 
     public sealed class ShortcutEventArgs : EventArgs
     {
@@ -113,13 +72,22 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
 
     private readonly Dictionary<string, KeyboardShortcut> _shortcuts = new();
     private readonly HashSet<string> _activeShortcuts = new();
-    private readonly HashSet<int> _pressedKeys = new();
 
-    private readonly LowLevelKeyboardProc _hookCallback;
-    private IntPtr _hookId = IntPtr.Zero;
+    /// <summary>
+    /// One gate per registered modifier-only shortcut, keyed by name. Such a
+    /// chord triggers on release, and only when no other key joined it (#1497).
+    /// </summary>
+    private readonly Dictionary<string, ModifierChordGate> _chordGates = new();
 
-    /// <summary>One line per process, not one per RegisterShortcuts call.</summary>
-    private bool _loggedHookSuppressed;
+    /// <summary>
+    /// Keys whose key-down this hook swallowed (the Win key of a matched Ctrl+Win)
+    /// and that have not come up yet. Windows never saw them go down, so
+    /// GetAsyncKeyState reads them as up; DropKeysNoLongerDown must not take
+    /// that for a lost key-up.
+    /// </summary>
+    private readonly HashSet<int> _suppressedKeyDowns = new();
+
+    private readonly LowLevelKeyboardHook _hook;
 
     private HwndSource? _hwndSource;
     private readonly ConcurrentDictionary<int, string> _hotkeyIdToName = new();
@@ -142,7 +110,7 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
 
     public KeyboardShortcutService()
     {
-        _hookCallback = HookCallback;
+        _hook = new LowLevelKeyboardHook(nameof(KeyboardShortcutService), OnHookKey);
         Current = this;
     }
 
@@ -206,8 +174,8 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
         }
 
         AttachWindowIfNeeded();
-        EnsureHook();
-        return _hookId != IntPtr.Zero
+        _hook.Ensure();
+        return _hook.IsInstalled
             ? PlatformContracts.PlatformResult.Success()
             : PlatformContracts.PlatformResult.Failure(
                 "shortcut.hook_unavailable",
@@ -274,7 +242,7 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
     public Dictionary<string, Result> RegisterShortcuts(Dictionary<string, KeyboardShortcut> shortcuts)
     {
         AttachWindowIfNeeded();
-        EnsureHook();
+        _hook.Ensure();
 
         var results = new Dictionary<string, Result>();
 
@@ -283,6 +251,7 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
         foreach (var name in removed)
         {
             _shortcuts.Remove(name);
+            _chordGates.Remove(name);
             _lastRegistrationResults.TryRemove(name, out _);
             UnregisterHotKeyForName(name);
         }
@@ -307,6 +276,7 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
     private Result RegisterShortcutCore(string name, KeyboardShortcut shortcut)
     {
         _activeShortcuts.Remove(name);
+        _chordGates.Remove(name);
         UnregisterHotKeyForName(name);
         _shortcuts.Remove(name);
 
@@ -327,6 +297,10 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
         if (requiresHookOnly)
         {
             _shortcuts[name] = shortcut;
+            if (shortcut.IsModifierOnly)
+            {
+                _chordGates[name] = new ModifierChordGate(shortcut);
+            }
             LoggingService.Info($"KeyboardShortcutService: '{name}' uses low-level hook only (Shortcut={shortcut})");
             return Result.Success();
         }
@@ -385,8 +359,10 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
         _hotkeyIdToName.Clear();
         _nameToHotkeyId.Clear();
         _shortcuts.Clear();
+        _chordGates.Clear();
         _activeShortcuts.Clear();
-        _pressedKeys.Clear();
+        _hook.ClearPressedKeys();
+        _suppressedKeyDowns.Clear();
         _lastRegistrationResults.Clear();
     }
 
@@ -396,9 +372,20 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
     /// </summary>
     public void ResetKeyboardState()
     {
-        _pressedKeys.Clear();
+        _hook.ClearPressedKeys();
+        _suppressedKeyDowns.Clear();
         _activeShortcuts.Clear();
+        foreach (var gate in _chordGates.Values) gate.Reset();
     }
+
+    /// <summary>
+    /// True while the modifier-only shortcut <paramref name="name"/> is held down
+    /// clean (armed) and has not triggered yet. It triggers on release (#1497), so
+    /// a caller that must hold off while the user is pressing it (push-to-talk,
+    /// while the toggle chord is down) asks this instead of waiting for an event.
+    /// </summary>
+    public bool IsModifierOnlyChordHeld(string name)
+        => _chordGates.TryGetValue(name, out var gate) && gate.IsArmed;
 
     public void Dispose()
     {
@@ -408,11 +395,7 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
         if (ReferenceEquals(Current, this)) Current = null;
 
         Clear();
-        if (_hookId != IntPtr.Zero)
-        {
-            UnhookWindowsHookEx(_hookId);
-            _hookId = IntPtr.Zero;
-        }
+        _hook.Dispose();
         if (_hwndSource != null)
         {
             // Do NOT dispose _hwndSource: HwndSource.FromHwnd returns the shared
@@ -423,79 +406,51 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
         }
     }
 
-    private void EnsureHook()
+    /// <summary>
+    /// The hook's callback: it has already added a key-down to, or removed a
+    /// key-up from, the pressed set. Returns true to swallow the key.
+    /// </summary>
+    private bool OnHookKey(int vkCode, bool isKeyDown)
     {
-        if (_hookId != IntPtr.Zero) return;
-
-        // A WH_KEYBOARD_LL hook is per PROCESS and non-exclusive: two instances
-        // both get every key, so one press would start two recordings. Only the
-        // instance that owns machine-global input installs it. See
-        // SingleInstanceGuard.OwnsGlobalInput.
-        if (!SingleInstanceGuard.OwnsGlobalInput)
+        if (isKeyDown)
         {
-            if (!_loggedHookSuppressed)
+            DropKeysNoLongerDown(exceptVk: vkCode);
+            EvaluateShortcuts(justPressedVk: vkCode);
+            if (ShouldSuppressMatchedWinShortcutKeyDown(vkCode))
             {
-                _loggedHookSuppressed = true;
-                LoggingService.Info(
-                    "KeyboardShortcutService: low-level keyboard hook suppressed - this is a secondary instance");
+                _suppressedKeyDowns.Add(vkCode);
+                LoggingService.Debug("KeyboardShortcutService: Suppressed matched Win-key shortcut key-down");
+                return true;
             }
-            return;
-        }
-
-        using var curProcess = Process.GetCurrentProcess();
-        using var curModule = curProcess.MainModule;
-        _hookId = SetWindowsHookEx(
-            WH_KEYBOARD_LL,
-            _hookCallback,
-            GetModuleHandle(curModule?.ModuleName),
-            0);
-
-        if (_hookId == IntPtr.Zero)
-        {
-            int error = Marshal.GetLastWin32Error();
-            LoggingService.Error($"KeyboardShortcutService: Failed to install hook (error {error})");
         }
         else
         {
-            LoggingService.Debug("KeyboardShortcutService: Low-level keyboard hook installed");
+            _suppressedKeyDowns.Remove(vkCode);
+            DropKeysNoLongerDown(exceptVk: -1);
+            EvaluateShortcuts(justReleasedVk: vkCode);
         }
+        return false;
     }
 
-    private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
+    /// <summary>
+    /// Forgets every tracked key that GetAsyncKeyState says is no longer down: a
+    /// key-up the hook never saw, because the secure desktop (Ctrl+Alt+Del, UAC)
+    /// or a session switch swallowed it. Without this a stale Alt would let the
+    /// next lone Ctrl arm and fire a Ctrl+Alt chord.
+    ///
+    /// <paramref name="exceptVk"/> is the key this callback is delivering: its
+    /// async state is not updated until the hook chain completes, so it cannot be
+    /// checked here. Every earlier event has finished the chain, so the others can.
+    /// </summary>
+    private void DropKeysNoLongerDown(int exceptVk)
     {
-        try
-        {
-            if (nCode >= 0)
-            {
-                int msg = (int)wParam;
-                var hookStruct = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
-                int vkCode = (int)hookStruct.vkCode;
+        if (_hook.PressedKeys.Count == 0) return;
 
-                bool isKeyDown = msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN;
-                bool isKeyUp = msg == WM_KEYUP || msg == WM_SYSKEYUP;
-
-                if (isKeyDown)
-                {
-                    _pressedKeys.Add(vkCode);
-                    EvaluateShortcuts(justPressedVk: vkCode);
-                    if (ShouldSuppressMatchedWinShortcutKeyDown(vkCode))
-                    {
-                        LoggingService.Debug("KeyboardShortcutService: Suppressed matched Win-key shortcut key-down");
-                        return new IntPtr(1);
-                    }
-                }
-                else if (isKeyUp)
-                {
-                    _pressedKeys.Remove(vkCode);
-                    EvaluateShortcuts();
-                }
-            }
-        }
-        catch (Exception ex)
+        foreach (var vk in KeysNoLongerDown(
+                     _hook.PressedKeys, exceptVk, _suppressedKeyDowns, IsKeyPhysicallyDown))
         {
-            LoggingService.Error("KeyboardShortcutService: HookCallback error", ex);
+            _hook.ForgetKey(vk);
         }
-        return CallNextHookEx(_hookId, nCode, wParam, lParam);
     }
 
     /// <param name="justPressedVk">
@@ -504,12 +459,23 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
     /// the triggering key inside WH_KEYBOARD_LL callbacks (state updates after the hook
     /// chain completes), so we skip physical validation for this specific key.
     /// </param>
-    private void EvaluateShortcuts(int justPressedVk = -1)
+    /// <param name="justReleasedVk">
+    /// The virtual key code of the key-up that triggered this evaluation, or -1.
+    /// Modifier-only shortcuts trigger on that release (see ModifierChordGate).
+    /// </param>
+    private void EvaluateShortcuts(int justPressedVk = -1, int justReleasedVk = -1)
     {
         foreach (var kvp in _shortcuts.ToList())
         {
             var name = kvp.Key;
             var shortcut = kvp.Value;
+
+            if (_chordGates.TryGetValue(name, out var gate))
+            {
+                EvaluateModifierOnlyChord(name, shortcut, gate, justPressedVk, justReleasedVk);
+                continue;
+            }
+
             bool shouldBeActive = IsShortcutPressed(shortcut, justPressedVk);
             bool isActive = _activeShortcuts.Contains(name);
 
@@ -543,55 +509,67 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
     }
 
     /// <summary>
-    /// Returns true if AltGr is currently active (VK_RMENU is pressed).
-    /// When AltGr is active, VK_LCONTROL is a synthetic press injected by Windows,
-    /// not a real key press.
+    /// A modifier-only chord (Ctrl+Alt) is the prefix of every ordinary shortcut
+    /// that starts with it (Ctrl+Alt+Left), so it cannot trigger on press: it
+    /// triggers on the release that breaks it, when no other key joined it
+    /// (#1497). Pressed and Released are raised back to back there, in that
+    /// order, so a handler that pairs them (MainViewModel._toggleShortcutHeld)
+    /// still sees a balanced pair.
     /// </summary>
-    private bool IsAltGrActive() => _pressedKeys.Contains(VK_RMENU);
-
-    private bool IsAnyCtrlDown(HashSet<int> pressedKeys)
+    private void EvaluateModifierOnlyChord(
+        string name,
+        KeyboardShortcut shortcut,
+        ModifierChordGate gate,
+        int justPressedVk,
+        int justReleasedVk)
     {
-        if (IsAltGrActive())
+        var before = gate.State;
+
+        if (justPressedVk >= 0)
         {
-            // AltGr sends synthetic VK_LCONTROL — only count RCtrl or generic Ctrl as real
-            return pressedKeys.Contains(VK_CONTROL) || pressedKeys.Contains(VK_RCONTROL);
+            gate.KeyDown(_hook.PressedKeys);
+            if (gate.State != before)
+            {
+                LoggingService.Debug(
+                    $"KeyboardShortcutService: modifier-only '{name}' ({shortcut}) {before} -> {gate.State} on key-down vk=0x{justPressedVk:X2}");
+            }
+            return;
         }
-        return pressedKeys.Contains(VK_CONTROL) || pressedKeys.Contains(VK_LCONTROL) || pressedKeys.Contains(VK_RCONTROL);
-    }
 
-    private bool IsAnyAltDown(HashSet<int> pressedKeys)
-    {
-        if (IsAltGrActive())
+        if (justReleasedVk < 0) return;
+
+        bool fire = gate.KeyUp(_hook.PressedKeys, justReleasedVk);
+        if (!fire)
         {
-            // AltGr is not a real Alt press — only count LAlt or generic Alt
-            return pressedKeys.Contains(VK_MENU) || pressedKeys.Contains(VK_LMENU);
+            if (gate.State != before)
+            {
+                LoggingService.Debug(
+                    $"KeyboardShortcutService: modifier-only '{name}' ({shortcut}) {before} -> {gate.State} on release, not triggered");
+            }
+            return;
         }
-        return pressedKeys.Contains(VK_MENU) || pressedKeys.Contains(VK_LMENU) || pressedKeys.Contains(VK_RMENU);
+
+        LoggingService.Info($"KeyboardShortcutService: SHORTCUT PRESSED '{name}' ({shortcut}) on release");
+        RaiseShortcutEvent(
+            ShortcutPressed,
+            PlatformShortcutPressed,
+            name,
+            shortcut);
+        RaiseShortcutEvent(
+            ShortcutReleased,
+            PlatformShortcutReleased,
+            name,
+            shortcut);
     }
-
-    private static bool IsAnyShiftDown(HashSet<int> pressedKeys) =>
-        pressedKeys.Contains(VK_SHIFT) || pressedKeys.Contains(VK_LSHIFT) || pressedKeys.Contains(VK_RSHIFT);
-
-    private static bool IsAnyWinDown(HashSet<int> pressedKeys) =>
-        pressedKeys.Contains(VK_LWIN) || pressedKeys.Contains(VK_RWIN);
-
-    /// <summary>
-    /// Returns true if the given key is physically held down according to GetAsyncKeyState.
-    /// </summary>
-    private static bool IsKeyPhysicallyDown(int vk) => (GetAsyncKeyState(vk) & 0x8000) != 0;
 
     private bool IsShortcutPressed(KeyboardShortcut shortcut, int justPressedVk = -1)
     {
-        if (shortcut.IsEmpty) return false;
-        if (shortcut.Control && !IsAnyCtrlDown(_pressedKeys)) return false;
-        if (shortcut.Alt && !IsAnyAltDown(_pressedKeys)) return false;
-        if (shortcut.Shift && !IsAnyShiftDown(_pressedKeys)) return false;
-        if (shortcut.Win && !IsAnyWinDown(_pressedKeys)) return false;
+        if (!IsSatisfied(shortcut, _hook.PressedKeys)) return false;
 
         if (shortcut.Key.HasValue)
         {
             int vk = KeyInterop.VirtualKeyFromKey(shortcut.Key.Value);
-            if (!_pressedKeys.Contains(vk)) return false;
+            if (!_hook.PressedKeys.Contains(vk)) return false;
 
             // Validate against actual keyboard state to prevent stale keys from
             // causing false positives (e.g., key-up missed due to focus loss).
@@ -602,7 +580,7 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
             // returns "not pressed" for the key that is actively being pressed.
             if (vk != justPressedVk && !IsKeyPhysicallyDown(vk))
             {
-                _pressedKeys.Remove(vk);
+                _hook.ForgetKey(vk);
                 return false;
             }
         }
@@ -613,24 +591,13 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
     private bool IsShortcutPressedExact(KeyboardShortcut shortcut, int justPressedVk = -1)
     {
         if (!IsShortcutPressed(shortcut, justPressedVk)) return false;
+        int keyVk = shortcut.Key.HasValue ? KeyInterop.VirtualKeyFromKey(shortcut.Key.Value) : -1;
+        if (keyVk < 0 || IsModifierVirtualKey(keyVk)) return IsExact(shortcut, _hook.PressedKeys);
 
-        if (!shortcut.Control && IsAnyCtrlDown(_pressedKeys)) return false;
-        if (!shortcut.Alt && IsAnyAltDown(_pressedKeys)) return false;
-        if (!shortcut.Shift && IsAnyShiftDown(_pressedKeys)) return false;
-        if (!shortcut.Win && IsAnyWinDown(_pressedKeys)) return false;
-
-        var shortcutKeyVk = shortcut.Key.HasValue
-            ? KeyInterop.VirtualKeyFromKey(shortcut.Key.Value)
-            : (int?)null;
-
-        foreach (var pressedVk in _pressedKeys)
-        {
-            if (IsModifierVirtualKey(pressedVk)) continue;
-            if (shortcutKeyVk.HasValue && pressedVk == shortcutKeyVk.Value) continue;
-            return false;
-        }
-
-        return true;
+        // IsExact rejects every non-modifier key, so check the set without the shortcut's own key.
+        var others = new HashSet<int>(_hook.PressedKeys);
+        others.Remove(keyVk);
+        return IsExact(shortcut, others);
     }
 
     private bool ShouldSuppressMatchedWinShortcutKeyDown(int justPressedVk)
@@ -667,14 +634,6 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
         if (shortcut.Win && IsWinVirtualKey(vk)) return true;
         return shortcut.Key.HasValue && KeyInterop.VirtualKeyFromKey(shortcut.Key.Value) == vk;
     }
-
-    private static bool IsModifierVirtualKey(int vk) =>
-        IsCtrlVirtualKey(vk) || IsAltVirtualKey(vk) || IsShiftVirtualKey(vk) || IsWinVirtualKey(vk);
-
-    private static bool IsCtrlVirtualKey(int vk) => vk is VK_CONTROL or VK_LCONTROL or VK_RCONTROL;
-    private static bool IsAltVirtualKey(int vk) => vk is VK_MENU or VK_LMENU or VK_RMENU;
-    private static bool IsShiftVirtualKey(int vk) => vk is VK_SHIFT or VK_LSHIFT or VK_RSHIFT;
-    private static bool IsWinVirtualKey(int vk) => vk is VK_LWIN or VK_RWIN;
 
     private uint BuildHotkeyModifierMask(KeyboardShortcut shortcut)
     {

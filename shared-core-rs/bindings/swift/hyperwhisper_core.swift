@@ -5247,18 +5247,21 @@ public func FfiConverterTypeHwPhoneticMatch_lower(_ value: HwPhoneticMatch) -> R
 
 /**
  * Result of a provider health probe. Mirrors `hw_net::ProviderHealth`.
+ * `healthy` is always `reason == Healthy`; `reason` is the field to switch on.
  */
 public struct HwProviderHealth {
     public var provider: HwProvider
     public var healthy: Bool
     public var status: UInt16?
+    public var reason: HwHealthReason
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(provider: HwProvider, healthy: Bool, status: UInt16?) {
+    public init(provider: HwProvider, healthy: Bool, status: UInt16?, reason: HwHealthReason) {
         self.provider = provider
         self.healthy = healthy
         self.status = status
+        self.reason = reason
     }
 }
 
@@ -5275,6 +5278,9 @@ extension HwProviderHealth: Equatable, Hashable {
         if lhs.status != rhs.status {
             return false
         }
+        if lhs.reason != rhs.reason {
+            return false
+        }
         return true
     }
 
@@ -5282,6 +5288,7 @@ extension HwProviderHealth: Equatable, Hashable {
         hasher.combine(provider)
         hasher.combine(healthy)
         hasher.combine(status)
+        hasher.combine(reason)
     }
 }
 
@@ -5295,7 +5302,8 @@ public struct FfiConverterTypeHwProviderHealth: FfiConverterRustBuffer {
             try HwProviderHealth(
                 provider: FfiConverterTypeHwProvider.read(from: &buf), 
                 healthy: FfiConverterBool.read(from: &buf), 
-                status: FfiConverterOptionUInt16.read(from: &buf)
+                status: FfiConverterOptionUInt16.read(from: &buf), 
+                reason: FfiConverterTypeHwHealthReason.read(from: &buf)
         )
     }
 
@@ -5303,6 +5311,7 @@ public struct FfiConverterTypeHwProviderHealth: FfiConverterRustBuffer {
         FfiConverterTypeHwProvider.write(value.provider, into: &buf)
         FfiConverterBool.write(value.healthy, into: &buf)
         FfiConverterOptionUInt16.write(value.status, into: &buf)
+        FfiConverterTypeHwHealthReason.write(value.reason, into: &buf)
     }
 }
 
@@ -10816,6 +10825,82 @@ extension HwEnglishSpelling: Equatable, Hashable {}
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * Why a provider health probe came out the way it did. Mirrors
+ * `hw_net::HealthReason`. Hosts map this onto their own states (issue #779) —
+ * none of them re-derives it from the raw status.
+ */
+
+public enum HwHealthReason {
+    
+    case healthy
+    case unauthorized
+    case unreachable
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwHealthReason: FfiConverterRustBuffer {
+    typealias SwiftType = HwHealthReason
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwHealthReason {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .healthy
+        
+        case 2: return .unauthorized
+        
+        case 3: return .unreachable
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwHealthReason, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .healthy:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .unauthorized:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .unreachable:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwHealthReason_lift(_ buf: RustBuffer) throws -> HwHealthReason {
+    return try FfiConverterTypeHwHealthReason.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwHealthReason_lower(_ value: HwHealthReason) -> RustBuffer {
+    return FfiConverterTypeHwHealthReason.lower(value)
+}
+
+
+
+extension HwHealthReason: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * Model family. Mirrors `hw_catalog::Kind`.
  */
 
@@ -12547,7 +12632,7 @@ extension HwLocalApiTokenError: Foundation.LocalizedError {
  * `TranscriptionErrorCode` and the portable head's
  * `PortableTranscriptionErrorCode`. Every variant maps onto one of the closed
  * fourteen [`HwLocalApiErrorCode`]s, so #356 item 4 adds no error code —
- * `transcription.rs` says so and a unit test walks all 25 to prove it.
+ * `transcription.rs` says so and a unit test walks all 26 to prove it.
  *
  * Each head keeps its own error type and maps it onto this on the way to the
  * wire. Nothing here replaces `TranscriptionError` or `TranscriptionException`.
@@ -12608,10 +12693,14 @@ public enum HwLocalApiTranscriptionFailureReason {
      */
     case rateLimited
     /**
-     * macOS `.quotaExceeded` / `.insufficientCredits`; Windows
-     * `QuotaExceeded`.
+     * macOS `.quotaExceeded`; Windows `QuotaExceeded` from a BYOK provider.
      */
     case quotaExceeded
+    /**
+     * macOS `.insufficientCredits`; Windows `QuotaExceeded` with
+     * `IsInsufficientCredits` set — the HyperWhisper Cloud 402.
+     */
+    case insufficientCredits
     /**
      * macOS `.timeout`.
      */
@@ -12702,29 +12791,31 @@ public struct FfiConverterTypeHwLocalApiTranscriptionFailureReason: FfiConverter
         
         case 13: return .quotaExceeded
         
-        case 14: return .timeout
+        case 14: return .insufficientCredits
         
-        case 15: return .cancelled
+        case 15: return .timeout
         
-        case 16: return .engineUnavailable
+        case 16: return .cancelled
         
-        case 17: return .networkUnavailable
+        case 17: return .engineUnavailable
         
-        case 18: return .engineStartFailed
+        case 18: return .networkUnavailable
         
-        case 19: return .engineCrashed
+        case 19: return .engineStartFailed
         
-        case 20: return .engineTimeout
+        case 20: return .engineCrashed
         
-        case 21: return .localModelEvicted
+        case 21: return .engineTimeout
         
-        case 22: return .invalidProviderResponse
+        case 22: return .localModelEvicted
         
-        case 23: return .providerServerError
+        case 23: return .invalidProviderResponse
         
-        case 24: return .noSpeechDetected
+        case 24: return .providerServerError
         
-        case 25: return .transcriptionFailed
+        case 25: return .noSpeechDetected
+        
+        case 26: return .transcriptionFailed
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -12786,52 +12877,56 @@ public struct FfiConverterTypeHwLocalApiTranscriptionFailureReason: FfiConverter
             writeInt(&buf, Int32(13))
         
         
-        case .timeout:
+        case .insufficientCredits:
             writeInt(&buf, Int32(14))
         
         
-        case .cancelled:
+        case .timeout:
             writeInt(&buf, Int32(15))
         
         
-        case .engineUnavailable:
+        case .cancelled:
             writeInt(&buf, Int32(16))
         
         
-        case .networkUnavailable:
+        case .engineUnavailable:
             writeInt(&buf, Int32(17))
         
         
-        case .engineStartFailed:
+        case .networkUnavailable:
             writeInt(&buf, Int32(18))
         
         
-        case .engineCrashed:
+        case .engineStartFailed:
             writeInt(&buf, Int32(19))
         
         
-        case .engineTimeout:
+        case .engineCrashed:
             writeInt(&buf, Int32(20))
         
         
-        case .localModelEvicted:
+        case .engineTimeout:
             writeInt(&buf, Int32(21))
         
         
-        case .invalidProviderResponse:
+        case .localModelEvicted:
             writeInt(&buf, Int32(22))
         
         
-        case .providerServerError:
+        case .invalidProviderResponse:
             writeInt(&buf, Int32(23))
         
         
-        case .noSpeechDetected:
+        case .providerServerError:
             writeInt(&buf, Int32(24))
         
         
-        case .transcriptionFailed:
+        case .noSpeechDetected:
             writeInt(&buf, Int32(25))
+        
+        
+        case .transcriptionFailed:
+            writeInt(&buf, Int32(26))
         
         }
     }
@@ -16432,6 +16527,20 @@ public func cloudSttDefaultModelId(id: String) -> String? {
 })
 }
 /**
+ * The STT provider a CLOUD mode runs on, given its stored `cloudProvider`:
+ * null, empty or whitespace means `"hyperwhisper"` (HyperWhisper Cloud);
+ * anything else is `cloud_stt_normalize_cloud_provider`'s folded, lowercased
+ * provider. A read rule only: storage and `GET /modes` keep the blank value.
+ * Call it only for a cloud mode — a local mode's null is deliberate.
+ */
+public func cloudSttEffectiveModeCloudProvider(value: String?) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_cloud_stt_effective_mode_cloud_provider(
+        FfiConverterOptionString.lower(value),$0
+    )
+})
+}
+/**
  * Every cloud STT provider row, in catalog order.
  */
 public func cloudSttEntries() -> [SttEntry] {
@@ -17138,15 +17247,6 @@ public func licenseOfflineFallbackOutcome(store: KeyValueStore, nowUnixSecs: Int
 })
 }
 /**
- * 7-day offline grace period (seconds).
- */
-public func licenseOfflineGraceSecs() -> Int64 {
-    return try!  FfiConverterInt64.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_offline_grace_secs($0
-    )
-})
-}
-/**
  * Parse a 200-OK validate response body to a `ValidationOutcome`.
  */
 public func licenseParseValidateResponse(body: Data) -> ValidationOutcome {
@@ -17159,10 +17259,10 @@ public func licenseParseValidateResponse(body: Data) -> ValidationOutcome {
 /**
  * Persist a server validation verdict for the attempted key: stores the key on
  * a valid (`Active`) verdict, and updates the validation cache only when the
- * verdict is valid or the attempted key matches the stored key. Prefer this
- * over the raw `license_update_validation_cache` after a validate response —
- * it prevents a rejected *replacement* key from clobbering the stored key's
- * cached status (a 24h lockout for a valid user).
+ * verdict is valid or the attempted key matches the stored key. This is the
+ * only FFI write path for a validate response: it prevents a rejected
+ * *replacement* key from clobbering the stored key's cached status (a 24h
+ * lockout for a valid user).
  */
 public func licensePersistValidationVerdict(store: KeyValueStore, status: HwLicenseStatus, attemptedKey: String, nowUnixSecs: Int64) {try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_license_persist_validation_verdict(
@@ -17212,13 +17312,6 @@ public func licenseShouldRevalidate(store: KeyValueStore, nowUnixSecs: Int64) ->
     )
 })
 }
-public func licenseStoreLicenseKey(store: KeyValueStore, key: String) {try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_store_license_key(
-        FfiConverterTypeKeyValueStore.lower(store),
-        FfiConverterString.lower(key),$0
-    )
-}
-}
 public func licenseStoreRemoteOverride(store: KeyValueStore, limits: TrialLimits, nowUnixSecs: Int64) {try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_license_store_remote_override(
         FfiConverterTypeKeyValueStore.lower(store),
@@ -17231,32 +17324,6 @@ public func licenseStoredLicenseKey(store: KeyValueStore) -> String? {
     return try!  FfiConverterOptionString.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_license_stored_license_key(
         FfiConverterTypeKeyValueStore.lower(store),$0
-    )
-})
-}
-public func licenseUpdateValidationCache(store: KeyValueStore, status: HwLicenseStatus, nowUnixSecs: Int64) {try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_update_validation_cache(
-        FfiConverterTypeKeyValueStore.lower(store),
-        FfiConverterTypeHwLicenseStatus.lower(status),
-        FfiConverterInt64.lower(nowUnixSecs),$0
-    )
-}
-}
-/**
- * The `/api/license/validate` endpoint URL.
- */
-public func licenseValidateUrl() -> String {
-    return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_validate_url($0
-    )
-})
-}
-/**
- * 24h validation cache TTL (seconds).
- */
-public func licenseValidationCacheSecs() -> Int64 {
-    return try!  FfiConverterInt64.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_validation_cache_secs($0
     )
 })
 }
@@ -17615,6 +17682,11 @@ public func llmWrapTranscript(systemInfo: String, transcript: String) -> String 
 }
 /**
  * Every engine id, in the order `openapi.yaml` lists them.
+ *
+ * **Call site: the macOS test target**, not a head's runtime code.
+ * `LocalEngineNeverRoutesToCloudTests` drives its "no local engine routes to
+ * Cloud" properties off this table, so an engine added here is covered there
+ * without anyone widening a list.
  */
 public func localApiAllEngineIds() -> [HwLocalApiEngineId] {
     return try!  FfiConverterSequenceTypeHwLocalApiEngineId.lift(try! rustCall() {
@@ -17844,23 +17916,6 @@ public func localApiMaxUploadBytes() -> UInt64 {
 })
 }
 /**
- * Which required keys a create body did not carry, in the documented order.
- *
- * **Call sites: the portable head and Windows only, deliberately.** The portable
- * head already walks `document.EnumerateObject()`. Windows needs a new
- * `ReadJsonBodyWithKeysAsync<T>` because it cannot infer presence from
- * `ModeDto` — `Punctuation`/`Capitalization`/`ProfanityFilter` are non-nullable
- * `bool`, so an absent key and `false` are the same value. macOS needs neither:
- * its decoder *is* this check.
- */
-public func localApiMissingRequiredModeKeys(present: [String]) -> [String] {
-    return try!  FfiConverterSequenceString.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_local_api_missing_required_mode_keys(
-        FfiConverterSequenceString.lower(present),$0
-    )
-})
-}
-/**
  * Classify one top-level key of a mode body. Exact, case-sensitive.
  *
  * **Call sites: the portable head and Windows. Not macOS** — see the module
@@ -17873,27 +17928,6 @@ public func localApiModeKeyClassification(key: String) -> HwLocalApiModeKeyClass
     return try!  FfiConverterTypeHwLocalApiModeKeyClass.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_local_api_mode_key_classification(
         FfiConverterString.lower(key),$0
-    )
-})
-}
-/**
- * The key a mode name is compared *by*: trim Unicode whitespace, then
- * lowercase. `None` when nothing is left.
- *
- * **This is the definition of "the same name"**, replacing .NET's
- * `OrdinalIgnoreCase` and Core Data's `==[c]`. It is not a storage name — each
- * head still writes whatever its own pre-normalisation produced.
- *
- * **Call sites: all three heads.** On macOS it sits *behind*
- * `ModeNamePolicy.normalized`, which keeps NFC and the Unicode general-category
- * boundary trim. That half stays native because it needs
- * `unicode-normalization` and a category table, and `hw-localapi` takes no
- * dependency — it runs under `panic = "abort"` in front of a loopback socket.
- */
-public func localApiModeNameComparisonKey(name: String) -> String? {
-    return try!  FfiConverterOptionString.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_local_api_mode_name_comparison_key(
-        FfiConverterString.lower(name),$0
     )
 })
 }
@@ -18015,17 +18049,6 @@ public func localApiResolveEngineAlias(alias: String) -> HwLocalApiEngineId? {
 public func localApiTokenEntropyBytes() -> UInt32 {
     return try!  FfiConverterUInt32.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_local_api_token_entropy_bytes($0
-    )
-})
-}
-/**
- * The SHA-256 fingerprint of a token, hex-encoded — for a log line that has to
- * identify a credential without carrying it.
- */
-public func localApiTokenFingerprint(token: String) -> String {
-    return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_local_api_token_fingerprint(
-        FfiConverterString.lower(token),$0
     )
 })
 }
@@ -18821,6 +18844,19 @@ public func statsSavedMinutesCeiling() -> Int32 {
 })
 }
 /**
+ * Remove Whisper's non-speech markers (a blank-audio tag, `(silence)`,
+ * `[inaudible]`, `[ Music ]`, `(applause)` and kin) and trim. Marker-only input
+ * returns `""`; a bracket the speaker dictated survives. One rule for every
+ * head (issue #1811); cases in `shared-conformance/whisper-marker-vectors.json`.
+ */
+public func stripWhisperNonSpeechMarkers(text: String) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_strip_whisper_non_speech_markers(
+        FfiConverterString.lower(text),$0
+    )
+})
+}
+/**
  * Lenient wrapper handling for plain transcription text: extract wrapped content
  * if present, else return the text (stray end-tags stripped). For raw-transcript
  * sites where the strict `extract_cleaned_from_wrapped` would wipe a valid result.
@@ -19078,6 +19114,9 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_default_model_id() != 30462) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_effective_mode_cloud_provider() != 47299) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_entries() != 14647) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -19300,13 +19339,10 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_license_offline_fallback_outcome() != 40676) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_license_offline_grace_secs() != 31552) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_license_parse_validate_response() != 51801) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict() != 58908) {
+    if (uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict() != 1585) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_license_record_model_download() != 39727) {
@@ -19324,22 +19360,10 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_license_should_revalidate() != 37174) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_license_store_license_key() != 61053) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_license_store_remote_override() != 47949) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_license_stored_license_key() != 31347) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_license_update_validation_cache() != 39510) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_license_validate_url() != 54229) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_license_validation_cache_secs() != 34885) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_linux_settings_to_universal_settings_json() != 10501) {
@@ -19429,7 +19453,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_llm_wrap_transcript() != 44003) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_local_api_all_engine_ids() != 63651) {
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_all_engine_ids() != 39863) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_all_error_codes() != 35889) {
@@ -19477,13 +19501,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_local_api_max_upload_bytes() != 24328) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_local_api_missing_required_mode_keys() != 39725) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_mode_key_classification() != 12705) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_comparison_key() != 44521) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_conflict() != 32568) {
@@ -19505,9 +19523,6 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_token_entropy_bytes() != 13421) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_local_api_token_fingerprint() != 55514) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_unauthorized_failure() != 22025) {
@@ -19703,6 +19718,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_stats_saved_minutes_ceiling() != 6847) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_strip_whisper_non_speech_markers() != 49359) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_strip_wrapper_markers() != 55122) {

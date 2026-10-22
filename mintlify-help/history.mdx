@@ -93,7 +93,7 @@ If HyperWhisper saved the audio for a recording, an audio player appears in the 
 
 <Tabs>
   <Tab title="macOS">
-    To start or stop the audio, click the **play/pause** button. A waveform and the recording duration appear next to the controls.
+    To start or stop the audio, click the **play/pause** button. A waveform appears next to the controls, and a line on it marks the playback position. To move to another point, click the waveform, or drag across it and release. The time label shows the elapsed time and the total length.
 
     Voice Activity Detection (VAD) can make a second copy of the audio without the silence. If VAD was active during the recording and this copy exists, a toggle with the label **Original / Trimmed** appears above the player. To hear the audio without the silence, select **Trimmed**. To hear the full recording, select **Original**.
 
@@ -131,7 +131,7 @@ To copy the text on screen to your clipboard, click **Copy** in the actions bar.
   <Tab title="macOS">
     **Single entry:** Select the row and press `Delete`. You can also right-click the row and select **Delete** from the context menu. You can also click the **Delete** button in the actions bar of the detail panel.
 
-    **Multiple entries:** Hold `⌘` or `Shift` to select more than one row. Then press `Delete`, or right-click and select **Delete Selected**. The detail panel changes to a bulk-delete confirmation view with the count of the selected items.
+    **Multiple entries:** Hold `⌘` or `Shift` to select more than one row. Then press `Delete`, or right-click and select **Delete N Recordings**, where N is the number of selected rows. The detail panel changes to a bulk-delete confirmation view with the count of the selected items. Its confirm button also names the count, for example **Delete 3 Recordings**.
 
     A confirmation dialog appears before every delete, for a single entry and for a selection.
 
@@ -154,7 +154,7 @@ If a transcription fails, the entry shows a **Failed** badge in the list. The de
 
 <Tabs>
   <Tab title="macOS">
-    **Retry with the same mode:** Click **Retry** in the actions bar, or right-click the row and select **Retry**. This option is available only for failed entries that still have an audio file on the disk.
+    **Retry with the same mode:** Click **Retry** in the actions bar, or right-click the row and select **Retry**. This option is available only for failed entries that still have an audio file on the disk. If you deleted the mode that made the recording, **Retry** stops and sends nothing. The entry stays as it is, and a message tells you to use **Retry with…** to select a different mode.
 
     **Retry with a different mode:** Right-click an entry that has saved audio and select **Retry with…**. Then select a mode from the submenu. The app transcribes the original audio again with the settings and the provider of that mode. This option is available for every transcript with saved audio, not only for the failed ones.
 

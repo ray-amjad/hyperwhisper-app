@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>תוכנה אחרת נעלה את מסד הנתונים של ההיסטוריה. ההקלטה נשמרה בצד ותישמר בהיסטוריה כשמסד הנתונים יתפנה.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>עדיין לא ניתן היה לשמור את ההקלטה הזו בהיסטוריה. ההקלטה נשמרה בצד ותישמר בהיסטוריה מאוחר יותר.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -366,6 +372,9 @@
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
+  </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>לא זמין בפרופיל בדיקה. גרסה זו משתמשת בתיקיית נתוני אפליקציה נפרדת, ולכן היא לא משנה את רשומת ההתחברות של האפליקציה המותקנת.</value>
   </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>הפעל ממוזער</value>
@@ -717,6 +726,9 @@
   <data name="errors.noSpeechDetected" xml:space="preserve">
     <value>No speech detected in the recording.</value>
   </data>
+  <data name="errors.microphoneSentNoAudio" xml:space="preserve">
+    <value>המיקרופון שנבחר לא שלח שמע. בדקו את התקן הקלט ונסו שוב.</value>
+  </data>
 
   <!-- Alerts -->
 
@@ -736,6 +748,9 @@
     <value>זה ימחק לצמיתות %d הקלטות וקבצי האודיו שלהן.
 
 לא ניתן לבטל פעולה זו.</value>
+  </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>שום דבר לא נמחק. ההיסטוריה שלכם לא השתנתה. נסו שוב.</value>
   </data>
 
   <!-- Audio Errors -->
@@ -784,6 +799,12 @@
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (לא מופעל)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (אין מפתח API)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -814,6 +835,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>תמלול הקובץ בוטל</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>מתמלל קובץ...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -837,11 +861,11 @@
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>המצב שיצר את ההקלטה הזו נמחק, ולכן לא בוצע ניסיון חוזר. בהיסטוריה, לחץ לחיצה ימנית על ההקלטה ובחר "נסה שוב עם..." כדי לבחור מצב אחר.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>ההקלטה נעצרה — הגעת למגבלת הבטיחות של 20 דקות.</value>
@@ -1075,6 +1099,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>קיצורי דרך עם מקש החלפה יחיד כמו Ctrl, Alt, Shift או Win אינם נתמכים. השתמש במקש עם מקשי החלפה או בקיצור עם כמה מקשי החלפה, כגון Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>קיצור דרך ללא מקש צירוף חייב להיות מקש פונקציה או Esc. כל מקש אחר יופעל בזמן ההקלדה.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>קיצור הדרך הזה כבר משמש עבור {0} ({1})</value>
   </data>
@@ -1115,6 +1142,9 @@ You must have at least one mode.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>בקרת היישומים של Windows חסמה את {0}, קובץ ש-HyperWhisper צריך. בקשו ממנהל ה-IT לאשר את HyperWhisper, או בדקו את בקרת היישומים החכמה באבטחת Windows.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>
@@ -1146,6 +1176,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>המודל בשימוש</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>המצב "{1}" משתמש ב-{0}. העבירו את המצב הזה למודל אחר לפני המחיקה.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1280,6 +1316,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>זה לא נראה כמו מפתח חשבון.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1300,8 +1339,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>הקלטה או תמלול קובץ כבר פועלים. נסו את הקובץ שוב כשהם יסתיימו.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>הקובץ הזה ריק, ולכן אין בו שמע לתמלול.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>הקובץ הזה פגום או שאינו קובץ שמע ש-HyperWhisper יכול לקרוא.</value>
   </data>
 
 
@@ -1684,6 +1732,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>עוד...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1978,11 +2029,35 @@ You can re-download it later.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>עמעם אודיו</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>בשימוש HyperWhisper בלבד. נשמר גם לאחר הפעלה מחדש.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>ברירת מחדל · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (לא מחובר)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>נעשה שימוש ב-{0} עד ש-{1} יחובר מחדש.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>אין מיקרופון מחובר. HyperWhisper ישתמש ב-{0} כשיחובר מחדש.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>בדיקה</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>עצירה</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

@@ -236,7 +236,7 @@ struct TranscriptionErrorClassificationTests {
         (.providerNotAvailable(provider: "p", reason: "unreachable"), false),
         (.providerNotAvailable(provider: "p", reason: "Provider health check failed"), false),
         (.providerNotAvailable(provider: "p", reason: "Unexpected health status"), false),
-        (.modelNotDownloaded, true),
+        (.modelNotDownloaded(), true),
         (.modelProtected, true),
         (.audioFileNotFound, true),
         (.transientNetwork(details: "offline"), false),
@@ -268,7 +268,9 @@ struct TranscriptionErrorClassificationTests {
         // unlike its lookalike `.localRuntimeUnavailable` above: it is the only
         // signal that says the eviction policy is costing users transcriptions.
         (.localSpeechModelEvicted(model: "base.en"), true),
-        (.localSpeechModelEvicted(model: nil), true)
+        (.localSpeechModelEvicted(model: nil), true),
+        // A too-short file is the user's input, not a defect (#1427).
+        (.audioTooShort(fileSize: 3278), false)
     ]
 
     private static let cloudErrorCases: [(HyperWhisperCloudError, Bool)] = [
@@ -289,7 +291,7 @@ struct TranscriptionErrorClassificationTests {
         case .cloudAccountRequired:
             return false
         case .transientNetwork, .timeout, .rateLimited,
-             .noSpeechDetected, .insufficientCredits, .quotaExceeded,
+             .noSpeechDetected, .audioTooShort, .insufficientCredits, .quotaExceeded,
              .localRuntimeUnavailable(_):
             return false
         case .serverError(let statusCode, _):

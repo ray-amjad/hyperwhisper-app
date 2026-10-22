@@ -60,6 +60,7 @@ final class ModelLibraryManager: ObservableObject {
             whisperManager.$downloadedModels.map { _ in () }.eraseToAnyPublisher(),
             whisperManager.$downloadingModels.map { _ in () }.eraseToAnyPublisher(),
             parakeetManager.$availableModels.map { _ in () }.eraseToAnyPublisher(),
+            parakeetManager.$brokenModels.map { _ in () }.eraseToAnyPublisher(),
             qwen3AsrManager.$isDownloaded.map { _ in () }.eraseToAnyPublisher(),
             qwen3AsrManager.downloads.$downloading.map { _ in () }.eraseToAnyPublisher(),
             localLLMManager.$availableModels.map { _ in () }.eraseToAnyPublisher(),
@@ -279,16 +280,17 @@ final class ModelLibraryManager: ObservableObject {
         // ElevenLabs
         "scribe_v1":                         (3, 5),
         "scribe_v2":                         (3, 5),
+        "scribe_v2_medical":                 (3, 5),
         // Mistral
         "voxtral-mini-latest":               (4, 2),
         // Soniox
         "stt-async-v5":                      (2, 5),
         // Gemini
+        "gemini-3.8-flash":                  (2, 4),
         "gemini-2.5-flash":                  (2, 4),
         "gemini-2.5-flash-lite":             (3, 3),
         "gemini-2.5-pro":                    (1, 5),
         "gemini-3.1-flash-lite":             (3, 4),
-        "gemini-3-flash-preview":            (2, 1),
         "gemini-3.1-pro-preview":            (1, 5),
         // HyperWhisper Cloud routed tiers (Azure MAI / Google Chirp). Chirp 3
         // is a high-accuracy but slow model: inline sync recognize runs ~3.5s
@@ -385,7 +387,9 @@ final class ModelLibraryManager: ObservableObject {
             let isDownloading = manager.downloads.isDownloading(item.id)
             let progress = manager.downloads.progress[item.id]
             let downloadProgress: Double? = isDownloading ? (progress ?? 0.01) : nil
-            let status: LibraryModelStatus = item.isDownloaded
+            // A version whose load failed (#1632) offers Re-download, as Nemotron does.
+            let isUsable = item.isDownloaded && !manager.isModelBroken(item.id)
+            let status: LibraryModelStatus = isUsable
                 ? .enabled
                 : .downloadable(progress: downloadProgress)
             let rating = Self.parakeetRatings[item.id] ?? (5, 3)
@@ -561,11 +565,12 @@ final class ModelLibraryManager: ObservableObject {
         "gpt-5.4":                                       (3, 5),
         "gpt-5.4-nano":                                  (4, 4),
         "gpt-5.6-luna":                                  (4, 4),
+        "gpt-6-luna":                                    (4, 4),
         "gpt-5.4-mini":                                  (4, 4),
         "claude-sonnet-4-6":                             (4, 5),
         "claude-sonnet-5":                               (4, 5),
-        "claude-sonnet-4-5":                             (3, 5),
-        "claude-haiku-4-5":                              (4, 4),
+        "claude-sonnet-5-5":                             (4, 5),
+        "claude-haiku-5-5":                              (4, 4),
         "gemini-2.5-flash":                              (2, 5),
         "gemini-3.5-flash":                              (2, 5),
         "gemini-3.6-flash":                              (2, 5),
@@ -574,18 +579,16 @@ final class ModelLibraryManager: ObservableObject {
         "gemini-2.5-flash-lite":                         (4, 5),
         "gemini-3.5-flash-lite":                         (5, 4),
         "gemini-2.5-pro":                                (2, 4),
-        "gemini-3-flash-preview":                        (1, 4),
         "gemini-3.1-pro-preview":                        (2, 3),
         "gemini-3.1-flash-lite":                         (4, 3),
         "openai/gpt-oss-120b":                           (4, 4),
         "openai/gpt-oss-20b":                            (4, 4),
-        "qwen/qwen3.6-27b":                              (4, 3),
         "qwen/qwen3.8-27b":                              (4, 3),
         "grok-4.3":                                      (2, 5),
         "grok-4.5":                                      (2, 5),
         "grok-4.6":                                      (2, 5),
         "mistral-small-latest":                          (2, 3),
-        "mistral-medium-3.5":                            (2, 4),
+        "mistral-medium-3-5":                            (2, 4),
         "gpt-oss-120b":                                  (5, 3),
         "qwen-3.8-27b":                                  (4, 3),
         "gemma-4-E2B-it-Q4_K_M.gguf":                    (5, 1),

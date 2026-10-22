@@ -5,7 +5,7 @@ export default function LegalLayout({
 }) {
   return (
     <div className="min-h-screen">
-      <div className="container mx-auto px-6 py-12 max-w-5xl">
+      <div className="container mx-auto py-12 max-w-5xl">
         <div className="bg-gray-900/50 backdrop-blur-xl border border-gray-800 rounded-2xl p-10 lg:p-12">
           {/*
             `overflow-wrap:anywhere` keeps a long unbreakable token — the support address, a URL —

@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Drug program je zaklenil zbirko podatkov zgodovine. Posnetek je ohranjen in bo shranjen v zgodovino, ko se zbirka podatkov sprosti.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Tega posnetka še ni bilo mogoče shraniti v zgodovino. Posnetek je ohranjen in bo shranjen v zgodovino pozneje.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -366,6 +372,9 @@
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
+  </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Ni na voljo v preskusnem profilu. Ta različica uporablja ločeno mapo s podatki aplikacije, zato ne spremeni vnosa za prijavo nameščene aplikacije.</value>
   </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Zaženi minimiziran</value>
@@ -717,6 +726,9 @@
   <data name="errors.noSpeechDetected" xml:space="preserve">
     <value>No speech detected in the recording.</value>
   </data>
+  <data name="errors.microphoneSentNoAudio" xml:space="preserve">
+    <value>Izbrani mikrofon ni poslal nobenega zvoka. Preveri vhodno napravo in poskusi znova.</value>
+  </data>
 
   <!-- Alerts -->
 
@@ -736,6 +748,9 @@
     <value>To bo trajno izbrisalo %d posnetkov in njihove zvočne datoteke.
 
 Te akcije se ne da razveljaviti.</value>
+  </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Nič ni bilo izbrisano. Zgodovina je nespremenjena. Poskusi znova.</value>
   </data>
 
   <!-- Audio Errors -->
@@ -784,6 +799,12 @@ Te akcije se ne da razveljaviti.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Ni aktivirano)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (Ni ključa API)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -814,6 +835,9 @@ Te akcije se ne da razveljaviti.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Prepis datoteke je preklican</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Prepisovanje datoteke...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -837,11 +861,11 @@ Te akcije se ne da razveljaviti.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Način, s katerim je bil narejen ta posnetek, je bil izbrisan, zato ponovni poskus ni bil izveden. V Zgodovini z desno tipko miške kliknite posnetek in izberite »Poskusi znova z ...«, da izberete drug način.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Snemanje ustavljeno — dosežena varnostna omejitev 20 minut.</value>
@@ -1075,6 +1099,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Bližnjice z eno samo pomožno tipko, kot so Ctrl, Alt, Shift ali Win, niso podprte. Uporabite tipko s pomožnimi tipkami ali bližnjico z več pomožnimi tipkami, na primer Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Bližnjica brez spremenilne tipke mora biti funkcijska tipka ali Esc. Vsaka druga tipka bi se sprožila med tipkanjem.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Ta bližnjica je že uporabljena za {0} ({1})</value>
   </data>
@@ -1115,6 +1142,9 @@ You must have at least one mode.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Nadzor aplikacij v sistemu Windows je blokiral {0}, datoteko, ki jo HyperWhisper potrebuje. Prosi skrbnika IT, naj dovoli HyperWhisper, ali preveri Pametni nadzor aplikacij v Varnosti sistema Windows.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>
@@ -1146,6 +1176,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Model je v uporabi</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} uporablja način »{1}«. Pred brisanjem preklopite ta način na drug model.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
@@ -1280,6 +1316,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>To ni videti kot ključ računa.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1300,8 +1339,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Snemanje ali prepis datoteke že poteka. Ko se konča, poskusite datoteko znova.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Ta datoteka je prazna, zato ni zvoka za prepis.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Ta datoteka je poškodovana ali ni zvočna datoteka, ki jo HyperWhisper lahko prebere.</value>
   </data>
 
 
@@ -1684,6 +1732,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Več...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1978,11 +2029,35 @@ You can re-download it later.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Zamegli zvok</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Uporablja ga samo HyperWhisper. Ostane shranjen po ponovnem zagonu.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Privzeto · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (ni povezano)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Uporablja se {0}, dokler {1} ni znova povezan.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Noben mikrofon ni povezan. HyperWhisper bo uporabil {0}, ko bo znova povezan.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Preizkusi</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Ustavi</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

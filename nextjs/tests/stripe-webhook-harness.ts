@@ -20,7 +20,7 @@ import { formatLogArgs } from "./db-error-fixture";
 import type { AccountKeyInsert, AccountKeyRow } from "@/src/lib/db-layer";
 
 export interface SentEmail {
-  kind: "license" | "mint" | "topup";
+  kind: "mint" | "topup";
   payload: Record<string, unknown>;
 }
 
@@ -34,16 +34,10 @@ export interface GrantForEventArgs {
   sourceId: string;
 }
 
-export interface GrantLotArgs {
-  userId: string;
-  amount: number;
-  sourceType: string;
-  sourceId: string;
-}
-
 export interface RefundArgs {
   sourceType: string;
   sourceId: string;
+  refundedCreditsTotal?: number;
 }
 
 /** Everything the webhook module did, in call order. */
@@ -53,11 +47,9 @@ export const calls = {
   getAccountKeysByEmail: [] as string[],
   insertAccountKey: [] as AccountKeyInsert[],
   getOrCreateUser: [] as Array<{ email: string; data: unknown }>,
-  revokeAccountKey: [] as Array<{ id: string; userId: string }>,
-  revokeWebAccess: [] as string[],
-  grantCreditLot: [] as GrantLotArgs[],
   grantCreditsForStripeEvent: [] as GrantForEventArgs[],
   refundCreditGrant: [] as RefundArgs[],
+  hasProcessedStripeObject: [] as string[],
   getCreditBalance: [] as string[],
   generateLicenseKey: 0,
   emails: [] as SentEmail[],
@@ -76,14 +68,16 @@ export const behaviour = {
   insertError: null as unknown,
   /** Row `insertAccountKey` returns. `null` models a failed insert. */
   insertedRow: null as AccountKeyRow | null,
-  grantLotError: null as unknown,
   grantForEventResult: "processed" as "processed" | "duplicate",
   creditBalance: 12_345,
-  refundResult: { status: "processed", refundedAmount: 500 } as {
-    status: "processed" | "duplicate";
+  refundResult: { status: "processed", refundedAmount: 500, removedAmount: 500 } as {
+    status: "processed" | "duplicate" | "not_found";
     refundedAmount: number;
+    removedAmount: number;
   },
   stripeSessions: [] as unknown[],
+  /** Session ids `hasProcessedStripeObject` reports as already processed. */
+  processedStripeObjects: new Set<string>(),
   emailSuccess: true,
 };
 
@@ -109,11 +103,9 @@ export function resetHarness(): void {
   calls.getAccountKeysByEmail.length = 0;
   calls.insertAccountKey.length = 0;
   calls.getOrCreateUser.length = 0;
-  calls.revokeAccountKey.length = 0;
-  calls.revokeWebAccess.length = 0;
-  calls.grantCreditLot.length = 0;
   calls.grantCreditsForStripeEvent.length = 0;
   calls.refundCreditGrant.length = 0;
+  calls.hasProcessedStripeObject.length = 0;
   calls.getCreditBalance.length = 0;
   calls.emails.length = 0;
   calls.stripeSessionQueries.length = 0;
@@ -126,11 +118,11 @@ export function resetHarness(): void {
   behaviour.user = { id: "user_1" };
   behaviour.insertError = null;
   behaviour.insertedRow = null;
-  behaviour.grantLotError = null;
   behaviour.grantForEventResult = "processed";
   behaviour.creditBalance = 12_345;
-  behaviour.refundResult = { status: "processed", refundedAmount: 500 };
+  behaviour.refundResult = { status: "processed", refundedAmount: 500, removedAmount: 500 };
   behaviour.stripeSessions = [];
+  behaviour.processedStripeObjects = new Set();
   behaviour.emailSuccess = true;
 }
 
@@ -225,17 +217,6 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
       calls.getOrCreateUser.push({ email, data });
       return behaviour.user;
     },
-    revokeAccountKey: async (id: string, userId: string): Promise<void> => {
-      calls.revokeAccountKey.push({ id, userId });
-    },
-    revokeWebAccess: async (userId: string): Promise<void> => {
-      calls.revokeWebAccess.push(userId);
-    },
-    grantCreditLot: async (args: GrantLotArgs) => {
-      calls.grantCreditLot.push(args);
-      if (behaviour.grantLotError) throw behaviour.grantLotError;
-      return { status: "processed" as const, balance: behaviour.creditBalance };
-    },
     grantCreditsForStripeEvent: async (args: GrantForEventArgs) => {
       calls.grantCreditsForStripeEvent.push(args);
       return behaviour.grantForEventResult;
@@ -243,6 +224,10 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
     refundCreditGrant: async (args: RefundArgs) => {
       calls.refundCreditGrant.push(args);
       return behaviour.refundResult;
+    },
+    hasProcessedStripeObject: async (stripeObjectId: string): Promise<boolean> => {
+      calls.hasProcessedStripeObject.push(stripeObjectId);
+      return behaviour.processedStripeObjects.has(stripeObjectId);
     },
     getCreditBalance: async (userId: string): Promise<number> => {
       calls.getCreditBalance.push(userId);
@@ -279,10 +264,6 @@ moduleMock.module(moduleUrl("../lib/services/license-key.ts"), {
 moduleMock.module(moduleUrl("../lib/services/email.ts"), {
   namedExports: {
     emailService: {
-      sendLicenseKey: async (payload: Record<string, unknown>) => {
-        calls.emails.push({ kind: "license", payload });
-        return emailOutcome();
-      },
       sendCreditMint: async (payload: Record<string, unknown>) => {
         calls.emails.push({ kind: "mint", payload });
         return emailOutcome();

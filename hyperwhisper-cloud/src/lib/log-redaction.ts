@@ -220,8 +220,8 @@ export interface RedactByValue {
  * passes 1-4, the licence-key part of 5, and 6. They keep their own message
  * prefixes, which existing Axiom queries match on — only the second argument
  * goes through here.
- * The licence key is REDACTED, not masked to its first/last 4 characters:
- * whether `README.md`'s masking claim is the contract is still open (#921).
+ * The licence key is REDACTED, not masked to its first/last 4 characters.
+ * `README.md` said "masked" until #2163 brought it in line with this (#921).
  *
  * Returns a STRING, never the Error: a raw Error prints a multi-line stack,
  * and the line-oriented shipper splits that into several unrelated records.

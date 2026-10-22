@@ -142,6 +142,15 @@ public sealed record LocalApiApplicationContext(
     private static string? NullIfEmpty(string value) => value.Length == 0 ? null : value;
 }
 
+/// <param name="DeclaredMimeType">
+/// The caller's <c>mime_type</c> exactly as sent, for an <c>audio_base64</c>
+/// upload only; null for a <c>file</c> or multipart upload, or when the caller
+/// sent none. <c>ContentType</c> and <c>FileName</c> carry the
+/// shared server's normalised type, which folds every alias it does not know
+/// (and any <c>;codecs=</c> parameter) to <c>audio/wav</c>. This is additive:
+/// the shared application backend never reads it. A head that names its own
+/// decoder input from the caller's real type (Windows) reads it instead.
+/// </param>
 public sealed record AudioUpload(
     string FileName,
     string ContentType,
@@ -151,7 +160,8 @@ public sealed record AudioUpload(
     string? Model,
     string? Language,
     LocalApiApplicationContext? ApplicationContext = null,
-    IReadOnlyList<string>? TimestampGranularities = null);
+    IReadOnlyList<string>? TimestampGranularities = null,
+    string? DeclaredMimeType = null);
 public sealed record TranscriptionResult(
     string Text,
     string Engine,
