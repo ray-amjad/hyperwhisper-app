@@ -63,6 +63,12 @@ struct CustomEndpointSheet: View {
 
     @State private var isTesting = false
     @State private var testResult: TestResultState = .none
+    /// What the last Test Connection probed; the save records its verdict when
+    /// the saved URL, model and key are the same (issue #935).
+    @State private var testedConfiguration: CustomEndpointTestedConfiguration?
+    /// The edited endpoint's Keychain key as loaded, so the stored verdict
+    /// shows only while the key field still holds it.
+    @State private var loadedAPIKey: String = ""
     @State private var validationError: String?
     @State private var isSaving = false
 
@@ -78,6 +84,25 @@ struct CustomEndpointSheet: View {
     /// Whether we're editing an existing endpoint vs creating new
     private var isEditing: Bool {
         existingEndpoint != nil
+    }
+
+    /// What the test row shows. Before any Test Connection in this sheet, an
+    /// edited endpoint shows its stored verdict ("Previously verified" /
+    /// "Previously failed") while the URL, model and key are still the saved
+    /// ones (issue #935). This is derived rather than set in
+    /// loadExistingData, because the endpointURL onChange that the load itself
+    /// fires would clear it.
+    private var displayedTestResult: TestResultState {
+        guard testResult == .none,
+              !isTesting,
+              testedConfiguration == nil,
+              let endpoint = existingEndpoint,
+              let success = endpoint.lastTestSuccess,
+              buildFullEndpointURL() == endpoint.endpointURL,
+              (selectedTab == .custom ? modelName : selectedModel) == endpoint.modelName,
+              apiKey == loadedAPIKey
+        else { return testResult }
+        return success ? .success(preview: "Previously verified") : .failure(error: "Previously failed")
     }
 
     /// Title for the sheet
@@ -455,7 +480,7 @@ struct CustomEndpointSheet: View {
 
     @ViewBuilder
     private var testResultView: some View {
-        switch testResult {
+        switch displayedTestResult {
         case .none:
             EmptyView()
         case .success:
@@ -479,7 +504,7 @@ struct CustomEndpointSheet: View {
 
     @ViewBuilder
     private var testResultDetails: some View {
-        switch testResult {
+        switch displayedTestResult {
         case .none:
             EmptyView()
         case .success(let preview):
@@ -598,6 +623,7 @@ struct CustomEndpointSheet: View {
         modelName = endpoint.modelName
         selectedModel = endpoint.modelName
         apiKey = customEndpointManager.getAPIKey(for: endpoint.id)
+        loadedAPIKey = apiKey
 
         // Detect which tab this endpoint belongs to based on URL patterns
         if endpoint.endpointURL.contains("localhost:1234") {
@@ -614,11 +640,6 @@ struct CustomEndpointSheet: View {
             }
         } else {
             selectedTab = .custom
-        }
-
-        // Set initial test result based on stored status
-        if let success = endpoint.lastTestSuccess {
-            testResult = success ? .success(preview: "Previously verified") : .failure(error: "Previously failed")
         }
 
         // Fetch models if on Ollama/LMStudio tab
@@ -657,87 +678,28 @@ struct CustomEndpointSheet: View {
             )
         }
 
-        // BUILD TEST REQUEST DIRECTLY
-        // The test uses the in-memory `apiKey` for the Authorization header
-        // (see testEndpointDirectly), so the Keychain is never read here. We
-        // must NOT write the typed key to the Keychain before a save/commit —
-        // doing so for an existing endpoint would overwrite the live stored key
-        // in place even if the user then cancels. Keychain is only written from
-        // saveEndpoint().
-        let result = await testEndpointDirectly(testEndpoint)
+        // RUN THE SHARED PROBE
+        // The test passes the in-memory `apiKey` for the Authorization header,
+        // so the Keychain is never read here. We must NOT write the typed key to
+        // the Keychain before a save/commit — doing so for an existing endpoint
+        // would overwrite the live stored key in place even if the user then
+        // cancels. Keychain is only written from saveEndpoint().
+        let testedKey = apiKey
+        let result = await customEndpointManager.testEndpoint(testEndpoint, apiKey: testedKey)
 
         isTesting = false
+        testedConfiguration = CustomEndpointTestedConfiguration(
+            endpointURL: testEndpoint.endpointURL,
+            modelName: testEndpoint.modelName,
+            apiKey: testedKey,
+            success: result.isSuccess
+        )
 
         switch result {
         case .success(let preview):
-            testResult = .success(preview: preview)
+            testResult = .success(preview: preview.trimmingCharacters(in: .whitespacesAndNewlines))
         case .failure(let error):
             testResult = .failure(error: error)
-        }
-    }
-
-    /// Test endpoint directly without going through manager
-    private func testEndpointDirectly(_ endpoint: CustomPostProcessingEndpoint) async -> CustomEndpointTestResult {
-        guard let url = URL(string: endpoint.endpointURL) else {
-            return .failure(error: "Invalid URL")
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 30
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        // Add auth if API key provided
-        if !apiKey.isEmpty {
-            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        }
-
-        // Minimal test request
-        let requestBody: [String: Any] = [
-            "model": endpoint.modelName,
-            "messages": [
-                ["role": "user", "content": "Say hello in one word."]
-            ],
-            "max_tokens": 10,
-            "temperature": 0.0
-        ]
-
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-        } catch {
-            return .failure(error: "Failed to encode request")
-        }
-
-        do {
-            let (data, response) = try await CredentialNetworkCache.session.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                return .failure(error: "Invalid response")
-            }
-
-            if httpResponse.statusCode != 200 {
-                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let error = json["error"] as? [String: Any],
-                   let message = error["message"] as? String {
-                    return .failure(error: "HTTP \(httpResponse.statusCode): \(message)")
-                }
-                return .failure(error: "HTTP \(httpResponse.statusCode)")
-            }
-
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let choices = json["choices"] as? [[String: Any]],
-                  let firstChoice = choices.first,
-                  let message = firstChoice["message"] as? [String: Any],
-                  let content = message["content"] as? String else {
-                return .failure(error: "Invalid response format")
-            }
-
-            return .success(responsePreview: content.trimmingCharacters(in: .whitespacesAndNewlines))
-
-        } catch let error as URLError {
-            return .failure(error: "Network error: \(error.localizedDescription)")
-        } catch {
-            return .failure(error: error.localizedDescription)
         }
     }
 
@@ -788,7 +750,8 @@ struct CustomEndpointSheet: View {
                     name: name.trimmingCharacters(in: .whitespacesAndNewlines),
                     endpointURL: finalEndpointURL,
                     modelName: finalModelName,
-                    apiKey: apiKey.isEmpty ? nil : apiKey
+                    apiKey: apiKey.isEmpty ? nil : apiKey,
+                    testedConfiguration: testedConfiguration
                 )
                 savedEndpoint = customEndpointManager.getEndpoint(id: existing.id) ?? existing
             } else {
@@ -797,7 +760,8 @@ struct CustomEndpointSheet: View {
                     name: name.trimmingCharacters(in: .whitespacesAndNewlines),
                     endpointURL: finalEndpointURL,
                     modelName: finalModelName,
-                    apiKey: apiKey.isEmpty ? nil : apiKey
+                    apiKey: apiKey.isEmpty ? nil : apiKey,
+                    testedConfiguration: testedConfiguration
                 )
             }
 

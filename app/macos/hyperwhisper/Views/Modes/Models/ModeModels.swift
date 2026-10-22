@@ -276,6 +276,24 @@ struct ModeData {
         return asrIsLocal && postProcessingIsOffline
     }
 
+    /// The status chip a mode card shows next to the mode's name.
+    /// - Parameter isLocalModelDownloaded: whether the mode's on-device
+    ///   transcription model is on disk. Ignored for a cloud ASR mode.
+    func cardStatusChip(isLocalModelDownloaded: Bool) -> ModeCardStatusChip {
+        // Same reading of the id as TranscriptionProviderRouter: trimmed,
+        // any casing, and empty means cloud.
+        let id = model.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if id.isEmpty || id == "cloud" {
+            return .none
+        }
+        // A local mode whose model is gone fails with "model not downloaded"
+        // (#2036), so it must not read as ready to use.
+        if !isLocalModelDownloaded {
+            return .modelMissing
+        }
+        return isOfflineCapable ? .offline : .none
+    }
+
     /// Create ModeData from Core Data Mode entity
     init(from mode: Mode) {
         self.id = mode.id ?? UUID()
@@ -332,6 +350,16 @@ struct ModeData {
         let storedDomain = mode.cloudTranscriptionDomain?.trimmingCharacters(in: .whitespacesAndNewlines)
         self.cloudTranscriptionDomain = (storedDomain?.isEmpty == false) ? storedDomain : nil
     }
+}
+
+/// The chip beside a mode card's name (`ModeData.cardStatusChip`).
+enum ModeCardStatusChip: Equatable {
+    /// Green "Offline": every part of the mode runs on this Mac.
+    case offline
+    /// Orange "Model missing": the mode's local model is not downloaded.
+    case modelMissing
+    /// No chip.
+    case none
 }
 
 // MARK: - English Spelling

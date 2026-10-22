@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Funcions",
-    "pricing": "Preus",
     "faq": "PMF",
     "support": "Suport",
     "download": "Descarrega",
@@ -20,7 +19,6 @@
     "githubAria": "Mostra HyperWhisper a GitHub"
   },
   "hero": {
-    "openSourceBadge": "Codi obert · Apache-2.0",
     "logoAlt": "Logotip de HyperWhisper",
     "headline": "Escriu, compon i crea",
     "headlineAccent": "5x més ràpid amb IA",
@@ -97,57 +95,6 @@
     "accuracyRate": "Taxa de precisió",
     "languagesSupported": "Idiomes compatibles",
     "providersSupported": "Proveïdors compatibles"
-  },
-  "pricing": {
-    "title": "Sense subscripcions. Mai.",
-    "subtitle": "Paga una vegada, fes-lo servir per sempre. Nosaltres també odiem les subscripcions.",
-    "guarantee": "Garantia de devolució de 14 dies",
-    "guaranteeExtended": "si no quedes completament satisfet.",
-    "learnMore": "Més informació",
-    "free": {
-      "name": "Gratis",
-      "price": "$0",
-      "period": "per sempre",
-      "description": "Perfecte per provar HyperWhisper",
-      "cta": "Descarrega gratis",
-      "features": {
-        "transcriptionLimit": "5 minuts de transcripció al dia",
-        "basicModes": "Modes bàsics de transcripció",
-        "offlineTranscription": "Transcripció fora de línia",
-        "apiTranscription": "Transcripció per API (porta les teves claus)",
-        "postProcessing": "Postprocessament de text",
-        "providers": "Més de 9 proveïdors per triar",
-        "lifetimeUpdates": "Actualitzacions de per vida",
-        "cloudLimited": "HyperWhisper Cloud (ús limitat)",
-        "customVocabulary": "Vocabulari personalitzat",
-        "prioritySupport": "Suport prioritari"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "de per vida",
-      "description": "Compra única, potència il·limitada per sempre",
-      "cta": "Compra ara - Accés de per vida",
-      "mostPopular": "El més popular",
-      "features": {
-        "unlimitedTranscription": "Transcripció il·limitada",
-        "allModes": "Tots els modes de transcripció",
-        "offlineTranscription": "Transcripció fora de línia",
-        "apiTranscription": "Transcripció per API (porta les teves claus)",
-        "postProcessing": "Postprocessament de text",
-        "providers": "Més de 9 proveïdors per triar",
-        "lifetimeUpdates": "Actualitzacions de per vida",
-        "cloudCredits": "HyperWhisper Cloud ($5 en crèdits)",
-        "customVocabulary": "Vocabulari personalitzat",
-        "prioritySupport": "Suport prioritari"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise i preus personalitzats",
-      "description": "Descomptes per volum, SSO, suport prioritari, allotjament intern i integracions personalitzades",
-      "cta": "Contacta amb vendes"
-    }
   },
   "faq": {
     "title": "Preguntes freqüents",
@@ -252,10 +199,7 @@
     "downloadButton": "Descarrega HyperWhisper",
     "errorGeneric": "Alguna cosa ha anat malament. Torna-ho a provar.",
     "errorEmail": "Introdueix una adreça de correu electrònic vàlida.",
-    "errorNetwork": "Error de xarxa. Revisa la connexió i torna-ho a provar.",
-    "thankYouTitle": "Gràcies!",
     "downloadStarted": "La descàrrega hauria de començar automàticament.",
-    "manualDownload": "La descàrrega no ha començat? Fes clic aquí",
     "skipAndDownloadButton": "Omet i descarrega"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Descarrega",
       "roadmap": "Full de ruta",
       "helpCenter": "Centre d'ajuda",
-      "manageBilling": "Gestiona la facturació",
       "customerPortal": "Portal de clients",
       "olderVersions": "Versions antigues",
       "blog": "Blog",

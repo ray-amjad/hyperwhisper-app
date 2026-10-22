@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Funksjoner",
-    "pricing": "Priser",
     "faq": "FAQ",
     "support": "Support",
     "download": "Last ned",
@@ -20,7 +19,6 @@
     "githubAria": "Se HyperWhisper på GitHub"
   },
   "hero": {
-    "openSourceBadge": "Åpen kildekode · Apache-2.0",
     "logoAlt": "HyperWhisper-logo",
     "headline": "Skriv, formuler og skap",
     "headlineAccent": "5x raskere med AI",
@@ -97,57 +95,6 @@
     "accuracyRate": "Nøyaktighet",
     "languagesSupported": "Støttede språk",
     "providersSupported": "Støttede leverandører"
-  },
-  "pricing": {
-    "title": "Ingen abonnement. Noensinne.",
-    "subtitle": "Betal én gang, bruk for alltid. Vi hater også abonnementer.",
-    "guarantee": "14 dagers pengene-tilbake-garanti",
-    "guaranteeExtended": "hvis du ikke er helt fornøyd.",
-    "learnMore": "Les mer",
-    "free": {
-      "name": "Gratis",
-      "price": "$0",
-      "period": "for alltid",
-      "description": "Perfekt for å teste HyperWhisper",
-      "cta": "Last ned gratis",
-      "features": {
-        "transcriptionLimit": "5 minutter transkribering per dag",
-        "basicModes": "Grunnleggende transkripsjonsmoduser",
-        "offlineTranscription": "Offline-transkribering",
-        "apiTranscription": "API-transkribering (bruk egne nøkler)",
-        "postProcessing": "Etterbehandling av tekst",
-        "providers": "9+ leverandører å velge mellom",
-        "lifetimeUpdates": "Livstidsoppdateringer",
-        "cloudLimited": "HyperWhisper Cloud (begrenset bruk)",
-        "customVocabulary": "Tilpasset ordforråd",
-        "prioritySupport": "Prioritert support"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "livstid",
-      "description": "Engangskjøp, ubegrenset kraft for alltid",
-      "cta": "Kjøp nå - Livstidstilgang",
-      "mostPopular": "Mest populær",
-      "features": {
-        "unlimitedTranscription": "Ubegrenset transkribering",
-        "allModes": "Alle transkripsjonsmoduser",
-        "offlineTranscription": "Offline-transkribering",
-        "apiTranscription": "API-transkribering (bruk egne nøkler)",
-        "postProcessing": "Etterbehandling av tekst",
-        "providers": "9+ leverandører å velge mellom",
-        "lifetimeUpdates": "Livstidsoppdateringer",
-        "cloudCredits": "HyperWhisper Cloud ($5 i kreditter)",
-        "customVocabulary": "Tilpasset ordforråd",
-        "prioritySupport": "Prioritert support"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise og tilpasset prising",
-      "description": "Volumrabatter, SSO, prioritert support, intern hosting og tilpassede integrasjoner",
-      "cta": "Kontakt salg"
-    }
   },
   "faq": {
     "title": "Ofte stilte spørsmål",
@@ -252,10 +199,7 @@
     "downloadButton": "Last ned HyperWhisper",
     "errorGeneric": "Noe gikk galt. Prøv igjen.",
     "errorEmail": "Skriv inn en gyldig e-postadresse.",
-    "errorNetwork": "Nettverksfeil. Sjekk tilkoblingen og prøv igjen.",
-    "thankYouTitle": "Takk!",
     "downloadStarted": "Nedlastingen skal starte automatisk.",
-    "manualDownload": "Startet ikke nedlastingen? Klikk her",
     "skipAndDownloadButton": "Hopp over og last ned"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Last ned",
       "roadmap": "Roadmap",
       "helpCenter": "Hjelpesenter",
-      "manageBilling": "Administrer betaling",
       "customerPortal": "Kundeportal",
       "olderVersions": "Eldre versjoner",
       "blog": "Blogg",
