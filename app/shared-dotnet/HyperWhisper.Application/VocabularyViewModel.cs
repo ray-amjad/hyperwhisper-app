@@ -149,7 +149,10 @@ public sealed class VocabularyViewModel : ViewModelBase
 
     private string Text(string key, string english, params object?[] arguments)
     {
-        var template = Localize?.Invoke(key);
+        string? template;
+        // A head's localizer may throw on a key it lacks (Linux GetRequired); English then.
+        try { template = Localize?.Invoke(key); }
+        catch (Exception) { template = null; }
         if (string.IsNullOrEmpty(template)) template = english;
         try { return arguments.Length == 0 ? template : string.Format(System.Globalization.CultureInfo.CurrentCulture, template, arguments); }
         catch (FormatException) { return string.Format(System.Globalization.CultureInfo.InvariantCulture, english, arguments); }

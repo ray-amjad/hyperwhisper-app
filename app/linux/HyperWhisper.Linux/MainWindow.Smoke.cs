@@ -281,9 +281,16 @@ public partial class MainWindow
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
             if (!HasVisibleControl("VocabularyWordInput") || !HasVisibleControl("VocabularyReplacementInput")
                 || !HasVisibleControl("VocabularyList")) return 12;
-            // Windows has no import/export row on the Vocabulary page and no vocabulary TSV
-            // transfer anywhere: vocabulary travels inside the backup archive, selected by the
-            // Vocabulary checkbox on each of the two Backup cards. Those are what is asserted.
+            // #2409: the page has the Import and Export buttons Windows has above its list, and
+            // a result line that stays hidden until a transfer succeeds.
+            if (!HasVisibleControl("VocabularyImportButton") || !HasVisibleControl("VocabularyExportButton")
+                || HasVisibleControl("VocabularyTransferStatus"))
+            {
+                Console.Error.WriteLine("Smoke: the Vocabulary Import/Export row is missing, or its result line shows with no transfer.");
+                return 12;
+            }
+            // Vocabulary also travels inside the backup archive, selected by the Vocabulary
+            // checkbox on each of the two Backup cards.
             _viewModel.Navigate("backup");
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
             if (!HasVisibleControl("BackupExportVocabulary") || !HasVisibleControl("BackupExportButton")

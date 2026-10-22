@@ -697,6 +697,21 @@
                      Foreground="{DynamicResource HwErrorForegroundBrush}"/>
         </StackPanel>
 
+        <!-- IMPORT / EXPORT (#2409), the row Windows has above its list: CSV or TXT, picked by
+             the file's extension. A failure shows on the error line above; the result line
+             sits beside the buttons. -->
+        <DockPanel x:Name="VocabularyTransferRow" Margin="0,0,0,12" LastChildFill="True">
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Button x:Name="VocabularyImportButton" Padding="12,6" FontSize="13" Click="OnVocabularyImport"
+                    Content="{ReflectionBinding [vocabulary.transfer.import], Source={StaticResource Localization}}"/>
+            <Button x:Name="VocabularyExportButton" Padding="12,6" FontSize="13" Click="OnVocabularyExport"
+                    Content="{ReflectionBinding [vocabulary.transfer.export], Source={StaticResource Localization}}"/>
+          </StackPanel>
+          <TextBlock x:Name="VocabularyTransferStatus" Text="{Binding TransferMessage}" IsVisible="{Binding HasTransferMessage}"
+                     FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0"
+                     Foreground="{DynamicResource HwTextSecondaryBrush}"/>
+        </DockPanel>
+
         <!-- LIST
              One card around the header band, the rows and the empty state. The list itself is
              transparent with no border and no minimum height, so an empty table is the empty
