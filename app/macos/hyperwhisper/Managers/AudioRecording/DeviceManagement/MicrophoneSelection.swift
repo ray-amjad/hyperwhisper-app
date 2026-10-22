@@ -104,8 +104,8 @@ enum MicrophoneResolution: Equatable, Sendable {
 enum VirtualMicrophoneDetector {
     /// Matched against the device NAME, case-insensitive substring, in this order.
     ///
-    /// KEEP IN SYNC: the Windows (`app/windows`) and Linux (`app/linux`) heads carry the
-    /// same list in their own microphone-selection code (issue #2408). Change all three.
+    /// KEEP IN SYNC: the Windows and Linux heads share one copy of this list in
+    /// `app/shared-dotnet/HyperWhisper.Application/MicrophoneSelection.cs` (issue #2408). Change both.
     ///
     /// Not virtual on purpose, because they carry the user's own processed voice: Krisp,
     /// NVIDIA Broadcast, Elgato Wave Link and any aggregate device. That is also why the

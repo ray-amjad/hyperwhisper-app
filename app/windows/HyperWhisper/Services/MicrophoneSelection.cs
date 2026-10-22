@@ -106,50 +106,14 @@ public static class MicrophoneSelection
     public const int WaveInNameLimit = 31;
 
     /// <summary>
-    /// Name fragments of virtual inputs that carry app audio, not a voice
-    /// (#2408). Case-insensitive substring match on the device NAME. Keep the
-    /// SAME list in the SAME order as the sibling heads:
-    /// app/macos/hyperwhisper/Managers/AudioRecording/DeviceManagement/MicrophoneSelection.swift
-    /// and the Linux head's list (app/linux, app/shared-dotnet). Every entry fits in the WaveIn 31-character
-    /// name ("CABLE Output (VB-Audio Virtual " still matches).
-    /// NOT here on purpose, because they carry the user's own processed voice:
-    /// Krisp, NVIDIA Broadcast, Elgato Wave Link, aggregate devices.
+    /// True when <paramref name="deviceName"/> names a virtual input that
+    /// carries app audio, not a voice (#2408). The one .NET list is
+    /// <c>HyperWhisper.PortableApplication.MicrophoneSelection.VirtualNameMarkers</c>
+    /// (app/shared-dotnet, shared with the Linux head); every entry fits in the
+    /// WaveIn 31-character name ("CABLE Output (VB-Audio Virtual " still matches).
     /// </summary>
-    public static readonly IReadOnlyList<string> VirtualInputNameFragments = new[]
-    {
-        "BlackHole",
-        "Soundflower",
-        "Loopback Audio",
-        "VB-Audio",
-        "VB-Cable",
-        "CABLE Output",
-        "CABLE-A Output",
-        "CABLE-B Output",
-        "VoiceMeeter",
-        "Virtual Audio Cable",
-        "ZoomAudioDevice",
-        "Microsoft Teams Audio",
-        "Background Music",
-        "eqMac",
-        "Stereo Mix",
-        "What U Hear",
-        "Wave Out Mix",
-    };
-
-    /// <summary>True when <paramref name="deviceName"/> names a virtual input (see <see cref="VirtualInputNameFragments"/>).</summary>
-    public static bool IsVirtualInput(string? deviceName)
-    {
-        if (string.IsNullOrWhiteSpace(deviceName))
-            return false;
-
-        foreach (var fragment in VirtualInputNameFragments)
-        {
-            if (deviceName.Contains(fragment, StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-
-        return false;
-    }
+    public static bool IsVirtualInput(string? deviceName) =>
+        HyperWhisper.PortableApplication.MicrophoneSelection.IsVirtual(deviceName);
 
     /// <summary>
     /// The automatic pick: <paramref name="systemDefault"/>, unless it is a

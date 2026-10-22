@@ -1972,7 +1972,7 @@ internal static class Program
                 Assert(!MicrophoneSelection.IsVirtualInput("Wave Link MicrophoneFX (Elgato "), "Elgato Wave Link is NOT virtual");
                 Assert(!MicrophoneSelection.IsVirtualInput("Microphone (Realtek(R) Audio)"), "a built-in mic is not virtual");
                 Assert(!MicrophoneSelection.IsVirtualInput(null) && !MicrophoneSelection.IsVirtualInput("  "), "no name is not virtual");
-                Assert(MicrophoneSelection.VirtualInputNameFragments.Count == 17, "the list matches the sibling heads' 17 entries");
+                Assert(HyperWhisper.PortableApplication.MicrophoneSelection.VirtualNameMarkers.Count == 17, "the list matches the sibling heads' 17 entries");
             });
 
             Run("Microphone automatic pick skips a virtual Windows default; a hand-made choice is never overridden", () =>

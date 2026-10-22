@@ -19,10 +19,10 @@ namespace HyperWhisper.PortableApplication;
 public static class MicrophoneSelection
 {
     /// <summary>
-    /// Device-name markers of virtual inputs, matched as case-insensitive substrings. Keep this
-    /// list, and its order, identical to the sibling heads':
-    /// <c>app/macos/hyperwhisper/Managers/AudioRecording/DeviceManagement/MicrophoneSelection.swift</c> and
-    /// <c>app/windows/HyperWhisper/Services/MicrophoneSelection.cs</c>.
+    /// Device-name markers of virtual inputs, matched as case-insensitive substrings. The one .NET
+    /// list: the Linux head and the Windows head (<c>app/windows/HyperWhisper/Services/MicrophoneSelection.cs</c>)
+    /// both read it. Keep it, and its order, identical to the macOS copy:
+    /// <c>app/macos/hyperwhisper/Managers/AudioRecording/DeviceManagement/MicrophoneSelection.swift</c>.
     /// </summary>
     /// <remarks>
     /// Not virtual on purpose, because they carry the user's own processed voice: Krisp, NVIDIA
