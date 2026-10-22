@@ -133,44 +133,33 @@ public class ApiKeyService
     }
 
     /// <summary>
-    /// Validates the format of an API key for a provider.
-    /// This is a basic format check, not a validity check against the API.
+    /// Whether a bring-your-own-key provider will take this text as a key: it
+    /// only has to be non-blank. There is deliberately no prefix and no length
+    /// rule: vendors change their key formats (Google's newer Gemini keys do not
+    /// start with "AIza"), and a shape rule then refuses working keys. A wrong
+    /// key fails at the provider, which says so.
     /// </summary>
     /// <param name="provider">The provider to validate against.</param>
     /// <param name="key">The API key to validate.</param>
     /// <returns>True if the key format appears valid.</returns>
     public static bool IsValidKeyFormat(PostProcessingProvider provider, string? key)
     {
-        if (string.IsNullOrWhiteSpace(key)) return false;
-
         return provider switch
         {
-            // OpenAI keys start with "sk-" and are typically 51+ characters
-            PostProcessingProvider.OpenAI => key.StartsWith("sk-") && key.Length > 20,
+            PostProcessingProvider.OpenAI or
+            PostProcessingProvider.Anthropic or
+            PostProcessingProvider.Groq or
+            PostProcessingProvider.Grok or
+            PostProcessingProvider.Gemini or
+            PostProcessingProvider.Cerebras or
+            PostProcessingProvider.Mistral => IsPresent(key),
 
-            // Anthropic keys start with "sk-ant-" and are typically 100+ characters
-            PostProcessingProvider.Anthropic => key.StartsWith("sk-ant-") && key.Length > 20,
-
-            // Groq keys start with "gsk_" and are typically 50+ characters
-            PostProcessingProvider.Groq => key.StartsWith("gsk_") && key.Length > 20,
-
-            // xAI Grok keys start with "xai-" and are shared with Grok STT
-            PostProcessingProvider.Grok => key.StartsWith("xai-") && key.Length >= 20,
-
-            // Gemini keys start with "AIza" and are typically 39 characters
-            PostProcessingProvider.Gemini => key.StartsWith("AIza") && key.Length >= 30,
-
-            // Cerebras keys start with "csk-" and are typically 64+ characters
-            PostProcessingProvider.Cerebras => key.StartsWith("csk-") && key.Length > 20,
-
-            // Mistral keys have no fixed prefix; match the Mistral STT key rule
-            // (TranscriptionApiKeyType.Mistral: min length 20). PP and STT share
-            // the same MistralApiKey store.
-            PostProcessingProvider.Mistral => key.Length >= 20,
-
+            // None, HyperWhisper Cloud and the local engine take no key.
             _ => false
         };
     }
+
+    private static bool IsPresent(string? key) => !string.IsNullOrWhiteSpace(key);
 
     /// <summary>
     /// Gets a masked version of the API key for display (e.g., "sk-...abc123").
@@ -258,29 +247,14 @@ public class ApiKeyService
     }
 
     /// <summary>
-    /// Validates the format of an API key for a transcription provider without a primary post-processing provider.
+    /// Validates an API key for a transcription provider without a primary post-processing provider: it only
+    /// has to be non-blank, for the reason on the post-processing overload.
     /// </summary>
     /// <param name="type">The transcription API key type to validate against.</param>
     /// <param name="key">The API key to validate.</param>
     /// <returns>True if the key format appears valid.</returns>
-    public static bool IsValidKeyFormat(TranscriptionApiKeyType type, string? key)
-    {
-        if (string.IsNullOrWhiteSpace(key)) return false;
-
-        var prefix = type.GetKeyPrefix();
-        var minLength = type.GetMinLength();
-
-        // Check minimum length
-        if (key.Length < minLength) return false;
-
-        // Check prefix if required
-        if (!string.IsNullOrEmpty(prefix) && !key.StartsWith(prefix))
-        {
-            return false;
-        }
-
-        return true;
-    }
+    public static bool IsValidKeyFormat(TranscriptionApiKeyType type, string? key) =>
+        IsPresent(key);
 
     /// <summary>
     /// Gets a masked version of the API key for a transcription provider without a primary post-processing provider.

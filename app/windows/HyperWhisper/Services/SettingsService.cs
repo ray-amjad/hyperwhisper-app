@@ -478,7 +478,7 @@ public partial class SettingsService
                     // so the catch below never sees it. It is as corrupt as a torn
                     // file: recover from .bak first, or the next Save() rotates this
                     // file over the only good .bak (issue #2096).
-                    LoggingService.Warn($"SettingsService: {SettingsFilePath} holds null, trying the backup");
+                    LoggingService.Warn($"SettingsService: {SentryService.RedactUserIdentifiers(SettingsFilePath)} holds null, trying the backup");
                     if (TryLoadBackup())
                     {
                         return;
@@ -487,7 +487,7 @@ public partial class SettingsService
                 else
                 {
                     _settings = loaded;
-                    LoggingService.Info($"SettingsService: Loaded settings from {SettingsFilePath}");
+                    LoggingService.Info($"SettingsService: Loaded settings from {SentryService.RedactUserIdentifiers(SettingsFilePath)}");
                     LoggingService.Debug($"SettingsService: LastSelectedModel = {_settings.LastSelectedModel}");
                 }
 
@@ -495,7 +495,7 @@ public partial class SettingsService
             }
             catch (Exception ex)
             {
-                LoggingService.Warn($"SettingsService: Failed to load settings: {ex.Message}");
+                LoggingService.Warn($"SettingsService: Failed to load settings: {SentryService.RedactUserIdentifiers(ex.Message)}");
 
                 // settings.json is corrupt (e.g. truncated by a crash/force-kill
                 // mid-write). Try the previous-good .bak left by File.Replace before
@@ -570,15 +570,15 @@ public partial class SettingsService
             catch (Exception restoreEx)
             {
                 LoggingService.Warn(
-                    $"SettingsService: Recovered settings into memory but failed to restore {SettingsFilePath}: {restoreEx.Message}");
+                    $"SettingsService: Recovered settings into memory but failed to restore {SentryService.RedactUserIdentifiers(SettingsFilePath)}: {SentryService.RedactUserIdentifiers(restoreEx.Message)}");
             }
 
-            LoggingService.Warn($"SettingsService: Recovered settings from {BackupFilePath} after corrupt settings.json");
+            LoggingService.Warn($"SettingsService: Recovered settings from {SentryService.RedactUserIdentifiers(BackupFilePath)} after corrupt settings.json");
             return true;
         }
         catch (Exception ex)
         {
-            LoggingService.Warn($"SettingsService: Failed to recover settings from backup: {ex.Message}");
+            LoggingService.Warn($"SettingsService: Failed to recover settings from backup: {SentryService.RedactUserIdentifiers(ex.Message)}");
             return false;
         }
     }
@@ -638,12 +638,12 @@ public partial class SettingsService
                     File.Move(tmpPath, SettingsFilePath);
                 }
 
-                LoggingService.Debug($"SettingsService: Saved settings to {SettingsFilePath}");
+                LoggingService.Debug($"SettingsService: Saved settings to {SentryService.RedactUserIdentifiers(SettingsFilePath)}");
                 return true;
             }
             catch (Exception ex)
             {
-                LoggingService.Error($"SettingsService: Failed to save settings: {ex.Message}");
+                LoggingService.Error($"SettingsService: Failed to save settings: {SentryService.RedactUserIdentifiers(ex.Message)}");
                 return false;
             }
         }

@@ -3824,6 +3824,51 @@ internal static class Program
                     $"a local mode with no cloudProvider restored as {restored["Local, no provider"].ProviderType} / '{restored["Local, no provider"].CloudProvider}'");
             });
 
+            // #2041: a windows slice with no providerType key (an older or hand-edited
+            // Windows backup) falls back to the same inference as a sliceless mode, as
+            // Linux ParseMode does. It restored ProviderType = null before.
+            Run("backup import (#2041): a windows slice with no providerType infers Cloud or local", () =>
+            {
+                const string windowsBackupJson = """
+                {
+                  "schemaVersion": 2,
+                  "exportDate": "2026-10-21T00:00:00Z",
+                  "appVersion": "3.0.0",
+                  "platform": "windows",
+                  "modes": [
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e2041", "name": "Slice, cloud model", "preset": "custom",
+                      "language": "en", "model": "cloud", "isDefault": true, "sortOrder": 0,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": { "windows": { "modelType": "cloud" } } },
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e2042", "name": "Slice, openai provider", "preset": "custom",
+                      "language": "en", "model": "base", "cloudProvider": "openai", "isDefault": false, "sortOrder": 1,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": { "windows": { "modelType": "base" } } },
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e2043", "name": "Slice, local", "preset": "custom",
+                      "language": "en", "model": "base", "isDefault": false, "sortOrder": 2,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": { "windows": { "modelType": "base" } } },
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e2044", "name": "Slice says local", "preset": "custom",
+                      "language": "en", "model": "cloud", "isDefault": false, "sortOrder": 3,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": { "windows": { "modelType": "base", "providerType": "local" } } }
+                  ]
+                }
+                """;
+                var backup = JsonSerializer.Deserialize<UniversalBackup>(windowsBackupJson)
+                    ?? throw new InvalidOperationException("the windows no-providerType backup did not deserialize");
+                var restored = backup.Modes!.Select(UniversalBackupMapper.MapToMode).ToDictionary(mode => mode.Name);
+
+                Assert(restored["Slice, cloud model"].ProviderType == "cloud" && restored["Slice, cloud model"].CloudProvider == "hyperwhisper",
+                    $"a windows-slice mode with model cloud and no providerType restored as {restored["Slice, cloud model"].ProviderType ?? "null"} / '{restored["Slice, cloud model"].CloudProvider}', not cloud / hyperwhisper");
+                Assert(restored["Slice, openai provider"].ProviderType == "cloud" && restored["Slice, openai provider"].CloudProvider == "openai",
+                    $"a windows-slice mode with cloudProvider openai and no providerType restored as {restored["Slice, openai provider"].ProviderType ?? "null"} / '{restored["Slice, openai provider"].CloudProvider}'");
+                Assert(restored["Slice, local"].ProviderType == "local",
+                    $"a windows-slice local mode with no providerType restored as {restored["Slice, local"].ProviderType ?? "null"}, not local");
+                Assert(restored["Slice says local"].ProviderType == "local",
+                    $"a windows slice's own providerType local was overridden to {restored["Slice says local"].ProviderType ?? "null"}");
+            });
+
             // #1712: both .NET heads write a mode's vocabulary and local-engine fields
             // in their OWN slice under the same names. A Linux v2 backup restored on
             // Windows must keep them; a present windows slice stays the whole record.
@@ -4691,6 +4736,63 @@ internal static class Program
                     window.ShowProgress("next.mp3", () => { });
                     Assert(!window.IsIndeterminate && percent.Text == "0%",
                         $"the next file did not start at 0% ({percent.Text})");
+                }
+                finally
+                {
+                    window.Close();
+                }
+            });
+
+            // Issue #1924. Each frame eased from the LAST frame's value instead of the
+            // ramp's start, so the easing compounded: the 60 s transcribing ramp read
+            // 80% after ~5 s. And every jump of 20% or more got 60 s, so on a short job
+            // the 85/95/100% steps barely moved before the window hid near 32%.
+            Run("the Transcribe File ramp follows its curve for 60 s and a short job reaches 100% - issue #1924", () =>
+            {
+                EnsureSmokeApplication();
+                var window = new HyperWhisper.Views.Windows.FileTranscriptionProgressWindow();
+                var percent = (System.Windows.Controls.TextBlock)window.FindName("PercentageText")!;
+                const float rampStart = 0.15f;
+                float ramp = HyperWhisper.ViewModels.MainViewModel.FileTranscribingRampTarget;
+                static double EaseOutCubic(double t) => 1.0 - Math.Pow(1.0 - t, 3);
+                try
+                {
+                    // A long job: frames every few seconds, driven with a clock.
+                    window.AnimateStep(rampStart);
+                    window.AdvanceAnimation(DateTime.Now.AddSeconds(1));
+                    window.AnimateStep(ramp);
+                    var start = DateTime.Now;
+                    window.AdvanceAnimation(start.AddSeconds(5));
+                    Assert(window.CurrentProgress < 0.5f,
+                        $"5 s into the 60 s ramp the bar already reads {window.CurrentProgress:P0}");
+                    window.AdvanceAnimation(start.AddSeconds(30));
+                    double halfway = rampStart + (ramp - rampStart) * EaseOutCubic(0.5);
+                    Assert(Math.Abs(window.CurrentProgress - halfway) < 0.01,
+                        $"30 s into the ramp the bar reads {window.CurrentProgress:F3}, not {halfway:F3} on the ease curve");
+                    // At 45 s the curve is at ~0.790: still short of the target.
+                    window.AdvanceAnimation(start.AddSeconds(45));
+                    double late = rampStart + (ramp - rampStart) * EaseOutCubic(0.75);
+                    Assert(Math.Abs(window.CurrentProgress - late) < 0.003 && !window.IsIndeterminate,
+                        $"45 s into the ramp the bar reads {window.CurrentProgress:F3}, not {late:F3}");
+                    window.AdvanceAnimation(start.AddSeconds(60.5));
+                    Assert(window.CurrentProgress == ramp && window.IsIndeterminate,
+                        $"the ramp did not end at {ramp:P0} at 60 s ({window.CurrentProgress:F3})");
+
+                    // A short job: the transcription returns 2 s into the ramp, then
+                    // the finishing steps come back to back and the window hides 500 ms
+                    // after 100% (MainViewModel.TranscribeFileAsync).
+                    window.SetProgress(0f);
+                    window.AnimateStep(rampStart);
+                    window.AdvanceAnimation(DateTime.Now.AddSeconds(1));
+                    window.AnimateStep(ramp);
+                    window.AdvanceAnimation(DateTime.Now.AddSeconds(2));
+                    window.AnimateStep(0.85f);
+                    window.AdvanceAnimation(DateTime.Now.AddMilliseconds(50));
+                    window.AnimateStep(0.95f);
+                    window.AnimateStep(1.0f);
+                    window.AdvanceAnimation(DateTime.Now.AddMilliseconds(500));
+                    Assert(percent.Text == "100%",
+                        $"the bar reads {percent.Text} when a short job's window hides, not 100%");
                 }
                 finally
                 {
@@ -14500,6 +14602,51 @@ internal static class Program
                     "an unrelated Deepgram key edit discarded a valid Google outcome");
             });
 
+            Run("BYOK key check: no vendor prefix, so a Gemini key that does not start with AIza saves", () =>
+            {
+                // Google's newer Gemini keys do not start with "AIza". The prefix rule
+                // refused them with "Invalid API key format" on Windows and Linux; a
+                // wrong key fails at the provider anyway. Only a blank key is refused:
+                // no prefix and no length rule, for every provider.
+                var newGeminiKey = "AQ." + new string('k', 37);
+                Assert(ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.GeminiTranscribe, newGeminiKey),
+                    "a Gemini 3.5 Transcribe key that does not start with AIza is refused");
+                Assert(ApiKeyService.IsValidKeyFormat(PostProcessingProvider.Gemini, newGeminiKey),
+                    "a Gemini post-processing key that does not start with AIza is refused");
+                Assert(ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.GeminiTranscribe, "AIza" + new string('k', 35)),
+                    "an AIza Gemini key is refused");
+
+                // The same for every vendor: any non-blank text, however short, is a key.
+                foreach (var provider in new[]
+                {
+                    PostProcessingProvider.OpenAI, PostProcessingProvider.Anthropic, PostProcessingProvider.Groq,
+                    PostProcessingProvider.Grok, PostProcessingProvider.Gemini, PostProcessingProvider.Cerebras,
+                    PostProcessingProvider.Mistral,
+                })
+                {
+                    Assert(ApiKeyService.IsValidKeyFormat(provider, "k"), $"a short {provider} key is refused");
+                    Assert(!ApiKeyService.IsValidKeyFormat(provider, "   "), $"a blank {provider} key is accepted");
+                    Assert(!ApiKeyService.IsValidKeyFormat(provider, null), $"a null {provider} key is accepted");
+                }
+                foreach (var type in Enum.GetValues<TranscriptionApiKeyType>())
+                {
+                    Assert(ApiKeyService.IsValidKeyFormat(type, "k"), $"a short {type} key is refused");
+                    Assert(!ApiKeyService.IsValidKeyFormat(type, " \t "), $"a blank {type} key is accepted");
+                    Assert(!ApiKeyService.IsValidKeyFormat(type, null), $"a null {type} key is accepted");
+                }
+                Assert(!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.None, newGeminiKey),
+                    "a key for no provider is accepted");
+                Assert(!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.HyperWhisperCloud, newGeminiKey),
+                    "a key for HyperWhisper Cloud, which takes none, is accepted");
+
+                // And it reaches the store: what the Model Library modal does on Save.
+                var apiKeys = new ApiKeyService(new InMemoryCredentialBackend());
+                Assert(apiKeys.SetApiKey(TranscriptionApiKeyType.GeminiTranscribe, newGeminiKey).IsSuccess,
+                    "the store refused a non-AIza Gemini 3.5 Transcribe key");
+                Assert(apiKeys.GetApiKey(TranscriptionApiKeyType.GeminiTranscribe) == newGeminiKey,
+                    "the stored Gemini 3.5 Transcribe key does not read back");
+            });
+
             Run("issue #650: /health key_present for the HW-Cloud rows follows the account key /transcribe refuses on", () =>
             {
                 var cloudTranscription = new[]
@@ -19082,6 +19229,31 @@ internal static class Program
                         $"{Path.GetFileName(path)} manifest lost the dpiAware true/pm fallback");
                     Assert(manifest.Contains("level=\"asInvoker\"", StringComparison.Ordinal),
                         $"{Path.GetFileName(path)} manifest must keep requestedExecutionLevel asInvoker");
+                }
+            });
+
+            // Issue #1940. With no recording overlay, the mode-change toast and the
+            // Transcribe File window centred on the work area's width alone, so a
+            // taskbar docked left (or top) pushed them off centre by its own size.
+            Run("the mode-change toast and the file progress window centre on a work area offset by a left or top taskbar (#1940)", () =>
+            {
+                // A 1920x1080 screen with a 200 DIP bar docked left, then a 48 DIP bar docked top.
+                var leftBar = new Rect(200, 0, 1720, 1080);
+                var topBar = new Rect(0, 48, 1920, 1032);
+                const double w = 300, h = 60;
+
+                var toast = HyperWhisper.Views.Windows.ModeChangeToastWindow.FallbackPosition(leftBar, w, h);
+                Assert(Math.Abs(toast.X + w / 2 - (leftBar.Left + leftBar.Width / 2)) < 0.01,
+                    $"the toast's centre is x={toast.X + w / 2}, not the work area's {leftBar.Left + leftBar.Width / 2}");
+                Assert(toast.Y == leftBar.Bottom - h - 80, $"the toast moved off its bottom slot (y={toast.Y})");
+
+                foreach (var area in new[] { leftBar, topBar })
+                {
+                    var p = HyperWhisper.Views.Windows.FileTranscriptionProgressWindow.CentredIn(area, w, h);
+                    Assert(Math.Abs(p.X + w / 2 - (area.Left + area.Width / 2)) < 0.01
+                            && Math.Abs(p.Y + h / 2 - (area.Top + area.Height / 2)) < 0.01,
+                        $"the progress window's centre is ({p.X + w / 2}, {p.Y + h / 2}) in work area {area}, " +
+                        $"not ({area.Left + area.Width / 2}, {area.Top + area.Height / 2})");
                 }
             });
 
@@ -25251,6 +25423,171 @@ internal static class Program
                 }
             });
 
+            // RunAsync blocks on GetAwaiter().GetResult(), and an earlier WPF case
+            // has left a DispatcherSynchronizationContext on this thread that
+            // nothing pumps. AssemblyAIService awaits without ConfigureAwait(false),
+            // so detach for the #886 cases, as the onboarding block does.
+            var assemblyAiPreviousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+
+            // Issue #886: AssemblyAIService.TranscribeResolvedAsync was one
+            // 187-line method running five flows. These cases pin the two
+            // statics it was split into, and then drive the whole method through
+            // a fake vendor so the sync fast path, the async fallback, the skip
+            // and the error exits are each reached from the real entry point.
+            Run("AssemblyAI DescribeSyncSkipReason names why the sync fast path was skipped (#886)", () =>
+            {
+                var cap = HyperwhisperCoreMethods.AssemblyaiSyncMaxDurationSecs();
+                var over = cap + 10;
+
+                // The same format strings the log has always used, in the
+                // runner's own culture, so a comma-decimal locale passes too.
+                var atCap = AssemblyAIService.DescribeSyncSkipReason(Result<double>.Success(cap), cap, isMedicalModel: false);
+                Assert(atCap == $"duration {cap:F1}s >= {cap:F0}s sync cap", $"at the cap: '{atCap}'");
+
+                var overCap = AssemblyAIService.DescribeSyncSkipReason(Result<double>.Success(over), cap, isMedicalModel: false);
+                Assert(overCap == $"duration {over:F1}s >= {cap:F0}s sync cap", $"over the cap: '{overCap}'");
+
+                var unknown = AssemblyAIService.DescribeSyncSkipReason(
+                    Result<double>.Failure("duration probe failed"), cap, isMedicalModel: false);
+                Assert(unknown == "duration unknown (duration probe failed)", $"failed probe: '{unknown}'");
+
+                // Medical wins over every duration reason, a failed probe included.
+                const string medical = "medical model (sync has no medical/domain concept)";
+                foreach (var duration in new[] { Result<double>.Success(cap - 1), Result<double>.Success(over), Result<double>.Failure("x") })
+                {
+                    var reason = AssemblyAIService.DescribeSyncSkipReason(duration, cap, isMedicalModel: true);
+                    Assert(reason == medical, $"medical model gave '{reason}'");
+                }
+            });
+
+            Run("AssemblyAI ParsePollOutcome: pending, done, and mapped errors carry the poll's status (#886)", () =>
+            {
+                static uniffi.hyperwhisper_core.HttpResponse Poll(ushort status, string json) =>
+                    new(status, new List<Header>(), System.Text.Encoding.UTF8.GetBytes(json));
+
+                Assert(AssemblyAIService.ParsePollOutcome(Poll(200, "{\"status\":\"processing\"}")) is AssemblyaiPollOutcome.Pending,
+                    "processing must keep polling");
+                Assert(AssemblyAIService.ParsePollOutcome(Poll(503, "{}")) is AssemblyaiPollOutcome.Pending,
+                    "a transient 503 must keep polling");
+
+                var done = AssemblyAIService.ParsePollOutcome(Poll(200, "{\"status\":\"completed\",\"text\":\"hello there\"}"));
+                Assert(done is AssemblyaiPollOutcome.Done d && d.@transcript.@text == "hello there", $"completed gave {done}");
+
+                var failed = Expect<TranscriptionException>(() =>
+                    AssemblyAIService.ParsePollOutcome(Poll(200, "{\"status\":\"error\",\"error\":\"audio too short\"}")));
+                Assert(failed.Message.Contains("audio too short", StringComparison.Ordinal), $"error message '{failed.Message}'");
+                Assert(failed.HttpStatusCode == 200, $"error status {failed.HttpStatusCode}");
+
+                var unauthorized = Expect<TranscriptionException>(() => AssemblyAIService.ParsePollOutcome(Poll(401, "{}")));
+                Assert(unauthorized.Code == TranscriptionErrorCode.Unauthorized, $"401 code {unauthorized.Code}");
+                Assert(unauthorized.HttpStatusCode == 401, $"401 status {unauthorized.HttpStatusCode}");
+            });
+
+            RunAsync("AssemblyAI TranscribeAsync runs sync, async fallback, skip and error exits against a fake vendor (#886)", async () =>
+            {
+                var cap = HyperwhisperCoreMethods.AssemblyaiSyncMaxDurationSecs();
+                var audioPath = Path.Combine(Path.GetTempPath(), $"hw-886-{Guid.NewGuid():N}.wav");
+                await File.WriteAllBytesAsync(audioPath, new byte[] { 0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0 });
+                try
+                {
+                    // Each scenario: the model, the known duration, and a script of
+                    // (status, body) answers keyed by the request's host + path.
+                    async Task<(string? Text, TranscriptionException? Error, List<string> Calls)> Drive(
+                        string modelId, double? knownSeconds, Func<string, int, (HttpStatusCode, string)> answer)
+                    {
+                        var calls = new List<string>();
+                        RoutedCaptureHandler handler = null!;
+                        handler = new RoutedCaptureHandler(() =>
+                        {
+                            var uri = handler.LastRequestUri!;
+                            var key = uri.Host + uri.AbsolutePath;
+                            var seen = calls.Count(c => c == key);
+                            calls.Add(key);
+                            var (status, body) = answer(key, seen);
+                            return new HttpResponseMessage(status) { Content = new StringContent(body) };
+                        });
+                        var service = new AssemblyAIService(handler);
+                        service.Configure("placeholder");
+                        var request = new TranscriptionRequest(audioPath, Language: "en", Vocabulary: null, ModelId: modelId, CustomPrompt: null);
+                        try
+                        {
+                            var text = await service.TranscribeAsync(request, knownSeconds, CancellationToken.None)
+                                .WaitAsync(TimeSpan.FromSeconds(60));
+                            return (text, null, calls);
+                        }
+                        catch (TranscriptionException ex)
+                        {
+                            return (null, ex, calls);
+                        }
+                    }
+
+                    const string sync = "sync.assemblyai.com/v1/transcribe";
+                    const string upload = "api.assemblyai.com/v2/upload";
+                    const string create = "api.assemblyai.com/v2/transcript";
+                    const string poll = "api.assemblyai.com/v2/transcript/t-886";
+                    (HttpStatusCode, string) Async(string key, int seen, string pollAnswer) => key switch
+                    {
+                        upload => (HttpStatusCode.OK, "{\"upload_url\":\"https://cdn.example.invalid/a\"}"),
+                        create => (HttpStatusCode.OK, "{\"id\":\"t-886\",\"status\":\"queued\"}"),
+                        poll => (HttpStatusCode.OK, pollAnswer),
+                        _ => (HttpStatusCode.NotFound, "{}"),
+                    };
+                    const string completed = "{\"status\":\"completed\",\"text\":\"async words\"}";
+
+                    // 1. A short clip: one sync call, and nothing else.
+                    var r1 = await Drive("universal-2", 5, (key, _) => key == sync
+                        ? (HttpStatusCode.OK, "{\"text\":\"sync words\"}")
+                        : (HttpStatusCode.NotFound, "{}"));
+                    Assert(r1.Text == "sync words", $"sync: text '{r1.Text}', error {r1.Error?.Message}");
+                    Assert(string.Join(",", r1.Calls) == sync, $"sync: calls {string.Join(",", r1.Calls)}");
+
+                    // 2. The sync call fails: the async workflow runs, and one pending
+                    // poll is waited out before the completed one.
+                    var r2 = await Drive("universal-2", 5, (key, seen) => key == sync
+                        ? (HttpStatusCode.InternalServerError, "{\"error\":\"down\"}")
+                        : Async(key, seen, seen == 0 ? "{\"status\":\"processing\"}" : completed));
+                    Assert(r2.Text == "async words", $"fallback: text '{r2.Text}', error {r2.Error?.Message}");
+                    Assert(string.Join(",", r2.Calls) == string.Join(",", new[] { sync, upload, create, poll, poll }),
+                        $"fallback: calls {string.Join(",", r2.Calls)}");
+
+                    // 3. Over the cap, and 4. a medical model: no sync call at all.
+                    foreach (var (model, seconds) in new[] { ("universal-2", cap + 10), ("universal-3-5-pro-medical", 5.0) })
+                    {
+                        var r = await Drive(model, seconds, (key, seen) => Async(key, seen, completed));
+                        Assert(r.Text == "async words", $"{model} {seconds}s: text '{r.Text}', error {r.Error?.Message}");
+                        Assert(string.Join(",", r.Calls) == string.Join(",", new[] { upload, create, poll }),
+                            $"{model} {seconds}s: calls {string.Join(",", r.Calls)}");
+                    }
+
+                    // 5. A sync answer with no speech is terminal: no async fallback.
+                    var r5 = await Drive("universal-2", 5, (key, _) => key == sync
+                        ? (HttpStatusCode.OK, "{\"text\":\"  \"}")
+                        : (HttpStatusCode.NotFound, "{}"));
+                    Assert(r5.Error?.Code == TranscriptionErrorCode.NoSpeechDetected, $"no speech: code {r5.Error?.Code}, text '{r5.Text}'");
+                    Assert(string.Join(",", r5.Calls) == sync, $"no speech: calls {string.Join(",", r5.Calls)}");
+
+                    // 6. The upload is refused: mapped to Unauthorized, nothing created.
+                    var r6 = await Drive("universal-2", cap + 10, (key, _) => key == upload
+                        ? (HttpStatusCode.Unauthorized, "{\"error\":\"bad key\"}")
+                        : (HttpStatusCode.NotFound, "{}"));
+                    Assert(r6.Error?.Code == TranscriptionErrorCode.Unauthorized, $"upload 401: code {r6.Error?.Code}");
+                    Assert(string.Join(",", r6.Calls) == upload, $"upload 401: calls {string.Join(",", r6.Calls)}");
+
+                    // 7. The job itself fails: the poll's error message reaches the caller.
+                    var r7 = await Drive("universal-2", cap + 10, (key, seen) =>
+                        Async(key, seen, "{\"status\":\"error\",\"error\":\"audio too short\"}"));
+                    Assert(r7.Error != null && r7.Error.Message.Contains("audio too short", StringComparison.Ordinal),
+                        $"poll error: '{r7.Error?.Message}', text '{r7.Text}'");
+                    Assert(string.Join(",", r7.Calls) == string.Join(",", new[] { upload, create, poll }),
+                        $"poll error: calls {string.Join(",", r7.Calls)}");
+                }
+                finally
+                {
+                    try { File.Delete(audioPath); } catch (IOException) { }
+                }
+            });
+            SynchronizationContext.SetSynchronizationContext(assemblyAiPreviousContext);
             ScriptGuardPorts.RunAll(Run);
 
             // Issue #738: LicenseNetworkService over a scripted HttpClient (its internal
