@@ -9,6 +9,7 @@ using System.Windows.Automation;
 using System.Windows.Media.Imaging;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Platform;
+using static HyperWhisper.Services.SmartPasteDelayTable;
 using static HyperWhisper.Services.SmartPasteNativeMethods;
 using PlatformContracts = HyperWhisper.Platform.Abstractions;
 
@@ -52,52 +53,6 @@ namespace HyperWhisper.Services;
 /// </summary>
 public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionService
 {
-    // =========================================================================
-    // PROCESS-SPECIFIC PASTE DELAYS
-    // =========================================================================
-
-    /// <summary>
-    /// Browser process names — these get longer delays and skip UIA focus detection.
-    /// UIA is unreliable inside web content areas.
-    /// </summary>
-    private static readonly HashSet<string> BrowserProcessNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "chrome", "msedge", "firefox", "brave", "opera", "vivaldi", "arc"
-    };
-
-    /// <summary>
-    /// Electron app process names — need longer delays and skip UIA (unreliable in Chromium).
-    /// Treated similarly to browsers: Chromium's multi-process architecture makes
-    /// SetForegroundWindow unreliable and UIA focus detection flaky.
-    /// </summary>
-    private static readonly HashSet<string> ElectronProcessNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Code", "Cursor", "Windsurf", "Simplenote"
-    };
-
-    // =========================================================================
-    // CLIPBOARD FORMAT SUPPORT
-    // =========================================================================
-
-    /// <summary>
-    /// List of clipboard formats we attempt to preserve, in priority order.
-    /// These cover the most common clipboard content types:
-    /// - Text formats: Unicode, RTF, HTML
-    /// - Image formats: Bitmap, PNG, JPEG
-    /// - File formats: FileDrop (file paths)
-    /// - Other: Custom formats are also captured dynamically
-    /// </summary>
-    private static readonly string[] SupportedFormats = new[]
-    {
-        DataFormats.UnicodeText,
-        DataFormats.Text,
-        DataFormats.Rtf,
-        DataFormats.Html,
-        DataFormats.Bitmap,
-        DataFormats.FileDrop,
-        DataFormats.CommaSeparatedValue,
-    };
-
     // =========================================================================
     // INSTANCE FIELDS
     // =========================================================================
