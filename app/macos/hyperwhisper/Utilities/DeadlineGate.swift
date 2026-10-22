@@ -14,7 +14,8 @@ import os
 /// read) are thin wrappers around it, so a fix to the race or timing logic
 /// here reaches both.
 ///
-/// - The caller stops waiting after `timeout` and gets `.timedOut`.
+/// - The caller stops waiting when the deadline fires (`timeout` after the call
+///   starts, unless a test injects its own `Deadline`) and gets `.timedOut`.
 /// - Blocking work cannot be cancelled, so it keeps running. When it finally
 ///   returns, its value goes to `discardLate` instead of to the caller.
 /// - `hasAbandonedWork` stays true until every timed-out call has left the
