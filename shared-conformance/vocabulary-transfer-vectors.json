@@ -1,0 +1,213 @@
+{
+  "description": "Golden vocabulary import/export vectors (issue #2409). Every head's CSV and TXT writer must produce `csv` / `txt` byte for byte from `entries`, and every head's reader must turn `csv` and `txt` back into `entries` (the round trip). `csvImport` / `txtImport` hold files written by hand or by another app: `expected` is the parsed rows in file order, before the merge into the store, and `skipped` counts words dropped for being longer than 1000 characters (VocabularyWords.MaxWordChars, #2390). A null replacement means none. Rules: CSV is UTF-8 RFC 4180, header `word,replacement`, CRLF rows, a field quoted only when it holds a comma, a double quote, CR or LF; the reader accepts a BOM, LF or CRLF, no header, one column, extra columns (ignored) and blank rows (ignored); the header is the first row when its first field is `word` (any case). TXT is UTF-8, LF rows, one term per line, a replacement after the first tab; in the replacement a backslash is written `\\\\` and a line break `\\n` (other backslashes read as themselves); a tab inside a word is written as a space. Both readers trim words and replacements, treat a blank replacement as none, split a word that spans lines into one word per line with the same replacement (#1777), and skip blank words.",
+  "roundTrip": {
+    "entries": [
+      {
+        "word": "HyperWhisper",
+        "replacement": null
+      },
+      {
+        "word": "Smith, Jones & Co",
+        "replacement": null
+      },
+      {
+        "word": "the \"quoted\" one",
+        "replacement": "the 'quoted' one"
+      },
+      {
+        "word": "Kubernetes",
+        "replacement": "K8s, the \"cluster\""
+      },
+      {
+        "word": "café crème",
+        "replacement": null
+      },
+      {
+        "word": "東京タワー",
+        "replacement": "Tokyo Tower"
+      },
+      {
+        "word": "🚀 launch",
+        "replacement": "🚀"
+      },
+      {
+        "word": "my sign-off",
+        "replacement": "Best regards,\nRay"
+      },
+      {
+        "word": "C:\\Users\\path",
+        "replacement": "back\\slash \\n literal"
+      },
+      {
+        "word": ",leading comma",
+        "replacement": null
+      }
+    ],
+    "csv": "word,replacement\r\nHyperWhisper,\r\n\"Smith, Jones & Co\",\r\n\"the \"\"quoted\"\" one\",the 'quoted' one\r\nKubernetes,\"K8s, the \"\"cluster\"\"\"\r\ncafé crème,\r\n東京タワー,Tokyo Tower\r\n🚀 launch,🚀\r\nmy sign-off,\"Best regards,\nRay\"\r\nC:\\Users\\path,back\\slash \\n literal\r\n\",leading comma\",\r\n",
+    "txt": "HyperWhisper\nSmith, Jones & Co\nthe \"quoted\" one\tthe 'quoted' one\nKubernetes\tK8s, the \"cluster\"\ncafé crème\n東京タワー\tTokyo Tower\n🚀 launch\t🚀\nmy sign-off\tBest regards,\\nRay\nC:\\Users\\path\tback\\\\slash \\\\n literal\n,leading comma\n"
+  },
+  "csvImport": [
+    {
+      "name": "BOM, LF rows, no header",
+      "input": "﻿alpha,one\nbeta\n",
+      "expected": [
+        {
+          "word": "alpha",
+          "replacement": "one"
+        },
+        {
+          "word": "beta",
+          "replacement": null
+        }
+      ],
+      "skipped": 0
+    },
+    {
+      "name": "header any case, extra columns ignored, blank rows ignored",
+      "input": "Word,Replacement,Notes\r\n\r\ngamma,G,ignored\r\n,\r\n",
+      "expected": [
+        {
+          "word": "gamma",
+          "replacement": "G"
+        }
+      ],
+      "skipped": 0
+    },
+    {
+      "name": "one-column file of multi-word terms",
+      "input": "word\nNew York City\nSan Francisco\n",
+      "expected": [
+        {
+          "word": "New York City",
+          "replacement": null
+        },
+        {
+          "word": "San Francisco",
+          "replacement": null
+        }
+      ],
+      "skipped": 0
+    },
+    {
+      "name": "quoted word spanning lines splits into one word per line",
+      "input": "\"first\nsecond\",shared\n",
+      "expected": [
+        {
+          "word": "first",
+          "replacement": "shared"
+        },
+        {
+          "word": "second",
+          "replacement": "shared"
+        }
+      ],
+      "skipped": 0
+    },
+    {
+      "name": "whitespace trimmed, blank replacement is none",
+      "input": "  delta  ,   \n",
+      "expected": [
+        {
+          "word": "delta",
+          "replacement": null
+        }
+      ],
+      "skipped": 0
+    },
+    {
+      "name": "no trailing newline",
+      "input": "epsilon,E",
+      "expected": [
+        {
+          "word": "epsilon",
+          "replacement": "E"
+        }
+      ],
+      "skipped": 0
+    },
+    {
+      "name": "over-long word skipped and counted",
+      "input": "ok\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\n",
+      "expected": [
+        {
+          "word": "ok",
+          "replacement": null
+        },
+        {
+          "word": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+          "replacement": null
+        }
+      ],
+      "skipped": 1
+    }
+  ],
+  "txtImport": [
+    {
+      "name": "plain word list, CRLF, BOM, blank lines",
+      "input": "﻿alpha\r\n\r\nbeta gamma\r\n",
+      "expected": [
+        {
+          "word": "alpha",
+          "replacement": null
+        },
+        {
+          "word": "beta gamma",
+          "replacement": null
+        }
+      ],
+      "skipped": 0
+    },
+    {
+      "name": "tab-separated replacement, escapes decoded",
+      "input": "sig\tline one\\nline two\nwin\tC:\\\\temp\\x\n",
+      "expected": [
+        {
+          "word": "sig",
+          "replacement": "line one\nline two"
+        },
+        {
+          "word": "win",
+          "replacement": "C:\\temp\\x"
+        }
+      ],
+      "skipped": 0
+    },
+    {
+      "name": "commas and quotes are literal in TXT",
+      "input": "Smith, Jones\n\"quoted\"\n",
+      "expected": [
+        {
+          "word": "Smith, Jones",
+          "replacement": null
+        },
+        {
+          "word": "\"quoted\"",
+          "replacement": null
+        }
+      ],
+      "skipped": 0
+    },
+    {
+      "name": "only the first tab splits",
+      "input": "a\tb\tc\n",
+      "expected": [
+        {
+          "word": "a",
+          "replacement": "b\tc"
+        }
+      ],
+      "skipped": 0
+    },
+    {
+      "name": "over-long word skipped and counted",
+      "input": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nok\n",
+      "expected": [
+        {
+          "word": "ok",
+          "replacement": null
+        }
+      ],
+      "skipped": 1
+    }
+  ]
+}
