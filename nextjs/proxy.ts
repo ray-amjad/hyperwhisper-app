@@ -13,10 +13,14 @@ const localePattern = locales
   .map((locale) => locale.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
   .join("|");
 const LOCALE_REGEX = new RegExp(`^\\/(${localePattern})(\\/|$)`);
-const USER_ROUTE_REGEX = new RegExp(`^\\/(${localePattern})\\/user`);
-const USER_SIGN_IN_REGEX = new RegExp(`^\\/(${localePattern})\\/user\\/sign-in`);
+// #2087: each gate regex ends on a path-segment boundary, like LOCALE_REGEX,
+// so /en/users or /en/user-guide is not mistaken for the /en/user portal.
+const USER_ROUTE_REGEX = new RegExp(`^\\/(${localePattern})\\/user(\\/|$)`);
+const USER_SIGN_IN_REGEX = new RegExp(
+  `^\\/(${localePattern})\\/user\\/sign-in(\\/|$)`,
+);
 const USER_AUTH_SIGN_OUT_REGEX = new RegExp(
-  `^\\/(${localePattern})\\/user\\/auth\\/sign-out`,
+  `^\\/(${localePattern})\\/user\\/auth\\/sign-out(\\/|$)`,
 );
 // #1135: on an English-only page (isEnglishOnlyPath) a visit says nothing
 // about the visitor's language and must not rewrite NEXT_LOCALE.

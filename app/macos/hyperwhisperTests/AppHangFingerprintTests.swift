@@ -396,9 +396,9 @@ struct AppHangFingerprintTests {
 extension AppHangFingerprintTests {
 
     fileprivate static let servicePath =
-        "app/macos/hyperwhisper/Utilities/SentryService.swift"
+        "app/macos/hyperwhisper/Utilities/SentryService+Privacy.swift"
 
-    fileprivate static let serviceFile = "SentryService.swift"
+    fileprivate static let serviceFile = "SentryService+Privacy.swift"
 
     /// The one statement in `beforeSend` that may write the hang grouping.
     /// Everything from its `{` to the matching `}` is guarded by it; anything
@@ -414,8 +414,8 @@ extension AppHangFingerprintTests {
     fileprivate static func beforeSendBody() throws -> String {
         try ProductionSource.slice(
             of: servicePath,
-            from: "options.beforeSend = { event in",
-            to: "options.beforeSendLog ="
+            from: "static func sanitize(_ event: Event) -> Event? {",
+            to: "static func sanitize(_ log: SentryLog) -> SentryLog? {"
         )
     }
 

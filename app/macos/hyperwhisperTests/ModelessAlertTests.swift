@@ -12,6 +12,10 @@
 //  button click must close it and report which button. The flow's wiring is
 //  pinned by reading the source, as `ModeEditorPageGuardTests` does.
 //
+//  Issue #1734 moved the other 12 runModal() alerts and panels onto it; confirm
+//  dialogs await `ModelessAlert.response(for:)`, which gives the main actor
+//  back while the alert is open.
+//
 
 import AppKit
 import Testing
@@ -51,6 +55,39 @@ struct ModelessAlertTests {
         let ran = await Task { @MainActor in true }.value
         #expect(ran)
         #expect(alert.window.isVisible)
+    }
+
+    @Test func responseForAwaitsTheClickWithoutHoldingTheMainActor() async {
+        let alert = NSAlert()
+        alert.addButton(withTitle: "Delete")
+        alert.addButton(withTitle: "Cancel")
+
+        let answer = Task { @MainActor in await ModelessAlert.response(for: alert) }
+        // The awaiting task must have suspended, not blocked: this main-actor job
+        // (a Local API route, say) gets to run while the alert is on screen.
+        while !alert.window.isVisible { await Task.yield() }
+        let ran = await Task { @MainActor in true }.value
+        #expect(ran)
+
+        alert.buttons[1].performClick(nil)
+        // A second click must not resume the continuation twice.
+        alert.buttons[0].performClick(nil)
+
+        #expect(await answer.value == .alertSecondButtonReturn)
+        #expect(!alert.window.isVisible)
+    }
+
+    @Test(arguments: [
+        "app/macos/hyperwhisper/Managers/AudioRecording/RecordingFlow/AutoPasteHandler.swift",
+        "app/macos/hyperwhisper/Managers/Settings/StorageSettingsManager.swift",
+        "app/macos/hyperwhisper/Managers/Transcription/Support/TranscriptActionHandler.swift",
+        "app/macos/hyperwhisper/Views/Settings/OutputSettingsSection.swift",
+        "app/macos/hyperwhisper/hyperwhisperApp.swift",
+    ])
+    func theIssue1734SitesDoNotRunModal(path: String) throws {
+        let source = try ProductionSource.code(of: path)
+        #expect(!source.contains("runModal()"))
+        #expect(source.contains("ModelessAlert.") || source.contains("panel.begin"))
     }
 
     @Test func theFileFlowErrorAlertDoesNotRunModal() throws {
