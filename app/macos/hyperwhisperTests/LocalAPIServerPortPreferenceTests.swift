@@ -19,6 +19,10 @@
 //
 //  The server's own run task starts on the main actor, which another suite in
 //  the test host can hold for seconds, so every wait has a generous deadline.
+//  That includes the server's own wait for FlyingFox to report it is listening:
+//  at the app's 5 s a starved run task reads as a taken port, and the server
+//  gives the persisted port up for an ephemeral one (issue #2398). Only the
+//  taken-port test keeps the app's 5 s, because that wait is its fallback.
 //
 
 import Darwin
@@ -51,7 +55,9 @@ struct LocalAPIServerPortPreferenceTests {
     // MARK: - 2. A taken persisted port falls back to an ephemeral one
 
     @Test func aTakenPersistedPortIsGivenUpForAnEphemeralOneThatIsThenPersisted() async throws {
-        let fixture = try Fixture()
+        // The app's listen wait: a bind refused with EADDRINUSE reports nothing,
+        // so this wait running out is what sends the server to an ephemeral port.
+        let fixture = try Fixture(listenTimeout: LocalAPIServer.listenWait)
         defer { fixture.removeFiles() }
         let holder = try PortHolder()
         defer { holder.close() }
@@ -131,7 +137,11 @@ private struct Fixture {
     let tokenCalls = TokenCalls()
     let server: LocalAPIServer
 
-    init() throws {
+    /// Far past anything a loaded runner takes to start listening, so a server
+    /// that was asked for a free port is never sent to the fallback.
+    static let patientListenTimeout: TimeInterval = 60
+
+    init(listenTimeout: TimeInterval = Fixture.patientListenTimeout) throws {
         guard let defaults = UserDefaults(suiteName: suiteName) else {
             throw FixtureError.noDefaults
         }
@@ -147,7 +157,8 @@ private struct Fixture {
             tokenLoader: {
                 await calls.hit()
                 return "test-token"
-            }
+            },
+            listenTimeout: listenTimeout
         )
     }
 
@@ -187,7 +198,7 @@ private actor TokenCalls {
 @MainActor
 private func until(
     _ what: String,
-    within timeout: Duration = .seconds(30),
+    within timeout: Duration = .seconds(120),
     _ condition: () -> Bool
 ) async throws {
     let deadline = ContinuousClock.now.advanced(by: timeout)

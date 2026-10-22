@@ -134,6 +134,12 @@ final class LocalAPIServer: ObservableObject {
     /// not finished by then is stuck, not slow.
     nonisolated static let releaseWait: Duration = .seconds(2)
 
+    /// How long a bind waits for FlyingFox to report it is listening before it
+    /// reads the silence as a taken port and falls back to an ephemeral one.
+    /// FlyingFox's own default. A bind refused with EADDRINUSE never reports
+    /// at all, so this wait is also how long that fallback takes.
+    nonisolated static let listenWait: TimeInterval = 5
+
     // MARK: - Environment (issue #1838)
 
     /// Where the enabled switch and the persisted port live.
@@ -143,6 +149,10 @@ final class LocalAPIServer: ObservableObject {
     /// Replaces the Keychain read in `start()`. `nil` in the app, so `start()`
     /// still reads through `LocalAPIAuth.loadOrCreateTokenOffMainActor()`.
     private let tokenLoader: (@Sendable () async -> String)?
+    /// `listenWait` in the app. A test whose server must keep the port it asked
+    /// for passes a longer one, because a test host under load can starve the
+    /// run task past 5 s and the fallback then gives that port up (issue #2398).
+    private let listenTimeout: TimeInterval
 
     private convenience init() {
         self.init(defaults: .standard, portFileURL: Self.portFileURL, tokenLoader: nil)
@@ -155,11 +165,13 @@ final class LocalAPIServer: ObservableObject {
     init(
         defaults: UserDefaults,
         portFileURL: URL,
-        tokenLoader: (@Sendable () async -> String)?
+        tokenLoader: (@Sendable () async -> String)?,
+        listenTimeout: TimeInterval = LocalAPIServer.listenWait
     ) {
         self.defaults = defaults
         self.portFileURL = portFileURL
         self.tokenLoader = tokenLoader
+        self.listenTimeout = listenTimeout
         listenerShutdown.onChange = { [weak self] ports in
             self?.closingPorts = ports
         }
@@ -396,10 +408,11 @@ final class LocalAPIServer: ObservableObject {
         // short timeout on waitUntilListening, then retry with port 0.
 
         // Wait until the kernel has assigned a port, then write the discovery file.
+        let listenTimeout = self.listenTimeout
         Task { [weak self] in
             guard let self else { return }
             do {
-                try await httpServer.waitUntilListening()
+                try await httpServer.waitUntilListening(timeout: listenTimeout)
                 let port = await Self.extractPort(from: httpServer)
                 await MainActor.run {
                     self.listeningPort = port

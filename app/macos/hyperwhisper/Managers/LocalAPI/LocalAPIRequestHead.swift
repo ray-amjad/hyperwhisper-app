@@ -111,7 +111,10 @@ final class LocalAPIWireProbe: Sendable {
             try? await server.run()
         }
         do {
-            try await server.waitUntilListening()
+            // Not FlyingFox's 5 s default: a test host under load can starve the
+            // run task that long, and this probe has no fallback to time out
+            // into (issue #2398). `LocalAPISwitchProbe` waits the same 30 s.
+            try await server.waitUntilListening(timeout: 30)
             guard let bound = await server.listeningAddress, case .ip4(_, let port) = bound, port > 0 else {
                 throw ProbeError.noPort
             }
