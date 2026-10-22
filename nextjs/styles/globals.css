@@ -215,6 +215,45 @@ body {
   }
 }
 
+/* The /latency heat map (#813). Switching the metric or the clip length
+   recolours every cell at once; the colour cross-fades on the <td> and the
+   new number fades in from a small blur, so the table reads as the same table
+   showing another measure. Opacity and blur only, no slide: 187 cells moving
+   at once would read as animated. Enumerated properties, never `all` (#668),
+   and on the cell only, so a row's hover highlight is not slowed. */
+.t-heat-cell {
+  transition:
+    background-color var(--motion-duration-micro) var(--motion-ease-in-out),
+    color var(--motion-duration-micro) var(--motion-ease-in-out);
+}
+
+@keyframes heat-swap {
+  from {
+    opacity: 0;
+    filter: blur(var(--motion-blur-small));
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+.t-heat-swap {
+  display: inline-block;
+  animation: heat-swap var(--motion-duration-micro) var(--motion-ease-in-out) both;
+}
+
+/* Reduce motion: the new colour and number land in one frame. */
+@media (prefers-reduced-motion: reduce) {
+  .t-heat-cell {
+    transition: none;
+  }
+
+  .t-heat-swap {
+    animation: none;
+  }
+}
+
 /* A box whose content changes height (#702): the script sets an explicit
    height from the measured content, and the height tweens to it. The box
    must clip its overflow itself, or the new content spills out mid-tween. */
