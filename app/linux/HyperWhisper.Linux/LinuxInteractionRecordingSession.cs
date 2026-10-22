@@ -28,12 +28,6 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private readonly LinuxLifecycleDiagnostics? _diagnostics;
     // The live "No sound from {mic}" rule (#2411), fed by both capture paths' block peaks.
     private readonly MicSilenceWatcher _micSilence;
-    private readonly ISoundEffectsService _soundEffects;
-    // The start chime plays through the speakers while capture runs. Play returns once it ended
-    // (or its 5 s player timeout); the tail covers the chime's last blocks still in the capture
-    // buffer. Neither stops the 2 s clock (#2411).
-    internal static readonly TimeSpan StartCueLongest = TimeSpan.FromSeconds(6);
-    internal static readonly TimeSpan StartCueCaptureTail = TimeSpan.FromMilliseconds(500);
     private ApplicationContextSnapshot? _context;
     private Mode? _mode;
     private Transcript? _liveTranscript;
@@ -73,8 +67,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         HistoryRepository history,
         ILinuxRecordingOverlayFeedback overlay,
         LinuxLifecycleDiagnostics? diagnostics = null,
-        MicSilenceWatcher? micSilence = null,
-        ISoundEffectsService? soundEffects = null)
+        MicSilenceWatcher? micSilence = null)
     {
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         _workflow = workflow ?? throw new ArgumentNullException(nameof(workflow));
@@ -89,7 +82,6 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         _services.LiveStreaming.AudioLevelChanged += OnAudioLevelChanged;
         _services.LiveStreaming.ConnectionStateChanged += OnStreamingConnectionStateChanged;
         _services.LiveTranscripts.TranscriptReceived += OnLiveTranscriptReceived;
-        _soundEffects = soundEffects ?? services.SoundEffects;
         _micSilence = micSilence ?? new MicSilenceWatcher();
         _micSilence.WarningChanged += OnMicSilenceChanged;
         if (_services.AudioRecorder is IAudioBlockPeakSource recorderPeaks)
@@ -233,7 +225,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         ActiveMicrophoneName = _viewModel.Recording?.SelectedAudioDevice?.Name;
         _micSilence.Start();
         await ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Succeeded);
-        if (_viewModel.Settings.EnableSoundEffects) PlayStartCue();
+        if (_viewModel.Settings.EnableSoundEffects) _ = _services.SoundEffects.Play(SoundEffect.RecordingStarted);
         _viewModel.Status.Success(_streaming ? LiveRecordingStatus : RecordingStatus);
         if (_streaming)
         {
@@ -241,20 +233,6 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             WatchLiveSessionEnd();
         }
         return PlatformResult.Success();
-    }
-
-    /// <summary>
-    /// The start chime goes to the default output while the microphone is already capturing. A
-    /// microphone that hears only that chime, or a loopback/virtual input the output feeds directly,
-    /// heard the app, not the user: counted as sound, it disarmed the "No sound from {mic}" watcher
-    /// on every recording with sound effects on (the default), so the warning never showed (#2411).
-    /// Every start path (Home, hotkey, push-to-talk, tray, streaming) plays the chime only here.
-    /// </summary>
-    private void PlayStartCue()
-    {
-        _micSilence.IgnoreHeardBlocksFor(StartCueLongest);
-        try { _ = _soundEffects.Play(SoundEffect.RecordingStarted); }
-        finally { _micSilence.IgnoreHeardBlocksFor(StartCueCaptureTail); }
     }
 
     /// <summary>The controller already stops the microphone when its worker ends, but the session
@@ -338,7 +316,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         try
         {
             Volatile.Write(ref _finishing, true);
-            if (_viewModel.Settings.EnableSoundEffects) _ = _soundEffects.Play(SoundEffect.RecordingStopped);
+            if (_viewModel.Settings.EnableSoundEffects) _ = _services.SoundEffects.Play(SoundEffect.RecordingStopped);
             InteractionStopOutcome outcome;
             if (_streaming) outcome = await StopStreamingAsync(cancellationToken);
             else

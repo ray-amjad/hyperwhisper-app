@@ -55,8 +55,7 @@ static class RecordingStatusAfterStopTests
 
     internal static async Task RunAsync(ITextInjectionService textInjection,
         Func<ApplicationShellViewModel, LinuxInteractionRecordingSession, StatusTestOverlay, Task> body,
-        HyperWhisper.PortableApplication.Audio.MicSilenceWatcher? micSilence = null,
-        ISoundEffectsService? soundEffects = null)
+        HyperWhisper.PortableApplication.Audio.MicSilenceWatcher? micSilence = null)
     {
         var root = Path.Combine(Path.GetTempPath(), $"hw-958-status-{Guid.NewGuid():N}");
         Directory.CreateDirectory(root);
@@ -86,7 +85,7 @@ static class RecordingStatusAfterStopTests
             var session = new LinuxInteractionRecordingSession(
                 shell, workflow, services,
                 new LinuxContextCaptureCoordinator(new FakeContextProvider(), new FakeOcr()),
-                new CapturingPostProcessor(), history, overlay, micSilence: micSilence, soundEffects: soundEffects);
+                new CapturingPostProcessor(), history, overlay, micSilence: micSilence);
             await body(shell, session, overlay);
         }
         finally

@@ -14,7 +14,6 @@ static class MicSilenceWatcherTests
         WarnsWhenTheDeviceDeliversNoBlocksAtAll();
         FirstHeardBlockHidesAndDisarmsForTheRestOfTheRecording();
         SoundBeforeTwoSecondsNeverWarns();
-        TheAppsOwnStartChimeIsNotTheMicrophone();
         EveryRecordingStartsAgain();
         StopHidesAndStopsWatching();
         EventsAreDeduplicatedAndIsolated();
@@ -78,37 +77,6 @@ static class MicSilenceWatcherTests
         clock.Advance(TimeSpan.FromSeconds(0.5));
         watcher.Tick();
         Check(watcher.IsWarning && events.SequenceEqual([true]), "a device that delivers nothing did not warn");
-    }
-
-    // The start chime plays while capture runs; on a loopback/virtual input fed by the output, or a
-    // mic that hears only the speakers, it arrives as loud blocks. It must not disarm the watcher.
-    private static void TheAppsOwnStartChimeIsNotTheMicrophone()
-    {
-        var (watcher, clock, events) = Create();
-        watcher.IgnoreHeardBlocksFor(TimeSpan.FromSeconds(6)); // before Start: nothing to ignore yet
-        watcher.Start();
-        Check(watcher.IsArmed, "Start did not arm");
-        watcher.IgnoreHeardBlocksFor(TimeSpan.FromSeconds(6));
-        clock.Advance(TimeSpan.FromMilliseconds(300));
-        watcher.ObserveBlockPeak(-20);
-        Check(watcher.IsArmed && events.Count == 0, "the chime disarmed the watcher");
-        // The chime ended; its last buffered blocks still arrive within the tail.
-        watcher.IgnoreHeardBlocksFor(TimeSpan.FromMilliseconds(500));
-        clock.Advance(TimeSpan.FromMilliseconds(400));
-        watcher.ObserveBlockPeak(-30);
-        clock.Advance(TimeSpan.FromSeconds(1.3));
-        watcher.Tick();
-        Check(watcher.IsWarning && events.SequenceEqual([true]), "a silent mic behind the chime did not warn at 2.0 s");
-        // After the tail, real sound hides the warning as before.
-        watcher.ObserveBlockPeak(-40);
-        Check(!watcher.IsWarning && !watcher.IsArmed && events.SequenceEqual([true, false]), "sound after the chime did not hide the warning");
-        // A new recording forgets the last window.
-        watcher.Start();
-        watcher.ObserveBlockPeak(-40);
-        Check(!watcher.IsArmed, "a window from the last recording ignored this one's sound");
-        var threw = false;
-        try { watcher.IgnoreHeardBlocksFor(TimeSpan.FromSeconds(-1)); } catch (ArgumentOutOfRangeException) { threw = true; }
-        Check(threw, "a negative window was accepted");
     }
 
     private static void FirstHeardBlockHidesAndDisarmsForTheRestOfTheRecording()

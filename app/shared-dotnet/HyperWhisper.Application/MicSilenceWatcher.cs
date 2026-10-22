@@ -40,7 +40,6 @@ public sealed class MicSilenceWatcher : IDisposable
     private readonly Func<TimeSpan> _clock;
     private readonly Timer? _timer;
     private TimeSpan _startedAt;
-    private TimeSpan _ignoreHeardUntil;
     private bool _armed;
     private bool _warning;
     private bool _published;
@@ -87,29 +86,11 @@ public sealed class MicSilenceWatcher : IDisposable
         {
             if (_disposed) return;
             _startedAt = _clock();
-            _ignoreHeardUntil = _startedAt;
             _armed = true;
             _warning = false;
             ChangeTimerLocked(running: true);
         }
         Publish();
-    }
-
-    /// <summary>
-    /// The app itself is making a sound (the start chime) for up to <paramref name="span"/> from now: a
-    /// heard block before then may be that sound, picked up by the microphone or fed straight into a
-    /// loopback input, not the room. It must not disarm the watcher, or the chime alone would hide the
-    /// warning on every recording with sound effects on. The 2 s clock keeps running. Each call replaces
-    /// the last window, so call it again with a short tail once the sound has ended.
-    /// </summary>
-    public void IgnoreHeardBlocksFor(TimeSpan span)
-    {
-        if (span < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(span));
-        lock (_gate)
-        {
-            if (_disposed || !_armed) return;
-            _ignoreHeardUntil = _clock() + span;
-        }
     }
 
     /// <summary>The recording stopped, was cancelled or failed: hide the warning and stop watching.</summary>
@@ -131,7 +112,6 @@ public sealed class MicSilenceWatcher : IDisposable
         lock (_gate)
         {
             if (_disposed || !_armed || !IsHeard(peakDbfs)) return;
-            if (_clock() < _ignoreHeardUntil) return;
             _armed = false;
             _warning = false;
             ChangeTimerLocked(running: false);
