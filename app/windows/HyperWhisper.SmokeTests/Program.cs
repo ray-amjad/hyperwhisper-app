@@ -14438,7 +14438,7 @@ internal static class Program
                 var first = await manager.FetchCreditsAsync();
                 Assert(first?.CreditsRemaining == 500, $"first read returned {first?.CreditsRemaining}");
 
-                // AddMilliseconds, not AddSeconds(59.9): see issue #379 (b) above.
+                // AddMilliseconds, not AddSeconds(59.9): see issue #379 (b) further down.
                 now = now.AddMilliseconds(59_900);
                 handler.Next = () => Respond(HttpStatusCode.OK, UsageReply(400));
                 var second = await manager.FetchCreditsAsync();
