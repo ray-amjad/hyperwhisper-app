@@ -23,34 +23,25 @@
  * (this file sets only the one variable it needs, `BETTER_AUTH_URL`).
  */
 import assert from "node:assert/strict";
-import { before, mock, test } from "node:test";
+import { before, test } from "node:test";
 
-/** See credit-routes-harness.ts: @types/node@20 has no `mock.module`. */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports: Record<string, unknown> },
-  ): void;
-}
+import { moduleMock } from "./module-mock";
 
 const resendCalls: unknown[] = [];
 
-(mock as unknown as ModuleMocker).module(
-  new URL("../lib/clients/resend.ts", import.meta.url).href,
-  {
-    namedExports: {
-      resend: {
-        emails: {
-          send: async (payload: unknown) => {
-            resendCalls.push(payload);
-            return { data: { id: "unused" }, error: null };
-          },
+moduleMock.module(new URL("../lib/clients/resend.ts", import.meta.url).href, {
+  namedExports: {
+    resend: {
+      emails: {
+        send: async (payload: unknown) => {
+          resendCalls.push(payload);
+          return { data: { id: "unused" }, error: null };
         },
       },
-      DEFAULT_FROM_EMAIL: "HyperWhisper <support@hyperwhisper.com>",
     },
+    DEFAULT_FROM_EMAIL: "HyperWhisper <support@hyperwhisper.com>",
   },
-);
+});
 
 const ORIGIN = "http://localhost:3000";
 const BASE = `${ORIGIN}/api/auth`;
