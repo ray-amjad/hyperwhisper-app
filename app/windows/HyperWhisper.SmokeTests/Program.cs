@@ -26219,6 +26219,7 @@ internal static class Program
             });
             SynchronizationContext.SetSynchronizationContext(assemblyAiPreviousContext);
             ScriptGuardPorts.RunAll(Run);
+            ScriptGuardPorts.RunKeepWarm(Run);
 
             // Issue #738: LicenseNetworkService over a scripted HttpClient (its internal
             // seam), so the rules that ACT on a server reply run without the backend.
@@ -27335,7 +27336,7 @@ internal static class Program
     /// try/catch: a stray byte pair can only resolve to some unrelated member,
     /// so a hit on the exact target is a real call site (#1534).
     /// </summary>
-    private static bool AsyncBodyCalls(MethodInfo method, MethodInfo target)
+    internal static bool AsyncBodyCalls(MethodInfo method, MethodInfo target)
     {
         const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
         var body = method;

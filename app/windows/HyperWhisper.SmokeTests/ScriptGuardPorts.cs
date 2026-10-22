@@ -531,6 +531,205 @@ internal static class ScriptGuardPorts
         });
     }
 
+    /// <summary>
+    /// The microphone keep-warm state machine (#2244), driven through its capture
+    /// seam with a fake capture, so a check sees every open and close the service
+    /// makes. It replaces the deleted verify_microphone_keep_warm_wiring.ps1, which
+    /// matched source text and failed on moved code. The Linux head has the same
+    /// rules (HyperWhisper.Linux.Platform.Tests, "microphone keep-warm ...").
+    /// </summary>
+    public static void RunKeepWarm(Action<string, Action> run)
+    {
+        run("keep-warm: re-selecting the warm device keeps the one capture (#2244)", () =>
+        {
+            var captures = new List<FakeCapture>();
+            using var keepWarm = NewKeepWarm(captures);
+
+            keepWarm.Configure(true, 2);
+            Assert(captures.Count == 1 && captures[0].Device == 2 && captures[0].Running,
+                "enabling keep-warm on device #2 did not open one running capture on #2");
+
+            // Settings and device-list refreshes call Configure again with the same
+            // device; a restart there re-pays the cold WASAPI activation.
+            keepWarm.Configure(true, 2);
+            keepWarm.Configure(true, 2);
+            Assert(captures.Count == 1 && captures[0].Running && captures[0].Stops == 0,
+                $"re-selecting the warm device restarted capture ({captures.Count} opened, {captures[0].Stops} stops)");
+
+            keepWarm.Configure(true, 5);
+            Assert(captures.Count == 2 && captures[0].Disposed && !captures[0].Running,
+                "changing device left the old capture open");
+            Assert(captures[1].Device == 5 && captures[1].Running,
+                "changing device did not open a capture on the new device");
+
+            // -1 is NAudio's system-default device: a device, not "no device".
+            keepWarm.Configure(true, -1);
+            Assert(captures.Count == 3 && captures[2].Device == -1 && captures[2].Running,
+                "the system-default device (-1) did not open a capture");
+
+            keepWarm.Configure(true, null);
+            Assert(captures.TrueForAll(c => c.Disposed) && captures.Count == 3,
+                "no selected device left a capture open, or opened one");
+
+            keepWarm.Configure(true, 5);
+            keepWarm.Configure(false, 5);
+            Assert(captures.Count == 4 && captures[3].Disposed,
+                "disabling keep-warm left the capture open");
+            keepWarm.Configure(false, 5);
+            Assert(captures.Count == 4, "keep-warm opened a capture while disabled");
+        });
+
+        run("keep-warm: a recording suspends it and stop/cancel resume it (#2244)", () =>
+        {
+            var captures = new List<FakeCapture>();
+            using var keepWarm = NewKeepWarm(captures);
+            keepWarm.Configure(true, 3);
+
+            // Start: the real recorder opens the same endpoint next, so the idle
+            // stream must be closed before it.
+            keepWarm.SuspendForRecording();
+            Assert(captures.Count == 1 && captures[0].Disposed && !captures[0].Running,
+                "starting a recording left the keep-warm capture open");
+
+            // A settings or device change mid-recording must not reopen it.
+            keepWarm.Configure(true, 3);
+            keepWarm.Configure(true, 4);
+            Assert(captures.Count == 1, "keep-warm reopened the microphone during a recording");
+
+            // Stop (or cancel, the same call): reopen on the device the app has now.
+            keepWarm.ResumeAfterRecording(4);
+            Assert(captures.Count == 2 && captures[1].Device == 4 && captures[1].Running,
+                "stopping the recording did not reopen keep-warm on the selected device");
+
+            // A cancel straight after a stop resumes twice: still one capture.
+            keepWarm.ResumeAfterRecording(4);
+            Assert(captures.Count == 2 && captures[1].Running,
+                "resuming twice opened a second capture");
+
+            // A recording while keep-warm is off resumes to off.
+            keepWarm.Configure(false, 4);
+            keepWarm.SuspendForRecording();
+            keepWarm.ResumeAfterRecording(4);
+            Assert(captures.Count == 2 && captures[1].Disposed,
+                "a recording with keep-warm off opened the microphone when it ended");
+        });
+
+        run("keep-warm: a failed or dropped capture recovers only while it is wanted (#2244)", () =>
+        {
+            var captures = new List<FakeCapture>();
+            var failStarts = 1;
+            using var keepWarm = new MicrophoneKeepWarmService(device =>
+            {
+                var capture = new FakeCapture(device, failStart: failStarts-- > 0);
+                captures.Add(capture);
+                return capture;
+            });
+
+            keepWarm.Configure(true, 1);
+            Assert(captures.Count == 1 && captures[0].Disposed && !captures[0].Running,
+                "a capture that failed to start was not disposed");
+            keepWarm.Configure(true, 1);
+            Assert(captures.Count == 2 && captures[1].Running,
+                "after a failed start, the next Configure did not try again");
+
+            // The device vanishes: NAudio stops with an error, and keep-warm reopens.
+            captures[1].Fail();
+            Assert(captures[1].Disposed && captures.Count == 3 && captures[2].Device == 1 && captures[2].Running,
+                "an unexpected capture stop did not reopen keep-warm");
+
+            // A stop raised by a capture keep-warm already let go of changes nothing.
+            captures[1].Fail();
+            Assert(captures.Count == 3 && captures[2].Running,
+                "a stale capture's stop event replaced the live capture");
+
+            // During a recording, an error stop (raised late by the closed capture)
+            // must not reopen the microphone.
+            keepWarm.SuspendForRecording();
+            captures[2].Fail();
+            Assert(captures.Count == 3, "an error stop reopened keep-warm during a recording");
+            keepWarm.ResumeAfterRecording(1);
+            Assert(captures.Count == 4 && captures[3].Running, "keep-warm did not resume after the recording");
+
+            keepWarm.Dispose();
+            Assert(captures[3].Disposed, "disposing keep-warm left the capture open");
+            keepWarm.Configure(true, 1);
+            keepWarm.ResumeAfterRecording(1);
+            Assert(captures.Count == 4, "keep-warm opened a capture after it was disposed");
+        });
+
+        run("keep-warm: MainViewModel suspends it before recording and resumes it on stop, cancel and failed start (#2244)", () =>
+        {
+            const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+            MethodInfo Vm(string name) => typeof(MainViewModel).GetMethod(name, all)
+                ?? throw new MissingMethodException(nameof(MainViewModel), name);
+            MethodInfo KeepWarm(string name) => typeof(MicrophoneKeepWarmService).GetMethod(name)
+                ?? throw new MissingMethodException(nameof(MicrophoneKeepWarmService), name);
+
+            Assert(Program.AsyncBodyCalls(Vm("SuspendMicrophoneKeepWarm"), KeepWarm(nameof(MicrophoneKeepWarmService.SuspendForRecording))),
+                "SuspendMicrophoneKeepWarm no longer suspends the keep-warm service");
+            Assert(Program.AsyncBodyCalls(Vm("ResumeMicrophoneKeepWarm"), KeepWarm(nameof(MicrophoneKeepWarmService.ResumeAfterRecording))),
+                "ResumeMicrophoneKeepWarm no longer resumes the keep-warm service");
+            Assert(Program.AsyncBodyCalls(Vm("UpdateMicrophoneKeepWarm"), KeepWarm(nameof(MicrophoneKeepWarmService.Configure))),
+                "UpdateMicrophoneKeepWarm no longer configures the keep-warm service");
+
+            Assert(Program.AsyncBodyCalls(Vm("StartRecordingAsync"), Vm("SuspendMicrophoneKeepWarm")),
+                "StartRecordingAsync no longer suspends keep-warm before opening the recorder");
+            foreach (var resumer in new[] { "StopRecordingAndTranscribeAsync", "CancelRecordingAsync", "CancelStreamingRecordingAsync", "CleanupFailedRecordingStart" })
+            {
+                Assert(Program.AsyncBodyCalls(Vm(resumer), Vm("ResumeMicrophoneKeepWarm")),
+                    $"{resumer} no longer resumes keep-warm, so the microphone stays cold after it");
+            }
+        });
+    }
+
+    private static MicrophoneKeepWarmService NewKeepWarm(List<FakeCapture> captures) =>
+        new(device =>
+        {
+            var capture = new FakeCapture(device);
+            captures.Add(capture);
+            return capture;
+        });
+
+    /// <summary>A capture that records what keep-warm did to it, and can fail like a pulled device.</summary>
+    private sealed class FakeCapture(int device, bool failStart = false) : NAudio.Wave.IWaveIn
+    {
+        public int Device { get; } = device;
+        public bool Running { get; private set; }
+        public bool Disposed { get; private set; }
+        public int Stops { get; private set; }
+        public NAudio.Wave.WaveFormat WaveFormat { get; set; } = new(16000, 16, 1);
+
+        public event EventHandler<NAudio.Wave.WaveInEventArgs>? DataAvailable;
+        public event EventHandler<NAudio.Wave.StoppedEventArgs>? RecordingStopped;
+
+        public void StartRecording()
+        {
+            Assert(!Disposed, $"keep-warm started a disposed capture on device #{Device}");
+            if (failStart)
+                throw new InvalidOperationException("device busy");
+            Running = true;
+            DataAvailable?.Invoke(this, new NAudio.Wave.WaveInEventArgs(new byte[320], 320));
+        }
+
+        public void StopRecording()
+        {
+            Stops++;
+            Running = false;
+        }
+
+        public void Fail()
+        {
+            Running = false;
+            RecordingStopped?.Invoke(this, new NAudio.Wave.StoppedEventArgs(new InvalidOperationException("device removed")));
+        }
+
+        public void Dispose()
+        {
+            Running = false;
+            Disposed = true;
+        }
+    }
+
     private sealed class WhitespaceProvider : ITranscriptionProvider
     {
         public const string ProviderName = "G830 Silent Provider";
