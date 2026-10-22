@@ -133,18 +133,11 @@ public class ApiKeyService
     }
 
     /// <summary>
-    /// The shortest key a post-processing provider accepts. Every vendor's key
-    /// today is longer; this only stops a truncated paste or a stray word.
-    /// </summary>
-    public const int MinKeyLength = 20;
-
-    /// <summary>
-    /// Whether a bring-your-own-key provider will take this text as a key: not
-    /// blank, and at least <see cref="MinKeyLength"/> characters once trimmed.
-    /// This is NOT a validity check, and it checks no prefix: vendors change
-    /// their key formats (Google's newer Gemini keys do not start with "AIza"),
-    /// and a prefix rule then refuses working keys. A wrong key fails at the
-    /// provider, which says so.
+    /// Whether a bring-your-own-key provider will take this text as a key: it
+    /// only has to be non-blank. There is deliberately no prefix and no length
+    /// rule: vendors change their key formats (Google's newer Gemini keys do not
+    /// start with "AIza"), and a shape rule then refuses working keys. A wrong
+    /// key fails at the provider, which says so.
     /// </summary>
     /// <param name="provider">The provider to validate against.</param>
     /// <param name="key">The API key to validate.</param>
@@ -159,15 +152,14 @@ public class ApiKeyService
             PostProcessingProvider.Grok or
             PostProcessingProvider.Gemini or
             PostProcessingProvider.Cerebras or
-            PostProcessingProvider.Mistral => IsLongEnough(key, MinKeyLength),
+            PostProcessingProvider.Mistral => IsPresent(key),
 
             // None, HyperWhisper Cloud and the local engine take no key.
             _ => false
         };
     }
 
-    private static bool IsLongEnough(string? key, int minLength) =>
-        !string.IsNullOrWhiteSpace(key) && key.Trim().Length >= minLength;
+    private static bool IsPresent(string? key) => !string.IsNullOrWhiteSpace(key);
 
     /// <summary>
     /// Gets a masked version of the API key for display (e.g., "sk-...abc123").
@@ -255,15 +247,14 @@ public class ApiKeyService
     }
 
     /// <summary>
-    /// Validates the format of an API key for a transcription provider without a primary post-processing provider:
-    /// not blank, and at least <c>GetMinLength()</c> characters once trimmed. No prefix check, for the reason on
-    /// the post-processing overload.
+    /// Validates an API key for a transcription provider without a primary post-processing provider: it only
+    /// has to be non-blank, for the reason on the post-processing overload.
     /// </summary>
     /// <param name="type">The transcription API key type to validate against.</param>
     /// <param name="key">The API key to validate.</param>
     /// <returns>True if the key format appears valid.</returns>
     public static bool IsValidKeyFormat(TranscriptionApiKeyType type, string? key) =>
-        IsLongEnough(key, type.GetMinLength());
+        IsPresent(key);
 
     /// <summary>
     /// Gets a masked version of the API key for a transcription provider without a primary post-processing provider.

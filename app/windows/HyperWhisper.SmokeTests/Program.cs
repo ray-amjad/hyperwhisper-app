@@ -14306,7 +14306,8 @@ internal static class Program
             {
                 // Google's newer Gemini keys do not start with "AIza". The prefix rule
                 // refused them with "Invalid API key format" on Windows and Linux; a
-                // wrong key fails at the provider anyway. Only blank and short are refused.
+                // wrong key fails at the provider anyway. Only a blank key is refused:
+                // no prefix and no length rule, for every provider.
                 var newGeminiKey = "AQ." + new string('k', 37);
                 Assert(ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.GeminiTranscribe, newGeminiKey),
                     "a Gemini 3.5 Transcribe key that does not start with AIza is refused");
@@ -14315,8 +14316,7 @@ internal static class Program
                 Assert(ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.GeminiTranscribe, "AIza" + new string('k', 35)),
                     "an AIza Gemini key is refused");
 
-                // The same for every other vendor that had a prefix rule.
-                var unprefixed = new string('k', ApiKeyService.MinKeyLength);
+                // The same for every vendor: any non-blank text, however short, is a key.
                 foreach (var provider in new[]
                 {
                     PostProcessingProvider.OpenAI, PostProcessingProvider.Anthropic, PostProcessingProvider.Groq,
@@ -14324,24 +14324,15 @@ internal static class Program
                     PostProcessingProvider.Mistral,
                 })
                 {
-                    Assert(ApiKeyService.IsValidKeyFormat(provider, unprefixed),
-                        $"a {provider} key with no vendor prefix is refused");
-                    Assert(!ApiKeyService.IsValidKeyFormat(provider, unprefixed[1..]),
-                        $"a {provider} key shorter than {ApiKeyService.MinKeyLength} characters is accepted");
+                    Assert(ApiKeyService.IsValidKeyFormat(provider, "k"), $"a short {provider} key is refused");
                     Assert(!ApiKeyService.IsValidKeyFormat(provider, "   "), $"a blank {provider} key is accepted");
                     Assert(!ApiKeyService.IsValidKeyFormat(provider, null), $"a null {provider} key is accepted");
                 }
                 foreach (var type in Enum.GetValues<TranscriptionApiKeyType>())
                 {
-                    var min = type.GetMinLength();
-                    Assert(min <= ApiKeyService.MinKeyLength, $"{type} needs {min} characters, over the shared floor");
-                    Assert(ApiKeyService.IsValidKeyFormat(type, new string('k', min)),
-                        $"a {type} key with no vendor prefix is refused");
-                    Assert(!ApiKeyService.IsValidKeyFormat(type, new string('k', min - 1)),
-                        $"a {type} key shorter than {min} characters is accepted");
-                    // Whitespace around a paste does not count toward the length.
-                    Assert(!ApiKeyService.IsValidKeyFormat(type, " " + new string('k', min - 1) + " "),
-                        $"padding made a short {type} key long enough");
+                    Assert(ApiKeyService.IsValidKeyFormat(type, "k"), $"a short {type} key is refused");
+                    Assert(!ApiKeyService.IsValidKeyFormat(type, " \t "), $"a blank {type} key is accepted");
+                    Assert(!ApiKeyService.IsValidKeyFormat(type, null), $"a null {type} key is accepted");
                 }
                 Assert(!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.None, newGeminiKey),
                     "a key for no provider is accepted");

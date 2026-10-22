@@ -78,7 +78,7 @@ public partial class ProviderApiKeyWindow : Window
         Close();
     }
 
-    private async void OnSave(object? sender, RoutedEventArgs e)
+    private void OnSave(object? sender, RoutedEventArgs e)
     {
         if (_credentials is null) { Close(); return; }
         var secret = (this.FindControl<TextBox>("ProviderKeyInput")?.Text ?? string.Empty).Trim();
@@ -89,18 +89,9 @@ public partial class ProviderApiKeyWindow : Window
         // key. Clearing is what the Clear button is for, and it is right next to Save.
         if (string.IsNullOrWhiteSpace(secret)) { Close(); return; }
 
-        // Windows refuses a key that cannot be one, before it ever reaches the store
-        // (ProviderApiKeyWindow.xaml.cs:112-116). Linux saved anything, so a pasted account id or
-        // a truncated key became a "configured" provider that then failed at transcription time
-        // with a bare 401.
-        if (!IsValidKeyFormat(_account, secret))
-        {
-            await ConfirmWindow.ShowNoticeAsync(this,
-                L("providerApiKey.invalid.title"),
-                LF("providerApiKey.invalid.message", _displayName));
-            return;
-        }
-
+        // No shape check after this: a key only has to be non-blank. Vendors change their key
+        // formats (Google's newer Gemini keys do not start with "AIza", which a prefix rule here
+        // refused), and a wrong key fails at the provider, which says so.
         _credentials.SelectAccount(_account);
         _credentials.Secret = secret;
         if (_credentials.SaveCommand.CanExecute(null)) _credentials.SaveCommand.Execute(null);
@@ -115,32 +106,6 @@ public partial class ProviderApiKeyWindow : Window
             return;
         }
         Close();
-    }
-
-    /// <summary>
-    /// Windows' key-length rule, keyed on the credential-store account id Linux carries: the
-    /// lengths come from <c>ApiKeyService.IsValidKeyFormat(PostProcessingProvider)</c>
-    /// (<c>MinKeyLength</c>) and <c>TranscriptionApiKeyType.GetMinLength</c>.
-    ///
-    /// There is deliberately no prefix rule. Vendors change their key formats: Google's newer
-    /// Gemini keys do not start with "AIza", and an "AIza" rule refused working keys. A wrong key
-    /// fails at the provider, which says so.
-    ///
-    /// An account the table does not name is accepted at a length of 10, as Windows' transcription
-    /// table does. A custom or newly added provider must not become unconfigurable on Linux alone.
-    /// </summary>
-    internal static bool IsValidKeyFormat(string account, string? key)
-    {
-        if (string.IsNullOrWhiteSpace(key)) return false;
-        // Soniox, Meta and any other account keep Windows' floor of 10.
-        var minLength = account switch
-        {
-            "OpenAIApiKey" or "AnthropicApiKey" or "GroqApiKey" or "CerebrasApiKey" or "GrokApiKey"
-                or "GeminiApiKey" or "GeminiTranscribeApiKey" or "DeepgramApiKey" or "AssemblyAIApiKey"
-                or "ElevenLabsApiKey" or "MistralApiKey" => 20,
-            _ => 10,
-        };
-        return key.Trim().Length >= minLength;
     }
 
     private void OnCancel(object? sender, RoutedEventArgs e) => Close();

@@ -33,7 +33,7 @@ public enum TranscriptionApiKeyType
     Grok,
 
     /// <summary>
-    /// Google Gemini 3.5 Transcribe. Same "AIza" key shape as the Gemini
+    /// Google Gemini 3.5 Transcribe. Same kind of Google key as the Gemini
     /// post-processing key but a SEPARATE slot — the two are different APIs and
     /// users may hold different keys for them.
     /// </summary>
@@ -81,26 +81,6 @@ public static class TranscriptionApiKeyTypeExtensions
         TranscriptionApiKeyType.GeminiTranscribe => "Gemini 3.5 Transcribe",
         TranscriptionApiKeyType.Meta => "Meta",
         _ => type.ToString()
-    };
-
-    /// <summary>
-    /// Gets the minimum key length for format validation.
-    /// Keys shorter than this are considered invalid. There is deliberately no
-    /// prefix rule: vendors change key formats, and Google's newer Gemini keys
-    /// do not start with "AIza". Never above ApiKeyService.MinKeyLength, so a
-    /// vendor that shortens its keys is not refused here either.
-    /// </summary>
-    public static int GetMinLength(this TranscriptionApiKeyType type) => type switch
-    {
-        TranscriptionApiKeyType.Deepgram => 20,
-        TranscriptionApiKeyType.AssemblyAI => 20,
-        TranscriptionApiKeyType.ElevenLabs => 20,
-        TranscriptionApiKeyType.Mistral => 20,
-        TranscriptionApiKeyType.Soniox => 10,
-        TranscriptionApiKeyType.Grok => 20,
-        TranscriptionApiKeyType.GeminiTranscribe => 20,
-        TranscriptionApiKeyType.Meta => 10,
-        _ => 10
     };
 
     /// <summary>
