@@ -13,12 +13,26 @@
 //  that `stop()` now waits behind an in-flight read on the meter queue, and that
 //  `stopRecording()` keeps the main thread free and gives up after its deadline.
 //
+//  #1866: no outcome here rests on a wall-clock race. A loaded macOS runner once
+//  stalled the whole test process for ~45 s, and six of these failed on 30 s
+//  waits and on a 500 ms stop deadline racing a 100 ms sleep. Every wait for
+//  something that MUST happen now waits for the event itself, bounded only by
+//  `hangFailsafe`, and the stop deadline is fired by the test (`ManualDeadline`).
+//  The short windows left (0.3 s, 0.5 s) only check that something does NOT
+//  happen, so a slow machine can make them pass, never fail.
+//
 
 import AVFoundation
 import Foundation
 import os
 import Testing
 @testable import HyperWhisper
+
+/// How long a wait for something that must happen may run before the test
+/// gives up on it as a hang. A failsafe, not a synchronisation device: no
+/// assertion depends on it firing, and it is far past any stall a loaded
+/// runner has shown (#1866: ~45 s).
+private let hangFailsafe: Double = 300
 
 /// A fake meter reader that blocks until the test releases it, and records the
 /// thread and the number of reads.
@@ -54,14 +68,14 @@ private final class BlockingMeterReader: @unchecked Sendable {
         entered.signal()
         if blocks {
             // Only the test's `release()` should end the block (#1216).
-            _ = releaseSemaphore.wait(timeout: .now() + 60)
+            _ = releaseSemaphore.wait(timeout: .now() + hangFailsafe)
         }
         state.withLock { $0.readsInProgress -= 1 }
         return level
     }
 
     /// True once a read has been entered, or false after `timeout` seconds.
-    func waitUntilEntered(timeout: Double = 30) async -> Bool {
+    func waitUntilEntered(timeout: Double = hangFailsafe) async -> Bool {
         await waitOffThePool(for: entered, seconds: timeout)
     }
 
@@ -103,8 +117,38 @@ private final class RecordingStopper: @unchecked Sendable {
     }
 
     /// True once a stop has run, or false after `timeout` seconds.
-    func waitUntilStopped(timeout: Double = 30) async -> Bool {
+    func waitUntilStopped(timeout: Double = hangFailsafe) async -> Bool {
         await waitOffThePool(for: stopped, seconds: timeout)
+    }
+}
+
+/// A stop deadline the test fires by hand, so whether a stop times out never
+/// depends on how fast a loaded machine runs the stop against a timer (#1866).
+private final class ManualDeadline: @unchecked Sendable {
+    private let pending = OSAllocatedUnfairLock<[@Sendable () -> Void]>(initialState: [])
+    private let armed = DispatchSemaphore(value: 0)
+
+    /// A deadline that fires as soon as the stop is queued.
+    static let immediately: DeadlineGate.Deadline = { fire in fire() }
+
+    var deadline: DeadlineGate.Deadline {
+        { [self] fire in
+            pending.withLock { $0.append(fire) }
+            armed.signal()
+        }
+    }
+
+    /// True once a stop has queued its work and armed this deadline.
+    func waitUntilArmed() async -> Bool {
+        await waitOffThePool(for: armed, seconds: hangFailsafe)
+    }
+
+    func fire() {
+        let fires = pending.withLock { current -> [@Sendable () -> Void] in
+            defer { current.removeAll() }
+            return current
+        }
+        for fire in fires { fire() }
     }
 }
 
@@ -138,7 +182,7 @@ struct SimpleRecorderMeterReadTests {
     }
 
     /// True once the pending read has come back to the main actor.
-    private static func waitUntilReadSettles(_ recorder: SimpleRecorder, seconds: Double = 30) async -> Bool {
+    private static func waitUntilReadSettles(_ recorder: SimpleRecorder, seconds: Double = hangFailsafe) async -> Bool {
         let deadline = Date().addingTimeInterval(seconds)
         while recorder.meterReadInFlight {
             if Date() > deadline { return false }
@@ -154,7 +198,7 @@ struct SimpleRecorderMeterReadTests {
 
         recorder.requestMeterRead(from: try Self.makeAVRecorder())
 
-        // An inline read would have blocked here to its 60 s cap.
+        // An inline read would have blocked here until `release()`.
         #expect(await reader.waitUntilEntered())
         #expect(reader.ranOnMainThread == false)
         #expect(recorder.meterReadInFlight)
@@ -214,10 +258,11 @@ struct SimpleRecorderMeterReadTests {
         recorder.requestMeterRead(from: avRecorder)
         #expect(await reader.waitUntilEntered())
 
-        // The stop now waits behind the stuck read (#1359); a short deadline lets
-        // it give up so the test can go on while the read is still blocked.
-        recorder.stopTimeout = .milliseconds(100)
-        _ = await recorder.stopRecording()
+        // The stop now waits behind the stuck read (#1359); a deadline that fires
+        // at once lets it give up so the test can go on while the read is still
+        // blocked.
+        recorder.stopDeadline = ManualDeadline.immediately
+        #expect(await recorder.stopRecording() == .timedOut)
         // `stopRecording()` empties the slot, which alone would drop the level.
         // Put the same recorder back so the identity guard passes: the
         // `startGeneration` bump from the stop is then the only thing that can
@@ -237,6 +282,11 @@ struct SimpleRecorderMeterReadTests {
         let stopper = RecordingStopper(watching: reader)
         let recorder = Self.makeRecorder(reader: reader)
         recorder.recorderStopper = { stopper.stop($0) }
+        // This test is about ordering, not the deadline: the stop must wait for
+        // the read however long the machine takes to get there, so its deadline
+        // is never fired. Arming it also tells the test the stop is queued.
+        let deadline = ManualDeadline()
+        recorder.stopDeadline = deadline.deadline
         let avRecorder = try Self.makeAVRecorder()
         recorder.installRecorderForTesting(avRecorder)
 
@@ -245,7 +295,10 @@ struct SimpleRecorderMeterReadTests {
 
         let stop = Task { await recorder.stopRecording() }
 
-        // The read is stuck, so the stop must still be queued behind it.
+        // The stop is on the meter queue behind the stuck read once its deadline
+        // is armed (`DeadlineGate.run` queues the work first). It must not run
+        // while the read is stuck.
+        #expect(await deadline.waitUntilArmed())
         #expect(await stopper.waitUntilStopped(timeout: 0.5) == false)
         #expect(stopper.stopCount == 0)
 
@@ -262,7 +315,8 @@ struct SimpleRecorderMeterReadTests {
         let stopper = RecordingStopper(watching: reader)
         let recorder = Self.makeRecorder(reader: reader)
         recorder.recorderStopper = { stopper.stop($0) }
-        recorder.stopTimeout = .milliseconds(500)
+        let deadline = ManualDeadline()
+        recorder.stopDeadline = deadline.deadline
         let avRecorder = try Self.makeAVRecorder()
         recorder.installRecorderForTesting(avRecorder)
 
@@ -270,24 +324,26 @@ struct SimpleRecorderMeterReadTests {
         #expect(await reader.waitUntilEntered())
 
         let returned = Flag()
-        let started = Date()
         let stop = Task { () -> RecorderStopOutcome in
             let outcome = await recorder.stopRecording()
             returned.isSet = true
             return outcome
         }
 
-        // This test runs on the main actor. Getting back here while the stop is
-        // still waiting proves the wait does not hold the main thread.
-        try await Task.sleep(nanoseconds: 100_000_000)
+        // The stop has queued itself behind the stuck read and armed its deadline.
+        // Nothing can end it yet. This test runs on the main actor: getting back
+        // here while the stop is still waiting proves the wait does not hold the
+        // main thread.
+        #expect(await deadline.waitUntilArmed())
         #expect(returned.isSet == false)
         #expect(recorder.isRecording == false)
         #expect(recorder.audioLevel == 0)
 
         // The read is still stuck, so the stop gives up at its deadline instead
-        // of waiting for the read (the reader blocks for up to 60 s).
+        // of waiting for the read.
+        deadline.fire()
         #expect(await stop.value == .timedOut)
-        #expect(Date().timeIntervalSince(started) < 10)
+        #expect(returned.isSet)
         #expect(stopper.stopCount == 0)
 
         // The stop is not abandoned: it runs as soon as the read returns, so the
@@ -303,6 +359,9 @@ struct SimpleRecorderMeterReadTests {
         let stopper = RecordingStopper(watching: reader)
         let recorder = Self.makeRecorder(reader: reader)
         recorder.recorderStopper = { stopper.stop($0) }
+        // A deadline nobody fires: on a stalled machine the 5 s production timer
+        // could beat the idle queue to the stop (#1866).
+        recorder.stopDeadline = ManualDeadline().deadline
         recorder.installRecorderForTesting(try Self.makeAVRecorder())
 
         #expect(await recorder.stopRecording() == .stopped)

@@ -14,7 +14,8 @@ import os
 /// read) are thin wrappers around it, so a fix to the race or timing logic
 /// here reaches both.
 ///
-/// - The caller stops waiting after `timeout` and gets `.timedOut`.
+/// - The caller stops waiting when the deadline fires (`timeout` after the call
+///   starts, unless a test injects its own `Deadline`) and gets `.timedOut`.
 /// - Blocking work cannot be cancelled, so it keeps running. When it finally
 ///   returns, its value goes to `discardLate` instead of to the caller.
 /// - `hasAbandonedWork` stays true until every timed-out call has left the
@@ -47,16 +48,33 @@ final class DeadlineGate: @unchecked Sendable {
         case timedOut
     }
 
+    /// Arms one call's deadline: calls `fire` once the caller should stop
+    /// waiting. Production uses `after(_:)`. Test seam (#1866): a test passes
+    /// one it fires by hand, so its outcome does not depend on how fast a loaded
+    /// machine schedules a timer against the work.
+    typealias Deadline = @Sendable (_ fire: @escaping @Sendable () -> Void) -> Void
+
+    /// A deadline that fires `timeout` from the moment the call starts.
+    static func after(_ timeout: DispatchTimeInterval) -> Deadline {
+        { fire in
+            DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + timeout, execute: fire)
+        }
+    }
+
     private let queue: DispatchQueue
-    private let timeout: DispatchTimeInterval
+    private let deadline: Deadline
     private let queuedPastDeadline: QueuedPastDeadline
 
     /// Timed-out calls whose block has not left `queue` yet.
     private let abandonedCount = OSAllocatedUnfairLock(initialState: 0)
 
-    init(queue: DispatchQueue, timeout: DispatchTimeInterval, queuedPastDeadline: QueuedPastDeadline) {
+    convenience init(queue: DispatchQueue, timeout: DispatchTimeInterval, queuedPastDeadline: QueuedPastDeadline) {
+        self.init(queue: queue, deadline: DeadlineGate.after(timeout), queuedPastDeadline: queuedPastDeadline)
+    }
+
+    init(queue: DispatchQueue, deadline: @escaping Deadline, queuedPastDeadline: QueuedPastDeadline) {
         self.queue = queue
-        self.timeout = timeout
+        self.deadline = deadline
         self.queuedPastDeadline = queuedPastDeadline
     }
 
@@ -67,7 +85,7 @@ final class DeadlineGate: @unchecked Sendable {
     }
 
     /// Run `work` on the queue and return `.finished` with its value, or
-    /// `.timedOut` once `timeout` passes.
+    /// `.timedOut` once the deadline fires.
     ///
     /// - Parameter discardLate: receives the value of a call that finished only
     ///   after the caller had stopped waiting. Runs on the queue, before the
@@ -106,7 +124,7 @@ final class DeadlineGate: @unchecked Sendable {
                 self.abandonedCount.withLock { $0 -= 1 }
             }
 
-            DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + timeout) {
+            deadline {
                 let timedOut = state.withLock { current -> Bool in
                     guard current == .pending else { return false }
                     current = .timedOut
