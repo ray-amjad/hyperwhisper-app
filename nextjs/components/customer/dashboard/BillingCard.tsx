@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "@/lib/trpc/client";
+import { Spinner } from "@/components/ui/Spinner";
 
 export default function BillingCard() {
   const { data: billing } = api.customer.billingProviders.useQuery();
@@ -16,9 +17,10 @@ export default function BillingCard() {
           <button
             onClick={() => stripePortalMutation.mutate()}
             disabled={stripePortalMutation.isPending}
-            className="px-4 py-2 text-sm text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
           >
-            {stripePortalMutation.isPending ? "Opening..." : "Stripe Portal"}
+            {stripePortalMutation.isPending && <Spinner className="w-4 h-4" />}
+            Stripe Portal
           </button>
         )}
         {billing?.hasPolar && (
