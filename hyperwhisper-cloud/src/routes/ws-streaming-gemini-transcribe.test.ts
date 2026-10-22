@@ -12,6 +12,7 @@ import {
   fakeContext,
   textMessage,
 } from './ws-streaming-test-support';
+import { stubEnv } from '../test-support/env';
 
 type CachedLicense = { isValid: boolean; credits: number; cachedAt: string };
 
@@ -50,8 +51,8 @@ const {
 
 const originalFetch = globalThis.fetch;
 const originalWebSocket = globalThis.WebSocket;
-const originalApiKey = process.env.GEMINI_API_KEY;
-const originalAltApiKey = process.env.GOOGLE_GEMINI_API_KEY;
+let restoreApiKey: () => void;
+let restoreAltApiKey: () => void;
 
 const BYTES_PER_SECOND = 16000 * 1 * 2;
 
@@ -409,8 +410,8 @@ describe('gemini live socket lifecycle', () => {
   beforeEach(() => {
     licenseCharges.length = 0;
     upstreamSockets.length = 0;
-    process.env.GEMINI_API_KEY = 'test-gemini-key';
-    delete process.env.GOOGLE_GEMINI_API_KEY;
+    restoreApiKey = stubEnv('GEMINI_API_KEY', 'test-gemini-key');
+    restoreAltApiKey = stubEnv('GOOGLE_GEMINI_API_KEY', undefined);
     globalThis.WebSocket = FakeUpstreamSocket as unknown as typeof WebSocket;
     globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
       const target = typeof input === 'string' ? input : input.toString();
@@ -425,10 +426,8 @@ describe('gemini live socket lifecycle', () => {
   afterEach(() => {
     globalThis.fetch = originalFetch;
     globalThis.WebSocket = originalWebSocket;
-    if (originalApiKey === undefined) delete process.env.GEMINI_API_KEY;
-    else process.env.GEMINI_API_KEY = originalApiKey;
-    if (originalAltApiKey === undefined) delete process.env.GOOGLE_GEMINI_API_KEY;
-    else process.env.GOOGLE_GEMINI_API_KEY = originalAltApiKey;
+    restoreApiKey();
+    restoreAltApiKey();
   });
 
   test('closes the session when no Gemini key is configured, without dialling upstream', () => {
