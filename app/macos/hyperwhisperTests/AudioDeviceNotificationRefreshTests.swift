@@ -280,14 +280,14 @@ struct AudioDeviceNotificationRefreshTests {
     @Test func scanDurationExcludesDelayBeforeMainActorCanResume() async {
         let probe = NotificationScanProbe()
         let providerStart = OSAllocatedUnfairLock<UInt64>(initialState: 0)
-        let providerReturned = NotificationScanGate()
+        let providerGate = NotificationScanGate()
         let mainActorGate = NotificationScanGate()
         let manager = AudioDeviceManager(
             registerNotificationListeners: false,
             notificationSnapshotProvider: { _ in
-                _ = probe.beginCall()
                 providerStart.withLock { $0 = DispatchTime.now().uptimeNanoseconds }
-                providerReturned.release()
+                _ = probe.beginCall()
+                providerGate.wait()
                 return notificationSnapshot(devices: [notificationFirstDevice])
             },
             notificationScanReporter: { report in probe.record(report) }
@@ -298,14 +298,15 @@ struct AudioDeviceNotificationRefreshTests {
         }
         await Self.waitUntil { probe.calls == 1 }
 
-        // Hold the main actor only after the provider has returned. A duration that
+        // Let the provider return only while this test holds the main actor, so the
+        // scan cannot resume on the main actor until the hold ends. A duration that
         // wrongly ran until the main actor resumed is then at least the time from the
         // provider's start to the end of the hold. That bound is measured, not a fixed
         // wall-clock limit, so a slow runner cannot fail a correct scan (#2401).
-        providerReturned.wait()
         DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(150)) {
             mainActorGate.release()
         }
+        providerGate.release()
         mainActorGate.wait()
         let mainActorResumeNanoseconds = DispatchTime.now().uptimeNanoseconds
         let providerStartToMainActorResumeMs = Int(
