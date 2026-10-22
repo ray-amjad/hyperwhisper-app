@@ -134,7 +134,7 @@ export default function FooterSection() {
             <HeroUILink
               isExternal
               aria-label={t("linkedinAria")}
-              className="text-gray-400 hover:text-white transition-colors"
+              className="text-gray-400 hover:text-white transition-[color,opacity]"
               href="https://www.linkedin.com/company/hyperwhisper/"
             >
               <Linkedin className="w-5 h-5" />
@@ -142,7 +142,7 @@ export default function FooterSection() {
             <HeroUILink
               isExternal
               aria-label="Follow HyperWhisper on X (Twitter)"
-              className="text-gray-400 hover:text-white transition-colors"
+              className="text-gray-400 hover:text-white transition-[color,opacity]"
               href="https://x.com/HyperWhisperApp"
             >
               <Twitter className="w-5 h-5" />
@@ -150,7 +150,7 @@ export default function FooterSection() {
             <HeroUILink
               isExternal
               aria-label="HyperWhisper on GitHub"
-              className="text-gray-400 hover:text-white transition-colors"
+              className="text-gray-400 hover:text-white transition-[color,opacity]"
               href="https://github.com/ray-amjad/hyperwhisper-app"
             >
               <Github className="w-5 h-5" />

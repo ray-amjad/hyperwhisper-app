@@ -8,6 +8,7 @@ import { errorSentence } from "@/lib/trpc/input-error";
 import { formatDate } from "@/lib/format-date";
 import { ICON_SWAP } from "@/lib/icon-swap";
 import { CREDITS_PER_MINUTE } from "@/lib/credits-per-minute";
+import { AnimatedDialog } from "@/components/AnimatedDialog";
 import { ErrorReveal } from "@/components/ErrorReveal";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -820,13 +821,12 @@ export default function CustomersClient() {
       )}
 
       {/* Refund Modal */}
-      {refundTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => { if (!refundMutation.isPending) { setRefundTarget(null); refundMutation.reset(); } }}
-          />
-          <div className="relative bg-slate-800 border border-white/10 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-5">
+      <AnimatePresence>
+        {refundTarget && (
+          <AnimatedDialog
+            key="refund-modal"
+            onBackdropClick={() => { if (!refundMutation.isPending) { setRefundTarget(null); refundMutation.reset(); } }}
+          >
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">Refund Account Key</h2>
               <button
@@ -892,21 +892,17 @@ export default function CustomersClient() {
                 </div>
               </>
             )}
-          </div>
-        </div>
-      )}
+          </AnimatedDialog>
+        )}
+      </AnimatePresence>
 
       {/* Add Credits Modal (targets a single license key directly) */}
-      {creditTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => { if (!addCreditsMutation.isPending) { setCreditTarget(null); addCreditsMutation.reset(); } }}
-          />
-
-          {/* Modal */}
-          <div className="relative bg-slate-800 border border-white/10 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-5">
+      <AnimatePresence>
+        {creditTarget && (
+          <AnimatedDialog
+            key="credit-modal"
+            onBackdropClick={() => { if (!addCreditsMutation.isPending) { setCreditTarget(null); addCreditsMutation.reset(); } }}
+          >
             {/* Header */}
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">Add Credits</h2>
@@ -995,9 +991,9 @@ export default function CustomersClient() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </AnimatedDialog>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

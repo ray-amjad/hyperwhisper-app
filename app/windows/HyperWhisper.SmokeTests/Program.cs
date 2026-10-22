@@ -4511,6 +4511,99 @@ internal static class Program
                     $"probe went to '{handler.LastRequestUri}'");
             });
 
+            // Issue #741. PostProcessingService promises graceful degradation: when
+            // the clean-up fails, the user keeps the raw transcription, and the
+            // toast says why. The service built its own HttpClient, so none of its
+            // failure routes could run without a live provider. These drive the
+            // custom-endpoint route, the one that needs no stored API key, through
+            // the internal constructor and a scripted handler.
+            RunAsync("post-processing: a provider 500 keeps the original transcription", async () =>
+            {
+                const string Raw = "um so the meeting is at three";
+                var run = await ProcessThroughScriptedEndpointAsync(Raw,
+                    () => Respond(HttpStatusCode.InternalServerError, """{"error":{"message":"boom"}}"""));
+
+                Assert(run.Handler.Sends == 1, $"expected one upstream call, saw {run.Handler.Sends}");
+                Assert(!run.Result.WasApplied, "a 500 must not report the clean-up as applied");
+                Assert(run.Result.Text == Raw, $"a 500 must return the original text, got '{run.Result.Text}'");
+                Assert(run.Result.ResolvedProvider is null && run.Result.ResolvedModel is null,
+                    "a failed run must not name a provider or model that produced nothing");
+            });
+
+            RunAsync("post-processing: a provider 500 raises one plain failure toast", async () =>
+            {
+                var run = await ProcessThroughScriptedEndpointAsync("um so the meeting is at three",
+                    () => Respond(HttpStatusCode.InternalServerError, """{"error":{"message":"boom"}}"""));
+
+                Assert(run.Toasts.Count == 1, $"expected exactly one toast, saw {run.Toasts.Count}");
+                var toast = run.Toasts[0];
+                Assert(toast.Message == HyperWhisper.Localization.Loc.S("postprocessing.error.failed"),
+                    $"expected the plain failure message, got '{toast.Message}'");
+                Assert(!toast.ShowSettingsButton && toast.SettingsSection is null && !toast.OpenApiKeysManager,
+                    "a network failure toast must not send the user to Settings or the API keys manager");
+            });
+
+            RunAsync("post-processing: a rejected completion keeps the original transcription", async () =>
+            {
+                const string Raw = "um so the meeting is at three";
+                // A 200 the shared core refuses: the model hit its output limit, so
+                // the completion is cut short. Not a network failure, same outcome.
+                var run = await ProcessThroughScriptedEndpointAsync(Raw,
+                    () => Respond(HttpStatusCode.OK,
+                        """{"choices":[{"message":{"content":"<<CLEANED>>So the meet"},"finish_reason":"length"}]}"""));
+
+                Assert(run.Handler.Sends == 1, $"expected one upstream call, saw {run.Handler.Sends}");
+                Assert(!run.Result.WasApplied, "a truncated completion must not report the clean-up as applied");
+                Assert(run.Result.Text == Raw, $"a rejected completion must return the original text, got '{run.Result.Text}'");
+                Assert(run.Toasts.Count == 1 && run.Toasts[0].Message == HyperWhisper.Localization.Loc.S("postprocessing.error.failed")
+                        && !run.Toasts[0].ShowSettingsButton,
+                    $"a rejected completion must raise the plain failure toast once, saw {run.Toasts.Count}");
+            });
+
+            RunAsync("post-processing: a cancelled request keeps the text and raises no toast", async () =>
+            {
+                const string Raw = "um so the meeting is at three";
+                // The user cancels while the request is in flight. A scripted handler
+                // ignores the token, so it throws the way the socket handler does on a
+                // cancel; a token cancelled before the call never reached the service's
+                // catch, because HttpClient handed the canned 200 straight back.
+                using var cancel = new CancellationTokenSource();
+                var run = await ProcessThroughScriptedEndpointAsync(Raw,
+                    () =>
+                    {
+                        cancel.Cancel();
+                        cancel.Token.ThrowIfCancellationRequested();
+                        throw new InvalidOperationException("unreachable");
+                    },
+                    cancel.Token);
+
+                Assert(run.Handler.Sends == 1, $"expected one upstream call, saw {run.Handler.Sends}");
+                Assert(!run.Result.WasApplied, "a cancelled request must not report the clean-up as applied");
+                Assert(run.Result.Text == Raw, $"a cancelled request must return the original text, got '{run.Result.Text}'");
+                // The user cancelled; telling them it failed would be wrong. This is
+                // the one Skipped route with no toast.
+                Assert(run.Toasts.Count == 0, $"a cancelled request must raise no toast, saw {run.Toasts.Count}");
+            });
+
+            RunAsync("post-processing: an accepted completion reports the provider that ran", async () =>
+            {
+                var run = await ProcessThroughScriptedEndpointAsync("um so the meeting is at three",
+                    () => Respond(HttpStatusCode.OK,
+                        """{"choices":[{"message":{"content":"<<CLEANED>>So the meeting is at three.<<END>>"},"finish_reason":"stop"}]}"""));
+
+                Assert(run.Result.WasApplied, "an accepted completion must report the clean-up as applied");
+                Assert(run.Result.Text == "So the meeting is at three.",
+                    $"expected the cleaned text without wrapper markers, got '{run.Result.Text}'");
+                Assert(run.Result.ResolvedProvider == run.ProviderString,
+                    $"expected the endpoint's provider string '{run.ProviderString}', got '{run.Result.ResolvedProvider}'");
+                Assert(run.Result.ResolvedModel == ScriptedEndpointModel,
+                    $"expected model '{ScriptedEndpointModel}', got '{run.Result.ResolvedModel}'");
+                Assert(run.Toasts.Count == 0, $"a success must raise no toast, saw {run.Toasts.Count}");
+                Assert(run.Handler.LastRequestUri?.Host == "percy.example.com"
+                        && run.Handler.LastRequestUri?.AbsolutePath == "/v1/chat/completions",
+                    $"the request went to '{run.Handler.LastRequestUri}', not the configured endpoint");
+            });
+
             // Issue #509. The Model Library called a custom endpoint "Connected"
             // when nothing had ever connected to it. Two independent gaps, so
             // two independent groups of assertions: the outcome was never
@@ -5165,6 +5258,122 @@ internal static class Program
                     "vulkan entry must not pin CUDA");
                 Assert(LocalLlmService.CrashEntryPinsBackend("CUDA", LocalLlmGpuHelper.CudaBackendId),
                     "backend match should be case-insensitive");
+            });
+
+            // Issue #1036: the Cloud connection-recovery rules, on a fake clock and a
+            // stub handler (CloudConnectionRig). Each check fails when its rule is removed.
+            RunAsync("Cloud warmup debounce: a 2nd prewarm inside 60s sends nothing, one at 60s sends (#1036)", async () =>
+            {
+                using var rig = new CloudConnectionRig(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
+                var t = rig.Now;
+
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.Handler.Sends == 1, $"first prewarm sends {rig.Handler.Sends}");
+
+                rig.Now = t.AddSeconds(59);
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.Handler.Sends == 1, $"prewarm at t+59s sends {rig.Handler.Sends}, want the debounce to hold");
+
+                rig.Now = t.AddSeconds(60);
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.Handler.Sends == 2, $"prewarm at t+60s sends {rig.Handler.Sends}, want the window to be over");
+            });
+
+            RunAsync("Cloud forced warmup sends inside the debounce window (#1036)", async () =>
+            {
+                // The public entry returns void, so the 2nd send signals instead of being awaited.
+                var sends = 0;
+                var secondSend = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                using var rig = new CloudConnectionRig(_ =>
+                {
+                    if (Interlocked.Increment(ref sends) == 2) secondSend.TrySetResult();
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+                });
+                var t = rig.Now;
+
+                await rig.Service.PrewarmConnectionAsync();
+                rig.Now = t.AddSeconds(1);
+                rig.Service.PrewarmConnectionForced();
+                try { await secondSend.Task.WaitAsync(TimeSpan.FromSeconds(5)); }
+                catch (TimeoutException) { throw new InvalidOperationException($"forced warmup at t+1s never sent ({sends} sends)"); }
+            });
+
+            RunAsync("Cloud warmup that fails clears the debounce, so the next prewarm retries (#1036)", async () =>
+            {
+                using var rig = new CloudConnectionRig(_ => throw new HttpRequestException("connection refused",
+                    new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.ConnectionRefused)));
+                var t = rig.Now;
+
+                await rig.Service.PrewarmConnectionAsync();
+                rig.Now = t.AddSeconds(1);
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.Handler.Sends == 2, $"prewarm at t+1s after a failure sends {rig.Handler.Sends}, want a retry");
+                Assert(rig.ClientsBuilt == 1, $"a refused connection rebuilt the client ({rig.ClientsBuilt} built)");
+            });
+
+            RunAsync("Cloud DNS failure: only HostNotFound/TryAgain, at any depth, rebuild the client (#1036)", async () =>
+            {
+                static Exception Wrapped(System.Net.Sockets.SocketError code) =>
+                    new HttpRequestException("send failed", new System.Net.Sockets.SocketException((int)code));
+
+                Assert(HyperWhisperCloudService.IsDnsError(Wrapped(System.Net.Sockets.SocketError.HostNotFound)), "HostNotFound is not DNS");
+                Assert(HyperWhisperCloudService.IsDnsError(Wrapped(System.Net.Sockets.SocketError.TryAgain)), "TryAgain is not DNS");
+                Assert(HyperWhisperCloudService.IsDnsError(new TaskCanceledException("outer", Wrapped(System.Net.Sockets.SocketError.HostNotFound))),
+                    "a DNS error two levels down is not found");
+                Assert(!HyperWhisperCloudService.IsDnsError(Wrapped(System.Net.Sockets.SocketError.ConnectionRefused)), "ConnectionRefused counts as DNS");
+                Assert(!HyperWhisperCloudService.IsDnsError(new HttpRequestException("no socket")), "a bare HttpRequestException counts as DNS");
+
+                using (var dns = new CloudConnectionRig(_ => throw Wrapped(System.Net.Sockets.SocketError.HostNotFound)))
+                {
+                    await dns.Service.PrewarmConnectionAsync();
+                    Assert(dns.ClientsBuilt == 2, $"a HostNotFound warmup built {dns.ClientsBuilt} clients, want a rebuild");
+                }
+                using (var refused = new CloudConnectionRig(_ => throw Wrapped(System.Net.Sockets.SocketError.ConnectionRefused)))
+                {
+                    await refused.Service.PrewarmConnectionAsync();
+                    Assert(refused.ClientsBuilt == 1, $"a ConnectionRefused warmup built {refused.ClientsBuilt} clients, want none rebuilt");
+                }
+            });
+
+            RunAsync("Cloud DNS rebuild runs at most once per 60s (#1036)", async () =>
+            {
+                using var rig = new CloudConnectionRig(_ => throw new HttpRequestException("dns",
+                    new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.HostNotFound)));
+                var t = rig.Now;
+
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.ClientsBuilt == 2, $"first DNS failure built {rig.ClientsBuilt} clients");
+
+                rig.Now = t.AddSeconds(30);
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.Handler.Sends == 2, $"retry at t+30s sends {rig.Handler.Sends}");
+                Assert(rig.ClientsBuilt == 2, $"DNS failure at t+30s rebuilt again ({rig.ClientsBuilt} built)");
+
+                rig.Now = t.AddSeconds(60);
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.ClientsBuilt == 3, $"DNS failure at t+60s built {rig.ClientsBuilt} clients, want a 2nd rebuild");
+            });
+
+            RunAsync("Cloud DNS failure after Dispose does not rebuild the client (#1036)", async () =>
+            {
+                var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                var rig = new CloudConnectionRig(async _ =>
+                {
+                    entered.SetResult();
+                    await release.Task;
+                    throw new HttpRequestException("dns",
+                        new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.HostNotFound));
+                });
+
+                var warmup = rig.Service.PrewarmConnectionAsync();
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                rig.Dispose();
+                release.SetResult();
+                await warmup.WaitAsync(TimeSpan.FromSeconds(5));
+
+                Assert(rig.Handler.Sends == 1, $"sends {rig.Handler.Sends}");
+                Assert(rig.ClientsBuilt == 1, $"a DNS failure after Dispose built {rig.ClientsBuilt} clients, want no resurrection");
             });
 
             RunAsync("RustRetry caps transport failures at 4 and resolves the client per attempt", async () =>
@@ -27726,6 +27935,57 @@ internal static class Program
         }
     }
 
+    private const string ScriptedEndpointModel = "m-741";
+
+    /// <summary>
+    /// Issue #741. Runs one <see cref="PostProcessingService.ProcessAsync"/> on a
+    /// custom endpoint whose only reply is <paramref name="reply"/>, and returns
+    /// what came back plus every toast the service raised. The endpoint lives in
+    /// an empty endpoint list that is put back afterwards.
+    /// </summary>
+    private static async Task<(PostProcessingResult Result, List<ErrorToastEventArgs> Toasts, CapturingHandler Handler, string ProviderString)>
+        ProcessThroughScriptedEndpointAsync(
+            string transcript,
+            Func<HttpResponseMessage> reply,
+            CancellationToken cancellationToken = default)
+    {
+        // ProcessAsync reads the vocabulary table for the prompt, so the suite's
+        // scratch database must exist even when this runs before any DB check.
+        await DatabaseInitializer.InitializeAsync();
+
+        var settings = SettingsService.Instance;
+        var saved = settings.CustomEndpoints;
+        settings.CustomEndpoints = new List<CustomPostProcessingEndpoint>();
+        try
+        {
+            var endpoint = CustomEndpointManager.Instance.AddEndpoint(
+                "Percy #741", "https://percy.example.com/v1/chat/completions", ScriptedEndpointModel, out var error);
+            Assert(endpoint is not null, $"the fixture endpoint should save, got '{error}'");
+
+            var handler = new CapturingHandler { Next = reply };
+            var toasts = new List<ErrorToastEventArgs>();
+            // The service owns and disposes the client it is given.
+            using var service = new PostProcessingService(
+                new HttpClient(handler), new LocalLlmModelService(), new LocalLlmService());
+            service.WarningOccurred += (_, e) => toasts.Add(e);
+
+            var mode = new Mode
+            {
+                Name = "Smoke",
+                PostProcessingMode = 1,
+                PostProcessingProvider = endpoint!.ProviderString,
+            };
+            // A fixed context, so the prompt never reads the CI runner's foreground window.
+            var context = new ApplicationContext { ProcessName = "notepad", WindowTitle = "Untitled - Notepad" };
+            var result = await service.ProcessAsync(transcript, mode, context, cancellationToken);
+            return (result, toasts, handler, endpoint.ProviderString);
+        }
+        finally
+        {
+            settings.CustomEndpoints = saved;
+        }
+    }
+
     private sealed class CapturingHandler : HttpMessageHandler
     {
         public Func<HttpResponseMessage>? Next;
@@ -27791,6 +28051,30 @@ internal static class Program
                 Content = new StringContent(body.ToJsonString(), System.Text.Encoding.UTF8, "application/json")
             };
         }
+    }
+
+    /// <summary>
+    /// Issue #1036: a <see cref="HyperWhisperCloudService"/> on a fake clock
+    /// (<see cref="Now"/>), whose every HttpClient (the first one and each DNS
+    /// rebuild) sends through one <see cref="StubHandler"/>.
+    /// <see cref="ClientsBuilt"/> counts the factory calls, so 2 means one rebuild.
+    /// </summary>
+    private sealed class CloudConnectionRig : IDisposable
+    {
+        public DateTime Now = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        public int ClientsBuilt;
+        public readonly StubHandler Handler;
+        public readonly HyperWhisperCloudService Service;
+
+        public CloudConnectionRig(Func<CancellationToken, Task<HttpResponseMessage>> respond)
+        {
+            Handler = new StubHandler(respond);
+            Service = new HyperWhisperCloudService(
+                () => { Interlocked.Increment(ref ClientsBuilt); return new HttpClient(Handler, disposeHandler: false); },
+                () => Now);
+        }
+
+        public void Dispose() => Service.Dispose();
     }
 
     /// <summary>

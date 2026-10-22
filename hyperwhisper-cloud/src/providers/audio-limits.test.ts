@@ -8,18 +8,15 @@ import {
   META_MUSE_SOURCE_MAX_BYTES,
 } from '../lib/constants';
 import { ALL_STT_PROVIDER_IDS, type SttProviderId } from '../lib/stt-models';
+import { saveEnv, stubEnv } from '../test-support/env';
 
-const originalBucket = process.env.GOOGLE_SPEECH_GCS_BUCKET;
+const restoreBucket = saveEnv('GOOGLE_SPEECH_GCS_BUCKET');
 
 function setBucket(value: string | undefined) {
-  if (value === undefined) {
-    delete process.env.GOOGLE_SPEECH_GCS_BUCKET;
-  } else {
-    process.env.GOOGLE_SPEECH_GCS_BUCKET = value;
-  }
+  stubEnv('GOOGLE_SPEECH_GCS_BUCKET', value);
 }
 
-afterEach(() => setBucket(originalBucket));
+afterEach(() => restoreBucket());
 
 describe('preBufferMaxBytes', () => {
   test('returns the inline cap for the providers that have one', () => {

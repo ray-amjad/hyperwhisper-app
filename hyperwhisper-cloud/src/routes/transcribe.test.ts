@@ -5,6 +5,7 @@ import { computeElevenLabsTranscriptionCost, creditsForCost } from '../lib/cost-
 import { drainPendingLatencyReports } from '../lib/latency-report';
 import { estimateCreditsFromSize } from '../middleware/credits';
 import { estimateCreditsForProviderFallbacks } from './transcribe-audio';
+import { stubEnv } from '../test-support/env';
 
 /**
  * A client new enough to carry the "Share anonymous speed data" switch, which
@@ -505,9 +506,7 @@ function samplesOf(batch: unknown): ReportedSample[] {
 // to hold on every path — including the paths where the transcription itself
 // fails, which is where an opt-out is easiest to lose.
 describe('X-Latency-Opt-Out', () => {
-  const originalSecret = process.env.HYPERWHISPER_INTERNAL_SECRET;
-  const originalRegion = process.env.FLY_REGION;
-  const originalApp = process.env.FLY_APP_NAME;
+  let restoreEnv: Array<() => void> = [];
 
   beforeEach(() => {
     process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
@@ -519,28 +518,16 @@ describe('X-Latency-Opt-Out', () => {
     // column on the public page), and any app but production (staging shares
     // the secret and must not publish). Set all three so the opt-out is the
     // only variable.
-    process.env.HYPERWHISPER_INTERNAL_SECRET = 'test-internal-secret';
-    process.env.FLY_REGION = 'fra';
-    process.env.FLY_APP_NAME = 'hyperwhisper-transcribe';
+    restoreEnv = [
+      stubEnv('HYPERWHISPER_INTERNAL_SECRET', 'test-internal-secret'),
+      stubEnv('FLY_REGION', 'fra'),
+      stubEnv('FLY_APP_NAME', 'hyperwhisper-transcribe'),
+    ];
   });
 
   afterEach(async () => {
     globalThis.fetch = originalFetch;
-    if (originalSecret === undefined) {
-      delete process.env.HYPERWHISPER_INTERNAL_SECRET;
-    } else {
-      process.env.HYPERWHISPER_INTERNAL_SECRET = originalSecret;
-    }
-    if (originalRegion === undefined) {
-      delete process.env.FLY_REGION;
-    } else {
-      process.env.FLY_REGION = originalRegion;
-    }
-    if (originalApp === undefined) {
-      delete process.env.FLY_APP_NAME;
-    } else {
-      process.env.FLY_APP_NAME = originalApp;
-    }
+    for (const restore of restoreEnv) restore();
   });
 
   function buildApp(): Hono {
@@ -794,37 +781,23 @@ describe('X-Latency-Opt-Out', () => {
 // has to describe the audio rather than whichever estimator the provider that
 // answered happens to use.
 describe('latency clip length and model', () => {
-  const originalSecret = process.env.HYPERWHISPER_INTERNAL_SECRET;
-  const originalRegion = process.env.FLY_REGION;
-  const originalApp = process.env.FLY_APP_NAME;
+  let restoreEnv: Array<() => void> = [];
 
   beforeEach(() => {
     process.env.OPENAI_API_KEY = 'test-openai-key';
     process.env.ASSEMBLYAI_API_KEY = 'test-assemblyai-key';
-    process.env.HYPERWHISPER_INTERNAL_SECRET = 'test-internal-secret';
-    process.env.FLY_REGION = 'fra';
-    process.env.FLY_APP_NAME = 'hyperwhisper-transcribe';
+    restoreEnv = [
+      stubEnv('HYPERWHISPER_INTERNAL_SECRET', 'test-internal-secret'),
+      stubEnv('FLY_REGION', 'fra'),
+      stubEnv('FLY_APP_NAME', 'hyperwhisper-transcribe'),
+    ];
   });
 
   afterEach(async () => {
     globalThis.fetch = originalFetch;
     delete process.env.OPENAI_API_KEY;
     delete process.env.ASSEMBLYAI_API_KEY;
-    if (originalSecret === undefined) {
-      delete process.env.HYPERWHISPER_INTERNAL_SECRET;
-    } else {
-      process.env.HYPERWHISPER_INTERNAL_SECRET = originalSecret;
-    }
-    if (originalRegion === undefined) {
-      delete process.env.FLY_REGION;
-    } else {
-      process.env.FLY_REGION = originalRegion;
-    }
-    if (originalApp === undefined) {
-      delete process.env.FLY_APP_NAME;
-    } else {
-      process.env.FLY_APP_NAME = originalApp;
-    }
+    for (const restore of restoreEnv) restore();
   });
 
   function buildApp(): Hono {
@@ -1075,24 +1048,20 @@ describe('what a latency row measures', () => {
  * 502 "elevenlabs unavailable" for a request ElevenLabs never even ran.
  */
 describe('self-only is a provider policy, not the length of a filtered chain', () => {
-  const originalRegion = process.env.FLY_REGION;
+  let restoreRegion: () => void;
 
   beforeEach(() => {
     process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
     process.env.GROQ_API_KEY = 'test-groq-key';
     process.env.ELEVENLABS_API_KEY = 'test-elevenlabs-key';
     // A region where ElevenLabs serves its geo-block HTML instead of JSON.
-    process.env.FLY_REGION = 'nrt';
+    restoreRegion = stubEnv('FLY_REGION', 'nrt');
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
     delete process.env.AZURE_SPEECH_KEY_SOUTHEASTASIA;
-    if (originalRegion === undefined) {
-      delete process.env.FLY_REGION;
-    } else {
-      process.env.FLY_REGION = originalRegion;
-    }
+    restoreRegion();
   });
 
   function buildApp(): Hono {
@@ -1187,20 +1156,16 @@ describe('self-only is a provider policy, not the length of a filtered chain', (
  * emit the `fly-replay` header Fly reads, and spend nothing upstream first.
  */
 describe('the route carries out the geo-routing plan it is handed', () => {
-  const originalRegion = process.env.FLY_REGION;
+  let restoreRegion: () => void;
 
   beforeEach(() => {
     process.env.ELEVENLABS_API_KEY = 'test-elevenlabs-key';
-    process.env.FLY_REGION = 'nrt';
+    restoreRegion = stubEnv('FLY_REGION', 'nrt');
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
-    if (originalRegion === undefined) {
-      delete process.env.FLY_REGION;
-    } else {
-      process.env.FLY_REGION = originalRegion;
-    }
+    restoreRegion();
   });
 
   test('a small ElevenLabs request from a blocked region is replayed, untouched', async () => {
