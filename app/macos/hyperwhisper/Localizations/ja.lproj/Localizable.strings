@@ -709,6 +709,7 @@
 "modes.header.create" = "モードを作成";
 "modes.name.unnamed" = "名称未設定";
 "modes.badge.offline" = "オフライン";
+"modes.badge.modelMissing" = "モデルがありません";
 "modes.context.select" = "選択";
 "modes.help.edit" = "モード設定を編集";
 "modes.help.preset" = "このプリセットの詳細";
