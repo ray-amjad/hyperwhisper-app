@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithAzureMai } from './azure-mai';
 import { getProviderDef } from '../lib/stt-models';
 import { AudioTooLargeError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
+import { captureNoSpeechEvent } from './test-support';
 
 const originalFetch = globalThis.fetch;
 const ENV_KEYS = [
@@ -30,25 +31,6 @@ function successResponse(text = 'hello world', locale = 'en-US') {
     durationMilliseconds: 4200,
     phrases: [{ locale }],
   });
-}
-
-/**
- * Swaps `console.log` for the duration of `run` and returns the details object of
- * the `provider.no_speech` event it logged. Same swap-the-global idiom as
- * `utils.test.ts` — no spy library is used anywhere in this suite.
- */
-async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
-  const logged: unknown[][] = [];
-  const originalLog = console.log;
-  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
-  try {
-    await run();
-  } finally {
-    console.log = originalLog;
-  }
-  const event = logged.find((args) => args[0] === 'provider.no_speech');
-  if (!event) throw new Error('no provider.no_speech event was logged');
-  return event[1] as Record<string, unknown>;
 }
 
 describe('transcribeWithAzureMai — input gates (no upstream call)', () => {
@@ -414,5 +396,46 @@ describe('transcribeWithAzureMai — upstream error mapping', () => {
   test('an unmapped 4xx (e.g. 400) surfaces as a plain Error carrying the status', async () => {
     globalThis.fetch = mock(async () => new Response('bad request', { status: 400 })) as unknown as typeof fetch;
     await expect(transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav')).rejects.toThrow('Azure MAI error: 400');
+  });
+
+  // A 200 whose body is unusable is an upstream hiccup: the retryable
+  // ProviderUnavailableError every other adapter throws, never the raw parser or
+  // socket text. (#2064)
+  async function caught(p: Promise<unknown>): Promise<unknown> {
+    try { await p; return undefined; } catch (e) { return e; }
+  }
+
+  for (const [label, body] of [
+    ['a truncated JSON body', '{"combinedPhrases":[{"text":"hel'],
+    ['an HTML body', '<html><body>Bad Gateway</body></html>'],
+    ['a JSON null', 'null'],
+    ['a bare number', '5'],
+    ['a JSON array', '[]'],
+    ['a non-string text', '{"combinedPhrases":[{"text":1}]}'],
+    ['an object text', '{"combinedPhrases":[{"text":{"a":1}}]}'],
+  ] as const) {
+    test(`a 200 with ${label} is ProviderUnavailableError (bad_response), not a parser error`, async () => {
+      globalThis.fetch = mock(async () => new Response(body, {
+        status: 200, headers: { 'Content-Type': 'application/json' },
+      })) as unknown as typeof fetch;
+      const err = await caught(transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav'));
+      expect(err).toBeInstanceOf(ProviderUnavailableError);
+      expect((err as ProviderUnavailableError).kind).toBe('bad_response');
+      expect((err as ProviderUnavailableError).status).toBe(200);
+      expect((err as Error).message).not.toMatch(/JSON|parse|null/i);
+    });
+  }
+
+  test('a 200 whose body breaks mid-read is ProviderUnavailableError, not the raw socket error', async () => {
+    globalThis.fetch = mock(async () => new Response(new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('{"combinedPhrases":[{"text":"hel'));
+        controller.error(new TypeError('socket connection was closed unexpectedly'));
+      },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })) as unknown as typeof fetch;
+    const err = await caught(transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav'));
+    expect(err).toBeInstanceOf(ProviderUnavailableError);
+    expect((err as ProviderUnavailableError).kind).toBe('bad_response');
+    expect((err as Error).message).not.toContain('socket');
   });
 });

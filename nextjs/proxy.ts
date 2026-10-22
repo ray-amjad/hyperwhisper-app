@@ -3,17 +3,24 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { routing } from "./src/i18n/routing";
 import { defaultLocale, locales } from "./src/i18n/locales";
-import { isEnglishOnlyPath } from "./src/i18n/english-only";
+import {
+  englishOnlyRedirectPath,
+  isEnglishOnlyPath,
+} from "./src/i18n/english-only";
 
 const intlMiddleware = createMiddleware(routing);
 const localePattern = locales
   .map((locale) => locale.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
   .join("|");
 const LOCALE_REGEX = new RegExp(`^\\/(${localePattern})(\\/|$)`);
-const USER_ROUTE_REGEX = new RegExp(`^\\/(${localePattern})\\/user`);
-const USER_SIGN_IN_REGEX = new RegExp(`^\\/(${localePattern})\\/user\\/sign-in`);
+// #2087: each gate regex ends on a path-segment boundary, like LOCALE_REGEX,
+// so /en/users or /en/user-guide is not mistaken for the /en/user portal.
+const USER_ROUTE_REGEX = new RegExp(`^\\/(${localePattern})\\/user(\\/|$)`);
+const USER_SIGN_IN_REGEX = new RegExp(
+  `^\\/(${localePattern})\\/user\\/sign-in(\\/|$)`,
+);
 const USER_AUTH_SIGN_OUT_REGEX = new RegExp(
-  `^\\/(${localePattern})\\/user\\/auth\\/sign-out`,
+  `^\\/(${localePattern})\\/user\\/auth\\/sign-out(\\/|$)`,
 );
 // #1135: on an English-only page (isEnglishOnlyPath) a visit says nothing
 // about the visitor's language and must not rewrite NEXT_LOCALE.
@@ -30,11 +37,7 @@ function runIntlMiddleware(request: NextRequest, pathname: string) {
   const middleware = isEnglishOnlyPath(pathname)
     ? englishOnlyIntlMiddleware
     : intlMiddleware;
-  const response = middleware(request);
-
-  response.headers.set("x-pathname", pathname);
-
-  return response;
+  return middleware(request);
 }
 
 const getPathLocale = (pathname: string) => {
@@ -120,6 +123,16 @@ export default async function proxy(request: NextRequest) {
   // is available — the same authority the authenticated layout uses, so the
   // two can no longer disagree. Do not reintroduce a cookie-presence redirect
   // here.
+
+  // #2056: a bare English-only path goes to /en/..., whatever the visitor's
+  // language. Same 307 next-intl answers with, and no NEXT_LOCALE (#1135).
+  const englishOnlyPath = englishOnlyRedirectPath(pathname);
+
+  if (englishOnlyPath) {
+    const url = new URL(englishOnlyPath, request.url);
+    url.search = request.nextUrl.search;
+    return NextResponse.redirect(url);
+  }
 
   // For all other routes, just run intl middleware
   return runIntlMiddleware(request, pathname);

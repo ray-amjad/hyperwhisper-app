@@ -208,7 +208,10 @@ class VADProcessingService {
                 // STEP 4: Convert every large trimmed WAV to M4A.
                 // The trimmer has decoded the source and written new LPCM/WAV bytes,
                 // so the source extension must not bypass the upload-size guard.
-                let finalURL = await convertTrimmedToM4AIfNeeded(validatedURL, context: context)
+                // A cancelled caller skips the conversion; it removes the WAV.
+                let finalURL = Task.isCancelled
+                    ? validatedURL
+                    : await convertTrimmedToM4AIfNeeded(validatedURL, context: context)
 
                 return VADProcessingResult(
                     finalAudioURL: finalURL,
@@ -225,6 +228,18 @@ class VADProcessingService {
                     originalAudioURL: audioURL
                 )
             }
+
+        } catch is CancellationError {
+            // The caller was cancelled (#1743: a deleted row's Retry). Not a
+            // VAD failure: no breadcrumb. The trimmer wrote no file, and the
+            // caller checks for the cancel before it transcribes anything.
+            AppLogger.audio.info("\(logPrefix, privacy: .public)VAD stopped: the caller was cancelled")
+            return VADProcessingResult(
+                finalAudioURL: audioURL,
+                trimResult: nil,
+                wasProcessed: false,
+                originalAudioURL: audioURL
+            )
 
         } catch TrimError.noSpeechDetected {
             // SPECIAL CASE: No speech detected in audio

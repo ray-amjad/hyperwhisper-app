@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithXaiGrok } from './xai-stt';
 import { resolveModel } from '../lib/stt-models';
 import { EmptyTranscriptError, ProviderInputError, ProviderUnavailableError } from './types';
+import { captureNoSpeechEvent } from './test-support';
 
 const originalFetch = globalThis.fetch;
 const ENV_KEYS = ['XAI_API_KEY', 'GROK_API_KEY'] as const;
@@ -41,25 +42,6 @@ function captureRequest(body: unknown) {
 
 function errorResponse(status: number, text = 'upstream said no') {
   globalThis.fetch = mock(async () => new Response(text, { status })) as unknown as typeof fetch;
-}
-
-/**
- * Swaps `console.log` for the duration of `run` and returns the details object of
- * the `provider.no_speech` event it logged. Same swap-the-global idiom as
- * `utils.test.ts` — no spy library is used anywhere in this suite.
- */
-async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
-  const logged: unknown[][] = [];
-  const originalLog = console.log;
-  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
-  try {
-    await run();
-  } finally {
-    console.log = originalLog;
-  }
-  const event = logged.find((args) => args[0] === 'provider.no_speech');
-  if (!event) throw new Error('no provider.no_speech event was logged');
-  return event[1] as Record<string, unknown>;
 }
 
 describe('transcribeWithXaiGrok — credentials', () => {
@@ -176,11 +158,16 @@ describe('transcribeWithXaiGrok — multipart request shape', () => {
     await transcribeWithXaiGrok(audio(), 'audio/mp3', undefined, undefined, { model: '  ' });
     expect(blank.form?.get('model')).toBe('grok-voice-transcribe-2.0');
 
+    // A shipped client may still name 1.0, which xAI ended on 2026-10-02
+    // (#1908). The route resolves it through the registry alias, and the
+    // adapter sends what the route resolved.
+    const resolved = resolveModel('grok', 'grok-voice-transcribe-1.0');
+    if (!resolved.ok) throw new Error(resolved.reason);
     const chosen = captureRequest({ text: 'hi', duration: 4 });
     await transcribeWithXaiGrok(audio(), 'audio/mp3', undefined, undefined, {
-      model: 'grok-voice-transcribe-1.0',
+      model: resolved.model.id,
     });
-    expect(chosen.form?.get('model')).toBe('grok-voice-transcribe-1.0');
+    expect(chosen.form?.get('model')).toBe('grok-voice-transcribe-2.0');
   });
 
   test("the adapter's own default is the registry's default", async () => {

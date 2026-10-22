@@ -34,6 +34,9 @@ import Foundation
 import OSLog
 
 class AssemblyAIProvider: TranscriptionProvider {
+    /// A stateless HTTP call: nothing per call is kept on the instance (#1425).
+    var supportsConcurrentPasses: Bool { true }
+
     private var apiKey: String = ""
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "AssemblyAIProvider")
 

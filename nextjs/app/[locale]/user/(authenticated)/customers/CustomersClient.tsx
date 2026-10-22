@@ -310,7 +310,7 @@ export default function CustomersClient() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by email..."
-          className="w-full max-w-md px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
+          className="w-full max-w-md px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
         />
       </div>
 
@@ -334,7 +334,7 @@ export default function CustomersClient() {
               onChange={(e) => setGrantEmail(e.target.value)}
               placeholder="user@example.com"
               required
-              className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
+              className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
             />
             <button
               type="submit"
@@ -504,7 +504,7 @@ export default function CustomersClient() {
                                   disabled={isTransitioning}
                                   title="Edit email"
                                   aria-label="Edit email"
-                                  className="ml-1.5 inline-flex align-[-2px] text-gray-500 hover:text-emerald-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-500"
+                                  className="ml-1.5 inline-flex align-[-2px] text-gray-400 hover:text-emerald-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-400"
                                 >
                                   <svg
                                     className="h-3.5 w-3.5"
@@ -591,7 +591,7 @@ export default function CustomersClient() {
                                       </svg>
                                     ) : (
                                       <svg
-                                        className="h-3.5 w-3.5 text-gray-500 transition-colors group-hover:text-blue-300"
+                                        className="h-3.5 w-3.5 text-gray-400 transition-colors group-hover:text-blue-300"
                                         fill="none"
                                         viewBox="0 0 24 24"
                                         strokeWidth={1.8}
@@ -647,7 +647,7 @@ export default function CustomersClient() {
                         <div className="flex flex-col items-start gap-1.5">
                           <span className="inline-flex flex-wrap items-baseline gap-x-1 text-blue-300 text-sm font-medium">
                             {formatCredits(customer.totalCredits)}
-                            <span className="text-gray-500 text-xs">
+                            <span className="text-gray-400 text-xs">
                               ({Math.floor(customer.totalCredits / CREDITS_PER_MINUTE)} min)
                             </span>
                           </span>
@@ -684,7 +684,7 @@ export default function CustomersClient() {
                           (license) => license.stripeCustomerId
                         ) ? (
                           <span
-                            className="text-gray-500 text-sm font-medium"
+                            className="text-gray-400 text-sm font-medium"
                             title="No Stripe purchase on file (may have paid via another method)"
                           >
                             —
@@ -741,7 +741,7 @@ export default function CustomersClient() {
             </span>
             {isTransitioning && (
               <svg
-                className="w-3.5 h-3.5 animate-spin text-gray-500"
+                className="w-3.5 h-3.5 animate-spin text-gray-400"
                 fill="none"
                 viewBox="0 0 24 24"
                 aria-label="Loading"
@@ -775,7 +775,7 @@ export default function CustomersClient() {
               </button>
               {getPageNumbers(page, data.totalPages).map((entry, i) =>
                 entry === "ellipsis" ? (
-                  <span key={`ellipsis-${i}`} className="text-gray-500 px-1">
+                  <span key={`ellipsis-${i}`} className="text-gray-400 px-1">
                     …
                   </span>
                 ) : (
@@ -928,7 +928,7 @@ export default function CustomersClient() {
                   min="1"
                   step="1"
                   required
-                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
                 />
                 {creditAmount && parseFloat(creditAmount) > 0 && (
                   <p className="text-gray-400 text-xs mt-1">

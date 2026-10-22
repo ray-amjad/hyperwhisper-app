@@ -267,7 +267,10 @@ enum SingleInstanceGuard {
         sendReopenToSelf()
     }
 
-    private static func sendReopenToSelf() {
+    /// Sends a reopen Apple Event to this process — the Dock-click path to a main
+    /// window from code with no SwiftUI view to call `openWindow(id:)` from. Also
+    /// used by `OpenedFileRouter` to show History after an opened file (#656).
+    static func sendReopenToSelf() {
         let event = NSAppleEventDescriptor.appleEvent(
             withEventClass: AEEventClass(kCoreEventClass),
             eventID: AEEventID(kAEReopenApplication),

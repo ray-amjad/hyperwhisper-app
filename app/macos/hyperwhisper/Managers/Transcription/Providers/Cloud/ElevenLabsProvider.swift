@@ -18,6 +18,9 @@ import Foundation
 import OSLog
 
 final class ElevenLabsProvider: TranscriptionProvider {
+    /// A stateless HTTP call: nothing per call is kept on the instance (#1425).
+    var supportsConcurrentPasses: Bool { true }
+
     private enum Constants {
         static let maxUploadBytes: Int64 = 3 * 1024 * 1024 * 1024 // 3 GB limit per docs
     }

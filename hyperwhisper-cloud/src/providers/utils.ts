@@ -1,10 +1,10 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { EmptyTranscriptError, ProviderInputError, ProviderUnavailableError } from './types';
+import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, ProviderUnavailableKind, TranscriptionResult } from './types';
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
+import { readUpstreamError, upstreamErrorLogFields, upstreamErrorReason } from './upstream-error';
 
 const DEFAULT_PROVIDER_TIMEOUT_MS = 15_000;
-const ERROR_BODY_PREVIEW_LIMIT = 500;
 
 // Audio-upload timeout budget, scaled with payload size. The default 15s is fine
 // for the small create/poll/transcript calls, but an upload that re-sends the
@@ -389,6 +389,66 @@ export async function readPollJson<T>(
   }
 }
 
+/**
+ * Read a 200 body that must be a JSON object, or throw the retryable
+ * `ProviderUnavailableError` (`kind: 'bad_response'`) so the route fails over
+ * instead of answering a 500. A speech vendor's 200 body IS the transcript, so
+ * like `readPollJson` this never logs body content or a read error's message
+ * (#1069): a read failure logs only the error's name; an empty, non-JSON or
+ * non-object body logs only its length and shape. (#2064, #2151)
+ *
+ * `null`, a bare number or string, and an array all parse as JSON and then
+ * fail on the first field read, so they are refused here too.
+ */
+export async function readJson200<T extends object>(
+  provider: string,
+  label: string,
+  response: Response,
+  startTime: number,
+  context: ProviderRequestContext = {},
+): Promise<Partial<T>> {
+  const elapsedMs = () => Math.round(performance.now() - startTime);
+  const shape = {
+    contentType: response.headers.get('content-type') ?? 'unknown',
+    contentEncoding: response.headers.get('content-encoding') ?? 'none',
+  };
+  const badResponse = (event: string, details: Record<string, unknown>) => {
+    logProviderEvent(provider, event, { elapsedMs: elapsedMs(), ...shape, ...details }, context);
+    return new ProviderUnavailableError(label, 'malformed 200 response body', {
+      kind: 'bad_response',
+      status: response.status,
+      elapsedMs: elapsedMs(),
+    });
+  };
+
+  let raw: string;
+  try {
+    raw = await response.text();
+  } catch (readError) {
+    // A reset connection or a cut chunked transfer. Only the name: the
+    // message can quote what was read so far.
+    throw badResponse('body_read_error', {
+      errorName: readError instanceof Error ? readError.name : typeof readError,
+    });
+  }
+  if (!raw) {
+    throw badResponse('empty_body', {});
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw badResponse('parse_error', { bodyLength: raw.length, bodyKind: unparsedBodyKind(raw) });
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw badResponse('parse_error', {
+      bodyLength: raw.length,
+      bodyKind: Array.isArray(parsed) ? 'json_array' : parsed === null ? 'json_null' : `json_${typeof parsed}`,
+    });
+  }
+  return parsed as Partial<T>;
+}
+
 export async function fetchWithTimeout(
   provider: string,
   url: string,
@@ -466,8 +526,9 @@ export interface ProviderHttpErrorPolicy {
   /** Name used in the thrown error messages ('OpenAI', 'Grok', 'Deepgram', …). */
   label: string;
   /**
-   * Statuses that mean OUR credentials are wrong. These throw a plain `Error`
-   * (not a fallback signal) because retrying siblings can't fix a bad key.
+   * Statuses that mean OUR credentials are wrong. These throw a
+   * `ProviderAuthError`: a sibling has its own key, so the route tries it when
+   * the chain has one, and fails the request when it does not.
    * Defaults to `[401]`; adapters whose upstream also returns 403 for a bad or
    * unauthorized key pass `[401, 403]`.
    */
@@ -489,6 +550,36 @@ export interface ProviderHttpErrorPolicy {
    * instead of correlating a separate provider log line by requestId.
    */
   attachUnavailableDetails?: boolean;
+}
+
+/**
+ * Error bodies that mean OUR account with the upstream is out of credits or
+ * over its plan quota. Matched on the body text, not parsed, because the
+ * preview may be truncated. Each marker is specific enough that no
+ * bad-key or bad-input body carries it.
+ */
+const QUOTA_EXHAUSTED_MARKERS: ReadonlyArray<{ pattern: RegExp; reason: string }> = [
+  // ElevenLabs sends 401 (not 402) when the plan runs out of credits:
+  // `{"detail":{"code":"quota_exceeded","status":"quota_exceeded",…}}`.
+  // 641 requests 500'd on it, 2026-10-02 to 10-05. (issue #1228)
+  { pattern: /\bquota_exceeded\b/, reason: 'quota_exceeded' },
+  // OpenAI: 429 with `"code": "insufficient_quota"` once the account's credit is spent.
+  { pattern: /\binsufficient_quota\b/, reason: 'insufficient_quota' },
+  // xAI: 403 "Your team … has either used all available credits or reached its
+  // monthly spending limit" / "… doesn't have any credits yet".
+  { pattern: /used all available credits|(?:doesn't|does not) have any credits|monthly spending limit/i, reason: 'credits_exhausted' },
+];
+
+/** Statuses an upstream has been seen to carry an out-of-credits body on. */
+const QUOTA_EXHAUSTED_STATUSES: ReadonlySet<number> = new Set([401, 402, 403, 429]);
+
+/**
+ * The greppable reason when `body` says the upstream account is out of
+ * credits, or `null` when it does not.
+ */
+export function quotaExhaustedReason(status: number, body: string): string | null {
+  if (!QUOTA_EXHAUSTED_STATUSES.has(status)) return null;
+  return QUOTA_EXHAUSTED_MARKERS.find(({ pattern }) => pattern.test(body))?.reason ?? null;
 }
 
 /**
@@ -519,16 +610,19 @@ export async function providerHttpError(
 ): Promise<Error> {
   const { label } = policy;
   const status = response.status;
-  const errorText = await readErrorBodyPreview(response);
+  // `classifierText` is for the quota test only. The body can quote the
+  // user's input, so the log line carries content-free fields (#2163).
+  const { fields, classifierText: errorText } = await readUpstreamError(response);
   const elapsedMs = Math.round(performance.now() - startedAt);
   const kind = status >= 500 ? 'upstream_5xx' : status === 429 ? 'rate_limit' : 'http_error';
+  const quotaReason = quotaExhaustedReason(status, errorText);
 
   logProviderEvent(provider, 'http_error', {
     ...policy.logDetails,
     elapsedMs,
-    status,
+    ...upstreamErrorLogFields(fields),
     kind,
-    bodyPreview: errorText,
+    ...(quotaReason ? { quotaExhausted: quotaReason } : {}),
   }, context);
 
   // Only the failover branches below carry details, and each knows its own
@@ -536,8 +630,15 @@ export async function providerHttpError(
   const details = (unavailableKind: ProviderUnavailableKind) =>
     policy.attachUnavailableDetails ? { kind: unavailableKind, status, elapsedMs } : undefined;
 
+  // Checked BEFORE the auth branch: an out-of-credits account is billing
+  // exhaustion on THIS provider's account, like a 402 — a sibling with its own
+  // account can still serve the request — even when the upstream sends it as a
+  // 401 or 403. (issue #1228)
+  if (quotaReason) {
+    return new ProviderUnavailableError(label, `insufficient funds (${quotaReason})`, details(status === 429 ? 'rate_limit' : 'unknown'));
+  }
   if ((policy.authStatuses ?? [401]).includes(status)) {
-    return new Error(policy.authMessage);
+    return new ProviderAuthError(policy.authMessage, status);
   }
   if (status === 429) {
     return new ProviderUnavailableError(label, 'rate limit exceeded', details('rate_limit'));
@@ -550,8 +651,10 @@ export async function providerHttpError(
   }
 
   // Other 4xx (e.g. 400 on an unaccepted language code/format) — a sibling
-  // provider may accept this input, so let the chain fall through.
-  return new ProviderInputError(label, status, errorText || `HTTP ${status}`);
+  // provider may accept this input, so let the chain fall through. The
+  // message (logged) names only the code; the body preview goes to the
+  // client's 400 alone, as it always did.
+  return new ProviderInputError(label, status, upstreamErrorReason(fields), errorText || `HTTP ${status}`);
 }
 
 /**
@@ -669,19 +772,6 @@ export function emptyTranscriptOutcome(
     });
   }
   return opts.noSpeechResult;
-}
-
-export async function readErrorBodyPreview(response: Response): Promise<string> {
-  try {
-    const body = await response.text();
-    if (body.length <= ERROR_BODY_PREVIEW_LIMIT) {
-      return body;
-    }
-
-    return `${body.slice(0, ERROR_BODY_PREVIEW_LIMIT)}...`;
-  } catch {
-    return '<unreadable>';
-  }
 }
 
 /**

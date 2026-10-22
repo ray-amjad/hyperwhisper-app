@@ -304,7 +304,12 @@ public class ModeService
 
                     if (!string.IsNullOrEmpty(mode.CloudTranscriptionModel))
                     {
-                        var provider = CloudTranscriptionProviderExtensions.FromIdentifier(mode.CloudProvider);
+                        // A cloud mode's blank provider is HyperWhisper Cloud (the shared
+                        // rule, #1709); a local mode keeps the raw parse, whose None chains
+                        // every alias table.
+                        var provider = LocalModeModel.IsCloud(mode)
+                            ? CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider)
+                            : CloudTranscriptionProviderExtensions.FromIdentifier(mode.CloudProvider);
                         var normalizedModel = CloudTranscriptionModels.ResolveModelAlias(mode.CloudTranscriptionModel, provider);
                         if (!string.Equals(mode.CloudTranscriptionModel, normalizedModel, StringComparison.Ordinal))
                         {

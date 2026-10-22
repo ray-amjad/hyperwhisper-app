@@ -20,6 +20,9 @@ import FluidAudio
 
 @available(macOS 14.0, *)
 final class NemotronProvider: TranscriptionProvider {
+    /// Each call mints its own manager from the shared bundle, and keeps no per-call state here (#1425).
+    var supportsConcurrentPasses: Bool { true }
+
 
     // RUNTIME ACTOR:
     // Caches the shared model bundle PER VARIANT. Each transcribe() call mints
@@ -43,14 +46,27 @@ final class NemotronProvider: TranscriptionProvider {
             if let cached = sharedByVariant[variant] { return cached }
             if let inFlight = loadTasks[variant] { return try await inFlight.value }
 
+            // The one load point for batch (`prepareIfNeeded` / `transcribe`) and
+            // live streaming (`sharedModels(for:)`), so the Sentry capture lives
+            // here (#1980): it fires once per failed load, inside the task, not
+            // once per caller awaiting it.
             let task = Task<SharedNemotronMultilingualModels, Error> {
-                try await StreamingNemotronMultilingualAsrManager.downloadAndPreloadShared(
-                    languageCode: variant.downloadLanguageHint,
-                    chunkMs: NemotronModelManager.Constants.chunkMs,
-                    to: nil,
-                    configuration: nil,
-                    progressHandler: nil
-                )
+                do {
+                    return try await StreamingNemotronMultilingualAsrManager.downloadAndPreloadShared(
+                        languageCode: variant.downloadLanguageHint,
+                        chunkMs: NemotronModelManager.Constants.chunkMs,
+                        to: nil,
+                        configuration: nil,
+                        progressHandler: nil
+                    )
+                } catch {
+                    // A load cancelled by reset() / invalidate() is not a failure,
+                    // whatever error FluidAudio surfaces once it is cancelled.
+                    if !NemotronProvider.isLoadCancellation(error), !Task.isCancelled {
+                        NemotronProvider.reportRuntimeLoadFailure(error, variant: variant)
+                    }
+                    throw error
+                }
             }
             loadTasks[variant] = task
             do {
@@ -84,7 +100,21 @@ final class NemotronProvider: TranscriptionProvider {
         }
     }
 
-    let name: String = "Nemotron 3.5"
+    /// The engine name `name` returns, which a completed History row stores as
+    /// its `transcriptionProvider`. Static so a failed row can store the same
+    /// value without an instance (issue #1518).
+    static let engineName = "Nemotron 3.5"
+
+    let name: String = NemotronProvider.engineName
+
+    /// The name Model Library shows for a Nemotron variant, used to name a
+    /// missing model (issue #1518).
+    static func modelDisplayName(for variant: NemotronModelManager.Variant) -> String {
+        switch variant {
+        case .latin: return NemotronModelManager.Constants.latinDisplayName
+        case .multilingual: return NemotronModelManager.Constants.multilingualDisplayName
+        }
+    }
 
     private let runtime = Runtime()
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "NemotronProvider")
@@ -129,7 +159,7 @@ final class NemotronProvider: TranscriptionProvider {
         }
         guard isAvailable(for: modelId) else {
             logger.error("Nemotron \(variant.rawValue, privacy: .public) not downloaded")
-            throw TranscriptionError.modelNotDownloaded
+            throw TranscriptionError.modelNotDownloaded(model: Self.modelDisplayName(for: variant))
         }
         do {
             _ = try await runtime.currentShared(for: variant)
@@ -137,11 +167,70 @@ final class NemotronProvider: TranscriptionProvider {
             await clearBrokenFlag(for: modelId)
         } catch {
             let nsError = error as NSError
-            logger.error("Failed to initialize Nemotron \(variant.rawValue, privacy: .public); errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
+            // Fixed identifiers from the error chain (#1017); never a path.
+            let failureDetailSummary = LocalModelLoadFailureDetail.logSummary(
+                for: LocalModelLoadFailureDetail.fields(for: error)
+            )
+            logger.error("Failed to initialize Nemotron \(variant.rawValue, privacy: .public); errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public) \(failureDetailSummary, privacy: .public)")
             await runtime.reset()
             await flagBroken(for: modelId)
             throw TranscriptionError.providerNotAvailable(provider: "Nemotron", reason: "Failed to initialize Nemotron runtime")
         }
+    }
+
+    /// A cancelled load (reset / invalidate, or a cancelled download) is not a
+    /// failure. Mirrors ParakeetProvider's load-failure check.
+    static func isLoadCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        let nsError = error as NSError
+        return nsError.domain == NSURLErrorDomain && nsError.code == URLError.cancelled.rawValue
+    }
+
+    /// Its own Sentry event (#1980), so a HYPERWHISPER-W2-style failure carries
+    /// the CoreML domain/code without relying on recent_logs. Called from the
+    /// Runtime load task only, so batch and live loads both report, once each.
+    fileprivate static func reportRuntimeLoadFailure(_ error: Error, variant: NemotronModelManager.Variant) {
+        guard AppLogger.isErrorLoggingEnabled else { return }
+        let nsError = error as NSError
+        SentryService.capture(
+            error: SentryService.identifierOnlyError(error),
+            message: "Nemotron runtime load failed",
+            extras: loadFailureExtras(for: error),
+            tags: loadFailureTags(variantSlug: variant.rawValue, errorDomain: nsError.domain),
+            fingerprint: [
+                "nemotron-runtime-load",
+                variant.rawValue,
+                nsError.domain,
+                String(nsError.code),
+            ],
+            includeRecentLogs: false
+        )
+    }
+
+    /// Extras for the "Nemotron runtime load failed" event (#1980). Pure, so a
+    /// test can build them from any error. Every key is on
+    /// `SentryService.allowedExtraKeys`; every value is a number, a fixed slug
+    /// or an NSError domain, never a path or `localizedDescription`.
+    static func loadFailureExtras(for error: Error) -> [String: Any] {
+        var extras: [String: Any] = [
+            "nemotron_error_code": (error as NSError).code,
+        ]
+        extras.merge(
+            LocalModelLoadFailureDetail.extras(
+                for: LocalModelLoadFailureDetail.fields(for: error),
+                keyPrefix: "nemotron"
+            ),
+            uniquingKeysWith: { current, _ in current }
+        )
+        return extras
+    }
+
+    static func loadFailureTags(variantSlug: String, errorDomain: String) -> [String: String] {
+        [
+            "component": "models",
+            "nemotron_variant": variantSlug,
+            "nemotron_error_domain": errorDomain,
+        ]
     }
 
     /// Public, cache-reusing access to the preloaded `SharedNemotronMultilingualModels`
@@ -192,12 +281,12 @@ final class NemotronProvider: TranscriptionProvider {
         if let attrs = try? fm.attributesOfItem(atPath: audioURL.path),
            let size = attrs[.size] as? Int64, size < 5000 {
             logger.error("Audio file too small: \(size) bytes")
-            throw TranscriptionError.providerNotAvailable(provider: "Nemotron", reason: "Audio file is too small (\(size) bytes). Please record for longer.")
+            throw TranscriptionError.audioTooShort(fileSize: size)
         }
 
         guard isAvailable(for: modelId) else {
             logger.error("Nemotron \(variant.rawValue, privacy: .public) transcription requested without model installed")
-            throw TranscriptionError.modelNotDownloaded
+            throw TranscriptionError.modelNotDownloaded(model: Self.modelDisplayName(for: variant))
         }
 
         let shared: SharedNemotronMultilingualModels

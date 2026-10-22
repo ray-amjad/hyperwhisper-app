@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Annað forrit hefur læst ferilsgagnagrunninum. Upptakan var geymd og verður vistuð í ferlinum þegar gagnagrunnurinn losnar.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Ekki tókst enn að vista þessa upptöku í ferlinum. Upptakan var geymd og verður vistuð í ferlinum síðar.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -793,6 +799,12 @@
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Ekki virkjað)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (Enginn API-lykill)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -822,6 +834,9 @@
   </data>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Hætt við umritun skrár</value>
+  </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Umritar skrá...</value>
   </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
@@ -1084,6 +1099,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Flýtilyklar með aðeins einum breytilykli á borð við Ctrl, Alt, Shift eða Win eru ekki studdir. Notaðu lykil með breytilyklum eða flýtilykil með fleiri en einum breytilykli, til dæmis Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Flýtilykill án breytilykils verður að vera aðgerðarlykill eða Esc. Hver annar lykill myndi virkjast á meðan þú skrifar.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Þessi flýtilykill er þegar notaður fyrir {0} ({1})</value>
   </data>
@@ -1297,6 +1315,9 @@ You can re-download it later.</value>
   </data>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
+  </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Þetta lítur ekki út eins og reikningslykill.</value>
   </data>
 
   <!-- Models - ARM64 and GPU -->
@@ -1711,6 +1732,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Meira...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -2005,11 +2029,35 @@ You can re-download it later.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Deyfa hljóð</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Aðeins notað af HyperWhisper. Munað eftir endurræsingu.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Sjálfgefið · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (ekki tengt)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Notar {0} þar til {1} er tengt aftur.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Enginn hljóðnemi er tengdur. HyperWhisper notar {0} þegar það er tengt aftur.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Prófa</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Stöðva</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

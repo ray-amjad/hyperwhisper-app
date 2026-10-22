@@ -670,8 +670,10 @@ public static class UniversalBackupMapper
         // 404 on. That rewrite is why the vector row exempts this key's VALUE.
         if (TryNonBlankString(n, "StreamingCloudTier", out var streamingCloudTier)) settings.StreamingCloudTier = streamingCloudTier;
         if (TryBool(n, "StreamingFastFormatting", out var fastFormatting)) settings.StreamingFastFormatting = fastFormatting;
+        // #2114: a bare typing key or a single bare modifier resets the role to its default.
         if (TryNonBlankString(n, "StreamingShortcut", out var streamingShortcut))
-            settings.StreamingShortcut = KeyboardShortcut.FromPersistedString(streamingShortcut);
+            settings.StreamingShortcut = SettingsService.SafeActionShortcut(
+                "Streaming", KeyboardShortcut.FromPersistedString(streamingShortcut), "backup");
 
         // advanced
         if (TryInt(n, "TypingSpeedWPM", out var typingSpeedWPM)) settings.TypingSpeedWPM = typingSpeedWPM;
@@ -823,14 +825,20 @@ public static class UniversalBackupMapper
                 if (winSettings.KeepMicrophoneWarm.HasValue) settings.KeepMicrophoneWarm = winSettings.KeepMicrophoneWarm.Value;
                 if (!string.IsNullOrEmpty(winSettings.MediaControlMode)) settings.MediaControlMode = winSettings.MediaControlMode;
 
+                // #2114: a backup shortcut that is a bare typing key or a single bare
+                // modifier resets that role to its default, not to the current value.
                 if (!string.IsNullOrEmpty(winSettings.ToggleShortcut))
-                    settings.ToggleShortcut = KeyboardShortcut.FromPersistedString(winSettings.ToggleShortcut);
+                    settings.ToggleShortcut = SettingsService.SafeActionShortcut(
+                        "Toggle", KeyboardShortcut.FromPersistedString(winSettings.ToggleShortcut), "backup");
                 if (!string.IsNullOrEmpty(winSettings.CancelShortcut))
-                    settings.CancelShortcut = KeyboardShortcut.FromPersistedString(winSettings.CancelShortcut);
+                    settings.CancelShortcut = SettingsService.SafeActionShortcut(
+                        "Cancel", KeyboardShortcut.FromPersistedString(winSettings.CancelShortcut), "backup");
                 if (!string.IsNullOrEmpty(winSettings.ChangeModeShortcut))
-                    settings.ChangeModeShortcut = KeyboardShortcut.FromPersistedString(winSettings.ChangeModeShortcut);
+                    settings.ChangeModeShortcut = SettingsService.SafeActionShortcut(
+                        "ChangeMode", KeyboardShortcut.FromPersistedString(winSettings.ChangeModeShortcut), "backup");
                 if (!string.IsNullOrEmpty(winSettings.StreamingShortcut))
-                    settings.StreamingShortcut = KeyboardShortcut.FromPersistedString(winSettings.StreamingShortcut);
+                    settings.StreamingShortcut = SettingsService.SafeActionShortcut(
+                        "Streaming", KeyboardShortcut.FromPersistedString(winSettings.StreamingShortcut), "backup");
 
                 if (winSettings.StreamingEnabled.HasValue) settings.StreamingEnabled = winSettings.StreamingEnabled.Value;
                 if (!string.IsNullOrEmpty(winSettings.StreamingProvider)) settings.StreamingProvider = winSettings.StreamingProvider;
@@ -1083,8 +1091,12 @@ public static class UniversalBackupMapper
             mode.ModelType = peerExt?.ModelType ?? universal.Model;
             mode.LocalEngine = peerExt?.LocalEngine ?? "whisper";
             mode.LocalParakeetModel = peerExt?.LocalParakeetModel;
+            // No slice says: a Cloud mode is `model == "cloud"` OR a set
+            // cloudProvider. macOS may omit the provider on a HyperWhisper Cloud
+            // mode, so the provider alone turned it into local Whisper (#1690).
             mode.ProviderType = peerExt?.ProviderType
-                ?? (!string.IsNullOrEmpty(universal.CloudProvider) ? "cloud" : "local");
+                ?? (universal.Model == LocalModeModel.CloudModel
+                    || !string.IsNullOrWhiteSpace(universal.CloudProvider) ? "cloud" : "local");
             // Tier / post-processing model already resolved by the core above.
             // A macOS or Linux backup carries screen OCR in ITS slice (#1498).
             mode.EnableScreenOCR =
@@ -1094,6 +1106,12 @@ public static class UniversalBackupMapper
             mode.CreatedDate = peerExt?.CreatedDate ?? DateTime.UtcNow;
             mode.ModifiedDate = peerExt?.ModifiedDate ?? DateTime.UtcNow;
         }
+
+        // A restored Cloud mode with a blank provider stores HyperWhisper Cloud,
+        // the meaning every head gives that blank (#1690, #1709), whichever
+        // branch above set ProviderType.
+        if (mode.ProviderType == "cloud" && string.IsNullOrWhiteSpace(mode.CloudProvider))
+            mode.CloudProvider = global::HyperWhisper.SharedCore.SharedCoreBridge.EffectiveModeCloudProvider(mode.CloudProvider);
 
         // Preserve every NON-Windows per-mode platformExtensions slice (e.g. the
         // macos blob) verbatim so it survives a Windows round-trip (H4). Stored as

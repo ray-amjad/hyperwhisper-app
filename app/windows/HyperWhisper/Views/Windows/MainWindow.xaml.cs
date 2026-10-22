@@ -162,7 +162,11 @@ public partial class MainWindow : Window
                 _ => 60.0        // Large jumps (transcribing): slow (60s)
             };
 
-            _fileProgressWindow?.AnimateProgress(progress, duration);
+            // Only the transcribing ramp waits on a job with no real progress, so a job
+            // that outlasts it turns the bar indeterminate instead of sitting at 80% (#1911)
+            bool thenIndeterminate = progress == MainViewModel.FileTranscribingRampTarget;
+
+            _fileProgressWindow?.AnimateProgress(progress, duration, thenIndeterminate);
         });
 
         InitializeSystemTray();
@@ -650,7 +654,8 @@ public partial class MainWindow : Window
                 }
 
                 if (e.PropertyName == nameof(MainViewModel.AudioDevices) ||
-                    e.PropertyName == nameof(MainViewModel.SelectedAudioDevice))
+                    e.PropertyName == nameof(MainViewModel.SelectedAudioDevice) ||
+                    e.PropertyName == nameof(MainViewModel.MicrophoneResolution))
                 {
                     Dispatcher.Invoke(RefreshMicrophoneMenu);
                 }
@@ -858,9 +863,34 @@ public partial class MainWindow : Window
             return;
         }
 
+        // The same rows as Settings -> Sound, from the same saved choice: "Default ·
+        // <Windows default>" first (checked when nothing is saved), then each
+        // device (checked when it is the saved one and connected). A saved device
+        // that is unplugged checks nothing here; Settings shows "(not connected)".
+        var resolution = _viewModel.MicrophoneResolution;
+        var followsDefault = resolution == null || resolution.Source == MicrophoneSource.SystemDefault;
+        var defaultLabel = MicrophoneSelection.DefaultLabel(resolution?.DefaultDevice?.Name);
+        var defaultItem = new System.Windows.Forms.ToolStripMenuItem(MenuItemText.Bound(defaultLabel))
+        {
+            ToolTipText = MenuItemText.Tooltip(defaultLabel),
+            Checked = followsDefault,
+            Enabled = !IsOnboardingOpen,
+        };
+        defaultItem.Click += (s, e) =>
+        {
+            if (!_viewModel.SelectMicrophone(null))
+                return;
+
+            LoggingService.Info("System tray: Microphone set to follow the Windows default");
+        };
+        _microphoneMenu.DropDownItems.Add(defaultItem);
+        _microphoneMenu.DropDownItems.Add(new System.Windows.Forms.ToolStripSeparator());
+
         foreach (var device in devices)
         {
-            bool isSelected = selectedDevice != null && selectedDevice.DeviceNumber == device.DeviceNumber;
+            bool isSelected = resolution?.Source == MicrophoneSource.Saved
+                && selectedDevice != null
+                && selectedDevice.DeviceNumber == device.DeviceNumber;
 
             // A device name comes from its driver, not from us, and nothing caps
             // it either — same submenu, same Win32 constraint, so it is bounded
@@ -895,6 +925,14 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
+    /// How many modes each tray submenu lists before it ends in "More..." (issue #1593).
+    /// A backup import has no mode cap, and both submenus are rebuilt on every
+    /// Opening: 10,000 items hung the UI thread for minutes, and a menu that long
+    /// cannot be used anyway. The Modes page lists every mode.
+    /// </summary>
+    internal const int TrayModeMenuLimit = 50;
+
+    /// <summary>
     /// Refreshes the mode submenu with current available modes.
     /// Shows a checkmark next to the currently selected mode.
     /// </summary>
@@ -917,7 +955,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        foreach (var mode in modes)
+        foreach (var mode in TrayModeMenuModes(modes, selectedMode))
         {
             bool isSelected = selectedMode != null && selectedMode.Id == mode.Id;
 
@@ -951,6 +989,26 @@ public partial class MainWindow : Window
 
             _modeMenu.DropDownItems.Add(modeItem);
         }
+
+        AddMoreModesItem(_modeMenu, modes.Count);
+    }
+
+    /// <summary>
+    /// The modes the tray Select Mode submenu lists: the first <see cref="TrayModeMenuLimit"/>,
+    /// then the active mode as one extra item when it sits past them, so the menu
+    /// still shows which mode is active (issue #1870; Ray, inbox #1293). The extra
+    /// item goes after the first 50 and before "More...", and never replaces mode 50.
+    /// </summary>
+    internal static IEnumerable<Mode> TrayModeMenuModes(IReadOnlyList<Mode> modes, Mode? selectedMode)
+    {
+        foreach (var mode in modes.Take(TrayModeMenuLimit))
+            yield return mode;
+
+        if (selectedMode == null) yield break;
+
+        var activePastLimit = modes.Skip(TrayModeMenuLimit).FirstOrDefault(m => m.Id == selectedMode.Id);
+        if (activePastLimit != null)
+            yield return activePastLimit;
     }
 
     /// <summary>
@@ -973,7 +1031,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        foreach (var mode in modes)
+        foreach (var mode in modes.Take(TrayModeMenuLimit))
         {
             var modeName = string.IsNullOrWhiteSpace(mode.Name) ? Loc.S("menu.mode.unnamed") : mode.Name;
 
@@ -995,5 +1053,22 @@ public partial class MainWindow : Window
 
             _fileTranscriptionMenu.DropDownItems.Add(modeItem);
         }
+
+        AddMoreModesItem(_fileTranscriptionMenu, modes.Count);
+    }
+
+    /// <summary>
+    /// Past <see cref="TrayModeMenuLimit"/> modes, ends a submenu with "More...",
+    /// which opens the Modes page where every mode is listed.
+    /// </summary>
+    private void AddMoreModesItem(System.Windows.Forms.ToolStripMenuItem menu, int modeCount)
+    {
+        if (modeCount <= TrayModeMenuLimit) return;
+
+        menu.DropDownItems.Add(new System.Windows.Forms.ToolStripSeparator());
+
+        var moreItem = new System.Windows.Forms.ToolStripMenuItem(Loc.S("menu.mode.more"));
+        moreItem.Click += (s, e) => Dispatcher.Invoke(() => ShowMainWindow(MainViewModel.NavigationPage.Modes));
+        menu.DropDownItems.Add(moreItem);
     }
 }

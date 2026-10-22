@@ -24,7 +24,15 @@ class LibWhisperProvider: TranscriptionProvider {
     var name: String {
         currentModel?.displayName ?? "LibWhisper"
     }
-    
+
+    /// The name Model Library shows for a whisper.cpp model id ("tiny.en" →
+    /// "Tiny (English-only)"), which is also what `name` returns once that
+    /// model is loaded. An id no `WhisperModel` has comes back as it is.
+    /// Used to name a missing model (issue #1518).
+    static func modelDisplayName(for modelName: String) -> String {
+        WhisperModel(rawValue: modelName)?.name ?? modelName
+    }
+
     /// The resident whisper.cpp context, or `nil` when nothing is loaded and
     /// when a memory-pressure eviction has freed it. Written ONLY while holding
     /// `lifecycleLock`.
@@ -193,7 +201,7 @@ class LibWhisperProvider: TranscriptionProvider {
         guard let model = self.modelManager.downloadedModels.first(where: { $0.name == modelName }),
               let modelPath = model.url?.path else {
             logger.error("❌ Model not found: \(modelName). Available models: \(self.modelManager.downloadedModels.map { $0.name })")
-            throw TranscriptionError.modelNotDownloaded
+            throw TranscriptionError.modelNotDownloaded(model: Self.modelDisplayName(for: modelName))
         }
 
         logger.info("🔧 Found model at path: \(modelPath)")
@@ -313,6 +321,22 @@ class LibWhisperProvider: TranscriptionProvider {
         }
     }
 
+    /// The whisper.cpp `initial_prompt` for a pass: the vocabulary words that
+    /// have no replacement, space-joined, or nil when there are none.
+    static func vocabularyPrompt(for vocabulary: [Vocabulary]) -> String? {
+        let words = vocabulary
+            .filter { ($0.replacement ?? "").isEmpty }
+            .compactMap { $0.word }
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        return words.isEmpty ? nil : words.joined(separator: " ")
+    }
+
+    /// Sets the pass's prompt on the resident context, every pass, so a nil
+    /// prompt clears the one an earlier mode left there (#2048).
+    static func applyVocabularyPrompt(_ vocabulary: [Vocabulary], to context: WhisperContext) async {
+        await context.setPrompt(vocabularyPrompt(for: vocabulary))
+    }
+
     /// The body of a pass. `requiredModel` is set only by the Local API, which
     /// loads its own model instead of the one `setModel` staged.
     private func performTranscribe(audioURL: URL, language: String?, vocabulary: [Vocabulary], requiredModel: WhisperModel?) async throws -> String {
@@ -416,8 +440,10 @@ class LibWhisperProvider: TranscriptionProvider {
         }
 
         // The reload above may have taken seconds. If the user cancelled during
-        // it, stop here — we hold a claim, so release it on the way out.
-        if cancellationEpoch != epoch {
+        // it, stop here — we hold a claim, so release it on the way out. The
+        // caller's own cancel counts too: a cancel aimed at one job only
+        // (#1425) cancels its task, not the provider-wide epoch.
+        if cancellationEpoch != epoch || Task.isCancelled {
             await ModelResidencyRegistry.shared.markIdle(claimToken)
             logger.info("Transcription cancelled before decoding started")
             throw TranscriptionError.streamingInterrupted
@@ -436,9 +462,7 @@ class LibWhisperProvider: TranscriptionProvider {
                 logger.error("❌ No audio samples after conversion")
             }
 
-            // whisper.cpp does not poll for cancellation once `fullTranscribe`
-            // is under way, so this is the last chance to abandon a cancelled
-            // pass before the expensive part.
+            // Abandon a cancelled pass before the expensive part.
             try Task.checkCancellation()
 
             // Early no-speech guard: avoid hallucinated text on near-silent recordings.
@@ -459,11 +483,10 @@ class LibWhisperProvider: TranscriptionProvider {
                 await context.setLanguage(nil)
             }
             
-            // Set custom vocabulary/prompt
-            if !vocabulary.isEmpty {
-                let prompt = vocabulary.filter { $0.replacement == nil || $0.replacement!.isEmpty }.map { $0.word ?? "" }.joined(separator: " ")
-                await context.setPrompt(prompt)
-            }
+            // Set custom vocabulary/prompt, or clear it: the context outlives
+            // this pass, so a mode with no prompt words must not inherit the
+            // last mode's (#2048).
+            await Self.applyVocabularyPrompt(vocabulary, to: context)
             
             // When timestamps are requested, read text + timings together from the
             // same whisper run so the captured timings always belong to the *kept*
@@ -489,8 +512,21 @@ class LibWhisperProvider: TranscriptionProvider {
                 return timed.cleanedText
             }
 
-            // Perform transcription
-            var success = await context.fullTranscribe(samples: samples, wordTimestamps: includeWords)
+            // Perform transcription. A cancel stops whisper.cpp mid-decode
+            // through the abort signal; on its own `fullTranscribe` would run
+            // through the whole file (#1743).
+            let abortSignal = WhisperAbortSignal()
+            func decode(translate: Bool = false) async -> Bool {
+                await withTaskCancellationHandler {
+                    await context.fullTranscribe(samples: samples, translate: translate, wordTimestamps: includeWords, abortSignal: abortSignal)
+                } onCancel: {
+                    abortSignal.trigger()
+                }
+            }
+            var success = await decode()
+
+            // An aborted decode returns false or partial text: report the cancel.
+            try Task.checkCancellation()
 
             guard success else {
                 // The old wording here ("the audio may be corrupted or too
@@ -513,7 +549,7 @@ class LibWhisperProvider: TranscriptionProvider {
                 if let detected = await context.getDetectedLanguage() {
                     logger.warning("⚠️ Empty result. Retrying with detected language forced: \(detected)")
                     await context.setLanguage(detected)
-                    success = await context.fullTranscribe(samples: samples, wordTimestamps: includeWords)
+                    success = await decode()
                     if success {
                         text = await readKeptText()
                     }
@@ -521,12 +557,14 @@ class LibWhisperProvider: TranscriptionProvider {
                 // If still empty, try translation to English
                 if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     logger.warning("⚠️ Still empty after forcing language. Retrying with translation → English")
-                    success = await context.fullTranscribe(samples: samples, translate: true, wordTimestamps: includeWords)
+                    success = await decode(translate: true)
                     if success {
                         text = await readKeptText()
                     }
                 }
             }
+
+            try Task.checkCancellation()
 
             if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 logger.info("🔇 Whisper output remained empty after retries")
@@ -545,7 +583,7 @@ class LibWhisperProvider: TranscriptionProvider {
         }
         
         transcriptionTask = task
-        if cancellationEpoch != epoch {
+        if cancellationEpoch != epoch || Task.isCancelled {
             // A cancel landed between the check above and this assignment, so it
             // saw no task to cancel. Hand it to this one; the `checkCancellation`
             // at the top of the closure picks it up before any real work.
@@ -555,10 +593,17 @@ class LibWhisperProvider: TranscriptionProvider {
         // Residency already claimed above (before the task could start). Release
         // it once the pass finishes, on every exit path.
         do {
-            let output = try await task.value
+            // The pass task is unstructured, so it does not inherit the caller's
+            // cancellation: forward it, or a cancelled caller (a deleted row's
+            // Retry, #1743) leaves the decode running to the end of the file.
+            let output = try await withTaskCancellationHandler {
+                try await task.value
+            } onCancel: {
+                task.cancel()
+            }
             await ModelResidencyRegistry.shared.markIdle(claimToken)
-            // `fullTranscribe` never polls for cancellation, so a pass cancelled
-            // mid-decode still finishes and hands back its text. Drop it: the
+            // A pass cancelled in its last window can still finish and hand
+            // back its text. Drop it: the
             // caller was cancelled or superseded, and a Local API request must
             // answer with the cancellation, not a transcript (issue #1465).
             if task.isCancelled || cancellationEpoch != epoch {
@@ -763,7 +808,11 @@ class LibWhisperProvider: TranscriptionProvider {
             case .conversionFailed:
                 throw TranscriptionError.audioConversionFailed
             }
-            
+
+        } catch is CancellationError {
+            // A cancelled pass stops the decode at its next chunk; keep the
+            // cancel so the pass answers `streamingInterrupted` (#1743).
+            throw CancellationError()
         } catch {
             // Unexpected errors
             logger.error("❌ Unexpected audio conversion error: \(error)")

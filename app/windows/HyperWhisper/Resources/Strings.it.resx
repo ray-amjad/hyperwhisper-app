@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Nuovo tentativo...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Un altro programma ha bloccato il database della cronologia. La registrazione è stata conservata e verrà salvata nella cronologia appena il database sarà libero.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Non è stato ancora possibile salvare questa registrazione nella cronologia. La registrazione è stata conservata e verrà salvata nella cronologia più tardi.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -793,6 +799,12 @@ Questa azione non può essere annullata.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (pronto)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (non attivato)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (nessuna chiave API)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Caricamento non riuscito</value>
   </data>
@@ -822,6 +834,9 @@ Questa azione non può essere annullata.</value>
   </data>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Trascrizione del file annullata</value>
+  </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Trascrizione del file...</value>
   </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Sconosciuto</value>
@@ -1084,6 +1099,9 @@ Deve esserci almeno una modalità.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Le scorciatoie con un solo tasto modificatore come Ctrl, Alt, Shift o Win non sono supportate. Usa un tasto con modificatori o una scorciatoia con più modificatori, ad esempio Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Una scorciatoia senza tasto modificatore deve essere un tasto funzione o Esc. Qualsiasi altro tasto si attiverebbe mentre scrivi.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Questa scorciatoia è già usata per {0} ({1})</value>
   </data>
@@ -1297,6 +1315,9 @@ Potrai scaricarlo di nuovo in seguito.</value>
   </data>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Inserisci una chiave di licenza.</value>
+  </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Questa non sembra una chiave dell'account.</value>
   </data>
 
   <!-- Models - ARM64 and GPU -->
@@ -1711,6 +1732,9 @@ Potrai scaricarlo di nuovo in seguito.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Senza nome</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Altro...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Trascrivi file</value>
   </data>
@@ -2005,11 +2029,35 @@ Potrai scaricarlo di nuovo in seguito.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Disattiva l'audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Attenua l'audio</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Mantieni il microfono pronto</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Mantieni aperto un flusso di ingresso silenzioso tra una registrazione e l'altra per ridurre il ritardo di avvio, soprattutto con i microfoni Bluetooth.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Usato solo da HyperWhisper. Ricordato anche dopo il riavvio.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Predefinito · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (non connesso)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Viene usato {0} finché {1} non viene ricollegato.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Nessun microfono è collegato. HyperWhisper userà {0} quando verrà ricollegato.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Prova</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Ferma</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Velocità media</value>

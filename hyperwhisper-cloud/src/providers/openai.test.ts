@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithOpenAI } from './openai';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import { OPENAI_INLINE_MAX_BYTES } from '../lib/constants';
+import { captureNoSpeechEvent } from './test-support';
 
 const originalFetch = globalThis.fetch;
 let savedKey: string | undefined;
@@ -39,25 +40,6 @@ function captureRequest(body: unknown, init?: ResponseInit) {
       : Response.json(body, init);
   }) as unknown as typeof fetch;
   return captured;
-}
-
-/**
- * Swaps `console.log` for the duration of `run` and returns the details object of
- * the `provider.no_speech` event it logged. Same swap-the-global idiom as
- * `utils.test.ts` — no spy library is used anywhere in this suite.
- */
-async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
-  const logged: unknown[][] = [];
-  const originalLog = console.log;
-  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
-  try {
-    await run();
-  } finally {
-    console.log = originalLog;
-  }
-  const event = logged.find((args) => args[0] === 'provider.no_speech');
-  if (!event) throw new Error('no provider.no_speech event was logged');
-  return event[1] as Record<string, unknown>;
 }
 
 function errorResponse(status: number, text = 'upstream said no') {
@@ -93,6 +75,19 @@ describe('transcribeWithOpenAI — gates that run before any upstream call', () 
     expect(thrown).toBeInstanceOf(Error);
     expect(thrown).not.toBeInstanceOf(ProviderUnavailableError);
     expect(thrown.message).toBe('OPENAI_API_KEY not configured');
+    expect(wasCalled()).toBe(false);
+  });
+
+  test('refuses the WebSocket-only gpt-live-transcribe with a 400 ProviderInputError and never calls fetch', async () => {
+    const wasCalled = errorResponse(200);
+
+    const thrown = await transcribeWithOpenAI(audio(), 'audio/wav', undefined, undefined, {
+      model: 'gpt-live-transcribe',
+    }).catch((e) => e);
+    expect(thrown).toBeInstanceOf(ProviderInputError);
+    expect(thrown.status).toBe(400);
+    expect(thrown.message).toContain('gpt-live-transcribe');
+    expect(thrown.message).toContain('WebSocket-only');
     expect(wasCalled()).toBe(false);
   });
 });
@@ -258,13 +253,14 @@ describe('transcribeWithOpenAI — HTTP error classification', () => {
     expect(thrown.message).toContain('upstream 5xx: 503');
   });
 
-  test('other 4xx becomes ProviderInputError carrying the status and body preview', async () => {
+  test('other 4xx becomes ProviderInputError carrying the status, the body preview for the client only', async () => {
     errorResponse(400, 'unsupported language code');
 
     const thrown = await transcribeWithOpenAI(audio(), 'audio/wav').catch((e) => e);
     expect(thrown).toBeInstanceOf(ProviderInputError);
     expect(thrown.status).toBe(400);
-    expect(thrown.message).toContain('unsupported language code');
+    expect(thrown.message).not.toContain('unsupported language code');
+    expect(thrown.clientMessage).toContain('unsupported language code');
   });
 
   test('a 200 with an unparsable body fails over instead of 500ing the request', async () => {

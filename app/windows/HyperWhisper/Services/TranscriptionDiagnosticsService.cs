@@ -25,7 +25,7 @@ public static class TranscriptionDiagnosticsService
     /// <summary>
     /// The measurement basis for <see cref="AnalyzeAudioFile"/>: 16 kHz mono,
     /// matching what every transcription path actually sends
-    /// (<c>TranscriptionService.PrepareAudioStream</c>,
+    /// (<c>TranscriptionService.ReadAudioChunks</c>,
     /// <c>FileTranscriptionService.ConvertToWhisperFormatAsync</c>, the parakeet
     /// daemon) and what macOS's
     /// <c>AudioConverter</c> already measured on. Measuring the container format
@@ -331,7 +331,7 @@ public static class TranscriptionDiagnosticsService
             using var reader = AudioFileDecoder.Open(audioPath);
 
             // Same pair the transcription paths already run
-            // (TranscriptionService.PrepareAudioStream:820-828,
+            // (TranscriptionService.ToWhisperSamples,
             // FileTranscriptionService.ConvertToWhisperFormatAsync:119-128): fold to
             // mono, then resample to 16 kHz.
             //

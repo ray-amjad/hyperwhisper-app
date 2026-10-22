@@ -9,7 +9,7 @@
 //  0-frame file with `TranscriptionError.invalidAudioFormat` (Local API code
 //  `AUDIO_DECODE_FAILED`) before the analyzer runs.
 //
-//  The fixtures are the two shapes from the issue, written byte by byte: a
+//  The fixtures are the two shapes from the issue, from `EmptyWAVFixture`: a
 //  44-byte header-only WAV whose `data` chunk is empty, and a WAV with a `fmt `
 //  chunk, a `LIST` chunk and no `data` chunk at all. A short real WAV is the
 //  control. No Speech assets and no macOS 26 are needed.
@@ -32,56 +32,6 @@ struct AppleSpeechAudioInputTests {
     private func temporaryURL() -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent("AppleSpeechAudioInputTests-\(UUID().uuidString).wav")
-    }
-
-    private func le32(_ value: UInt32) -> [UInt8] {
-        withUnsafeBytes(of: value.littleEndian) { Array($0) }
-    }
-
-    private func le16(_ value: UInt16) -> [UInt8] {
-        withUnsafeBytes(of: value.littleEndian) { Array($0) }
-    }
-
-    /// A 16-byte PCM `fmt ` chunk body: 16 kHz, mono, 16-bit.
-    private func pcmFormatChunk() -> [UInt8] {
-        let sampleRate: UInt32 = 16000
-        let channels: UInt16 = 1
-        let bitsPerSample: UInt16 = 16
-        let blockAlign = channels * bitsPerSample / 8
-        var body: [UInt8] = []
-        body += le16(1) // PCM
-        body += le16(channels)
-        body += le32(sampleRate)
-        body += le32(sampleRate * UInt32(blockAlign))
-        body += le16(blockAlign)
-        body += le16(bitsPerSample)
-        return Array("fmt ".utf8) + le32(UInt32(body.count)) + body
-    }
-
-    private func riff(_ chunks: [UInt8]) -> Data {
-        let payload = Array("WAVE".utf8) + chunks
-        return Data(Array("RIFF".utf8) + le32(UInt32(payload.count)) + payload)
-    }
-
-    /// 44 bytes: RIFF header, `fmt `, and a `data` chunk of length 0.
-    private func writeHeaderOnlyWAV() throws -> URL {
-        let url = temporaryURL()
-        let data = riff(pcmFormatChunk() + Array("data".utf8) + le32(0))
-        #expect(data.count == 44)
-        try data.write(to: url)
-        return url
-    }
-
-    /// `fmt ` plus a sizeable `LIST` chunk, and no `data` chunk at all — the
-    /// "audio bytes: 0" file from the issue.
-    private func writeFormatOnlyWAV() throws -> URL {
-        let url = temporaryURL()
-        var listBody = Array("INFO".utf8) + Array("ISFT".utf8)
-        let text = Array(String(repeating: "x", count: 4095).utf8) + [0] // even length, NUL-terminated
-        listBody += le32(UInt32(text.count)) + text
-        let list = Array("LIST".utf8) + le32(UInt32(listBody.count)) + listBody
-        try riff(pcmFormatChunk() + list).write(to: url)
-        return url
     }
 
     /// A real mono 16-bit PCM WAV holding a 440 Hz tone, closed on return.
@@ -130,13 +80,14 @@ struct AppleSpeechAudioInputTests {
     // MARK: - Tests
 
     @Test func aHeaderOnlyWAVIsRefused() throws {
-        let url = try writeHeaderOnlyWAV()
+        let url = try EmptyWAVFixture.writeHeaderOnly(prefix: "AppleSpeechAudioInputTests")
         defer { try? FileManager.default.removeItem(at: url) }
+        #expect(try Data(contentsOf: url).count == 44)
         expectRefusedAsInvalidAudioFormat(url, "header-only WAV")
     }
 
     @Test func aWAVWithNoDataChunkIsRefused() throws {
-        let url = try writeFormatOnlyWAV()
+        let url = try EmptyWAVFixture.writeFormatOnly(prefix: "AppleSpeechAudioInputTests")
         defer { try? FileManager.default.removeItem(at: url) }
         expectRefusedAsInvalidAudioFormat(url, "fmt-only WAV")
     }

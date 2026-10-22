@@ -63,6 +63,7 @@ internal sealed class LinuxDesktopServices : IDisposable
         SingleInstance = new LinuxSingleInstanceCoordinator(Paths);
         MicrophoneVolume = new LinuxMicrophoneVolumeService();
         MicrophoneKeepWarm = new LinuxMicrophoneKeepWarmService();
+        AudioDeviceWatcher = new PulseAudioDeviceWatcher();
         SoundEffects = new LinuxSoundEffectsService();
         AudioEnvironment = new LinuxAudioEnvironmentService();
         LivePreviewState = new EphemeralLiveTranscriptPreview();
@@ -100,6 +101,9 @@ internal sealed class LinuxDesktopServices : IDisposable
     public IDeviceIdentityProvider DeviceIdentity { get; }
     public IMicrophoneVolumeService MicrophoneVolume { get; }
     public IMicrophoneKeepWarmService MicrophoneKeepWarm { get; }
+    /// <summary>Raises when a microphone is plugged in or out, or the OS default input moves; the
+    /// window answers with a device refresh. Started by the window after start-up.</summary>
+    public PulseAudioDeviceWatcher AudioDeviceWatcher { get; }
     public ISoundEffectsService SoundEffects { get; }
     public IAudioEnvironmentService AudioEnvironment { get; }
     public LiveStreamingSessionController LiveStreaming { get; }
@@ -109,6 +113,17 @@ internal sealed class LinuxDesktopServices : IDisposable
     public LinuxSentryService Telemetry { get; }
     public TranscriptionBackendCapability LocalWhisperCapability => _localWhisper.Capability;
     public TranscriptionBackendCapability LocalParakeetCapability => _localParakeet.Capability;
+
+    /// <summary>
+    /// Loads the batch Parakeet daemon for a mode before its first dictation (#1791). The
+    /// daemon is the one <see cref="AudioTranscriber"/> routes to, so dictation and the
+    /// Local API both reuse it.
+    /// </summary>
+    public Task<bool> PrewarmLocalParakeetAsync(
+        HyperWhisper.Data.Entities.Mode mode, string? language, CancellationToken cancellationToken) =>
+        _localParakeet is ParakeetDaemonTranscriber daemon
+            ? daemon.PrewarmAsync(mode, language, cancellationToken)
+            : Task.FromResult(false);
 
     public bool ProbeSharedCore() =>
         !SharedCoreBridge.ContainsCjk("HyperWhisper")
@@ -134,6 +149,7 @@ internal sealed class LinuxDesktopServices : IDisposable
         ApplicationContext.Dispose();
         Tray.Dispose();
         SingleInstance.Dispose();
+        AudioDeviceWatcher.Dispose();
         MicrophoneKeepWarm.Dispose();
         SoundEffects.Dispose();
         LiveStreaming.DisposeAsync().AsTask().GetAwaiter().GetResult();

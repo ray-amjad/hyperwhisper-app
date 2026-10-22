@@ -59,7 +59,7 @@ public sealed class VocabularyViewModel : ViewModelBase
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
-        try { Items.Clear(); foreach (var item in await _repository.ListAsync(cancellationToken)) Items.Add(item); Status.Success($"{Items.Count} term(s)"); }
+        try { Items.Clear(); foreach (var item in await _repository.ListAsync(cancellationToken)) Items.Add(item); Status.Success(Plural.Count(Items.Count, "term", "terms")); }
         catch (Exception) { Status.Failure("vocabulary.load_failed", "Could not load vocabulary."); }
         NotifyDerived();
     }
@@ -78,7 +78,7 @@ public sealed class VocabularyViewModel : ViewModelBase
     /// </summary>
     private void ClearSubmitError()
     {
-        if (Status.ErrorCode is not ("vocabulary.word_required" or "vocabulary.add_failed")) return;
+        if (Status.ErrorCode is not ("vocabulary.word_required" or "vocabulary.duplicate" or "vocabulary.add_failed")) return;
         Status.Clear();
         NotifyDerived();
     }
@@ -93,6 +93,19 @@ public sealed class VocabularyViewModel : ViewModelBase
         var replacement = string.IsNullOrWhiteSpace(Replacement) ? null : Replacement.Trim();
         try
         {
+            // Issue #633: the store merges a word it already holds (any case), which moved the row,
+            // wiped its replacement or rewrote its spelling. A word that another row holds, or that
+            // an earlier pasted line holds, is refused, nothing is written, and the input stays.
+            // The row being edited may keep or re-case its own word. Import still merges.
+            var taken = new HashSet<string>(
+                (await _repository.ListAsync(cancellationToken)).Where(item => item.Id != Selected?.Id).Select(item => item.Word.Trim()),
+                StringComparer.OrdinalIgnoreCase);
+            if (lines.FirstOrDefault(line => !taken.Add(line)) is { } duplicate)
+            {
+                Status.Failure("vocabulary.duplicate", $"\"{duplicate}\" is already in your vocabulary.");
+                NotifyDerived();
+                return;
+            }
             for (var index = 0; index < lines.Count; index++)
             {
                 var item = index == 0 && Selected is { } selected ? selected : new VocabularyItem { SortOrder = Items.Count + index };
@@ -124,7 +137,7 @@ public sealed class VocabularyViewModel : ViewModelBase
             }).Where(item => item.Word.Length > 0);
             var count = await _repository.MergeAsync(items, cancellationToken);
             await RefreshAsync(cancellationToken);
-            Status.Success($"Imported {count} term(s); duplicates merged");
+            Status.Success($"Imported {Plural.Count(count, "term", "terms")}; duplicates merged");
         }
         catch (Exception) { Status.Failure("vocabulary.import_failed", "Could not import vocabulary."); }
     }

@@ -522,7 +522,7 @@ public sealed class TranscriptionWorkflow : IDisposable
             return await CompleteTerminalFailureAsync(
                 transcript,
                 // A backend that answers with no text heard no speech: a silent
-                // recording, or one Whisper only marked [BLANK_AUDIO] (issue #1742).
+                // recording, or one Whisper only marked as non-speech (issue #1742).
                 $"workflow.{result.Failure?.Code.ToString().ToLowerInvariant() ?? "no_speech"}",
                 result.Failure?.Message ?? "No speech was detected.",
                 result.Failure?.Code ?? PortableTranscriptionErrorCode.TranscriptionFailed,

@@ -293,7 +293,12 @@ final class Qwen3AsrProvider: TranscriptionProvider {
         }
     }
 
-    let name: String = "Qwen3 ASR"
+    /// The engine name `name` returns, which a completed History row stores as
+    /// its `transcriptionProvider`. Static so a failed row can store the same
+    /// value without an instance (issue #1518).
+    static let engineName = "Qwen3 ASR"
+
+    let name: String = Qwen3AsrProvider.engineName
 
     private let runtime = Runtime()
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "Qwen3AsrProvider")
@@ -314,7 +319,8 @@ final class Qwen3AsrProvider: TranscriptionProvider {
         } else if Qwen3AsrModels.modelsExist(at: Qwen3AsrModels.defaultCacheDirectory(variant: .int8)) {
             return Qwen3AsrModels.defaultCacheDirectory(variant: .int8)
         }
-        throw TranscriptionError.modelNotDownloaded
+        // Named as Model Library names it (issue #1518).
+        throw TranscriptionError.modelNotDownloaded(model: Qwen3AsrModelManager.Constants.displayName)
     }
 
     var isAvailable: Bool {
@@ -359,7 +365,7 @@ final class Qwen3AsrProvider: TranscriptionProvider {
         if let attrs = try? fm.attributesOfItem(atPath: audioURL.path),
            let size = attrs[.size] as? Int64, size < 5000 {
             logger.error("Audio file too small: \(size) bytes")
-            throw TranscriptionError.providerNotAvailable(provider: "Qwen3 ASR", reason: "Audio file is too small (\(size) bytes). Please record for longer.")
+            throw TranscriptionError.audioTooShort(fileSize: size)
         }
 
         let directory = try Self.resolvedModelDirectory()

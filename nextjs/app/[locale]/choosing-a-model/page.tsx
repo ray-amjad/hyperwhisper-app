@@ -4,6 +4,7 @@ import ModelPicker from "@/components/choosing-a-model/ModelPicker";
 import { getMeasuredLatency } from "@/src/content/choosing-a-model";
 import { CLOUD_MODELS, DEVICE_MODELS } from "@/lib/choosing-a-model/catalog";
 import { englishStaticPageMetadata } from "@/lib/site-metadata";
+import { TEXT_LINK } from "@/components/text-link";
 
 export const dynamic = "force-static";
 export const revalidate = 3600;
@@ -147,7 +148,7 @@ export default async function ChoosingAModelPage({ params }: Props) {
             <dd className="mt-1">
               Word error rate comes from the{" "}
               <a
-                className="text-purple-300 underline underline-offset-4 transition hover:text-purple-200"
+                className={TEXT_LINK}
                 href="https://artificialanalysis.ai/speech-to-text/non-streaming"
                 rel="noopener noreferrer"
                 target="_blank"
@@ -201,7 +202,7 @@ export default async function ChoosingAModelPage({ params }: Props) {
               <span className="text-gray-200">Measured clip</span> is our own
               median from the last 90 days — the same measurements behind{" "}
               <a
-                className="text-purple-300 underline underline-offset-4 transition hover:text-purple-200"
+                className={TEXT_LINK}
                 href="/en/latency"
               >
                 the latency page

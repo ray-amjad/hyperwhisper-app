@@ -275,9 +275,15 @@ describe("admin.devices.forLicense", () => {
     });
 
     assert.equal(result.status, 200);
-    assert.deepEqual(calls.devicesForLicense, [{ licenseKeyId: LICENSE_ID, days: 14 }]);
+    assert.deepEqual(calls.devicesForLicense, [
+      {
+        licenseKeyId: LICENSE_ID,
+        days: 14,
+        page: { limit: 50, offset: 0, search: undefined },
+      },
+    ]);
     const data = result.data as { devices: Array<{ lastValidatedAt: Date }> };
-    assert.deepEqual(data, { devices: behaviour.devices });
+    assert.deepEqual(data, { devices: behaviour.devices, total: 1, nextCursor: null });
     // superjson keeps the Date a Date across the wire.
     assert.ok(data.devices[0].lastValidatedAt instanceof Date);
   });
@@ -285,8 +291,86 @@ describe("admin.devices.forLicense", () => {
   test("leaves the window unset when the caller gives none", async () => {
     await httpQuery("admin.devices.forLicense", { licenseKeyId: LICENSE_ID });
 
-    assert.deepEqual(calls.devicesForLicense, [{ licenseKeyId: LICENSE_ID, days: undefined }]);
+    assert.deepEqual(calls.devicesForLicense, [
+      {
+        licenseKeyId: LICENSE_ID,
+        days: undefined,
+        page: { limit: 50, offset: 0, search: undefined },
+      },
+    ]);
   });
+
+  // #1661: a key can hold over a thousand devices; the list is paged.
+  function fakeDevices(n: number, from = 0) {
+    return Array.from({ length: n }, (_, i) => ({
+      deviceId: `device-${from + i}`,
+      deviceName: null,
+      createdAt: new Date("2026-08-01T00:00:00Z"),
+      lastValidatedAt: new Date("2026-09-01T00:00:00Z"),
+    }));
+  }
+
+  test("a full page with more behind it names the next page's offset", async () => {
+    behaviour.devices = fakeDevices(50);
+    behaviour.deviceTotal = 1284;
+
+    const result = await httpQuery("admin.devices.forLicense", { licenseKeyId: LICENSE_ID });
+
+    assert.equal(result.status, 200);
+    const data = result.data as { devices: unknown[]; total: number; nextCursor: number | null };
+    assert.equal(data.devices.length, 50);
+    assert.equal(data.total, 1284);
+    assert.equal(data.nextCursor, 50);
+  });
+
+  test("the cursor, limit and search reach the query, and the last page ends the list", async () => {
+    behaviour.devices = fakeDevices(34, 1250);
+    behaviour.deviceTotal = 1284;
+
+    const result = await httpQuery("admin.devices.forLicense", {
+      licenseKeyId: LICENSE_ID,
+      cursor: 1250,
+      limit: 50,
+      search: "mac_%",
+    });
+
+    assert.equal(result.status, 200);
+    assert.deepEqual(calls.devicesForLicense, [
+      {
+        licenseKeyId: LICENSE_ID,
+        days: undefined,
+        page: { limit: 50, offset: 1250, search: "mac_%" },
+      },
+    ]);
+    assert.equal((result.data as { nextCursor: number | null }).nextCursor, null);
+  });
+
+  test("a full page that reaches the total ends the list", async () => {
+    behaviour.devices = fakeDevices(50);
+    behaviour.deviceTotal = 50;
+
+    const result = await httpQuery("admin.devices.forLicense", { licenseKeyId: LICENSE_ID });
+
+    assert.equal((result.data as { nextCursor: number | null }).nextCursor, null);
+  });
+
+  for (const bad of [
+    { limit: 0 },
+    { limit: 101 },
+    { limit: 2.5 },
+    { cursor: -1 },
+    { search: "x".repeat(201) },
+  ]) {
+    test(`refuses ${JSON.stringify(bad).slice(0, 40)} before it reaches the database`, async () => {
+      const result = await httpQuery("admin.devices.forLicense", {
+        licenseKeyId: LICENSE_ID,
+        ...bad,
+      });
+
+      assert.equal(result.status, 400);
+      assert.deepEqual(calls.devicesForLicense, []);
+    });
+  }
 
   test("refuses a license id that is not a UUID before it reaches the database", async () => {
     const result = await httpQuery("admin.devices.forLicense", {
@@ -609,7 +693,7 @@ test("harness: dbErrorOn with no dbError still trips the unexpected-call alarm",
 });
 
 test("download.recordDownload logs an unexpected DB error in its outer catch redacted (#1049)", async () => {
-  behaviour.downloadLimitError = leakyDbError();
+  behaviour.downloadOuterError = leakyDbError();
 
   const result = await httpMutation("download.recordDownload", { email: LEAKY_EMAIL }, null);
 

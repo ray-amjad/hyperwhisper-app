@@ -9,6 +9,7 @@ import { TRPCError } from "@trpc/server";
 
 import { createTRPCRouter, adminProcedure } from "../../trpc";
 import {
+  DEVICES_PAGE_SIZE,
   getDeviceCountsPerLicense,
   getDevicesForLicense,
 } from "@/src/lib/db-layer";
@@ -37,22 +38,36 @@ export const devicesRouter = createTRPCRouter({
     }),
 
   /**
-   * List individual devices for a specific license key.
+   * One page of a license key's devices (#1661), newest validation first.
+   * `cursor` is the row offset of the page (the shape `useInfiniteQuery`
+   * drives); `nextCursor` is the next page's offset, or null after the last.
+   * `search` filters by device name or id; `total` counts every match.
    */
   forLicense: adminProcedure
     .input(
       z.object({
         licenseKeyId: z.string().uuid(),
         days: z.number().positive().optional(),
+        search: z.string().max(200).optional(),
+        limit: z.number().int().min(1).max(100).optional(),
+        cursor: z.number().int().min(0).nullish(),
       })
     )
     .query(async ({ input }) => {
       try {
-        const rows = await getDevicesForLicense(
+        const limit = input.limit ?? DEVICES_PAGE_SIZE;
+        const offset = input.cursor ?? 0;
+        const { devices, total } = await getDevicesForLicense(
           input.licenseKeyId,
-          input.days
+          input.days,
+          { limit, offset, search: input.search }
         );
-        return { devices: rows };
+        const next = offset + devices.length;
+        return {
+          devices,
+          total,
+          nextCursor: devices.length === limit && next < total ? next : null,
+        };
       } catch (error) {
         console.error("Devices for license fetch error:", describeDbError(error));
         throw new TRPCError({

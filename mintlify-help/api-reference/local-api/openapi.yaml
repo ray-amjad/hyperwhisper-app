@@ -184,6 +184,10 @@ paths:
         skip (post-processing off for the resolved mode, or an empty system
         prompt) on Windows and Linux, and either that or a provider failure on
         macOS. Handle both the `ok: false` envelope and `post_processed: false`.
+
+        One case is the same on every platform: a HyperWhisper Cloud run with
+        no account key stored answers `ok: false` / `MISSING_API_KEY`, the same
+        refusal `/transcribe` gives for that mode.
       requestBody:
         required: true
         content:
@@ -271,7 +275,8 @@ paths:
     post:
       summary: Start the microphone, or stop it and transcribe
       description: |
-        Linux only. macOS and Windows do not serve this path. The route takes no
+        Works on Linux only. macOS does not serve this path. Windows answers it with
+        `ok: false` and the code `ENGINE_UNAVAILABLE`. The route takes no
         request body and no `mode_id`, so it uses the current Mode.
 
         When the recorder is idle, the call starts it. When the recorder is
@@ -299,7 +304,8 @@ paths:
     post:
       summary: Stop the microphone and keep no transcript
       description: |
-        Linux only. macOS and Windows do not serve this path. The route takes no
+        Works on Linux only. macOS does not serve this path. Windows answers it with
+        `ok: false` and the code `ENGINE_UNAVAILABLE`. The route takes no
         request body. It stops the recorder at any point and writes no
         transcript.
       responses:
@@ -487,10 +493,8 @@ components:
             the provider but PINS the tier the Mode already had, which may not be
             the tier the name implies. Send only the keys you are changing.
             A Mode that ALREADY holds a legacy name is not rewritten by this
-            endpoint and is reported as stored. Windows and macOS fold such a row
-            once at app startup; Linux does not, and there a Mode still holding
-            one of these two names cannot transcribe at all. PATCH the same
-            `cloudProvider` back, on its own, to fold it.
+            endpoint and is reported as stored. Windows, macOS and Linux fold such
+            a row once at app startup.
         postProcessingMode:
           type: integer
           minimum: 0
@@ -594,10 +598,8 @@ components:
             the provider but PINS the tier the Mode already had, which may not be
             the tier the name implies. Send only the keys you are changing.
             A Mode that ALREADY holds a legacy name is not rewritten by this
-            endpoint and is reported as stored. Windows and macOS fold such a row
-            once at app startup; Linux does not, and there a Mode still holding
-            one of these two names cannot transcribe at all. PATCH the same
-            `cloudProvider` back, on its own, to fold it.
+            endpoint and is reported as stored. Windows, macOS and Linux fold such
+            a row once at app startup.
         postProcessingMode:
           type: integer
           minimum: 0
@@ -709,7 +711,15 @@ components:
             The model to run. Optional. It is echoed back unvalidated, and it
             wins over everything the Mode holds. Omit it to let the `engine`
             choose, and read `mode_id` above for what happens when the Mode and
-            the `engine` disagree about the model.
+            the `engine` disagree about the model. `whisperLocal` (and its
+            aliases) is the exception: sent with `engine` and no `mode_id`, it
+            needs a `model` (for example `base.en`), and a missing or blank one
+            is refused with `INVALID_REQUEST` on all three platforms (macOS
+            and Windows answer HTTP 200 with the message "A Whisper model is
+            required."; Linux answers HTTP 400). `nemotron` with no `model` tries
+            `nemotron-asr-3.5-multilingual`; on macOS, sent with `engine` and no
+            `mode_id`, the `MODEL_NOT_INSTALLED` message names that model when it
+            is not installed.
         language:
           type: string
         timestamp_granularities:

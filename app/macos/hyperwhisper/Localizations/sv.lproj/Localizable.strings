@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostik exporterad";
 "alerts.export.diagnostics.success.message" = "Alla diagnostikloggar har exporterats framgångsrikt.";
 "alerts.export.diagnostics.saveFailed.message" = "Det gick inte att spara diagnostik till vald plats: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostik exporterad utan systemloggar";
+"alerts.export.diagnostics.noSystemLogs.message" = "Diagnostikfilen sparades, men appens systemloggar kunde inte läsas, så system-logs.txt innehåller bara orsaken. Orsak: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Exportera uppdateringsloggar för support";
@@ -303,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Av";
 "settings.general.mediaControl.mode.mute" = "Stäng av ljud";
+"settings.general.mediaControl.mode.muffle" = "Dämpa ljud";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -321,9 +324,17 @@
 "settings.sound.soundEffects.title" = "Spela upp ljudeffekter";
 "settings.sound.soundEffects.info" = "Spela upp ljudsignaler när inspelningen startar och stoppar.";
 "settings.sound.mediaControl.title" = "Mediakontroll vid inspelning";
-"settings.sound.mediaControl.info" = "Välj hur HyperWhisper hanterar annan ljud under inspelning. 'Av' lämnar ljud oförändrat, 'Stäng av ljud' tystnar systemutgång under inspelning och återställer den efteråt.";
+"settings.sound.mediaControl.info" = "Välj hur HyperWhisper hanterar annan ljud under inspelning. 'Av' lämnar ljud oförändrat, 'Stäng av ljud' tystnar systemutgång under inspelning och återställer den efteråt, och 'Dämpa ljud' låter det spelas svagt, som från rummet bredvid.";
+"settings.sound.microphone.title" = "Mikrofon";
+"settings.sound.microphone.subtitle" = "Används bara av HyperWhisper. Sparas efter omstart.";
+"microphone.picker.default" = "Standard · %@";
+"microphone.picker.notConnected" = "%@ (inte ansluten)";
+"microphone.picker.fallback" = "Använder %1$@ tills %2$@ ansluts igen.";
+"settings.sound.microphone.test" = "Testa";
+"settings.sound.microphone.stop" = "Stoppa";
+"settings.sound.microphone.level" = "Ingångsnivå";
 "settings.sound.autoIncreaseMicVolume.title" = "Öka automatiskt mikrofonvolym";
-"settings.sound.autoIncreaseMicVolume.info" = "Ställer automatiskt in mikrofoningångsvolymen på max när inspelningen startar, sedan återställs den ursprungliga nivån när inspelningen stoppas. Gäller endast när systemets standardingångsenhet används.";
+"settings.sound.autoIncreaseMicVolume.info" = "Ställer automatiskt in ingångsvolymen för mikrofonen som HyperWhisper spelar in från på max när inspelningen startar och återställer den ursprungliga nivån när inspelningen stoppas. Mikrofoner utan mjukvarustyrd volym lämnas oförändrade.";
 "settings.sound.vad.title" = "Ta bort tystnad innan transkription";
 "settings.sound.vad.info" = "Upptäcker och tar bort automatiskt ledande och avslutande tystnad med AI-röstidentifiering. Detta kan förbättra transkriptionsnoggrannheten och minska bearbetningstiden.";
 
@@ -335,6 +346,9 @@
 "settings.storage.choose.button" = "Välj...";
 "settings.storage.dialog.select" = "Välj mapp";
 "settings.storage.dialog.message" = "Välj en mapp för att lagra inspelningar";
+"settings.storage.folderRefused.title" = "Den här mappen kan inte användas";
+"settings.storage.folderRefused.notWritable" = "Du har inte behörighet att skriva till ”%@”, så HyperWhisper kan inte spara inspelningar där. Inspelningsmappen ändrades inte.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper kunde inte skapa den här mappen: %@ Inspelningsmappen ändrades inte.";
 "settings.storage.storeAsM4A.title" = "Komprimera inspelningar till M4A";
 "settings.storage.storeAsM4A.subtitle" = "Konverterar WAV-inspelningar till mindre filer efter transkription. Stäng av för att behålla ursprungliga WAV-filer (större men förlustfri).";
 
@@ -382,6 +396,7 @@
 
 "settings.shortcuts.changeMode.title" = "Ändra läge";
 "settings.shortcuts.changeMode.subtitle" = "Fungerar endast vid inspelning";
+"settings.shortcuts.conflict.alert" = "Det här kortkommandot kan inte användas eftersom det redan används av ”%@”.";
 
 "settings.shortcuts.reset.button" = "Återställ till standard";
 "settings.shortcuts.reset.dialog.title" = "Återställ tangentbordgenvägar";
@@ -433,6 +448,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Klistra in från urklipp";
 "settings.license.clearInput" = "Rensa";
+"license.error.keyFormat" = "Det ser inte ut som en kontonyckel.";
 "settings.license.recovery.prompt" = "Glömt din licensnyckel?";
 "settings.license.recovery.button" = "Gå till kundportal";
 "settings.license.daily.title" = "Daglig transkription";
@@ -792,6 +808,7 @@ Redigera dessa lägen för att välja en annan modell innan du tar bort den.";
 "modes.field.name.placeholder" = "T.ex. mötesanteckningar";
 "modes.field.name.editPlaceholder" = "Lägesnamn";
 "modes.field.name.defaultLocked" = "Det här är standardläget, så dess namn kan inte ändras. Du kan byta namn på alla andra lägen.";
+"modes.field.name.taken" = "Det finns redan ett läge med det namnet.";
 "modes.field.model" = "Modell";
 "modes.field.provider" = "Leverantör";
 "modes.provider.local" = "Lokal";
@@ -818,7 +835,7 @@ Redigera dessa lägen för att välja en annan modell innan du tar bort den.";
 "transcripts.delete.single.message" = "Detta tar permanent bort denna inspelning och dess ljudfil.";
 "transcripts.delete.multiple.title" = "Radera %d inspelningar?";
 "transcripts.delete.multiple.message" = "Detta tar permanent bort %d inspelningar och deras ljudfiler.\n\nDenna åtgärd kan inte ångras.";
-"transcripts.delete.multiple.confirm" = "Radera alla";
+"transcripts.delete.multiple.confirm" = "Radera %d inspelningar";
 "transcripts.retry.error.title" = "Försök igen misslyckades";
 "transcripts.retry.error.modeDeleted" = "Läget som skapade den här inspelningen har tagits bort, så det gjordes inget nytt försök. Högerklicka på inspelningen i Historik och välj \"Försök igen med...\" för att välja ett annat läge.";
 
@@ -871,7 +888,6 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "recording.retry.inProgress" = "Försöker igen...";
 "recording.retry.count" = "Försök igen (%d)";
 "recording.retry.failed.missing" = "Försök igen misslyckades: Ljudfilen hittades inte";
-"recording.retry.failed.error" = "Försök igen misslyckades: %@";
 "recording.retry.pending" = "Klar för att försöka igen – klicka för att transkribera";
 "recording.retry.modeDeleted" = "Läget har tagits bort";
 "recording.cancel.dialog.title" = "Avbryt inspelning?";
@@ -928,6 +944,9 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "transcription.error.providerNotAvailable.provider" = "%@ är inte tillgänglig. Kontrollera dina inställningar och försök igen.";
 "transcription.error.providerNotAvailable.detail" = "%@ är inte tillgänglig: %@";
 "transcription.error.modelNotDownloaded" = "Ladda ner en modell först";
+"transcription.error.modelNotDownloaded.modelAndMode" = "%1$@ använder %2$@, som inte är nedladdad. Ladda ner den i Modellbibliotek.";
+"transcription.error.modelNotDownloaded.model" = "%1$@ är inte nedladdad. Ladda ner den i Modellbibliotek.";
+"transcription.error.openModelLibrary" = "Öppna Modellbibliotek";
 "transcription.error.modelProtected" = "Denna modell kan inte tas bort";
 "transcription.error.audioFileNotFound" = "Ljudfilen hittades inte";
 "transcription.error.network.detail" = "Nätverksfel: %@";
@@ -974,6 +993,7 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "transcription.guidance.quotaExceeded" = "Lägg till krediter till ditt %@ konto eller uppdatera din faktureringsinformation";
 "transcription.guidance.timeout" = "Förfrågan tog för lång tid. Kontrollera din internethastighet och försök igen.";
 "transcription.error.noSpeechDetected" = "Inget tal upptäcktes i inspelningen.";
+"transcription.error.audioTooShort" = "Inspelningen är för kort för att transkriberas. Spela in längre.";
 "transcription.guidance.noSpeechDetected" = "Tips:\n• Tala tydligt in i mikrofonen\n• Håll tangenten längre innan du talar\n• Kontrollera att din mikrofon fungerar\n• Se till att rätt ingångsenhet är vald";
 "transcription.guidance.needsNativeRelaunch" = "Avsluta och öppna HyperWhisper nativt igen för att använda lokal efterbearbetning.";
 "transcription.guidance.localRuntimeUnavailable" = "Försök igen eller välj en mindre lokal modell i lägesinställningarna.";
@@ -1117,7 +1137,16 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "transcribe.file.error.format.message" = ".%@ filer stöds inte av %@. Stödda format: %@";
 "transcribe.file.error.read" = "Kan inte läsa den valda filen.";
 "transcribe.file.error.webm" = "WebM stöds inte. Konvertera filen till MP3, M4A eller WAV och försök igen.";
-"transcribe.file.error.unreadableAudio" = "HyperWhisper kan inte läsa ljudet i den här filen. Den kan vara skadad eller i ett format som macOS inte kan avkoda.";
+"transcribe.file.busy.title" = "En fil transkriberas redan.";
+"transcribe.file.busy.message" = "Vill du avbryta den och starta den här?";
+"transcribe.file.busy.keepRunning" = "Fortsätt";
+"transcribe.file.busy.cancelAndStart" = "Avbryt och starta";
+"transcribe.file.error.notAudio" = "Filen ”%@” är inte giltigt ljud. Den kan vara skadad eller i ett format som macOS inte kan avkoda.";
+"transcribe.file.error.empty" = "Filen ”%@” är tom. Den innehåller inget ljud att transkribera.";
+"transcribe.file.error.permission" = "HyperWhisper kan inte läsa filen ”%@”. Kontrollera filens behörigheter.";
+"transcribe.file.error.folderPermission" = "HyperWhisper kan inte öppna en mapp som innehåller filen ”%@”. Kontrollera behörigheterna för den mappen.";
+"transcribe.file.error.privacy" = "Integritetsinställningarna i macOS hindrade HyperWhisper från att läsa filen ”%@”. Tillåt det i Systeminställningar > Integritet och säkerhet > Fullständig skivåtkomst.";
+"transcribe.file.error.tooShort" = "Den här filen är för kort för att transkriberas (%@ s).";
 "transcribe.file.error.copy" = "Det gick inte att kopiera filen till inspelningsmappen.";
 "transcribe.file.error.video.title" = "Inget ljud i video";
 "transcribe.file.error.video.noAudio" = "Denna videofil innehåller inget ljudspår. Välj en video med ljud eller en ljudfil.";
@@ -1144,3 +1173,4 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "settings.storage.maxRecordingDuration.hour" = "1 timme";
 "settings.storage.maxRecordingDuration.hours" = "%d timmar";
 "settings.storage.maxRecordingDuration.off" = "Av";
+"settings.api_server.status.stopping" = "Stoppar…";

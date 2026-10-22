@@ -375,11 +375,9 @@ extension RecordingTranscriptionFlow {
         // 6.5. PLAY START SOUND EFFECT & APPLY MEDIA CONTROL
         if let settings = settingsManager, settings.enableSoundEffects {
             SoundEffectsManager.shared.playStartSound(volume: settings.soundEffectsVolume)
-            // Wait for chime to finish before muting other media, but don't block recording start
-            Task {
-                try? await Task.sleep(for: .milliseconds(350))
-                recordingLifecycle.applyMediaControl()
-            }
+            // Wait for chime to finish before muting other media, but don't block recording start.
+            // The lifecycle owns the delayed task: stopping the recording cancels it.
+            recordingLifecycle.applyMediaControl(after: .milliseconds(350))
         } else {
             recordingLifecycle.applyMediaControl()
         }
@@ -654,6 +652,24 @@ extension RecordingTranscriptionFlow {
         currentRecordingAttemptId = nil
         currentRecordingTriggerSource = .unknown
         quickCaptureContext = nil
+    }
+
+    /// The microphone went away mid-recording and neither it nor the macOS default
+    /// input could be reopened, so capture has stopped. End the recording now, the
+    /// way the max-duration auto-stop does, and tell the user: the audio up to the
+    /// loss is transcribed, and the error says the recording was cut short instead of
+    /// the app sitting in "Recording" while nothing is captured.
+    func handleRecordingCaptureLost() async {
+        guard recordingLifecycle.isRecording, !isStopInProgress else { return }
+        AppLogger.audio.error("Microphone lost mid-recording and no input could be reopened - ending the recording")
+        SentryService.addBreadcrumb(
+            message: "Recording ended: microphone lost mid-recording",
+            category: "audio.recording",
+            level: .warning
+        )
+        appState?.showError(AudioError.noMicrophoneAvailable.localizedDescription)
+        currentRecordingTriggerSource = .autoStop
+        await handleStopRecordingWithTranscription(mode: activeSessionModeName, cancelled: false)
     }
 
     private func armRecordingMaxDurationTimer(mode: String, attemptId: String) {

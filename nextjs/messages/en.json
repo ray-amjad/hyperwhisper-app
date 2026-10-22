@@ -95,7 +95,29 @@
   "openSource": {
     "heading": "Open source. Nothing to hide.",
     "body": "HyperWhisper is fully open-source under Apache-2.0 — desktop apps and Cloud backend alike. An app that listens to your microphone should be something you can verify, not just trust: read every line, audit exactly where your audio goes, and know you'll never be locked in — the code is yours to fork and self-host forever. Built in the open by indie maker Ray Amjad.",
-    "cta": "View on GitHub"
+    "cta": "View on GitHub",
+    "metaTitle": "Open Source | HyperWhisper",
+    "metaDescription": "HyperWhisper is fully open source under Apache-2.0 — desktop apps and Cloud backend alike. Read the code, audit where your audio goes, fork it, and self-host forever.",
+    "eyebrow": "Open Source",
+    "lead": "HyperWhisper is now fully open source under Apache-2.0 — the desktop apps and the Cloud backend alike.",
+    "intro": "An app that listens to your microphone should be something you can verify, not just trust. So we opened everything up. You can read every line of HyperWhisper — the macOS, Windows, and Linux apps, and the Cloud transcription backend — see exactly where your audio goes, and know you'll never be locked in. The whole project lives on <github>GitHub</github> under the <license>Apache-2.0 license</license>.",
+    "whyHeading": "Why it matters",
+    "whyVerify": "<strong>Verify, don't trust.</strong> Read every line and audit exactly where your audio goes. An app with microphone access should be something you can inspect, not just take on faith.",
+    "whyNoLockIn": "<strong>No lock-in.</strong> The code is Apache-2.0 — yours to keep, adapt, and run on your own terms. Your workflow is never held hostage.",
+    "whyFork": "<strong>Fork and self-host.</strong> Clone the repo, build it yourself, or run your own Cloud backend. Everything you need is public.",
+    "whyOpen": "<strong>Built in the open.</strong> HyperWhisper is developed publicly by indie maker Ray Amjad. Issues, discussions, and releases all happen out in the open.",
+    "licenseHeading": "Already bought a license?",
+    "licenseIntro": "HyperWhisper is now open source, and paid transcription runs on HyperWhisper Cloud credits. If you bought a license before the switch, here's how we're taking care of you — just email <mail>{email}</mail> and we'll sort it out by hand.",
+    "licenseRecent": "<strong>Bought in the last 30 days:</strong> you're inside the refund window. We'll refund your purchase in full — no questions asked. Just <refund>send us a note</refund>.",
+    "licenseOlder": "<strong>Bought more than 30 days ago:</strong> we'll convert what you paid into HyperWhisper Cloud credits — the full purchase price, minus the $5 in credits already added to your account. <credits>Email us</credits> and we'll apply the balance.",
+    "contributeHeading": "Want to contribute?",
+    "contributeBody": "Bug reports, feature ideas, and pull requests are all welcome. Open an issue or start a discussion <github>on GitHub</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper is now fully open source",
+    "shortText": "Now open source",
+    "learnMore": "Learn more",
+    "dismiss": "Dismiss announcement"
   },
   "demo": {
     "fasterThanTyping": "Faster than typing",
@@ -189,7 +211,7 @@
       },
       "cloud": {
         "question": "What is HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud is a built-in cloud transcription aimed at less technical users who want to get started quickly.\n\nIt's pay-as-you-go credits. You top up from as little as $5 (1,000 credits per $1) and spend them only as you transcribe. Your first credit purchase automatically creates your Account Key, so there's nothing else to buy.\n    \nWe offer four accuracy levels: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2), and Highest (Grok STT, default for new installs and powered by SpaceXAI Grok STT). Post-processing is automatic and defaults to Grok 4.1 Fast non-reasoning. We store nothing besides how many credits you consumed, and we've opted you out of model training on every upstream provider we use. See our [Data Privacy guide](https://hyperwhisper.com/docs/data-privacy) for details.\n\nCredits are spent at the providers' own processing cost — no markup on transcription. Checkout adds a flat 6% payment-processing fee, shown as a separate line item. Unused credits expire after 12 months (see below).\n\nFor peace of mind, the entire app is open source under Apache-2.0 — including the Cloud backend. You can read every line of code that runs between your app and the providers we proxy to [on GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud is a built-in cloud transcription aimed at less technical users who want to get started quickly.\n\nIt's pay-as-you-go credits. You top up from as little as $5 (1,000 credits per $1) and spend them only as you transcribe. Your first credit purchase automatically creates your Account Key, so there's nothing else to buy.\n    \nHyperWhisper Cloud gives you 12 transcription providers, from Groq Whisper to ElevenLabs Scribe v2 (see [the full list and rates](https://hyperwhisper.com/docs/cloud-credits)). New installs start on ElevenLabs Scribe v2. Post-processing is automatic and new installs start on Claude Haiku 5.5. We store nothing besides how many credits you consumed, and we've opted you out of model training on every upstream provider we use. See our [Data Privacy guide](https://hyperwhisper.com/docs/data-privacy) for details.\n\nCredits are spent at the providers' own processing cost — no markup on transcription. Checkout adds a flat 6% payment-processing fee, shown as a separate line item. Unused credits expire after 12 months (see below).\n\nFor peace of mind, the entire app is open source under Apache-2.0 — including the Cloud backend. You can read every line of code that runs between your app and the providers we proxy to [on GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "creditExpiry": {
         "question": "Do my Cloud credits expire?",
@@ -277,7 +299,31 @@
     "homebrewTitle": "Install via Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Copy",
-    "copied": "Copied!"
+    "copied": "Copied!",
+    "linuxSubtitle": "Debian package for 64-bit Intel/AMD systems",
+    "downloadLinux": "Download Linux",
+    "downloadLinuxVersion": "Download Linux v{version}",
+    "linuxReleaseNotes": "Checksums and release notes",
+    "linuxInstallTitle": "Install the Debian package",
+    "linuxTargets": "Linux v1 targets Ubuntu 22.04+ and Debian 12+ on amd64.",
+    "linuxReplaceVersion": "Replace VERSION with the version you downloaded.",
+    "linuxInstallCommandLabel": "Debian install command",
+    "linuxInputGroupNote": "Log out and back in after joining the input group. Membership is optional, but global shortcuts and automatic paste need it.",
+    "aptTitle": "Self-host an APT repository",
+    "aptBody": "Linux releases also include a static APT repository archive. HyperWhisper does not currently operate a public APT endpoint; see the Linux installation guide for signed, self-hosted setup, desktop companions, privacy details, and removal.",
+    "linuxGuideCta": "Read the Linux installation guide"
+  },
+  "olderVersions": {
+    "title": "Older Versions",
+    "subtitle": "Browse and download all releases of HyperWhisper",
+    "errorLoading": "Error loading versions: {error}",
+    "unknownError": "An error occurred",
+    "loading": "Loading versions...",
+    "latest": "Latest",
+    "build": "Build {number}",
+    "downloadDmg": "Download DMG",
+    "downloadExe": "Download EXE",
+    "unknownSize": "Unknown"
   },
   "purchaseSuccess": {
     "title": "You're all set!",
@@ -397,5 +443,9 @@
     "description": "The link may be broken, or the page may have moved.",
     "home": "Go to the home page",
     "download": "Download HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "This sign-in link has expired or was already used. Enter your email to get a new one.",
+    "magicLinkFailed": "We could not sign you in with that link. Enter your email to get a new one."
   }
 }

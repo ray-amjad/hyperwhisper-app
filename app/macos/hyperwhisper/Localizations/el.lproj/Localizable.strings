@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Διαγνωστικά Εξαγωγή";
 "alerts.export.diagnostics.success.message" = "Όλα τα διαγνωστικά κούπη εξαγόμενη με επιτυχία.";
 "alerts.export.diagnostics.saveFailed.message" = "Δεν ήταν δυνατή η αποθήκευση διαγνωστικών στη θέση που επιλέχθηκε: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Τα διαγνωστικά εξήχθησαν χωρίς αρχεία καταγραφής συστήματος";
+"alerts.export.diagnostics.noSystemLogs.message" = "Το αρχείο διαγνωστικών αποθηκεύτηκε, αλλά δεν ήταν δυνατή η ανάγνωση των αρχείων καταγραφής συστήματος της εφαρμογής, οπότε το system-logs.txt περιέχει μόνο την αιτία. Αιτία: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Εξαγωγή καταλόγου ενημερώσεων για υποστήριξη";
@@ -303,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Απενεργοποίηση";
 "settings.general.mediaControl.mode.mute" = "Σίγαση Ήχου";
+"settings.general.mediaControl.mode.muffle" = "Απόσβεση Ήχου";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -321,9 +324,17 @@
 "settings.sound.soundEffects.title" = "Αναπαραγωγή ηχητικών εφέ";
 "settings.sound.soundEffects.info" = "Αναπαραγωγή ηχητικών σημάτων κατά την έναρξη και τη διακοπή της εγγραφής.";
 "settings.sound.mediaControl.title" = "Έλεγχος μέσων κατά την εγγραφή";
-"settings.sound.mediaControl.info" = "Επιλέξτε πώς το HyperWhisper χειρίζεται άλλο ήχο κατά την εγγραφή. Το «Απενεργοποίηση» αφήνει τον ήχο αμετάβλητο, η «Σίγαση Ήχου» αποσιωπά την έξοδο συστήματος κατά την εγγραφή και την επαναφέρει στη συνέχεια.";
+"settings.sound.mediaControl.info" = "Επιλέξτε πώς το HyperWhisper χειρίζεται άλλο ήχο κατά την εγγραφή. Το «Απενεργοποίηση» αφήνει τον ήχο αμετάβλητο, η «Σίγαση Ήχου» αποσιωπά την έξοδο συστήματος κατά την εγγραφή και την επαναφέρει στη συνέχεια, και η «Απόσβεση Ήχου» τον διατηρεί να παίζει σιγανά, σαν από το διπλανό δωμάτιο.";
+"settings.sound.microphone.title" = "Μικρόφωνο";
+"settings.sound.microphone.subtitle" = "Χρησιμοποιείται μόνο από το HyperWhisper. Διατηρείται μετά από επανεκκίνηση.";
+"microphone.picker.default" = "Προεπιλογή · %@";
+"microphone.picker.notConnected" = "%@ (μη συνδεδεμένο)";
+"microphone.picker.fallback" = "Χρησιμοποιείται το %1$@ μέχρι να επανασυνδεθεί το %2$@.";
+"settings.sound.microphone.test" = "Δοκιμή";
+"settings.sound.microphone.stop" = "Διακοπή";
+"settings.sound.microphone.level" = "Στάθμη εισόδου";
 "settings.sound.autoIncreaseMicVolume.title" = "Αυτόματη αύξηση του όγκου του μικροφώνου";
-"settings.sound.autoIncreaseMicVolume.info" = "Ορίστε αυτόματα την ένταση εισόδου του μικροφώνου στο μέγιστο όταν ξεκινά η εγγραφή και, στη συνέχεια, επαναφέρει το αρχικό επίπεδο όταν σταματά η εγγραφή. Ισχύει μόνο όταν χρησιμοποιείται η προεπιλεγμένη συσκευή εισόδου του συστήματος.";
+"settings.sound.autoIncreaseMicVolume.info" = "Ρυθμίζει αυτόματα στο μέγιστο την ένταση εισόδου του μικροφώνου από το οποίο ηχογραφεί το HyperWhisper όταν ξεκινά η εγγραφή και επαναφέρει το αρχικό επίπεδο όταν σταματά. Τα μικρόφωνα χωρίς έλεγχο έντασης μέσω λογισμικού παραμένουν αμετάβλητα.";
 "settings.sound.vad.title" = "Αφαιρέστε τη σιγή πριν τη μεταγραφή";
 "settings.sound.vad.info" = "Αυτόματη ανίχνευση και αφαίρεση της κύριας και ουραίας σιγής χρησιμοποιώντας τεχνητή νοημοσύνη ανίχνευσης φωνής. Αυτό μπορεί να βελτιώσει την ακρίβεια της μεταγραφής και να μειώσει τον χρόνο επεξεργασίας.";
 
@@ -335,6 +346,9 @@
 "settings.storage.choose.button" = "Επιλογή...";
 "settings.storage.dialog.select" = "Επιλέξτε Φάκελο";
 "settings.storage.dialog.message" = "Επιλέξτε έναν φάκελο για αποθήκευση εγγραφών";
+"settings.storage.folderRefused.title" = "Δεν είναι δυνατή η χρήση αυτού του φακέλου";
+"settings.storage.folderRefused.notWritable" = "Δεν έχετε άδεια εγγραφής στο «%@», οπότε το HyperWhisper δεν μπορεί να αποθηκεύσει εκεί ηχογραφήσεις. Ο φάκελος ηχογραφήσεων δεν άλλαξε.";
+"settings.storage.folderRefused.createFailed" = "Το HyperWhisper δεν μπόρεσε να δημιουργήσει αυτόν τον φάκελο: %@ Ο φάκελος ηχογραφήσεων δεν άλλαξε.";
 "settings.storage.storeAsM4A.title" = "Συμπίεση εγγραφών σε M4A";
 "settings.storage.storeAsM4A.subtitle" = "Μετατρέπει τις εγγραφές WAV σε μικρότερα αρχεία μετά τη μεταγραφή. Απενεργοποιήστε για να διατηρήσετε τα αρχικά αρχεία WAV (μεγαλύτερα αλλά χωρίς απώλεια).";
 
@@ -382,6 +396,7 @@
 
 "settings.shortcuts.changeMode.title" = "Αλλαγή Λειτουργίας";
 "settings.shortcuts.changeMode.subtitle" = "Λειτουργεί μόνο κατά την εγγραφή";
+"settings.shortcuts.conflict.alert" = "Αυτή η συντόμευση πληκτρολογίου δεν μπορεί να χρησιμοποιηθεί, επειδή χρησιμοποιείται ήδη από «%@».";
 
 "settings.shortcuts.reset.button" = "Επαναφορά σε Προεπιλογές";
 "settings.shortcuts.reset.dialog.title" = "Επαναφορά Συντομεύσεων Πληκτρολογίου";
@@ -433,6 +448,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Επικόλληση από Πρόχειρο";
 "settings.license.clearInput" = "Σαφή";
+"license.error.keyFormat" = "Αυτό δεν μοιάζει με κλειδί λογαριασμού.";
 "settings.license.recovery.prompt" = "Ξεχάσατε το κλειδί άδειας σας;";
 "settings.license.recovery.button" = "Πηγαίνετε στην πύλη πελάτη";
 "settings.license.daily.title" = "Καθημερινή Μεταγραφή";
@@ -792,6 +808,7 @@
 "modes.field.name.placeholder" = "π.χ., Σημειώσεις Συνάντησης";
 "modes.field.name.editPlaceholder" = "Όνομα λειτουργίας";
 "modes.field.name.defaultLocked" = "Αυτή είναι η προεπιλεγμένη λειτουργία, επομένως το όνομά της δεν μπορεί να αλλάξει. Μπορείτε να μετονομάσετε οποιαδήποτε άλλη λειτουργία.";
+"modes.field.name.taken" = "Υπάρχει ήδη λειτουργία με αυτό το όνομα.";
 "modes.field.model" = "Μοντέλο";
 "modes.field.provider" = "Πάροχος";
 "modes.provider.local" = "Τοπικό";
@@ -818,7 +835,7 @@
 "transcripts.delete.single.message" = "Αυτό θα διαγράψει μόνιμα αυτήν την εγγραφή και το αρχείο ήχου της.";
 "transcripts.delete.multiple.title" = "Διαγραφή %d Εγγραφών;";
 "transcripts.delete.multiple.message" = "Αυτό θα διαγράψει μόνιμα %d εγγραφές και τα αρχεία ήχου τους.\n\nΑυτή η ενέργεια δεν μπορεί να αναιρεθεί.";
-"transcripts.delete.multiple.confirm" = "Διαγραφή Όλων";
+"transcripts.delete.multiple.confirm" = "Διαγραφή %d Εγγραφών";
 "transcripts.retry.error.title" = "Η Δοκιμή Απέτυχε";
 "transcripts.retry.error.modeDeleted" = "Η λειτουργία που δημιούργησε αυτή την εγγραφή διαγράφηκε, οπότε δεν έγινε νέα προσπάθεια. Στο Ιστορικό, κάντε δεξί κλικ στην εγγραφή και επιλέξτε \"Δοκιμάστε ξανά με...\" για να διαλέξετε άλλη λειτουργία.";
 
@@ -871,7 +888,6 @@
 "recording.retry.inProgress" = "Δοκιμή ξανά…";
 "recording.retry.count" = "Δοκιμή (%d)";
 "recording.retry.failed.missing" = "Η δοκιμή απέτυχε: Το αρχείο ήχου δεν βρέθηκε";
-"recording.retry.failed.error" = "Η δοκιμή απέτυχε: %@";
 "recording.retry.pending" = "Έτοιμη για δοκιμή – κάντε κλικ για μεταγραφή";
 "recording.retry.modeDeleted" = "Η λειτουργία διαγράφηκε";
 "recording.cancel.dialog.title" = "Ακύρωση Εγγραφής;";
@@ -928,6 +944,9 @@
 "transcription.error.providerNotAvailable.provider" = "Ο %@ δεν είναι διαθέσιμος. Ελέγξτε τις ρυθμίσεις σας και δοκιμάστε ξανά.";
 "transcription.error.providerNotAvailable.detail" = "Ο %@ δεν είναι διαθέσιμος: %@";
 "transcription.error.modelNotDownloaded" = "Παρακαλώ κάντε λήψη ενός μοντέλου πρώτα";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Η λειτουργία %1$@ χρησιμοποιεί το μοντέλο %2$@, το οποίο δεν έχει ληφθεί. Κάντε λήψη του από τη Βιβλιοθήκη μοντέλων.";
+"transcription.error.modelNotDownloaded.model" = "Το μοντέλο %1$@ δεν έχει ληφθεί. Κάντε λήψη του από τη Βιβλιοθήκη μοντέλων.";
+"transcription.error.openModelLibrary" = "Άνοιγμα Βιβλιοθήκης μοντέλων";
 "transcription.error.modelProtected" = "Αυτό το μοντέλο δεν μπορεί να διαγραφεί";
 "transcription.error.audioFileNotFound" = "Το αρχείο ήχου δεν βρέθηκε";
 "transcription.error.network.detail" = "Σφάλμα δικτύου: %@";
@@ -974,6 +993,7 @@
 "transcription.guidance.quotaExceeded" = "Προσθέστε πιστώσεις στο λογαριασμό %@ σας ή ενημερώστε τα στοιχεία χρέωσης";
 "transcription.guidance.timeout" = "Το αίτημα χρειάστηκε πολύ χρόνο. Ελέγξτε την ταχύτητα του διαδικτύου σας και δοκιμάστε ξανά.";
 "transcription.error.noSpeechDetected" = "Δεν ανιχνεύθηκε ομιλία στην εγγραφή.";
+"transcription.error.audioTooShort" = "Η ηχογράφηση είναι πολύ σύντομη για μεταγραφή. Ηχογραφήστε για περισσότερο χρόνο.";
 "transcription.guidance.noSpeechDetected" = "Συμβουλές:\n• Μιλήστε καθαρά στο μικροφώνο\n• Κρατήστε το πλήκτρο περισσότερο πριν μιλήσετε\n• Ελέγξτε ότι το μικροφώνο σας λειτουργεί\n• Βεβαιωθείτε ότι είναι επιλεγμένη η σωστή συσκευή εισόδου";
 "transcription.guidance.needsNativeRelaunch" = "Κλείστε και ανοίξτε ξανά το HyperWhisper σε εγγενή λειτουργία για να χρησιμοποιήσετε την τοπική μετεπεξεργασία.";
 "transcription.guidance.localRuntimeUnavailable" = "Δοκιμάστε ξανά ή επιλέξτε μικρότερο τοπικό μοντέλο στις ρυθμίσεις της Λειτουργίας.";
@@ -1117,7 +1137,16 @@
 "transcribe.file.error.format.message" = "Τα αρχεία .%@ δεν υποστηρίζονται από %@. Υποστηριζόμενες μορφές: %@";
 "transcribe.file.error.read" = "Δεν είναι δυνατή η ανάγνωση του επιλεγμένου αρχείου.";
 "transcribe.file.error.webm" = "Το WebM δεν υποστηρίζεται. Μετατρέψτε το αρχείο σε MP3, M4A ή WAV και δοκιμάστε ξανά.";
-"transcribe.file.error.unreadableAudio" = "Το HyperWhisper δεν μπορεί να διαβάσει τον ήχο αυτού του αρχείου. Μπορεί να είναι κατεστραμμένο ή σε μορφή που το macOS δεν μπορεί να αποκωδικοποιήσει.";
+"transcribe.file.busy.title" = "Ήδη γίνεται απομαγνητοφώνηση ενός αρχείου.";
+"transcribe.file.busy.message" = "Να ακυρωθεί και να ξεκινήσει αυτό;";
+"transcribe.file.busy.keepRunning" = "Συνέχιση";
+"transcribe.file.busy.cancelAndStart" = "Ακύρωση και έναρξη";
+"transcribe.file.error.notAudio" = "Το αρχείο «%@» δεν είναι έγκυρος ήχος. Μπορεί να είναι κατεστραμμένο ή σε μορφή που το macOS δεν μπορεί να αποκωδικοποιήσει.";
+"transcribe.file.error.empty" = "Το αρχείο «%@» είναι κενό. Δεν περιέχει ήχο για μεταγραφή.";
+"transcribe.file.error.permission" = "Το HyperWhisper δεν μπορεί να διαβάσει το αρχείο «%@». Ελέγξτε τα δικαιώματα του αρχείου.";
+"transcribe.file.error.folderPermission" = "Το HyperWhisper δεν μπορεί να ανοίξει έναν φάκελο που περιέχει το αρχείο «%@». Ελέγξτε τα δικαιώματα αυτού του φακέλου.";
+"transcribe.file.error.privacy" = "Οι ρυθμίσεις απορρήτου του macOS εμπόδισαν το HyperWhisper να διαβάσει το αρχείο «%@». Επιτρέψτε το στις Ρυθμίσεις συστήματος > Απόρρητο και ασφάλεια > Πλήρης πρόσβαση στον δίσκο.";
+"transcribe.file.error.tooShort" = "Αυτό το αρχείο είναι πολύ σύντομο για μεταγραφή (%@ s).";
 "transcribe.file.error.copy" = "Αποτυχία αντιγραφής αρχείου στο φάκελο εγγραφών.";
 "transcribe.file.error.video.title" = "Δεν υπάρχει Ήχος στο Βίντεο";
 "transcribe.file.error.video.noAudio" = "Αυτό το αρχείο βίντεο δεν περιέχει κομμάτι ήχου. Παρακαλώ επιλέξτε ένα βίντεο με ήχο ή ένα αρχείο ήχου.";
@@ -1144,3 +1173,4 @@
 "settings.storage.maxRecordingDuration.hour" = "1 ώρα";
 "settings.storage.maxRecordingDuration.hours" = "%d ώρες";
 "settings.storage.maxRecordingDuration.off" = "Απενεργοποιημένο";
+"settings.api_server.status.stopping" = "Διακοπή…";

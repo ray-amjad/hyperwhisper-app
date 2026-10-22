@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Друга програма е заключила базата данни на историята. Записът е съхранен и ще бъде запазен в историята, когато базата данни се освободи.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Този запис още не може да бъде запазен в историята. Записът е съхранен и ще бъде запазен в историята по-късно.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -793,6 +799,12 @@
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Не е активиран)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (Няма API ключ)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -822,6 +834,9 @@
   </data>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Транскрипцията на файла е отменена</value>
+  </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Транскрибиране на файла...</value>
   </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
@@ -1084,6 +1099,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Клавишни комбинации с един модификатор като Ctrl, Alt, Shift или Win не се поддържат. Използвайте клавиш с модификатори или комбинация с няколко модификатора, например Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Клавишна комбинация без модификатор трябва да е функционален клавиш или Esc. Всеки друг клавиш би се задействал, докато пишете.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Тази клавишна комбинация вече се използва за {0} ({1})</value>
   </data>
@@ -1297,6 +1315,9 @@ You can re-download it later.</value>
   </data>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
+  </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Това не прилича на ключ на акаунт.</value>
   </data>
 
   <!-- Models - ARM64 and GPU -->
@@ -1711,6 +1732,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Още...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -2005,11 +2029,35 @@ You can re-download it later.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Приглушаване на звука</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Използва се само от HyperWhisper. Запомня се след рестарт.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>По подразбиране · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (не е свързан)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Използва се {0}, докато {1} не бъде свързан отново.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Няма свързан микрофон. HyperWhisper ще използва {0}, когато бъде свързан отново.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Тест</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Спри</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

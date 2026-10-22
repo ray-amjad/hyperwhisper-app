@@ -157,7 +157,7 @@ HyperWhisper Cloud gives you all 12 supported provider engines with no key. Four
 
 The Microsoft row of the Model picker gives two models. **MAI-Transcribe 2** is a public preview model and the model that the row selects first. It costs approximately 1.67 credits per audio minute and it lists 60 languages. **MAI-Transcribe 1.5** stays available at approximately 6.0 credits per minute with 42 languages. Both models are available through HyperWhisper Cloud only, and both accept custom vocabulary as a phrase list.
 
-Both models accept WAV, MP3, and FLAC files only, to a maximum of 300 MB. Read [File Transcription](/file-transcription) for the automatic conversion that macOS applies. Microsoft documents speaker diarization and word-level timestamps for MAI-Transcribe 2, but HyperWhisper does not request them. Your transcript thus contains the text only.
+Both models accept WAV, MP3, and FLAC files only, to the 128 MB upload limit of HyperWhisper Cloud. Read [File Transcription](/file-transcription) for the automatic conversion that macOS applies. Microsoft documents speaker diarization and word-level timestamps for MAI-Transcribe 2, but HyperWhisper does not request them. Your transcript thus contains the text only.
 
 ### Meta Muse Voice Transcribe 1
 
@@ -186,7 +186,9 @@ Microsoft MAI-Transcribe is the one engine with no bring-your-own-key route. It 
 <Note>
   Deepgram and AssemblyAI also expose medical-tuned model variants (Deepgram Nova-2 Medical and Nova-3 Medical, AssemblyAI Universal-2 Medical and Universal-3.5 Pro Medical) in the Model Library / Mode editor on both platforms, alongside their general-purpose models.
 
-  The medical models support fewer languages than the general models. The two Deepgram medical models transcribe **English only**. The AssemblyAI medical models support English, German, Spanish, and French. The language picker does not show this limit, because it filters the languages by tier. Read [Language & Detection](/language-detection#engine-availability).
+  ElevenLabs also exposes **Scribe v2 Medical**, a Scribe v2 variant tuned for clinical audio, on macOS and Windows. It works with your own ElevenLabs key only, not through HyperWhisper Cloud. It has the same rate and the same languages as Scribe v2, and it accepts custom vocabulary as keyterms.
+
+  The Deepgram and AssemblyAI medical models support fewer languages than the general models. The two Deepgram medical models transcribe **English only**. The AssemblyAI medical models support English, German, Spanish, and French. The language picker does not show this limit, because it filters the languages by tier. Read [Language & Detection](/language-detection#engine-availability).
 </Note>
 
 ## Retired speech models
@@ -207,6 +209,7 @@ model.
 | AssemblyAI Universal-3 Pro | Universal-3.5 Pro |
 | AssemblyAI Universal-3 Pro Medical | Universal-3.5 Pro Medical |
 | ElevenLabs Scribe v1 | Scribe v2 |
+| SpaceXAI Grok Voice Transcribe 1 | Grok Voice Transcribe 2 |
 | Soniox Async v4 | Async v5 |
 | Gemini 3.1 Flash Lite Preview | Gemini 3.1 Flash Lite |
 | Gemini 2.0 Flash (Windows) | Gemini 3.6 Flash |
@@ -239,7 +242,7 @@ You can use cloud post-processing through HyperWhisper Cloud with no key, or wit
 | Provider | Bring-your-own-key needed? | Character |
 | --- | --- | --- |
 | **HyperWhisper Cloud** | No | Built-in, credit-based |
-| **OpenAI** | Yes | GPT-4.1 and GPT-5 family. Fast and accurate |
+| **OpenAI** | Yes | GPT-5 family and GPT-6 Luna. Fast and accurate |
 | **Anthropic (Claude)** | Yes | Claude Haiku and Sonnet. High-quality reasoning |
 | **Google Gemini** | Yes | Gemini Flash and Pro. Efficient and multilingual |
 | **Groq** | Yes | GPT OSS 120B, GPT OSS 20B, and Qwen 3.8 27B models |
@@ -258,7 +261,7 @@ model list, or enter `gemini-3.8-flash` for Google Gemini with your own key.
 Gemini 3.8 Flash is the default Google Gemini model on HyperWhisper Cloud, on
 every platform. A mode that you saved with Gemini 2.5 Flash or Gemini 2.5 Flash
 Lite on HyperWhisper Cloud keeps that model. With your own key, Gemini 3.8 Flash
-is the default model on macOS. On Windows and on Linux it is not the default
+is the default model on macOS and Windows. On Linux it is not the default
 model for your own key, so select it explicitly when you want to use it.
 
 The app rates Gemini 3.8 Flash at **5 for accuracy** and **2 for speed**.
@@ -284,7 +287,8 @@ The replacement is always a model of the same provider, except for the local Gem
 | Retired model | Replacement |
 | --- | --- |
 | Mistral Nemo | Mistral Small |
-| GPT-4.1 Nano, GPT-5, GPT-5 Mini and GPT-5 Nano (OpenAI) | GPT-5.6 Luna |
+| GPT-4.1 Nano, GPT-5, GPT-5 Mini, GPT-5 Nano and GPT-5.1 (OpenAI) | GPT-5.6 Luna |
+| GPT-4.1, GPT-4.1 Mini and GPT-5.4 Nano (OpenAI) | GPT-6 Luna |
 | Kimi K2 (Groq) | GPT OSS 120B |
 | Llama 3.3 70B (Groq and Cerebras) | GPT OSS 120B |
 | Gemma 4 31B and Llama 3.1 8B (Cerebras) | Qwen 3.8 27B |
@@ -293,9 +297,11 @@ The replacement is always a model of the same provider, except for the local Gem
 | Grok 4 and Grok 4.1 Fast (SpaceXAI) | Grok 4.3 |
 | Gemma 3 12B and 27B (Gemini) | Gemini 3.8 Flash |
 | Gemini 2.0 Flash (Gemini) | Gemini 3.6 Flash |
-| Gemini 2.0 Flash Lite (Gemini) | Gemini 3.1 Flash Lite |
+| Gemini 2.0 Flash Lite (Gemini) | Gemini 3.5 Flash Lite |
 | Gemini 3 Pro (Gemini) | Gemini 3.1 Pro |
-| Gemini 3.1 Flash Lite Preview (Gemini) | Gemini 3.1 Flash Lite |
+| Gemini 3.1 Flash Lite and Gemini 3.1 Flash Lite Preview (Gemini) | Gemini 3.5 Flash Lite |
+| Gemini 3.5 Flash (Gemini) | Gemini 3.6 Flash |
+| Gemini 3.7 Flash (Gemini) | Gemini 3.8 Flash |
 | Gemini 3 Flash (Gemini) | Gemini 3.8 Flash |
 | Claude Haiku 4.5 (Anthropic) | Claude Haiku 5.5 |
 | Claude Sonnet 4.5 (Anthropic) | Claude Sonnet 5.5 |
@@ -386,7 +392,7 @@ The library holds every model: cloud and on-device, speech-to-text and post-proc
 
 | Control | What it does |
 | --- | --- |
-| Search box | Matches the model name, the provider name, and the tag of the model. On Windows it also matches the description line |
+| Search box | Every word that you type must match, in any order, and the case does not matter. Each word can match the model name, the provider name, the tag, or the model ID, so `base.en` finds the Whisper Base English model. On Windows it also matches the description line. On Linux it also matches the language label |
 | **Language** | Keeps the voice models that support the language that you select. The default is **Any language** |
 | **Voice models** / **Language models** | Keeps the speech-to-text models, or the post-processing models |
 | **Cloud** / **Offline** | Keeps the cloud models, or the on-device models |

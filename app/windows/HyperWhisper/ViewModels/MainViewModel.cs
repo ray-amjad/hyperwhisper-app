@@ -22,6 +22,7 @@ using HyperWhisper.FileTranscription;
 using HyperWhisper.Models;
 using HyperWhisper.Localization;
 using HyperWhisper.Services;
+using HyperWhisper.Services.LocalApi;
 using HyperWhisper.Services.Streaming;
 using HyperWhisper.Services.Transcription;
 using HyperWhisper.Utilities;
@@ -143,6 +144,21 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty] private string _hotkeyText = "Ctrl+Alt";
     [ObservableProperty] private List<AudioDeviceService.AudioDevice> _audioDevices = new();
     [ObservableProperty] private AudioDeviceService.AudioDevice? _selectedAudioDevice;
+
+    // The ONE saved microphone choice (SettingsService.LastSelectedMicrophone)
+    // and how it resolved against the connected devices. The tray, onboarding
+    // and the Settings picker all read these, and all write through
+    // SelectMicrophone, so a change in any shows in the others at once.
+    [ObservableProperty] private string? _savedMicrophoneName;
+    [ObservableProperty] private string? _defaultAudioDeviceName;
+    [ObservableProperty] private bool _isSavedMicrophoneMissing;
+    [ObservableProperty] private MicrophoneResolution? _microphoneResolution;
+
+    /// <summary>
+    /// Raised on the UI thread just before a recording or a streaming session
+    /// opens the microphone, so the Settings "Test" meter can let go of it first.
+    /// </summary>
+    public event EventHandler? MicrophoneCaptureStarting;
     [ObservableProperty] private List<Mode> _modes = new();
     [ObservableProperty] private Mode? _selectedMode;
 
@@ -171,6 +187,11 @@ public partial class MainViewModel : ViewModelBase
 
     private bool _hotkeyBlocked;
     private string _audioDeviceSelectionReason = AudioDeviceSelectionReason.NotSelected;
+
+    // The exact WaveIn device the user last picked in the tray or Settings,
+    // for this session only. What is saved is the NAME; this only decides
+    // which of several same-named devices records (MicrophoneSelection.FindByName).
+    private int? _pickedDeviceNumber;
 
     partial void OnSelectedAudioDeviceChanged(AudioDeviceService.AudioDevice? value)
     {
@@ -206,14 +227,6 @@ public partial class MainViewModel : ViewModelBase
         else
             LoggingService.Info(message);
     }
-
-    /// <summary>
-    /// Applies the input selected or restored by the onboarding flow and records
-    /// that fixed source slug even when the generated property setter sees an
-    /// equal value and skips its changed callback.
-    /// </summary>
-    internal void ApplyOnboardingAudioDeviceSelection(AudioDeviceService.AudioDevice? device) =>
-        ApplyAudioDeviceSelection(device, AudioDeviceSelectionReason.OnboardingSelection);
 
     /// <summary>
     /// Prevents concurrent model loads which crash the native whisper.cpp library.
@@ -314,6 +327,101 @@ public partial class MainViewModel : ViewModelBase
         ModeService.Instance.ModeSelected += _modeSelectedHandler;
 
         HotkeyText = _settingsService.ToggleShortcut.ToDisplayString();
+
+        AttachModelStatusSources();
+    }
+
+    // =========================================================================
+    // MODEL STATUS SOURCES (#649)
+    // The cloud half of the status bar depends on the HyperWhisper Cloud licence
+    // and on the BYOK keys, so it has to be recomputed when either changes, with
+    // no restart.
+    // =========================================================================
+
+    /// <summary>
+    /// Test seam: the smoke suite substitutes its own predicate. Null in the app,
+    /// which reads <see cref="WindowsLocalApiBackend.CloudAccountKeyPresent"/>, the
+    /// predicate the transcription path refuses on with MISSING_API_KEY.
+    /// </summary>
+    internal Func<bool>? CloudAccountKeyPresentOverride { get; set; }
+
+    /// <summary>Test seam: null in the app, which uses <see cref="ApiKeyService.Instance"/>.</summary>
+    internal ApiKeyService? ApiKeyServiceOverride { get; set; }
+
+    private ApiKeyService? _subscribedApiKeyService;
+
+    private ApiKeyService ModelStatusApiKeys => ApiKeyServiceOverride ?? ApiKeyService.Instance;
+
+    private bool CloudAccountKeyPresent() =>
+        (CloudAccountKeyPresentOverride ?? WindowsLocalApiBackend.CloudAccountKeyPresent)();
+
+    internal void AttachModelStatusSources()
+    {
+        DetachModelStatusSources();
+        LicenseManager.Instance.LicenseStatusChanged += OnModelStatusSourceChanged;
+        _subscribedApiKeyService = ModelStatusApiKeys;
+        _subscribedApiKeyService.ApiKeysChanged += OnModelStatusSourceChanged;
+    }
+
+    internal void DetachModelStatusSources()
+    {
+        LicenseManager.Instance.LicenseStatusChanged -= OnModelStatusSourceChanged;
+        if (_subscribedApiKeyService != null)
+        {
+            _subscribedApiKeyService.ApiKeysChanged -= OnModelStatusSourceChanged;
+            _subscribedApiKeyService = null;
+        }
+    }
+
+    /// <summary>
+    /// A licence activation/deactivation or a BYOK key save/removal: refresh the
+    /// model status on the UI thread. LicenseManager raises from whichever thread
+    /// finished the validation, and a fault here must not escape into it.
+    /// </summary>
+    private void OnModelStatusSourceChanged(object? sender, EventArgs e)
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null || dispatcher.CheckAccess())
+        {
+            RefreshModelStatusSafely();
+            return;
+        }
+        if (dispatcher.HasShutdownStarted) return;
+
+        dispatcher.BeginInvoke(RefreshModelStatusSafely);
+    }
+
+    private void RefreshModelStatusSafely()
+    {
+        try
+        {
+            UpdateModelStatus();
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Error("MainViewModel: Failed to refresh the model status after a licence or API key change", ex);
+        }
+    }
+
+    /// <summary>
+    /// The status-bar key for a cloud mode (#649). The HyperWhisper-Cloud-routed
+    /// providers (HyperWhisper Cloud, and the Azure MAI / Google Chirp models it
+    /// serves) need the account key the transcription path refuses on with
+    /// MISSING_API_KEY; every other provider needs its own BYOK key. Only a
+    /// provider that can transcribe right now reads "(Ready)".
+    /// </summary>
+    internal static string CloudModelStatusKey(
+        CloudTranscriptionProvider provider, bool cloudAccountKeyPresent, bool hasApiKey)
+    {
+        if (WindowsLocalApiBackend.UsesCloudAccountKey(provider))
+            return cloudAccountKeyPresent ? "status.model.ready" : "status.model.notActivated";
+
+        // None has no key slot; it is not a provider this can judge, so it keeps
+        // the old wording rather than inventing a missing key.
+        if (provider == CloudTranscriptionProvider.None)
+            return "status.model.ready";
+
+        return hasApiKey ? "status.model.ready" : "status.model.noApiKey";
     }
 
     /// <summary>
@@ -336,6 +444,8 @@ public partial class MainViewModel : ViewModelBase
         // After, not before: RegisterShortcutsFromSettings is what refreshes HotkeyText,
         // and the Start Recording badge shows the same chord the status bar does.
         RefreshGettingStartedShortcuts();
+        // A shortcut or Push to Talk change can tick the Customize Shortcuts row (#638).
+        RefreshGettingStartedProgress();
         UpdateMicrophoneKeepWarm();
     }
 
@@ -403,7 +513,7 @@ public partial class MainViewModel : ViewModelBase
             InitializeLocalModelHealthMonitoring();
             _pasteService = new SmartPasteService();
             await AutoLoadModelAsync();
-            InitializeGettingStarted();
+            await InitializeGettingStartedAsync();
             _ = LoadRecentReleasesAsync();
             IsInitialized = true;
         }
@@ -596,6 +706,69 @@ public partial class MainViewModel : ViewModelBase
             ? "status.fileTranscriptionCancelled"
             : "status.recordingCancelled");
 
+    /// <summary>
+    /// The error toast for a failed transcription (issue #1842). Dictation, streaming and
+    /// Transcribe File all build their toast here, so a credential error routes to Settings
+    /// the same way on every path: ApiKeyMissing/Unauthorized open the API-keys manager,
+    /// CloudAccountRequired opens the HW Cloud page (account key entry, NOT the BYOK
+    /// manager). Any other failure shows its message with no button.
+    /// </summary>
+    internal static ErrorToastEventArgs TranscriptionFailureToast(Exception ex)
+    {
+        if (ex is not TranscriptionException txEx)
+        {
+            return new ErrorToastEventArgs(
+                Loc.S("errors.transcriptionFailed", ex.Message),
+                showSettingsButton: false);
+        }
+
+        var isCredentialError = txEx.Code is TranscriptionErrorCode.ApiKeyMissing or TranscriptionErrorCode.Unauthorized;
+        var isCloudAccountError = txEx.Code == TranscriptionErrorCode.CloudAccountRequired;
+        return new ErrorToastEventArgs(
+            txEx.GetUserMessage(),
+            showSettingsButton: isCredentialError || isCloudAccountError,
+            settingsSection: isCloudAccountError ? "Cloud" : null,
+            openApiKeysManager: isCredentialError);
+    }
+
+    /// <summary>
+    /// The status line a job leaves when it ends (issue #1519). While a job runs the
+    /// bar shows its busy line. If that line is still there at the end, nothing put a
+    /// result up (a failure, a cancel, an undelivered transcript), so the bar goes back
+    /// to Ready. A result stays. Split out so the rule is pinnable without a MainViewModel.
+    /// </summary>
+    internal static string StatusTextAfterJob(string current, string? busy, string ready) =>
+        busy != null && current == busy ? ready : current;
+
+    // The busy line the running dictation or file job put on the status bar, or null.
+    private string? _jobStatusText;
+
+    /// <summary>Shows a job's busy line, over whatever the last job left (#1519).</summary>
+    private void ShowJobStatus(string key)
+    {
+        _jobStatusText = Loc.S(key);
+        StatusText = _jobStatusText;
+    }
+
+    /// <summary>Moves the busy line to the job's next stage, unless a result replaced it.</summary>
+    private void AdvanceJobStatus(string key)
+    {
+        if (_jobStatusText != null && StatusText == _jobStatusText)
+            ShowJobStatus(key);
+    }
+
+    /// <summary>
+    /// Ends the job's busy line: back to Ready, unless a result replaced it.
+    /// Returns true when a result stays, so a model load that follows must not overwrite it.
+    /// </summary>
+    private bool EndJobStatus()
+    {
+        var ready = Loc.S("status.ready.withHotkey", HotkeyText);
+        StatusText = StatusTextAfterJob(StatusText, _jobStatusText, ready);
+        _jobStatusText = null;
+        return StatusText != ready;
+    }
+
     private void ReportUndeliveredTranscript()
     {
         if (!ShouldReportUndeliveredTranscript())
@@ -607,73 +780,22 @@ public partial class MainViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Refreshes the audio device list while preserving the current selection
-    /// if the previously selected device is still available.
-    ///
-    /// BEHAVIOR:
-    /// - If selected device still exists: keep it selected
-    /// - If selected device was removed: select first available device
-    /// - If no devices available: clear selection
-    /// - If enumeration fails: clear selection and log error
-    ///
-    /// RESULT PATTERN:
-    /// Handles Result&lt;List&lt;AudioDevice&gt;&gt; to distinguish between:
-    /// - Success with empty list: No devices found (normal state)
-    /// - Success with devices: Update UI with new list
-    /// - Failure: System error, clear devices and warn user
+    /// Re-enumerates after a plug, unplug or default-device change, then
+    /// re-resolves the saved choice. A saved microphone that just came back is
+    /// picked up here, so the next recording uses it without a restart.
     /// </summary>
-    private void RefreshAudioDevicesPreservingSelection()
-    {
-        var previousSelection = SelectedAudioDevice;
-        var result = _deviceService.GetAvailableDevices();
+    private void RefreshAudioDevicesPreservingSelection() =>
+        RefreshAudioDevicesAndResolve(startup: false);
 
-        // Handle enumeration failure
-        if (result.IsFailure)
-        {
-            LoggingService.Error($"MainViewModel: Failed to refresh audio devices: {result.Error}");
-            AudioDevices = new List<AudioDeviceService.AudioDevice>();
-            ApplyAudioDeviceSelection(null, AudioDeviceSelectionReason.RefreshFailed);
-            StatusText = Loc.S("status.audio.enumerationFailed");
-            return;
-        }
-
-        // Success - update device list (may be empty)
-        AudioDevices = result.Value!;
-
-        LoggingService.Info($"MainViewModel: Device list refreshed, found {AudioDevices.Count} device(s)");
-        foreach (var device in AudioDevices)
-        {
-            LoggingService.Debug($"  Audio device: {device.Name} (#{device.DeviceNumber})");
-        }
-
-        if (AudioDevices.Count == 0)
-        {
-            ApplyAudioDeviceSelection(null, AudioDeviceSelectionReason.RefreshNoDevices);
-            return;
-        }
-
-        // Try to preserve the previous selection by matching device name
-        // (Device numbers can change when devices are added/removed)
-        if (previousSelection != null)
-        {
-            var matchingDevice = AudioDevices.FirstOrDefault(d => d.Name == previousSelection.Name);
-            if (matchingDevice != null)
-            {
-                // A refresh did not choose this device. Keep the source that did.
-                ApplyAudioDeviceSelection(matchingDevice, _audioDeviceSelectionReason);
-                return;
-            }
-
-            LoggingService.Info($"MainViewModel: Previous device '{previousSelection.Name}' no longer available");
-        }
-
-        // Select first device if previous selection not found
-        ApplyAudioDeviceSelection(AudioDevices[0], AudioDeviceSelectionReason.RefreshFirstAvailable);
-    }
+    /// <summary>Called once during initialization (OnNavigatedToAsync).</summary>
+    private void RefreshAudioDevices() =>
+        RefreshAudioDevicesAndResolve(startup: true);
 
     /// <summary>
-    /// Refreshes the audio device list and selects the first device.
-    /// Called during initialization (OnNavigatedToAsync).
+    /// Enumerates the WaveIn devices and applies
+    /// <see cref="MicrophoneSelection.Resolve"/>: the saved
+    /// <see cref="SettingsService.LastSelectedMicrophone"/> if it is connected,
+    /// else the Windows default input (asked of Core Audio, not the first row).
     ///
     /// RESULT PATTERN:
     /// Handles Result&lt;List&lt;AudioDevice&gt;&gt; to distinguish between:
@@ -681,21 +803,21 @@ public partial class MainViewModel : ViewModelBase
     /// - Success with devices: Update UI with new list
     /// - Failure: System error, clear devices and warn user
     /// </summary>
-    private void RefreshAudioDevices()
+    private void RefreshAudioDevicesAndResolve(bool startup)
     {
         var result = _deviceService.GetAvailableDevices();
 
-        // Handle enumeration failure
         if (result.IsFailure)
         {
             LoggingService.Error($"MainViewModel: Failed to enumerate audio devices: {result.Error}");
             AudioDevices = new List<AudioDeviceService.AudioDevice>();
-            ApplyAudioDeviceSelection(null, AudioDeviceSelectionReason.StartupFailed);
+            ApplyMicrophoneResolution(
+                new MicrophoneResolution(null, MicrophoneSource.None, _settingsService.LastSelectedMicrophone, null),
+                startup ? AudioDeviceSelectionReason.StartupFailed : AudioDeviceSelectionReason.RefreshFailed);
             StatusText = Loc.S("status.audio.enumerationFailed");
             return;
         }
 
-        // Success - update device list (may be empty)
         AudioDevices = result.Value!;
 
         LoggingService.Info($"MainViewModel: Found {AudioDevices.Count} audio device(s)");
@@ -703,14 +825,65 @@ public partial class MainViewModel : ViewModelBase
         {
             LoggingService.Debug($"  Audio device: {device.Name} (#{device.DeviceNumber})");
         }
-        if (AudioDevices.Count > 0)
+
+        ResolveSavedMicrophone(startup
+            ? AudioDeviceSelectionReason.Phase.Startup
+            : AudioDeviceSelectionReason.Phase.Refresh);
+    }
+
+    /// <summary>
+    /// Re-reads the saved choice and the Windows default against the CURRENT
+    /// device list and applies the answer. Cheap enough for every selection:
+    /// one Core Audio default-endpoint read, no WaveIn enumeration.
+    /// </summary>
+    private void ResolveSavedMicrophone(AudioDeviceSelectionReason.Phase phase, string? reasonOverride = null)
+    {
+        var defaultEndpoint = AudioDevices.Count == 0 ? null : _deviceService.GetDefaultCaptureEndpoint();
+        var defaultDevice = MicrophoneSelection.ResolveDefault(
+            AudioDevices,
+            defaultEndpoint?.FriendlyName,
+            defaultEndpoint?.Ordinal ?? -1);
+
+        // Among devices sharing the saved name: the one picked this session,
+        // then the one already recording, else the first.
+        var resolution = MicrophoneSelection.Resolve(
+            AudioDevices,
+            _settingsService.LastSelectedMicrophone,
+            defaultDevice,
+            _pickedDeviceNumber,
+            SelectedAudioDevice?.DeviceNumber);
+
+        if (resolution.Source == MicrophoneSource.SavedMissingNoDevice)
         {
-            ApplyAudioDeviceSelection(AudioDevices[0], AudioDeviceSelectionReason.StartupFirstAvailable);
+            LoggingService.Info(
+                $"MainViewModel: Saved microphone '{resolution.SavedName}' is not connected and no other input is; " +
+                "keeping the choice until it is");
         }
-        else
+        else if (resolution.IsSavedMissing)
         {
-            ApplyAudioDeviceSelection(null, AudioDeviceSelectionReason.StartupNoDevices);
+            LoggingService.Info(
+                $"MainViewModel: Saved microphone '{resolution.SavedName}' is not connected; " +
+                $"using the Windows default '{defaultDevice?.Name ?? "(none)"}' until it is");
         }
+
+        // A refresh that lands on the same saved device did not choose it: keep
+        // the slug of the path that did (an explicit tray/Settings pick, say).
+        var reason = reasonOverride ?? (phase == AudioDeviceSelectionReason.Phase.Refresh
+            && resolution.Source == MicrophoneSource.Saved
+            && resolution.Device?.Name == SelectedAudioDevice?.Name
+                ? _audioDeviceSelectionReason
+                : AudioDeviceSelectionReason.For(phase, resolution.Source));
+
+        ApplyMicrophoneResolution(resolution, reason);
+    }
+
+    private void ApplyMicrophoneResolution(MicrophoneResolution resolution, string reason)
+    {
+        SavedMicrophoneName = resolution.SavedName;
+        DefaultAudioDeviceName = resolution.DefaultDevice?.Name;
+        IsSavedMicrophoneMissing = resolution.IsSavedMissing;
+        MicrophoneResolution = resolution;
+        ApplyAudioDeviceSelection(resolution.Device, reason);
     }
 
     // A backup import raises ModeChanged from its Task.Run thread (#1592), and a
@@ -750,6 +923,9 @@ public partial class MainViewModel : ViewModelBase
             "MainViewModel: Selected mode " +
             $"(present={SelectedMode != null}, preset={SelectedMode?.Preset ?? "unknown"}, " +
             $"provider_type={SelectedMode?.ProviderType ?? "unknown"})");
+
+        // A Mode the user made ticks the Create a Mode row (#638).
+        RefreshGettingStartedProgress();
     }
 
     private void InitializeShortcuts()
@@ -1044,6 +1220,21 @@ public partial class MainViewModel : ViewModelBase
 
     partial void OnIsRecordingChanged(bool value)
     {
+        // Keep-warm for local Whisper (issue #1194): the worker process starts and
+        // loads the model while the user speaks, and cannot idle out mid-recording.
+        if (value)
+        {
+            var mode = _activeRecordingMode;
+            if (mode != null && mode.ProviderType != "cloud" && mode.LocalEngine != "parakeet")
+            {
+                _transcriptionService.NotifyWhisperRecordingStarted();
+            }
+        }
+        else
+        {
+            _transcriptionService.NotifyWhisperRecordingEnded();
+        }
+
         if (!value && !IsTranscribing)
         {
             DisposeParakeetIfNotNeededForSelectedMode();
@@ -1147,13 +1338,55 @@ public partial class MainViewModel : ViewModelBase
     /// reverted without the user ever being told.
     /// </summary>
     /// <returns>False when the change was refused.</returns>
-    public bool TrySelectAudioDevice(AudioDeviceService.AudioDevice? device)
+    public bool TrySelectAudioDevice(AudioDeviceService.AudioDevice? device) =>
+        SelectMicrophone(device?.Name, device?.DeviceNumber);
+
+    /// <summary>
+    /// The one write path for the saved microphone, shared by the tray and the
+    /// Settings picker. <paramref name="name"/> null (the Default row) clears the
+    /// saved choice and follows the Windows default input.
+    /// <paramref name="deviceNumber"/> is the exact device picked: the NAME is
+    /// saved, and for the rest of the session that device is the one used when
+    /// several share the name.
+    /// </summary>
+    /// <returns>False when the change was refused.</returns>
+    public bool SelectMicrophone(string? name, int? deviceNumber = null)
     {
         if (OnboardingSession.BlocksStateChange("change the input device"))
             return false;
 
-        ApplyAudioDeviceSelection(device, AudioDeviceSelectionReason.ExplicitSelection);
+        var saved = string.IsNullOrWhiteSpace(name) ? null : name;
+        _pickedDeviceNumber = saved == null ? null : deviceNumber;
+        _settingsService.LastSelectedMicrophone = saved;
+        ResolveSavedMicrophone(AudioDeviceSelectionReason.Phase.Refresh, AudioDeviceSelectionReason.ExplicitSelection);
         return true;
+    }
+
+    /// <summary>
+    /// Onboarding's Microphone step has already written (or restored)
+    /// SettingsService.LastSelectedMicrophone; follow it. The onboarding window
+    /// is a modal, so this deliberately skips the onboarding guard above.
+    /// </summary>
+    internal void ApplyOnboardingMicrophoneChoice() =>
+        ResolveSavedMicrophone(AudioDeviceSelectionReason.Phase.Refresh, AudioDeviceSelectionReason.OnboardingSelection);
+
+    /// <summary>
+    /// The saved microphone's WaveIn name while it is connected, else null
+    /// ("following the Windows default"). What onboarding shows as selected.
+    /// </summary>
+    internal string? ConnectedSavedMicrophoneName =>
+        MicrophoneResolution?.Source == MicrophoneSource.Saved ? SelectedAudioDevice?.Name : null;
+
+    private void RaiseMicrophoneCaptureStarting()
+    {
+        try
+        {
+            MicrophoneCaptureStarting?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"MainViewModel: A MicrophoneCaptureStarting handler failed: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -1190,7 +1423,11 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
-    private async Task LoadWhisperModelAsync()
+    /// <param name="keepStatusText">
+    /// Leave the status bar's Loading and Ready lines out, so a file job's result stays
+    /// up (#1519). A load failure still shows.
+    /// </param>
+    private async Task LoadWhisperModelAsync(bool keepStatusText = false)
     {
         if (!PlatformHelper.SupportsWhisperTranscription)
         {
@@ -1238,12 +1475,12 @@ public partial class MainViewModel : ViewModelBase
             }
 
             IsModelLoading = true;
-            StatusText = Loc.S("status.model.loading", model.DisplayName);
+            if (!keepStatusText) StatusText = Loc.S("status.model.loading", model.DisplayName);
 
             await _transcriptionService.InitializeAsync(modelPath, p => { }, CancellationToken.None);
             IsModelLoaded = true;
             ModelStatus = Loc.S("status.model.ready", model.DisplayName);
-            StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
+            if (!keepStatusText) StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
         }
         catch (Exception ex)
         {
@@ -1283,9 +1520,11 @@ public partial class MainViewModel : ViewModelBase
     /// <summary>
     /// Call once the Parakeet file job no longer needs its daemon (it ended, or
     /// its load failed). Clear <see cref="_parakeetFileJobOwnsDaemon"/> first, so
-    /// the idle housekeeping can dispose the daemon again.
+    /// the idle housekeeping can dispose the daemon again. Pass keepStatusText when
+    /// the job left a result on the status bar (#1519): the load must not replace it
+    /// with Loading and then Ready.
     /// </summary>
-    private void LoadWhisperHeldOutByParakeetFileJob()
+    private void LoadWhisperHeldOutByParakeetFileJob(bool keepStatusText)
     {
         if (!_whisperLoadHeldForParakeetFileJob) return;
         _whisperLoadHeldForParakeetFileJob = false;
@@ -1294,10 +1533,19 @@ public partial class MainViewModel : ViewModelBase
         if (mode == null || mode.ProviderType == "cloud" || mode.LocalEngine == "parakeet") return;
 
         LoggingService.Info("MainViewModel: Parakeet file transcription ended; loading the Whisper model it held out");
-        LoadModelInBackground(mode);
+        LoadHeldWhisperModelInBackground(mode, keepStatusText);
     }
 
-    private async Task LoadParakeetModelAsync()
+    // async void for the reason LoadModelInBackground gives. The mode is a Whisper
+    // mode (checked above), so this goes straight to the Whisper loader.
+    private async void LoadHeldWhisperModelInBackground(Mode mode, bool keepStatusText)
+    {
+        try { await LoadWhisperModelAsync(keepStatusText); }
+        catch (Exception ex) { ReportBackgroundModelLoadFailure("mode_switch", mode, ex); }
+    }
+
+    /// <param name="keepStatusText">As for <see cref="LoadWhisperModelAsync"/>.</param>
+    private async Task LoadParakeetModelAsync(bool keepStatusText = false)
     {
         var mode = SelectedMode;
         if (mode == null) return;
@@ -1318,7 +1566,7 @@ public partial class MainViewModel : ViewModelBase
         // #1534: the work under the model lock lives in its own method, so a
         // `return` inside its try cannot skip the follow-up below. (It did: the
         // superseded reload sat after the finally and never ran.)
-        var outcome = await LoadParakeetModelUnderLockAsync(mode, model, language);
+        var outcome = await LoadParakeetModelUnderLockAsync(mode, model, language, keepStatusText);
         if (outcome != ParakeetLoadOutcome.SupersededAfterWhisperUnload)
         {
             return;
@@ -1334,7 +1582,7 @@ public partial class MainViewModel : ViewModelBase
         LoggingService.Info("LoadParakeetModelAsync: Mode changed during the Whisper unload; skipped the Parakeet daemon, reloading for the current mode");
         IsModelLoaded = false;
         UpdateModelStatus();
-        StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
+        if (!keepStatusText) StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
         var current = SelectedMode;
         if (current != null && current.ProviderType != "cloud" && IsLocalModelDownloaded(current))
         {
@@ -1364,7 +1612,8 @@ public partial class MainViewModel : ViewModelBase
     /// Keep any follow-up work in the caller: a `return` here leaves through the
     /// finally only.
     /// </summary>
-    private async Task<ParakeetLoadOutcome> LoadParakeetModelUnderLockAsync(Mode mode, ParakeetModelInfo model, string? language)
+    private async Task<ParakeetLoadOutcome> LoadParakeetModelUnderLockAsync(
+        Mode mode, ParakeetModelInfo model, string? language, bool keepStatusText = false)
     {
         await _modelLoadLock.WaitAsync();
         try
@@ -1385,7 +1634,7 @@ public partial class MainViewModel : ViewModelBase
             }
 
             IsModelLoading = true;
-            StatusText = Loc.S("status.model.parakeet.loading", model.DisplayName);
+            if (!keepStatusText) StatusText = Loc.S("status.model.parakeet.loading", model.DisplayName);
 
             // #1609: a switch away from this mode cancels the unload while it
             // waits, so the Whisper model the new mode may use stays loaded and a
@@ -1402,7 +1651,7 @@ public partial class MainViewModel : ViewModelBase
             {
                 LoggingService.Info("LoadParakeetModelAsync: Mode changed while the Whisper unload waited; kept Whisper loaded and skipped the Parakeet daemon");
                 UpdateModelStatus();
-                StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
+                if (!keepStatusText) StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
                 return ParakeetLoadOutcome.SupersededBeforeUnload;
             }
             finally
@@ -1422,7 +1671,7 @@ public partial class MainViewModel : ViewModelBase
             await _parakeetTranscriptionService.InitializeAsync(_parakeetModelService.GetModelDirectory(model), language);
             IsModelLoaded = true;
             ModelStatus = Loc.S("status.model.parakeet.ready", model.DisplayName, _parakeetTranscriptionService.ActiveProvider ?? "CPU");
-            StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
+            if (!keepStatusText) StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
             return ParakeetLoadOutcome.Ready;
         }
         catch (Exception ex)
@@ -1546,7 +1795,15 @@ public partial class MainViewModel : ViewModelBase
             var cloudStatus = provider == CloudTranscriptionProvider.HyperWhisperCloud || string.IsNullOrWhiteSpace(model?.DisplayName)
                 ? providerName
                 : $"{providerName} - {model.DisplayName}";
-            ModelStatus = Loc.S("status.model.ready", cloudStatus);
+            // Read only the credential this provider needs (#649).
+            var usesAccountKey = WindowsLocalApiBackend.UsesCloudAccountKey(provider);
+            var statusKey = CloudModelStatusKey(
+                provider,
+                cloudAccountKeyPresent: usesAccountKey && CloudAccountKeyPresent(),
+                hasApiKey: !usesAccountKey
+                    && provider != CloudTranscriptionProvider.None
+                    && ModelStatusApiKeys.HasApiKey(provider));
+            ModelStatus = Loc.S(statusKey, cloudStatus);
             return;
         }
 
@@ -1896,6 +2153,7 @@ public partial class MainViewModel : ViewModelBase
             // CLIPBOARD PRESERVATION - STEP 1: Capture clipboard content only once
             // recording is ready to start.
             _pasteService?.StartRecordingSession();
+            RaiseMicrophoneCaptureStarting();
             SuspendMicrophoneKeepWarm();
 
             if (SettingsService.Instance.AutoIncreaseMicVolume)
@@ -1917,6 +2175,7 @@ public partial class MainViewModel : ViewModelBase
         }
 
         IsRecording = true;
+        ShowJobStatus("recording.state.recording");
         SoundEffectsService.Instance.PlayStartSound();
         _audioEnvironmentState = AudioEnvironmentService.Instance.PrepareForRecording(audioRestoreClaim!);
         ShowOverlayRequested?.Invoke(this, EventArgs.Empty);
@@ -2121,14 +2380,15 @@ public partial class MainViewModel : ViewModelBase
     }
 
 
-    private void RestoreAudioEnvironment()
+    /// <param name="immediate">Cancel paths: end a muffle at once instead of gliding it open.</param>
+    private void RestoreAudioEnvironment(bool immediate = false)
     {
         var state = _audioEnvironmentState;
         if (state == null)
             return;
 
         _audioEnvironmentState = null;
-        AudioEnvironmentService.Instance.ScheduleRestoreAfterRecording(state);
+        AudioEnvironmentService.Instance.ScheduleRestoreAfterRecording(state, immediate);
     }
 
     private Task RestoreAudioEnvironmentImmediatelyAsync()
@@ -2205,6 +2465,7 @@ public partial class MainViewModel : ViewModelBase
         try
         {
             IsTranscribing = true;
+            AdvanceJobStatus("recording.state.transcribing");
             LoggingService.LogPerformanceMarker("TranscriptionFlow", "Entered transcribing state");
             ShowTranscribingRequested?.Invoke(this, EventArgs.Empty);
 
@@ -2244,7 +2505,7 @@ public partial class MainViewModel : ViewModelBase
                 {
                     // No audio path: there is no audio to keep, and a saved header
                     // would offer a History Retry that uploads it after all.
-                    transcript = HistoryService.Instance.CreateProcessingTranscript(
+                    transcript = await CreateProcessingTranscriptOffUiThreadAsync(
                         RecordingDuration.TotalSeconds,
                         recordingMode.Name,
                         audioFilePath: null);
@@ -2272,8 +2533,9 @@ public partial class MainViewModel : ViewModelBase
             }
 
             // HISTORY INTEGRATION - STEP 2: Create processing transcript immediately
-            // This appears in History view with "Processing..." status right away
-            transcript = HistoryService.Instance.CreateProcessingTranscript(
+            // This appears in History view with "Processing..." status right away.
+            // Off the UI thread (#1589): a locked database makes the insert wait 30 s.
+            transcript = await CreateProcessingTranscriptOffUiThreadAsync(
                 RecordingDuration.TotalSeconds,
                 recordingMode.Name,
                 permanentAudioPath);
@@ -2479,9 +2741,7 @@ public partial class MainViewModel : ViewModelBase
 
                     if (failureWritten)
                     {
-                        ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                            txEx.GetUserMessage(),
-                            showSettingsButton: false));
+                        ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(txEx));
                         StatusText = Loc.S("status.failed", txEx.GetUserMessage());
                     }
                     return;
@@ -2490,15 +2750,7 @@ public partial class MainViewModel : ViewModelBase
                 var failureWrittenForTxEx = transcript == null || MarkTranscriptAsGenericFailure(transcript, txEx);
                 if (failureWrittenForTxEx)
                 {
-                    var showSettings = txEx.Code is TranscriptionErrorCode.ApiKeyMissing or TranscriptionErrorCode.Unauthorized;
-                    // CloudAccountRequired routes to the HW Cloud settings page
-                    // (account key entry), NOT the BYOK API-keys manager.
-                    var isCloudAccountError = txEx.Code == TranscriptionErrorCode.CloudAccountRequired;
-                    ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                        txEx.GetUserMessage(),
-                        showSettingsButton: showSettings || isCloudAccountError,
-                        settingsSection: isCloudAccountError ? "Cloud" : null,
-                        openApiKeysManager: showSettings));
+                    ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(txEx));
                     StatusText = Loc.S("status.failed", ex.Message);
                 }
             }
@@ -2507,9 +2759,7 @@ public partial class MainViewModel : ViewModelBase
                 var failureWritten = transcript == null || MarkTranscriptAsGenericFailure(transcript, ex);
                 if (failureWritten)
                 {
-                    ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                        Loc.S("errors.transcriptionFailed", ex.Message),
-                        showSettingsButton: false));
+                    ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(ex));
                     StatusText = Loc.S("status.failed", ex.Message);
                 }
             }
@@ -2527,6 +2777,7 @@ public partial class MainViewModel : ViewModelBase
 
             _hotkeyBlocked = false;
             LoggingService.LogPerformanceMarker("TranscriptionFlow", "Hotkey unblocked");
+            EndJobStatus();
             IsTranscribing = false;
             LoggingService.LogPerformanceMarker("TranscriptionFlow", $"Exit transcribing state after {hangWatch.ElapsedMilliseconds}ms");
             hangCts.Cancel();
@@ -2730,7 +2981,7 @@ public partial class MainViewModel : ViewModelBase
             // Uses Result<T> pattern to handle both success and failure cases
             var stopResult = _recorderService.StopRecording();
             _recorderService.RestoreMicVolume();
-            RestoreAudioEnvironment();
+            RestoreAudioEnvironment(immediate: true);
             ResumeMicrophoneKeepWarm();
             IsRecording = false;
 
@@ -2779,7 +3030,7 @@ public partial class MainViewModel : ViewModelBase
         _durationTimer?.Stop();
         _streamingAudioCapture?.Stop();
         _recorderService.RestoreMicVolume();
-        RestoreAudioEnvironment();
+        RestoreAudioEnvironment(immediate: true);
         ResumeMicrophoneKeepWarm();
         IsRecording = false;
 
@@ -2841,8 +3092,11 @@ public partial class MainViewModel : ViewModelBase
         if (!IsLocalModelDownloaded(mode)) return false;
         if (mode.LocalEngine == "parakeet")
             return _parakeetTranscriptionService.IsAvailable;
-        // A model a pending unload is about to dispose is not ready (#1609).
-        return _transcriptionService.IsLoadedAndStaying();
+        // A model a pending unload is about to dispose is not ready (#1609), and
+        // neither is another mode's model (#1809): a load for mode A that ends
+        // after a switch to mode B must not let B record with A's model.
+        var model = WhisperModelInfo.AllModels.FirstOrDefault(m => m.Type == mode.ModelType);
+        return model != null && _transcriptionService.IsLoadedAndStaying(_modelService.GetModelPath(model));
     }
 
     /// <summary>
@@ -2969,13 +3223,56 @@ public partial class MainViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Creates the Processing History row on the thread pool and comes back on the
+    /// caller's (dispatcher) context (#1589). The insert can wait SQLite's 30 s busy
+    /// timeout while another program holds the database's write lock, which froze the
+    /// window when it ran here. When the database still refuses the row, it is kept to
+    /// be saved later, the user is told the recording was kept, and the job goes on to
+    /// transcribe and paste as usual: the returned transcript is usable either way.
+    /// </summary>
+    private async Task<Transcript> CreateProcessingTranscriptOffUiThreadAsync(
+        double durationSeconds, string? modeName, string? audioFilePath)
+    {
+        var insert = await HistoryService.Instance.CreateProcessingTranscriptAsync(
+            durationSeconds, modeName, audioFilePath);
+        if (HistorySavedLaterToast(insert) is { } toast)
+        {
+            ShowErrorToastRequested?.Invoke(this, toast);
+        }
+        return insert.Transcript;
+    }
+
+    /// <summary>
+    /// The toast for a History row the database refused (#1589): it names the lock when
+    /// that was the cause, and says the recording was kept. Null when the row was saved,
+    /// or when there is no audio to keep (streaming, an empty capture): the text was
+    /// still delivered and the row is saved later without a toast that would be untrue.
+    /// Internal for HyperWhisper.SmokeTests.
+    /// </summary>
+    internal static ErrorToastEventArgs? HistorySavedLaterToast(HistoryInsertResult insert)
+    {
+        ArgumentNullException.ThrowIfNull(insert);
+        if (!insert.SavedLater || string.IsNullOrEmpty(insert.Transcript.AudioFilePath))
+        {
+            return null;
+        }
+
+        return new ErrorToastEventArgs(
+            Loc.S(insert.DatabaseLocked ? "history.savedLater.databaseLocked" : "history.savedLater.writeFailed"),
+            showSettingsButton: false);
+    }
+
+    /// <summary>
     /// Safety net invoked from the <c>finally</c> block of every transcription flow.
     /// If a transcript is somehow still in <see cref="TranscriptStatus.Processing"/>
     /// when we exit the flow (early return, swallowed exception, task abort),
     /// flip it to Failed so the History row stops spinning forever.
     /// See tasks/windows/phils-feedback/05-processing-audio-stuck-state.md
+    /// The in-memory copy can still name the WAV after a background compression deleted
+    /// it and re-pointed the row at the M4A, so the write keeps the row's live audio
+    /// path (#1603). Internal for HyperWhisper.SmokeTests.
     /// </summary>
-    private static void EnsureTranscriptTerminalStatus(Transcript? transcript)
+    internal static void EnsureTranscriptTerminalStatus(Transcript? transcript)
     {
         if (transcript == null) return;
 
@@ -2996,7 +3293,7 @@ public partial class MainViewModel : ViewModelBase
             if (persisted?.Status == TranscriptStatus.Processing &&
                 transcript.Status != TranscriptStatus.Processing)
             {
-                HistoryService.Instance.UpdateTranscript(transcript);
+                HistoryService.Instance.UpdateTranscript(transcript, keepLiveAudioPath: true);
                 LoggingService.Warn($"EnsureTranscriptTerminalStatus: Repaired persisted Processing transcript {transcript.Id} with in-memory {transcript.Status} status");
                 return;
             }
@@ -3009,7 +3306,7 @@ public partial class MainViewModel : ViewModelBase
                 ? reason
                 : transcript.FailedReason;
             transcript.Text = reason;
-            HistoryService.Instance.UpdateTranscript(transcript);
+            HistoryService.Instance.UpdateTranscript(transcript, keepLiveAudioPath: true);
             LoggingService.Warn($"EnsureTranscriptTerminalStatus: Flipped orphaned transcript {transcript.Id} from Processing to Failed");
         }
         catch (Exception ex)
@@ -3052,6 +3349,8 @@ public partial class MainViewModel : ViewModelBase
         LocalModelHealth.Changed -= OnLocalModelHealthChanged;
         ModelDownloadService.Instance.DownloadChanged -= OnModelDownloadChanged;
         _transcriptionOrchestrator.PostProcessingWarning -= _orchestratorWarningHandler;
+        DetachGettingStartedEvents();
+        DetachModelStatusSources();
 
         // Use try-finally to ensure device service cleanup happens
         // even if other Dispose calls throw exceptions

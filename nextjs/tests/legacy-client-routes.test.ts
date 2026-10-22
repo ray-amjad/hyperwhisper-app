@@ -13,16 +13,33 @@
  * with the key in the query string; it must send the buyer to /credits on the
  * same deploy and keep every parameter, or the purchase lands on no wallet.
  *
- * Both routes have no collaborators, so the tests import the real modules and
- * drive them with real Requests.
+ * Both routes are the real modules driven with real Requests. The checkout
+ * redirect's one collaborator, its Upstash rate limiter (#2010), is replaced
+ * with an always-allow stub so the run needs no network; its 429 is covered in
+ * tests/route-rate-limits.test.ts.
  */
 import assert from "node:assert/strict";
-import { describe, test } from "node:test";
+import { describe, mock, test } from "node:test";
 
 import { NextRequest } from "next/server";
 
 import { GET as getConfig } from "../app/api/config/route";
-import { GET as getCheckout } from "../app/api/checkout/route";
+
+// `mock.module` needs --experimental-test-module-mocks (npm test passes it);
+// @types/node@20 has no declaration for it.
+(mock as unknown as {
+  module(specifier: string, options: { namedExports: Record<string, unknown> }): void;
+}).module(new URL("../lib/rate-limit.ts", import.meta.url).href, {
+  namedExports: {
+    checkoutRateLimiter: { limit: async () => ({ success: true }) },
+  },
+});
+
+/** Loaded after the mock above, so the route binds to the stub. */
+async function getCheckout(request: NextRequest): Promise<Response> {
+  const { GET } = await import("../app/api/checkout/route");
+  return GET(request);
+}
 
 const INT32_MAX = 2_147_483_647;
 
@@ -62,7 +79,7 @@ describe("GET /api/config (legacy trial caps)", () => {
 });
 
 describe("GET /api/checkout (retired licence checkout)", () => {
-  function checkout(pathAndQuery: string): Promise<Response> | Response {
+  function checkout(pathAndQuery: string): Promise<Response> {
     return getCheckout(new NextRequest(`${ORIGIN}${pathAndQuery}`));
   }
 

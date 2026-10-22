@@ -71,7 +71,9 @@ public sealed class ModeAwareTranscriptionRouter :
                 .ConfigureAwait(false);
         }
 
-        if (!TryMapProvider(mode!.CloudProvider, out var provider))
+        // A Cloud mode with no stored provider runs on HyperWhisper Cloud — the shared rule
+        // macOS and Windows read too (issue #1709). It used to fail here as "not supported".
+        if (!TryMapProvider(SharedCoreBridge.EffectiveModeCloudProvider(mode!.CloudProvider), out var provider))
             return PortableTranscriptionResult.Failed(
                 PortableTranscriptionErrorCode.InvalidRequest,
                 "The selected cloud transcription provider is not supported.",
@@ -490,6 +492,7 @@ public sealed class ModeAwareTranscriptionRouter :
         CloudTranscriptionErrorCode.InvalidRequest or CloudTranscriptionErrorCode.FileTooLarge
             or CloudTranscriptionErrorCode.Unsupported => PortableTranscriptionErrorCode.InvalidRequest,
         CloudTranscriptionErrorCode.Unauthorized => PortableTranscriptionErrorCode.BackendUnavailable,
+        CloudTranscriptionErrorCode.CloudAccountRequired => PortableTranscriptionErrorCode.CloudAccountRequired,
         _ => PortableTranscriptionErrorCode.TranscriptionFailed,
     };
 }

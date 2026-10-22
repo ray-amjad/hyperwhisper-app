@@ -82,8 +82,8 @@ struct StageExtrasKeySetTests {
         #expect(ISO8601DateFormatter().date(from: stamp) == when)
     }
 
-    /// Every value is a number or the timestamp, and no key is one the
-    /// `beforeSend` deny-list would rewrite.
+    /// Every value is a number or the timestamp, and every key is on the
+    /// `beforeSend` allow-list (issue #805).
     @Test func noValueCarriesContentAndNoKeyIsRedacted() {
         for (key, value) in Self.success {
             #expect(value is Int || value is Double || key == "stage_reported_at", "\(key)")
@@ -171,6 +171,7 @@ struct StageExtrasKeySetTests {
         var offenders: [String] = []
         for file in files {
             var inBuilder = false
+            var inAllowList = false
             let lines = try ProductionSource.text(of: file).components(separatedBy: .newlines)
             for (offset, line) in lines.enumerated() {
                 // The builder's own dictionary is the one allowed writer. It ends
@@ -178,6 +179,13 @@ struct StageExtrasKeySetTests {
                 if line.contains("static func stageExtras(") { inBuilder = true }
                 if inBuilder {
                     if line == "    }" { inBuilder = false }
+                    continue
+                }
+                // Sentry's allow-list names the keys without writing them
+                // (issue #805). It ends at the first line that is exactly "    ]".
+                if line.contains("static let allowedExtraKeys") { inAllowList = true }
+                if inAllowList {
+                    if line == "    ]" { inAllowList = false }
                     continue
                 }
                 guard !line.trimmingCharacters(in: .whitespaces).hasPrefix("//") else { continue }

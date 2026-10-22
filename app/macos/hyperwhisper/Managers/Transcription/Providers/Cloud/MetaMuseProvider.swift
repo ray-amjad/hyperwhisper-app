@@ -10,6 +10,9 @@
 import Foundation
 
 final class MetaMuseProvider: TranscriptionProvider {
+    /// A stateless HTTP call: nothing per call is kept on the instance (#1425).
+    var supportsConcurrentPasses: Bool { true }
+
     static let modelID = "muse-voice-transcribe-1.0"
     static let maxUploadBytes: Int64 = 32 * 1024 * 1024
     /// Bounded source envelope for containers that can shrink during WAV normalization.

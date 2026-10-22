@@ -747,25 +747,56 @@ struct MenuBarItems: View {
             Divider()
             
             // Microphone submenu
-            // Shows all available input devices with "(Default)" suffix on the system default device
+            // The same saved choice as Settings → Sound → Microphone: "Default · <device>"
+            // follows the macOS default; picking a device saves it for HyperWhisper only and
+            // never changes the macOS default input. An unplugged choice stays checked as
+            // "<name> (not connected)" while recording uses the default.
             Menu {
-                ForEach(audioManager.availableDevices, id: \.self) { device in
-                    // Check if this device is the system's default input device
-                    let isSystemDefault = device.uid == audioManager.systemDefaultDeviceUID
-                    // Show checkmark if this device is explicitly selected, OR if no device is
-                    // selected and this is the system default (which will be used for recording)
-                    let isSelected = audioManager.selectedDevice?.id == device.id ||
-                                     (audioManager.selectedDevice == nil && isSystemDefault)
+                let devices = audioManager.availableDevices
+                let preferred = audioManager.preferredMicrophone
+                let missingChoice = MicrophoneResolution.resolve(
+                    savedUID: preferred?.uid,
+                    savedName: preferred?.name,
+                    devices: devices
+                ).missingChoice
+                let defaultName = MicrophonePickerLabels.defaultDeviceName(
+                    devices: devices,
+                    systemDefaultUID: audioManager.systemDefaultDeviceUID
+                )
+
+                Button(action: {
+                    audioManager.selectDevice(nil)
+                }) {
+                    HStack {
+                        Text(verbatim: MicrophonePickerLabels.defaultOption(defaultDeviceName: defaultName))
+                        if preferred == nil {
+                            Spacer()
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+
+                if let missingChoice {
+                    Button(action: {}) {
+                        HStack {
+                            Text(verbatim: MicrophonePickerLabels.notConnected(missingChoice))
+                            Spacer()
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                    .disabled(true)
+                }
+
+                Divider()
+
+                ForEach(devices, id: \.self) { device in
                     Button(action: {
                         audioManager.selectDevice(device)
                         selectedMicrophone = device.name
-                        // Update the saved preference
-                        settingsManager.selectedMicrophoneId = device.id
                     }) {
                         HStack {
-                            // Show "(Default)" suffix for the macOS system default input device
-                            Text(isSystemDefault ? "\(device.name) (\("menu.microphone.system.default".localized))" : device.name)
-                            if isSelected {
+                            Text(verbatim: device.name)
+                            if preferred?.uid == device.uid {
                                 Spacer()
                                 Image(systemName: "checkmark")
                             }
@@ -792,7 +823,9 @@ struct MenuBarItems: View {
                         appState.selectMode(mode, persist: true)
                     }) {
                         HStack {
-                            Text(mode.name)
+                            // An NSMenu grows to its widest item, so bound the
+                            // free-text name (#1436). Only the label is cut.
+                            Text(MenuItemText.bounded(mode.name))
                                 .fixedSize() // Prevent text truncation in menu
                             if appState.selectedModeId == mode.id.uuidString {
                                 Spacer()
@@ -817,7 +850,7 @@ struct MenuBarItems: View {
                     Button(action: {
                         transcribeFile(with: mode)
                     }) {
-                        Text(mode.name)
+                        Text(MenuItemText.bounded(mode.name)) // #1436
                             .fixedSize() // Prevent text truncation in menu
                     }
                 }
@@ -1049,27 +1082,14 @@ extension MenuBarItems {
         }
     }
 
-    /// Attempt to reapply the persisted microphone selection whenever devices change or the menu reappears.
+    /// Keep the menu's microphone label in sync with the connected choice.
+    ///
+    /// Restoring the saved choice is `AudioRecordingManager.configure`'s job, and picking
+    /// it up again when its device reappears is `AudioDeviceManager`'s, so this no longer
+    /// selects anything itself.
     private func restoreSavedMicrophoneIfNeeded(devices: [AudioDevice]) {
-        let savedId = settingsManager.selectedMicrophoneId
-        guard !savedId.isEmpty else { return }
-
-        // No-op if selection already matches the saved preference
-        if audioManager.selectedDevice?.id == savedId {
-            if let current = audioManager.selectedDevice, selectedMicrophone != current.name {
-                selectedMicrophone = current.name
-            }
-            return
+        if let current = audioManager.selectedDevice, selectedMicrophone != current.name {
+            selectedMicrophone = current.name
         }
-
-        guard let savedDevice = devices.first(where: { $0.id == savedId }) else {
-            AppLogger.audio.debug("Saved microphone ID not present in device list: \(savedId, privacy: .public)")
-            // AudioDeviceManager already clears the persisted preference via its invalidation callback.
-            return
-        }
-
-        AppLogger.audio.info("Restoring saved microphone selection: \(savedDevice.name, privacy: .public)")
-        audioManager.selectDevice(savedDevice)
-        selectedMicrophone = savedDevice.name
     }
 }

@@ -270,9 +270,12 @@
                  whole row stayed hidden for the life of the process even though every microphone
                  was enumerated, and "Refresh devices" could not recover it (issue #626). Bind the
                  notifying `HasAudioDevices` instead. The fallbacks keep the row hidden while
-                 `Recording` is still null, because an unresolved binding leaves IsVisible true. -->
+                 `Recording` is still null, because an unresolved binding leaves IsVisible true.
+                 The box lists the shell's `Microphone.Choices`, the same rows and the same saved
+                 choice as Settings → Sound (spec: mic picker in Settings). That list is reconciled
+                 in place too, and its setter ignores the null a torn-down TwoWay binding writes. -->
             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12"
-                  IsVisible="{ReflectionBinding $parent[Window].DataContext.Recording.HasAudioDevices, FallbackValue=False, TargetNullValue=False}"><TextBlock Text="{ReflectionBinding [linux.ui.audio.input], Source={StaticResource Localization}}" VerticalAlignment="Center"/><ComboBox Grid.Column="1" ItemsSource="{ReflectionBinding $parent[Window].DataContext.Recording.AudioDevices}" SelectedItem="{ReflectionBinding $parent[Window].DataContext.Recording.SelectedAudioDevice, Mode=TwoWay}"><ComboBox.ItemTemplate><DataTemplate x:DataType="platform:AudioInputDevice"><TextBlock Text="{Binding Name}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox></Grid>
+                  IsVisible="{ReflectionBinding $parent[Window].DataContext.Recording.HasAudioDevices, FallbackValue=False, TargetNullValue=False}"><TextBlock Text="{ReflectionBinding [linux.ui.audio.input], Source={StaticResource Localization}}" VerticalAlignment="Center"/><ComboBox x:Name="HomeAudioInputPicker" Grid.Column="1" ItemsSource="{ReflectionBinding $parent[Window].DataContext.Microphone.Choices}" SelectedItem="{ReflectionBinding $parent[Window].DataContext.Microphone.SelectedChoice, Mode=TwoWay}"><ComboBox.ItemTemplate><DataTemplate x:DataType="vm:MicrophoneChoice"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox></Grid>
             <!-- Stop and Cancel used to be drawn in every state, so an idle card offered "Stop and
                  transcribe" and no way to start (issue #1187). The row now follows the window's
                  `IsHomeRecordingActive`: `Recording.CanStop` (true only while State is Recording) OR
@@ -1130,10 +1133,13 @@
           </StackPanel>
           <CheckBox Grid.Column="1" x:Name="SettingsSoundEffects" IsChecked="{Binding Settings.EnableSoundEffects}" VerticalAlignment="Center"/>
         </Grid></Border>
-        <!-- Windows offers two localized items in a fixed 130px column, not the three raw
-             lowercase policy strings the shared list carries. The Tag is the stored value, the
-             way the Windows page writes it, and code behind syncs the pick on navigation. -->
-        <Border Classes="card" Margin="0,0,0,20"><Grid ColumnDefinitions="*,130">
+        <!-- Localized items, not the raw lowercase policy strings the shared list carries. The
+             Tag is the stored value, the way the Windows page writes it, and code behind syncs
+             the pick on navigation. "muffle" is the macOS Muffle Audio mode
+             (LinuxAudioEnvironmentService). 240px, not Windows' 130px: the closed box takes 52px
+             for padding and chevron, so 130px clipped "Muffle audio", and the longest label (bg
+             "Приглушаване на звука", 166px in Inter) needs 218px. MediaControlComboRenderTests. -->
+        <Border Classes="card" Margin="0,0,0,20"><Grid ColumnDefinitions="*,240">
           <StackPanel Spacing="2">
             <TextBlock Text="{ReflectionBinding [settings.sound.mediaControl.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
             <TextBlock Text="{ReflectionBinding [settings.sound.mediaControl.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
@@ -1142,10 +1148,41 @@
                     VerticalAlignment="Center" SelectionChanged="OnAudioEnvironmentPolicyChanged">
             <ComboBoxItem Tag="unchanged" Content="{ReflectionBinding [settings.sound.mediaControl.off], Source={StaticResource Localization}}"/>
             <ComboBoxItem Tag="mute" Content="{ReflectionBinding [settings.sound.mediaControl.muteAudio], Source={StaticResource Localization}}"/>
+            <ComboBoxItem Tag="muffle" Content="{ReflectionBinding [linux.settings.sound.mediaControl.muffleAudio], Source={StaticResource Localization}}"/>
           </ComboBox>
         </Grid></Border>
+        <!-- The microphone picker heads the Microphone card (spec: mic picker in Settings). Its
+             rows and its saved choice are the Home "Audio input" box's. The level bar stays grey
+             until Test opens the device: visiting the page never opens the microphone. The two
+             amber lines carry the caption size but not the caption class, whose Foreground
+             setter won over the amber in a render. -->
         <Border Classes="card" Margin="0,0,0,20"><StackPanel>
-          <Grid ColumnDefinitions="*,Auto">
+          <StackPanel x:Name="SettingsMicrophoneRow" Spacing="8"
+                      IsVisible="{ReflectionBinding Microphone, Converter={x:Static conv:ObjectConverters.IsNotNull}, FallbackValue=False}">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [menu.microphone], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [linux.settings.sound.microphone.subtitle], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
+            </StackPanel>
+            <ComboBox x:Name="SettingsMicrophonePicker" HorizontalAlignment="Stretch"
+                      ItemsSource="{ReflectionBinding Microphone.Choices}"
+                      SelectedItem="{ReflectionBinding Microphone.SelectedChoice, Mode=TwoWay}">
+              <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:MicrophoneChoice"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBlock x:Name="SettingsMicrophoneFallback" Text="{ReflectionBinding Microphone.FallbackNotice}" TextWrapping="Wrap"
+                       Foreground="{DynamicResource HwWarningBrush}" FontSize="11" LineHeight="15"
+                       IsVisible="{ReflectionBinding Microphone.IsSavedDeviceMissing, FallbackValue=False}"/>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+              <local:MicrophoneLevelBar x:Name="SettingsMicrophoneLevel" HorizontalAlignment="Left"
+                                        Level="{ReflectionBinding Microphone.LevelTest.Level, FallbackValue=0}"/>
+              <Button Grid.Column="1" x:Name="SettingsMicrophoneTest" MinWidth="72" HorizontalContentAlignment="Center"
+                      Content="{ReflectionBinding Microphone.LevelTest.ButtonText}"
+                      Command="{ReflectionBinding Microphone.LevelTest.ToggleCommand}"/>
+            </Grid>
+            <TextBlock Text="{ReflectionBinding Microphone.LevelTest.ErrorMessage}" TextWrapping="Wrap" FontSize="11" LineHeight="15"
+                       Foreground="{DynamicResource HwWarningBrush}"
+                       IsVisible="{ReflectionBinding Microphone.LevelTest.HasError, FallbackValue=False}"/>
+          </StackPanel>
+          <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,0">
             <StackPanel Spacing="2">
               <TextBlock Text="{ReflectionBinding [settings.sound.autoIncreaseMicVolume.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
               <TextBlock Text="{ReflectionBinding [linux.settings.sound.autoIncreaseMicVolume.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
@@ -1236,10 +1273,17 @@
                 <!-- Windows rejects non-digits as they are typed and clamps to 1-365 on
                      LostFocus, rewriting the box (StorageSettingsPage.xaml.cs:146-162). The view
                      model already clamps what it stores, but a plain two-way binding left the box
-                     showing "0" or "abcd" after the value behind it had refused them. -->
+                     showing "0" or "abcd" after the value behind it had refused them.
+
+                     Mode=OneWay is load-bearing (#2199): the box never writes AutoDeleteDaysOld by
+                     itself, so a half-typed number never reaches the source. A TwoWay binding wrote
+                     each keystroke, the 500ms auto-save saved it, and the save raised
+                     StorageSettingsChanged, which runs a cleanup: a pause after the "1" of "14" deleted
+                     everything older than one day. OnAutoDeleteDaysLostFocus is the only commit, and
+                     OnClosing commits an edit still focused at quit. -->
                 <TextBox x:Name="SettingsAutoDeleteDays" Width="60" TextAlignment="Center"
-                         TextInput="OnAutoDeleteDaysTextInput" LostFocus="OnAutoDeleteDaysLostFocus"
-                         Text="{Binding Settings.AutoDeleteDaysOld, Mode=TwoWay}"/>
+                         LostFocus="OnAutoDeleteDaysLostFocus"
+                         Text="{Binding Settings.AutoDeleteDaysOld, Mode=OneWay}"/>
                 <TextBlock Text="{ReflectionBinding [settings.storage.autoDelete.days], Source={StaticResource Localization}}"
                            FontSize="13" Foreground="{DynamicResource HwTextPrimaryBrush}"
                            VerticalAlignment="Center" Margin="8,0,0,0"/>
@@ -2143,6 +2187,14 @@
           </StackPanel>
         </StackPanel></Border>
 
+        <!-- Every inspect, preview, import and export failure lands in Status (BackupViewModel);
+             Windows prints it in the card as "Invalid backup file: <path>: <message>". Without
+             this line a rejected file only closed the selection panel, with no word why. -->
+        <Border x:Name="BackupErrorBanner" Background="{DynamicResource HwErrorBackgroundBrush}" BorderBrush="{DynamicResource HwErrorBorderBrush}"
+                BorderThickness="1" CornerRadius="9" Padding="12" Margin="0,0,0,20" IsVisible="{Binding Status.HasError}">
+          <TextBlock x:Name="BackupErrorText" Text="{Binding Status.Message}" FontSize="13" TextWrapping="Wrap" Foreground="{DynamicResource HwErrorForegroundBrush}"/>
+        </Border>
+
         <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,14">
           <Path Data="{StaticResource HwIconInfo}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform"
                 Width="12" Height="12" VerticalAlignment="Top" Margin="0,1,8,0"/>
@@ -2307,6 +2359,12 @@
                   </Panel>
                 </Button>
               </Grid>
+              <!-- #1489: text that cannot be any key (too long, whitespace inside, non-ASCII).
+                   ActivateCommand is already off for it; this says why. -->
+              <TextBlock x:Name="AccountKeyFormatHint"
+                         Text="{ReflectionBinding [license.error.keyFormat], Source={StaticResource Localization}}"
+                         IsVisible="{Binding ShowsAccountKeyFormatHint}" FontSize="12"
+                         Foreground="{DynamicResource HwErrorForegroundBrush}" Margin="0,8,0,0" TextWrapping="Wrap"/>
               <TextBlock Text="{Binding ActivationError}" IsVisible="{Binding HasActivationError}" FontSize="12"
                          Foreground="{DynamicResource HwErrorForegroundBrush}" Margin="0,8,0,0" TextWrapping="Wrap"/>
             </StackPanel></Border>

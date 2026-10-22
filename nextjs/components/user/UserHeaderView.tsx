@@ -42,14 +42,14 @@ export default function UserHeaderView({
   return (
     <header className="h-14 border-b border-white/10 bg-slate-900/50 backdrop-blur-sm">
       <div
-        className={`h-full px-6 flex items-center justify-between ${
+        className={`h-full px-6 flex items-center justify-between gap-4 ${
           isAdmin ? "" : "max-w-4xl mx-auto"
         }`}
       >
         {/* Left side - Logo (only shown when no sidebar, i.e., non-admin) */}
         {!isAdmin && (
           <LocaleLink
-            className="text-lg font-semibold text-white hover:text-gray-200 transition-colors"
+            className="shrink-0 whitespace-nowrap text-lg font-semibold text-white hover:text-gray-200 transition-colors"
             href="/"
           >
             HyperWhisper
@@ -59,16 +59,20 @@ export default function UserHeaderView({
         {/* Spacer for admin (logo is in sidebar) */}
         {isAdmin && <div />}
 
-        {/* Right side - user info */}
-        <div className="flex items-center gap-4">
+        {/* Right side - user info. `min-w-0` lets it shrink below its content so
+            a long email truncates instead of pushing into the logo (#1658). */}
+        <div className="flex min-w-0 items-center gap-4">
           {/* Admin badge */}
           {isAdmin && (
-            <span className="px-2 py-0.5 text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded">
+            <span className="shrink-0 px-2 py-0.5 text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded">
               Admin
             </span>
           )}
 
-          <span className="text-sm text-gray-400 hidden sm:block">
+          <span
+            className="min-w-0 truncate text-sm text-gray-400 hidden sm:block"
+            title={user.email ?? undefined}
+          >
             {user.email}
           </span>
 
@@ -79,7 +83,7 @@ export default function UserHeaderView({
           )}
 
           <button
-            className="px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="shrink-0 whitespace-nowrap px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={signingOut}
             onClick={onSignOut}
           >

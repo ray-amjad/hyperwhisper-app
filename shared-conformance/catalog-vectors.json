@@ -1,5 +1,5 @@
 {
-  "description": "Cross-platform conformance vectors for the shared catalog decoders. Source of truth: shared-core-rs/crates/hw-catalog/src/cloud_stt.rs and models.rs, read through shared-core-rs/crates/hw-core/src/ffi_catalog.rs. Three stacks run these vectors through their own UniFFI binding: Rust (shared-core-rs/crates/hw-core/tests/catalog_vectors.rs), Swift (app/macos/hyperwhisperTests/CatalogConformanceVectorTests.swift) and C# (app/shared-dotnet/HyperWhisper.CatalogConformance.Tests/Program.cs). Regenerate with: cargo test -p hw-core --test catalog_vectors -- --ignored regenerate. `languagesRawCodeCount` pins the size of the raw upstream code list rather than its contents; `pickerLanguageCodes` pins the fold applied to it. A null `codes` means the catalog declares the set \"unverified\", so a picker keeps its full list.",
+  "description": "Cross-platform conformance vectors for the shared catalog decoders. Source of truth: shared-core-rs/crates/hw-catalog/src/cloud_stt.rs and models.rs, read through shared-core-rs/crates/hw-core/src/ffi_catalog.rs. Three stacks run these vectors through their own UniFFI binding: Rust (shared-core-rs/crates/hw-core/tests/catalog_vectors.rs), Swift (app/macos/hyperwhisperTests/CatalogConformanceVectorTests.swift) and C# (app/shared-dotnet/HyperWhisper.CatalogConformance.Tests/Program.cs). Regenerate with: cargo test -p hw-core --test catalog_vectors -- --ignored regenerate. `languagesRawCodeCount` pins the size of the raw upstream code list rather than its contents; `pickerLanguageCodes` pins the fold applied to it. A null `codes` means the catalog declares the set \"unverified\", so a picker keeps its full list. `effectiveModeCloudProvider` pins the provider a CLOUD mode runs on for a stored cloudProvider (null = omitted): blank means \"hyperwhisper\" (#1709).",
   "cloudSttEntries": [
     {
       "id": "groqWhisper",
@@ -213,15 +213,6 @@
           "displayName": "Grok Voice Transcribe 2",
           "creditsPerMinute": 1.67,
           "isDefault": true,
-          "previewStatus": false,
-          "supportsCustomVocabulary": true,
-          "streaming": null
-        },
-        {
-          "id": "grok-voice-transcribe-1.0",
-          "displayName": "Grok Voice Transcribe 1",
-          "creditsPerMinute": 1.67,
-          "isDefault": false,
           "previewStatus": false,
           "supportsCustomVocabulary": true,
           "streaming": null
@@ -1019,8 +1010,7 @@
         "grokStt"
       ],
       "models": [
-        "grokStt/grok-voice-transcribe-2.0",
-        "grokStt/grok-voice-transcribe-1.0"
+        "grokStt/grok-voice-transcribe-2.0"
       ]
     }
   ],
@@ -2185,6 +2175,100 @@
       "voiceCapabilities": null
     },
     {
+      "provider": "elevenLabs",
+      "id": "scribe_v2_medical",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": false,
+      "supportsAllLanguages": false,
+      "languageCodes": [
+        "af",
+        "am",
+        "ar",
+        "as",
+        "az",
+        "be",
+        "bg",
+        "bn",
+        "bs",
+        "ca",
+        "cs",
+        "cy",
+        "da",
+        "de",
+        "el",
+        "en",
+        "es",
+        "et",
+        "fa",
+        "fi",
+        "fr",
+        "gl",
+        "gu",
+        "ha",
+        "he",
+        "hi",
+        "hr",
+        "hu",
+        "hy",
+        "id",
+        "is",
+        "it",
+        "ja",
+        "jw",
+        "ka",
+        "kk",
+        "km",
+        "kn",
+        "ko",
+        "lb",
+        "ln",
+        "lo",
+        "lt",
+        "lv",
+        "mi",
+        "mk",
+        "ml",
+        "mn",
+        "mr",
+        "ms",
+        "mt",
+        "my",
+        "ne",
+        "nl",
+        "no",
+        "oc",
+        "pa",
+        "pl",
+        "ps",
+        "pt",
+        "ro",
+        "ru",
+        "sd",
+        "sk",
+        "sl",
+        "sn",
+        "so",
+        "sr",
+        "sv",
+        "sw",
+        "ta",
+        "te",
+        "tg",
+        "th",
+        "tl",
+        "tr",
+        "uk",
+        "ur",
+        "uz",
+        "vi",
+        "yo",
+        "yue",
+        "zh"
+      ],
+      "voiceCapabilities": null
+    },
+    {
       "provider": "gemini",
       "id": "gemini-2.5-flash",
       "kind": "voice",
@@ -2256,16 +2340,6 @@
     },
     {
       "provider": "gemini",
-      "id": "gemini-3.1-flash-lite",
-      "kind": "text",
-      "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
-      "supportsAllLanguages": true,
-      "languageCodes": [],
-      "voiceCapabilities": null
-    },
-    {
-      "provider": "gemini",
       "id": "gemini-3.1-pro-preview",
       "kind": "text",
       "supportsCustomVocabulary": false,
@@ -2287,16 +2361,6 @@
     {
       "provider": "gemini",
       "id": "gemini-3.6-flash",
-      "kind": "text",
-      "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
-      "supportsAllLanguages": true,
-      "languageCodes": [],
-      "voiceCapabilities": null
-    },
-    {
-      "provider": "gemini",
-      "id": "gemini-3.7-flash",
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
@@ -2408,16 +2472,6 @@
         "yue",
         "zh"
       ],
-      "voiceCapabilities": null
-    },
-    {
-      "provider": "grok",
-      "id": "grok-voice-transcribe-1.0",
-      "kind": "voice",
-      "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": true,
-      "supportsAllLanguages": true,
-      "languageCodes": [],
       "voiceCapabilities": null
     },
     {
@@ -2696,7 +2750,7 @@
     },
     {
       "provider": "mistral",
-      "id": "mistral-medium-3.5",
+      "id": "mistral-medium-3-5",
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
@@ -2904,6 +2958,44 @@
         "zh"
       ],
       "voiceCapabilities": null
+    }
+  ],
+  "effectiveModeCloudProvider": [
+    {
+      "input": null,
+      "expected": "hyperwhisper"
+    },
+    {
+      "input": "",
+      "expected": "hyperwhisper"
+    },
+    {
+      "input": "  ",
+      "expected": "hyperwhisper"
+    },
+    {
+      "input": "hyperwhisper",
+      "expected": "hyperwhisper"
+    },
+    {
+      "input": "deepgram",
+      "expected": "deepgram"
+    },
+    {
+      "input": "Deepgram",
+      "expected": "deepgram"
+    },
+    {
+      "input": "googlespeech",
+      "expected": "hyperwhisper"
+    },
+    {
+      "input": "geminiTranscribe",
+      "expected": "geminitranscribe"
+    },
+    {
+      "input": "not-a-provider",
+      "expected": "not-a-provider"
     }
   ]
 }

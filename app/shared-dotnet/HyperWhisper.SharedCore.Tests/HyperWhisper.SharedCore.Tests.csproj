@@ -9,6 +9,10 @@
 
   <ItemGroup>
     <ProjectReference Include="../HyperWhisper.SharedCore/HyperWhisper.SharedCore.csproj" />
+    <!-- The provider health verdict vectors (issue #779): Rust, Windows and
+         macOS replay this very file. -->
+    <Content Include="../../../shared-conformance/health-vectors.json"
+             Link="health-vectors.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so"
              Condition="Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')">
       <Link>libhyperwhisper_core.so</Link>

@@ -3,6 +3,9 @@
   <data name="linux.overlay.recording" xml:space="preserve">
     <value>Nahravani</value>
   </data>
+  <data name="linux.settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Zastřít zvuk</value>
+  </data>
   <data name="linux.ui.api.keys" xml:space="preserve">
     <value>Klíče API</value>
   </data>
@@ -20,5 +23,29 @@
   </data>
   <data name="linux.ui.start.recording" xml:space="preserve">
     <value>Zahajit nahravani</value>
+  </data>
+  <data name="linux.settings.sound.microphone.default" xml:space="preserve">
+    <value>Výchozí · {0}</value>
+  </data>
+  <data name="linux.settings.sound.microphone.defaultNone" xml:space="preserve">
+    <value>Výchozí</value>
+  </data>
+  <data name="linux.settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Používá se {0}, dokud nebude znovu připojeno {1}.</value>
+  </data>
+  <data name="linux.settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (nepřipojeno)</value>
+  </data>
+  <data name="linux.settings.sound.microphone.stop" xml:space="preserve">
+    <value>Zastavit</value>
+  </data>
+  <data name="linux.settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Používá jen HyperWhisper. Zapamatuje se i po restartu.</value>
+  </data>
+  <data name="linux.settings.sound.microphone.test" xml:space="preserve">
+    <value>Test</value>
+  </data>
+  <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve">
+    <value>Mikrofon se nepodařilo otevřít.</value>
   </data>
 </root>

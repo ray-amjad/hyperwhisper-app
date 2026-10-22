@@ -57,14 +57,14 @@ struct NoSpeechResultFailsRowTests {
         try makeResult(rawText: "hello").throwIfNoSpeech()
     }
 
-    /// The failed row a file import and a "Retry with" write carries the
-    /// no-speech message as its reason, so History says why.
+    /// The failed row a file import writes carries the no-speech message as
+    /// its reason, so History says why, and no text (#1427).
     @MainActor
     @Test func theFailedRowSaysNoSpeech() {
         let outcome = FileTranscriptionFlow.failureOutcome(for: TranscriptionError.noSpeechDetected)
         let message = TranscriptionError.noSpeechDetected.localizedDescription
         #expect(outcome.failedReason == message)
-        #expect(outcome.errorText.contains(message))
+        #expect(outcome.errorText.isEmpty)
     }
 
     // MARK: - The three save sites, read from the production source

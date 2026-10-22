@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Program lain sedang mengunci pangkalan data Sejarah. Rakaman telah dikekalkan dan akan disimpan ke Sejarah apabila pangkalan data bebas.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Rakaman ini belum dapat disimpan ke Sejarah. Rakaman telah dikekalkan dan akan disimpan ke Sejarah kemudian.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -793,6 +799,12 @@ Tindakan ini tidak boleh dibuat asal.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Tidak diaktifkan)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (Tiada kunci API)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -822,6 +834,9 @@ Tindakan ini tidak boleh dibuat asal.</value>
   </data>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transkripsi fail dibatalkan</value>
+  </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Mentranskripsi fail...</value>
   </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
@@ -1084,6 +1099,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Pintasan dengan satu kekunci pengubah suai seperti Ctrl, Alt, Shift atau Win tidak disokong. Gunakan kekunci dengan pengubah suai atau pintasan berbilang pengubah suai seperti Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Pintasan tanpa kekunci pengubah suai mestilah kekunci fungsi atau Esc. Mana-mana kekunci lain akan tercetus semasa anda menaip.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Pintasan ini sudah digunakan untuk {0} ({1})</value>
   </data>
@@ -1297,6 +1315,9 @@ You can re-download it later.</value>
   </data>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
+  </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Itu tidak kelihatan seperti kunci akaun.</value>
   </data>
 
   <!-- Models - ARM64 and GPU -->
@@ -1711,6 +1732,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Lagi...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -2005,11 +2029,35 @@ You can re-download it later.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Redamkan audio</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Digunakan oleh HyperWhisper sahaja. Diingati selepas dimulakan semula.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Lalai · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (tidak bersambung)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Menggunakan {0} sehingga {1} disambungkan semula.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Tiada mikrofon disambungkan. HyperWhisper akan menggunakan {0} apabila ia disambungkan semula.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Uji</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Henti</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

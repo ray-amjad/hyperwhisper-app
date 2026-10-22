@@ -4,7 +4,7 @@
 
 import type { Context } from 'hono';
 import type { TranscriptionResult } from '../providers/types';
-import { AudioTooLargeError, EmptyTranscriptError, ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from '../providers/types';
+import { AudioTooLargeError, EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from '../providers/types';
 // The providers layer's own answer to "which adapter runs this provider id", so
 // the route never imports an adapter or keeps a dispatch table of its own. See
 // providers/dispatch.ts.
@@ -35,15 +35,29 @@ import { prepareTranscriptionRequest } from './transcribe-preparation';
 import { completeTranscription } from './transcribe-completion';
 import { providerChainFailureResponse } from './transcribe-failure';
 import { createTranscriptionLatencyRecorder } from './transcribe-latency';
+import { withCreditHoldScope } from '../middleware/credit-holds';
 
 // Supported providers (mirror the server-side registry in lib/stt-models.ts).
 export type Provider = SttProviderId;
+
+// The one message a client sees for a non-retryable failure. A failure's own
+// text can carry an upstream provider's error body or a server env-var name
+// (#2106), so it goes to the `transcribe.request_fail` log only; the client
+// keeps the requestId to find that log line. Same shape as /post-process (#2066).
+const TRANSCRIPTION_FAILURE_MESSAGE = 'The transcription request failed. Please try again.';
 
 export { estimateCreditsForProviderFallbacks };
 
 export { isLatencyOptOut };
 
 export async function transcribeRoute(c: Context) {
+  // Every exit below, an early refusal, a failed chain, a `no_speech`, a throw,
+  // releases the credit hold the preparation took, unless the completion's
+  // deduction took it over to settle (#2008).
+  return withCreditHoldScope(() => handleTranscribe(c));
+}
+
+async function handleTranscribe(c: Context) {
   const preparation = await prepareTranscriptionRequest(c);
   if (preparation instanceof Response) {
     return preparation;
@@ -95,6 +109,7 @@ export async function transcribeRoute(c: Context) {
   const chain = reachableFromRegion(fallbackChainFor(provider));
   let lastError: Error | undefined;
   let lastInputError: ProviderInputError | undefined;
+  let lastAuthError: ProviderAuthError | undefined;
   let sawUnavailable = false;
   // Chain position of the one attempt that refused an empty transcript
   // (EmptyTranscriptError), if any. It is the single piece of state that makes
@@ -359,6 +374,30 @@ export async function transcribeRoute(c: Context) {
           lastInputError = error;
           continue;
         }
+        if (error instanceof ProviderAuthError && index < chain.length - 1) {
+          // Our key for THIS provider was rejected. Each sibling has its own
+          // key, so the next one can still serve the request. The last
+          // provider in the chain falls through to the 500 below, as before.
+          const next = chain[index + 1];
+          fallbackCount += 1;
+          logEvent(requestId, startTime, 'transcribe.provider_attempt_fail', {
+            provider: current,
+            attempt: index + 1,
+            kind: 'provider_auth_rejected',
+            status: error.status,
+            message: error.message,
+            nextProvider: next,
+          });
+          attemptFailures.push({
+            provider: current,
+            kind: 'auth_rejected',
+            status: error.status,
+            attemptMs: Math.round(performance.now() - attemptStart),
+          });
+          lastError = error;
+          lastAuthError = error;
+          continue;
+        }
         // Everything below this line ENDS the request with an error. None of them
         // may fire once a refusal has banked a benign `no_speech`: the user asked
         // a question that already has a valid, free answer, and a sibling's 413,
@@ -433,14 +472,21 @@ export async function transcribeRoute(c: Context) {
             },
           );
         }
-        // Non-retryable error (401 invalid key, etc.) — don't try fallbacks
+        // Non-retryable error (a bad key on the last provider in the chain, etc.)
         logEvent(requestId, startTime, 'transcribe.request_fail', {
           provider: current,
           attempt: index + 1,
           kind: 'non_retryable',
           message: error instanceof Error ? error.message : String(error),
         });
-        return errorResponse(500, 'Transcription failed', error instanceof Error ? error.message : String(error), { requestId });
+        // A rejected key on the last provider keeps its curated text (`<Provider>
+        // API key is invalid`, our own words, the same text transcribe-failure.ts
+        // sends for a key rejected earlier in the chain). Any other error's text
+        // stays in the log line above. (#2106)
+        return errorResponse(500, 'Transcription failed',
+          error instanceof ProviderAuthError ? error.message : TRANSCRIPTION_FAILURE_MESSAGE,
+          { requestId },
+        );
       }
     }
   } finally {
@@ -458,7 +504,7 @@ export async function transcribeRoute(c: Context) {
 
   // All providers in the chain failed.
   if (!result) {
-    return providerChainFailureResponse({
+    const failure = providerChainFailureResponse({
       requestId,
       startTime,
       provider,
@@ -466,8 +512,21 @@ export async function transcribeRoute(c: Context) {
       attemptFailures,
       lastError,
       lastInputError,
+      lastAuthError,
       sawUnavailable,
     });
+    // providerChainFailureResponse logged `lastInputError.message`, which is
+    // content-free (#2163). The client's 400 keeps the upstream's own wording
+    // (`clientMessage`) so the user still sees which language or format was
+    // refused. Same branch condition and body as the 400 it built, message
+    // aside; nothing else about the response changes.
+    if (!lastAuthError && lastInputError && !sawUnavailable && lastInputError.clientMessage !== lastInputError.message) {
+      return errorResponse(400, 'Transcription input rejected',
+        `No transcription provider accepted this request: ${lastInputError.clientMessage}`,
+        { requestId, provider },
+      );
+    }
+    return failure;
   }
   return completeTranscription({
     c,

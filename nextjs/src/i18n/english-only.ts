@@ -10,6 +10,21 @@ export function isEnglishOnlyPath(pathname: string): boolean {
   return ENGLISH_ONLY_REGEX.test(pathname);
 }
 
+// #2056: the same pages with no locale prefix (/latency, /blog/<slug>).
+// next-intl would pick the prefix from Accept-Language or NEXT_LOCALE and
+// send a German visitor to /de/latency, a 404.
+const BARE_ENGLISH_ONLY_REGEX = /^\/(latency|choosing-a-model|blog)(\/|$)/;
+
+/**
+ * The `/en/...` path for a bare English-only path, else null. A trailing slash
+ * is dropped, as next-intl does, so the visit takes one redirect, not two.
+ */
+export function englishOnlyRedirectPath(pathname: string): string | null {
+  if (!BARE_ENGLISH_ONLY_REGEX.test(pathname)) return null;
+
+  return `/en${pathname.replace(/\/+$/, "")}`;
+}
+
 function readLocaleCookie(cookieHeader: string): string | undefined {
   for (const part of cookieHeader.split(";")) {
     const [name, ...rest] = part.trim().split("=");

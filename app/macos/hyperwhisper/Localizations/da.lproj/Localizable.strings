@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostik eksporteret";
 "alerts.export.diagnostics.success.message" = "Alle diagnostiske logfiler er blevet eksporteret.";
 "alerts.export.diagnostics.saveFailed.message" = "Kunne ikke gemme diagnostik til den valgte placering: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostik eksporteret uden systemlogs";
+"alerts.export.diagnostics.noSystemLogs.message" = "Diagnostikfilen blev gemt, men appens systemlogs kunne ikke læses, så system-logs.txt indeholder kun årsagen. Årsag: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Eksporter opdateringslogfiler til support";
@@ -303,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Fra";
 "settings.general.mediaControl.mode.mute" = "Slå lyd fra";
+"settings.general.mediaControl.mode.muffle" = "Dæmp lyd";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -321,9 +324,17 @@
 "settings.sound.soundEffects.title" = "Afspil lydeffekter";
 "settings.sound.soundEffects.info" = "Afspil lydsignaler, når optagelsen starter og stopper.";
 "settings.sound.mediaControl.title" = "Mediekontrol under optagelse";
-"settings.sound.mediaControl.info" = "Vælg, hvordan HyperWhisper håndterer anden lyd, mens du optager. 'Fra' efterlader lyd uændret, 'Slå lyd fra' dæmper systemoutput under optagelse og gendanner det bagefter.";
+"settings.sound.mediaControl.info" = "Vælg, hvordan HyperWhisper håndterer anden lyd, mens du optager. 'Fra' efterlader lyd uændret, 'Slå lyd fra' dæmper systemoutput under optagelse og gendanner det bagefter, og 'Dæmp lyd' lader den spille svagt, som fra rummet ved siden af.";
+"settings.sound.microphone.title" = "Mikrofon";
+"settings.sound.microphone.subtitle" = "Bruges kun af HyperWhisper. Huskes efter genstart.";
+"microphone.picker.default" = "Standard · %@";
+"microphone.picker.notConnected" = "%@ (ikke tilsluttet)";
+"microphone.picker.fallback" = "Bruger %1$@, indtil %2$@ tilsluttes igen.";
+"settings.sound.microphone.test" = "Test";
+"settings.sound.microphone.stop" = "Stop";
+"settings.sound.microphone.level" = "Inputniveau";
 "settings.sound.autoIncreaseMicVolume.title" = "Forøg automatisk mikrofonstyrken";
-"settings.sound.autoIncreaseMicVolume.info" = "Sætter automatisk mikrofonens lydstyrke til maks, når optagelse starter, og gendanner derefter det oprindelige niveau, når optagelse stopper. Gælder kun ved brug af systemets standardinputenhed.";
+"settings.sound.autoIncreaseMicVolume.info" = "Sætter automatisk inputlydstyrken for den mikrofon, HyperWhisper optager fra, til maksimum, når optagelsen starter, og gendanner det oprindelige niveau, når den stopper. Mikrofoner uden softwarestyret lydstyrke forbliver uændrede.";
 "settings.sound.vad.title" = "Fjern stilhed før transskription";
 "settings.sound.vad.info" = "Registrerer og fjerner automatisk indledende og afsluttende stilhed ved hjælp af AI-stemmegenkendelse. Dette kan forbedre transskriptionsnøjagtigheden og reducere behandlingstiden.";
 
@@ -335,6 +346,9 @@
 "settings.storage.choose.button" = "Vælg...";
 "settings.storage.dialog.select" = "Vælg mappe";
 "settings.storage.dialog.message" = "Vælg en mappe til at gemme optagelser";
+"settings.storage.folderRefused.title" = "Denne mappe kan ikke bruges";
+"settings.storage.folderRefused.notWritable" = "Du har ikke tilladelse til at skrive til “%@”, så HyperWhisper kan ikke gemme optagelser der. Optagelsesmappen blev ikke ændret.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper kunne ikke oprette denne mappe: %@ Optagelsesmappen blev ikke ændret.";
 "settings.storage.storeAsM4A.title" = "Komprimer optagelser til M4A";
 "settings.storage.storeAsM4A.subtitle" = "Konverterer WAV-optagelser til mindre filer efter transskription. Slå fra for at beholde originale WAV-filer (større men tabsfri).";
 
@@ -382,6 +396,7 @@
 
 "settings.shortcuts.changeMode.title" = "Skift tilstand";
 "settings.shortcuts.changeMode.subtitle" = "Virker kun under optagelse";
+"settings.shortcuts.conflict.alert" = "Denne tastaturgenvej kan ikke bruges, fordi den allerede bruges af “%@”.";
 
 "settings.shortcuts.reset.button" = "Nulstil til standard";
 "settings.shortcuts.reset.dialog.title" = "Nulstil tastaturgenveje";
@@ -433,6 +448,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Indsæt fra udklipsholder";
 "settings.license.clearInput" = "Ryd";
+"license.error.keyFormat" = "Det ligner ikke en kontonøgle.";
 "settings.license.recovery.prompt" = "Har du glemt din licensnøgle?";
 "settings.license.recovery.button" = "Gå til kundeportalen";
 "settings.license.daily.title" = "Daglig transskription";
@@ -792,6 +808,7 @@ Rediger disse tilstande for at vælge en anden model, inden du fjerner den.";
 "modes.field.name.placeholder" = "f.eks. Mødenoter";
 "modes.field.name.editPlaceholder" = "Tilstandsnavn";
 "modes.field.name.defaultLocked" = "Dette er standardtilstanden, så dens navn kan ikke ændres. Du kan omdøbe alle andre tilstande.";
+"modes.field.name.taken" = "Der findes allerede en tilstand med det navn.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Udbyder";
 "modes.provider.local" = "Lokal";
@@ -818,7 +835,7 @@ Rediger disse tilstande for at vælge en anden model, inden du fjerner den.";
 "transcripts.delete.single.message" = "Dette vil permanent slette denne optagelse og dens lydfil.";
 "transcripts.delete.multiple.title" = "Slet %d optagelser?";
 "transcripts.delete.multiple.message" = "Dette vil permanent slette %d optagelser og deres lydfiler.\n\nDenne handling kan ikke fortrydes.";
-"transcripts.delete.multiple.confirm" = "Slet alle";
+"transcripts.delete.multiple.confirm" = "Slet %d optagelser";
 "transcripts.retry.error.title" = "Nyt forsøg mislykkedes";
 "transcripts.retry.error.modeDeleted" = "Den tilstand, der lavede denne optagelse, er slettet, så den blev ikke prøvet igen. Højreklik på optagelsen i Historik, og vælg \"Prøv igen med...\" for at vælge en anden tilstand.";
 
@@ -871,7 +888,6 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "recording.retry.inProgress" = "Prøver igen…";
 "recording.retry.count" = "Prøv igen (%d)";
 "recording.retry.failed.missing" = "Nyt forsøg mislykkedes: Lydfil ikke fundet";
-"recording.retry.failed.error" = "Nyt forsøg mislykkedes: %@";
 "recording.retry.pending" = "Klar til nyt forsøg – klik for at transskribere";
 "recording.retry.modeDeleted" = "Tilstanden blev slettet";
 "recording.cancel.dialog.title" = "Annuller optagelse?";
@@ -928,6 +944,9 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "transcription.error.providerNotAvailable.provider" = "%@ er ikke tilgængelig. Kontroller dine indstillinger, og prøv igen.";
 "transcription.error.providerNotAvailable.detail" = "%@ er ikke tilgængelig: %@";
 "transcription.error.modelNotDownloaded" = "Download venligst en model først";
+"transcription.error.modelNotDownloaded.modelAndMode" = "%1$@ bruger %2$@, som ikke er downloadet. Download den i Modelbibliotek.";
+"transcription.error.modelNotDownloaded.model" = "%1$@ er ikke downloadet. Download den i Modelbibliotek.";
+"transcription.error.openModelLibrary" = "Åbn Modelbibliotek";
 "transcription.error.modelProtected" = "Denne model kan ikke slettes";
 "transcription.error.audioFileNotFound" = "Lydfil ikke fundet";
 "transcription.error.network.detail" = "Netværksfejl: %@";
@@ -974,6 +993,7 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "transcription.guidance.quotaExceeded" = "Tilføj credits til din %@ konto, eller opdater dine faktureringsoplysninger";
 "transcription.guidance.timeout" = "Anmodningen tog for lang tid. Kontroller din internethastighed, og prøv igen.";
 "transcription.error.noSpeechDetected" = "Ingen tale registreret i optagelsen.";
+"transcription.error.audioTooShort" = "Optagelsen er for kort til at blive transskriberet. Optag i længere tid.";
 "transcription.guidance.noSpeechDetected" = "Tips:\n• Tal tydeligt i mikrofonen\n• Hold tasten nede længere, før du taler\n• Kontroller, at din mikrofon virker\n• Sørg for, at den korrekte inputenhed er valgt";
 "transcription.guidance.needsNativeRelaunch" = "Afslut og åbn HyperWhisper igen som native app for at bruge lokal efterbehandling.";
 "transcription.guidance.localRuntimeUnavailable" = "Prøv igen, eller vælg en mindre lokal model i dine tilstandsindstillinger.";
@@ -1117,7 +1137,16 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "transcribe.file.error.format.message" = ".%@ filer understøttes ikke af %@. Understøttede formater: %@";
 "transcribe.file.error.read" = "Kan ikke læse den valgte fil.";
 "transcribe.file.error.webm" = "WebM understøttes ikke. Konvertér filen til MP3, M4A eller WAV, og prøv igen.";
-"transcribe.file.error.unreadableAudio" = "HyperWhisper kan ikke læse lyden i denne fil. Den kan være beskadiget eller i et format, som macOS ikke kan afkode.";
+"transcribe.file.busy.title" = "En fil bliver allerede transskriberet.";
+"transcribe.file.busy.message" = "Vil du annullere den og starte denne?";
+"transcribe.file.busy.keepRunning" = "Fortsæt";
+"transcribe.file.busy.cancelAndStart" = "Annuller og start";
+"transcribe.file.error.notAudio" = "Filen “%@” er ikke gyldig lyd. Den kan være beskadiget eller i et format, som macOS ikke kan afkode.";
+"transcribe.file.error.empty" = "Filen “%@” er tom. Den indeholder ingen lyd at transskribere.";
+"transcribe.file.error.permission" = "HyperWhisper kan ikke læse filen “%@”. Kontrollér filens tilladelser.";
+"transcribe.file.error.folderPermission" = "HyperWhisper kan ikke åbne en mappe, der indeholder filen “%@”. Kontrollér mappens tilladelser.";
+"transcribe.file.error.privacy" = "macOS' anonymitetsindstillinger forhindrede HyperWhisper i at læse filen “%@”. Tillad det i Systemindstillinger > Anonymitet & sikkerhed > Fuld diskadgang.";
+"transcribe.file.error.tooShort" = "Denne fil er for kort til at blive transskriberet (%@ s).";
 "transcribe.file.error.copy" = "Kunne ikke kopiere fil til optagelsesmappe.";
 "transcribe.file.error.video.title" = "Ingen lyd i video";
 "transcribe.file.error.video.noAudio" = "Denne videofil indeholder ikke et lydspor. Vælg venligst en video med lyd eller en lydfil.";
@@ -1144,3 +1173,4 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "settings.storage.maxRecordingDuration.hour" = "1 time";
 "settings.storage.maxRecordingDuration.hours" = "%d timer";
 "settings.storage.maxRecordingDuration.off" = "Fra";
+"settings.api_server.status.stopping" = "Stopper…";

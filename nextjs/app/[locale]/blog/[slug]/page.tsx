@@ -4,8 +4,9 @@ import { ArrowLeft } from "lucide-react";
 import { Link } from "@/src/i18n/navigation";
 import { getBlogPost, getBlogPosts } from "@/src/content/blog";
 import { formatLongUTCDate } from "@/lib/format-date";
-
-const BASE_URL = "https://hyperwhisper.com";
+import { PROSE_TEXT_LINK } from "@/components/text-link";
+import { serializeJsonLd } from "@/lib/security/json-ld";
+import { SITE_URL } from "@/lib/site-metadata";
 
 export const dynamic = "force-static";
 export const dynamicParams = true;
@@ -17,7 +18,7 @@ type Props = {
 
 function toAbsoluteUrl(url: string) {
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  return `${BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+  return `${SITE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
 }
 
 export async function generateMetadata({ params }: Props) {
@@ -31,7 +32,7 @@ export async function generateMetadata({ params }: Props) {
 
   const title = post.frontMatter.title;
   const description = post.frontMatter.description;
-  const canonical = `${BASE_URL}/en/blog/${post.slug}`;
+  const canonical = `${SITE_URL}/en/blog/${post.slug}`;
   const image = post.frontMatter.image
     ? {
         url: toAbsoluteUrl(post.frontMatter.image),
@@ -79,7 +80,7 @@ export default async function BlogPostPage({ params }: Props) {
   }
 
   const publishedDate = formatLongUTCDate(post.frontMatter.date);
-  const canonicalUrl = `${BASE_URL}/en/blog/${post.slug}`;
+  const canonicalUrl = `${SITE_URL}/en/blog/${post.slug}`;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -96,7 +97,7 @@ export default async function BlogPostPage({ params }: Props) {
       name: "HyperWhisper",
       logo: {
         "@type": "ImageObject",
-        url: `${BASE_URL}/icon/512.png`,
+        url: `${SITE_URL}/icon/512.png`,
       },
     },
     mainEntityOfPage: {
@@ -112,7 +113,7 @@ export default async function BlogPostPage({ params }: Props) {
     <article className="mx-auto w-full max-w-4xl">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
       <Link
         className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-gray-400 transition-colors hover:text-white"
@@ -151,14 +152,14 @@ export default async function BlogPostPage({ params }: Props) {
         <div className="mt-10 overflow-hidden rounded-lg border border-gray-800 bg-gray-900">
           <img
             alt={post.frontMatter.imageAlt ?? post.frontMatter.title}
-            className="max-h-[480px] w-full object-cover"
+            className="max-h-[480px] w-full object-cover outline-1 -outline-offset-1 outline-white/10"
             src={post.frontMatter.image}
           />
         </div>
       ) : null}
 
       <div
-        className="prose prose-invert mx-auto mt-10 max-w-3xl prose-headings:text-white prose-a:text-purple-300 prose-a:no-underline hover:prose-a:text-purple-200 prose-strong:text-white"
+        className={`prose prose-invert mx-auto mt-10 max-w-3xl prose-headings:text-white prose-strong:text-white [&_iframe]:aspect-video [&_img]:outline-1 [&_img]:-outline-offset-1 [&_img]:outline-white/10 [&_:not(pre)>code]:break-words ${PROSE_TEXT_LINK}`}
         dangerouslySetInnerHTML={{ __html: post.html }}
       />
     </article>

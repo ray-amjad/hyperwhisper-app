@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostik Diekspor";
 "alerts.export.diagnostics.success.message" = "Semua log diagnostik telah berhasil diekspor.";
 "alerts.export.diagnostics.saveFailed.message" = "Tidak dapat menyimpan diagnostik ke lokasi yang dipilih: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostik Diekspor Tanpa Log Sistem";
+"alerts.export.diagnostics.noSystemLogs.message" = "File diagnostik telah disimpan, tetapi log sistem aplikasi tidak dapat dibaca, sehingga system-logs.txt hanya berisi alasannya. Alasan: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Ekspor log pembaruan untuk dukungan";
@@ -303,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Nonaktif";
 "settings.general.mediaControl.mode.mute" = "Bisukan Audio";
+"settings.general.mediaControl.mode.muffle" = "Redam Audio";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -321,9 +324,17 @@
 "settings.sound.soundEffects.title" = "Putar efek suara";
 "settings.sound.soundEffects.info" = "Putar isyarat audio saat perekaman dimulai dan berhenti.";
 "settings.sound.mediaControl.title" = "Kontrol media saat merekam";
-"settings.sound.mediaControl.info" = "Pilih bagaimana HyperWhisper menangani audio lain saat Anda merekam. 'Nonaktif' membiarkan audio tidak berubah, 'Bisukan Audio' membungkam output sistem saat merekam dan memulihkannya setelahnya.";
+"settings.sound.mediaControl.info" = "Pilih bagaimana HyperWhisper menangani audio lain saat Anda merekam. 'Nonaktif' membiarkan audio tidak berubah, 'Bisukan Audio' membungkam output sistem saat merekam dan memulihkannya setelahnya, dan 'Redam Audio' tetap memutarnya dengan lembut, seolah dari ruangan sebelah.";
+"settings.sound.microphone.title" = "Mikrofon";
+"settings.sound.microphone.subtitle" = "Hanya digunakan oleh HyperWhisper. Tetap diingat setelah dimulai ulang.";
+"microphone.picker.default" = "Default · %@";
+"microphone.picker.notConnected" = "%@ (tidak terhubung)";
+"microphone.picker.fallback" = "Menggunakan %1$@ hingga %2$@ terhubung kembali.";
+"settings.sound.microphone.test" = "Uji";
+"settings.sound.microphone.stop" = "Hentikan";
+"settings.sound.microphone.level" = "Level input";
 "settings.sound.autoIncreaseMicVolume.title" = "Tingkatkan volume mikrofon secara otomatis";
-"settings.sound.autoIncreaseMicVolume.info" = "Secara otomatis menyetel volume input mikrofon ke maksimum saat perekaman dimulai, kemudian mengembalikan level asli saat perekaman berhenti. Hanya berlaku saat menggunakan perangkat input default sistem.";
+"settings.sound.autoIncreaseMicVolume.info" = "Secara otomatis mengatur volume input mikrofon yang digunakan HyperWhisper untuk merekam ke maksimum saat perekaman dimulai, lalu memulihkan level aslinya saat perekaman berhenti. Mikrofon tanpa kontrol volume perangkat lunak tidak diubah.";
 "settings.sound.vad.title" = "Hapus keheningan sebelum transkripsi";
 "settings.sound.vad.info" = "Secara otomatis mendeteksi dan menghapus keheningan awal dan akhir menggunakan deteksi suara AI. Ini dapat meningkatkan akurasi transkripsi dan mengurangi waktu pemrosesan.";
 
@@ -335,6 +346,9 @@
 "settings.storage.choose.button" = "Pilih...";
 "settings.storage.dialog.select" = "Pilih Folder";
 "settings.storage.dialog.message" = "Pilih folder untuk menyimpan rekaman";
+"settings.storage.folderRefused.title" = "Folder ini tidak dapat digunakan";
+"settings.storage.folderRefused.notWritable" = "Anda tidak memiliki izin untuk menulis ke “%@”, jadi HyperWhisper tidak dapat menyimpan rekaman di sana. Folder Rekaman tidak diubah.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper tidak dapat membuat folder ini: %@ Folder Rekaman tidak diubah.";
 "settings.storage.storeAsM4A.title" = "Kompres rekaman ke M4A";
 "settings.storage.storeAsM4A.subtitle" = "Mengonversi rekaman WAV ke file yang lebih kecil setelah transkripsi. Matikan untuk menyimpan file WAV asli (lebih besar tetapi tanpa kehilangan).";
 
@@ -382,6 +396,7 @@
 
 "settings.shortcuts.changeMode.title" = "Ubah Mode";
 "settings.shortcuts.changeMode.subtitle" = "Hanya berfungsi saat merekam";
+"settings.shortcuts.conflict.alert" = "Pintasan keyboard ini tidak dapat digunakan karena sudah dipakai oleh “%@”.";
 
 "settings.shortcuts.reset.button" = "Setel Ulang ke Default";
 "settings.shortcuts.reset.dialog.title" = "Setel Ulang Pintasan Keyboard";
@@ -433,6 +448,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Tempel dari Clipboard";
 "settings.license.clearInput" = "Hapus";
+"license.error.keyFormat" = "Itu tidak terlihat seperti kunci akun.";
 "settings.license.recovery.prompt" = "Lupa kunci lisensi Anda?";
 "settings.license.recovery.button" = "Buka portal pelanggan";
 "settings.license.daily.title" = "Transkripsi Harian";
@@ -792,6 +808,7 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "modes.field.name.placeholder" = "misalnya, Catatan Rapat";
 "modes.field.name.editPlaceholder" = "Nama mode";
 "modes.field.name.defaultLocked" = "Ini adalah mode default, jadi namanya tidak dapat diubah. Anda dapat mengganti nama mode lainnya.";
+"modes.field.name.taken" = "Mode dengan nama itu sudah ada.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Penyedia";
 "modes.provider.local" = "Lokal";
@@ -818,7 +835,7 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "transcripts.delete.single.message" = "Ini akan menghapus rekaman ini dan file audionya secara permanen.";
 "transcripts.delete.multiple.title" = "Hapus %d Rekaman?";
 "transcripts.delete.multiple.message" = "Ini akan menghapus %d rekaman dan file audio mereka secara permanen.\n\nTindakan ini tidak dapat dibatalkan.";
-"transcripts.delete.multiple.confirm" = "Hapus Semua";
+"transcripts.delete.multiple.confirm" = "Hapus %d Rekaman";
 "transcripts.retry.error.title" = "Coba Lagi Gagal";
 "transcripts.retry.error.modeDeleted" = "Mode yang membuat rekaman ini telah dihapus, jadi tidak dicoba lagi. Di Riwayat, klik kanan rekaman dan pilih \"Coba lagi dengan...\" untuk memilih mode lain.";
 
@@ -871,7 +888,6 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "recording.retry.inProgress" = "Mencoba lagi…";
 "recording.retry.count" = "Coba Lagi (%d)";
 "recording.retry.failed.missing" = "Coba lagi gagal: File audio tidak ditemukan";
-"recording.retry.failed.error" = "Coba lagi gagal: %@";
 "recording.retry.pending" = "Siap untuk mencoba lagi – klik untuk metranskripsi";
 "recording.retry.modeDeleted" = "Mode telah dihapus";
 "recording.cancel.dialog.title" = "Batalkan Perekaman?";
@@ -928,6 +944,9 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "transcription.error.providerNotAvailable.provider" = "%@ tidak tersedia. Periksa pengaturan Anda dan coba lagi.";
 "transcription.error.providerNotAvailable.detail" = "%@ tidak tersedia: %@";
 "transcription.error.modelNotDownloaded" = "Silakan unduh model terlebih dahulu";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Mode %1$@ menggunakan %2$@, yang belum diunduh. Unduh di Perpustakaan Model.";
+"transcription.error.modelNotDownloaded.model" = "%1$@ belum diunduh. Unduh di Perpustakaan Model.";
+"transcription.error.openModelLibrary" = "Buka Perpustakaan Model";
 "transcription.error.modelProtected" = "Model ini tidak dapat dihapus";
 "transcription.error.audioFileNotFound" = "File audio tidak ditemukan";
 "transcription.error.network.detail" = "Kesalahan jaringan: %@";
@@ -974,6 +993,7 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "transcription.guidance.quotaExceeded" = "Tambahkan kredit ke akun %@ Anda atau perbarui detail tagihan Anda";
 "transcription.guidance.timeout" = "Permintaan memakan waktu terlalu lama. Periksa kecepatan internet Anda dan coba lagi.";
 "transcription.error.noSpeechDetected" = "Tidak ada ucapan terdeteksi dalam rekaman.";
+"transcription.error.audioTooShort" = "Rekaman terlalu pendek untuk ditranskripsi. Silakan rekam lebih lama.";
 "transcription.guidance.noSpeechDetected" = "Tips:\n• Berbicara dengan jelas ke mikrofon\n• Tahan tombol lebih lama sebelum berbicara\n• Periksa apakah mikrofon Anda berfungsi\n• Pastikan perangkat input yang benar dipilih";
 "transcription.guidance.needsNativeRelaunch" = "Keluar lalu buka kembali HyperWhisper secara native untuk memakai pasca-pemrosesan lokal.";
 "transcription.guidance.localRuntimeUnavailable" = "Coba lagi, atau pilih model lokal yang lebih kecil di pengaturan Mode Anda.";
@@ -1117,7 +1137,16 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "transcribe.file.error.format.message" = "File .%@ tidak didukung oleh %@. Format yang didukung: %@";
 "transcribe.file.error.read" = "Tidak dapat membaca file yang dipilih.";
 "transcribe.file.error.webm" = "WebM tidak didukung. Ubah file ke MP3, M4A, atau WAV, lalu coba lagi.";
-"transcribe.file.error.unreadableAudio" = "HyperWhisper tidak dapat membaca audio dalam file ini. File mungkin rusak, atau dalam format yang tidak dapat didekode macOS.";
+"transcribe.file.busy.title" = "Sebuah file sedang ditranskripsi.";
+"transcribe.file.busy.message" = "Batalkan dan mulai yang ini?";
+"transcribe.file.busy.keepRunning" = "Biarkan Berjalan";
+"transcribe.file.busy.cancelAndStart" = "Batalkan dan Mulai";
+"transcribe.file.error.notAudio" = "File “%@” bukan audio yang valid. File mungkin rusak, atau dalam format yang tidak dapat didekode macOS.";
+"transcribe.file.error.empty" = "File “%@” kosong. Tidak ada audio untuk ditranskripsi.";
+"transcribe.file.error.permission" = "HyperWhisper tidak dapat membaca file “%@”. Periksa izin file tersebut.";
+"transcribe.file.error.folderPermission" = "HyperWhisper tidak dapat membuka folder yang berisi file “%@”. Periksa izin folder tersebut.";
+"transcribe.file.error.privacy" = "Pengaturan privasi macOS memblokir HyperWhisper membaca file “%@”. Izinkan di Pengaturan Sistem > Privasi & Keamanan > Akses Disk Penuh.";
+"transcribe.file.error.tooShort" = "File ini terlalu pendek untuk ditranskripsi (%@ dtk).";
 "transcribe.file.error.copy" = "Gagal menyalin file ke folder rekaman.";
 "transcribe.file.error.video.title" = "Tidak Ada Audio dalam Video";
 "transcribe.file.error.video.noAudio" = "File video ini tidak berisi trek audio. Silakan pilih video dengan audio atau file audio.";
@@ -1144,3 +1173,4 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "settings.storage.maxRecordingDuration.hour" = "1 jam";
 "settings.storage.maxRecordingDuration.hours" = "%d jam";
 "settings.storage.maxRecordingDuration.off" = "Nonaktif";
+"settings.api_server.status.stopping" = "Menghentikan…";

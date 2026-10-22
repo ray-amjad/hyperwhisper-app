@@ -142,7 +142,26 @@ static void AllCatalogsLoad()
     // Transcribe File names an empty, damaged or non-audio file instead of NAudio's text).
     // 858 -> 860 (#1468): `settings.models.alert.cannotDelete.title` and `.message` are new
     // (Windows Model Library "model in use" delete warning, which showed the raw key).
-    Equal(860, PortableLocalizer.BaseKeyCount, "base key count");
+    // 860 -> 861 (#1519): `status.fileTranscribing` is new (the Windows status bar says a
+    // file is being transcribed instead of "Ready - Press Ctrl+Alt to record").
+    // 861 -> 862 (#1754): `menu.mode.more` is new (the Windows tray mode menus cap at 50
+    // modes and put the rest behind a "More" entry).
+    // 862 -> 863: `settings.sound.mediaControl.muffleAudio` is new (the Windows Sound
+    // settings "Muffle audio" media-control mode).
+    // 863 -> 864 (#1489): `license.error.keyFormat` is new (the hint under the account key
+    // field when the text cannot be any key; Windows and Linux).
+    // 864 -> 865 (#1631): `settings.shortcuts.error.typingKey` is new (the Windows shortcut
+    // recorder refuses a bare typing key such as Tab or a letter, as Linux has since #628).
+    // 865 -> 867 (#1589): `history.savedLater.databaseLocked` and `.writeFailed` are new
+    // (Windows toast when the History insert is refused and the row is saved later).
+    // 867 -> 873: the Windows Settings -> Sound microphone picker adds
+    // `settings.sound.microphone.subtitle`, `.default`, `.notConnected`, `.fallback`,
+    // `.test` and `.stop` (its title reuses `menu.microphone`).
+    // 873 -> 874: `settings.sound.microphone.fallbackNoDevice` is new (the Windows picker's
+    // amber line when the saved microphone is unplugged and no other input is connected).
+    // 874 -> 876 (#2219, #2294): `status.model.notActivated` and `status.model.noApiKey` are
+    // new (the Windows status bar with no licence or no API key instead of Ready).
+    Equal(876,PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

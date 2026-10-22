@@ -143,51 +143,53 @@ public partial class ShortcutsSettingsPage : Page
     }
 
     /// <summary>
-    /// Detects and auto-migrates unsafe single-modifier shortcuts back to defaults.
-    /// Intentional multi-modifier chords such as Ctrl+Alt and Ctrl+Win are valid.
+    /// Detects and auto-migrates unsafe shortcuts back to defaults: a single bare
+    /// modifier, or a bare typing key such as Tab, K or Shift+Tab (#2114; settings
+    /// load applies the same rule first). Intentional multi-modifier chords such as
+    /// Ctrl+Alt and Ctrl+Win are valid.
     /// </summary>
     private void MigrateModifierOnlyShortcuts()
     {
         bool migrated = false;
 
         // Check Toggle shortcut
-        if (_settingsService.ToggleShortcut.IsSingleBareModifier)
+        if (ShortcutValidationService.IsUnsafeStoredActionShortcut(_settingsService.ToggleShortcut))
         {
-            LoggingService.Warn($"Toggle shortcut is a single bare modifier ({_settingsService.ToggleShortcut.ToDisplayString()}). Auto-migrating to default.");
-            _settingsService.ToggleShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
+            LoggingService.Warn($"Toggle shortcut would fire while the user types ({_settingsService.ToggleShortcut.ToDisplayString()}). Auto-migrating to default.");
+            _settingsService.ToggleShortcut = SettingsService.DefaultActionShortcut("Toggle");
             ToggleShortcutBox.DisplayText = _settingsService.ToggleShortcut.ToDisplayString();
             migrated = true;
         }
 
         // Check Cancel shortcut
-        if (_settingsService.CancelShortcut.IsSingleBareModifier)
+        if (ShortcutValidationService.IsUnsafeStoredActionShortcut(_settingsService.CancelShortcut))
         {
-            LoggingService.Warn($"Cancel shortcut is a single bare modifier ({_settingsService.CancelShortcut.ToDisplayString()}). Auto-migrating to default.");
-            _settingsService.CancelShortcut = KeyboardShortcut.FromPersistedString("Esc");
+            LoggingService.Warn($"Cancel shortcut would fire while the user types ({_settingsService.CancelShortcut.ToDisplayString()}). Auto-migrating to default.");
+            _settingsService.CancelShortcut = SettingsService.DefaultActionShortcut("Cancel");
             CancelShortcutBox.DisplayText = _settingsService.CancelShortcut.ToDisplayString();
             migrated = true;
         }
 
         // Check ChangeMode shortcut
-        if (_settingsService.ChangeModeShortcut.IsSingleBareModifier)
+        if (ShortcutValidationService.IsUnsafeStoredActionShortcut(_settingsService.ChangeModeShortcut))
         {
-            LoggingService.Warn($"ChangeMode shortcut is a single bare modifier ({_settingsService.ChangeModeShortcut.ToDisplayString()}). Auto-migrating to default.");
-            _settingsService.ChangeModeShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+.");
+            LoggingService.Warn($"ChangeMode shortcut would fire while the user types ({_settingsService.ChangeModeShortcut.ToDisplayString()}). Auto-migrating to default.");
+            _settingsService.ChangeModeShortcut = SettingsService.DefaultActionShortcut("ChangeMode");
             ChangeModeShortcutBox.DisplayText = _settingsService.ChangeModeShortcut.ToDisplayString();
             migrated = true;
         }
 
-        if (_settingsService.StreamingShortcut.IsSingleBareModifier)
+        if (ShortcutValidationService.IsUnsafeStoredActionShortcut(_settingsService.StreamingShortcut))
         {
-            LoggingService.Warn($"Streaming shortcut is a single bare modifier ({_settingsService.StreamingShortcut.ToDisplayString()}). Auto-migrating to default.");
-            _settingsService.StreamingShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+Space");
+            LoggingService.Warn($"Streaming shortcut would fire while the user types ({_settingsService.StreamingShortcut.ToDisplayString()}). Auto-migrating to default.");
+            _settingsService.StreamingShortcut = SettingsService.DefaultActionShortcut("Streaming");
             StreamingShortcutBox.DisplayText = _settingsService.StreamingShortcut.ToDisplayString();
             migrated = true;
         }
 
         if (migrated)
         {
-            LoggingService.Info("Auto-migrated single-modifier shortcuts to defaults");
+            LoggingService.Info("Auto-migrated unsafe shortcuts to defaults");
             // Note: Settings are automatically saved by the property setters
         }
     }

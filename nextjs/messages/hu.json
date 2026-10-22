@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - AI hangátírás macOS-re és Windowsra",
-    "description": "Írj 5x gyorsabban AI-alapú hangátírással. A HyperWhisper elképesztő pontossággal írja át a hangodat macOS-en és Windowson. Beszélj természetesen, és nézd, ahogy a szavaid azonnal megjelennek."
+    "title": "HyperWhisper - AI hangátírás macOS-re, Windowsra és Linuxra",
+    "description": "Írj 5x gyorsabban AI-alapú hangátírással. A HyperWhisper elképesztő pontossággal írja át a hangodat macOS-en, Windowson és Linuxon. Beszélj természetesen, és nézd, ahogy a szavaid azonnal megjelennek."
   },
   "navbar": {
     "features": "Funkciók",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Használhatom internet nélkül?",
-        "answer": "Abszolút. A HyperWhisper teljesen offline használható a Maceden vagy a Windows PC-den helyi AI modellekkel - internet nélkül. Azoknak a felhasználóknak, akik maximális pontosságot és sebességet szeretnének, opcionális felhős feldolgozást is kínálunk különböző szolgáltatókon keresztül."
+        "answer": "Abszolút. A HyperWhisper teljesen offline használható a Maceden, a Windows PC-den vagy a Linuxos gépeden helyi AI modellekkel - internet nélkül. Azoknak a felhasználóknak, akik maximális pontosságot és sebességet szeretnének, opcionális felhős feldolgozást is kínálunk különböző szolgáltatókon keresztül."
       },
       "apiKey": {
         "question": "Kell fizetnem az API-hozzáférésért?",
@@ -175,16 +175,16 @@
         "answer": "Offline átíráshoz a Whisper modell több méretét kínáljuk (OpenAI fejlesztés, 99+ nyelv támogatása). Emellett az NVidia Parakeet modelljeit is kínáljuk (25+ nyelv támogatása).\n      \n      Offline utófeldolgozáshoz a Gemma 3 modell több méretét kínáljuk (Google fejlesztés)."
       },
       "compatibility": {
-        "question": "Minden Mac és Windows alkalmazással működik?",
+        "question": "Minden alkalmazásommal működik?",
         "answer": "Igen, bárhol működik, ahol gépelni tudsz. Akár emaileket írsz, dokumentumokat készítesz, kódolsz vagy csetelsz. Csak nyomd meg a gyorsbillentyűt, beszélj, és nézd, ahogy a szavaid azonnal megjelennek."
       },
       "privacy": {
         "question": "Hogyan véditek az adataimat?",
-        "answer": "Helyi mód használatakor semmilyen adat nem hagyja el a Mac-edet vagy a Windows PC-det.\n\nFelhős átírás használatakor az adataid az általad választott felhőszolgáltatóhoz kerülnek (pl. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox vagy Google Gemini).\n\nEzt magad is ellenőrizheted egy hálózati ellenőrző eszközzel, például a [Proxyman](https://proxyman.io), egy hálózati monitorral, például a [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), vagy a [forráskód elolvasásával a GitHubon](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Helyi mód használatakor semmilyen adat nem hagyja el a Mac-edet, a Windows PC-det vagy a Linuxos gépedet.\n\nFelhős átírás használatakor az adataid az általad választott felhőszolgáltatóhoz kerülnek (pl. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox vagy Google Gemini).\n\nEzt magad is ellenőrizheted egy hálózati ellenőrző eszközzel, például a [Proxyman](https://proxyman.io), egy hálózati monitorral, például a [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), vagy a [forráskód elolvasásával a GitHubon](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Mi az a HyperWhisper Cloud?",
-        "answer": "A HyperWhisper Cloud egy beepitett felhoalapu atiras, amely a kevesbe technikai felhasznaloknak szol, akik gyorsan szeretnenek elkezdeni.\n\nEz hasznalat alapu kredit. Mar $5-tol feltoltheti (1.000 kredit $1-onkent), es csak akkor kolti el, amikor atir. Az elso kreditvasarlas automatikusan letrehozza az Account Key-t, igy nincs mas vasarolnivalo.\n    \nNegy pontossagi szintet kinalunk: Kozepes (Groq), Kozepes (Deepgram Nova 3), Magas (ElevenLabs Scribe v2) es Legmagasabb (Grok STT, az uj telepitesek alapertelmezese, amelyet az SpaceXAI Grok STT hajt). Az utofeldolgozas automatikus, es alapertelmezes szerint a Grok 4.1 Fast nem ervelo modot hasznalja. Semmit nem tarolunk azon kivul, hogy hany kreditet hasznalt fel, es minden altalunk hasznalt upstream szolgaltatonal kivettuk Ont a modelltanitasbol. A reszletekert lasd az [Adatvedelmi utmutatonkat](https://hyperwhisper.com/docs/data-privacy).\n\nA kreditek a szolgaltatok sajat feldolgozasi koltsegen kerulnek elkoltesre — nincs felar az atirason. A fizeteskor egy fix, 6%-os fizetesfeldolgozasi dij kerul hozzaadasra, kulon tetelkent feltuntetve. A fel nem hasznalt kreditek 12 honap utan lejarnak (lasd alabb).\n\nA nyugalom erdekeben az egesz alkalmazas nyilt forraskodu az Apache-2.0 alatt — beleertve a Cloud hatteret is. Elolvashatja a kod minden sorat, amely az alkalmazasa es azon szolgaltatok kozott fut, amelyekhez proxyzunk [a GitHubon](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "A HyperWhisper Cloud egy beepitett felhoalapu atiras, amely a kevesbe technikai felhasznaloknak szol, akik gyorsan szeretnenek elkezdeni.\n\nEz hasznalat alapu kredit. Mar $5-tol feltoltheti (1.000 kredit $1-onkent), es csak akkor kolti el, amikor atir. Az elso kreditvasarlas automatikusan letrehozza az Account Key-t, igy nincs mas vasarolnivalo.\n    \nA HyperWhisper Cloud 12 atirasi szolgaltatot kinal, a Groq Whispertol az ElevenLabs Scribe v2-ig (lasd [a teljes listat es az arakat](https://hyperwhisper.com/docs/cloud-credits)). Az uj telepitesek az ElevenLabs Scribe v2-vel indulnak. Az utofeldolgozas automatikus, es az uj telepitesek a Claude Haiku 5.5-tel indulnak. Semmit nem tarolunk azon kivul, hogy hany kreditet hasznalt fel, es minden altalunk hasznalt upstream szolgaltatonal kivettuk Ont a modelltanitasbol. A reszletekert lasd az [Adatvedelmi utmutatonkat](https://hyperwhisper.com/docs/data-privacy).\n\nA kreditek a szolgaltatok sajat feldolgozasi koltsegen kerulnek elkoltesre — nincs felar az atirason. A fizeteskor egy fix, 6%-os fizetesfeldolgozasi dij kerul hozzaadasra, kulon tetelkent feltuntetve. A fel nem hasznalt kreditek 12 honap utan lejarnak (lasd alabb).\n\nA nyugalom erdekeben az egesz alkalmazas nyilt forraskodu az Apache-2.0 alatt — beleertve a Cloud hatteret is. Elolvashatja a kod minden sorat, amely az alkalmazasa es azon szolgaltatok kozott fut, amelyekhez proxyzunk [a GitHubon](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "A hangadataimat felhasználják AI-modellek betanítására?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Mik a rendszerkövetelmények?",
-        "answer": "Machez: macOS 14 vagy újabb, Apple Silicon és Intel támogatással. Windowshoz: Windows 10/11, x64 vagy ARM64. Az optimális teljesítményhez 8GB RAM ajánlott."
+        "answer": "Machez: macOS 14 vagy újabb, Apple Silicon és Intel támogatással. Windowshoz: Windows 10/11, x64 vagy ARM64. Linux v1-hez: Ubuntu 22.04 vagy újabb, illetve Debian 12 vagy újabb, amd64-en. Az optimális teljesítményhez 8GB RAM ajánlott."
       },
       "madeBy": {
         "question": "Ki készítette ezt?",
@@ -272,7 +272,31 @@
     "homebrewTitle": "Telepítés Homebrew-val",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Másolás",
-    "copied": "Kimásolva!"
+    "copied": "Kimásolva!",
+    "linuxSubtitle": "Debian-csomag 64 bites Intel/AMD rendszerekhez",
+    "downloadLinux": "Letöltés Linuxra",
+    "downloadLinuxVersion": "Letöltés Linuxra (v{version})",
+    "linuxReleaseNotes": "Ellenőrzőösszegek és kiadási megjegyzések",
+    "linuxInstallTitle": "A Debian-csomag telepítése",
+    "linuxTargets": "A Linux v1 az Ubuntu 22.04+ és a Debian 12+ rendszereket támogatja amd64 architektúrán.",
+    "linuxReplaceVersion": "Cseréld le a VERSION szót a letöltött verzióra.",
+    "linuxInstallCommandLabel": "Debian telepítési parancs",
+    "linuxInputGroupNote": "Az input csoporthoz való csatlakozás után jelentkezz ki, majd újra be. A tagság nem kötelező, de a globális billentyűparancsokhoz és az automatikus beillesztéshez szükséges.",
+    "aptTitle": "Saját APT-tároló üzemeltetése",
+    "aptBody": "A Linux-kiadások egy statikus APT-tárolóarchívumot is tartalmaznak. A HyperWhisper jelenleg nem üzemeltet nyilvános APT-végpontot; az aláírt, saját üzemeltetésű beállításról, az asztali integrációról, az adatvédelmi részletekről és az eltávolításról a Linux telepítési útmutatóban olvashatsz.",
+    "linuxGuideCta": "Olvasd el a Linux telepítési útmutatót"
+  },
+  "olderVersions": {
+    "title": "Korábbi verziók",
+    "subtitle": "Böngészd és töltsd le a HyperWhisper összes kiadását",
+    "errorLoading": "Hiba a verziók betöltésekor: {error}",
+    "unknownError": "Hiba történt",
+    "loading": "Verziók betöltése...",
+    "latest": "Legújabb",
+    "build": "Build {number}",
+    "downloadDmg": "DMG letöltése",
+    "downloadExe": "EXE letöltése",
+    "unknownSize": "Ismeretlen"
   },
   "purchaseSuccess": {
     "title": "Minden kész!",
@@ -289,7 +313,7 @@
     "loading": "Betöltés..."
   },
   "footer": {
-    "tagline": "Írj 5x gyorsabban AI-alapú hangátírással macOS-re és Windowsra.",
+    "tagline": "Írj 5x gyorsabban AI-alapú hangátírással macOS-re, Windowsra és Linuxra.",
     "product": "Termék",
     "resources": "Erőforrások",
     "company": "Cég",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "Nyilt forraskod. Nincs mit rejtegetni.",
     "body": "A HyperWhisper teljesen nyilt forraskodu az Apache-2.0 alatt — az asztali alkalmazasok es a Cloud hatter egyarant. Egy alkalmazas, amely a mikrofonjat hallgatja, olyan legyen, amelyet ellenorizni tud, nem csupan megbizni benne: olvasson el minden sort, ellenorizze pontosan, hova kerul a hangja, es tudja, hogy soha nem lesz bezarva — a kod az One, hogy orokre forkolja es sajat maga uzemeltesse. Nyiltan keszitette a fuggetlen fejleszto, Ray Amjad.",
-    "cta": "Megtekintes a GitHubon"
+    "cta": "Megtekintes a GitHubon",
+    "metaTitle": "Nyílt forráskód | HyperWhisper",
+    "metaDescription": "A HyperWhisper teljesen nyílt forráskódú az Apache-2.0 licenc alatt — az asztali alkalmazások és a Cloud háttérrendszer egyaránt. Olvassa el a kódot, ellenőrizze, hová kerül a hangja, forkolja, és üzemeltesse saját maga örökre.",
+    "eyebrow": "Nyílt forráskód",
+    "lead": "A HyperWhisper mostantól teljesen nyílt forráskódú az Apache-2.0 licenc alatt — az asztali alkalmazások és a Cloud háttérrendszer egyaránt.",
+    "intro": "Egy alkalmazás, amely a mikrofonját hallgatja, olyan legyen, amelyet ellenőrizni tud, nem csupán megbízni benne. Ezért mindent megnyitottunk. A HyperWhisper minden sorát elolvashatja — a macOS-, Windows- és Linux-alkalmazásokat, valamint a Cloud átírási háttérrendszert —, pontosan láthatja, hová kerül a hangja, és biztos lehet benne, hogy soha nem lesz bezárva. A teljes projekt a <github>GitHubon</github> érhető el, az <license>Apache-2.0 licenc</license> alatt.",
+    "whyHeading": "Miért fontos ez?",
+    "whyVerify": "<strong>Ellenőrizzen, ne vakon bízzon.</strong> Olvasson el minden sort, és ellenőrizze pontosan, hová kerül a hangja. Egy mikrofonhoz hozzáférő alkalmazást meg kell tudnia vizsgálni, nem pedig csak hinnie kell benne.",
+    "whyNoLockIn": "<strong>Nincs bezártság.</strong> A kód Apache-2.0 licencű — az Öné, megtarthatja, átalakíthatja és a saját feltételei szerint futtathatja. A munkafolyamata soha nem válik túszul ejtetté.",
+    "whyFork": "<strong>Forkolja és üzemeltesse saját maga.</strong> Klónozza a repót, buildelje le saját maga, vagy futtassa a saját Cloud háttérrendszerét. Minden, amire szüksége van, nyilvános.",
+    "whyOpen": "<strong>Nyíltan fejlesztve.</strong> A HyperWhispert nyilvánosan fejleszti a független fejlesztő, Ray Amjad. A hibajegyek, a beszélgetések és a kiadások mind nyíltan zajlanak.",
+    "licenseHeading": "Már vásárolt licencet?",
+    "licenseIntro": "A HyperWhisper mostantól nyílt forráskódú, a fizetős átírás pedig HyperWhisper Cloud kreditekkel működik. Ha a váltás előtt vásárolt licencet, így gondoskodunk Önről — csak írjon a <mail>{email}</mail> címre, és kézzel elintézzük.",
+    "licenseRecent": "<strong>Az elmúlt 30 napban vásárolt:</strong> még a visszatérítési időszakon belül van. A teljes vételárat visszatérítjük — kérdések nélkül. Csak <refund>küldjön nekünk egy üzenetet</refund>.",
+    "licenseOlder": "<strong>Több mint 30 napja vásárolt:</strong> a kifizetett összeget HyperWhisper Cloud kreditekre váltjuk — a teljes vételárat, levonva a fiókjához már hozzáadott $5 értékű kreditet. <credits>Írjon nekünk e-mailt</credits>, és jóváírjuk a fennmaradó összeget.",
+    "contributeHeading": "Szeretne hozzájárulni?",
+    "contributeBody": "Hibajelentéseket, funkcióötleteket és pull requesteket egyaránt szívesen fogadunk. Nyisson egy hibajegyet, vagy indítson beszélgetést <github>a GitHubon</github>."
+  },
+  "openSourceBanner": {
+    "text": "A HyperWhisper mostantól teljesen nyílt forráskódú",
+    "shortText": "Mostantól nyílt forráskódú",
+    "learnMore": "További információ",
+    "dismiss": "Közlemény elrejtése"
   },
   "notFound": {
     "title": "Az oldal nem található",
@@ -397,5 +443,9 @@
     "description": "Lehet, hogy a hivatkozás hibás, vagy az oldal máshová került.",
     "home": "Ugrás a kezdőlapra",
     "download": "A HyperWhisper letöltése"
+  },
+  "signIn": {
+    "magicLinkExpired": "Ez a bejelentkezési hivatkozás lejárt, vagy már felhasználták. Adja meg e-mail-címét, és küldünk egy újat.",
+    "magicLinkFailed": "Ezzel a hivatkozással nem tudtuk bejelentkeztetni. Adja meg e-mail-címét, és küldünk egy újat."
   }
 }

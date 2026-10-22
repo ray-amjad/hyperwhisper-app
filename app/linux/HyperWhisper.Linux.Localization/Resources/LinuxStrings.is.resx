@@ -3,6 +3,9 @@
   <data name="linux.overlay.recording" xml:space="preserve">
     <value>Tek upp</value>
   </data>
+  <data name="linux.settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Deyfa hljóð</value>
+  </data>
   <data name="linux.ui.api.keys" xml:space="preserve">
     <value>API-lyklar</value>
   </data>
@@ -20,5 +23,29 @@
   </data>
   <data name="linux.ui.start.recording" xml:space="preserve">
     <value>Byrja að taka upp</value>
+  </data>
+  <data name="linux.settings.sound.microphone.default" xml:space="preserve">
+    <value>Sjálfgefið · {0}</value>
+  </data>
+  <data name="linux.settings.sound.microphone.defaultNone" xml:space="preserve">
+    <value>Sjálfgefið</value>
+  </data>
+  <data name="linux.settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Notar {0} þar til {1} er tengt aftur.</value>
+  </data>
+  <data name="linux.settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (ekki tengt)</value>
+  </data>
+  <data name="linux.settings.sound.microphone.stop" xml:space="preserve">
+    <value>Stöðva</value>
+  </data>
+  <data name="linux.settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Aðeins notað af HyperWhisper. Munað eftir endurræsingu.</value>
+  </data>
+  <data name="linux.settings.sound.microphone.test" xml:space="preserve">
+    <value>Prófa</value>
+  </data>
+  <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve">
+    <value>Ekki tókst að opna hljóðnemann.</value>
   </data>
 </root>

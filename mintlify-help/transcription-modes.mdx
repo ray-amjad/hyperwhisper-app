@@ -28,6 +28,9 @@ You can also click the HyperWhisper icon and select a mode from the list.
   can be renamed. On a new install, the default mode is called **Hyper** on
   macOS, Windows, and Linux. The mode's default status fixes the name. A default
   restored from a backup under another name is still the one you cannot rename.
+  On macOS, the editor refuses a name that another mode already uses. It shows
+  **A mode with that name already exists.** under the field, and you cannot
+  save the mode until you change the name.
 
   Exactly one mode is the default, always. Delete the default mode and the next mode in the list takes its place. Restore a backup that carries two default modes, or none, and the app repairs it when it starts.
 </Note>
@@ -80,7 +83,7 @@ The Provider row shows 11 companies, in alphabetical order:
 | Meta | Muse Voice Transcribe 1 |
 | OpenAI | GPT-4o Transcribe, GPT-4o Mini Transcribe, Whisper, GPT Transcribe |
 | Soniox | Async v5 |
-| SpaceXAI | Grok Voice Transcribe 2, Grok Voice Transcribe 1 |
+| SpaceXAI | Grok Voice Transcribe 2 |
 
 The Provider row shows **(Recommended)** on the ElevenLabs row only. ElevenLabs Scribe v2 is the recommended engine. The Model row shows no **(Recommended)** tag.
 
@@ -89,7 +92,7 @@ The Provider row shows **(Recommended)** on the ElevenLabs row only. ElevenLabs 
 </Note>
 
 <Note>
-  The Model row does not show **Gemini 3.5 Transcribe Live** or **GPT Live Transcribe**. HyperWhisper Cloud serves these two models on a WebSocket only, and the batch transcription endpoint refuses them. HyperWhisper Cloud uses Gemini 3.5 Transcribe Live for [streaming transcription](/streaming-settings). You cannot select GPT Live Transcribe anywhere in the app.
+  The Model row does not show **Gemini 3.5 Transcribe Live** or **GPT Live Transcribe**. These two models are live-only, and the batch transcription endpoint of HyperWhisper Cloud refuses them. HyperWhisper Cloud serves Gemini 3.5 Transcribe Live on a WebSocket for [streaming transcription](/streaming-settings). HyperWhisper Cloud has no streaming route for GPT Live Transcribe, and you cannot select it anywhere in the app.
 </Note>
 
 <Note>
@@ -97,7 +100,7 @@ The Provider row shows **(Recommended)** on the ElevenLabs row only. ElevenLabs 
 </Note>
 
 <Note>
-  The SpaceXAI row gives two models. **Grok Voice Transcribe 2** is the model that the row selects first. **Grok Voice Transcribe 1** is the older model, at the same rate. A mode that you saved before this change stored no model id. HyperWhisper sends Grok Voice Transcribe 2 for that mode. Select **Grok Voice Transcribe 1** in the Model row if you want the older model.
+  The SpaceXAI row gives one model, **Grok Voice Transcribe 2**. SpaceXAI ended Grok Voice Transcribe 1 on October 2, 2026. A mode that you saved with Grok Voice Transcribe 1 now uses Grok Voice Transcribe 2, at the same rate. A mode that you saved with no Grok model also uses Grok Voice Transcribe 2.
 </Note>
 
 <Note>

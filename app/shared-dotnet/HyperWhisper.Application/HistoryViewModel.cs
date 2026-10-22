@@ -43,6 +43,11 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
     // True while a load adds its rows. Each Items.Add would otherwise rebuild every group (and
     // call ToLocalTime on every row), so a load of n rows cost O(n²) (#997).
     private bool _suspendGroupRebuild;
+    // The filter the rows in Items were loaded for, and the write generation read before that
+    // query ran. Null until a load succeeds and after any load fails, so a failed or cancelled
+    // load is always retried (#2099).
+    private (string SearchText, DateTimeOffset? StartDate, DateTimeOffset? EndDate, long Generation)? _loadedFor;
+    private long _staleMarks;
     public HistoryViewModel(
         HistoryRepository repository,
         IAudioPlaybackService? playback = null,
@@ -217,9 +222,13 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
         try
         {
             _lastQueryWasFiltered = false;
+            // Read before the query, so a write that lands while it runs leaves the rows stale.
+            var generation = Generation;
             ReplaceItems(await _repository.ListAsync(cancellationToken));
+            // A refresh ignores the filter fields, so its rows are the unfiltered list.
+            _loadedFor = (string.Empty, null, null, generation);
             UpdateSelection(Items.Take(1));
-            Status.Success(Items.Count == 0 ? "No transcripts yet" : $"{Items.Count} transcript(s)");
+            Status.Success(Items.Count == 0 ? "No transcripts yet" : Plural.Count(Items.Count, "transcript", "transcripts"));
         }
         catch (OperationCanceledException)
         {
@@ -246,10 +255,12 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
                 || StartDate is not null || EndDate is not null;
             var fromUtc = StartDate is { } from ? LocalDateStartUtc(from) : (DateTime?)null;
             var toUtcExclusive = EndDate is { } to ? LocalDateStartUtc(to, dayOffset: 1) : (DateTime?)null;
+            var loading = (SearchText ?? string.Empty, StartDate, EndDate, Generation);
             ReplaceItems(await _repository.SearchAsync(
                 SearchText, fromUtc, toUtcExclusive, cancellationToken));
+            _loadedFor = loading;
             UpdateSelection(Items.Take(1));
-            Status.Success($"{Items.Count} matching transcript(s)");
+            Status.Success(Plural.Count(Items.Count, "matching transcript", "matching transcripts"));
         }
         catch (Exception)
         {
@@ -257,6 +268,48 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
             Status.Failure("history.search_failed", "Could not search transcript history.");
         }
     }
+
+    /// <summary>
+    /// Sets the period the History page's combo picked, and returns whether the list still has to
+    /// be queried for it; see <see cref="TryReuseLoadedRows"/>.
+    /// </summary>
+    public bool SelectPeriod(DateTimeOffset? startDate)
+    {
+        StartDate = startDate;
+        EndDate = null;
+        return !TryReuseLoadedRows();
+    }
+
+    /// <summary>
+    /// True when the rows shown already answer a search for the current search text and dates:
+    /// they were loaded for exactly that filter, and no transcript was written and nothing called
+    /// <see cref="MarkStale"/> since that query started. It then does what the search's success
+    /// would have done on screen (select the newest row, report the count), and the caller skips
+    /// the query. The Linux History template is rebuilt on every visit, and both its period combo
+    /// and its search box ask for a search while it is built, so every click on History re-ran a
+    /// full-table query on the UI thread even when nothing had changed: about 0.5 s at 20,000
+    /// transcripts (#2099). A real filter change, a failed load or any write still queries.
+    /// </summary>
+    public bool TryReuseLoadedRows()
+    {
+        if (_loadedFor is not { } loaded || loaded.Generation != Generation
+            || !string.Equals(loaded.SearchText, SearchText ?? string.Empty, StringComparison.Ordinal)
+            || loaded.StartDate != StartDate || loaded.EndDate != EndDate)
+            return false;
+        UpdateSelection(Items.Take(1));
+        Status.Success(Plural.Count(Items.Count, "matching transcript", "matching transcripts"));
+        return true;
+    }
+
+    /// <summary>
+    /// Says the rows may no longer match the table, for a writer that goes around
+    /// <see cref="HistoryRepository"/> and does not reload History itself: storage cleanup deletes
+    /// old rows and their audio in its own context. The next <see cref="TryReuseLoadedRows"/> then
+    /// queries again, as every visit did before #2099. Safe to call from any thread.
+    /// </summary>
+    public void MarkStale() => Interlocked.Increment(ref _staleMarks);
+
+    private long Generation => HistoryRepository.WriteGeneration + Interlocked.Read(ref _staleMarks);
 
     public async Task ClearFiltersAsync(CancellationToken cancellationToken = default)
     {
@@ -285,6 +338,8 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
     /// </summary>
     internal void ReplaceItems(IEnumerable<Transcript> rows)
     {
+        // The caller records what the new rows were loaded for once they are all in (#2099).
+        _loadedFor = null;
         _suspendGroupRebuild = true;
         try
         {
@@ -299,10 +354,35 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
+    /// Removes the deleted rows and rebuilds the groups once, not once per row (#1353): a Remove
+    /// per row rebuilt every day group each time, which was O(n²) on a large bulk delete. Only the
+    /// deleted rows are removed, so a partial delete never empties <see cref="Items"/> on the way
+    /// (the list's visibility binds to its count). Walking backwards keeps each index valid.
+    /// </summary>
+    private void RemoveItems(IReadOnlySet<Guid> ids)
+    {
+        _suspendGroupRebuild = true;
+        try
+        {
+            for (var index = Items.Count - 1; index >= 0; index--)
+                if (ids.Contains(Items[index].Id)) Items.RemoveAt(index);
+        }
+        finally
+        {
+            _suspendGroupRebuild = false;
+            RebuildGroups();
+        }
+    }
+
+    /// <summary>
     /// A failed or cancelled load leaves the list empty, as it did when the clear ran before the
     /// query. Clear raises a reset, which rebuilds the groups, so no stale group is left behind.
     /// </summary>
-    private void ClearAfterFailedLoad() => Items.Clear();
+    private void ClearAfterFailedLoad()
+    {
+        _loadedFor = null;
+        Items.Clear();
+    }
 
     /// <summary>How many times <see cref="GroupedItems"/> was rebuilt; the tests pin one per load.</summary>
     internal int GroupRebuildCount { get; private set; }
@@ -368,15 +448,16 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
         try
         {
             StopPlayback();
-            var deletion = await _repository.DeleteManyAsync(selected.Select(item => item.Id).ToArray(), DeleteAudio, cancellationToken);
+            var ids = selected.Select(item => item.Id).ToArray();
+            var deletion = await _repository.DeleteManyAsync(ids, DeleteAudio, cancellationToken);
             if (deletion.TranscriptsDeleted == 0)
             { Status.Failure("history.not_found", "The transcript no longer exists."); return; }
-            foreach (var transcript in selected) Items.Remove(transcript);
+            RemoveItems(ids.ToHashSet());
             UpdateSelection([]);
             if (deletion.Warnings.Count == 0)
                 Status.Success(DeleteAudio
-                    ? $"{deletion.TranscriptsDeleted} transcript(s) and {deletion.AudioFilesDeleted} audio file(s) deleted"
-                    : $"{deletion.TranscriptsDeleted} transcript(s) deleted; audio retained");
+                    ? $"{Plural.Count(deletion.TranscriptsDeleted, "transcript", "transcripts")} and {Plural.Count(deletion.AudioFilesDeleted, "audio file", "audio files")} deleted"
+                    : $"{Plural.Count(deletion.TranscriptsDeleted, "transcript", "transcripts")} deleted; audio retained");
             else Status.Failure("history.audio_delete_failed", string.Join(" ", deletion.Warnings.Distinct()));
         }
         catch (OperationCanceledException) { Status.Failure("history.cancelled", "Delete cancelled"); }

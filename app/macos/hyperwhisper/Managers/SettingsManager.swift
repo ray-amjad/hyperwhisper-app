@@ -342,6 +342,11 @@ class SettingsManager: ObservableObject {
         set { audio.selectedMicrophoneId = newValue }
     }
 
+    var selectedMicrophoneName: String {
+        get { audio.selectedMicrophoneName }
+        set { audio.selectedMicrophoneName = newValue }
+    }
+
     var autoIncreaseMicVolume: Bool {
         get { audio.autoIncreaseMicVolume }
         set { audio.autoIncreaseMicVolume = newValue }
@@ -415,8 +420,13 @@ class SettingsManager: ObservableObject {
     }
 
     // Storage methods
-    func changeRecordingsFolder(to url: URL) {
+    @discardableResult
+    func changeRecordingsFolder(to url: URL) -> Bool {
         storage.changeRecordingsFolder(to: url)
+    }
+
+    func presentRecordingsFolderRefusedAlert() {
+        storage.presentRecordingsFolderRefusedAlert()
     }
 
     func ensureRecordingsFolderExists() {

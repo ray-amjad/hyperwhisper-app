@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostika eksportēta";
 "alerts.export.diagnostics.success.message" = "Visi diagnostikas žurnāli ir veiksmīgi eksportēti.";
 "alerts.export.diagnostics.saveFailed.message" = "Neizdevās saglabāt diagnostiku atlasītajā atrašanās vietā: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostika eksportēta bez sistēmas žurnāliem";
+"alerts.export.diagnostics.noSystemLogs.message" = "Diagnostikas fails tika saglabāts, bet lietotnes sistēmas žurnālus nevarēja nolasīt, tāpēc system-logs.txt satur tikai iemeslu. Iemesls: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Eksportēt atjauninājuma žurnālus atbalstam";
@@ -303,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Izslēgts";
 "settings.general.mediaControl.mode.mute" = "Izslēgt audio";
+"settings.general.mediaControl.mode.muffle" = "Apslāpēt audio";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -321,9 +324,17 @@
 "settings.sound.soundEffects.title" = "Atskaņot skaņas efektus";
 "settings.sound.soundEffects.info" = "Atskaņot audio signālus, kad ierakstīšana sākas un beidzas.";
 "settings.sound.mediaControl.title" = "Skaņas vadīšana ierakstīšanas laikā";
-"settings.sound.mediaControl.info" = "Izvēlieties, kā HyperWhisper apstrādā citu skaņu ieraķstīšanas laikā. 'Izslēgts' nemaina skaņu, 'Izslēgt audio' klusina sistēmas izeju ieraķstīšanas laikā un pēc tam to atjauno.";
+"settings.sound.mediaControl.info" = "Izvēlieties, kā HyperWhisper apstrādā citu skaņu ieraķstīšanas laikā. 'Izslēgts' nemaina skaņu, 'Izslēgt audio' klusina sistēmas izeju ieraķstīšanas laikā un pēc tam to atjauno, bet 'Apslāpēt audio' turpina to atskaņot klusi, it kā no blakus istabas.";
+"settings.sound.microphone.title" = "Mikrofons";
+"settings.sound.microphone.subtitle" = "Izmanto tikai HyperWhisper. Tiek saglabāts arī pēc restartēšanas.";
+"microphone.picker.default" = "Noklusējums · %@";
+"microphone.picker.notConnected" = "%@ (nav pievienots)";
+"microphone.picker.fallback" = "Tiek izmantots %1$@, līdz %2$@ tiks atkal pievienots.";
+"settings.sound.microphone.test" = "Pārbaudīt";
+"settings.sound.microphone.stop" = "Apturēt";
+"settings.sound.microphone.level" = "Ievades līmenis";
 "settings.sound.autoIncreaseMicVolume.title" = "Automātiski palielināt mikrofona skaļumu";
-"settings.sound.autoIncreaseMicVolume.info" = "Automātiski iestata mikrofona ievades skaļumu maksimāli, kad sākas ierakstīšana, un pēc tam atjauno sākotnējo līmeni, kad ierakstīšana beidzas. Piemērojams tikai, izmantojot sistēmas noklusējuma ievades ierīci.";
+"settings.sound.autoIncreaseMicVolume.info" = "Ierakstīšanas sākumā automātiski iestata maksimālo ievades skaļumu mikrofonam, no kura ieraksta HyperWhisper, un pēc ierakstīšanas beigām atjauno sākotnējo līmeni. Mikrofoni bez programmatūras skaļuma vadības netiek mainīti.";
 "settings.sound.vad.title" = "Noņemt klusumu pirms transkripciijas";
 "settings.sound.vad.info" = "Automātiski noteic un noņem vadošo un beigošo klusumu, izmantojot AI balss noteikšanu. Tas var uzlabot transkripciijas precizitāti un samazināt apstrādes laiku.";
 
@@ -335,6 +346,9 @@
 "settings.storage.choose.button" = "Izvēlieties...";
 "settings.storage.dialog.select" = "Atlasīt mapi";
 "settings.storage.dialog.message" = "Izvēlieties mapi, kurā glabāt ierakstus";
+"settings.storage.folderRefused.title" = "Šo mapi nevar izmantot";
+"settings.storage.folderRefused.notWritable" = "Jums nav atļaujas rakstīt mapē “%@”, tāpēc HyperWhisper tur nevar saglabāt ierakstus. Ierakstu mape netika mainīta.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper nevarēja izveidot šo mapi: %@ Ierakstu mape netika mainīta.";
 "settings.storage.storeAsM4A.title" = "Saspiest ierakstus uz M4A";
 "settings.storage.storeAsM4A.subtitle" = "Pārvērš WAV ierakstus mazākos failos pēc transkripciijas. Izslēdziet, lai saglabātu sākotnējos WAV failus (lielāki, bet bezstrategi).";
 
@@ -382,6 +396,7 @@
 
 "settings.shortcuts.changeMode.title" = "Mainīt režīmu";
 "settings.shortcuts.changeMode.subtitle" = "Darbojas tikai ierakstīšanas laikā";
+"settings.shortcuts.conflict.alert" = "Šo īsinājumtaustiņu nevar izmantot, jo to jau izmanto “%@”.";
 
 "settings.shortcuts.reset.button" = "Atiestatīt uz noklusējumiem";
 "settings.shortcuts.reset.dialog.title" = "Atiestatīt tastatūras saīsinājumus";
@@ -433,6 +448,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Ielīmēt no starplauksta";
 "settings.license.clearInput" = "Dzēst";
+"license.error.keyFormat" = "Tas neizskatās pēc konta atslēgas.";
 "settings.license.recovery.prompt" = "Aizmirsat licences atslēgu?";
 "settings.license.recovery.button" = "Doties uz klientu portāli";
 "settings.license.daily.title" = "Ikdienas transkripcija";
@@ -792,6 +808,7 @@ Rediģē šos režīmus, lai pirms noņemšanas atlasītu citu modeli.";
 "modes.field.name.placeholder" = "piem., sanāksmes piezīmes";
 "modes.field.name.editPlaceholder" = "Režīma nosaukums";
 "modes.field.name.defaultLocked" = "Šis ir noklusējuma režīms, tāpēc tā nosaukumu nevar mainīt. Jebkuru citu režīmu var pārdēvēt.";
+"modes.field.name.taken" = "Režīms ar šādu nosaukumu jau pastāv.";
 "modes.field.model" = "Modelis";
 "modes.field.provider" = "Sniedzējs";
 "modes.provider.local" = "Lokāls";
@@ -818,7 +835,7 @@ Rediģē šos režīmus, lai pirms noņemšanas atlasītu citu modeli.";
 "transcripts.delete.single.message" = "Tas neatgriezenski dzēsīs šo ierakstu un tā audio failu.";
 "transcripts.delete.multiple.title" = "Dzēst %d ierakstus?";
 "transcripts.delete.multiple.message" = "Tas neatgriezenski dzēsīs %d ierakstus un to audio failus.\n\nŠo darbību nevar atsaukt.";
-"transcripts.delete.multiple.confirm" = "Dzēst visus";
+"transcripts.delete.multiple.confirm" = "Dzēst ierakstus: %d";
 "transcripts.retry.error.title" = "Atkārtošana neizdevās";
 "transcripts.retry.error.modeDeleted" = "Režīms, ar kuru tika veikts šis ieraksts, ir izdzēsts, tāpēc atkārtots mēģinājums netika veikts. Vēsturē ar peles labo pogu noklikšķiniet uz ieraksta un izvēlieties \"Atkārtot ar...\", lai izvēlētos citu režīmu.";
 
@@ -871,7 +888,6 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "recording.retry.inProgress" = "Atkārto…";
 "recording.retry.count" = "Atkārtot (%d)";
 "recording.retry.failed.missing" = "Atkārtošana neizdevās: Audio fails nav atrasts";
-"recording.retry.failed.error" = "Atkārtošana neizdevās: %@";
 "recording.retry.pending" = "Gatavs atkārtot – noklikšķiniet, lai transkribētu";
 "recording.retry.modeDeleted" = "Režīms tika dzēsts";
 "recording.cancel.dialog.title" = "Atcelt ierakstīšanu?";
@@ -928,6 +944,9 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "transcription.error.providerNotAvailable.provider" = "%@ nav pieejams. Pārbaudiet iestatījumus un mēģiniet vēlreiz.";
 "transcription.error.providerNotAvailable.detail" = "%@ nav pieejams: %@";
 "transcription.error.modelNotDownloaded" = "Lūdzu lejupielādējiet modeli vispirms";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Režīms %1$@ izmanto modeli %2$@, kas nav lejupielādēts. Lejupielādējiet to Modeļu bibliotēkā.";
+"transcription.error.modelNotDownloaded.model" = "Modelis %1$@ nav lejupielādēts. Lejupielādējiet to Modeļu bibliotēkā.";
+"transcription.error.openModelLibrary" = "Atvērt Modeļu bibliotēku";
 "transcription.error.modelProtected" = "Šis modelis nevar tikt dzēsts";
 "transcription.error.audioFileNotFound" = "Audio fails nav atrasts";
 "transcription.error.network.detail" = "Tīkla kļūda: %@";
@@ -974,6 +993,7 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "transcription.guidance.quotaExceeded" = "Pievienojiet kredītus savā %@ kontā vai atjauniniet savus norēķinu datus";
 "transcription.guidance.timeout" = "Pieprasījums aizņēma pārāk daudz laika. Pārbaudiet interneta ātrumu un mēģiniet vēlreiz.";
 "transcription.error.noSpeechDetected" = "Ierakstā runas nav noteikta.";
+"transcription.error.audioTooShort" = "Ieraksts ir pārāk īss, lai to transkribētu. Lūdzu, ierakstiet ilgāk.";
 "transcription.guidance.noSpeechDetected" = "Padomi:\n• Runājiet skaidri mikrofonā\n• Turiet taustiņu ilgāk, pirms sākat runāt\n• Pārbaudiet, ka jūsu mikrofons darbojas\n• Pārliecinieties, ka ir atlasīta pareizā ievades ierīce";
 "transcription.guidance.needsNativeRelaunch" = "Aizveriet un atveriet HyperWhisper natīvajā režīmā, lai izmantotu lokālo pēcapstrādi.";
 "transcription.guidance.localRuntimeUnavailable" = "Mēģiniet vēlreiz vai režīma iestatījumos izvēlieties mazāku lokālo modeli.";
@@ -1117,7 +1137,16 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "transcribe.file.error.format.message" = ".%@ faili netiek atbalstīti %@. Atbalstītie formāti: %@";
 "transcribe.file.error.read" = "Nevar nolasīt atlasīto failu.";
 "transcribe.file.error.webm" = "WebM netiek atbalstīts. Konvertējiet failu MP3, M4A vai WAV formātā un mēģiniet vēlreiz.";
-"transcribe.file.error.unreadableAudio" = "HyperWhisper nevar nolasīt šī faila audio. Fails var būt bojāts vai formātā, ko macOS nevar dekodēt.";
+"transcribe.file.busy.title" = "Fails jau tiek transkribēts.";
+"transcribe.file.busy.message" = "Atcelt to un sākt šo?";
+"transcribe.file.busy.keepRunning" = "Turpināt";
+"transcribe.file.busy.cancelAndStart" = "Atcelt un sākt";
+"transcribe.file.error.notAudio" = "Fails “%@” nav derīgs audio. Tas var būt bojāts vai formātā, ko macOS nevar dekodēt.";
+"transcribe.file.error.empty" = "Fails “%@” ir tukšs. Tajā nav audio, ko transkribēt.";
+"transcribe.file.error.permission" = "HyperWhisper nevar nolasīt failu “%@”. Pārbaudiet faila atļaujas.";
+"transcribe.file.error.folderPermission" = "HyperWhisper nevar atvērt mapi, kurā ir fails “%@”. Pārbaudiet šīs mapes atļaujas.";
+"transcribe.file.error.privacy" = "macOS privātuma iestatījumi neļāva HyperWhisper nolasīt failu “%@”. Atļaujiet to sadaļā Sistēmas iestatījumi > Privātums un drošība > Pilna piekļuve diskam.";
+"transcribe.file.error.tooShort" = "Šis fails ir pārāk īss, lai to transkribētu (%@ s).";
 "transcribe.file.error.copy" = "Neizdevās kopēt failu ierakstu mapē.";
 "transcribe.file.error.video.title" = "Nav audio video";
 "transcribe.file.error.video.noAudio" = "Šajā video failā nav audio ceļa. Lūdzu atlasiet video ar audio vai audio failu.";
@@ -1144,3 +1173,4 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "settings.storage.maxRecordingDuration.hour" = "1 stunda";
 "settings.storage.maxRecordingDuration.hours" = "%d stundas";
 "settings.storage.maxRecordingDuration.off" = "Izslēgts";
+"settings.api_server.status.stopping" = "Aptur…";

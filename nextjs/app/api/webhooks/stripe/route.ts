@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { stripe } from "@/lib/clients/stripe";
+import { env } from "@/src/env/server.mjs";
 import { describeDbError } from "@/lib/shared/db-error";
 import {
   handleCreditPurchase,
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No signature" }, { status: 400 });
   }
 
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const webhookSecret = env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
     console.error("Stripe webhook: STRIPE_WEBHOOK_SECRET not configured");
     return NextResponse.json(
@@ -116,12 +117,15 @@ export async function POST(req: NextRequest) {
         "Stripe webhook: Error processing refund:",
         describeDbError(error),
       );
-      // Answer 500 so Stripe retries a transient fault (with backoff, for up
-      // to 3 days). The known permanent cases return inside
-      // handleChargeRefunded and answer 200; any throw lands here.
-      // refundCreditGrant is idempotent, so a retry is
-      // safe. A fault that keeps throwing stops after Stripe's 3-day retry
-      // window and is left in this log.
+      // Answer 500 so Stripe retries (with backoff, for up to 3 days). Not
+      // every throw is a transient fault: a refund whose grant is not minted
+      // yet throws on purpose so the retry after the mint takes the credits
+      // back (#1798). The cases that can be shown permanent (a top-up licence
+      // that is gone or not granted, a pre-ledger pack, a processed checkout
+      // with no grant) return inside handleChargeRefunded and answer 200
+      // (#1834). refundCreditGrant is idempotent, so a retry is safe. A fault
+      // that keeps throwing stops after Stripe's 3-day retry window and is
+      // left in this log.
       return NextResponse.json(
         { error: "Failed to process refund" },
         { status: 500 }

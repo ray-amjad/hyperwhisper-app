@@ -7,6 +7,8 @@
 //
 //  CAPABILITIES:
 //  1. MUTE MODE: Mutes system output volume during recording, restores after
+//  2. MUFFLE MODE: Keeps other audio playing through a low-pass filter
+//     (AudioMuffler.swift)
 //
 //  Technical Implementation:
 //  - Volume control: Uses CoreAudio directly on the default output device
@@ -89,6 +91,9 @@ class AudioSessionManager {
 
     private init() {}
 
+    /// Muffles other apps' audio while recording (Muffle Audio mode)
+    private let muffler = AudioMuffler()
+
     // MARK: - Public API
 
     /// Prepares the audio environment for recording by muting system audio
@@ -156,6 +161,17 @@ class AudioSessionManager {
 
         let elapsed = Date().timeIntervalSince(state.timestamp)
         AppLogger.audio.info("  ✓ Audio restored after \(String(format: "%.1f", elapsed))s")
+    }
+
+    /// Starts muffling other apps' audio. Returns at once; failures are logged
+    /// and never block recording.
+    func startMuffle() {
+        muffler.start()
+    }
+
+    /// Glides other apps' audio back to normal and removes the tap.
+    func stopMuffle() {
+        muffler.stop()
     }
 
     // MARK: - System Volume Control (CoreAudio)

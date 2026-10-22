@@ -42,7 +42,7 @@ namespace HyperWhisper.Services.Onboarding;
 /// Microphone consent plus the "your shortcut works" row.
 ///
 /// Row 2 is the global shortcut rather than macOS's Accessibility grant, because
-/// Windows has no Accessibility analogue: RegisterHotKey, SetWindowsHookEx,
+/// Windows has no Accessibility analogue: RegisterHotKey, a low-level keyboard hook,
 /// SendInput and UI Automation all work here without a user grant. Registering
 /// the shortcut genuinely fails though - Win32 1409 "already registered by
 /// another application" is a daily occurrence - so the row is a real
@@ -714,7 +714,7 @@ public sealed class LiveOnboardingProviderKeyGateway : IOnboardingProviderKeyGat
             {
                 written = _apiKeys.SetApiKey(postProcessing, value);
             }
-            else if (TranscriptionKeyType(provider) is { } type)
+            else if (provider.GetTranscriptionApiKeyType() is { } type)
             {
                 written = _apiKeys.SetApiKey(type, value);
             }
@@ -768,7 +768,7 @@ public sealed class LiveOnboardingProviderKeyGateway : IOnboardingProviderKeyGat
                 return _apiKeys.GetApiKey(postProcessing) ?? string.Empty;
             }
 
-            return TranscriptionKeyType(provider) is { } type
+            return provider.GetTranscriptionApiKeyType() is { } type
                 ? _apiKeys.GetApiKey(type) ?? string.Empty
                 : string.Empty;
         }
@@ -822,29 +822,6 @@ public sealed class LiveOnboardingProviderKeyGateway : IOnboardingProviderKeyGat
         CloudTranscriptionProvider.HyperWhisperCloud,
         CloudTranscriptionProvider.MicrosoftAzureSpeech,
         CloudTranscriptionProvider.GoogleSpeech,
-    };
-
-    /// <summary>
-    /// The key slot for a provider that has no shared post-processing provider.
-    /// Mirrors the mapping CloudProviderHealthService.GetTranscriptionApiKey uses,
-    /// in the write direction, and must stay a superset-by-behaviour of
-    /// ProviderApiKeyWindow.ToTranscriptionKeyType: a provider offered on this
-    /// branch with no arm here lands in Persist's failure branch and rejects a
-    /// correctly typed key with the generic "could not save" string.
-    ///
-    /// Grok is absent on purpose - it routes through the shared
-    /// PostProcessingProvider.Grok key, which Persist checks first.
-    /// </summary>
-    internal static TranscriptionApiKeyType? TranscriptionKeyType(CloudTranscriptionProvider provider) => provider switch
-    {
-        CloudTranscriptionProvider.Deepgram => TranscriptionApiKeyType.Deepgram,
-        CloudTranscriptionProvider.AssemblyAI => TranscriptionApiKeyType.AssemblyAI,
-        CloudTranscriptionProvider.ElevenLabs => TranscriptionApiKeyType.ElevenLabs,
-        CloudTranscriptionProvider.Mistral => TranscriptionApiKeyType.Mistral,
-        CloudTranscriptionProvider.Soniox => TranscriptionApiKeyType.Soniox,
-        CloudTranscriptionProvider.GeminiTranscribe => TranscriptionApiKeyType.GeminiTranscribe,
-        CloudTranscriptionProvider.Meta => TranscriptionApiKeyType.Meta,
-        _ => null
     };
 }
 
@@ -1202,7 +1179,7 @@ public static class OnboardingLiveDependencies
             parakeetModels,
             // The running app's open device lives on MainViewModel, not in
             // settings; see the comment on those two delegates.
-            readOpenDevice: mainViewModel is null ? null : () => mainViewModel.SelectedAudioDevice?.Name,
+            readOpenDevice: mainViewModel is null ? null : () => mainViewModel.ConnectedSavedMicrophoneName,
             writeOpenDevice: mainViewModel is null ? null : name => ApplyOpenDevice(mainViewModel, name));
 
         var committer = new LiveOnboardingSourceCommitter(
@@ -1232,48 +1209,17 @@ public static class OnboardingLiveDependencies
     }
 
     /// <summary>
-    /// Points the running app at a device by name.
-    ///
-    /// A name that is not currently connected falls back to the FIRST available
-    /// device, which is exactly what MainViewModel does for itself in
-    /// RefreshAudioDevicesPreservingSelection: on this view model null is not
-    /// "system default", it is "no microphone", and StartRecordingAsync refuses to
-    /// record and raises errors.noMicrophone over it.
-    ///
-    /// That mattered on the rollback path. "Set Up Later" restores the device the
-    /// flow found open; if the user's own microphone was unplugged during the flow,
-    /// the previous code wrote null and left the app unable to record for the rest
-    /// of the session - with the rollback reporting a clean deferral, because the
-    /// device is the one reversible write with no failure channel. Falling back
-    /// here needs no failure channel: there is nothing the user could do about a
-    /// device that no longer exists, and the app's own next device event would have
-    /// made the same choice.
-    ///
-    /// An EMPTY name still means null, and that is not the same case: it is the
-    /// faithful restore of a view model that genuinely had nothing selected.
+    /// Points the running app at the microphone onboarding just chose or
+    /// restored. The gateway has already written
+    /// SettingsService.LastSelectedMicrophone (the one saved choice), so
+    /// MainViewModel simply re-resolves it: the named device when connected,
+    /// otherwise the Windows default, with the choice itself kept. The name is
+    /// only logged.
     /// </summary>
     private static void ApplyOpenDevice(MainViewModel viewModel, string? name)
     {
-        if (string.IsNullOrEmpty(name))
-        {
-            viewModel.ApplyOnboardingAudioDeviceSelection(null);
-            return;
-        }
-
-        var match = viewModel.AudioDevices.FirstOrDefault(d => d.Name == name);
-        if (match is not null)
-        {
-            viewModel.ApplyOnboardingAudioDeviceSelection(match);
-            return;
-        }
-
-        var fallback = viewModel.AudioDevices.FirstOrDefault();
-        LoggingService.Warn(
-            $"LiveOnboarding: input device '{name}' is no longer connected; "
-            + (fallback is null
-                ? "there is nothing to fall back to"
-                : $"falling back to '{fallback.Name}'"));
-        viewModel.ApplyOnboardingAudioDeviceSelection(fallback);
+        LoggingService.Debug($"LiveOnboarding: applying the saved microphone choice ('{name ?? "(default)"}')");
+        viewModel.ApplyOnboardingMicrophoneChoice();
     }
 
     /// <summary>

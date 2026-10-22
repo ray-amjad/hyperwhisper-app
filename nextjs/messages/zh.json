@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - macOS 和 Windows 上的 AI 语音转写",
-    "description": "用 AI 语音转写让写作速度提升 5 倍。HyperWhisper 在 macOS 和 Windows 上以惊人的准确度转写你的语音。自然开口，文字立刻出现。"
+    "title": "HyperWhisper - macOS、Windows 和 Linux 上的 AI 语音转写",
+    "description": "用 AI 语音转写让写作速度提升 5 倍。HyperWhisper 在 macOS、Windows 和 Linux 上以惊人的准确度转写你的语音。自然开口，文字立刻出现。"
   },
   "navbar": {
     "features": "功能",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "没有网络也能用吗？",
-        "answer": "当然可以。HyperWhisper 可在你的 Mac 或 Windows 电脑上完全离线使用本地 AI 模型，无需联网。对于想要更高准确度和速度的用户，我们也提供可选的云端处理，来自多家云服务商。"
+        "answer": "当然可以。HyperWhisper 可在你的 Mac、Windows 或 Linux 电脑上完全离线使用本地 AI 模型，无需联网。对于想要更高准确度和速度的用户，我们也提供可选的云端处理，来自多家云服务商。"
       },
       "apiKey": {
         "question": "需要为 API 访问付费吗？",
@@ -175,16 +175,16 @@
         "answer": "离线转写提供多种大小的 Whisper 模型（OpenAI 出品，支持 99+ 语言），也提供 NVIDIA 的 Parakeet 模型（支持 25+ 语言）。\n      \n      离线后处理提供多种大小的 Gemma 3 模型（Google 出品）。"
       },
       "compatibility": {
-        "question": "能在所有 Mac 和 Windows 应用中使用吗？",
+        "question": "能在我所有的应用中使用吗？",
         "answer": "可以，只要能输入文字的地方都能用。不管是写邮件、文档、代码还是聊天。按下快捷键，说话即可看到文字即时出现。"
       },
       "privacy": {
         "question": "我的隐私如何保障？",
-        "answer": "使用本地模式时，数据不会离开你的 Mac 或 Windows 电脑。\n\n使用云端转写时，数据会发送到你选择的云服务商（例如 OpenAI、Groq、SpaceXAI Grok、Deepgram、AssemblyAI、ElevenLabs、Mistral、Soniox 或 Google Gemini）。\n\n你可以使用 [Proxyman](https://proxyman.io) 等网络抓包工具、[Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) 等网络监控工具，或阅读 [GitHub 上的源代码](https://github.com/ray-amjad/hyperwhisper-app) 自行验证。"
+        "answer": "使用本地模式时，数据不会离开你的 Mac、Windows 或 Linux 电脑。\n\n使用云端转写时，数据会发送到你选择的云服务商（例如 OpenAI、Groq、SpaceXAI Grok、Deepgram、AssemblyAI、ElevenLabs、Mistral、Soniox 或 Google Gemini）。\n\n你可以使用 [Proxyman](https://proxyman.io) 等网络抓包工具、[Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) 等网络监控工具，或阅读 [GitHub 上的源代码](https://github.com/ray-amjad/hyperwhisper-app) 自行验证。"
       },
       "cloud": {
         "question": "什么是 HyperWhisper Cloud？",
-        "answer": "HyperWhisper Cloud 是内置的云端转录服务，专为想要快速上手、不太熟悉技术的用户打造。\n\n它采用即用即付的积分制。你最低只需充值 $5（每 $1 可换 1,000 积分），而且只在转录时才会消耗。你第一次购买积分时会自动创建你的 Account Key，因此无需再额外购买任何东西。\n    \n我们提供四种准确度等级：Medium（Groq）、Medium（Deepgram Nova 3）、High（ElevenLabs Scribe v2）以及 Highest（Grok STT，新安装的默认值，由 SpaceXAI Grok STT 提供支持）。后处理会自动进行，默认使用 Grok 4.1 Fast non-reasoning。除了你消耗了多少积分之外，我们不存储任何其他数据，而且我们已在所有上游提供商处替你选择退出模型训练。详情请参阅我们的[数据隐私指南](https://hyperwhisper.com/docs/data-privacy)。\n\n积分按提供商自身的处理成本计费——转录不加价。结账时会加收固定 6% 的支付处理费，并以独立项目显示。未使用的积分将于 12 个月后过期（见下文）。\n\n为了让你安心，整个应用都采用 Apache-2.0 开源——包括 Cloud 后端在内。你可以[在 GitHub 上](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)阅读在你的应用与我们代理连接的提供商之间运行的每一行代码。"
+        "answer": "HyperWhisper Cloud 是内置的云端转录服务，专为想要快速上手、不太熟悉技术的用户打造。\n\n它采用即用即付的积分制。你最低只需充值 $5（每 $1 可换 1,000 积分），而且只在转录时才会消耗。你第一次购买积分时会自动创建你的 Account Key，因此无需再额外购买任何东西。\n    \nHyperWhisper Cloud 提供 12 个转录提供商，从 Groq Whisper 到 ElevenLabs Scribe v2（请参阅[完整列表与费率](https://hyperwhisper.com/docs/cloud-credits)）。新安装会从 ElevenLabs Scribe v2 开始。后处理会自动进行，新安装会从 Claude Haiku 5.5 开始。除了你消耗了多少积分之外，我们不存储任何其他数据，而且我们已在所有上游提供商处替你选择退出模型训练。详情请参阅我们的[数据隐私指南](https://hyperwhisper.com/docs/data-privacy)。\n\n积分按提供商自身的处理成本计费——转录不加价。结账时会加收固定 6% 的支付处理费，并以独立项目显示。未使用的积分将于 12 个月后过期（见下文）。\n\n为了让你安心，整个应用都采用 Apache-2.0 开源——包括 Cloud 后端在内。你可以[在 GitHub 上](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)阅读在你的应用与我们代理连接的提供商之间运行的每一行代码。"
       },
       "dataTraining": {
         "question": "我的语音数据会被用于训练 AI 模型吗？",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "系统要求是什么？",
-        "answer": "Mac：macOS 14 或更高版本，支持 Apple Silicon 和 Intel。Windows：Windows 10/11，x64 或 ARM64。建议 8GB 内存以获得最佳性能。"
+        "answer": "Mac：macOS 14 或更高版本，支持 Apple Silicon 和 Intel。Windows：Windows 10/11，x64 或 ARM64。Linux v1：amd64 上的 Ubuntu 22.04 或更高版本，或 Debian 12 或更高版本。建议 8GB 内存以获得最佳性能。"
       },
       "madeBy": {
         "question": "这是谁做的？",
@@ -272,7 +272,31 @@
     "homebrewTitle": "通过 Homebrew 安装",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "复制",
-    "copied": "已复制！"
+    "copied": "已复制！",
+    "linuxSubtitle": "适用于 64 位 Intel/AMD 系统的 Debian 软件包",
+    "downloadLinux": "下载 Linux 版",
+    "downloadLinuxVersion": "下载 Linux 版 v{version}",
+    "linuxReleaseNotes": "校验和与发行说明",
+    "linuxInstallTitle": "安装 Debian 软件包",
+    "linuxTargets": "Linux v1 支持 amd64 架构上的 Ubuntu 22.04+ 和 Debian 12+。",
+    "linuxReplaceVersion": "请将 VERSION 替换为你下载的版本号。",
+    "linuxInstallCommandLabel": "Debian 安装命令",
+    "linuxInputGroupNote": "加入 input 组后，请注销并重新登录。加入该组是可选的，但全局快捷键和自动粘贴需要它。",
+    "aptTitle": "自行托管 APT 仓库",
+    "aptBody": "Linux 版本还附带一个静态 APT 仓库归档。HyperWhisper 目前不运营公共 APT 端点；有关签名的自托管设置、桌面配套组件、隐私详情和卸载方法，请参阅 Linux 安装指南。",
+    "linuxGuideCta": "阅读 Linux 安装指南"
+  },
+  "olderVersions": {
+    "title": "旧版本",
+    "subtitle": "浏览并下载 HyperWhisper 的所有版本",
+    "errorLoading": "加载版本时出错：{error}",
+    "unknownError": "发生错误",
+    "loading": "正在加载版本...",
+    "latest": "最新",
+    "build": "构建 {number}",
+    "downloadDmg": "下载 DMG",
+    "downloadExe": "下载 EXE",
+    "unknownSize": "未知"
   },
   "purchaseSuccess": {
     "title": "一切就绪！",
@@ -289,7 +313,7 @@
     "loading": "加载中..."
   },
   "footer": {
-    "tagline": "面向 macOS 和 Windows 的 AI 语音转写，让写作速度提升 5 倍。",
+    "tagline": "面向 macOS、Windows 和 Linux 的 AI 语音转写，让写作速度提升 5 倍。",
     "product": "产品",
     "resources": "资源",
     "company": "公司",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "开源，无所隐藏。",
     "body": "HyperWhisper 完全开源，采用 Apache-2.0 许可——桌面应用和 Cloud 后端皆是如此。一个会聆听你麦克风的应用，应该是你能够验证的，而不只是去信任：阅读每一行代码、审核你的音频究竟流向何处，并确信自己永远不会被锁定——代码归你所有，可以永远 fork 并自行托管。由独立开发者 Ray Amjad 公开打造。",
-    "cta": "在 GitHub 上查看"
+    "cta": "在 GitHub 上查看",
+    "metaTitle": "开源 | HyperWhisper",
+    "metaDescription": "HyperWhisper 采用 Apache-2.0 许可完全开源——桌面应用和 Cloud 后端皆是如此。阅读代码、审核你的音频流向何处、fork 它，并永远自行托管。",
+    "eyebrow": "开源",
+    "lead": "HyperWhisper 现已采用 Apache-2.0 许可完全开源——桌面应用和 Cloud 后端皆是如此。",
+    "intro": "一个会聆听你麦克风的应用，应该是你能够验证的，而不只是去信任。所以我们公开了一切。你可以阅读 HyperWhisper 的每一行代码——包括 macOS、Windows 和 Linux 应用，以及 Cloud 转录后端——清楚看到你的音频究竟流向何处，并确信自己永远不会被锁定。整个项目以 <license>Apache-2.0 许可</license>托管在 <github>GitHub</github> 上。",
+    "whyHeading": "为什么这很重要",
+    "whyVerify": "<strong>验证，而不是盲信。</strong>阅读每一行代码，审核你的音频究竟流向何处。一个拥有麦克风权限的应用，应该是你能亲自检查的，而不只是凭信任接受。",
+    "whyNoLockIn": "<strong>没有锁定。</strong>代码采用 Apache-2.0 许可——你可以保留、修改，并按自己的方式运行。你的工作流永远不会被绑架。",
+    "whyFork": "<strong>Fork 并自行托管。</strong>克隆仓库、自己构建，或运行你自己的 Cloud 后端。所需的一切都是公开的。",
+    "whyOpen": "<strong>公开打造。</strong>HyperWhisper 由独立开发者 Ray Amjad 公开开发。Issue、讨论和版本发布全部公开进行。",
+    "licenseHeading": "已经购买了许可证？",
+    "licenseIntro": "HyperWhisper 现已开源，付费转录改为使用 HyperWhisper Cloud 点数。如果你在转换之前购买了许可证，我们会这样照顾你——只需发送邮件至 <mail>{email}</mail>，我们会人工为你处理。",
+    "licenseRecent": "<strong>30 天内购买：</strong>你仍在退款期内。我们将全额退还你的购买款项，无需任何理由。只需<refund>给我们留言</refund>即可。",
+    "licenseOlder": "<strong>超过 30 天前购买：</strong>我们会将你支付的金额转换为 HyperWhisper Cloud 点数——即全部购买价格，减去已添加到你账户中的 $5 点数。<credits>给我们发邮件</credits>，我们会为你充入余额。",
+    "contributeHeading": "想要参与贡献？",
+    "contributeBody": "欢迎提交 Bug 报告、功能建议和 Pull Request。<github>在 GitHub 上</github>提交 Issue 或发起讨论吧。"
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper 现已完全开源",
+    "shortText": "现已开源",
+    "learnMore": "了解更多",
+    "dismiss": "关闭公告"
   },
   "notFound": {
     "title": "页面未找到",
@@ -397,5 +443,9 @@
     "description": "链接可能已失效，或页面可能已移动。",
     "home": "前往首页",
     "download": "下载 HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "此登录链接已过期或已被使用。请输入你的邮箱以获取新的链接。",
+    "magicLinkFailed": "无法使用该链接为你登录。请输入你的邮箱以获取新的链接。"
   }
 }

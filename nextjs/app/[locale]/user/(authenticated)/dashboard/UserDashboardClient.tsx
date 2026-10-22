@@ -81,7 +81,7 @@ export default function UserDashboardClient({
       <BillingCard />
 
       {/* Help */}
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-gray-400">
         Need help?{" "}
         <a href="mailto:hi@support.hyperwhisper.com" className="text-gray-400 hover:text-white">
           hi@support.hyperwhisper.com

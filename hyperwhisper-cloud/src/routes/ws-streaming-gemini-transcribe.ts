@@ -52,6 +52,7 @@ import { isRecord } from '../lib/utils';
 import {
   MAX_UPSTREAM_BUFFERED_BYTES,
   createStreamingEventsFor,
+  holdCreditsFor,
   makeStreamingPreflight,
   minimumCreditsFor,
   type StreamingSession,
@@ -288,6 +289,7 @@ export function minimumGeminiTranscribeStreamingCredits(): number {
 
 export const wsStreamingGeminiTranscribePreflight = makeStreamingPreflight(
   minimumGeminiTranscribeStreamingCredits,
+  () => holdCreditsFor(GEMINI_TRANSCRIBE_VENDOR),
 );
 
 /** See the note on `createStreamingEvents` in `ws-streaming-deepgram.ts`. */

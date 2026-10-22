@@ -73,6 +73,27 @@ enum CloudProvider: String, CaseIterable, Identifiable {
         return parse(value)?.rawValue ?? value
     }
 
+    /// The cloud provider a mode USES for transcription, as a stored string.
+    ///
+    /// A blank value (nil, empty or whitespace) takes the shared core's answer
+    /// (`cloudSttEffectiveModeCloudProvider`), which is HyperWhisper Cloud on
+    /// every head (#1709). A non-blank value is returned as stored: the core
+    /// also folds legacy aliases, and this head keeps its own routing for those.
+    static func effectiveModeStorageValue(_ stored: String?) -> String {
+        guard let stored,
+              !stored.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return cloudSttEffectiveModeCloudProvider(value: stored)
+        }
+        return stored
+    }
+
+    /// The parsed provider a mode uses for transcription. A blank value reads
+    /// the shared rule; an id this build does not model still falls back to
+    /// HyperWhisper Cloud, as before.
+    static func forMode(_ stored: String?) -> CloudProvider {
+        parse(effectiveModeStorageValue(stored)) ?? .hyperwhisper
+    }
+
     /// Display name for the provider
     var displayName: String {
         switch self {
@@ -556,6 +577,13 @@ struct CloudTranscriptionModels {
             isPopular: true,
             pricePerSecond: nil
         ),
+        CloudTranscriptionModel(
+            id: "scribe_v2_medical",
+            isAvailable: true,
+            description: "Scribe v2 tuned for clinical audio. Keyterm prompting highlights drug names and medical phrases. Same rate as Scribe v2.",
+            provider: .elevenLabs,
+            pricePerSecond: nil
+        ),
 
         // Mistral Models
         CloudTranscriptionModel(
@@ -672,26 +700,17 @@ struct CloudTranscriptionModels {
             pricePerSecond: 0.016 / 60.0
         ),
 
-        // xAI Grok — two models, sent as the `model` field. The id was the empty
-        // string until 2026-09-19, when xAI gave `/v1/stt` a `model` parameter.
-        // 1.0 is the model that empty string always ran, so it stays a row of
-        // its own: a user who wants it must be able to choose it, rather than
-        // being moved to 2 by a release of ours. SpaceXAI price the two the
-        // same and have announced 1.0's deprecation.
+        // xAI Grok, sent as the `model` field. The id was the empty string until
+        // 2026-09-19, when xAI gave `/v1/stt` a `model` parameter. xAI ended
+        // `grok-voice-transcribe-1.0` on 2026-10-02 and routes it to 2.0 at the
+        // same price, so its row is gone; `legacyGrokAliases` moves a stored
+        // 1.0 id onto 2.0 (#1908).
         CloudTranscriptionModel(
             id: "grok-voice-transcribe-2.0",
             isAvailable: true,
             description: "SpaceXAI's speech-to-text model — auto-detects the language and follows a mid-recording switch.",
             provider: .grok,
             isPopular: true,
-            pricePerSecond: nil
-        ),
-        CloudTranscriptionModel(
-            id: "grok-voice-transcribe-1.0",
-            isAvailable: true,
-            description: "SpaceXAI's previous speech-to-text model, at the same price. Announced for deprecation — prefer Grok Voice Transcribe 2.",
-            provider: .grok,
-            isPopular: false,
             pricePerSecond: nil
         ),
 
@@ -763,6 +782,17 @@ struct CloudTranscriptionModels {
         legacyGeminiAliases[id] ?? id
     }
 
+    /// xAI ended `grok-voice-transcribe-1.0` on 2026-10-02 and routes it to 2.0
+    /// at the same price. PARITY: hw-catalog GROK_ALIASES, hyperwhisper-cloud
+    /// stt-models.ts `grok.aliases`.
+    private static let legacyGrokAliases: [String: String] = [
+        "grok-voice-transcribe-1.0": "grok-voice-transcribe-2.0",
+    ]
+
+    static func resolveGrokModelAlias(_ id: String) -> String {
+        legacyGrokAliases[id] ?? id
+    }
+
     /// Deepgram model IDs removed in the 2026-05 catalog cleanup. Stored Modes,
     /// per-mode default-model overrides, and the streaming Deepgram setting all
     /// migrate any of these IDs to `nova-3-general` at launch.
@@ -806,11 +836,15 @@ struct CloudTranscriptionModels {
             return resolveSonioxModelAlias(id)
         case .gemini:
             return resolveGeminiModelAlias(id)
+        case .grok:
+            return resolveGrokModelAlias(id)
         case nil:
             return resolveDeepgramModelAlias(
-                resolveGeminiModelAlias(
-                    resolveSonioxModelAlias(
-                        resolveElevenLabsModelAlias(resolveAssemblyAIModelAlias(id))
+                resolveGrokModelAlias(
+                    resolveGeminiModelAlias(
+                        resolveSonioxModelAlias(
+                            resolveElevenLabsModelAlias(resolveAssemblyAIModelAlias(id))
+                        )
                     )
                 )
             ) ?? id

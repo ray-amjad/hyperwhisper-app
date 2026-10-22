@@ -26,7 +26,11 @@ public partial class ProviderApiKeyWindow : Window
         }
         else
         {
-            var keyType = ToTranscriptionKeyType(provider);
+            // Grok never reaches here: it pairs with PostProcessingProvider.Grok
+            // above (the same GrokApiKey slot). A provider with no slot at all
+            // (None, the HW-Cloud-routed three) is a caller bug, as before.
+            var keyType = provider.GetTranscriptionApiKeyType()
+                ?? throw new InvalidOperationException($"{provider} does not have a separate transcription API key.");
             _displayName = keyType.GetDisplayName();
             _apiKeyUrl = keyType.GetApiKeyUrl();
             _getKey = () => ApiKeyService.Instance.GetApiKey(keyType);
@@ -154,19 +158,6 @@ public partial class ProviderApiKeyWindow : Window
             Loc.S("providerApiKey.invalid.message", displayName)
         );
     }
-
-    private static TranscriptionApiKeyType ToTranscriptionKeyType(CloudTranscriptionProvider provider) => provider switch
-    {
-        CloudTranscriptionProvider.Deepgram => TranscriptionApiKeyType.Deepgram,
-        CloudTranscriptionProvider.AssemblyAI => TranscriptionApiKeyType.AssemblyAI,
-        CloudTranscriptionProvider.ElevenLabs => TranscriptionApiKeyType.ElevenLabs,
-        CloudTranscriptionProvider.Mistral => TranscriptionApiKeyType.Mistral,
-        CloudTranscriptionProvider.Soniox => TranscriptionApiKeyType.Soniox,
-        CloudTranscriptionProvider.Grok => TranscriptionApiKeyType.Grok,
-        CloudTranscriptionProvider.GeminiTranscribe => TranscriptionApiKeyType.GeminiTranscribe,
-        CloudTranscriptionProvider.Meta => TranscriptionApiKeyType.Meta,
-        _ => throw new InvalidOperationException($"{provider} does not have a separate transcription API key.")
-    };
 
     private static string GetPostProcessingApiKeyUrl(PostProcessingProvider provider) => provider switch
     {

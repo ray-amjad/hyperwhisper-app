@@ -8,6 +8,7 @@ using HyperWhisper.SharedCore;
 var tests = new (string Name, Func<Task> Run)[]
 {
     ("Windows-parity model registry", TestModelRegistry),
+    ("retired model redirects match shared-conformance", TestRedirectVectors),
     ("OpenAI request and shared evaluation", TestOpenAi),
     ("Anthropic request and shared evaluation", TestAnthropic),
     ("OpenAI-compatible provider routes", TestOpenAiCompatibleRoutes),
@@ -15,7 +16,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("custom endpoint validation", TestCustomValidation),
     ("custom Groq request policy", TestCustomGroq),
     ("HyperWhisper Cloud catalog route", TestHyperWhisperCloud),
-    ("HyperWhisper Cloud device identity", TestHyperWhisperCloudDevice),
+    ("HyperWhisper Cloud with no account key fails closed", TestHyperWhisperCloudDevice),
     ("HyperWhisper Cloud base URL is switchable", TestHyperWhisperCloudBaseUrl),
     ("HyperWhisper Cloud sends the transcript once", TestHyperWhisperCloudTranscriptOnce),
     ("saved endpoints are repaired, not dropped", TestExistingEndpointRepair),
@@ -28,6 +29,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("stale model falls back deterministically", TestModelFallback),
     ("applied routes report the model that ran", TestResolvedModelIsReported),
     ("redirect does not replay credentials", TestRedirectFailure),
+    ("saved dotted Mistral Medium 3.5 sends Mistral's API id", TestMistralMediumSendsApiId),
 };
 
 var failed = 0;
@@ -53,7 +55,9 @@ static Task TestModelRegistry()
     {
         // 11 → 8: gpt-5 / -mini / -nano deleted 2026-09-25 (#1018); Migrate sends them to gpt-5.6-luna.
         // 8 → 9: gpt-6-luna added 2026-10.
-        [CloudPostProcessingProvider.OpenAi] = 9,
+        // 9 → 6: gpt-4.1, gpt-5.1 and gpt-5.4-nano removed 2026-10-16; Migrate redirects them.
+        // 6 → 5: gpt-4.1-mini removed (#1907); Migrate sends it to gpt-6-luna.
+        [CloudPostProcessingProvider.OpenAi] = 5,
         [CloudPostProcessingProvider.Anthropic] = 4,
         // 3 → 4: Groq qwen/qwen3.8-27b added 2026-09-11. Cerebras stays 2 — the
         // dead gemma-4-31b was REPLACED by qwen-3.8-27b, not joined by it.
@@ -61,7 +65,8 @@ static Task TestModelRegistry()
         [CloudPostProcessingProvider.Groq] = 3,
         [CloudPostProcessingProvider.Grok] = 3,
         // 11 → 10: gemini-3-flash-preview removed 2026-10; Migrate sends it to gemini-3.8-flash.
-        [CloudPostProcessingProvider.Gemini] = 10,
+        // 10 → 7: gemini-3.5-flash, gemini-3.7-flash and gemini-3.1-flash-lite removed 2026-10-16.
+        [CloudPostProcessingProvider.Gemini] = 7,
         [CloudPostProcessingProvider.Cerebras] = 2,
         [CloudPostProcessingProvider.Mistral] = 2,
     };
@@ -103,6 +108,76 @@ static Task TestModelRegistry()
         "gemini-3-flash-preview did not resolve to gemini-3.8-flash");
     Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.OpenAi, "gpt-6-luna") == "gpt-6-luna",
         "gpt-6-luna is not a selectable row");
+    // 2026-10-16 model sync: OpenAI removes gpt-5.1 / gpt-5.4-nano 2027-04-01 and gpt-4.1
+    // 2027-01-14; Google shuts gemini-3.1-flash-lite down 2027-05-07 and deprecated
+    // 3.5 / 3.7 Flash 2026-10-08. Each goes to a listed successor.
+    foreach (var (provider, retired, successor) in new[]
+    {
+        (CloudPostProcessingProvider.OpenAi, "gpt-5.1", "gpt-5.6-luna"),
+        (CloudPostProcessingProvider.OpenAi, "gpt-5.4-nano", "gpt-6-luna"),
+        (CloudPostProcessingProvider.OpenAi, "gpt-4.1", "gpt-6-luna"),
+        // #1907: OpenAI removes gpt-4.1-mini 2027-01-14 too, and names gpt-6-luna.
+        (CloudPostProcessingProvider.OpenAi, "gpt-4.1-mini", "gpt-6-luna"),
+        (CloudPostProcessingProvider.Gemini, "gemini-3.1-flash-lite", "gemini-3.5-flash-lite"),
+        (CloudPostProcessingProvider.Gemini, "gemini-3.1-flash-lite-preview", "gemini-3.5-flash-lite"),
+        (CloudPostProcessingProvider.Gemini, "gemini-2.0-flash-lite", "gemini-3.5-flash-lite"),
+        (CloudPostProcessingProvider.Gemini, "gemini-3.5-flash", "gemini-3.6-flash"),
+        (CloudPostProcessingProvider.Gemini, "gemini-3.7-flash", "gemini-3.8-flash"),
+    })
+    {
+        Assert(PostProcessingModelCatalog.ResolveModel(provider, retired) == successor,
+            $"{retired} did not resolve to {successor}");
+        Assert(PostProcessingModelCatalog.ForProvider(provider).All(model => model.Id != retired),
+            $"{retired} is still listed");
+    }
+    // An unknown Gemini id falls back to the first row, which is 3.8 Flash (the macOS default).
+    Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Gemini, "no-such-model") == "gemini-3.8-flash",
+        "Gemini fallback is not gemini-3.8-flash");
+    return Task.CompletedTask;
+}
+
+// Replays shared-conformance/pp-model-redirect-vectors.json through THIS head's
+// redirect table (#1083). macOS and Windows replay the same file through theirs:
+//   app/macos/hyperwhisperTests/PostProcessingModelResolutionTests.swift
+//   app/windows/HyperWhisper.SmokeTests/Program.cs
+// Each row is checked twice. Migrate itself must name `to`, because ResolveModel
+// falls back to the provider's first row, so a missing arm whose target IS the
+// first row (gpt-5.6-luna, claude-haiku-5-5, ...) would still pass through
+// ResolveModel alone. ResolveModel must then land on that same live row.
+static Task TestRedirectVectors()
+{
+    var repoRoot = new DirectoryInfo(AppContext.BaseDirectory);
+    while (repoRoot is not null && !Directory.Exists(Path.Combine(repoRoot.FullName, "shared-conformance")))
+        repoRoot = repoRoot.Parent;
+    Assert(repoRoot is not null, "the repo root is locatable from the test output directory");
+    var path = Path.Combine(repoRoot!.FullName, "shared-conformance", "pp-model-redirect-vectors.json");
+    using var document = JsonDocument.Parse(File.ReadAllText(path));
+    var vectors = document.RootElement.GetProperty("vectors");
+    Assert(vectors.GetArrayLength() >= 40, "pp-model-redirect-vectors.json looks truncated");
+
+    var migrate = typeof(PostProcessingModelCatalog).GetMethod("Migrate",
+        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
+        ?? throw new InvalidOperationException("PostProcessingModelCatalog.Migrate not found");
+    var checkedRows = 0;
+    foreach (var row in vectors.EnumerateArray())
+    {
+        if (row.TryGetProperty("platforms", out var platforms)
+            && platforms.EnumerateArray().All(item => item.GetString() != "linux"))
+            continue;
+        var providerName = row.GetProperty("provider").GetString()!;
+        var from = row.GetProperty("from").GetString()!;
+        var to = row.GetProperty("to").GetString()!;
+        Assert(Enum.TryParse<CloudPostProcessingProvider>(providerName, ignoreCase: true, out var provider),
+            $"{from}: provider '{providerName}' is not a Linux BYOK provider");
+        Assert((string?)migrate.Invoke(null, [from]) == to, $"Migrate does not redirect {from} to {to}");
+        Assert(PostProcessingModelCatalog.ForProvider(provider).Any(model => model.Id == to),
+            $"{from}: target {to} is not a live {provider} row");
+        Assert(PostProcessingModelCatalog.ForProvider(provider).All(model => model.Id != from),
+            $"retired {from} is still a {provider} row");
+        Assert(PostProcessingModelCatalog.ResolveModel(provider, from) == to, $"{from} did not resolve to {to}");
+        checkedRows++;
+    }
+    Console.WriteLine($"  read {path}: {checkedRows} Linux redirect rows checked");
     return Task.CompletedTask;
 }
 
@@ -115,7 +190,7 @@ static async Task TestOpenAi()
         return Json(HttpStatusCode.OK, OpenAiResponse("<<CLEANED>>Hello Ray<<END>>"));
     });
     using var service = Service(handler, ApiKey(CloudPostProcessingProvider.OpenAi, "sk-test-secret"));
-    var result = await service.ProcessAsync(Request(CloudPostProcessingProvider.OpenAi, "gpt-4.1-mini"));
+    var result = await service.ProcessAsync(Request(CloudPostProcessingProvider.OpenAi, "gpt-5.4-mini"));
     var snapshot = seen ?? throw new InvalidOperationException("OpenAI request was not captured");
     Assert(result.WasApplied && result.Text == "Hello Ray", "OpenAI response was not accepted");
     Assert(snapshot.Uri == "https://api.openai.com/v1/chat/completions", "OpenAI endpoint mismatch");
@@ -237,19 +312,17 @@ static async Task TestHyperWhisperCloud()
 
 static async Task TestHyperWhisperCloudDevice()
 {
-    RequestSnapshot? seen = null;
-    var handler = new StubHandler(async request =>
-    {
-        seen = await RequestSnapshot.FromAsync(request);
-        return Json(HttpStatusCode.OK, "{\"corrected\":\"device result\"}");
-    });
+    // Issue #1487: the backend answers 401 "License required" to a device-id
+    // request, so a device identity without an account key is refused before
+    // any request goes out, and the Local API reports MISSING_API_KEY for it.
+    var handler = new StubHandler(_ => throw new InvalidOperationException("HTTP should not run"));
     var credentials = new MemoryCredentialSource();
     credentials.SetLicense(null, "device-safe");
     using var service = Service(handler, credentials);
     var result = await service.ProcessAsync(Request(CloudPostProcessingProvider.HyperWhisperCloud));
-    Assert(result.WasApplied, "device-auth cloud request failed");
-    Assert(seen?.Body.Contains("\"device_id\":\"device-safe\"", StringComparison.Ordinal) == true, "device auth missing");
-    Assert(seen?.Headers["X-LLM-Provider"] == "grok", "legacy empty-model fallback changed");
+    Assert(!result.WasApplied, "a device-only cloud request was applied");
+    Assert(result.Failure?.Code == CloudPostProcessingFailureCode.MissingCredential, "no account key was not a missing credential");
+    Assert(handler.CallCount == 0, "a request went out with no account key");
 }
 
 static async Task TestHyperWhisperCloudBaseUrl()
@@ -409,8 +482,8 @@ static async Task TestResolvedModelIsReported()
     using var byok = Service(
         new StubHandler(_ => Task.FromResult(Json(HttpStatusCode.OK, OpenAiResponse("<<CLEANED>>ok<<END>>")))),
         ApiKey(CloudPostProcessingProvider.OpenAi, "sk-test"));
-    var byokResult = await byok.ProcessAsync(Request(CloudPostProcessingProvider.OpenAi, "gpt-4.1-mini"));
-    Assert(byokResult.Model == "gpt-4.1-mini", "BYOK route did not report its model");
+    var byokResult = await byok.ProcessAsync(Request(CloudPostProcessingProvider.OpenAi, "gpt-5.4-mini"));
+    Assert(byokResult.Model == "gpt-5.4-mini", "BYOK route did not report its model");
 
     var id = Guid.NewGuid();
     var customCredentials = new MemoryCredentialSource();
@@ -462,7 +535,7 @@ static async Task TestResolvedModelIsReported()
     using var failing = Service(
         new StubHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError))),
         ApiKey(CloudPostProcessingProvider.OpenAi, "sk-test"));
-    var failed = await failing.ProcessAsync(Request(CloudPostProcessingProvider.OpenAi, "gpt-4.1-mini"));
+    var failed = await failing.ProcessAsync(Request(CloudPostProcessingProvider.OpenAi, "gpt-5.4-mini"));
     Assert(!failed.WasApplied && failed.Model is null, "a failed run reported a model that never produced text");
 }
 
@@ -502,6 +575,24 @@ static string OpenAiResponse(string content, string reason = "stop") =>
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException(message);
+}
+
+// #2200: a mode saved on the old dotted id sends Mistral's own API id on the wire.
+static async Task TestMistralMediumSendsApiId()
+{
+    RequestSnapshot? sent = null;
+    using var service = Service(
+        new StubHandler(async request =>
+        {
+            sent = await RequestSnapshot.FromAsync(request);
+            return Json(HttpStatusCode.OK, OpenAiResponse("<<CLEANED>>ok<<END>>"));
+        }),
+        ApiKey(CloudPostProcessingProvider.Mistral, "mistral-test"));
+    var result = await service.ProcessAsync(Request(CloudPostProcessingProvider.Mistral, "mistral-medium-3.5"));
+    Assert(sent is not null, "no Mistral request was sent");
+    Assert(sent!.Uri.StartsWith("https://api.mistral.ai/", StringComparison.Ordinal), $"Mistral request went to {sent.Uri}");
+    Assert(sent.Body.Contains("\"model\":\"mistral-medium-3-5\"", StringComparison.Ordinal), $"Mistral body did not carry mistral-medium-3-5: {sent.Body}");
+    Assert(result.Model == "mistral-medium-3-5", $"Mistral route reported {result.Model}");
 }
 
 sealed class StubHandler : HttpMessageHandler

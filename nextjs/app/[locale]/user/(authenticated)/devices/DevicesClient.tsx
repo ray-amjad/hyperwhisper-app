@@ -1,14 +1,28 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { api } from "@/lib/trpc/client";
 import { formatDate, formatDateTime } from "@/lib/format-date";
+import { useRevealAfterLoad } from "@/lib/use-reveal-after-load";
 
 const TIME_RANGES = [
   { label: "7 days", value: 7 },
   { label: "30 days", value: 30 },
   { label: "90 days", value: 90 },
 ] as const;
+
+/** Devices fetched per "Show more" in an expanded key (#1661). */
+export const DEVICE_PAGE_SIZE = 50;
+
+// The page's copy and dates are en-US (formatDate(..., "en-US") below), so
+// counts use the same locale: "1,284", never "1284" (#1661). One formatter
+// for server and client render, so hydration never disagrees.
+const countFormatter = new Intl.NumberFormat("en-US");
+
+export function formatCount(n: number): string {
+  return countFormatter.format(n);
+}
 
 /**
  * Devices Client Component
@@ -24,9 +38,32 @@ export default function DevicesClient() {
   const {
     data,
     isLoading: loading,
+    isFetching,
+    isPlaceholderData,
     error: queryError,
     refetch,
-  } = api.admin.devices.list.useQuery({ days });
+  } = api.admin.devices.list.useQuery(
+    { days },
+    // Keep the previous range's rows on screen while a new range loads,
+    // instead of tearing the table down to the skeleton on every click
+    // (#863), as the Customers page does.
+    { placeholderData: keepPreviousData }
+  );
+
+  // A range switch shows the previous range's rows until the new ones land,
+  // so the caption, the empty-state copy and an expanded row follow the rows
+  // on screen, not the button just pressed. Adjusted during render, so the
+  // render that brings the new rows already carries their range. A failed
+  // fetch is not placeholder data either, so the copy names the range asked
+  // for, as before.
+  const [shownDays, setShownDays] = useState(days);
+  if (!isPlaceholderData && shownDays !== days) setShownDays(days);
+
+  // In flight with rows already on screen: a range switch or a Refresh.
+  const isTransitioning = isFetching && !loading;
+
+  // The first load's rows paint at opacity 0, then fade in.
+  const revealed = useRevealAfterLoad(loading);
 
   const devices = data?.devices ?? [];
   const error = queryError?.message ?? null;
@@ -38,17 +75,18 @@ export default function DevicesClient() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
+      {/* Page Header. Wraps on a phone, so the range buttons and Refresh
+          never push the page wider than the viewport (#1764, as #1330). */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-white">
             Device Activations
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            Unique devices per Account Key (active in last {days} days)
+            Unique devices per Account Key (active in last {shownDays} days)
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Time Range Selector */}
           <div
             role="group"
@@ -102,7 +140,12 @@ export default function DevicesClient() {
       )}
 
       {/* Devices Table */}
-      <div className="bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 overflow-hidden">
+      <div
+        aria-busy={loading || isTransitioning}
+        className={`bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 overflow-hidden transition-opacity ${
+          isTransitioning ? "opacity-50" : "opacity-100"
+        }`}
+      >
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -118,28 +161,37 @@ export default function DevicesClient() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
-              {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
+            {/* First load only: skeleton rows, then the real rows fade in.
+                A range switch keeps the previous rows mounted (above). */}
+            {loading && (
+              <tbody aria-hidden className="divide-y divide-white/5">
+                {Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
                     <td className="px-6 py-4">
-                      <div className="h-4 bg-white/10 rounded w-48 animate-pulse" />
+                      <div className="h-4 bg-white/10 rounded w-48 animate-pulse motion-reduce:animate-none" />
                     </td>
                     <td className="px-6 py-4">
-                      <div className="h-4 bg-white/10 rounded w-28 animate-pulse" />
+                      <div className="h-4 bg-white/10 rounded w-28 animate-pulse motion-reduce:animate-none" />
                     </td>
                     <td className="px-6 py-4">
-                      <div className="h-4 bg-white/10 rounded w-12 animate-pulse" />
+                      <div className="h-4 bg-white/10 rounded w-12 animate-pulse motion-reduce:animate-none" />
                     </td>
                   </tr>
-                ))
-              ) : devices.length === 0 ? (
+                ))}
+              </tbody>
+            )}
+            <tbody
+              className={`t-skel-content divide-y divide-white/5 transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
+                revealed ? "opacity-100 blur-[0px]" : "opacity-0 blur-[2px]"
+              }`}
+            >
+              {loading ? null : devices.length === 0 ? (
                 <tr>
                   <td
                     colSpan={3}
                     className="px-6 py-12 text-center text-gray-400"
                   >
-                    No device activations found in the last {days} days.
+                    No device activations found in the last {shownDays} days.
                   </td>
                 </tr>
               ) : (
@@ -147,7 +199,7 @@ export default function DevicesClient() {
                   <DeviceRow
                     key={row.licenseKeyId}
                     row={row}
-                    days={days}
+                    days={shownDays}
                     truncateKey={truncateKey}
                     expanded={expandedId === row.licenseKeyId}
                     onToggle={() =>
@@ -168,7 +220,7 @@ export default function DevicesClient() {
       {/* Row Count */}
       {!loading && devices.length > 0 && (
         <p className="text-gray-400 text-sm">
-          Showing {devices.length} Account Key
+          Showing {formatCount(devices.length)} Account Key
           {devices.length !== 1 ? "s" : ""} with active devices
         </p>
       )}
@@ -176,7 +228,7 @@ export default function DevicesClient() {
   );
 }
 
-function DeviceRow({
+export function DeviceRow({
   row,
   days,
   truncateKey,
@@ -194,10 +246,52 @@ function DeviceRow({
   expanded: boolean;
   onToggle: () => void;
 }) {
-  const { data, isLoading } = api.admin.devices.forLicense.useQuery(
-    { licenseKeyId: row.licenseKeyId, days },
-    { enabled: expanded }
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 250);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // One page of DEVICE_PAGE_SIZE devices at a time (#1661): a key can hold
+  // over a thousand, and rendering them all made the page 72,000 px tall. A
+  // new search is a new query key, so paging starts again from the top.
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = api.admin.devices.forLicense.useInfiniteQuery(
+    {
+      licenseKeyId: row.licenseKeyId,
+      days,
+      search: debouncedSearch || undefined,
+      limit: DEVICE_PAGE_SIZE,
+    },
+    {
+      enabled: expanded,
+      getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+      // Keep the current rows on screen while a search narrows them.
+      placeholderData: keepPreviousData,
+    },
   );
+  // Offset paging over a live table: a device validated between two pages
+  // moves to the top, so the next page can repeat a row. Keep the first copy,
+  // so React never sees two rows with one key.
+  const seenIds = new Set<string>();
+  const loadedDevices = (
+    data?.pages.flatMap((page) => page.devices) ?? []
+  ).filter(
+    (device) => !seenIds.has(device.deviceId) && seenIds.add(device.deviceId),
+  );
+  const total = data?.pages[data.pages.length - 1]?.total ?? 0;
+  const nextCount = Math.min(DEVICE_PAGE_SIZE, total - loadedDevices.length);
+  // A search refetch dims the rows it will replace; "Show more" does not.
+  const dimmed = isFetching && !isFetchingNextPage;
   // The row click stays for the mouse; this id lets the disclosure button
   // point aria-controls at the devices row it opens (#1307).
   const panelId = useId();
@@ -236,7 +330,7 @@ function DeviceRow({
         <td className="px-6 py-4">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center px-2.5 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm font-medium">
-              {row.deviceCount}
+              {formatCount(row.deviceCount)}
             </span>
             <svg
               className={`w-4 h-4 text-gray-400 transition-transform ${
@@ -258,64 +352,112 @@ function DeviceRow({
       </tr>
       {expanded && (
         <tr id={panelId}>
-          <td colSpan={3} className="px-6 py-4 bg-white/[0.02]">
-            {isLoading ? (
-              <div className="space-y-2">
-                {Array.from({ length: 2 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-4 bg-white/10 rounded w-64 animate-pulse"
-                  />
-                ))}
-              </div>
-            ) : !data?.devices.length ? (
-              <p className="text-gray-500 text-sm">No devices found.</p>
-            ) : (
-              <div className="space-y-2">
-                {data.devices.map((device) => (
-                  <div
-                    key={device.deviceId}
-                    className="flex items-center justify-between py-2 px-3 bg-white/5 rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <svg
-                        className="w-4 h-4 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+          {/* The panel still mounts on open (its query only runs while it
+              is open), and .t-cell-reveal grows its one grid row from 0fr
+              (#702), as the #914 inline editor does: a table row cannot tween
+              its own height. The padding moved inside the clip, or it would
+              arrive in one frame. */}
+          <td colSpan={3} className="p-0 bg-white/[0.02]">
+            <div className="t-cell-reveal">
+              <div>
+                <div className="px-6 py-4">
+                  <div className="mb-3">
+                    <input
+                      aria-label="Search this key's devices by name or id"
+                      className="w-full max-w-sm px-3 py-1.5 text-sm bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
+                      placeholder="Search devices by name or id..."
+                      type="search"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
+                  </div>
+                  {isLoading ? (
+                    <div className="space-y-2">
+                      {Array.from({ length: 2 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="h-4 bg-white/10 rounded w-64 animate-pulse"
                         />
-                      </svg>
-                      {/* <bdi> isolates a user-typed name, so an Arabic name or a
-                          bracket never reorders the id beside it on an RTL page (#1659).
-                          The gap sits on the parent: a margin on the <bdi> follows the
-                          id's own LTR direction and lands on the wrong side in RTL. */}
-                      <div className="flex flex-wrap items-baseline gap-x-2">
-                        <bdi className="text-white text-sm">
-                          {device.deviceName || device.deviceId}
-                        </bdi>
-                        {device.deviceName && (
-                          <bdi className="text-gray-500 text-xs">
-                            {device.deviceId}
-                          </bdi>
+                      ))}
+                    </div>
+                  ) : loadedDevices.length === 0 ? (
+                    <p className="text-gray-400 text-sm">
+                      {debouncedSearch
+                        ? "No devices match that search."
+                        : "No devices found."}
+                    </p>
+                  ) : (
+                    <div
+                      aria-busy={isFetching}
+                      className={`space-y-2 transition-opacity ${
+                        dimmed ? "opacity-50" : "opacity-100"
+                      }`}
+                    >
+                      {loadedDevices.map((device) => (
+                        <div
+                          key={device.deviceId}
+                          className="flex items-center justify-between py-2 px-3 bg-white/5 rounded-lg"
+                        >
+                          <div className="flex items-center gap-3">
+                            <svg
+                              className="w-4 h-4 text-gray-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                              />
+                            </svg>
+                            {/* <bdi> isolates a user-typed name, so an Arabic name or a
+                                bracket never reorders the id beside it on an RTL page (#1659).
+                                The gap sits on the parent: a margin on the <bdi> follows the
+                                id's own LTR direction and lands on the wrong side in RTL. */}
+                            <div className="flex flex-wrap items-baseline gap-x-2">
+                              <bdi className="text-white text-sm">
+                                {device.deviceName || device.deviceId}
+                              </bdi>
+                              {device.deviceName && (
+                                <bdi className="text-gray-400 text-xs">
+                                  {device.deviceId}
+                                </bdi>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right text-xs text-gray-400">
+                            <div>First seen: {formatDate(device.createdAt, "en-US")}</div>
+                            <div>
+                              Last active: {formatDateTime(device.lastValidatedAt, "en-US")}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                        <p className="text-gray-400 text-xs">
+                          Showing {formatCount(loadedDevices.length)} of{" "}
+                          {formatCount(total)} device{total !== 1 ? "s" : ""}
+                        </p>
+                        {hasNextPage && (
+                          <button
+                            className="px-3 py-1.5 text-sm text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-colors disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                            disabled={isFetchingNextPage}
+                            type="button"
+                            onClick={() => fetchNextPage()}
+                          >
+                            {isFetchingNextPage
+                              ? "Loading..."
+                              : `Show ${formatCount(nextCount)} more`}
+                          </button>
                         )}
                       </div>
                     </div>
-                    <div className="text-right text-xs text-gray-400">
-                      <div>First seen: {formatDate(device.createdAt, "en-US")}</div>
-                      <div>
-                        Last active: {formatDateTime(device.lastValidatedAt, "en-US")}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  )}
+                </div>
               </div>
-            )}
+            </div>
           </td>
         </tr>
       )}

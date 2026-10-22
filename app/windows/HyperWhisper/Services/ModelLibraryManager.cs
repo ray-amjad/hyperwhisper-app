@@ -409,26 +409,11 @@ public sealed class ModelLibraryManager
         // "configured" from the library's perspective.
         if (!provider.RequiresApiKey()) return true;
 
-        var paired = provider.GetApiKeyProvider();
-        if (paired != PostProcessingProvider.None)
-        {
-            return _apiKeys.HasApiKey(paired);
-        }
-
-        // Explicit `_ => false` fallthrough: a newly added keyed provider that
-        // forgets to wire up its TranscriptionApiKeyType lookup here will
-        // correctly report "not configured" instead of silently true.
-        return provider switch
-        {
-            CloudTranscriptionProvider.Deepgram => _apiKeys.HasApiKey(TranscriptionApiKeyType.Deepgram),
-            CloudTranscriptionProvider.AssemblyAI => _apiKeys.HasApiKey(TranscriptionApiKeyType.AssemblyAI),
-            CloudTranscriptionProvider.ElevenLabs => _apiKeys.HasApiKey(TranscriptionApiKeyType.ElevenLabs),
-            CloudTranscriptionProvider.Mistral => _apiKeys.HasApiKey(TranscriptionApiKeyType.Mistral),
-            CloudTranscriptionProvider.Soniox => _apiKeys.HasApiKey(TranscriptionApiKeyType.Soniox),
-            CloudTranscriptionProvider.GeminiTranscribe => _apiKeys.HasApiKey(TranscriptionApiKeyType.GeminiTranscribe),
-            CloudTranscriptionProvider.Meta => _apiKeys.HasApiKey(TranscriptionApiKeyType.Meta),
-            _ => false
-        };
+        // The shared key map (issue #1220): the paired post-processing key,
+        // else the provider's own slot. A newly added keyed provider with no
+        // slot in GetTranscriptionApiKeyType() reads as "not configured"
+        // instead of silently true.
+        return _apiKeys.HasApiKey(provider);
     }
 
     // Single-sourced on CloudTranscriptionProviderExtensions.GetAssetName so the
@@ -481,6 +466,7 @@ public sealed class ModelLibraryManager
         // ElevenLabs
         ["scribe_v1"]                         = (3, 5),
         ["scribe_v2"]                         = (3, 5),
+        ["scribe_v2_medical"]                 = (3, 5),
         // Mistral
         ["voxtral-mini-latest"]               = (4, 2),
         // Soniox
@@ -570,7 +556,7 @@ public sealed class ModelLibraryManager
         ["grok-4.5"]                                      = (2, 5),
         ["grok-4.6"]                                      = (2, 5),
         ["mistral-small-latest"]                          = (2, 3),
-        ["mistral-medium-3.5"]                            = (2, 4),
+        ["mistral-medium-3-5"]                            = (2, 4),
         ["gpt-oss-120b"]                                  = (5, 3),
         ["qwen-3.8-27b"]                                  = (4, 3),
         ["gemma-4-E2B-it-Q4_K_M.gguf"]                    = (5, 1),

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os
 import os.log
 import AppKit
 import UniformTypeIdentifiers
@@ -343,9 +344,24 @@ final class AppLogger {
         LogShowCommand(executableURL: URL(fileURLWithPath: "/usr/bin/log"), arguments: arguments)
     }
     
+    /// What `writeSystemLogs` got from `log show`.
+    enum SystemLogsOutcome: Equatable {
+        case written
+        /// `log show` failed or printed no log lines (#1480). `reason` is
+        /// its stderr, or a short note when stderr was empty too. The same
+        /// text is written to system-logs.txt so support sees why.
+        case unavailable(reason: String)
+    }
+    
+    /// A diagnostics zip, and whether its system-logs.txt holds real log lines.
+    struct DiagnosticsExport {
+        var url: URL
+        var systemLogs: SystemLogsOutcome
+    }
+    
     /// Exports system logs for diagnostic purposes
     /// Combines os.log entries with UpdateLogger files
-    static func exportDiagnostics(completion: @escaping (URL?) -> Void) {
+    static func exportDiagnostics(completion: @escaping (DiagnosticsExport?) -> Void) {
         DispatchQueue.global(qos: .utility).async {
             do {
                 let exportDir = FileManager.default.temporaryDirectory
@@ -354,7 +370,7 @@ final class AppLogger {
                 
                 // EXPORT OS.LOG ENTRIES
                 let logFile = exportDir.appendingPathComponent("system-logs.txt")
-                try writeSystemLogs(to: logFile)
+                let systemLogs = try writeSystemLogs(to: logFile)
                 
                 // COPY UPDATE LOGS
                 let updateLogPath = UpdateLogger.shared.currentLogPath
@@ -407,7 +423,7 @@ final class AppLogger {
                 try? FileManager.default.removeItem(at: exportDir)
                 
                 DispatchQueue.main.async {
-                    completion(zipURL)
+                    completion(DiagnosticsExport(url: zipURL, systemLogs: systemLogs))
                 }
                 
             } catch {
@@ -422,7 +438,13 @@ final class AppLogger {
     /// Writes the last 24 hours of our app's logs, as JSON, to `logFile`.
     /// The `log show` reader behind `exportDiagnostics`; `command` is the
     /// test seam (#991), nil in production.
-    static func writeSystemLogs(to logFile: URL, command: LogShowCommand? = nil) throws {
+    ///
+    /// A non-zero exit or an output with no log lines is `.unavailable`
+    /// (#1480): a build that may not read the log store gets exit 77 and an
+    /// empty stdout, and the export used to zip that 0-byte file and report
+    /// success. The reason goes into `logFile` instead.
+    @discardableResult
+    static func writeSystemLogs(to logFile: URL, command: LogShowCommand? = nil) throws -> SystemLogsOutcome {
         let command = command ?? logShow([
             "show",
             "--predicate", "subsystem == '\(subsystem)'",
@@ -435,17 +457,66 @@ final class AppLogger {
         
         let outputPipe = Pipe()
         process.standardOutput = outputPipe
-        // Unread stderr would fill its pipe the same way stdout can.
-        process.standardError = FileHandle.nullDevice
+        // stderr carries the reason a failed `log show` gives (#1480). It is
+        // drained on its own thread: an unread pipe fills and blocks the
+        // child the same way stdout can.
+        let errorPipe = Pipe()
+        process.standardError = errorPipe
         
         try process.run()
+        let errorData = OSAllocatedUnfairLock(initialState: Data())
+        let errorDrained = DispatchSemaphore(value: 0)
+        // A dedicated thread, not a GCD queue: callers block a pool thread
+        // here, and with the pool full a queued drain never starts, so the
+        // wait below never returns (seen on the Mac with parallel tests).
+        Thread.detachNewThread {
+            let data = errorPipe.fileHandleForReading.readDataToEndOfFile()
+            errorData.withLock { $0 = data }
+            errorDrained.signal()
+        }
         // Drain BEFORE waiting (#991). 24 h of JSON is far past the
         // ~64 KB pipe buffer: waiting first leaves `log show` blocked
         // on write, so it never exits and the export never finishes.
         let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
+        errorDrained.wait()
         process.waitUntilExit()
         
-        try data.write(to: logFile)
+        let outcome = systemLogsOutcome(
+            exitCode: process.terminationStatus,
+            output: data,
+            errorOutput: errorData.withLock { $0 }
+        )
+        switch outcome {
+        case .written:
+            try data.write(to: logFile)
+        case .unavailable(let reason):
+            settings.error("Diagnostics export could not read system logs: \(reason, privacy: .public)")
+            try "System logs could not be read: \(reason)\n".write(to: logFile, atomically: true, encoding: .utf8)
+        }
+        return outcome
+    }
+    
+    /// Decides whether a `log show --style json` run produced log lines.
+    /// `log show` prints `[]`-style brackets around zero entries, so an
+    /// output of only brackets and whitespace counts as empty.
+    static func systemLogsOutcome(exitCode: Int32, output: Data, errorOutput: Data) -> SystemLogsOutcome {
+        // The reason lands in an alert; `log show` puts it in the first
+        // line or two, so a long stderr is cut.
+        let stderrText = String(String(decoding: errorOutput, as: UTF8.self)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .prefix(300))
+        if exitCode != 0 {
+            let detail = stderrText.isEmpty ? "no error message" : stderrText
+            return .unavailable(reason: "log show exited with status \(exitCode): \(detail)")
+        }
+        let body = String(decoding: output, as: UTF8.self)
+            .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "[]")))
+        if body.isEmpty {
+            return .unavailable(reason: stderrText.isEmpty
+                ? "log show returned no log lines from the last 24 hours"
+                : "log show returned no log lines: \(stderrText)")
+        }
+        return .written
     }
     
     /// Gets device information for diagnostics
@@ -519,6 +590,19 @@ final class AppLogger {
             let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
             let fetchMs = Int((Date().timeIntervalSince(fetchStart) * 1_000).rounded())
+
+            // A non-zero exit is a failure even when stdout has something in
+            // it (#1480); its exit code is in the reported state.
+            guard process.terminationStatus == 0 else {
+                finishDiagnosticLogState(
+                    outcome: "failed",
+                    fetchMs: fetchMs,
+                    onMainThread: onMainThread,
+                    lineCount: 0,
+                    exitCode: Int(process.terminationStatus)
+                )
+                return nil
+            }
 
             guard let output = String(data: data, encoding: .utf8), !output.isEmpty else {
                 // Was silent before. An empty result and a slow empty result are

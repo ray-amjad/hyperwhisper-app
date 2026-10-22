@@ -127,6 +127,8 @@ extension TranscriptionPipeline {
             // "provider"/"provider_not_available" would drop this straight back
             // into the HYPERWHISPER-SQ group it was added to distinguish.
             return TranscriptionErrorClassification(category: "memory", kind: "local_speech_model_evicted", retryable: retryable, httpStatus: nil)
+        case .audioTooShort:
+            return TranscriptionErrorClassification(category: "audio", kind: "audio_too_short", retryable: retryable, httpStatus: nil)
         }
     }
 
@@ -182,6 +184,12 @@ extension TranscriptionPipeline {
             }
         }
 
+        // A retry whose mode the user deleted mid-run (#1620): a user action,
+        // not a defect.
+        if error is TranscriptionRetryError {
+            return false
+        }
+
         guard let transcriptionError = error as? TranscriptionError else {
             return true
         }
@@ -197,7 +205,7 @@ extension TranscriptionPipeline {
             // HYPERWHISPER-T2 fingerprint we still want to watch.
             return false
         case .transientNetwork, .timeout, .rateLimited,
-             .noSpeechDetected, .insufficientCredits, .quotaExceeded,
+             .noSpeechDetected, .audioTooShort, .insufficientCredits, .quotaExceeded,
              .localRuntimeUnavailable, .modelNotDownloaded:
             // User-recoverable state, not a code defect: the selected local model
             // simply isn't on disk. The app already surfaces a user-facing error

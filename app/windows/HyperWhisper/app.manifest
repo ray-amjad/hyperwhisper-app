@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The app's Win32 manifest, embedded in HyperWhisper.exe through
+  <ApplicationManifest> in HyperWhisper.csproj.
+
+  It is the manifest the SDK embedded by default before (asInvoker, nothing else)
+  plus one change: Per-Monitor V2 DPI awareness (issue #1501). Without it the
+  process is only system DPI aware, so after a live display-scale change, or on a
+  monitor with another scale, Windows bitmap-stretches every window and the text
+  goes blurry until the app restarts. With it, WPF re-renders each window at its
+  monitor's DPI on WM_DPICHANGED.
+
+  dpiAwareness (Windows 10 1607+) wins over dpiAware where it is understood;
+  dpiAware true/pm is the fallback for older builds. Code that places windows
+  must not use SystemParameters.WorkArea, which keeps the DPI the process started
+  at: see Utilities/MonitorWorkArea.cs.
+-->
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity version="1.0.0.0" name="MyApplication.app"/>
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
+    <security>
+      <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
+        <requestedExecutionLevel level="asInvoker" uiAccess="false"/>
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true/pm</dpiAware>
+      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2, PerMonitor</dpiAwareness>
+    </windowsSettings>
+  </application>
+</assembly>

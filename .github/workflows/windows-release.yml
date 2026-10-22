@@ -40,7 +40,7 @@ jobs:
       # 1. Checkout
       # ----------------------------------------------------------------
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
@@ -124,7 +124,58 @@ jobs:
           Write-Host "Preflight passed for Windows $ver"
 
       # ----------------------------------------------------------------
-      # 1b. Verify the R2 credentials before anything expensive runs
+      # 1b. AWS CLI, for the R2 preflight and upload
+      #     Issue #2160: `choco install awscli` tied every release to the
+      #     Chocolatey community feed, which fails or "passes" having
+      #     installed nothing (#2052). windows-latest already ships the AWS
+      #     CLI, so use that copy when it runs. Otherwise fetch one pinned
+      #     MSI from AWS, retry with backoff, check the SHA-256, and fail
+      #     HERE unless `aws --version` runs. Not gated on skip_upload, so a
+      #     dry run proves it too.
+      # ----------------------------------------------------------------
+      - name: Install AWS CLI
+        shell: pwsh
+        env:
+          AWSCLI_VERSION: 2.38.2
+          AWSCLI_SHA256: af49ef7bcb88a8215d7118c82fca02cebf7c0a2c1b0900d36959e84daad2dc21
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $aws = Get-Command aws -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($aws) {
+            & $aws.Source --version
+            if ($LASTEXITCODE -ne 0) { $aws = $null }
+          }
+          if (-not $aws) {
+            Write-Host "No working AWS CLI on the runner; installing the pinned $env:AWSCLI_VERSION."
+            $url = "https://awscli.amazonaws.com/AWSCLIV2-$env:AWSCLI_VERSION.msi"
+            $msi = Join-Path $env:RUNNER_TEMP "AWSCLIV2-$env:AWSCLI_VERSION.msi"
+            for ($attempt = 1; ; $attempt++) {
+              try {
+                Invoke-WebRequest -Uri $url -OutFile $msi
+                break
+              } catch {
+                if ($attempt -ge 5) { throw "AWS CLI download failed after $attempt attempts: $_" }
+                $delay = 5 * [math]::Pow(2, $attempt - 1)
+                Write-Warning "AWS CLI download attempt $attempt failed: $_; retrying in $delay s"
+                Start-Sleep -Seconds $delay
+              }
+            }
+            $hash = (Get-FileHash -Algorithm SHA256 $msi).Hash
+            if ($hash -ne $env:AWSCLI_SHA256) { throw "AWS CLI MSI SHA-256 $hash does not match the pinned $env:AWSCLI_SHA256" }
+            $proc = Start-Process msiexec.exe -ArgumentList '/i', "`"$msi`"", '/qn', '/norestart' -Wait -PassThru
+            if ($proc.ExitCode -notin 0, 3010) { throw "AWS CLI MSI install exited $($proc.ExitCode)" }
+            $bin = Join-Path $env:ProgramFiles 'Amazon\AWSCLIV2'
+            $env:PATH = "$bin;$env:PATH"
+            Add-Content -Path $env:GITHUB_PATH -Value $bin
+          }
+          $resolved = (Get-Command aws -CommandType Application | Select-Object -First 1).Source
+          Write-Host "aws resolves to $resolved"
+          & $resolved --version
+          if ($LASTEXITCODE -ne 0) { throw "aws --version exited $LASTEXITCODE" }
+
+      # ----------------------------------------------------------------
+      # 1c. Verify the R2 credentials before anything expensive runs
       # ----------------------------------------------------------------
       - name: Verify Cloudflare R2 credentials
         if: ${{ inputs.skip_upload != true }}
@@ -137,8 +188,6 @@ jobs:
           $endpoint = "https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com"
           $bucket = "${{ secrets.R2_BUCKET_NAME }}"
           $probe = "_ci-preflight/windows-${{ github.run_id }}-${{ github.run_attempt }}.txt"
-
-          choco install awscli -y --no-progress
 
           # Round-trip a throwaway object rather than calling head-bucket: an
           # expired or read-only token still passes a read probe and then fails
@@ -162,16 +211,69 @@ jobs:
       # 2. Setup .NET 10 SDK
       # ----------------------------------------------------------------
       - name: Setup .NET 10 SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: "10.0.x"
           dotnet-quality: "preview"
 
       # ----------------------------------------------------------------
       # 3. Install Inno Setup 6
+      #    Issue #2160: same as 1b. windows-latest already ships Inno Setup
+      #    6, so use that copy when it compiles a script. Otherwise fetch
+      #    one pinned installer from the jrsoftware GitHub release, retry
+      #    with backoff, check the SHA-256, and fail HERE unless ISCC
+      #    compiles a throwaway script. build-release.ps1 looks for ISCC
+      #    under "Inno Setup 6" in Program Files, so keep the major at 6.
       # ----------------------------------------------------------------
       - name: Install Inno Setup 6
-        run: choco install innosetup -y --no-progress
+        shell: pwsh
+        env:
+          INNOSETUP_VERSION: 6.7.1
+          INNOSETUP_SHA256: 4d11e8050b6185e0d49bd9e8cc661a7a59f44959a621d31d11033124c4e8a7b0
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          $probeDir = Join-Path $env:RUNNER_TEMP 'iscc-probe'
+          New-Item -ItemType Directory -Force -Path $probeDir | Out-Null
+          $probeIss = Join-Path $probeDir 'probe.iss'
+          Set-Content -Path $probeIss -Value @(
+            '[Setup]',
+            'AppName=ISCC probe',
+            'AppVersion=1.0',
+            'CreateAppDir=no',
+            'Uninstallable=no',
+            "OutputDir=$probeDir",
+            'OutputBaseFilename=iscc-probe'
+          )
+          function Test-Iscc {
+            if (-not (Test-Path $iscc)) { return $false }
+            & $iscc /Q $probeIss | Out-Host
+            return ($LASTEXITCODE -eq 0)
+          }
+          if (-not (Test-Iscc)) {
+            Write-Host "No working Inno Setup 6 on the runner; installing the pinned $env:INNOSETUP_VERSION."
+            $tag = 'is-' + ($env:INNOSETUP_VERSION -replace '\.', '_')
+            $url = "https://github.com/jrsoftware/issrc/releases/download/$tag/innosetup-$env:INNOSETUP_VERSION.exe"
+            $exe = Join-Path $env:RUNNER_TEMP "innosetup-$env:INNOSETUP_VERSION.exe"
+            for ($attempt = 1; ; $attempt++) {
+              try {
+                Invoke-WebRequest -Uri $url -OutFile $exe
+                break
+              } catch {
+                if ($attempt -ge 5) { throw "Inno Setup download failed after $attempt attempts: $_" }
+                $delay = 5 * [math]::Pow(2, $attempt - 1)
+                Write-Warning "Inno Setup download attempt $attempt failed: $_; retrying in $delay s"
+                Start-Sleep -Seconds $delay
+              }
+            }
+            $hash = (Get-FileHash -Algorithm SHA256 $exe).Hash
+            if ($hash -ne $env:INNOSETUP_SHA256) { throw "Inno Setup installer SHA-256 $hash does not match the pinned $env:INNOSETUP_SHA256" }
+            $proc = Start-Process $exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/ALLUSERS' -Wait -PassThru
+            if ($proc.ExitCode -ne 0) { throw "Inno Setup installer exited $($proc.ExitCode)" }
+            if (-not (Test-Iscc)) { throw "ISCC at $iscc did not compile a probe script after installing Inno Setup $env:INNOSETUP_VERSION" }
+          }
+          Write-Host "Using Inno Setup at $iscc"
 
       # ----------------------------------------------------------------
       # 4. Bump version in .csproj
@@ -252,16 +354,27 @@ jobs:
       #    for reliable TOTP handling.
       # ----------------------------------------------------------------
       - name: Setup Java 11
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
         with:
           distribution: corretto
           java-version: "11"
 
+      # The zip is pinned by SHA-256: the next step hands it the signing
+      # credentials, so a swapped release asset must fail here, before
+      # anything in it runs. To bump the version, download the new zip,
+      # run `sha256sum` on it, and change both values together.
       - name: Download CodeSignTool
         run: |
           $zip = "$env:RUNNER_TEMP\CodeSignTool.zip"
           $dest = "$env:RUNNER_TEMP\CodeSignTool"
+          $expectedSha256 = "e22094505decbe622afe5b0c27abc618ed2ba179bd94f3450490352399d5ef2a"
           Invoke-WebRequest -Uri "https://github.com/SSLcom/CodeSignTool/releases/download/v1.3.0/CodeSignTool-v1.3.0-windows.zip" -OutFile $zip -UseBasicParsing
+          $actualSha256 = (Get-FileHash -Path $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualSha256 -ne $expectedSha256) {
+            Remove-Item $zip -Force
+            throw "CodeSignTool zip SHA-256 mismatch: expected $expectedSha256, got $actualSha256"
+          }
+          Write-Host "CodeSignTool zip SHA-256 verified: $actualSha256"
           Expand-Archive -Path $zip -DestinationPath $dest -Force
 
           # Find directory containing CodeSignTool.bat (may be $dest or a subdirectory)
@@ -684,13 +797,13 @@ jobs:
       # ----------------------------------------------------------------
       - name: Setup pnpm
         if: ${{ inputs.skip_upload != true }}
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
         with:
           version: 10.33.0
 
       - name: Setup Node.js
         if: ${{ inputs.skip_upload != true }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "20"
 

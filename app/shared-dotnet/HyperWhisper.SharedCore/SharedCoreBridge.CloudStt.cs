@@ -15,6 +15,41 @@ public static partial class SharedCoreBridge
         HyperwhisperCoreMethods.CloudSttProvider(tierId);
 
     /// <summary>
+    /// The <c>cloudProvider</c> a CLOUD mode runs on (issue #1709). A missing value — null,
+    /// empty or whitespace — means HyperWhisper Cloud, and that answer comes from the shared
+    /// core (<c>cloud_stt_effective_mode_cloud_provider</c>), the one rule macOS and Windows
+    /// read too. <c>openapi.yaml</c> lets <c>POST /modes</c> omit the key, so such a mode is
+    /// stored with a null provider and every reader on this head must agree on what it means.
+    /// </summary>
+    /// <remarks>
+    /// A non-blank value is returned AS STORED. This head's parsers
+    /// (<c>ModeAwareTranscriptionRouter.TryMapProvider</c> and friends) already trim and
+    /// lower-case it. The legacy ids <c>googlespeech</c> and <c>microsoftazurespeech</c> are
+    /// folded in STORAGE instead — once at startup (<c>LegacyCloudProviderFold</c>, issue #601)
+    /// and on every write path — with the native heads' tier-preservation rule, which a
+    /// read-time fold here could not apply. #1709 changes the blank case only. Call this only
+    /// for a cloud mode: a local mode's null is deliberate.
+    /// </remarks>
+    public static string EffectiveModeCloudProvider(string? storedCloudProvider) =>
+        string.IsNullOrWhiteSpace(storedCloudProvider)
+            ? HyperwhisperCoreMethods.CloudSttEffectiveModeCloudProvider(storedCloudProvider)
+            : storedCloudProvider;
+
+    /// <summary>
+    /// The shared storage fold for a mode's <c>cloudProvider</c>
+    /// (<c>normalize_cloud_provider</c>), the call Windows (<c>ModeService</c>) and macOS
+    /// (<c>PersistenceController</c>) make. A legacy standalone alias (<c>googlespeech</c>,
+    /// <c>microsoftazurespeech</c>, and their camelCase spellings) comes back as
+    /// <c>hyperwhisper</c> with the accuracy tier it stood for; any other value comes back
+    /// lower-cased with a null tier, and null/empty pass through.
+    /// </summary>
+    public static (string? Provider, string? AccuracyTier) NormalizeCloudProvider(string? value)
+    {
+        var folded = HyperwhisperCoreMethods.CloudSttNormalizeCloudProvider(value);
+        return (folded.@provider, folded.@accuracyTier);
+    }
+
+    /// <summary>
     /// Cloud-tier entry ids HyperWhisper Cloud can also serve LIVE, in catalog
     /// order — the eligible set for the streaming cloud-tier picker.
     ///

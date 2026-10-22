@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - Trascrizione vocale AI per macOS e Windows",
-    "description": "Scrivi 5x più velocemente con la trascrizione vocale basata su AI. HyperWhisper trascrive la tua voce con precisione incredibile su macOS e Windows. Parla in modo naturale e guarda le parole apparire all'istante."
+    "title": "HyperWhisper - Trascrizione vocale AI per macOS, Windows e Linux",
+    "description": "Scrivi 5x più velocemente con la trascrizione vocale basata su AI. HyperWhisper trascrive la tua voce con precisione incredibile su macOS, Windows e Linux. Parla in modo naturale e guarda le parole apparire all'istante."
   },
   "navbar": {
     "features": "Funzionalità",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Posso usarlo senza internet?",
-        "answer": "Assolutamente sì. HyperWhisper può essere usato completamente offline sul tuo Mac o sul tuo PC Windows con modelli AI locali, senza internet. Per chi desidera massima accuratezza e velocità, offriamo anche elaborazione cloud opzionale tramite vari provider cloud."
+        "answer": "Assolutamente sì. HyperWhisper può essere usato completamente offline sul tuo Mac, sul tuo PC Windows o sul tuo computer Linux con modelli AI locali, senza internet. Per chi desidera massima accuratezza e velocità, offriamo anche elaborazione cloud opzionale tramite vari provider cloud."
       },
       "apiKey": {
         "question": "Devo pagare per l'accesso API?",
@@ -175,16 +175,16 @@
         "answer": "Per la trascrizione offline offriamo diverse dimensioni del modello Whisper (realizzato da OpenAI, con supporto per 99+ lingue). Offriamo anche i modelli Parakeet di NVidia (supporto per 25+ lingue).\n      \n      Per il post-processing offline offriamo diverse dimensioni del modello Gemma 3 (realizzato da Google)."
       },
       "compatibility": {
-        "question": "Funziona con tutte le app Mac e Windows?",
+        "question": "Funziona con tutte le mie app?",
         "answer": "Sì, funziona ovunque tu possa digitare. Che tu stia scrivendo email, documenti, codice o chattando. Premi la scorciatoia, parla e guarda le parole apparire all'istante."
       },
       "privacy": {
         "question": "Come viene protetta la mia privacy?",
-        "answer": "Quando usi la modalità locale, nessun dato lascia il tuo Mac o il tuo PC Windows.\n\nQuando usi la trascrizione cloud, i tuoi dati vengono inviati al provider cloud che scegli (ad esempio OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox o Google Gemini).\n\nPuoi verificarlo personalmente con un network inspector come [Proxyman](https://proxyman.io), un network monitor come [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), oppure leggendo il [codice sorgente su GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Quando usi la modalità locale, nessun dato lascia il tuo Mac, il tuo PC Windows o il tuo computer Linux.\n\nQuando usi la trascrizione cloud, i tuoi dati vengono inviati al provider cloud che scegli (ad esempio OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox o Google Gemini).\n\nPuoi verificarlo personalmente con un network inspector come [Proxyman](https://proxyman.io), un network monitor come [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), oppure leggendo il [codice sorgente su GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Cos'è HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud è una trascrizione cloud integrata pensata per utenti meno tecnici che vogliono iniziare rapidamente.\n\nSono crediti a consumo. Ricarichi a partire da appena $5 (1.000 crediti per $1) e li spendi solo mentre trascrivi. Il tuo primo acquisto di crediti crea automaticamente il tuo Account Key, quindi non c'è altro da comprare.\n    \nOffriamo quattro livelli di accuratezza: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) e Highest (Grok STT, predefinito per le nuove installazioni e basato su SpaceXAI Grok STT). Il post-processing è automatico e usa per impostazione predefinita Grok 4.1 Fast non-reasoning. Non memorizziamo nulla oltre a quanti crediti hai consumato, e ti abbiamo escluso dall'addestramento dei modelli presso ogni provider a monte che utilizziamo. Consulta la nostra [guida sulla Privacy dei dati](https://hyperwhisper.com/docs/data-privacy) per i dettagli.\n\nI crediti vengono spesi al costo di elaborazione dei provider stessi — nessun ricarico sulla trascrizione. Al checkout viene aggiunta una commissione fissa del 6% per l'elaborazione del pagamento, mostrata come voce separata. I crediti inutilizzati scadono dopo 12 mesi (vedi sotto).\n\nPer tua tranquillità, l'intera app è open source sotto licenza Apache-2.0 — incluso il backend Cloud. Puoi leggere ogni riga di codice che gira tra la tua app e i provider verso cui facciamo da proxy [su GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud è una trascrizione cloud integrata pensata per utenti meno tecnici che vogliono iniziare rapidamente.\n\nSono crediti a consumo. Ricarichi a partire da appena $5 (1.000 crediti per $1) e li spendi solo mentre trascrivi. Il tuo primo acquisto di crediti crea automaticamente il tuo Account Key, quindi non c'è altro da comprare.\n    \nHyperWhisper Cloud ti offre 12 provider di trascrizione, da Groq Whisper a ElevenLabs Scribe v2 (vedi [l'elenco completo e le tariffe](https://hyperwhisper.com/docs/cloud-credits)). Le nuove installazioni partono con ElevenLabs Scribe v2. Il post-processing è automatico e le nuove installazioni partono con Claude Haiku 5.5. Non memorizziamo nulla oltre a quanti crediti hai consumato, e ti abbiamo escluso dall'addestramento dei modelli presso ogni provider a monte che utilizziamo. Consulta la nostra [guida sulla Privacy dei dati](https://hyperwhisper.com/docs/data-privacy) per i dettagli.\n\nI crediti vengono spesi al costo di elaborazione dei provider stessi — nessun ricarico sulla trascrizione. Al checkout viene aggiunta una commissione fissa del 6% per l'elaborazione del pagamento, mostrata come voce separata. I crediti inutilizzati scadono dopo 12 mesi (vedi sotto).\n\nPer tua tranquillità, l'intera app è open source sotto licenza Apache-2.0 — incluso il backend Cloud. Puoi leggere ogni riga di codice che gira tra la tua app e i provider verso cui facciamo da proxy [su GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "I miei dati vocali verranno usati per addestrare modelli di IA?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Quali sono i requisiti di sistema?",
-        "answer": "Per Mac: macOS 14 o successivo, supporto per Apple Silicon e Intel. Per Windows: Windows 10/11, x64 o ARM64. Si consigliano 8GB di RAM per prestazioni ottimali."
+        "answer": "Per Mac: macOS 14 o successivo, supporto per Apple Silicon e Intel. Per Windows: Windows 10/11, x64 o ARM64. Per Linux v1: Ubuntu 22.04 o successivo oppure Debian 12 o successivo, su amd64. Si consigliano 8GB di RAM per prestazioni ottimali."
       },
       "madeBy": {
         "question": "Chi l'ha creato?",
@@ -272,7 +272,31 @@
     "homebrewTitle": "Installa via Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Copia",
-    "copied": "Copiato!"
+    "copied": "Copiato!",
+    "linuxSubtitle": "Pacchetto Debian per sistemi Intel/AMD a 64 bit",
+    "downloadLinux": "Scarica per Linux",
+    "downloadLinuxVersion": "Scarica per Linux v{version}",
+    "linuxReleaseNotes": "Checksum e note di rilascio",
+    "linuxInstallTitle": "Installa il pacchetto Debian",
+    "linuxTargets": "Linux v1 supporta Ubuntu 22.04+ e Debian 12+ su amd64.",
+    "linuxReplaceVersion": "Sostituisci VERSION con la versione che hai scaricato.",
+    "linuxInstallCommandLabel": "Comando di installazione Debian",
+    "linuxInputGroupNote": "Dopo esserti aggiunto al gruppo input, esci e accedi di nuovo. L'appartenenza è facoltativa, ma serve per le scorciatoie globali e l'incolla automatico.",
+    "aptTitle": "Ospita da te un repository APT",
+    "aptBody": "Le release per Linux includono anche un archivio statico del repository APT. Al momento HyperWhisper non gestisce un endpoint APT pubblico; consulta la guida all'installazione per Linux per la configurazione firmata e self-hosted, i componenti desktop complementari, i dettagli sulla privacy e la rimozione.",
+    "linuxGuideCta": "Leggi la guida all'installazione per Linux"
+  },
+  "olderVersions": {
+    "title": "Versioni precedenti",
+    "subtitle": "Sfoglia e scarica tutte le release di HyperWhisper",
+    "errorLoading": "Errore durante il caricamento delle versioni: {error}",
+    "unknownError": "Si è verificato un errore",
+    "loading": "Caricamento versioni...",
+    "latest": "Più recente",
+    "build": "Build {number}",
+    "downloadDmg": "Scarica DMG",
+    "downloadExe": "Scarica EXE",
+    "unknownSize": "Sconosciuta"
   },
   "purchaseSuccess": {
     "title": "Tutto pronto!",
@@ -289,7 +313,7 @@
     "loading": "Caricamento..."
   },
   "footer": {
-    "tagline": "Scrivi 5x più velocemente con la trascrizione vocale AI per macOS e Windows.",
+    "tagline": "Scrivi 5x più velocemente con la trascrizione vocale AI per macOS, Windows e Linux.",
     "product": "Prodotto",
     "resources": "Risorse",
     "company": "Azienda",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "Open source. Niente da nascondere.",
     "body": "HyperWhisper è completamente open-source sotto licenza Apache-2.0 — sia le app desktop sia il backend Cloud. Un'app che ascolta il tuo microfono dovrebbe essere qualcosa che puoi verificare, non solo in cui riporre fiducia: leggi ogni riga, controlla esattamente dove va il tuo audio e sappi che non resterai mai bloccato — il codice è tuo, libero di essere forkato e ospitato da te per sempre. Realizzato in modo aperto dall'indie maker Ray Amjad.",
-    "cta": "Visualizza su GitHub"
+    "cta": "Visualizza su GitHub",
+    "metaTitle": "Open source | HyperWhisper",
+    "metaDescription": "HyperWhisper è completamente open source con licenza Apache-2.0 — sia le app desktop sia il backend Cloud. Leggi il codice, verifica dove va il tuo audio, fai un fork e ospitalo da te per sempre.",
+    "eyebrow": "Open source",
+    "lead": "HyperWhisper ora è completamente open source con licenza Apache-2.0 — sia le app desktop sia il backend Cloud.",
+    "intro": "Un'app che ascolta il tuo microfono dovrebbe essere qualcosa che puoi verificare, non solo in cui riporre fiducia. Per questo abbiamo aperto tutto. Puoi leggere ogni riga di HyperWhisper — le app per macOS, Windows e Linux e il backend di trascrizione Cloud —, vedere esattamente dove va il tuo audio e sapere che non resterai mai bloccato. L'intero progetto si trova su <github>GitHub</github> con <license>licenza Apache-2.0</license>.",
+    "whyHeading": "Perché è importante",
+    "whyVerify": "<strong>Verifica, non fidarti e basta.</strong> Leggi ogni riga e controlla esattamente dove va il tuo audio. Un'app con accesso al microfono dovrebbe poter essere ispezionata, non accettata sulla fiducia.",
+    "whyNoLockIn": "<strong>Nessun lock-in.</strong> Il codice è Apache-2.0 — tuo da conservare, adattare ed eseguire alle tue condizioni. Il tuo flusso di lavoro non viene mai preso in ostaggio.",
+    "whyFork": "<strong>Fai un fork e ospitalo da te.</strong> Clona il repository, compilalo da solo o esegui il tuo backend Cloud. Tutto ciò che ti serve è pubblico.",
+    "whyOpen": "<strong>Sviluppato alla luce del sole.</strong> HyperWhisper è sviluppato pubblicamente dall'indie maker Ray Amjad. Issue, discussioni e release avvengono tutte in modo aperto.",
+    "licenseHeading": "Hai già acquistato una licenza?",
+    "licenseIntro": "HyperWhisper ora è open source e la trascrizione a pagamento funziona con i crediti di HyperWhisper Cloud. Se hai acquistato una licenza prima del passaggio, ecco come ci prendiamo cura di te — scrivi a <mail>{email}</mail> e sistemeremo tutto manualmente.",
+    "licenseRecent": "<strong>Acquistata negli ultimi 30 giorni:</strong> rientri nel periodo di rimborso. Ti rimborseremo l'acquisto per intero, senza fare domande. Basta <refund>inviarci un messaggio</refund>.",
+    "licenseOlder": "<strong>Acquistata più di 30 giorni fa:</strong> convertiremo quanto hai pagato in crediti di HyperWhisper Cloud — l'intero prezzo d'acquisto, meno i $5 di crediti già aggiunti al tuo account. <credits>Scrivici un'email</credits> e applicheremo il saldo.",
+    "contributeHeading": "Vuoi contribuire?",
+    "contributeBody": "Segnalazioni di bug, idee per nuove funzionalità e pull request sono tutte benvenute. Apri una issue o avvia una discussione <github>su GitHub</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper ora è completamente open source",
+    "shortText": "Ora open source",
+    "learnMore": "Scopri di più",
+    "dismiss": "Chiudi l'annuncio"
   },
   "notFound": {
     "title": "Pagina non trovata",
@@ -397,5 +443,9 @@
     "description": "Il link potrebbe essere errato oppure la pagina potrebbe essere stata spostata.",
     "home": "Vai alla home page",
     "download": "Scarica HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Questo link di accesso è scaduto o è già stato usato. Inserisci la tua email per riceverne uno nuovo.",
+    "magicLinkFailed": "Non è stato possibile farti accedere con quel link. Inserisci la tua email per riceverne uno nuovo."
   }
 }

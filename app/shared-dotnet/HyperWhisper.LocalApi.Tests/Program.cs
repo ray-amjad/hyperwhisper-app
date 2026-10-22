@@ -32,6 +32,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("error codes match the shared closed set", ErrorCodeParity),
     ("bounded multipart transcription", Multipart),
     ("Windows JSON transcription contract", JsonTranscriptionContract),
+    ("audio_base64 keeps the shared mime table and passes the raw mime_type on", Base64DeclaredMimeType),
     ("Windows JSON file source is private and bounded", JsonFileSecurity),
     ("Windows post-process application context contract", PostProcessContextContract),
     ("Windows endpoint contract snapshots and overrides", EndpointContractSnapshots),
@@ -64,6 +65,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("size limits and rejection messages match the shared core", SharedSizeLimits)
     ,("transcription failure table comes from the shared core", SharedTranscriptionFailures)
     ,("transcription failure code and message reach the wire", PortableTranscriptionFailuresReachTheWire)
+    ,("a deleted mode_id is MODE_NOT_FOUND and an unknown Parakeet model is MODEL_NOT_FOUND, before any work", MissingModeAndModelAreNotFound)
     ,("exactly one default mode, and its name is fixed", DefaultModeInvariant)
     ,("SIGTERM and SIGINT end a process hosting the Local API", SignalsEndTheProcess)
     ,("/recordings filters, counts and pages in SQL with the old match rule", () => InTokyo(RecordingsQueryRunsInSql))
@@ -72,6 +74,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("a Parakeet upload converts whatever the caller named it", ParakeetUploadConvertsWhateverItsName)
     ,("a busy workflow refuses a Parakeet upload before converting it", ParakeetUploadRefusedBusyBeforeConversion)
     ,("a converted upload whose first delete fails is still deleted", ConvertedUploadDeleteIsRetried)
+    ,("a Cloud mode posted with no cloudProvider stores and runs on HyperWhisper Cloud; an empty or whitespace one is refused", ApplicationBackendBlankCloudProviderRunsHyperWhisperCloud)
+    ,("head hooks are off by default and run after the guard and the bearer check", HeadHooks)
 };
 foreach (var test in tests)
 {
@@ -688,6 +692,7 @@ static async Task InTokyo(Func<Task> test)
     var previous = Environment.GetEnvironmentVariable("TZ");
     Environment.SetEnvironmentVariable("TZ", "Asia/Tokyo");
     TimeZoneInfo.ClearCachedData();
+    if (OperatingSystem.IsWindows()) ForceWindowsLocalZone("Tokyo Standard Time");
     try
     {
         Assert(TimeZoneInfo.Local.BaseUtcOffset == TimeSpan.FromHours(9),
@@ -699,6 +704,53 @@ static async Task InTokyo(Func<Task> test)
         Environment.SetEnvironmentVariable("TZ", previous);
         TimeZoneInfo.ClearCachedData();
     }
+}
+
+// Issue #356: the shared table folds an alias it does not know, and any
+// ";codecs=" parameter, into "audio/wav". That stays as it is, because Linux
+// reads ContentType and FileName. The caller's raw mime_type rides along in the
+// additive DeclaredMimeType, which only the Windows backend reads.
+static async Task Base64DeclaredMimeType()
+{
+    await using var fixture = await Fixture.Create();
+    fixture.Authenticate();
+    (string? Mime, string FileName, string ContentType)[] cases =
+    [
+        ("audio/webm;codecs=opus", "local-api-upload.wav", "audio/wav"),
+        ("audio/aac", "local-api-upload.wav", "audio/wav"),
+        ("audio/webm", "local-api-upload.webm", "audio/webm"),
+        ("audio/x-m4a", "local-api-upload.m4a", "audio/mp4"),
+        (null, "local-api-upload.wav", "audio/wav"),
+    ];
+    foreach (var (mime, fileName, contentType) in cases)
+    {
+        var mimeField = mime is null ? "" : $",\"mime_type\":{JsonSerializer.Serialize(mime)}";
+        using var body = new StringContent(
+            $"{{\"audio_base64\":\"AQIDBA==\",\"engine\":\"whisper\",\"model\":\"base\"{mimeField}}}",
+            Encoding.UTF8, "application/json");
+        using var response = await fixture.Client.PostAsync("/transcribe", body);
+        var upload = fixture.Backend.Upload;
+        Assert(response.StatusCode == HttpStatusCode.OK && upload is not null, $"mime_type '{mime}' was not transcribed");
+        Assert(upload!.FileName == fileName && upload.ContentType == contentType,
+            $"mime_type '{mime}' changed the shared name/type: {upload.FileName} {upload.ContentType}");
+        Assert(upload.DeclaredMimeType == mime,
+            $"mime_type '{mime}' reached the backend as DeclaredMimeType '{upload.DeclaredMimeType}'");
+    }
+}
+
+// Windows reads the local zone from the OS, not from TZ, so a runner in UTC
+// stays in UTC. Plant the zone in the runtime's own local-zone cache instead.
+// It is process-only, never touches the machine's zone, and the caller's
+// ClearCachedData drops it again. If the runtime renames the cache, the
+// offset Assert in InTokyo fails loudly rather than passing under UTC.
+static void ForceWindowsLocalZone(string windowsZoneId)
+{
+    if (TimeZoneInfo.Local.BaseUtcOffset == TimeZoneInfo.FindSystemTimeZoneById(windowsZoneId).BaseUtcOffset) return;
+    const System.Reflection.BindingFlags privateStatic = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+    const System.Reflection.BindingFlags privateInstance = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+    var cache = typeof(TimeZoneInfo).GetField("s_cachedData", privateStatic)?.GetValue(null);
+    var local = cache?.GetType().GetField("_localTimeZone", privateInstance);
+    local?.SetValue(cache, TimeZoneInfo.FindSystemTimeZoneById(windowsZoneId));
 }
 
 static void AssertProperties(JsonElement element, params string[] expected)
@@ -806,6 +858,85 @@ static async Task JsonFileSecurity()
     finally { File.Delete(outside); }
 }
 
+/// <summary>
+/// The four optional head hooks on <see cref="PortableLocalApiOptions"/>
+/// (issue #356, Windows on the shared server). Linux sets none of them, so the
+/// first half pins that they default to null; the second half pins where each
+/// one runs when a head does set it.
+/// </summary>
+static async Task HeadHooks()
+{
+    var defaults = new PortableLocalApiOptions(Fixture.Token);
+    Assert(defaults.AuthorizedRequestGate is null && defaults.IsAdditionalAllowedFile is null
+        && defaults.VerifyOpenedFile is null && defaults.OriginRejected is null, "a head hook is on by default");
+
+    var gateCalls = new List<string>();
+    var rejected = 0;
+    var outside = Path.Combine(Path.GetTempPath(), $"hyperwhisper-extra-{Guid.NewGuid():N}.wav");
+    var refusedByHandle = Path.Combine(Path.GetTempPath(), $"hyperwhisper-refused-{Guid.NewGuid():N}.wav");
+    await File.WriteAllBytesAsync(outside, [1, 2]);
+    await File.WriteAllBytesAsync(refusedByHandle, [1, 2]);
+    try
+    {
+        await using var fixture = await Fixture.Create(adjust: options => options with
+        {
+            AuthorizedRequestGate = async context =>
+            {
+                gateCalls.Add($"{context.Request.Method} {context.Request.Path}");
+                if (context.Request.Method != "DELETE") return true;
+                context.Response.StatusCode = 200;
+                await Microsoft.AspNetCore.Http.HttpResponseWritingExtensions.WriteAsync(context.Response,
+                    """{"ok":false,"error":{"code":"ENGINE_UNAVAILABLE","message":"gated"}}""");
+                return false;
+            },
+            IsAdditionalAllowedFile = path => path == outside || path == refusedByHandle,
+            VerifyOpenedFile = stream => stream.Name != refusedByHandle,
+            OriginRejected = _ => rejected++,
+        });
+
+        // /health is public and never reaches the gate.
+        Assert((await fixture.Client.GetAsync("/health")).StatusCode == HttpStatusCode.OK, "health failed with hooks set");
+        Assert(gateCalls.Count == 0, "the gate ran on /health");
+
+        // An unauthenticated request stops at the bearer check, before the gate.
+        Assert((await fixture.Client.DeleteAsync("/modes/x")).StatusCode == HttpStatusCode.Unauthorized, "gate ran before auth");
+        Assert(gateCalls.Count == 0, "the gate saw an unauthenticated request");
+
+        // A rebound request stops at the guard, and the guard reports it.
+        using (var rebound = new HttpRequestMessage(HttpMethod.Get, "/models"))
+        {
+            rebound.Headers.Host = "attacker.example";
+            Assert((await fixture.Client.SendAsync(rebound)).StatusCode == HttpStatusCode.Forbidden, "rebound request passed");
+        }
+        Assert(rejected == 1 && gateCalls.Count == 0, "OriginRejected was not told, or the gate saw a rebound request");
+
+        fixture.Authenticate();
+        Assert((await fixture.Client.GetAsync("/models")).StatusCode == HttpStatusCode.OK, "the gate refused a read");
+        await AssertBusinessFailure(await fixture.Client.DeleteAsync("/modes/x"), LocalApiErrorCodes.EngineUnavailable, "gated delete");
+        Assert(gateCalls.SequenceEqual(["GET /models", "DELETE /modes/x"]), $"gate calls were {string.Join(", ", gateCalls)}");
+
+        // A file outside the roots that the head allows is read.
+        using (var extra = JsonContent($$"""{"file":{{JsonSerializer.Serialize(outside)}},"engine":"whisper","model":"base"}"""))
+            Assert((await fixture.Client.PostAsync("/transcribe", extra)).StatusCode == HttpStatusCode.OK, "an extra allowed file was refused");
+        Assert(fixture.Backend.Upload?.Content.Span.SequenceEqual(new byte[] { 1, 2 }) == true, "extra file bytes changed");
+
+        // The opened-file check refuses with the outside-the-roots answer.
+        using (var refused = JsonContent($$"""{"file":{{JsonSerializer.Serialize(refusedByHandle)}},"engine":"whisper","model":"base"}"""))
+        {
+            var response = await fixture.Client.PostAsync("/transcribe", refused);
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert(response.StatusCode == HttpStatusCode.BadRequest
+                && document.RootElement.GetProperty("error").GetProperty("code").GetString() == LocalApiErrorCodes.FileNotAllowed,
+                "a file the opened-file check refused was read");
+        }
+    }
+    finally
+    {
+        File.Delete(outside);
+        File.Delete(refusedByHandle);
+    }
+}
+
 static async Task PostProcessContextContract()
 {
     await using var fixture = await Fixture.Create();
@@ -841,9 +972,19 @@ static async Task PostProcessContextContract()
         Assert(skippedJson.RootElement.GetProperty("post_processed").ValueKind == JsonValueKind.False,
             "post_processed must be false when no LLM ran, not dropped and not true");
         Assert(skippedJson.RootElement.GetProperty("ok").GetBoolean(),
-            "graceful degradation keeps ok:true — post_processed is the only signal");
+            "graceful degradation keeps ok:true for a provider failure — post_processed is the only signal");
     }
     fixture.Backend.PostProcessApplied = true;
+
+    // The one exception (issue #1487, Ray inbox #298): no account key on a
+    // HyperWhisper Cloud run is a configuration fault, refused with the same
+    // MISSING_API_KEY envelope /transcribe gives for that mode.
+    fixture.Backend.PostProcessCloudAccountMissing = true;
+    using (var noKey = await fixture.Client.PostAsync("/post-process", JsonContent("""{"text":"raw words","prompt":"Translate to French"}""")))
+    {
+        await AssertBusinessFailure(noKey, LocalApiErrorCodes.MissingApiKey, "a Cloud run with no account key");
+    }
+    fixture.Backend.PostProcessCloudAccountMissing = false;
 
     using var conflicting = JsonContent("""{"text":"raw","preset":"hyper","prompt":"custom"}""");
     Assert((await fixture.Client.PostAsync("/post-process", conflicting)).StatusCode == HttpStatusCode.BadRequest,
@@ -1569,6 +1710,112 @@ static async Task ApplicationBackendErrors()
 }
 
 /// <summary>
+/// A deleted <c>mode_id</c> and an unknown Parakeet-family model are the
+/// caller's mistakes, answered as Windows answers them and before any work
+/// (issue #1935).
+/// </summary>
+/// <remarks>
+/// This head answered a deleted <c>mode_id</c> on <c>/transcribe</c> and
+/// <c>/post-process</c> with HTTP 400 <c>INVALID_REQUEST</c> and a generic
+/// message, while <c>GET /modes/&lt;id&gt;</c> answered <c>MODE_NOT_FOUND</c>
+/// for the same id. <c>engine: parakeet</c> with an unknown model reached the
+/// daemon transcriber, which refused it as <c>INVALID_REQUEST</c> only after
+/// the upload was staged and a failed History row written.
+/// </remarks>
+static async Task MissingModeAndModelAreNotFound()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var history = new HistoryRepository(database);
+    var modes = new ModeRepository(database);
+    var transcriber = new FixedTextTranscriber("ran");
+    using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), transcriber, history);
+    var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0",
+        postProcessor: new ModeLookupPostProcessor(modes));
+    await using var fixture = await Fixture.Create(backend: backend);
+    fixture.Authenticate();
+
+    async Task AssertNoWork(string what)
+    {
+        Assert(transcriber.Request is null, $"{what}: the transcriber ran");
+        Assert(!Directory.EnumerateFiles(paths.RecordingsDirectory, "local-api-*").Any(), $"{what}: an upload was staged");
+        Assert((await history.ListAsync()).Count == 0, $"{what}: a History row was written");
+    }
+
+    async Task AssertNotFound(HttpResponseMessage response, string code, string message, string what)
+    {
+        await AssertBusinessFailure(response, code, what);
+        var actual = await FailureMessage(response);
+        Assert(actual == message, $"{what}: expected \"{message}\", got \"{actual}\"");
+    }
+
+    static MultipartFormDataContent Clip(params (string Name, string Value)[] fields)
+    {
+        var form = new MultipartFormDataContent();
+        form.Add(new ByteArrayContent([1, 2, 3]), "audio", "clip.wav");
+        foreach (var (name, value) in fields) form.Add(new StringContent(value), name);
+        return form;
+    }
+
+    var deleted = Guid.NewGuid().ToString("D");
+
+    using (var form = Clip(("mode_id", deleted)))
+        await AssertNotFound(await fixture.Client.PostAsync("/transcribe", form),
+            LocalApiErrorCodes.ModeNotFound, $"No mode with id '{deleted}'", "multipart /transcribe, deleted mode_id");
+    await AssertNoWork("multipart /transcribe, deleted mode_id");
+
+    using (var json = new StringContent($"{{\"audio_base64\":\"AQID\",\"mode_id\":\" {deleted} \"}}", Encoding.UTF8, "application/json"))
+        await AssertNotFound(await fixture.Client.PostAsync("/transcribe", json),
+            LocalApiErrorCodes.ModeNotFound, $"No mode with id '{deleted}'", "JSON /transcribe, deleted mode_id");
+    await AssertNoWork("JSON /transcribe, deleted mode_id");
+
+    // The GET route answered this code for the same id already; all three agree now.
+    await AssertBusinessFailure(await fixture.Client.GetAsync($"/modes/{deleted}"), LocalApiErrorCodes.ModeNotFound, "GET /modes, deleted id");
+
+    // Through the middleware, the post-processor's refusal is the same envelope.
+    using (var post = new StringContent($"{{\"text\":\"hello\",\"mode_id\":\"{deleted}\"}}", Encoding.UTF8, "application/json"))
+        await AssertNotFound(await fixture.Client.PostAsync("/post-process", post),
+            LocalApiErrorCodes.ModeNotFound, $"No mode with id '{deleted}'", "/post-process, deleted mode_id");
+
+    // A malformed id is still a malformed request, on both heads.
+    using (var form = Clip(("mode_id", "not-a-guid")))
+    {
+        var malformed = await fixture.Client.PostAsync("/transcribe", form);
+        Assert(malformed.StatusCode == HttpStatusCode.BadRequest && await FailureCode(malformed) == LocalApiErrorCodes.InvalidRequest,
+            "a malformed mode_id is no longer HTTP 400 INVALID_REQUEST");
+    }
+
+    using (var form = Clip(("engine", "parakeet"), ("model", "nope")))
+        await AssertNotFound(await fixture.Client.PostAsync("/transcribe", form),
+            LocalApiErrorCodes.ModelNotFound, "Parakeet-family model 'nope' is not recognized", "engine parakeet, unknown model");
+    await AssertNoWork("engine parakeet, unknown model");
+
+    // A stored local Parakeet mode with an unknown model, overridden by nothing.
+    using (var body = new StringContent(ModeBody("Stored Parakeet"), Encoding.UTF8, "application/json"))
+        Assert((await fixture.Client.PostAsync("/modes", body)).StatusCode == HttpStatusCode.OK, "mode create failed");
+    var stored = (await modes.ListAsync()).Single(item => item.Name == "Stored Parakeet");
+    stored.ProviderType = "local";
+    stored.LocalEngine = "parakeet";
+    stored.LocalParakeetModel = stored.Model = "gone-model";
+    await modes.UpsertAsync(stored);
+    using (var form = Clip(("mode_id", stored.Id.ToString("D"))))
+        await AssertNotFound(await fixture.Client.PostAsync("/transcribe", form),
+            LocalApiErrorCodes.ModelNotFound, "Parakeet-family model 'gone-model' is not recognized", "stored Parakeet mode, unknown model");
+    await AssertNoWork("stored Parakeet mode, unknown model");
+
+    // Control: a catalog model in any case still runs, so the check refuses
+    // only what the daemon would refuse.
+    using (var form = Clip(("engine", "parakeet"), ("model", "Parakeet-V2")))
+    {
+        var ran = await fixture.Client.PostAsync("/transcribe", form);
+        using var document = JsonDocument.Parse(await ran.Content.ReadAsStringAsync());
+        Assert(ran.StatusCode == HttpStatusCode.OK && document.RootElement.GetProperty("ok").GetBoolean(), "a catalog Parakeet model was refused");
+    }
+    Assert(transcriber.Request is not null, "a catalog Parakeet model did not reach the transcriber");
+}
+
+/// <summary>
 /// A transcription that failed reaches the wire as the code and the message it
 /// actually carried (issue #356 item 4).
 /// </summary>
@@ -1646,6 +1893,18 @@ static async Task PortableTranscriptionFailuresReachTheWire()
         LocalApiErrorCodes.Timeout,
         "Transcription was cancelled.",
         "cancelled transcription");
+
+    // No account key on a HyperWhisper Cloud run: MISSING_API_KEY, the exact
+    // envelope /post-process sends for the same mode (issue #1487, review R2-1).
+    // This head used to answer ENGINE_UNAVAILABLE here.
+    var cloudAccount = LocalApiFailureException.CloudAccountRequired();
+    await Assert357(
+        new CloudAccountRequiredTranscriber(),
+        new NoDevices(),
+        async client => { using var form = Clip(); return await client.PostAsync("/transcribe", form); },
+        LocalApiErrorCodes.MissingApiKey,
+        cloudAccount.Message,
+        "a Cloud transcription with no account key");
 
     // The `/recording/*` routes reach the same table through
     // `ThrowWorkflowFailure`, which did a partial two-way split of the SAME
@@ -1768,7 +2027,9 @@ static async Task ApplicationBackendModeRouting()
     await AssertThrowsAsync<ArgumentException>(() => backend.TranscribeAsync(new AudioUpload(
         "junk.wav", "audio/wav", new byte[] { 2 }, null, "vosk", null, "en"), CancellationToken.None).AsTask());
     var stagedBeforeInvalid = Directory.EnumerateFiles(paths.RecordingsDirectory, "local-api-*").Count();
-    await AssertThrowsAsync<ArgumentException>(() => backend.TranscribeAsync(new AudioUpload("bad.wav", "audio/wav", new byte[] { 3 }, Guid.NewGuid().ToString("D"), null, null, null), CancellationToken.None).AsTask());
+    // A missing mode is MODE_NOT_FOUND now, as on Windows (issue #1935); it was an ArgumentException.
+    var missingMode = await AssertThrowsAsync<LocalApiFailureException>(() => backend.TranscribeAsync(new AudioUpload("bad.wav", "audio/wav", new byte[] { 3 }, Guid.NewGuid().ToString("D"), null, null, null), CancellationToken.None).AsTask());
+    Assert(missingMode.Code == LocalApiErrorCodes.ModeNotFound, $"a missing mode was {missingMode.Code}, not {LocalApiErrorCodes.ModeNotFound}");
     Assert(Directory.EnumerateFiles(paths.RecordingsDirectory, "local-api-*").Count() == stagedBeforeInvalid, "invalid mode retained an orphaned upload");
     await using (var fixture = await Fixture.Create(backend: backend))
     {
@@ -2866,6 +3127,105 @@ static JsonElement Json(string value)
 /// non-optional, and that is the set the published contract carries — so two
 /// heads are catching up to the third rather than the doc being weakened.
 /// </remarks>
+/// <summary>
+/// Issues #1689 and #1709: <c>openapi.yaml</c> lets <c>POST /modes</c> omit
+/// <c>cloudProvider</c>, and macOS and Windows read that omission as HyperWhisper
+/// Cloud. This head refused the write ("Cloud provider is invalid."), and had it
+/// stored, its router would have failed every transcription with "The selected
+/// cloud transcription provider is not supported."
+/// </summary>
+/// <remarks>
+/// Driven end to end: the body goes through the real HTTP pipeline into the real
+/// backend and database, and the stored mode is then dictated through
+/// <c>POST /transcribe</c> into the real <see cref="ModeAwareTranscriptionRouter"/>,
+/// with only the network client faked. The stored value stays null — the rule is
+/// a READ rule — so <c>GET /modes</c> keeps answering without a provider.
+/// </remarks>
+static async Task ApplicationBackendBlankCloudProviderRunsHyperWhisperCloud()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var history = new HistoryRepository(database);
+    var modes = new ModeRepository(database);
+    var cloud = new RecordingBatchCloud();
+    using var router = new ModeAwareTranscriptionRouter(new UnavailableTranscriber(), new UnavailableTranscriber(), cloud);
+    using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), router, history);
+    var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0");
+    await using var fixture = await Fixture.Create(backend: backend);
+    fixture.Authenticate();
+
+    // The issue's body, verbatim.
+    using (var body = new StringContent(
+        """{"name":"S8 Cloud","preset":"hyper","language":"en","model":"cloud","punctuation":true,"capitalization":true,"profanityFilter":false,"postProcessingMode":0}""",
+        Encoding.UTF8, "application/json"))
+    {
+        var response = await fixture.Client.PostAsync("/modes", body);
+        Assert(response.StatusCode == HttpStatusCode.OK, $"POST /modes with no cloudProvider answered {(int)response.StatusCode}");
+        var created = await response.Content.ReadAsStringAsync();
+        using var envelope = JsonDocument.Parse(created);
+        Assert(!(envelope.RootElement.TryGetProperty("ok", out var ok) && !ok.GetBoolean()),
+            $"POST /modes with no cloudProvider was refused: {created}");
+    }
+
+    // Only an OMITTED provider is the blank case. An empty or whitespace string is
+    // refused exactly as before #1709: stored verbatim, another head could read it
+    // as an id rather than as blank and route the mode to a BYOK provider.
+    foreach (var (name, provider) in new[] { ("S8 Empty", ""), ("S8 Spaces", "   ") })
+    {
+        using var body = new StringContent(
+            ModeBody(name, extra: $$""" "cloudProvider":{{JsonSerializer.Serialize(provider)}} """, model: "cloud"),
+            Encoding.UTF8, "application/json");
+        var response = await fixture.Client.PostAsync("/modes", body);
+        var text = await response.Content.ReadAsStringAsync();
+        Assert(response.StatusCode == HttpStatusCode.BadRequest,
+            $"POST /modes with cloudProvider {JsonSerializer.Serialize(provider)} answered {(int)response.StatusCode}: {text}");
+        Assert(text.Contains("\"INVALID_REQUEST\"", StringComparison.Ordinal),
+            $"POST /modes with cloudProvider {JsonSerializer.Serialize(provider)} did not answer INVALID_REQUEST: {text}");
+        Assert((await modes.ListAsync()).All(mode => mode.Name != name),
+            $"POST /modes with cloudProvider {JsonSerializer.Serialize(provider)} stored a mode");
+        // The 400 is the cloud-provider check itself (the pre-#1709 refusal), not some other rule.
+        var refused = await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(
+            Json(ModeBody(name, extra: $$""" "cloudProvider":{{JsonSerializer.Serialize(provider)}} """, model: "cloud")),
+            CancellationToken.None).AsTask());
+        Assert(refused.Message == "Cloud provider is invalid.",
+            $"cloudProvider {JsonSerializer.Serialize(provider)} was refused for another reason: {refused.Message}");
+    }
+
+    var stored = (await modes.ListAsync()).Single(mode => mode.Name == "S8 Cloud");
+    Assert(stored.ProviderType == "cloud", $"the posted mode stored providerType '{stored.ProviderType}', not cloud");
+    Assert(string.IsNullOrEmpty(stored.CloudProvider),
+        $"the blank provider must stay blank in storage (a read rule only), got '{stored.CloudProvider}'");
+
+    // GET /modes still answers without a provider, as macOS and Windows do.
+    using (var listed = JsonDocument.Parse(await fixture.Client.GetStringAsync("/modes")))
+    {
+        var text = listed.RootElement.GetRawText();
+        Assert(text.Contains("S8 Cloud", StringComparison.Ordinal), "GET /modes does not list the posted mode");
+        Assert(!text.Contains("\"cloudProvider\":\"hyperwhisper\"", StringComparison.Ordinal),
+            "GET /modes now reports a cloudProvider the caller never stored");
+    }
+
+    // The router's own parse, through the shared rule.
+    Assert(ModeAwareTranscriptionRouter.TryMapProvider(
+            SharedCoreBridge.EffectiveModeCloudProvider(stored.CloudProvider), out var mapped)
+        && mapped == CloudTranscriptionProvider.HyperWhisperCloud,
+        $"the router maps the posted mode to {mapped}, not HyperWhisperCloud");
+
+    // And the real dispatch: dictate with that mode over HTTP.
+    using var upload = new MultipartFormDataContent();
+    upload.Add(new ByteArrayContent([1, 2, 3, 4]), "audio", "s8.wav");
+    upload.Add(new StringContent(stored.Id.ToString("D")), "mode_id");
+    var transcribed = await fixture.Client.PostAsync("/transcribe", upload);
+    var transcribedBody = await transcribed.Content.ReadAsStringAsync();
+    Assert(cloud.LastRequest is not null,
+        $"the blank-provider mode never reached the cloud client: {(int)transcribed.StatusCode} {transcribedBody}");
+    Assert(cloud.LastRequest!.Provider == CloudTranscriptionProvider.HyperWhisperCloud,
+        $"the blank-provider mode was dispatched to {cloud.LastRequest.Provider}, not HyperWhisperCloud");
+    Assert(transcribed.StatusCode == HttpStatusCode.OK && transcribedBody.Contains("cloud words", StringComparison.Ordinal),
+        $"/transcribe did not return the cloud transcript: {(int)transcribed.StatusCode} {transcribedBody}");
+}
+
 static string ModeBody(string name, string? extra = null, string model = "base") =>
     $$"""
     {"name":{{JsonSerializer.Serialize(name)}},"preset":"hyper","language":"en","model":{{JsonSerializer.Serialize(model)}},"punctuation":true,"capitalization":true,"profanityFilter":false{{(extra is null ? "" : "," + extra)}}}
@@ -3093,12 +3453,14 @@ sealed class Fixture : IAsyncDisposable
     public required FakeBackend Backend { get; init; }
     public required string AllowedRoot { get; init; }
     public void Authenticate() => Client.DefaultRequestHeaders.Authorization = new("Bearer", Token);
-    public static async Task<Fixture> Create(int maxUpload = 1024, ILocalApiBackend? backend = null)
+    public static async Task<Fixture> Create(int maxUpload = 1024, ILocalApiBackend? backend = null,
+        Func<PortableLocalApiOptions, PortableLocalApiOptions>? adjust = null)
     {
         backend ??= new FakeBackend();
         var allowedRoot = Path.Combine(Path.GetTempPath(), $"hyperwhisper-local-api-files-{Guid.NewGuid():N}");
         Directory.CreateDirectory(allowedRoot);
         var options = new PortableLocalApiOptions(Token, ConfiguredPort, MaxRequestBytes, maxUpload, AllowedFileRoots: [allowedRoot]);
+        if (adjust is not null) options = adjust(options);
         var app = PortableLocalApi.Build([], options, backend, builder => builder.WebHost.UseTestServer());
         await app.StartAsync();
         var client = app.GetTestClient();
@@ -3148,8 +3510,17 @@ sealed class FakeBackend : ILocalApiBackend
     /// from one that writes a constant (issue #499).
     /// </summary>
     public bool PostProcessApplied { get; set; } = true;
+    /// <summary>
+    /// Makes <see cref="PostProcessAsync"/> refuse the way a head's adapter does
+    /// for a HyperWhisper Cloud run with no account key (issue #1487).
+    /// </summary>
+    public bool PostProcessCloudAccountMissing { get; set; }
     public ValueTask<PostProcessResult> PostProcessAsync(PostProcessRequest request, CancellationToken ct)
-    { PostProcess = request; return ValueTask.FromResult(new PostProcessResult(request.Text, "fake", "fake", "hyper", 1, PostProcessApplied)); }
+    {
+        PostProcess = request;
+        if (PostProcessCloudAccountMissing) throw LocalApiFailureException.CloudAccountRequired();
+        return ValueTask.FromResult(new PostProcessResult(request.Text, "fake", "fake", "hyper", 1, PostProcessApplied));
+    }
     /// <summary>
     /// The full match set this fake holds. <see cref="GetRecordingsAsync"/> pages it
     /// with the query's limit, so a caller can set more rows than the limit and get
@@ -3192,7 +3563,29 @@ sealed class TempPaths : IAppPaths, IDisposable
     public string RecordingsDirectory => DataDirectory;
     public string RuntimeDirectory => DataDirectory;
     public string TemporaryDirectory => DataDirectory;
-    public void Dispose() { if (Directory.Exists(DataDirectory)) Directory.Delete(DataDirectory, recursive: true); }
+    public void Dispose()
+    {
+        if (!Directory.Exists(DataDirectory)) return;
+        // Windows (this suite runs there since #356) holds each SQLite file open
+        // in Microsoft.Data.Sqlite's connection pool after the last DbContext is
+        // disposed, so the recursive delete fails with "the process cannot
+        // access the file". Linux lets the unlink through regardless. Draining
+        // the pool releases the handles; the retry covers a handle the OS has
+        // not finished closing yet. Same fix as HyperWhisper.Backup.Application.Tests.
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                Directory.Delete(DataDirectory, recursive: true);
+                return;
+            }
+            catch (IOException) when (attempt < 5)
+            {
+                Thread.Sleep(200);
+            }
+        }
+    }
 }
 
 class DiskPrivateFiles : IPrivateFileService
@@ -3319,6 +3712,15 @@ sealed class CancelledTranscriber : IRecordedAudioTranscriber
         => Task.FromResult(PortableTranscriptionResult.Failed(PortableTranscriptionErrorCode.Cancelled, "Transcription was cancelled.", "Cancelling"));
 }
 
+/// <summary>What the cloud router returns for a HyperWhisper Cloud mode with no account key.</summary>
+sealed class CloudAccountRequiredTranscriber : IRecordedAudioTranscriber
+{
+    public TranscriptionBackendCapability Capability { get; } = new(true, "HyperWhisper Cloud");
+    public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, string? language, CancellationToken cancellationToken = default)
+        => Task.FromResult(PortableTranscriptionResult.Failed(
+            PortableTranscriptionErrorCode.CloudAccountRequired, "A HyperWhisper account key is required.", "HyperWhisper Cloud"));
+}
+
 /// <summary>Returns one fixed transcript and remembers the request it ran under.</summary>
 sealed class FixedTextTranscriber(string text) : IRecordedAudioTranscriber
 {
@@ -3425,4 +3827,30 @@ sealed class ThrowOnStopService : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     public Task StopAsync(CancellationToken cancellationToken) => Task.FromException(new InvalidOperationException("expected stop failure"));
+}
+
+sealed class RecordingBatchCloud : IBatchCloudTranscriptionClient
+{
+    public CloudTranscriptionRequest? LastRequest { get; private set; }
+    public Task<CloudTranscriptionResult> TranscribeAsync(CloudTranscriptionRequest request, CancellationToken token = default)
+    {
+        LastRequest = request;
+        return Task.FromResult(CloudTranscriptionResult.Success(new("cloud words", null, null, "upstream"), 1));
+    }
+}
+
+/// <summary>
+/// The Linux post-processor's mode lookup in miniature: an id no stored mode
+/// has is refused with <see cref="LocalApiFailureException.ModeNotFound"/>
+/// (issue #1935). The real adapter is pinned in the Linux Composition tests.
+/// </summary>
+sealed class ModeLookupPostProcessor(ModeRepository modes) : ILocalApiPostProcessor
+{
+    public async ValueTask<PostProcessResult> ProcessAsync(PostProcessRequest request, CancellationToken cancellationToken)
+    {
+        var id = Guid.Parse(request.ModeId!.Trim());
+        if (!(await modes.ListAsync(cancellationToken)).Any(item => item.Id == id))
+            throw LocalApiFailureException.ModeNotFound(request.ModeId.Trim());
+        throw new InvalidOperationException("Post-processing is not configured.");
+    }
 }

@@ -4,7 +4,7 @@
  * All database operations go through Drizzle ORM (Neon/PlanetScale).
  */
 
-import { eq, and, desc, gte, inArray, count, countDistinct, sql, ilike } from "drizzle-orm";
+import { eq, and, or, asc, desc, gte, inArray, count, countDistinct, sql, ilike } from "drizzle-orm";
 import { generateLicenseKey } from "@/lib/services/license-key";
 import { db } from "@/src/db";
 import {
@@ -85,7 +85,11 @@ export interface CreditGrantRefund {
 }
 
 export interface CreditGrantRefundResult {
-  status: "processed" | "duplicate";
+  /**
+   * "duplicate": the grant already records this refund total. "not_found":
+   * no grant exists for the source yet (e.g. the refund beat the mint, #1798).
+   */
+  status: "processed" | "duplicate" | "not_found";
   /** Credits of value this call newly recorded as refunded. */
   refundedAmount: number;
   /** Credits this call took off the grant's spendable remainder. */
@@ -505,6 +509,21 @@ export async function grantCreditsForStripeEvent(
 }
 
 /**
+ * True when a Stripe object (a Checkout Session id) already has its completed
+ * event recorded in `stripe_processed_events`. The table is keyed by event id
+ * with a unique index on `stripe_object_id`, and a credit purchase writes the
+ * session id there in the same transaction as its grant (#1834).
+ */
+export async function hasProcessedStripeObject(stripeObjectId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ eventId: stripeProcessedEvents.eventId })
+    .from(stripeProcessedEvents)
+    .where(eq(stripeProcessedEvents.stripeObjectId, stripeObjectId))
+    .limit(1);
+  return Boolean(row);
+}
+
+/**
  * Record a refund against ONE grant and take the refunded credits off it.
  *
  * RULE (#1351, Ray 2026-10-07): a refund removes credits from the refunded
@@ -549,7 +568,9 @@ export async function refundCreditGrant(
 
     const grant = target.rows[0];
     if (!grant) {
-      return { status: "duplicate", refundedAmount: 0, removedAmount: 0 };
+      // Not a duplicate: nothing was refunded. The caller decides whether a
+      // missing grant is normal or must be retried (#1798).
+      return { status: "not_found", refundedAmount: 0, removedAmount: 0 };
     }
 
     const originalAmount = Number(grant.original_amount);
@@ -661,9 +682,30 @@ export async function spendCreditGrantsByProvenance(
  *
  * Returns the new cached aggregate balance. The public API response shape is
  * preserved, but the underlying grant rows record which source was consumed.
+ *
+ * The floor at zero swallows any part of `amount` the grants cannot cover. That
+ * overspend is written off, never carried as a negative balance, and logged as
+ * one structured `credits_shortfall` line (#2008) so it can be counted. The
+ * cloud logs the same event, with `source: "cloud"`, for overspend it catches
+ * before it charges. No account identifier is logged.
  */
 export async function deductCreditBalance(userId: string, amount: number): Promise<number> {
   const result = await spendCreditGrantsByProvenance(userId, amount);
+  const shortfall = amount - result.deductedAmount;
+
+  // Grant amounts are stored to the cent, so anything under one is float noise.
+  if (shortfall > 0.005) {
+    console.warn(
+      JSON.stringify({
+        event: "credits_shortfall",
+        source: "license_api",
+        requestedCredits: amount,
+        deductedCredits: result.deductedAmount,
+        shortfallCredits: Math.round(shortfall * 100) / 100,
+      }),
+    );
+  }
+
   return result.balance;
 }
 
@@ -960,36 +1002,78 @@ export async function upsertDeviceValidation(
     });
 }
 
+/** Rows per page of the admin per-key device list (#1661). */
+export const DEVICES_PAGE_SIZE = 50;
+
+/**
+ * Escapes `\`, `%` and `_` so a user's text matches itself literally inside
+ * a LIKE / ILIKE pattern (Postgres's default escape character is `\`).
+ */
+export function escapeLikePattern(text: string): string {
+  return text.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+}
+
+/**
+ * One page of a key's devices, plus how many devices match in total (#1661).
+ * A key can hold over a thousand devices, so the admin Devices page asks for
+ * them 50 at a time instead of every row at once.
+ *
+ * - `sinceDays` keeps only devices validated inside that window.
+ * - `search` matches the device name or the device id, case-insensitive, as
+ *   literal text (LIKE wildcards in it are escaped).
+ * - Ordered most recently validated first, then by device id, so a page
+ *   boundary never shifts between two requests with tied timestamps.
+ */
 export async function getDevicesForLicense(
   licenseKeyId: string,
-  sinceDays?: number
-): Promise<
-  Array<{
+  sinceDays?: number,
+  page: { limit?: number; offset?: number; search?: string } = {}
+): Promise<{
+  devices: Array<{
     deviceId: string;
     deviceName: string | null;
     createdAt: Date;
     lastValidatedAt: Date;
-  }>
-> {
+  }>;
+  total: number;
+}> {
   const conditions = [eq(deviceValidations.licenseKeyId, licenseKeyId)];
   if (sinceDays) {
     const since = new Date();
     since.setDate(since.getDate() - sinceDays);
     conditions.push(gte(deviceValidations.lastValidatedAt, since));
   }
+  const search = page.search?.trim();
+  if (search) {
+    const pattern = `%${escapeLikePattern(search)}%`;
+    const match = or(
+      ilike(deviceValidations.deviceName, pattern),
+      ilike(deviceValidations.deviceId, pattern)
+    );
+    if (match) conditions.push(match);
+  }
+  const where = and(...conditions);
 
-  const rows = await db
-    .select({
-      deviceId: deviceValidations.deviceId,
-      deviceName: deviceValidations.deviceName,
-      createdAt: deviceValidations.createdAt,
-      lastValidatedAt: deviceValidations.lastValidatedAt,
-    })
-    .from(deviceValidations)
-    .where(and(...conditions))
-    .orderBy(desc(deviceValidations.lastValidatedAt));
+  const [devices, countRows] = await Promise.all([
+    db
+      .select({
+        deviceId: deviceValidations.deviceId,
+        deviceName: deviceValidations.deviceName,
+        createdAt: deviceValidations.createdAt,
+        lastValidatedAt: deviceValidations.lastValidatedAt,
+      })
+      .from(deviceValidations)
+      .where(where)
+      .orderBy(
+        desc(deviceValidations.lastValidatedAt),
+        asc(deviceValidations.deviceId)
+      )
+      .limit(page.limit ?? DEVICES_PAGE_SIZE)
+      .offset(page.offset ?? 0),
+    db.select({ total: count() }).from(deviceValidations).where(where),
+  ]);
 
-  return rows;
+  return { devices, total: Number(countRows[0]?.total ?? 0) };
 }
 
 export async function getDeviceCountsPerLicense(sinceDays?: number): Promise<

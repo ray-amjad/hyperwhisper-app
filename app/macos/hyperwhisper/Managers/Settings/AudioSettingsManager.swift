@@ -39,10 +39,16 @@ class AudioSettingsManager: ObservableObject {
 
     // MARK: - Microphone Settings
 
-    /// Selected microphone device ID
-    /// Empty string means use system default microphone
-    /// Device IDs are persistent identifiers from AVCaptureDevice
+    /// The microphone HyperWhisper records from, as a CoreAudio device UID
+    /// (`AudioDevice.uid`). Empty string means follow the macOS default input.
+    /// Choosing one never changes the macOS default input. Kept while the device is
+    /// unplugged; recording falls back to the default until it returns.
     @AppStorage("selectedMicrophoneId") var selectedMicrophoneId: String = ""
+
+    /// Display name of `selectedMicrophoneId`, saved so an unplugged choice can still be
+    /// shown by name ("<name> (not connected)"). Empty for choices saved by builds before
+    /// the microphone picker; the UI then shows the UID until the device is seen again.
+    @AppStorage("selectedMicrophoneName") var selectedMicrophoneName: String = ""
 
     /// Whether to automatically increase microphone volume
     /// When enabled, attempts to boost low input levels during recording
@@ -179,6 +185,8 @@ enum SoundTheme: String, CaseIterable {
 /// BEHAVIOR:
 /// - .off: No audio changes during recording (default)
 /// - .muteAudio: Mutes system output volume, restores after recording
+/// - .muffleAudio: Keeps other audio playing through a low-pass filter, so it
+///   sounds like it plays in the next room (Core Audio process tap)
 ///
 /// MIGRATION:
 /// - v2.30: Users with the old boolean "pauseOtherAudioDuringRecording" setting
@@ -188,6 +196,7 @@ enum SoundTheme: String, CaseIterable {
 enum MediaControlMode: String, CaseIterable, Codable {
     case off
     case muteAudio
+    case muffleAudio
 
     /// Localized display name for use in the settings UI
     /// Returns translated string based on current app locale
@@ -197,6 +206,8 @@ enum MediaControlMode: String, CaseIterable, Codable {
             return NSLocalizedString("settings.general.mediaControl.mode.off", value: "Off", comment: "Media control mode: disabled")
         case .muteAudio:
             return NSLocalizedString("settings.general.mediaControl.mode.mute", value: "Mute Audio", comment: "Media control mode: mute system audio")
+        case .muffleAudio:
+            return NSLocalizedString("settings.general.mediaControl.mode.muffle", value: "Muffle Audio", comment: "Media control mode: muffle other audio with a low-pass filter")
         }
     }
 

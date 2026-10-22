@@ -186,10 +186,10 @@ internal static class Program
     /// fallback (<c>"zh-CN"</c>).
     /// </para>
     /// <para>
-    /// <c>tools/parakeet-engine/main.cpp</c> (the Windows x64 C++ daemon) still
-    /// carries its own copy of the old four-code table and is deliberately not
-    /// changed here; it is a separate process with no .NET runtime to reach the
-    /// core through.
+    /// <c>tools/parakeet-engine/main.cpp</c> (the Windows x64 C++ daemon) has no
+    /// .NET runtime to reach the core through, so the Windows host decides the
+    /// join from the core and passes it to both daemons as <c>--segment-join</c>
+    /// (#902), which wins over this lookup (<see cref="DaemonOptions.SegmentJoin"/>).
     /// </para>
     /// </summary>
     public static bool IsNoSpaceLanguage(string code) => SharedCoreBridge.IsNoSpaceLanguage(code);
@@ -255,12 +255,20 @@ internal sealed class DaemonOptions
     public string? VadModelPath { get; init; }
     public string Engine { get; init; } = "nemo_transducer";
 
+    /// <summary>
+    /// The separator the host decided for the VAD segments (<c>--segment-join
+    /// none|space</c> → <c>""</c> / <c>" "</c>), or null when the host passed none
+    /// and the daemon resolves the join from <see cref="Language"/> itself (#902).
+    /// </summary>
+    public string? SegmentJoin { get; init; }
+
     public static DaemonOptions? Parse(string[] args)
     {
         string? model = null;
         string language = "en";
         string? vad = null;
         string engine = "nemo_transducer";
+        string? segmentJoin = null;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -278,6 +286,15 @@ internal sealed class DaemonOptions
                 case "--engine" when i + 1 < args.Length:
                     engine = args[++i];
                     break;
+                case "--segment-join" when i + 1 < args.Length:
+                    segmentJoin = args[++i] switch
+                    {
+                        "none" => "",
+                        "space" => " ",
+                        _ => null,
+                    };
+                    if (segmentJoin == null) return null;
+                    break;
             }
         }
 
@@ -289,7 +306,8 @@ internal sealed class DaemonOptions
             ModelDirectory = model,
             Language = string.IsNullOrWhiteSpace(language) ? "auto" : language,
             VadModelPath = vad,
-            Engine = engine
+            Engine = engine,
+            SegmentJoin = segmentJoin
         };
     }
 }
@@ -324,7 +342,7 @@ internal sealed class EngineSession : IDisposable
         _isQwen3 = options.Engine == "qwen3";
         _isOnline = options.Engine == "nemotron_ml";
         _qwen3Language = _isQwen3 ? Program.Qwen3LanguageName(options.Language) : "";
-        _segmentJoin = Program.IsNoSpaceLanguage(options.Language) ? "" : " ";
+        _segmentJoin = options.SegmentJoin ?? (Program.IsNoSpaceLanguage(options.Language) ? "" : " ");
         Provider = provider;
     }
 
@@ -482,12 +500,22 @@ internal sealed class EngineSession : IDisposable
     /// agreement engine both come from <c>hw_text</c>, and the same string is
     /// the daemon's only remaining input to either.
     /// </para>
+    /// <para>
+    /// A separator the host decided (<see cref="DaemonOptions.SegmentJoin"/>)
+    /// wins over the language (#902).
+    /// </para>
     /// </summary>
-    private string JoinSegments(List<string> parts) => JoinSegments(_options.Language, parts);
+    private string JoinSegments(List<string> parts) => JoinSegments(_options.Language, _options.SegmentJoin, parts);
 
     /// <summary>Test seam for <see cref="JoinSegments(List{string})"/>.</summary>
     internal static string JoinSegments(string? language, IEnumerable<string> parts)
         => SharedCoreBridge.JoinSegments(language, parts);
+
+    /// <summary>Test seam for <see cref="JoinSegments(List{string})"/> with a host-decided separator.</summary>
+    internal static string JoinSegments(string? language, string? segmentJoin, IEnumerable<string> parts)
+        => segmentJoin == null
+            ? SharedCoreBridge.JoinSegments(language, parts)
+            : string.Join(segmentJoin, parts.Where(part => !string.IsNullOrWhiteSpace(part)));
 
     private string DecodeOffline(float[] samples, int sampleRate)
     {

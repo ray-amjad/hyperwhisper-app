@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>برنامج آخر يقفل قاعدة بيانات السجل. تم الاحتفاظ بالتسجيل وسيُحفظ في السجل عندما تصبح قاعدة البيانات متاحة.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>تعذّر حفظ هذا التسجيل في السجل حتى الآن. تم الاحتفاظ بالتسجيل وسيُحفظ في السجل لاحقًا.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
@@ -793,6 +799,12 @@
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (غير مفعّل)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (لا يوجد مفتاح API)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -822,6 +834,9 @@
   </data>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>تم إلغاء تفريغ الملف</value>
+  </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>جارٍ تفريغ الملف...</value>
   </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
@@ -1084,6 +1099,9 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>اختصارات المُعدِّل الفردي مثل Ctrl أو Alt أو Shift أو Win غير مدعومة. استخدم مفتاحًا مع مُعدِّلات أو اختصارًا متعدد المُعدِّلات مثل Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>يجب أن يكون الاختصار الذي لا يحتوي على مفتاح تعديل مفتاح وظيفة أو Esc. أي مفتاح آخر سيعمل أثناء الكتابة.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>هذا الاختصار مستخدم بالفعل لـ {0} ({1})</value>
   </data>
@@ -1297,6 +1315,9 @@ You can re-download it later.</value>
   </data>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
+  </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>هذا لا يبدو مفتاح حساب.</value>
   </data>
 
   <!-- Models - ARM64 and GPU -->
@@ -1711,6 +1732,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>المزيد...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -2005,11 +2029,35 @@ You can re-download it later.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>إخماد الصوت</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>يستخدمه HyperWhisper فقط. يُحفَظ بعد إعادة التشغيل.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>الافتراضي · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (غير متصل)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>يتم استخدام {0} حتى تتم إعادة توصيل {1}.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>لا يوجد ميكروفون متصل. سيستخدم HyperWhisper {0} عند إعادة توصيله.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>اختبار</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>إيقاف</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

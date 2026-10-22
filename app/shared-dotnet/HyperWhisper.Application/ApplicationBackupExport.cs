@@ -315,6 +315,13 @@ public sealed partial class ApplicationBackupService(
         var peerWon = peer is not null && own == peer;
         var normalized = NormalizeCloudRouting(value, withoutPeerSlice: linux is not null && own == linux);
         var preservedExtensions = extensions?.DeepClone() as JsonObject;
+        // No slice says: a Cloud mode is `model == "cloud"` OR a set cloudProvider
+        // (#1690). A Cloud mode with a blank provider stores HyperWhisper Cloud.
+        var providerType = String(own, "providerType")
+            ?? (String(value, "model") == "cloud" || !string.IsNullOrWhiteSpace(String(value, "cloudProvider")) ? "cloud" : "local");
+        var cloudProvider = String(normalized, "cloudProvider");
+        if (providerType == "cloud" && string.IsNullOrWhiteSpace(cloudProvider))
+            cloudProvider = SharedCoreBridge.EffectiveModeCloudProvider(cloudProvider);
         return new Mode
         {
             Id = Guid.Parse(value["id"]!.GetValue<string>()), Name = normalized["name"]!.GetValue<string>(),
@@ -323,7 +330,7 @@ public sealed partial class ApplicationBackupService(
             IsDefault = Bool(value, "isDefault"), SortOrder = Int(value, "sortOrder"),
             Punctuation = Bool(value, "punctuation", true), Capitalization = Bool(value, "capitalization", true),
             ProfanityFilter = Bool(value, "profanityFilter"), RemoveTrailingPeriod = Bool(value, "removeTrailingPeriod"),
-            EnglishSpelling = String(value, "englishSpelling"), CloudProvider = String(normalized, "cloudProvider"),
+            EnglishSpelling = String(value, "englishSpelling"), CloudProvider = cloudProvider,
             CloudTranscriptionModel = String(normalized, "cloudTranscriptionModel"), CloudTranscriptionDomain = String(normalized, "cloudTranscriptionDomain"),
             PostProcessingMode = Int(value, "postProcessingMode"), PostProcessingProvider = String(value, "postProcessingProvider"),
             LanguageModel = String(value, "languageModel"), LocalPostProcessingModel = (peerWon ? String(peer, "localPostProcessingModel") : null) ?? String(value, "localPostProcessingModel"),
@@ -332,7 +339,7 @@ public sealed partial class ApplicationBackupService(
             CloudAccuracyTier = String(normalized, "cloudAccuracyTier") ?? ModeDefaults.CloudAccuracyTier,
             CloudPostProcessingModel = String(normalized, "cloudPostProcessingModel") ?? ModeDefaults.CloudPostProcessingModel,
             LocalEngine = String(own, "localEngine") ?? "whisper", LocalParakeetModel = String(own, "localParakeetModel"),
-            ProviderType = String(own, "providerType") ?? (String(value, "cloudProvider") is null ? "local" : "cloud"),
+            ProviderType = providerType,
             EnableScreenOCR = ScreenOcr(linux is null ? null : own, linux, extensions), CustomVocabulary = StringList(own, "customVocabulary"),
             IsSystemProvided = Bool(own, "isSystemProvided"),
             ForeignPlatformExtensions = preservedExtensions is null || preservedExtensions.Count == 0 ? null : preservedExtensions.ToJsonString(),

@@ -144,7 +144,8 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
             return;
 
         var key = LicenseKeyInput.Trim();
-        if (key.Length == 0)
+        // #1489: text that cannot be a key is never sent; the button is already off for it.
+        if (!IsLicenseKeyPlausible)
             return;
 
         // What this check is ABOUT, captured before the await. Everything the
