@@ -62,7 +62,7 @@ jobs:
     # Recent green runs finish in 5-8 minutes (Rust core rebuild + full Debug
     # build + unit tests), so 60 leaves generous headroom for a cold runner
     # while still turning a wedged test into a fast, obvious failure.
-    timeout-minutes: 60
+    timeout-minutes: 170
     steps:
       # ----------------------------------------------------------------
       # 1. Checkout
@@ -176,9 +176,8 @@ jobs:
       - name: Run unit tests
         run: |
           touch "$RUNNER_TEMP/hyperwhisper-test-start"
-          echo "THROWAWAY #2399 proof: 20x TranscriptionOutcomePerCallTests, fix vs main, under CPU stress"
-          ncpu=$(sysctl -n hw.ncpu); for i in $(seq $((ncpu*2))); do (yes > /dev/null &) ; done
-          xcodebuild test-without-building -project app/macos/hyperwhisper.xcodeproj -scheme hyperwhisper -configuration Debug -destination "platform=macOS" -only-testing:hyperwhisperTests/TranscriptionOutcomePerCallTests -test-iterations 20 CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS="" > "$RUNNER_TEMP/after.log" 2>&1 || true
+          echo "THROWAWAY #2399 proof: 12x the FULL hyperwhisperTests bundle, fix vs main"
+          xcodebuild test-without-building -project app/macos/hyperwhisper.xcodeproj -scheme hyperwhisper -configuration Debug -destination "platform=macOS" -only-testing:hyperwhisperTests -test-iterations 12 -resultBundlePath "$RUNNER_TEMP/after.xcresult" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS="" > "$RUNNER_TEMP/after.log" 2>&1 || true
           grep -E "overlappingCloudCalls|interleavedCalls" "$RUNNER_TEMP/after.log" | grep -E "passed|failed" | head -60 || true
           grep -E "Expectation failed|recorded an issue|TranscriptionOutcomePerCallTests.swift:[0-9]+" "$RUNNER_TEMP/after.log" | head -20 || true
           echo "AFTER: passed=$(grep -c "overlappingCloudCalls.*passed" "$RUNNER_TEMP/after.log") failed=$(grep -c "overlappingCloudCalls.*failed" "$RUNNER_TEMP/after.log")"
@@ -186,11 +185,11 @@ jobs:
           git fetch -q origin main
           git show origin/main:app/macos/hyperwhisperTests/TranscriptionOutcomePerCallTests.swift > app/macos/hyperwhisperTests/TranscriptionOutcomePerCallTests.swift
           xcodebuild build-for-testing -project app/macos/hyperwhisper.xcodeproj -scheme hyperwhisper -configuration Debug -destination "platform=macOS" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS="" -quiet || true
-          xcodebuild test-without-building -project app/macos/hyperwhisper.xcodeproj -scheme hyperwhisper -configuration Debug -destination "platform=macOS" -only-testing:hyperwhisperTests/TranscriptionOutcomePerCallTests -test-iterations 20 CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS="" > "$RUNNER_TEMP/before.log" 2>&1 || true
+          xcodebuild test-without-building -project app/macos/hyperwhisper.xcodeproj -scheme hyperwhisper -configuration Debug -destination "platform=macOS" -only-testing:hyperwhisperTests -test-iterations 12 -resultBundlePath "$RUNNER_TEMP/before.xcresult" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS="" > "$RUNNER_TEMP/before.log" 2>&1 || true
           grep -E "overlappingCloudCalls" "$RUNNER_TEMP/before.log" | grep -E "passed|failed" | head -60 || true
           grep -E "Expectation failed|recorded an issue|TranscriptionOutcomePerCallTests.swift:[0-9]+" "$RUNNER_TEMP/before.log" | head -40 || true
           echo "BEFORE: passed=$(grep -c "overlappingCloudCalls.*passed" "$RUNNER_TEMP/before.log") failed=$(grep -c "overlappingCloudCalls.*failed" "$RUNNER_TEMP/before.log")"
-          killall yes || true
+          for b in after before; do echo "== $b xcresult failure messages in TranscriptionOutcomePerCallTests"; xcrun xcresulttool get test-results tests --path "$RUNNER_TEMP/$b.xcresult" > "$RUNNER_TEMP/$b.json" 2>&1 || true; grep -oE '"name" *: *"[^"]*TranscriptionOutcomePerCallTests.swift:[0-9]+[^"]*"' "$RUNNER_TEMP/$b.json" | sort | uniq -c | head -30 || true; done
           grep -q "overlappingCloudCalls.*failed" "$RUNNER_TEMP/after.log" && exit 1 || exit 0
 
       # A macOS unit test runs INSIDE the app. When the app aborts, XCTest
