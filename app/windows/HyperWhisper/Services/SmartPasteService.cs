@@ -1,22 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Automation;
-using System.Windows.Media.Imaging;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Platform;
 using static HyperWhisper.Services.SmartPasteDelayTable;
 using static HyperWhisper.Services.SmartPasteNativeMethods;
 using PlatformContracts = HyperWhisper.Platform.Abstractions;
-
-// Alias WPF clipboard types to avoid ambiguity with WinForms
-using Clipboard = System.Windows.Clipboard;
-using DataFormats = System.Windows.DataFormats;
-using DataObject = System.Windows.DataObject;
 
 namespace HyperWhisper.Services;
 
@@ -299,7 +292,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
 
         try
         {
-            SetClipboardText(text);
+            ClipboardBackup.SetClipboardText(text);
             _clipboard.MarkClipboardHoldsOwnTranscript();
             LoggingService.Info("SmartPasteService: Text copied to clipboard (auto-paste disabled)");
             SmartPasteDiagnostics.Report(PasteOutcome.ClipboardOnly, attempt);
@@ -338,22 +331,6 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         }
 
         return attempt;
-    }
-
-    /// <summary>
-    /// Classifies the paste target for diagnostics. This is the axis the paste
-    /// path already branches on (Chromium skips text-field detection), so it is
-    /// the axis a failure has to be faceted by.
-    /// </summary>
-    private static string ClassifyPasteTarget(string processName, bool isBrowser, bool isElectron)
-    {
-        // "unknown" means the lookup ran and failed, which is a real finding.
-        // It is NOT the same as SmartPasteDiagnostics.NotEvaluated, which means
-        // the flow exited before this step.
-        if (string.IsNullOrEmpty(processName)) return "unknown";
-        if (isBrowser) return "browser";
-        if (isElectron) return "electron";
-        return "native";
     }
 
     /// <summary>
@@ -486,7 +463,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         // Step 1: Copy text to clipboard (always do this as fallback)
         try
         {
-            SetClipboardText(text);
+            ClipboardBackup.SetClipboardText(text);
             _clipboard.MarkClipboardHoldsOwnTranscript();
             LoggingService.Debug("SmartPasteService: Text copied to clipboard");
         }
@@ -808,34 +785,6 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
                 return (isTextField, isPassword);
             },
             fallback: (false, false));
-
-    // =========================================================================
-    // PRIVATE HELPERS
-    // =========================================================================
-
-    /// <summary>
-    /// Sets text on the clipboard, optionally excluding it from Windows clipboard
-    /// history (Win+V) and third-party clipboard managers.
-    ///
-    /// Uses the "ExcludeClipboardContentFromMonitorProcessing" clipboard format,
-    /// which is the standard Windows mechanism for hiding sensitive clipboard data.
-    /// This is the same approach used by password managers (1Password, KeePass, etc.)
-    /// and is the Windows equivalent of macOS's org.nspasteboard.ConcealedType.
-    /// </summary>
-    private static void SetClipboardText(string text)
-    {
-        if (SettingsService.Instance.HideFromClipboardHistory)
-        {
-            var dataObject = new DataObject();
-            dataObject.SetData(DataFormats.UnicodeText, text);
-            dataObject.SetData("ExcludeClipboardContentFromMonitorProcessing", "");
-            Clipboard.SetDataObject(dataObject, true);
-        }
-        else
-        {
-            Clipboard.SetText(text);
-        }
-    }
 
     // =========================================================================
     // IDISPOSABLE IMPLEMENTATION

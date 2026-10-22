@@ -607,6 +607,34 @@ internal sealed class ClipboardBackup : IDisposable
     }
 
     // =========================================================================
+    // TRANSCRIPT WRITE
+    // =========================================================================
+
+    /// <summary>
+    /// Sets text on the clipboard, optionally excluding it from Windows clipboard
+    /// history (Win+V) and third-party clipboard managers.
+    ///
+    /// Uses the "ExcludeClipboardContentFromMonitorProcessing" clipboard format,
+    /// which is the standard Windows mechanism for hiding sensitive clipboard data.
+    /// This is the same approach used by password managers (1Password, KeePass, etc.)
+    /// and is the Windows equivalent of macOS's org.nspasteboard.ConcealedType.
+    /// </summary>
+    internal static void SetClipboardText(string text)
+    {
+        if (SettingsService.Instance.HideFromClipboardHistory)
+        {
+            var dataObject = new DataObject();
+            dataObject.SetData(DataFormats.UnicodeText, text);
+            dataObject.SetData("ExcludeClipboardContentFromMonitorProcessing", "");
+            Clipboard.SetDataObject(dataObject, true);
+        }
+        else
+        {
+            Clipboard.SetText(text);
+        }
+    }
+
+    // =========================================================================
     // IDISPOSABLE IMPLEMENTATION
     // =========================================================================
 

@@ -8,9 +8,10 @@ namespace HyperWhisper.Services;
 
 /// <summary>
 /// The static data SmartPasteService and ClipboardBackup branch on: the
-/// browser and Electron process names that get the Chromium paste path, and
-/// the clipboard formats a snapshot preserves. Split out of SmartPasteService
-/// (#862); the values are unchanged.
+/// browser and Electron process names that get the Chromium paste path (and
+/// the diagnostics classification built on them), and the clipboard formats a
+/// snapshot preserves. Split out of SmartPasteService (#862); the values are
+/// unchanged.
 /// </summary>
 internal static class SmartPasteDelayTable
 {
@@ -36,6 +37,22 @@ internal static class SmartPasteDelayTable
     {
         "Code", "Cursor", "Windsurf", "Simplenote"
     };
+
+    /// <summary>
+    /// Classifies the paste target for diagnostics. This is the axis the paste
+    /// path already branches on (Chromium skips text-field detection), so it is
+    /// the axis a failure has to be faceted by.
+    /// </summary>
+    internal static string ClassifyPasteTarget(string processName, bool isBrowser, bool isElectron)
+    {
+        // "unknown" means the lookup ran and failed, which is a real finding.
+        // It is NOT the same as SmartPasteDiagnostics.NotEvaluated, which means
+        // the flow exited before this step.
+        if (string.IsNullOrEmpty(processName)) return "unknown";
+        if (isBrowser) return "browser";
+        if (isElectron) return "electron";
+        return "native";
+    }
 
     // =========================================================================
     // CLIPBOARD FORMAT SUPPORT
