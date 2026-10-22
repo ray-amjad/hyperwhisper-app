@@ -73,9 +73,10 @@ export function providerAudioReservation(
   if (providerReservation) return providerReservation(sizeBytes);
 
   // Every other provider takes compressed audio, whose size says little about
-  // its length: an hour of 8 kbps Opus is 3.6 MB (#2483). So the hold waits for
-  // the body and reads the length from the container. The route buffers the
-  // whole body anyway; this only moves that before the hold.
+  // its length: an hour of 8 kbps Opus is 3.6 MB (#2483). So the exact hold
+  // waits for the body and reads the length from the container. While the body
+  // is read, the route holds `preBufferAudioSeconds` provisionally, which bounds
+  // how many uploads one balance can have buffering at once.
   return {
     requiresBufferedBody: true,
     estimatedAudioSeconds: estimateAudioSecondsFromSize(sizeBytes),

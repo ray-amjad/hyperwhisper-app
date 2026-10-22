@@ -109,9 +109,13 @@ export async function prepareTranscriptionAudio({
       contentLength, provider, model, medical, initialPrompt, language,
       audioReservation.preBufferAudioSeconds,
     );
-    // A floor check only, so it takes no hold: concurrent requests that each
-    // held a floor here could leave none of them room for its exact hold below.
-    const minimumCreditCheck = await validateCredits(auth, minimumEstimatedCredits, clientIP, { hold: false });
+    // The floor is held PROVISIONALLY while the body is read: it is counted
+    // against every other hold on the balance, so a key cannot buffer more
+    // uploads at once than its balance covers floors for (each one can be
+    // 128 MB of memory). No other request's exact hold counts it, so
+    // concurrent floors cannot starve each other's exact hold below, which
+    // replaces this one (#2483).
+    const minimumCreditCheck = await validateCredits(auth, minimumEstimatedCredits, clientIP, { provisional: true });
     if (!minimumCreditCheck.ok) {
       logEvent(requestId, startTime, 'transcribe.request_rejected', {
         reason: 'credits_failed_before_buffer',
