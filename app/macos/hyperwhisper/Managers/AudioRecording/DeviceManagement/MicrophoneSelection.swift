@@ -10,7 +10,12 @@
 //  level preview, streaming capture and keep-warm then open the chosen device directly.
 //
 //  The saved choice is kept while its device is unplugged: recording falls back to the
-//  macOS default meanwhile and returns to the chosen device as soon as it reappears.
+//  automatic pick meanwhile and returns to the chosen device as soon as it reappears.
+//
+//  The automatic pick (no choice, or the chosen device unplugged) is the macOS default
+//  input, except when that default is a virtual device (BlackHole, Loopback, VB-CABLE…)
+//  and a non-virtual input is connected: then it is the first non-virtual input, because
+//  a virtual device carries app audio, not the user's voice (issue #2408).
 //  Everything in this file is pure or lock-guarded, so it can be unit tested without
 //  CoreAudio and read from any thread.
 //
@@ -37,11 +42,12 @@ struct MicrophoneChoice: Equatable, Hashable, Sendable {
 
 /// What the saved choice means against the devices that are connected right now.
 enum MicrophoneResolution: Equatable, Sendable {
-    /// No choice saved: follow the macOS default input, whatever it is at the time.
+    /// No choice saved: record from the automatic pick (`AutomaticMicrophonePick`) —
+    /// the macOS default input unless that is a virtual device.
     case systemDefault
     /// The chosen device is connected and is the one HyperWhisper records from.
     case chosen(AudioDevice)
-    /// The chosen device is not connected. HyperWhisper records from the macOS default
+    /// The chosen device is not connected. HyperWhisper records from the automatic pick
     /// meanwhile and keeps the choice, so the device is used again when it returns.
     case chosenNotConnected(MicrophoneChoice)
 
@@ -67,13 +73,20 @@ enum MicrophoneResolution: Equatable, Sendable {
 
     /// The UID HyperWhisper must open itself, or `nil` to let macOS route the default.
     ///
-    /// A chosen device that IS the current macOS default needs no pinning: the existing
-    /// `AVAudioRecorder` path already records from the default, and keeping that path
-    /// for it leaves the most-used configuration on the long-proven capture code.
-    func pinnedDeviceUID(systemDefaultUID: String?) -> String? {
-        guard case .chosen(let device) = self else { return nil }
-        if let systemDefaultUID, device.uid == systemDefaultUID { return nil }
-        return device.uid
+    /// - A connected chosen device is always used, virtual or not. One that IS the
+    ///   current macOS default needs no pinning: the existing `AVAudioRecorder` path
+    ///   already records from the default, and keeping that path for it leaves the
+    ///   most-used configuration on the long-proven capture code.
+    /// - Otherwise (no choice, or the chosen device unplugged) the automatic pick is
+    ///   used, pinned only when it is not the default — that is, when a virtual default
+    ///   is skipped.
+    func pinnedDeviceUID(systemDefaultUID: String?, devices: [AudioDevice]) -> String? {
+        if case .chosen(let device) = self {
+            if let systemDefaultUID, device.uid == systemDefaultUID { return nil }
+            return device.uid
+        }
+        return AutomaticMicrophonePick.resolve(devices: devices, systemDefaultUID: systemDefaultUID)
+            .pinnedDeviceUID
     }
 
     /// The saved choice whose device is missing, if that is the situation.
@@ -83,20 +96,90 @@ enum MicrophoneResolution: Equatable, Sendable {
     }
 }
 
+// MARK: - Virtual Inputs
+
+/// Inputs that carry app audio (or nothing) instead of the user's voice: loopback
+/// drivers, meeting-app capture devices, "Stereo Mix". They stay in every picker and a
+/// user may choose one by hand, but the automatic pick skips them.
+enum VirtualMicrophoneDetector {
+    /// Matched against the device NAME, case-insensitive substring, in this order.
+    ///
+    /// KEEP IN SYNC: the Windows (`app/windows`) and Linux (`app/linux`) heads carry the
+    /// same list in their own microphone-selection code (issue #2408). Change all three.
+    ///
+    /// Not virtual on purpose, because they carry the user's own processed voice: Krisp,
+    /// NVIDIA Broadcast, Elgato Wave Link and any aggregate device. That is also why the
+    /// CoreAudio transport type is not used: Krisp reports `virtual`.
+    static let virtualNameMarkers: [String] = [
+        "BlackHole",
+        "Soundflower",
+        "Loopback Audio",
+        "VB-Audio",
+        "VB-Cable",
+        "CABLE Output",
+        "CABLE-A Output",
+        "CABLE-B Output",
+        "VoiceMeeter",
+        "Virtual Audio Cable",
+        "ZoomAudioDevice",
+        "Microsoft Teams Audio",
+        "Background Music",
+        "eqMac",
+        "Stereo Mix",
+        "What U Hear",
+        "Wave Out Mix",
+    ]
+
+    static func isVirtual(name: String) -> Bool {
+        virtualNameMarkers.contains { name.range(of: $0, options: .caseInsensitive) != nil }
+    }
+}
+
+// MARK: - Automatic Pick
+
+/// The device HyperWhisper records from when no chosen microphone is connected: the
+/// macOS default input, unless it is virtual and a non-virtual input is connected, in
+/// which case the first non-virtual input (CoreAudio enumeration order). An all-virtual
+/// Mac still records from its default.
+struct AutomaticMicrophonePick: Equatable, Sendable {
+    /// The device used, or `nil` when the default is unknown or not in the list (then
+    /// macOS routes the default and nothing is pinned).
+    let device: AudioDevice?
+    /// The virtual default that was passed over, if one was.
+    let skippedVirtualDefault: AudioDevice?
+
+    static func resolve(devices: [AudioDevice], systemDefaultUID: String?) -> AutomaticMicrophonePick {
+        guard let systemDefaultUID,
+              let defaultDevice = devices.first(where: { $0.uid == systemDefaultUID }) else {
+            return AutomaticMicrophonePick(device: nil, skippedVirtualDefault: nil)
+        }
+        guard VirtualMicrophoneDetector.isVirtual(name: defaultDevice.name),
+              let physical = devices.first(where: { !VirtualMicrophoneDetector.isVirtual(name: $0.name) }) else {
+            return AutomaticMicrophonePick(device: defaultDevice, skippedVirtualDefault: nil)
+        }
+        return AutomaticMicrophonePick(device: physical, skippedVirtualDefault: defaultDevice)
+    }
+
+    /// The UID to open instead of the default, or `nil` when the default is the pick.
+    var pinnedDeviceUID: String? {
+        skippedVirtualDefault == nil ? nil : device?.uid
+    }
+}
+
 // MARK: - Labels
 
 /// User-facing labels for the microphone picker, shared by Settings and the menu bar.
 enum MicrophonePickerLabels {
-    /// The name of the current macOS default input, or a generic name when unknown.
+    /// The name of the device the "Default" row records from — the automatic pick, so
+    /// a skipped virtual default is not named — or a generic name when unknown.
     static func defaultDeviceName(devices: [AudioDevice], systemDefaultUID: String?) -> String {
-        if let systemDefaultUID,
-           let device = devices.first(where: { $0.uid == systemDefaultUID }) {
+        if let device = AutomaticMicrophonePick.resolve(devices: devices, systemDefaultUID: systemDefaultUID).device {
             return device.name
         }
         return "audio.device.default".localized
     }
 
-    /// "Default · <current default device>"
+    /// "Default · <automatic pick>"
     static func defaultOption(defaultDeviceName: String) -> String {
         "microphone.picker.default".localized(arguments: defaultDeviceName)
     }
@@ -157,21 +240,60 @@ enum MicrophoneCaptureRouting {
     /// The `AudioDeviceID` a capture should open for `preferredUID`, or `nil` to record
     /// from the macOS default.
     ///
-    /// `nil` when there is no choice, when the chosen device is not connected (the
-    /// fallback), or when it is the current default (see
-    /// `MicrophoneResolution.pinnedDeviceUID`).
+    /// - The chosen device while it is connected — `nil` when it is the current default
+    ///   (see `MicrophoneResolution.pinnedDeviceUID`).
+    /// - Otherwise (no choice, or the chosen device unplugged) the automatic pick:
+    ///   `nil` for the default, or the first non-virtual input when the default is a
+    ///   virtual device (`AutomaticMicrophonePick`).
     ///
-    /// BLOCKS: two CoreAudio reads. Call it off the main actor
-    /// (`await offMainActor { … }`) or from code already off it.
+    /// BLOCKS: CoreAudio reads (a full input enumeration when there is no connected
+    /// choice). Call it off the main actor (`await offMainActor { … }`) or from code
+    /// already off it.
     nonisolated static func captureDeviceID(preferredUID: String?) -> AudioDeviceID? {
-        guard let preferredUID, !preferredUID.isEmpty else { return nil }
-        guard let deviceID = CoreAudioDeviceHelper.findAudioDeviceID(byUID: preferredUID) else {
-            AppLogger.audio.notice("Chosen microphone is not connected - recording from the macOS default input")
+        if let preferredUID, !preferredUID.isEmpty {
+            if let deviceID = CoreAudioDeviceHelper.findAudioDeviceID(byUID: preferredUID) {
+                if let defaultID = CoreAudioDeviceHelper.getSystemDefaultInputDeviceID(), defaultID == deviceID {
+                    return nil
+                }
+                return deviceID
+            }
+            AppLogger.audio.notice("Chosen microphone is not connected - recording from the automatic pick")
+        }
+        return automaticPickOverrideDeviceID()
+    }
+
+    /// The device the automatic pick records from: the pinned stand-in for a skipped
+    /// virtual default, else the macOS default. `DeviceAudioRecorder` falls back to it
+    /// when the chosen device stops opening mid-capture.
+    ///
+    /// BLOCKS: CoreAudio reads. Call it off the main actor.
+    nonisolated static func automaticInputDeviceID() -> AudioDeviceID? {
+        automaticPickOverrideDeviceID() ?? CoreAudioDeviceHelper.getSystemDefaultInputDeviceID()
+    }
+
+    /// The automatic pick's device ID when it is NOT the macOS default (a virtual default
+    /// was skipped), else `nil`.
+    nonisolated private static func automaticPickOverrideDeviceID() -> AudioDeviceID? {
+        let enumeration = CoreAudioDeviceHelper.fetchCoreAudioInputDevicesWithIDs()
+        let pick = AutomaticMicrophonePick.resolve(
+            devices: enumeration.devices,
+            systemDefaultUID: CoreAudioDeviceHelper.getSystemDefaultInputDeviceUID()
+        )
+        guard let pinnedUID = pick.pinnedDeviceUID,
+              let deviceID = enumeration.deviceIDsByUID[pinnedUID] else {
             return nil
         }
-        if let defaultID = CoreAudioDeviceHelper.getSystemDefaultInputDeviceID(), defaultID == deviceID {
-            return nil
-        }
+        logSkippedVirtualDefault(pick)
         return deviceID
+    }
+
+    /// One line whenever the automatic pick passes over a virtual default. Device names
+    /// are logged `.public`, as everywhere else in the audio log (`selectDevice`,
+    /// keep-warm); they never go to Sentry from here.
+    nonisolated static func logSkippedVirtualDefault(_ pick: AutomaticMicrophonePick) {
+        guard let skipped = pick.skippedVirtualDefault, let device = pick.device else { return }
+        let skippedName = skipped.name
+        let usedName = device.name
+        AppLogger.audio.notice("Default input \(skippedName, privacy: .public) looks like a virtual device - recording from \(usedName, privacy: .public) instead")
     }
 }

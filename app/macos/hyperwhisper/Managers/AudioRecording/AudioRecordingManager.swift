@@ -1090,8 +1090,9 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// real recording.
     ///
     /// Meters the device HyperWhisper would record from right now: the chosen
-    /// microphone when it is connected and is not the macOS default (a meter-only
-    /// `DeviceAudioRecorder`, opened off the main actor), otherwise the default input
+    /// microphone when it is connected and is not the macOS default, or the automatic
+    /// pick's stand-in for a virtual default (a meter-only `DeviceAudioRecorder`,
+    /// opened off the main actor), otherwise the default input
     /// (an `AVAudioRecorder` writing to `/dev/null`). Levels are normalized
     /// (-60…0 dB → 0…1) exactly like `SimpleRecorder.readNormalizedLevel`. Call it again
     /// after changing the device to re-point it.
@@ -1119,12 +1120,19 @@ class AudioRecordingManager: NSObject, ObservableObject {
         let generation = inputLevelPreviewGeneration
 
         // Decide from cached state; the device lookup itself happens off the main actor.
-        let pinnedUID = MicrophoneResolution
+        // With no connected choice this is the automatic pick, so a virtual default
+        // (BlackHole, Loopback…) is metered only when no physical input exists (#2408).
+        let resolution = MicrophoneResolution
             .resolve(savedUID: preferredMicrophone?.uid, savedName: nil, devices: availableDevices)
-            .pinnedDeviceUID(systemDefaultUID: systemDefaultDeviceUID)
+        let pinnedUID = resolution.pinnedDeviceUID(systemDefaultUID: systemDefaultDeviceUID, devices: availableDevices)
 
         guard let pinnedUID else {
             return startDefaultInputLevelPreview()
+        }
+        if case .chosen = resolution {} else {
+            MicrophoneCaptureRouting.logSkippedVirtualDefault(
+                AutomaticMicrophonePick.resolve(devices: availableDevices, systemDefaultUID: systemDefaultDeviceUID)
+            )
         }
 
         let queue = inputLevelPreviewMeterQueue

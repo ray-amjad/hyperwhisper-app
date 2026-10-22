@@ -240,8 +240,9 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     /// Where the WAV goes, or `nil` to meter only.
     let url: URL?
 
-    /// The macOS default input, the fallback when the chosen device stops opening.
-    /// Injected so a test never has to read real hardware.
+    /// The automatic pick (the macOS default input, or the first non-virtual input when
+    /// that default is virtual — #2408), the fallback when the chosen device stops
+    /// opening. Injected so a test never has to read real hardware.
     private let defaultInputDeviceID: @Sendable () -> AudioDeviceID?
 
     /// Whether a device has been removed from the system. Injected for the same reason.
@@ -301,7 +302,7 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         deviceID: AudioDeviceID,
         url: URL?,
         defaultInputDeviceID: @escaping @Sendable () -> AudioDeviceID? = {
-            CoreAudioDeviceHelper.getSystemDefaultInputDeviceID()
+            MicrophoneCaptureRouting.automaticInputDeviceID()
         },
         deviceIsGone: @escaping @Sendable (AudioDeviceID) -> Bool = { id in
             DeviceAudioRecorder.isDeviceGone(id)
@@ -805,7 +806,7 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         return takeCaptureLostHandler()
     }
 
-    /// Start a fresh engine on the chosen device, else on the macOS default input.
+    /// Start a fresh engine on the chosen device, else on the automatic pick.
     /// `startEngine` makes the new engine watch the device it opened.
     /// Caller holds `controlLock`.
     private func startOnAnyInputLocked(cause: RestartCause) -> Bool {
@@ -835,7 +836,7 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
                     AppLogger.audio.info("Chosen microphone capture restarted after the microphone being recorded was removed")
                 }
             } else {
-                AppLogger.audio.notice("Chosen microphone is unavailable - continuing the recording from the macOS default input (device \(candidate, privacy: .public))")
+                AppLogger.audio.notice("Chosen microphone is unavailable - continuing the recording from the automatic pick (device \(candidate, privacy: .public))")
             }
             return true
         }

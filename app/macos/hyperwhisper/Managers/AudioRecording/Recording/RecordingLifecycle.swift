@@ -403,10 +403,12 @@ class RecordingLifecycle {
         // STEP 4: Resolve which microphone this recording opens
         // HyperWhisper's own microphone choice is opened DIRECTLY by the recorder in
         // STEP 6; the macOS default input is never changed (it used to be, which moved
-        // every other app's microphone too). `captureDeviceID` is nil — record from the
-        // macOS default — when there is no choice, when the chosen device is unplugged
-        // (it is used again once it reappears), or when it already IS the default, in
-        // which case the long-proven AVAudioRecorder path records it.
+        // every other app's microphone too). With no connected choice (none saved, or the
+        // chosen device unplugged — it is used again once it reappears) the automatic
+        // pick is used: the default, or the first physical input when the default is a
+        // virtual device such as BlackHole (#2408). `captureDeviceID` is nil — record from
+        // the macOS default — whenever the device to use already IS the default, in which
+        // case the long-proven AVAudioRecorder path records it.
         //
         // The lookup is blocking CoreAudio reads, so it runs off the main actor. Nothing
         // here writes CoreAudio state any more, so the old "must stay synchronous" rule
@@ -465,7 +467,7 @@ class RecordingLifecycle {
                     return
                 }
 
-                // The chosen device the recorder opens, or the system default
+                // The pinned device the recorder opens, or the system default
                 guard let deviceID = boostDeviceID ?? CoreAudioDeviceHelper.getSystemDefaultInputDeviceID() else {
                     AppLogger.audio.warning("🎚️ [ASYNC] Failed - unable to get system default device ID")
                     return
@@ -473,7 +475,7 @@ class RecordingLifecycle {
 
                 // Log device info for debugging
                 let deviceName = CoreAudioDeviceHelper.copyDeviceName(for: deviceID) ?? "unknown"
-                let deviceType = boostDeviceID != nil ? "chosen" : "system default"
+                let deviceType = boostDeviceID != nil ? "pinned" : "system default"
                 AppLogger.audio.info("🎚️ [ASYNC] Target device (\(deviceType, privacy: .public)): \(deviceName, privacy: .public) (ID: \(deviceID))")
 
                 // Save original volume for restoration

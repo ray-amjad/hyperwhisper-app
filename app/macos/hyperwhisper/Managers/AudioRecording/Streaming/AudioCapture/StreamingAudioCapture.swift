@@ -204,8 +204,9 @@ class StreamingAudioCapture {
         let inputNode = engine.inputNode
 
         // Open the microphone chosen in HyperWhisper — the same device the WAV recording
-        // opens — without changing the macOS default input. nil (no choice, chosen device
-        // unplugged, or it is already the default) keeps the engine on the default input.
+        // opens — without changing the macOS default input. With no connected choice that
+        // is the automatic pick (a physical input when the default is virtual, #2408).
+        // nil (the device to use is already the default) keeps the engine on the default.
         // Blocking CoreAudio reads; `start()` is not on the main actor.
         var pinnedDevice = false
         if let deviceID = MicrophoneCaptureRouting.captureDeviceID(
