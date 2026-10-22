@@ -771,7 +771,7 @@ export default function CustomersClient() {
               {data.totalCustomers} customer{data.totalCustomers !== 1 ? "s" : ""}
             </span>
             {isTransitioning && (
-              <Spinner className="w-3.5 h-3.5 text-gray-400" />
+              <Spinner className="w-3.5 h-3.5 text-gray-400" label="Loading" />
             )}
           </p>
 

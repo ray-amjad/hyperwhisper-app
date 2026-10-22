@@ -20,6 +20,9 @@ import { moduleMock } from "./module-mock";
 /** Flipped per test; read by both mocked list queries. */
 let fetching = false;
 
+/** Flipped per test; read by the mocked Stripe portal mutation. */
+let portalPending = false;
+
 function listQuery(data: unknown) {
   return () => ({
     data,
@@ -43,6 +46,14 @@ function idleMutation() {
 moduleMock.module(new URL("../lib/trpc/client.ts", import.meta.url).href, {
   namedExports: {
     api: {
+      customer: {
+        billingProviders: {
+          useQuery: () => ({ data: { hasStripe: true, hasPolar: false } }),
+        },
+        stripePortalUrl: {
+          useMutation: () => ({ ...idleMutation(), isPending: portalPending }),
+        },
+      },
       useUtils: () => ({
         admin: { customers: { list: { invalidate: () => undefined } } },
       }),
@@ -63,6 +74,7 @@ moduleMock.module(new URL("../lib/trpc/client.ts", import.meta.url).href, {
 });
 
 const AUTH = "../app/[locale]/user/(authenticated)";
+const BILLING_PATH = "../components/customer/dashboard/BillingCard.tsx";
 const PAGES = {
   devices: `${AUTH}/devices/DevicesClient.tsx`,
   customers: `${AUTH}/customers/CustomersClient.tsx`,
@@ -105,3 +117,31 @@ for (const [name, path] of Object.entries(PAGES)) {
     assert.doesNotMatch(attrs, /\bdisabled=""/);
   });
 }
+
+async function renderBilling(): Promise<string> {
+  const { createElement } = await import("react");
+  const { renderToStaticMarkup } = await import("react-dom/server");
+  const { default: BillingCard } = (await import(BILLING_PATH)) as {
+    default: () => null;
+  };
+
+  return renderToStaticMarkup(createElement(BillingCard));
+}
+
+test("Stripe Portal keeps its label and names the pending spinner", async () => {
+  portalPending = true;
+  const html = await renderBilling();
+
+  assert.match(html, /role="status"[^>]*aria-label="Opening"|aria-label="Opening"[^>]*role="status"/);
+  assert.match(html, SPINNER);
+  assert.match(html, />Stripe Portal<\/button>/);
+  assert.doesNotMatch(html, /Opening\.\.\./);
+});
+
+test("Stripe Portal idle shows no spinner", async () => {
+  portalPending = false;
+  const html = await renderBilling();
+
+  assert.doesNotMatch(html, SPINNER);
+  assert.match(html, />Stripe Portal<\/button>/);
+});

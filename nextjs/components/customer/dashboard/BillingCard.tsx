@@ -19,7 +19,9 @@ export default function BillingCard() {
             disabled={stripePortalMutation.isPending}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
           >
-            {stripePortalMutation.isPending && <Spinner className="w-4 h-4" />}
+            {stripePortalMutation.isPending && (
+              <Spinner className="w-4 h-4" label="Opening" />
+            )}
             Stripe Portal
           </button>
         )}
