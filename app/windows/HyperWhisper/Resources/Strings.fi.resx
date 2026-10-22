@@ -799,6 +799,12 @@ Tätä toimintoa ei voi perua.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Ei aktivoitu)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (Ei API-avainta)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -2031,6 +2037,27 @@ You can re-download it later.</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Vain HyperWhisperin käytössä. Säilyy uudelleenkäynnistyksen jälkeen.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Oletus · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (ei yhdistetty)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Käytetään laitetta {0}, kunnes {1} yhdistetään uudelleen.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Mikrofonia ei ole yhdistetty. HyperWhisper käyttää laitetta {0}, kun se yhdistetään uudelleen.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Testaa</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Pysäytä</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

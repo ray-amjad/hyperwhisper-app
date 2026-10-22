@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "Reproducir señales de audio al iniciar y detener la grabación.";
 "settings.sound.mediaControl.title" = "Control de medios durante la grabación";
 "settings.sound.mediaControl.info" = "Elige cómo HyperWhisper gestiona otros audios mientras grabas. 'Desactivado' deja el audio sin cambios, 'Silenciar audio' silencia la salida del sistema mientras grabas y la restaura después, y 'Amortiguar audio' lo mantiene sonando suavemente, como si viniera de la habitación de al lado.";
+"settings.sound.microphone.title" = "Micrófono";
+"settings.sound.microphone.subtitle" = "Solo lo usa HyperWhisper. Se recuerda tras reiniciar.";
+"microphone.picker.default" = "Predeterminado · %@";
+"microphone.picker.notConnected" = "%@ (no conectado)";
+"microphone.picker.fallback" = "Usando %1$@ hasta que se vuelva a conectar %2$@.";
+"settings.sound.microphone.test" = "Probar";
+"settings.sound.microphone.stop" = "Detener";
+"settings.sound.microphone.level" = "Nivel de entrada";
 "settings.sound.autoIncreaseMicVolume.title" = "Aumentar automáticamente el volumen del micrófono";
-"settings.sound.autoIncreaseMicVolume.info" = "Establece automáticamente el volumen de entrada del micrófono al máximo cuando comienza la grabación y lo restaura al nivel original cuando se detiene. Solo se aplica al dispositivo de entrada predeterminado del sistema.";
+"settings.sound.autoIncreaseMicVolume.info" = "Sube automáticamente al máximo el volumen de entrada del micrófono con el que graba HyperWhisper al empezar a grabar y restaura el nivel original al detenerse. Los micrófonos sin control de volumen por software no se modifican.";
 "settings.sound.vad.title" = "Eliminar silencio antes de la transcripción";
 "settings.sound.vad.info" = "Detecta y elimina automáticamente el silencio inicial y final usando detección de voz por IA. Esto puede mejorar la precisión y reducir el tiempo de procesamiento.";
 
@@ -1166,3 +1174,4 @@ Actualiza estos modos para usar un modelo diferente antes de eliminarlo.";
 "settings.storage.maxRecordingDuration.hour" = "1 hora";
 "settings.storage.maxRecordingDuration.hours" = "%d horas";
 "settings.storage.maxRecordingDuration.off" = "Desactivado";
+"settings.api_server.status.stopping" = "Deteniendo…";

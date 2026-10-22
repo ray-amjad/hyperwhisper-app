@@ -24,4 +24,28 @@
   <data name="linux.ui.start.recording" xml:space="preserve">
     <value>Sākt ierakstīt</value>
   </data>
+  <data name="linux.settings.sound.microphone.default" xml:space="preserve">
+    <value>Noklusējums · {0}</value>
+  </data>
+  <data name="linux.settings.sound.microphone.defaultNone" xml:space="preserve">
+    <value>Noklusējums</value>
+  </data>
+  <data name="linux.settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Tiek izmantots {0}, līdz {1} tiks atkal pievienots.</value>
+  </data>
+  <data name="linux.settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (nav pievienots)</value>
+  </data>
+  <data name="linux.settings.sound.microphone.stop" xml:space="preserve">
+    <value>Apturēt</value>
+  </data>
+  <data name="linux.settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Izmanto tikai HyperWhisper. Tiek atcerēts pēc restartēšanas.</value>
+  </data>
+  <data name="linux.settings.sound.microphone.test" xml:space="preserve">
+    <value>Pārbaudīt</value>
+  </data>
+  <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve">
+    <value>Mikrofonu neizdevās atvērt.</value>
+  </data>
 </root>

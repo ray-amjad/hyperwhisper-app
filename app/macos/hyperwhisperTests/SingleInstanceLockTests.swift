@@ -414,7 +414,7 @@ struct SingleInstanceLockTests {
             to: "static func deletePortFileIfOwned("
         )
         #expect(
-            body.contains("Self.deletePortFileIfOwned(at: Self.portFileURL, ownerPID: ProcessInfo.processInfo.processIdentifier)"),
+            body.contains("Self.deletePortFileIfOwned(at: portFileURL, ownerPID: ProcessInfo.processInfo.processIdentifier)"),
             "deletePortFile() must only remove local-api.json when it names this process (issue #1483)"
         )
         #expect(!body.contains("removeItem"), "deletePortFile() must not delete the file unconditionally")

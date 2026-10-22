@@ -97,3 +97,53 @@ export function binaryMessage(data: ArrayBuffer): MessageEvent<WSMessageReceive>
 export function textMessage(data: string): MessageEvent<WSMessageReceive> {
   return { data } as MessageEvent<WSMessageReceive>;
 }
+
+interface FakeTimer {
+  fn: () => void;
+  ms: number;
+  cleared: boolean;
+}
+
+/**
+ * A recorded clock for `createStreamingEventsFor`'s `timers` seam. Nothing
+ * fires on its own: a test advances `nowMs` and fires a timer by hand.
+ */
+export class FakeStreamingTimers {
+  nowMs = 1_000_000;
+  readonly intervals: FakeTimer[] = [];
+  readonly timeouts: FakeTimer[] = [];
+
+  readonly timers = {
+    now: () => this.nowMs,
+    setInterval: (fn: () => void, ms: number) => this.record(this.intervals, fn, ms),
+    clearInterval: (handle: ReturnType<typeof setInterval>) => this.clear(handle),
+    setTimeout: (fn: () => void, ms: number) => this.record(this.timeouts, fn, ms),
+    clearTimeout: (handle: ReturnType<typeof setTimeout>) => this.clear(handle),
+  };
+
+  private record(list: FakeTimer[], fn: () => void, ms: number): ReturnType<typeof setInterval> {
+    const timer = { fn, ms, cleared: false };
+    list.push(timer);
+    return timer as unknown as ReturnType<typeof setInterval>;
+  }
+
+  private clear(handle: unknown): void {
+    (handle as FakeTimer).cleared = true;
+  }
+
+  /** The one interval the session armed (the ping), fired once unless cleared. */
+  tickInterval(): void {
+    expectOne(this.intervals, 'interval').fireIfLive();
+  }
+
+  /** The one timeout the session armed (the open deadline), fired unless cleared. */
+  fireTimeout(): void {
+    expectOne(this.timeouts, 'timeout').fireIfLive();
+  }
+}
+
+function expectOne(list: FakeTimer[], kind: string): { fireIfLive: () => void } {
+  if (list.length !== 1) throw new Error(`expected exactly one ${kind}, got ${list.length}`);
+  const timer = list[0]!;
+  return { fireIfLive: () => { if (!timer.cleared) timer.fn(); } };
+}

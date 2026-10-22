@@ -24,4 +24,28 @@
   <data name="linux.ui.start.recording" xml:space="preserve">
     <value>ابدأ التسجيل</value>
   </data>
+  <data name="linux.settings.sound.microphone.default" xml:space="preserve">
+    <value>الافتراضي · {0}</value>
+  </data>
+  <data name="linux.settings.sound.microphone.defaultNone" xml:space="preserve">
+    <value>الافتراضي</value>
+  </data>
+  <data name="linux.settings.sound.microphone.fallback" xml:space="preserve">
+    <value>يتم استخدام {0} حتى يُعاد توصيل {1}.</value>
+  </data>
+  <data name="linux.settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (غير متصل)</value>
+  </data>
+  <data name="linux.settings.sound.microphone.stop" xml:space="preserve">
+    <value>إيقاف</value>
+  </data>
+  <data name="linux.settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>يستخدمه HyperWhisper فقط. يُحفظ بعد إعادة التشغيل.</value>
+  </data>
+  <data name="linux.settings.sound.microphone.test" xml:space="preserve">
+    <value>اختبار</value>
+  </data>
+  <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve">
+    <value>تعذّر فتح الميكروفون.</value>
+  </data>
 </root>

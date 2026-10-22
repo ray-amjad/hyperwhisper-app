@@ -103,23 +103,39 @@ function isRetryableResendError(
   return statusCode >= 500;
 }
 
-class EmailService {
-  private static instance: EmailService;
+/** One message, as every sender hands it to the provider. */
+export interface EmailPayload {
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+}
+
+/**
+ * The service's three edges: the provider, the audit log and the backoff
+ * clock. Production uses the defaults; a test builds its own instance (#769).
+ */
+export interface EmailDeps {
+  send: (payload: EmailPayload) => Promise<{ data: unknown; error: unknown }>;
+  logSentEmail: (data: Parameters<typeof logSentEmail>[0]) => Promise<void>;
+  sleep: (ms: number) => Promise<void>;
+}
+
+const defaultDeps: EmailDeps = {
+  send: (payload) => resend.emails.send(payload),
+  logSentEmail,
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+};
+
+export class EmailService {
   private readonly maxRetries = 3;
   // Base backoff. Kept small because retries run inline inside the Stripe
   // webhook request; worst-case total sleep across attempts is bounded
   // (250ms + 500ms = 750ms) to stay well under Stripe's webhook timeout.
   private readonly retryDelay = 250;
 
-  private constructor() {}
-
-  public static getInstance(): EmailService {
-    if (!EmailService.instance) {
-      EmailService.instance = new EmailService();
-    }
-
-    return EmailService.instance;
-  }
+  constructor(private readonly deps: EmailDeps = defaultDeps) {}
 
   /**
    * Send license key email with retry logic
@@ -127,7 +143,7 @@ class EmailService {
   async sendLicenseKey(data: LicenseEmailData): Promise<EmailResult> {
     const subject = `Your ${data.productName} License Key`;
     return this.sendWithRetry("license", data.customerEmail, subject, () =>
-      resend.emails.send({
+      this.deps.send({
         from: DEFAULT_FROM_EMAIL,
         to: data.customerEmail,
         subject,
@@ -143,7 +159,7 @@ class EmailService {
   async sendWelcomeEmail(data: WelcomeEmailData): Promise<EmailResult> {
     const subject = `Welcome to ${data.productName}`;
     return this.sendWithRetry("welcome", data.customerEmail, subject, () =>
-      resend.emails.send({
+      this.deps.send({
         from: DEFAULT_FROM_EMAIL,
         to: data.customerEmail,
         subject,
@@ -160,7 +176,7 @@ class EmailService {
   async sendCreditMint(data: CreditMintEmailData): Promise<EmailResult> {
     const subject = `Your ${data.productName} key and credits`;
     return this.sendWithRetry("credit-mint", data.customerEmail, subject, () =>
-      resend.emails.send({
+      this.deps.send({
         from: DEFAULT_FROM_EMAIL,
         to: data.customerEmail,
         subject,
@@ -176,7 +192,7 @@ class EmailService {
   async sendCreditTopUp(data: CreditTopUpEmailData): Promise<EmailResult> {
     const subject = `${data.creditAmount.toLocaleString()} credits added`;
     return this.sendWithRetry("credit-topup", data.customerEmail, subject, () =>
-      resend.emails.send({
+      this.deps.send({
         from: DEFAULT_FROM_EMAIL,
         to: data.customerEmail,
         subject,
@@ -263,7 +279,7 @@ class EmailService {
           const delay = this.retryDelay * Math.pow(2, attempt - 1);
 
           console.log(`Retrying in ${delay}ms...`);
-          await this.sleep(delay);
+          await this.deps.sleep(delay);
         }
       }
     }
@@ -295,7 +311,7 @@ class EmailService {
     data: Parameters<typeof logSentEmail>[0],
   ): Promise<void> {
     try {
-      await logSentEmail(data);
+      await this.deps.logSentEmail(data);
     } catch (logError) {
       console.error(
         `Failed to log ${data.status} ${data.emailType} email:`,
@@ -303,18 +319,11 @@ class EmailService {
       );
     }
   }
-
-  /**
-   * Sleep for a specified duration
-   */
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
 }
 
 function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-// Export singleton instance
-export const emailService = EmailService.getInstance();
+// The process-wide instance every caller uses.
+export const emailService = new EmailService();

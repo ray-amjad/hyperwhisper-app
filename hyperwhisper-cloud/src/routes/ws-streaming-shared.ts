@@ -438,6 +438,30 @@ function decodeUpstreamFrame(raw: unknown): string {
 }
 
 /**
+ * The clock and timers a session's keepalive ping, hold renewal and open
+ * deadline run on. Tests inject fakes so those timers can be fired without
+ * waiting 30 s or 2 min; the routes pass nothing and get the real ones.
+ */
+export interface StreamingTimers {
+  now: () => number;
+  setInterval: (fn: () => void, ms: number) => ReturnType<typeof setInterval>;
+  clearInterval: (handle: ReturnType<typeof setInterval>) => void;
+  setTimeout: (fn: () => void, ms: number) => ReturnType<typeof setTimeout>;
+  clearTimeout: (handle: ReturnType<typeof setTimeout>) => void;
+}
+
+const REAL_TIMERS: StreamingTimers = {
+  now: () => Date.now(),
+  setInterval: (fn, ms) => setInterval(fn, ms),
+  clearInterval: (handle) => clearInterval(handle),
+  setTimeout: (fn, ms) => setTimeout(fn, ms),
+  clearTimeout: (handle) => clearTimeout(handle),
+};
+
+/** Every 30 s, well inside Fly.io's 60 s idle timeout. */
+const STREAMING_PING_INTERVAL_MS = 30_000;
+
+/**
  * Build the hono WebSocket event handlers for one session.
  *
  * Exported per vendor (see `ws-streaming-deepgram.ts`) so the socket lifecycle —
@@ -445,7 +469,12 @@ function decodeUpstreamFrame(raw: unknown): string {
  * end-of-session billing — is unit-testable without standing up a real
  * WebSocket upgrade.
  */
-export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
+export function createStreamingEventsFor(
+  vendor: StreamingVendor,
+  c: Context,
+  timers: Partial<StreamingTimers> = {},
+) {
+  const clock: StreamingTimers = { ...REAL_TIMERS, ...timers };
   const requestId = generateRequestId();
   const startTime = performance.now();
   const auth = c.get('wsAuth');
@@ -464,11 +493,11 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
   const hold = c.get('wsCreditHold');
   const holdBlockCredits = holdCreditsFor(vendor);
   let topUpPending = false;
-  let lastHoldRenewAt = Date.now();
+  let lastHoldRenewAt = clock.now();
   // Nothing releases a hold whose upgrade never opened a socket; this does,
   // well before its TTL would.
   let openDeadline: ReturnType<typeof setTimeout> | null = hold
-    ? setTimeout(() => {
+    ? clock.setTimeout(() => {
       openDeadline = null;
       if (!clientSocket && !sessionEnded) void hold.release();
     }, SESSION_OPEN_DEADLINE_MS)
@@ -533,12 +562,12 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
     sessionEnded = true;
     activeSessions.delete(shutdownSession);
     if (openDeadline) {
-      clearTimeout(openDeadline);
+      clock.clearTimeout(openDeadline);
       openDeadline = null;
     }
 
     if (pingInterval) {
-      clearInterval(pingInterval);
+      clock.clearInterval(pingInterval);
       pingInterval = null;
     }
     if (stopTimer) {
@@ -715,7 +744,7 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
       const outcome = await pendingHold.reserve(roundToTenth(creditsUsed + 0.1), before + holdBlockCredits);
       topUpPending = false;
       if (sessionEnded) return;
-      lastHoldRenewAt = Date.now();
+      lastHoldRenewAt = clock.now();
       if (outcome.kind === 'granted') {
         log('credit_topup', { heldCredits: pendingHold.heldCredits, previousHeldCredits: before });
         // The audio that arrived during the round trip may already be past the new total.
@@ -862,7 +891,7 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
     onOpen: (_evt: Event, ws: WSContext) => {
       clientSocket = ws;
       if (openDeadline) {
-        clearTimeout(openDeadline);
+        clock.clearTimeout(openDeadline);
         openDeadline = null;
       }
 
@@ -963,17 +992,17 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
       });
 
       // Send ping every 30s to prevent Fly.io's 60s idle timeout from killing the connection
-      pingInterval = setInterval(() => {
+      pingInterval = clock.setInterval(() => {
         if (clientSocket && clientSocket.readyState === 1) {
           clientSocket.send(JSON.stringify({ type: 'ping' }));
         }
         // A session that meters slowly (paused audio) tops up rarely; keep its
         // hold from expiring under it.
-        if (holdEnforced() && !topUpPending && Date.now() - lastHoldRenewAt >= SESSION_HOLD_RENEW_MS) {
-          lastHoldRenewAt = Date.now();
+        if (holdEnforced() && !topUpPending && clock.now() - lastHoldRenewAt >= SESSION_HOLD_RENEW_MS) {
+          lastHoldRenewAt = clock.now();
           void hold!.renew();
         }
-      }, 30000);
+      }, STREAMING_PING_INTERVAL_MS);
     },
     onMessage: (event: MessageEvent<WSMessageReceive>) => {
       const data = event.data;

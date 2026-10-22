@@ -70,7 +70,7 @@ async function handlePostProcess(c: Context) {
 
   // Size gate BEFORE parsing: `c.req.json()` buffers the whole body, and auth
   // runs only after it, so without this an anonymous caller could make the
-  // machine hold up to Bun's 128 MB default per request (same gate as /assistant).
+  // machine hold up to Bun's 128 MB default per request.
   const sizeCheck = validateContentLength(c.req.header('Content-Length'), MAX_POST_PROCESS_BODY_BYTES);
   if (!sizeCheck.ok) {
     logEvent(requestId, startTime, 'post_process.request_rejected', {

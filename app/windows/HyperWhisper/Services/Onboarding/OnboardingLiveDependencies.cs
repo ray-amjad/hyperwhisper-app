@@ -1179,7 +1179,7 @@ public static class OnboardingLiveDependencies
             parakeetModels,
             // The running app's open device lives on MainViewModel, not in
             // settings; see the comment on those two delegates.
-            readOpenDevice: mainViewModel is null ? null : () => mainViewModel.SelectedAudioDevice?.Name,
+            readOpenDevice: mainViewModel is null ? null : () => mainViewModel.ConnectedSavedMicrophoneName,
             writeOpenDevice: mainViewModel is null ? null : name => ApplyOpenDevice(mainViewModel, name));
 
         var committer = new LiveOnboardingSourceCommitter(
@@ -1209,48 +1209,17 @@ public static class OnboardingLiveDependencies
     }
 
     /// <summary>
-    /// Points the running app at a device by name.
-    ///
-    /// A name that is not currently connected falls back to the FIRST available
-    /// device, which is exactly what MainViewModel does for itself in
-    /// RefreshAudioDevicesPreservingSelection: on this view model null is not
-    /// "system default", it is "no microphone", and StartRecordingAsync refuses to
-    /// record and raises errors.noMicrophone over it.
-    ///
-    /// That mattered on the rollback path. "Set Up Later" restores the device the
-    /// flow found open; if the user's own microphone was unplugged during the flow,
-    /// the previous code wrote null and left the app unable to record for the rest
-    /// of the session - with the rollback reporting a clean deferral, because the
-    /// device is the one reversible write with no failure channel. Falling back
-    /// here needs no failure channel: there is nothing the user could do about a
-    /// device that no longer exists, and the app's own next device event would have
-    /// made the same choice.
-    ///
-    /// An EMPTY name still means null, and that is not the same case: it is the
-    /// faithful restore of a view model that genuinely had nothing selected.
+    /// Points the running app at the microphone onboarding just chose or
+    /// restored. The gateway has already written
+    /// SettingsService.LastSelectedMicrophone (the one saved choice), so
+    /// MainViewModel simply re-resolves it: the named device when connected,
+    /// otherwise the Windows default, with the choice itself kept. The name is
+    /// only logged.
     /// </summary>
     private static void ApplyOpenDevice(MainViewModel viewModel, string? name)
     {
-        if (string.IsNullOrEmpty(name))
-        {
-            viewModel.ApplyOnboardingAudioDeviceSelection(null);
-            return;
-        }
-
-        var match = viewModel.AudioDevices.FirstOrDefault(d => d.Name == name);
-        if (match is not null)
-        {
-            viewModel.ApplyOnboardingAudioDeviceSelection(match);
-            return;
-        }
-
-        var fallback = viewModel.AudioDevices.FirstOrDefault();
-        LoggingService.Warn(
-            $"LiveOnboarding: input device '{name}' is no longer connected; "
-            + (fallback is null
-                ? "there is nothing to fall back to"
-                : $"falling back to '{fallback.Name}'"));
-        viewModel.ApplyOnboardingAudioDeviceSelection(fallback);
+        LoggingService.Debug($"LiveOnboarding: applying the saved microphone choice ('{name ?? "(default)"}')");
+        viewModel.ApplyOnboardingMicrophoneChoice();
     }
 
     /// <summary>

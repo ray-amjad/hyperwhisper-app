@@ -324,3 +324,74 @@ body {
     animation: none;
   }
 }
+
+/* The magic-link confirmation icon (#752): it fades in and rotates up out of
+   a blur, settles with a small overshoot, and its stroke draws. The path sets
+   pathLength="1", so a dash of 1 is the whole outline. */
+@keyframes success-check-in {
+  0% {
+    opacity: 0;
+    transform: rotate(80deg) scale(0.6);
+    filter: blur(10px);
+  }
+  60% {
+    opacity: 1;
+    transform: rotate(-6deg) scale(1.06);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes success-check-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.t-success-check {
+  animation: success-check-in 500ms var(--motion-ease-smooth-out) both;
+}
+
+.t-success-check path {
+  stroke-dasharray: 1;
+  animation: success-check-draw 600ms var(--motion-ease-in-out) 100ms both;
+}
+
+/* Reduce motion: the icon is shown whole, with no spin, blur or draw. */
+@media (prefers-reduced-motion: reduce) {
+  .t-success-check,
+  .t-success-check path {
+    animation: none;
+  }
+}
+
+/* A /credits summary value that changes (#768): each character re-enters
+   from a small blurred offset, 40 ms after the one before it. Inline-block so
+   the transform applies; pre so a grouping space keeps its width. */
+@keyframes number-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance-small));
+    filter: blur(var(--motion-blur-small));
+  }
+}
+
+.t-number-pop-char {
+  display: inline-block;
+  white-space: pre;
+  animation: number-pop-in 500ms var(--motion-ease-in-out) both;
+}
+
+/* Reduce motion: the new value is shown in one frame. */
+@media (prefers-reduced-motion: reduce) {
+  .t-number-pop-char {
+    animation: none;
+  }
+}

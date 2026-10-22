@@ -24,4 +24,28 @@
   <data name="linux.ui.start.recording" xml:space="preserve">
     <value>开始录音</value>
   </data>
+  <data name="linux.settings.sound.microphone.default" xml:space="preserve">
+    <value>默认 · {0}</value>
+  </data>
+  <data name="linux.settings.sound.microphone.defaultNone" xml:space="preserve">
+    <value>默认</value>
+  </data>
+  <data name="linux.settings.sound.microphone.fallback" xml:space="preserve">
+    <value>正在使用 {0}，直到 {1} 重新连接。</value>
+  </data>
+  <data name="linux.settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0}（未连接）</value>
+  </data>
+  <data name="linux.settings.sound.microphone.stop" xml:space="preserve">
+    <value>停止</value>
+  </data>
+  <data name="linux.settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>仅供 HyperWhisper 使用。重启后仍会保留。</value>
+  </data>
+  <data name="linux.settings.sound.microphone.test" xml:space="preserve">
+    <value>测试</value>
+  </data>
+  <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve">
+    <value>无法打开麦克风。</value>
+  </data>
 </root>

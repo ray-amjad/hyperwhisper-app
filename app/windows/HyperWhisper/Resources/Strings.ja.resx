@@ -887,6 +887,12 @@
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (準備完了)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (未有効化)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (APIキーなし)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>読み込み失敗</value>
   </data>
@@ -1892,6 +1898,27 @@
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>録音と録音の間も静かな入力ストリームを開いたままにして、開始時の遅延を減らします。Bluetooth マイクで特に効果があります。</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>HyperWhisper でのみ使用されます。再起動後も保持されます。</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>デフォルト · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0}（未接続）</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>{1} が再接続されるまで {0} を使用します。</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>マイクが接続されていません。{0} が再接続されると、HyperWhisper はそれを使用します。</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>テスト</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>停止</value>
   </data>
 
   <!-- Synced fallback strings -->

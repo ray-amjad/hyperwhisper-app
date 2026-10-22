@@ -104,6 +104,7 @@ public partial class MainViewModel : ViewModelBase
         {
             ShowStreamingOverlayRequested?.Invoke(this, providerName);
             _pasteService?.StartRecordingSession();
+            RaiseMicrophoneCaptureStarting();
             SuspendMicrophoneKeepWarm();
 
             if (SettingsService.Instance.AutoIncreaseMicVolume)

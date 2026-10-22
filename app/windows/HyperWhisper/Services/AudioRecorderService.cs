@@ -215,33 +215,9 @@ public class AudioRecorderService : IDisposable
             }
         }
 
-        // Compute RMS over the buffer (log-scaled perceptual level)
-        double sumSquares = 0;
-        int sampleCount = 0;
-        for (int i = 0; i + 1 < e.BytesRecorded; i += 2)
-        {
-            short sample = BitConverter.ToInt16(e.Buffer, i);
-            double norm = sample / 32768.0;
-            sumSquares += norm * norm;
-            sampleCount++;
-        }
-
-        float normalized = 0f;
-        if (sampleCount > 0)
-        {
-            double rms = Math.Sqrt(sumSquares / sampleCount);
-            // Convert to dB, floor at -60 dB for silence
-            double db = 20.0 * Math.Log10(Math.Max(rms, 1e-6));
-            // Map -60 dB → 0.0, -6 dB → 1.0 (soft clip above)
-            normalized = (float)Math.Clamp((db + 60.0) / 54.0, 0.0, 1.0);
-        }
-
-        // Fast-attack / slow-decay envelope follower
-        // Attack: immediate jump up. Decay: exponential fall (~200ms at 16kHz/50ms buffers = ~0.78 per buffer)
-        if (normalized > _displayedLevel)
-            _displayedLevel = normalized;                      // fast attack
-        else
-            _displayedLevel = Math.Max(normalized, _displayedLevel * 0.85f);  // slow decay
+        // RMS -> dB -> fast-attack / slow-decay envelope, shared with the
+        // onboarding and Settings "Test" meters so they all move the same way.
+        _displayedLevel = AudioLevelMath.NextLevel(e.Buffer, e.BytesRecorded, _displayedLevel);
 
         AudioLevelChanged?.Invoke(_displayedLevel);
     }

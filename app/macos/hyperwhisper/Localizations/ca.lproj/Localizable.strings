@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "Reprodueix senyals sonors quan la gravació comença i s'atura.";
 "settings.sound.mediaControl.title" = "Control de mitjans durant la gravació";
 "settings.sound.mediaControl.info" = "Trieu com HyperWhisper gestiona altres àudios mentre graveu. 'Desactivat' deixa l'àudio sense canvis, 'Silenciar àudio' silencia la sortida del sistema mentre graveu i la restaura posteriorment, i 'Esmorteir àudio' el manté sonant suaument, com si vingués de l'habitació del costat.";
+"settings.sound.microphone.title" = "Micròfon";
+"settings.sound.microphone.subtitle" = "Només l'utilitza HyperWhisper. Es recorda després de reiniciar.";
+"microphone.picker.default" = "Per defecte · %@";
+"microphone.picker.notConnected" = "%@ (no connectat)";
+"microphone.picker.fallback" = "S'utilitza %1$@ fins que es torni a connectar %2$@.";
+"settings.sound.microphone.test" = "Prova";
+"settings.sound.microphone.stop" = "Atura";
+"settings.sound.microphone.level" = "Nivell d'entrada";
 "settings.sound.autoIncreaseMicVolume.title" = "Augmentar automàticament el volum del micròfon";
-"settings.sound.autoIncreaseMicVolume.info" = "Estableix automàticament el volum d'entrada del micròfon al màxim quan comença la gravació i restaura el nivell original quan s'atura. Només s'aplica quan s'utilitza el dispositiu d'entrada predeterminat del sistema.";
+"settings.sound.autoIncreaseMicVolume.info" = "Posa automàticament al màxim el volum d'entrada del micròfon des del qual enregistra HyperWhisper quan comença l'enregistrament i restaura el nivell original quan s'atura. Els micròfons sense control de volum per programari no es modifiquen.";
 "settings.sound.vad.title" = "Eliminar silenci abans de la transcripció";
 "settings.sound.vad.info" = "Detecta i elimina automàticament el silenci inicial i final mitjançant la detecció de veu per IA. Això pot millorar la precisió de la transcripció i reduir el temps de processament.";
 
@@ -1165,3 +1173,4 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "settings.storage.maxRecordingDuration.hour" = "1 hora";
 "settings.storage.maxRecordingDuration.hours" = "%d hores";
 "settings.storage.maxRecordingDuration.off" = "Desactivat";
+"settings.api_server.status.stopping" = "S'està aturant…";

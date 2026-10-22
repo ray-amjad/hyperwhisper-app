@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "Αναπαραγωγή ηχητικών σημάτων κατά την έναρξη και τη διακοπή της εγγραφής.";
 "settings.sound.mediaControl.title" = "Έλεγχος μέσων κατά την εγγραφή";
 "settings.sound.mediaControl.info" = "Επιλέξτε πώς το HyperWhisper χειρίζεται άλλο ήχο κατά την εγγραφή. Το «Απενεργοποίηση» αφήνει τον ήχο αμετάβλητο, η «Σίγαση Ήχου» αποσιωπά την έξοδο συστήματος κατά την εγγραφή και την επαναφέρει στη συνέχεια, και η «Απόσβεση Ήχου» τον διατηρεί να παίζει σιγανά, σαν από το διπλανό δωμάτιο.";
+"settings.sound.microphone.title" = "Μικρόφωνο";
+"settings.sound.microphone.subtitle" = "Χρησιμοποιείται μόνο από το HyperWhisper. Διατηρείται μετά από επανεκκίνηση.";
+"microphone.picker.default" = "Προεπιλογή · %@";
+"microphone.picker.notConnected" = "%@ (μη συνδεδεμένο)";
+"microphone.picker.fallback" = "Χρησιμοποιείται το %1$@ μέχρι να επανασυνδεθεί το %2$@.";
+"settings.sound.microphone.test" = "Δοκιμή";
+"settings.sound.microphone.stop" = "Διακοπή";
+"settings.sound.microphone.level" = "Στάθμη εισόδου";
 "settings.sound.autoIncreaseMicVolume.title" = "Αυτόματη αύξηση του όγκου του μικροφώνου";
-"settings.sound.autoIncreaseMicVolume.info" = "Ορίστε αυτόματα την ένταση εισόδου του μικροφώνου στο μέγιστο όταν ξεκινά η εγγραφή και, στη συνέχεια, επαναφέρει το αρχικό επίπεδο όταν σταματά η εγγραφή. Ισχύει μόνο όταν χρησιμοποιείται η προεπιλεγμένη συσκευή εισόδου του συστήματος.";
+"settings.sound.autoIncreaseMicVolume.info" = "Ρυθμίζει αυτόματα στο μέγιστο την ένταση εισόδου του μικροφώνου από το οποίο ηχογραφεί το HyperWhisper όταν ξεκινά η εγγραφή και επαναφέρει το αρχικό επίπεδο όταν σταματά. Τα μικρόφωνα χωρίς έλεγχο έντασης μέσω λογισμικού παραμένουν αμετάβλητα.";
 "settings.sound.vad.title" = "Αφαιρέστε τη σιγή πριν τη μεταγραφή";
 "settings.sound.vad.info" = "Αυτόματη ανίχνευση και αφαίρεση της κύριας και ουραίας σιγής χρησιμοποιώντας τεχνητή νοημοσύνη ανίχνευσης φωνής. Αυτό μπορεί να βελτιώσει την ακρίβεια της μεταγραφής και να μειώσει τον χρόνο επεξεργασίας.";
 
@@ -1165,3 +1173,4 @@
 "settings.storage.maxRecordingDuration.hour" = "1 ώρα";
 "settings.storage.maxRecordingDuration.hours" = "%d ώρες";
 "settings.storage.maxRecordingDuration.off" = "Απενεργοποιημένο";
+"settings.api_server.status.stopping" = "Διακοπή…";

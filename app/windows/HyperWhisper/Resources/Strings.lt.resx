@@ -799,6 +799,12 @@
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Neaktyvuota)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (Nėra API rakto)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -2031,6 +2037,27 @@ You can re-download it later.</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Naudoja tik HyperWhisper. Įsimenama ir paleidus iš naujo.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Numatytasis · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (neprijungta)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Naudojamas {0}, kol {1} vėl bus prijungtas.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Neprijungtas joks mikrofonas. HyperWhisper naudos {0}, kai jis vėl bus prijungtas.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Išbandyti</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Stabdyti</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

@@ -28,6 +28,10 @@
       "destination": "https://rayamjadltd.mintlify.dev/docs"
     },
     {
+      "source": "/docs.rsc",
+      "destination": "https://rayamjadltd.mintlify.dev/docs.rsc"
+    },
+    {
       "source": "/docs/:path*",
       "destination": "https://rayamjadltd.mintlify.dev/docs/:path*"
     },

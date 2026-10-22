@@ -202,7 +202,35 @@ class StreamingAudioCapture {
 
         // STEP 2: Detect input format
         let inputNode = engine.inputNode
-        let inputFormat = inputNode.outputFormat(forBus: 0)
+
+        // Open the microphone chosen in HyperWhisper — the same device the WAV recording
+        // opens — without changing the macOS default input. nil (no choice, chosen device
+        // unplugged, or it is already the default) keeps the engine on the default input.
+        // Blocking CoreAudio reads; `start()` is not on the main actor.
+        var pinnedDevice = false
+        if let deviceID = MicrophoneCaptureRouting.captureDeviceID(
+            preferredUID: MicrophoneRoutingStore.shared.preferredDeviceUID
+        ) {
+            do {
+                try DeviceAudioRecorder.setInputDevice(deviceID, on: inputNode)
+                pinnedDevice = true
+                logger.info("Streaming capture opened the chosen microphone (device \(deviceID, privacy: .public))")
+            } catch {
+                logger.warning("Streaming capture could not open the chosen microphone, using the default input: \(String(describing: error), privacy: .public)")
+            }
+        }
+
+        let inputFormat: AVAudioFormat
+        if pinnedDevice {
+            // A just-switched device can report no format (or a lagging rate); a tap with
+            // either raises an uncatchable exception, so validate first.
+            guard let format = DeviceAudioRecorder.tapFormat(for: inputNode) else {
+                throw StreamingError.audioEngineError("The chosen microphone reports no usable input format")
+            }
+            inputFormat = format
+        } else {
+            inputFormat = inputNode.outputFormat(forBus: 0)
+        }
 
         logger.debug("Input format: \(inputFormat.sampleRate, privacy: .public) Hz, \(inputFormat.channelCount, privacy: .public) channels, commonFormat: \(inputFormat.commonFormat.rawValue, privacy: .public)")
 

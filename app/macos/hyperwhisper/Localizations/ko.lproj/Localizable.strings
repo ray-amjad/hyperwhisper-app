@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "녹음이 시작되고 중지될 때 오디오 신호를 재생합니다.";
 "settings.sound.mediaControl.title" = "녹음 중 미디어 제어";
 "settings.sound.mediaControl.info" = "녹음하는 동안 HyperWhisper가 다른 오디오를 처리하는 방법을 선택하세요. '끄기'는 오디오를 변경하지 않고 그대로 두고, '오디오 음소거'는 녹음 중 시스템 출력을 음소거하고 이후 복원합니다, '오디오 먹먹하게'는 옆방에서 들리는 것처럼 부드럽게 계속 재생합니다.";
+"settings.sound.microphone.title" = "마이크";
+"settings.sound.microphone.subtitle" = "HyperWhisper에서만 사용됩니다. 재시작 후에도 유지됩니다.";
+"microphone.picker.default" = "기본값 · %@";
+"microphone.picker.notConnected" = "%@ (연결 안 됨)";
+"microphone.picker.fallback" = "%2$@이(가) 다시 연결될 때까지 %1$@ 사용 중입니다.";
+"settings.sound.microphone.test" = "테스트";
+"settings.sound.microphone.stop" = "중지";
+"settings.sound.microphone.level" = "입력 레벨";
 "settings.sound.autoIncreaseMicVolume.title" = "마이크 볼륨 자동 증가";
-"settings.sound.autoIncreaseMicVolume.info" = "녹음 시작 시 마이크 입력 볼륨을 최대로 자동 설정한 다음 녹음 중지 시 원래 레벨로 복원합니다. 시스템 기본 입력 장치를 사용하는 경우에만 적용됩니다.";
+"settings.sound.autoIncreaseMicVolume.info" = "녹음을 시작하면 HyperWhisper가 녹음하는 마이크의 입력 음량을 자동으로 최대로 설정하고, 녹음이 끝나면 원래 레벨로 복원합니다. 소프트웨어 음량 조절이 없는 마이크는 변경되지 않습니다.";
 "settings.sound.vad.title" = "음성 인식 전 무음 제거";
 "settings.sound.vad.info" = "AI 음성 감지를 사용하여 앞뒤 무음을 자동으로 감지하고 제거합니다. 음성 인식 정확도를 향상시키고 처리 시간을 줄일 수 있습니다.";
 
@@ -1165,3 +1173,4 @@
 "settings.storage.maxRecordingDuration.hour" = "1시간";
 "settings.storage.maxRecordingDuration.hours" = "%d시간";
 "settings.storage.maxRecordingDuration.off" = "끄기";
+"settings.api_server.status.stopping" = "중지 중…";

@@ -39,10 +39,16 @@ class AudioSettingsManager: ObservableObject {
 
     // MARK: - Microphone Settings
 
-    /// Selected microphone device ID
-    /// Empty string means use system default microphone
-    /// Device IDs are persistent identifiers from AVCaptureDevice
+    /// The microphone HyperWhisper records from, as a CoreAudio device UID
+    /// (`AudioDevice.uid`). Empty string means follow the macOS default input.
+    /// Choosing one never changes the macOS default input. Kept while the device is
+    /// unplugged; recording falls back to the default until it returns.
     @AppStorage("selectedMicrophoneId") var selectedMicrophoneId: String = ""
+
+    /// Display name of `selectedMicrophoneId`, saved so an unplugged choice can still be
+    /// shown by name ("<name> (not connected)"). Empty for choices saved by builds before
+    /// the microphone picker; the UI then shows the UID until the device is seen again.
+    @AppStorage("selectedMicrophoneName") var selectedMicrophoneName: String = ""
 
     /// Whether to automatically increase microphone volume
     /// When enabled, attempts to boost low input levels during recording

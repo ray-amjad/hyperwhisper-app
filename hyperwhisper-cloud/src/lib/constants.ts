@@ -59,18 +59,11 @@ export const META_MUSE_MAX_BYTES = 32 * 1024 * 1024;
 // while leaving useful headroom for compressed and alternate WAV sources.
 export const META_MUSE_SOURCE_MAX_BYTES = META_MUSE_MAX_BYTES * 2;
 
-// `/assistant` coarse total-body guard, checked against Content-Length BEFORE
-// buffering so a multi-hundred-MB upload is rejected early (the body is fully
-// buffered by formData() on a 1 GB Fly machine). Finer per-image / per-messages
-// caps below bound Anthropic vision spend after buffering.
-export const MAX_ASSISTANT_BODY_BYTES = 25 * 1024 * 1024; // 25 MB
 // `/post-process` total-body guard, checked against Content-Length BEFORE
 // `c.req.json()` buffers the body, so an unauthenticated oversized request is
 // refused before it costs RAM. A real body is small: `text` is capped at
 // 100,000 characters, so 2 MB leaves room for JSON escaping and the prompt.
 export const MAX_POST_PROCESS_BODY_BYTES = 2 * 1024 * 1024; // 2 MB
-// Multipart `image` file cap.
-export const MAX_ASSISTANT_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 // Fly.io's dynamic request routing (`fly-replay`) only honours the replay
 // header for requests with bodies ≤ 1 MB. Larger requests are silently
@@ -78,21 +71,6 @@ export const MAX_ASSISTANT_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
 // the gate to leave headroom for any Fly-side accounting.
 // Ref: https://fly.io/docs/networking/dynamic-request-routing/
 export const FLY_REPLAY_MAX_BODY_BYTES = 900_000;
-
-// Assistant (vision LLM) limits — guard against unbounded Anthropic spend from
-// oversized or numerous client-supplied images. Clients embed images either as
-// a multipart `image` file or inline as data:image/...;base64,... blocks inside
-// the `messages` JSON; both paths must be capped.
-//
-// Total serialized `messages` payload. Sized to admit ASSISTANT_MAX_IMAGES inline
-// images at ASSISTANT_MAX_INLINE_IMAGE_BYTES decoded (base64 ~4/3 expansion ≈
-// 5.3 MB) plus text headroom, while still bounding inline-base64 abuse.
-export const ASSISTANT_MAX_MESSAGES_BYTES = 6 * 1024 * 1024;
-// Decoded size of any single inline base64 image forwarded to Anthropic.
-export const ASSISTANT_MAX_INLINE_IMAGE_BYTES = 2 * 1024 * 1024;
-// Maximum number of images forwarded to Anthropic per request (multipart +
-// inline combined). Screen-aware assistant requests use one screenshot.
-export const ASSISTANT_MAX_IMAGES = 2;
 
 // API base
 export const DEFAULT_API_BASE_URL = 'https://www.hyperwhisper.com';

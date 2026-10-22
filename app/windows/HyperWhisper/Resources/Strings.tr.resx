@@ -799,6 +799,12 @@ Bu işlem geri alınamaz.</value>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Hazır)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Etkinleştirilmedi)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (API anahtarı yok)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Yükleme başarısız</value>
   </data>
@@ -2031,6 +2037,27 @@ Daha sonra yeniden indirebilirsiniz.</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Başlatma gecikmesini azaltmak için kayıtlar arasında sessiz bir boşta giriş akışını açık tutun; özellikle Bluetooth mikrofonlarda faydalıdır.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Yalnızca HyperWhisper tarafından kullanılır. Yeniden başlatmadan sonra hatırlanır.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Varsayılan · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (bağlı değil)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>{1} yeniden bağlanana kadar {0} kullanılıyor.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Bağlı mikrofon yok. HyperWhisper, {0} yeniden bağlandığında onu kullanacak.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Test et</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Durdur</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Ortalama hız</value>

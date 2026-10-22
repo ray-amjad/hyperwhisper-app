@@ -71,10 +71,15 @@ struct SoundSettingsSection: View {
     private var microphoneCard: some View {
         SettingsCard(horizontalPadding: 8) {
             VStack(spacing: 0) {
+                // MICROPHONE PICKER (first row)
+                // The microphone HyperWhisper records from, kept apart from the macOS
+                // default input, with a level bar and a 10-second Test.
+                MicrophonePickerRow()
+
                 // AUTO-INCREASE MICROPHONE VOLUME
-                // Automatically sets the system microphone input volume to max when recording starts.
-                // Only works when using the system default input device (not a specific selected device).
-                // Original volume is restored after recording completes.
+                // Raises the input volume of the microphone HyperWhisper records from (the
+                // chosen one, or the macOS default) when recording starts, and restores it
+                // after. Devices without a settable software volume are skipped silently.
                 SettingsToggleRow(
                     title: "settings.sound.autoIncreaseMicVolume.title",
                     subtitle: nil,
@@ -121,6 +126,7 @@ struct SoundSettingsSection: View {
 #Preview {
     SoundSettingsSection()
         .environmentObject(SettingsManager())
+        .environmentObject(AudioRecordingManager())
         .frame(width: 600)
         .padding()
 }

@@ -1324,12 +1324,6 @@ static class _UniFFILib {
     
     
     
-    
-    
-    
-    
-    
-    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -2167,15 +2161,7 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_missing_required_mode_keys(RustBuffer @present,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_mode_key_classification(RustBuffer @key,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_mode_name_comparison_key(RustBuffer @name,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2204,10 +2190,6 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern uint uniffi_hyperwhisper_core_fn_func_local_api_token_entropy_bytes(ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_token_fingerprint(RustBuffer @token,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3439,15 +3421,7 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_missing_required_mode_keys(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_mode_key_classification(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_comparison_key(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3476,10 +3450,6 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_token_entropy_bytes(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_token_fingerprint(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -4840,8 +4810,8 @@ static class _UniFFILib {
         }
         {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_all_engine_ids();
-            if (checksum != 63651) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_all_engine_ids` checksum `63651`, library returned `{checksum}`");
+            if (checksum != 39863) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_all_engine_ids` checksum `39863`, library returned `{checksum}`");
             }
         }
         {
@@ -4935,21 +4905,9 @@ static class _UniFFILib {
             }
         }
         {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_missing_required_mode_keys();
-            if (checksum != 39725) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_missing_required_mode_keys` checksum `39725`, library returned `{checksum}`");
-            }
-        }
-        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_mode_key_classification();
             if (checksum != 12705) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_mode_key_classification` checksum `12705`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_comparison_key();
-            if (checksum != 44521) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_comparison_key` checksum `44521`, library returned `{checksum}`");
             }
         }
         {
@@ -4992,12 +4950,6 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_token_entropy_bytes();
             if (checksum != 13421) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_token_entropy_bytes` checksum `13421`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_token_fingerprint();
-            if (checksum != 55514) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_token_fingerprint` checksum `55514`, library returned `{checksum}`");
             }
         }
         {
@@ -18553,6 +18505,11 @@ internal static class HyperwhisperCoreMethods {
 
     /// <summary>
     /// Every engine id, in the order `openapi.yaml` lists them.
+    ///
+    /// **Call site: the macOS test target**, not a head's runtime code.
+    /// `LocalEngineNeverRoutesToCloudTests` drives its "no local engine routes to
+    /// Cloud" properties off this table, so an engine added here is covered there
+    /// without anyone widening a list.
     /// </summary>
     public static List<HwLocalApiEngineId> LocalApiAllEngineIds() {
         return FfiConverterSequenceTypeHwLocalApiEngineId.INSTANCE.Lift(
@@ -18799,24 +18756,6 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
-    /// Which required keys a create body did not carry, in the documented order.
-    ///
-    /// **Call sites: the portable head and Windows only, deliberately.** The portable
-    /// head already walks `document.EnumerateObject()`. Windows needs a new
-    /// `ReadJsonBodyWithKeysAsync<T>` because it cannot infer presence from
-    /// `ModeDto` — `Punctuation`/`Capitalization`/`ProfanityFilter` are non-nullable
-    /// `bool`, so an absent key and `false` are the same value. macOS needs neither:
-    /// its decoder *is* this check.
-    /// </summary>
-    public static List<string> LocalApiMissingRequiredModeKeys(List<string> @present) {
-        return FfiConverterSequenceString.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_missing_required_mode_keys(FfiConverterSequenceString.INSTANCE.Lower(@present), ref _status)
-));
-    }
-
-
-    /// <summary>
     /// Classify one top-level key of a mode body. Exact, case-sensitive.
     ///
     /// **Call sites: the portable head and Windows. Not macOS** — see the module
@@ -18829,28 +18768,6 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterTypeHwLocalApiModeKeyClass.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_mode_key_classification(FfiConverterString.INSTANCE.Lower(@key), ref _status)
-));
-    }
-
-
-    /// <summary>
-    /// The key a mode name is compared *by*: trim Unicode whitespace, then
-    /// lowercase. `None` when nothing is left.
-    ///
-    /// **This is the definition of "the same name"**, replacing .NET's
-    /// `OrdinalIgnoreCase` and Core Data's `==[c]`. It is not a storage name — each
-    /// head still writes whatever its own pre-normalisation produced.
-    ///
-    /// **Call sites: all three heads.** On macOS it sits *behind*
-    /// `ModeNamePolicy.normalized`, which keeps NFC and the Unicode general-category
-    /// boundary trim. That half stays native because it needs
-    /// `unicode-normalization` and a category table, and `hw-localapi` takes no
-    /// dependency — it runs under `panic = "abort"` in front of a loopback socket.
-    /// </summary>
-    public static string? LocalApiModeNameComparisonKey(string @name) {
-        return FfiConverterOptionalString.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_mode_name_comparison_key(FfiConverterString.INSTANCE.Lower(@name), ref _status)
 ));
     }
 
@@ -18980,18 +18897,6 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterUInt32.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_token_entropy_bytes( ref _status)
-));
-    }
-
-
-    /// <summary>
-    /// The SHA-256 fingerprint of a token, hex-encoded — for a log line that has to
-    /// identify a credential without carrying it.
-    /// </summary>
-    public static string LocalApiTokenFingerprint(string @token) {
-        return FfiConverterString.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_token_fingerprint(FfiConverterString.INSTANCE.Lower(@token), ref _status)
 ));
     }
 

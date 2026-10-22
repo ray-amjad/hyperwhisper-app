@@ -8,6 +8,7 @@
 
 import Foundation
 import AVFoundation
+import CoreAudio
 
 /// How a `SimpleRecorder.startRecording(to:)` attempt ended.
 ///
@@ -64,8 +65,10 @@ class SimpleRecorder: NSObject, ObservableObject {
 
     // MARK: - Properties
 
-    /// The AVAudioRecorder instance
-    private var recorder: AVAudioRecorder?
+    /// The live recorder: an `AVAudioRecorder` on the macOS default input, or a
+    /// `DeviceAudioRecorder` on the microphone chosen in HyperWhisper (see
+    /// `makeLiveRecorder(url:settings:inputDeviceID:)`).
+    private var recorder: (any LiveAudioRecording)?
 
     /// Task for periodic meter updates
     private var meterUpdateTask: Task<Void, Never>?
@@ -138,6 +141,12 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// Whether recording is currently active
     @Published var isRecording: Bool = false
 
+    /// Called on the main actor when the installed recorder stops capturing on its
+    /// own: a `DeviceAudioRecorder` whose device went away and that could not reopen
+    /// the chosen microphone or the macOS default. The owner ends the recording
+    /// through its error path; the file holds what was captured until then.
+    var onCaptureLost: (() -> Void)?
+
     // MARK: - Recording Settings
 
     /// Whisper-optimized recording format
@@ -167,7 +176,7 @@ class SimpleRecorder: NSObject, ObservableObject {
 
     /// Reads one normalized (0-1) level from a recorder. Runs on `meterQueue`,
     /// never on the main thread.
-    typealias MeterReader = @Sendable (AVAudioRecorder) -> Float
+    typealias MeterReader = @Sendable (any LiveAudioRecording) -> Float
 
     /// The production meter read: `readNormalizedLevel` over -60...0 dB.
     nonisolated static let defaultMeterReader: MeterReader = { recorder in
@@ -196,12 +205,12 @@ class SimpleRecorder: NSObject, ObservableObject {
     // MARK: - Stop (off the main actor, behind the meter read)
 
     /// Stops one recorder. Runs on `meterQueue`, never on the main thread.
-    typealias RecorderStopper = @Sendable (AVAudioRecorder) -> Void
+    typealias RecorderStopper = @Sendable (any LiveAudioRecording) -> Void
 
     /// The production stop. `delegate` is never assigned by this class; clearing
     /// it is belt and braces against a late callback into a retired recorder.
     nonisolated static let defaultRecorderStopper: RecorderStopper = { recorder in
-        recorder.delegate = nil
+        (recorder as? AVAudioRecorder)?.delegate = nil
         recorder.stop()
     }
 
@@ -222,7 +231,7 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// Test seam: put `recorder` in the installed slot without starting it, the
     /// meter loop, or `isRecording`, so a test can reach the publish guards in
     /// `finishMeterRead`. Production never calls it.
-    func installRecorderForTesting(_ recorder: AVAudioRecorder) {
+    func installRecorderForTesting(_ recorder: any LiveAudioRecording) {
         self.recorder = recorder
     }
 
@@ -292,11 +301,34 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// `recorderStartTimeout` and throws `AudioError.audioSystemNotResponding`. A
     /// recorder that comes up after that is stopped and deleted on the queue by
     /// `discardSupersededRecorder`, exactly like a superseded one.
+    ///
+    /// **Chosen microphone.** With an `inputDeviceID`, the recorder is a
+    /// `DeviceAudioRecorder` that opens that device directly, leaving the macOS default
+    /// input alone. If that device cannot be opened, the same job falls back to the
+    /// `AVAudioRecorder` below on the default input, so a flaky device costs the user
+    /// their choice for one recording, not the recording. `DeviceAudioRecorder.record()`
+    /// leaves no file behind when it fails, so the fallback starts on a clean URL.
     nonisolated private static func makeLiveRecorder(
         url: URL,
-        settings: [String: Any]
-    ) async throws -> AVAudioRecorder {
-        try await recorderStartGate.run({
+        settings: [String: Any],
+        inputDeviceID: AudioDeviceID?
+    ) async throws -> any LiveAudioRecording {
+        try await recorderStartGate.run({ () throws -> any LiveAudioRecording in
+            if let inputDeviceID {
+                let deviceRecorder = DeviceAudioRecorder(deviceID: inputDeviceID, url: url)
+                deviceRecorder.isMeteringEnabled = true
+                if deviceRecorder.record() {
+                    AppLogger.audio.info("Recording from the chosen microphone (device \(inputDeviceID, privacy: .public))")
+                    return deviceRecorder
+                }
+                AppLogger.audio.error("Chosen microphone could not be opened - recording from the macOS default input instead")
+                SentryService.addBreadcrumb(
+                    message: "Chosen microphone failed to open; fell back to the default input",
+                    category: "audio.recording",
+                    level: .warning
+                )
+            }
+
             let newRecorder: AVAudioRecorder
             do {
                 newRecorder = try AVAudioRecorder(url: url, settings: settings)
@@ -320,7 +352,7 @@ class SimpleRecorder: NSObject, ObservableObject {
             }
 
             return newRecorder
-        }, discardLate: { lateRecorder in
+        }, discardLate: { (lateRecorder: any LiveAudioRecording) in
             AppLogger.audio.warning("AVAudioRecorder started after its start had timed out - discarding it")
             SimpleRecorder.discardSupersededRecorder(lateRecorder)
         })
@@ -339,9 +371,9 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// The URL is unique per attempt, so this can never touch the winning
     /// attempt's file; leaving it behind would hand `CrashRecoveryManager` an
     /// unclaimed near-empty WAV to synthesize a stub session for.
-    nonisolated private static func discardSupersededRecorder(_ recorder: AVAudioRecorder) {
+    nonisolated private static func discardSupersededRecorder(_ recorder: any LiveAudioRecording) {
         SimpleRecorder.recorderStartQueue.async {
-            recorder.delegate = nil
+            (recorder as? AVAudioRecorder)?.delegate = nil
             recorder.stop()
             if !recorder.deleteRecording() {
                 AppLogger.audio.warning("Failed to delete the WAV of a superseded AVAudioRecorder start")
@@ -404,6 +436,9 @@ class SimpleRecorder: NSObject, ObservableObject {
     ///
     /// **Parameters:**
     /// - `url`: Where to save the WAV file
+    /// - `inputDeviceID`: The chosen microphone to open directly, or `nil` to record
+    ///   from the macOS default input. Resolve it with
+    ///   `MicrophoneCaptureRouting.captureDeviceID(preferredUID:)`.
     ///
     /// **Returns:**
     /// - `.started` when the recorder is live and installed
@@ -413,7 +448,7 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// - AudioError.recordingFailed if recorder cannot start
     /// - AudioError.audioSystemNotResponding if CoreAudio did not start it within
     ///   `recorderStartTimeout`, or an earlier start is still stuck there
-    func startRecording(to url: URL) async throws -> RecorderStartOutcome {
+    func startRecording(to url: URL, inputDeviceID: AudioDeviceID? = nil) async throws -> RecorderStartOutcome {
         // A start that already timed out is still blocked on the serial queue, so
         // this one would only wait behind it. Fail now, with the same message.
         if SimpleRecorder.recorderStartGate.hasAbandonedWork {
@@ -433,9 +468,13 @@ class SimpleRecorder: NSObject, ObservableObject {
 
         // Create recorder with Whisper-optimized settings and start it, off the
         // main actor. Throws exactly what the synchronous version threw.
-        let startedRecorder: AVAudioRecorder
+        let startedRecorder: any LiveAudioRecording
         do {
-            startedRecorder = try await SimpleRecorder.makeLiveRecorder(url: url, settings: recordSettings)
+            startedRecorder = try await SimpleRecorder.makeLiveRecorder(
+                url: url,
+                settings: recordSettings,
+                inputDeviceID: inputDeviceID
+            )
         } catch {
             // A failure only belongs to the caller if the caller still owns the
             // recorder. Rethrowing a superseded attempt's error would run the
@@ -478,6 +517,16 @@ class SimpleRecorder: NSObject, ObservableObject {
         recorder = startedRecorder
         isRecording = true
         startMeterUpdates()
+        if let deviceRecorder = startedRecorder as? DeviceAudioRecorder {
+            deviceRecorder.setCaptureLostHandler { [weak self, weak deviceRecorder] in
+                guard let self, let deviceRecorder else { return }
+                Task { @MainActor in
+                    // Only the recorder still installed may end the recording.
+                    guard let installed = self.recorder, installed === deviceRecorder else { return }
+                    self.onCaptureLost?()
+                }
+            }
+        }
 
         AppLogger.audio.info("SimpleRecorder started recording to: \(url.lastPathComponent, privacy: .public)")
         return .started
@@ -529,7 +578,7 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// `discardSupersededRecorder(_:)`, a recorder that reached the installed state was
     /// live and may hold real audio. Leaving the WAV lets `CrashRecoveryManager` claim it
     /// as an unfinished recording, which is the non-destructive outcome.
-    private func retireActiveRecorder() -> AVAudioRecorder? {
+    private func retireActiveRecorder() -> (any LiveAudioRecording)? {
         meterUpdateTask?.cancel()
         meterUpdateTask = nil
 
@@ -552,7 +601,7 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// stop is not cancelled (`.runAnyway`): it runs when the lock frees, so the
     /// microphone is released then. Its file is the caller's to leave alone.
     nonisolated static func stopOnMeterQueue(
-        _ recorder: AVAudioRecorder,
+        _ recorder: any LiveAudioRecording,
         on queue: DispatchQueue,
         timeout: DispatchTimeInterval,
         using stopper: @escaping RecorderStopper
@@ -578,7 +627,7 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// discipline as `discardSupersededRecorder(_:)`. Also used by
     /// `AudioRecordingManager.stopInputLevelPreview()` on its own meter queue.
     nonisolated static func stopAndReleaseLater(
-        _ recorder: AVAudioRecorder,
+        _ recorder: any LiveAudioRecording,
         on queue: DispatchQueue,
         using stopper: RecorderStopper
     ) {
@@ -682,7 +731,7 @@ class SimpleRecorder: NSObject, ObservableObject {
     ///   one. The level can lag by a frame.
     ///
     /// Internal, not private, so a test can drive a tick without a live recording.
-    func requestMeterRead(from recorder: AVAudioRecorder) {
+    func requestMeterRead(from recorder: any LiveAudioRecording) {
         guard !meterReadInFlight else { return }
         meterReadInFlight = true
 
@@ -703,7 +752,7 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// Same pattern as `discardSupersededRecorder(_:)`. The block captures the
     /// recorder strongly until the read returns.
     nonisolated static func readLevel(
-        from recorder: AVAudioRecorder,
+        from recorder: any LiveAudioRecording,
         on queue: DispatchQueue,
         using reader: @escaping MeterReader
     ) async -> Float {
@@ -737,7 +786,7 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// - Values at `maxDb` map to 1.0 (full scale)
     /// - Linear interpolation between
     nonisolated static func readNormalizedLevel(
-        _ recorder: AVAudioRecorder,
+        _ recorder: any LiveAudioRecording,
         minDb: Float,
         maxDb: Float
     ) -> Float {

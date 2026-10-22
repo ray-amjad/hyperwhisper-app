@@ -255,6 +255,12 @@ class RecordingTranscriptionFlow {
         self.autoPasteHandler = autoPasteHandler
         self.powerActivityManager = powerActivityManager
         self.permissionManager = permissionManager
+
+        recordingLifecycle.onCaptureLost = { [weak self] in
+            Task { @MainActor in
+                await self?.handleRecordingCaptureLost()
+            }
+        }
     }
 
     /// Configure with dependencies after initialization

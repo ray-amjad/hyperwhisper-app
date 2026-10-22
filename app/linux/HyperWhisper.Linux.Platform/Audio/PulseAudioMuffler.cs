@@ -106,8 +106,8 @@ internal sealed class PulseAudioMuffler(IDesktopCommandRunner runner, IChildProc
     // holding a server connection. The shell runs it in the background and kills it once our end of its stdin closes.
     internal const string Shell = "/bin/sh";
     internal const string WatchScript = "\"$@\" </dev/null & p=$!; exec >/dev/null; read -r _ || :; kill \"$p\" 2>/dev/null";
-    internal static IReadOnlyList<string> TiedArguments(string executable, IReadOnlyList<string> arguments) =>
-        ["-c", WatchScript, "hyperwhisper-muffle-watch", executable, .. arguments];
+    internal static IReadOnlyList<string> TiedArguments(string executable, IReadOnlyList<string> arguments, string name = "hyperwhisper-muffle-watch") =>
+        ["-c", WatchScript, name, executable, .. arguments];
     internal void Subscribe(PulseMuffleRun run) =>
         run.Subscription = Child(Shell, TiedArguments(pactl!, ["subscribe"]), output: true, input: true,
             environment: new Dictionary<string, string?> { ["LC_ALL"] = "C" });

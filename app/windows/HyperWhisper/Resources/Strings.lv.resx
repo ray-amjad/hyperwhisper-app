@@ -799,6 +799,12 @@
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
   </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (Nav aktivizēts)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (Nav API atslēgas)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -2031,6 +2037,27 @@ You can re-download it later.</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Izmanto tikai HyperWhisper. Tiek atcerēts arī pēc restartēšanas.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Noklusējums · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (nav pievienots)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Tiek izmantots {0}, līdz {1} tiks pievienots atkārtoti.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Nav pievienots neviens mikrofons. HyperWhisper izmantos {0}, kad tas tiks pievienots atkārtoti.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Pārbaudīt</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Apturēt</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>

@@ -64,12 +64,13 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
     /// <summary>
     /// Reads and writes whichever device the RUNNING APP has open.
     ///
-    /// SettingsService.LastSelectedMicrophone is documented as "(future)" and is
-    /// written by nothing and read by nothing in this head - the live selection is
-    /// MainViewModel.SelectedAudioDevice, which is in-memory. So the preference
-    /// and the open device are genuinely two different stores here, exactly as the
-    /// seam's StoredDeviceId / SelectedDeviceId split assumes; this pair is the
-    /// second one. OnboardingLiveDependencies supplies the MainViewModel-backed
+    /// SettingsService.LastSelectedMicrophone is the one saved choice, shared with
+    /// the tray and Settings -> Sound; MainViewModel resolves it at launch and on
+    /// every device change. The open device is the saved choice while it is
+    /// connected, and null (following the Windows default) otherwise, so the
+    /// preference and the open device still diverge when the remembered
+    /// microphone is unplugged, exactly as the seam's StoredDeviceId /
+    /// SelectedDeviceId split assumes; this pair is the second one. OnboardingLiveDependencies supplies the MainViewModel-backed
     /// implementation; without one the adapter keeps its own field, which is what
     /// the smoke harness gets.
     /// </summary>
@@ -449,36 +450,12 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
 
     /// <summary>
     /// The identical RMS -> dB -> envelope maths AudioRecorderService.OnDataAvailable
-    /// runs, so the onboarding meter and the recording meter move the same way for
-    /// the same speech.
+    /// runs (<see cref="AudioLevelMath"/>, shared with the Settings Test meter), so
+    /// the onboarding meter and the recording meter move the same way for the same
+    /// speech.
     /// </summary>
-    private void OnPreviewData(object? sender, WaveInEventArgs e)
-    {
-        double sumSquares = 0;
-        var sampleCount = 0;
-        for (var i = 0; i + 1 < e.BytesRecorded; i += 2)
-        {
-            short sample = BitConverter.ToInt16(e.Buffer, i);
-            var norm = sample / 32768.0;
-            sumSquares += norm * norm;
-            sampleCount++;
-        }
-
-        var normalized = 0f;
-        if (sampleCount > 0)
-        {
-            var rms = Math.Sqrt(sumSquares / sampleCount);
-            var db = 20.0 * Math.Log10(Math.Max(rms, 1e-6));
-            normalized = (float)Math.Clamp((db + 60.0) / 54.0, 0.0, 1.0);
-        }
-
-        // Fast attack, slow decay.
-        var next = normalized > _previewLevel
-            ? normalized
-            : Math.Max(normalized, _previewLevel * 0.85f);
-
-        PublishLevel(next);
-    }
+    private void OnPreviewData(object? sender, WaveInEventArgs e) =>
+        PublishLevel(AudioLevelMath.NextLevel(e.Buffer, e.BytesRecorded, _previewLevel));
 
     private void PublishLevel(float level)
     {

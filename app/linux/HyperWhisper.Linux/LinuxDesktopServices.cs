@@ -63,6 +63,7 @@ internal sealed class LinuxDesktopServices : IDisposable
         SingleInstance = new LinuxSingleInstanceCoordinator(Paths);
         MicrophoneVolume = new LinuxMicrophoneVolumeService();
         MicrophoneKeepWarm = new LinuxMicrophoneKeepWarmService();
+        AudioDeviceWatcher = new PulseAudioDeviceWatcher();
         SoundEffects = new LinuxSoundEffectsService();
         AudioEnvironment = new LinuxAudioEnvironmentService();
         LivePreviewState = new EphemeralLiveTranscriptPreview();
@@ -100,6 +101,9 @@ internal sealed class LinuxDesktopServices : IDisposable
     public IDeviceIdentityProvider DeviceIdentity { get; }
     public IMicrophoneVolumeService MicrophoneVolume { get; }
     public IMicrophoneKeepWarmService MicrophoneKeepWarm { get; }
+    /// <summary>Raises when a microphone is plugged in or out, or the OS default input moves; the
+    /// window answers with a device refresh. Started by the window after start-up.</summary>
+    public PulseAudioDeviceWatcher AudioDeviceWatcher { get; }
     public ISoundEffectsService SoundEffects { get; }
     public IAudioEnvironmentService AudioEnvironment { get; }
     public LiveStreamingSessionController LiveStreaming { get; }
@@ -145,6 +149,7 @@ internal sealed class LinuxDesktopServices : IDisposable
         ApplicationContext.Dispose();
         Tray.Dispose();
         SingleInstance.Dispose();
+        AudioDeviceWatcher.Dispose();
         MicrophoneKeepWarm.Dispose();
         SoundEffects.Dispose();
         LiveStreaming.DisposeAsync().AsTask().GetAwaiter().GetResult();
