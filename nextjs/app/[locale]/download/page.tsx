@@ -125,7 +125,19 @@ export default function DownloadPage() {
     void box.offsetHeight;
     box.style.height = `${to}px`;
 
+    // Content can still change size mid-tween (the Linux version arrives from
+    // /linux-latest.json); retarget the pin to it rather than snap at the end.
+    const content = box.firstElementChild;
+    const observer = new ResizeObserver(() => {
+      if (content instanceof HTMLElement) {
+        box.style.height = `${content.offsetHeight}px`;
+      }
+    });
+
+    if (content) observer.observe(content);
+
     const unpin = () => {
+      observer.disconnect();
       window.clearTimeout(timer);
       box.removeEventListener("transitionend", onEnd);
       box.style.height = "";
