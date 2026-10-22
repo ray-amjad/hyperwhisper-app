@@ -65,10 +65,12 @@ second launch then exits with no error.
 
 ## Enable global shortcuts and automatic paste
 
-On X11, global shortcuts work without extra setup. On GNOME and KDE Plasma
-Wayland, HyperWhisper reads configured global shortcuts through `/dev/input`.
-On every desktop, it pastes text automatically through `/dev/uinput`. Both need
-the dedicated `hyperwhisper-input` group. Package installation creates the
+On an X11 (Xorg) session that reports `XDG_SESSION_TYPE=x11`, global shortcuts
+work without extra setup. On Wayland, and on any other session, HyperWhisper
+reads configured global shortcuts through `/dev/input`. GNOME and KDE Plasma
+Wayland are the verified desktops. On every desktop, HyperWhisper pastes text
+automatically through `/dev/uinput`. Both need the dedicated
+`hyperwhisper-input` group. Package installation creates the
 group, but it does not add you automatically.
 
 To grant this access to your account:
@@ -87,7 +89,7 @@ id -nG | tr ' ' '\n' | grep -x hyperwhisper-input
   Input-device access is sensitive. It can expose keyboard events to software
   running as your user. HyperWhisper filters events inside its input service and
   emits only configured action identifiers, but you should grant this group only
-  to accounts that need Wayland global shortcuts or automatic paste.
+  to accounts that need global shortcuts outside an X11 session or automatic paste.
 </Warning>
 
 Without the group, transcription still works. HyperWhisper keeps the result on
