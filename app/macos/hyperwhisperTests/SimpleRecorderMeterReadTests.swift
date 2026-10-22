@@ -287,9 +287,10 @@ struct SimpleRecorderMeterReadTests {
         let recorder = Self.makeRecorder(reader: reader)
         recorder.recorderStopper = { stopper.stop($0) }
         // This test is about ordering, not the deadline: the stop must wait for
-        // the read however long the machine takes to get there. The failsafe only
-        // keeps a regression from hanging the suite.
-        recorder.stopDeadline = DeadlineGate.after(.seconds(Int(hangFailsafe)))
+        // the read however long the machine takes to get there, so its deadline
+        // is never fired. Arming it also tells the test the stop is queued.
+        let deadline = ManualDeadline()
+        recorder.stopDeadline = deadline.deadline
         let avRecorder = try Self.makeAVRecorder()
         recorder.installRecorderForTesting(avRecorder)
 
@@ -299,7 +300,10 @@ struct SimpleRecorderMeterReadTests {
 
         let stop = Task { await recorder.stopRecording() }
 
-        // The read is stuck, so the stop must still be queued behind it.
+        // The stop is on the meter queue behind the stuck read once its deadline
+        // is armed (`DeadlineGate.run` queues the work first). It must not run
+        // while the read is stuck.
+        #expect(await deadline.waitUntilArmed())
         #expect(await stopper.waitUntilStopped(timeout: 0.5) == false)
         #expect(stopper.stopCount == 0)
 
@@ -361,6 +365,9 @@ struct SimpleRecorderMeterReadTests {
         let stopper = RecordingStopper(watching: reader)
         let recorder = Self.makeRecorder(reader: reader)
         recorder.recorderStopper = { stopper.stop($0) }
+        // A deadline nobody fires: on a stalled machine the 5 s production timer
+        // could beat the idle queue to the stop (#1866).
+        recorder.stopDeadline = ManualDeadline().deadline
         recorder.installRecorderForTesting(try Self.makeAVRecorder())
 
         #expect(await recorder.stopRecording() == .stopped)
