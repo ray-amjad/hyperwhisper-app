@@ -32,6 +32,7 @@ try
     await database.MigrateAsync();
     await RunTranscriptionWorkflowTestsAsync(root);
     await MicrophonePickerTests.RunAsync(Path.Combine(root, "microphone-picker"));
+    MicSilenceWatcherTests.Run();
     await RunHistoryRetryTestsAsync(root);
     await RunHistoryExperienceTestsAsync(root);
     await RunHistoryBulkLoadTestsAsync(root);
