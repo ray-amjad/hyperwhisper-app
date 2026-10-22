@@ -31,7 +31,7 @@
  */
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
-import test, { mock } from "node:test";
+import test from "node:test";
 
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { NextIntlClientProvider } from "next-intl";
@@ -40,15 +40,7 @@ import { createElement, type ReactElement } from "react";
 import * as realJsxRuntime from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 
-/** See credit-routes-harness.ts: @types/node@20 has no `mock.module`. */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports?: Record<string, unknown> },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+import { moduleMock } from "./module-mock";
 
 const ORIGIN = "http://localhost:3000";
 const EMAIL = "dead-link-probe@example.com";

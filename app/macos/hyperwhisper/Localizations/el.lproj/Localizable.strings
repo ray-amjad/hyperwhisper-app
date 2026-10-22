@@ -709,6 +709,7 @@
 "modes.header.create" = "Δημιουργία Λειτουργίας";
 "modes.name.unnamed" = "Χωρίς όνομα";
 "modes.badge.offline" = "Χωρίς σύνδεση";
+"modes.badge.modelMissing" = "Λείπει το μοντέλο";
 "modes.context.select" = "Επιλογή";
 "modes.help.edit" = "Επεξεργασία ρυθμίσεων λειτουργίας";
 "modes.help.preset" = "Μάθετε περισσότερα σχετικά με αυτό το στυλ μορφοποίησης";

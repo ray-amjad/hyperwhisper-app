@@ -709,6 +709,7 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "modes.header.create" = "Buat Mode";
 "modes.name.unnamed" = "Tanpa Nama";
 "modes.badge.offline" = "Offline";
+"modes.badge.modelMissing" = "Model tidak ada";
 "modes.context.select" = "Pilih";
 "modes.help.edit" = "Edit pengaturan mode";
 "modes.help.preset" = "Pelajari lebih lanjut tentang gaya pemformatan ini";
