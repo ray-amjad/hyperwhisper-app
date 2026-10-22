@@ -6,7 +6,7 @@
 // (shared-core-rs/bindings/csharp/hyperwhisper_core.cs) by hand.
 //
 // Backs the `hw-license` Rust core's persistence. The core is pure (no clock,
-// no storage): it reads/writes license, remote-config, and usage state through
+// no storage): it reads/writes license and remote-config state through
 // this `KeyValueStore`, and takes `now_unix_secs` at every time-dependent call.
 //
 // BACKWARD-COMPATIBILITY (the #1 migration risk):
@@ -42,18 +42,19 @@ using PlatformContracts = HyperWhisper.Platform.Abstractions;
 // `KeyValueStore`, the constant routing target, lives in uniffi.hyperwhisper_core
 // and is `internal` to HyperWhisper.SharedCore, which grants this assembly access
 // via InternalsVisibleTo (issue #275). There is no `HyperWhisper.*` type
-// named KeyValueStore, so no qualification is needed for it. Only the app's `HyperWhisper.Models.LicenseStatus` is a
-// distinct name from the binding's `HwLicenseStatus`, so they never collide.
+// named KeyValueStore, so no qualification is needed for it. Only the app's
+// `HyperWhisper.Models.LicenseStatus` is a distinct name from the binding's
+// `HwLicenseStatus`, so they never collide.
 namespace HyperWhisper.Services;
 
 /// <summary>
 /// Credential-Manager + flat-JSON backed <see cref="KeyValueStore"/> for the
-/// Rust license/usage core. A single shared instance is held by
+/// Rust license core. A single shared instance is held by
 /// <see cref="LicenseManager"/> and passed to every <c>License*</c> call.
 /// </summary>
 internal sealed class RustCoreKeyValueStore : KeyValueStore
 {
-    // ---- Core storage keys (MUST match hw-license/src/{cache,usage}.rs) ----
+    // ---- Core storage keys (MUST match hw-license/src/cache.rs) ----
 
     // Routed to Credential Manager:
     private const string KLicenseKey = "com.hyperwhisper.license.key";
