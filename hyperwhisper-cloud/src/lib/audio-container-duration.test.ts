@@ -23,6 +23,7 @@ describe('readAudioContainerDuration: real files', () => {
   test.each([
     ['opus-8kbps-3s.ogg', 'ogg'],
     ['vorbis-3s.ogg', 'ogg'],
+    ['vorbis-44k-long-blocks-3s.ogg', 'ogg'],
     ['mp3-16kbps-id3-3s.mp3', 'mp3'],
     ['aac-16kbps-moov-last-3s.m4a', 'mp4'],
     ['aac-16kbps-moov-first-3s.m4a', 'mp4'],
@@ -167,6 +168,26 @@ describe('readAudioContainerDuration: tampered headers', () => {
       offset += page.length;
     }
     expect(readAudioContainerDuration(audio.buffer)).toMatchObject({ container: 'ogg', durationSeconds: undefined });
+  });
+
+  test('Vorbis with forged granules is counted as long blocks, not short ones', () => {
+    // 44.1 kHz libvorbis: 256-sample short and 2048-sample long blocks; a
+    // steady tone is coded in long blocks only.
+    const audio = fixture('vorbis-44k-long-blocks-3s.ogg');
+    expect(durationOf(audio)).toBeGreaterThanOrEqual(2.95);
+    const bytes = new Uint8Array(audio);
+    const view = new DataView(audio);
+    // Every page's granule claims sample 0.
+    for (let offset = 0; offset + 27 <= bytes.length;) {
+      view.setUint32(offset + 6, 0, true);
+      view.setUint32(offset + 10, 0, true);
+      const segments = bytes[offset + 26];
+      let body = 0;
+      for (let segment = 0; segment < segments; segment++) body += bytes[offset + 27 + segment];
+      offset += 27 + segments + body;
+    }
+    expect(durationOf(audio)).toBeGreaterThanOrEqual(2.95);
+    expect(durationOf(audio)).toBeLessThanOrEqual(3.2);
   });
 
   test('an M4A whose stts and mdhd claim a millisecond is measured by its AAC frames', () => {

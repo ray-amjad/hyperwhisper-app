@@ -176,18 +176,24 @@ function wavDuration(b: Uint8Array): number | undefined {
 // ---------------------------------------------------------------------------
 // OGG: walk every page and reassemble packet boundaries from the lacing values.
 // Opus: sum each audio packet's TOC-declared frames, which is exactly what a
-// decoder plays, minus the pre-skip (no packet counted: unknown, never the granule). Vorbis: the last granule over the sample
-// rate, but never less than one short block per audio packet. Every logical
-// stream is summed (chained files); a stream of any other codec makes the whole
-// file unknown, because the bytes it carries might be the audio.
+// decoder plays, minus the pre-skip; with no packet counted the stream is
+// unknown (the granule alone is never trusted). Vorbis: the last granule over
+// the sample rate, but never less than one LONG block's half per audio packet.
+// A packet's real block size depends on its mode's blockflag in the setup
+// header, which can only be read backwards and ambiguously without decoding the
+// codebooks, so every packet is counted as long: a decoder emits prev/4 + cur/4
+// samples per packet, never more than long/2, so this can only over-reserve
+// (1.0x on steady audio, measured up to ~1.9x on click-dense 44.1 kHz audio).
+// Every logical stream is summed (chained files); a stream of any other codec
+// makes the whole file unknown, because the bytes it carries might be the audio.
 
 interface OggStream {
   packets: number;
   codec: 'opus' | 'vorbis' | 'skeleton' | 'other' | undefined;
   sampleRate: number;
   preSkip: number;
-  /** Vorbis short block size, in samples. */
-  shortBlock: number;
+  /** Vorbis long block size, in samples. */
+  longBlock: number;
   opusSamples: number;
   vorbisAudioPackets: number;
   lastGranule: number;
@@ -232,7 +238,7 @@ function oggDuration(b: Uint8Array): number | undefined {
     } else if (stream.codec === 'vorbis') {
       sawAudio = true;
       const granuleSamples = Math.max(0, stream.lastGranule);
-      const packetSamples = stream.vorbisAudioPackets * (stream.shortBlock / 2);
+      const packetSamples = stream.vorbisAudioPackets * (stream.longBlock / 2);
       totalSeconds += Math.max(granuleSamples, packetSamples) / stream.sampleRate;
     } else if (stream.codec === 'other' || (stream.codec === undefined && stream.packets > 0)) {
       unknown = true;
@@ -253,11 +259,13 @@ function oggDuration(b: Uint8Array): number | undefined {
       } else if (u8(b, packet.start) === 1 && ascii(b, packet.start + 1, 6) === 'vorbis' && packet.length >= 30) {
         const sampleRate = u32le(b, packet.start + 12);
         const shortBlockExponent = u8(b, packet.start + 28) & 0x0F;
-        // Vorbis I allows block sizes of 64..8192 samples.
-        if (sampleRate > 0 && shortBlockExponent >= 6 && shortBlockExponent <= 13) {
+        const longBlockExponent = u8(b, packet.start + 28) >> 4;
+        // Vorbis I allows block sizes of 64..8192 samples, short <= long; any
+        // other header fails to decode, so the stream stays 'other' (unknown).
+        if (sampleRate > 0 && shortBlockExponent >= 6 && longBlockExponent <= 13 && shortBlockExponent <= longBlockExponent) {
           stream.codec = 'vorbis';
           stream.sampleRate = sampleRate;
-          stream.shortBlock = 2 ** shortBlockExponent;
+          stream.longBlock = 2 ** longBlockExponent;
         }
       } else if (id === 'fishead\0') {
         stream.codec = 'skeleton';
@@ -296,7 +304,7 @@ function oggDuration(b: Uint8Array): number | undefined {
     if (!stream) {
       if (active.size >= MAX_CONCURRENT_OGG_STREAMS) return undefined;
       stream = {
-        packets: 0, codec: undefined, sampleRate: 0, preSkip: 0, shortBlock: 0,
+        packets: 0, codec: undefined, sampleRate: 0, preSkip: 0, longBlock: 0,
         opusSamples: 0, vorbisAudioPackets: 0, lastGranule: -1, pending: undefined,
       };
       active.set(serial, stream);
