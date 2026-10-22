@@ -9,8 +9,8 @@ import { computeSonioxTranscriptionCost, estimateSonioxContextTokens } from '../
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson } from './utils';
-import { readUpstreamError, safeErrorToken, upstreamErrorLogFields, upstreamErrorReason, type UpstreamErrorRead } from './upstream-error';
+import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, providerHttpError, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson, type ProviderHttpErrorPolicy } from './utils';
+import { readUpstreamError, safeErrorToken, upstreamErrorLogFields } from './upstream-error';
 
 const SONIOX_BASE = 'https://api.soniox.com';
 // v5 is canonical; v4 remains accepted only as an old-caller compatibility alias.
@@ -53,27 +53,22 @@ function toContextTerms(initialPrompt: string): string[] {
   });
 }
 
-function throwForStatus({ fields, classifierText }: UpstreamErrorRead): never {
-  const { status } = fields;
-  if (status === 401 || status === 403) {
-    throw new Error('Soniox API key is invalid or unauthorized');
-  }
-  if (status === 429) {
-    throw new ProviderUnavailableError('Soniox', 'rate limit exceeded');
-  }
-  // A 402 means THEIR billing/balance failed — an upstream outage, not a
-  // client-input error. Surface it as provider-unavailable (→ 502) so we don't
-  // mislabel it as a 400 the caller could "fix".
-  if (status === 402) {
-    throw new ProviderUnavailableError('Soniox', 'insufficient funds');
-  }
-  if (status >= 500) {
-    throw new ProviderUnavailableError('Soniox', `upstream 5xx: ${status}`);
-  }
-  // The message (logged) names the error code only; the body preview stays
-  // in the client's 400, as before (#2163).
-  throw new ProviderInputError('Soniox', status, upstreamErrorReason(fields), classifierText || `HTTP ${status}`);
-}
+/**
+ * Soniox's ladder on the shared helper. A bad key ends the request (a plain
+ * `Error`, not a `ProviderAuthError`); 429, 402 and 5xx fail over; any other
+ * 4xx is a `ProviderInputError`. A 402 means THEIR billing/balance failed — an
+ * upstream outage, not a client-input error — so it surfaces as
+ * provider-unavailable (→ 502), not a 400 the caller could "fix".
+ */
+const HTTP_ERROR_POLICY: ProviderHttpErrorPolicy = {
+  label: 'Soniox',
+  authStatuses: [],
+  terminalStatuses: {
+    401: 'Soniox API key is invalid or unauthorized',
+    403: 'Soniox API key is invalid or unauthorized',
+  },
+  failoverOn402: true,
+};
 
 async function bestEffortDelete(
   apiKey: string,
@@ -148,9 +143,14 @@ export async function transcribeWithSoniox(
     }, context, computeUploadTimeoutMs(audio.byteLength));
 
     if (!uploadResp.ok) {
-      const upstreamError = await readUpstreamError(uploadResp);
-      logProviderEvent(provider, 'http_error', { phase: 'upload', ...upstreamErrorLogFields(upstreamError.fields) }, context);
-      throwForStatus(upstreamError);
+
+      throw await providerHttpError(provider, uploadResp, startedAt, context, {
+
+        ...HTTP_ERROR_POLICY,
+
+        logDetails: { phase: 'upload' },
+
+      });
     }
     fileId = await readRequiredJsonString(uploadResp, {
       provider: 'Soniox',
@@ -184,9 +184,14 @@ export async function transcribeWithSoniox(
     }, context);
 
     if (!createResp.ok) {
-      const upstreamError = await readUpstreamError(createResp);
-      logProviderEvent(provider, 'http_error', { phase: 'create', ...upstreamErrorLogFields(upstreamError.fields) }, context);
-      throwForStatus(upstreamError);
+
+      throw await providerHttpError(provider, createResp, startedAt, context, {
+
+        ...HTTP_ERROR_POLICY,
+
+        logDetails: { phase: 'create' },
+
+      });
     }
     transcriptionId = await readRequiredJsonString(createResp, {
       provider: 'Soniox',
@@ -276,9 +281,14 @@ export async function transcribeWithSoniox(
     }, context);
 
     if (!transcriptResp.ok) {
-      const upstreamError = await readUpstreamError(transcriptResp);
-      logProviderEvent(provider, 'http_error', { phase: 'transcript', ...upstreamErrorLogFields(upstreamError.fields) }, context);
-      throwForStatus(upstreamError);
+
+      throw await providerHttpError(provider, transcriptResp, startedAt, context, {
+
+        ...HTTP_ERROR_POLICY,
+
+        logDetails: { phase: 'transcript' },
+
+      });
     }
 
     let transcriptData: { text?: string; tokens?: Array<{ language?: string }> };

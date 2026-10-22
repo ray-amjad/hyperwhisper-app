@@ -50,8 +50,8 @@ import { transcribeWithAssemblyAIDictation } from './assemblyai-dictation';
 import { MEDICAL_DOMAIN } from '../lib/stt-models';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson } from './utils';
-import { readUpstreamError, upstreamErrorLogFields, upstreamErrorReason, type UpstreamErrorRead } from './upstream-error';
+import { computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson, type ProviderHttpErrorPolicy } from './utils';
+import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
 
 const ASSEMBLYAI_BASE = 'https://api.assemblyai.com';
 const ASSEMBLYAI_SYNC_BASE = 'https://sync.assemblyai.com';
@@ -250,28 +250,22 @@ function filterKeytermsByWordCount(terms: string[]): string[] {
   return terms.filter((t) => t.split(/\s+/).filter(Boolean).length <= MAX_KEYTERM_WORDS);
 }
 
-/** Map an upstream HTTP failure to the right chain-control error. */
-function throwForStatus({ fields, classifierText }: UpstreamErrorRead): never {
-  const { status } = fields;
-  if (status === 401 || status === 403) {
-    throw new Error('AssemblyAI API key is invalid or unauthorized');
-  }
-  if (status === 429) {
-    throw new ProviderUnavailableError('AssemblyAI', 'rate limit exceeded');
-  }
-  // A 402 means THEIR billing/balance failed — an upstream outage, not a
-  // client-input error. Surface it as provider-unavailable (→ 502) so we don't
-  // mislabel it as a 400 the caller could "fix".
-  if (status === 402) {
-    throw new ProviderUnavailableError('AssemblyAI', 'insufficient funds');
-  }
-  if (status >= 500) {
-    throw new ProviderUnavailableError('AssemblyAI', `upstream 5xx: ${status}`);
-  }
-  // The message (logged) names the error code only; the body preview stays
-  // in the client's 400, as before (#2163).
-  throw new ProviderInputError('AssemblyAI', status, upstreamErrorReason(fields), classifierText || `HTTP ${status}`);
-}
+/**
+ * AssemblyAI's ladder on the shared helper. A bad key ends the request (a plain
+ * `Error`, not a `ProviderAuthError`); 429, 402 and 5xx fail over; any other
+ * 4xx is a `ProviderInputError`. A 402 means THEIR billing/balance failed — an
+ * upstream outage, not a client-input error — so it surfaces as
+ * provider-unavailable (→ 502), not a 400 the caller could "fix".
+ */
+const HTTP_ERROR_POLICY: ProviderHttpErrorPolicy = {
+  label: 'AssemblyAI',
+  authStatuses: [],
+  terminalStatuses: {
+    401: 'AssemblyAI API key is invalid or unauthorized',
+    403: 'AssemblyAI API key is invalid or unauthorized',
+  },
+  failoverOn402: true,
+};
 
 /**
  * Try AssemblyAI's sync transcription API for a clip already estimated to be
@@ -491,11 +485,11 @@ export async function transcribeWithAssemblyAI(
   logProviderEvent(provider, 'prepare', {
     model, medical, audioBytes: audio.byteLength, contentType, language: language || 'auto',
   }, context);
-  const uploadUrl = await uploadAudio(audio, apiKey, context);
+  const uploadUrl = await uploadAudio(audio, apiKey, startedAt, context);
 
   // ── 2. Create the transcript job ──
   const { createBody, keyterms } = buildTranscriptJob(uploadUrl, language, initialPrompt, medical, model);
-  const transcriptId = await createTranscriptJob(createBody, apiKey, context);
+  const transcriptId = await createTranscriptJob(createBody, apiKey, startedAt, context);
 
   logProviderEvent(provider, 'job_created', { model, medical, transcriptId, keytermCount: keyterms.length }, context);
 
@@ -508,6 +502,7 @@ export async function transcribeWithAssemblyAI(
 async function uploadAudio(
   audio: ArrayBuffer,
   apiKey: string,
+  startedAt: number,
   context: ProviderRequestContext,
 ): Promise<string> {
   const provider = 'assemblyai';
@@ -518,9 +513,14 @@ async function uploadAudio(
   }, context, computeUploadTimeoutMs(audio.byteLength));
 
   if (!uploadResp.ok) {
-    const upstreamError = await readUpstreamError(uploadResp);
-    logProviderEvent(provider, 'http_error', { phase: 'upload', ...upstreamErrorLogFields(upstreamError.fields) }, context);
-    throwForStatus(upstreamError);
+
+    throw await providerHttpError(provider, uploadResp, startedAt, context, {
+
+      ...HTTP_ERROR_POLICY,
+
+      logDetails: { phase: 'upload' },
+
+    });
   }
 
   return readRequiredJsonString(uploadResp, {
@@ -590,6 +590,7 @@ export function buildTranscriptJob(
 async function createTranscriptJob(
   createBody: Record<string, unknown>,
   apiKey: string,
+  startedAt: number,
   context: ProviderRequestContext,
 ): Promise<string> {
   const provider = 'assemblyai';
@@ -600,9 +601,14 @@ async function createTranscriptJob(
   }, context);
 
   if (!createResp.ok) {
-    const upstreamError = await readUpstreamError(createResp);
-    logProviderEvent(provider, 'http_error', { phase: 'create', ...upstreamErrorLogFields(upstreamError.fields) }, context);
-    throwForStatus(upstreamError);
+
+    throw await providerHttpError(provider, createResp, startedAt, context, {
+
+      ...HTTP_ERROR_POLICY,
+
+      logDetails: { phase: 'create' },
+
+    });
   }
 
   return readRequiredJsonString(createResp, {
