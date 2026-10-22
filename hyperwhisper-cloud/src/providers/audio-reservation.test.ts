@@ -1,10 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import { providerAudioReservation } from './audio-reservation';
 import { pcm16Wav } from '../test-support/wav';
+import { CREDITS_PER_MINUTE } from '../lib/constants';
+import { estimateCreditsFromSize } from '../middleware/credits';
 
 describe('providerAudioReservation', () => {
   test('a normal provider uses the standard size estimate without buffering', () => {
-    const reservation = providerAudioReservation('deepgram', 80_000);
+    const reservation = providerAudioReservation('deepgram', 8_000);
 
     expect(reservation.requiresBufferedBody).toBe(false);
     expect(reservation.estimatedAudioSeconds).toBe(10);
@@ -13,6 +15,16 @@ describe('providerAudioReservation', () => {
       kind: 'duration',
       audioSeconds: 10,
     });
+  });
+
+  // Issue #2483's repro: the size-based preflight must not let a 30-credit
+  // balance through for an hour of audio.
+  test('an hour of 8 kbps Opus (3.6 MB) is estimated as an hour on the default route', () => {
+    const oneHourAt8kbps = (8_000 / 8) * 3600;
+    const hourCost = 60 * CREDITS_PER_MINUTE;
+
+    expect(providerAudioReservation('grok', oneHourAt8kbps).estimatedAudioSeconds).toBeGreaterThanOrEqual(3600);
+    expect(estimateCreditsFromSize(oneHourAt8kbps)).toBeGreaterThanOrEqual(hourCost);
   });
 
   test.each([16_000, 24_000] as const)(

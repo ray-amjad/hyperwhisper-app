@@ -23,6 +23,23 @@ export const LICENSE_CACHE_TTL_SECONDS = 60 * 60; // 1 hour for valid and invali
 export const MAX_AUDIO_SIZE_BYTES = 128 * 1024 * 1024; // 128 MB
 export const BYTES_PER_MINUTE_ESTIMATE = 480_000; // 64kbps encoded audio
 
+// Credit reservation byte rates (#2483). The preflight hold has to cover the
+// audio's real length, and a byte count says little about that: an hour of
+// 8 kbps Opus is 3.6 MB. So the default route reads the length from the
+// container (lib/audio-container-duration.ts) and bounds what it reads with
+// these rates. BYTES_PER_MINUTE_ESTIMATE above stays the billing fallback.
+//
+// Size-only reservations, and audio whose length cannot be read, assume 8 kbps:
+// the low end of what voice codecs actually produce, so the hold is not short.
+export const RESERVATION_FALLBACK_BYTES_PER_SECOND = 1_000;
+// The highest byte rate a legitimate upload could have (48 kHz stereo float32).
+// Size divided by this is the shortest any upload can be, so it is the no-hold
+// floor checked before the body is read.
+export const MAX_UPLOAD_BYTES_PER_SECOND = 384_000;
+// The highest byte rate of a lossy codec (512 kbps; MP3 tops out at 320).
+// A lossy file's parsed length is never trusted below size divided by this.
+export const MAX_COMPRESSED_BYTES_PER_SECOND = 64_000;
+
 // Google Speech V2 sync `recognize` inline cap (also re-exported from
 // `providers/google-chirp.ts` for back-compat with existing call sites).
 export const GOOGLE_CHIRP_INLINE_MAX_BYTES = 9_500_000;
