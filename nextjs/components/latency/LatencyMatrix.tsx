@@ -83,6 +83,10 @@ function cellMap(cells: LatencyCell[], metric: MetricKey, minSamples: number) {
 export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   const [bucket, setBucket] = useState<DurationBucket>(defaultBucket);
   const [metric, setMetric] = useState<MetricKey>("p50");
+  // Set by the first click that changes the Metric or Clip length (#813).
+  // Until then the cell numbers do not fade, so the table does not fade in on
+  // first paint.
+  const [swapped, setSwapped] = useState(false);
   const [byModel, setByModel] = useState(false);
   const [sortRegion, setSortRegion] = useState<string | null>(null);
   const [pinnedVendor, setPinnedVendor] = useState<string | null>(null);
@@ -360,6 +364,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                 type="button"
                 onClick={() => {
                   if (entry.key === metric) return;
+                  setSwapped(true);
                   snapshotForSort();
                   setMetric(entry.key);
                 }}
@@ -394,6 +399,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                 type="button"
                 onClick={() => {
                   if (entry === bucket) return;
+                  setSwapped(true);
                   snapshotForSort();
                   setBucket(entry);
                 }}
@@ -634,7 +640,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                           return (
                             <td
                               key={region}
-                              className={`px-3 py-2 text-center text-gray-700 ${
+                              className={`t-heat-cell px-3 py-2 text-center text-gray-700 ${
                                 isHome ? "bg-purple-950/20" : ""
                               }`}
                               title={
@@ -655,7 +661,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                         return (
                           <td
                             key={region}
-                            className={`px-3 py-2 text-center font-mono tabular-nums ${
+                            className={`t-heat-cell px-3 py-2 text-center font-mono tabular-nums ${
                               isHome ? "ring-1 ring-inset ring-purple-500/40" : ""
                             }`}
                             style={cellStyle(cell.value)}
@@ -663,7 +669,14 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                             onMouseEnter={() => setHover({ vendor: row.vendor, region })}
                             onMouseLeave={() => setHover(null)}
                           >
-                            {format(cell.value)}
+                            {/* A new key per metric and clip length remounts the
+                                number, so it fades in under the colour (#813). */}
+                            <span
+                              key={`${metric}:${bucket}`}
+                              className={swapped ? "t-heat-swap" : undefined}
+                            >
+                              {format(cell.value)}
+                            </span>
                           </td>
                         );
                       })}

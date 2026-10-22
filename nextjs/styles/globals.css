@@ -215,6 +215,45 @@ body {
   }
 }
 
+/* The /latency heat map (#813). Switching the metric or the clip length
+   recolours every cell at once; the colour cross-fades on the <td> and the
+   new number fades in from a small blur, so the table reads as the same table
+   showing another measure. Opacity and blur only, no slide: 187 cells moving
+   at once would read as animated. Enumerated properties, never `all` (#668),
+   and on the cell only, so a row's hover highlight is not slowed. */
+.t-heat-cell {
+  transition:
+    background-color var(--motion-duration-micro) var(--motion-ease-in-out),
+    color var(--motion-duration-micro) var(--motion-ease-in-out);
+}
+
+@keyframes heat-swap {
+  from {
+    opacity: 0;
+    filter: blur(var(--motion-blur-small));
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+.t-heat-swap {
+  display: inline-block;
+  animation: heat-swap var(--motion-duration-micro) var(--motion-ease-in-out) both;
+}
+
+/* Reduce motion: the new colour and number land in one frame. */
+@media (prefers-reduced-motion: reduce) {
+  .t-heat-cell {
+    transition: none;
+  }
+
+  .t-heat-swap {
+    animation: none;
+  }
+}
+
 /* A box whose content changes height (#702): the script sets an explicit
    height from the measured content, and the height tweens to it. The box
    must clip its overflow itself, or the new content spills out mid-tween. */
@@ -364,6 +403,48 @@ body {
 /* Reduce motion: the new value is shown in one frame. */
 @media (prefers-reduced-motion: reduce) {
   .t-number-pop-char {
+    animation: none;
+  }
+}
+
+/* The /download platform switch (#767). The panel under the tabs tweens to
+   its new height (the script pins the old one, then sets the new one) and
+   clips only while it does, so a focus ring or a hover shadow is never cut
+   at rest. The new platform's content slides up out of a small blur. Only a
+   tab press sets data-enter, so the platform picked on load shows at once. */
+.t-panel {
+  transition: height var(--motion-duration-fast) var(--motion-ease-smooth-out);
+}
+
+.t-panel[data-resizing] {
+  overflow: clip;
+}
+
+@keyframes panel-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance-small));
+    filter: blur(var(--motion-blur-small));
+  }
+}
+
+/* Its own formatting context, so the last child's bottom margin counts in
+   the measured height instead of collapsing out of it. */
+.t-panel-content {
+  display: flow-root;
+}
+
+.t-panel-content[data-enter] {
+  animation: panel-reveal 400ms var(--motion-ease-smooth-out) both;
+}
+
+/* Reduce motion: the new panel lands at its size in one frame. */
+@media (prefers-reduced-motion: reduce) {
+  .t-panel {
+    transition: none;
+  }
+
+  .t-panel-content[data-enter] {
     animation: none;
   }
 }
