@@ -27624,6 +27624,10 @@ internal static class Program
             Func<HttpResponseMessage> reply,
             CancellationToken cancellationToken = default)
     {
+        // ProcessAsync reads the vocabulary table for the prompt, so the suite's
+        // scratch database must exist even when this runs before any DB check.
+        await DatabaseInitializer.InitializeAsync();
+
         var settings = SettingsService.Instance;
         var saved = settings.CustomEndpoints;
         settings.CustomEndpoints = new List<CustomPostProcessingEndpoint>();
