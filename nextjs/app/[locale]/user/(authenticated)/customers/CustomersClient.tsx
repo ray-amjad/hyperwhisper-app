@@ -536,7 +536,7 @@ export default function CustomersClient() {
                                     className="h-3.5 w-3.5"
                                     fill="none"
                                     viewBox="0 0 24 24"
-                                    strokeWidth={1.8}
+                                    strokeWidth={1.5}
                                     stroke="currentColor"
                                   >
                                     <path
@@ -606,7 +606,7 @@ export default function CustomersClient() {
                                         className="h-3.5 w-3.5 text-emerald-400"
                                         fill="none"
                                         viewBox="0 0 24 24"
-                                        strokeWidth={2.5}
+                                        strokeWidth={1.5}
                                         stroke="currentColor"
                                       >
                                         <path
@@ -620,7 +620,7 @@ export default function CustomersClient() {
                                         className="h-3.5 w-3.5 text-gray-400 transition-colors group-hover:text-blue-300"
                                         fill="none"
                                         viewBox="0 0 24 24"
-                                        strokeWidth={1.8}
+                                        strokeWidth={1.5}
                                         stroke="currentColor"
                                       >
                                         <path
