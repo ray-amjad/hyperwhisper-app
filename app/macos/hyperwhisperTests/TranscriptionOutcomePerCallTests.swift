@@ -399,6 +399,9 @@ struct TranscriptionOutcomePerCallTests {
         let callA = Task {
             try await shared.transcribeDetailed(audioURL: audio, language: "de", mode: mode, vocabulary: [])
         }
+        // A `#require` below that throws must not leave A running into the
+        // next test, which resets the shared backend.
+        defer { callA.cancel() }
         // `#require`: if A never parked, B's /post-process would be the held
         // one, and nothing would ever release it.
         try #require(await Self.eventually { backend.heldCount == 1 }, "call A never reached its /post-process")
