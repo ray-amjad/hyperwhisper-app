@@ -2,7 +2,7 @@ import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
 export const generateMetadata = localizedPageMetadata({
   path: "/legal/privacy-policy",
-  title: "Privacy Policy | HyperWhisper",
+  title: "Privacy Policy",
   description:
     "HyperWhisper Privacy Policy - Local-first, no cloud storage of your audio or transcripts, except brief storage of recordings over about 55 seconds or 9.5 MB on the HyperWhisper Cloud Chirp route and provider error messages in HyperWhisper Cloud logs, which can quote request text.",
 });
@@ -42,7 +42,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none prose-invert">
       <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: October 20, 2026
+        Last Updated: October 21, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -179,6 +179,30 @@ export default function PrivacyPolicyPage() {
           app&apos;s own log. Those lines are filtered to remove some personal
           details, such as home-folder paths, email addresses, IPv4 addresses,
           and some text that looks like transcript content.
+        </li>
+        <li>
+          <strong>Server error reports</strong>: When our website or the
+          HyperWhisper Cloud service hits an unexpected error on our servers, it
+          sends an error report to{" "}
+          <a
+            className="text-blue-400 hover:underline"
+            href="https://sentry.io/privacy/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Sentry
+          </a>
+          . A report contains the type of error, a shortened error message, the
+          places in our code where it happened, the route that failed (such as
+          &quot;/api/license/validate&quot;, without the address or query you
+          requested), the request method, and, for the Cloud service, the
+          server region. Before a report is sent, we remove Account Keys and
+          email addresses from the error message, along with the values in a
+          database query and structured data such as a provider&apos;s JSON
+          response, where a transcript could appear. A report does not include your IP
+          address, your request&apos;s headers, cookies, or body, or your audio.
+          These reports come from our servers, not your device, so there is no
+          setting to turn them off.
         </li>
         <li>
           <strong>License information</strong>: The app contacts our licensing
@@ -925,7 +949,10 @@ export default function PrivacyPolicyPage() {
         Deepgram&apos;s Nova-3 Medical or Nova-2 Medical model (Nova-3 Medical
         also for live streaming); your audio then goes from your device
         directly to that provider, under your own account, and not through our
-        servers. If post-processing is on, the
+        servers. With your own ElevenLabs API key, you can also choose
+        ElevenLabs&apos; Scribe v2 Medical model; your audio and your custom
+        vocabulary then go from your device directly to ElevenLabs, under your
+        own account, and not through our servers. If post-processing is on, the
         transcript also goes to the post-processing provider you use. Each
         provider processes your data under its own terms, and you must review
         them before you dictate about a patient.
@@ -1069,7 +1096,8 @@ export default function PrivacyPolicyPage() {
         </a>
         , our error-monitoring provider, for crash and performance diagnostics,
         as described under What We Collect. You can turn it off in Settings →
-        General.
+        General. Our website and the HyperWhisper Cloud service also send
+        server error reports to Sentry, as described under What We Collect.
       </p>
       <p>
         Our website pages embed an AI support chat widget served by{" "}

@@ -30,8 +30,7 @@ import { LLMRequestError, LLMTimeoutError } from './llm-errors';
 
 /**
  * Floor of the per-attempt bound for one non-streaming LLM chat request
- * (headers and body together), and the flat first-byte bound for the
- * /assistant stream. Above the 15 s STT default in providers/utils.ts.
+ * (headers and body together). Above the 15 s STT default in providers/utils.ts.
  */
 export const LLM_REQUEST_TIMEOUT_MS = 20_000;
 

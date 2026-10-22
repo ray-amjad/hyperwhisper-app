@@ -1,7 +1,7 @@
-// Pre-parse request size gate, shared by the routes that buffer a whole body
-// (`/assistant` multipart, `/post-process` JSON). Reading the body before auth
-// lets an anonymous caller make the machine hold it in RAM, so these routes
-// check Content-Length first. The header is required so chunked transfer
+// Pre-parse request size gate for a route that buffers a whole body
+// (`/post-process` JSON). Reading the body before auth lets an anonymous
+// caller make the machine hold it in RAM, so the route checks Content-Length
+// first. The header is required so chunked transfer
 // encoding cannot skip the cap.
 
 import { errorResponse } from './responses';
