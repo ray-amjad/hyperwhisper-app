@@ -5,6 +5,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using HyperWhisper.Services;
 using HyperWhisper.Utilities;
+using HyperWhisper.ViewModels;
 
 namespace HyperWhisper.Views.Windows;
 
@@ -21,7 +22,7 @@ namespace HyperWhisper.Views.Windows;
 /// ANIMATION:
 /// - 60 FPS refresh rate using DispatcherTimer
 /// - Smooth easeOutCubic easing
-/// - Variable duration based on progress delta
+/// - A slow ramp for the transcribing wait, short steps otherwise (AnimateStep)
 /// - A ramp started with thenIndeterminate (the open-ended transcribing wait)
 ///   turns the bar indeterminate when it reaches its target, so a long job
 ///   shows a moving bar with no percentage instead of sitting at 80% (#1911)
@@ -41,6 +42,12 @@ public partial class FileTranscriptionProgressWindow : Window
     private const double ANIMATION_FPS = 60;
     private const double ANIMATION_INTERVAL_MS = 1000.0 / ANIMATION_FPS;
 
+    // Only the transcribing ramp waits on a job with no real progress. Every other
+    // step is short: the job has already moved on, and the last one is shown for
+    // just 500 ms before the window hides, so a long step never reached 100% (#1924)
+    private const double TRANSCRIBING_RAMP_SECONDS = 60.0;
+    private const double STEP_SECONDS = 0.3;
+
     // ========================================================================
     // STATE
     // ========================================================================
@@ -48,6 +55,9 @@ public partial class FileTranscriptionProgressWindow : Window
     private readonly DispatcherTimer _animationTimer;
     private float _currentProgress = 0f;
     private float _targetProgress = 0f;
+    // Where the running ramp started: each frame eases from here, not from the
+    // last frame's value, or the easing compounds and a 60 s ramp ends in ~5 s (#1924)
+    private float _animationStartProgress = 0f;
     private DateTime _animationStartTime;
     private double _animationDuration = 0;
     private double _progressBarWidth = 0;
@@ -169,6 +179,7 @@ public partial class FileTranscriptionProgressWindow : Window
         _becomesIndeterminateAtTarget = thenIndeterminate;
         _targetProgress = Math.Clamp(targetProgress, 0f, 1f);
         _animationDuration = duration;
+        _animationStartProgress = _currentProgress;
         _animationStartTime = DateTime.Now;
 
         if (_animationTimer.IsEnabled)
@@ -188,6 +199,17 @@ public partial class FileTranscriptionProgressWindow : Window
             UpdateProgressUI(_currentProgress);
             EnterIndeterminateIfRequested();
         }
+    }
+
+    /// <summary>
+    /// Animates to one Transcribe File step. The transcribing ramp target gets the
+    /// slow ramp, and turns the bar indeterminate if the job outlasts it (#1911).
+    /// </summary>
+    public void AnimateStep(float progress)
+    {
+        bool isTranscribingRamp = progress == MainViewModel.FileTranscribingRampTarget;
+        AnimateProgress(progress, isTranscribingRamp ? TRANSCRIBING_RAMP_SECONDS : STEP_SECONDS,
+            thenIndeterminate: isTranscribingRamp);
     }
 
     /// <summary>
@@ -247,7 +269,7 @@ public partial class FileTranscriptionProgressWindow : Window
         double normalizedTime = Math.Min(elapsed / _animationDuration, 1.0);
         double easedTime = EaseOutCubic(normalizedTime);
 
-        float newProgress = _currentProgress + (float)((_targetProgress - _currentProgress) * easedTime);
+        float newProgress = _animationStartProgress + (float)((_targetProgress - _animationStartProgress) * easedTime);
         UpdateProgressUI(newProgress);
 
         if (normalizedTime >= 1.0)
