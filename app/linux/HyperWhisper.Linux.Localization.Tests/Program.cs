@@ -25,7 +25,6 @@ var tests = new (string Name, Action Run)[]
     ("the Local API preferred port is wired to commit once, on every path", LocalApiPortCommitWiringIsIntact),
     ("tray labels are catalogued with RTL metadata", TrayLabelsAreCatalogued),
     ("startup culture selection is bounded", StartupCultureSelectionIsBounded),
-    ("API key rows and failed saves show words, not raw values", CredentialCaptionsAreWords),
 };
 
 var failures = 0;
@@ -416,22 +415,4 @@ static void Throws<T>(Action action) where T : Exception
     }
 
     throw new InvalidOperationException($"Expected {typeof(T).Name}.");
-}
-
-static void CredentialCaptionsAreWords()
-{
-    using var bridge = new AvaloniaLocalizationBridge(CultureInfo.GetCultureInfo("en"));
-    var converter = new LocalizedBoolConverter(bridge);
-    const string keys = "linux.credentials.stored|linux.credentials.not_stored";
-    Equal("Saved", converter.Convert(true, typeof(string), keys, CultureInfo.InvariantCulture) as string, "stored caption");
-    Equal("Not set", converter.Convert(false, typeof(string), keys, CultureInfo.InvariantCulture) as string, "missing caption");
-    bridge.SetCulture(CultureInfo.GetCultureInfo("de"));
-    Equal("Gespeichert", converter.Convert(true, typeof(string), keys, CultureInfo.InvariantCulture) as string, "de stored caption");
-    var directory = Path.Combine(AppContext.BaseDirectory, "LocalizationSurface");
-    foreach (var path in Directory.GetFiles(directory, "*.axaml"))
-    {
-        var source = File.ReadAllText(path);
-        True(!source.Contains("Status.ErrorCode", StringComparison.Ordinal), $"raw error code bound in {path}");
-        True(!source.Contains("linux.format.stored.value", StringComparison.Ordinal), $"bool formatted as text in {path}");
-    }
 }

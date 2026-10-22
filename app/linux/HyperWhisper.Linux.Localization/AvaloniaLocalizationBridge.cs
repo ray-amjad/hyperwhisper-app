@@ -349,22 +349,3 @@ public sealed class LocalizedFormatConverter(AvaloniaLocalizationBridge bridge) 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();
 }
-
-/// <summary>Picks one of two catalog keys for a bound bool. The parameter is "trueKey|falseKey".</summary>
-public sealed class LocalizedBoolConverter(AvaloniaLocalizationBridge bridge) : IValueConverter
-{
-    private readonly AvaloniaLocalizationBridge _bridge = bridge ?? throw new ArgumentNullException(nameof(bridge));
-
-    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        _ = targetType;
-        _ = culture;
-        if (value is not bool flag || parameter is not string keys) return string.Empty;
-        var split = keys.Split('|');
-        if (split.Length != 2) return string.Empty;
-        return _bridge.GetRequired(flag ? split[0] : split[1]);
-    }
-
-    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
-        throw new NotSupportedException();
-}
