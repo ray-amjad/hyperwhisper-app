@@ -679,6 +679,22 @@
       ],
       "licensed": false,
       "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY). Contact Support / speed-comparison links show 'could not be opened' because the box has no xdg-open: environment, not filed. Window resize/maximise and Streaming start with real audio not covered. Home double-highlight (#2226) still on main."
+    },
+    {
+      "at": "2026-10-22T13:00:38Z",
+      "platform": "win",
+      "commit": "f096aee8",
+      "routes": [
+        "local-api",
+        "streaming",
+        "modes"
+      ],
+      "status": "1-filed",
+      "issues": [
+        2478
+      ],
+      "licensed": false,
+      "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY in #hw-qa). core DLL from e976d796 (no shared-core-rs change since). local-api: GUI + manual HTTP probes of every route clean; contract quirks (HTTP 200 business failures, MODE_NOT_FOUND for recordings) are deliberate. streaming: settings walked, no session started (no keys, secondary instance has no hotkey). modes: Codex ran out of steps before switch/delete; built-in-mode delete and active-mode delete still unwalked. PC dropped off tailnet ~40s mid local-api."
     }
   ]
 }
