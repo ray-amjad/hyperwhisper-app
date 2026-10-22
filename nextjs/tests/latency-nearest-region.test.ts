@@ -90,3 +90,15 @@ test("a visitor in Chennai is highlighted to Chennai, not Mumbai", async () => {
   assert.equal(result?.region, "maa");
   assert.equal(result?.city, "Chennai");
 });
+test("an inherited Object key is not a region (#2088)", async () => {
+  const { nearestRegion, regionCity } = await load();
+  // The route lets any /^[a-z]{3,12}$/ code through, and these are inherited
+  // from Object.prototype. An Amsterdam visitor still gets ams.
+  for (const key of ["constructor", "toString", "valueOf", "hasOwnProperty", "__proto__"]) {
+    const match = nearestRegion({ lat: 52.3, lon: 4.9 }, [key, "ams"]);
+    assert.equal(match?.region, "ams", `${key} must not win`);
+    assert.equal(match?.city, "Amsterdam");
+    assert.equal(regionCity(key), key, `${key} falls back to its own code`);
+  }
+  assert.equal(nearestRegion({ lat: 52.3, lon: 4.9 }, ["constructor"]), null);
+});

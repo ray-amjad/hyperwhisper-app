@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Tính năng",
-    "pricing": "Giá",
     "faq": "Câu hỏi thường gặp",
     "support": "Hỗ trợ",
     "download": "Tải xuống",
@@ -20,7 +19,6 @@
     "githubAria": "Xem HyperWhisper trên GitHub"
   },
   "hero": {
-    "openSourceBadge": "Mã nguồn mở · Apache-2.0",
     "logoAlt": "Logo HyperWhisper",
     "headline": "Viết, soạn thảo và sáng tạo",
     "headlineAccent": "nhanh hơn 5x với AI",
@@ -97,57 +95,6 @@
     "accuracyRate": "Tỷ lệ chính xác",
     "languagesSupported": "Ngôn ngữ hỗ trợ",
     "providersSupported": "Nhà cung cấp hỗ trợ"
-  },
-  "pricing": {
-    "title": "Không đăng ký. Mãi mãi.",
-    "subtitle": "Trả một lần, dùng mãi mãi. Chúng tôi cũng ghét đăng ký hàng tháng.",
-    "guarantee": "Hoàn tiền trong 14 ngày",
-    "guaranteeExtended": "nếu bạn không hoàn toàn hài lòng.",
-    "learnMore": "Tìm hiểu thêm",
-    "free": {
-      "name": "Miễn phí",
-      "price": "$0",
-      "period": "mãi mãi",
-      "description": "Hoàn hảo để thử HyperWhisper",
-      "cta": "Tải Miễn Phí",
-      "features": {
-        "transcriptionLimit": "5 phút chuyển giọng nói mỗi ngày",
-        "basicModes": "Các chế độ chuyển giọng nói cơ bản",
-        "offlineTranscription": "Chuyển giọng nói offline",
-        "apiTranscription": "Chuyển giọng nói qua API (dùng khóa của bạn)",
-        "postProcessing": "Hậu xử lý văn bản",
-        "providers": "9+ nhà cung cấp để lựa chọn",
-        "lifetimeUpdates": "Cập nhật trọn đời",
-        "cloudLimited": "HyperWhisper Cloud (giới hạn sử dụng)",
-        "customVocabulary": "Từ vựng tùy chỉnh",
-        "prioritySupport": "Hỗ trợ ưu tiên"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "trọn đời",
-      "description": "Mua một lần, sức mạnh không giới hạn mãi mãi",
-      "cta": "Mua Ngay - Truy Cập Trọn Đời",
-      "mostPopular": "Phổ biến nhất",
-      "features": {
-        "unlimitedTranscription": "Chuyển giọng nói không giới hạn",
-        "allModes": "Tất cả chế độ chuyển giọng nói",
-        "offlineTranscription": "Chuyển giọng nói offline",
-        "apiTranscription": "Chuyển giọng nói qua API (dùng khóa của bạn)",
-        "postProcessing": "Hậu xử lý văn bản",
-        "providers": "9+ nhà cung cấp để lựa chọn",
-        "lifetimeUpdates": "Cập nhật trọn đời",
-        "cloudCredits": "HyperWhisper Cloud ($5 tín dụng)",
-        "customVocabulary": "Từ vựng tùy chỉnh",
-        "prioritySupport": "Hỗ trợ ưu tiên"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise & Báo giá tùy chỉnh",
-      "description": "Chiết khấu theo số lượng, SSO, hỗ trợ ưu tiên, lưu trữ nội bộ và tích hợp tùy chỉnh",
-      "cta": "Liên hệ Sales"
-    }
   },
   "faq": {
     "title": "Câu hỏi thường gặp",
@@ -252,10 +199,7 @@
     "downloadButton": "Tải xuống HyperWhisper",
     "errorGeneric": "Đã xảy ra lỗi. Vui lòng thử lại.",
     "errorEmail": "Vui lòng nhập địa chỉ email hợp lệ.",
-    "errorNetwork": "Lỗi mạng. Vui lòng kiểm tra kết nối và thử lại.",
-    "thankYouTitle": "Cảm ơn!",
     "downloadStarted": "Bản tải xuống của bạn sẽ tự động bắt đầu.",
-    "manualDownload": "Chưa bắt đầu tải? Bấm vào đây",
     "skipAndDownloadButton": "Bỏ qua và tải xuống"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Tải xuống",
       "roadmap": "Lộ trình",
       "helpCenter": "Trung tâm trợ giúp",
-      "manageBilling": "Quản lý Thanh toán",
       "customerPortal": "Cổng Khách hàng",
       "olderVersions": "Phiên bản cũ",
       "blog": "Blog",
