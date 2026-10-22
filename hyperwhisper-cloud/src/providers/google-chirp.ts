@@ -27,8 +27,17 @@ import { getGoogleAccessToken, invalidateGoogleAccessToken } from '../lib/google
 import { resolveProviderLanguage } from '../lib/language-codes';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { estimateAudioSeconds, fetchWithTimeout, logProviderEvent, splitVocabularyTerms, unparsedBodyKind } from './utils';
-import { readUpstreamError, safeErrorToken, upstreamErrorLogFields, type UpstreamErrorFields } from './upstream-error';
+import {
+  classifyProviderHttpError,
+  estimateAudioSeconds,
+  fetchWithTimeout,
+  logProviderEvent,
+  providerHttpError,
+  splitVocabularyTerms,
+  unparsedBodyKind,
+  type ProviderHttpErrorPolicy,
+} from './utils';
+import { readUpstreamError, safeErrorToken, upstreamErrorLogFields, type UpstreamErrorRead } from './upstream-error';
 
 // Re-exported for the transcribe route's pre-buffer header gate. Kept here
 // historically; the canonical constant now lives in `lib/constants.ts`.
@@ -242,25 +251,25 @@ export async function transcribeWithGoogleChirp(
       }, context, SYNC_RECOGNIZE_TIMEOUT_MS);
 
       let response = await recognize({ config, content });
-      let errorFields: UpstreamErrorFields | undefined;
+      let errorRead: UpstreamErrorRead | undefined;
 
       if (!response.ok) {
         const rejection = await classifyRejection(response, phrases.length > 0);
-        errorFields = rejection.fields;
+        errorRead = rejection.upstreamError;
         if (rejection.retryWithoutAdaptation) {
           // Never the body: a phrase-set 400 quotes the user's vocabulary (#2163).
           logProviderEvent(provider, 'adaptation_rejected_retrying_without', {
-            ...upstreamErrorLogFields(rejection.fields),
+            ...upstreamErrorLogFields(rejection.upstreamError.fields),
             phraseCount: phrases.length,
             delivery: 'inline',
           }, context);
           response = await recognize({ config: configWithoutAdaptation(), content });
-          errorFields = undefined;
+          errorRead = undefined;
         }
       }
 
       if (!response.ok) {
-        await throwForSpeechError(provider, response, startedAt, context, errorFields);
+        throw await speechHttpError(provider, response, startedAt, context, errorRead);
       }
 
       const data = await parseJsonBody<SpeechRecognizeResponse>(response, provider, 'sync_recognize', context);
@@ -433,59 +442,54 @@ function normalizeSpeechResults(
 async function classifyRejection(
   response: Response,
   hasPhrases: boolean,
-): Promise<{ retryWithoutAdaptation: boolean; fields: UpstreamErrorFields }> {
-  // `classifierText` is tested here and dropped: it can quote the phrase
-  // list, so only the content-free `fields` leave this function (#2163).
-  const { fields, classifierText } = await readUpstreamError(response);
+): Promise<{ retryWithoutAdaptation: boolean; upstreamError: UpstreamErrorRead }> {
+  // `classifierText` is for classification only (here, and the quota test in
+  // `classifyProviderHttpError`): it can quote the phrase list, so it is
+  // never logged (#2163).
+  const upstreamError = await readUpstreamError(response);
   if (!hasPhrases) {
-    return { retryWithoutAdaptation: false, fields };
+    return { retryWithoutAdaptation: false, upstreamError };
   }
   if (response.status === 404) {
-    return { retryWithoutAdaptation: true, fields };
+    return { retryWithoutAdaptation: true, upstreamError };
   }
-  if (response.status === 400 && /adaptation|phrase[_ ]?set|phrases/i.test(classifierText)) {
-    return { retryWithoutAdaptation: true, fields };
+  if (response.status === 400 && /adaptation|phrase[_ ]?set|phrases/i.test(upstreamError.classifierText)) {
+    return { retryWithoutAdaptation: true, upstreamError };
   }
-  return { retryWithoutAdaptation: false, fields };
+  return { retryWithoutAdaptation: false, upstreamError };
 }
 
-async function throwForSpeechError(
+/**
+ * Chirp's ladder on the shared helper: only 429 and 5xx fail over. Every other
+ * status ends the request with a plain `Error` — Chirp is self-only, so there
+ * is no sibling to try.
+ */
+const SPEECH_HTTP_ERROR_POLICY: ProviderHttpErrorPolicy = {
+  label: 'Google Chirp',
+  authStatuses: [],
+  terminalStatuses: {
+    401: 'Google Speech credentials are invalid or expired',
+    // V2 returns 403 for "billing not enabled" as well as "service account
+    // lacks roles/speech.editor". Surface both possibilities.
+    403: 'Google Speech access denied — check service account roles and billing',
+    // Listed so an out-of-credits body cannot turn it into a failover: a 402
+    // has always ended the request here, like any other unmapped 4xx.
+    402: 'Google Chirp error: 402',
+  },
+  otherStatusError: (status) => new Error(`Google Chirp error: ${status}`),
+};
+
+function speechHttpError(
   provider: string,
   response: Response,
   startedAt: number,
   context: ProviderRequestContext,
   /** Body already read by `classifyRejection`; a Response body reads once. */
-  preReadFields?: UpstreamErrorFields,
-): Promise<never> {
-  const fields = preReadFields ?? (await readUpstreamError(response)).fields;
-  const elapsedMs = Math.round(performance.now() - startedAt);
-  const kind = response.status >= 500
-    ? 'upstream_5xx'
-    : response.status === 429
-      ? 'rate_limit'
-      : 'http_error';
-
-  logProviderEvent(provider, 'http_error', {
-    elapsedMs,
-    ...upstreamErrorLogFields(fields),
-    kind,
-  }, context);
-
-  if (response.status === 401) {
-    throw new Error('Google Speech credentials are invalid or expired');
-  }
-  if (response.status === 403) {
-    // V2 returns 403 for "billing not enabled" as well as "service account
-    // lacks roles/speech.editor". Surface both possibilities.
-    throw new Error('Google Speech access denied — check service account roles and billing');
-  }
-  if (response.status === 429) {
-    throw new ProviderUnavailableError('Google Chirp', 'rate limit exceeded');
-  }
-  if (response.status >= 500) {
-    throw new ProviderUnavailableError('Google Chirp', `upstream 5xx: ${response.status}`);
-  }
-  throw new Error(`Google Chirp error: ${response.status}`);
+  preRead?: UpstreamErrorRead,
+): Promise<Error> {
+  return preRead
+    ? Promise.resolve(classifyProviderHttpError(provider, preRead, startedAt, context, SPEECH_HTTP_ERROR_POLICY))
+    : providerHttpError(provider, response, startedAt, context, SPEECH_HTTP_ERROR_POLICY);
 }
 
 interface BatchRecognizeParams {
@@ -549,7 +553,7 @@ async function runBatchRecognize(params: BatchRecognizeParams): Promise<Normaliz
   }, context, BATCH_SUBMIT_TIMEOUT_MS);
 
   let submitResponse = await submit(config);
-  let submitErrorFields: UpstreamErrorFields | undefined;
+  let submitErrorRead: UpstreamErrorRead | undefined;
 
   // Advisory biasing must never cost the transcript — see the adaptation note
   // in `transcribeWithGoogleChirp`. Retried at submit time only, so a poll-time
@@ -557,20 +561,20 @@ async function runBatchRecognize(params: BatchRecognizeParams): Promise<Normaliz
   // through the SAME predicate as the inline path so the two cannot drift.
   if (!submitResponse.ok) {
     const rejection = await classifyRejection(submitResponse, Boolean(fallbackConfig));
-    submitErrorFields = rejection.fields;
+    submitErrorRead = rejection.upstreamError;
     if (rejection.retryWithoutAdaptation && fallbackConfig) {
       logProviderEvent(provider, 'adaptation_rejected_retrying_without', {
-        ...upstreamErrorLogFields(rejection.fields),
+        ...upstreamErrorLogFields(rejection.upstreamError.fields),
         phraseCount: phraseCount ?? 0,
         delivery: 'gcs+batch',
       }, context);
       submitResponse = await submit(fallbackConfig);
-      submitErrorFields = undefined;
+      submitErrorRead = undefined;
     }
   }
 
   if (!submitResponse.ok) {
-    await throwForSpeechError(provider, submitResponse, startedAt, context, submitErrorFields);
+    throw await speechHttpError(provider, submitResponse, startedAt, context, submitErrorRead);
   }
 
   const submitData = await parseJsonBody<{ name?: string }>(submitResponse, provider, 'batch_submit', context);
@@ -727,7 +731,7 @@ async function pollOperation(
 
   if (!response.ok) {
     // 429 / 5xx on poll → retry next tick. Any other failure surfaces via
-    // throwForSpeechError so 401 → "credentials invalid/expired" and others
+    // speechHttpError so 401 → "credentials invalid/expired" and others
     // hit the typed-error contract transcribe.ts routes on.
     if (response.status === 429 || response.status >= 500) {
       logProviderEvent(provider, 'batch_poll_transient', {
@@ -735,7 +739,7 @@ async function pollOperation(
       }, context);
       return { done: false };
     }
-    await throwForSpeechError(provider, response, startedAt, context);
+    throw await speechHttpError(provider, response, startedAt, context);
   }
 
   return parseJsonBody<BatchOperationResponse>(response, provider, 'batch_poll', context);
