@@ -71,6 +71,17 @@ export function haversineKm(
 }
 
 /**
+ * Own-property lookup. Codes come from the client, and a plain-object index
+ * would answer inherited names like "constructor" or "toString" with a function,
+ * which then wins the nearest contest with a NaN distance.
+ */
+function lookupRegion(
+  code: string,
+): { city: string; lat: number; lon: number } | undefined {
+  return Object.hasOwn(FLY_REGIONS, code) ? FLY_REGIONS[code] : undefined;
+}
+
+/**
  * Picks the closest region to a point, considering only the candidate codes it
  * is given — normally the regions the matrix actually has data for. Returns null
  * when no candidate has known coordinates, so the caller can leave the page
@@ -86,7 +97,7 @@ export function nearestRegion(
     // 'local' is a real row value off Fly, but it is not a place — it must never
     // win a distance contest against a real region.
     if (code === "local") continue;
-    const region = FLY_REGIONS[code];
+    const region = lookupRegion(code);
     if (!region) continue;
 
     const distanceKm = haversineKm(point, region);
@@ -100,5 +111,5 @@ export function nearestRegion(
 
 /** Human name for a region code, falling back to the code itself. */
 export function regionCity(code: string): string {
-  return FLY_REGIONS[code]?.city ?? code;
+  return lookupRegion(code)?.city ?? code;
 }
