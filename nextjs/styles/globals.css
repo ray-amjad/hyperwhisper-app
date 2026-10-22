@@ -367,3 +367,39 @@ body {
     animation: none;
   }
 }
+
+/* The /download platform switch (#767). The panel under the tabs tweens to
+   its new height (the script pins the old one, then sets the new one) and
+   clips only while it does, so a focus ring or a hover shadow is never cut
+   at rest. The new platform's content slides up out of a small blur. Only a
+   tab press sets data-enter, so the platform picked on load shows at once. */
+.t-panel {
+  transition: height var(--motion-duration-fast) var(--motion-ease-smooth-out);
+}
+
+.t-panel[data-resizing] {
+  overflow: clip;
+}
+
+@keyframes panel-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance-small));
+    filter: blur(var(--motion-blur-small));
+  }
+}
+
+.t-panel-content[data-enter] {
+  animation: panel-reveal 400ms var(--motion-ease-smooth-out) both;
+}
+
+/* Reduce motion: the new panel lands at its size in one frame. */
+@media (prefers-reduced-motion: reduce) {
+  .t-panel {
+    transition: none;
+  }
+
+  .t-panel-content[data-enter] {
+    animation: none;
+  }
+}
