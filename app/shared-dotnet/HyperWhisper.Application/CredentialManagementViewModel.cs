@@ -40,6 +40,10 @@ public sealed class CredentialManagementViewModel : ViewModelBase
     public ICommand DeleteCommand { get; }
     public void Refresh()
     {
+        // Read the account before Clear(): the dialog's two-way SelectedItem binding pushes null
+        // into Selected while the list is empty. Save and Delete must stay on the account they acted
+        // on, or the next Delete removes a different provider's key (#2324).
+        var previous = _selected?.Account;
         Items.Clear();
         foreach (var pair in Accounts)
         {
@@ -48,7 +52,8 @@ public sealed class CredentialManagementViewModel : ViewModelBase
             if (read.Value is { } sensitive) CryptographicOperations.ZeroMemory(sensitive);
             Items.Add(new(pair.Account, pair.Name, present));
         }
-        Selected = Items.FirstOrDefault();
+        Selected = Items.FirstOrDefault(item => string.Equals(item.Account, previous, StringComparison.Ordinal))
+            ?? Items.FirstOrDefault();
     }
     public void SelectAccount(string account)
     {

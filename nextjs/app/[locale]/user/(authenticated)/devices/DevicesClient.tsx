@@ -5,6 +5,7 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { api } from "@/lib/trpc/client";
 import { formatDate, formatDateTime } from "@/lib/format-date";
 import { useRevealAfterLoad } from "@/lib/use-reveal-after-load";
+import { ErrorReveal } from "@/components/ErrorReveal";
 
 const TIME_RANGES = [
   { label: "7 days", value: 7 },
@@ -132,12 +133,15 @@ export default function DevicesClient() {
         </div>
       </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg" role="alert">
-          <p className="text-red-300">{error}</p>
-        </div>
-      )}
+      {/* Error Message. It reveals (#2286) instead of arriving at full height
+          in one frame; the space-y-6 gap rides inside the clip as pb-6. */}
+      <ErrorReveal gap="pb-6">
+        {error && (
+          <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg" role="alert">
+            <p className="text-red-300">{error}</p>
+          </div>
+        )}
+      </ErrorReveal>
 
       {/* Devices Table */}
       <div

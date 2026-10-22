@@ -48,15 +48,29 @@ internal sealed class SecretToolCredentialBackend(IDesktopCommandRunner runner, 
     {
         try
         {
-            var result = runner.RunAsync(tool, ["lookup", "resource", resource, "account", account], null,
+            var result = runner.RunCapturingErrorAsync(tool, ["lookup", "resource", resource, "account", account], null,
                 CancellationToken.None, TimeSpan.FromSeconds(8)).GetAwaiter().GetResult();
-            if (result.ExitCode != 0) return PlatformResult<byte[]?>.Success(null);
+            // secret-tool lookup exits 1 both when no item matches and on an error. A D-Bus failure prints
+            // the reason on stderr, but a locked keyring whose unlock prompt is dismissed or cannot show
+            // is as silent as a miss. So a silent exit 1 is only "nothing stored" when `search` (which
+            // never prompts) lists no item either; anything else is a failed read, so a caller never
+            // deletes a key that exists because the lookup failed (#2300).
+            if (result.ExitCode != 0)
+                return result is { ExitCode: 1, Output.Length: 0, Error.Length: 0 } && NoItemListed(resource, account)
+                    ? PlatformResult<byte[]?>.Success(null)
+                    : PlatformResult<byte[]?>.Failure("credential.read_failed", "Secret Service could not read the credential.");
             var encoded = Encoding.UTF8.GetString(result.Output).TrimEnd('\r', '\n');
             if (!encoded.StartsWith(Prefix, StringComparison.Ordinal)) return PlatformResult<byte[]?>.Failure("credential.invalid_encoding", "The stored credential has an invalid encoding.");
             return PlatformResult<byte[]?>.Success(Convert.FromBase64String(encoded[Prefix.Length..]));
         }
         catch (FormatException) { return PlatformResult<byte[]?>.Failure("credential.invalid_encoding", "The stored credential has an invalid encoding."); }
         catch { return PlatformResult<byte[]?>.Failure("credential.read_failed", "Secret Service could not read the credential."); }
+    }
+    private bool NoItemListed(string resource, string account)
+    {
+        var result = runner.RunAsync(tool, ["search", "resource", resource, "account", account], null,
+            CancellationToken.None, TimeSpan.FromSeconds(8)).GetAwaiter().GetResult();
+        return result.ExitCode == 0 && result.Output.Length == 0;
     }
     public PlatformResult Write(string resource, string account, ReadOnlySpan<byte> value)
     {

@@ -194,9 +194,9 @@ class AutoPasteHandler {
                 }
             } else {
                 // No visible window (rare — recording dialog should be open).
-                // Fall back to runModal; since the app was just activated, the
-                // dialog will be front-and-center so the user can dismiss it quickly.
-                response = alert.runModal()
+                // Show it as a free-standing window. Not runModal (issue #1734):
+                // that held the main actor, so the Local API answered nothing.
+                response = await ModelessAlert.response(for: alert)
             }
 
             if response == .alertFirstButtonReturn {

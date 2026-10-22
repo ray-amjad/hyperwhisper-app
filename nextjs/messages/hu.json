@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Funkciók",
-    "pricing": "Árazás",
     "faq": "GYIK",
     "support": "Támogatás",
     "download": "Letöltés",
@@ -20,7 +19,6 @@
     "githubAria": "A HyperWhisper megtekintese a GitHubon"
   },
   "hero": {
-    "openSourceBadge": "Nyílt forráskód · Apache-2.0",
     "logoAlt": "HyperWhisper logó",
     "headline": "Írj, alkoss és hozz létre",
     "headlineAccent": "5x gyorsabban AI-val",
@@ -97,57 +95,6 @@
     "accuracyRate": "Pontossági arány",
     "languagesSupported": "Támogatott nyelvek",
     "providersSupported": "Támogatott szolgáltatók"
-  },
-  "pricing": {
-    "title": "Nincs előfizetés. Soha.",
-    "subtitle": "Fizess egyszer, használd örökre. Mi is utáljuk az előfizetéseket.",
-    "guarantee": "14 napos pénzvisszafizetési garancia",
-    "guaranteeExtended": "ha nem vagy teljesen elégedett.",
-    "learnMore": "További információ",
-    "free": {
-      "name": "Ingyenes",
-      "price": "$0",
-      "period": "örökre",
-      "description": "Tökéletes a HyperWhisper kipróbálásához",
-      "cta": "Ingyenes letöltés",
-      "features": {
-        "transcriptionLimit": "Napi 5 perc átírás",
-        "basicModes": "Alap átírási módok",
-        "offlineTranscription": "Offline átírás",
-        "apiTranscription": "API átírás (saját kulcsokkal)",
-        "postProcessing": "Szöveg utófeldolgozás",
-        "providers": "9+ szolgáltató közül választhatsz",
-        "lifetimeUpdates": "Élethosszig tartó frissítések",
-        "cloudLimited": "HyperWhisper Cloud (korlátozott használat)",
-        "customVocabulary": "Egyéni szókincs",
-        "prioritySupport": "Elsőbbségi támogatás"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "élethosszig",
-      "description": "Egyszeri vásárlás, korlátlan erő örökre",
-      "cta": "Vásárlás most - Élethosszig tartó hozzáférés",
-      "mostPopular": "Legnépszerűbb",
-      "features": {
-        "unlimitedTranscription": "Korlátlan átírás",
-        "allModes": "Minden átírási mód",
-        "offlineTranscription": "Offline átírás",
-        "apiTranscription": "API átírás (saját kulcsokkal)",
-        "postProcessing": "Szöveg utófeldolgozás",
-        "providers": "9+ szolgáltató közül választhatsz",
-        "lifetimeUpdates": "Élethosszig tartó frissítések",
-        "cloudCredits": "HyperWhisper Cloud ($5 kredit)",
-        "customVocabulary": "Egyéni szókincs",
-        "prioritySupport": "Elsőbbségi támogatás"
-      }
-    },
-    "enterprise": {
-      "title": "Vállalati és egyedi árazás",
-      "description": "Mennyiségi kedvezmények, SSO, elsőbbségi támogatás, belső tárhely és egyedi integrációk",
-      "cta": "Kapcsolatfelvétel az értékesítéssel"
-    }
   },
   "faq": {
     "title": "Gyakran ismételt kérdések",
@@ -252,10 +199,7 @@
     "downloadButton": "HyperWhisper letöltése",
     "errorGeneric": "Valami hiba történt. Kérlek próbáld újra.",
     "errorEmail": "Adj meg egy érvényes email-címet.",
-    "errorNetwork": "Hálózati hiba. Ellenőrizd a kapcsolatot, majd próbáld újra.",
-    "thankYouTitle": "Köszönjük!",
     "downloadStarted": "A letöltésnek automatikusan el kell indulnia.",
-    "manualDownload": "Nem indult el a letöltés? Kattints ide",
     "skipAndDownloadButton": "Kihagyás és letöltés"
   },
   "downloadPage": {
@@ -324,7 +268,6 @@
       "download": "Letöltés",
       "roadmap": "Ütemterv",
       "helpCenter": "Súgóközpont",
-      "manageBilling": "Számlázás kezelése",
       "customerPortal": "Ügyfélportál",
       "olderVersions": "Korábbi verziók",
       "blog": "Blog",

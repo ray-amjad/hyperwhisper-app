@@ -709,6 +709,7 @@
 "modes.header.create" = "모드 만들기";
 "modes.name.unnamed" = "이름 없음";
 "modes.badge.offline" = "오프라인";
+"modes.badge.modelMissing" = "모델 없음";
 "modes.context.select" = "선택";
 "modes.help.edit" = "모드 설정 편집";
 "modes.help.preset" = "이 프리셋에 대해 자세히 알아보기";
