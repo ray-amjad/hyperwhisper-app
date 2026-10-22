@@ -559,9 +559,6 @@
   <data name="settings.api.postProcessing.subtitle" xml:space="preserve">
     <value>API-sleutels voor AI-aangedreven tekstverbetering en opmaak.</value>
   </data>
-  <data name="settings.api.invalidKey.title" xml:space="preserve">
-    <value>Ongeldige sleutel</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>Tonen</value>
   </data>
@@ -2061,12 +2058,6 @@ Je kunt het later opnieuw downloaden.</value>
   </data>
   <data name="providerApiKey.secureStorage" xml:space="preserve">
     <value>Veilig opgeslagen in Windows Referentiebeheer.</value>
-  </data>
-  <data name="providerApiKey.invalid.title" xml:space="preserve">
-    <value>Ongeldige API-sleutel</value>
-  </data>
-  <data name="providerApiKey.invalid.message" xml:space="preserve">
-    <value>Dit lijkt geen geldige API-sleutel van {0}.</value>
   </data>
   <data name="settings.nav.localApi" xml:space="preserve">
     <value>Lokale API</value>

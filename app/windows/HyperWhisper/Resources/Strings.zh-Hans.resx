@@ -619,9 +619,6 @@
   <data name="settings.api.postProcessing.subtitle" xml:space="preserve">
     <value>用于 AI 文本增强与排版的 API 密钥。</value>
   </data>
-  <data name="settings.api.invalidKey.title" xml:space="preserve">
-    <value>无效密钥</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>显示</value>
   </data>
@@ -2041,12 +2038,6 @@
   </data>
   <data name="providerApiKey.secureStorage" xml:space="preserve">
     <value>已安全保存在 Windows 凭据管理器中。</value>
-  </data>
-  <data name="providerApiKey.invalid.title" xml:space="preserve">
-    <value>API 密钥无效</value>
-  </data>
-  <data name="providerApiKey.invalid.message" xml:space="preserve">
-    <value>这看起来不像有效的 {0} API 密钥。</value>
   </data>
   <data name="settings.nav.localApi" xml:space="preserve">
     <value>本地 API</value>

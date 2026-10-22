@@ -619,9 +619,6 @@
   <data name="settings.api.postProcessing.subtitle" xml:space="preserve">
     <value>AIによるテキスト整形・補正サービス用のAPIキー</value>
   </data>
-  <data name="settings.api.invalidKey.title" xml:space="preserve">
-    <value>無効なキー</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>表示</value>
   </data>
@@ -2041,12 +2038,6 @@
   </data>
   <data name="providerApiKey.secureStorage" xml:space="preserve">
     <value>Windows 資格情報マネージャーに安全に保存されます。</value>
-  </data>
-  <data name="providerApiKey.invalid.title" xml:space="preserve">
-    <value>無効な API キー</value>
-  </data>
-  <data name="providerApiKey.invalid.message" xml:space="preserve">
-    <value>有効な {0} の API キーではないようです。</value>
   </data>
   <data name="settings.nav.localApi" xml:space="preserve">
     <value>ローカル API</value>

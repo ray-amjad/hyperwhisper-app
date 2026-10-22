@@ -559,9 +559,6 @@
   <data name="settings.api.postProcessing.subtitle" xml:space="preserve">
     <value>API-nycklar för AI-driven textförbättring och formatering.</value>
   </data>
-  <data name="settings.api.invalidKey.title" xml:space="preserve">
-    <value>Invalid Key</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>Show</value>
   </data>
@@ -2061,12 +2058,6 @@ You can re-download it later.</value>
   </data>
   <data name="providerApiKey.secureStorage" xml:space="preserve">
     <value>Stored securely in Windows Credential Manager.</value>
-  </data>
-  <data name="providerApiKey.invalid.title" xml:space="preserve">
-    <value>Invalid API Key</value>
-  </data>
-  <data name="providerApiKey.invalid.message" xml:space="preserve">
-    <value>That does not look like a valid {0} API key.</value>
   </data>
   <data name="settings.nav.localApi" xml:space="preserve">
     <value>Local API</value>

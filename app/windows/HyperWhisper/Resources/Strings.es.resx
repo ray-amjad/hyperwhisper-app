@@ -619,9 +619,6 @@
   <data name="settings.api.postProcessing.subtitle" xml:space="preserve">
     <value>Claves de API para mejorar y dar formato al texto con IA.</value>
   </data>
-  <data name="settings.api.invalidKey.title" xml:space="preserve">
-    <value>Clave no válida</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>Mostrar</value>
   </data>
@@ -2041,12 +2038,6 @@ Puede volver a descargarlo más tarde.</value>
   </data>
   <data name="providerApiKey.secureStorage" xml:space="preserve">
     <value>Se guarda de forma segura en el Administrador de credenciales de Windows.</value>
-  </data>
-  <data name="providerApiKey.invalid.title" xml:space="preserve">
-    <value>Clave de API no válida</value>
-  </data>
-  <data name="providerApiKey.invalid.message" xml:space="preserve">
-    <value>Esto no parece una clave de API de {0} válida.</value>
   </data>
   <data name="settings.nav.localApi" xml:space="preserve">
     <value>API local</value>

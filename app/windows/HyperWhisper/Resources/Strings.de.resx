@@ -559,9 +559,6 @@
   <data name="settings.api.postProcessing.subtitle" xml:space="preserve">
     <value>API-Schlüssel für KI-gestützte Textverbesserung und -formatierung.</value>
   </data>
-  <data name="settings.api.invalidKey.title" xml:space="preserve">
-    <value>Ungültiger Schlüssel</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>Anzeigen</value>
   </data>
@@ -2061,12 +2058,6 @@ Sie können es später erneut herunterladen.</value>
   </data>
   <data name="providerApiKey.secureStorage" xml:space="preserve">
     <value>Sicher in der Windows-Anmeldeinformationsverwaltung gespeichert.</value>
-  </data>
-  <data name="providerApiKey.invalid.title" xml:space="preserve">
-    <value>Ungültiger API-Schlüssel</value>
-  </data>
-  <data name="providerApiKey.invalid.message" xml:space="preserve">
-    <value>Das sieht nicht nach einem gültigen {0}-API-Schlüssel aus.</value>
   </data>
   <data name="settings.nav.localApi" xml:space="preserve">
     <value>Lokale API</value>

@@ -559,9 +559,6 @@
   <data name="settings.api.postProcessing.subtitle" xml:space="preserve">
     <value>Ключи API для улучшения текста и форматирования на основе ИИ.</value>
   </data>
-  <data name="settings.api.invalidKey.title" xml:space="preserve">
-    <value>Недействительный ключ</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>Показать</value>
   </data>
@@ -2061,12 +2058,6 @@
   </data>
   <data name="providerApiKey.secureStorage" xml:space="preserve">
     <value>Надёжно хранится в Диспетчере учётных данных Windows.</value>
-  </data>
-  <data name="providerApiKey.invalid.title" xml:space="preserve">
-    <value>Недействительный ключ API</value>
-  </data>
-  <data name="providerApiKey.invalid.message" xml:space="preserve">
-    <value>Это не похоже на действительный ключ API {0}.</value>
   </data>
   <data name="settings.nav.localApi" xml:space="preserve">
     <value>Локальный API</value>

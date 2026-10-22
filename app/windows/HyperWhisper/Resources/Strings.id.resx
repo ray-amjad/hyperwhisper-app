@@ -559,9 +559,6 @@
   <data name="settings.api.postProcessing.subtitle" xml:space="preserve">
     <value>Kunci API untuk peningkatan teks dan pemformatan bertenaga AI.</value>
   </data>
-  <data name="settings.api.invalidKey.title" xml:space="preserve">
-    <value>Kunci Tidak Valid</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>Tampilkan</value>
   </data>
@@ -2061,12 +2058,6 @@ Anda dapat mengunduhnya lagi nanti.</value>
   </data>
   <data name="providerApiKey.secureStorage" xml:space="preserve">
     <value>Disimpan dengan aman di Windows Credential Manager.</value>
-  </data>
-  <data name="providerApiKey.invalid.title" xml:space="preserve">
-    <value>Kunci API Tidak Valid</value>
-  </data>
-  <data name="providerApiKey.invalid.message" xml:space="preserve">
-    <value>Itu tidak tampak seperti kunci API {0} yang valid.</value>
   </data>
   <data name="settings.nav.localApi" xml:space="preserve">
     <value>Local API</value>

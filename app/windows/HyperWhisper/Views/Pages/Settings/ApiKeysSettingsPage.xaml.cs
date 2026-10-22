@@ -218,16 +218,6 @@ public partial class ApiKeysSettingsPage : Page
         }
         else
         {
-            if (!ApiKeyService.IsValidKeyFormat(card.Provider, key))
-            {
-                WpfMessageBox.Show(
-                    Loc.S("providerApiKey.invalid.message", card.Provider.ToDisplayName()),
-                    Loc.S("settings.api.invalidKey.title"),
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
-
             if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(card.Provider, key), card.LogLabel, clearing: false))
             {
                 // Keep the typed key in the box so the user can retry without retyping.
@@ -337,16 +327,6 @@ public partial class ApiKeysSettingsPage : Page
         }
         else
         {
-            if (!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.Anthropic, key))
-            {
-                WpfMessageBox.Show(
-                    Loc.S("providerApiKey.invalid.message", PostProcessingProvider.Anthropic.ToDisplayName()),
-                    Loc.S("settings.api.invalidKey.title"),
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
-
             if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Anthropic, key), "Anthropic", clearing: false))
             {
                 // Keep the typed key in the box so the user can retry without retyping.
@@ -511,16 +491,6 @@ public partial class ApiKeysSettingsPage : Page
         }
         else
         {
-            if (!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.Cerebras, key))
-            {
-                WpfMessageBox.Show(
-                    Loc.S("providerApiKey.invalid.message", PostProcessingProvider.Cerebras.ToDisplayName()),
-                    Loc.S("settings.api.invalidKey.title"),
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
-
             if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Cerebras, key), "Cerebras", clearing: false))
             {
                 // Keep the typed key in the box so the user can retry without retyping.
@@ -575,16 +545,6 @@ public partial class ApiKeysSettingsPage : Page
         }
         else
         {
-            if (!ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.Deepgram, key))
-            {
-                WpfMessageBox.Show(
-                    Loc.S("providerApiKey.invalid.message", TranscriptionApiKeyType.Deepgram.GetDisplayName()),
-                    Loc.S("settings.api.invalidKey.title"),
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
-
             if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Deepgram, key), "Deepgram", clearing: false))
             {
                 // Keep the typed key in the box so the user can retry without retyping.
@@ -639,16 +599,6 @@ public partial class ApiKeysSettingsPage : Page
         }
         else
         {
-            if (!ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.AssemblyAI, key))
-            {
-                WpfMessageBox.Show(
-                    Loc.S("providerApiKey.invalid.message", TranscriptionApiKeyType.AssemblyAI.GetDisplayName()),
-                    Loc.S("settings.api.invalidKey.title"),
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
-
             if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.AssemblyAI, key), "AssemblyAI", clearing: false))
             {
                 // Keep the typed key in the box so the user can retry without retyping.
@@ -703,16 +653,6 @@ public partial class ApiKeysSettingsPage : Page
         }
         else
         {
-            if (!ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.ElevenLabs, key))
-            {
-                WpfMessageBox.Show(
-                    Loc.S("providerApiKey.invalid.message", TranscriptionApiKeyType.ElevenLabs.GetDisplayName()),
-                    Loc.S("settings.api.invalidKey.title"),
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
-
             if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.ElevenLabs, key), "ElevenLabs", clearing: false))
             {
                 // Keep the typed key in the box so the user can retry without retyping.
@@ -767,16 +707,6 @@ public partial class ApiKeysSettingsPage : Page
         }
         else
         {
-            if (!ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.Mistral, key))
-            {
-                WpfMessageBox.Show(
-                    Loc.S("providerApiKey.invalid.message", TranscriptionApiKeyType.Mistral.GetDisplayName()),
-                    Loc.S("settings.api.invalidKey.title"),
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
-
             if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Mistral, key), "Mistral", clearing: false))
             {
                 // Keep the typed key in the box so the user can retry without retyping.
@@ -831,16 +761,6 @@ public partial class ApiKeysSettingsPage : Page
         }
         else
         {
-            if (!ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.Soniox, key))
-            {
-                WpfMessageBox.Show(
-                    Loc.S("providerApiKey.invalid.message", TranscriptionApiKeyType.Soniox.GetDisplayName()),
-                    Loc.S("settings.api.invalidKey.title"),
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
-
             if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Soniox, key), "Soniox", clearing: false))
             {
                 // Keep the typed key in the box so the user can retry without retyping.
@@ -891,16 +811,6 @@ public partial class ApiKeysSettingsPage : Page
         }
         else
         {
-            if (!ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.Meta, key))
-            {
-                WpfMessageBox.Show(
-                    Loc.S("providerApiKey.invalid.message", TranscriptionApiKeyType.Meta.GetDisplayName()),
-                    Loc.S("settings.api.invalidKey.title"),
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
-
             if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Meta, key), "Meta", clearing: false))
             {
                 // Keep the typed key in the box so the user can retry without retyping.
@@ -955,16 +865,6 @@ public partial class ApiKeysSettingsPage : Page
         }
         else
         {
-            if (!ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.GeminiTranscribe, key))
-            {
-                WpfMessageBox.Show(
-                    Loc.S("providerApiKey.invalid.message", TranscriptionApiKeyType.GeminiTranscribe.GetDisplayName()),
-                    Loc.S("settings.api.invalidKey.title"),
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
-
             if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.GeminiTranscribe, key), "Gemini 3.5 Transcribe", clearing: false))
             {
                 // Keep the typed key in the box so the user can retry without retyping.

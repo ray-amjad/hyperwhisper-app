@@ -657,9 +657,6 @@ Do you want to restart now?</value>
   <data name="settings.api.postProcessing.subtitle" xml:space="preserve">
     <value>API keys for AI-powered text enhancement and formatting.</value>
   </data>
-  <data name="settings.api.invalidKey.title" xml:space="preserve">
-    <value>Invalid Key</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>Show</value>
   </data>
@@ -2042,12 +2039,6 @@ You can re-download it later.</value>
   </data>
   <data name="providerApiKey.secureStorage" xml:space="preserve">
     <value>Stored securely in Windows Credential Manager.</value>
-  </data>
-  <data name="providerApiKey.invalid.title" xml:space="preserve">
-    <value>Invalid API Key</value>
-  </data>
-  <data name="providerApiKey.invalid.message" xml:space="preserve">
-    <value>That does not look like a valid {0} API key.</value>
   </data>
   <data name="settings.models.localLlm.hardware.cpuFallback" xml:space="preserve">
     <value>Runtime: CPU fallback. No GPU acceleration device was detected.</value>
