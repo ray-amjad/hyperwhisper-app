@@ -703,10 +703,12 @@ public sealed class LiveOnboardingProviderKeyGateway : IOnboardingProviderKeyGat
 
         try
         {
-            // SetApiKey treats null/empty as a delete, and it already registers the
-            // change with the health service on the way through - so unlike macOS
-            // there is no second registerAPIKeyChange call here.
-            var value = string.IsNullOrEmpty(key) ? null : key;
+            // SetApiKey trims the key and treats null/blank as a delete, and it
+            // already registers the change with the health service on the way
+            // through - so unlike macOS there is no second registerAPIKeyChange call
+            // here. The read-back below compares against the same normalised value,
+            // so a restore point holding a key saved with padding still round-trips.
+            var value = ApiKeyService.NormalizeKey(key);
 
             var postProcessing = provider.GetApiKeyProvider();
             HyperWhisper.Platform.Abstractions.PlatformResult written;
@@ -736,9 +738,9 @@ public sealed class LiveOnboardingProviderKeyGateway : IOnboardingProviderKeyGat
             // reported as a pass; the seam's contract is that a healthy probe alone
             // is never enough.
             var stored = CurrentKey(provider);
-            var persisted = string.IsNullOrEmpty(key)
+            var persisted = value is null
                 ? string.IsNullOrEmpty(stored)
-                : string.Equals(stored, key, StringComparison.Ordinal);
+                : string.Equals(stored, value, StringComparison.Ordinal);
 
             if (!persisted)
             {

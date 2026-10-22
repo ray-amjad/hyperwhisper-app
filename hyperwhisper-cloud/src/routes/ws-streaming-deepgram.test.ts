@@ -11,6 +11,7 @@ import {
   fakeContext,
   textMessage,
 } from './ws-streaming-test-support';
+import { stubEnv } from '../test-support/env';
 
 type CachedLicense = { isValid: boolean; credits: number; cachedAt: string };
 
@@ -41,7 +42,7 @@ const { endActiveStreamingSessions, resetStreamingShutdownForTests } = await imp
 
 const originalFetch = globalThis.fetch;
 const originalWebSocket = globalThis.WebSocket;
-const originalApiKey = process.env.DEEPGRAM_API_KEY;
+let restoreApiKey: () => void;
 
 const BYTES_PER_SECOND = 16000 * 1 * 2;
 
@@ -280,7 +281,7 @@ describe('streaming socket lifecycle', () => {
   beforeEach(() => {
     licenseCharges.length = 0;
     upstreamSockets.length = 0;
-    process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
+    restoreApiKey = stubEnv('DEEPGRAM_API_KEY', 'test-deepgram-key');
     globalThis.WebSocket = FakeUpstreamSocket as unknown as typeof WebSocket;
     globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
       const target = typeof input === 'string' ? input : input.toString();
@@ -295,8 +296,7 @@ describe('streaming socket lifecycle', () => {
   afterEach(() => {
     globalThis.fetch = originalFetch;
     globalThis.WebSocket = originalWebSocket;
-    if (originalApiKey === undefined) delete process.env.DEEPGRAM_API_KEY;
-    else process.env.DEEPGRAM_API_KEY = originalApiKey;
+    restoreApiKey();
   });
 
   test('closes the session when the Deepgram key is not configured, without dialling upstream', () => {

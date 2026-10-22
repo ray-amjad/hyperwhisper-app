@@ -12,6 +12,7 @@ import { shouldFallback } from '../lib/llm-provider';
 import type { CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError } from './llm-errors';
 import { refusedUrl, silentUpstream, stalledBodyUpstream, type TestUpstream } from './test-upstreams';
+import { stubEnv } from '../test-support/env';
 
 // The Anthropic client talks to exactly one upstream over `fetch`, so the whole
 // module is exercised by swapping `globalThis.fetch`. Nothing here mocks a
@@ -19,25 +20,21 @@ import { refusedUrl, silentUpstream, stalledBodyUpstream, type TestUpstream } fr
 // test files in the same run.
 
 const originalFetch = globalThis.fetch;
-const originalApiKey = process.env.ANTHROPIC_API_KEY;
 
 const TEST_API_KEY = 'test-anthropic-key';
 const REQUEST_ID = 'req-anthropic-test';
 
 let lastRequest: { url: string; init: RequestInit } | null = null;
+let restoreApiKey: () => void;
 
 beforeEach(() => {
-  process.env.ANTHROPIC_API_KEY = TEST_API_KEY;
+  restoreApiKey = stubEnv('ANTHROPIC_API_KEY', TEST_API_KEY);
   lastRequest = null;
 });
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  if (originalApiKey === undefined) {
-    delete process.env.ANTHROPIC_API_KEY;
-  } else {
-    process.env.ANTHROPIC_API_KEY = originalApiKey;
-  }
+  restoreApiKey();
 });
 
 /** Install a fetch stub that records the outgoing request and returns `response`. */

@@ -125,7 +125,7 @@ export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
                         {...ICON_SWAP}
                       >
                         {isCopied ? (
-                          <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-4 h-4 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
                         ) : (
@@ -140,7 +140,7 @@ export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded shrink-0 ${
                     isActive
-                      ? "bg-green-500/20 text-green-400"
+                      ? "bg-emerald-500/20 text-emerald-300"
                       : "bg-gray-500/20 text-gray-400"
                   }`}
                 >

@@ -44,6 +44,7 @@ import { requestMistralChat } from './mistral-llm';
 import { requestXaiGrokChat } from './xai-llm';
 import { requestOpenAICompatibleChat, type OpenAICompatChatConfig } from './openai-compat-chat';
 import { refusedUrl, silentUpstream, stalledBodyUpstream, type TestUpstream } from './test-upstreams';
+import { stubEnv } from '../test-support/env';
 
 // ---------------------------------------------------------------------------
 // Global fetch capture
@@ -64,7 +65,7 @@ const API_KEY_ENV = [
   'GROK_API_KEY',
 ] as const;
 
-const savedEnv: Record<string, string | undefined> = {};
+let restoreEnv: Array<() => void> = [];
 
 let calls: FetchCall[] = [];
 let handler: FetchHandler = () => chatResponse();
@@ -113,11 +114,8 @@ beforeEach(() => {
   calls = [];
   handler = () => chatResponse();
 
-  for (const key of API_KEY_ENV) {
-    savedEnv[key] = process.env[key];
-    // Placeholder values only — never a real credential. The repo is public.
-    process.env[key] = `test-${key.toLowerCase()}`;
-  }
+  // Placeholder values only — never a real credential. The repo is public.
+  restoreEnv = API_KEY_ENV.map((key) => stubEnv(key, `test-${key.toLowerCase()}`));
 
   globalThis.fetch = (async (input: string | URL | Request, init: RequestInit = {}) => {
     const url = typeof input === 'string' ? input : input.toString();
@@ -128,13 +126,7 @@ beforeEach(() => {
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  for (const key of API_KEY_ENV) {
-    if (savedEnv[key] === undefined) {
-      delete process.env[key];
-    } else {
-      process.env[key] = savedEnv[key];
-    }
-  }
+  for (const restore of restoreEnv) restore();
 });
 
 // ===========================================================================

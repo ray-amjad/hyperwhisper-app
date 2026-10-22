@@ -49,7 +49,7 @@ export default async function BlogPage({ params }: Props) {
             src="/icon/128.png"
           />
         </div>
-        <p className="text-sm uppercase tracking-[0.3em] text-purple-300">
+        <p className="text-purple-400 text-sm font-semibold tracking-widest uppercase">
           HyperWhisper Blog
         </p>
         <h1 className="mt-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-4xl font-bold text-transparent md:text-6xl">

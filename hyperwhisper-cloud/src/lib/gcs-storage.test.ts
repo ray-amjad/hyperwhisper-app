@@ -36,6 +36,7 @@ import { mock } from 'bun:test';
 import * as realGoogleAuth from './google-auth';
 import { ProviderUnavailableError } from '../providers/types';
 import { runProviderAttempt } from '../providers/utils';
+import { stubEnv } from '../test-support/env';
 
 // ---------------------------------------------------------------------------
 // Google OAuth: one string, or a throw. gcs-storage mints the token itself, so
@@ -73,7 +74,7 @@ let handler: (call: RecordedCall) => Response | Promise<Response> = () =>
   new Response('', { status: 200 });
 
 const originalFetch = globalThis.fetch;
-const originalBucket = process.env.GOOGLE_SPEECH_GCS_BUCKET;
+let restoreBucket: () => void;
 
 beforeEach(() => {
   calls.length = 0;
@@ -81,7 +82,7 @@ beforeEach(() => {
   tokenError = null;
   tokenMints = 0;
   handler = () => new Response('', { status: 200 });
-  process.env.GOOGLE_SPEECH_GCS_BUCKET = BUCKET;
+  restoreBucket = stubEnv('GOOGLE_SPEECH_GCS_BUCKET', BUCKET);
 
   globalThis.fetch = (async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const headers: Record<string, string> = {};
@@ -101,11 +102,7 @@ beforeEach(() => {
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  if (originalBucket === undefined) {
-    delete process.env.GOOGLE_SPEECH_GCS_BUCKET;
-  } else {
-    process.env.GOOGLE_SPEECH_GCS_BUCKET = originalBucket;
-  }
+  restoreBucket();
 });
 
 /**
