@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 hỗ trợ Ubuntu 22.04+ và Debian 12+ trên amd64.",
     "linuxReplaceVersion": "Thay VERSION bằng phiên bản bạn đã tải xuống.",
     "linuxInstallCommandLabel": "Lệnh cài đặt Debian",
-    "linuxInputGroupNote": "Đăng xuất rồi đăng nhập lại sau khi tham gia nhóm input. Việc tham gia là tùy chọn, nhưng phím tắt toàn cục và tự động dán cần đến nó.",
+    "linuxInputGroupNote": "Trên X11, phím tắt toàn cục hoạt động mà không cần nhóm này. Trên GNOME và KDE Plasma Wayland, phím tắt toàn cục cần nhóm input, và tự động dán cần nhóm này trên mọi môi trường desktop. Đăng xuất rồi đăng nhập lại sau khi tham gia nhóm.",
     "aptTitle": "Tự lưu trữ kho APT",
     "aptBody": "Các bản phát hành Linux cũng kèm theo một tệp lưu trữ kho APT tĩnh. HyperWhisper hiện không vận hành endpoint APT công khai; hãy xem hướng dẫn cài đặt Linux để biết cách thiết lập tự lưu trữ có ký số, các thành phần đi kèm cho máy tính, chi tiết quyền riêng tư và cách gỡ cài đặt.",
     "linuxGuideCta": "Đọc hướng dẫn cài đặt Linux",

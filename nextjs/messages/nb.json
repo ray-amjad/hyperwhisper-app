@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 støtter Ubuntu 22.04+ og Debian 12+ på amd64.",
     "linuxReplaceVersion": "Erstatt VERSION med versjonen du lastet ned.",
     "linuxInstallCommandLabel": "Installasjonskommando for Debian",
-    "linuxInputGroupNote": "Logg ut og inn igjen etter at du har blitt med i input-gruppen. Medlemskap er valgfritt, men globale hurtigtaster og automatisk innliming krever det.",
+    "linuxInputGroupNote": "På X11 fungerer globale hurtigtaster uten den. På GNOME og KDE Plasma under Wayland krever globale hurtigtaster input-gruppen, og automatisk innliming krever den på alle skrivebordsmiljøer. Logg ut og inn igjen etter at du har blitt med i den.",
     "aptTitle": "Kjør ditt eget APT-depot",
     "aptBody": "Linux-utgivelsene inneholder også et statisk APT-depotarkiv. HyperWhisper drifter for øyeblikket ikke noe offentlig APT-endepunkt; se installasjonsveiledningen for Linux for signert, selvdriftet oppsett, skrivebordsintegrasjon, personverninformasjon og avinstallering.",
     "linuxGuideCta": "Les installasjonsveiledningen for Linux",

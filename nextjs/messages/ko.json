@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1은 amd64 기반의 Ubuntu 22.04+ 및 Debian 12+를 대상으로 합니다.",
     "linuxReplaceVersion": "VERSION을 다운로드한 버전으로 바꾸세요.",
     "linuxInstallCommandLabel": "Debian 설치 명령어",
-    "linuxInputGroupNote": "input 그룹에 가입한 후에는 로그아웃했다가 다시 로그인하세요. 그룹 가입은 선택 사항이지만, 전역 단축키와 자동 붙여넣기에는 필요합니다.",
+    "linuxInputGroupNote": "X11에서는 전역 단축키가 그룹 없이도 작동합니다. GNOME 및 KDE Plasma Wayland에서는 전역 단축키에 input 그룹이 필요하며, 자동 붙여넣기는 모든 데스크톱에서 이 그룹이 필요합니다. 그룹에 가입한 후에는 로그아웃했다가 다시 로그인하세요.",
     "aptTitle": "APT 저장소 직접 호스팅",
     "aptBody": "Linux 릴리스에는 정적 APT 저장소 아카이브도 포함되어 있습니다. HyperWhisper는 현재 공개 APT 엔드포인트를 운영하지 않습니다. 서명된 자체 호스팅 설정, 데스크톱 연동 구성 요소, 개인정보 세부 사항, 제거 방법은 Linux 설치 가이드를 참고하세요.",
     "linuxGuideCta": "Linux 설치 가이드 읽기",

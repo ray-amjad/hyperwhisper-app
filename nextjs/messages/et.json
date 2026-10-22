@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 on mõeldud Ubuntu 22.04+ ja Debian 12+ süsteemidele amd64 arhitektuuril.",
     "linuxReplaceVersion": "Asenda VERSION allalaaditud versiooniga.",
     "linuxInstallCommandLabel": "Debiani paigalduskäsk",
-    "linuxInputGroupNote": "Pärast input-grupiga liitumist logi välja ja uuesti sisse. Liikmesus on valikuline, kuid globaalsed kiirklahvid ja automaatne kleepimine vajavad seda.",
+    "linuxInputGroupNote": "X11-s töötavad globaalsed kiirklahvid ka ilma selleta. GNOME ja KDE Plasma Waylandi seanssides vajavad globaalsed kiirklahvid input-gruppi ning automaatne kleepimine vajab seda igas töölauakeskkonnas. Pärast grupiga liitumist logi välja ja uuesti sisse.",
     "aptTitle": "Majuta oma APT-hoidla",
     "aptBody": "Linuxi väljalasked sisaldavad ka staatilist APT-hoidla arhiivi. HyperWhisper ei halda praegu avalikku APT-lõpp-punkti; allkirjastatud ja ise majutatud seadistuse, töölauaintegratsiooni, privaatsusteabe ja eemaldamise kohta vaata Linuxi paigaldusjuhendit.",
     "linuxGuideCta": "Loe Linuxi paigaldusjuhendit",

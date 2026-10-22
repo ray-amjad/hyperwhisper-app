@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 ir paredzēts Ubuntu 22.04+ un Debian 12+ sistēmām ar amd64.",
     "linuxReplaceVersion": "Aizstājiet VERSION ar lejupielādēto versiju.",
     "linuxInstallCommandLabel": "Debian instalēšanas komanda",
-    "linuxInputGroupNote": "Pēc pievienošanās input grupai izrakstieties un pierakstieties vēlreiz. Dalība nav obligāta, taču tā nepieciešama globālajiem īsinājumtaustiņiem un automātiskai ielīmēšanai.",
+    "linuxInputGroupNote": "X11 vidē globālie īsinājumtaustiņi darbojas arī bez tās. GNOME un KDE Plasma Wayland vidē globālajiem īsinājumtaustiņiem ir nepieciešama input grupa, bet automātiskai ielīmēšanai tā ir nepieciešama jebkurā darbvirsmas vidē. Pēc pievienošanās grupai izrakstieties un pierakstieties vēlreiz.",
     "aptTitle": "Mitiniet savu APT repozitoriju",
     "aptBody": "Linux laidienos ir iekļauts arī statisks APT repozitorija arhīvs. HyperWhisper pašlaik neuztur publisku APT galapunktu; informāciju par parakstītu, pašmitinātu iestatīšanu, darbvirsmas integrāciju, privātumu un noņemšanu skatiet Linux instalēšanas rokasgrāmatā.",
     "linuxGuideCta": "Lasīt Linux instalēšanas rokasgrāmatu",

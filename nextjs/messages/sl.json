@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 je namenjen za Ubuntu 22.04+ in Debian 12+ na amd64.",
     "linuxReplaceVersion": "VERSION zamenjajte z različico, ki ste jo prenesli.",
     "linuxInstallCommandLabel": "Namestitveni ukaz za Debian",
-    "linuxInputGroupNote": "Ko se pridružite skupini input, se odjavite in znova prijavite. Članstvo ni obvezno, vendar ga potrebujejo globalne bližnjice in samodejno lepljenje.",
+    "linuxInputGroupNote": "Na X11 globalne bližnjice delujejo tudi brez nje. V okoljih GNOME in KDE Plasma z Waylandom globalne bližnjice potrebujejo skupino input, samodejno lepljenje pa jo potrebuje v vsakem namiznem okolju. Ko se pridružite skupini, se odjavite in znova prijavite.",
     "aptTitle": "Lastno skladišče APT",
     "aptBody": "Izdaje za Linux vključujejo tudi arhiv statičnega skladišča APT. HyperWhisper trenutno ne upravlja javne končne točke APT; za podpisano lastno namestitev, namizne dodatke, podrobnosti o zasebnosti in odstranitev glejte vodnik za namestitev na Linuxu.",
     "linuxGuideCta": "Preberite vodnik za namestitev na Linuxu",

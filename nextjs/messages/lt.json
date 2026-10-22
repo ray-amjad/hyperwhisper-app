@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 skirta Ubuntu 22.04+ ir Debian 12+ sistemoms su amd64.",
     "linuxReplaceVersion": "Pakeiskite VERSION atsisiųsta versija.",
     "linuxInstallCommandLabel": "Debian diegimo komanda",
-    "linuxInputGroupNote": "Prisijungę prie input grupės, atsijunkite ir vėl prisijunkite. Narystė neprivaloma, tačiau jos reikia visuotiniams spartiesiems klavišams ir automatiniam įklijavimui.",
+    "linuxInputGroupNote": "X11 aplinkoje visuotiniai spartieji klavišai veikia ir be jos. GNOME ir KDE Plasma Wayland aplinkose visuotiniams spartiesiems klavišams reikia input grupės, o automatiniam įklijavimui jos reikia bet kurioje darbalaukio aplinkoje. Prisijungę prie grupės, atsijunkite ir vėl prisijunkite.",
     "aptTitle": "Talpinkite savo APT saugyklą",
     "aptBody": "Linux leidimuose taip pat yra statinis APT saugyklos archyvas. HyperWhisper šiuo metu neteikia viešo APT galinio taško; informacijos apie pasirašytą, savarankiškai talpinamą sąranką, darbalaukio integraciją, privatumą ir pašalinimą rasite Linux diegimo vadove.",
     "linuxGuideCta": "Skaityti Linux diegimo vadovą",

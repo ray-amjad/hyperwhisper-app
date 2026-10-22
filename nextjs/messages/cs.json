@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 cílí na Ubuntu 22.04+ a Debian 12+ na amd64.",
     "linuxReplaceVersion": "Nahraďte VERSION verzí, kterou jste stáhli.",
     "linuxInstallCommandLabel": "Instalační příkaz pro Debian",
-    "linuxInputGroupNote": "Po přidání do skupiny input se odhlaste a znovu přihlaste. Členství je volitelné, ale globální zkratky a automatické vkládání ho vyžadují.",
+    "linuxInputGroupNote": "Na X11 fungují globální zkratky i bez ní. V GNOME a KDE Plasma na Waylandu vyžadují globální zkratky skupinu input a automatické vkládání ji vyžaduje v každém desktopovém prostředí. Po přidání do skupiny se odhlaste a znovu přihlaste.",
     "aptTitle": "Vlastní repozitář APT",
     "aptBody": "Vydání pro Linux obsahují také archiv statického repozitáře APT. HyperWhisper v současnosti neprovozuje veřejný server APT; nastavení podepsaného vlastního repozitáře, desktopové doplňky, informace o soukromí a odinstalaci najdete v průvodci instalací pro Linux.",
     "linuxGuideCta": "Přečíst průvodce instalací pro Linux",

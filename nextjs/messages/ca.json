@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 és compatible amb Ubuntu 22.04+ i Debian 12+ en amd64.",
     "linuxReplaceVersion": "Substitueix VERSION per la versió que has descarregat.",
     "linuxInstallCommandLabel": "Ordre d'instal·lació de Debian",
-    "linuxInputGroupNote": "Tanca la sessió i torna a iniciar-la després d'unir-te al grup input. Ser-ne membre és opcional, però les dreceres globals i l'enganxament automàtic ho necessiten.",
+    "linuxInputGroupNote": "A X11, les dreceres globals funcionen sense el grup. A GNOME i KDE Plasma amb Wayland, les dreceres globals necessiten el grup input, i l'enganxament automàtic el necessita a tots els escriptoris. Tanca la sessió i torna a iniciar-la després d'unir-t'hi.",
     "aptTitle": "Allotja el teu propi repositori APT",
     "aptBody": "Les versions de Linux també inclouen un arxiu estàtic de repositori APT. Actualment HyperWhisper no ofereix cap endpoint APT públic; consulta la guia d'instal·lació de Linux per a la configuració signada i autoallotjada, els complements d'escriptori, els detalls de privadesa i la desinstal·lació.",
     "linuxGuideCta": "Llegeix la guia d'instal·lació de Linux",

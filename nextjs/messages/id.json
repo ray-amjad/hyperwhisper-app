@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 menargetkan Ubuntu 22.04+ dan Debian 12+ pada amd64.",
     "linuxReplaceVersion": "Ganti VERSION dengan versi yang Anda unduh.",
     "linuxInstallCommandLabel": "Perintah instalasi Debian",
-    "linuxInputGroupNote": "Keluar lalu masuk kembali setelah bergabung dengan grup input. Keanggotaan bersifat opsional, tetapi pintasan global dan tempel otomatis memerlukannya.",
+    "linuxInputGroupNote": "Di X11, pintasan global berfungsi tanpanya. Di GNOME dan KDE Plasma Wayland, pintasan global memerlukan grup input, dan tempel otomatis memerlukannya di setiap desktop. Keluar lalu masuk kembali setelah bergabung dengan grup tersebut.",
     "aptTitle": "Host sendiri repositori APT",
     "aptBody": "Rilis Linux juga menyertakan arsip repositori APT statis. HyperWhisper saat ini tidak mengoperasikan endpoint APT publik; lihat panduan instalasi Linux untuk penyiapan host sendiri yang ditandatangani, pendamping desktop, detail privasi, dan cara menghapus instalasi.",
     "linuxGuideCta": "Baca panduan instalasi Linux",

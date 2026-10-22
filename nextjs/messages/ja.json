@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1は、amd64上のUbuntu 22.04+およびDebian 12+を対象としています。",
     "linuxReplaceVersion": "VERSIONをダウンロードしたバージョンに置き換えてください。",
     "linuxInstallCommandLabel": "Debianインストールコマンド",
-    "linuxInputGroupNote": "inputグループに参加した後は、一度ログアウトして再度ログインしてください。参加は任意ですが、グローバルショートカットと自動貼り付けには必要です。",
+    "linuxInputGroupNote": "X11では、グローバルショートカットはinputグループなしで動作します。GNOMEおよびKDE PlasmaのWaylandでは、グローバルショートカットにinputグループが必要です。自動貼り付けはすべてのデスクトップで必要です。参加した後は、一度ログアウトして再度ログインしてください。",
     "aptTitle": "APTリポジトリをセルフホスト",
     "aptBody": "Linuxのリリースには、静的なAPTリポジトリのアーカイブも含まれています。HyperWhisperは現在、公開APTエンドポイントを運用していません。署名付きのセルフホスト設定、デスクトップ連携機能、プライバシーの詳細、アンインストール方法については、Linuxインストールガイドをご覧ください。",
     "linuxGuideCta": "Linuxインストールガイドを読む",

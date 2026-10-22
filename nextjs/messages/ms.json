@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 menyasarkan Ubuntu 22.04+ dan Debian 12+ pada amd64.",
     "linuxReplaceVersion": "Gantikan VERSION dengan versi yang anda muat turun.",
     "linuxInstallCommandLabel": "Arahan pemasangan Debian",
-    "linuxInputGroupNote": "Log keluar dan log masuk semula selepas menyertai kumpulan input. Keahlian adalah pilihan, tetapi pintasan global dan tampal automatik memerlukannya.",
+    "linuxInputGroupNote": "Pada X11, pintasan global berfungsi tanpanya. Pada GNOME dan KDE Plasma Wayland, pintasan global memerlukan kumpulan input, dan tampal automatik memerlukannya pada setiap desktop. Log keluar dan log masuk semula selepas menyertainya.",
     "aptTitle": "Hos sendiri repositori APT",
     "aptBody": "Keluaran Linux juga disertakan dengan arkib repositori APT statik. HyperWhisper buat masa ini tidak mengendalikan endpoint APT awam; lihat panduan pemasangan Linux untuk persediaan hos sendiri yang ditandatangani, komponen pendamping desktop, butiran privasi dan cara menyahpasang.",
     "linuxGuideCta": "Baca panduan pemasangan Linux",

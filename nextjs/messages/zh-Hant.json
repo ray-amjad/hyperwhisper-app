@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 支援 amd64 架構上的 Ubuntu 22.04+ 與 Debian 12+。",
     "linuxReplaceVersion": "請將 VERSION 替換為你下載的版本號碼。",
     "linuxInstallCommandLabel": "Debian 安裝指令",
-    "linuxInputGroupNote": "加入 input 群組後，請登出再重新登入。加入群組並非必要，但全域快捷鍵與自動貼上需要它。",
+    "linuxInputGroupNote": "在 X11 上，全域快捷鍵不需加入群組即可使用。在 GNOME 與 KDE Plasma 的 Wayland 工作階段中，全域快捷鍵需要 input 群組，而自動貼上在所有桌面環境中都需要它。加入群組後，請登出再重新登入。",
     "aptTitle": "自行架設 APT 套件庫",
     "aptBody": "Linux 版本也附帶一個靜態 APT 套件庫封存檔。HyperWhisper 目前並未營運公開的 APT 端點；關於簽署的自行架設設定、桌面配套元件、隱私細節與移除方式，請參閱 Linux 安裝指南。",
     "linuxGuideCta": "閱讀 Linux 安裝指南",

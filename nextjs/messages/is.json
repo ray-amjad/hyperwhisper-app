@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 styður Ubuntu 22.04+ og Debian 12+ á amd64.",
     "linuxReplaceVersion": "Skiptu VERSION út fyrir útgáfuna sem þú sóttir.",
     "linuxInstallCommandLabel": "Uppsetningarskipun fyrir Debian",
-    "linuxInputGroupNote": "Skráðu þig út og aftur inn eftir að þú gengur í input-hópinn. Aðild er valfrjáls, en altækar flýtileiðir og sjálfvirk innsetning þurfa hana.",
+    "linuxInputGroupNote": "Á X11 virka altækar flýtileiðir án hans. Á GNOME og KDE Plasma með Wayland þurfa altækar flýtileiðir input-hópinn, og sjálfvirk innsetning þarf hann á öllum skjáborðum. Skráðu þig út og aftur inn eftir að þú gengur í hann.",
     "aptTitle": "Hýstu þína eigin APT-geymslu",
     "aptBody": "Linux-útgáfur innihalda einnig kyrrstætt APT-geymslusafn. HyperWhisper rekur sem stendur engan opinberan APT-endapunkt; sjáðu uppsetningarleiðbeiningarnar fyrir Linux varðandi undirritaða, sjálfhýsta uppsetningu, skjáborðssamþættingu, persónuverndarupplýsingar og fjarlægingu.",
     "linuxGuideCta": "Lesa uppsetningarleiðbeiningar fyrir Linux",

@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 stöder Ubuntu 22.04+ och Debian 12+ på amd64.",
     "linuxReplaceVersion": "Ersätt VERSION med versionen du laddade ner.",
     "linuxInstallCommandLabel": "Installationskommando för Debian",
-    "linuxInputGroupNote": "Logga ut och in igen när du har gått med i gruppen input. Medlemskap är valfritt, men globala kortkommandon och automatisk inklistring kräver det.",
+    "linuxInputGroupNote": "På X11 fungerar globala kortkommandon utan den. På GNOME och KDE Plasma under Wayland kräver globala kortkommandon gruppen input, och automatisk inklistring kräver den på alla skrivbordsmiljöer. Logga ut och in igen när du har gått med i den.",
     "aptTitle": "Kör ett eget APT-förråd",
     "aptBody": "Linux-versionerna innehåller också ett statiskt APT-förrådsarkiv. HyperWhisper driver för närvarande ingen offentlig APT-slutpunkt; se installationsguiden för Linux för signerad installation i egen regi, kompletterande skrivbordsfiler, integritetsinformation och avinstallation.",
     "linuxGuideCta": "Läs installationsguiden för Linux",

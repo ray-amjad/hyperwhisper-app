@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1, amd64 üzerinde Ubuntu 22.04+ ve Debian 12+ sürümlerini hedefler.",
     "linuxReplaceVersion": "VERSION ifadesini indirdiğiniz sürümle değiştirin.",
     "linuxInstallCommandLabel": "Debian kurulum komutu",
-    "linuxInputGroupNote": "input grubuna katıldıktan sonra oturumu kapatıp yeniden açın. Üyelik isteğe bağlıdır, ancak genel kısayollar ve otomatik yapıştırma için gereklidir.",
+    "linuxInputGroupNote": "X11'de genel kısayollar bu grup olmadan çalışır. GNOME ve KDE Plasma Wayland'de genel kısayollar için input grubu gerekir; otomatik yapıştırma için ise her masaüstünde gereklidir. Gruba katıldıktan sonra oturumu kapatıp yeniden açın.",
     "aptTitle": "Kendi APT deponuzu barındırın",
     "aptBody": "Linux sürümleri ayrıca statik bir APT deposu arşivi içerir. HyperWhisper şu anda herkese açık bir APT uç noktası işletmiyor; imzalı ve kendi barındırdığınız kurulum, masaüstü yardımcı bileşenleri, gizlilik ayrıntıları ve kaldırma için Linux kurulum kılavuzuna bakın.",
     "linuxGuideCta": "Linux kurulum kılavuzunu okuyun",

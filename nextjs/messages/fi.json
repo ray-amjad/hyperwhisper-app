@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 tukee järjestelmiä Ubuntu 22.04+ ja Debian 12+ amd64-alustalla.",
     "linuxReplaceVersion": "Korvaa VERSION lataamasi version numerolla.",
     "linuxInstallCommandLabel": "Debianin asennuskomento",
-    "linuxInputGroupNote": "Kirjaudu ulos ja takaisin sisään, kun olet liittynyt input-ryhmään. Jäsenyys on valinnainen, mutta yleiset pikanäppäimet ja automaattinen liittäminen edellyttävät sitä.",
+    "linuxInputGroupNote": "X11:ssä yleiset pikanäppäimet toimivat ilman sitä. GNOMEn ja KDE Plasman Wayland-istunnoissa yleiset pikanäppäimet edellyttävät input-ryhmää, ja automaattinen liittäminen edellyttää sitä kaikissa työpöytäympäristöissä. Kirjaudu ulos ja takaisin sisään, kun olet liittynyt siihen.",
     "aptTitle": "Isännöi omaa APT-repositoriota",
     "aptBody": "Linux-julkaisuihin sisältyy myös staattinen APT-repositorioarkisto. HyperWhisper ei tällä hetkellä ylläpidä julkista APT-päätepistettä; katso Linux-asennusoppaasta ohjeet allekirjoitettuun, itse isännöityyn käyttöönottoon, työpöytäintegraatioon, tietosuojaan ja poistamiseen.",
     "linuxGuideCta": "Lue Linux-asennusopas",

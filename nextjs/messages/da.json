@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 understøtter Ubuntu 22.04+ og Debian 12+ på amd64.",
     "linuxReplaceVersion": "Erstat VERSION med den version, du har downloadet.",
     "linuxInstallCommandLabel": "Installationskommando til Debian",
-    "linuxInputGroupNote": "Log ud og ind igen, når du er blevet medlem af gruppen input. Medlemskab er valgfrit, men globale genveje og automatisk indsættelse kræver det.",
+    "linuxInputGroupNote": "På X11 virker globale genveje uden den. På GNOME og KDE Plasma under Wayland kræver globale genveje gruppen input, og automatisk indsættelse kræver den på alle skrivebordsmiljøer. Log ud og ind igen, når du er blevet medlem af den.",
     "aptTitle": "Host dit eget APT-repository",
     "aptBody": "Linux-udgivelser indeholder også et statisk APT-repository-arkiv. HyperWhisper driver i øjeblikket ikke et offentligt APT-endpoint; se installationsvejledningen til Linux for signeret, selv-hostet opsætning, skrivebordsintegration, oplysninger om privatliv og afinstallation.",
     "linuxGuideCta": "Læs installationsvejledningen til Linux",

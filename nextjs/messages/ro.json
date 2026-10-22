@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 suportă Ubuntu 22.04+ și Debian 12+ pe amd64.",
     "linuxReplaceVersion": "Înlocuiește VERSION cu versiunea pe care ai descărcat-o.",
     "linuxInstallCommandLabel": "Comanda de instalare Debian",
-    "linuxInputGroupNote": "Deconectează-te și reconectează-te după ce te alături grupului input. Calitatea de membru este opțională, dar scurtăturile globale și lipirea automată au nevoie de ea.",
+    "linuxInputGroupNote": "Pe X11, scurtăturile globale funcționează fără el. Pe GNOME și KDE Plasma cu Wayland, scurtăturile globale au nevoie de grupul input, iar lipirea automată are nevoie de el pe orice desktop. Deconectează-te și reconectează-te după ce te alături grupului.",
     "aptTitle": "Găzduiește singur un repository APT",
     "aptBody": "Versiunile Linux includ și o arhivă statică de repository APT. În prezent, HyperWhisper nu operează un endpoint APT public; consultă ghidul de instalare Linux pentru configurarea semnată și auto-găzduită, componentele desktop complementare, detaliile de confidențialitate și dezinstalare.",
     "linuxGuideCta": "Citește ghidul de instalare Linux",

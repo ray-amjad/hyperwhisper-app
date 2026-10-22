@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 支持 amd64 架构上的 Ubuntu 22.04+ 和 Debian 12+。",
     "linuxReplaceVersion": "请将 VERSION 替换为你下载的版本号。",
     "linuxInstallCommandLabel": "Debian 安装命令",
-    "linuxInputGroupNote": "加入 input 组后，请注销并重新登录。加入该组是可选的，但全局快捷键和自动粘贴需要它。",
+    "linuxInputGroupNote": "在 X11 上，全局快捷键无需加入该组即可使用。在 GNOME 和 KDE Plasma 的 Wayland 会话中，全局快捷键需要 input 组，而自动粘贴在所有桌面环境中都需要它。加入该组后，请注销并重新登录。",
     "aptTitle": "自行托管 APT 仓库",
     "aptBody": "Linux 版本还附带一个静态 APT 仓库归档。HyperWhisper 目前不运营公共 APT 端点；有关签名的自托管设置、桌面配套组件、隐私详情和卸载方法，请参阅 Linux 安装指南。",
     "linuxGuideCta": "阅读 Linux 安装指南",

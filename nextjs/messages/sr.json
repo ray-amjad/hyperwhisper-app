@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 je namenjen za Ubuntu 22.04+ i Debian 12+ na amd64.",
     "linuxReplaceVersion": "Zamenite VERSION verzijom koju ste preuzeli.",
     "linuxInstallCommandLabel": "Komanda za instalaciju na Debianu",
-    "linuxInputGroupNote": "Nakon pridruživanja grupi input odjavite se i ponovo prijavite. Članstvo nije obavezno, ali ga zahtevaju globalne prečice i automatsko lepljenje.",
+    "linuxInputGroupNote": "Na X11 globalne prečice rade i bez nje. Na GNOME-u i KDE Plasmi sa Waylandom globalne prečice zahtevaju grupu input, a automatsko lepljenje je zahteva na svakom radnom okruženju. Nakon pridruživanja grupi odjavite se i ponovo prijavite.",
     "aptTitle": "Sopstveni APT repozitorijum",
     "aptBody": "Linux izdanja uključuju i arhivu statičkog APT repozitorijuma. HyperWhisper trenutno ne održava javni APT server; za potpisano, samostalno hostovano podešavanje, desktop dodatke, detalje o privatnosti i uklanjanje pogledajte vodič za instalaciju na Linuxu.",
     "linuxGuideCta": "Pročitajte vodič za instalaciju na Linuxu",

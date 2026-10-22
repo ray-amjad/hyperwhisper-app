@@ -226,7 +226,7 @@
     "linuxTargets": "A Linux v1 az Ubuntu 22.04+ és a Debian 12+ rendszereket támogatja amd64 architektúrán.",
     "linuxReplaceVersion": "Cseréld le a VERSION szót a letöltött verzióra.",
     "linuxInstallCommandLabel": "Debian telepítési parancs",
-    "linuxInputGroupNote": "Az input csoporthoz való csatlakozás után jelentkezz ki, majd újra be. A tagság nem kötelező, de a globális billentyűparancsokhoz és az automatikus beillesztéshez szükséges.",
+    "linuxInputGroupNote": "X11 alatt a globális billentyűparancsok nélküle is működnek. GNOME és KDE Plasma Wayland alatt a globális billentyűparancsokhoz szükséges az input csoport, az automatikus beillesztéshez pedig minden asztali környezetben. A csatlakozás után jelentkezz ki, majd újra be.",
     "aptTitle": "Saját APT-tároló üzemeltetése",
     "aptBody": "A Linux-kiadások egy statikus APT-tárolóarchívumot is tartalmaznak. A HyperWhisper jelenleg nem üzemeltet nyilvános APT-végpontot; az aláírt, saját üzemeltetésű beállításról, az asztali integrációról, az adatvédelmi részletekről és az eltávolításról a Linux telepítési útmutatóban olvashatsz.",
     "linuxGuideCta": "Olvasd el a Linux telepítési útmutatót",

@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 prend en charge Ubuntu 22.04+ et Debian 12+ sur amd64.",
     "linuxReplaceVersion": "Remplacez VERSION par la version que vous avez téléchargée.",
     "linuxInstallCommandLabel": "Commande d'installation Debian",
-    "linuxInputGroupNote": "Déconnectez-vous puis reconnectez-vous après avoir rejoint le groupe input. L'adhésion est facultative, mais elle est nécessaire pour les raccourcis globaux et le collage automatique.",
+    "linuxInputGroupNote": "Sous X11, les raccourcis globaux fonctionnent sans lui. Sous GNOME et KDE Plasma avec Wayland, les raccourcis globaux nécessitent le groupe input, et le collage automatique le nécessite sur tous les bureaux. Déconnectez-vous puis reconnectez-vous après l'avoir rejoint.",
     "aptTitle": "Auto-héberger un dépôt APT",
     "aptBody": "Les versions Linux incluent aussi une archive de dépôt APT statique. HyperWhisper n'exploite actuellement aucun point de terminaison APT public ; consultez le guide d'installation Linux pour une configuration signée et auto-hébergée, les composants de bureau complémentaires, les informations de confidentialité et la désinstallation.",
     "linuxGuideCta": "Lire le guide d'installation Linux",

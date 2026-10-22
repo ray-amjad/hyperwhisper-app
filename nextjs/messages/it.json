@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 supporta Ubuntu 22.04+ e Debian 12+ su amd64.",
     "linuxReplaceVersion": "Sostituisci VERSION con la versione che hai scaricato.",
     "linuxInstallCommandLabel": "Comando di installazione Debian",
-    "linuxInputGroupNote": "Dopo esserti aggiunto al gruppo input, esci e accedi di nuovo. L'appartenenza è facoltativa, ma serve per le scorciatoie globali e l'incolla automatico.",
+    "linuxInputGroupNote": "Su X11 le scorciatoie globali funzionano anche senza. Su GNOME e KDE Plasma con Wayland le scorciatoie globali richiedono il gruppo input, e l'incolla automatico lo richiede su ogni desktop. Dopo esserti aggiunto al gruppo, esci e accedi di nuovo.",
     "aptTitle": "Ospita da te un repository APT",
     "aptBody": "Le release per Linux includono anche un archivio statico del repository APT. Al momento HyperWhisper non gestisce un endpoint APT pubblico; consulta la guida all'installazione per Linux per la configurazione firmata e self-hosted, i componenti desktop complementari, i dettagli sulla privacy e la rimozione.",
     "linuxGuideCta": "Leggi la guida all'installazione per Linux",

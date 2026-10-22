@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 es compatible con Ubuntu 22.04+ y Debian 12+ en amd64.",
     "linuxReplaceVersion": "Sustituye VERSION por la versión que descargaste.",
     "linuxInstallCommandLabel": "Comando de instalación de Debian",
-    "linuxInputGroupNote": "Cierra sesión y vuelve a iniciarla después de unirte al grupo input. Ser miembro es opcional, pero los atajos globales y el pegado automático lo necesitan.",
+    "linuxInputGroupNote": "En X11, los atajos globales funcionan sin él. En GNOME y KDE Plasma con Wayland, los atajos globales necesitan el grupo input, y el pegado automático lo necesita en todos los escritorios. Cierra sesión y vuelve a iniciarla después de unirte a él.",
     "aptTitle": "Aloja tu propio repositorio APT",
     "aptBody": "Las versiones de Linux también incluyen un archivo de repositorio APT estático. Actualmente HyperWhisper no ofrece un endpoint APT público; consulta la guía de instalación de Linux para la configuración firmada y autoalojada, los complementos de escritorio, los detalles de privacidad y la desinstalación.",
     "linuxGuideCta": "Leer la guía de instalación de Linux",

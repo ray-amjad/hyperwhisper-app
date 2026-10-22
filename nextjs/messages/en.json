@@ -300,7 +300,7 @@
     "linuxTargets": "Linux v1 targets Ubuntu 22.04+ and Debian 12+ on amd64.",
     "linuxReplaceVersion": "Replace VERSION with the version you downloaded.",
     "linuxInstallCommandLabel": "Debian install command",
-    "linuxInputGroupNote": "Log out and back in after joining the input group. Membership is optional, but global shortcuts and automatic paste need it.",
+    "linuxInputGroupNote": "Global shortcuts work without it on X11. On GNOME and KDE Plasma Wayland, global shortcuts need the input group, and automatic paste needs it on every desktop. Log out and back in after joining it.",
     "aptTitle": "Self-host an APT repository",
     "aptBody": "Linux releases also include a static APT repository archive. HyperWhisper does not currently operate a public APT endpoint; see the Linux installation guide for signed, self-hosted setup, desktop companions, privacy details, and removal.",
     "linuxGuideCta": "Read the Linux installation guide",

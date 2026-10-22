@@ -226,7 +226,7 @@
     "linuxTargets": "Linux v1 ondersteunt Ubuntu 22.04+ en Debian 12+ op amd64.",
     "linuxReplaceVersion": "Vervang VERSION door de versie die je hebt gedownload.",
     "linuxInstallCommandLabel": "Debian-installatieopdracht",
-    "linuxInputGroupNote": "Log uit en weer in nadat je lid bent geworden van de groep input. Lidmaatschap is optioneel, maar is nodig voor globale sneltoetsen en automatisch plakken.",
+    "linuxInputGroupNote": "Op X11 werken globale sneltoetsen ook zonder. Op GNOME en KDE Plasma met Wayland hebben globale sneltoetsen de groep input nodig, en automatisch plakken heeft die op elke desktop nodig. Log uit en weer in nadat je lid bent geworden.",
     "aptTitle": "Host zelf een APT-repository",
     "aptBody": "Linux-releases bevatten ook een statisch APT-repositoryarchief. HyperWhisper beheert momenteel geen openbaar APT-endpoint; zie de Linux-installatiehandleiding voor een ondertekende, zelf gehoste installatie, desktopcomponenten, privacydetails en verwijdering.",
     "linuxGuideCta": "Lees de Linux-installatiehandleiding",
