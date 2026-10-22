@@ -1,8 +1,8 @@
 #![allow(dead_code)]
-//! `hw-license` — license validation and usage-state core (sans-I/O).
+//! `hw-license` — license validation and cache core (sans-I/O).
 //!
 //! Persistence is delegated to the platform via [`KeyValueStore`]: Rust owns the
-//! validation/usage logic, the platform owns where the bytes live (Keychain,
+//! validation/cache logic, the platform owns where the bytes live (Keychain,
 //! Windows Credential Manager, etc.). Plain Rust — `hw-core` re-exports
 //! `KeyValueStore` as a UniFFI foreign trait (callback interface) in Wave 2.
 //!
@@ -11,7 +11,6 @@
 //!   response, map it to a [`LicenseStatus`] / [`validate::ValidationOutcome`].
 //! - [`cache`] — 24h validation cache, 7-day offline grace, 24h remote
 //!   trial-limit override — all keyed off an injected `now_unix_secs`.
-//! - [`usage`] — trial limit enforcement, usage recording, day-boundary reset.
 //!
 //! # No clock, no I/O
 //! Nothing in this crate reads the wall clock or the network. Time-dependent
@@ -21,7 +20,6 @@
 //! integration suite).
 
 pub mod cache;
-pub mod usage;
 pub mod validate;
 
 /// The current license state. Mirrors macOS `LicenseStatus` (rawValue
@@ -40,7 +38,7 @@ pub enum LicenseStatus {
 }
 
 /// Native key-value persistence the platform implements; Rust calls back
-/// into it for license + usage state. `hw-core` re-exports this as a UniFFI
+/// into it for license state. `hw-core` re-exports this as a UniFFI
 /// foreign trait (callback interface) in Wave 2.
 pub trait KeyValueStore: Send + Sync {
     fn get(&self, key: String) -> Option<String>;

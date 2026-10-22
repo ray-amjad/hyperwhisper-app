@@ -19,8 +19,9 @@
 //     `config.lastFetchTimestamp` (NO `com.hyperwhisper.` prefix, and as Int /
 //     Double, not String). The core asks for `com.hyperwhisper.config.*` as
 //     Strings. We translate via `configKeyAliases` + numeric→String coercion in
-//     `get`, so the legacy cache is read correctly. Once the core writes a fresh
-//     override (`licenseStoreRemoteOverride`), the prefixed String keys self-heal.
+//     `get`, so the legacy cache is read correctly. The core no longer exports
+//     a writer or a reader for this override (#829), so no prefixed key is ever
+//     written back and nothing reads these keys through the core today.
 //
 //  3. usage.*  (dailySeconds / dayIndex / lifetime modelsDownloaded) → lived in
 //     Core Data (UsageTracking entity), NOT UserDefaults. A ONE-SHOT seed in

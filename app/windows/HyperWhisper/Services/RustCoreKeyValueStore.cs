@@ -42,8 +42,7 @@ using PlatformContracts = HyperWhisper.Platform.Abstractions;
 // `KeyValueStore`, the constant routing target, lives in uniffi.hyperwhisper_core
 // and is `internal` to HyperWhisper.SharedCore, which grants this assembly access
 // via InternalsVisibleTo (issue #275). There is no `HyperWhisper.*` type
-// named KeyValueStore / Limits / TrialLimits / UsageSnapshot, so no qualification
-// is needed for those. Only the app's `HyperWhisper.Models.LicenseStatus` is a
+// named KeyValueStore, so no qualification is needed for it. Only the app's `HyperWhisper.Models.LicenseStatus` is a
 // distinct name from the binding's `HwLicenseStatus`, so they never collide.
 namespace HyperWhisper.Services;
 
