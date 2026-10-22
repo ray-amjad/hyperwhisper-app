@@ -66,6 +66,9 @@ struct CustomEndpointSheet: View {
     /// What the last Test Connection probed; the save records its verdict when
     /// the saved URL, model and key are the same (issue #935).
     @State private var testedConfiguration: CustomEndpointTestedConfiguration?
+    /// The edited endpoint's Keychain key as loaded, so the stored verdict
+    /// shows only while the key field still holds it.
+    @State private var loadedAPIKey: String = ""
     @State private var validationError: String?
     @State private var isSaving = false
 
@@ -83,15 +86,22 @@ struct CustomEndpointSheet: View {
         existingEndpoint != nil
     }
 
-    /// The edited endpoint's stored verdict ("Previously verified" /
-    /// "Previously failed") while the form still shows its saved URL and
-    /// model, and `.none` once either differs (issue #935).
-    private var storedTestResult: TestResultState {
-        guard let endpoint = existingEndpoint,
+    /// What the test row shows. Before any Test Connection in this sheet, an
+    /// edited endpoint shows its stored verdict ("Previously verified" /
+    /// "Previously failed") while the URL, model and key are still the saved
+    /// ones (issue #935). This is derived rather than set in
+    /// loadExistingData, because the endpointURL onChange that the load itself
+    /// fires would clear it.
+    private var displayedTestResult: TestResultState {
+        guard testResult == .none,
+              !isTesting,
+              testedConfiguration == nil,
+              let endpoint = existingEndpoint,
               let success = endpoint.lastTestSuccess,
               buildFullEndpointURL() == endpoint.endpointURL,
-              (selectedTab == .custom ? modelName : selectedModel) == endpoint.modelName
-        else { return .none }
+              (selectedTab == .custom ? modelName : selectedModel) == endpoint.modelName,
+              apiKey == loadedAPIKey
+        else { return testResult }
         return success ? .success(preview: "Previously verified") : .failure(error: "Previously failed")
     }
 
@@ -302,7 +312,7 @@ struct CustomEndpointSheet: View {
                 .textFieldStyle(.roundedBorder)
                 .onChange(of: endpointURL) { _, _ in
                     validationError = nil
-                    testResult = storedTestResult
+                    testResult = .none
                 }
             Text("Base URL of your local server")
                 .font(.caption)
@@ -318,7 +328,7 @@ struct CustomEndpointSheet: View {
                 .textFieldStyle(.roundedBorder)
                 .onChange(of: endpointURL) { _, _ in
                     validationError = nil
-                    testResult = storedTestResult
+                    testResult = .none
                 }
             Text("Full URL to the OpenAI-compatible chat completions endpoint")
                 .font(.caption)
@@ -470,7 +480,7 @@ struct CustomEndpointSheet: View {
 
     @ViewBuilder
     private var testResultView: some View {
-        switch testResult {
+        switch displayedTestResult {
         case .none:
             EmptyView()
         case .success:
@@ -494,7 +504,7 @@ struct CustomEndpointSheet: View {
 
     @ViewBuilder
     private var testResultDetails: some View {
-        switch testResult {
+        switch displayedTestResult {
         case .none:
             EmptyView()
         case .success(let preview):
@@ -549,7 +559,7 @@ struct CustomEndpointSheet: View {
         // Clear previous state
         availableModels = []
         modelFetchError = nil
-        testResult = storedTestResult
+        testResult = .none
 
         // Auto-fill name and URL based on tab (only if they're empty or default values)
         let currentNameIsDefault = name.isEmpty || name == "Ollama" || name == "LMStudio"
@@ -613,6 +623,7 @@ struct CustomEndpointSheet: View {
         modelName = endpoint.modelName
         selectedModel = endpoint.modelName
         apiKey = customEndpointManager.getAPIKey(for: endpoint.id)
+        loadedAPIKey = apiKey
 
         // Detect which tab this endpoint belongs to based on URL patterns
         if endpoint.endpointURL.contains("localhost:1234") {
@@ -630,11 +641,6 @@ struct CustomEndpointSheet: View {
         } else {
             selectedTab = .custom
         }
-
-        // Set initial test result based on stored status. Setting endpointURL
-        // above fires its onChange after this returns, and that handler
-        // restores the same stored status rather than clearing it.
-        testResult = storedTestResult
 
         // Fetch models if on Ollama/LMStudio tab
         if selectedTab == .ollama || selectedTab == .lmstudio {
