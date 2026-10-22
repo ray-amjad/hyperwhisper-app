@@ -112,4 +112,13 @@ describe('a padded account key is the same account (#2461)', () => {
     expect(canonicalAccountKey(' hw-Key ')).toBe('hw-Key');
     expect(canonicalAccountKey(null)).toBeUndefined();
   });
+
+  test('a key that is not a string (an untyped JSON body) is a missing key, not a throw', async () => {
+    for (const value of [12345, { key: REAL_KEY }, [REAL_KEY], true]) {
+      const result = await validateAuth({ licenseKey: value as never });
+      expect(result.ok).toBe(false);
+      expect(result.diagnostics.outcome).toBe('missing_key');
+    }
+    expect(siteCalls).toEqual([]);
+  });
 });

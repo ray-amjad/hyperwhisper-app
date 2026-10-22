@@ -210,10 +210,13 @@ async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationR
  * account; the licence cache, the credit hold and `auth.identifier` must all
  * use the trimmed form, or a padded variant is a second hold budget for the
  * same balance. Case is kept: the site matches the key case-sensitively.
- * Whitespace only is no key at all.
+ * Whitespace only, or a value that is not a string, is no key at all.
  */
-export function canonicalAccountKey(raw: string | null | undefined): string | undefined {
-  const trimmed = raw?.trim();
+export function canonicalAccountKey(raw: unknown): string | undefined {
+  // `/post-process` reads the key from an untyped JSON body, so a number or an
+  // object can arrive here: that is no key, never a throw.
+  if (typeof raw !== 'string') return undefined;
+  const trimmed = raw.trim();
   return trimmed ? trimmed : undefined;
 }
 
