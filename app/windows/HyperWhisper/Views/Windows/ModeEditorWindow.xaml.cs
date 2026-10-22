@@ -95,12 +95,15 @@ public partial class ModeEditorWindow : Window
         Loaded += OnLoaded;
     }
 
-    private void OnLoaded(object sender, RoutedEventArgs e)
-    {
+    private void ReloadOtherModeNames() =>
         _otherModeNames = ModeService.Instance.GetAllModes()
             .Where(m => m.Id != _mode.Id)
             .Select(m => m.Name)
             .ToList();
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        ReloadOtherModeNames();
 
         // Configure UI for ARM64 architecture before loading data
         ConfigureForArchitecture();
@@ -371,10 +374,32 @@ public partial class ModeEditorWindow : Window
     private bool IsModeNameTaken() =>
         ModeNameRules.IsTaken(ModeNameBox.Text, _storedName, _otherModeNames);
 
+    /// <summary>
+    /// Shows or hides the name-taken hint. A WPF LiveSetting alone announces
+    /// nothing, so the peer raises LiveRegionChanged when it appears, and the
+    /// hint becomes the box's HelpText like the default-mode lock hint.
+    /// </summary>
+    private void ShowModeNameTakenHint(bool show)
+    {
+        var wasShown = ModeNameTakenHint.Visibility == Visibility.Visible;
+        ModeNameTakenHint.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        if (show == wasShown) return;
+
+        System.Windows.Automation.AutomationProperties.SetHelpText(
+            ModeNameBox, show ? ModeNameTakenHint.Text : string.Empty);
+        if (show)
+        {
+            ModeNameTakenHint.UpdateLayout();
+            System.Windows.Automation.Peers.UIElementAutomationPeer
+                .CreatePeerForElement(ModeNameTakenHint)
+                .RaiseAutomationEvent(System.Windows.Automation.Peers.AutomationEvents.LiveRegionChanged);
+        }
+    }
+
     private void UpdateSaveButtonState()
     {
         var nameTaken = IsModeNameTaken();
-        ModeNameTakenHint.Visibility = nameTaken ? Visibility.Visible : Visibility.Collapsed;
+        ShowModeNameTakenHint(nameTaken);
 
         // Name is required, and no other mode may already use it
         if (string.IsNullOrWhiteSpace(ModeNameBox.Text) || nameTaken || !HasValidDictationLanguage())
@@ -1795,8 +1820,11 @@ public partial class ModeEditorWindow : Window
             return;
         }
 
+        // Re-read: the Local API can add a mode while this window is open.
+        ReloadOtherModeNames();
         if (IsModeNameTaken())
         {
+            UpdateSaveButtonState();
             ModeNameBox.Focus();
             return;
         }

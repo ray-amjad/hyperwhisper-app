@@ -14386,7 +14386,8 @@ internal static class Program
                 // #356, review round 1). `HyperWhisperDbContext` declares a
                 // NON-unique index on `Name` and nothing outside these endpoints
                 // checks, so two modes named "Work" are producible from a backup
-                // restore (and were from the GUI until #2478). A read-modify-write client PATCHing the
+                // restore (and were from the Windows mode editor until #2478).
+                // A read-modify-write client PATCHing the
                 // whole object back must not be told its own unchanged name is
                 // taken — that mode would be patchable only by omitting `name`.
                 Assert(!WindowsLocalApiBackend.PatchNameCollides("Work", "Work", ["Work", "Personal"]),
