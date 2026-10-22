@@ -14411,6 +14411,137 @@ internal static class Program
                 }
             });
 
+            // =================================================================
+            // Issue #740: the HyperWhisper Cloud credit balance.
+            //
+            // HyperWhisperCloudManager reads the user's paid balance from /usage.
+            // Its internal constructor takes the HTTP client and the clock, so the
+            // 60 s cache, force_refresh, the error path and the onboarding key
+            // override run against a scripted /usage reply with no network and no
+            // wall-clock wait. A test instance never subscribes to the process-wide
+            // LicenseManager, so no handler leaks onto that singleton.
+            // =================================================================
+
+            static string UsageReply(double credits) =>
+                "{\"credits_remaining\":" + credits.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                + ",\"minutes_remaining\":10,\"credits_per_minute\":1.67,\"is_licensed\":false}";
+
+            static DateTime CreditsEpoch() => new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            RunAsync("credits: two reads inside 60s send one request", async () =>
+            {
+                var now = CreditsEpoch();
+                var handler = new CapturingHandler { Next = () => Respond(HttpStatusCode.OK, UsageReply(500)) };
+                using var client = new HttpClient(handler);
+                using var manager = new HyperWhisperCloudManager(client, () => now);
+
+                var first = await manager.FetchCreditsAsync();
+                Assert(first?.CreditsRemaining == 500, $"first read returned {first?.CreditsRemaining}");
+
+                // AddMilliseconds, not AddSeconds(59.9): see issue #379 (b) further down.
+                now = now.AddMilliseconds(59_900);
+                handler.Next = () => Respond(HttpStatusCode.OK, UsageReply(400));
+                var second = await manager.FetchCreditsAsync();
+
+                Assert(handler.Sends == 1, $"two reads inside 60s sent {handler.Sends} requests");
+                Assert(ReferenceEquals(second, first), "the second read did not return the cached balance");
+            });
+
+            RunAsync("credits: a read after 60s sends a second request", async () =>
+            {
+                var now = CreditsEpoch();
+                var handler = new CapturingHandler { Next = () => Respond(HttpStatusCode.OK, UsageReply(500)) };
+                using var client = new HttpClient(handler);
+                using var manager = new HyperWhisperCloudManager(client, () => now);
+
+                await manager.FetchCreditsAsync();
+
+                // The gate is `elapsed < 60 s` -> cached, so exactly 60 s is already stale.
+                now = now.AddSeconds(60);
+                handler.Next = () => Respond(HttpStatusCode.OK, UsageReply(400));
+                var second = await manager.FetchCreditsAsync();
+
+                Assert(handler.Sends == 2, $"a read at 60s sent {handler.Sends} requests in total");
+                Assert(second?.CreditsRemaining == 400, $"the read after 60s returned {second?.CreditsRemaining}");
+                Assert(manager.Credits?.CreditsRemaining == 400, $"Credits holds {manager.Credits?.CreditsRemaining}");
+            });
+
+            RunAsync("credits: forceRefresh bypasses the warm cache and sets force_refresh=true", async () =>
+            {
+                var now = CreditsEpoch();
+                var handler = new CapturingHandler { Next = () => Respond(HttpStatusCode.OK, UsageReply(500)) };
+                using var client = new HttpClient(handler);
+                using var manager = new HyperWhisperCloudManager(client, () => now);
+
+                await manager.FetchCreditsAsync();
+                var firstQuery = handler.LastRequestUri?.Query ?? "";
+                Assert(!firstQuery.Contains("force_refresh"), $"a plain read sent {firstQuery}");
+
+                now = now.AddSeconds(1);
+                handler.Next = () => Respond(HttpStatusCode.OK, UsageReply(400));
+                var forced = await manager.FetchCreditsAsync(forceRefresh: true);
+
+                Assert(handler.Sends == 2, $"forceRefresh on a warm cache sent {handler.Sends} requests in total");
+                Assert(handler.LastRequestUri?.Query.Contains("&force_refresh=true") == true,
+                    $"forced read query {handler.LastRequestUri?.Query}");
+                Assert(forced?.CreditsRemaining == 400, $"forced read returned {forced?.CreditsRemaining}");
+            });
+
+            RunAsync("credits: a 500 keeps the last known balance and records LastError", async () =>
+            {
+                var now = CreditsEpoch();
+                var handler = new CapturingHandler { Next = () => Respond(HttpStatusCode.OK, UsageReply(500)) };
+                using var client = new HttpClient(handler);
+                using var manager = new HyperWhisperCloudManager(client, () => now);
+
+                var known = await manager.FetchCreditsAsync();
+                var shownBalance = manager.FormattedBalance;
+
+                // A JSON error body: the server's own message becomes LastError.
+                now = now.AddSeconds(61);
+                handler.Next = () => Respond(HttpStatusCode.InternalServerError, "{\"error\":\"usage store unavailable\"}");
+                var failed = await manager.FetchCreditsAsync();
+
+                Assert(handler.Sends == 2, $"the stale read sent {handler.Sends} requests in total");
+                Assert(failed is null, "a 500 returned a balance");
+                Assert(ReferenceEquals(manager.Credits, known), "a 500 replaced or cleared the last known balance");
+                Assert(manager.FormattedBalance == shownBalance,
+                    $"the panel balance moved from \"{shownBalance}\" to \"{manager.FormattedBalance}\"");
+                Assert(manager.LastError == "usage store unavailable", $"LastError \"{manager.LastError}\"");
+                Assert(manager.HasError, "HasError is false after a 500");
+                Assert(!manager.IsFetchingCredits, "IsFetchingCredits stuck true after a 500");
+
+                // A body with no message falls back to the status code, and still keeps the balance.
+                handler.Next = () => Respond(HttpStatusCode.InternalServerError, "<html>bad gateway</html>");
+                await manager.FetchCreditsAsync(forceRefresh: true);
+
+                Assert(manager.LastError == "HTTP 500", $"LastError for a non-JSON 500 \"{manager.LastError}\"");
+                Assert(ReferenceEquals(manager.Credits, known), "a non-JSON 500 replaced or cleared the last known balance");
+            });
+
+            RunAsync("credits: licenseKeyOverride selects the identifier, not the device id", async () =>
+            {
+                const string typedKey = "OVERRIDE-KEY-740";
+                var handler = new CapturingHandler { Next = () => Respond(HttpStatusCode.OK, UsageReply(500)) };
+                using var client = new HttpClient(handler);
+                using var manager = new HyperWhisperCloudManager(client, CreditsEpoch);
+
+                // Surrounding whitespace, as a pasted key often has: the override is trimmed.
+                await manager.FetchCreditsAsync(licenseKeyOverride: "  " + typedKey + " ");
+
+                Assert(handler.Sends == 1, $"the override read sent {handler.Sends} requests");
+                Assert(handler.LastRequestUri?.Query == "?identifier=" + typedKey,
+                    $"override read query {handler.LastRequestUri?.Query}");
+
+                // Without the override the same manager asks about the stored identity
+                // (the device id on a CI runner), which is a different identifier.
+                var stored = LicenseManager.Instance.GetTranscriptionIdentifier().Identifier;
+                Assert(stored != typedKey, "the stored identifier equals the override; the check proves nothing");
+                await manager.FetchCreditsAsync(forceRefresh: true);
+                Assert(handler.LastRequestUri?.Query.StartsWith("?identifier=" + Uri.EscapeDataString(stored) + "&") == true,
+                    "a read with no override did not ask about the stored identifier");
+            });
+
             SynchronizationContext.SetSynchronizationContext(limitsPreviousContext);
 
             // =================================================================
