@@ -124,7 +124,7 @@ export default async function BlogPostPage({ params }: Props) {
       </Link>
 
       <div className="space-y-5 text-center">
-        <p className="text-sm uppercase tracking-[0.3em] text-purple-300">
+        <p className="text-purple-400 text-sm font-semibold tracking-widest uppercase">
           HyperWhisper Blog
         </p>
         <h1 className="mx-auto max-w-3xl text-4xl font-semibold leading-tight text-white md:text-5xl">
