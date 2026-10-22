@@ -24,4 +24,28 @@
   <data name="linux.ui.start.recording" xml:space="preserve">
     <value>Porniți înregistrarea</value>
   </data>
+  <data name="linux.settings.sound.microphone.default" xml:space="preserve">
+    <value>Implicit · {0}</value>
+  </data>
+  <data name="linux.settings.sound.microphone.defaultNone" xml:space="preserve">
+    <value>Implicit</value>
+  </data>
+  <data name="linux.settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Se folosește {0} până când {1} este reconectat.</value>
+  </data>
+  <data name="linux.settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (neconectat)</value>
+  </data>
+  <data name="linux.settings.sound.microphone.stop" xml:space="preserve">
+    <value>Oprește</value>
+  </data>
+  <data name="linux.settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Folosit doar de HyperWhisper. Reținut și după repornire.</value>
+  </data>
+  <data name="linux.settings.sound.microphone.test" xml:space="preserve">
+    <value>Testează</value>
+  </data>
+  <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve">
+    <value>Microfonul nu a putut fi deschis.</value>
+  </data>
 </root>

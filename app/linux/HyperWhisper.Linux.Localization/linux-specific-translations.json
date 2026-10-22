@@ -1,0 +1,395 @@
+{
+  "_note": "Linux-specific copy translated by hand for the mic picker (2026-10-19). Pending native-speaker review; generate-satellites.py merges these into the satellites.",
+  "translations": {
+    "ar": {
+      "linux.settings.sound.microphone.subtitle": "يستخدمه HyperWhisper فقط. يُحفظ بعد إعادة التشغيل.",
+      "linux.settings.sound.microphone.default": "الافتراضي · {0}",
+      "linux.settings.sound.microphone.defaultNone": "الافتراضي",
+      "linux.settings.sound.microphone.notConnected": "{0} (غير متصل)",
+      "linux.settings.sound.microphone.fallback": "يتم استخدام {0} حتى يُعاد توصيل {1}.",
+      "linux.settings.sound.microphone.test": "اختبار",
+      "linux.settings.sound.microphone.stop": "إيقاف",
+      "linux.settings.sound.microphone.testFailed": "تعذّر فتح الميكروفون."
+    },
+    "bg": {
+      "linux.settings.sound.microphone.subtitle": "Използва се само от HyperWhisper. Запомня се след рестартиране.",
+      "linux.settings.sound.microphone.default": "По подразбиране · {0}",
+      "linux.settings.sound.microphone.defaultNone": "По подразбиране",
+      "linux.settings.sound.microphone.notConnected": "{0} (не е свързан)",
+      "linux.settings.sound.microphone.fallback": "Използва се {0}, докато {1} не бъде свързан отново.",
+      "linux.settings.sound.microphone.test": "Тест",
+      "linux.settings.sound.microphone.stop": "Стоп",
+      "linux.settings.sound.microphone.testFailed": "Микрофонът не можа да бъде отворен."
+    },
+    "ca": {
+      "linux.settings.sound.microphone.subtitle": "Només l'utilitza HyperWhisper. Es recorda entre reinicis.",
+      "linux.settings.sound.microphone.default": "Per defecte · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Per defecte",
+      "linux.settings.sound.microphone.notConnected": "{0} (no connectat)",
+      "linux.settings.sound.microphone.fallback": "S'utilitza {0} fins que es torni a connectar {1}.",
+      "linux.settings.sound.microphone.test": "Prova",
+      "linux.settings.sound.microphone.stop": "Atura",
+      "linux.settings.sound.microphone.testFailed": "No s'ha pogut obrir el micròfon."
+    },
+    "cs": {
+      "linux.settings.sound.microphone.subtitle": "Používá jen HyperWhisper. Zapamatuje se i po restartu.",
+      "linux.settings.sound.microphone.default": "Výchozí · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Výchozí",
+      "linux.settings.sound.microphone.notConnected": "{0} (nepřipojeno)",
+      "linux.settings.sound.microphone.fallback": "Používá se {0}, dokud nebude znovu připojeno {1}.",
+      "linux.settings.sound.microphone.test": "Test",
+      "linux.settings.sound.microphone.stop": "Zastavit",
+      "linux.settings.sound.microphone.testFailed": "Mikrofon se nepodařilo otevřít."
+    },
+    "da": {
+      "linux.settings.sound.microphone.subtitle": "Bruges kun af HyperWhisper. Huskes efter genstart.",
+      "linux.settings.sound.microphone.default": "Standard · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Standard",
+      "linux.settings.sound.microphone.notConnected": "{0} (ikke tilsluttet)",
+      "linux.settings.sound.microphone.fallback": "Bruger {0}, indtil {1} tilsluttes igen.",
+      "linux.settings.sound.microphone.test": "Test",
+      "linux.settings.sound.microphone.stop": "Stop",
+      "linux.settings.sound.microphone.testFailed": "Mikrofonen kunne ikke åbnes."
+    },
+    "de": {
+      "linux.settings.sound.microphone.subtitle": "Wird nur von HyperWhisper verwendet. Bleibt nach Neustarts erhalten.",
+      "linux.settings.sound.microphone.default": "Standard · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Standard",
+      "linux.settings.sound.microphone.notConnected": "{0} (nicht verbunden)",
+      "linux.settings.sound.microphone.fallback": "{0} wird verwendet, bis {1} wieder verbunden ist.",
+      "linux.settings.sound.microphone.test": "Testen",
+      "linux.settings.sound.microphone.stop": "Stopp",
+      "linux.settings.sound.microphone.testFailed": "Das Mikrofon konnte nicht geöffnet werden."
+    },
+    "el": {
+      "linux.settings.sound.microphone.subtitle": "Χρησιμοποιείται μόνο από το HyperWhisper. Διατηρείται μετά από επανεκκινήσεις.",
+      "linux.settings.sound.microphone.default": "Προεπιλογή · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Προεπιλογή",
+      "linux.settings.sound.microphone.notConnected": "{0} (μη συνδεδεμένο)",
+      "linux.settings.sound.microphone.fallback": "Χρησιμοποιείται το {0} μέχρι να επανασυνδεθεί το {1}.",
+      "linux.settings.sound.microphone.test": "Δοκιμή",
+      "linux.settings.sound.microphone.stop": "Διακοπή",
+      "linux.settings.sound.microphone.testFailed": "Δεν ήταν δυνατό το άνοιγμα του μικροφώνου."
+    },
+    "es": {
+      "linux.settings.sound.microphone.subtitle": "Solo lo usa HyperWhisper. Se recuerda entre reinicios.",
+      "linux.settings.sound.microphone.default": "Predeterminado · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Predeterminado",
+      "linux.settings.sound.microphone.notConnected": "{0} (no conectado)",
+      "linux.settings.sound.microphone.fallback": "Usando {0} hasta que se vuelva a conectar {1}.",
+      "linux.settings.sound.microphone.test": "Probar",
+      "linux.settings.sound.microphone.stop": "Detener",
+      "linux.settings.sound.microphone.testFailed": "No se pudo abrir el micrófono."
+    },
+    "et": {
+      "linux.settings.sound.microphone.subtitle": "Kasutab ainult HyperWhisper. Jäetakse meelde ka pärast taaskäivitust.",
+      "linux.settings.sound.microphone.default": "Vaikimisi · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Vaikimisi",
+      "linux.settings.sound.microphone.notConnected": "{0} (pole ühendatud)",
+      "linux.settings.sound.microphone.fallback": "Kasutatakse seadet {0}, kuni {1} uuesti ühendatakse.",
+      "linux.settings.sound.microphone.test": "Testi",
+      "linux.settings.sound.microphone.stop": "Peata",
+      "linux.settings.sound.microphone.testFailed": "Mikrofoni ei õnnestunud avada."
+    },
+    "fi": {
+      "linux.settings.sound.microphone.subtitle": "Vain HyperWhisperin käytössä. Muistetaan uudelleenkäynnistysten yli.",
+      "linux.settings.sound.microphone.default": "Oletus · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Oletus",
+      "linux.settings.sound.microphone.notConnected": "{0} (ei yhdistetty)",
+      "linux.settings.sound.microphone.fallback": "Käytetään laitetta {0}, kunnes {1} yhdistetään uudelleen.",
+      "linux.settings.sound.microphone.test": "Testaa",
+      "linux.settings.sound.microphone.stop": "Pysäytä",
+      "linux.settings.sound.microphone.testFailed": "Mikrofonia ei voitu avata."
+    },
+    "fr": {
+      "linux.settings.sound.microphone.subtitle": "Utilisé uniquement par HyperWhisper. Conservé après redémarrage.",
+      "linux.settings.sound.microphone.default": "Par défaut · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Par défaut",
+      "linux.settings.sound.microphone.notConnected": "{0} (non connecté)",
+      "linux.settings.sound.microphone.fallback": "Utilisation de {0} jusqu'à la reconnexion de {1}.",
+      "linux.settings.sound.microphone.test": "Tester",
+      "linux.settings.sound.microphone.stop": "Arrêter",
+      "linux.settings.sound.microphone.testFailed": "Impossible d'ouvrir le microphone."
+    },
+    "he": {
+      "linux.settings.sound.microphone.subtitle": "בשימוש HyperWhisper בלבד. נשמר גם לאחר הפעלה מחדש.",
+      "linux.settings.sound.microphone.default": "ברירת מחדל · {0}",
+      "linux.settings.sound.microphone.defaultNone": "ברירת מחדל",
+      "linux.settings.sound.microphone.notConnected": "{0} (לא מחובר)",
+      "linux.settings.sound.microphone.fallback": "נעשה שימוש ב-{0} עד ש-{1} יחובר מחדש.",
+      "linux.settings.sound.microphone.test": "בדיקה",
+      "linux.settings.sound.microphone.stop": "עצירה",
+      "linux.settings.sound.microphone.testFailed": "לא ניתן לפתוח את המיקרופון."
+    },
+    "hi": {
+      "linux.settings.sound.microphone.subtitle": "केवल HyperWhisper द्वारा उपयोग किया जाता है। रीस्टार्ट के बाद भी याद रहता है।",
+      "linux.settings.sound.microphone.default": "डिफ़ॉल्ट · {0}",
+      "linux.settings.sound.microphone.defaultNone": "डिफ़ॉल्ट",
+      "linux.settings.sound.microphone.notConnected": "{0} (कनेक्ट नहीं है)",
+      "linux.settings.sound.microphone.fallback": "{1} दोबारा कनेक्ट होने तक {0} का उपयोग हो रहा है।",
+      "linux.settings.sound.microphone.test": "परीक्षण",
+      "linux.settings.sound.microphone.stop": "रोकें",
+      "linux.settings.sound.microphone.testFailed": "माइक्रोफ़ोन नहीं खोला जा सका।"
+    },
+    "hr": {
+      "linux.settings.sound.microphone.subtitle": "Koristi ga samo HyperWhisper. Pamti se i nakon ponovnog pokretanja.",
+      "linux.settings.sound.microphone.default": "Zadano · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Zadano",
+      "linux.settings.sound.microphone.notConnected": "{0} (nije povezano)",
+      "linux.settings.sound.microphone.fallback": "Koristi se {0} dok se {1} ponovno ne poveže.",
+      "linux.settings.sound.microphone.test": "Testiraj",
+      "linux.settings.sound.microphone.stop": "Zaustavi",
+      "linux.settings.sound.microphone.testFailed": "Mikrofon nije moguće otvoriti."
+    },
+    "hu": {
+      "linux.settings.sound.microphone.subtitle": "Csak a HyperWhisper használja. Újraindítás után is megmarad.",
+      "linux.settings.sound.microphone.default": "Alapértelmezett · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Alapértelmezett",
+      "linux.settings.sound.microphone.notConnected": "{0} (nincs csatlakoztatva)",
+      "linux.settings.sound.microphone.fallback": "{0} használatban, amíg a(z) {1} újra nem csatlakozik.",
+      "linux.settings.sound.microphone.test": "Teszt",
+      "linux.settings.sound.microphone.stop": "Leállítás",
+      "linux.settings.sound.microphone.testFailed": "A mikrofont nem sikerült megnyitni."
+    },
+    "id": {
+      "linux.settings.sound.microphone.subtitle": "Hanya digunakan oleh HyperWhisper. Diingat setelah dimulai ulang.",
+      "linux.settings.sound.microphone.default": "Default · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Default",
+      "linux.settings.sound.microphone.notConnected": "{0} (tidak terhubung)",
+      "linux.settings.sound.microphone.fallback": "Menggunakan {0} hingga {1} terhubung kembali.",
+      "linux.settings.sound.microphone.test": "Uji",
+      "linux.settings.sound.microphone.stop": "Berhenti",
+      "linux.settings.sound.microphone.testFailed": "Mikrofon tidak dapat dibuka."
+    },
+    "is": {
+      "linux.settings.sound.microphone.subtitle": "Aðeins notað af HyperWhisper. Munað eftir endurræsingu.",
+      "linux.settings.sound.microphone.default": "Sjálfgefið · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Sjálfgefið",
+      "linux.settings.sound.microphone.notConnected": "{0} (ekki tengt)",
+      "linux.settings.sound.microphone.fallback": "Notar {0} þar til {1} er tengt aftur.",
+      "linux.settings.sound.microphone.test": "Prófa",
+      "linux.settings.sound.microphone.stop": "Stöðva",
+      "linux.settings.sound.microphone.testFailed": "Ekki tókst að opna hljóðnemann."
+    },
+    "it": {
+      "linux.settings.sound.microphone.subtitle": "Usato solo da HyperWhisper. Ricordato tra i riavvii.",
+      "linux.settings.sound.microphone.default": "Predefinito · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Predefinito",
+      "linux.settings.sound.microphone.notConnected": "{0} (non connesso)",
+      "linux.settings.sound.microphone.fallback": "Uso di {0} finché {1} non viene ricollegato.",
+      "linux.settings.sound.microphone.test": "Prova",
+      "linux.settings.sound.microphone.stop": "Interrompi",
+      "linux.settings.sound.microphone.testFailed": "Impossibile aprire il microfono."
+    },
+    "ja": {
+      "linux.settings.sound.microphone.subtitle": "HyperWhisper のみで使用されます。再起動後も保持されます。",
+      "linux.settings.sound.microphone.default": "デフォルト · {0}",
+      "linux.settings.sound.microphone.defaultNone": "デフォルト",
+      "linux.settings.sound.microphone.notConnected": "{0}（未接続）",
+      "linux.settings.sound.microphone.fallback": "{1} が再接続されるまで {0} を使用します。",
+      "linux.settings.sound.microphone.test": "テスト",
+      "linux.settings.sound.microphone.stop": "停止",
+      "linux.settings.sound.microphone.testFailed": "マイクを開けませんでした。"
+    },
+    "ko": {
+      "linux.settings.sound.microphone.subtitle": "HyperWhisper에서만 사용됩니다. 다시 시작해도 유지됩니다.",
+      "linux.settings.sound.microphone.default": "기본값 · {0}",
+      "linux.settings.sound.microphone.defaultNone": "기본값",
+      "linux.settings.sound.microphone.notConnected": "{0} (연결 안 됨)",
+      "linux.settings.sound.microphone.fallback": "{1}이(가) 다시 연결될 때까지 {0}을(를) 사용합니다.",
+      "linux.settings.sound.microphone.test": "테스트",
+      "linux.settings.sound.microphone.stop": "중지",
+      "linux.settings.sound.microphone.testFailed": "마이크를 열 수 없습니다."
+    },
+    "lt": {
+      "linux.settings.sound.microphone.subtitle": "Naudoja tik HyperWhisper. Įsimenama ir po paleidimo iš naujo.",
+      "linux.settings.sound.microphone.default": "Numatytasis · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Numatytasis",
+      "linux.settings.sound.microphone.notConnected": "{0} (neprijungtas)",
+      "linux.settings.sound.microphone.fallback": "Naudojamas {0}, kol vėl bus prijungtas {1}.",
+      "linux.settings.sound.microphone.test": "Tikrinti",
+      "linux.settings.sound.microphone.stop": "Stabdyti",
+      "linux.settings.sound.microphone.testFailed": "Nepavyko atidaryti mikrofono."
+    },
+    "lv": {
+      "linux.settings.sound.microphone.subtitle": "Izmanto tikai HyperWhisper. Tiek atcerēts pēc restartēšanas.",
+      "linux.settings.sound.microphone.default": "Noklusējums · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Noklusējums",
+      "linux.settings.sound.microphone.notConnected": "{0} (nav pievienots)",
+      "linux.settings.sound.microphone.fallback": "Tiek izmantots {0}, līdz {1} tiks atkal pievienots.",
+      "linux.settings.sound.microphone.test": "Pārbaudīt",
+      "linux.settings.sound.microphone.stop": "Apturēt",
+      "linux.settings.sound.microphone.testFailed": "Mikrofonu neizdevās atvērt."
+    },
+    "ms": {
+      "linux.settings.sound.microphone.subtitle": "Digunakan oleh HyperWhisper sahaja. Diingati selepas dimulakan semula.",
+      "linux.settings.sound.microphone.default": "Lalai · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Lalai",
+      "linux.settings.sound.microphone.notConnected": "{0} (tidak bersambung)",
+      "linux.settings.sound.microphone.fallback": "Menggunakan {0} sehingga {1} disambungkan semula.",
+      "linux.settings.sound.microphone.test": "Uji",
+      "linux.settings.sound.microphone.stop": "Henti",
+      "linux.settings.sound.microphone.testFailed": "Mikrofon tidak dapat dibuka."
+    },
+    "nb": {
+      "linux.settings.sound.microphone.subtitle": "Brukes bare av HyperWhisper. Huskes etter omstart.",
+      "linux.settings.sound.microphone.default": "Standard · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Standard",
+      "linux.settings.sound.microphone.notConnected": "{0} (ikke tilkoblet)",
+      "linux.settings.sound.microphone.fallback": "Bruker {0} til {1} kobles til igjen.",
+      "linux.settings.sound.microphone.test": "Test",
+      "linux.settings.sound.microphone.stop": "Stopp",
+      "linux.settings.sound.microphone.testFailed": "Kunne ikke åpne mikrofonen."
+    },
+    "nl": {
+      "linux.settings.sound.microphone.subtitle": "Alleen gebruikt door HyperWhisper. Blijft bewaard na herstarten.",
+      "linux.settings.sound.microphone.default": "Standaard · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Standaard",
+      "linux.settings.sound.microphone.notConnected": "{0} (niet verbonden)",
+      "linux.settings.sound.microphone.fallback": "{0} wordt gebruikt totdat {1} opnieuw is verbonden.",
+      "linux.settings.sound.microphone.test": "Testen",
+      "linux.settings.sound.microphone.stop": "Stoppen",
+      "linux.settings.sound.microphone.testFailed": "De microfoon kon niet worden geopend."
+    },
+    "pl": {
+      "linux.settings.sound.microphone.subtitle": "Używany tylko przez HyperWhisper. Zapamiętywany po ponownym uruchomieniu.",
+      "linux.settings.sound.microphone.default": "Domyślny · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Domyślny",
+      "linux.settings.sound.microphone.notConnected": "{0} (niepodłączony)",
+      "linux.settings.sound.microphone.fallback": "Używany jest {0}, dopóki {1} nie zostanie ponownie podłączony.",
+      "linux.settings.sound.microphone.test": "Testuj",
+      "linux.settings.sound.microphone.stop": "Zatrzymaj",
+      "linux.settings.sound.microphone.testFailed": "Nie udało się otworzyć mikrofonu."
+    },
+    "pt": {
+      "linux.settings.sound.microphone.subtitle": "Usado apenas pelo HyperWhisper. Lembrado entre reinícios.",
+      "linux.settings.sound.microphone.default": "Padrão · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Padrão",
+      "linux.settings.sound.microphone.notConnected": "{0} (não conectado)",
+      "linux.settings.sound.microphone.fallback": "Usando {0} até que {1} seja reconectado.",
+      "linux.settings.sound.microphone.test": "Testar",
+      "linux.settings.sound.microphone.stop": "Parar",
+      "linux.settings.sound.microphone.testFailed": "Não foi possível abrir o microfone."
+    },
+    "ro": {
+      "linux.settings.sound.microphone.subtitle": "Folosit doar de HyperWhisper. Reținut și după repornire.",
+      "linux.settings.sound.microphone.default": "Implicit · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Implicit",
+      "linux.settings.sound.microphone.notConnected": "{0} (neconectat)",
+      "linux.settings.sound.microphone.fallback": "Se folosește {0} până când {1} este reconectat.",
+      "linux.settings.sound.microphone.test": "Testează",
+      "linux.settings.sound.microphone.stop": "Oprește",
+      "linux.settings.sound.microphone.testFailed": "Microfonul nu a putut fi deschis."
+    },
+    "ru": {
+      "linux.settings.sound.microphone.subtitle": "Используется только HyperWhisper. Сохраняется после перезапуска.",
+      "linux.settings.sound.microphone.default": "По умолчанию · {0}",
+      "linux.settings.sound.microphone.defaultNone": "По умолчанию",
+      "linux.settings.sound.microphone.notConnected": "{0} (не подключено)",
+      "linux.settings.sound.microphone.fallback": "Используется {0}, пока {1} не будет снова подключено.",
+      "linux.settings.sound.microphone.test": "Проверить",
+      "linux.settings.sound.microphone.stop": "Стоп",
+      "linux.settings.sound.microphone.testFailed": "Не удалось открыть микрофон."
+    },
+    "sk": {
+      "linux.settings.sound.microphone.subtitle": "Používa iba HyperWhisper. Zapamätá sa aj po reštarte.",
+      "linux.settings.sound.microphone.default": "Predvolené · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Predvolené",
+      "linux.settings.sound.microphone.notConnected": "{0} (nepripojené)",
+      "linux.settings.sound.microphone.fallback": "Používa sa {0}, kým sa {1} znova nepripojí.",
+      "linux.settings.sound.microphone.test": "Test",
+      "linux.settings.sound.microphone.stop": "Zastaviť",
+      "linux.settings.sound.microphone.testFailed": "Mikrofón sa nepodarilo otvoriť."
+    },
+    "sl": {
+      "linux.settings.sound.microphone.subtitle": "Uporablja ga samo HyperWhisper. Ohrani se tudi po ponovnem zagonu.",
+      "linux.settings.sound.microphone.default": "Privzeto · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Privzeto",
+      "linux.settings.sound.microphone.notConnected": "{0} (ni povezano)",
+      "linux.settings.sound.microphone.fallback": "Uporablja se {0}, dokler {1} ni znova povezan.",
+      "linux.settings.sound.microphone.test": "Preizkusi",
+      "linux.settings.sound.microphone.stop": "Ustavi",
+      "linux.settings.sound.microphone.testFailed": "Mikrofona ni bilo mogoče odpreti."
+    },
+    "sr": {
+      "linux.settings.sound.microphone.subtitle": "Користи га само HyperWhisper. Памти се и после поновног покретања.",
+      "linux.settings.sound.microphone.default": "Подразумевано · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Подразумевано",
+      "linux.settings.sound.microphone.notConnected": "{0} (није повезано)",
+      "linux.settings.sound.microphone.fallback": "Користи се {0} док се {1} поново не повеже.",
+      "linux.settings.sound.microphone.test": "Тестирај",
+      "linux.settings.sound.microphone.stop": "Заустави",
+      "linux.settings.sound.microphone.testFailed": "Микрофон није могуће отворити."
+    },
+    "sv": {
+      "linux.settings.sound.microphone.subtitle": "Används endast av HyperWhisper. Sparas mellan omstarter.",
+      "linux.settings.sound.microphone.default": "Standard · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Standard",
+      "linux.settings.sound.microphone.notConnected": "{0} (inte ansluten)",
+      "linux.settings.sound.microphone.fallback": "Använder {0} tills {1} ansluts igen.",
+      "linux.settings.sound.microphone.test": "Testa",
+      "linux.settings.sound.microphone.stop": "Stoppa",
+      "linux.settings.sound.microphone.testFailed": "Det gick inte att öppna mikrofonen."
+    },
+    "th": {
+      "linux.settings.sound.microphone.subtitle": "ใช้โดย HyperWhisper เท่านั้น จดจำไว้แม้รีสตาร์ท",
+      "linux.settings.sound.microphone.default": "ค่าเริ่มต้น · {0}",
+      "linux.settings.sound.microphone.defaultNone": "ค่าเริ่มต้น",
+      "linux.settings.sound.microphone.notConnected": "{0} (ไม่ได้เชื่อมต่อ)",
+      "linux.settings.sound.microphone.fallback": "กำลังใช้ {0} จนกว่า {1} จะเชื่อมต่ออีกครั้ง",
+      "linux.settings.sound.microphone.test": "ทดสอบ",
+      "linux.settings.sound.microphone.stop": "หยุด",
+      "linux.settings.sound.microphone.testFailed": "ไม่สามารถเปิดไมโครโฟนได้"
+    },
+    "tr": {
+      "linux.settings.sound.microphone.subtitle": "Yalnızca HyperWhisper tarafından kullanılır. Yeniden başlatmalarda hatırlanır.",
+      "linux.settings.sound.microphone.default": "Varsayılan · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Varsayılan",
+      "linux.settings.sound.microphone.notConnected": "{0} (bağlı değil)",
+      "linux.settings.sound.microphone.fallback": "{1} yeniden bağlanana kadar {0} kullanılıyor.",
+      "linux.settings.sound.microphone.test": "Test et",
+      "linux.settings.sound.microphone.stop": "Durdur",
+      "linux.settings.sound.microphone.testFailed": "Mikrofon açılamadı."
+    },
+    "uk": {
+      "linux.settings.sound.microphone.subtitle": "Використовується лише HyperWhisper. Зберігається після перезапуску.",
+      "linux.settings.sound.microphone.default": "За замовчуванням · {0}",
+      "linux.settings.sound.microphone.defaultNone": "За замовчуванням",
+      "linux.settings.sound.microphone.notConnected": "{0} (не підключено)",
+      "linux.settings.sound.microphone.fallback": "Використовується {0}, доки {1} не буде знову підключено.",
+      "linux.settings.sound.microphone.test": "Перевірити",
+      "linux.settings.sound.microphone.stop": "Зупинити",
+      "linux.settings.sound.microphone.testFailed": "Не вдалося відкрити мікрофон."
+    },
+    "vi": {
+      "linux.settings.sound.microphone.subtitle": "Chỉ HyperWhisper sử dụng. Được ghi nhớ sau khi khởi động lại.",
+      "linux.settings.sound.microphone.default": "Mặc định · {0}",
+      "linux.settings.sound.microphone.defaultNone": "Mặc định",
+      "linux.settings.sound.microphone.notConnected": "{0} (chưa kết nối)",
+      "linux.settings.sound.microphone.fallback": "Đang dùng {0} cho đến khi {1} được kết nối lại.",
+      "linux.settings.sound.microphone.test": "Kiểm tra",
+      "linux.settings.sound.microphone.stop": "Dừng",
+      "linux.settings.sound.microphone.testFailed": "Không thể mở micrô."
+    },
+    "zh-Hans": {
+      "linux.settings.sound.microphone.subtitle": "仅供 HyperWhisper 使用。重启后仍会保留。",
+      "linux.settings.sound.microphone.default": "默认 · {0}",
+      "linux.settings.sound.microphone.defaultNone": "默认",
+      "linux.settings.sound.microphone.notConnected": "{0}（未连接）",
+      "linux.settings.sound.microphone.fallback": "正在使用 {0}，直到 {1} 重新连接。",
+      "linux.settings.sound.microphone.test": "测试",
+      "linux.settings.sound.microphone.stop": "停止",
+      "linux.settings.sound.microphone.testFailed": "无法打开麦克风。"
+    },
+    "zh-Hant": {
+      "linux.settings.sound.microphone.subtitle": "僅供 HyperWhisper 使用。重新啟動後仍會保留。",
+      "linux.settings.sound.microphone.default": "預設 · {0}",
+      "linux.settings.sound.microphone.defaultNone": "預設",
+      "linux.settings.sound.microphone.notConnected": "{0}（未連線）",
+      "linux.settings.sound.microphone.fallback": "正在使用 {0}，直到 {1} 重新連線。",
+      "linux.settings.sound.microphone.test": "測試",
+      "linux.settings.sound.microphone.stop": "停止",
+      "linux.settings.sound.microphone.testFailed": "無法開啟麥克風。"
+    }
+  }
+}

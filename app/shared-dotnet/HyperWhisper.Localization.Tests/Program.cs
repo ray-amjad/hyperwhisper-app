@@ -154,7 +154,14 @@ static void AllCatalogsLoad()
     // recorder refuses a bare typing key such as Tab or a letter, as Linux has since #628).
     // 865 -> 867 (#1589): `history.savedLater.databaseLocked` and `.writeFailed` are new
     // (Windows toast when the History insert is refused and the row is saved later).
-    Equal(867, PortableLocalizer.BaseKeyCount, "base key count");
+    // 867 -> 873: the Windows Settings -> Sound microphone picker adds
+    // `settings.sound.microphone.subtitle`, `.default`, `.notConnected`, `.fallback`,
+    // `.test` and `.stop` (its title reuses `menu.microphone`).
+    // 873 -> 874: `settings.sound.microphone.fallbackNoDevice` is new (the Windows picker's
+    // amber line when the saved microphone is unplugged and no other input is connected).
+    // 874 -> 876 (#2219, #2294): `status.model.notActivated` and `status.model.noApiKey` are
+    // new (the Windows status bar with no licence or no API key instead of Ready).
+    Equal(876,PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

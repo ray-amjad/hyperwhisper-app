@@ -264,31 +264,27 @@ final class LiveOnboardingAudioGateway: OnboardingAudioGateway {
 
     func refreshMicrophonePermission() { audioManager.checkMicrophonePermission() }
 
+    /// Saves the pick as HyperWhisper's microphone (UID and name, through
+    /// `AudioRecordingManager.selectDevice`). The macOS default input is not changed.
     func selectDevice(id: String?) {
         guard let id, !id.isEmpty else {
             audioManager.selectDevice(nil)
-            settingsManager.selectedMicrophoneId = ""
             return
         }
         guard let device = audioManager.availableDevices.first(where: { $0.id == id }) else { return }
         audioManager.selectDevice(device)
-        settingsManager.selectedMicrophoneId = id
     }
 
     func restoreDevice(storedID: String?, openID: String?) {
-        // Put the preference back unconditionally. Routing this through
-        // `selectDevice` would drop it when the remembered microphone is not
-        // currently connected, turning a deferral into a silent reset to the
-        // system default.
-        settingsManager.selectedMicrophoneId = storedID ?? ""
-        if let openID, let device = audioManager.availableDevices.first(where: { $0.id == openID }) {
-            audioManager.selectDevice(device)
-        } else {
-            audioManager.selectDevice(nil)
-        }
+        // Put the saved choice back unconditionally, even when its microphone is not
+        // connected right now: it is kept, recording uses the default meanwhile, and the
+        // device is used again when it reappears. `openID` needs no separate restore any
+        // more — picking a microphone no longer changes the macOS default input, so the
+        // open device simply follows the restored choice.
+        audioManager.restoreMicrophoneChoice(uid: storedID)
     }
 
-    func startInputLevelPreview() { audioManager.startInputLevelPreview() }
+    func startInputLevelPreview() { _ = audioManager.startInputLevelPreview() }
 
     func stopInputLevelPreview() { audioManager.stopInputLevelPreview() }
 

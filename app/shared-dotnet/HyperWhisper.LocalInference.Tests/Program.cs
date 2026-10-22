@@ -294,6 +294,11 @@ await CheckAsync("a runtime that cannot load reports RuntimeUnavailable (issue #
     }
 });
 
+foreach (var (name, run) in WaveResamplerChecks.All())
+{
+    await CheckAsync(name, () => { run(); return Task.CompletedTask; });
+}
+
 if (args.Length is 2 or 3)
 {
     await CheckAsync("real Linux Whisper model loads and transcribes", async () =>
@@ -313,6 +318,30 @@ if (args.Length is 2 or 3)
                 $"expected runtime {expectedRuntime}, got {result.Runtime ?? "unknown"}");
         Console.WriteLine($"RUNTIME {result.Runtime}");
         Console.WriteLine($"TRANSCRIPT {result.Text}");
+    });
+}
+
+if (args.Length is 2 or 3)
+{
+    await CheckAsync("real model: a 22,050 Hz WAV transcribes like the 16 kHz one (issue #1007)", async () =>
+    {
+        await using var service = new LocalWhisperService();
+        var loaded = await service.LoadAsync(new LocalWhisperLoadOptions(args[0], LocalWhisperBackend.Cpu));
+        Assert(loaded.IsSuccess, loaded.Failure?.Message ?? "model load failed");
+        var at16k = await service.TranscribeAsync(new LocalWhisperRequest(args[1], "en"));
+        var upsampled = WaveResamplerChecks.WriteUpsampled(args[1], 22_050);
+        try
+        {
+            var at22k = await service.TranscribeAsync(new LocalWhisperRequest(upsampled, "en"));
+            Assert(at22k.IsSuccess, at22k.Failure?.Message ?? "the 22,050 Hz WAV failed");
+            Assert(string.Equals(Words(at22k.Text), Words(at16k.Text), StringComparison.OrdinalIgnoreCase),
+                $"22,050 Hz heard '{at22k.Text}', 16 kHz heard '{at16k.Text}'");
+            Console.WriteLine($"TRANSCRIPT 22050 {at22k.Text}");
+        }
+        finally
+        {
+            File.Delete(upsampled);
+        }
     });
 }
 
@@ -415,6 +444,10 @@ static async Task<string> RunSelfAsync(params string[] arguments)
     await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(60));
     return await stdout + await stderr;
 }
+
+static string Words(string? text) =>
+    string.Join(' ', (text ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Select(word => new string([.. word.Where(char.IsLetterOrDigit)])));
 
 static LocalWhisperBackend ParseBackend(string? value) =>
     value?.Trim().ToLowerInvariant() switch
