@@ -709,6 +709,7 @@ Muuda neid režiime, et valida enne eemaldamist mõni muu mudel.";
 "modes.header.create" = "Loo režiim";
 "modes.name.unnamed" = "Nimetu";
 "modes.badge.offline" = "Võrguühenduseta";
+"modes.badge.modelMissing" = "Mudel puudub";
 "modes.context.select" = "Vali";
 "modes.help.edit" = "Muuda režiimi seadeid";
 "modes.help.preset" = "Loe lisaks selle vormindusstiili kohta";

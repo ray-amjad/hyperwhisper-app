@@ -331,7 +331,7 @@ export default function DownloadsPage() {
               {versions.map((version, index) => (
                 <Card
                   key={version.buildNumber}
-                  className={`bg-gray-900/50 backdrop-blur-xl border-gray-800 hover:border-purple-700/50 transition-all duration-300 h-full ${
+                  className={`bg-gray-900/50 backdrop-blur-xl border-gray-800 hover:border-purple-700/50 transition-[border-color] duration-150 h-full ${
                     isLatestVersion(index)
                       ? "ring-2 ring-purple-500/50 shadow-lg shadow-purple-500/20"
                       : ""

@@ -709,6 +709,7 @@ Edita esos modos para seleccionar un modelo diferente antes de eliminarlo.";
 "modes.header.create" = "Crear modo";
 "modes.name.unnamed" = "Sin nombre";
 "modes.badge.offline" = "Sin conexión";
+"modes.badge.modelMissing" = "Falta el modelo";
 "modes.context.select" = "Seleccionar";
 "modes.help.edit" = "Editar ajustes del modo";
 "modes.help.preset" = "Más información sobre este estilo de formato";
