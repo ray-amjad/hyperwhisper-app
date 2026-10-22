@@ -25,7 +25,9 @@ internal static class ModeNameRules
     /// conflict: if the key does not change, the multiset of keys in storage is
     /// identical after the write and before it, so the write cannot introduce a
     /// collision. A mode that already shares a name (written by an older build)
-    /// can therefore still save its other settings.
+    /// can therefore still save its other settings. This is the Local API
+    /// PATCH's exemption; macOS's editor exempts only the exact stored name, so
+    /// there a case-only edit of a name an older duplicate shares is refused.
     /// </para>
     /// <para>
     /// A blank candidate is not a conflict; callers refuse it on their own.

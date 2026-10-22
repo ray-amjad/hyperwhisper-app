@@ -21,9 +21,9 @@ public partial class ModeEditorWindow : Window
     private bool _isUpdatingCloudTierModels;
 
     // Name-taken check (issue #2478). _storedName is the edited mode's name as
-    // stored (null when creating); _otherModeNames is every OTHER mode's name,
-    // read once on load.
-    private readonly string? _storedName;
+    // stored (null when creating); _otherModeNames is every OTHER mode's name.
+    // Both are read on load and again at Save.
+    private string? _storedName;
     private List<string> _otherModeNames = [];
 
     public ModeEditorWindow(Mode mode)
@@ -95,11 +95,15 @@ public partial class ModeEditorWindow : Window
         Loaded += OnLoaded;
     }
 
-    private void ReloadOtherModeNames() =>
-        _otherModeNames = ModeService.Instance.GetAllModes()
-            .Where(m => m.Id != _mode.Id)
-            .Select(m => m.Name)
-            .ToList();
+    private void ReloadOtherModeNames()
+    {
+        var modes = ModeService.Instance.GetAllModes();
+        _otherModeNames = modes.Where(m => m.Id != _mode.Id).Select(m => m.Name).ToList();
+        // The stored name too: the Local API can rename this mode while the
+        // window is open, and a stale one would exempt a name it no longer has.
+        var stored = modes.FirstOrDefault(m => m.Id == _mode.Id);
+        if (!_isCreateMode && stored != null) _storedName = stored.Name;
+    }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
