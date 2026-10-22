@@ -885,6 +885,7 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "streaming.loading.streaming" = "Wacht op spraak...";
 "streaming.state.reconnecting" = "Opnieuw verbinden...";
 "recording.stop.help" = "Opnamen stoppen (%@)";
+"recording.warning.micSilent" = "Geen geluid van %@";
 "recording.retry" = "Opnieuw proberen";
 "recording.retry.inProgress" = "Opnieuw proberen…";
 "recording.retry.count" = "Opnieuw proberen (%d)";

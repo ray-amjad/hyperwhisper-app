@@ -885,6 +885,7 @@
 "streaming.loading.streaming" = "ממתין לדיבור...";
 "streaming.state.reconnecting" = "מתחבר מחדש...";
 "recording.stop.help" = "עצור הקלטה (%@)";
+"recording.warning.micSilent" = "אין צליל מ-%@";
 "recording.retry" = "נסה שוב";
 "recording.retry.inProgress" = "מנסה שוב…";
 "recording.retry.count" = "נסה שוב (%d)";

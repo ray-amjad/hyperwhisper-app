@@ -885,6 +885,7 @@
 "streaming.loading.streaming" = "Ожидание речи...";
 "streaming.state.reconnecting" = "Переподключение...";
 "recording.stop.help" = "Остановить запись (%@)";
+"recording.warning.micSilent" = "Нет звука с устройства %@";
 "recording.retry" = "Повторить";
 "recording.retry.inProgress" = "Повтор…";
 "recording.retry.count" = "Повторить (%d)";

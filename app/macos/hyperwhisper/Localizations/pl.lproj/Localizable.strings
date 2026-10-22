@@ -885,6 +885,7 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "streaming.loading.streaming" = "Oczekiwanie na mowę...";
 "streaming.state.reconnecting" = "Ponowne łączenie...";
 "recording.stop.help" = "Zatrzymaj nagrywanie (%@)";
+"recording.warning.micSilent" = "Brak dźwięku z urządzenia %@";
 "recording.retry" = "Spróbuj ponownie";
 "recording.retry.inProgress" = "Ponawianie…";
 "recording.retry.count" = "Spróbuj ponownie (%d)";

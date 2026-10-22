@@ -886,6 +886,7 @@
 "streaming.loading.streaming" = "等待语音...";
 "streaming.state.reconnecting" = "正在重新连接...";
 "recording.stop.help" = "停止录音（%@）";
+"recording.warning.micSilent" = "%@ 没有声音";
 "recording.retry" = "重试";
 "recording.retry.inProgress" = "正在重试…";
 "recording.retry.count" = "重试（%d）";

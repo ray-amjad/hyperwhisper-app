@@ -134,6 +134,8 @@ struct SimpleRecorderMeterReadTests {
     private static func makeRecorder(reader: BlockingMeterReader) -> SimpleRecorder {
         let recorder = SimpleRecorder()
         recorder.meterReader = { _ in reader.read() }
+        // A never-started recorder: keep the #2411 peak read off its real meter.
+        recorder.peakReader = { _ in DeviceAudioRecorder.silentPowerDb }
         return recorder
     }
 

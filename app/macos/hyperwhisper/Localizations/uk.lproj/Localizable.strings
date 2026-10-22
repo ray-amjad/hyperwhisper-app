@@ -885,6 +885,7 @@
 "streaming.loading.streaming" = "Очікування мовлення...";
 "streaming.state.reconnecting" = "Повторне підключення...";
 "recording.stop.help" = "Зупинити запис (%@)";
+"recording.warning.micSilent" = "Немає звуку з пристрою %@";
 "recording.retry" = "Повторити";
 "recording.retry.inProgress" = "Повторна спроба…";
 "recording.retry.count" = "Повторити (%d)";

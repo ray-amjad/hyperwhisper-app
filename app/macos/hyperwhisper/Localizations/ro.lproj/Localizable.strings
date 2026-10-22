@@ -885,6 +885,7 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "streaming.loading.streaming" = "Se așteaptă vorbire...";
 "streaming.state.reconnecting" = "Se reconectează...";
 "recording.stop.help" = "Opriți înregistrarea (%@)";
+"recording.warning.micSilent" = "Niciun sunet de la %@";
 "recording.retry" = "Reîncercați";
 "recording.retry.inProgress" = "Se reîncearcă...";
 "recording.retry.count" = "Reîncercați (%d)";

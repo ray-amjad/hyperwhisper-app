@@ -48,4 +48,10 @@ final class RecordingLiveMetrics: ObservableObject {
     /// Updated at ~10 FPS during recording by RecordingLifecycle's timer.
     /// Used for the MM:SS display in RecordingDialog.
     @Published var recordingDuration: TimeInterval = 0
+
+    /// True while the live "mic hears nothing" warning should show (#2411).
+    /// Mirrors `RecordingLifecycle.isMicrophoneSilent`; changes at most twice per
+    /// recording, so it costs nothing next to the 30 FPS level.
+    /// Used by RecordingDialog to show "No sound from {mic}".
+    @Published var isMicrophoneSilent: Bool = false
 }

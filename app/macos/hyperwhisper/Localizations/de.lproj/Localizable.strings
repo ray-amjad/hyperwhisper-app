@@ -885,6 +885,7 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "streaming.loading.streaming" = "Warten auf Rede...";
 "streaming.state.reconnecting" = "Verbindung wird wieder hergestellt...";
 "recording.stop.help" = "Aufzeichnung stoppen (%@)";
+"recording.warning.micSilent" = "Kein Ton von %@";
 "recording.retry" = "Wiederholen";
 "recording.retry.inProgress" = "Erneuter Versuch…";
 "recording.retry.count" = "Wiederholen (%d)";

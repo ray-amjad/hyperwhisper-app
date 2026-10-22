@@ -886,6 +886,7 @@ Actualiza estos modos para usar un modelo diferente antes de eliminarlo.";
 "streaming.loading.streaming" = "Esperando voz...";
 "streaming.state.reconnecting" = "Reconectando...";
 "recording.stop.help" = "Detener grabación (%@)";
+"recording.warning.micSilent" = "No hay sonido de %@";
 "recording.retry" = "Reintentar";
 "recording.retry.inProgress" = "Reintentando…";
 "recording.retry.count" = "Reintentar (%d)";

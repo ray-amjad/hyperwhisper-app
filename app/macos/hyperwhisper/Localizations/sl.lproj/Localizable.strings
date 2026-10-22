@@ -885,6 +885,7 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "streaming.loading.streaming" = "Čakam na glas...";
 "streaming.state.reconnecting" = "Ponovno se povezujem...";
 "recording.stop.help" = "Ustavi snemanje (%@)";
+"recording.warning.micSilent" = "Ni zvoka iz naprave %@";
 "recording.retry" = "Poskusi znova";
 "recording.retry.inProgress" = "Ponovno poskušam…";
 "recording.retry.count" = "Ponovno poskusi (%d)";
