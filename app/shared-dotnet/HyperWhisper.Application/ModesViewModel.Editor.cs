@@ -176,7 +176,6 @@ public sealed partial class ModesViewModel
 
     private bool _loadingEditor;
 
-    public IReadOnlyList<string> ProviderTypes { get; } = ["local", "cloud"];
     public IReadOnlyList<string> LocalEngines { get; } = ["whisper", "parakeet"];
     public string CloudProvider
     {
@@ -246,7 +245,6 @@ public sealed partial class ModesViewModel
     public bool RemoveTrailingPeriod { get => _removeTrailingPeriod; set => Set(ref _removeTrailingPeriod, value); }
     public string EnglishSpelling { get => _englishSpelling; set => Set(ref _englishSpelling, value ?? string.Empty); }
 
-    public IReadOnlyList<string> PostProcessingModes { get; } = ["off", "cloud", "local"];
     public IReadOnlyList<string> PostProcessingProviders { get; } = ["hyperwhispercloud", "openai", "anthropic", "groq", "grok", "gemini", "cerebras", "mistral", "custom"];
     // Lowercase ids, matched ordinally on save. `geminitranscribe` is the BYOK
     // Gemini 3.5 Transcribe provider, distinct from `gemini` (the multimodal
