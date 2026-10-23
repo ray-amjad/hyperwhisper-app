@@ -4813,6 +4813,99 @@ internal static class Program
                     "a MainWindow was built after the startup was aborted");
             });
 
+            // Issue #2386. The 46 theme brushes in Brushes.xaml took their Color
+            // from a {DynamicResource}, so they could not freeze, and every
+            // {DynamicResource XBrush} consumer hooked their Changed event. WPF
+            // drops a dead hook only when the brush raises Changed, so each page
+            // visit left ~33-412 handlers behind for good. The brushes now live
+            // frozen inside each theme's colour dictionary, and a theme switch
+            // swaps the whole dictionary, which re-resolves every consumer.
+            Run("theme brushes are frozen in light and dark, and a resource reference follows the switch - issue #2386", () =>
+            {
+                var app = EnsureSmokeApplication();
+                var theme = ThemeService.Instance;
+                var wasDark = theme.IsDarkMode;
+
+                // The key list comes from the light dictionary itself, so every
+                // brush is checked; the count pins the 46 that #2386 moved, so a
+                // brush added or lost on the way fails here first.
+                var lightDictionary = new ResourceDictionary
+                {
+                    Source = new Uri("pack://application:,,,/HyperWhisper;component/Themes/LightColors.xaml")
+                };
+                var darkDictionary = new ResourceDictionary
+                {
+                    Source = new Uri("pack://application:,,,/HyperWhisper;component/Themes/DarkColors.xaml")
+                };
+                var brushKeys = lightDictionary.Keys.OfType<string>()
+                    .Where(key => lightDictionary[key] is System.Windows.Media.Brush)
+                    .OrderBy(key => key, StringComparer.Ordinal)
+                    .ToList();
+                var darkBrushKeys = darkDictionary.Keys.OfType<string>()
+                    .Where(key => darkDictionary[key] is System.Windows.Media.Brush)
+                    .OrderBy(key => key, StringComparer.Ordinal)
+                    .ToList();
+                Assert(brushKeys.Count == 46, $"the light theme should define the 46 theme brushes, found {brushKeys.Count}");
+                Assert(brushKeys.SequenceEqual(darkBrushKeys),
+                    $"light and dark must define the same brushes; only in one: {string.Join(", ", brushKeys.Except(darkBrushKeys).Concat(darkBrushKeys.Except(brushKeys)))}");
+
+                // Nothing outside the theme dictionary may define these keys
+                // again: a second, unfrozen copy would win the lookup.
+                foreach (var merged in app.Resources.MergedDictionaries)
+                {
+                    if (merged.Source?.ToString().Contains("Colors.xaml") == true)
+                        continue;
+                    var shadow = brushKeys.Where(merged.Contains).ToList();
+                    Assert(shadow.Count == 0,
+                        $"{merged.Source} redefines theme brushes: {string.Join(", ", shadow)}");
+                }
+
+                var consumer = new System.Windows.Controls.TextBlock();
+                consumer.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "TextPrimaryBrush");
+                // A theme switch re-resolves the trees of the app's windows, so
+                // the consumer sits in one (never shown) as a page would.
+                var host = new Window { Content = consumer };
+                // Closing it must not end the shared smoke Application when it is
+                // the only window (OnLastWindowClose), or every later case that
+                // needs App fails.
+                var shutdownMode = app.ShutdownMode;
+
+                try
+                {
+                    foreach (var dark in new[] { false, true, false })
+                    {
+                        theme.ApplyTheme(dark ? HyperWhisper.Models.ThemeMode.Dark : HyperWhisper.Models.ThemeMode.Light);
+                        var label = dark ? "dark" : "light";
+                        var expected = dark ? darkDictionary : lightDictionary;
+
+                        foreach (var key in brushKeys)
+                        {
+                            var brush = app.TryFindResource(key) as System.Windows.Media.SolidColorBrush;
+                            Assert(brush is not null, $"{label}: '{key}' does not resolve to a SolidColorBrush");
+                            Assert(brush!.IsFrozen, $"{label}: '{key}' is not frozen, so every consumer hooks its Changed event");
+                            var want = ((System.Windows.Media.SolidColorBrush)expected[key]).Color;
+                            Assert(brush.Color == want, $"{label}: '{key}' is {brush.Color}, the {label} theme says {want}");
+                        }
+
+                        var shown = ((System.Windows.Media.SolidColorBrush)consumer.Foreground).Color;
+                        var primary = (System.Windows.Media.Color)expected["TextPrimary"];
+                        Assert(shown == primary,
+                            $"{label}: a SetResourceReference consumer shows {shown}, not the theme's TextPrimary {primary}");
+                    }
+
+                    var lightPrimary = ((System.Windows.Media.SolidColorBrush)lightDictionary["TextPrimaryBrush"]).Color;
+                    var darkPrimary = ((System.Windows.Media.SolidColorBrush)darkDictionary["TextPrimaryBrush"]).Color;
+                    Assert(lightPrimary != darkPrimary, "light and dark TextPrimaryBrush are the same colour, so the switch above proved nothing");
+                }
+                finally
+                {
+                    app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                    host.Close();
+                    app.ShutdownMode = shutdownMode;
+                    theme.ApplyTheme(wasDark ? HyperWhisper.Models.ThemeMode.Dark : HyperWhisper.Models.ThemeMode.Light);
+                }
+            });
+
             // Issue #510. The heading said "Edit Endpoint" and Window.Title still
             // said "Add Endpoint", so the taskbar entry and Alt+Tab named the
             // wrong operation. The two now come from one string, and this asserts
@@ -13459,6 +13552,65 @@ internal static class Program
                     foreach (var row in vocabulary.GetAll().Where(v => v.Word.Contains(token, StringComparison.Ordinal)))
                         vocabulary.Delete(row.Id);
                     try { File.Delete(backupPath); } catch { }
+                }
+            });
+
+            Run("backup: schemaVersion 2.0 inspects and imports; 2.5 and \"2\" are still refused — issue #2115", () =>
+            {
+                // The shared core reads schemaVersion by value (`integral_i64`, #2111), so a
+                // hand-edited `2.0` is version 2. The typed model used to refuse it as an int.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                var vocabulary = VocabularyService.Instance;
+                var token = Guid.NewGuid().ToString("N")[..8];
+                var directory = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests");
+                Directory.CreateDirectory(directory);
+                var integralJson = JsonSerializer.Serialize(new UniversalBackup
+                {
+                    SchemaVersion = 2,
+                    ExportDate = DateTime.UtcNow,
+                    AppVersion = "smoke-2115",
+                    Platform = "macos",
+                    Vocabulary = [new UniversalVocabularyItem { Id = Guid.NewGuid(), Word = $"w{token}", SortOrder = 1 }]
+                }, UniversalCaptureOptions);
+                Assert(integralJson.Contains("\"schemaVersion\":2,", StringComparison.Ordinal),
+                    "the #2115 fixture did not serialize schemaVersion as 2");
+                string WriteVariant(string name, string rawVersion)
+                {
+                    var path = Path.Combine(directory, $"issue2115-{name}-{token}.hwbackup.json");
+                    File.WriteAllText(path, integralJson.Replace("\"schemaVersion\":2,", $"\"schemaVersion\":{rawVersion},", StringComparison.Ordinal));
+                    return path;
+                }
+                var wholeFloatPath = WriteVariant("float", "2.0");
+                // Every field the schema types "integer" is read by value too (sortOrder here).
+                Assert(integralJson.Contains("\"sortOrder\":1", StringComparison.Ordinal),
+                    "the #2115 fixture did not serialize the vocabulary sortOrder as 1");
+                File.WriteAllText(wholeFloatPath, File.ReadAllText(wholeFloatPath)
+                    .Replace("\"sortOrder\":1", "\"sortOrder\":1.0", StringComparison.Ordinal));
+                var fractionalPath = WriteVariant("fraction", "2.5");
+                var stringPath = WriteVariant("string", "\"2\"");
+                try
+                {
+                    var inspect = BackupService.Instance.Inspect(wholeFloatPath);
+                    Assert(inspect.IsSuccess && inspect.Value!.VocabularyCount == 1,
+                        $"a backup with schemaVersion 2.0 was refused by Inspect: {inspect.Error}");
+
+                    var import = BackupService.Instance.Import(wholeFloatPath, replaceExisting: false);
+                    Assert(import.IsSuccess, $"a backup with schemaVersion 2.0 was refused by Import: {import.Error}");
+                    Assert(vocabulary.GetAll().Any(v => v.Word == $"w{token}"),
+                        "the schemaVersion 2.0 import reported success but saved no vocabulary");
+
+                    Assert(BackupService.Instance.Inspect(fractionalPath).IsFailure, "a backup with schemaVersion 2.5 was accepted");
+                    Assert(BackupService.Instance.Import(fractionalPath, replaceExisting: false).IsFailure,
+                        "a backup with schemaVersion 2.5 imported");
+                    Assert(BackupService.Instance.Inspect(stringPath).IsFailure, "a backup with schemaVersion \"2\" was accepted");
+                }
+                finally
+                {
+                    foreach (var row in vocabulary.GetAll().Where(v => v.Word.Contains(token, StringComparison.Ordinal)))
+                        vocabulary.Delete(row.Id);
+                    foreach (var path in new[] { wholeFloatPath, fractionalPath, stringPath })
+                        try { File.Delete(path); } catch { }
                 }
             });
 

@@ -301,10 +301,10 @@ public partial class BackupExportSettingsPage : Page
         }
 
         textBlock.Text = message;
-        textBlock.Foreground = isError
-            ? System.Windows.Media.Brushes.OrangeRed
-            : textBlock.TryFindResource("TextSecondaryBrush") as System.Windows.Media.Brush
-              ?? System.Windows.Media.Brushes.Gray;
+        if (isError)
+            textBlock.Foreground = System.Windows.Media.Brushes.OrangeRed;
+        else
+            textBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
         textBlock.Visibility = Visibility.Visible;
     }
 }

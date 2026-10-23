@@ -40,7 +40,7 @@ import { createElement, type ReactElement } from "react";
 import * as realJsxRuntime from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const ORIGIN = "http://localhost:3000";
 const EMAIL = "dead-link-probe@example.com";
@@ -62,7 +62,7 @@ process.env.BETTER_AUTH_SECRET =
 
 const sentEmails: Array<{ text?: string }> = [];
 
-moduleMock.module(new URL("../lib/clients/resend.ts", import.meta.url).href, {
+moduleMock.module(moduleUrl("../lib/clients/resend.ts"), {
   namedExports: {
     resend: {
       emails: {

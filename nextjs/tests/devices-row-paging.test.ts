@@ -18,7 +18,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 interface Page {
   devices: Array<{
@@ -59,7 +59,7 @@ function page(count: number, total: number, from = 0): Page {
   };
 }
 
-moduleMock.module(new URL("../lib/trpc/client.ts", import.meta.url).href, {
+moduleMock.module(moduleUrl("../lib/trpc/client.ts"), {
   namedExports: {
     api: {
       admin: {

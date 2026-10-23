@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { locales } from "../src/i18n/locales";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 // Runs the REAL sitemap() and checks every URL it emits against the route files
 // on disk, so a hand-written path with no page (#735: /pricing, /about,
@@ -12,7 +12,7 @@ import { moduleMock } from "./module-mock";
 
 // The blog loader imports "server-only" and the database; the posts are not
 // under test here, only the page list.
-moduleMock.module(new URL("../src/content/blog.ts", import.meta.url).href, {
+moduleMock.module(moduleUrl("../src/content/blog.ts"), {
   namedExports: { getAllBlogPosts: async () => [] },
 });
 
