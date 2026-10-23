@@ -728,6 +728,22 @@
       ],
       "licensed": false,
       "note": "unlicensed (no account key in #hw-qa). onboarding: wizard back/forward/skip/Escape clean. core-settings: General+Sound toggles, autostart .desktop written/removed, dark theme persists over relaunch. licence: fake/lowercase/empty keys -> 'License key not found', Activate disabled when empty; Get Credits toast only because box has no xdg-open (env). Codex stalled once (no JSON) on licence; re-driven."
+    },
+    {
+      "at": "2026-10-23T17:18:31Z",
+      "platform": "linux",
+      "commit": "c1573a30",
+      "routes": [
+        "history-and-backup",
+        "local-api",
+        "home-and-tray"
+      ],
+      "status": "1-filed",
+      "issues": [
+        2546
+      ],
+      "licensed": false,
+      "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY in hw-qa). Dropped: local-api port 70000->65535 clamp is deliberate (MainWindow.axaml:1560 comment); clipboard Copy fails only because box has no xclip/wl-copy; status bar stale-error at 00:00 not reproducible after 4s. Backup import/export walked, no defect."
     }
   ]
 }
