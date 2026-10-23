@@ -812,36 +812,17 @@ public partial class ModelsSettingsPage : Page
         return result == MessageBoxResult.Yes;
     }
 
-    private static bool IsWhisperModelInUse(string modelId, out string modeName)
-    {
-        var mode = ModeService.Instance.GetAllModes()
-            .FirstOrDefault(m => m.ProviderType != "cloud"
-                && string.Equals(m.LocalEngine, "whisper", StringComparison.OrdinalIgnoreCase)
-                && (string.Equals(m.Model, modelId, StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(m.ModelType, modelId, StringComparison.OrdinalIgnoreCase)));
-        modeName = mode?.Name ?? "";
-        return mode != null;
-    }
+    private static bool IsWhisperModelInUse(string modelId, out string modeName) =>
+        FoundMode(ModelInUse.FindModeUsingWhisperModel(ModeService.Instance.GetAllModes(), modelId), out modeName);
 
-    private static bool IsParakeetModelInUse(string modelId, out string modeName)
-    {
-        var mode = ModeService.Instance.GetAllModes()
-            .FirstOrDefault(m => m.ProviderType != "cloud"
-                && string.Equals(m.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase)
-                && string.Equals(m.LocalParakeetModel, modelId, StringComparison.OrdinalIgnoreCase));
-        modeName = mode?.Name ?? "";
-        return mode != null;
-    }
+    private static bool IsParakeetModelInUse(string modelId, out string modeName) =>
+        FoundMode(ModelInUse.FindModeUsingParakeetModel(ModeService.Instance.GetAllModes(), modelId), out modeName);
 
-    private static bool IsLocalLlmModelInUse(string modelId, out string modeName)
+    private static bool IsLocalLlmModelInUse(string modelId, out string modeName) =>
+        FoundMode(ModelInUse.FindModeUsingLocalLlm(ModeService.Instance.GetAllModes(), modelId), out modeName);
+
+    private static bool FoundMode(HyperWhisper.Data.Entities.Mode? mode, out string modeName)
     {
-        var targetModelId = LanguageModelInfo.MigrateModelId(modelId);
-        var mode = ModeService.Instance.GetAllModes()
-            .FirstOrDefault(m => string.Equals(m.PostProcessingProvider, PostProcessingProvider.LocalLlm.ToStringValue(), StringComparison.OrdinalIgnoreCase)
-                && string.Equals(
-                    LanguageModelInfo.MigrateModelId(m.LocalPostProcessingModel ?? m.LanguageModel),
-                    targetModelId,
-                    StringComparison.OrdinalIgnoreCase));
         modeName = mode?.Name ?? "";
         return mode != null;
     }
