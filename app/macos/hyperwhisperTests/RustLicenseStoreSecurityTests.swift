@@ -1332,15 +1332,18 @@ private final class ControlledBackupLicenseNetworkSpy: LicenseNetworkServing {
         }
     }
 
-    /// Waits up to 2 s until `count` validations are in flight. On timeout, resume
+    /// Waits up to 30 s until `count` validations are in flight. On timeout, resume
     /// every pending continuation before returning false so a failed precondition
     /// cannot leave an unstructured validation Task hanging in the test host.
     ///
     /// The bound is wall-clock, not a yield count: 100 `Task.yield()` calls ran
     /// out whenever another suite held the cooperative pool, and the test failed
-    /// with "validation did not start" (#1034 and #1201 CI).
+    /// with "validation did not start" (#1034 and #1201 CI). It is a safety
+    /// timeout, not a latency budget: a loaded macOS runner took longer than the
+    /// old 2 s to schedule the validation Task (#2515). The wait returns as soon
+    /// as the validations start, so a passing run is no slower.
     func waitForValidationCount(_ count: Int) async -> Bool {
-        let deadline = ContinuousClock.now + .seconds(2)
+        let deadline = ContinuousClock.now + .seconds(30)
         while ContinuousClock.now < deadline {
             if pending.count >= count { return true }
             try? await Task.sleep(for: .milliseconds(1))
