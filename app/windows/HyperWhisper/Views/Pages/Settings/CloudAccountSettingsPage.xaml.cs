@@ -15,8 +15,6 @@ using System.Windows.Controls;
 using HyperWhisper.Localization;
 using HyperWhisper.Services;
 
-using Brush = System.Windows.Media.Brush;
-using Brushes = System.Windows.Media.Brushes;
 using LicenseManager = HyperWhisper.Services.LicenseManager;
 using AccountKeyFormat = HyperWhisper.CloudAccount.AccountKeyFormat;
 using LicenseStatus = HyperWhisper.Models.LicenseStatus;
@@ -220,15 +218,15 @@ public partial class CloudAccountSettingsPage : Page
 
         if (credits.IsExhausted)
         {
-            CreditsMinutesText.Foreground = (Brush)FindResource("ErrorForegroundBrush");
+            CreditsMinutesText.SetResourceReference(TextBlock.ForegroundProperty, "ErrorForegroundBrush");
         }
         else if (credits.IsLow)
         {
-            CreditsMinutesText.Foreground = (Brush)FindResource("WarningForegroundBrush");
+            CreditsMinutesText.SetResourceReference(TextBlock.ForegroundProperty, "WarningForegroundBrush");
         }
         else
         {
-            CreditsMinutesText.Foreground = FindResource("TextPrimaryBrush") as Brush ?? Brushes.Black;
+            CreditsMinutesText.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
         }
 
         CreditsLowWarning.Visibility = credits.IsLow && !credits.IsExhausted ? Visibility.Visible : Visibility.Collapsed;

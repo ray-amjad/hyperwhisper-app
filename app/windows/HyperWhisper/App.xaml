@@ -8,7 +8,6 @@
             <ResourceDictionary.MergedDictionaries>
                 <!-- Theme colors loaded dynamically by ThemeService -->
                 <ResourceDictionary Source="Themes/LightColors.xaml"/>
-                <ResourceDictionary Source="Themes/Brushes.xaml"/>
                 <ResourceDictionary Source="Themes/Generic.xaml"/>
             </ResourceDictionary.MergedDictionaries>
             <converters:EnumToBoolConverter x:Key="EnumToBoolConverter"/>

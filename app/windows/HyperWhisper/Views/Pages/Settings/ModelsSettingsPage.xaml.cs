@@ -888,14 +888,15 @@ public partial class ModelsSettingsPage : Page
             Title = Loc.S("settings.nav.apiKeys"),
             Width = 760,
             Height = 760,
-            Background = (System.Windows.Media.Brush)FindResource("ContentBackgroundBrush"),
             Owner = Window.GetWindow(this),
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Content = new ApiKeysSettingsPage
-            {
-                Background = (System.Windows.Media.Brush)FindResource("ContentBackgroundBrush")
-            }
         };
+        // A resource reference, not FindResource: the theme brushes are frozen,
+        // so a copied brush would keep this theme after a switch (issue #2386).
+        window.SetResourceReference(Window.BackgroundProperty, "ContentBackgroundBrush");
+        var apiKeysPage = new ApiKeysSettingsPage();
+        apiKeysPage.SetResourceReference(System.Windows.Controls.Page.BackgroundProperty, "ContentBackgroundBrush");
+        window.Content = apiKeysPage;
 
         // 760 DIP is taller than a 1080p work area at 175% (issue #1500).
         WindowWorkAreaFit.Attach(window);
