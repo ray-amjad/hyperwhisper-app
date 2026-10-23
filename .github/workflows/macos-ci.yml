@@ -201,8 +201,10 @@ jobs:
 
       # The console log names a failed test but never says WHY (no
       # expectation, no file:line), and its tail is cut in the job log. The
-      # result bundle has both. Print every recorded failure, including the
-      # ones a retry later passed, and keep the bundle when the job is red.
+      # result bundle has both. Print every failed attempt with its message,
+      # including tests a retry later passed, as a ::warning:: so a flake
+      # shows on the run page even when the job is green. Keep the bundle
+      # when the job is red or timed out.
       - name: Test failures (from the result bundle)
         if: always()
         # A report step: a parse error here must never turn a green job red.
@@ -210,12 +212,21 @@ jobs:
         run: |
           bundle="$RUNNER_TEMP/unit-tests.xcresult"
           [ -d "$bundle" ] || { echo "No result bundle (the test step never started)."; exit 0; }
-          xcrun xcresulttool get test-results summary --path "$bundle" --format json > "$RUNNER_TEMP/test-summary.json"
-          jq -r '"Result: \(.result)  passed \(.passedTests)  failed \(.failedTests)  skipped \(.skippedTests)"' "$RUNNER_TEMP/test-summary.json"
-          jq -r '.testFailures[]? | "FAILED \(.testIdentifierString // .testName): \(.failureText)"' "$RUNNER_TEMP/test-summary.json"
+          xcrun xcresulttool get test-results summary --path "$bundle" --format json \
+            | jq -r '"Result: \(.result)  passed \(.passedTests)  failed \(.failedTests)  skipped \(.skippedTests)"'
+          # Each test case that had a failed attempt (a "Repetition" node when
+          # retries ran, or the case itself when it ran once), its final
+          # result, and the failure messages under it.
+          xcrun xcresulttool get test-results tests --path "$bundle" --format json \
+            | jq -r '
+                .. | objects | select(.nodeType == "Test Case")
+                | . as $case
+                | [ .. | objects | select(.nodeType == "Failure Message") | .name ] as $msgs
+                | select(($msgs | length) > 0)
+                | "::warning title=macOS unit test failed an attempt::\($case.nodeIdentifier // $case.name) (final: \($case.result)): \($msgs | unique | join(" | ") | gsub("\n"; " "))"'
 
       - name: Upload test result bundle
-        if: failure()
+        if: failure() || cancelled()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: macos-unit-tests-xcresult
@@ -237,7 +248,9 @@ jobs:
       # the name. `ls` names the whole directory when the find matches
       # nothing, so a miss stays visible instead of printing an empty step.
       - name: Dump test-host crash reports
-        if: failure()
+        # always(), not failure(): with retries a test-host crash can be
+        # followed by a passing retry, and the job goes green.
+        if: always()
         run: |
           reports="$HOME/Library/Logs/DiagnosticReports"
           [ -d "$reports" ] || exit 0
