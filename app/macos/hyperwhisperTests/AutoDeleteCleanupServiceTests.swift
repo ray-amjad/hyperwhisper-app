@@ -77,9 +77,9 @@ private final class SuiteBackedAutoDeleteSettings: AutoDeleteSettingsManager {
 /// main actor about 100 times (the ticker loop plus `waitUntil`), shared with
 /// every other main-actor test on a loaded 3-core CI runner. A 2 s timeout
 /// fired first there and failed `releasedByTest` at random (#1433), so the
-/// timeout sits well above the 5 s `waitUntil` deadline.
+/// timeout sits well above the 120 s `waitUntil` hang guard.
 private final class SettingsReadGate: @unchecked Sendable {
-    static let selfReleaseSeconds: Double = 30
+    static let selfReleaseSeconds: Double = 300
 
     private let entered = DispatchSemaphore(value: 0)
     private let releaseSemaphore = DispatchSemaphore(value: 0)
@@ -99,7 +99,7 @@ private final class SettingsReadGate: @unchecked Sendable {
     }
 
     func waitUntilBlocked() async -> Bool {
-        await waitOffThePool(for: entered, seconds: 5)
+        await waitOffThePool(for: entered, seconds: 120)
     }
 
     func release() {
@@ -169,21 +169,46 @@ private final class FailedWriterFetchPersistenceController: PersistenceControlle
 /// A deterministic barrier for a synchronous Core Data writer block. Tests wait
 /// for `block()` to start without blocking the main actor, then release the
 /// writer after they have inspected state or queued another transaction.
+///
+/// Neither timeout is a deadline for a healthy test; each only bounds how long
+/// a hang takes to report. With a 5 s self-release, a loaded CI runner could
+/// let the writer go on its own before the test made its concurrent edit, so
+/// the test checked a different ordering than the one it names, and a 5 s
+/// `waitUntilBlocked()` could give up before the writer queue reached the gate
+/// (#2505). A loaded `macos-26` runner can freeze the whole test process for
+/// 20-90 s, so both bounds sit above that. `releasedByTest` makes the ordering
+/// itself the assertion.
 private final class AutoDeleteWriterGate: @unchecked Sendable {
+    static let enterSeconds: Double = 120
+    static let selfReleaseSeconds: Double = 300
+
     private let entered = DispatchSemaphore(value: 0)
     private let releaseSemaphore = DispatchSemaphore(value: 0)
+    private let lock = NSLock()
+    private var releasedInTime = false
 
     func block() {
         entered.signal()
-        _ = releaseSemaphore.wait(timeout: .now() + 5)
+        let result = releaseSemaphore.wait(timeout: .now() + Self.selfReleaseSeconds)
+        lock.lock()
+        releasedInTime = result == .success
+        lock.unlock()
     }
 
     func waitUntilBlocked() async -> Bool {
-        await waitOffThePool(for: entered, seconds: 5)
+        await waitOffThePool(for: entered, seconds: Self.enterSeconds)
     }
 
     func release() {
         releaseSemaphore.signal()
+    }
+
+    /// Whether the last `block()` returned because the test released it, not
+    /// because the hang guard fired. Read it after the gated work finished.
+    var releasedByTest: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return releasedInTime
     }
 }
 
@@ -212,13 +237,15 @@ private final class AutoDeleteWriterGate: @unchecked Sendable {
 @MainActor
 struct AutoDeleteCleanupServiceTests {
 
-    /// Yields first, then polls every millisecond, for up to 5 seconds. The
+    /// Yields first, then polls every millisecond, for up to 120 seconds. The
     /// gate read in `performCleanup()` hops to a background queue (#880), and
-    /// on a loaded runner that hop can outlast a fixed number of yields.
+    /// on a loaded runner that hop can outlast a fixed number of yields. The
+    /// bound is a hang guard, not a deadline: a loaded runner can freeze the
+    /// test process for 20-90 s, far past the old 5 s (#2505).
     private static func waitUntil(
         _ condition: @escaping @MainActor () -> Bool
     ) async {
-        let deadline = Date().addingTimeInterval(5)
+        let deadline = Date().addingTimeInterval(30)
         var yields = 0
         while Date() < deadline {
             if condition() { return }
@@ -350,6 +377,7 @@ struct AutoDeleteCleanupServiceTests {
         persistence.gate.release()
 
         let completedSnapshot = await cleanup.value
+        #expect(persistence.gate.releasedByTest)
         let snapshot = try #require(completedSnapshot)
         #expect(snapshot.transcriptsDeleted == 1)
         #expect(try transcriptCount(in: context) == 0)
@@ -391,6 +419,7 @@ struct AutoDeleteCleanupServiceTests {
         let stats = try #require(completedStats)
         let pathAttached = await attachPath.value
 
+        #expect(persistence.gate.releasedByTest)
         #expect(stats.transcriptsDeleted == 1)
         #expect(!pathAttached)
         #expect(!FileManager.default.fileExists(atPath: originalPath))
