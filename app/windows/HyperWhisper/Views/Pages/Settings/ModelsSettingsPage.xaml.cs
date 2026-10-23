@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
+using HyperWhisper.Data.Entities;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
@@ -821,7 +822,7 @@ public partial class ModelsSettingsPage : Page
     private static bool IsLocalLlmModelInUse(string modelId, out string modeName) =>
         FoundMode(ModelInUse.FindModeUsingLocalLlm(ModeService.Instance.GetAllModes(), modelId), out modeName);
 
-    private static bool FoundMode(HyperWhisper.Data.Entities.Mode? mode, out string modeName)
+    private static bool FoundMode(Mode? mode, out string modeName)
     {
         modeName = mode?.Name ?? "";
         return mode != null;

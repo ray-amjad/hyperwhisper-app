@@ -311,6 +311,8 @@ internal static class ScriptGuardPorts
                 "a mode that keeps the model in the legacy LanguageModel field did not protect it");
             Assert(ModelInUse.FindModeUsingLocalLlm([M("Upper", m => { m.PostProcessingProvider = "LOCAL_LLM"; m.LocalPostProcessingModel = llmId.ToUpperInvariant(); })], llmId)?.Name == "Upper",
                 "the provider or model id match was case-sensitive");
+            // No retired id migrates to a local GGUF today, so this pins the
+            // MigrateModelId hop on both sides with a cloud id that does migrate.
             const string retiredId = "llama-3.1-8b";
             var migratedId = LanguageModelInfo.MigrateModelId(retiredId)!;
             Assert(migratedId != retiredId, $"test premise: {retiredId} no longer migrates");
@@ -323,6 +325,8 @@ internal static class ScriptGuardPorts
 
             Assert(ModelInUse.FindModeUsingWhisperModel([M("W", m => { m.ProviderType = "local"; m.LocalEngine = "whisper"; m.ModelType = "base"; })], "base")?.Name == "W",
                 "a local Whisper mode did not protect its model");
+            Assert(ModelInUse.FindModeUsingWhisperModel([M("WLegacy", m => { m.ProviderType = "local"; m.LocalEngine = "whisper"; m.Model = "base"; })], "base")?.Name == "WLegacy",
+                "a local Whisper mode that keeps its model in the legacy Model field did not protect it");
             Assert(ModelInUse.FindModeUsingWhisperModel([M("W", m => { m.ProviderType = "cloud"; m.LocalEngine = "whisper"; m.ModelType = "base"; })], "base") == null,
                 "a cloud mode's leftover Whisper model blocked the delete");
             Assert(ModelInUse.FindModeUsingParakeetModel([M("P", m => { m.ProviderType = "local"; m.LocalEngine = "parakeet"; m.LocalParakeetModel = "pk"; })], "pk")?.Name == "P",
