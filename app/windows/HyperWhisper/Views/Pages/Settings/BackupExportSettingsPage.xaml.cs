@@ -299,13 +299,17 @@ public partial class BackupExportSettingsPage : Page
             parts.Add(Loc.S("settings.backup.import.summary.settings"));
         else if (selection?.IncludeSettings == true)
             parts.Add(Loc.S("settings.backup.import.summary.settingsFailed"));
-        if (selection is null || selection.IncludeModes || selection.IncludeVocabulary || parts.Count == 0)
+        var apiKeys = selection?.IncludeApiKeys == true
+            ? Loc.S(result.ApiKeysImported
+                ? "settings.backup.import.summary.apiKeys"
+                : "settings.backup.import.summary.apiKeysFailed")
+            : null;
+        if (selection is null || selection.IncludeModes || selection.IncludeVocabulary
+            || (parts.Count == 0 && apiKeys is null))
             parts.Add(Loc.S("settings.backup.import.summary",
                 result.ModesImported, result.VocabularyAdded, result.VocabularyConflicts));
-        if (selection?.IncludeApiKeys == true)
-            parts.Add(Loc.S(result.ApiKeysImported
-                ? "settings.backup.import.summary.apiKeys"
-                : "settings.backup.import.summary.apiKeysFailed"));
+        if (apiKeys is not null)
+            parts.Add(apiKeys);
         return string.Join(" ", parts);
     }
 
