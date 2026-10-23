@@ -48,4 +48,10 @@
   <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve">
     <value>Mikrofonia ei voitu avata.</value>
   </data>
+  <data name="linux.credentials.not_stored" xml:space="preserve">
+    <value>Ei asetettu</value>
+  </data>
+  <data name="linux.credentials.stored" xml:space="preserve">
+    <value>Tallennettu</value>
+  </data>
 </root>

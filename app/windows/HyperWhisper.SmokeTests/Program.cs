@@ -6524,6 +6524,188 @@ internal static class Program
                 }
             });
 
+            // #1782: DownloadModelAsync against a scripted Hugging Face, through the
+            // internal HttpClient constructor. Each check uses its own model id.
+            RunAsync("ParakeetModelService.DownloadModelAsync follows every Qwen3 tree page and skips repo metadata and test_wavs (#1782)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-qwen3-tree", "Smoke", "1 KB", 16, false, ["en"], [], "smoke/qwen3-tree",
+                    engine: ParakeetEngine.Qwen3);
+                var treeUrl = "https://huggingface.co/api/models/smoke/qwen3-tree/tree/main?recursive=true";
+                var page2Url = treeUrl + "&cursor=page2";
+                var handler = new HuggingFaceStubHandler((request, _) =>
+                {
+                    var url = request.RequestUri!.ToString();
+                    if (url == treeUrl)
+                    {
+                        var page1 = TreeJson(("file", "conv_frontend.int8.onnx"), ("file", "README.md"),
+                            ("file", ".gitattributes"), ("directory", "tokenizer"), ("file", "test_wavs/a.wav"));
+                        page1.Headers.TryAddWithoutValidation("Link", $"<{page2Url}>; rel=\"next\"");
+                        return page1;
+                    }
+                    if (url == page2Url)
+                        return TreeJson(("file", "encoder.int8.onnx"), ("file", "decoder.int8.onnx"), ("file", "tokenizer/vocab.json"));
+                    return url.StartsWith("https://huggingface.co/smoke/qwen3-tree/resolve/main/", StringComparison.Ordinal)
+                        ? Respond(HttpStatusCode.OK, "onnx")
+                        : Respond(HttpStatusCode.NotFound, "");
+                });
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+                try
+                {
+                    var result = await service.DownloadModelAsync(model);
+
+                    Assert(result.IsSuccess, $"the 2-page tree download failed: {result.Error}");
+                    var installed = Directory.EnumerateFiles(finalDir, "*", SearchOption.AllDirectories)
+                        .Select(f => Path.GetRelativePath(finalDir, f).Replace(Path.DirectorySeparatorChar, '/'))
+                        .OrderBy(f => f, StringComparer.Ordinal)
+                        .ToList();
+                    var expected = new[] { "conv_frontend.int8.onnx", "decoder.int8.onnx", "encoder.int8.onnx", "tokenizer/vocab.json" };
+                    Assert(installed.SequenceEqual(expected),
+                        $"expected the files of both pages and nothing else, got [{string.Join(", ", installed)}]");
+                    Assert(!handler.Requested.Any(u => u.Contains("README.md") || u.Contains(".gitattributes") || u.Contains("test_wavs")),
+                        $"a skipped path was fetched: {string.Join(", ", handler.Requested)}");
+                    Assert(service.IsModelDownloaded(model), "the installed tree should count as downloaded");
+                    Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was left behind");
+                }
+                finally
+                {
+                    try { Directory.Delete(finalDir, recursive: true); } catch { /* best effort */ }
+                }
+            });
+
+            RunAsync("ParakeetModelService.DownloadModelAsync fails an empty Qwen3 tree and leaves no .temp folder (#1782)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-qwen3-empty", "Smoke", "1 KB", 16, false, ["en"], [], "smoke/qwen3-empty",
+                    engine: ParakeetEngine.Qwen3);
+                var handler = new HuggingFaceStubHandler((request, _) =>
+                    request.RequestUri!.AbsolutePath.StartsWith("/api/models/", StringComparison.Ordinal)
+                        ? TreeJson()
+                        : Respond(HttpStatusCode.NotFound, ""));
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+
+                var result = await service.DownloadModelAsync(model);
+
+                Assert(result.IsFailure, "an empty repository tree should fail the download");
+                Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was left behind");
+                Assert(!Directory.Exists(finalDir), "an empty tree should install nothing");
+                Assert(handler.Requested.Count == 1, $"expected only the tree request, got {handler.Requested.Count}");
+            });
+
+            RunAsync("ParakeetModelService.DownloadModelAsync rejects a short body and keeps the old install (#1782, #1598)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-short-body", "Smoke", "1 KB", 7, true, ["en"], ["model.onnx", "tokens.txt"], "smoke/short-body",
+                    fileSizes: new Dictionary<string, long> { ["model.onnx"] = 4, ["tokens.txt"] = 3 });
+                var handler = new HuggingFaceStubHandler((request, _) => request.RequestUri!.AbsolutePath switch
+                {
+                    "/smoke/short-body/resolve/main/model.onnx" => Respond(HttpStatusCode.OK, "abcd"),
+                    "/smoke/short-body/resolve/main/tokens.txt" => Respond(HttpStatusCode.OK, "ab"), // 1 byte short
+                    _ => Respond(HttpStatusCode.NotFound, ""),
+                });
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+                Directory.CreateDirectory(finalDir);
+                File.WriteAllText(Path.Combine(finalDir, "model.onnx"), "good");
+                File.WriteAllText(Path.Combine(finalDir, "tokens.txt"), "old");
+                try
+                {
+                    Assert(service.IsModelDownloaded(model), "precondition: the old install is complete");
+
+                    var result = await service.DownloadModelAsync(model);
+
+                    Assert(result.IsFailure, "a body 1 byte short of its pinned size should fail the download");
+                    Assert(File.ReadAllText(Path.Combine(finalDir, "tokens.txt")) == "old", "the failed download replaced the old install");
+                    Assert(service.IsModelDownloaded(model), "the old install should still count as downloaded");
+                    Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was left behind");
+                }
+                finally
+                {
+                    try { Directory.Delete(finalDir, recursive: true); } catch { /* best effort */ }
+                }
+            });
+
+            RunAsync("ParakeetModelService.DownloadModelAsync fails an HTTP 500 on the second file and leaves no .temp folder (#1782)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-http-500", "Smoke", "1 KB", 7, true, ["en"], ["model.onnx", "tokens.txt"], "smoke/http-500",
+                    fileSizes: new Dictionary<string, long> { ["model.onnx"] = 4, ["tokens.txt"] = 3 });
+                var handler = new HuggingFaceStubHandler((request, _) => request.RequestUri!.AbsolutePath switch
+                {
+                    "/smoke/http-500/resolve/main/model.onnx" => Respond(HttpStatusCode.OK, "abcd"),
+                    "/smoke/http-500/resolve/main/tokens.txt" => Respond(HttpStatusCode.InternalServerError, "boom"),
+                    _ => Respond(HttpStatusCode.NotFound, ""),
+                });
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+
+                var result = await service.DownloadModelAsync(model);
+
+                Assert(result.IsFailure, "an HTTP 500 should fail the download");
+                Assert(result.Error != HyperWhisper.Localization.Loc.S("settings.models.download.cancelled"), "an HTTP failure was reported as a cancel");
+                Assert(handler.Requested.Count == 2, $"expected both files to be requested, got {handler.Requested.Count}");
+                Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder of partial files was left behind");
+                Assert(!Directory.Exists(finalDir), "a failed download should install nothing");
+            });
+
+            RunAsync("ParakeetModelService.DownloadModelAsync moves temp to final and clears a broken mark (#1782, #1598)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-good", "Smoke", "1 KB", 7, true, ["en"], ["model.onnx", "tokens.txt"], "smoke/good",
+                    fileSizes: new Dictionary<string, long> { ["model.onnx"] = 4, ["tokens.txt"] = 3 });
+                var handler = new HuggingFaceStubHandler((request, _) => request.RequestUri!.AbsolutePath switch
+                {
+                    "/smoke/good/resolve/main/model.onnx" => Respond(HttpStatusCode.OK, "abcd"),
+                    "/smoke/good/resolve/main/tokens.txt" => Respond(HttpStatusCode.OK, "abc"),
+                    _ => Respond(HttpStatusCode.NotFound, ""),
+                });
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+                LocalModelHealth.MarkBroken(finalDir, "smoke 1782");
+                try
+                {
+                    var result = await service.DownloadModelAsync(model);
+
+                    Assert(result.IsSuccess, $"a good download failed: {result.Error}");
+                    Assert(result.Value == finalDir, $"expected the final folder, got {result.Value}");
+                    Assert(File.ReadAllText(Path.Combine(finalDir, "tokens.txt")) == "abc", "the downloaded file is not in the final folder");
+                    Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was not moved");
+                    Assert(!LocalModelHealth.IsBroken(finalDir), "the re-downloaded model is still marked broken");
+                    Assert(service.IsModelDownloaded(model), "the re-downloaded model should count as downloaded");
+                }
+                finally
+                {
+                    LocalModelHealth.ClearBroken(finalDir);
+                    try { Directory.Delete(finalDir, recursive: true); } catch { /* best effort */ }
+                }
+            });
+
+            RunAsync("ParakeetModelService.DownloadModelAsync reports a cancel as cancelled and leaves no .temp folder (#1782)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-cancel", "Smoke", "1 KB", 7, true, ["en"], ["model.onnx", "tokens.txt"], "smoke/cancel",
+                    fileSizes: new Dictionary<string, long> { ["model.onnx"] = 4, ["tokens.txt"] = 3 });
+                using var cts = new CancellationTokenSource();
+                var handler = new HuggingFaceStubHandler((request, _) =>
+                {
+                    // The user presses Cancel while the first file is arriving.
+                    cts.Cancel();
+                    return Respond(HttpStatusCode.OK, "abcd");
+                });
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+
+                var result = await service.DownloadModelAsync(model, cancellationToken: cts.Token);
+
+                Assert(result.IsFailure, "a cancelled download should fail");
+                Assert(result.Error == HyperWhisper.Localization.Loc.S("settings.models.download.cancelled"),
+                    $"expected the cancelled message, got '{result.Error}'");
+                Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was left behind");
+                Assert(!Directory.Exists(finalDir), "a cancelled download should install nothing");
+            });
+
             Run("Model Library offers Download for a broken model, even one a mode uses (#1598)", () =>
             {
                 // A real catalog row: Base, the default "Hyper" mode's model. The
@@ -27153,7 +27335,7 @@ internal static class Program
     /// try/catch: a stray byte pair can only resolve to some unrelated member,
     /// so a hit on the exact target is a real call site (#1534).
     /// </summary>
-    private static bool AsyncBodyCalls(MethodInfo method, MethodInfo target)
+    internal static bool AsyncBodyCalls(MethodInfo method, MethodInfo target)
     {
         const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
         var body = method;
@@ -28089,6 +28271,34 @@ internal static class Program
                 Content = new StringContent(body.ToJsonString(), System.Text.Encoding.UTF8, "application/json")
             };
         }
+    }
+
+    /// <summary>
+    /// Scripted Hugging Face for <c>ParakeetModelService.DownloadModelAsync</c> (#1782):
+    /// records every URL it was asked for and answers each from <c>respond</c>.
+    /// </summary>
+    private sealed class HuggingFaceStubHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, CancellationToken, HttpResponseMessage> _respond;
+        public List<string> Requested { get; } = new();
+
+        public HuggingFaceStubHandler(Func<HttpRequestMessage, CancellationToken, HttpResponseMessage> respond) => _respond = respond;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Requested.Add(request.RequestUri!.ToString());
+            return Task.FromResult(_respond(request, cancellationToken));
+        }
+    }
+
+    /// <summary>A Hugging Face tree API page: one <c>{type, path}</c> entry per item.</summary>
+    private static HttpResponseMessage TreeJson(params (string Type, string Path)[] entries)
+    {
+        var page = new JsonArray(entries.Select(e => (JsonNode)new JsonObject { ["type"] = e.Type, ["path"] = e.Path }).ToArray());
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(page.ToJsonString(), System.Text.Encoding.UTF8, "application/json")
+        };
     }
 
     /// <summary>
