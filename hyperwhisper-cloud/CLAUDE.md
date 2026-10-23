@@ -126,7 +126,7 @@ paid-tier no-training posture — there is no per-request opt-out flag on either
 That endpoint *accepts* the id, *bills the audio*, and returns a content part with
 empty text and no error: a silent, paid no-op. Verified against the live API. Only
 `/v1beta/interactions` serves these models. Same rule on the native side, in
-`shared-core-rs/crates/hw-net/src/providers/gemini_transcribe.rs`.
+`shared-core-rs/crates/hw-net/src/providers/gemini_transcribe/mod.rs`.
 
 **TRAP 2 — `custom_vocabulary` is mutually exclusive with `diarization_mode` AND
 with `timestamp_granularities`**, each an HTTP 400 (`custom_vocabulary is

@@ -21,7 +21,7 @@
 // Verified against the live API. Only `/v1beta/interactions` serves these models,
 // which is why this is a separate adapter rather than another model row on the
 // Gemini one. The same rule is documented on the native side in
-// `shared-core-rs/crates/hw-net/src/providers/gemini_transcribe.rs`.
+// `shared-core-rs/crates/hw-net/src/providers/gemini_transcribe/mod.rs`.
 //
 // TRAP 2 — `custom_vocabulary` is mutually exclusive with BOTH
 // `diarization_mode` ("custom_vocabulary is incompatible with diarization.") and
