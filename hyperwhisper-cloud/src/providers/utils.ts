@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, ProviderUnavailableKind, TranscriptionResult } from './types';
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
-import { readUpstreamError, upstreamErrorLogFields, upstreamErrorReason } from './upstream-error';
+import { readUpstreamError, upstreamErrorLogFields, upstreamErrorReason, type UpstreamErrorRead } from './upstream-error';
 
 const DEFAULT_PROVIDER_TIMEOUT_MS = 15_000;
 
@@ -522,19 +522,45 @@ export function sleep(ms: number): Promise<void> {
  * 5xx failover errors, and the "other 4xx → ProviderInputError so a sibling
  * provider can try the same input" fallthrough.
  */
-export interface ProviderHttpErrorPolicy {
+export type ProviderHttpErrorPolicy = ProviderHttpErrorPolicyBase & (
+  | {
+    /**
+     * Statuses that mean OUR credentials are wrong. These throw a
+     * `ProviderAuthError`: a sibling has its own key, so the route tries it when
+     * the chain has one, and fails the request when it does not.
+     * Defaults to `[401]`; adapters whose upstream also returns 403 for a bad or
+     * unauthorized key pass `[401, 403]`.
+     */
+    authStatuses?: readonly number[];
+    /** Message for the `authStatuses` failure. */
+    authMessage: string;
+  }
+  | {
+    /**
+     * `[]`: no status raises a `ProviderAuthError`. For the adapters whose
+     * bad-key statuses end the request instead, through
+     * {@link ProviderHttpErrorPolicyBase.terminalStatuses}.
+     */
+    authStatuses: readonly [];
+    authMessage?: undefined;
+  }
+);
+
+interface ProviderHttpErrorPolicyBase {
   /** Name used in the thrown error messages ('OpenAI', 'Grok', 'Deepgram', …). */
   label: string;
   /**
-   * Statuses that mean OUR credentials are wrong. These throw a
-   * `ProviderAuthError`: a sibling has its own key, so the route tries it when
-   * the chain has one, and fails the request when it does not.
-   * Defaults to `[401]`; adapters whose upstream also returns 403 for a bad or
-   * unauthorized key pass `[401, 403]`.
+   * Statuses that END the request with a plain `Error(message)`: no failover,
+   * no sibling, and the client gets the generic 500 text. Checked FIRST, before
+   * the out-of-credits test and every other branch, so a status listed here
+   * always gives exactly this error.
    */
-  authStatuses?: readonly number[];
-  /** Message for the {@link ProviderHttpErrorPolicy.authStatuses} failure. */
-  authMessage: string;
+  terminalStatuses?: Readonly<Partial<Record<number, string>>>;
+  /**
+   * The error for a 4xx no other branch claimed. Unset (default): a
+   * `ProviderInputError`, so the chain tries a sibling with the same input.
+   */
+  otherStatusError?: (status: number) => Error;
   /**
    * When true, 402 fails over as `insufficient funds` — billing exhaustion on
    * THIS provider only, siblings may still have budget. When false (default)
@@ -608,11 +634,25 @@ export async function providerHttpError(
   context: ProviderRequestContext,
   policy: ProviderHttpErrorPolicy,
 ): Promise<Error> {
+  return classifyProviderHttpError(provider, await readUpstreamError(response), startedAt, context, policy);
+}
+
+/**
+ * {@link providerHttpError} for a caller that has already read the error body
+ * (a Response body reads once), e.g. Chirp's adaptation-retry test.
+ */
+export function classifyProviderHttpError(
+  provider: string,
+  upstreamError: UpstreamErrorRead,
+  startedAt: number,
+  context: ProviderRequestContext,
+  policy: ProviderHttpErrorPolicy,
+): Error {
   const { label } = policy;
-  const status = response.status;
   // `classifierText` is for the quota test only. The body can quote the
   // user's input, so the log line carries content-free fields (#2163).
-  const { fields, classifierText: errorText } = await readUpstreamError(response);
+  const { fields, classifierText: errorText } = upstreamError;
+  const { status } = fields;
   const elapsedMs = Math.round(performance.now() - startedAt);
   const kind = status >= 500 ? 'upstream_5xx' : status === 429 ? 'rate_limit' : 'http_error';
   const quotaReason = quotaExhaustedReason(status, errorText);
@@ -630,6 +670,10 @@ export async function providerHttpError(
   const details = (unavailableKind: ProviderUnavailableKind) =>
     policy.attachUnavailableDetails ? { kind: unavailableKind, status, elapsedMs } : undefined;
 
+  const terminalMessage = policy.terminalStatuses?.[status];
+  if (terminalMessage !== undefined) {
+    return new Error(terminalMessage);
+  }
   // Checked BEFORE the auth branch: an out-of-credits account is billing
   // exhaustion on THIS provider's account, like a 402 — a sibling with its own
   // account can still serve the request — even when the upstream sends it as a
@@ -637,7 +681,7 @@ export async function providerHttpError(
   if (quotaReason) {
     return new ProviderUnavailableError(label, `insufficient funds (${quotaReason})`, details(status === 429 ? 'rate_limit' : 'unknown'));
   }
-  if ((policy.authStatuses ?? [401]).includes(status)) {
+  if (policy.authMessage !== undefined && (policy.authStatuses ?? [401]).includes(status)) {
     return new ProviderAuthError(policy.authMessage, status);
   }
   if (status === 429) {
@@ -654,6 +698,9 @@ export async function providerHttpError(
   // provider may accept this input, so let the chain fall through. The
   // message (logged) names only the code; the body preview is kept in
   // clientMessage, which no route sends (#2131): the client's 400 is fixed.
+  if (policy.otherStatusError) {
+    return policy.otherStatusError(status);
+  }
   return new ProviderInputError(label, status, upstreamErrorReason(fields), errorText || `HTTP ${status}`);
 }
 

@@ -73,6 +73,80 @@ public partial class MainWindow
         }
     }
 
+    /// <summary>
+    /// Issue #2323: pencil on a row, leave Vocabulary, come back. The edit ends as Cancel ends it,
+    /// so the row is back in the table and the next Enter adds a NEW row instead of overwriting
+    /// the one that was being edited. The rows it adds are removed again.
+    /// </summary>
+    private async Task<bool> SmokeVocabularyEditEndsOnLeaveAsync()
+    {
+        GoTo("vocabulary");
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        if (FindNamed<TextBox>("VocabularyWordInput") is null) return false;
+        var vocabulary = _viewModel.Vocabulary;
+        bool Fail(string reason) { Console.Error.WriteLine($"Smoke: vocabulary edit then leave (#2323): {reason}"); return false; }
+
+        // The page's controls are looked up again after each navigation, since a page the user
+        // left can be rebuilt when they come back.
+        async Task AddThroughPillAsync(string text)
+        {
+            if (FindNamed<TextBox>("VocabularyWordInput") is not { } word) return;
+            word.Focus();
+            word.RaiseEvent(new TextInputEventArgs { RoutedEvent = TextInputEvent, Text = text });
+            word.RaiseEvent(new KeyEventArgs { RoutedEvent = KeyDownEvent, Key = Key.Enter });
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+            for (var attempt = 0; attempt < 50 && (vocabulary.Word.Length > 0 || _vocabularySaving); attempt++)
+                await Task.Delay(20);
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        }
+
+        try
+        {
+            await AddThroughPillAsync("smoke2323original");
+            if (vocabulary.Items.FirstOrDefault(item => item.Word == "smoke2323original") is not { } original)
+                return Fail("Enter did not add the first word");
+            var originalId = original.Id;
+
+            OnVocabularyEditRow(new Button { Tag = original }, new RoutedEventArgs());
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (!ReferenceEquals(vocabulary.Selected, original) || !ReferenceEquals(_vocabularyEditingItem, original))
+                return Fail("the pencil did not put the row into edit mode");
+
+            GoTo("modes");
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            GoTo("vocabulary");
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+
+            if (vocabulary.Selected is not null) return Fail($"Selected is still '{vocabulary.Selected.Word}' after the round trip");
+            if (_vocabularyEditingItem is not null) return Fail("the row is still marked as being edited");
+            if (vocabulary.Word.Length > 0) return Fail($"the word box still holds '{vocabulary.Word}'");
+            if (FindNamed<TextBlock>("VocabularyAddChipLabel")?.Text != _localization["vocabulary.action.addWord"])
+                return Fail("the add chip does not read Add word");
+            if (HasVisibleControl("VocabularyCancelButton")) return Fail("Cancel is still shown");
+            var index = vocabulary.Items.IndexOf(original);
+            if (index < 0 || FindNamed<ListBox>("VocabularyList")?.ContainerFromIndex(index) is not { IsVisible: true })
+                return Fail("the edited row is still hidden from the table");
+
+            var countBefore = vocabulary.Items.Count;
+            await AddThroughPillAsync("smoke2323second");
+            if (vocabulary.Items.Count != countBefore + 1)
+                return Fail($"the second word changed the row count from {countBefore} to {vocabulary.Items.Count}");
+            if (vocabulary.Items.FirstOrDefault(item => item.Id == originalId) is not { Word: "smoke2323original" })
+                return Fail("the second word overwrote the row that had been edited");
+            if (!vocabulary.Items.Any(item => item.Word == "smoke2323second" && item.Id != originalId))
+                return Fail("the second word was not saved as a new row");
+            return true;
+        }
+        finally
+        {
+            foreach (var item in vocabulary.Items.Where(item => item.Word.StartsWith("smoke2323", StringComparison.Ordinal)).ToList())
+                await vocabulary.DeleteAsync(item);
+            OnVocabularyCancelEdit(this, new RoutedEventArgs());
+            GoTo("home");
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        }
+    }
+
     internal async Task<int> RunSmokeTestAsync()
     {
         try
@@ -141,6 +215,7 @@ public partial class MainWindow
             if (!HasVisibleControl("HomeTypingSpeed")) return 17;
 
             if (!await SmokeVocabularyPasteIsOneWordPerLineAsync()) return 18;
+            if (!await SmokeVocabularyEditEndsOnLeaveAsync()) return 19;
 
             // The recording and file-import controls have no Windows equivalent anywhere, so they
             // live at the END of Home, below Recent Updates. They were on the Modes page, which

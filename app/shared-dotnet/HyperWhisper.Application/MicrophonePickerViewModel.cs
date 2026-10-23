@@ -142,6 +142,10 @@ public sealed class MicrophonePickerViewModel : ViewModelBase, IDisposable
         private set { if (Set(ref _fallbackNotice, value)) Notify(nameof(IsSavedDeviceMissing)); }
     }
 
+    /// <summary>True while the device the next recording opens is a non-virtual input picked in
+    /// place of a virtual OS default (#2408). Read it in <see cref="ResolvedDeviceChanged"/>.</summary>
+    public bool SkippedVirtualDefault { get; private set; }
+
     /// <summary>Raised on the UI context when the device the next recording opens changes.</summary>
     public event EventHandler? ResolvedDeviceChanged;
 
@@ -159,8 +163,11 @@ public sealed class MicrophonePickerViewModel : ViewModelBase, IDisposable
     public void Reload() => Reconcile();
 
     /// <summary>The device a saved <paramref name="savedName"/> resolves to on <paramref name="devices"/>:
-    /// a device of that name, else the OS default, else the first device. When several devices
-    /// carry the name, the first of <paramref name="preferredIds"/> among them wins, else the first.</summary>
+    /// a device of that name, else the automatic pick (<see cref="MicrophoneSelection.AutomaticPick(IReadOnlyList{AudioInputDevice})"/>:
+    /// the OS default, unless that is virtual and a non-virtual input is connected, #2408). A device
+    /// of the saved name is used even when it is virtual: a hand-made choice is never overridden.
+    /// When several devices carry the name, the first of <paramref name="preferredIds"/> among
+    /// them wins, else the first.</summary>
     public static AudioInputDevice? Resolve(IReadOnlyList<AudioInputDevice> devices, string? savedName, params string?[] preferredIds)
     {
         ArgumentNullException.ThrowIfNull(devices);
@@ -174,9 +181,7 @@ public sealed class MicrophonePickerViewModel : ViewModelBase, IDisposable
                 .FirstOrDefault(device => device is not null)
                 ?? matches.FirstOrDefault();
         }
-        return named
-            ?? devices.FirstOrDefault(device => device.IsDefault)
-            ?? devices.FirstOrDefault();
+        return named ?? MicrophoneSelection.AutomaticPick(devices);
     }
 
     private void Save(string? name)
@@ -227,13 +232,15 @@ public sealed class MicrophonePickerViewModel : ViewModelBase, IDisposable
         if (resolved is not null && !Equals(_recording.SelectedAudioDevice, resolved))
             _recording.SelectedAudioDevice = resolved;
 
-        var osDefault = devices.FirstOrDefault(device => device.IsDefault) ?? devices.FirstOrDefault();
+        // #2408: the Default row names the device the automatic pick actually records from, which
+        // is not the OS default when that one is virtual.
+        var automatic = MicrophoneSelection.AutomaticPick(devices, out var skippedVirtualDefault);
         var incoming = new List<MicrophoneChoice>(devices.Length + 2)
         {
             new(MicrophoneChoiceKind.SystemDefault,
-                osDefault is null
+                automatic is null
                     ? Text("linux.settings.sound.microphone.defaultNone", "Default")
-                    : Format("linux.settings.sound.microphone.default", "Default · {0}", osDefault.Name),
+                    : Format("linux.settings.sound.microphone.default", "Default · {0}", automatic.Name),
                 null, null),
         };
         foreach (var device in devices)
@@ -268,6 +275,11 @@ public sealed class MicrophonePickerViewModel : ViewModelBase, IDisposable
         FallbackNotice = missing is null ? null : FormatTwo(
             "linux.settings.sound.microphone.fallback", "Using {0} until {1} is reconnected.",
             resolved?.Name ?? Text("linux.settings.sound.microphone.defaultNone", "Default"), saved!);
+
+        // True exactly while the device the next recording opens is the automatic pick standing in
+        // for a virtual OS default (no saved device connected).
+        SkippedVirtualDefault = skippedVirtualDefault && !savedConnected
+            && string.Equals(resolved?.Id, automatic?.Id, StringComparison.Ordinal);
 
         var resolvedId = resolved?.Id;
         if (!string.Equals(resolvedId, _resolvedDeviceId, StringComparison.Ordinal))

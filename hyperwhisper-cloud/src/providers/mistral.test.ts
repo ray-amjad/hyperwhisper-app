@@ -7,23 +7,22 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithMistral } from './mistral';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import { captureNoSpeechEvent } from './test-support';
+import { stubEnv } from '../test-support/env';
 
 const originalFetch = globalThis.fetch;
-let savedKey: string | undefined;
+let restoreKey: () => void;
 
 /** 960,000 bytes is exactly 120 s under the 64 kbps byte→seconds estimate. */
 const BYTES_FOR_120_SECONDS = 960_000;
 const audio = (bytes = 1_000) => new ArrayBuffer(bytes);
 
 beforeEach(() => {
-  savedKey = process.env.MISTRAL_API_KEY;
-  process.env.MISTRAL_API_KEY = 'test-key';
+  restoreKey = stubEnv('MISTRAL_API_KEY', 'test-key');
 });
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  if (savedKey === undefined) delete process.env.MISTRAL_API_KEY;
-  else process.env.MISTRAL_API_KEY = savedKey;
+  restoreKey();
 });
 
 function captureRequest(body: unknown) {

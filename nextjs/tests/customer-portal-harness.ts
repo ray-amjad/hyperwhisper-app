@@ -55,6 +55,7 @@ export const calls = {
   getCreditBalancesForUsers: [] as string[][],
   getPaidCreditGrantsForUsers: [] as string[][],
   portalSessionCreate: [] as PortalSessionCall[],
+  customerRetrieve: [] as string[],
 };
 
 /** What the collaborators answer. Each test sets only what it cares about. */
@@ -69,6 +70,12 @@ export const behaviour = {
   grants: [] as GrantRow[],
   /** URL `stripe.billingPortal.sessions.create` hands back. */
   portalUrl: "https://billing.stripe.test/session/bps_1",
+  /**
+   * Email `stripe.customers.retrieve` reports per customer id. An id absent
+   * here reads as the email of the account key that caches it; `null` models
+   * a deleted customer.
+   */
+  customerEmails: {} as Record<string, string | null>,
 };
 
 export function accountKeyRow(
@@ -108,12 +115,14 @@ export function resetHarness(): void {
   calls.getCreditBalancesForUsers.length = 0;
   calls.getPaidCreditGrantsForUsers.length = 0;
   calls.portalSessionCreate.length = 0;
+  calls.customerRetrieve.length = 0;
 
   behaviour.session = null;
   behaviour.accountKeys = [];
   behaviour.balances = new Map();
   behaviour.grants = [];
   behaviour.portalUrl = "https://billing.stripe.test/session/bps_1";
+  behaviour.customerEmails = {};
 
   for (const key of Object.keys(fakeEnv)) delete fakeEnv[key];
 }
@@ -171,6 +180,17 @@ moduleMock.module(moduleUrl("../src/env/server.mjs"), {
 moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
   namedExports: {
     stripe: {
+      customers: {
+        retrieve: async (id: string) => {
+          calls.customerRetrieve.push(id);
+          const email =
+            id in behaviour.customerEmails
+              ? behaviour.customerEmails[id]
+              : behaviour.accountKeys.find((k) => k.stripeCustomerId === id)
+                  ?.email;
+          return email === null ? { id, deleted: true } : { id, email };
+        },
+      },
       billingPortal: {
         sessions: {
           create: async (params: PortalSessionCall) => {

@@ -1096,8 +1096,9 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// real recording.
     ///
     /// Meters the device HyperWhisper would record from right now: the chosen
-    /// microphone when it is connected and is not the macOS default (a meter-only
-    /// `DeviceAudioRecorder`, opened off the main actor), otherwise the default input
+    /// microphone when it is connected and is not the macOS default, or the automatic
+    /// pick's stand-in for a virtual default (a meter-only `DeviceAudioRecorder`,
+    /// opened off the main actor), otherwise the default input
     /// (an `AVAudioRecorder` writing to `/dev/null`). Levels are normalized
     /// (-60…0 dB → 0…1) exactly like `SimpleRecorder.readNormalizedLevel`. Call it again
     /// after changing the device to re-point it.
@@ -1125,26 +1126,51 @@ class AudioRecordingManager: NSObject, ObservableObject {
         let generation = inputLevelPreviewGeneration
 
         // Decide from cached state; the device lookup itself happens off the main actor.
-        let pinnedUID = MicrophoneResolution
+        // With no connected choice this is the automatic pick, so a virtual default
+        // (BlackHole, Loopback…) is metered only when no physical input exists (#2408).
+        // A plan pinned to skip a virtual default never falls back to it: the preview
+        // tries the non-virtual inputs in order and otherwise shows no level.
+        let resolution = MicrophoneResolution
             .resolve(savedUID: preferredMicrophone?.uid, savedName: nil, devices: availableDevices)
-            .pinnedDeviceUID(systemDefaultUID: systemDefaultDeviceUID)
+        let plan = MicrophoneCapturePlan.resolve(resolution, devices: availableDevices, systemDefaultUID: systemDefaultDeviceUID)
 
-        guard let pinnedUID else {
+        guard !plan.deviceUIDs.isEmpty else {
+            guard plan.fallsBackToSystemDefault else {
+                AppLogger.audio.warning("Input-level preview has no non-virtual microphone to open - not previewing the virtual macOS default input")
+                return false
+            }
             return startDefaultInputLevelPreview()
         }
+        if case .chosen = resolution {} else {
+            MicrophoneCaptureRouting.logSkippedVirtualDefault(plan.virtualDefaultSkip)
+        }
 
+        let deviceUIDs = plan.deviceUIDs
+        let fallsBackToSystemDefault = plan.fallsBackToSystemDefault
         let queue = inputLevelPreviewMeterQueue
         queue.async {
             var opened: DeviceAudioRecorder?
-            if let deviceID = CoreAudioDeviceHelper.findAudioDeviceID(byUID: pinnedUID) {
-                let recorder = DeviceAudioRecorder(deviceID: deviceID, url: nil)
+            for uid in deviceUIDs {
+                guard let deviceID = CoreAudioDeviceHelper.findAudioDeviceID(byUID: uid) else { continue }
+                let recorder = DeviceAudioRecorder(
+                    deviceID: deviceID,
+                    url: nil,
+                    fallbackInputDeviceIDs: {
+                        MicrophoneCaptureRouting.fallbackInputDeviceIDs(avoidingVirtualDefault: !fallsBackToSystemDefault)
+                    }
+                )
                 if recorder.record() {
                     opened = recorder
+                    break
                 }
             }
             let result = opened
             Task { @MainActor [weak self] in
-                self?.finishChosenDevicePreviewStart(result, generation: generation)
+                self?.finishChosenDevicePreviewStart(
+                    result,
+                    fallsBackToSystemDefault: fallsBackToSystemDefault,
+                    generation: generation
+                )
             }
         }
         AppLogger.audio.info("Input-level preview opening the chosen microphone")
@@ -1152,7 +1178,11 @@ class AudioRecordingManager: NSObject, ObservableObject {
     }
 
     /// Back on the main actor after a chosen-device preview tried to open.
-    private func finishChosenDevicePreviewStart(_ recorder: DeviceAudioRecorder?, generation: Int) {
+    private func finishChosenDevicePreviewStart(
+        _ recorder: DeviceAudioRecorder?,
+        fallsBackToSystemDefault: Bool,
+        generation: Int
+    ) {
         guard generation == inputLevelPreviewGeneration, !isRecording else {
             // Superseded by a stop, a restart or a recording: release it.
             if let recorder {
@@ -1164,6 +1194,11 @@ class AudioRecordingManager: NSObject, ObservableObject {
             return
         }
         guard let recorder else {
+            guard fallsBackToSystemDefault else {
+                AppLogger.audio.warning("Input-level preview opened no non-virtual microphone - not previewing the virtual macOS default input")
+                stopInputLevelPreview()
+                return
+            }
             AppLogger.audio.warning("Input-level preview could not open the chosen microphone - previewing the default input")
             if !startDefaultInputLevelPreview() {
                 stopInputLevelPreview()

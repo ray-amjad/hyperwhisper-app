@@ -94,6 +94,10 @@ public static class PortableModeDefaults
     public static string EnglishSpellingForRegion(string? regionCode) =>
         SharedCoreBridge.EnglishSpellingForRegion(regionCode);
 
+    /// <summary>The spelling token to seed into a brand-new mode for the current system region.</summary>
+    public static string EnglishSpellingForCurrentRegion() =>
+        EnglishSpellingForRegion(CurrentRegionCode());
+
     private static string CurrentRegionCode()
     {
         try { return RegionInfo.CurrentRegion.TwoLetterISORegionName; }
