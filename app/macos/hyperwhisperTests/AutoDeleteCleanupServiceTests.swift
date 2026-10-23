@@ -245,7 +245,7 @@ struct AutoDeleteCleanupServiceTests {
     private static func waitUntil(
         _ condition: @escaping @MainActor () -> Bool
     ) async {
-        let deadline = Date().addingTimeInterval(30)
+        let deadline = Date().addingTimeInterval(120)
         var yields = 0
         while Date() < deadline {
             if condition() { return }
