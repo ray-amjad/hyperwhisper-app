@@ -2210,7 +2210,7 @@ You can re-download it later.</value>
     <value>API-võtmed taastatud.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Mõnda API-võtit ei õnnestunud taastada.</value>
+    <value>Ühte või mitut API-võtit ei õnnestunud taastada.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Seadeid ei õnnestunud taastada.</value>

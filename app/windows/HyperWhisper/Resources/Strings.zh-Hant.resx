@@ -2209,7 +2209,7 @@
     <value>已還原 API 金鑰。</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>部分 API 金鑰無法還原。</value>
+    <value>一個或多個 API 金鑰無法還原。</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>無法還原設定。</value>

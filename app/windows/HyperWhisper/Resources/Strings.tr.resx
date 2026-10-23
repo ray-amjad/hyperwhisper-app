@@ -2210,7 +2210,7 @@ Daha sonra yeniden indirebilirsiniz.</value>
     <value>API anahtarları geri yüklendi.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Bazı API anahtarları geri yüklenemedi.</value>
+    <value>Bir veya daha fazla API anahtarı geri yüklenemedi.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Ayarlar geri yüklenemedi.</value>

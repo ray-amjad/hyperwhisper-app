@@ -2210,7 +2210,7 @@ Anda dapat mengunduhnya lagi nanti.</value>
     <value>Kunci API dipulihkan.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Beberapa kunci API tidak dapat dipulihkan.</value>
+    <value>Satu atau beberapa kunci API tidak dapat dipulihkan.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Pengaturan tidak dapat dipulihkan.</value>

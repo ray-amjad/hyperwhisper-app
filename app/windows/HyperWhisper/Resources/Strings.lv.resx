@@ -2210,7 +2210,7 @@ You can re-download it later.</value>
     <value>API atslēgas atjaunotas.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Dažas API atslēgas neizdevās atjaunot.</value>
+    <value>Vienu vai vairākas API atslēgas neizdevās atjaunot.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Iestatījumus neizdevās atjaunot.</value>

@@ -2209,7 +2209,7 @@ You can re-download it later.</value>
     <value>Đã khôi phục khóa API.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Không thể khôi phục một số khóa API.</value>
+    <value>Không thể khôi phục một hoặc nhiều khóa API.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Không thể khôi phục cài đặt.</value>

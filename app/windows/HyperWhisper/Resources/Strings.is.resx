@@ -2210,7 +2210,7 @@ You can re-download it later.</value>
     <value>API-lyklar endurheimtir.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Ekki tókst að endurheimta suma API-lykla.</value>
+    <value>Ekki tókst að endurheimta einn eða fleiri API-lykla.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Ekki tókst að endurheimta stillingar.</value>

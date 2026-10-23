@@ -2210,7 +2210,7 @@ Pode voltar a descarregá-lo mais tarde.</value>
     <value>Chaves de API restauradas.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Não foi possível restaurar algumas chaves de API.</value>
+    <value>Não foi possível restaurar uma ou mais chaves de API.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Não foi possível restaurar as definições.</value>

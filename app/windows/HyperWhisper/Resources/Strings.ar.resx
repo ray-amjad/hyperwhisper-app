@@ -2210,7 +2210,7 @@ You can re-download it later.</value>
     <value>تمت استعادة مفاتيح API.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>تعذّرت استعادة بعض مفاتيح API.</value>
+    <value>تعذّرت استعادة مفتاح API واحد أو أكثر.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>تعذّرت استعادة الإعدادات.</value>

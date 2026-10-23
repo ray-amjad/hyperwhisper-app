@@ -2210,7 +2210,7 @@ Potrai scaricarlo di nuovo in seguito.</value>
     <value>Chiavi API ripristinate.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Non è stato possibile ripristinare alcune chiavi API.</value>
+    <value>Non è stato possibile ripristinare una o più chiavi API.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Non è stato possibile ripristinare le impostazioni.</value>

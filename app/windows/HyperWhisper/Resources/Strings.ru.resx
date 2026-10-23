@@ -2210,7 +2210,7 @@
     <value>API-ключи восстановлены.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Не удалось восстановить некоторые API-ключи.</value>
+    <value>Не удалось восстановить один или несколько API-ключей.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Не удалось восстановить настройки.</value>

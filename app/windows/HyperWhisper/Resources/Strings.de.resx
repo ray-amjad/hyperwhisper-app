@@ -2210,7 +2210,7 @@ Sie können es später erneut herunterladen.</value>
     <value>API-Schlüssel wiederhergestellt.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Einige API-Schlüssel konnten nicht wiederhergestellt werden.</value>
+    <value>Ein oder mehrere API-Schlüssel konnten nicht wiederhergestellt werden.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Einstellungen konnten nicht wiederhergestellt werden.</value>

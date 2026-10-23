@@ -2210,7 +2210,7 @@ You can re-download it later.</value>
     <value>API-kulcsok visszaállítva.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Néhány API-kulcsot nem sikerült visszaállítani.</value>
+    <value>Egy vagy több API-kulcsot nem sikerült visszaállítani.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>A beállításokat nem sikerült visszaállítani.</value>

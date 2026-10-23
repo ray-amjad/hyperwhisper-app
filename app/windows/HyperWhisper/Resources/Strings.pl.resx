@@ -2210,7 +2210,7 @@ Możesz pobrać go ponownie później.</value>
     <value>Przywrócono klucze API.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Nie udało się przywrócić niektórych kluczy API.</value>
+    <value>Nie udało się przywrócić co najmniej jednego klucza API.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Nie udało się przywrócić ustawień.</value>

@@ -2210,7 +2210,7 @@ You can re-download it later.</value>
     <value>API raktai atkurti.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Kai kurių API raktų nepavyko atkurti.</value>
+    <value>Nepavyko atkurti vieno ar kelių API raktų.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Nustatymų nepavyko atkurti.</value>

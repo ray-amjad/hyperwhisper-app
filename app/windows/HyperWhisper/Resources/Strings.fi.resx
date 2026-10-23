@@ -2210,7 +2210,7 @@ You can re-download it later.</value>
     <value>API-avaimet palautettu.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Joitakin API-avaimia ei voitu palauttaa.</value>
+    <value>Yhtä tai useampaa API-avainta ei voitu palauttaa.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Asetuksia ei voitu palauttaa.</value>

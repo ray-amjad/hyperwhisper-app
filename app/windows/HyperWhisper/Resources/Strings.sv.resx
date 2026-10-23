@@ -2210,7 +2210,7 @@ You can re-download it later.</value>
     <value>API-nycklar återställda.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Vissa API-nycklar kunde inte återställas.</value>
+    <value>En eller flera API-nycklar kunde inte återställas.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Inställningarna kunde inte återställas.</value>

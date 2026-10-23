@@ -2210,7 +2210,7 @@ You can re-download it later.</value>
     <value>API ключовете са възстановени.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Някои API ключове не можаха да бъдат възстановени.</value>
+    <value>Един или повече API ключа не можаха да бъдат възстановени.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Настройките не можаха да бъдат възстановени.</value>

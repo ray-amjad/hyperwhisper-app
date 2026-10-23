@@ -2210,7 +2210,7 @@ You can re-download it later.</value>
     <value>API ključevi vraćeni.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Neke API ključeve nije bilo moguće vratiti.</value>
+    <value>Jedan ili više API ključeva nije bilo moguće vratiti.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Postavke nije bilo moguće vratiti.</value>

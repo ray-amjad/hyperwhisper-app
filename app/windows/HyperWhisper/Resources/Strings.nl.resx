@@ -2210,7 +2210,7 @@ Je kunt het later opnieuw downloaden.</value>
     <value>API-sleutels hersteld.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Sommige API-sleutels konden niet worden hersteld.</value>
+    <value>Een of meer API-sleutels konden niet worden hersteld.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Instellingen konden niet worden hersteld.</value>

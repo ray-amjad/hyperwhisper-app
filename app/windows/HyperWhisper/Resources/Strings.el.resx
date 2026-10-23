@@ -2210,7 +2210,7 @@ You can re-download it later.</value>
     <value>Τα κλειδιά API επαναφέρθηκαν.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Ορισμένα κλειδιά API δεν ήταν δυνατό να επαναφερθούν.</value>
+    <value>Δεν ήταν δυνατή η επαναφορά ενός ή περισσότερων κλειδιών API.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Δεν ήταν δυνατή η επαναφορά των ρυθμίσεων.</value>

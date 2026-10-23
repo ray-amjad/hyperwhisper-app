@@ -2209,7 +2209,7 @@ You can re-download it later.</value>
     <value>API-ключі відновлено.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Не вдалося відновити деякі API-ключі.</value>
+    <value>Не вдалося відновити один або кілька API-ключів.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Не вдалося відновити налаштування.</value>

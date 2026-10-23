@@ -2230,7 +2230,7 @@ You can re-download it later.</value>
     <value>API keys restored.</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>Some API keys could not be restored.</value>
+    <value>One or more API keys could not be restored.</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Settings could not be restored.</value>

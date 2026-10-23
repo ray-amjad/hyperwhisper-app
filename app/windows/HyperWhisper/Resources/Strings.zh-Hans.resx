@@ -2214,7 +2214,7 @@
     <value>已恢复 API 密钥。</value>
   </data>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
-    <value>部分 API 密钥无法恢复。</value>
+    <value>一个或多个 API 密钥无法恢复。</value>
   </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>无法恢复设置。</value>
