@@ -13,22 +13,9 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import Module, { createRequire } from "node:module";
-import test, { mock } from "node:test";
+import test from "node:test";
 import { fileURLToPath } from "node:url";
-
-// `mock.module` is real in Node 22 (behind `--experimental-test-module-mocks`,
-// which `npm test` passes), but the pinned @types/node@20 does not declare it.
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: {
-      namedExports?: Record<string, unknown>;
-      defaultExport?: unknown;
-    },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+import { moduleMock, moduleUrl } from "./module-mock";
 
 // Next's metadata resolver requires "server-only", which a Next build aliases
 // to Next's own empty copy and this repo does not install. Find it at that
@@ -86,21 +73,20 @@ moduleMock.module("next-intl/server", {
 });
 
 const stub = () => null;
-const local = (relative: string) => new URL(relative, import.meta.url).href;
 
 // The layout's render imports CSS, next/font and client providers, which node
 // cannot load; its metadata reads none of them.
-moduleMock.module(local("../styles/globals.css"), { defaultExport: {} });
-moduleMock.module(local("../config/fonts.ts"), {
+moduleMock.module(moduleUrl("../styles/globals.css"), { defaultExport: {} });
+moduleMock.module(moduleUrl("../config/fonts.ts"), {
   namedExports: { fontSans: { variable: "" } },
 });
-moduleMock.module(local("../app/[locale]/providers.tsx"), {
+moduleMock.module(moduleUrl("../app/[locale]/providers.tsx"), {
   namedExports: { Providers: stub },
 });
-moduleMock.module(local("../components/layout/HtmlDocument.tsx"), {
+moduleMock.module(moduleUrl("../components/layout/HtmlDocument.tsx"), {
   defaultExport: stub,
 });
-moduleMock.module(local("../components/layout/LayoutWrapper.tsx"), {
+moduleMock.module(moduleUrl("../components/layout/LayoutWrapper.tsx"), {
   defaultExport: stub,
 });
 moduleMock.module("next-intl", {
@@ -108,7 +94,7 @@ moduleMock.module("next-intl", {
 });
 // The purchase form is a client component with its own imports; the metadata
 // never renders it.
-moduleMock.module(local("../components/credits/CreditsPurchase.tsx"), {
+moduleMock.module(moduleUrl("../components/credits/CreditsPurchase.tsx"), {
   defaultExport: stub,
 });
 
