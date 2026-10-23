@@ -18,7 +18,10 @@
     "default": "dark"
   },
   "favicon": "/assets/favicon.png",
-  "logo": "/assets/logo.png",
+  "logo": {
+    "light": "/assets/logo.png",
+    "dark": "/assets/logo-dark.png"
+  },
   "navbar": {
     "primary": {
       "type": "button",
