@@ -531,6 +531,7 @@ internal static class ScriptGuardPorts
         });
 
         RunKeepWarm(run);
+        RunStreamingCancel(run);
     }
 
     /// <summary>
@@ -769,6 +770,232 @@ internal static class ScriptGuardPorts
             Running = false;
             Disposed = true;
         }
+    }
+
+    /// <summary>
+    /// Esc during a live streaming session (#2242). The real StartStreamingRecordingAsync
+    /// opens the session through its factory seams with a fake client and capture, and the
+    /// real HandleCancelRequest must discard it: the stop-and-save path never entered, no
+    /// History row, the cancelled status. The session has no paste service, so a paste is
+    /// not seen directly; the stop path pastes between its transcribing signal and its
+    /// History write, and the check asserts neither happened. It replaces the deleted
+    /// verify_streaming_cancel_wiring.ps1, which matched source text. The second check is
+    /// the control: the same session stopped through StopStreamingRecordingAsync does
+    /// save, so "no row" above is not vacuous.
+    /// </summary>
+    private static void RunStreamingCancel(Action<string, Action> run)
+    {
+        run("streaming: Esc during a live session discards the text instead of saving and pasting it (#2242)", () =>
+        {
+            using var session = StreamingSession.Start();
+            var vm = session.Vm;
+            Assert(vm.IsRecording && session.Capture.StartedOn == StreamingSession.DeviceNumber && session.Client.Starts == 1,
+                "precondition: the fake session did not start (IsRecording, capture on the selected device, one client start)");
+
+            vm.HandleCancelRequest().GetAwaiter().GetResult();
+
+            Assert(session.Client.Stops == 1, $"the cancel stopped the streaming client {session.Client.Stops} times, not once");
+            Assert(session.Capture.Stopped && session.Capture.Disposed, "the cancel left the microphone capture running");
+            Assert(session.Client.Disposed && session.Client.Handlers == 0 && session.Capture.Handlers == 0,
+                "the cancel did not tear the session down (client disposed, every handler removed)");
+            // The stop-and-save path announces itself before its first await, and
+            // pastes before it writes the streamed text to History; the cancel does neither.
+            Assert(session.TranscribingShown == 0 && !session.SawTranscribing,
+                "the cancel entered the stop-and-save path (ShowTranscribingRequested / IsTranscribing)");
+            Assert(session.SavedRows() == 0, "the cancel saved the streamed text to History");
+            Assert(vm.StatusText == MainViewModel.CancelledStatusText(cancelledFileTranscription: false),
+                $"the status reads '{vm.StatusText}', not the cancelled text");
+            Assert(!vm.IsRecording && !vm.IsTranscribing, "the view model still reports a recording or a transcription");
+        });
+
+        run("streaming: the same live session stopped normally does save its text (control for #2242)", () =>
+        {
+            using var session = StreamingSession.Start();
+            var stop = typeof(MainViewModel).GetMethod("StopStreamingRecordingAsync", InstanceField)
+                ?? throw new MissingMethodException(nameof(MainViewModel), "StopStreamingRecordingAsync");
+            ((Task)stop.Invoke(session.Vm, null)!).GetAwaiter().GetResult();
+
+            Assert(session.Client.Stops == 1, $"the stop called the streaming client's StopAsync {session.Client.Stops} times");
+            Assert(session.TranscribingShown == 1, "the stop path did not show the transcribing state");
+            Assert(session.SavedRows() == 1, "the stop path did not save the streamed text to History, so the cancel check proves nothing");
+        });
+    }
+
+    /// <summary>
+    /// A MainViewModel with a live streaming session started by the real
+    /// StartStreamingRecordingAsync over the fakes below. Hermetic: no microphone, no
+    /// network, no paste service (so nothing can type into the runner's desktop), History
+    /// in the suite's scratch profile, and the settings that would touch the machine's
+    /// audio (mic boost, sounds, media muting) off for the duration.
+    /// </summary>
+    private sealed class StreamingSession : IDisposable
+    {
+        public const int DeviceNumber = 7;
+        private readonly SynchronizationContext? _previousContext = SynchronizationContext.Current;
+        private readonly (bool Boost, bool Sounds, string Media) _previousSettings;
+        private readonly List<IDisposable> _owned = [];
+        // The streamed text goes through the shared core's finalizer, which may recase
+        // or punctuate it, so the History lookup matches on the GUID in its middle.
+        private readonly string _marker = Guid.NewGuid().ToString("N");
+
+        public MainViewModel Vm { get; private set; } = null!;
+        public FakeStreamingClient Client { get; }
+        public FakeStreamingSource Capture { get; } = new();
+        public int TranscribingShown { get; private set; }
+        public bool SawTranscribing { get; private set; }
+
+        private StreamingSession()
+        {
+            DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+            // The suite's thread can hold a DispatcherSynchronizationContext no loop pumps;
+            // the stop path's History insert resumes on it and would hang (see Program.cs).
+            SynchronizationContext.SetSynchronizationContext(null);
+
+            var settings = SettingsService.Instance;
+            _previousSettings = (settings.AutoIncreaseMicVolume, settings.EnableSoundEffects, settings.MediaControlMode);
+            settings.AutoIncreaseMicVolume = false;
+            settings.EnableSoundEffects = false;
+            settings.MediaControlMode = "off";
+            Client = new FakeStreamingClient($"Streamed text for 2242, {_marker} end");
+        }
+
+        private void Wire()
+        {
+            var settings = SettingsService.Instance;
+            Vm = (MainViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
+            SetField(Vm, "_settingsService", settings);
+            SetField(Vm, "_vocabularyService", VocabularyService.Instance);
+            SetField(Vm, "_recorderService", Own(new AudioRecorderService()));
+            SetField(Vm, "_transcriptionService", Own(new TranscriptionService()));
+            SetField(Vm, "_parakeetTranscriptionService", new ParakeetTranscriptionService());
+            SetField(Vm, "_pushToTalkMonitor", Own(new PushToTalkMonitor()));
+            SetField(Vm, "_shortcutService", Own(new KeyboardShortcutService()));
+            SetField(Vm, "_selectedAudioDevice", new AudioDeviceService.AudioDevice(DeviceNumber, "G2242 Microphone"));
+            Vm.StreamingClientFactoryOverride = _ => Result<IStreamingTranscriptionClient>.Success(Client);
+            Vm.StreamingAudioSourceFactoryOverride = () => Capture;
+            Vm.ShowTranscribingRequested += (_, _) => TranscribingShown++;
+            Vm.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(MainViewModel.IsTranscribing) && Vm.IsTranscribing)
+                    SawTranscribing = true;
+            };
+        }
+
+        public static StreamingSession Start()
+        {
+            var session = new StreamingSession();
+            try
+            {
+                session.Wire();
+                var start = typeof(MainViewModel).GetMethod("StartStreamingRecordingAsync", InstanceField)
+                    ?? throw new MissingMethodException(nameof(MainViewModel), "StartStreamingRecordingAsync");
+                ((Task)start.Invoke(session.Vm, null)!).GetAwaiter().GetResult();
+                return session;
+            }
+            catch
+            {
+                session.Dispose();
+                throw;
+            }
+        }
+
+        /// <summary>History rows holding this session's streamed text.</summary>
+        public int SavedRows()
+        {
+            using var db = new HyperWhisperDbContext();
+            return db.Transcripts.AsNoTracking().Count(t => t.Text != null && t.Text.Contains(_marker));
+        }
+
+        private T Own<T>(T disposable) where T : IDisposable
+        {
+            _owned.Add(disposable);
+            return disposable;
+        }
+
+        public void Dispose()
+        {
+            try
+            {
+                // A session the check left running (it failed before its cancel/stop).
+                if (Vm != null)
+                    (typeof(MainViewModel).GetField("_durationTimer", InstanceField)?.GetValue(Vm) as IDisposable)?.Dispose();
+                using (var db = new HyperWhisperDbContext())
+                {
+                    foreach (var id in db.Transcripts.AsNoTracking().Where(t => t.Text != null && t.Text.Contains(_marker)).Select(t => t.Id).ToList())
+                        HistoryService.Instance.DeleteTranscript(id);
+                }
+                foreach (var owned in _owned)
+                    owned.Dispose();
+            }
+            finally
+            {
+                var settings = SettingsService.Instance;
+                settings.AutoIncreaseMicVolume = _previousSettings.Boost;
+                settings.EnableSoundEffects = _previousSettings.Sounds;
+                settings.MediaControlMode = _previousSettings.Media;
+                SynchronizationContext.SetSynchronizationContext(_previousContext);
+            }
+        }
+    }
+
+    /// <summary>
+    /// A streaming client that connects at once and returns <paramref name="finalText"/>
+    /// from StopAsync, as a provider would after the user spoke. Handlers counts the
+    /// view model's live subscriptions, so a check sees the session cleanup run.
+    /// </summary>
+    private sealed class FakeStreamingClient(string finalText) : IStreamingTranscriptionClient
+    {
+        public int Starts { get; private set; }
+        public int Stops { get; private set; }
+        public bool Disposed { get; private set; }
+        public int Handlers { get; private set; }
+        public StreamingConnectionState State { get; private set; } = StreamingConnectionState.Idle;
+        public int AudioSampleRate => 16000;
+
+        public event Action<StreamingConnectionState>? StateChanged { add => Handlers++; remove => Handlers--; }
+        public event Action<string>? FinalTranscriptSegmentReceived { add => Handlers++; remove => Handlers--; }
+        public event Action<string>? WarningReceived { add => Handlers++; remove => Handlers--; }
+        public event Action<string>? ErrorReceived { add => Handlers++; remove => Handlers--; }
+        public event Action<double, double>? SessionCompleted { add => Handlers++; remove => Handlers--; }
+
+        public Task<bool> StartAsync(CancellationToken cancellationToken = default)
+        {
+            Starts++;
+            State = StreamingConnectionState.Streaming;
+            return Task.FromResult(true);
+        }
+
+        public Task<string> StopAsync(CancellationToken cancellationToken = default)
+        {
+            Stops++;
+            State = StreamingConnectionState.Idle;
+            return Task.FromResult(finalText);
+        }
+
+        public Task SendAudioAsync(byte[] pcmData, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public ValueTask DisposeAsync()
+        {
+            Disposed = true;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    /// <summary>A microphone capture that records what the view model did to it.</summary>
+    private sealed class FakeStreamingSource : IStreamingAudioSource
+    {
+        public int? StartedOn { get; private set; }
+        public bool Stopped { get; private set; }
+        public bool Disposed { get; private set; }
+        public int Handlers { get; private set; }
+        public TimeSpan Duration => TimeSpan.Zero;
+
+        public event Action<byte[]>? AudioChunkAvailable { add => Handlers++; remove => Handlers--; }
+        public event Action<float>? AudioLevelChanged { add => Handlers++; remove => Handlers--; }
+
+        public void Start(int deviceNumber, int sampleRate) => StartedOn = deviceNumber;
+        public void Stop() => Stopped = true;
+        public void Dispose() => Disposed = true;
     }
 
     private sealed class WhitespaceProvider : ITranscriptionProvider
