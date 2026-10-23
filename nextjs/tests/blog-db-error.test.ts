@@ -122,13 +122,17 @@ describe("during next build", () => {
     process.env.NEXT_PHASE = "phase-production-build";
   });
 
-  test("a database error ships the blog empty and logs it, so the build does not fail", async () => {
+  test("a database error ships only the code posts and logs it, so the build does not fail", async () => {
     select = dbDown;
-    assert.deepEqual(await blog.getBlogPosts(), []);
+    assert.deepEqual(
+      (await blog.getBlogPosts()).map((post) => post.slug),
+      ["hyperwhisper-vs-spokenly"],
+    );
     assert.equal(await blog.getBlogPost("a-real-post"), null);
     const entries = await sitemap();
     assert.ok(entries.some((entry) => entry.url === "https://www.hyperwhisper.com/en/blog"));
     assert.ok(!entries.some((entry) => entry.url === blogUrl));
+    assert.ok(entries.some((entry) => entry.url.endsWith("/en/blog/hyperwhisper-vs-spokenly")));
     assert.ok(logged.some((args) => String(args[0]).startsWith("[blog]")));
   });
 });

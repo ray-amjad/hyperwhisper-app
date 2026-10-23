@@ -71,15 +71,15 @@ function isBuildPrerender(): boolean {
 /**
  * A database failure is handled the way getLatencyMatrix handles it (#2072):
  *
- *  - During `next build` it is logged and the blog ships empty, so a deploy
- *    does not depend on Postgres being reachable from the builder. The first
- *    revalidation fills it in.
+ *  - During `next build` it is logged and the blog ships with only the code
+ *    posts, so a deploy does not depend on Postgres being reachable from the
+ *    builder. The first revalidation fills in the stored ones.
  *  - At runtime it propagates. Next caches a returned value as a good render,
  *    so an empty list during a background revalidation would replace the blog
  *    with "No posts yet.", 404 every post and drop them from the sitemap.
  *    Throwing keeps the last good page in the ISR cache.
  *
- * An empty TABLE is not a failure: no rows renders "No posts yet." on both.
+ * An empty TABLE is not a failure: it lists only the code posts on both.
  */
 async function readAllPosts(): Promise<BlogPost[]> {
   try {
@@ -94,11 +94,11 @@ async function readAllPosts(): Promise<BlogPost[]> {
   } catch (err) {
     if (!isBuildPrerender()) throw err;
     console.error(
-      "[blog] database unreachable while prerendering; shipping no posts and letting revalidation fill them in:",
+      "[blog] database unreachable while prerendering; shipping only the code posts and letting revalidation fill in the rest:",
       err,
     );
 
-    return [];
+    return withCodePosts([]);
   }
 }
 
