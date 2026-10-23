@@ -216,10 +216,11 @@ jobs:
             | jq -r '"Result: \(.result)  passed \(.passedTests)  failed \(.failedTests)  skipped \(.skippedTests)"'
           # Each test case that had a failed attempt (a "Repetition" node when
           # retries ran, or the case itself when it ran once), its final
-          # result, and the failure messages under it.
+          # result, and the failure messages under it. A skipped test also
+          # carries a "Failure Message" node (its skip reason): leave it out.
           xcrun xcresulttool get test-results tests --path "$bundle" --format json \
             | jq -r '
-                .. | objects | select(.nodeType == "Test Case")
+                .. | objects | select(.nodeType == "Test Case" and .result != "Skipped")
                 | . as $case
                 | [ .. | objects | select(.nodeType == "Failure Message") | .name ] as $msgs
                 | select(($msgs | length) > 0)
