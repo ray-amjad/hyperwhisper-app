@@ -173,6 +173,15 @@ jobs:
       # the comment there).
       # Same signing-disable overrides as the build step above, and same
       # reason they must stay CLI args, not job-level env: vars.
+      #
+      # A failed test runs again, up to 3 attempts in all. The suite runs in
+      # parallel on a 3-core hosted runner, and a dozen tests with wall-clock
+      # bounds (#2019, #2399, #2400, #2401, #1866, #2445, #2451, #2505) each
+      # lose that race now and then. With ~2,400 tests, one of them lost it on
+      # about 4 in 10 main runs (2026-10-19..23), and every flake-fix PR stayed
+      # red on the OTHER flakes. A real regression fails all 3 attempts and
+      # still turns the job red. Tests that only passed on a retry are listed
+      # by the summary step below, so a flake stays visible.
       - name: Run unit tests
         run: |
           touch "$RUNNER_TEMP/hyperwhisper-test-start"
@@ -182,10 +191,36 @@ jobs:
             -configuration Debug \
             -destination "platform=macOS" \
             -only-testing:hyperwhisperTests \
+            -resultBundlePath "$RUNNER_TEMP/unit-tests.xcresult" \
+            -retry-tests-on-failure \
+            -test-iterations 3 \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGN_ENTITLEMENTS=""
+
+      # The console log names a failed test but never says WHY (no
+      # expectation, no file:line), and its tail is cut in the job log. The
+      # result bundle has both. Print every recorded failure, including the
+      # ones a retry later passed, and keep the bundle when the job is red.
+      - name: Test failures (from the result bundle)
+        if: always()
+        # A report step: a parse error here must never turn a green job red.
+        continue-on-error: true
+        run: |
+          bundle="$RUNNER_TEMP/unit-tests.xcresult"
+          [ -d "$bundle" ] || { echo "No result bundle (the test step never started)."; exit 0; }
+          xcrun xcresulttool get test-results summary --path "$bundle" --format json > "$RUNNER_TEMP/test-summary.json"
+          jq -r '"Result: \(.result)  passed \(.passedTests)  failed \(.failedTests)  skipped \(.skippedTests)"' "$RUNNER_TEMP/test-summary.json"
+          jq -r '.testFailures[]? | "FAILED \(.testIdentifierString // .testName): \(.failureText)"' "$RUNNER_TEMP/test-summary.json"
+
+      - name: Upload test result bundle
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: macos-unit-tests-xcresult
+          path: ${{ runner.temp }}/unit-tests.xcresult
+          retention-days: 7
 
       # A macOS unit test runs INSIDE the app. When the app aborts, XCTest
       # reports the test that happened to be running as a bare failure in
