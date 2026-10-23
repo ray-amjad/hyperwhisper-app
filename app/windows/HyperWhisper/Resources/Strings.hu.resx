@@ -2206,6 +2206,18 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Beállítások visszaállítva.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API-kulcsok visszaállítva.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Néhány API-kulcsot nem sikerült visszaállítani.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>A beállításokat nem sikerült visszaállítani.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>A biztonsági mentés importálása problémákkal járt. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Ha egy szó már létezik:</value>
   </data>

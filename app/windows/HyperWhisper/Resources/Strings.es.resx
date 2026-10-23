@@ -2210,6 +2210,18 @@ Puede volver a descargarlo más tarde.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Ajustes restaurados.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>Claves de API restauradas.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>No se pudieron restaurar algunas claves de API.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>No se pudieron restaurar los ajustes.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Copia de seguridad importada con problemas. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Si una palabra ya existe:</value>
   </data>

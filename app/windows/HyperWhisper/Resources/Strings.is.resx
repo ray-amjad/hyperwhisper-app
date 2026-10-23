@@ -2206,6 +2206,18 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Stillingar endurheimtar.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API-lyklar endurheimtir.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Ekki tókst að endurheimta suma API-lykla.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Ekki tókst að endurheimta stillingar.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Öryggisafrit flutt inn með vandamálum. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Ef orð er þegar til:</value>
   </data>

@@ -2206,6 +2206,18 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Nastavení obnoveno.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>Klíče API obnoveny.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Některé klíče API se nepodařilo obnovit.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Nastavení se nepodařilo obnovit.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Záloha importována s problémy. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Pokud slovo již existuje:</value>
   </data>

@@ -2205,6 +2205,18 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Đã khôi phục cài đặt.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>Đã khôi phục khóa API.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Không thể khôi phục một số khóa API.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Không thể khôi phục cài đặt.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Đã nhập bản sao lưu nhưng có sự cố. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Nếu từ đã tồn tại:</value>
   </data>

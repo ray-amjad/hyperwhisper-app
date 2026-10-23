@@ -2206,6 +2206,18 @@ Możesz pobrać go ponownie później.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Przywrócono ustawienia.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>Przywrócono klucze API.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Nie udało się przywrócić niektórych kluczy API.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Nie udało się przywrócić ustawień.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Kopia zapasowa została zaimportowana z problemami. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Jeśli słowo już istnieje:</value>
   </data>

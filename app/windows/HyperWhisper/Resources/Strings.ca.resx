@@ -2206,6 +2206,18 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Configuració restaurada.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>Claus d'API restaurades.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>No s'han pogut restaurar algunes claus d'API.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>No s'ha pogut restaurar la configuració.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Còpia de seguretat importada amb problemes. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Si una paraula ja existeix:</value>
   </data>

@@ -168,7 +168,10 @@ static void AllCatalogsLoad()
     // "should start with" rule refused them), so no invalid-key dialog is left.
     // 860 -> 861 (#1415): `settings.backup.import.summary.settings` is new (the Windows
     // backup import says "Settings restored." instead of zero mode/vocabulary counts).
-    Equal(861,PortableLocalizer.BaseKeyCount, "base key count");
+    // 861 -> 865 (#2377): `settings.backup.import.summary.apiKeys`, `.apiKeysFailed`,
+    // `.settingsFailed` and `settings.backup.import.partial` are new (the Windows backup
+    // import says whether the API keys landed, and a failed section is not a plain success).
+    Equal(865,PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

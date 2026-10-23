@@ -2206,6 +2206,18 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>ההגדרות שוחזרו.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>מפתחות ה-API שוחזרו.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>לא ניתן היה לשחזר חלק ממפתחות ה-API.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>לא ניתן היה לשחזר את ההגדרות.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>הגיבוי יובא עם בעיות. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>אם מילה כבר קיימת:</value>
   </data>

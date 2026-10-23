@@ -2206,6 +2206,18 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>تمت استعادة الإعدادات.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>تمت استعادة مفاتيح API.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>تعذّرت استعادة بعض مفاتيح API.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>تعذّرت استعادة الإعدادات.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>تم استيراد النسخة الاحتياطية مع وجود مشكلات. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>إذا كانت الكلمة موجودة بالفعل:</value>
   </data>

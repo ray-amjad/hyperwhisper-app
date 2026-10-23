@@ -2206,6 +2206,18 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Nastavitve obnovljene.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>Ključi API obnovljeni.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Nekaterih ključev API ni bilo mogoče obnoviti.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Nastavitev ni bilo mogoče obnoviti.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Varnostna kopija uvožena s težavami. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Če beseda že obstaja:</value>
   </data>
