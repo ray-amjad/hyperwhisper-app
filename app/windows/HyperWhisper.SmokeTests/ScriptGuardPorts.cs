@@ -722,7 +722,7 @@ internal static class ScriptGuardPorts
 
             var settings = SettingsService.Instance;
             var saved = (settings.AutoPasteEnabled, settings.AutocapitalizeInsert, settings.AutoIncreaseMicVolume,
-                settings.StoreAsM4A, settings.MediaControlMode);
+                settings.StoreAsM4A, settings.MediaControlMode, settings.EnableSoundEffects);
             var transcribed = new List<(string AudioPath, Mode Mode)>();
             var pasted = new List<string>();
             using var shortcuts = new KeyboardShortcutService();
@@ -731,12 +731,13 @@ internal static class ScriptGuardPorts
             try
             {
                 // The paste seam sits on the auto-paste branch; the rest keep the
-                // run off the machine (no mic boost, no media mute, no focus read).
+                // run off the machine (no mic boost, no media mute, no sounds, no focus read).
                 settings.AutoPasteEnabled = true;
                 settings.AutocapitalizeInsert = false;
                 settings.AutoIncreaseMicVolume = false;
                 settings.StoreAsM4A = false;
                 settings.MediaControlMode = "off";
+                settings.EnableSoundEffects = false;
 
                 // Alpha and Beta differ in everything the stop path reads from the
                 // mode: the name History shows, the language (Japanese gets no
@@ -869,6 +870,7 @@ internal static class ScriptGuardPorts
                 settings.AutoIncreaseMicVolume = saved.AutoIncreaseMicVolume;
                 settings.StoreAsM4A = saved.StoreAsM4A;
                 settings.MediaControlMode = saved.MediaControlMode;
+                settings.EnableSoundEffects = saved.EnableSoundEffects;
                 SynchronizationContext.SetSynchronizationContext(previousContext);
             }
         });
