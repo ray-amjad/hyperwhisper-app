@@ -727,6 +727,7 @@ internal static class ScriptGuardPorts
             var pasted = new List<string>();
             using var shortcuts = new KeyboardShortcutService();
             using var pushToTalk = new PushToTalkMonitor();
+            MainViewModel? vm = null;
             try
             {
                 // The paste seam sits on the auto-paste branch; the rest keep the
@@ -759,7 +760,7 @@ internal static class ScriptGuardPorts
                 const string betaText = "Hello world. ";
 
                 var recorder = new FakeDictationRecorder();
-                var vm = (MainViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
+                vm = (MainViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
                 foreach (var (name, value) in new (string, object?)[]
                 {
                     ("_settingsService", settings),
@@ -846,13 +847,23 @@ internal static class ScriptGuardPorts
             }
             finally
             {
-                foreach (var (audioPath, _) in transcribed)
+                // A failed assertion can leave a dictation running: cancel it, so
+                // keep-warm and the audio-environment claim are handed back.
+                if (vm?.IsRecording == true)
                 {
-                    using var db = new HyperWhisperDbContext();
-                    var id = db.Transcripts.AsNoTracking().Where(t => t.AudioFilePath == audioPath).Select(t => t.Id).FirstOrDefault();
-                    if (id != default) HistoryService.Instance.DeleteTranscript(id);
-                    TryDeleteFile(audioPath);
+                    try { vm.HandleCancelRequest().GetAwaiter().GetResult(); }
+                    catch (Exception) { /* best effort */ }
                 }
+                // Every row this check made, including one a failed stop left behind.
+                using (var db = new HyperWhisperDbContext())
+                {
+                    var ids = db.Transcripts.AsNoTracking()
+                        .Where(t => t.Mode != null && t.Mode.StartsWith("G2241 "))
+                        .Select(t => t.Id)
+                        .ToList();
+                    foreach (var id in ids) HistoryService.Instance.DeleteTranscript(id);
+                }
+                foreach (var (audioPath, _) in transcribed) TryDeleteFile(audioPath);
                 settings.AutoPasteEnabled = saved.AutoPasteEnabled;
                 settings.AutocapitalizeInsert = saved.AutocapitalizeInsert;
                 settings.AutoIncreaseMicVolume = saved.AutoIncreaseMicVolume;
