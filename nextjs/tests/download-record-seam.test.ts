@@ -11,7 +11,7 @@
  * (the real disposable list, `fetch`, the origin) is proved too.
  */
 import assert from "node:assert/strict";
-import test, { afterEach, beforeEach, describe, mock } from "node:test";
+import test, { afterEach, beforeEach, describe } from "node:test";
 
 import { TRPCError, callTRPCProcedure, type AnyRouter } from "@trpc/server";
 
@@ -22,6 +22,7 @@ import {
   type DownloadRecordSource,
 } from "../server/api/routers/download-appcast";
 import type { RateLimitOutcome } from "../lib/rate-limit-gate";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const ORIGIN = "https://download-seam.example.test";
 const FIRST_DMG = "https://downloads.example.test/HyperWhisper-2.0.0.dmg";
@@ -213,16 +214,6 @@ describe("download recorder (#774)", () => {
 // ----------------------------------------------------------------------------
 // The real router, wired to the real disposable list and the global `fetch`.
 // ----------------------------------------------------------------------------
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
-
-/** `mock.module` is untyped under the pinned `@types/node@20`; see the harnesses. */
-interface ModuleMocker {
-  module(specifier: string, options: { namedExports: Record<string, unknown> }): void;
-}
-const moduleMock = mock as unknown as ModuleMocker;
 
 const routerCalls = { upserts: 0, welcomeEmails: [] as string[] };
 
