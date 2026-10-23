@@ -29,12 +29,13 @@ private func notificationSnapshot(
 
 /// Holds a fake scan until the test lets it go. The cap only bounds how long a
 /// failing test runs: at 5 s a stalled runner could let a held scan finish
-/// early and undo the order a test forces (#2455).
+/// early and undo the order a test forces (#2455). It sits above the 120 s
+/// `waitUntil` guard, so it never ends a hold a test is still waiting through.
 private final class NotificationScanGate: @unchecked Sendable {
     private let semaphore = DispatchSemaphore(value: 0)
 
     func wait() {
-        _ = semaphore.wait(timeout: .now() + 100)
+        _ = semaphore.wait(timeout: .now() + 180)
     }
 
     func release() {

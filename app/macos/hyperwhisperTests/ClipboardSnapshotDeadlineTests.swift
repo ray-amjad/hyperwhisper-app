@@ -14,18 +14,20 @@ import os
 import Testing
 @testable import HyperWhisper
 
-/// Holds a stub read until the test lets it go. Never longer than 100 s, so a
+/// Holds a stub read until the test lets it go. Never longer than 180 s, so a
 /// failed test cannot wedge its reader's queue for good. Each test makes its
 /// own reader and queue, so the cap only bounds how long a failing test runs.
 /// #1550: the cap was 5 s, and a test that waits seconds for the busy main
 /// actor in the parallel CI run could see the stub give up before it looked.
 /// #2455: then 20 s, which a 20-90 s runner stall can still outlast.
-/// (The slow-read stub first waits up to 60 s for its main-actor job.)
+/// The cap sits above the tests' 120 s waits, so it never ends a hold a test
+/// is still waiting through. (The slow-read stub first waits up to 100 s for
+/// its main-actor job.)
 private final class SnapshotStubGate: @unchecked Sendable {
     private let semaphore = DispatchSemaphore(value: 0)
 
     func wait() {
-        _ = semaphore.wait(timeout: .now() + 100)
+        _ = semaphore.wait(timeout: .now() + 180)
     }
 
     func release() {
@@ -89,9 +91,9 @@ private final class SnapshotStubProbe: @unchecked Sendable {
             }
             ran.signal()
         }
-        // 60 s, not the 10 s it was: a stalled runner must not
+        // 100 s, not the 10 s it was: a stalled runner must not
         // turn a free main actor into a `false` (#2455).
-        if ran.wait(timeout: .now() + 60) == .timedOut {
+        if ran.wait(timeout: .now() + 100) == .timedOut {
             state.withLock {
                 if $0.mainActorJobRanFirst == nil { $0.mainActorJobRanFirst = false }
             }
@@ -153,7 +155,7 @@ struct ClipboardSnapshotDeadlineTests {
     /// Polls every millisecond for up to 120 s. The bound is a hang guard, not a
     /// deadline: a loaded CI runner can stall the test process for 20-90 s, far
     /// past the old 5,000-iteration (about 5 s) cap (#2455, #2505). It sits
-    /// above the stub's 60 s main-actor wait and the gate's 100 s cap, and the
+    /// above the stub's 100 s main-actor wait, and the
     /// suite's time limit is the backstop.
     private static func waitUntil(
         _ condition: @escaping @Sendable () -> Bool
@@ -227,7 +229,7 @@ struct ClipboardSnapshotDeadlineTests {
 
         // (b) the main actor was free while the stub blocked: the job the stub
         // posted ran before this test got its result. The stub waits up to
-        // 60 s for that job; the wait's 120 s guard is longer than that.
+        // 100 s for that job; the wait's 120 s guard is longer than that.
         #expect(probe.didRunOnMainThread == false)
         if probe.calls == 1 {
             await Self.waitUntil { probe.mainActorJobRanFirst != nil }
