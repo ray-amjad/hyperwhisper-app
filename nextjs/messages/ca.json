@@ -390,6 +390,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Aquest enllaç d'inici de sessió ha caducat o ja s'ha fet servir. Introdueix el teu correu per rebre'n un de nou.",
-    "magicLinkFailed": "No hem pogut iniciar la teva sessió amb aquest enllaç. Introdueix el teu correu per rebre'n un de nou."
+    "magicLinkFailed": "No hem pogut iniciar la teva sessió amb aquest enllaç. Introdueix el teu correu per rebre'n un de nou.",
+    "tooManyAttempts": "Massa intents d'inici de sessió. Espereu {seconds, plural, one {# segon} other {# segons}} i torneu-ho a provar.",
+    "tooManyAttemptsLater": "Massa intents d'inici de sessió. Espereu un minut i torneu-ho a provar."
   }
 }

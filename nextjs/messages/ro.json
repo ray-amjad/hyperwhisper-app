@@ -390,6 +390,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Acest link de conectare a expirat sau a fost deja folosit. Introdu adresa de e-mail pentru a primi unul nou.",
-    "magicLinkFailed": "Nu te-am putut conecta cu acest link. Introdu adresa de e-mail pentru a primi unul nou."
+    "magicLinkFailed": "Nu te-am putut conecta cu acest link. Introdu adresa de e-mail pentru a primi unul nou.",
+    "tooManyAttempts": "Prea multe încercări de conectare. Așteptați {seconds, plural, one {# secundă} few {# secunde} other {# de secunde}} și încercați din nou.",
+    "tooManyAttemptsLater": "Prea multe încercări de conectare. Așteptați un minut și încercați din nou."
   }
 }
