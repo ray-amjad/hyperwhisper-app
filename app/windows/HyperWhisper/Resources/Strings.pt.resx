@@ -875,6 +875,9 @@ Esta ação não pode ser desfeita.</value>
   <data name="recording.cancel.prompt" xml:space="preserve">
     <value>Cancelar?</value>
   </data>
+  <data name="recording.warning.micSilent" xml:space="preserve">
+    <value>Nenhum som de {0}</value>
+  </data>
 
   <!-- Mode Editor - Extended -->
   <data name="mode.editor.section.settings" xml:space="preserve">

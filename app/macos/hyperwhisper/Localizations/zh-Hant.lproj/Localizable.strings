@@ -885,6 +885,7 @@
 "streaming.loading.streaming" = "等待語音中...";
 "streaming.state.reconnecting" = "重新連線中...";
 "recording.stop.help" = "停止錄音 (%@)";
+"recording.warning.micSilent" = "%@ 沒有聲音";
 "recording.retry" = "重試";
 "recording.retry.inProgress" = "重試中…";
 "recording.retry.count" = "重試 (%d)";

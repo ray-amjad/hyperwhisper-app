@@ -2,6 +2,7 @@ using System.IO;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using HyperWhisper.Data.Entities;
+using HyperWhisper.Platform.Abstractions.Audio;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
 
@@ -53,6 +54,13 @@ public class AudioRecorderService : IDisposable
     /// Event raised when audio level changes (0.0 to 1.0).
     /// </summary>
     public event Action<float>? AudioLevelChanged;
+
+    /// <summary>
+    /// Each captured buffer's PEAK in dBFS, read from the raw 16-bit samples
+    /// (#2411). Raised on the NAudio capture thread. Not derived from
+    /// <see cref="AudioLevelChanged"/>, which is smoothed and perceptual.
+    /// </summary>
+    public event Action<double>? BlockPeakDbfs;
 
     /// <summary>
     /// PCM bytes the capture device delivered to the last recording's file,
@@ -220,6 +228,27 @@ public class AudioRecorderService : IDisposable
         _displayedLevel = AudioLevelMath.NextLevel(e.Buffer, e.BytesRecorded, _displayedLevel);
 
         AudioLevelChanged?.Invoke(_displayedLevel);
+
+        if (e.BytesRecorded > 0)
+            RaiseBlockPeak(AudioBlockPeak.Pcm16Dbfs(e.Buffer.AsSpan(0, e.BytesRecorded)));
+    }
+
+    // One bad subscriber must not break the others or the NAudio capture thread (app/windows/CLAUDE.md).
+    private void RaiseBlockPeak(double peakDbfs)
+    {
+        if (BlockPeakDbfs is not { } handlers)
+            return;
+        foreach (var handler in handlers.GetInvocationList())
+        {
+            try
+            {
+                ((Action<double>)handler)(peakDbfs);
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Warn($"{nameof(BlockPeakDbfs)} subscriber failed - {ex.Message}");
+            }
+        }
     }
 
     private void OnRecordingStopped(object? sender, StoppedEventArgs e)

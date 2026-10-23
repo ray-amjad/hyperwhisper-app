@@ -885,6 +885,7 @@
 "streaming.loading.streaming" = "भाषण की प्रतीक्षा की जा रही है...";
 "streaming.state.reconnecting" = "फिर से कनेक्ट किया जा रहा है...";
 "recording.stop.help" = "रिकॉर्डिंग बंद करें (%@)";
+"recording.warning.micSilent" = "%@ से कोई आवाज़ नहीं आ रही";
 "recording.retry" = "पुनः प्रयास करें";
 "recording.retry.inProgress" = "पुनः प्रयास किया जा रहा है…";
 "recording.retry.count" = "पुनः प्रयास (%d)";

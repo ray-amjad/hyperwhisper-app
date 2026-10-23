@@ -926,6 +926,7 @@
 "streaming.loading.streaming" = "Waiting for speech...";
 "streaming.state.reconnecting" = "Reconnecting...";
 "recording.stop.help" = "Stop Recording (%@)";
+"recording.warning.micSilent" = "No sound from %@";
 "recording.retry" = "Retry";
 "recording.retry.inProgress" = "Retrying…";
 "recording.retry.count" = "Retry (%d)";

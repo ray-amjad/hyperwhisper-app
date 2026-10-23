@@ -875,6 +875,9 @@ Tindakan ini tidak dapat dibatalkan.</value>
   <data name="recording.cancel.prompt" xml:space="preserve">
     <value>Batalkan?</value>
   </data>
+  <data name="recording.warning.micSilent" xml:space="preserve">
+    <value>Tidak ada suara dari {0}</value>
+  </data>
 
   <!-- Mode Editor - Extended -->
   <data name="mode.editor.section.settings" xml:space="preserve">

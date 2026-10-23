@@ -24,12 +24,25 @@ internal static class ToastWindowBehavior
     }
 
     /// <summary>
-    /// The overlay's bounds in the DIP of the monitor it is on: the unit
-    /// <see cref="MonitorWorkArea.Place"/> hands a toast's placement. Left/Top
-    /// and size are in the overlay's own DIP, which is that monitor's once it has settled
-    /// there; they are rebased in case it has not (issue #1501).
+    /// What a toast stacks above: the overlay's bounds, grown upward to cover its
+    /// "No sound from {mic}" warning while that shows (#2411), so a toast never
+    /// lands on top of the warning.
     /// </summary>
     public static Rect OverlayBounds(Window overlay)
+    {
+        var bounds = WindowBounds(overlay);
+        if (overlay is RecordingOverlayWindow { VisibleMicSilenceWarning: { } warning })
+            bounds.Union(WindowBounds(warning));
+        return bounds;
+    }
+
+    /// <summary>
+    /// A window's bounds in the DIP of the monitor it is on: the unit
+    /// <see cref="MonitorWorkArea.Place"/> hands a toast's placement. Left/Top
+    /// and size are in the window's own DIP, which is that monitor's once it has settled
+    /// there; they are rebased in case it has not (issue #1501).
+    /// </summary>
+    public static Rect WindowBounds(Window overlay)
     {
         var width = overlay.ActualWidth > 0 ? overlay.ActualWidth : overlay.Width;
         var height = overlay.ActualHeight > 0 ? overlay.ActualHeight : overlay.Height;

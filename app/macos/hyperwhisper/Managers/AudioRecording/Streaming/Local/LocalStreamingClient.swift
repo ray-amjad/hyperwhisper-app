@@ -101,6 +101,8 @@ protocol LocalStreamingEngine {
 protocol StreamingAudioCapturing: AnyObject {
     var onFloat32Samples: (([Float]) -> Void)? { get set }
     var onAudioLevel: ((Float) -> Void)? { get set }
+    /// Peak input level in dBFS, from the tap thread (#2411).
+    var onInputPeakDbfs: ((Float) -> Void)? { get set }
     func start() async throws
     func stop()
 }
@@ -121,6 +123,7 @@ final class LocalStreamingClient<Engine: LocalStreamingEngine>: NSObject, Observ
     var onProviderSuccess: (() -> Void)?
     var onConnectionStateChange: ((StreamingConnectionState) -> Void)?
     var onAudioLevel: ((Float) -> Void)?
+    var onInputPeakDbfs: ((Float) -> Void)?
 
     var transcriptionProviderLabel: String { engine.providerLabel }
 
@@ -291,6 +294,11 @@ final class LocalStreamingClient<Engine: LocalStreamingEngine>: NSObject, Observ
         capture.onAudioLevel = { [weak self] level in
             Task { @MainActor [weak self] in
                 self?.onAudioLevel?(level)
+            }
+        }
+        capture.onInputPeakDbfs = { [weak self] peakDbfs in
+            Task { @MainActor [weak self] in
+                self?.onInputPeakDbfs?(peakDbfs)
             }
         }
         capture.onFloat32Samples = { [weak session] samples in

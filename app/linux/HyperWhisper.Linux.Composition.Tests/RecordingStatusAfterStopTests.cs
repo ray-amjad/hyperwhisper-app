@@ -53,8 +53,9 @@ static class RecordingStatusAfterStopTests
             "the overlay completion mapping changed");
     });
 
-    private static async Task RunAsync(ITextInjectionService textInjection,
-        Func<ApplicationShellViewModel, LinuxInteractionRecordingSession, StatusTestOverlay, Task> body)
+    internal static async Task RunAsync(ITextInjectionService textInjection,
+        Func<ApplicationShellViewModel, LinuxInteractionRecordingSession, StatusTestOverlay, Task> body,
+        HyperWhisper.PortableApplication.Audio.MicSilenceWatcher? micSilence = null)
     {
         var root = Path.Combine(Path.GetTempPath(), $"hw-958-status-{Guid.NewGuid():N}");
         Directory.CreateDirectory(root);
@@ -84,7 +85,7 @@ static class RecordingStatusAfterStopTests
             var session = new LinuxInteractionRecordingSession(
                 shell, workflow, services,
                 new LinuxContextCaptureCoordinator(new FakeContextProvider(), new FakeOcr()),
-                new CapturingPostProcessor(), history, overlay);
+                new CapturingPostProcessor(), history, overlay, micSilence: micSilence);
             await body(shell, session, overlay);
         }
         finally
@@ -162,6 +163,9 @@ sealed class StatusTestOverlay : ILinuxRecordingOverlayFeedback
     public void Cancelled() { }
     public void Failed(LinuxRecordingOverlayError error) { }
     public void ModeChanged(LinuxOverlayModeLabel mode) { }
+    /// <summary>Every "No sound from {mic}" change, in order: the device label, or null for hidden (#2411).</summary>
+    public List<LinuxOverlayMicrophoneLabel?> MicSilence { get; } = [];
+    public void MicSilenceChanged(LinuxOverlayMicrophoneLabel? microphone) { lock (MicSilence) MicSilence.Add(microphone); }
     public void Dispose() { }
 }
 

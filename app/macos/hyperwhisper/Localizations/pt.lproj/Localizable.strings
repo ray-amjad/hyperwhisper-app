@@ -885,6 +885,7 @@ Atualize esses modos para usar um modelo diferente antes de excluir.";
 "streaming.loading.streaming" = "Aguardando fala...";
 "streaming.state.reconnecting" = "Reconectando...";
 "recording.stop.help" = "Parar Gravação (%@)";
+"recording.warning.micSilent" = "Nenhum som de %@";
 "recording.retry" = "Tentar Novamente";
 "recording.retry.inProgress" = "Tentando novamente…";
 "recording.retry.count" = "Tentar Novamente (%d)";

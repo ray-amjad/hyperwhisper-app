@@ -37,6 +37,9 @@ protocol LiveAudioRecording: AnyObject {
     func stop()
     func updateMeters()
     func averagePower(forChannel channelNumber: Int) -> Float
+    /// Peak level in dBFS since the last `updateMeters()` (#2411). `AVAudioRecorder`
+    /// has it built in; `DeviceAudioRecorder` computes it on its tap.
+    func peakPower(forChannel channelNumber: Int) -> Float
     func deleteRecording() -> Bool
 }
 
@@ -232,6 +235,32 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         return max(silentPowerDb, 20 * log10(rms))
     }
 
+    /// Peak (largest absolute sample) of a float buffer in dBFS, floored at
+    /// `silentPowerDb` like `AVAudioRecorder.peakPower(forChannel:)` (#2411).
+    static func peakDb(of buffer: AVAudioPCMBuffer) -> Float {
+        guard let data = buffer.floatChannelData else { return silentPowerDb }
+        let frames = Int(buffer.frameLength)
+        let channels = Int(buffer.format.channelCount)
+        guard frames > 0, channels > 0 else { return silentPowerDb }
+
+        var peak: Float = 0
+        if buffer.format.isInterleaved {
+            let samples = data[0]
+            for i in 0..<(frames * channels) {
+                peak = max(peak, abs(samples[i]))
+            }
+        } else {
+            for channel in 0..<channels {
+                let samples = data[channel]
+                for i in 0..<frames {
+                    peak = max(peak, abs(samples[i]))
+                }
+            }
+        }
+        guard peak > 0, peak.isFinite else { return silentPowerDb }
+        return max(silentPowerDb, 20 * log10(peak))
+    }
+
     // MARK: Properties
 
     /// The chosen device. Restarts try it first, so capture returns to it when it can.
@@ -282,6 +311,10 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     private var file: AVAudioFile?                   // tapLock
     private var pipeline: DeviceCapturePipeline?     // tapLock
     private var lastPowerDb: Float = DeviceAudioRecorder.silentPowerDb  // tapLock
+    /// Loudest block peak since the last `updateMeters()` (#2411).
+    private var pendingPeakDb: Float = DeviceAudioRecorder.silentPowerDb  // tapLock
+    /// The peak `updateMeters()` latched for `peakPower(forChannel:)`.
+    private var latchedPeakDb: Float = DeviceAudioRecorder.silentPowerDb  // tapLock
     private var meteringEnabled = true               // tapLock
     private var writeFailed = false                  // tapLock
 
@@ -404,13 +437,25 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         stopLocked()
     }
 
-    /// The level is computed on the tap thread for every buffer; nothing to refresh.
-    func updateMeters() {}
+    /// The level is computed on the tap thread for every buffer. The peak is the
+    /// loudest block since the previous call, as with `AVAudioRecorder`.
+    func updateMeters() {
+        tapLock.lock()
+        latchedPeakDb = pendingPeakDb
+        pendingPeakDb = Self.silentPowerDb
+        tapLock.unlock()
+    }
 
     func averagePower(forChannel channelNumber: Int) -> Float {
         tapLock.lock()
         defer { tapLock.unlock() }
         return lastPowerDb
+    }
+
+    func peakPower(forChannel channelNumber: Int) -> Float {
+        tapLock.lock()
+        defer { tapLock.unlock() }
+        return latchedPeakDb
     }
 
     func deleteRecording() -> Bool {
@@ -566,6 +611,8 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         // header. Nothing else holds one: the tap only reads `file` under this lock.
         file = nil
         lastPowerDb = Self.silentPowerDb
+        pendingPeakDb = Self.silentPowerDb
+        latchedPeakDb = Self.silentPowerDb
         tapLock.unlock()
     }
 
@@ -599,6 +646,7 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
 
         if meteringEnabled {
             lastPowerDb = Self.powerDb(of: source)
+            pendingPeakDb = max(pendingPeakDb, Self.peakDb(of: source))
         }
         guard file != nil, !writeFailed else { return }
         pipeline.convert(source) { converted in

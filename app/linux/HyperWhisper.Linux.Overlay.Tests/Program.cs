@@ -25,6 +25,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("render and dispatch failures never escape", FailuresAreBestEffort),
     ("dispose cancels feedback and owns surface lifetime", DisposalIsSafe),
     ("public event API cannot accept content payloads", PublicApiIsContentFree),
+    ("mic silence warning shows alongside the live recording face (#2411)", MicSilenceWarningKeepsTheLiveFace),
+    ("mic silence warning shows on the streaming face and waits out a cancel prompt (#2411)", MicSilenceWarningOnStreamingAndPrompts),
+    ("mic silence warning is gone when the recording ends or a new one starts (#2411)", MicSilenceWarningEndsWithTheRecording),
     ("placement defaults to safe bottom center", PlacementDefaultsSafely),
     ("placement restores across work areas and scales", PlacementRestoresAcrossScales),
     ("invalid and offscreen placement is clamped", PlacementIsValidatedAndClamped),
@@ -368,8 +371,109 @@ static Task PublicApiIsContentFree()
     Assert(methods.Select(method => method.Name).Order().SequenceEqual(
         new[] { "Cancel", "DismissCancelConfirmation", "Dispose", "Hide", "ShowCancelConfirmation",
             "ShowCompletion", "ShowError", "ShowModeChanged", "ShowRecording", "ShowStreaming",
-            "ShowTranscribing", "UpdateAudioLevel", "UpdateStreamingConnection" }.Order()),
+            "ShowTranscribing", "UpdateAudioLevel", "UpdateStreamingConnection",
+            "ShowMicSilence", "HideMicSilence" }.Order()),
         "controller public event surface drifted");
+    return Task.CompletedTask;
+}
+
+static Task MicSilenceWarningKeepsTheLiveFace()
+{
+    var now = DateTimeOffset.Parse("2026-01-01T00:00:00Z");
+    using var fixture = OverlayFixture.Create(() => now);
+    var recording = TestText.Get("linux.overlay.recording");
+    // Before any recording there is no live face to warn on.
+    fixture.Controller.ShowMicSilence(LinuxOverlayMicrophoneLabel.Create("USB Mic"));
+    Assert(!fixture.ViewModel.IsVisible && !fixture.ViewModel.IsMicSilent, "a warning showed with no recording");
+
+    fixture.Controller.ShowRecording(LinuxOverlayModeLabel.Create("Default"));
+    fixture.Controller.UpdateAudioLevel(.1f);
+    now = now.AddSeconds(2);
+    fixture.Controller.TickDuration();
+    fixture.Controller.ShowMicSilence(LinuxOverlayMicrophoneLabel.Create("USB Mic"));
+    Assert(fixture.ViewModel.IsRecording, "the warning replaced the recording face instead of joining it");
+    Assert(fixture.ViewModel.StatusText == "No sound from USB Mic",
+        $"the warning read '{fixture.ViewModel.StatusText}', not 'No sound from USB Mic'");
+    Assert(fixture.ViewModel.IsMicSilent && fixture.ViewModel.StatusForeground == "#FFFFC107",
+        $"the warning is not amber: {fixture.ViewModel.StatusForeground}");
+    Assert(fixture.ViewModel.ModeText == "Default" && fixture.ViewModel.DurationText == "00:02"
+        && fixture.ViewModel.AudioLevel > 0, "the mode, duration or levels left the live face with the warning");
+
+    // Level and duration ticks keep it up; it stays one line, whatever the name.
+    now = now.AddSeconds(1);
+    fixture.Controller.TickDuration();
+    fixture.Controller.UpdateAudioLevel(0);
+    Assert(fixture.ViewModel.IsMicSilent && fixture.ViewModel.DurationText == "00:03", "a tick dropped the warning");
+
+    fixture.Controller.HideMicSilence();
+    Assert(fixture.ViewModel.IsRecording && !fixture.ViewModel.IsMicSilent && fixture.ViewModel.StatusText == recording
+        && fixture.ViewModel.StatusForeground == "#F2FFFFFF", "sound did not bring the recording status back");
+
+    // A nameless device still reads as a sentence; control characters never reach the pill.
+    fixture.Controller.ShowMicSilence(LinuxOverlayMicrophoneLabel.Create("  \r\n "));
+    Assert(fixture.ViewModel.StatusText == "No sound from " + TestText.Get("menu.microphone"),
+        $"a nameless device read '{fixture.ViewModel.StatusText}'");
+    var label = LinuxOverlayMicrophoneLabel.Create("Mic\0\nArray " + new string('x', 200));
+    Assert(label.Value.Length == LinuxOverlayMicrophoneLabel.MaximumCharacters && !label.Value.Any(char.IsControl),
+        $"the microphone label was not bounded and control-free: {label.Value.Length}");
+    return Task.CompletedTask;
+}
+
+static async Task MicSilenceWarningOnStreamingAndPrompts()
+{
+    using var fixture = OverlayFixture.Create();
+    fixture.Controller.ShowStreaming(LinuxOverlayModeLabel.Create("Live"));
+    fixture.Controller.ShowMicSilence(LinuxOverlayMicrophoneLabel.Create("Headset"));
+    Assert(fixture.ViewModel.IsStreaming && fixture.ViewModel.StatusText == "No sound from Headset",
+        $"streaming showed '{fixture.ViewModel.StatusText}'");
+    fixture.Controller.UpdateStreamingConnection(LinuxStreamingOverlayConnectionState.Connected);
+    Assert(fixture.ViewModel.IsMicSilent && fixture.ViewModel.StreamingIndicatorBrush == "#FF34C759",
+        "a connection change dropped the warning or the connection colour");
+    fixture.Controller.HideMicSilence();
+    Assert(fixture.ViewModel.StatusText == TestText.Get("recording.state.streaming"), "streaming status did not return");
+
+    // Batch: a cancel prompt keeps its face; the warning is back when the prompt is dismissed.
+    fixture.Controller.ShowRecording(LinuxOverlayModeLabel.Create("Default"));
+    fixture.Controller.ShowCancelConfirmation();
+    fixture.Controller.ShowMicSilence(LinuxOverlayMicrophoneLabel.Create("USB Mic"));
+    Assert(fixture.ViewModel.IsCancelConfirmation && !fixture.ViewModel.IsMicSilent,
+        "the warning painted over the cancel prompt");
+    fixture.Controller.DismissCancelConfirmation();
+    Assert(fixture.ViewModel.IsRecording && fixture.ViewModel.IsMicSilent, "the warning did not return with the live face");
+
+    // A mode toast likewise.
+    fixture.Controller.ShowModeChanged(LinuxOverlayModeLabel.Create("Email"));
+    Assert(fixture.ViewModel.IsModeChanged && !fixture.ViewModel.IsMicSilent, "the warning painted over the mode toast");
+    fixture.Delay.CompleteLatest();
+    await WaitUntil(() => fixture.ViewModel.State == LinuxRecordingOverlayState.Recording);
+    Assert(fixture.ViewModel.IsMicSilent, "the warning did not return after the mode toast");
+}
+
+static Task MicSilenceWarningEndsWithTheRecording()
+{
+    using var fixture = OverlayFixture.Create();
+    foreach (var end in new Action[]
+    {
+        fixture.Controller.ShowTranscribing,
+        fixture.Controller.Cancel,
+        fixture.Controller.Hide,
+        () => fixture.Controller.ShowError(LinuxRecordingOverlayError.RecordingFailed),
+        () => fixture.Controller.ShowCompletion(LinuxRecordingOverlayCompletion.Pasted),
+    })
+    {
+        fixture.Controller.ShowRecording(LinuxOverlayModeLabel.Create("Default"));
+        fixture.Controller.ShowMicSilence(LinuxOverlayMicrophoneLabel.Create("USB Mic"));
+        end();
+        Assert(!fixture.ViewModel.IsMicSilent && !fixture.ViewModel.StatusText.Contains("USB Mic"),
+            $"the warning outlived the recording into {fixture.ViewModel.State}");
+        // A warning that arrives after the recording ended is ignored.
+        fixture.Controller.ShowMicSilence(LinuxOverlayMicrophoneLabel.Create("USB Mic"));
+        Assert(!fixture.ViewModel.IsMicSilent, $"a late warning painted over {fixture.ViewModel.State}");
+        // The next recording starts clean.
+        fixture.Controller.ShowRecording(LinuxOverlayModeLabel.Create("Default"));
+        Assert(!fixture.ViewModel.IsMicSilent && fixture.ViewModel.StatusText == TestText.Get("linux.overlay.recording"),
+            "a new recording kept the last recording's warning");
+    }
     return Task.CompletedTask;
 }
 

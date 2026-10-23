@@ -102,6 +102,14 @@ class StreamingAudioCapture {
     /// The receiver must hop to the main actor before touching UI state.
     var onAudioLevel: ((Float) -> Void)?
 
+    /// Callback invoked with the PEAK input level in dBFS (largest absolute sample
+    /// since the previous call; -infinity for digital silence), for the live
+    /// "mic hears nothing" warning (#2411).
+    ///
+    /// Called from the audio engine's real-time tap thread, on the same ~30 FPS
+    /// cadence as `onAudioLevel`. The receiver must hop to the main actor.
+    var onInputPeakDbfs: ((Float) -> Void)?
+
     /// Whether the audio engine is currently running and capturing audio.
     var isRunning: Bool {
         audioEngine?.isRunning ?? false
@@ -162,6 +170,10 @@ class StreamingAudioCapture {
 
     /// Last time an audio level was emitted, in monotonic nanoseconds.
     private var lastAudioLevelEmitTimeNanos: UInt64 = 0
+
+    /// Largest absolute sample since the last `onInputPeakDbfs` emission, so the
+    /// throttle never drops a loud block from the peak (#2411). Tap thread only.
+    private var pendingPeakAmplitude: Float = 0
 
     private let minMeterDb: Float = -60.0
     private let maxMeterDb: Float = 0.0
@@ -377,7 +389,7 @@ class StreamingAudioCapture {
         // nor the Float32 on-device path is listening.
         let wantsInt16 = onAudioData != nil
         let wantsFloat32 = onFloat32Samples != nil
-        let wantsAudioLevel = onAudioLevel != nil
+        let wantsAudioLevel = onAudioLevel != nil || onInputPeakDbfs != nil
         guard wantsInt16 || wantsFloat32 || wantsAudioLevel else { return }
 
         var bufferToConvert: AVAudioPCMBuffer = inputBuffer
@@ -506,7 +518,14 @@ class StreamingAudioCapture {
 
     /// Emit a normalized meter value without doing UI work on the audio thread.
     private func emitAudioLevelIfNeeded(from buffer: AVAudioPCMBuffer) {
-        guard let sink = onAudioLevel else { return }
+        let levelSink = onAudioLevel
+        let peakSink = onInputPeakDbfs
+        guard levelSink != nil || peakSink != nil else { return }
+
+        // Every block counts toward the peak, including the ones the throttle skips.
+        if peakSink != nil, let peak = Self.peakAmplitude(from: buffer) {
+            pendingPeakAmplitude = max(pendingPeakAmplitude, peak)
+        }
 
         let now = DispatchTime.now().uptimeNanoseconds
         if lastAudioLevelEmitTimeNanos != 0,
@@ -514,6 +533,13 @@ class StreamingAudioCapture {
             return
         }
         lastAudioLevelEmitTimeNanos = now
+
+        if let peakSink {
+            peakSink(SilentMicrophoneWatcher.peakDbfs(maxAbsoluteSample: pendingPeakAmplitude))
+            pendingPeakAmplitude = 0
+        }
+
+        guard let sink = levelSink else { return }
 
         guard let rms = Self.rmsLevel(from: buffer), rms > 0 else {
             sink(0)
@@ -531,6 +557,52 @@ class StreamingAudioCapture {
         }
 
         sink(normalized)
+    }
+
+    /// Largest absolute sample in the tapped buffer, full scale 1.0, without
+    /// allocating on the audio thread (#2411). Nil for an empty or unknown buffer.
+    private static func peakAmplitude(from buffer: AVAudioPCMBuffer) -> Float? {
+        let frameCount = Int(buffer.frameLength)
+        let channelCount = Int(buffer.format.channelCount)
+        guard frameCount > 0, channelCount > 0 else { return nil }
+        // Interleaved data lives in one pointer; non-interleaved in one per channel.
+        let pointerCount = buffer.format.isInterleaved ? 1 : channelCount
+        let samplesPerPointer = buffer.format.isInterleaved ? frameCount * channelCount : frameCount
+
+        var peak: Float = 0
+        switch buffer.format.commonFormat {
+        case .pcmFormatFloat32:
+            guard let channelData = buffer.floatChannelData else { return nil }
+            for pointer in 0..<pointerCount {
+                let samples = channelData[pointer]
+                for i in 0..<samplesPerPointer {
+                    peak = max(peak, abs(samples[i]))
+                }
+            }
+        case .pcmFormatInt16:
+            guard let channelData = buffer.int16ChannelData else { return nil }
+            var largest: Int32 = 0
+            for pointer in 0..<pointerCount {
+                let samples = channelData[pointer]
+                for i in 0..<samplesPerPointer {
+                    largest = max(largest, abs(Int32(samples[i])))
+                }
+            }
+            peak = Float(largest) / Float(Int16.max)
+        case .pcmFormatInt32:
+            guard let channelData = buffer.int32ChannelData else { return nil }
+            var largest: Int64 = 0
+            for pointer in 0..<pointerCount {
+                let samples = channelData[pointer]
+                for i in 0..<samplesPerPointer {
+                    largest = max(largest, abs(Int64(samples[i])))
+                }
+            }
+            peak = Float(Double(largest) / Double(Int32.max))
+        default:
+            return nil
+        }
+        return peak.isFinite ? peak : nil
     }
 
     /// Compute RMS from the tapped buffer without allocating on the audio thread.

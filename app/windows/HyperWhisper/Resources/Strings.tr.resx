@@ -875,6 +875,9 @@ Bu işlem geri alınamaz.</value>
   <data name="recording.cancel.prompt" xml:space="preserve">
     <value>İptal edilsin mi?</value>
   </data>
+  <data name="recording.warning.micSilent" xml:space="preserve">
+    <value>{0} cihazından ses gelmiyor</value>
+  </data>
 
   <!-- Mode Editor - Extended -->
   <data name="mode.editor.section.settings" xml:space="preserve">

@@ -1,0 +1,35 @@
+<Window x:Class="HyperWhisper.Views.Windows.MicSilenceWarningWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="200" Height="26"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Focusable="False"
+        IsHitTestVisible="False"
+        ResizeMode="NoResize"
+        WindowStartupLocation="Manual">
+
+    <!-- "No sound from {mic}" (#2411): one amber line in a slim pill just above the
+         recording overlay, so the overlay's waveform and stop button stay as they are. -->
+    <Border x:Name="MainBorder"
+            CornerRadius="13"
+            Background="#D9000000"
+            BorderBrush="#66FFC107"
+            BorderThickness="1">
+        <TextBlock x:Name="WarningText"
+                   FontSize="11.5"
+                   FontWeight="Medium"
+                   Foreground="#FFFFC107"
+                   VerticalAlignment="Center"
+                   HorizontalAlignment="Center"
+                   TextAlignment="Center"
+                   TextTrimming="CharacterEllipsis"
+                   TextWrapping="NoWrap"
+                   MaxWidth="180"
+                   Margin="10,0"/>
+    </Border>
+</Window>

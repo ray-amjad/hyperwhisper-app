@@ -129,6 +129,9 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// Called with normalized input levels for waveform visualization.
     var onAudioLevel: ((Float) -> Void)?
 
+    /// Called with the peak input level in dBFS for the silent-mic warning (#2411).
+    var onInputPeakDbfs: ((Float) -> Void)?
+
     // MARK: - Private Properties
 
     /// Logger for streaming operations
@@ -1242,6 +1245,11 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         capture.onAudioLevel = { [weak self] level in
             Task { @MainActor [weak self] in
                 self?.onAudioLevel?(level)
+            }
+        }
+        capture.onInputPeakDbfs = { [weak self] peakDbfs in
+            Task { @MainActor [weak self] in
+                self?.onInputPeakDbfs?(peakDbfs)
             }
         }
     }

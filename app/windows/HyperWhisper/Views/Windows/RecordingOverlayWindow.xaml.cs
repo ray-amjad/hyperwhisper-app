@@ -135,6 +135,15 @@ public partial class RecordingOverlayWindow : Window
     /// </summary>
     private readonly EventHandler<Mode> _modeSelectedHandler;
 
+    // "No sound from {mic}" (#2411): the text while the recording hears nothing,
+    // else null, and the slim window above the pill that shows it. It shows only
+    // while the pill shows its live recording face.
+    private string? _micSilenceText;
+    private MicSilenceWarningWindow? _micSilenceWindow;
+
+    /// <summary>The warning window while it is on screen, so toasts stack above it.</summary>
+    internal Window? VisibleMicSilenceWarning => _micSilenceWindow is { IsVisible: true } window ? window : null;
+
     public RecordingOverlayWindow()
     {
         InitializeComponent();
@@ -341,6 +350,7 @@ public partial class RecordingOverlayWindow : Window
     public void ShowRecording()
     {
         _deferredHide.Supersede();
+        _micSilenceText = null;
         MainBorder.BorderBrush = new SolidColorBrush(WpfColor.FromArgb(26, 255, 255, 255));
         StreamingDot.Visibility = Visibility.Collapsed;
         _smoothedLevel = 0;
@@ -364,6 +374,7 @@ public partial class RecordingOverlayWindow : Window
         PositionOverlay();
 
         Show();
+        RefreshMicSilenceWarning();
         LoggingService.Debug("RecordingOverlayWindow: Shown in recording state");
     }
 
@@ -451,6 +462,7 @@ public partial class RecordingOverlayWindow : Window
 
             _animationTimer.Stop();
             _spinnerStoryboard?.Begin();
+            RefreshMicSilenceWarning();
         });
 
         LoggingService.Debug($"RecordingOverlayWindow: Showing status '{StatusText.Text}'");
@@ -471,6 +483,7 @@ public partial class RecordingOverlayWindow : Window
 
             _animationTimer.Stop();
             _spinnerStoryboard?.Stop();
+            RefreshMicSilenceWarning();
         });
 
         LoggingService.Debug("RecordingOverlayWindow: Showing success state");
@@ -492,6 +505,7 @@ public partial class RecordingOverlayWindow : Window
 
             _animationTimer.Stop();
             _spinnerStoryboard?.Stop();
+            RefreshMicSilenceWarning();
         });
 
         LoggingService.Debug("RecordingOverlayWindow: Showing copied state");
@@ -506,6 +520,8 @@ public partial class RecordingOverlayWindow : Window
         _animationTimer.Stop();
         _spinnerStoryboard?.Stop();
         _isShowingCancelConfirmation = false;
+        _micSilenceText = null;
+        _micSilenceWindow?.Hide();
         base.Hide();
         LoggingService.Debug("RecordingOverlayWindow: Hidden");
     }
@@ -542,6 +558,7 @@ public partial class RecordingOverlayWindow : Window
 
             // Stop waveform animation while showing confirmation
             _animationTimer.Stop();
+            RefreshMicSilenceWarning();
 
             // Temporarily remove WS_EX_NOACTIVATE so the window can receive keyboard input for Yes/No
             var helper = new WindowInteropHelper(this);
@@ -573,9 +590,40 @@ public partial class RecordingOverlayWindow : Window
 
             // Resume waveform animation
             _animationTimer.Start();
+            RefreshMicSilenceWarning();
         });
 
         LoggingService.Debug("RecordingOverlayWindow: Hidden cancel confirmation, resumed recording");
+    }
+
+    /// <summary>
+    /// Shows "No sound from {mic}" above the pill while the recording hears nothing
+    /// (#2411), or hides it with null. The waveform and stop button stay as they are.
+    /// </summary>
+    public void SetMicSilenceWarning(string? text)
+    {
+        _micSilenceText = string.IsNullOrWhiteSpace(text) ? null : text;
+        RefreshMicSilenceWarning();
+    }
+
+    /// <summary>
+    /// The warning shows only with the live recording face: never over the cancel
+    /// prompt, the transcribing spinner or a result, and never once hidden.
+    /// </summary>
+    private void RefreshMicSilenceWarning()
+    {
+        var show = _micSilenceText is not null
+                   && IsVisible
+                   && RecordingState.Visibility == Visibility.Visible
+                   && !_isShowingCancelConfirmation;
+        if (!show)
+        {
+            _micSilenceWindow?.Hide();
+            return;
+        }
+
+        _micSilenceWindow ??= new MicSilenceWarningWindow();
+        _micSilenceWindow.ShowAbove(this, _micSilenceText!);
     }
 
     // ========================================================================
@@ -661,6 +709,9 @@ public partial class RecordingOverlayWindow : Window
     private void OnLocationChanged(object? sender, EventArgs e)
     {
         if (!IsVisible) return;
+
+        // The warning above the pill follows it while it is dragged.
+        _micSilenceWindow?.PositionAbove(this);
 
         // Debounce: restart timer on each move to coalesce rapid updates
         if (_positionSaveTimer == null)
@@ -760,6 +811,9 @@ public partial class RecordingOverlayWindow : Window
 
         // Unsubscribe from mode events to prevent memory leaks
         ModeService.Instance.ModeSelected -= _modeSelectedHandler;
+
+        _micSilenceWindow?.Close();
+        _micSilenceWindow = null;
 
         base.OnClosed(e);
     }

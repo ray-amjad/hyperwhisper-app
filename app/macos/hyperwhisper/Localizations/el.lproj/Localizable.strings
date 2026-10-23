@@ -885,6 +885,7 @@
 "streaming.loading.streaming" = "Αναμονή για ομιλία...";
 "streaming.state.reconnecting" = "Σύνδεση ξανά...";
 "recording.stop.help" = "Διακοπή Εγγραφής (%@)";
+"recording.warning.micSilent" = "Δεν ακούγεται ήχος από %@";
 "recording.retry" = "Δοκιμάστε ξανά";
 "recording.retry.inProgress" = "Δοκιμή ξανά…";
 "recording.retry.count" = "Δοκιμή (%d)";

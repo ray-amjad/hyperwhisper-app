@@ -885,6 +885,7 @@ Aggiorna queste modalità per usare un modello diverso prima di eliminarlo.";
 "streaming.loading.streaming" = "In attesa di parlato...";
 "streaming.state.reconnecting" = "Riconnessione...";
 "recording.stop.help" = "Interrompi Registrazione (%@)";
+"recording.warning.micSilent" = "Nessun suono da %@";
 "recording.retry" = "Riprova";
 "recording.retry.inProgress" = "Nuovo tentativo…";
 "recording.retry.count" = "Riprova (%d)";

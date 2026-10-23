@@ -322,6 +322,7 @@ public partial class MainViewModel : ViewModelBase
         };
 
         _recorderService.AudioLevelChanged += _audioLevelHandler;
+        AttachMicSilenceWatcher();
         _transcriptionOrchestrator.PostProcessingWarning += _orchestratorWarningHandler;
 
         _pushToTalkMonitor.Pressed += OnPushToTalkPressed;
@@ -1234,6 +1235,8 @@ public partial class MainViewModel : ViewModelBase
 
     partial void OnIsRecordingChanged(bool value)
     {
+        UpdateMicSilenceWatcher(value);
+
         // Keep-warm for local Whisper (issue #1194): the worker process starts and
         // loads the model while the user speaks, and cannot idle out mid-recording.
         if (value)
@@ -3362,6 +3365,7 @@ public partial class MainViewModel : ViewModelBase
         _activeTranscriptionCts = null;
 
         _recorderService.AudioLevelChanged -= _audioLevelHandler;
+        DetachMicSilenceWatcher();
         _pushToTalkMonitor.Pressed -= OnPushToTalkPressed;
         _pushToTalkMonitor.Released -= OnPushToTalkReleased;
         _pushToTalkMonitor.Interfered -= OnPushToTalkInterfered;
