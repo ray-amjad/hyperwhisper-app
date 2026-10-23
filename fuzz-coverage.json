@@ -712,6 +712,22 @@
       ],
       "licensed": false,
       "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY in #hw-qa). Filed #2484 API Keys raw error code + Stored: True/False; commented #2226 Home stays highlighted. Vocabulary dedupe/trim OK; emoji typing via xdotool did not land (driver, not app). Modes: Codex spent steps on create/edit, never reached switch/delete active mode - push that next time. English Spelling empty combo is deliberate (ModesViewModel.Editor.cs:288)."
+    },
+    {
+      "at": "2026-10-23T05:33:39Z",
+      "platform": "linux",
+      "commit": "72b057db",
+      "routes": [
+        "core-settings",
+        "licence",
+        "onboarding"
+      ],
+      "status": "1-filed",
+      "issues": [
+        2514
+      ],
+      "licensed": false,
+      "note": "unlicensed (no account key in #hw-qa). onboarding: wizard back/forward/skip/Escape clean. core-settings: General+Sound toggles, autostart .desktop written/removed, dark theme persists over relaunch. licence: fake/lowercase/empty keys -> 'License key not found', Activate disabled when empty; Get Credits toast only because box has no xdg-open (env). Codex stalled once (no JSON) on licence; re-driven."
     }
   ]
 }
