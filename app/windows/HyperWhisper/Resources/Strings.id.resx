@@ -311,6 +311,42 @@
   <data name="vocabulary.replacement.field.placeholder" xml:space="preserve">
     <value>Teks pengganti…</value>
   </data>
+  <data name="vocabulary.transfer.import" xml:space="preserve">
+    <value>Impor...</value>
+  </data>
+  <data name="vocabulary.transfer.export" xml:space="preserve">
+    <value>Ekspor...</value>
+  </data>
+  <data name="vocabulary.transfer.import.dialogTitle" xml:space="preserve">
+    <value>Impor Kosakata</value>
+  </data>
+  <data name="vocabulary.transfer.export.dialogTitle" xml:space="preserve">
+    <value>Ekspor Kosakata</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.any" xml:space="preserve">
+    <value>File kosakata (CSV atau TXT)</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.csv" xml:space="preserve">
+    <value>File CSV</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.txt" xml:space="preserve">
+    <value>File teks</value>
+  </data>
+  <data name="vocabulary.transfer.imported" xml:space="preserve">
+    <value>Kosakata diimpor. Ditambahkan: {0}, diperbarui: {1}, dilewati (lebih dari 1000 karakter): {2}.</value>
+  </data>
+  <data name="vocabulary.transfer.exported" xml:space="preserve">
+    <value>Kosakata diekspor ke {0}.</value>
+  </data>
+  <data name="vocabulary.transfer.importFailed" xml:space="preserve">
+    <value>File ini tidak dapat dibaca. Pilih file CSV atau TXT berformat UTF-8.</value>
+  </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>Kosakata tidak dapat disimpan. Tidak ada yang diimpor.</value>
+  </data>
+  <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
+    <value>Kosakata tidak dapat diekspor.</value>
+  </data>
 
   <!-- Settings Page -->
   <data name="settings.title" xml:space="preserve">

@@ -85,6 +85,7 @@ public sealed class VocabularyViewModel : ViewModelBase
     public Task AddAsync(CancellationToken cancellationToken = default) => SaveAsync(cancellationToken);
     public async Task SaveAsync(CancellationToken cancellationToken = default)
     {
+        TransferMessage = string.Empty;
         if (string.IsNullOrWhiteSpace(Word)) { Status.Failure("vocabulary.word_required", "Enter a word or phrase."); NotifyDerived(); return; }
         // Issue #1777: a pasted multi-line text is one word per non-empty line. The first line
         // takes the row being edited (if any); every line carries the same replacement, which
@@ -119,38 +120,107 @@ public sealed class VocabularyViewModel : ViewModelBase
     }
     public async Task DeleteAsync(VocabularyItem? item, CancellationToken cancellationToken = default)
     {
+        TransferMessage = string.Empty;
         if (item == null) { Status.Failure("vocabulary.no_selection", "Select a vocabulary item to delete."); return; }
         try { if (await _repository.DeleteAsync(item.Id, cancellationToken)) { Items.Remove(item); Status.Success("Vocabulary deleted"); } else Status.Failure("vocabulary.not_found", "The vocabulary item no longer exists."); }
         catch (Exception) { Status.Failure("vocabulary.delete_failed", "Could not delete the vocabulary item."); }
         NotifyDerived();
     }
 
-    public async Task ImportAsync(CancellationToken cancellationToken = default)
+    /// <summary>
+    /// The page's localizer, set by the head: it turns a catalog key into the head's text, or
+    /// null when the key is missing. Unset, the English text is used.
+    /// </summary>
+    public Func<string, string?>? Localize { get; set; }
+
+    private string _transferMessage = string.Empty;
+
+    /// <summary>The result line of the last import or export; blank until one succeeds (#2409).</summary>
+    public string TransferMessage
     {
-        if (!Path.IsPathFullyQualified(TransferPath)) { Status.Failure("vocabulary.path_required", "Choose a vocabulary file."); return; }
-        try
-        {
-            var lines = await File.ReadAllLinesAsync(TransferPath, cancellationToken);
-            var items = lines.Select((line, index) => line.Split('\t', 2) switch
-            {
-                var fields => new VocabularyItem { Word = fields[0].Trim(), Replacement = fields.Length > 1 ? fields[1].Trim() : null, SortOrder = index }
-            }).Where(item => item.Word.Length > 0);
-            var count = await _repository.MergeAsync(items, cancellationToken);
-            await RefreshAsync(cancellationToken);
-            Status.Success($"Imported {Plural.Count(count, "term", "terms")}; duplicates merged");
-        }
-        catch (Exception) { Status.Failure("vocabulary.import_failed", "Could not import vocabulary."); }
+        get => _transferMessage;
+        private set { if (Set(ref _transferMessage, value)) Notify(nameof(HasTransferMessage)); }
     }
 
-    public async Task ExportAsync(CancellationToken cancellationToken = default)
+    public bool HasTransferMessage => TransferMessage.Length > 0;
+
+    /// <summary>What the last successful import did; null before one.</summary>
+    public VocabularyImportResult? LastImport { get; private set; }
+
+    private string Text(string key, string english, params object?[] arguments)
     {
-        if (!Path.IsPathFullyQualified(TransferPath)) { Status.Failure("vocabulary.path_required", "Choose an export file."); return; }
+        string? template;
+        // A head's localizer may throw on a key it lacks (Linux GetRequired); English then.
+        try { template = Localize?.Invoke(key); }
+        catch (Exception) { template = null; }
+        if (string.IsNullOrEmpty(template)) template = english;
+        try { return arguments.Length == 0 ? template : string.Format(System.Globalization.CultureInfo.CurrentCulture, template, arguments); }
+        catch (FormatException) { return string.Format(System.Globalization.CultureInfo.InvariantCulture, english, arguments); }
+    }
+
+    /// <summary>
+    /// Imports a CSV or TXT file (#2409; the extension picks the format) and merges it into the
+    /// list: new words are appended in file order, a listed word keeps its spelling and position
+    /// and takes the file's replacement only when the file gives one. A file that is unreadable or
+    /// not UTF-8 shows the error line and writes nothing.
+    /// </summary>
+    public async Task ImportAsync(string? path = null, CancellationToken cancellationToken = default)
+    {
+        path ??= TransferPath;
+        TransferMessage = string.Empty;
+        if (!Path.IsPathFullyQualified(path)) { Status.Failure("vocabulary.path_required", "Choose a vocabulary file."); NotifyDerived(); return; }
+        VocabularyTransferParse parsed;
         try
         {
-            var lines = (await _repository.ListAsync(cancellationToken)).Select(item => $"{item.Word}\t{item.Replacement ?? string.Empty}");
-            await File.WriteAllLinesAsync(TransferPath, lines, cancellationToken);
-            Status.Success("Vocabulary exported");
+            var bytes = await File.ReadAllBytesAsync(path, cancellationToken);
+            parsed = VocabularyTransfer.Read(VocabularyTransfer.FormatForPath(path), VocabularyTransfer.Decode(bytes));
         }
-        catch (Exception) { Status.Failure("vocabulary.export_failed", "Could not export vocabulary."); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or VocabularyTransferException)
+        {
+            Status.Failure("vocabulary.import_unreadable", Text("vocabulary.transfer.importFailed", "Could not read this file. Choose a UTF-8 CSV or TXT file."));
+            NotifyDerived();
+            return;
+        }
+        try
+        {
+            var result = await _repository.ImportAsync(parsed, cancellationToken);
+            await RefreshAsync(cancellationToken);
+            LastImport = result;
+            Status.Success("Vocabulary imported");
+            TransferMessage = Text("vocabulary.transfer.imported",
+                "Vocabulary imported. Added: {0}, updated: {1}, skipped (over 1000 characters): {2}.",
+                result.Added, result.Updated, result.Skipped);
+        }
+        // The file parsed; a failure here is the database, not the file.
+        catch (Exception) { Status.Failure("vocabulary.import_save_failed", Text("vocabulary.transfer.saveFailed", "The vocabulary could not be saved. Nothing was imported.")); }
+        NotifyDerived();
+    }
+
+    /// <summary>
+    /// Exports the list in the page's order as CSV, or as TXT when the path ends in .txt (#2409).
+    /// The file is written beside its target and moved over it, so a failed write leaves any
+    /// earlier file whole.
+    /// </summary>
+    public async Task ExportAsync(string? path = null, CancellationToken cancellationToken = default)
+    {
+        path ??= TransferPath;
+        TransferMessage = string.Empty;
+        if (!Path.IsPathFullyQualified(path)) { Status.Failure("vocabulary.path_required", "Choose an export file."); NotifyDerived(); return; }
+        var temporary = path + ".tmp-" + Guid.NewGuid().ToString("N");
+        try
+        {
+            var entries = VocabularyTransfer.ToEntries(await _repository.ListAsync(cancellationToken));
+            var text = VocabularyTransfer.Write(VocabularyTransfer.FormatForPath(path), entries);
+            await File.WriteAllBytesAsync(temporary, VocabularyTransfer.Encode(text), cancellationToken);
+            File.Move(temporary, path, overwrite: true);
+            Status.Success("Vocabulary exported");
+            TransferMessage = Text("vocabulary.transfer.exported", "Vocabulary exported to {0}.", Path.GetFileName(path));
+        }
+        catch (Exception)
+        {
+            try { File.Delete(temporary); } catch (Exception) { /* best effort */ }
+            Status.Failure("vocabulary.export_failed", Text("vocabulary.transfer.exportFailed", "Could not export the vocabulary."));
+        }
+        NotifyDerived();
     }
 }

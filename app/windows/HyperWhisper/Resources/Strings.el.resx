@@ -311,6 +311,42 @@
   <data name="vocabulary.replacement.field.placeholder" xml:space="preserve">
     <value>Κείμενο αντικατάστασης…</value>
   </data>
+  <data name="vocabulary.transfer.import" xml:space="preserve">
+    <value>Εισαγωγή...</value>
+  </data>
+  <data name="vocabulary.transfer.export" xml:space="preserve">
+    <value>Εξαγωγή...</value>
+  </data>
+  <data name="vocabulary.transfer.import.dialogTitle" xml:space="preserve">
+    <value>Εισαγωγή λεξιλογίου</value>
+  </data>
+  <data name="vocabulary.transfer.export.dialogTitle" xml:space="preserve">
+    <value>Εξαγωγή λεξιλογίου</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.any" xml:space="preserve">
+    <value>Αρχείο λεξιλογίου (CSV ή TXT)</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.csv" xml:space="preserve">
+    <value>Αρχείο CSV</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.txt" xml:space="preserve">
+    <value>Αρχείο κειμένου</value>
+  </data>
+  <data name="vocabulary.transfer.imported" xml:space="preserve">
+    <value>Το λεξιλόγιο εισήχθη. Προστέθηκαν: {0}, ενημερώθηκαν: {1}, παραλείφθηκαν (πάνω από 1000 χαρακτήρες): {2}.</value>
+  </data>
+  <data name="vocabulary.transfer.exported" xml:space="preserve">
+    <value>Το λεξιλόγιο εξήχθη στο {0}.</value>
+  </data>
+  <data name="vocabulary.transfer.importFailed" xml:space="preserve">
+    <value>Δεν ήταν δυνατή η ανάγνωση αυτού του αρχείου. Επιλέξτε ένα αρχείο CSV ή TXT σε UTF-8.</value>
+  </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>Δεν ήταν δυνατή η αποθήκευση του λεξιλογίου. Δεν εισήχθη τίποτα.</value>
+  </data>
+  <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
+    <value>Δεν ήταν δυνατή η εξαγωγή του λεξιλογίου.</value>
+  </data>
 
   <!-- Settings Page -->
   <data name="settings.title" xml:space="preserve">

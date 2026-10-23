@@ -3150,6 +3150,66 @@ public partial class MainWindow : Window
 
     private void OnVocabularyRevealReplacement(object? sender, RoutedEventArgs e) => ShowVocabularyReplacement();
 
+    // Import / Export (#2409): the Backup page's picker idiom, with CSV and TXT filters. The
+    // extension picks the format; the view model reads, merges and writes through the shared
+    // VocabularyTransfer and reports on its result or error line.
+    private bool _vocabularyTransferring;
+
+    private FilePickerFileType VocabularyCsvFileType() => new(L("vocabulary.transfer.fileType.csv"))
+    {
+        Patterns = ["*.csv"],
+        MimeTypes = ["text/csv"],
+    };
+
+    private FilePickerFileType VocabularyTxtFileType() => new(L("vocabulary.transfer.fileType.txt"))
+    {
+        Patterns = ["*.txt"],
+        MimeTypes = ["text/plain"],
+    };
+
+    private async void OnVocabularyImport(object? sender, RoutedEventArgs e)
+    {
+        if (_vocabularyTransferring) return;
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = L("vocabulary.transfer.import.dialogTitle"),
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType(L("vocabulary.transfer.fileType.any"))
+                {
+                    Patterns = ["*.csv", "*.txt"],
+                    MimeTypes = ["text/csv", "text/plain"],
+                },
+                VocabularyCsvFileType(),
+                VocabularyTxtFileType(),
+            ],
+        });
+        if (files.Count != 1) return;
+        var path = files[0].TryGetLocalPath() ?? files[0].Path.LocalPath;
+        _vocabularyTransferring = true;
+        try { await _viewModel.Vocabulary.ImportAsync(path, _lifetime.Token); }
+        finally { _vocabularyTransferring = false; }
+    }
+
+    private async void OnVocabularyExport(object? sender, RoutedEventArgs e)
+    {
+        if (_vocabularyTransferring) return;
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = L("vocabulary.transfer.export.dialogTitle"),
+            SuggestedFileName = VocabularyTransfer.DefaultFileName,
+            DefaultExtension = "csv",
+            FileTypeChoices = [VocabularyCsvFileType(), VocabularyTxtFileType()],
+            ShowOverwritePrompt = true,
+        });
+        if (file is null) return;
+        var path = file.TryGetLocalPath() ?? file.Path.LocalPath;
+        _vocabularyTransferring = true;
+        try { await _viewModel.Vocabulary.ExportAsync(path, _lifetime.Token); }
+        finally { _vocabularyTransferring = false; }
+    }
+
     private void OnVocabularyCancelEdit(object? sender, RoutedEventArgs e)
     {
         _viewModel.Vocabulary.Selected = null;

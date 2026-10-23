@@ -379,6 +379,42 @@
   <data name="vocabulary.replacement.field.placeholder" xml:space="preserve">
     <value>Replacement text…</value>
   </data>
+  <data name="vocabulary.transfer.import" xml:space="preserve">
+    <value>Import...</value>
+  </data>
+  <data name="vocabulary.transfer.export" xml:space="preserve">
+    <value>Export...</value>
+  </data>
+  <data name="vocabulary.transfer.import.dialogTitle" xml:space="preserve">
+    <value>Import Vocabulary</value>
+  </data>
+  <data name="vocabulary.transfer.export.dialogTitle" xml:space="preserve">
+    <value>Export Vocabulary</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.any" xml:space="preserve">
+    <value>Vocabulary file (CSV or TXT)</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.csv" xml:space="preserve">
+    <value>CSV file</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.txt" xml:space="preserve">
+    <value>Text file</value>
+  </data>
+  <data name="vocabulary.transfer.imported" xml:space="preserve">
+    <value>Vocabulary imported. Added: {0}, updated: {1}, skipped (over 1000 characters): {2}.</value>
+  </data>
+  <data name="vocabulary.transfer.exported" xml:space="preserve">
+    <value>Vocabulary exported to {0}.</value>
+  </data>
+  <data name="vocabulary.transfer.importFailed" xml:space="preserve">
+    <value>Could not read this file. Choose a UTF-8 CSV or TXT file.</value>
+  </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>The vocabulary could not be saved. Nothing was imported.</value>
+  </data>
+  <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
+    <value>Could not export the vocabulary.</value>
+  </data>
 
   <!-- Settings Page -->
   <data name="settings.title" xml:space="preserve">

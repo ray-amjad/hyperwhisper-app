@@ -353,6 +353,42 @@
   <data name="vocabulary.replacement.field.placeholder" xml:space="preserve">
     <value>替换文本…</value>
   </data>
+  <data name="vocabulary.transfer.import" xml:space="preserve">
+    <value>导入...</value>
+  </data>
+  <data name="vocabulary.transfer.export" xml:space="preserve">
+    <value>导出...</value>
+  </data>
+  <data name="vocabulary.transfer.import.dialogTitle" xml:space="preserve">
+    <value>导入词汇</value>
+  </data>
+  <data name="vocabulary.transfer.export.dialogTitle" xml:space="preserve">
+    <value>导出词汇</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.any" xml:space="preserve">
+    <value>词汇文件（CSV 或 TXT）</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.csv" xml:space="preserve">
+    <value>CSV 文件</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.txt" xml:space="preserve">
+    <value>文本文件</value>
+  </data>
+  <data name="vocabulary.transfer.imported" xml:space="preserve">
+    <value>词汇已导入。新增：{0}，更新：{1}，跳过（超过 1000 个字符）：{2}。</value>
+  </data>
+  <data name="vocabulary.transfer.exported" xml:space="preserve">
+    <value>词汇已导出到 {0}。</value>
+  </data>
+  <data name="vocabulary.transfer.importFailed" xml:space="preserve">
+    <value>无法读取此文件。请选择 UTF-8 编码的 CSV 或 TXT 文件。</value>
+  </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>无法保存词汇。未导入任何内容。</value>
+  </data>
+  <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
+    <value>无法导出词汇。</value>
+  </data>
 
   <!-- Settings Page -->
   <data name="settings.title" xml:space="preserve">

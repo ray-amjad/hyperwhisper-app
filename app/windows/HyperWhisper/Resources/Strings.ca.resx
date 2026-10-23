@@ -311,6 +311,42 @@
   <data name="vocabulary.replacement.field.placeholder" xml:space="preserve">
     <value>Text de substitució…</value>
   </data>
+  <data name="vocabulary.transfer.import" xml:space="preserve">
+    <value>Importa...</value>
+  </data>
+  <data name="vocabulary.transfer.export" xml:space="preserve">
+    <value>Exporta...</value>
+  </data>
+  <data name="vocabulary.transfer.import.dialogTitle" xml:space="preserve">
+    <value>Importa el vocabulari</value>
+  </data>
+  <data name="vocabulary.transfer.export.dialogTitle" xml:space="preserve">
+    <value>Exporta el vocabulari</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.any" xml:space="preserve">
+    <value>Fitxer de vocabulari (CSV o TXT)</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.csv" xml:space="preserve">
+    <value>Fitxer CSV</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.txt" xml:space="preserve">
+    <value>Fitxer de text</value>
+  </data>
+  <data name="vocabulary.transfer.imported" xml:space="preserve">
+    <value>Vocabulari importat. Afegits: {0}, actualitzats: {1}, omesos (més de 1000 caràcters): {2}.</value>
+  </data>
+  <data name="vocabulary.transfer.exported" xml:space="preserve">
+    <value>Vocabulari exportat a {0}.</value>
+  </data>
+  <data name="vocabulary.transfer.importFailed" xml:space="preserve">
+    <value>No s'ha pogut llegir aquest fitxer. Trieu un fitxer CSV o TXT en UTF-8.</value>
+  </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>No s'ha pogut desar el vocabulari. No s'ha importat res.</value>
+  </data>
+  <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
+    <value>No s'ha pogut exportar el vocabulari.</value>
+  </data>
 
   <!-- Settings Page -->
   <data name="settings.title" xml:space="preserve">

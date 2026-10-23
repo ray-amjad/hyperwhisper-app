@@ -311,6 +311,42 @@
   <data name="vocabulary.replacement.field.placeholder" xml:space="preserve">
     <value>Değiştirme metni…</value>
   </data>
+  <data name="vocabulary.transfer.import" xml:space="preserve">
+    <value>İçe aktar...</value>
+  </data>
+  <data name="vocabulary.transfer.export" xml:space="preserve">
+    <value>Dışa aktar...</value>
+  </data>
+  <data name="vocabulary.transfer.import.dialogTitle" xml:space="preserve">
+    <value>Kelime hazinesini içe aktar</value>
+  </data>
+  <data name="vocabulary.transfer.export.dialogTitle" xml:space="preserve">
+    <value>Kelime hazinesini dışa aktar</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.any" xml:space="preserve">
+    <value>Kelime hazinesi dosyası (CSV veya TXT)</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.csv" xml:space="preserve">
+    <value>CSV dosyası</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.txt" xml:space="preserve">
+    <value>Metin dosyası</value>
+  </data>
+  <data name="vocabulary.transfer.imported" xml:space="preserve">
+    <value>Kelime hazinesi içe aktarıldı. Eklenen: {0}, güncellenen: {1}, atlanan (1000 karakterden uzun): {2}.</value>
+  </data>
+  <data name="vocabulary.transfer.exported" xml:space="preserve">
+    <value>Kelime hazinesi {0} dosyasına aktarıldı.</value>
+  </data>
+  <data name="vocabulary.transfer.importFailed" xml:space="preserve">
+    <value>Bu dosya okunamadı. UTF-8 kodlu bir CSV veya TXT dosyası seçin.</value>
+  </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>Kelime dağarcığı kaydedilemedi. Hiçbir şey içe aktarılmadı.</value>
+  </data>
+  <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
+    <value>Kelime hazinesi dışa aktarılamadı.</value>
+  </data>
 
   <!-- Settings Page -->
   <data name="settings.title" xml:space="preserve">

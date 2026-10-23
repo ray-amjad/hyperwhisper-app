@@ -311,6 +311,42 @@
   <data name="vocabulary.replacement.field.placeholder" xml:space="preserve">
     <value>نص الاستبدال…</value>
   </data>
+  <data name="vocabulary.transfer.import" xml:space="preserve">
+    <value>استيراد...</value>
+  </data>
+  <data name="vocabulary.transfer.export" xml:space="preserve">
+    <value>تصدير...</value>
+  </data>
+  <data name="vocabulary.transfer.import.dialogTitle" xml:space="preserve">
+    <value>استيراد المفردات</value>
+  </data>
+  <data name="vocabulary.transfer.export.dialogTitle" xml:space="preserve">
+    <value>تصدير المفردات</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.any" xml:space="preserve">
+    <value>ملف مفردات (CSV أو TXT)</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.csv" xml:space="preserve">
+    <value>ملف CSV</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.txt" xml:space="preserve">
+    <value>ملف نصي</value>
+  </data>
+  <data name="vocabulary.transfer.imported" xml:space="preserve">
+    <value>تم استيراد المفردات. المضافة: {0}، المحدّثة: {1}، المتخطاة (أكثر من 1000 حرف): {2}.</value>
+  </data>
+  <data name="vocabulary.transfer.exported" xml:space="preserve">
+    <value>تم تصدير المفردات إلى {0}.</value>
+  </data>
+  <data name="vocabulary.transfer.importFailed" xml:space="preserve">
+    <value>تعذّرت قراءة هذا الملف. اختر ملف CSV أو TXT بترميز UTF-8.</value>
+  </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>تعذّر حفظ المفردات. لم يتم استيراد أي شيء.</value>
+  </data>
+  <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
+    <value>تعذّر تصدير المفردات.</value>
+  </data>
 
   <!-- Settings Page -->
   <data name="settings.title" xml:space="preserve">

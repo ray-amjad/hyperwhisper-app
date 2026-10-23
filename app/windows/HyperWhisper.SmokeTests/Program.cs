@@ -21774,6 +21774,95 @@ internal static class Program
                 }
             });
 
+            Run("vocabulary import/export (#2409): CSV and TXT round-trip through VocabularyService, a words-only TXT keeps replacements", () =>
+            {
+                // This suite shares a real database with later cases, so every word carries a
+                // unique prefix and is deleted again in the finally block.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                var service = VocabularyService.Instance;
+                var prefix = "percy2409-" + Guid.NewGuid().ToString("N")[..8];
+                var folder = Path.Combine(Path.GetTempPath(), prefix);
+                Directory.CreateDirectory(folder);
+                var changes = 0;
+                void OnChanged(object? sender, EventArgs e) => changes++;
+                service.VocabularyChanged += OnChanged;
+                List<HyperWhisper.PortableApplication.Persistence.VocabularyTransferEntry> Mine() =>
+                    service.GetAll().Where(v => v.Word.StartsWith(prefix, StringComparison.Ordinal))
+                        .Select(v => new HyperWhisper.PortableApplication.Persistence.VocabularyTransferEntry(v.Word, v.Replacement)).ToList();
+                string Snapshot() => string.Join("\n", service.GetAll().Where(v => v.Word.StartsWith(prefix, StringComparison.Ordinal))
+                    .Select(v => $"{v.Id}|{v.Word}|{v.Replacement}|{v.SortOrder}|{v.Source}"));
+                try
+                {
+                    // The golden round-trip entries (shared-conformance), each word prefixed.
+                    var entries = new (string Word, string? Replacement)[]
+                    {
+                        ("HyperWhisper", null), ("Smith, Jones & Co", null), ("the \"quoted\" one", "the 'quoted' one"),
+                        ("Kubernetes", "K8s, the \"cluster\""), ("café crème", null), ("東京タワー", "Tokyo Tower"),
+                        ("🚀 launch", "🚀"), ("my sign-off", "Best regards,\nRay"), ("C:\\Users\\path", "back\\slash \\n literal"),
+                    }.Select(e => new HyperWhisper.PortableApplication.Persistence.VocabularyTransferEntry($"{prefix} {e.Word}", e.Replacement)).ToList();
+                    var source = Path.Combine(folder, "source.csv");
+                    File.WriteAllBytes(source, HyperWhisper.PortableApplication.Persistence.VocabularyTransfer.Encode(
+                        HyperWhisper.PortableApplication.Persistence.VocabularyTransfer.WriteCsv(entries)));
+
+                    var imported = service.ImportFile(source);
+                    Assert(imported.IsSuccess && imported.Value == new HyperWhisper.PortableApplication.Persistence.VocabularyImportResult(entries.Count, 0, 0),
+                        $"the first import reported {imported.Value?.ToString() ?? imported.Error}");
+                    Assert(changes == 1, $"the import raised VocabularyChanged {changes} times, expected once");
+                    // The page lists by word, so compare as a set here and in display order below.
+                    Assert(Mine().OrderBy(e => e.Word, StringComparer.Ordinal).SequenceEqual(entries.OrderBy(e => e.Word, StringComparer.Ordinal)),
+                        $"the imported rows differ: {string.Join(" | ", Mine())}");
+                    Assert(service.GetAll().Where(v => v.Word.StartsWith(prefix, StringComparison.Ordinal)).All(v => v.Source == "manual"),
+                        "an imported row does not carry the manual source");
+
+                    foreach (var extension in new[] { "csv", "txt" })
+                    {
+                        var file = Path.Combine(folder, $"HyperWhisper Vocabulary.{extension}");
+                        var exported = service.ExportFile(file);
+                        Assert(exported.IsSuccess, $"the {extension} export failed: {exported.Error}");
+                        var text = HyperWhisper.PortableApplication.Persistence.VocabularyTransfer.Decode(File.ReadAllBytes(file));
+                        var back = HyperWhisper.PortableApplication.Persistence.VocabularyTransfer.Read(
+                            HyperWhisper.PortableApplication.Persistence.VocabularyTransfer.FormatForPath(file), text).Entries
+                            .Where(e => e.Word.StartsWith(prefix, StringComparison.Ordinal)).ToList();
+                        Assert(back.SequenceEqual(Mine()), $"the {extension} export is not the list in display order: {string.Join(" | ", back)}");
+
+                        // Importing your own export into the same store changes nothing.
+                        var mineOnly = Path.Combine(folder, $"mine.{extension}");
+                        File.WriteAllBytes(mineOnly, HyperWhisper.PortableApplication.Persistence.VocabularyTransfer.Encode(
+                            HyperWhisper.PortableApplication.Persistence.VocabularyTransfer.Write(
+                                HyperWhisper.PortableApplication.Persistence.VocabularyTransfer.FormatForPath(mineOnly), back)));
+                        var before = Snapshot();
+                        changes = 0;
+                        var again = service.ImportFile(mineOnly);
+                        Assert(again.IsSuccess && again.Value == new HyperWhisper.PortableApplication.Persistence.VocabularyImportResult(0, 0, 0),
+                            $"re-importing the {extension} export reported {again.Value?.ToString() ?? again.Error}");
+                        Assert(Snapshot() == before && changes == 0, $"re-importing the {extension} export changed a row or raised VocabularyChanged");
+                    }
+
+                    // A words-only TXT never wipes a replacement, and keeps the row's spelling.
+                    var wordsOnly = Path.Combine(folder, "words.txt");
+                    File.WriteAllText(wordsOnly, $"{prefix} KUBERNETES\n{prefix} my sign-off\n");
+                    var plain = service.ImportFile(wordsOnly);
+                    Assert(plain.IsSuccess && plain.Value == new HyperWhisper.PortableApplication.Persistence.VocabularyImportResult(0, 0, 0),
+                        $"the words-only import reported {plain.Value?.ToString() ?? plain.Error}");
+                    Assert(Mine().Any(e => e.Word == $"{prefix} Kubernetes" && e.Replacement == "K8s, the \"cluster\"")
+                           && Mine().Any(e => e.Word == $"{prefix} my sign-off" && e.Replacement == "Best regards,\nRay"),
+                        "a words-only TXT import wiped a replacement or re-spelled a row");
+
+                    // Not UTF-8: refused, nothing written.
+                    var latin1 = Path.Combine(folder, "latin1.csv");
+                    File.WriteAllBytes(latin1, [0x63, 0x61, 0x66, 0xE9, 0x0A]);
+                    var count = service.GetAll().Count;
+                    Assert(service.ImportFile(latin1).IsFailure && service.GetAll().Count == count, "a Latin-1 file was imported");
+                }
+                finally
+                {
+                    service.VocabularyChanged -= OnChanged;
+                    foreach (var row in service.GetAll().Where(v => v.Word.StartsWith(prefix, StringComparison.Ordinal)))
+                        service.Delete(row.Id);
+                    try { Directory.Delete(folder, recursive: true); } catch (IOException) { }
+                }
+            });
+
             Run("backup: a settings-only import says the settings were restored, not 'Modes: 0' — issue #1415", () =>
             {
                 // The success line used to name modes and vocabulary whatever was picked,

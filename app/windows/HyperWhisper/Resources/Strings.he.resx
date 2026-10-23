@@ -311,6 +311,42 @@
   <data name="vocabulary.replacement.field.placeholder" xml:space="preserve">
     <value>טקסט חלופי…</value>
   </data>
+  <data name="vocabulary.transfer.import" xml:space="preserve">
+    <value>ייבוא...</value>
+  </data>
+  <data name="vocabulary.transfer.export" xml:space="preserve">
+    <value>ייצוא...</value>
+  </data>
+  <data name="vocabulary.transfer.import.dialogTitle" xml:space="preserve">
+    <value>ייבוא אוצר מילים</value>
+  </data>
+  <data name="vocabulary.transfer.export.dialogTitle" xml:space="preserve">
+    <value>ייצוא אוצר מילים</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.any" xml:space="preserve">
+    <value>קובץ אוצר מילים (CSV או TXT)</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.csv" xml:space="preserve">
+    <value>קובץ CSV</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.txt" xml:space="preserve">
+    <value>קובץ טקסט</value>
+  </data>
+  <data name="vocabulary.transfer.imported" xml:space="preserve">
+    <value>אוצר המילים יובא. נוספו: {0}, עודכנו: {1}, דולגו (מעל 1000 תווים): {2}.</value>
+  </data>
+  <data name="vocabulary.transfer.exported" xml:space="preserve">
+    <value>אוצר המילים יוצא אל {0}.</value>
+  </data>
+  <data name="vocabulary.transfer.importFailed" xml:space="preserve">
+    <value>לא ניתן לקרוא את הקובץ. בחרו קובץ CSV או TXT בקידוד UTF-8.</value>
+  </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>לא ניתן לשמור את אוצר המילים. דבר לא יובא.</value>
+  </data>
+  <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
+    <value>לא ניתן לייצא את אוצר המילים.</value>
+  </data>
 
   <!-- Settings Page -->
   <data name="settings.title" xml:space="preserve">

@@ -353,6 +353,42 @@
   <data name="vocabulary.replacement.field.placeholder" xml:space="preserve">
     <value>置換テキスト…</value>
   </data>
+  <data name="vocabulary.transfer.import" xml:space="preserve">
+    <value>インポート...</value>
+  </data>
+  <data name="vocabulary.transfer.export" xml:space="preserve">
+    <value>エクスポート...</value>
+  </data>
+  <data name="vocabulary.transfer.import.dialogTitle" xml:space="preserve">
+    <value>語彙をインポート</value>
+  </data>
+  <data name="vocabulary.transfer.export.dialogTitle" xml:space="preserve">
+    <value>語彙をエクスポート</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.any" xml:space="preserve">
+    <value>語彙ファイル (CSV または TXT)</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.csv" xml:space="preserve">
+    <value>CSV ファイル</value>
+  </data>
+  <data name="vocabulary.transfer.fileType.txt" xml:space="preserve">
+    <value>テキストファイル</value>
+  </data>
+  <data name="vocabulary.transfer.imported" xml:space="preserve">
+    <value>語彙をインポートしました。追加: {0}、更新: {1}、スキップ (1000 文字超): {2}。</value>
+  </data>
+  <data name="vocabulary.transfer.exported" xml:space="preserve">
+    <value>語彙を {0} にエクスポートしました。</value>
+  </data>
+  <data name="vocabulary.transfer.importFailed" xml:space="preserve">
+    <value>このファイルを読み込めませんでした。UTF-8 の CSV または TXT ファイルを選択してください。</value>
+  </data>
+  <data name="vocabulary.transfer.saveFailed" xml:space="preserve">
+    <value>語彙を保存できませんでした。何も読み込まれていません。</value>
+  </data>
+  <data name="vocabulary.transfer.exportFailed" xml:space="preserve">
+    <value>語彙をエクスポートできませんでした。</value>
+  </data>
 
   <!-- Settings Page -->
   <data name="settings.title" xml:space="preserve">
