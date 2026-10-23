@@ -2471,7 +2471,7 @@ public partial class MainViewModel : ViewModelBase
         }
 
         LoggingService.LogPerformanceMarker("TranscriptionFlow", "StopRecordingAndTranscribeAsync invoked");
-        var recordingMode = _activeRecordingMode ?? SelectedMode;
+        var recordingMode = SelectedMode; // MUTANT (#2241): read the live selection
         if (recordingMode == null)
         {
             LoggingService.Warn("StopRecordingAndTranscribeAsync: No active recording mode");
