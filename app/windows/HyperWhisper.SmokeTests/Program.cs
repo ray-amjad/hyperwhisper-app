@@ -13462,6 +13462,65 @@ internal static class Program
                 }
             });
 
+            Run("backup: schemaVersion 2.0 inspects and imports; 2.5 and \"2\" are still refused — issue #2115", () =>
+            {
+                // The shared core reads schemaVersion by value (`integral_i64`, #2111), so a
+                // hand-edited `2.0` is version 2. The typed model used to refuse it as an int.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                var vocabulary = VocabularyService.Instance;
+                var token = Guid.NewGuid().ToString("N")[..8];
+                var directory = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests");
+                Directory.CreateDirectory(directory);
+                var integralJson = JsonSerializer.Serialize(new UniversalBackup
+                {
+                    SchemaVersion = 2,
+                    ExportDate = DateTime.UtcNow,
+                    AppVersion = "smoke-2115",
+                    Platform = "macos",
+                    Vocabulary = [new UniversalVocabularyItem { Id = Guid.NewGuid(), Word = $"w{token}", SortOrder = 1 }]
+                }, UniversalCaptureOptions);
+                Assert(integralJson.Contains("\"schemaVersion\":2,", StringComparison.Ordinal),
+                    "the #2115 fixture did not serialize schemaVersion as 2");
+                string WriteVariant(string name, string rawVersion)
+                {
+                    var path = Path.Combine(directory, $"issue2115-{name}-{token}.hwbackup.json");
+                    File.WriteAllText(path, integralJson.Replace("\"schemaVersion\":2,", $"\"schemaVersion\":{rawVersion},", StringComparison.Ordinal));
+                    return path;
+                }
+                var wholeFloatPath = WriteVariant("float", "2.0");
+                // Every field the schema types "integer" is read by value too (sortOrder here).
+                Assert(integralJson.Contains("\"sortOrder\":1", StringComparison.Ordinal),
+                    "the #2115 fixture did not serialize the vocabulary sortOrder as 1");
+                File.WriteAllText(wholeFloatPath, File.ReadAllText(wholeFloatPath)
+                    .Replace("\"sortOrder\":1", "\"sortOrder\":1.0", StringComparison.Ordinal));
+                var fractionalPath = WriteVariant("fraction", "2.5");
+                var stringPath = WriteVariant("string", "\"2\"");
+                try
+                {
+                    var inspect = BackupService.Instance.Inspect(wholeFloatPath);
+                    Assert(inspect.IsSuccess && inspect.Value!.VocabularyCount == 1,
+                        $"a backup with schemaVersion 2.0 was refused by Inspect: {inspect.Error}");
+
+                    var import = BackupService.Instance.Import(wholeFloatPath, replaceExisting: false);
+                    Assert(import.IsSuccess, $"a backup with schemaVersion 2.0 was refused by Import: {import.Error}");
+                    Assert(vocabulary.GetAll().Any(v => v.Word == $"w{token}"),
+                        "the schemaVersion 2.0 import reported success but saved no vocabulary");
+
+                    Assert(BackupService.Instance.Inspect(fractionalPath).IsFailure, "a backup with schemaVersion 2.5 was accepted");
+                    Assert(BackupService.Instance.Import(fractionalPath, replaceExisting: false).IsFailure,
+                        "a backup with schemaVersion 2.5 imported");
+                    Assert(BackupService.Instance.Inspect(stringPath).IsFailure, "a backup with schemaVersion \"2\" was accepted");
+                }
+                finally
+                {
+                    foreach (var row in vocabulary.GetAll().Where(v => v.Word.Contains(token, StringComparison.Ordinal)))
+                        vocabulary.Delete(row.Id);
+                    foreach (var path in new[] { wholeFloatPath, fractionalPath, stringPath })
+                        try { File.Delete(path); } catch { }
+                }
+            });
+
             Run("an auto-language Mode keeps vocabulary and break commands but not filler removal — issues #495, #498, #278", () =>
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
