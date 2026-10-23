@@ -2212,6 +2212,9 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
     <value>En eller flera API-nycklar kunde inte återställas.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Säkerhetskopian innehåller inga API-nycklar.</value>
+  </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Inställningarna kunde inte återställas.</value>
   </data>

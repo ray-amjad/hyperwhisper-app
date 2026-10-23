@@ -2212,6 +2212,9 @@ Możesz pobrać go ponownie później.</value>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
     <value>Nie udało się przywrócić co najmniej jednego klucza API.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Kopia zapasowa nie zawiera kluczy API.</value>
+  </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Nie udało się przywrócić ustawień.</value>
   </data>

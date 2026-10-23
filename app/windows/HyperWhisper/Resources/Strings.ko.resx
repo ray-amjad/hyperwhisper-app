@@ -2212,6 +2212,9 @@
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
     <value>하나 이상의 API 키를 복원할 수 없습니다.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>백업에 API 키가 없습니다.</value>
+  </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>설정을 복원할 수 없습니다.</value>
   </data>

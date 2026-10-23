@@ -2212,6 +2212,9 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
     <value>En eller flere API-nøgler kunne ikke gendannes.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Sikkerhedskopien indeholder ingen API-nøgler.</value>
+  </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Indstillingerne kunne ikke gendannes.</value>
   </data>

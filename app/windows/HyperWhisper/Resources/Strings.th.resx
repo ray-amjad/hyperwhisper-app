@@ -2212,6 +2212,9 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
     <value>ไม่สามารถกู้คืนคีย์ API อย่างน้อยหนึ่งรายการได้</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>ข้อมูลสำรองไม่มีคีย์ API</value>
+  </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>ไม่สามารถกู้คืนการตั้งค่าได้</value>
   </data>

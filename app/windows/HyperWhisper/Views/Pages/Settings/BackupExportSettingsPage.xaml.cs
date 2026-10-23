@@ -300,9 +300,11 @@ public partial class BackupExportSettingsPage : Page
         else if (selection?.IncludeSettings == true)
             parts.Add(Loc.S("settings.backup.import.summary.settingsFailed"));
         var apiKeys = selection?.IncludeApiKeys == true
-            ? Loc.S(result.ApiKeysImported
-                ? "settings.backup.import.summary.apiKeys"
-                : "settings.backup.import.summary.apiKeysFailed")
+            ? Loc.S(!result.ApiKeysImported
+                ? "settings.backup.import.summary.apiKeysFailed"
+                : result.ApiKeysInBackup > 0
+                    ? "settings.backup.import.summary.apiKeys"
+                    : "settings.backup.import.summary.apiKeysNone")
             : null;
         if (selection is null || selection.IncludeModes || selection.IncludeVocabulary
             || (parts.Count == 0 && apiKeys is null))

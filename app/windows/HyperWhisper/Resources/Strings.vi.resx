@@ -2211,6 +2211,9 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
     <value>Không thể khôi phục một hoặc nhiều khóa API.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Bản sao lưu không chứa khóa API nào.</value>
+  </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Không thể khôi phục cài đặt.</value>
   </data>

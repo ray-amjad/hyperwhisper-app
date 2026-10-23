@@ -2212,6 +2212,9 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
     <value>Jeden alebo viac kľúčov API sa nepodarilo obnoviť.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Záloha neobsahuje žiadne kľúče API.</value>
+  </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Nastavenia sa nepodarilo obnoviť.</value>
   </data>

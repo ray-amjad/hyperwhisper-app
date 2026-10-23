@@ -2212,6 +2212,9 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
     <value>Egy vagy több API-kulcsot nem sikerült visszaállítani.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>A biztonsági mentés nem tartalmaz API-kulcsot.</value>
+  </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>A beállításokat nem sikerült visszaállítani.</value>
   </data>

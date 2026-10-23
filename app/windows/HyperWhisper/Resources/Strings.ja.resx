@@ -2216,6 +2216,9 @@
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
     <value>1つ以上のAPIキーを復元できませんでした。</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>バックアップにAPIキーは含まれていません。</value>
+  </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>設定を復元できませんでした。</value>
   </data>

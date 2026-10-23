@@ -2216,6 +2216,9 @@
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
     <value>一个或多个 API 密钥无法恢复。</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>备份中没有 API 密钥。</value>
+  </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>无法恢复设置。</value>
   </data>

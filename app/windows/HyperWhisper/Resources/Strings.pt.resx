@@ -2212,6 +2212,9 @@ Pode voltar a descarregá-lo mais tarde.</value>
   <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
     <value>Não foi possível restaurar uma ou mais chaves de API.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>A cópia de segurança não contém chaves de API.</value>
+  </data>
   <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
     <value>Não foi possível restaurar as definições.</value>
   </data>

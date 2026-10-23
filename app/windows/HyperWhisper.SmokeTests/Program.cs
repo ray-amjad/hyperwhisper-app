@@ -21985,7 +21985,7 @@ internal static class Program
                 var keysOnly = new ImportSelection { IncludeApiKeys = true };
 
                 var page = new BackupExportSettingsPage();
-                page.ApplyImportSuccess(new ImportSummary { ApiKeysImported = true }, keysOnly);
+                page.ApplyImportSuccess(new ImportSummary { ApiKeysImported = true, ApiKeysInBackup = 3 }, keysOnly);
                 var ok = page.ImportStatusText.Text;
                 Assert(ok == HyperWhisper.Localization.Loc.S("settings.backup.import.success", keysRestored),
                     $"an API-keys-only import that landed reads '{ok}', expected the success line with '{keysRestored}'");
@@ -22001,7 +22001,7 @@ internal static class Program
 
                 // Settings + modes + keys: each picked section is named, keys last.
                 var all = BackupExportSettingsPage.BuildImportSummary(
-                    new ImportSummary { SettingsImported = true, ModesImported = 2, ApiKeysImported = true },
+                    new ImportSummary { SettingsImported = true, ModesImported = 2, ApiKeysImported = true, ApiKeysInBackup = 1 },
                     new ImportSelection { IncludeSettings = true, IncludeModes = true, IncludeApiKeys = true });
                 var expected = HyperWhisper.Localization.Loc.S("settings.backup.import.summary.settings") + " "
                     + HyperWhisper.Localization.Loc.S("settings.backup.import.summary", 2, 0, 0) + " " + keysRestored;
@@ -22010,6 +22010,13 @@ internal static class Program
                         new ImportSummary { SettingsImported = true, ModesImported = 2, ApiKeysImported = true },
                         new ImportSelection { IncludeSettings = true, IncludeModes = true, IncludeApiKeys = true }),
                     "an import where every picked section landed is reported as having problems");
+
+                // An export with no keys configured still writes an empty apiKeys object:
+                // nothing to restore is said as such, never as "API keys restored".
+                var none = BackupExportSettingsPage.BuildImportSummary(
+                    new ImportSummary { ApiKeysImported = true, ApiKeysInBackup = 0 }, keysOnly);
+                Assert(none == HyperWhisper.Localization.Loc.S("settings.backup.import.summary.apiKeysNone"),
+                    $"an API-keys-only import of a backup with no keys reads '{none}'");
 
                 // Keys not picked: no key sentence at all.
                 var noKeys = BackupExportSettingsPage.BuildImportSummary(
