@@ -360,6 +360,32 @@ public partial class MainViewModel : ViewModelBase
     private bool CloudAccountKeyPresent() =>
         (CloudAccountKeyPresentOverride ?? WindowsLocalApiBackend.CloudAccountKeyPresent)();
 
+    // =========================================================================
+    // DICTATION SEAMS (#2241)
+    // The dictation start, stop and cancel path reaches the microphone, the
+    // transcription and the paste target only through these, so the smoke suite
+    // can drive that whole path with fakes. Its check pins the rule that a mode
+    // switch mid-dictation (tray or hotkey) leaves the recording on the mode it
+    // started with. All three are null in the app.
+    // =========================================================================
+
+    /// <summary>Test seam: null in the app, which records with <see cref="_recorderService"/>.</summary>
+    internal IDictationRecorder? DictationRecorderOverride { get; set; }
+
+    /// <summary>
+    /// Test seam: receives the audio path and the mode the recording is transcribed
+    /// for. Null in the app, which transcribes through the orchestrator.
+    /// </summary>
+    internal Func<string, Mode, Task<TranscriptionResult>>? TranscribeRecordingOverride { get; set; }
+
+    /// <summary>
+    /// Test seam: receives the text auto-paste would deliver. Null in the app, which
+    /// pastes through <see cref="DeliverAutoPasteAsync"/>.
+    /// </summary>
+    internal Func<string, Task<(SmartPasteResult Result, bool LostTranscript)>>? DeliverAutoPasteOverride { get; set; }
+
+    private IDictationRecorder DictationRecorder => DictationRecorderOverride ?? _recorderService;
+
     internal void AttachModelStatusSources()
     {
         DetachModelStatusSources();
@@ -2171,11 +2197,11 @@ public partial class MainViewModel : ViewModelBase
             SuspendMicrophoneKeepWarm();
 
             if (SettingsService.Instance.AutoIncreaseMicVolume)
-                _recorderService.BoostMicVolume(SelectedAudioDevice.DeviceNumber);
+                DictationRecorder.BoostMicVolume(SelectedAudioDevice.DeviceNumber);
 
             audioRestoreClaim = AudioEnvironmentService.Instance.ClaimRestoreOwnershipForRecording();
             _audioEnvironmentState = audioRestoreClaim.InheritedRestoreState;
-            _recorderService.StartRecording(SelectedAudioDevice.DeviceNumber);
+            DictationRecorder.StartRecording(SelectedAudioDevice.DeviceNumber);
         }
         catch (Exception ex)
         {
@@ -2199,7 +2225,7 @@ public partial class MainViewModel : ViewModelBase
         _durationTimer = new System.Timers.Timer(100);
         _durationTimer.Elapsed += (s, e) =>
         {
-            RecordingDuration = _recorderService.Duration;
+            RecordingDuration = DictationRecorder.Duration;
             CheckRecordingDurationLimit();
         };
         _durationTimer.Start();
@@ -2385,7 +2411,7 @@ public partial class MainViewModel : ViewModelBase
 
     private void CleanupFailedRecordingStart()
     {
-        _recorderService.RestoreMicVolume();
+        DictationRecorder.RestoreMicVolume();
         RestoreAudioEnvironment();
         ResumeMicrophoneKeepWarm();
         _pasteService?.EndRecordingSession();
@@ -2485,8 +2511,8 @@ public partial class MainViewModel : ViewModelBase
 
             // STEP 1: Stop recording and get the audio file path
             // Uses Result<T> pattern to handle both success and failure cases explicitly
-            var stopResult = _recorderService.StopRecording();
-            _recorderService.RestoreMicVolume();
+            var stopResult = DictationRecorder.StopRecording();
+            DictationRecorder.RestoreMicVolume();
             RestoreAudioEnvironment();
             ResumeMicrophoneKeepWarm();
             IsRecording = false;
@@ -2513,7 +2539,7 @@ public partial class MainViewModel : ViewModelBase
             // EMPTY CAPTURE GUARD (#750): the device sent no frames, so the file is a
             // bare WAV header. Uploading it spends a request and comes back as "No
             // speech detected", which blames the user for the device's fault.
-            if (AudioRecorderService.IsEmptyCapture(_recorderService.CapturedAudioBytes))
+            if (AudioRecorderService.IsEmptyCapture(DictationRecorder.CapturedAudioBytes))
             {
                 try
                 {
@@ -2568,20 +2594,22 @@ public partial class MainViewModel : ViewModelBase
                 ShowStatusRequested?.Invoke(this, Loc.S("recording.state.enhancing"));
             }
 
-            var result = await _transcriptionOrchestrator.TranscribeAsync(
-                permanentAudioPath,
-                recordingMode,
-                vocabulary,
-                localTranscriptionProvider: GetLocalProvider(recordingMode),
-                applicationContext: _capturedApplicationContext,
-                cancellationToken: transcriptionCts.Token,
-                // Already tracked above (logged a few lines earlier) for the
-                // same audio content — avoids AssemblyAIService re-reading the
-                // file a second time just for its sync-eligibility gate. This
-                // is the PRIMARY target of the sub-120s sync fast path (the
-                // most latency-sensitive flow), so it must forward the known
-                // duration the same way the file-import call site does.
-                knownDurationSeconds: RecordingDuration.TotalSeconds);
+            var result = TranscribeRecordingOverride != null
+                ? await TranscribeRecordingOverride(permanentAudioPath, recordingMode)
+                : await _transcriptionOrchestrator.TranscribeAsync(
+                    permanentAudioPath,
+                    recordingMode,
+                    vocabulary,
+                    localTranscriptionProvider: GetLocalProvider(recordingMode),
+                    applicationContext: _capturedApplicationContext,
+                    cancellationToken: transcriptionCts.Token,
+                    // Already tracked above (logged a few lines earlier) for the
+                    // same audio content — avoids AssemblyAIService re-reading the
+                    // file a second time just for its sync-eligibility gate. This
+                    // is the PRIMARY target of the sub-120s sync fast path (the
+                    // most latency-sensitive flow), so it must forward the known
+                    // duration the same way the file-import call site does.
+                    knownDurationSeconds: RecordingDuration.TotalSeconds);
             transcriptionCts.Token.ThrowIfCancellationRequested();
             if (ReferenceEquals(_activeTranscriptionCts, transcriptionCts))
             {
@@ -2626,7 +2654,9 @@ public partial class MainViewModel : ViewModelBase
             var autoPasteLostTranscript = false;
             if (SettingsService.Instance.AutoPasteEnabled)
             {
-                (pasteResult, autoPasteLostTranscript) = await DeliverAutoPasteAsync(_pasteService, spacedText);
+                (pasteResult, autoPasteLostTranscript) = DeliverAutoPasteOverride != null
+                    ? await DeliverAutoPasteOverride(spacedText)
+                    : await DeliverAutoPasteAsync(_pasteService, spacedText);
             }
             else
             {
@@ -3003,8 +3033,8 @@ public partial class MainViewModel : ViewModelBase
 
             // Stop recording and discard the audio file
             // Uses Result<T> pattern to handle both success and failure cases
-            var stopResult = _recorderService.StopRecording();
-            _recorderService.RestoreMicVolume();
+            var stopResult = DictationRecorder.StopRecording();
+            DictationRecorder.RestoreMicVolume();
             RestoreAudioEnvironment(immediate: true);
             ResumeMicrophoneKeepWarm();
             IsRecording = false;

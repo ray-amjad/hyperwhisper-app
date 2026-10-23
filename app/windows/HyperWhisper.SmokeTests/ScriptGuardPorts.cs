@@ -531,6 +531,7 @@ internal static class ScriptGuardPorts
         });
 
         RunKeepWarm(run);
+        RunDictationModePinning(run);
     }
 
     /// <summary>
@@ -696,6 +697,205 @@ internal static class ScriptGuardPorts
             Assert(Program.AsyncBodyCalls(Vm("CleanupAsync"), KeepWarm(nameof(MicrophoneKeepWarmService.Dispose))),
                 "CleanupAsync no longer disposes keep-warm, so the microphone stays open at exit");
         });
+    }
+
+    /// <summary>
+    /// The mode a dictation runs on (#2241). A tray or hotkey mode switch while
+    /// the user is still speaking must not move the recording already in progress
+    /// to the new mode: its provider, language, trailing-period rule and History
+    /// label stay the ones it started with. The check drives the real start, stop
+    /// and cancel path through MainViewModel's dictation seams, with a fake
+    /// microphone, transcriber and paste target. It replaces the deleted
+    /// verify_ptt_tray_mode_pinning.ps1, which matched source text.
+    /// </summary>
+    private static void RunDictationModePinning(Action<string, Action> run)
+    {
+        run("dictation: a tray or hotkey mode switch mid-dictation leaves the recording on the mode it started with (#2241)", () =>
+        {
+            const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+            DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+            // Earlier cases can leave a WPF context on this thread, and the harness
+            // runs no Dispatcher loop, so an awaited continuation would never run.
+            var previousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+
+            var settings = SettingsService.Instance;
+            var saved = (settings.AutoPasteEnabled, settings.AutocapitalizeInsert, settings.AutoIncreaseMicVolume,
+                settings.StoreAsM4A, settings.MediaControlMode);
+            var transcribed = new List<(string AudioPath, Mode Mode)>();
+            var pasted = new List<string>();
+            using var shortcuts = new KeyboardShortcutService();
+            using var pushToTalk = new PushToTalkMonitor();
+            try
+            {
+                // The paste seam sits on the auto-paste branch; the rest keep the
+                // run off the machine (no mic boost, no media mute, no focus read).
+                settings.AutoPasteEnabled = true;
+                settings.AutocapitalizeInsert = false;
+                settings.AutoIncreaseMicVolume = false;
+                settings.StoreAsM4A = false;
+                settings.MediaControlMode = "off";
+
+                // Alpha and Beta differ in everything the stop path reads from the
+                // mode: the name History shows, the language (Japanese gets no
+                // trailing space) and the trailing-period rule.
+                Mode CloudMode(string name, string language, bool removeTrailingPeriod)
+                {
+                    var mode = ModeDefaults.GetDefaultModes().Single();
+                    mode.Id = Guid.NewGuid();
+                    mode.Name = name;
+                    mode.Language = language;
+                    mode.RemoveTrailingPeriod = removeTrailingPeriod;
+                    mode.PostProcessingMode = 0;
+                    mode.EnableScreenOCR = false;
+                    return mode;
+                }
+                var alpha = CloudMode("G2241 Alpha", "ja", removeTrailingPeriod: true);
+                var beta = CloudMode("G2241 Beta", "en", removeTrailingPeriod: false);
+                Assert(alpha.ProviderType == "cloud", "precondition: the stock mode is a cloud mode, so no local model has to load");
+                const string spoken = "Hello world.";
+                const string alphaText = "Hello world";
+                const string betaText = "Hello world. ";
+
+                var recorder = new FakeDictationRecorder();
+                var vm = (MainViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
+                foreach (var (name, value) in new (string, object?)[]
+                {
+                    ("_settingsService", settings),
+                    ("_modelService", new WhisperModelService()),
+                    ("_transcriptionService", new TranscriptionService()),
+                    ("_parakeetTranscriptionService", new ParakeetTranscriptionService()),
+                    ("_localLlmModelService", new LocalLlmModelService()),
+                    ("_vocabularyService", VocabularyService.Instance),
+                    ("_storageService", StorageService.Instance),
+                    ("_shortcutService", shortcuts),
+                    ("_pushToTalkMonitor", pushToTalk),
+                    ("_audioDevices", new List<AudioDeviceService.AudioDevice>()),
+                    ("_selectedAudioDevice", new AudioDeviceService.AudioDevice(3, "G2241 Microphone")),
+                    ("_modes", new List<Mode> { alpha, beta }),
+                    ("_selectedMode", alpha),
+                })
+                {
+                    SetField(vm, name, value);
+                }
+                // No BYOK key, and never the machine's Credential Manager.
+                vm.ApiKeyServiceOverride = new ApiKeyService(new Program.InMemoryCredentialBackend());
+                vm.CloudAccountKeyPresentOverride = () => false;
+                vm.DictationRecorderOverride = recorder;
+                vm.TranscribeRecordingOverride = (audioPath, mode) =>
+                {
+                    transcribed.Add((audioPath, mode));
+                    return Task.FromResult(new TranscriptionResult(spoken, spoken, "G2241 Provider"));
+                };
+                vm.DeliverAutoPasteOverride = text =>
+                {
+                    pasted.Add(text);
+                    return Task.FromResult((SmartPasteResult.Pasted, false));
+                };
+                var cycleMode = typeof(MainViewModel).GetMethod("CycleMode", all)
+                    ?? throw new MissingMethodException(nameof(MainViewModel), "CycleMode");
+
+                string? HistoryLabel(string audioPath)
+                {
+                    using var db = new HyperWhisperDbContext();
+                    var row = db.Transcripts.AsNoTracking().FirstOrDefault(t => t.AudioFilePath == audioPath);
+                    return row?.Status == TranscriptStatus.Completed ? row.Mode : $"<{row?.Status.ToString() ?? "no row"}>";
+                }
+
+                void Dictate(string label, Action switchMode, Mode expected, string expectedText)
+                {
+                    var before = transcribed.Count;
+                    vm.StartRecordingAsync().GetAwaiter().GetResult();
+                    Assert(vm.IsRecording && recorder.Recording, $"{label}: the dictation did not start");
+                    switchMode();
+                    Assert(!ReferenceEquals(vm.SelectedMode, expected), $"{label}: precondition: the switch moved the selection off {expected.Name}");
+                    vm.StopRecordingAndTranscribeAsync().GetAwaiter().GetResult();
+                    Assert(!vm.IsRecording && !vm.IsTranscribing, $"{label}: the dictation did not finish");
+                    Assert(transcribed.Count == before + 1, $"{label}: {transcribed.Count - before} transcriptions ran, expected 1");
+                    var (audioPath, mode) = transcribed[^1];
+                    Assert(ReferenceEquals(mode, expected),
+                        $"{label}: the recording was transcribed for '{mode.Name}', the mode selected mid-dictation, not '{expected.Name}' it started on");
+                    Assert(pasted.Count == transcribed.Count && pasted[^1] == expectedText,
+                        $"{label}: pasted '{pasted.LastOrDefault()}', expected '{expectedText}' ({expected.Name}'s language and trailing-period rule)");
+                    var history = HistoryLabel(audioPath);
+                    Assert(history == expected.Name, $"{label}: History labels the row '{history}', expected '{expected.Name}'");
+                }
+
+                // The changeMode hotkey goes through CycleMode, Alpha -> Beta.
+                Dictate("hotkey switch", () => Assert((bool)cycleMode.Invoke(vm, null)!, "CycleMode refused the switch"),
+                    alpha, alphaText);
+                Assert(ReferenceEquals(vm.SelectedMode, beta), "the hotkey's switch did not stay selected after the dictation");
+
+                // The tray's Mode submenu goes through TrySelectMode, Beta -> Alpha.
+                Dictate("tray switch", () => Assert(vm.TrySelectMode(alpha), "TrySelectMode refused the switch"),
+                    beta, betaText);
+
+                // Cancel: nothing is transcribed or pasted, and the next dictation
+                // runs on the mode selected when IT starts.
+                vm.StartRecordingAsync().GetAwaiter().GetResult();
+                Assert(vm.IsRecording && recorder.Recording, "cancel: the dictation did not start");
+                Assert(vm.TrySelectMode(beta), "cancel: TrySelectMode refused the switch");
+                var transcriptions = transcribed.Count;
+                vm.HandleCancelRequest().GetAwaiter().GetResult();
+                Assert(!vm.IsRecording && !recorder.Recording, "cancel: the recording is still running");
+                Assert(transcribed.Count == transcriptions && pasted.Count == transcriptions,
+                    "cancel: a cancelled dictation was transcribed or pasted");
+                Dictate("after cancel", () => Assert(vm.TrySelectMode(alpha), "TrySelectMode refused the switch"),
+                    beta, betaText);
+            }
+            finally
+            {
+                foreach (var (audioPath, _) in transcribed)
+                {
+                    using var db = new HyperWhisperDbContext();
+                    var id = db.Transcripts.AsNoTracking().Where(t => t.AudioFilePath == audioPath).Select(t => t.Id).FirstOrDefault();
+                    if (id != default) HistoryService.Instance.DeleteTranscript(id);
+                    TryDeleteFile(audioPath);
+                }
+                settings.AutoPasteEnabled = saved.AutoPasteEnabled;
+                settings.AutocapitalizeInsert = saved.AutocapitalizeInsert;
+                settings.AutoIncreaseMicVolume = saved.AutoIncreaseMicVolume;
+                settings.StoreAsM4A = saved.StoreAsM4A;
+                settings.MediaControlMode = saved.MediaControlMode;
+                SynchronizationContext.SetSynchronizationContext(previousContext);
+            }
+        });
+    }
+
+    /// <summary>
+    /// A microphone for the dictation seam (#2241): each stop hands back a short
+    /// WAV of silence, so the stop path saves and transcribes a real file.
+    /// </summary>
+    private sealed class FakeDictationRecorder : IDictationRecorder
+    {
+        public bool Recording { get; private set; }
+        public TimeSpan Duration => TimeSpan.FromSeconds(1);
+        public long CapturedAudioBytes { get; private set; }
+
+        public void StartRecording(int deviceNumber)
+        {
+            Recording = true;
+            CapturedAudioBytes = 0;
+        }
+
+        public Result<string> StopRecording()
+        {
+            if (!Recording) return Result<string>.Failure("not recording");
+            Recording = false;
+            Directory.CreateDirectory(AppPaths.ProfileTempRecordingsDirectory);
+            var path = Path.Combine(AppPaths.ProfileTempRecordingsDirectory, $"g2241-{Guid.NewGuid():N}.wav");
+            using (var writer = new NAudio.Wave.WaveFileWriter(path, new NAudio.Wave.WaveFormat(16000, 16, 1)))
+            {
+                var silence = new byte[3200];
+                writer.Write(silence, 0, silence.Length);
+                CapturedAudioBytes = silence.Length;
+            }
+            return Result<string>.Success(path);
+        }
+
+        public void BoostMicVolume(int deviceNumber) { }
+        public void RestoreMicVolume() { }
     }
 
     private static MicrophoneKeepWarmService NewKeepWarm(List<FakeCapture> captures) =>
