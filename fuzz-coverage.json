@@ -744,6 +744,22 @@
       ],
       "licensed": false,
       "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY in hw-qa). Dropped: local-api port 70000->65535 clamp is deliberate (MainWindow.axaml:1560 comment); clipboard Copy fails only because box has no xclip/wl-copy; status bar stale-error at 00:00 not reproducible after 4s. Backup import/export walked, no defect."
+    },
+    {
+      "at": "2026-10-23T18:29:37Z",
+      "platform": "win",
+      "commit": "c1573a30",
+      "routes": [
+        "vocabulary",
+        "provider-settings",
+        "onboarding"
+      ],
+      "status": "1-filed",
+      "issues": [
+        2547
+      ],
+      "licensed": false,
+      "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY in #hw-qa). Onboarding+vocabulary clean (validation for dup/case-dup/empty/whitespace OK; edit focuses word field by design). Scratch profile path is fixed, so its PasswordVault resource HyperWhisper.Test.<hash> keeps fake keys from earlier rounds (OpenAI 'sk-fu…ings' was pre-configured); the PS cleanup cannot clear the vault."
     }
   ]
 }
