@@ -75,15 +75,22 @@ private final class NotificationScanProbe: @unchecked Sendable {
 }
 
 @MainActor
-@Suite(.serialized)
+@Suite(.serialized, .timeLimit(.minutes(5)))
 struct AudioDeviceNotificationRefreshTests {
+    /// Polls every millisecond for up to 120 s. The bound is a hang guard, not a
+    /// deadline: a loaded CI runner can stall the test process for 20-90 s, far
+    /// past the old 1,000-iteration (about 1 s) cap (#2455, #2505). The suite's
+    /// time limit is the backstop for a scan that never comes.
     private static func waitUntil(
         _ condition: @escaping @Sendable () -> Bool
     ) async {
-        for _ in 0..<1_000 {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(120))
+        while clock.now < deadline {
             if condition() { return }
             try? await Task.sleep(nanoseconds: 1_000_000)
         }
+        if condition() { return }
         Issue.record("Timed out while waiting for the fake notification scan")
     }
 

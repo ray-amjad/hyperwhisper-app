@@ -134,7 +134,7 @@ private let stubSnapshot: [AccessibilityHelper.ClipboardItemData] = [
 ]
 
 @MainActor
-@Suite(.serialized)
+@Suite(.serialized, .timeLimit(.minutes(5)))
 struct ClipboardSnapshotDeadlineTests {
 
     /// Short, so the suite stays fast. Production uses 1 s.
@@ -147,15 +147,21 @@ struct ClipboardSnapshotDeadlineTests {
         )
     }
 
-    /// Polls every ~1 ms, so `iterations` is a floor in milliseconds.
+    /// Polls every millisecond for up to 120 s. The bound is a hang guard, not a
+    /// deadline: a loaded CI runner can stall the test process for 20-90 s, far
+    /// past the old 5,000-iteration (about 5 s) cap (#2455, #2505). It sits
+    /// above the stub's 10 s main-actor wait and the gate's 20 s cap, and the
+    /// suite's time limit is the backstop.
     private static func waitUntil(
-        iterations: Int = 5_000,
         _ condition: @escaping @Sendable () -> Bool
     ) async {
-        for _ in 0..<iterations {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(120))
+        while clock.now < deadline {
             if condition() { return }
             try? await Task.sleep(nanoseconds: 1_000_000)
         }
+        if condition() { return }
         Issue.record("Timed out while waiting for the stub pasteboard read")
     }
 
@@ -218,10 +224,10 @@ struct ClipboardSnapshotDeadlineTests {
 
         // (b) the main actor was free while the stub blocked: the job the stub
         // posted ran before this test got its result. The stub waits up to
-        // 10 s for that job, so wait longer than that for its answer.
+        // 10 s for that job; the wait's 120 s guard is longer than that.
         #expect(probe.didRunOnMainThread == false)
         if probe.calls == 1 {
-            await Self.waitUntil(iterations: 15_000) { probe.mainActorJobRanFirst != nil }
+            await Self.waitUntil { probe.mainActorJobRanFirst != nil }
         }
         #expect(probe.mainActorJobRanFirst == true,
                 "the main actor did not run the stub's job before the call returned")
