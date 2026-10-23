@@ -40,26 +40,12 @@
  * behind this file's green tick.
  */
 import assert from "node:assert/strict";
-import test, { beforeEach, mock } from "node:test";
+import test, { beforeEach } from "node:test";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import type { BuyCreditsHandlerRequest } from "../src/lib/buy-credits";
-
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrowed to the one option used here rather than bumping
- * the types in a test-only change.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports?: Record<string, unknown> },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+import { moduleMock } from "./module-mock";
 
 /** The message the route sends for the amount #737 was filed about. */
 const REFUSAL = "Amount too large";
