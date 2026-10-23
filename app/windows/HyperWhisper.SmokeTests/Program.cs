@@ -27335,7 +27335,7 @@ internal static class Program
     /// try/catch: a stray byte pair can only resolve to some unrelated member,
     /// so a hit on the exact target is a real call site (#1534).
     /// </summary>
-    private static bool AsyncBodyCalls(MethodInfo method, MethodInfo target)
+    internal static bool AsyncBodyCalls(MethodInfo method, MethodInfo target)
     {
         const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
         var body = method;
