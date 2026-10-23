@@ -28768,7 +28768,7 @@ internal static class Program
         public void Delete(string resource, string account) => _values.Remove(account);
     }
 
-    private sealed class InMemoryCredentialBackend : IWindowsCredentialBackend
+    internal sealed class InMemoryCredentialBackend : IWindowsCredentialBackend
     {
         public string? StoredValue { get; private set; }
         public bool ThrowOnRead { get; set; }

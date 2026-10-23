@@ -11,7 +11,7 @@ namespace HyperWhisper.Services;
 /// Service for recording audio from a microphone.
 /// Records in 16kHz mono WAV format as required by Whisper.
 /// </summary>
-public class AudioRecorderService : IDisposable
+public class AudioRecorderService : IDisposable, IDictationRecorder
 {
     private WaveInEvent? _waveIn;
     private WaveFileWriter? _writer;
