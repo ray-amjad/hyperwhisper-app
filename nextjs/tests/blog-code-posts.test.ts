@@ -8,10 +8,10 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { before, test } from "node:test";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 let rows: unknown[] = [];
-moduleMock.module(new URL("../src/db/index.ts", import.meta.url).href, {
+moduleMock.module(moduleUrl("../src/db/index.ts"), {
   namedExports: {
     db: { select: () => ({ from: () => ({ orderBy: async () => rows }) }) },
   },

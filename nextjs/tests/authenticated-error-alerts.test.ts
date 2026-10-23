@@ -20,7 +20,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const LOAD_ERROR = "Failed to load: upstream timed out";
 
@@ -56,7 +56,7 @@ function idleMutation() {
   };
 }
 
-moduleMock.module(new URL("../lib/trpc/client.ts", import.meta.url).href, {
+moduleMock.module(moduleUrl("../lib/trpc/client.ts"), {
   namedExports: {
     api: {
       useUtils: () => ({
