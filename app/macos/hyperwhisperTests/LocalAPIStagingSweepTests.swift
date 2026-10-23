@@ -22,6 +22,7 @@ import Testing
 struct LocalAPIStagingSweepTests {
 
     private static let transcribePath = "app/macos/hyperwhisper/Managers/LocalAPI/Endpoints/TranscribeEndpoint.swift"
+    private static let audioSourcePath = "app/macos/hyperwhisper/Managers/LocalAPI/Endpoints/TranscribeAudioSource.swift"
     private static let appPath = "app/macos/hyperwhisper/hyperwhisperApp.swift"
 
     /// Stands in for this process in every sweep, so no fixture pid collides
@@ -381,12 +382,13 @@ struct LocalAPIStagingSweepTests {
 
     @Test func theEndpointNamesItsFolderThroughTheSweep() throws {
         let staging = try ProductionSource.slice(
-            of: Self.transcribePath,
+            of: Self.audioSourcePath,
             from: "private static func makePrivateStagedAudioFile(",
             to: "return StagedAudioFile("
         )
         #expect(staging.contains("LocalAPIStagingSweep.directoryName()"))
         let code = try ProductionSource.code(of: Self.transcribePath)
+            + "\n" + ProductionSource.code(of: Self.audioSourcePath)
         #expect(!code.contains("\"hyperwhisper-local-api-\\("))
     }
 

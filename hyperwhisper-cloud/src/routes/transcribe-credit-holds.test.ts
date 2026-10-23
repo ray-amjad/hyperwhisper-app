@@ -11,6 +11,7 @@ import { Hono } from 'hono';
 import { pcm16Wav } from '../test-support/wav';
 import { createMemoryCreditHoldStore, type MemoryCreditHoldStore } from '../lib/credit-hold-store-memory';
 import type { CreditHoldStore } from '../lib/credit-hold-store';
+import { saveEnv, stubEnv } from '../test-support/env';
 
 let cachedCredits = 1000;
 /** The `credit_pool_id` each key's cached licence carries (#2026); none by default. */
@@ -35,8 +36,8 @@ const { drainPendingDeductions } = await import('../middleware/credits');
 const { drainPendingHoldReleases, setCreditHoldStoreForTests } = await import('../middleware/credit-holds');
 
 const originalFetch = globalThis.fetch;
-const originalMetaKey = process.env.META_MODEL_API_KEY;
-const originalGroqKey = process.env.GROQ_API_KEY;
+let restoreMetaKey: () => void;
+const restoreGroqKey = saveEnv('GROQ_API_KEY');
 
 const ACCOUNT = 'test-license';
 // One minute of canonical Meta Muse audio reserves (and bills) exactly 3 credits.
@@ -92,7 +93,7 @@ beforeEach(() => {
   metaUpstream = slowMetaSuccess;
   store = createMemoryCreditHoldStore();
   setCreditHoldStoreForTests(store);
-  process.env.META_MODEL_API_KEY = 'test-meta-key';
+  restoreMetaKey = stubEnv('META_MODEL_API_KEY', 'test-meta-key');
   globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url === 'https://api.meta.ai/v1/asr/transcribe') {
@@ -112,10 +113,8 @@ afterEach(async () => {
   await settle();
   setCreditHoldStoreForTests(null);
   globalThis.fetch = originalFetch;
-  if (originalMetaKey === undefined) delete process.env.META_MODEL_API_KEY;
-  else process.env.META_MODEL_API_KEY = originalMetaKey;
-  if (originalGroqKey === undefined) delete process.env.GROQ_API_KEY;
-  else process.env.GROQ_API_KEY = originalGroqKey;
+  restoreMetaKey();
+  restoreGroqKey();
 });
 
 describe('concurrent /transcribe on a balance that covers one request (#2008)', () => {

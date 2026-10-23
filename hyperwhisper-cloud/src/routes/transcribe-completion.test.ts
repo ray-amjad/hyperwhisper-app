@@ -21,6 +21,7 @@ import type { SttProviderId } from '../lib/stt-models';
 import type { TranscriptionResult } from '../providers/types';
 import { completeTranscription } from './transcribe-completion';
 import type { PreparedTranscriptionRequest } from './transcribe-preparation';
+import { stubEnv } from '../test-support/env';
 
 const LICENSE_API_BASE = 'http://license.invalid';
 
@@ -32,7 +33,7 @@ const ACCOUNT: AuthContext = {
 
 const originalFetch = globalThis.fetch;
 const originalConsoleLog = console.log;
-const originalLicenseApiUrl = process.env.NEXTJS_LICENSE_API_URL;
+let restoreLicenseApiUrl: () => void;
 
 interface BillingPost {
   url: string;
@@ -47,7 +48,7 @@ let logLines: Array<Record<string, unknown>> = [];
 beforeEach(() => {
   billingPosts = [];
   logLines = [];
-  process.env.NEXTJS_LICENSE_API_URL = LICENSE_API_BASE;
+  restoreLicenseApiUrl = stubEnv('NEXTJS_LICENSE_API_URL', LICENSE_API_BASE);
 
   globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
     const body = JSON.parse(String(init?.body)) as {
@@ -79,11 +80,7 @@ afterEach(async () => {
   await drainPendingDeductions(2000);
   globalThis.fetch = originalFetch;
   console.log = originalConsoleLog;
-  if (originalLicenseApiUrl === undefined) {
-    delete process.env.NEXTJS_LICENSE_API_URL;
-  } else {
-    process.env.NEXTJS_LICENSE_API_URL = originalLicenseApiUrl;
-  }
+  restoreLicenseApiUrl();
 });
 
 function requestDone(): Record<string, unknown> {

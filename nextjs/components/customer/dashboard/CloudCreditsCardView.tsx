@@ -1,6 +1,7 @@
 "use client";
 
 import { ErrorReveal } from "@/components/ErrorReveal";
+import { Spinner } from "@/components/ui/Spinner";
 
 /**
  * The tier a checkout is in flight for: the dollar amount of a preset, or the
@@ -145,7 +146,7 @@ export default function CloudCreditsCardView({
                   onClick={() => onBuy(tier.amount, tier.amount)}
                 >
                   {isLoading ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <Spinner className="w-5 h-5 text-white" />
                   ) : (
                     <>
                       <span className="text-lg font-semibold">
@@ -210,7 +211,7 @@ export default function CloudCreditsCardView({
                     onClick={() => onBuy(Number(customAmount), "custom")}
                   >
                     {loadingTier === "custom" ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <Spinner className="w-5 h-5 text-white" />
                     ) : (
                       labels.topUp
                     )}

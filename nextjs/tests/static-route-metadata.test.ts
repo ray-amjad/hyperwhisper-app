@@ -101,19 +101,17 @@ for (const { route, title } of ROUTES) {
     assert.equal(metadata.openGraph.siteName, "HyperWhisper");
     assert.deepEqual(
       Array.from(metadata.openGraph.images, (image) => image.url),
-      [1024, 512, 256, 128].map(
-        (size) => `https://www.hyperwhisper.com/icon/${size}.png`,
-      ),
+      ["https://www.hyperwhisper.com/og-image.png"],
     );
 
     // The page sends its whole `twitter` object, so the shallow merge keeps
     // the card, creator and images and X previews the link with this title.
     assert.equal(metadata.twitter.title, title);
     assert.equal(metadata.twitter.description, metadata.openGraph.description);
-    assert.equal(metadata.twitter.card, "summary");
+    assert.equal(metadata.twitter.card, "summary_large_image");
     assert.equal(metadata.twitter.creator, "@theramjad");
     assert.deepEqual(metadata.twitter.images, [
-      "https://www.hyperwhisper.com/icon/256.png",
+      "https://www.hyperwhisper.com/og-image.png",
     ]);
   });
 }

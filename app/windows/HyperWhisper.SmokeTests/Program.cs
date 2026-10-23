@@ -1954,6 +1954,76 @@ internal static class Program
                 Assert(rows[0].DeviceNumber is null, "the Default row names no device");
             });
 
+            // #2408: a virtual Windows default (BlackHole, VB-CABLE, VoiceMeeter...)
+            // is skipped by the automatic pick, never by a hand-made choice.
+            Run("Microphone virtual inputs: detected by name, incl. the 31-char WaveIn cut, Krisp is not", () =>
+            {
+                var truncatedCable = "CABLE Output (VB-Audio Virtual Cable)"[..MicrophoneSelection.WaveInNameLimit];
+                Assert(truncatedCable == "CABLE Output (VB-Audio Virtual ", $"the WaveIn cut, got '{truncatedCable}'");
+                Assert(MicrophoneSelection.IsVirtualInput(truncatedCable), "the 31-char VB-CABLE WaveIn name is virtual");
+                Assert(MicrophoneSelection.IsVirtualInput("CABLE-A Output (VB-Audio Cable A)"), "VB-CABLE A");
+                Assert(MicrophoneSelection.IsVirtualInput("VoiceMeeter Out B1 (VB-Audio Vo"), "VoiceMeeter");
+                Assert(MicrophoneSelection.IsVirtualInput("blackhole 2ch"), "case is ignored");
+                Assert(MicrophoneSelection.IsVirtualInput("Microsoft Teams Audio"), "Teams audio");
+                Assert(MicrophoneSelection.IsVirtualInput("Stereo Mix (Realtek(R) Audio)"), "Stereo Mix");
+                Assert(MicrophoneSelection.IsVirtualInput("Line 1 (Virtual Audio Cable)"), "Virtual Audio Cable");
+                Assert(!MicrophoneSelection.IsVirtualInput("Microphone (Krisp Microphone)"), "Krisp carries the user's voice: NOT virtual");
+                Assert(!MicrophoneSelection.IsVirtualInput("Microphone (NVIDIA Broadcast)"), "NVIDIA Broadcast is NOT virtual");
+                Assert(!MicrophoneSelection.IsVirtualInput("Wave Link MicrophoneFX (Elgato "), "Elgato Wave Link is NOT virtual");
+                Assert(!MicrophoneSelection.IsVirtualInput("Microphone (Realtek(R) Audio)"), "a built-in mic is not virtual");
+                Assert(!MicrophoneSelection.IsVirtualInput(null) && !MicrophoneSelection.IsVirtualInput("  "), "no name is not virtual");
+                Assert(HyperWhisper.PortableApplication.MicrophoneSelection.VirtualNameMarkers.Count == 17, "the list matches the sibling heads' 17 entries");
+            });
+
+            Run("Microphone automatic pick skips a virtual Windows default; a hand-made choice is never overridden", () =>
+            {
+                var cable = new AudioDeviceService.AudioDevice(0, "CABLE Output (VB-Audio Virtual ");
+                var builtin = new AudioDeviceService.AudioDevice(1, "Microphone (Realtek(R) Audio)");
+                var usb = new AudioDeviceService.AudioDevice(2, "Scarlett 2i2 USB");
+                var devices = new List<AudioDeviceService.AudioDevice> { cable, builtin, usb };
+
+                var auto = MicrophoneSelection.Resolve(devices, null, cable);
+                Assert(auto.Source == MicrophoneSource.SystemDefault && auto.Device == builtin,
+                    $"virtual default + physical present -> the first physical input, got '{auto.Device?.Name}'");
+                Assert(auto.DefaultDevice == builtin && auto.SystemDefaultDevice == cable && auto.SkippedVirtualDefault,
+                    "the resolution reports the skipped virtual default");
+                var (rows, selected) = MicrophoneSelection.BuildOptions(devices, auto);
+                Assert(rows[0].Label == HyperWhisper.Localization.Loc.S("settings.sound.microphone.default", builtin.Name),
+                    $"the Default row names the device that records, got '{rows[0].Label}'");
+                Assert(selected == rows[0], "and Default stays selected");
+                Assert(rows.Count == 4 && rows.Any(r => r.Name == cable.Name), "the virtual device stays in the picker");
+
+                var onlyVirtual = new List<AudioDeviceService.AudioDevice>
+                {
+                    cable,
+                    new(1, "VoiceMeeter Output (VB-Audio Vo"),
+                };
+                var allVirtual = MicrophoneSelection.Resolve(onlyVirtual, null, cable);
+                Assert(allVirtual.Device == cable && !allVirtual.SkippedVirtualDefault,
+                    "only virtual inputs -> the Windows default still records");
+
+                var chosen = MicrophoneSelection.Resolve(devices, cable.Name, cable);
+                Assert(chosen.Source == MicrophoneSource.Saved && chosen.Device == cable,
+                    "an explicit VB-CABLE choice, connected, is used as is");
+                chosen = MicrophoneSelection.Resolve(devices, cable.Name, builtin);
+                Assert(chosen.Device == cable, "also when the Windows default is physical");
+
+                var physical = MicrophoneSelection.Resolve(devices, null, usb);
+                Assert(physical.Device == usb && !physical.SkippedVirtualDefault,
+                    "a physical Windows default is unchanged, even when it is not the first input");
+
+                var unplugged = MicrophoneSelection.Resolve(
+                    new List<AudioDeviceService.AudioDevice> { cable, builtin }, usb.Name, cable);
+                Assert(unplugged.Source == MicrophoneSource.SavedMissingUsingDefault && unplugged.Device == builtin,
+                    $"chosen but unplugged + virtual default -> the physical stand-in, got '{unplugged.Device?.Name}'");
+                Assert(unplugged.SavedName == usb.Name, "and the choice is kept");
+                var message = MicrophoneSelection.FallbackMessage(unplugged);
+                Assert(message != null && message.Contains(builtin.Name) && !message.Contains(cable.Name),
+                    $"the amber line names the stand-in that records, got '{message}'");
+
+                Assert(MicrophoneSelection.AutomaticPick(devices, null) is null, "no Windows default, no pick");
+            });
+
             Run("Microphone Test meter: shared level maths, idle bar empty", () =>
             {
                 var silence = new byte[3200];
@@ -4441,6 +4511,99 @@ internal static class Program
                     $"probe went to '{handler.LastRequestUri}'");
             });
 
+            // Issue #741. PostProcessingService promises graceful degradation: when
+            // the clean-up fails, the user keeps the raw transcription, and the
+            // toast says why. The service built its own HttpClient, so none of its
+            // failure routes could run without a live provider. These drive the
+            // custom-endpoint route, the one that needs no stored API key, through
+            // the internal constructor and a scripted handler.
+            RunAsync("post-processing: a provider 500 keeps the original transcription", async () =>
+            {
+                const string Raw = "um so the meeting is at three";
+                var run = await ProcessThroughScriptedEndpointAsync(Raw,
+                    () => Respond(HttpStatusCode.InternalServerError, """{"error":{"message":"boom"}}"""));
+
+                Assert(run.Handler.Sends == 1, $"expected one upstream call, saw {run.Handler.Sends}");
+                Assert(!run.Result.WasApplied, "a 500 must not report the clean-up as applied");
+                Assert(run.Result.Text == Raw, $"a 500 must return the original text, got '{run.Result.Text}'");
+                Assert(run.Result.ResolvedProvider is null && run.Result.ResolvedModel is null,
+                    "a failed run must not name a provider or model that produced nothing");
+            });
+
+            RunAsync("post-processing: a provider 500 raises one plain failure toast", async () =>
+            {
+                var run = await ProcessThroughScriptedEndpointAsync("um so the meeting is at three",
+                    () => Respond(HttpStatusCode.InternalServerError, """{"error":{"message":"boom"}}"""));
+
+                Assert(run.Toasts.Count == 1, $"expected exactly one toast, saw {run.Toasts.Count}");
+                var toast = run.Toasts[0];
+                Assert(toast.Message == HyperWhisper.Localization.Loc.S("postprocessing.error.failed"),
+                    $"expected the plain failure message, got '{toast.Message}'");
+                Assert(!toast.ShowSettingsButton && toast.SettingsSection is null && !toast.OpenApiKeysManager,
+                    "a network failure toast must not send the user to Settings or the API keys manager");
+            });
+
+            RunAsync("post-processing: a rejected completion keeps the original transcription", async () =>
+            {
+                const string Raw = "um so the meeting is at three";
+                // A 200 the shared core refuses: the model hit its output limit, so
+                // the completion is cut short. Not a network failure, same outcome.
+                var run = await ProcessThroughScriptedEndpointAsync(Raw,
+                    () => Respond(HttpStatusCode.OK,
+                        """{"choices":[{"message":{"content":"<<CLEANED>>So the meet"},"finish_reason":"length"}]}"""));
+
+                Assert(run.Handler.Sends == 1, $"expected one upstream call, saw {run.Handler.Sends}");
+                Assert(!run.Result.WasApplied, "a truncated completion must not report the clean-up as applied");
+                Assert(run.Result.Text == Raw, $"a rejected completion must return the original text, got '{run.Result.Text}'");
+                Assert(run.Toasts.Count == 1 && run.Toasts[0].Message == HyperWhisper.Localization.Loc.S("postprocessing.error.failed")
+                        && !run.Toasts[0].ShowSettingsButton,
+                    $"a rejected completion must raise the plain failure toast once, saw {run.Toasts.Count}");
+            });
+
+            RunAsync("post-processing: a cancelled request keeps the text and raises no toast", async () =>
+            {
+                const string Raw = "um so the meeting is at three";
+                // The user cancels while the request is in flight. A scripted handler
+                // ignores the token, so it throws the way the socket handler does on a
+                // cancel; a token cancelled before the call never reached the service's
+                // catch, because HttpClient handed the canned 200 straight back.
+                using var cancel = new CancellationTokenSource();
+                var run = await ProcessThroughScriptedEndpointAsync(Raw,
+                    () =>
+                    {
+                        cancel.Cancel();
+                        cancel.Token.ThrowIfCancellationRequested();
+                        throw new InvalidOperationException("unreachable");
+                    },
+                    cancel.Token);
+
+                Assert(run.Handler.Sends == 1, $"expected one upstream call, saw {run.Handler.Sends}");
+                Assert(!run.Result.WasApplied, "a cancelled request must not report the clean-up as applied");
+                Assert(run.Result.Text == Raw, $"a cancelled request must return the original text, got '{run.Result.Text}'");
+                // The user cancelled; telling them it failed would be wrong. This is
+                // the one Skipped route with no toast.
+                Assert(run.Toasts.Count == 0, $"a cancelled request must raise no toast, saw {run.Toasts.Count}");
+            });
+
+            RunAsync("post-processing: an accepted completion reports the provider that ran", async () =>
+            {
+                var run = await ProcessThroughScriptedEndpointAsync("um so the meeting is at three",
+                    () => Respond(HttpStatusCode.OK,
+                        """{"choices":[{"message":{"content":"<<CLEANED>>So the meeting is at three.<<END>>"},"finish_reason":"stop"}]}"""));
+
+                Assert(run.Result.WasApplied, "an accepted completion must report the clean-up as applied");
+                Assert(run.Result.Text == "So the meeting is at three.",
+                    $"expected the cleaned text without wrapper markers, got '{run.Result.Text}'");
+                Assert(run.Result.ResolvedProvider == run.ProviderString,
+                    $"expected the endpoint's provider string '{run.ProviderString}', got '{run.Result.ResolvedProvider}'");
+                Assert(run.Result.ResolvedModel == ScriptedEndpointModel,
+                    $"expected model '{ScriptedEndpointModel}', got '{run.Result.ResolvedModel}'");
+                Assert(run.Toasts.Count == 0, $"a success must raise no toast, saw {run.Toasts.Count}");
+                Assert(run.Handler.LastRequestUri?.Host == "percy.example.com"
+                        && run.Handler.LastRequestUri?.AbsolutePath == "/v1/chat/completions",
+                    $"the request went to '{run.Handler.LastRequestUri}', not the configured endpoint");
+            });
+
             // Issue #509. The Model Library called a custom endpoint "Connected"
             // when nothing had ever connected to it. Two independent gaps, so
             // two independent groups of assertions: the outcome was never
@@ -5095,6 +5258,122 @@ internal static class Program
                     "vulkan entry must not pin CUDA");
                 Assert(LocalLlmService.CrashEntryPinsBackend("CUDA", LocalLlmGpuHelper.CudaBackendId),
                     "backend match should be case-insensitive");
+            });
+
+            // Issue #1036: the Cloud connection-recovery rules, on a fake clock and a
+            // stub handler (CloudConnectionRig). Each check fails when its rule is removed.
+            RunAsync("Cloud warmup debounce: a 2nd prewarm inside 60s sends nothing, one at 60s sends (#1036)", async () =>
+            {
+                using var rig = new CloudConnectionRig(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
+                var t = rig.Now;
+
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.Handler.Sends == 1, $"first prewarm sends {rig.Handler.Sends}");
+
+                rig.Now = t.AddSeconds(59);
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.Handler.Sends == 1, $"prewarm at t+59s sends {rig.Handler.Sends}, want the debounce to hold");
+
+                rig.Now = t.AddSeconds(60);
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.Handler.Sends == 2, $"prewarm at t+60s sends {rig.Handler.Sends}, want the window to be over");
+            });
+
+            RunAsync("Cloud forced warmup sends inside the debounce window (#1036)", async () =>
+            {
+                // The public entry returns void, so the 2nd send signals instead of being awaited.
+                var sends = 0;
+                var secondSend = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                using var rig = new CloudConnectionRig(_ =>
+                {
+                    if (Interlocked.Increment(ref sends) == 2) secondSend.TrySetResult();
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+                });
+                var t = rig.Now;
+
+                await rig.Service.PrewarmConnectionAsync();
+                rig.Now = t.AddSeconds(1);
+                rig.Service.PrewarmConnectionForced();
+                try { await secondSend.Task.WaitAsync(TimeSpan.FromSeconds(5)); }
+                catch (TimeoutException) { throw new InvalidOperationException($"forced warmup at t+1s never sent ({sends} sends)"); }
+            });
+
+            RunAsync("Cloud warmup that fails clears the debounce, so the next prewarm retries (#1036)", async () =>
+            {
+                using var rig = new CloudConnectionRig(_ => throw new HttpRequestException("connection refused",
+                    new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.ConnectionRefused)));
+                var t = rig.Now;
+
+                await rig.Service.PrewarmConnectionAsync();
+                rig.Now = t.AddSeconds(1);
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.Handler.Sends == 2, $"prewarm at t+1s after a failure sends {rig.Handler.Sends}, want a retry");
+                Assert(rig.ClientsBuilt == 1, $"a refused connection rebuilt the client ({rig.ClientsBuilt} built)");
+            });
+
+            RunAsync("Cloud DNS failure: only HostNotFound/TryAgain, at any depth, rebuild the client (#1036)", async () =>
+            {
+                static Exception Wrapped(System.Net.Sockets.SocketError code) =>
+                    new HttpRequestException("send failed", new System.Net.Sockets.SocketException((int)code));
+
+                Assert(HyperWhisperCloudService.IsDnsError(Wrapped(System.Net.Sockets.SocketError.HostNotFound)), "HostNotFound is not DNS");
+                Assert(HyperWhisperCloudService.IsDnsError(Wrapped(System.Net.Sockets.SocketError.TryAgain)), "TryAgain is not DNS");
+                Assert(HyperWhisperCloudService.IsDnsError(new TaskCanceledException("outer", Wrapped(System.Net.Sockets.SocketError.HostNotFound))),
+                    "a DNS error two levels down is not found");
+                Assert(!HyperWhisperCloudService.IsDnsError(Wrapped(System.Net.Sockets.SocketError.ConnectionRefused)), "ConnectionRefused counts as DNS");
+                Assert(!HyperWhisperCloudService.IsDnsError(new HttpRequestException("no socket")), "a bare HttpRequestException counts as DNS");
+
+                using (var dns = new CloudConnectionRig(_ => throw Wrapped(System.Net.Sockets.SocketError.HostNotFound)))
+                {
+                    await dns.Service.PrewarmConnectionAsync();
+                    Assert(dns.ClientsBuilt == 2, $"a HostNotFound warmup built {dns.ClientsBuilt} clients, want a rebuild");
+                }
+                using (var refused = new CloudConnectionRig(_ => throw Wrapped(System.Net.Sockets.SocketError.ConnectionRefused)))
+                {
+                    await refused.Service.PrewarmConnectionAsync();
+                    Assert(refused.ClientsBuilt == 1, $"a ConnectionRefused warmup built {refused.ClientsBuilt} clients, want none rebuilt");
+                }
+            });
+
+            RunAsync("Cloud DNS rebuild runs at most once per 60s (#1036)", async () =>
+            {
+                using var rig = new CloudConnectionRig(_ => throw new HttpRequestException("dns",
+                    new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.HostNotFound)));
+                var t = rig.Now;
+
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.ClientsBuilt == 2, $"first DNS failure built {rig.ClientsBuilt} clients");
+
+                rig.Now = t.AddSeconds(30);
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.Handler.Sends == 2, $"retry at t+30s sends {rig.Handler.Sends}");
+                Assert(rig.ClientsBuilt == 2, $"DNS failure at t+30s rebuilt again ({rig.ClientsBuilt} built)");
+
+                rig.Now = t.AddSeconds(60);
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.ClientsBuilt == 3, $"DNS failure at t+60s built {rig.ClientsBuilt} clients, want a 2nd rebuild");
+            });
+
+            RunAsync("Cloud DNS failure after Dispose does not rebuild the client (#1036)", async () =>
+            {
+                var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                var rig = new CloudConnectionRig(async _ =>
+                {
+                    entered.SetResult();
+                    await release.Task;
+                    throw new HttpRequestException("dns",
+                        new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.HostNotFound));
+                });
+
+                var warmup = rig.Service.PrewarmConnectionAsync();
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                rig.Dispose();
+                release.SetResult();
+                await warmup.WaitAsync(TimeSpan.FromSeconds(5));
+
+                Assert(rig.Handler.Sends == 1, $"sends {rig.Handler.Sends}");
+                Assert(rig.ClientsBuilt == 1, $"a DNS failure after Dispose built {rig.ClientsBuilt} clients, want no resurrection");
             });
 
             RunAsync("RustRetry caps transport failures at 4 and resolves the client per attempt", async () =>
@@ -6243,6 +6522,188 @@ internal static class Program
                     try { File.Delete(whisperPath); } catch { /* best effort */ }
                     try { Directory.Delete(parakeetDir, recursive: true); } catch { /* best effort */ }
                 }
+            });
+
+            // #1782: DownloadModelAsync against a scripted Hugging Face, through the
+            // internal HttpClient constructor. Each check uses its own model id.
+            RunAsync("ParakeetModelService.DownloadModelAsync follows every Qwen3 tree page and skips repo metadata and test_wavs (#1782)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-qwen3-tree", "Smoke", "1 KB", 16, false, ["en"], [], "smoke/qwen3-tree",
+                    engine: ParakeetEngine.Qwen3);
+                var treeUrl = "https://huggingface.co/api/models/smoke/qwen3-tree/tree/main?recursive=true";
+                var page2Url = treeUrl + "&cursor=page2";
+                var handler = new HuggingFaceStubHandler((request, _) =>
+                {
+                    var url = request.RequestUri!.ToString();
+                    if (url == treeUrl)
+                    {
+                        var page1 = TreeJson(("file", "conv_frontend.int8.onnx"), ("file", "README.md"),
+                            ("file", ".gitattributes"), ("directory", "tokenizer"), ("file", "test_wavs/a.wav"));
+                        page1.Headers.TryAddWithoutValidation("Link", $"<{page2Url}>; rel=\"next\"");
+                        return page1;
+                    }
+                    if (url == page2Url)
+                        return TreeJson(("file", "encoder.int8.onnx"), ("file", "decoder.int8.onnx"), ("file", "tokenizer/vocab.json"));
+                    return url.StartsWith("https://huggingface.co/smoke/qwen3-tree/resolve/main/", StringComparison.Ordinal)
+                        ? Respond(HttpStatusCode.OK, "onnx")
+                        : Respond(HttpStatusCode.NotFound, "");
+                });
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+                try
+                {
+                    var result = await service.DownloadModelAsync(model);
+
+                    Assert(result.IsSuccess, $"the 2-page tree download failed: {result.Error}");
+                    var installed = Directory.EnumerateFiles(finalDir, "*", SearchOption.AllDirectories)
+                        .Select(f => Path.GetRelativePath(finalDir, f).Replace(Path.DirectorySeparatorChar, '/'))
+                        .OrderBy(f => f, StringComparer.Ordinal)
+                        .ToList();
+                    var expected = new[] { "conv_frontend.int8.onnx", "decoder.int8.onnx", "encoder.int8.onnx", "tokenizer/vocab.json" };
+                    Assert(installed.SequenceEqual(expected),
+                        $"expected the files of both pages and nothing else, got [{string.Join(", ", installed)}]");
+                    Assert(!handler.Requested.Any(u => u.Contains("README.md") || u.Contains(".gitattributes") || u.Contains("test_wavs")),
+                        $"a skipped path was fetched: {string.Join(", ", handler.Requested)}");
+                    Assert(service.IsModelDownloaded(model), "the installed tree should count as downloaded");
+                    Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was left behind");
+                }
+                finally
+                {
+                    try { Directory.Delete(finalDir, recursive: true); } catch { /* best effort */ }
+                }
+            });
+
+            RunAsync("ParakeetModelService.DownloadModelAsync fails an empty Qwen3 tree and leaves no .temp folder (#1782)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-qwen3-empty", "Smoke", "1 KB", 16, false, ["en"], [], "smoke/qwen3-empty",
+                    engine: ParakeetEngine.Qwen3);
+                var handler = new HuggingFaceStubHandler((request, _) =>
+                    request.RequestUri!.AbsolutePath.StartsWith("/api/models/", StringComparison.Ordinal)
+                        ? TreeJson()
+                        : Respond(HttpStatusCode.NotFound, ""));
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+
+                var result = await service.DownloadModelAsync(model);
+
+                Assert(result.IsFailure, "an empty repository tree should fail the download");
+                Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was left behind");
+                Assert(!Directory.Exists(finalDir), "an empty tree should install nothing");
+                Assert(handler.Requested.Count == 1, $"expected only the tree request, got {handler.Requested.Count}");
+            });
+
+            RunAsync("ParakeetModelService.DownloadModelAsync rejects a short body and keeps the old install (#1782, #1598)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-short-body", "Smoke", "1 KB", 7, true, ["en"], ["model.onnx", "tokens.txt"], "smoke/short-body",
+                    fileSizes: new Dictionary<string, long> { ["model.onnx"] = 4, ["tokens.txt"] = 3 });
+                var handler = new HuggingFaceStubHandler((request, _) => request.RequestUri!.AbsolutePath switch
+                {
+                    "/smoke/short-body/resolve/main/model.onnx" => Respond(HttpStatusCode.OK, "abcd"),
+                    "/smoke/short-body/resolve/main/tokens.txt" => Respond(HttpStatusCode.OK, "ab"), // 1 byte short
+                    _ => Respond(HttpStatusCode.NotFound, ""),
+                });
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+                Directory.CreateDirectory(finalDir);
+                File.WriteAllText(Path.Combine(finalDir, "model.onnx"), "good");
+                File.WriteAllText(Path.Combine(finalDir, "tokens.txt"), "old");
+                try
+                {
+                    Assert(service.IsModelDownloaded(model), "precondition: the old install is complete");
+
+                    var result = await service.DownloadModelAsync(model);
+
+                    Assert(result.IsFailure, "a body 1 byte short of its pinned size should fail the download");
+                    Assert(File.ReadAllText(Path.Combine(finalDir, "tokens.txt")) == "old", "the failed download replaced the old install");
+                    Assert(service.IsModelDownloaded(model), "the old install should still count as downloaded");
+                    Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was left behind");
+                }
+                finally
+                {
+                    try { Directory.Delete(finalDir, recursive: true); } catch { /* best effort */ }
+                }
+            });
+
+            RunAsync("ParakeetModelService.DownloadModelAsync fails an HTTP 500 on the second file and leaves no .temp folder (#1782)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-http-500", "Smoke", "1 KB", 7, true, ["en"], ["model.onnx", "tokens.txt"], "smoke/http-500",
+                    fileSizes: new Dictionary<string, long> { ["model.onnx"] = 4, ["tokens.txt"] = 3 });
+                var handler = new HuggingFaceStubHandler((request, _) => request.RequestUri!.AbsolutePath switch
+                {
+                    "/smoke/http-500/resolve/main/model.onnx" => Respond(HttpStatusCode.OK, "abcd"),
+                    "/smoke/http-500/resolve/main/tokens.txt" => Respond(HttpStatusCode.InternalServerError, "boom"),
+                    _ => Respond(HttpStatusCode.NotFound, ""),
+                });
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+
+                var result = await service.DownloadModelAsync(model);
+
+                Assert(result.IsFailure, "an HTTP 500 should fail the download");
+                Assert(result.Error != HyperWhisper.Localization.Loc.S("settings.models.download.cancelled"), "an HTTP failure was reported as a cancel");
+                Assert(handler.Requested.Count == 2, $"expected both files to be requested, got {handler.Requested.Count}");
+                Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder of partial files was left behind");
+                Assert(!Directory.Exists(finalDir), "a failed download should install nothing");
+            });
+
+            RunAsync("ParakeetModelService.DownloadModelAsync moves temp to final and clears a broken mark (#1782, #1598)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-good", "Smoke", "1 KB", 7, true, ["en"], ["model.onnx", "tokens.txt"], "smoke/good",
+                    fileSizes: new Dictionary<string, long> { ["model.onnx"] = 4, ["tokens.txt"] = 3 });
+                var handler = new HuggingFaceStubHandler((request, _) => request.RequestUri!.AbsolutePath switch
+                {
+                    "/smoke/good/resolve/main/model.onnx" => Respond(HttpStatusCode.OK, "abcd"),
+                    "/smoke/good/resolve/main/tokens.txt" => Respond(HttpStatusCode.OK, "abc"),
+                    _ => Respond(HttpStatusCode.NotFound, ""),
+                });
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+                LocalModelHealth.MarkBroken(finalDir, "smoke 1782");
+                try
+                {
+                    var result = await service.DownloadModelAsync(model);
+
+                    Assert(result.IsSuccess, $"a good download failed: {result.Error}");
+                    Assert(result.Value == finalDir, $"expected the final folder, got {result.Value}");
+                    Assert(File.ReadAllText(Path.Combine(finalDir, "tokens.txt")) == "abc", "the downloaded file is not in the final folder");
+                    Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was not moved");
+                    Assert(!LocalModelHealth.IsBroken(finalDir), "the re-downloaded model is still marked broken");
+                    Assert(service.IsModelDownloaded(model), "the re-downloaded model should count as downloaded");
+                }
+                finally
+                {
+                    LocalModelHealth.ClearBroken(finalDir);
+                    try { Directory.Delete(finalDir, recursive: true); } catch { /* best effort */ }
+                }
+            });
+
+            RunAsync("ParakeetModelService.DownloadModelAsync reports a cancel as cancelled and leaves no .temp folder (#1782)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-cancel", "Smoke", "1 KB", 7, true, ["en"], ["model.onnx", "tokens.txt"], "smoke/cancel",
+                    fileSizes: new Dictionary<string, long> { ["model.onnx"] = 4, ["tokens.txt"] = 3 });
+                using var cts = new CancellationTokenSource();
+                var handler = new HuggingFaceStubHandler((request, _) =>
+                {
+                    // The user presses Cancel while the first file is arriving.
+                    cts.Cancel();
+                    return Respond(HttpStatusCode.OK, "abcd");
+                });
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+
+                var result = await service.DownloadModelAsync(model, cancellationToken: cts.Token);
+
+                Assert(result.IsFailure, "a cancelled download should fail");
+                Assert(result.Error == HyperWhisper.Localization.Loc.S("settings.models.download.cancelled"),
+                    $"expected the cancelled message, got '{result.Error}'");
+                Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was left behind");
+                Assert(!Directory.Exists(finalDir), "a cancelled download should install nothing");
             });
 
             Run("Model Library offers Download for a broken model, even one a mode uses (#1598)", () =>
@@ -14411,6 +14872,137 @@ internal static class Program
                 }
             });
 
+            // =================================================================
+            // Issue #740: the HyperWhisper Cloud credit balance.
+            //
+            // HyperWhisperCloudManager reads the user's paid balance from /usage.
+            // Its internal constructor takes the HTTP client and the clock, so the
+            // 60 s cache, force_refresh, the error path and the onboarding key
+            // override run against a scripted /usage reply with no network and no
+            // wall-clock wait. A test instance never subscribes to the process-wide
+            // LicenseManager, so no handler leaks onto that singleton.
+            // =================================================================
+
+            static string UsageReply(double credits) =>
+                "{\"credits_remaining\":" + credits.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                + ",\"minutes_remaining\":10,\"credits_per_minute\":1.67,\"is_licensed\":false}";
+
+            static DateTime CreditsEpoch() => new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            RunAsync("credits: two reads inside 60s send one request", async () =>
+            {
+                var now = CreditsEpoch();
+                var handler = new CapturingHandler { Next = () => Respond(HttpStatusCode.OK, UsageReply(500)) };
+                using var client = new HttpClient(handler);
+                using var manager = new HyperWhisperCloudManager(client, () => now);
+
+                var first = await manager.FetchCreditsAsync();
+                Assert(first?.CreditsRemaining == 500, $"first read returned {first?.CreditsRemaining}");
+
+                // AddMilliseconds, not AddSeconds(59.9): see issue #379 (b) further down.
+                now = now.AddMilliseconds(59_900);
+                handler.Next = () => Respond(HttpStatusCode.OK, UsageReply(400));
+                var second = await manager.FetchCreditsAsync();
+
+                Assert(handler.Sends == 1, $"two reads inside 60s sent {handler.Sends} requests");
+                Assert(ReferenceEquals(second, first), "the second read did not return the cached balance");
+            });
+
+            RunAsync("credits: a read after 60s sends a second request", async () =>
+            {
+                var now = CreditsEpoch();
+                var handler = new CapturingHandler { Next = () => Respond(HttpStatusCode.OK, UsageReply(500)) };
+                using var client = new HttpClient(handler);
+                using var manager = new HyperWhisperCloudManager(client, () => now);
+
+                await manager.FetchCreditsAsync();
+
+                // The gate is `elapsed < 60 s` -> cached, so exactly 60 s is already stale.
+                now = now.AddSeconds(60);
+                handler.Next = () => Respond(HttpStatusCode.OK, UsageReply(400));
+                var second = await manager.FetchCreditsAsync();
+
+                Assert(handler.Sends == 2, $"a read at 60s sent {handler.Sends} requests in total");
+                Assert(second?.CreditsRemaining == 400, $"the read after 60s returned {second?.CreditsRemaining}");
+                Assert(manager.Credits?.CreditsRemaining == 400, $"Credits holds {manager.Credits?.CreditsRemaining}");
+            });
+
+            RunAsync("credits: forceRefresh bypasses the warm cache and sets force_refresh=true", async () =>
+            {
+                var now = CreditsEpoch();
+                var handler = new CapturingHandler { Next = () => Respond(HttpStatusCode.OK, UsageReply(500)) };
+                using var client = new HttpClient(handler);
+                using var manager = new HyperWhisperCloudManager(client, () => now);
+
+                await manager.FetchCreditsAsync();
+                var firstQuery = handler.LastRequestUri?.Query ?? "";
+                Assert(!firstQuery.Contains("force_refresh"), $"a plain read sent {firstQuery}");
+
+                now = now.AddSeconds(1);
+                handler.Next = () => Respond(HttpStatusCode.OK, UsageReply(400));
+                var forced = await manager.FetchCreditsAsync(forceRefresh: true);
+
+                Assert(handler.Sends == 2, $"forceRefresh on a warm cache sent {handler.Sends} requests in total");
+                Assert(handler.LastRequestUri?.Query.Contains("&force_refresh=true") == true,
+                    $"forced read query {handler.LastRequestUri?.Query}");
+                Assert(forced?.CreditsRemaining == 400, $"forced read returned {forced?.CreditsRemaining}");
+            });
+
+            RunAsync("credits: a 500 keeps the last known balance and records LastError", async () =>
+            {
+                var now = CreditsEpoch();
+                var handler = new CapturingHandler { Next = () => Respond(HttpStatusCode.OK, UsageReply(500)) };
+                using var client = new HttpClient(handler);
+                using var manager = new HyperWhisperCloudManager(client, () => now);
+
+                var known = await manager.FetchCreditsAsync();
+                var shownBalance = manager.FormattedBalance;
+
+                // A JSON error body: the server's own message becomes LastError.
+                now = now.AddSeconds(61);
+                handler.Next = () => Respond(HttpStatusCode.InternalServerError, "{\"error\":\"usage store unavailable\"}");
+                var failed = await manager.FetchCreditsAsync();
+
+                Assert(handler.Sends == 2, $"the stale read sent {handler.Sends} requests in total");
+                Assert(failed is null, "a 500 returned a balance");
+                Assert(ReferenceEquals(manager.Credits, known), "a 500 replaced or cleared the last known balance");
+                Assert(manager.FormattedBalance == shownBalance,
+                    $"the panel balance moved from \"{shownBalance}\" to \"{manager.FormattedBalance}\"");
+                Assert(manager.LastError == "usage store unavailable", $"LastError \"{manager.LastError}\"");
+                Assert(manager.HasError, "HasError is false after a 500");
+                Assert(!manager.IsFetchingCredits, "IsFetchingCredits stuck true after a 500");
+
+                // A body with no message falls back to the status code, and still keeps the balance.
+                handler.Next = () => Respond(HttpStatusCode.InternalServerError, "<html>bad gateway</html>");
+                await manager.FetchCreditsAsync(forceRefresh: true);
+
+                Assert(manager.LastError == "HTTP 500", $"LastError for a non-JSON 500 \"{manager.LastError}\"");
+                Assert(ReferenceEquals(manager.Credits, known), "a non-JSON 500 replaced or cleared the last known balance");
+            });
+
+            RunAsync("credits: licenseKeyOverride selects the identifier, not the device id", async () =>
+            {
+                const string typedKey = "OVERRIDE-KEY-740";
+                var handler = new CapturingHandler { Next = () => Respond(HttpStatusCode.OK, UsageReply(500)) };
+                using var client = new HttpClient(handler);
+                using var manager = new HyperWhisperCloudManager(client, CreditsEpoch);
+
+                // Surrounding whitespace, as a pasted key often has: the override is trimmed.
+                await manager.FetchCreditsAsync(licenseKeyOverride: "  " + typedKey + " ");
+
+                Assert(handler.Sends == 1, $"the override read sent {handler.Sends} requests");
+                Assert(handler.LastRequestUri?.Query == "?identifier=" + typedKey,
+                    $"override read query {handler.LastRequestUri?.Query}");
+
+                // Without the override the same manager asks about the stored identity
+                // (the device id on a CI runner), which is a different identifier.
+                var stored = LicenseManager.Instance.GetTranscriptionIdentifier().Identifier;
+                Assert(stored != typedKey, "the stored identifier equals the override; the check proves nothing");
+                await manager.FetchCreditsAsync(forceRefresh: true);
+                Assert(handler.LastRequestUri?.Query.StartsWith("?identifier=" + Uri.EscapeDataString(stored) + "&") == true,
+                    "a read with no override did not ask about the stored identifier");
+            });
+
             SynchronizationContext.SetSynchronizationContext(limitsPreviousContext);
 
             // =================================================================
@@ -14606,17 +15198,32 @@ internal static class Program
             {
                 // Google's newer Gemini keys do not start with "AIza". The prefix rule
                 // refused them with "Invalid API key format" on Windows and Linux; a
-                // wrong key fails at the provider anyway. Only a blank key is refused:
-                // no prefix and no length rule, for every provider.
+                // wrong key fails at the provider anyway. There is no prefix and no
+                // length rule for any provider (#2389): the store takes any non-blank text.
                 var newGeminiKey = "AQ." + new string('k', 37);
-                Assert(ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.GeminiTranscribe, newGeminiKey),
-                    "a Gemini 3.5 Transcribe key that does not start with AIza is refused");
-                Assert(ApiKeyService.IsValidKeyFormat(PostProcessingProvider.Gemini, newGeminiKey),
-                    "a Gemini post-processing key that does not start with AIza is refused");
-                Assert(ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.GeminiTranscribe, "AIza" + new string('k', 35)),
-                    "an AIza Gemini key is refused");
+                var apiKeys = new ApiKeyService(new InMemoryCredentialBackend());
+                Assert(apiKeys.SetApiKey(TranscriptionApiKeyType.GeminiTranscribe, newGeminiKey).IsSuccess,
+                    "the store refused a non-AIza Gemini 3.5 Transcribe key");
+                Assert(apiKeys.GetApiKey(TranscriptionApiKeyType.GeminiTranscribe) == newGeminiKey,
+                    "the stored Gemini 3.5 Transcribe key does not read back");
+                Assert(apiKeys.SetApiKey(PostProcessingProvider.Gemini, newGeminiKey).IsSuccess &&
+                       apiKeys.GetApiKey(PostProcessingProvider.Gemini) == newGeminiKey,
+                    "the store refused a non-AIza Gemini post-processing key");
+                Assert(apiKeys.SetApiKey(PostProcessingProvider.OpenAI, "k").IsSuccess &&
+                       apiKeys.GetApiKey(PostProcessingProvider.OpenAI) == "k",
+                    "the store refused a one-character key");
+                Assert(apiKeys.SetApiKey(PostProcessingProvider.HyperWhisperCloud, newGeminiKey).IsFailure,
+                    "a key for HyperWhisper Cloud, which takes none, was stored");
+            });
 
-                // The same for every vendor: any non-blank text, however short, is a key.
+            Run("issue #2410: every BYOK key write trims, from the store, onboarding and backup import", () =>
+            {
+                const string key = "sk-padded-key";
+                const string padded = "  sk-padded-key \r\n";
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                // The store itself: every provider and transcription slot trims, and whitespace alone clears.
                 foreach (var provider in new[]
                 {
                     PostProcessingProvider.OpenAI, PostProcessingProvider.Anthropic, PostProcessingProvider.Groq,
@@ -14624,27 +15231,50 @@ internal static class Program
                     PostProcessingProvider.Mistral,
                 })
                 {
-                    Assert(ApiKeyService.IsValidKeyFormat(provider, "k"), $"a short {provider} key is refused");
-                    Assert(!ApiKeyService.IsValidKeyFormat(provider, "   "), $"a blank {provider} key is accepted");
-                    Assert(!ApiKeyService.IsValidKeyFormat(provider, null), $"a null {provider} key is accepted");
+                    var backend = new InMemoryCredentialBackend();
+                    var store = new ApiKeyService(backend, health);
+                    Assert(store.SetApiKey(provider, padded).IsSuccess && backend.StoredValue == key,
+                        $"a padded {provider} key was stored as '{backend.StoredValue}'");
+                    Assert(store.SetApiKey(provider, " \t ").IsSuccess && backend.StoredValue == null,
+                        $"a whitespace-only {provider} key was stored instead of clearing the slot");
                 }
                 foreach (var type in Enum.GetValues<TranscriptionApiKeyType>())
                 {
-                    Assert(ApiKeyService.IsValidKeyFormat(type, "k"), $"a short {type} key is refused");
-                    Assert(!ApiKeyService.IsValidKeyFormat(type, " \t "), $"a blank {type} key is accepted");
-                    Assert(!ApiKeyService.IsValidKeyFormat(type, null), $"a null {type} key is accepted");
+                    var backend = new InMemoryCredentialBackend();
+                    var store = new ApiKeyService(backend, health);
+                    Assert(store.SetApiKey(type, padded).IsSuccess && backend.StoredValue == key,
+                        $"a padded {type} key was stored as '{backend.StoredValue}'");
+                    Assert(store.SetApiKey(type, "   ").IsSuccess && backend.StoredValue == null,
+                        $"a whitespace-only {type} key was stored instead of clearing the slot");
                 }
-                Assert(!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.None, newGeminiKey),
-                    "a key for no provider is accepted");
-                Assert(!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.HyperWhisperCloud, newGeminiKey),
-                    "a key for HyperWhisper Cloud, which takes none, is accepted");
 
-                // And it reaches the store: what the Model Library modal does on Save.
-                var apiKeys = new ApiKeyService(new InMemoryCredentialBackend());
-                Assert(apiKeys.SetApiKey(TranscriptionApiKeyType.GeminiTranscribe, newGeminiKey).IsSuccess,
-                    "the store refused a non-AIza Gemini 3.5 Transcribe key");
-                Assert(apiKeys.GetApiKey(TranscriptionApiKeyType.GeminiTranscribe) == newGeminiKey,
-                    "the stored Gemini 3.5 Transcribe key does not read back");
+                // Onboarding: the gateway's write and its read-back agree on the trimmed
+                // key, so a padded key saves, and a restore point holding a key stored
+                // with padding before #2389 still counts as restored.
+                foreach (var provider in new[] { CloudTranscriptionProvider.OpenAI, CloudTranscriptionProvider.Deepgram })
+                {
+                    var backend = new InMemoryCredentialBackend();
+                    var gateway = new LiveOnboardingProviderKeyGateway(new ApiKeyService(backend, health), health);
+                    Assert(gateway.Persist(padded, provider), $"onboarding refused a padded {provider} key: {gateway.ValidationError}");
+                    Assert(backend.StoredValue == key, $"onboarding stored the {provider} key as '{backend.StoredValue}'");
+                    Assert(gateway.Persist("", provider) && backend.StoredValue == null,
+                        $"onboarding's empty-string restore did not clear the {provider} key");
+                }
+
+                // Backup import: a padded key is restored trimmed, and a whitespace-only
+                // entry leaves the stored key alone instead of clearing it.
+                var importBackend = new InMemoryCredentialBackend();
+                var importStore = new ApiKeyService(importBackend, health);
+                var importJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["deepgram"] = padded });
+                Assert(UniversalBackupMapper.ApplyApiKeys(JsonSerializer.Deserialize<UniversalApiKeys>(importJson)!, importStore),
+                    "the backup import reported a failed key write");
+                Assert(importStore.GetApiKey(TranscriptionApiKeyType.Deepgram) == key,
+                    $"the backup import stored the Deepgram key as '{importBackend.StoredValue}'");
+                var blankJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["deepgram"] = "   " });
+                Assert(UniversalBackupMapper.ApplyApiKeys(JsonSerializer.Deserialize<UniversalApiKeys>(blankJson)!, importStore),
+                    "the backup import reported a failed write for a blank key");
+                Assert(importStore.GetApiKey(TranscriptionApiKeyType.Deepgram) == key,
+                    "a whitespace-only key in a backup cleared the stored Deepgram key");
             });
 
             Run("issue #650: /health key_present for the HW-Cloud rows follows the account key /transcribe refuses on", () =>
@@ -26705,7 +27335,7 @@ internal static class Program
     /// try/catch: a stray byte pair can only resolve to some unrelated member,
     /// so a hit on the exact target is a real call site (#1534).
     /// </summary>
-    private static bool AsyncBodyCalls(MethodInfo method, MethodInfo target)
+    internal static bool AsyncBodyCalls(MethodInfo method, MethodInfo target)
     {
         const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
         var body = method;
@@ -27525,6 +28155,57 @@ internal static class Program
         }
     }
 
+    private const string ScriptedEndpointModel = "m-741";
+
+    /// <summary>
+    /// Issue #741. Runs one <see cref="PostProcessingService.ProcessAsync"/> on a
+    /// custom endpoint whose only reply is <paramref name="reply"/>, and returns
+    /// what came back plus every toast the service raised. The endpoint lives in
+    /// an empty endpoint list that is put back afterwards.
+    /// </summary>
+    private static async Task<(PostProcessingResult Result, List<ErrorToastEventArgs> Toasts, CapturingHandler Handler, string ProviderString)>
+        ProcessThroughScriptedEndpointAsync(
+            string transcript,
+            Func<HttpResponseMessage> reply,
+            CancellationToken cancellationToken = default)
+    {
+        // ProcessAsync reads the vocabulary table for the prompt, so the suite's
+        // scratch database must exist even when this runs before any DB check.
+        await DatabaseInitializer.InitializeAsync();
+
+        var settings = SettingsService.Instance;
+        var saved = settings.CustomEndpoints;
+        settings.CustomEndpoints = new List<CustomPostProcessingEndpoint>();
+        try
+        {
+            var endpoint = CustomEndpointManager.Instance.AddEndpoint(
+                "Percy #741", "https://percy.example.com/v1/chat/completions", ScriptedEndpointModel, out var error);
+            Assert(endpoint is not null, $"the fixture endpoint should save, got '{error}'");
+
+            var handler = new CapturingHandler { Next = reply };
+            var toasts = new List<ErrorToastEventArgs>();
+            // The service owns and disposes the client it is given.
+            using var service = new PostProcessingService(
+                new HttpClient(handler), new LocalLlmModelService(), new LocalLlmService());
+            service.WarningOccurred += (_, e) => toasts.Add(e);
+
+            var mode = new Mode
+            {
+                Name = "Smoke",
+                PostProcessingMode = 1,
+                PostProcessingProvider = endpoint!.ProviderString,
+            };
+            // A fixed context, so the prompt never reads the CI runner's foreground window.
+            var context = new ApplicationContext { ProcessName = "notepad", WindowTitle = "Untitled - Notepad" };
+            var result = await service.ProcessAsync(transcript, mode, context, cancellationToken);
+            return (result, toasts, handler, endpoint.ProviderString);
+        }
+        finally
+        {
+            settings.CustomEndpoints = saved;
+        }
+    }
+
     private sealed class CapturingHandler : HttpMessageHandler
     {
         public Func<HttpResponseMessage>? Next;
@@ -27590,6 +28271,58 @@ internal static class Program
                 Content = new StringContent(body.ToJsonString(), System.Text.Encoding.UTF8, "application/json")
             };
         }
+    }
+
+    /// <summary>
+    /// Scripted Hugging Face for <c>ParakeetModelService.DownloadModelAsync</c> (#1782):
+    /// records every URL it was asked for and answers each from <c>respond</c>.
+    /// </summary>
+    private sealed class HuggingFaceStubHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, CancellationToken, HttpResponseMessage> _respond;
+        public List<string> Requested { get; } = new();
+
+        public HuggingFaceStubHandler(Func<HttpRequestMessage, CancellationToken, HttpResponseMessage> respond) => _respond = respond;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Requested.Add(request.RequestUri!.ToString());
+            return Task.FromResult(_respond(request, cancellationToken));
+        }
+    }
+
+    /// <summary>A Hugging Face tree API page: one <c>{type, path}</c> entry per item.</summary>
+    private static HttpResponseMessage TreeJson(params (string Type, string Path)[] entries)
+    {
+        var page = new JsonArray(entries.Select(e => (JsonNode)new JsonObject { ["type"] = e.Type, ["path"] = e.Path }).ToArray());
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(page.ToJsonString(), System.Text.Encoding.UTF8, "application/json")
+        };
+    }
+
+    /// <summary>
+    /// Issue #1036: a <see cref="HyperWhisperCloudService"/> on a fake clock
+    /// (<see cref="Now"/>), whose every HttpClient (the first one and each DNS
+    /// rebuild) sends through one <see cref="StubHandler"/>.
+    /// <see cref="ClientsBuilt"/> counts the factory calls, so 2 means one rebuild.
+    /// </summary>
+    private sealed class CloudConnectionRig : IDisposable
+    {
+        public DateTime Now = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        public int ClientsBuilt;
+        public readonly StubHandler Handler;
+        public readonly HyperWhisperCloudService Service;
+
+        public CloudConnectionRig(Func<CancellationToken, Task<HttpResponseMessage>> respond)
+        {
+            Handler = new StubHandler(respond);
+            Service = new HyperWhisperCloudService(
+                () => { Interlocked.Increment(ref ClientsBuilt); return new HttpClient(Handler, disposeHandler: false); },
+                () => Now);
+        }
+
+        public void Dispose() => Service.Dispose();
     }
 
     /// <summary>

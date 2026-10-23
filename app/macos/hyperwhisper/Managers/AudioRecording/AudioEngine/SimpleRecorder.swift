@@ -67,7 +67,7 @@ class SimpleRecorder: NSObject, ObservableObject {
 
     /// The live recorder: an `AVAudioRecorder` on the macOS default input, or a
     /// `DeviceAudioRecorder` on the microphone chosen in HyperWhisper (see
-    /// `makeLiveRecorder(url:settings:inputDeviceID:)`).
+    /// `makeLiveRecorder(url:settings:route:)`).
     private var recorder: (any LiveAudioRecording)?
 
     /// Task for periodic meter updates
@@ -302,25 +302,46 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// recorder that comes up after that is stopped and deleted on the queue by
     /// `discardSupersededRecorder`, exactly like a superseded one.
     ///
-    /// **Chosen microphone.** With an `inputDeviceID`, the recorder is a
-    /// `DeviceAudioRecorder` that opens that device directly, leaving the macOS default
-    /// input alone. If that device cannot be opened, the same job falls back to the
+    /// **Pinned microphone.** With devices in `route`, the recorder is a
+    /// `DeviceAudioRecorder` that opens them directly, in order, leaving the macOS
+    /// default input alone. If none can be opened, the same job falls back to the
     /// `AVAudioRecorder` below on the default input, so a flaky device costs the user
-    /// their choice for one recording, not the recording. `DeviceAudioRecorder.record()`
-    /// leaves no file behind when it fails, so the fallback starts on a clean URL.
+    /// their choice for one recording, not the recording — unless the route was pinned
+    /// to skip a virtual default (#2408): then it throws the usual start failure rather
+    /// than silently record BlackHole. `DeviceAudioRecorder.record()` leaves no file
+    /// behind when it fails, so the fallback starts on a clean URL.
     nonisolated private static func makeLiveRecorder(
         url: URL,
         settings: [String: Any],
-        inputDeviceID: AudioDeviceID?
+        route: MicrophoneCaptureRoute
     ) async throws -> any LiveAudioRecording {
         try await recorderStartGate.run({ () throws -> any LiveAudioRecording in
-            if let inputDeviceID {
-                let deviceRecorder = DeviceAudioRecorder(deviceID: inputDeviceID, url: url)
+            let avoidsVirtualDefault = route.avoidsVirtualDefault
+            for inputDeviceID in route.deviceIDs {
+                let deviceRecorder = DeviceAudioRecorder(
+                    deviceID: inputDeviceID,
+                    url: url,
+                    fallbackInputDeviceIDs: {
+                        MicrophoneCaptureRouting.fallbackInputDeviceIDs(avoidingVirtualDefault: avoidsVirtualDefault)
+                    }
+                )
                 deviceRecorder.isMeteringEnabled = true
                 if deviceRecorder.record() {
-                    AppLogger.audio.info("Recording from the chosen microphone (device \(inputDeviceID, privacy: .public))")
+                    AppLogger.audio.info("Recording from the pinned microphone (device \(inputDeviceID, privacy: .public))")
                     return deviceRecorder
                 }
+                AppLogger.audio.error("Pinned microphone could not be opened (device \(inputDeviceID, privacy: .public))")
+            }
+            guard route.fallsBackToSystemDefault else {
+                AppLogger.audio.error("No non-virtual microphone could be opened - not falling back to the virtual macOS default input")
+                SentryService.addBreadcrumb(
+                    message: "Pinned microphones failed to open; virtual default input not used",
+                    category: "audio.recording",
+                    level: .warning
+                )
+                throw AudioError.recordingFailed(reason: "Failed to start recording")
+            }
+            if !route.deviceIDs.isEmpty {
                 AppLogger.audio.error("Chosen microphone could not be opened - recording from the macOS default input instead")
                 SentryService.addBreadcrumb(
                     message: "Chosen microphone failed to open; fell back to the default input",
@@ -436,9 +457,9 @@ class SimpleRecorder: NSObject, ObservableObject {
     ///
     /// **Parameters:**
     /// - `url`: Where to save the WAV file
-    /// - `inputDeviceID`: The chosen microphone to open directly, or `nil` to record
-    ///   from the macOS default input. Resolve it with
-    ///   `MicrophoneCaptureRouting.captureDeviceID(preferredUID:)`.
+    /// - `route`: The microphones to open directly, in order, and whether the macOS
+    ///   default input may be the last resort (`.systemDefault`: record from it).
+    ///   Resolve it with `MicrophoneCaptureRouting.captureRoute(preferredUID:)`.
     ///
     /// **Returns:**
     /// - `.started` when the recorder is live and installed
@@ -448,7 +469,7 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// - AudioError.recordingFailed if recorder cannot start
     /// - AudioError.audioSystemNotResponding if CoreAudio did not start it within
     ///   `recorderStartTimeout`, or an earlier start is still stuck there
-    func startRecording(to url: URL, inputDeviceID: AudioDeviceID? = nil) async throws -> RecorderStartOutcome {
+    func startRecording(to url: URL, route: MicrophoneCaptureRoute = .systemDefault) async throws -> RecorderStartOutcome {
         // A start that already timed out is still blocked on the serial queue, so
         // this one would only wait behind it. Fail now, with the same message.
         if SimpleRecorder.recorderStartGate.hasAbandonedWork {
@@ -473,7 +494,7 @@ class SimpleRecorder: NSObject, ObservableObject {
             startedRecorder = try await SimpleRecorder.makeLiveRecorder(
                 url: url,
                 settings: recordSettings,
-                inputDeviceID: inputDeviceID
+                route: route
             )
         } catch {
             // A failure only belongs to the caller if the caller still owns the

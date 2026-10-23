@@ -48,4 +48,10 @@
   <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve">
     <value>마이크를 열 수 없습니다.</value>
   </data>
+  <data name="linux.credentials.not_stored" xml:space="preserve">
+    <value>설정 안 됨</value>
+  </data>
+  <data name="linux.credentials.stored" xml:space="preserve">
+    <value>저장됨</value>
+  </data>
 </root>

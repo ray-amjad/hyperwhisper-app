@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.ModelReadiness;
 using HyperWhisper.Platform.Abstractions;
+using HyperWhisper.PortableApplication;
 using HyperWhisper.PortableApplication.ViewModels;
 using HyperWhisper.SharedCore;
 
@@ -48,7 +49,8 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
         Modes = new(modes);
         Devices = new(devices);
         _selectedMode = selectedMode ?? Modes.FirstOrDefault();
-        _selectedDevice = selectedDevice ?? Devices.FirstOrDefault();
+        // #2408: with nothing selected yet, the automatic pick, never a virtual OS default.
+        _selectedDevice = selectedDevice ?? MicrophoneSelection.AutomaticPick(Devices);
         _selectedModeAvailable = selectedModeAvailable;
         _persistDecision = persistDecision;
         _selectMode = selectMode;
@@ -254,7 +256,7 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
         // Keep a choice the user already made. Replace it only when it is gone from the new list.
         var keep = _selectedDevice is not null
             && Devices.Any(item => string.Equals(item.Id, _selectedDevice.Id, StringComparison.Ordinal));
-        if (!keep && Set(ref _selectedDevice, selectedDevice ?? Devices.FirstOrDefault(), nameof(SelectedDevice)))
+        if (!keep && Set(ref _selectedDevice, selectedDevice ?? MicrophoneSelection.AutomaticPick(Devices), nameof(SelectedDevice)))
             TestSucceeded = false;
         Notify(nameof(HasNoMicrophone));
         NotifyReadiness();

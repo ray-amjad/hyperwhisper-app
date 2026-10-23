@@ -72,7 +72,7 @@ export default function VideoDemo() {
             viewport={{ once: true }}
             whileInView={{ opacity: 1, y: 0 }}
           >
-            <div className="text-3xl font-bold text-green-500 mb-2">9+</div>
+            <div className="text-3xl font-bold text-emerald-400 mb-2">9+</div>
             <div className="text-gray-400">{t("providersSupported")}</div>
           </m.div>
         </div>
