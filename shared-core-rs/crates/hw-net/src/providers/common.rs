@@ -299,7 +299,9 @@ pub fn classify_http(resp: &HttpResponse, raw: &str) -> TranscriptionError {
     classify_http_with_message(resp, raw, error_message)
 }
 
-/// The shared status-code skeleton behind [`classify_http`]: 401/403 →
+/// [`classify_http`] with a custom `BadRequest` message extractor, reading
+/// `Retry-After` from the response header. The policy is [`classify_status`]:
+/// 401/403 →
 /// `Unauthorized` (`QuotaExceeded` for an out-of-credits body), 402 →
 /// `QuotaExceeded`, 408 → `ProviderUnavailable`, 413 →
 /// `FileTooLarge`, 429 → quota-vs-rate-limited (via [`is_quota_error`]), 5xx →
@@ -317,7 +319,20 @@ pub fn classify_http_with_message(
     raw: &str,
     extract_message: impl FnOnce(Option<&serde_json::Value>, &str) -> String,
 ) -> TranscriptionError {
-    let status = resp.status;
+    classify_status(resp.status, raw, |_| retry_after(resp), extract_message)
+}
+
+/// The one status → [`TranscriptionError`] policy, shared by
+/// [`classify_http_with_message`] (retry-after from the `Retry-After` header)
+/// and `retry::classify_error` (retry-after from the JSON body). Only the
+/// retry-after source and the `BadRequest` message extractor vary, so the two
+/// entry points agree on every status by construction.
+pub(crate) fn classify_status(
+    status: u16,
+    raw: &str,
+    retry_after_secs: impl FnOnce(Option<&serde_json::Value>) -> Option<u64>,
+    extract_message: impl FnOnce(Option<&serde_json::Value>, &str) -> String,
+) -> TranscriptionError {
     let json: Option<serde_json::Value> = serde_json::from_str(raw).ok();
 
     match status {
@@ -331,7 +346,7 @@ pub fn classify_http_with_message(
                 TranscriptionError::QuotaExceeded
             } else {
                 TranscriptionError::RateLimited {
-                    retry_after_secs: retry_after(resp),
+                    retry_after_secs: retry_after_secs(json.as_ref()),
                 }
             }
         }
