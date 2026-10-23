@@ -903,6 +903,13 @@ try
         // model id must never be offered as a BYOK cloud model: re-selecting it saves the mode with
         // CloudTranscriptionModel=null and shows no error.
         shell.Modes.NewCommand.Execute(null);
+        // Create Mode seeds the system region's English spelling variant, as Windows and macOS do
+        // (#2382): a blank value would send no spelling instruction for every mode the user makes.
+        var regionSpelling = PortableModeDefaults.EnglishSpellingForRegion(
+            System.Globalization.RegionInfo.CurrentRegion.TwoLetterISORegionName);
+        Assert(!string.IsNullOrEmpty(shell.Modes.EnglishSpelling)
+            && shell.Modes.EnglishSpelling == regionSpelling,
+            $"Create Mode seeded EnglishSpelling '{shell.Modes.EnglishSpelling}', expected the region's '{regionSpelling}'");
         shell.Modes.IsYourProviderSource = true;
         var createModeModels = shell.Modes.CloudModels;
         Assert(!createModeModels.Contains("base", StringComparer.Ordinal)
