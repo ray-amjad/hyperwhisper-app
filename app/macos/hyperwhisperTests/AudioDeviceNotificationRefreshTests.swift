@@ -27,11 +27,14 @@ private func notificationSnapshot(
     )
 }
 
+/// Holds a fake scan until the test lets it go. The cap only bounds how long a
+/// failing test runs: at 5 s a stalled runner could let a held scan finish
+/// early and undo the order a test forces (#2455).
 private final class NotificationScanGate: @unchecked Sendable {
     private let semaphore = DispatchSemaphore(value: 0)
 
     func wait() {
-        _ = semaphore.wait(timeout: .now() + 5)
+        _ = semaphore.wait(timeout: .now() + 100)
     }
 
     func release() {
@@ -75,7 +78,7 @@ private final class NotificationScanProbe: @unchecked Sendable {
 }
 
 @MainActor
-@Suite(.serialized, .timeLimit(.minutes(5)))
+@Suite(.serialized, .timeLimit(.minutes(10)))
 struct AudioDeviceNotificationRefreshTests {
     /// Polls every millisecond for up to 120 s. The bound is a hang guard, not a
     /// deadline: a loaded CI runner can stall the test process for 20-90 s, far
