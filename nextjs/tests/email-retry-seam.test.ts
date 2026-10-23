@@ -13,16 +13,7 @@ import assert from "node:assert/strict";
 import test, { afterEach, beforeEach, mock } from "node:test";
 
 import type { EmailDeps, EmailService as EmailServiceClass } from "../lib/services/email";
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
-
-/** `mock.module` is untyped under the pinned `@types/node@20`; see the harnesses. */
-interface ModuleMocker {
-  module(specifier: string, options: { namedExports: Record<string, unknown> }): void;
-}
-const moduleMock = mock as unknown as ModuleMocker;
+import { moduleMock, moduleUrl } from "./module-mock";
 
 moduleMock.module(moduleUrl("../lib/clients/resend.ts"), {
   namedExports: {

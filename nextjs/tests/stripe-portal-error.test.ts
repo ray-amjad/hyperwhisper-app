@@ -13,10 +13,12 @@
  * factory, the auth middleware, the error formatter and the router run for real.
  */
 import assert from "node:assert/strict";
-import { afterEach, mock, test } from "node:test";
+import { afterEach, test } from "node:test";
 
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import superjson from "superjson";
+
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const STRIPE_RAW =
   "No such customer: 'cus_portalerror'; a similar object exists in live mode, but a test mode key was used to make this request.";
@@ -25,19 +27,6 @@ const STRIPE_RAW =
 const behaviour = {
   portalError: null as Error | null,
   portalUrl: "https://billing.stripe.test/session/bps_ok",
-};
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
-
-// `mock.module` is real in Node 22 (behind --experimental-test-module-mocks,
-// which `npm test` passes) but the pinned @types/node@20 does not declare it.
-const moduleMock = mock as unknown as {
-  module(
-    specifier: string,
-    options: { namedExports: Record<string, unknown> },
-  ): void;
 };
 
 moduleMock.module(moduleUrl("../src/lib/auth.ts"), {
