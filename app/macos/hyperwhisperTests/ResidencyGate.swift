@@ -32,8 +32,8 @@ import Testing
 /// ## Why every wait is bounded
 ///
 /// The only `signal()` that releases some of these waits lives inside the code
-/// under test, so a regression there is an UNBOUNDED wait. `app/macos` sets no
-/// swift-testing `timeLimit` trait, swift-testing applies no implicit deadline,
+/// under test, so a regression there is an UNBOUNDED wait. The suites that use
+/// it set no swift-testing `timeLimit` trait, swift-testing applies no implicit deadline,
 /// and `macos-ci.yml` passes no `-test-timeouts-enabled` — so the outer backstop
 /// is GitHub's 360-minute job default. A two-second assertion failure presented
 /// as a six-hour infrastructure outage with no indication which test had
