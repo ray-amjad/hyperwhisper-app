@@ -87,7 +87,7 @@ export default function SupportPage() {
 
             {/* Response time info */}
             <div className="flex items-start gap-3 text-gray-400 pt-4 border-t border-gray-700">
-              <Clock className="w-5 h-5 mt-0.5 flex-shrink-0" />
+              <Clock className="w-5 h-5 mt-0.5 flex-shrink-0" strokeWidth={1.5} />
               <p className="text-sm">{t("responseTime")}</p>
             </div>
           </CardBody>
