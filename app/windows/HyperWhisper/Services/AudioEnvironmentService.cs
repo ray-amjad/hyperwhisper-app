@@ -443,6 +443,14 @@ public sealed class AudioEnvironmentService
     private void RestoreMuteState(AudioEnvironmentState state, double delaySeconds)
     {
         using var device = _outputEndpoints.GetOrDefault(state.DeviceId);
+        if (!string.Equals(device.Id, state.DeviceId, StringComparison.OrdinalIgnoreCase))
+        {
+            // The muted device is gone. The default now is a device HyperWhisper never muted, so
+            // writing WasMuted to it could unmute an output the user muted (issue #2243).
+            LoggingService.Info($"AudioEnvironmentService: Skipping output restore because the muted device is gone ({state.DeviceName})");
+            return;
+        }
+
         if (device.Mute)
         {
             device.Mute = state.WasMuted;

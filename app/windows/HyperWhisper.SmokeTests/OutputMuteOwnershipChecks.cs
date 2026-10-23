@@ -35,10 +35,14 @@ internal static class OutputMuteOwnershipChecks
             var output = new FakeOutputDevices("speakers", muted: false);
             var service = NewService(output);
 
-            service.ScheduleRestoreAfterRecording(StartRecording(service), immediate: true);
+            var cancelled = StartRecording(service);
+            Assert(output["speakers"].Mute && cancelled?.MutedByHyperWhisper == true, "the cancelled recording muted the output");
+            service.ScheduleRestoreAfterRecording(cancelled, immediate: true);
             Assert(!output["speakers"].Mute, "a cancel leaves the output muted");
 
-            service.RestoreAfterRecordingImmediatelyAsync(StartRecording(service)).Wait();
+            var interrupted = StartRecording(service);
+            Assert(output["speakers"].Mute && interrupted?.MutedByHyperWhisper == true, "the interrupted recording muted the output");
+            service.RestoreAfterRecordingImmediatelyAsync(interrupted).Wait();
             Assert(!output["speakers"].Mute, "an exit mid-recording leaves the output muted");
         });
 
@@ -87,6 +91,21 @@ internal static class OutputMuteOwnershipChecks
             Assert(output["headphones"].Mute && output["headphones"].Writes == 0,
                 "the restore unmuted the new default device, which the user had muted");
         });
+
+        run("media control: a muted device that is gone at stop leaves the new default alone (#2243)", () =>
+        {
+            var output = new FakeOutputDevices("speakers", muted: false);
+            var service = NewService(output);
+
+            var state = StartRecording(service);
+            output.Add("headphones", muted: true);
+            output.DefaultId = "headphones";
+            output.Remove("speakers");
+            service.ScheduleRestoreAfterRecording(state);
+
+            Assert(output["headphones"].Mute && output["headphones"].Writes == 0,
+                "the restore of an unplugged device unmuted the new default, which the user had muted");
+        });
     }
 
     private static AudioEnvironmentService.AudioEnvironmentState? StartRecording(AudioEnvironmentService service) =>
@@ -104,6 +123,8 @@ internal static class OutputMuteOwnershipChecks
         public FakeDevice this[string id] => _devices[id];
 
         public void Add(string id, bool muted) => _devices[id] = new FakeDevice(id, muted);
+
+        public void Remove(string id) => _devices.Remove(id);
 
         public IOutputMuteEndpoint GetDefault() => _devices[DefaultId];
 

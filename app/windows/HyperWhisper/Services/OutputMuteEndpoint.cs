@@ -74,11 +74,26 @@ internal sealed class NAudioOutputMuteEndpoints : IOutputMuteEndpoints
             set => device.AudioEndpointVolume.Mute = value;
         }
 
-        // Reverse order of creation, as the old `using var` pair did.
+        private bool _disposed;
+
+        // Reverse order of creation; the enumerator is released even when the device throws,
+        // as the old `using var` pair did.
         public void Dispose()
         {
-            device.Dispose();
-            enumerator.Dispose();
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            try
+            {
+                device.Dispose();
+            }
+            finally
+            {
+                enumerator.Dispose();
+            }
         }
     }
 }
