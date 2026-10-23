@@ -296,6 +296,45 @@ internal static class ScriptGuardPorts
             }
         });
 
+        run("models: the Model Library refuses to delete a local model a mode still uses (#2245)", () =>
+        {
+            // A deleted model a mode still points at breaks that mode: its local
+            // transcription, or its AI rewrite, fails on the next recording.
+            var llmId = LocalLlmModelInfo.AllModels[0].Id;
+            var otherLlmId = LocalLlmModelInfo.AllModels.First(m => m.Id != llmId).Id;
+            var localLlm = PostProcessingProvider.LocalLlm.ToStringValue();
+            Mode M(string name, Action<Mode> set) { var m = new Mode { Name = name }; set(m); return m; }
+
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("Rewrite", m => { m.PostProcessingProvider = localLlm; m.LocalPostProcessingModel = llmId; })], llmId)?.Name == "Rewrite",
+                "a mode whose LocalPostProcessingModel is the model did not protect it");
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("Legacy", m => { m.PostProcessingProvider = localLlm; m.LanguageModel = llmId; })], llmId)?.Name == "Legacy",
+                "a mode that keeps the model in the legacy LanguageModel field did not protect it");
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("Upper", m => { m.PostProcessingProvider = "LOCAL_LLM"; m.LocalPostProcessingModel = llmId.ToUpperInvariant(); })], llmId)?.Name == "Upper",
+                "the provider or model id match was case-sensitive");
+            // No retired id migrates to a local GGUF today, so this pins the
+            // MigrateModelId hop on both sides with a cloud id that does migrate.
+            const string retiredId = "llama-3.1-8b";
+            var migratedId = LanguageModelInfo.MigrateModelId(retiredId)!;
+            Assert(migratedId != retiredId, $"test premise: {retiredId} no longer migrates");
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("Old", m => { m.PostProcessingProvider = localLlm; m.LanguageModel = retiredId; })], migratedId)?.Name == "Old",
+                "a mode on a retired id did not protect the model it migrates to");
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("Other", m => { m.PostProcessingProvider = localLlm; m.LocalPostProcessingModel = otherLlmId; })], llmId) == null,
+                "a mode on a different local model blocked the delete");
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("Cloud", m => { m.PostProcessingProvider = "openai"; m.LanguageModel = llmId; })], llmId) == null,
+                "a mode whose provider is not the local LLM blocked the delete");
+
+            Assert(ModelInUse.FindModeUsingWhisperModel([M("W", m => { m.ProviderType = "local"; m.LocalEngine = "whisper"; m.ModelType = "base"; })], "base")?.Name == "W",
+                "a local Whisper mode did not protect its model");
+            Assert(ModelInUse.FindModeUsingWhisperModel([M("WLegacy", m => { m.ProviderType = "local"; m.LocalEngine = "whisper"; m.Model = "base"; })], "base")?.Name == "WLegacy",
+                "a local Whisper mode that keeps its model in the legacy Model field did not protect it");
+            Assert(ModelInUse.FindModeUsingWhisperModel([M("W", m => { m.ProviderType = "cloud"; m.LocalEngine = "whisper"; m.ModelType = "base"; })], "base") == null,
+                "a cloud mode's leftover Whisper model blocked the delete");
+            Assert(ModelInUse.FindModeUsingParakeetModel([M("P", m => { m.ProviderType = "local"; m.LocalEngine = "parakeet"; m.LocalParakeetModel = "pk"; })], "pk")?.Name == "P",
+                "a local Parakeet mode did not protect its model");
+            Assert(ModelInUse.FindModeUsingParakeetModel([M("P", m => { m.ProviderType = "local"; m.LocalEngine = "whisper"; m.LocalParakeetModel = "pk"; })], "pk") == null,
+                "a Whisper-engine mode's leftover Parakeet model blocked the delete");
+        });
+
         run("prompt: each detected app type puts its own context block in the AI prompt (#830)", () =>
         {
             // The AppType -> core HwAppType switch is C#. A wrong arm formats an
