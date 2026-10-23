@@ -2206,6 +2206,21 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Asetukset palautettu.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API-avaimet palautettu.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Yhtä tai useampaa API-avainta ei voitu palauttaa.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Varmuuskopio ei sisällä API-avaimia.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Asetuksia ei voitu palauttaa.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Varmuuskopio tuotiin, mutta ilmeni ongelmia. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Jos sana on jo olemassa:</value>
   </data>

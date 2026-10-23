@@ -2206,6 +2206,21 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Iestatījumi atjaunoti.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API atslēgas atjaunotas.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Vienu vai vairākas API atslēgas neizdevās atjaunot.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Dublējumkopijā nav API atslēgu.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Iestatījumus neizdevās atjaunot.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Dublējumkopija importēta ar problēmām. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Ja vārds jau pastāv:</value>
   </data>

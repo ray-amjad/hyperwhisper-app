@@ -2226,6 +2226,21 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Settings restored.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API keys restored.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>One or more API keys could not be restored.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>The backup holds no API keys.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Settings could not be restored.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Backup imported with problems. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>If a word already exists:</value>
   </data>

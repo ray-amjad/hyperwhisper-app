@@ -2205,6 +2205,21 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Налаштування відновлено.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API-ключі відновлено.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Не вдалося відновити один або кілька API-ключів.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Резервна копія не містить API-ключів.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Не вдалося відновити налаштування.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Резервну копію імпортовано з помилками. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Якщо слово вже існує:</value>
   </data>

@@ -2206,6 +2206,21 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Подешавања враћена.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API кључеви враћени.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Један или више API кључева није било могуће вратити.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Резервна копија не садржи API кључеве.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Подешавања није било могуће вратити.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Резервна копија је увезена уз проблеме. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Ако реч већ постоји:</value>
   </data>

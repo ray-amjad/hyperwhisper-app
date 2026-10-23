@@ -2206,6 +2206,21 @@ Sie können es später erneut herunterladen.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Einstellungen wiederhergestellt.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API-Schlüssel wiederhergestellt.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Ein oder mehrere API-Schlüssel konnten nicht wiederhergestellt werden.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Die Sicherung enthält keine API-Schlüssel.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Einstellungen konnten nicht wiederhergestellt werden.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Sicherung mit Problemen importiert. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Wenn ein Wort bereits vorhanden ist:</value>
   </data>

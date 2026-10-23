@@ -2206,6 +2206,21 @@ Je kunt het later opnieuw downloaden.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Instellingen hersteld.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API-sleutels hersteld.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Een of meer API-sleutels konden niet worden hersteld.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>De back-up bevat geen API-sleutels.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Instellingen konden niet worden hersteld.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Back-up geïmporteerd met problemen. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Als een woord al bestaat:</value>
   </data>
