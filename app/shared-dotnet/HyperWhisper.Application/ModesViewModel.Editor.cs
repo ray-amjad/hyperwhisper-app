@@ -287,8 +287,9 @@ public sealed partial class ModesViewModel
     public IReadOnlyList<string> Presets { get; } = ["hyper", "message", "mail", "note", "meeting", "code", "custom"];
     /// <summary>
     /// The four variants Windows offers (ModeEditorWindow.xaml:485-488). There is deliberately no
-    /// empty entry: a mode that has never chosen one keeps EnglishSpelling empty, which the
-    /// shared core reads as "send no spelling instruction", and the combo simply shows nothing.
+    /// empty entry: an existing mode that has never chosen one keeps EnglishSpelling empty, which
+    /// the shared core reads as "send no spelling instruction", and the combo simply shows nothing.
+    /// Create Mode seeds the system region's variant instead (NewCommand), so a new mode is never blank.
     /// </summary>
     public IReadOnlyList<string> EnglishSpellings { get; } = ["american", "british", "australian", "canadian"];
 
