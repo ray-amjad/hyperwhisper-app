@@ -375,19 +375,28 @@ export default function DownloadsPage() {
                     {/* Version Details */}
                     <div className="space-y-3 mb-5">
                       <div className="flex items-center gap-2 text-gray-400">
-                        <Calendar className="w-4 h-4 text-purple-400" strokeWidth={1.5} />
+                        <Calendar
+                          className="w-4 h-4 text-purple-400"
+                          strokeWidth={1.5}
+                        />
                         <span className="text-sm">
                           {formatDate(version.pubDate)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-400">
-                        <HardDrive className="w-4 h-4 text-purple-400" strokeWidth={1.5} />
+                        <HardDrive
+                          className="w-4 h-4 text-purple-400"
+                          strokeWidth={1.5}
+                        />
                         <span className="text-sm">
                           {formatFileSize(version.downloads[0]?.fileSize ?? 0)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-400">
-                        <Monitor className="w-4 h-4 text-purple-400" strokeWidth={1.5} />
+                        <Monitor
+                          className="w-4 h-4 text-purple-400"
+                          strokeWidth={1.5}
+                        />
                         <span className="text-sm">
                           {platformLabel} {version.minimumSystemVersion}+
                         </span>
@@ -407,7 +416,12 @@ export default function DownloadsPage() {
                           }`}
                           href={dl.downloadUrl}
                           size="lg"
-                          startContent={<Download className="w-4 h-4" strokeWidth={isLatestVersion(index) ? 2 : 1.5} />}
+                          startContent={
+                            <Download
+                              className="w-4 h-4"
+                              strokeWidth={isLatestVersion(index) ? 2 : 1.5}
+                            />
+                          }
                         >
                           {dl.arch ? `${dl.arch}` : downloadLabel}
                         </Button>
