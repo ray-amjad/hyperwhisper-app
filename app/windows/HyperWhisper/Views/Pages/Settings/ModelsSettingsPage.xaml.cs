@@ -47,6 +47,9 @@ public partial class ModelsSettingsPage : Page
 
         InitializeComponent();
         DataContext = this;
+        // The rows are one part of the page's CompositeCollection (see the XAML),
+        // and a CollectionContainer sits outside the tree, so it cannot bind.
+        LibraryRowsContainer.Collection = LibraryRows;
         InitializeLanguageFilter();
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
