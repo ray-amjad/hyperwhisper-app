@@ -130,6 +130,12 @@ private final class ScriptedCloudURLProtocol: URLProtocol {
     static func makeSession() -> URLSession {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [ScriptedCloudURLProtocol.self]
+        // A held /post-process waits for the test, not the network. With the
+        // 60 s default, a CI stall past a minute times the parked request
+        // out, and the provider's retry reaches the backend a second time
+        // (#2399).
+        config.timeoutIntervalForRequest = 600
+        config.timeoutIntervalForResource = 600
         return URLSession(configuration: config)
     }
 
@@ -287,9 +293,12 @@ private final class TextOnlyProvider: TranscriptionProvider {
 @Suite(.serialized)
 struct TranscriptionOutcomePerCallTests {
 
-    /// Waits up to `seconds` for `condition`. The full suite runs in parallel
-    /// in one process, so the deadline is generous.
-    private static func eventually(_ seconds: Double = 20, _ condition: () -> Bool) async -> Bool {
+    /// Waits up to `seconds` for `condition`. The deadline is a failsafe for a
+    /// call that never arrives, not a timing assertion: the full test bundle
+    /// runs in parallel in one process, and on `macos-ci` the suites around
+    /// this one have reported 20 to 90 s, so a 20 s deadline lapsed while
+    /// call A was still on its way (#2399).
+    private static func eventually(_ seconds: Double = 180, _ condition: () -> Bool) async -> Bool {
         let deadline = Date().addingTimeInterval(seconds)
         while Date() < deadline {
             if condition() { return true }
@@ -390,7 +399,17 @@ struct TranscriptionOutcomePerCallTests {
         let callA = Task {
             try await shared.transcribeDetailed(audioURL: audio, language: "de", mode: mode, vocabulary: [])
         }
-        #expect(await Self.eventually { backend.heldCount == 1 }, "call A never reached its /post-process")
+        // Stop here if A never parked: B's /post-process would be the held
+        // one, and nothing would release it. End A first, so it cannot reach
+        // the shared backend after the next test resets it.
+        let aParked = await Self.eventually { backend.heldCount == 1 }
+        guard aParked else {
+            Issue.record("call A never reached its /post-process")
+            backend.releaseHeld()
+            callA.cancel()
+            _ = try? await callA.value
+            return
+        }
 
         let outcomeB = try await shared.transcribeDetailed(audioURL: audio, language: "fr", mode: mode, vocabulary: [])
         #expect(backend.heldCount == 1, "call A must still be in flight while B finishes")
