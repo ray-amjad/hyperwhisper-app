@@ -234,7 +234,7 @@ struct CloudSTTCatalog {
     /// the macOS mirror of the same fact the other heads state literally:
     /// `GEMINI_TRANSCRIBE_LIVE_MODEL` in
     /// `hyperwhisper-cloud/src/providers/gemini-transcribe.ts` (which raises the
-    /// 400), `LIVE_MODEL` in `hw-net`'s `gemini_transcribe.rs`, and the
+    /// 400), `LIVE_MODEL` in `hw-net`'s `gemini_transcribe/mod.rs`, and the
     /// deliberate omission from `CloudTranscriptionModel.GeminiTranscribe` on
     /// Windows. Adding a catalog field would let all four derive it — see the
     /// note in this PR's review.
