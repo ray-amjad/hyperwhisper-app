@@ -299,12 +299,9 @@ pub fn classify_http(resp: &HttpResponse, raw: &str) -> TranscriptionError {
     classify_http_with_message(resp, raw, error_message)
 }
 
-/// The shared status-code skeleton behind [`classify_http`]: 401/403 →
-/// `Unauthorized` (`QuotaExceeded` for an out-of-credits body), 402 →
-/// `QuotaExceeded`, 408 → `ProviderUnavailable`, 413 →
-/// `FileTooLarge`, 429 → quota-vs-rate-limited (via [`is_quota_error`]), 5xx →
-/// `ProviderUnavailable`, other 4xx → `BadRequest` with a message from
-/// `extract_message`.
+/// [`classify_http`] with a custom `BadRequest` message extractor. Applies the
+/// [`classify_status`] policy, reading `RateLimited.retry_after_secs` from the
+/// `Retry-After` header.
 ///
 /// Parameterized over the body-message extractor so a provider whose error
 /// envelope doesn't match the OpenAI-style `{"error": {"message": ...}}` /
@@ -317,7 +314,26 @@ pub fn classify_http_with_message(
     raw: &str,
     extract_message: impl FnOnce(Option<&serde_json::Value>, &str) -> String,
 ) -> TranscriptionError {
-    let status = resp.status;
+    classify_status(resp.status, raw, |_| retry_after(resp), extract_message)
+}
+
+/// The status → [`TranscriptionError`] policy shared by
+/// [`classify_http_with_message`] (retry-after from the `Retry-After` header)
+/// and `retry::classify_error` (retry-after from the JSON body), so the two
+/// entry points map every status to the same variant by construction:
+/// 401/403 → `Unauthorized` (`QuotaExceeded` for an out-of-credits body),
+/// 402 → `QuotaExceeded`, 408 → `ProviderUnavailable`, 413 → `FileTooLarge`,
+/// 429 → quota-vs-rate-limited (via [`is_quota_error`]), 5xx →
+/// `ProviderUnavailable`, any other status → `BadRequest` with a message from
+/// `extract_message`. Only the retry-after source and the message extractor
+/// vary. (The per-provider classifiers, e.g. `hyperwhisper_cloud`'s, apply
+/// their own policies and do not go through this.)
+pub(crate) fn classify_status(
+    status: u16,
+    raw: &str,
+    retry_after_secs: impl FnOnce(Option<&serde_json::Value>) -> Option<u64>,
+    extract_message: impl FnOnce(Option<&serde_json::Value>, &str) -> String,
+) -> TranscriptionError {
     let json: Option<serde_json::Value> = serde_json::from_str(raw).ok();
 
     match status {
@@ -331,7 +347,7 @@ pub fn classify_http_with_message(
                 TranscriptionError::QuotaExceeded
             } else {
                 TranscriptionError::RateLimited {
-                    retry_after_secs: retry_after(resp),
+                    retry_after_secs: retry_after_secs(json.as_ref()),
                 }
             }
         }
@@ -346,10 +362,9 @@ pub fn classify_http_with_message(
 /// True when an OpenAI-style 429 body indicates permanent quota exhaustion
 /// (vs. transient rate limiting). Mirrors the `isQuotaError` check in
 /// `CloudWhisperProvider.swift`. Inspects ONLY the nested `error` object —
-/// deliberately no top-level `message` fallback, so this and `retry`'s
-/// classifier (which imports this fn) agree on every status.
-/// pub(crate): shared with `retry::classify_error`.
-pub(crate) fn is_quota_error(json: Option<&serde_json::Value>) -> bool {
+/// deliberately no top-level `message` fallback, matching macOS (a
+/// `{"message":"...billing..."}` 429 stays a retryable `RateLimited`).
+fn is_quota_error(json: Option<&serde_json::Value>) -> bool {
     let Some(error) = json.and_then(|j| j.get("error")) else {
         return false;
     };
@@ -389,8 +404,7 @@ const OUT_OF_CREDITS_PHRASES: &[&str] = &[
 /// True when an error body says the provider account is out of credits
 /// ([`OUT_OF_CREDITS_CODES`], [`OUT_OF_CREDITS_PHRASES`]). Matched on the raw
 /// text, not parsed, like the Cloud check.
-/// pub(crate): shared with `retry::classify_error`.
-pub(crate) fn is_out_of_credits_body(raw: &str) -> bool {
+fn is_out_of_credits_body(raw: &str) -> bool {
     let is_word = |c: char| c.is_ascii_alphanumeric() || c == '_';
     let has_word = |needle: &str| {
         raw.match_indices(needle).any(|(i, _)| {
