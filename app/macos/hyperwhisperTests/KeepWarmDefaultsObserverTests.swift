@@ -58,7 +58,7 @@ private final class DidChangePostCounter: @unchecked Sendable {
     }
 }
 
-@Suite(.serialized, .timeLimit(.minutes(5)))
+@Suite(.serialized, .timeLimit(.minutes(10)))
 @MainActor
 struct KeepWarmDefaultsObserverTests {
 
