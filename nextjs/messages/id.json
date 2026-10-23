@@ -390,6 +390,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Tautan masuk ini sudah kedaluwarsa atau sudah digunakan. Masukkan email Anda untuk mendapatkan tautan baru.",
-    "magicLinkFailed": "Kami tidak dapat memasukkan Anda dengan tautan itu. Masukkan email Anda untuk mendapatkan tautan baru."
+    "magicLinkFailed": "Kami tidak dapat memasukkan Anda dengan tautan itu. Masukkan email Anda untuk mendapatkan tautan baru.",
+    "tooManyAttempts": "Terlalu banyak percobaan masuk. Harap tunggu {seconds, plural, other {# detik}} lalu coba lagi.",
+    "tooManyAttemptsLater": "Terlalu banyak percobaan masuk. Harap tunggu satu menit lalu coba lagi."
   }
 }

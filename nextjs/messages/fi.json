@@ -390,6 +390,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Tämä kirjautumislinkki on vanhentunut tai jo käytetty. Anna sähköpostiosoitteesi saadaksesi uuden.",
-    "magicLinkFailed": "Emme voineet kirjata sinua sisään tällä linkillä. Anna sähköpostiosoitteesi saadaksesi uuden."
+    "magicLinkFailed": "Emme voineet kirjata sinua sisään tällä linkillä. Anna sähköpostiosoitteesi saadaksesi uuden.",
+    "tooManyAttempts": "Liian monta kirjautumisyritystä. Odota {seconds, plural, one {# sekunti} other {# sekuntia}} ja yritä uudelleen.",
+    "tooManyAttemptsLater": "Liian monta kirjautumisyritystä. Odota minuutti ja yritä uudelleen."
   }
 }

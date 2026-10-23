@@ -390,6 +390,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Ten link do logowania wygasł lub został już użyty. Wpisz swój e-mail, aby otrzymać nowy.",
-    "magicLinkFailed": "Nie udało się zalogować Cię za pomocą tego linku. Wpisz swój e-mail, aby otrzymać nowy."
+    "magicLinkFailed": "Nie udało się zalogować Cię za pomocą tego linku. Wpisz swój e-mail, aby otrzymać nowy.",
+    "tooManyAttempts": "Zbyt wiele prób logowania. Odczekaj {seconds, plural, one {# sekundę} few {# sekundy} many {# sekund} other {# sekundy}} i spróbuj ponownie.",
+    "tooManyAttemptsLater": "Zbyt wiele prób logowania. Odczekaj minutę i spróbuj ponownie."
   }
 }

@@ -390,6 +390,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Þessi innskráningartengill er útrunninn eða hefur þegar verið notaður. Sláðu inn netfangið þitt til að fá nýjan.",
-    "magicLinkFailed": "Við gátum ekki skráð þig inn með þessum tengli. Sláðu inn netfangið þitt til að fá nýjan."
+    "magicLinkFailed": "Við gátum ekki skráð þig inn með þessum tengli. Sláðu inn netfangið þitt til að fá nýjan.",
+    "tooManyAttempts": "Of margar innskráningartilraunir. Bíddu í {seconds, plural, one {# sekúndu} other {# sekúndur}} og reyndu aftur.",
+    "tooManyAttemptsLater": "Of margar innskráningartilraunir. Bíddu í eina mínútu og reyndu aftur."
   }
 }

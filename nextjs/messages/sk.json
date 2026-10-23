@@ -390,6 +390,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Platnosť tohto prihlasovacieho odkazu vypršala alebo už bol použitý. Zadajte svoj e-mail a získajte nový.",
-    "magicLinkFailed": "S týmto odkazom sme vás nemohli prihlásiť. Zadajte svoj e-mail a získajte nový."
+    "magicLinkFailed": "S týmto odkazom sme vás nemohli prihlásiť. Zadajte svoj e-mail a získajte nový.",
+    "tooManyAttempts": "Príliš veľa pokusov o prihlásenie. Počkajte {seconds, plural, one {# sekundu} few {# sekundy} many {# sekundy} other {# sekúnd}} a skúste to znova.",
+    "tooManyAttemptsLater": "Príliš veľa pokusov o prihlásenie. Počkajte minútu a skúste to znova."
   }
 }

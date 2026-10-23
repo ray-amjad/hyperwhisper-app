@@ -390,6 +390,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Den här inloggningslänken har gått ut eller redan använts. Ange din e-postadress för att få en ny.",
-    "magicLinkFailed": "Vi kunde inte logga in dig med den länken. Ange din e-postadress för att få en ny."
+    "magicLinkFailed": "Vi kunde inte logga in dig med den länken. Ange din e-postadress för att få en ny.",
+    "tooManyAttempts": "För många inloggningsförsök. Vänta {seconds, plural, one {# sekund} other {# sekunder}} och försök igen.",
+    "tooManyAttemptsLater": "För många inloggningsförsök. Vänta en minut och försök igen."
   }
 }

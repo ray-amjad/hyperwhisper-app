@@ -390,6 +390,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Bu giriş bağlantısının süresi dolmuş veya bağlantı zaten kullanılmış. Yeni bir bağlantı almak için e-posta adresinizi girin.",
-    "magicLinkFailed": "Bu bağlantıyla giriş yapmanızı sağlayamadık. Yeni bir bağlantı almak için e-posta adresinizi girin."
+    "magicLinkFailed": "Bu bağlantıyla giriş yapmanızı sağlayamadık. Yeni bir bağlantı almak için e-posta adresinizi girin.",
+    "tooManyAttempts": "Çok fazla oturum açma denemesi. Lütfen {seconds, plural, other {# saniye}} bekleyip tekrar deneyin.",
+    "tooManyAttemptsLater": "Çok fazla oturum açma denemesi. Lütfen bir dakika bekleyip tekrar deneyin."
   }
 }

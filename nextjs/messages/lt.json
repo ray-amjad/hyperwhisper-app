@@ -390,6 +390,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Ši prisijungimo nuoroda nebegalioja arba jau buvo panaudota. Įveskite savo el. paštą ir gausite naują.",
-    "magicLinkFailed": "Šia nuoroda nepavyko jūsų prijungti. Įveskite savo el. paštą ir gausite naują."
+    "magicLinkFailed": "Šia nuoroda nepavyko jūsų prijungti. Įveskite savo el. paštą ir gausite naują.",
+    "tooManyAttempts": "Per daug bandymų prisijungti. Palaukite {seconds, plural, one {# sekundę} few {# sekundes} many {# sekundės} other {# sekundžių}} ir bandykite dar kartą.",
+    "tooManyAttemptsLater": "Per daug bandymų prisijungti. Palaukite minutę ir bandykite dar kartą."
   }
 }

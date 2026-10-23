@@ -390,6 +390,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Deze inloglink is verlopen of al gebruikt. Vul je e-mailadres in om een nieuwe te krijgen.",
-    "magicLinkFailed": "We konden je niet inloggen met die link. Vul je e-mailadres in om een nieuwe te krijgen."
+    "magicLinkFailed": "We konden je niet inloggen met die link. Vul je e-mailadres in om een nieuwe te krijgen.",
+    "tooManyAttempts": "Te veel aanmeldpogingen. Wacht {seconds, plural, one {# seconde} other {# seconden}} en probeer het opnieuw.",
+    "tooManyAttemptsLater": "Te veel aanmeldpogingen. Wacht een minuut en probeer het opnieuw."
   }
 }

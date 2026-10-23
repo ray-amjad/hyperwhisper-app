@@ -390,6 +390,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Ovaj link za prijavu je istekao ili je već iskorišćen. Unesite svoju e-poštu da biste dobili novi.",
-    "magicLinkFailed": "Nismo mogli da vas prijavimo tim linkom. Unesite svoju e-poštu da biste dobili novi."
+    "magicLinkFailed": "Nismo mogli da vas prijavimo tim linkom. Unesite svoju e-poštu da biste dobili novi.",
+    "tooManyAttempts": "Превише покушаја пријаве. Сачекајте {seconds, plural, one {# секунду} few {# секунде} other {# секунди}} и покушајте поново.",
+    "tooManyAttemptsLater": "Превише покушаја пријаве. Сачекајте минут и покушајте поново."
   }
 }

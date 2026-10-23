@@ -22,6 +22,18 @@ type Tab = "license-key" | "email";
  */
 const DEAD_MAGIC_LINK_ERRORS = new Set(["INVALID_TOKEN", "EXPIRED_TOKEN"]);
 
+/**
+ * Better Auth's rate limiter sends the wait as whole seconds in `X-Retry-After`.
+ * Anything that is not a positive number gets the message without a count.
+ */
+function retryAfterSeconds(header: string | null): number | null {
+  const seconds = Math.ceil(Number(header));
+
+  return header !== null && Number.isFinite(seconds) && seconds > 0
+    ? seconds
+    : null;
+}
+
 // Shared by every submit button. The hover gradient is a ::before overlay that
 // fades in by opacity, because a gradient background-image cannot transition.
 const GRADIENT_CTA_CLASS_NAME =
@@ -188,7 +200,22 @@ export default function SignInClient() {
       // true and this fell through to `router.push(undefined)` — a thrown
       // TypeError, no message, and a form that just sits there. Verified in
       // Chromium against the real endpoint before and after.
-      if (!res.ok || error || !redirect) {
+      if (res.status === 429) {
+        // Better Auth's rate limiter (5 tries per 60 s per IP, set in
+        // `auth-license-key-plugin.ts`) answers `{ message }`, not `{ error }`,
+        // so this used to fall through to "Sign-in failed. Please try again."
+        // and the user kept retrying a form that could not succeed yet (#2387).
+        // Only this status is special-cased: other statuses still never show
+        // a raw server `message`.
+        const seconds = retryAfterSeconds(res.headers.get("X-Retry-After"));
+
+        setLicenseError(
+          seconds === null
+            ? t("tooManyAttemptsLater")
+            : t("tooManyAttempts", { seconds }),
+        );
+        setAutoSigningIn(false);
+      } else if (!res.ok || error || !redirect) {
         setLicenseError(error ?? "Sign-in failed. Please try again.");
         setAutoSigningIn(false);
       } else {
