@@ -48,8 +48,8 @@ public partial class MainViewModel : ViewModelBase
     private readonly KeyboardShortcutService _shortcutService;
     private readonly PushToTalkMonitor _pushToTalkMonitor;
     private SmartPasteService? _pasteService;
-    private StreamingAudioCapture? _streamingAudioCapture;
-    private StreamingTranscriptionClient? _streamingClient;
+    private IStreamingAudioSource? _streamingAudioCapture;
+    private IStreamingTranscriptionClient? _streamingClient;
     private System.Timers.Timer? _durationTimer;
     private CancellationTokenSource? _activeTranscriptionCts;
 
