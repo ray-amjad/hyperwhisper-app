@@ -90,10 +90,14 @@ struct LocalAPIRequestHeadTests {
     }
 
     /// A head that arrives in pieces, each well inside the deadline, is served.
+    /// The deadline is far longer than the 0.3 s gap and than any stall a loaded
+    /// runner adds between the two writes: at 2 s it raced the parallel suite
+    /// on a hosted runner and failed there (issue #2398). What this test proves
+    /// is that the pieces are joined, not how long the deadline is.
     @Test func aHeadDeliveredInPiecesWithinTheDeadlineIsServed() async throws {
-        try await withProbe(headReadDeadline: 2) { port in
+        try await withProbe(headReadDeadline: 30) { port in
             let reply = try await offPool {
-                let connection = try RawConnection(port: port)
+                let connection = try RawConnection(port: port, timeout: 60)
                 defer { connection.close() }
                 let request = RawRequest.get(port: port)
                 let half = request.count / 2

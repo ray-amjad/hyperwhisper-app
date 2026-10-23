@@ -24,7 +24,7 @@ export interface CreditRefundInput {
   amountTotal: number;
   /** Sales tax inside `amountTotal`, in cents (exclusive or inclusive tax). */
   amountTax: number;
-  /** Stripe's `charge.amount_refunded`: cumulative across every refund. */
+  /** Cents reversed so far: `amount_refunded` plus lost disputes (#2482). */
   amountRefunded: number;
 }
 

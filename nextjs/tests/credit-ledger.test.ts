@@ -565,8 +565,18 @@ describe("provisionAccountKeyForEmail", () => {
     assert.equal(found?.id, license.id);
   });
 
-  test("a second key for the same email reuses the user and pools the credits", async () => {
+  test("a second call for an email with a granted key hands that key back with no second bundle (#2481)", async () => {
+    const first = await L.provisionAccountKeyForEmail("granted@example.test");
+    const second = await L.provisionAccountKeyForEmail("GRANTED@example.test");
+
+    assert.equal(second.id, first.id);
+    assert.equal(second.key, first.key);
+    assert.equal(await L.getCreditBalance(first.userId), 5000);
+  });
+
+  test("a new key after the old one is revoked reuses the user and pools the credits", async () => {
     const first = await L.provisionAccountKeyForEmail("pooled@example.test");
+    await L.updateAccountKey(first.id, { status: "revoked" });
     const second = await L.provisionAccountKeyForEmail("POOLED@example.test");
 
     assert.equal(second.userId, first.userId);

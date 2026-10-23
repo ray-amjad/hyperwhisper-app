@@ -45,7 +45,11 @@ public sealed partial class ModesViewModel : ViewModelBase
             PostProcessingMode = "cloud"; PostProcessingProvider = "hyperwhispercloud";
             PostProcessingModel = "gpt-5.6-luna"; HyperWhisperCloudModel = "anthropic:claude-haiku-5-5";
             CustomInstructions = string.Empty; Punctuation = true; Capitalization = true;
-            ProfanityFilter = false; RemoveTrailingPeriod = false; EnglishSpelling = string.Empty;
+            ProfanityFilter = false; RemoveTrailingPeriod = false;
+            // Seed the spelling variant from the system region, as Windows (ModeEditorWindow.xaml.cs)
+            // and macOS do and as the first-install seed already does here, so a brand-new mode opens
+            // on the user's own variant instead of a blank combo that sends no spelling instruction.
+            EnglishSpelling = PortableModeDefaults.EnglishSpellingForCurrentRegion();
             Preset = "hyper"; UserPromptEnabled = false;
             ClearCustomEndpointEditor();
             NotifyEditorReveals();
