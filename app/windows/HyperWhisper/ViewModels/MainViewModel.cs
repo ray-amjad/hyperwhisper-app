@@ -2923,7 +2923,7 @@ public partial class MainViewModel : ViewModelBase
 
         if (_isStreamingSession)
         {
-            await CancelRecordingAsync();
+            await StopStreamingRecordingAsync();
             return;
         }
 
