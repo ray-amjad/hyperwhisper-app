@@ -2504,7 +2504,11 @@
           <TextBlock Margin="16,0,0,0" VerticalAlignment="Center" Text="{ReflectionBinding [app.title], Source={StaticResource Localization}}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource HwTextPrimaryBrush}"/>
         </Border>
         <ListBox x:Name="Navigation" Classes="nav" Grid.Row="1" Margin="10,0" Padding="6" SelectionChanged="OnNavigationChanged">
-          <ListBoxItem Content="{ReflectionBinding [sidebar.home], Source={StaticResource Localization}}" Tag="home" IsSelected="True" ContentTemplate="{StaticResource NavHome}"/>
+          <!-- No IsSelected on Home (#2226). A local IsSelected="True" outlived the first
+               Navigation.SelectedItem change, so Home stayed painted as selected next to the
+               page you opened until Home was clicked once. The constructor's GoTo("home")
+               selects Home through the ListBox instead, the same way SettingsNav does it. -->
+          <ListBoxItem Content="{ReflectionBinding [sidebar.home], Source={StaticResource Localization}}" Tag="home" ContentTemplate="{StaticResource NavHome}"/>
           <ListBoxItem Content="{ReflectionBinding [sidebar.modes], Source={StaticResource Localization}}" Tag="modes" ContentTemplate="{StaticResource NavModes}" Margin="0,14,0,0"/>
           <ListBoxItem Content="{ReflectionBinding [sidebar.vocabulary], Source={StaticResource Localization}}" Tag="vocabulary" ContentTemplate="{StaticResource NavVocabulary}"/>
           <ListBoxItem Content="{ReflectionBinding [settings.nav.models], Source={StaticResource Localization}}" Tag="models" ContentTemplate="{StaticResource NavModels}" Margin="0,14,0,0"/>

@@ -69,7 +69,7 @@ function PurchaseSuccessContent() {
       >
         <m.div
           animate={{ scale: 1 }}
-          className="inline-flex items-center justify-center w-[82px] h-[82px] bg-gradient-to-r from-green-500 to-emerald-500 rounded-full mb-9 shadow-[0_12px_40px_-8px_rgba(16,185,129,0.5)]"
+          className="inline-flex items-center justify-center w-[82px] h-[82px] bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full mb-9 shadow-[0_12px_40px_-8px_rgba(16,185,129,0.5)]"
           initial={{ scale: 0.9 }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >

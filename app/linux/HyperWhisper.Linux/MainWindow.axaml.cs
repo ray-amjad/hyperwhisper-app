@@ -36,6 +36,7 @@ using HyperWhisper.Linux.Platform.Audio;
 using HyperWhisper.Linux.Platform.Injection;
 using HyperWhisper.Linux.Platform.Input;
 using HyperWhisper.PortableApplication.Audio;
+using HyperWhisper.PortableApplication;
 
 namespace HyperWhisper.Linux;
 
@@ -1515,6 +1516,9 @@ public partial class MainWindow : Window
     /// or a reconnect too, not only with a pick.</summary>
     private void OnMicrophoneResolvedDeviceChanged(object? sender, EventArgs e)
     {
+        // #2408. No device name: the head's logs never carry one (see PrivacySafeRotatingLogger).
+        if (sender is MicrophonePickerViewModel { SkippedVirtualDefault: true })
+            try { Console.Error.WriteLine("HyperWhisper audio: the OS default input is a virtual device; recording from the first non-virtual input instead."); } catch { }
         if (_closing || _shuttingDown || !_viewModel.Settings.KeepMicrophoneWarm) return;
         _platformServices.MicrophoneKeepWarm.Configure(true, _viewModel.Recording?.SelectedAudioDevice?.Id);
     }
@@ -2526,6 +2530,11 @@ public partial class MainWindow : Window
         try
         {
             _viewModel.Navigate(pageId);
+            // Leaving Vocabulary ends an unsaved edit the way Cancel does. The edit used to
+            // survive the round trip with the row still hidden and still Selected while the pill
+            // showed "Add word" again, so the next add silently overwrote that row (#2323).
+            if (_currentPageId == "vocabulary" && pageId != "vocabulary" && _vocabularyEditingItem is not null)
+                OnVocabularyCancelEdit(this, new RoutedEventArgs());
             _currentPageId = pageId;
             UpdatePlatformNotice();
             var inSettings = Array.IndexOf(SettingsFamily, pageId) >= 0;
@@ -3874,10 +3883,14 @@ internal static class LinuxShortcutRecorderRules
 
 internal static class LinuxTrayMicrophoneSelector
 {
+    /// <summary>The automatic pick (#2408: a virtual OS default gives way to the first non-virtual
+    /// input, in enumeration order, as in MicrophonePickerViewModel). With no device flagged default,
+    /// the first by Id, so the result does not depend on enumeration order.</summary>
     internal static AudioInputDevice? SelectDefault(IEnumerable<AudioInputDevice> source)
     {
-        var devices = source.OrderBy(device => device.Id, StringComparer.Ordinal).ToArray();
-        return devices.FirstOrDefault(device => device.IsDefault) ?? devices.FirstOrDefault();
+        var enumerated = source.ToArray();
+        if (enumerated.Any(device => device.IsDefault)) return MicrophoneSelection.AutomaticPick(enumerated);
+        return enumerated.OrderBy(device => device.Id, StringComparer.Ordinal).FirstOrDefault();
     }
 
     internal static AudioInputDevice? SelectAdjacent(
@@ -3885,11 +3898,14 @@ internal static class LinuxTrayMicrophoneSelector
         string? selectedId,
         int direction)
     {
-        var devices = source.OrderBy(device => device.Id, StringComparer.Ordinal).ToArray();
+        var enumerated = source.ToArray();
+        var devices = enumerated.OrderBy(device => device.Id, StringComparer.Ordinal).ToArray();
         if (devices.Length == 0) return null;
         var selected = Array.FindIndex(devices,
             device => string.Equals(device.Id, selectedId, StringComparison.Ordinal));
-        if (selected < 0) selected = Array.FindIndex(devices, device => device.IsDefault);
+        // The automatic pick from ENUMERATION order (#2408), as Default records from it.
+        if (selected < 0 && SelectDefault(enumerated) is { } automatic)
+            selected = Array.FindIndex(devices, device => string.Equals(device.Id, automatic.Id, StringComparison.Ordinal));
         if (selected < 0) selected = 0;
         var step = direction < 0 ? -1 : 1;
         return devices[(selected + step + devices.Length) % devices.Length];

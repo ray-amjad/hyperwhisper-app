@@ -47,6 +47,7 @@ export const calls = {
   constructEvent: [] as ConstructEventCall[],
   creditPurchase: [] as CreditPurchaseCall[],
   chargeRefunded: [] as Record<string, unknown>[],
+  disputeClosed: [] as Record<string, unknown>[],
 };
 
 /** What the collaborators answer. Each test sets only what it cares about. */
@@ -62,18 +63,22 @@ export const behaviour = {
   creditError: null as unknown,
   /** Thrown by `handleChargeRefunded` when set. */
   refundError: null as unknown,
+  /** Thrown by `handleDisputeClosed` when set. */
+  disputeError: null as unknown,
 };
 
 export function resetHarness(): void {
   calls.constructEvent.length = 0;
   calls.creditPurchase.length = 0;
   calls.chargeRefunded.length = 0;
+  calls.disputeClosed.length = 0;
 
   behaviour.verifiedEvent = null;
   behaviour.verifyError =
     "No signatures found matching the expected signature for payload";
   behaviour.creditError = null;
   behaviour.refundError = null;
+  behaviour.disputeError = null;
 
   for (const key of Object.keys(fakeEnv)) delete fakeEnv[key];
 }
@@ -129,6 +134,26 @@ export function refundEvent(
   };
 }
 
+/** A `charge.dispute.*`-shaped event (#2482). */
+export function disputeEvent(
+  overrides: { id?: string; type?: string; status?: string; chargeId?: string } = {},
+): Record<string, unknown> {
+  return {
+    id: overrides.id ?? "evt_dispute_1",
+    type: overrides.type ?? "charge.dispute.closed",
+    data: {
+      object: {
+        id: "dp_1",
+        object: "dispute",
+        charge: overrides.chargeId ?? "ch_credit_pack",
+        status: overrides.status ?? "lost",
+        amount: 500,
+        payment_intent: "pi_1",
+      },
+    },
+  };
+}
+
 /**
  * The route logs on every branch, including the success ones. Swallow it so
  * the run stays readable, and keep the lines so a failing test can still be
@@ -180,6 +205,12 @@ moduleMock.module(moduleUrl("../lib/services/stripe-webhook.ts"), {
     ): Promise<void> => {
       calls.chargeRefunded.push(charge);
       if (behaviour.refundError) throw behaviour.refundError;
+    },
+    handleDisputeClosed: async (
+      dispute: Record<string, unknown>,
+    ): Promise<void> => {
+      calls.disputeClosed.push(dispute);
+      if (behaviour.disputeError) throw behaviour.disputeError;
     },
   },
 });

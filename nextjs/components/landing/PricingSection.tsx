@@ -76,7 +76,7 @@ export default function PricingSection() {
                   heading and body copy flush left under dir="rtl". */}
               <CardBody className="p-8 flex flex-col text-start">
                 <div className="flex items-center gap-2 mb-1">
-                  <KeyRound className="w-5 h-5 text-gray-400" />
+                  <KeyRound className="w-5 h-5 text-gray-400" strokeWidth={2.5} />
                   <h3 className="text-xl font-bold text-white">
                     {t("byo.title")}
                   </h3>
@@ -91,9 +91,9 @@ export default function PricingSection() {
                       className="flex items-start gap-3 text-sm"
                     >
                       {feature.included ? (
-                        <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                        <Check className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" strokeWidth={1.5} />
                       ) : (
-                        <X className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                        <X className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" strokeWidth={1.5} />
                       )}
                       <span
                         className={
@@ -133,7 +133,7 @@ export default function PricingSection() {
             <Card className="h-full bg-gradient-to-b from-purple-900/20 to-blue-900/20 border-purple-700 backdrop-blur-xl">
               <CardBody className="p-8 flex flex-col text-start">
                 <div className="flex items-center gap-2 mb-1">
-                  <Cloud className="w-5 h-5 text-purple-300" />
+                  <Cloud className="w-5 h-5 text-purple-300" strokeWidth={2.5} />
                   <h3 className="text-xl font-bold text-white">
                     {t("credits.title")}
                   </h3>
@@ -144,7 +144,7 @@ export default function PricingSection() {
                 <ul className="space-y-3 mb-8">
                   {cloudFeatures.map((text) => (
                     <li key={text} className="flex items-start gap-3 text-sm">
-                      <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      <Check className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" strokeWidth={1.5} />
                       <span className="text-gray-200">{text}</span>
                     </li>
                   ))}

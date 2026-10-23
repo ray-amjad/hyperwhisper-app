@@ -11,6 +11,7 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import * as Sentry from '@sentry/bun';
 import * as realRedis from './redis';
+import { stubEnv } from '../test-support/env';
 
 let ipBlockedError: Error | null = null;
 
@@ -57,8 +58,7 @@ function capturedEvents(): Record<string, unknown>[] {
 }
 
 // With no DSN: measured before anything starts Sentry in this process.
-const savedDsn = process.env.SENTRY_DSN;
-delete process.env.SENTRY_DSN;
+const restoreDsn = stubEnv('SENTRY_DSN', undefined);
 const startedWithoutDsn = initErrorTracking();
 const initializedWithoutDsn = Sentry.isInitialized();
 captureServerError(new Error('boom'), { errorId: 'x' });
@@ -99,8 +99,7 @@ describe('with SENTRY_DSN set', () => {
         if (!listenersBefore[name].includes(listener)) process.removeListener(name, listener);
       }
     }
-    if (savedDsn === undefined) delete process.env.SENTRY_DSN;
-    else process.env.SENTRY_DSN = savedDsn;
+    restoreDsn();
   });
 
   test('a forced route error sends exactly one scrubbed event', async () => {

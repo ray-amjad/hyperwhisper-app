@@ -31,6 +31,7 @@ try
     var database = new ApplicationDb(paths);
     await database.MigrateAsync();
     await RunTranscriptionWorkflowTestsAsync(root);
+    MicrophoneSelectionTests.Run();
     await MicrophonePickerTests.RunAsync(Path.Combine(root, "microphone-picker"));
     await RunHistoryRetryTestsAsync(root);
     await RunHistoryExperienceTestsAsync(root);
@@ -77,6 +78,7 @@ try
     await RunCloudPostProcessingModelLoadTestsAsync(Path.Combine(root, "cloud-pp-model-load"));
     await RunShellLanguageRoutingTestsAsync(Path.Combine(root, "shell-language"));
     await RunShellMissingLocalModelStatusTestsAsync(Path.Combine(root, "shell-missing-model"));
+    await RunShellCloudBalanceOnLaunchTestsAsync(Path.Combine(root, "shell-cloud-balance"));
     RunShellDatabaseOffUiThreadTests(Path.Combine(root, "shell-db-off-ui"));
     await RunLocalEngineVocabularyOnceTestsAsync(Path.Combine(root, "local-vocabulary-once"));
     await RunFileTranscriptionDurationTestsAsync(Path.Combine(root, "file-duration"));
@@ -867,6 +869,13 @@ try
         // model id must never be offered as a BYOK cloud model: re-selecting it saves the mode with
         // CloudTranscriptionModel=null and shows no error.
         shell.Modes.NewCommand.Execute(null);
+        // Create Mode seeds the system region's English spelling variant, as Windows and macOS do
+        // (#2382): a blank value would send no spelling instruction for every mode the user makes.
+        var regionSpelling = PortableModeDefaults.EnglishSpellingForRegion(
+            System.Globalization.RegionInfo.CurrentRegion.TwoLetterISORegionName);
+        Assert(!string.IsNullOrEmpty(shell.Modes.EnglishSpelling)
+            && shell.Modes.EnglishSpelling == regionSpelling,
+            $"Create Mode seeded EnglishSpelling '{shell.Modes.EnglishSpelling}', expected the region's '{regionSpelling}'");
         shell.Modes.IsYourProviderSource = true;
         var createModeModels = shell.Modes.CloudModels;
         Assert(!createModeModels.Contains("base", StringComparer.Ordinal)
@@ -1861,6 +1870,61 @@ static async Task RunShellMissingLocalModelStatusTestsAsync(string root)
     shell.Status.Failure("test.error", "Something failed");
     shell.Modes.Selected = shell.Modes.Items.Single(item => item.Id == mode.Id);
     Assert(shell.Status.Message == "Something failed", $"a mode change overwrote an error with '{shell.Status.Message}' (was '{other}')");
+}
+
+// #2405: startup loaded only the account status, which answers from the validation cache and
+// brings no balance, so after a relaunch the balance card was empty until Refresh was clicked.
+static async Task RunShellCloudBalanceOnLaunchTestsAsync(string root)
+{
+    Directory.CreateDirectory(root);
+    var settings = new PortableSettingsService(new MemoryPrivateFileService(), Path.Combine(root, "settings.json"));
+    var store = new MemoryCredentialStore();
+    var files = new MemoryPrivateFileService();
+    var http = new CloudAccountHttpHandler();
+    PortableCloudAccountService NewService() => new(
+        store,
+        new PortableLicenseStateStore(store, files, "/license-state.json"),
+        new HttpClient(http) { Timeout = Timeout.InfiniteTimeSpan });
+
+    // No account yet: the launch fetches no balance.
+    using (var service = NewService())
+    {
+        var database = new ApplicationDb(new TestPaths(Path.Combine(root, "no-account")));
+        using var shell = new ApplicationShellViewModel(database, settings, cloudAccount: service,
+            deviceIdentity: new StaticDeviceIdentity(), openAccountUri: _ => PlatformResult.Success());
+        await shell.InitializeAsync();
+        await shell.AccountBalanceLoad!;
+        Assert(!shell.Account!.HasAccount && http.UsageCalls == 0 && shell.Account.Credits is null,
+            $"a launch with no account fetched a balance ({http.UsageCalls} /usage calls)");
+    }
+
+    // First launch: activation stores the key and the validation cache.
+    using (var service = NewService())
+    {
+        var account = new CloudAccountViewModel(service, new StaticDeviceIdentity(), "Ray Linux",
+            _ => PlatformResult.Success()) { AccountKey = "HW-0000-0000-2405" };
+        await account.ActivateAsync();
+        Assert(account.IsActiveAccount, "the test account did not activate");
+    }
+
+    // Relaunch: a new service and shell over the same stored key.
+    using (var service = NewService())
+    {
+        var usageBefore = http.UsageCalls;
+        var validateBefore = http.ValidateCalls;
+        var database = new ApplicationDb(new TestPaths(Path.Combine(root, "relaunch")));
+        using var shell = new ApplicationShellViewModel(database, settings, cloudAccount: service,
+            deviceIdentity: new StaticDeviceIdentity(), openAccountUri: _ => PlatformResult.Success());
+        await shell.InitializeAsync();
+        await shell.AccountBalanceLoad!;
+        var relaunched = shell.Account!;
+        Assert(relaunched.IsActiveAccount && http.ValidateCalls == validateBefore,
+            "the relaunch did not answer the status from the validation cache");
+        Assert(http.UsageCalls == usageBefore + 1
+            && relaunched.Credits == "42.5" && relaunched.MinutesRemaining == "7"
+            && relaunched.CostPerMinute == "~5.5" && relaunched.HasCredits,
+            $"after a relaunch the balance was not fetched (credits '{relaunched.Credits}', cost '{relaunched.CostPerMinute}', {http.UsageCalls - usageBefore} /usage calls)");
+    }
 }
 
 // #1000: EF Core's SQLite provider runs its "async" migration synchronously, so a shell that awaits
@@ -4553,6 +4617,7 @@ file sealed class CloudAccountHttpHandler : HttpMessageHandler
     public string? ValidateDeviceName { get; private set; }
     public string? ValidateLicenseKey { get; private set; }
     public int ValidateCalls { get; private set; }
+    public int UsageCalls { get; private set; }
 
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
@@ -4568,7 +4633,10 @@ file sealed class CloudAccountHttpHandler : HttpMessageHandler
             return Json("{\"valid\":true,\"customer_id\":\"customer-1\",\"customer_email\":\"ray@example.test\",\"expires_at\":\"2030-01-02T03:04:05Z\"}");
         }
         if (path == "/usage")
+        {
+            UsageCalls++;
             return Json("{\"credits_remaining\":42.5,\"minutes_remaining\":7,\"credits_per_minute\":5.5,\"is_licensed\":true,\"is_anonymous\":false}");
+        }
         if (path == "/api/license/deactivate")
             return Json("{\"success\":true}");
         return new HttpResponseMessage(System.Net.HttpStatusCode.NotFound);

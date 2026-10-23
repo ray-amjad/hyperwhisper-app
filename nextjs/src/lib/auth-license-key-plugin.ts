@@ -6,8 +6,63 @@ import { z } from "zod";
 import { findAccountByKey } from "./db-layer";
 import { sanitizeLicenseKeyRedirect } from "./license-key-redirect";
 
+import { sha256Hex } from "@/lib/shared/sha256";
 import { db } from "@/src/db";
 import { user } from "@/src/db/schema/auth";
+
+type SignInOutcome = "ok" | "rejected" | "failed";
+
+type SignInReason =
+  | "key_not_found"
+  | "key_inactive"
+  | "key_no_user"
+  | "user_missing"
+  | "session_create_failed"
+  | "revoked_mid_sign_in";
+
+/**
+ * One structured line per sign-in attempt, in the `{ event, outcome, reason }`
+ * shape `server/api/routers/admin/customers.ts` logs. Better Auth answers every
+ * refusal below as HTTP 200, so this line is the only record that tells a
+ * refusal from a success.
+ *
+ * `licenseId` and `userId` are opaque row ids, passed only once the row was
+ * found. The submitted key is NEVER logged, nor any part of it: an unknown key
+ * is a guess and a known one is a credential. The client IP is logged as a
+ * truncated SHA-256 (as `sendMagicLink` in `auth.ts` does for an address), so
+ * repeated attempts from one client can be correlated without the raw IP.
+ */
+function logSignIn(
+  outcome: SignInOutcome,
+  fields: {
+    reason?: SignInReason;
+    licenseId?: string;
+    userId?: string;
+    headers: Headers | undefined;
+  },
+): void {
+  const ip = fields.headers?.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const line = JSON.stringify({
+    event: "auth.license_key_sign_in",
+    outcome,
+    ...(fields.reason ? { reason: fields.reason } : {}),
+    ...(fields.licenseId ? { licenseId: fields.licenseId } : {}),
+    ...(fields.userId ? { userId: fields.userId } : {}),
+    ipHash: ip ? sha256Hex(ip).slice(0, 12) : null,
+  });
+
+  // The website's console output is its server log (Vercel), so this is the
+  // sink, not leftover debugging.
+  /* eslint-disable no-console */
+  if (outcome === "ok") {
+    console.log(line);
+  } else if (outcome === "rejected") {
+    console.warn(line);
+  } else {
+    console.error(line);
+  }
+  /* eslint-enable no-console */
+}
 
 export const licenseKeyPlugin = () => ({
   id: "license-key",
@@ -28,6 +83,12 @@ export const licenseKeyPlugin = () => ({
         const license = await findAccountByKey(licenseKey);
 
         if (!license || license.status !== "granted") {
+          logSignIn("rejected", {
+            reason: license ? "key_inactive" : "key_not_found",
+            licenseId: license?.id,
+            headers: ctx.headers,
+          });
+
           return ctx.json(
             { error: "Invalid or inactive license key." },
             { status: 400 },
@@ -35,6 +96,12 @@ export const licenseKeyPlugin = () => ({
         }
 
         if (!license.userId) {
+          logSignIn("rejected", {
+            reason: "key_no_user",
+            licenseId: license.id,
+            headers: ctx.headers,
+          });
+
           return ctx.json(
             {
               error:
@@ -51,6 +118,13 @@ export const licenseKeyPlugin = () => ({
           .limit(1);
 
         if (!foundUser) {
+          logSignIn("rejected", {
+            reason: "user_missing",
+            licenseId: license.id,
+            userId: license.userId,
+            headers: ctx.headers,
+          });
+
           return ctx.json(
             {
               error:
@@ -65,6 +139,13 @@ export const licenseKeyPlugin = () => ({
         );
 
         if (!session) {
+          logSignIn("failed", {
+            reason: "session_create_failed",
+            licenseId: license.id,
+            userId: foundUser.id,
+            headers: ctx.headers,
+          });
+
           return ctx.json(
             { error: "Failed to create session." },
             { status: 500 },
@@ -83,6 +164,13 @@ export const licenseKeyPlugin = () => ({
         if (!current || current.status !== "granted") {
           await ctx.context.internalAdapter.deleteSession(session.token);
 
+          logSignIn("rejected", {
+            reason: "revoked_mid_sign_in",
+            licenseId: license.id,
+            userId: foundUser.id,
+            headers: ctx.headers,
+          });
+
           return ctx.json(
             { error: "Invalid or inactive license key." },
             { status: 400 },
@@ -91,13 +179,11 @@ export const licenseKeyPlugin = () => ({
 
         await setSessionCookie(ctx, { session, user: foundUser });
 
-        const ipAddress =
-          ctx.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-          "unknown";
-        const userAgent = ctx.headers?.get("user-agent") ?? "unknown";
-        console.log(
-          `[license-key-sign-in] user=${foundUser.id} license=${license.id} ip=${ipAddress} ua="${userAgent}"`,
-        );
+        logSignIn("ok", {
+          licenseId: license.id,
+          userId: foundUser.id,
+          headers: ctx.headers,
+        });
 
         return ctx.json({ redirect: sanitizeLicenseKeyRedirect(callbackURL) });
       },
