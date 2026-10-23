@@ -64,6 +64,10 @@ if (args is [ProviderApiKeyNonAizaGeminiRenderTests.ProbeArgument])
 {
     Environment.Exit(ProviderApiKeyNonAizaGeminiRenderTests.RunProbe());
 }
+if (args is [RadioButtonLightThemeRenderTests.ProbeArgument])
+{
+    Environment.Exit(RadioButtonLightThemeRenderTests.RunProbe());
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -142,6 +146,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a History revisit with nothing changed does not reload the list; a period change or a write still does (#2099)", HistoryRevisitRenderTests.RunAsync),
     ("a failed provider-key save leaves no typed key in the shared credentials view model (#1388)", ProviderApiKeySaveFailureRenderTests.RunAsync),
     ("a Gemini key that does not start with AIza saves from the provider-key modal with no Invalid API Key notice", ProviderApiKeyNonAizaGeminiRenderTests.RunAsync),
+    ("a RadioButton's disc reaches 3:1 on the light card and keeps Windows' #FFFFFF / #212121 in dark (#2514)", RadioButtonLightThemeRenderTests.RunAsync),
 };
 
 foreach (var test in tests)
