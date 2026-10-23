@@ -9,6 +9,7 @@ import {
   scrollableBodyTables,
 } from "@/src/content/blog-html";
 import { sanitizeBlogHtml } from "@/src/content/sanitize-blog-html";
+import { hyperwhisperVsSpokenly } from "@/src/content/code-posts/hyperwhisper-vs-spokenly";
 
 const BLOG_LOCALE = "en";
 
@@ -86,21 +87,43 @@ async function readAllPosts(): Promise<BlogPost[]> {
       .select()
       .from(blogPosts)
       .orderBy(desc(blogPosts.publishedAt));
-    return rows
-      .filter((row) => row.locale === BLOG_LOCALE)
-      .map(rowToPost);
+
+    return withCodePosts(
+      rows.filter((row) => row.locale === BLOG_LOCALE).map(rowToPost),
+    );
   } catch (err) {
     if (!isBuildPrerender()) throw err;
     console.error(
       "[blog] database unreachable while prerendering; shipping no posts and letting revalidation fill them in:",
       err,
     );
+
     return [];
   }
 }
 
+/**
+ * Posts written in the repo rather than published by Outrank, such as a
+ * comparison page that has to cite its sources. They render, list and enter
+ * the sitemap exactly like a stored post. A stored row with the same slug
+ * wins, so Outrank can still replace one.
+ */
+const CODE_POSTS: BlogPost[] = [hyperwhisperVsSpokenly];
+
+function withCodePosts(stored: BlogPost[]): BlogPost[] {
+  const slugs = new Set(stored.map((post) => post.slug));
+
+  return [
+    ...stored,
+    ...CODE_POSTS.filter((post) => !slugs.has(post.slug)),
+  ].sort(
+    (a, b) => Date.parse(b.frontMatter.date) - Date.parse(a.frontMatter.date),
+  );
+}
+
 export async function getBlogPosts(): Promise<BlogPostSummary[]> {
   const posts = await readAllPosts();
+
   return posts.map((post) => ({
     locale: post.locale,
     slug: post.slug,
@@ -112,6 +135,7 @@ export async function getBlogPost(slug: string): Promise<BlogPost | null> {
   const normalizedSlug = normalizeSlug(slug);
   const posts = await readAllPosts();
   const stored = posts.find((item) => item.slug === normalizedSlug);
+
   if (!stored) return null;
   // Sanitise again on read, so a row stored before the webhook sanitised its
   // HTML is covered too (#2009). It runs first, so the lazy-load attributes

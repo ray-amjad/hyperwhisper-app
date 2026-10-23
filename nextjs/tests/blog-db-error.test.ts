@@ -97,9 +97,12 @@ describe("at runtime (a background revalidation)", () => {
     await assert.rejects(sitemap(), /ECONNREFUSED/);
   });
 
-  test("an empty table is not a failure: no posts, and an unknown slug is null", async () => {
+  test("an empty table is not a failure: only the code posts, and an unknown slug is null", async () => {
     select = tableWith([]);
-    assert.deepEqual(await blog.getBlogPosts(), []);
+    assert.deepEqual(
+      (await blog.getBlogPosts()).map((post) => post.slug),
+      ["hyperwhisper-vs-spokenly"],
+    );
     assert.equal(await blog.getBlogPost("a-real-post"), null);
   });
 
@@ -107,7 +110,7 @@ describe("at runtime (a background revalidation)", () => {
     select = tableWith([row]);
     assert.deepEqual(
       (await blog.getBlogPosts()).map((post) => post.slug),
-      ["a-real-post"],
+      ["hyperwhisper-vs-spokenly", "a-real-post"],
     );
     assert.equal((await blog.getBlogPost("a-real-post"))?.html, "<p>Body</p>");
     assert.ok((await sitemap()).some((entry) => entry.url === blogUrl));
