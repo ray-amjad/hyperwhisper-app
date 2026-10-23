@@ -139,7 +139,7 @@ function stubFetch(status: number, body: unknown, headers: Record<string, string
     fetchCalls.push(String(input));
     afterAwait = true;
 
-    return new Response(JSON.stringify(body), {
+    return new Response(typeof body === "string" ? body : JSON.stringify(body), {
       status,
       headers: { "Content-Type": "application/json", ...headers },
     });
@@ -237,6 +237,18 @@ test("a 429 without a usable X-Retry-After still says why, without a count", asy
   stubFetch(429, RATE_LIMITED, {});
 
   assert.equal(alertText(await submitAndRender()), enMessages.signIn.tooManyAttemptsLater);
+});
+
+test("a 429 whose body is not JSON (a proxy's HTML page) still says why", async () => {
+  stubFetch(429, "<html><body>Too Many Requests</body></html>", {
+    "Content-Type": "text/html",
+    "X-Retry-After": "30",
+  });
+
+  assert.equal(
+    alertText(await submitAndRender()),
+    "Too many sign-in attempts. Please wait 30 seconds and try again.",
+  );
 });
 
 test("the server's raw message is not shown for other statuses (control)", async () => {
