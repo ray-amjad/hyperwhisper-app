@@ -26,7 +26,7 @@
     "downloadCta": "Nu downloaden",
     "demoCta": "Demo bekijken",
     "availableOn": "Beschikbaar op",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Wat zijn de systeemvereisten?",
-        "answer": "Voor Mac: macOS 14 of nieuwer, zowel Apple Silicon als Intel ondersteund. Voor Windows: Windows 10/11, x64 of ARM64. Voor Linux v1: Ubuntu 22.04 of nieuwer of Debian 12 of nieuwer op amd64. 8GB RAM aanbevolen voor optimale prestaties."
+        "answer": "Voor Mac: macOS 14.6 of nieuwer, zowel Apple Silicon als Intel ondersteund. Voor Windows: Windows 10/11, x64 of ARM64. Voor Linux v1: Ubuntu 22.04 of nieuwer of Debian 12 of nieuwer op amd64. 8GB RAM aanbevolen voor optimale prestaties."
       },
       "madeBy": {
         "question": "Door wie is dit gemaakt?",

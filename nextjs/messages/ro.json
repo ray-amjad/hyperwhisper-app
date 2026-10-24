@@ -26,7 +26,7 @@
     "downloadCta": "Descarcă acum",
     "demoCta": "Vezi demo",
     "availableOn": "Disponibil pe",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Care sunt cerințele de sistem?",
-        "answer": "Pentru Mac: macOS 14 sau mai nou, cu suport pentru Apple Silicon și Intel. Pentru Windows: Windows 10/11, x64 sau ARM64. Pentru Linux v1: Ubuntu 22.04 sau mai nou ori Debian 12 sau mai nou, pe amd64. Pentru performanță optimă se recomandă 8GB RAM."
+        "answer": "Pentru Mac: macOS 14.6 sau mai nou, cu suport pentru Apple Silicon și Intel. Pentru Windows: Windows 10/11, x64 sau ARM64. Pentru Linux v1: Ubuntu 22.04 sau mai nou ori Debian 12 sau mai nou, pe amd64. Pentru performanță optimă se recomandă 8GB RAM."
       },
       "madeBy": {
         "question": "Cine a creat asta?",

@@ -26,7 +26,7 @@
     "downloadCta": "Λήψη τώρα",
     "demoCta": "Δείτε demo",
     "availableOn": "Διαθέσιμο σε",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Ποιες είναι οι απαιτήσεις συστήματος;",
-        "answer": "Για Mac: macOS 14 ή νεότερο, με υποστήριξη Apple Silicon και Intel. Για Windows: Windows 10/11, x64 ή ARM64. Για Linux v1: Ubuntu 22.04 ή νεότερο ή Debian 12 ή νεότερο, σε amd64. Συνιστώνται 8GB RAM για βέλτιστη απόδοση."
+        "answer": "Για Mac: macOS 14.6 ή νεότερο, με υποστήριξη Apple Silicon και Intel. Για Windows: Windows 10/11, x64 ή ARM64. Για Linux v1: Ubuntu 22.04 ή νεότερο ή Debian 12 ή νεότερο, σε amd64. Συνιστώνται 8GB RAM για βέλτιστη απόδοση."
       },
       "madeBy": {
         "question": "Ποιος το έφτιαξε;",

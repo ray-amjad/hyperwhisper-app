@@ -26,7 +26,7 @@
     "downloadCta": "अभी डाउनलोड करें",
     "demoCta": "डेमो देखें",
     "availableOn": "उपलब्ध है",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "सिस्टम आवश्यकताएँ क्या हैं?",
-        "answer": "Mac के लिए: macOS 14 या नया, Apple Silicon और Intel दोनों सपोर्टेड। Windows के लिए: Windows 10/11, x64 या ARM64। Linux v1 के लिए: amd64 पर Ubuntu 22.04 या नया, या Debian 12 या नया। सर्वोत्तम प्रदर्शन के लिए 8GB RAM अनुशंसित है।"
+        "answer": "Mac के लिए: macOS 14.6 या नया, Apple Silicon और Intel दोनों सपोर्टेड। Windows के लिए: Windows 10/11, x64 या ARM64। Linux v1 के लिए: amd64 पर Ubuntu 22.04 या नया, या Debian 12 या नया। सर्वोत्तम प्रदर्शन के लिए 8GB RAM अनुशंसित है।"
       },
       "madeBy": {
         "question": "यह किसने बनाया है?",

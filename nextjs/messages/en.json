@@ -26,7 +26,7 @@
     "downloadCta": "Download now",
     "demoCta": "Watch demo",
     "availableOn": "Available on",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -186,7 +186,7 @@
       },
       "requirements": {
         "question": "What are the system requirements?",
-        "answer": "Mac: macOS 14+ on Apple Silicon or Intel. Windows: Windows 10/11 on x64 or ARM64. Linux v1: Ubuntu 22.04+ or Debian 12+ on amd64. 8GB RAM recommended for optimal performance."
+        "answer": "Mac: macOS 14.6+ on Apple Silicon or Intel. Windows: Windows 10/11 on x64 or ARM64. Linux v1: Ubuntu 22.04+ or Debian 12+ on amd64. 8GB RAM recommended for optimal performance."
       },
       "madeBy": {
         "question": "Who was this made by?",

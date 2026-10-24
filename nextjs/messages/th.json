@@ -26,7 +26,7 @@
     "downloadCta": "ดาวน์โหลดตอนนี้",
     "demoCta": "ดูเดโม",
     "availableOn": "พร้อมใช้งานบน",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "สเปกระบบที่ต้องการคืออะไร?",
-        "answer": "สำหรับ Mac: macOS 14 ขึ้นไป รองรับทั้ง Apple Silicon และ Intel สำหรับ Windows: Windows 10/11, x64 หรือ ARM64 สำหรับ Linux v1: Ubuntu 22.04 ขึ้นไป หรือ Debian 12 ขึ้นไป บน amd64 แนะนำ RAM 8GB เพื่อประสิทธิภาพที่ดีที่สุด"
+        "answer": "สำหรับ Mac: macOS 14.6 ขึ้นไป รองรับทั้ง Apple Silicon และ Intel สำหรับ Windows: Windows 10/11, x64 หรือ ARM64 สำหรับ Linux v1: Ubuntu 22.04 ขึ้นไป หรือ Debian 12 ขึ้นไป บน amd64 แนะนำ RAM 8GB เพื่อประสิทธิภาพที่ดีที่สุด"
       },
       "madeBy": {
         "question": "ใครเป็นผู้สร้าง?",

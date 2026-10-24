@@ -26,7 +26,7 @@
     "downloadCta": "Letöltés most",
     "demoCta": "Demó megtekintése",
     "availableOn": "Elérhető",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Mik a rendszerkövetelmények?",
-        "answer": "Machez: macOS 14 vagy újabb, Apple Silicon és Intel támogatással. Windowshoz: Windows 10/11, x64 vagy ARM64. Linux v1-hez: Ubuntu 22.04 vagy újabb, illetve Debian 12 vagy újabb, amd64-en. Az optimális teljesítményhez 8GB RAM ajánlott."
+        "answer": "Machez: macOS 14.6 vagy újabb, Apple Silicon és Intel támogatással. Windowshoz: Windows 10/11, x64 vagy ARM64. Linux v1-hez: Ubuntu 22.04 vagy újabb, illetve Debian 12 vagy újabb, amd64-en. Az optimális teljesítményhez 8GB RAM ajánlott."
       },
       "madeBy": {
         "question": "Ki készítette ezt?",

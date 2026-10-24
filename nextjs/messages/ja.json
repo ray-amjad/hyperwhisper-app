@@ -26,7 +26,7 @@
     "downloadCta": "今すぐダウンロード",
     "demoCta": "デモ動画を見る",
     "availableOn": "対応OS",
-    "macos": "macOS 14以降",
+    "macos": "macOS 14.6以降",
     "windows": "Windows 10以降",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "動作環境を教えてください。",
-        "answer": "Mac：macOS 14以降、Apple SiliconとIntelの両方に対応。Windows：Windows 10/11、x64またはARM64。Linux v1：amd64上のUbuntu 22.04以降またはDebian 12以降。最適なパフォーマンスには8GB以上のRAMを推奨します。"
+        "answer": "Mac：macOS 14.6以降、Apple SiliconとIntelの両方に対応。Windows：Windows 10/11、x64またはARM64。Linux v1：amd64上のUbuntu 22.04以降またはDebian 12以降。最適なパフォーマンスには8GB以上のRAMを推奨します。"
       },
       "madeBy": {
         "question": "開発者は誰ですか？",

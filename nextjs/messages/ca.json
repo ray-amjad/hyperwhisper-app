@@ -26,7 +26,7 @@
     "downloadCta": "Descarrega ara",
     "demoCta": "Mira la demo",
     "availableOn": "Disponible a",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Quins són els requisits del sistema?",
-        "answer": "Per a Mac: macOS 14 o superior, amb suport per a Apple Silicon i Intel. Per a Windows: Windows 10/11, x64 o ARM64. Per a Linux v1: Ubuntu 22.04 o superior o Debian 12 o superior, en amd64. Es recomanen 8GB de RAM per a un rendiment òptim."
+        "answer": "Per a Mac: macOS 14.6 o superior, amb suport per a Apple Silicon i Intel. Per a Windows: Windows 10/11, x64 o ARM64. Per a Linux v1: Ubuntu 22.04 o superior o Debian 12 o superior, en amd64. Es recomanen 8GB de RAM per a un rendiment òptim."
       },
       "madeBy": {
         "question": "Qui ho ha creat?",

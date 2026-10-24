@@ -26,7 +26,7 @@
     "downloadCta": "Lataa nyt",
     "demoCta": "Katso demo",
     "availableOn": "Saatavilla",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Mitkä ovat järjestelmävaatimukset?",
-        "answer": "Mac: macOS 14 tai uudempi, tuki sekä Apple Siliconille että Intelille. Windows: Windows 10/11, x64 tai ARM64. Linux v1: Ubuntu 22.04 tai uudempi tai Debian 12 tai uudempi, amd64. 8GB RAM suositellaan optimaaliseen suorituskykyyn."
+        "answer": "Mac: macOS 14.6 tai uudempi, tuki sekä Apple Siliconille että Intelille. Windows: Windows 10/11, x64 tai ARM64. Linux v1: Ubuntu 22.04 tai uudempi tai Debian 12 tai uudempi, amd64. 8GB RAM suositellaan optimaaliseen suorituskykyyn."
       },
       "madeBy": {
         "question": "Kuka tämän teki?",

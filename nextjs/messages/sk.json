@@ -26,7 +26,7 @@
     "downloadCta": "Stiahnuť teraz",
     "demoCta": "Pozrieť demo",
     "availableOn": "Dostupné na",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Aké sú systémové požiadavky?",
-        "answer": "Pre Mac: macOS 14 alebo novší, podpora Apple Silicon aj Intel. Pre Windows: Windows 10/11, x64 alebo ARM64. Pre Linux v1: Ubuntu 22.04 alebo novší či Debian 12 alebo novší, na amd64. Pre optimálny výkon odporúčame 8 GB RAM."
+        "answer": "Pre Mac: macOS 14.6 alebo novší, podpora Apple Silicon aj Intel. Pre Windows: Windows 10/11, x64 alebo ARM64. Pre Linux v1: Ubuntu 22.04 alebo novší či Debian 12 alebo novší, na amd64. Pre optimálny výkon odporúčame 8 GB RAM."
       },
       "madeBy": {
         "question": "Kto to vytvoril?",

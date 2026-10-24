@@ -26,7 +26,7 @@
     "downloadCta": "Prenesi zdaj",
     "demoCta": "Poglej demo",
     "availableOn": "Na voljo za",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Kakšne so sistemske zahteve?",
-        "answer": "Za Mac: macOS 14 ali novejši, podprta Apple Silicon in Intel. Za Windows: Windows 10/11, x64 ali ARM64. Za Linux v1: Ubuntu 22.04 ali novejši ali Debian 12 ali novejši, na amd64. Za optimalno delovanje priporočamo 8 GB RAM."
+        "answer": "Za Mac: macOS 14.6 ali novejši, podprta Apple Silicon in Intel. Za Windows: Windows 10/11, x64 ali ARM64. Za Linux v1: Ubuntu 22.04 ali novejši ali Debian 12 ali novejši, na amd64. Za optimalno delovanje priporočamo 8 GB RAM."
       },
       "madeBy": {
         "question": "Kdo je to ustvaril?",
