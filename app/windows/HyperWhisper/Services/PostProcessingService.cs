@@ -556,7 +556,7 @@ public class PostProcessingService : IDisposable
     /// <summary>
     /// The shared completion policy for an in-process local model, plus one check
     /// of its own (issue #2559): a transcript with words in it never comes back as
-    /// punctuation only. A small model that runs off its chat template can print a
+    /// ASCII punctuation only. A small model that runs off its chat template can print a
     /// stray "&lt;&lt;" or "..." and stop; that is a failed post-process, not an
     /// answer, so the raw transcript stays.
     /// </summary>
@@ -571,8 +571,14 @@ public class PostProcessingService : IDisposable
         return evaluation;
     }
 
+    /// <summary>
+    /// ASCII punctuation only, from a transcript that has words. Any non-ASCII
+    /// character counts as content, so an emoji-only answer ("thumbs up" → 👍) is
+    /// still accepted.
+    /// </summary>
     internal static bool IsDegenerateLocalOutput(string transcript, string cleaned) =>
-        transcript.Any(char.IsLetterOrDigit) && !cleaned.Any(char.IsLetterOrDigit);
+        transcript.Any(char.IsLetterOrDigit)
+        && cleaned.All(c => char.IsAscii(c) && !char.IsLetterOrDigit(c));
 
     /// <summary>
     /// Calls the local LLamaSharp runtime for offline post-processing.

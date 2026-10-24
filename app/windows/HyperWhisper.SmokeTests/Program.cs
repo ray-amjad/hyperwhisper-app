@@ -5265,7 +5265,8 @@ internal static class Program
                 Assert(prompt == "<|turn>system\nSYSTEM RULES<turn|>\n<|turn>user\n--TRANSCRIPT--\nhi\n--ENDTRANSCRIPT--<turn|>\n<|turn>model\n",
                     $"unexpected Gemma 4 prompt: {prompt}");
                 Assert(!prompt.Contains("User:") && !prompt.Contains("System:"), "no generic role prefixes");
-                Assert(LocalLlmPromptFormatter.TemplateAntiPrompts.Contains("<turn|>"), "Gemma 4 end-of-turn is a stop string");
+                Assert(LocalLlmPromptFormatter.Gemma4AntiPrompts[0] == "<turn|>", "Gemma 4 end-of-turn is the first stop string");
+                Assert(!LocalLlmPromptFormatter.Gemma4AntiPrompts.Contains("</s>"), "dictated '</s>' must not end a Gemma 4 answer");
                 Assert(!LocalLlmPromptFormatter.TemplateAntiPrompts.Any(a => a.Contains("User:")),
                     "a templated prompt must not stop on a dictated 'User:'");
                 Assert(LocalLlmService.TrimAntiPrompt("<<CLEANED>>x<<END>>\nUser:", LocalLlmPromptFormatter.PlainAntiPrompts) == "<<CLEANED>>x<<END>>",
@@ -5289,6 +5290,8 @@ internal static class Program
                 Assert(shortButReal.accepted && shortButReal.text == "Okay.", "a much shorter real answer is still accepted");
 
                 Assert(!PostProcessingService.IsDegenerateLocalOutput("...", "..."), "punctuation in, punctuation out is not degenerate");
+                Assert(!PostProcessingService.IsDegenerateLocalOutput("thumbs up", "\U0001F44D"), "an emoji-only answer is content");
+                Assert(PostProcessingService.IsDegenerateLocalOutput("thumbs up", "<< ..."), "ASCII punctuation only is degenerate");
             });
 
             Run("Local LLM reserves an 8192-token output without context shifting", () =>

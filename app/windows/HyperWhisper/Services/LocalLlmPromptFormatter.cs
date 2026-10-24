@@ -28,14 +28,21 @@ internal static class LocalLlmPromptFormatter
     private const string Gemma4TurnClose = "<turn|>";
 
     /// <summary>
-    /// Stop strings for a templated prompt. The model's end-of-generation token
-    /// already stops the executor; these catch a model that prints an end or
-    /// turn marker as text instead.
+    /// Stop strings for the Gemma 4 prompt: only its own turn markers, so text a
+    /// user dictates (an HTML <c>&lt;/s&gt;</c>, say) can never end the answer.
+    /// <c>&lt;turn|&gt;</c> must stay FIRST: on an end-of-generation token
+    /// LLamaSharp's InteractiveExecutor feeds the first stop string back in, and
+    /// that token is what then ends the stream.
+    /// </summary>
+    internal static readonly IReadOnlyList<string> Gemma4AntiPrompts = [Gemma4TurnClose, Gemma4TurnOpen];
+
+    /// <summary>
+    /// Stop strings for a prompt built from another model's template. The model's
+    /// end-of-generation token already stops the executor; these catch a model
+    /// that prints an end or turn marker as text instead.
     /// </summary>
     internal static readonly IReadOnlyList<string> TemplateAntiPrompts =
     [
-        Gemma4TurnClose,
-        Gemma4TurnOpen,
         "<end_of_turn>",
         "<|im_end|>",
         "<|end|>",
@@ -54,7 +61,7 @@ internal static class LocalLlmPromptFormatter
         weights.Metadata.TryGetValue(ChatTemplateMetadataKey, out var chatTemplate);
         if (IsGemma4Template(chatTemplate))
         {
-            return new LocalLlmPrompt(FormatGemma4(systemPrompt, userMessage), TemplateAntiPrompts);
+            return new LocalLlmPrompt(FormatGemma4(systemPrompt, userMessage), Gemma4AntiPrompts);
         }
 
         try
