@@ -15623,9 +15623,9 @@ internal static class Program
                 // The pure decision: only Unauthorized turns a stored key into Key invalid.
                 Assert(MainViewModel.CloudModelStatusKey(groq, false, hasApiKey: true, ProviderHealth.Unauthorized) == "status.model.keyInvalid",
                     "a rejected Groq key must read Key invalid");
-                foreach (var health in new[] { ProviderHealth.Healthy, ProviderHealth.Unknown, ProviderHealth.Checking, ProviderHealth.Unreachable })
-                    Assert(MainViewModel.CloudModelStatusKey(groq, false, hasApiKey: true, health) == "status.model.ready",
-                        $"a stored Groq key with health {health} must stay Ready");
+                foreach (var verdict in new[] { ProviderHealth.Healthy, ProviderHealth.Unknown, ProviderHealth.Checking, ProviderHealth.Unreachable })
+                    Assert(MainViewModel.CloudModelStatusKey(groq, false, hasApiKey: true, verdict) == "status.model.ready",
+                        $"a stored Groq key with health {verdict} must stay Ready");
                 Assert(MainViewModel.CloudModelStatusKey(groq, false, hasApiKey: false, ProviderHealth.Unauthorized) == "status.model.noApiKey",
                     "no key at all still reads No API key");
                 Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, true, false, ProviderHealth.Unauthorized) == "status.model.ready",
