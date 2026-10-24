@@ -172,6 +172,9 @@ public sealed partial class ModesViewModel : ViewModelBase
         // A create dialog must insert even though Selected still points at the mode the user had
         // active — Windows keeps that selection while the create window is open.
         var mode = (_isCreating ? null : Selected) ?? new Mode { SortOrder = Items.Count };
+        // ApplyEditorTo writes onto the live Mode that Items and Selected hold. Keep its stored
+        // values, so a refused or failed save does not leave a name that never saved in the list.
+        var storedValues = Items.Contains(mode) ? CopyModeValues(mode, new Mode()) : null;
         ApplyEditorTo(mode, customEndpointId);
         IReadOnlyDictionary<string, System.Text.Json.JsonElement>? settingsSnapshot = null;
         byte[]? previousCredential = null;
@@ -196,16 +199,13 @@ public sealed partial class ModesViewModel : ViewModelBase
             await _repository.UpsertSafelyAsync(mode, cancellationToken);
             CommitSavedMode(mode, customEndpointId);
         }
-        catch (ModeRuleViolationException exception)
-        {
-            // A rule the repository enforces (issue #2551): say which one, not "could not save".
-            RollBackFailedSave(settingsSnapshot, customEndpointId, credentialTouched, previousCredential);
-            Status.Failure(exception.Code, exception.Message);
-        }
-        catch (Exception)
+        catch (Exception exception)
         {
             RollBackFailedSave(settingsSnapshot, customEndpointId, credentialTouched, previousCredential);
-            Status.Failure("modes.save_failed", "Could not save the mode or its secure endpoint configuration.");
+            if (storedValues is not null) CopyModeValues(storedValues, mode);
+            // A rule the repository enforces (issue #2551) says which one, not "could not save".
+            if (exception is ModeRuleViolationException rule) Status.Failure(rule.Code, rule.Message);
+            else Status.Failure("modes.save_failed", "Could not save the mode or its secure endpoint configuration.");
         }
         finally
         {
@@ -324,6 +324,13 @@ public sealed partial class ModesViewModel : ViewModelBase
             .Distinct(StringComparer.OrdinalIgnoreCase).Take(1000).ToList();
         mode.EnableScreenOCR = EnableScreenOcr;
         mode.ModifiedDate = DateTime.UtcNow;
+    }
+
+    private static Mode CopyModeValues(Mode source, Mode target)
+    {
+        foreach (var property in typeof(Mode).GetProperties())
+            if (property.CanRead && property.CanWrite) property.SetValue(target, property.GetValue(source));
+        return target;
     }
 
     /// <summary>The in-memory half of a save that reached the database: the list, the selection, the endpoint id.</summary>

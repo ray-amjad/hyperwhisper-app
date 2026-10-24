@@ -2199,6 +2199,8 @@ static async Task RunModeNameTakenTestsAsync(string root)
     await editor.SaveAsync();
     Assert(editor.Status.ErrorCode == "modes.name_taken", $"renaming 'Other' to 'Hyper' showed {editor.Status.ErrorCode}");
     Assert((await repository.ListAsync()).Single(item => item.Id == other.Id).Name == "Other", "a refused rename was saved");
+    Assert(editor.Items.Single(item => item.Id == other.Id).Name == "Other" && editor.Name == "Hyper",
+        "a refused rename left 'Hyper' on the listed mode, or cleared what the user typed");
     editor.Name = "other";
     await editor.SaveAsync();
     Assert(!editor.Status.HasError && (await repository.ListAsync()).Single(item => item.Id == other.Id).Name == "other",
@@ -2224,7 +2226,8 @@ static async Task RunModeNameTakenTestsAsync(string root)
     await editor.SaveAsync();
     Assert(editor.Status.ErrorCode == "modes.default_name_fixed",
         $"renaming the default mode showed {editor.Status.ErrorCode}: {editor.Status.Message}");
-    Assert((await repository.ListAsync()).Single(item => item.IsDefault).Name == "Hyper", "the default mode was renamed");
+    Assert((await repository.ListAsync()).Single(item => item.IsDefault).Name == "Hyper"
+        && editor.Items.Single(item => item.IsDefault).Name == "Hyper", "the default mode was renamed");
 }
 
 static async Task RunDictationModeTestsAsync(string root)
