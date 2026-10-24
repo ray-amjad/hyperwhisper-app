@@ -5262,6 +5262,55 @@ internal static class Program
                     "markerless unspecified response should be accepted leniently");
             });
 
+            Run("Local LLM speaks Gemma 4's turn format, not System:/User: (issue #2559)", () =>
+            {
+                const string gemma4Template = "{{- bos_token -}}{{- '<|turn>system\\n' -}}{{- '<turn|>\\n' -}}{{- '<|turn>model\\n' -}}";
+                Assert(LocalLlmPromptFormatter.IsGemma4Template(gemma4Template), "Gemma 4 template should be detected");
+                Assert(!LocalLlmPromptFormatter.IsGemma4Template("<start_of_turn>user\n{{ content }}<end_of_turn>"),
+                    "Gemma 3 template is not Gemma 4");
+                Assert(!LocalLlmPromptFormatter.IsGemma4Template(null), "a model with no template is not Gemma 4");
+
+                var prompt = LocalLlmPromptFormatter.FormatGemma4("  SYSTEM RULES \n", "--TRANSCRIPT--\nhi\n--ENDTRANSCRIPT--\n");
+                Assert(prompt == "<|turn>system\nSYSTEM RULES<turn|>\n<|turn>user\n--TRANSCRIPT--\nhi\n--ENDTRANSCRIPT--<turn|>\n<|turn>model\n",
+                    $"unexpected Gemma 4 prompt: {prompt}");
+                Assert(!prompt.Contains("User:") && !prompt.Contains("System:"), "no generic role prefixes");
+                Assert(LocalLlmPromptFormatter.Gemma4AntiPrompts[0] == "<turn|>", "Gemma 4 end-of-turn is the first stop string");
+                Assert(!LocalLlmPromptFormatter.Gemma4AntiPrompts.Contains("</s>"), "dictated '</s>' must not end a Gemma 4 answer");
+                Assert(!LocalLlmPromptFormatter.TemplateAntiPrompts.Any(a => a.Contains("User:")),
+                    "a templated prompt must not stop on a dictated 'User:'");
+                Assert(LocalLlmService.TrimAntiPrompt("<<CLEANED>>x<<END>>\nUser:", LocalLlmPromptFormatter.PlainAntiPrompts) == "<<CLEANED>>x<<END>>",
+                    "trailing stop string is dropped");
+            });
+
+            Run("Local LLM punctuation-only or cut-off output keeps the raw transcript (issue #2559)", () =>
+            {
+                const string raw = "um so the quick brown fox uh jumps over the the lazy dog and then we we go home";
+                var garbage = PostProcessingService.EvaluateLocalCompletion(raw, new LocalLlmCompletion("<<", CompletionState.Complete));
+                Assert(!garbage.accepted && garbage.text == raw, "'<<' must not replace the transcript");
+
+                var cutOff = PostProcessingService.EvaluateLocalCompletion(raw, new LocalLlmCompletion("<<CLEANED>>So the quick", CompletionState.OutputLimit));
+                Assert(!cutOff.accepted && cutOff.text == raw, "an output-limited answer must not replace the transcript");
+
+                var good = PostProcessingService.EvaluateLocalCompletion(raw,
+                    new LocalLlmCompletion("<<CLEANED>>So the quick brown fox jumps over the lazy dog, and then we go home.<<END>>", CompletionState.Complete));
+                Assert(good.accepted && good.text == "So the quick brown fox jumps over the lazy dog, and then we go home.", "a clean answer is accepted");
+
+                var shortButReal = PostProcessingService.EvaluateLocalCompletion("um uh okay", new LocalLlmCompletion("<<CLEANED>>Okay.<<END>>", CompletionState.Complete));
+                Assert(shortButReal.accepted && shortButReal.text == "Okay.", "a much shorter real answer is still accepted");
+
+                Assert(!PostProcessingService.IsDegenerateLocalOutput("question mark", "?"), "spoken punctuation is an answer");
+                Assert(!PostProcessingService.IsDegenerateLocalOutput("thumbs up", "\U0001F44D"), "an emoji-only answer is content");
+                Assert(PostProcessingService.IsDegenerateLocalOutput("thumbs up", "<< </>"), "marker debris only is degenerate");
+            });
+
+            Run("Local LLM uses every core on ARM64 and the default elsewhere (#2559)", () =>
+            {
+                Assert(LocalLlmService.CpuThreadCount(System.Runtime.InteropServices.Architecture.Arm64, 8) == 8,
+                    "ARM64 has no SMT, so all 8 cores run inference");
+                Assert(LocalLlmService.CpuThreadCount(System.Runtime.InteropServices.Architecture.X64, 16) == null,
+                    "x64 keeps LLamaSharp's one-thread-per-core default");
+            });
+
             Run("Local LLM reserves an 8192-token output without context shifting", () =>
             {
                 Assert(LocalLlmService.MaxTokens == 8_192, "local output ceiling should be 8192");
