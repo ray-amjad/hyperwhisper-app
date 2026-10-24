@@ -24,7 +24,7 @@ import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const MESSAGES_DIR = path.join(__dirname, "..", "messages");
 
@@ -83,7 +83,7 @@ function FakeLocaleLayout() {
   return null;
 }
 
-moduleMock.module("../app/[locale]/layout.tsx", {
+moduleMock.module(moduleUrl("../app/[locale]/layout.tsx"), {
   defaultExport: FakeLocaleLayout,
 });
 
