@@ -860,6 +860,9 @@
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (APIキーなし)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (キーが無効)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>読み込み失敗</value>
   </data>
