@@ -25171,6 +25171,163 @@ internal static class Program
                 }
             });
 
+            // #1584: a transcript pasted over an EMPTY clipboard has nothing to
+            // restore, so #1496's keep-the-snapshot mark was never armed, and a
+            // second dictation inside the restore window snapshotted transcript A
+            // as "the user's clipboard" and restored it over B. The mark now
+            // counts only until A's restore delay would have ended (Ray,
+            // 2026-10-19). These drive the real service on the real clipboard,
+            // with the TickCountMs seam standing in for the 10 s wait.
+            Run("clipboard restore (#1584): two quick dictations from an empty clipboard leave the last transcript", () =>
+            {
+                static string Clip() => ReadClipboardText();
+                var operatorClipboard = SnapshotWholeClipboard();
+                var previousGate = TextDeliveryGate.IsSuppressed;
+                var previousRestore = SettingsService.Instance.RestoreClipboardAfterPaste;
+                var restoreDelay = TimeSpan.FromSeconds(10);
+                try
+                {
+                    TextDeliveryGate.SetSuppressed(false);
+                    SettingsService.Instance.RestoreClipboardAfterPaste = true;
+
+                    // A clock the case moves by hand, starting well away from 0.
+                    long now = 1_000_000;
+                    SmartPasteService NewService() => new SmartPasteService { TickCountMs = () => now };
+
+                    // One dictation as the batch flow runs it, with the default
+                    // 10 s delay. Over an empty clipboard no restore is pending.
+                    void Dictate(SmartPasteService paste, string transcript)
+                    {
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste(transcript) == SmartPasteResult.CopiedToClipboard,
+                            $"precondition: '{transcript}' must reach the clipboard");
+                        Assert(Clip() == transcript,
+                            $"precondition: the clipboard must hold '{transcript}', got '{Clip()}'");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(restoreDelay);
+                        paste.EndRecordingSession();
+                    }
+
+                    // The issue: empty clipboard, A, then B 3 s later. B stays.
+                    using (var paste = NewService())
+                    {
+                        Clipboard.Clear();
+                        Dictate(paste, "The apple tree grows near the riverbank. ");
+                        Assert(!paste.HasPendingClipboardRestore, "an empty clipboard leaves nothing to restore");
+                        now += 3_000;
+                        Dictate(paste, "Blue whale sing across the cold ocean. ");
+                        Assert(!paste.HasPendingClipboardRestore,
+                            "B inside A's window must keep 'nothing to restore', not snapshot A");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Blue whale sing across the cold ocean. ",
+                            $"two quick dictations from an empty clipboard must leave the last transcript, got '{Clip()}'");
+                    }
+
+                    // B starts after A's window ended: A is now the clipboard's
+                    // content, so B's restore brings A back, as before the fix.
+                    using (var paste = NewService())
+                    {
+                        Clipboard.Clear();
+                        Dictate(paste, "The apple tree grows near the riverbank. ");
+                        now += (long)restoreDelay.TotalMilliseconds;
+                        Dictate(paste, "Blue whale sing across the cold ocean. ");
+                        Assert(paste.HasPendingClipboardRestore, "B after A's window must snapshot A and schedule its restore");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "The apple tree grows near the riverbank. ",
+                            $"a dictation after the window must restore the earlier transcript, got '{Clip()}'");
+                    }
+
+                    // Restore OFF from an empty clipboard: nothing is ever
+                    // restored, and the transcript is the clipboard's content. A
+                    // later dictation with restore on snapshots it afresh.
+                    using (var paste = NewService())
+                    {
+                        SettingsService.Instance.RestoreClipboardAfterPaste = false;
+                        Clipboard.Clear();
+                        Dictate(paste, "Dictated with restore off. ");
+                        now += 3_000;
+                        Dictate(paste, "Again with restore off. ");
+                        Assert(!paste.HasPendingClipboardRestore, "restore off schedules nothing");
+                        Assert(Clip() == "Again with restore off. ",
+                            $"with restore off the last transcript stays, got '{Clip()}'");
+
+                        SettingsService.Instance.RestoreClipboardAfterPaste = true;
+                        now += 1_000;
+                        Dictate(paste, "Restore back on. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Again with restore off. ",
+                            $"a transcript left with restore off must come back after the next dictation, got '{Clip()}'");
+                    }
+
+                    // A transcript kept ON PURPOSE over an empty clipboard (no
+                    // restore scheduled, the SecureFieldSkipped shape) is never
+                    // marked, so even a dictation 1 s later snapshots it.
+                    using (var paste = NewService())
+                    {
+                        Clipboard.Clear();
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste("Secret left for a manual paste. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the kept transcript must reach the clipboard");
+                        paste.EndRecordingSession();
+                        now += 1_000;
+                        Dictate(paste, "The next dictation. ");
+                        Assert(paste.HasPendingClipboardRestore, "the next dictation must snapshot the kept transcript");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Secret left for a manual paste. ",
+                            $"a transcript kept on purpose must come back after the next dictation, got '{Clip()}'");
+                    }
+
+                    // A late segment (written after the restore was scheduled)
+                    // over an empty clipboard keeps the window's expiry, not a
+                    // new one from its own write: inside the window the next
+                    // dictation leaves its own transcript ...
+                    using (var paste = NewService())
+                    {
+                        Clipboard.Clear();
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste("Streamed segment. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the segment must reach the clipboard");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(restoreDelay);
+                        now += 9_000;
+                        Assert(paste.SmartPaste("Late segment. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the late segment must reach the clipboard");
+                        paste.EndRecordingSession();
+                        now += 500;
+                        Dictate(paste, "Inside the window. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Inside the window. ",
+                            $"a dictation inside the window after a late segment must leave its own transcript, got '{Clip()}'");
+                    }
+
+                    // ... and once the clock passes the window (1 s after the
+                    // late segment, well inside 10 s of it), the next dictation
+                    // snapshots that segment and restores it.
+                    using (var paste = NewService())
+                    {
+                        Clipboard.Clear();
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste("Streamed segment. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the segment must reach the clipboard");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(restoreDelay);
+                        now += 9_000;
+                        Assert(paste.SmartPaste("Late segment. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the late segment must reach the clipboard");
+                        paste.EndRecordingSession();
+                        now += 1_000;
+                        Dictate(paste, "After the window. ");
+                        Assert(paste.HasPendingClipboardRestore, "after the window the next dictation must snapshot the late segment");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Late segment. ",
+                            $"a late segment must lapse with the window, not a new one, got '{Clip()}'");
+                    }
+                }
+                finally
+                {
+                    TextDeliveryGate.SetSuppressed(previousGate);
+                    SettingsService.Instance.RestoreClipboardAfterPaste = previousRestore;
+                    PutBackWholeClipboard(operatorClipboard);
+                }
+            });
+
             Run("shortcuts: the recorder's red border never appears without its reason", () =>
             {
                 // C8. ShowError gated only the TEXT on ShowsInlineError and painted
