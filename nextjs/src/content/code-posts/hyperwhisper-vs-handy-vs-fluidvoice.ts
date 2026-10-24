@@ -38,7 +38,7 @@ const html = `
 <ul>
   <li><strong>HyperWhisper</strong> ships a native Windows app built on .NET and WPF, for Windows 10 and 11 on x64 or ARM64. On-device Whisper runs in its own worker process: if that process dies in the middle of a transcription, the app restarts it once and retries the request instead of going down with it, and the worker exits when idle so your graphics card can drop back to a low-power state. On x64 the engine tries the Vulkan GPU runtime first, then the CPU, then a CPU build for processors without AVX; on ARM64, Whisper runs on the CPU.</li>
   <li><strong>Handy</strong> is a Tauri (Rust) app with Windows installers (setup .exe and .msi) for x64 and ARM64. Its build ships Vulkan GPU acceleration on x64; its own build file says "Windows-on-ARM is CPU-only". Its README notes that on Windows it tells the Vulkan loader to skip implicit layers "to avoid crashes caused by overlay and capture hooks", and offers an experimental "Reliable Paste (Beta)" setting on macOS and Windows.</li>
-  <li><strong>FluidVoice</strong> is a macOS app first. Its website says "Windows is in beta", and every Windows build on its GitHub releases page is marked pre-release; the newest, 0.0.12 (October 22, 2026), ships as an x64 installer only. Its README still says "iOS and Windows are on the way", and the README of its Windows release branch says "The Windows source code is not published here.".</li>
+  <li><strong>FluidVoice</strong> is a macOS app first. Its website says "Windows is in beta", and every Windows build on its GitHub releases page is marked pre-release; the newest, 0.0.12 (October 22, 2026), ships as an x64 installer only. Its README still says "iOS and Windows are on the way", and the README of its Windows release branch says "The Windows source code is not published here."</li>
 </ul>
 
 <h2>Cleaning up dictated code</h2>
@@ -46,21 +46,21 @@ const html = `
 <p>Raw speech-to-text writes "open paren" where you meant <code>(</code> and "use effect" where you meant <code>useEffect</code>. This is where the three differ most for developers.</p>
 
 <ul>
-  <li><strong>HyperWhisper</strong> has a <strong>Code</strong> mode, one of its transcription modes, each with its own AI prompt (its prompts are open source, in the <a href="https://github.com/ray-amjad/hyperwhisper-app/tree/main/shared-prompts" target="_blank" rel="noopener">shared-prompts</a> folder). Code mode turns spoken symbols into syntax ("open paren", "triple equals", "arrow"), applies case formatting when you ask for it ("camel case", "snake case", "kebab case" and others), and keeps identifiers and technical terms exactly as said. When you turn screen context on for a mode, it reads the text on your screen and prefers the spellings it sees there, so "use effect" becomes <code>useEffect</code> when <code>useEffect</code> is on screen.</li>
+  <li><strong>HyperWhisper</strong> has a <strong>Code</strong> mode, one of its transcription modes, each with its own AI prompt (its prompts are open source, in the <a href="https://github.com/ray-amjad/hyperwhisper-app/tree/main/shared-prompts" target="_blank" rel="noopener">shared-prompts</a> folder). Code mode turns spoken symbols into syntax ("open paren", "triple equals", "arrow"), applies case formatting when you ask for it ("camel case", "snake case", "kebab case" and others), and keeps identifiers and technical terms exactly as said. When you turn screen context on for a mode, it reads the text on your screen and prefers the spellings it sees there, so "use effect" becomes <code>useEffect</code> when <code>useEffect</code> is on screen. Like every AI mode, Code mode runs your transcript through a language model you choose: HyperWhisper Cloud, your own API key, or a local LLM. Plain dictation with a local speech model needs none of these.</li>
   <li><strong>Handy</strong> removes filler words by default, and you can edit the list. It can also send a transcript through an LLM with a prompt you write, using providers such as OpenAI, Anthropic, Groq, OpenRouter or Apple Intelligence; this post-processing is off by default. It documents no mode for code.</li>
   <li><strong>FluidVoice</strong> offers Fluid Intelligence, an on-device runtime for "smart formatting, context-aware capitalization, and post-processing", plus optional cloud providers. Its "Per-App Configuration" assigns different prompt sets to different apps, and it has Write Mode and Command Mode. It documents no mode for code.</li>
 </ul>
 
 <h2>Speech models and offline use</h2>
 
-<p>All three work offline. Handy runs Whisper models (Small, Medium, Turbo and Large) "with GPU acceleration when available" and Parakeet V3 on the CPU, all on your own computer. FluidVoice lists Nemotron Speech, Parakeet, Cohere Transcribe, Apple Speech and Whisper models, needs macOS 15 or later, and needs an Apple Silicon Mac for its full model list; Intel Macs are supported through the Whisper models. HyperWhisper runs local models offline on macOS 14+, Windows 10 and 11, and Linux, and also lets you use cloud transcription with your own API keys or with HyperWhisper Cloud.</p>
+<p>All three work offline. Handy runs Whisper models (Small, Medium, Turbo and Large) "with GPU acceleration when available" and Parakeet V3 on the CPU, all on your own computer. FluidVoice lists Nemotron Speech, Parakeet, Cohere Transcribe, Apple Speech and Whisper models, needs macOS 15 or later, and needs an Apple Silicon Mac for its full model list; Intel Macs are supported through the Whisper models. HyperWhisper runs local models offline on macOS 14+, Windows 10 and 11, and Linux (Ubuntu 22.04+ or Debian 12+ on amd64), and also lets you use cloud transcription with your own API keys or with HyperWhisper Cloud.</p>
 
 <h2>Which should you pick?</h2>
 
 <ul>
   <li><strong>You dictate on Windows, including on an ARM64 PC:</strong> HyperWhisper and Handy both ship released Windows apps for x64 and ARM64 (in both, Whisper runs on the CPU on ARM64); FluidVoice's Windows app is in beta and x64 only.</li>
   <li><strong>You dictate code:</strong> HyperWhisper is the only one of the three with a documented Code mode for symbols, casing and on-screen identifiers.</li>
-  <li><strong>You want the smallest, simplest offline app:</strong> Handy is free, MIT-licensed and keeps LLM processing off unless you turn it on.</li>
+  <li><strong>You want plain offline dictation with no AI step by default:</strong> Handy is free, MIT-licensed and keeps LLM post-processing off unless you turn it on.</li>
   <li><strong>You only use a Mac on macOS 15 or later:</strong> FluidVoice is free and built for macOS first, with on-device formatting and a voice Command Mode.</li>
 </ul>
 
