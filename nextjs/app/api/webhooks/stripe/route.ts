@@ -71,7 +71,10 @@ export async function POST(req: NextRequest) {
     const session = event.data.object;
     const purchaseType = session.metadata?.purchase_type;
 
-    if (session.payment_status !== "paid") {
+    // A session fully covered by a 100%-off promotion code completes as
+    // no_payment_required and gets no later async_payment_succeeded, so it is
+    // settled now (#2055). Only "unpaid" waits for the money.
+    if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") {
       console.log(
         `Stripe webhook: ${event.type} for ${purchaseType} session ${session.id} is ${session.payment_status}, waiting for payment success`,
       );
