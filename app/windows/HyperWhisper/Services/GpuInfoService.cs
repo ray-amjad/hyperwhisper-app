@@ -149,6 +149,13 @@ public class GpuInfoService
         /// </summary>
         public int AdapterIndex { get; set; }
 
+        /// <summary>
+        /// DXGI adapter LUID, or null when the GPU came from the WMI fallback. Unlike
+        /// <see cref="AdapterIndex"/> it names the same adapter in every process, so it
+        /// is what the Parakeet daemon is given (#1846).
+        /// </summary>
+        public long? AdapterLuid { get; set; }
+
         public override string ToString() => $"{Name} ({VramDisplay})";
     }
 
@@ -382,7 +389,8 @@ public class GpuInfoService
                         SharedMemoryBytes = (long)(ulong)desc.SharedSystemMemory,
                         PriorityScore = GetGpuPriorityScore(desc.Description),
                         IsDiscrete = IsDiscreteGpu(desc.Description),
-                        AdapterIndex = (int)adapterIndex
+                        AdapterIndex = (int)adapterIndex,
+                        AdapterLuid = desc.AdapterLuid
                     };
 
                     LoggingService.Debug($"  Found GPU via DXGI: {gpu.Name}");
@@ -594,12 +602,6 @@ public class GpuInfoService
     }
 
     /// <summary>
-    /// The score of Intel UHD/HD integrated graphics, the slowest class. Parakeet runs
-    /// on the CPU when this is the best GPU (#1846).
-    /// </summary>
-    internal const int IntelUhdPriorityScore = 6;
-
-    /// <summary>
     /// Gets a priority score for a GPU based on its name.
     /// Lower score = higher priority (better for ML workloads).
     ///
@@ -661,7 +663,7 @@ public class GpuInfoService
             {
                 return 5;
             }
-            return IntelUhdPriorityScore;
+            return 6;
         }
 
         // Skip Microsoft Basic Render Driver (software rendering)
@@ -772,6 +774,17 @@ public class GpuInfoService
         return uppercaseGpuName.Contains("ARC") &&
                !IsIntelArcDiscreteModelName(uppercaseGpuName) &&
                uppercaseGpuName.Contains("GRAPHICS");
+    }
+
+    /// <summary>
+    /// Intel UHD / HD Graphics, the oldest integrated class. On an i7-8700's UHD 630
+    /// Parakeet's DirectML ran 2.9x slower than the CPU (#1846). Newer names
+    /// ("Intel(R) Graphics", Iris, Arc) are not matched: they were not measured.
+    /// </summary>
+    internal static bool IsIntelUhdOrHdGraphicsName(string gpuName)
+    {
+        var name = gpuName.ToUpperInvariant();
+        return name.Contains("INTEL") && (name.Contains("UHD") || name.Contains("HD GRAPHICS"));
     }
 
     private static bool IsIntelHighPriorityIntegratedGraphicsName(string uppercaseGpuName)

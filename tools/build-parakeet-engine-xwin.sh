@@ -32,4 +32,5 @@ curl -sfL "https://raw.githubusercontent.com/k2-fsa/sherpa-onnx/$SHERPA_TAG/sher
   /I "$WORK/inc" "$ROOT/tools/parakeet-engine/main.cpp" /Fo"$WORK/main.obj" /Fe"$RES/parakeet-engine.exe" \
   /link /LIBPATH:"$XWIN/crt/lib/x86_64" /LIBPATH:"$XWIN/sdk/lib/um/x86_64" /LIBPATH:"$XWIN/sdk/lib/ucrt/x86_64" \
   "$WORK/sherpa-onnx-c-api.lib" /SUBSYSTEM:CONSOLE
+chmod 644 "$RES/parakeet-engine.exe"   # git keeps the binary 100644, as the .bat build leaves it
 echo "built $RES/parakeet-engine.exe"

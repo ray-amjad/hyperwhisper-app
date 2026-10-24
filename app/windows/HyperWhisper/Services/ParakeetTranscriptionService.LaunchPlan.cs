@@ -37,20 +37,22 @@ internal static class ParakeetDaemonLaunchPlan
 
     /// <summary>
     /// Where Parakeet's DirectML session runs. <see cref="ProviderArg"/> is the daemon's
-    /// <c>--provider</c> value and <see cref="DmlDevice"/> its <c>--dml-device</c> (the DXGI
-    /// adapter index); null means the flag is not passed and the daemon keeps its default
-    /// (DirectML on adapter 0, then CPU). <see cref="Reason"/> is for the log only.
+    /// <c>--provider</c> value and <see cref="DmlAdapterLuid"/> its <c>--dml-adapter-luid</c>
+    /// (the daemon finds that adapter's index in its own DXGI order); null means the flag
+    /// is not passed and the daemon keeps its default (DirectML on adapter 0, then CPU).
+    /// <see cref="Reason"/> is for the log only.
     /// </summary>
-    internal sealed record DeviceChoice(string? ProviderArg, int? DmlDevice, string Reason);
+    internal sealed record DeviceChoice(string? ProviderArg, long? DmlAdapterLuid, string Reason);
 
     /// <summary>
     /// The device rule (#1846). sherpa-onnx puts DirectML on DXGI adapter 0, which on most
     /// multi-GPU PCs is the integrated GPU: on an i7-8700 + UHD 630 + RTX 4060 box a warm
     /// 42 s clip took 9.5 s there, 3.3 s on the CPU and 1.7 s on the RTX 4060.
     /// <list type="bullet">
-    /// <item>The best GPU is a discrete ML-class part (NVIDIA, AMD RX/PRO, Intel Arc): DirectML on it.</item>
-    /// <item>The best GPU is Intel UHD/HD graphics (the slowest class, the one measured): CPU.</item>
-    /// <item>Anything else (APUs, Iris, unknown parts, no GPU info, ARM64, Qwen3, Nemotron): unchanged.</item>
+    /// <item>The best GPU is a discrete ML-class part (NVIDIA, AMD RX/PRO, Intel Arc) with a DXGI LUID: DirectML on it.</item>
+    /// <item>The best GPU is Intel UHD/HD graphics (the class measured): CPU.</item>
+    /// <item>Anything else (APUs, Iris, newer Intel iGPUs, unknown parts, a WMI-only GPU, no GPU info,
+    /// ARM64, Qwen3, Nemotron): unchanged.</item>
     /// </list>
     /// </summary>
     internal static DeviceChoice ResolveDevice(GpuInfoService.GpuInfo? bestGpu, EngineSelection engine, bool isX64)
@@ -67,10 +69,12 @@ internal static class ParakeetDaemonLaunchPlan
 
         if (bestGpu.IsDiscreteForMl)
         {
-            return new DeviceChoice(null, bestGpu.AdapterIndex, $"discrete GPU {bestGpu.Name} (adapter {bestGpu.AdapterIndex})");
+            return bestGpu.AdapterLuid is long luid
+                ? new DeviceChoice(null, luid, $"discrete GPU {bestGpu.Name}")
+                : new DeviceChoice(null, null, $"discrete GPU {bestGpu.Name} has no DXGI LUID (WMI fallback)");
         }
 
-        if (bestGpu.PriorityScore == GpuInfoService.IntelUhdPriorityScore)
+        if (GpuInfoService.IsIntelUhdOrHdGraphicsName(bestGpu.Name))
         {
             return new DeviceChoice("cpu", null, $"integrated GPU only ({bestGpu.Name})");
         }
@@ -233,14 +237,14 @@ internal static class ParakeetDaemonLaunchPlan
             startInfo.ArgumentList.Add("--provider");
             startInfo.ArgumentList.Add(device.ProviderArg);
         }
-        if (device.DmlDevice is int dmlDevice)
+        if (device.DmlAdapterLuid is long luid)
         {
-            startInfo.ArgumentList.Add("--dml-device");
-            startInfo.ArgumentList.Add(dmlDevice.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            startInfo.ArgumentList.Add("--dml-adapter-luid");
+            startInfo.ArgumentList.Add(luid.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
         LoggingService.Info(
             $"  Parakeet device: provider={device.ProviderArg ?? "default"}, " +
-            $"dml_device={device.DmlDevice?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "default"}, " +
+            $"dml_adapter={(device.DmlAdapterLuid is long l ? $"luid 0x{l:X}" : "default")}, " +
             $"reason={device.Reason}");
 
         // The argument SHAPE, not the command line. ArgumentList holds the model

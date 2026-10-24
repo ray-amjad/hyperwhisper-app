@@ -2760,50 +2760,56 @@ internal static class Program
             });
 
             // #1846: sherpa puts DirectML on DXGI adapter 0, usually the iGPU.
-            Run("Parakeet daemon device: discrete GPU adapter, UHD-only on CPU, else unchanged", () =>
+            Run("Parakeet daemon device: discrete GPU by LUID, UHD-only on CPU, else unchanged", () =>
             {
-                static GpuInfoService.GpuInfo Gpu(string name, int adapter) => new()
+                static GpuInfoService.GpuInfo Gpu(string name, long? luid) => new()
                 {
                     Name = name,
                     PriorityScore = GpuInfoService.GetGpuPriorityScore(name),
-                    AdapterIndex = adapter
+                    AdapterLuid = luid
                 };
                 var parakeet = new ParakeetDaemonLaunchPlan.EngineSelection("parakeet-v2", "nemo_transducer", false, false);
                 var qwen3 = new ParakeetDaemonLaunchPlan.EngineSelection("qwen3-asr", "qwen3", true, false);
                 var nemotron = new ParakeetDaemonLaunchPlan.EngineSelection("nemotron", "nemotron_ml", false, true);
 
-                var rtx = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("NVIDIA GeForce RTX 4060", 1), parakeet, isX64: true);
-                Assert(rtx.ProviderArg == null && rtx.DmlDevice == 1, "discrete NVIDIA at adapter 1 → --dml-device 1");
-                var rx = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("AMD Radeon RX 7800 XT", 0), parakeet, isX64: true);
-                Assert(rx.ProviderArg == null && rx.DmlDevice == 0, "discrete AMD at adapter 0 → --dml-device 0");
+                var rtx = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("NVIDIA GeForce RTX 4060", 0xb5cf), parakeet, isX64: true);
+                Assert(rtx.ProviderArg == null && rtx.DmlAdapterLuid == 0xb5cf, "discrete NVIDIA → its LUID");
+                var rx = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("AMD Radeon RX 7800 XT", 0x1234_0000_5678), parakeet, isX64: true);
+                Assert(rx.ProviderArg == null && rx.DmlAdapterLuid == 0x1234_0000_5678, "discrete AMD → its LUID (HighPart kept)");
+                var wmiOnly = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("NVIDIA GeForce RTX 4060", null), parakeet, isX64: true);
+                Assert(wmiOnly.ProviderArg == null && wmiOnly.DmlAdapterLuid == null, "discrete GPU from WMI (no LUID) → daemon default");
 
-                var uhd = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("Intel(R) UHD Graphics 630", 0), parakeet, isX64: true);
-                Assert(uhd.ProviderArg == "cpu" && uhd.DmlDevice == null, "Intel UHD only → --provider cpu");
-
-                foreach (var name in new[] { "AMD Radeon(TM) Graphics", "Intel(R) Iris(R) Xe Graphics" })
+                foreach (var name in new[] { "Intel(R) UHD Graphics 630", "Intel(R) HD Graphics 520" })
                 {
-                    var keep = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu(name, 0), parakeet, isX64: true);
-                    Assert(keep.ProviderArg == null && keep.DmlDevice == null, $"{name} → daemon default");
+                    var uhd = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu(name, 0xc58a), parakeet, isX64: true);
+                    Assert(uhd.ProviderArg == "cpu" && uhd.DmlAdapterLuid == null, $"{name} only → --provider cpu");
+                }
+
+                foreach (var name in new[] { "AMD Radeon(TM) Graphics", "Intel(R) Iris(R) Xe Graphics", "Intel(R) Graphics", "Intel(R) Arc(TM) Graphics" })
+                {
+                    var keep = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu(name, 0xc58a), parakeet, isX64: true);
+                    Assert(keep.ProviderArg == null && keep.DmlAdapterLuid == null, $"{name} → daemon default");
                 }
                 var none = ParakeetDaemonLaunchPlan.ResolveDevice(null, parakeet, isX64: true);
-                Assert(none.ProviderArg == null && none.DmlDevice == null, "no GPU info → daemon default");
+                Assert(none.ProviderArg == null && none.DmlAdapterLuid == null, "no GPU info → daemon default");
 
-                var arm = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("NVIDIA GeForce RTX 4060", 1), parakeet, isX64: false);
-                Assert(arm.ProviderArg == null && arm.DmlDevice == null, "ARM64 → daemon default");
+                var arm = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("NVIDIA GeForce RTX 4060", 0xb5cf), parakeet, isX64: false);
+                Assert(arm.ProviderArg == null && arm.DmlAdapterLuid == null, "ARM64 → daemon default");
                 foreach (var engine in new[] { qwen3, nemotron })
                 {
-                    var other = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("NVIDIA GeForce RTX 4060", 1), engine, isX64: true);
-                    Assert(other.ProviderArg == null && other.DmlDevice == null, $"{engine.EngineArg} → daemon default");
+                    var other = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("NVIDIA GeForce RTX 4060", 0xb5cf), engine, isX64: true);
+                    Assert(other.ProviderArg == null && other.DmlAdapterLuid == null, $"{engine.EngineArg} → daemon default");
                 }
 
                 // The flags reach the daemon's argument list.
                 var paths = new ParakeetDaemonLaunchPlan.DaemonPaths(@"C:\app\parakeet-engine\parakeet-engine.exe", @"C:\app\parakeet-engine\silero_vad.onnx");
                 var args = ParakeetDaemonLaunchPlan.Build(paths, @"C:\m\parakeet-v2", "en", parakeet, rtx).StartInfo.ArgumentList.ToList();
-                var at = args.IndexOf("--dml-device");
-                Assert(at >= 0 && args[at + 1] == "1" && !args.Contains("--provider"), "Build passes --dml-device 1");
-                args = ParakeetDaemonLaunchPlan.Build(paths, @"C:\m\parakeet-v2", "en", parakeet, uhd).StartInfo.ArgumentList.ToList();
+                var at = args.IndexOf("--dml-adapter-luid");
+                Assert(at >= 0 && args[at + 1] == "46543" && !args.Contains("--provider"), "Build passes --dml-adapter-luid 46543");
+                var cpu = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("Intel(R) UHD Graphics 630", 0xc58a), parakeet, isX64: true);
+                args = ParakeetDaemonLaunchPlan.Build(paths, @"C:\m\parakeet-v2", "en", parakeet, cpu).StartInfo.ArgumentList.ToList();
                 at = args.IndexOf("--provider");
-                Assert(at >= 0 && args[at + 1] == "cpu" && !args.Contains("--dml-device"), "Build passes --provider cpu");
+                Assert(at >= 0 && args[at + 1] == "cpu" && !args.Contains("--dml-adapter-luid"), "Build passes --provider cpu");
             });
 
             Run("Grok GetRequestTimeout scales with file size", () =>
