@@ -8,6 +8,8 @@ var tests = new List<(string Name, Func<Task> Run)>
     ("prompt leakage is rejected", PromptLeakage),
     ("post-processing applies fake completion", AppliesCompletion),
     ("post-processing preserves transcript on failure", PreservesTranscript),
+    ("marker debris keeps the transcript (#2559)", MarkerDebrisKeepsTranscript),
+    ("Gemma 4 prompt uses its turn format (#2559)", Gemma4PromptFormat),
     ("cancellation is structured", CancellationIsStructured),
     ("prompt budget boundary", PromptBudget),
     ("model store downloads and validates atomically", ModelDownload),
@@ -77,6 +79,34 @@ static async Task AppliesCompletion()
     Equal("Hello, Ray.", result.Text);
     Equal("fake/cpu", result.Runtime);
     File.Delete(model);
+}
+
+static async Task MarkerDebrisKeepsTranscript()
+{
+    var model = await TemporaryModel();
+    await using var service = new LocalPostProcessingService(
+        new FakeEngine(LocalLlmGenerationResult.Success("<<", "fake/cpu")));
+    var result = await service.ProcessAsync(new(
+        model, LocalLlmBackend.Cpu, "system", "context", "um so the quick brown fox"));
+    True(!result.IsSuccess);
+    Equal("um so the quick brown fox", result.Text);
+    Equal(LocalPostProcessingErrorCode.RejectedResponse, result.Failure!.Code);
+    File.Delete(model);
+
+    True(!LocalPostProcessingProtocol.IsDegenerateCompletion("question mark", "?"));
+    True(!LocalPostProcessingProtocol.IsDegenerateCompletion("thumbs up", "\U0001F44D"));
+    True(LocalPostProcessingProtocol.IsDegenerateCompletion("thumbs up", "<< </>"));
+}
+
+static Task Gemma4PromptFormat()
+{
+    True(LocalLlmPromptFormatter.IsGemma4Template("{{- '<|turn>system\\n' -}}{{- '<turn|>\\n' -}}"));
+    True(!LocalLlmPromptFormatter.IsGemma4Template("<start_of_turn>user\n{{ content }}<end_of_turn>"));
+    Equal("<|turn>system\nRULES<turn|>\n<|turn>user\nhi<turn|>\n<|turn>model\n",
+        LocalLlmPromptFormatter.FormatGemma4(" RULES\n", "hi\n"));
+    Equal("<turn|>", LocalLlmPromptFormatter.Gemma4AntiPrompts[0]);
+    True(!LocalLlmPromptFormatter.Gemma4AntiPrompts.Contains("</s>"));
+    return Task.CompletedTask;
 }
 
 static async Task PreservesTranscript()

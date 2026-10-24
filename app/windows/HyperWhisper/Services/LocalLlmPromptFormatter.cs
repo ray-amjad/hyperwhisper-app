@@ -18,6 +18,8 @@ namespace HyperWhisper.Services;
 /// <c>llama_chat_apply_template</c> throws <see cref="MissingTemplateException"/>
 /// for it, so that format is written here by hand, matching the GGUF's Jinja
 /// template for one system turn and one user turn.
+/// The Linux head's engine keeps the same formatter in
+/// <c>app/shared-dotnet/HyperWhisper.LocalPostProcessing/LocalLlmPromptFormatter.cs</c>; change both.
 /// </remarks>
 internal static class LocalLlmPromptFormatter
 {

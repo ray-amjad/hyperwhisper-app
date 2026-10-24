@@ -98,23 +98,33 @@ public sealed class LLamaSharpLocalLlmEngine : ILocalLlmEngine
                     _weights!.Tokenize(request.SystemPrompt, true, true, Encoding.UTF8).Length,
                     _weights.Tokenize(request.UserMessage, false, true, Encoding.UTF8).Length);
 
+                // The model's own chat template, not ChatSession's generic
+                // "System:/User:/Assistant:" transform (issue #2559).
+                var prompt = LocalLlmPromptFormatter.Format(_weights, request.SystemPrompt, request.UserMessage);
+
                 using var context = _weights.CreateContext(_parameters!);
-                var history = new ChatHistory();
-                history.AddMessage(AuthorRole.System, request.SystemPrompt);
-                var session = new ChatSession(new InteractiveExecutor(context), history);
+                var executor = new InteractiveExecutor(context);
                 var inference = new InferenceParams
                 {
                     MaxTokens = Math.Clamp(request.MaxOutputTokens, 1, MaxTokens),
-                    AntiPrompts = ["User:", "\nUser:", "<|end|>", "<|eot_id|>", "</s>"],
+                    AntiPrompts = [.. prompt.AntiPrompts],
                     SamplingPipeline = new DefaultSamplingPipeline(),
                 };
                 var result = new StringBuilder();
-                await foreach (var token in session.ChatAsync(
-                        new ChatHistory.Message(AuthorRole.User, request.UserMessage), inference)
-                    .WithCancellation(timeout.Token).ConfigureAwait(false))
+                await foreach (var token in executor.InferAsync(prompt.Text, inference, timeout.Token)
+                    .ConfigureAwait(false))
                 {
                     result.Append(token);
                 }
+
+                // InferAsync ends the stream quietly when its token is cancelled
+                // instead of throwing, so a timeout used to come back as a
+                // successful partial answer such as "<<" (issue #2559).
+                if (timeout.IsCancellationRequested)
+                {
+                    return CancellationFailure(cancellationToken, _runtime);
+                }
+
                 return LocalLlmGenerationResult.Success(result.ToString(), _runtime!);
             }
             catch (OperationCanceledException)

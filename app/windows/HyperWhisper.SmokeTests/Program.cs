@@ -5289,9 +5289,9 @@ internal static class Program
                 var shortButReal = PostProcessingService.EvaluateLocalCompletion("um uh okay", new LocalLlmCompletion("<<CLEANED>>Okay.<<END>>", CompletionState.Complete));
                 Assert(shortButReal.accepted && shortButReal.text == "Okay.", "a much shorter real answer is still accepted");
 
-                Assert(!PostProcessingService.IsDegenerateLocalOutput("...", "..."), "punctuation in, punctuation out is not degenerate");
+                Assert(!PostProcessingService.IsDegenerateLocalOutput("question mark", "?"), "spoken punctuation is an answer");
                 Assert(!PostProcessingService.IsDegenerateLocalOutput("thumbs up", "\U0001F44D"), "an emoji-only answer is content");
-                Assert(PostProcessingService.IsDegenerateLocalOutput("thumbs up", "<< ..."), "ASCII punctuation only is degenerate");
+                Assert(PostProcessingService.IsDegenerateLocalOutput("thumbs up", "<< </>"), "marker debris only is degenerate");
             });
 
             Run("Local LLM reserves an 8192-token output without context shifting", () =>

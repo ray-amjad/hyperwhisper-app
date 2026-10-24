@@ -556,9 +556,9 @@ public class PostProcessingService : IDisposable
     /// <summary>
     /// The shared completion policy for an in-process local model, plus one check
     /// of its own (issue #2559): a transcript with words in it never comes back as
-    /// ASCII punctuation only. A small model that runs off its chat template can print a
-    /// stray "&lt;&lt;" or "..." and stop; that is a failed post-process, not an
-    /// answer, so the raw transcript stays.
+    /// marker debris only. A cut-off or off-template answer can be a bare
+    /// "&lt;&lt;"; that is a failed post-process, not an answer, so the raw
+    /// transcript stays.
     /// </summary>
     internal static CompletionEvaluation EvaluateLocalCompletion(string transcript, LocalLlmCompletion completion)
     {
@@ -572,13 +572,15 @@ public class PostProcessingService : IDisposable
     }
 
     /// <summary>
-    /// ASCII punctuation only, from a transcript that has words. Any non-ASCII
-    /// character counts as content, so an emoji-only answer ("thumbs up" → 👍) is
-    /// still accepted.
+    /// Wrapper-marker debris only (<c>&lt;&lt;</c>, <c>&lt;/&gt;</c>, <c>|</c>),
+    /// from a transcript that has words. Real punctuation ("?" for "question
+    /// mark") and emoji are still answers. The Linux engine applies the same rule
+    /// in <c>LocalPostProcessingProtocol.IsDegenerateCompletion</c>.
     /// </summary>
     internal static bool IsDegenerateLocalOutput(string transcript, string cleaned) =>
         transcript.Any(char.IsLetterOrDigit)
-        && cleaned.All(c => char.IsAscii(c) && !char.IsLetterOrDigit(c));
+        && cleaned.Length > 0
+        && cleaned.All(c => c is '<' or '>' or '/' or '|' || char.IsWhiteSpace(c));
 
     /// <summary>
     /// Calls the local LLamaSharp runtime for offline post-processing.
