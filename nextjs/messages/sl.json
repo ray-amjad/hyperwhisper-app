@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Ali obstaja narocnina?",
-        "answer": "Ne — nikoli. HyperWhisper je odprtokodna aplikacija, ki jo imate v lasti, ne narocnina, ki jo najemate. Brezplacno jo prenesite in za vedno brezplacno uporabljajte lokalno prepisovanje brez povezave; brezplacna raven vkljucuje tudi 5 minut cloud prepisovanja na dan. Ko zelite vec od tega brez nastavitev, je HyperWhisper Cloud preprosto placilo sproti s krediti — napolnite le, ko potrebujete, brez mesecnih stroskov in brez cesarkoli za preklic."
+        "answer": "Ne — nikoli. HyperWhisper je odprtokodna aplikacija, ki jo imate v lasti, ne narocnina, ki jo najemate. Brezplacno jo prenesite in za vedno brezplacno uporabljajte lokalno prepisovanje brez povezave. Ko zelite cloud prepisovanje brez nastavitev, je HyperWhisper Cloud preprosto placilo sproti s krediti — napolnite le, ko potrebujete, brez mesecnih stroskov in brez cesarkoli za preklic."
       },
       "deviceLimit": {
         "question": "Na koliko napravah lahko uporabljam ključ računa?",

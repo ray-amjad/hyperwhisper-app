@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "C'è un abbonamento?",
-        "answer": "No — mai. HyperWhisper è un'app open-source che possiedi, non un abbonamento che noleggi. Scaricala gratis e usa la trascrizione locale offline senza alcun costo per sempre; il piano gratuito include anche 5 minuti di trascrizione cloud al giorno. Quando vuoi una trascrizione cloud senza configurazione oltre a quel limite, HyperWhisper Cloud sono semplici crediti a consumo — ricarichi solo quando ti serve, senza canoni mensili e senza niente da disdire."
+        "answer": "No — mai. HyperWhisper è un'app open-source che possiedi, non un abbonamento che noleggi. Scaricala gratis e usa la trascrizione locale offline senza alcun costo per sempre. Quando vuoi una trascrizione cloud senza configurazione, HyperWhisper Cloud sono semplici crediti a consumo — ricarichi solo quando ti serve, senza canoni mensili e senza niente da disdire."
       },
       "deviceLimit": {
         "question": "Su quanti dispositivi posso usare la mia chiave dell'account?",

@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Czy jest subskrypcja?",
-        "answer": "Nie — nigdy. HyperWhisper to otwartoźródłowa aplikacja, którą posiadasz, a nie subskrypcja, którą wynajmujesz. Pobierz ją za darmo i korzystaj z lokalnej, offline'owej transkrypcji bez żadnych kosztów na zawsze; darmowy plan obejmuje też 5 minut transkrypcji w chmurze dziennie. Gdy zechcesz transkrypcji w chmurze bez konfiguracji ponad ten limit, HyperWhisper Cloud to proste kredyty płacone w miarę użycia — doładowujesz tylko wtedy, gdy tego potrzebujesz, bez miesięcznych opłat i bez niczego do anulowania."
+        "answer": "Nie — nigdy. HyperWhisper to otwartoźródłowa aplikacja, którą posiadasz, a nie subskrypcja, którą wynajmujesz. Pobierz ją za darmo i korzystaj z lokalnej, offline'owej transkrypcji bez żadnych kosztów na zawsze. Gdy zechcesz transkrypcji w chmurze bez konfiguracji, HyperWhisper Cloud to proste kredyty płacone w miarę użycia — doładowujesz tylko wtedy, gdy tego potrzebujesz, bez miesięcznych opłat i bez niczego do anulowania."
       },
       "deviceLimit": {
         "question": "Na ilu urządzeniach mogę używać swojego klucza konta?",

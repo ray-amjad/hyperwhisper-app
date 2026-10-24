@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Ar yra prenumerata?",
-        "answer": "Ne — niekada. HyperWhisper yra atvirojo kodo programėlė, kuri priklauso jums, o ne prenumerata, kurią nuomojate. Atsisiųskite ją nemokamai ir naudokite vietinę, neprisijungus veikiančią transkripciją nemokamai amžinai; nemokamas lygis taip pat apima 5 minutes debesų transkripcijos per dieną. Kai norite debesų transkripcijos be jokio konfigūravimo virš to, HyperWhisper Cloud yra paprasti kreditai, už kuriuos mokama pagal naudojimą — papildykite tik tada, kai reikia, be mėnesinių mokesčių ir be nieko, ką reikėtų atšaukti."
+        "answer": "Ne — niekada. HyperWhisper yra atvirojo kodo programėlė, kuri priklauso jums, o ne prenumerata, kurią nuomojate. Atsisiųskite ją nemokamai ir naudokite vietinę, neprisijungus veikiančią transkripciją nemokamai amžinai. Kai norite debesų transkripcijos be jokio konfigūravimo, HyperWhisper Cloud yra paprasti kreditai, už kuriuos mokama pagal naudojimą — papildykite tik tada, kai reikia, be mėnesinių mokesčių ir be nieko, ką reikėtų atšaukti."
       },
       "deviceLimit": {
         "question": "Kiek įrenginių galiu naudoti su savo paskyros raktu?",

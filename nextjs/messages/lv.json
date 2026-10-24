@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Vai ir abonements?",
-        "answer": "Nē — nekad. HyperWhisper ir atvērtā koda lietotne, kas pieder jums, nevis abonements, ko īrējat. Lejupielādējiet to bez maksas un izmantojiet vietējo bezsaistes transkripciju bez maksas mūžīgi; bezmaksas līmenis ietver arī 5 minūtes mākoņa transkripcijas dienā. Kad vēlaties mākoņa transkripciju bez konfigurēšanas papildus tam, HyperWhisper Cloud ir vienkārši kredīti, par kuriem maksā lietošanas laikā — papildiniet tikai tad, kad nepieciešams, bez ikmēneša maksām un bez kā atcelšanas."
+        "answer": "Nē — nekad. HyperWhisper ir atvērtā koda lietotne, kas pieder jums, nevis abonements, ko īrējat. Lejupielādējiet to bez maksas un izmantojiet vietējo bezsaistes transkripciju bez maksas mūžīgi. Kad vēlaties mākoņa transkripciju bez konfigurēšanas, HyperWhisper Cloud ir vienkārši kredīti, par kuriem maksā lietošanas laikā — papildiniet tikai tad, kad nepieciešams, bez ikmēneša maksām un bez kā atcelšanas."
       },
       "deviceLimit": {
         "question": "Cik ierīcēs varu izmantot savu konta atslēgu?",

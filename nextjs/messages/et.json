@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Kas on olemas tellimus?",
-        "answer": "Ei — mitte kunagi. HyperWhisper on avatud lähtekoodiga rakendus, mis kuulub sulle, mitte tellimus, mida üürid. Laadi see tasuta alla ja kasuta kohalikku, võrguühenduseta transkriptsiooni igavesti tasuta; tasuta tase sisaldab ka 5 minutit pilvetranskriptsiooni päevas. Kui soovid seadistuseta pilvetranskriptsiooni rohkem kui seda, on HyperWhisper Cloud lihtsalt kasutuspõhised krediidid — lae kontot ainult siis, kui vaja, ilma kuutasudeta ja ilma millegita, mida tühistada."
+        "answer": "Ei — mitte kunagi. HyperWhisper on avatud lähtekoodiga rakendus, mis kuulub sulle, mitte tellimus, mida üürid. Laadi see tasuta alla ja kasuta kohalikku, võrguühenduseta transkriptsiooni igavesti tasuta. Kui soovid seadistuseta pilvetranskriptsiooni, on HyperWhisper Cloud lihtsalt kasutuspõhised krediidid — lae kontot ainult siis, kui vaja, ilma kuutasudeta ja ilma millegita, mida tühistada."
       },
       "deviceLimit": {
         "question": "Mitmes seadmes saan oma kontovõtit kasutada?",

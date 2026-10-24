@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Finnes det et abonnement?",
-        "answer": "Nei — aldri. HyperWhisper er en åpen kildekode-app du eier, ikke et abonnement du leier. Last den ned gratis og bruk lokal, frakoblet transkripsjon helt gratis for alltid; gratisnivået inkluderer også 5 minutter skytranskripsjon om dagen. Når du vil ha skytranskripsjon uten oppsett utover det, er HyperWhisper Cloud enkle kreditter du betaler etter forbruk — fyll på bare når du trenger det, uten månedlige avgifter og ingenting å si opp."
+        "answer": "Nei — aldri. HyperWhisper er en åpen kildekode-app du eier, ikke et abonnement du leier. Last den ned gratis og bruk lokal, frakoblet transkripsjon helt gratis for alltid. Når du vil ha skytranskripsjon uten oppsett, er HyperWhisper Cloud enkle kreditter du betaler etter forbruk — fyll på bare når du trenger det, uten månedlige avgifter og ingenting å si opp."
       },
       "deviceLimit": {
         "question": "Hvor mange enheter kan jeg bruke kontonøkkelen min på?",
