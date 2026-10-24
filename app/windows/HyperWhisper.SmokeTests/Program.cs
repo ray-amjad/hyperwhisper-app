@@ -3593,30 +3593,39 @@ internal static class Program
                 // The write is keyed on the PROVIDER, not on `PostProcessingMode`,
                 // because that is what `PostProcessingService.ProcessAsync` routes
                 // on — it parses `Mode.PostProcessingProvider` and never reads
-                // `PostProcessingMode` past the `== 0` skip. `"local"` is the
-                // reachable proof: `FromString` maps it to `LocalLlm` (so the run
-                // IS local) while `IsLocalLlmProvider` above does not (so the mode
-                // int is 1, not 2). A mode-int guard skipped the write on exactly
-                // this input. The worse shape — a SAVED mode with post-processing
-                // off whose provider is still `local_llm`, where the skipped write
-                // meant a stale GGUF ran and was honestly reported as a model the
-                // caller never asked for — needs `ModeService` and is covered by
-                // this predicate alignment rather than end to end.
-                Assert(PostProcessingProviderExtensions.FromString("local") == PostProcessingProvider.LocalLlm
-                        && PostProcessingProviderExtensions.FromString("local_llm") == PostProcessingProvider.LocalLlm,
-                    "the local_llm spellings ProcessAsync routes on have drifted");
-                var altSpelling = WindowsLocalApiBackend.BuildWorkingMode(
-                    new HyperWhisper.LocalApi.PostProcessRequest(
-                        Text: "raw",
-                        ModeId: null,
-                        Preset: null,
-                        Prompt: null,
-                        Provider: "local",
-                        Model: "gemma-4-12b-it-Q4_K_M.gguf"));
-                Assert(altSpelling.PostProcessingMode == 1,
-                    "the PostProcessingMode this case depends on being 1 has changed");
-                Assert(altSpelling.LocalPostProcessingModel == "gemma-4-12b-it-Q4_K_M.gguf",
-                    "the model override missed the local GGUF field for a run ProcessAsync routes local");
+                // `PostProcessingMode` past the `== 0` skip. The worse shape — a
+                // SAVED mode with post-processing off whose provider is still
+                // `local_llm`, where the skipped write meant a stale GGUF ran and
+                // was honestly reported as a model the caller never asked for —
+                // needs `ModeService` and is covered by this predicate alignment
+                // rather than end to end.
+                //
+                // #2557: every local spelling a caller can send — including
+                // `localLLM`, the shared catalog's provider id — must route local
+                // in `ProcessAsync` (`FromString`) AND get mode 2 here. Before the
+                // fix `localLLM` got mode 2 but `FromString` answered `None`, so
+                // `/post-process` silently skipped with `provider: none`; `local`
+                // had the opposite split (routed local, mode 1).
+                foreach (var spelling in new[] { "localLLM", "localLlm", "local_llm", "LOCAL_LLM", "local" })
+                {
+                    Assert(PostProcessingProviderExtensions.FromString(spelling) == PostProcessingProvider.LocalLlm,
+                        $"FromString(\"{spelling}\") no longer routes to the local LLM, so ProcessAsync skips the run");
+                    var working = WindowsLocalApiBackend.BuildWorkingMode(
+                        new HyperWhisper.LocalApi.PostProcessRequest(
+                            Text: "raw",
+                            ModeId: null,
+                            Preset: null,
+                            Prompt: null,
+                            Provider: spelling,
+                            Model: "gemma-4-12b-it-Q4_K_M.gguf"));
+                    Assert(working.PostProcessingMode == 2,
+                        $"provider \"{spelling}\" did not switch the working mode to local post-processing");
+                    Assert(working.LocalPostProcessingModel == "gemma-4-12b-it-Q4_K_M.gguf",
+                        $"provider \"{spelling}\": the model override missed the local GGUF field");
+                    Assert(PostProcessingProviderExtensions.FromString(working.PostProcessingProvider)
+                            == PostProcessingProvider.LocalLlm,
+                        $"provider \"{spelling}\": the working mode's provider would not route local");
+                }
             });
 
             Run("Retired cloud models resolve to selectable canonical models", () =>
