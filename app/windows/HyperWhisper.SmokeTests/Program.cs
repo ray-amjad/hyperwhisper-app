@@ -15614,6 +15614,98 @@ internal static class Program
                     $"an OpenAI mode with no key must say No API key, got '{vm.ModelStatus}'");
             });
 
+            Run("issue #2547: a BYOK key the provider rejected reads (Key invalid), not (Ready), and follows the health with no restart", () =>
+            {
+                const BindingFlags all = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+                string L(string key, string arg) => HyperWhisper.Localization.Loc.S(key, arg);
+                var groq = CloudTranscriptionProvider.Groq;
+
+                // The pure decision: only Unauthorized turns a stored key into Key invalid.
+                Assert(MainViewModel.CloudModelStatusKey(groq, false, hasApiKey: true, ProviderHealth.Unauthorized) == "status.model.keyInvalid",
+                    "a rejected Groq key must read Key invalid");
+                foreach (var health in new[] { ProviderHealth.Healthy, ProviderHealth.Unknown, ProviderHealth.Checking, ProviderHealth.Unreachable })
+                    Assert(MainViewModel.CloudModelStatusKey(groq, false, hasApiKey: true, health) == "status.model.ready",
+                        $"a stored Groq key with health {health} must stay Ready");
+                Assert(MainViewModel.CloudModelStatusKey(groq, false, hasApiKey: false, ProviderHealth.Unauthorized) == "status.model.noApiKey",
+                    "no key at all still reads No API key");
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, true, false, ProviderHealth.Unauthorized) == "status.model.ready",
+                    "the account-key path (#649) does not read BYOK health");
+                Assert(L("status.model.keyInvalid", "X") != "status.model.keyInvalid" && L("status.model.keyInvalid", "X").Contains('X'),
+                    "status.model.keyInvalid is missing from Strings.resx or lost its {0}");
+
+                // Then the real status bar on a Groq mode, with the key saved and a
+                // private health cache on a frozen clock (no network, no 60 s expiry).
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(MainViewModel));
+                foreach (var (name, value) in new (string, object)[]
+                {
+                    ("_settingsService", SettingsService.Instance),
+                    ("_modelService", new WhisperModelService()),
+                    ("_transcriptionService", new TranscriptionService()),
+                    ("_parakeetTranscriptionService", new ParakeetTranscriptionService()),
+                    ("_localLlmModelService", new LocalLlmModelService()),
+                })
+                {
+                    (typeof(MainViewModel).GetField(name, all)
+                        ?? throw new InvalidOperationException($"MainViewModel.{name} is gone; update this test"))
+                        .SetValue(vm, value);
+                }
+                var selectedMode = typeof(MainViewModel).GetField("_selectedMode", all)
+                    ?? throw new InvalidOperationException("MainViewModel._selectedMode is gone; update this test");
+                var updateModelStatus = typeof(MainViewModel).GetMethod("UpdateModelStatus", all, Type.EmptyTypes)
+                    ?? throw new InvalidOperationException("MainViewModel.UpdateModelStatus() is gone; update this test");
+
+                var frozen = DateTime.UtcNow;
+                var health = new CloudProviderHealthService(() => frozen);
+                // The key goes straight into the fake vault: a SetApiKey would start a
+                // debounced re-probe that could overwrite the health this test sets.
+                var vault = new InMemoryCredentialBackend();
+                vault.Write("groq", "groq", "sk-test-123");
+                var keys = new ApiKeyService(vault);
+                Assert(keys.HasApiKey(groq), "precondition: Groq reads the saved key");
+                vm.ApiKeyServiceOverride = keys;
+                vm.ProviderHealthOverride = health;
+                vm.CloudAccountKeyPresentOverride = () => false;
+
+                var mode = new Mode { Name = "Hyper", ProviderType = "cloud", CloudProvider = "groq", CloudTranscriptionModel = "whisper-large-v3-turbo" };
+                Assert(CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider) == groq, "precondition: the mode is a Groq mode");
+                selectedMode.SetValue(vm, mode);
+                updateModelStatus.Invoke(vm, null);
+                Assert(vm.ModelStatus.EndsWith(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                    $"an unprobed Groq key must stay Ready, got '{vm.ModelStatus}'");
+
+                // The probe's verdict arrives through TranscriptionProviderStatusChanged.
+                var statusChanged = typeof(CloudProviderHealthService).GetField(nameof(CloudProviderHealthService.TranscriptionProviderStatusChanged), all)
+                    ?? throw new InvalidOperationException("CloudProviderHealthService.TranscriptionProviderStatusChanged has no backing field; update this test");
+                void Probe(ProviderHealth verdict)
+                {
+                    health.SetCachedTranscriptionStatusForTests(groq, verdict);
+                    ((EventHandler<CloudTranscriptionProvider>?)statusChanged.GetValue(health))?.Invoke(health, groq);
+                }
+
+                vm.AttachModelStatusSources();
+                try
+                {
+                    Probe(ProviderHealth.Unauthorized);
+                    Assert(vm.ModelStatus.EndsWith(L("status.model.keyInvalid", "").Trim(), StringComparison.Ordinal)
+                           && !vm.ModelStatus.Contains(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                        $"the provider rejected the key, yet the status bar says '{vm.ModelStatus}'");
+
+                    Probe(ProviderHealth.Healthy);
+                    Assert(vm.ModelStatus.EndsWith(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                        $"a healthy probe did not bring the status bar back to Ready: '{vm.ModelStatus}'");
+                }
+                finally
+                {
+                    vm.DetachModelStatusSources();
+                }
+
+                // Detached: a later verdict no longer reaches this view model.
+                Probe(ProviderHealth.Unauthorized);
+                Assert(vm.ModelStatus.EndsWith(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                    $"a detached view model still followed the health: '{vm.ModelStatus}'");
+            });
+
             Run("issue #742: a failed Credential Manager write is reported, and the log holds no ApiKeys: Saved for it", () =>
             {
                 // Not a real credential: a placeholder whose only job is to prove it

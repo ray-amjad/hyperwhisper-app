@@ -772,6 +772,9 @@ Denne handling kan ikke fortrydes.</value>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (Ingen API-nøgle)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Ugyldig nøgle)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>

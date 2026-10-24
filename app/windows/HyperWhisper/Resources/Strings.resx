@@ -1029,6 +1029,9 @@ Do you want to restart now?</value>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (No API key)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Key invalid)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>

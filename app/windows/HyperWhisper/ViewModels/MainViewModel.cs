@@ -357,6 +357,14 @@ public partial class MainViewModel : ViewModelBase
 
     private ApiKeyService ModelStatusApiKeys => ApiKeyServiceOverride ?? ApiKeyService.Instance;
 
+    /// <summary>Test seam: null in the app, which uses <see cref="CloudProviderHealthService.Instance"/>.</summary>
+    internal CloudProviderHealthService? ProviderHealthOverride { get; set; }
+
+    private CloudProviderHealthService? _subscribedProviderHealth;
+
+    private CloudProviderHealthService ModelStatusProviderHealth =>
+        ProviderHealthOverride ?? CloudProviderHealthService.Instance;
+
     private bool CloudAccountKeyPresent() =>
         (CloudAccountKeyPresentOverride ?? WindowsLocalApiBackend.CloudAccountKeyPresent)();
 
@@ -392,6 +400,8 @@ public partial class MainViewModel : ViewModelBase
         LicenseManager.Instance.LicenseStatusChanged += OnModelStatusSourceChanged;
         _subscribedApiKeyService = ModelStatusApiKeys;
         _subscribedApiKeyService.ApiKeysChanged += OnModelStatusSourceChanged;
+        _subscribedProviderHealth = ModelStatusProviderHealth;
+        _subscribedProviderHealth.TranscriptionProviderStatusChanged += OnTranscriptionProviderHealthChanged;
     }
 
     internal void DetachModelStatusSources()
@@ -402,7 +412,19 @@ public partial class MainViewModel : ViewModelBase
             _subscribedApiKeyService.ApiKeysChanged -= OnModelStatusSourceChanged;
             _subscribedApiKeyService = null;
         }
+        if (_subscribedProviderHealth != null)
+        {
+            _subscribedProviderHealth.TranscriptionProviderStatusChanged -= OnTranscriptionProviderHealthChanged;
+            _subscribedProviderHealth = null;
+        }
     }
+
+    /// <summary>
+    /// A provider's cached health changed, e.g. the probe after a key save found the
+    /// key rejected (#2547). Same UI-thread hop as a licence or key change.
+    /// </summary>
+    private void OnTranscriptionProviderHealthChanged(object? sender, CloudTranscriptionProvider provider)
+        => OnModelStatusSourceChanged(sender, EventArgs.Empty);
 
     /// <summary>
     /// A licence activation/deactivation or a BYOK key save/removal: refresh the
@@ -439,10 +461,14 @@ public partial class MainViewModel : ViewModelBase
     /// providers (HyperWhisper Cloud, and the Azure MAI / Google Chirp models it
     /// serves) need the account key the transcription path refuses on with
     /// MISSING_API_KEY; every other provider needs its own BYOK key. Only a
-    /// provider that can transcribe right now reads "(Ready)".
+    /// provider that can transcribe right now reads "(Ready)": a BYOK key the
+    /// provider rejected (cached health Unauthorized, the Model Library's "Key
+    /// invalid") reads "(Key invalid)" (#2547). Every other health keeps the key
+    /// check, so an offline or unprobed provider never turns Ready into an error.
     /// </summary>
     internal static string CloudModelStatusKey(
-        CloudTranscriptionProvider provider, bool cloudAccountKeyPresent, bool hasApiKey)
+        CloudTranscriptionProvider provider, bool cloudAccountKeyPresent, bool hasApiKey,
+        ProviderHealth health = ProviderHealth.Unknown)
     {
         if (WindowsLocalApiBackend.UsesCloudAccountKey(provider))
             return cloudAccountKeyPresent ? "status.model.ready" : "status.model.notActivated";
@@ -452,7 +478,8 @@ public partial class MainViewModel : ViewModelBase
         if (provider == CloudTranscriptionProvider.None)
             return "status.model.ready";
 
-        return hasApiKey ? "status.model.ready" : "status.model.noApiKey";
+        if (!hasApiKey) return "status.model.noApiKey";
+        return health == ProviderHealth.Unauthorized ? "status.model.keyInvalid" : "status.model.ready";
     }
 
     /// <summary>
@@ -1842,7 +1869,11 @@ public partial class MainViewModel : ViewModelBase
                 cloudAccountKeyPresent: usesAccountKey && CloudAccountKeyPresent(),
                 hasApiKey: !usesAccountKey
                     && provider != CloudTranscriptionProvider.None
-                    && ModelStatusApiKeys.HasApiKey(provider));
+                    && ModelStatusApiKeys.HasApiKey(provider),
+                // The cached probe verdict only; the status bar never probes.
+                health: usesAccountKey || provider == CloudTranscriptionProvider.None
+                    ? ProviderHealth.Unknown
+                    : ModelStatusProviderHealth.GetStatus(provider));
             ModelStatus = Loc.S(statusKey, cloudStatus);
             return;
         }
