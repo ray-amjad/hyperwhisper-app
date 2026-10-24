@@ -2204,8 +2204,8 @@ static async Task RunModeNameTakenTestsAsync(string root)
     Assert(!editor.Status.HasError && (await repository.ListAsync()).Single(item => item.Id == other.Id).Name == "other",
         $"re-casing a mode's own name was refused: {editor.Status.ErrorCode}");
 
-    // A name taken after the list was loaded gets past the editor's own check and is refused by the
-    // repository. That refusal must keep its reason too, not turn into the secure-endpoint error.
+    // The repository reads the rows at save time, so a name taken after the list was loaded is
+    // refused the same way, not with the secure-endpoint error.
     editor.NewCommand.Execute(null);
     editor.Name = "Late arrival";
     await repository.UpsertAsync(new Mode { Name = "Late Arrival", SortOrder = 2 });
@@ -2216,7 +2216,8 @@ static async Task RunModeNameTakenTestsAsync(string root)
         $"a name the repository refused showed {editor.Status.ErrorCode}: {editor.Status.Message}");
     Assert((await repository.ListAsync()).Count == countBeforeRace, "a name the repository refused was inserted");
 
-    // The other two repository rules surface under their own codes as well.
+    // The default-name rule surfaces under its own code as well. (The last-default rule cannot be
+    // reached from this editor, which never clears IsDefault.)
     await editor.RefreshAsync();
     editor.Selected = editor.Items.Single(item => item.IsDefault);
     editor.Name = "Renamed default";
