@@ -792,6 +792,22 @@
       ],
       "licensed": false,
       "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY in hw-qa box). updates: only 'not installed as a system package' notice, auto-update toggle OK. streaming settings persist. modes: Codex burned steps scrolling the editor and never reached delete/switch-active; walk those next time."
+    },
+    {
+      "at": "2026-10-24T23:23:25Z",
+      "platform": "linux",
+      "commit": "84c3145e",
+      "routes": [
+        "vocabulary",
+        "provider-settings",
+        "onboarding"
+      ],
+      "status": "1-filed",
+      "issues": [
+        2573
+      ],
+      "licensed": false,
+      "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY in #hw-qa). Vocab dup/trim/unicode/long OK; API keys trim+0600 OK; onboarding skip persists. Not filed: onboarding mode step lists only seeded Hyper(cloud), no on-device choice (design, #285 single seed). fuzz drive 'text' drops non-ASCII (xdotool needs LC_ALL=C.UTF-8) - driver, not app."
     }
   ]
 }
