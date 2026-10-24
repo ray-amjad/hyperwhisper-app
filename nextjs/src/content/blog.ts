@@ -9,6 +9,7 @@ import {
   scrollableBodyTables,
 } from "@/src/content/blog-html";
 import { sanitizeBlogHtml } from "@/src/content/sanitize-blog-html";
+import { hyperwhisperVsHandyVsFluidvoice } from "@/src/content/code-posts/hyperwhisper-vs-handy-vs-fluidvoice";
 import { hyperwhisperVsSpokenly } from "@/src/content/code-posts/hyperwhisper-vs-spokenly";
 
 const BLOG_LOCALE = "en";
@@ -108,7 +109,10 @@ async function readAllPosts(): Promise<BlogPost[]> {
  * the sitemap exactly like a stored post. A stored row with the same slug
  * wins, so Outrank can still replace one.
  */
-const CODE_POSTS: BlogPost[] = [hyperwhisperVsSpokenly];
+const CODE_POSTS: BlogPost[] = [
+  hyperwhisperVsSpokenly,
+  hyperwhisperVsHandyVsFluidvoice,
+];
 
 function withCodePosts(stored: BlogPost[]): BlogPost[] {
   const slugs = new Set(stored.map((post) => post.slug));

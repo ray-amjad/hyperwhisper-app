@@ -28,7 +28,9 @@ test("no locale's subscription FAQ answer carries a number (the old free-minutes
   }
 });
 
-test("the Spokenly comparison post promises no free cloud minutes", () => {
-  const post = readFileSync(join(root, "src/content/code-posts/hyperwhisper-vs-spokenly.ts"), "utf8");
-  assert.doesNotMatch(post, /minutes? (of cloud|a day|per day)/i);
-});
+for (const file of ["hyperwhisper-vs-spokenly.ts", "hyperwhisper-vs-handy-vs-fluidvoice.ts"]) {
+  test(`the ${file} comparison post promises no free cloud minutes`, () => {
+    const post = readFileSync(join(root, "src/content/code-posts", file), "utf8");
+    assert.doesNotMatch(post, /minutes? (of cloud|a day|per day)/i);
+  });
+}
