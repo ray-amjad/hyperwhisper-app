@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using HyperWhisper.Linux.Platform.Desktop;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.Platform.Abstractions.Audio;
@@ -72,6 +73,7 @@ if (args is [RadioButtonLightThemeRenderTests.ProbeArgument])
 var tests = new (string Name, Func<Task> Run)[]
 {
     ("toggle owns safe injection lifecycle", ToggleOwnsSafeInjectionLifecycle),
+    ("transcript database is owner-only under umask 022", TranscriptDatabaseIsOwnerOnly),
     ("failed start restores clipboard immediately", FailedStartRestoresImmediately),
     ("stop exception unwinds injection session", StopExceptionUnwindsInjection),
     ("secure completion preserves clipboard", SecureCompletionPreservesClipboard),
@@ -2307,6 +2309,43 @@ static void Assert(bool condition, string message)
     if (!condition) throw new InvalidOperationException(message);
 }
 
+static async Task TranscriptDatabaseIsOwnerOnly()
+{
+    // Issue #2573: SQLite made hyperwhisper.db with the umask, 0644 in a 0755 folder, while
+    // settings, keys and recordings are owner-only.
+    const UnixFileMode privateFile = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+    const UnixFileMode privateDirectory = privateFile | UnixFileMode.UserExecute;
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-db-mode-{Guid.NewGuid():N}");
+    var state = Path.Combine(root, "state", "hyperwhisper");
+    var databasePath = Path.Combine(state, "hyperwhisper.db");
+    var previousMask = ProcessUmask.Set(0b000_010_010);
+    try
+    {
+        var database = LinuxApplicationDatabase.Open(new StaticPaths(state));
+        await database.InitializeAsync();
+        Assert(await new ModeRepository(database).ListAsync() is { Count: > 0 }, "the pre-created database was not migrated and seeded");
+        Assert(File.GetUnixFileMode(state) == privateDirectory, $"the state folder is {File.GetUnixFileMode(state)}, not 0700");
+        foreach (var path in new[] { databasePath, databasePath + "-wal", databasePath + "-shm" }.Where(File.Exists))
+            Assert(File.GetUnixFileMode(path) == privateFile, $"{Path.GetFileName(path)} is {File.GetUnixFileMode(path)}, not 0600");
+        Assert(File.Exists(databasePath), "no database was created");
+        SqliteConnection.ClearAllPools();
+
+        // An install from before the fix: a 0644 database in a 0755 folder is repaired on launch.
+        File.SetUnixFileMode(state, privateDirectory | UnixFileMode.GroupRead | UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+        File.SetUnixFileMode(databasePath, privateFile | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+        var reopened = LinuxApplicationDatabase.Open(new StaticPaths(state));
+        await reopened.InitializeAsync();
+        Assert(File.GetUnixFileMode(state) == privateDirectory, "an existing 0755 state folder was not repaired to 0700");
+        Assert(File.GetUnixFileMode(databasePath) == privateFile, "an existing 0644 database was not repaired to 0600");
+        SqliteConnection.ClearAllPools();
+    }
+    finally
+    {
+        ProcessUmask.Set(previousMask);
+        Directory.Delete(root, recursive: true);
+    }
+}
+
 sealed class InteractionFixture
 {
     public FakeShortcuts Shortcuts { get; } = new();
@@ -2785,4 +2824,12 @@ sealed class OnboardingLocalModels(params string[] installed) : ILocalModelReadi
         cancellationToken.ThrowIfCancellationRequested();
         return ValueTask.FromResult(_installed.Contains(model.ModelId));
     }
+}
+
+static class ProcessUmask
+{
+    [DllImport("libc", EntryPoint = "umask")]
+    private static extern uint NativeUmask(uint mask);
+
+    public static uint Set(uint mask) => NativeUmask(mask);
 }
