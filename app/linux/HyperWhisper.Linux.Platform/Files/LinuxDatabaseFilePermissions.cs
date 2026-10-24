@@ -26,11 +26,16 @@ public static class LinuxDatabaseFilePermissions
         try
         {
             var directory = Path.GetDirectoryName(databasePath)!;
+            // Only the app's own folder is made private: a missing parent such as ~/.local/state is
+            // shared by every XDG app and keeps the umask mode.
+            Directory.CreateDirectory(Path.GetDirectoryName(directory)!);
             Directory.CreateDirectory(directory, PrivateDirectoryMode);
             File.SetUnixFileMode(directory, PrivateDirectoryMode);
 
-            // An empty file is a valid empty SQLite database. Creating it here at 0600 means it is
-            // never world-readable, and SQLite gives the -wal and -shm it makes the database's mode.
+            // An empty file is a valid empty SQLite database, and it is what SQLite would make here
+            // anyway (StaleMigrationLock opens the connection before EF's Create, so the store is in
+            // rollback-journal mode either way). Creating it at 0600 means it is never readable by
+            // others, and SQLite gives the -journal, -wal and -shm it makes the database's mode.
             if (!File.Exists(databasePath))
             {
                 using var _ = new FileStream(databasePath, new FileStreamOptions

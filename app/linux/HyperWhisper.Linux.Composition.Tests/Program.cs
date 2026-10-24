@@ -2315,28 +2315,36 @@ static async Task TranscriptDatabaseIsOwnerOnly()
     // settings, keys and recordings are owner-only.
     const UnixFileMode privateFile = UnixFileMode.UserRead | UnixFileMode.UserWrite;
     const UnixFileMode privateDirectory = privateFile | UnixFileMode.UserExecute;
+    const UnixFileMode umaskDirectory = privateDirectory | UnixFileMode.GroupRead | UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherExecute;
     var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-db-mode-{Guid.NewGuid():N}");
-    var state = Path.Combine(root, "state", "hyperwhisper");
+    var xdgState = Path.Combine(root, "state");
+    var state = Path.Combine(xdgState, "hyperwhisper");
     var databasePath = Path.Combine(state, "hyperwhisper.db");
     var previousMask = ProcessUmask.Set(0b000_010_010);
     try
     {
-        var database = LinuxApplicationDatabase.Open(new StaticPaths(state));
+        var paths = new StaticPaths(state);
+        var database = LinuxApplicationDatabase.Open(paths);
+        Assert(File.GetUnixFileMode(state) == privateDirectory, $"the state folder is {File.GetUnixFileMode(state)} before SQLite opens it, not 0700");
+        Assert(File.GetUnixFileMode(databasePath) == privateFile, "the database is not 0600 before SQLite opens it");
         await database.InitializeAsync();
-        Assert(await new ModeRepository(database).ListAsync() is { Count: > 0 }, "the pre-created database was not migrated and seeded");
+        Assert(await new ModeRepository(database).ListAsync() is { Count: > 0 }, "the database was not migrated and seeded");
+        Assert(File.GetUnixFileMode(xdgState) == umaskDirectory, "the shared XDG state folder was made private too, not just the app's own");
         Assert(File.GetUnixFileMode(state) == privateDirectory, $"the state folder is {File.GetUnixFileMode(state)}, not 0700");
-        foreach (var path in new[] { databasePath, databasePath + "-wal", databasePath + "-shm" }.Where(File.Exists))
+        // SQLite gives a sidecar the database's mode; check any that exist (the store runs in
+        // rollback-journal mode, so usually none does between transactions).
+        Assert(File.GetUnixFileMode(databasePath) == privateFile, $"the database is {File.GetUnixFileMode(databasePath)}, not 0600");
+        foreach (var path in new[] { "-wal", "-shm", "-journal" }.Select(suffix => databasePath + suffix).Where(File.Exists))
             Assert(File.GetUnixFileMode(path) == privateFile, $"{Path.GetFileName(path)} is {File.GetUnixFileMode(path)}, not 0600");
-        Assert(File.Exists(databasePath), "no database was created");
         SqliteConnection.ClearAllPools();
 
         // An install from before the fix: a 0644 database in a 0755 folder is repaired on launch.
-        File.SetUnixFileMode(state, privateDirectory | UnixFileMode.GroupRead | UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+        File.SetUnixFileMode(state, umaskDirectory);
         File.SetUnixFileMode(databasePath, privateFile | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
-        var reopened = LinuxApplicationDatabase.Open(new StaticPaths(state));
-        await reopened.InitializeAsync();
+        var reopened = LinuxApplicationDatabase.Open(paths);
         Assert(File.GetUnixFileMode(state) == privateDirectory, "an existing 0755 state folder was not repaired to 0700");
         Assert(File.GetUnixFileMode(databasePath) == privateFile, "an existing 0644 database was not repaired to 0600");
+        await reopened.InitializeAsync();
         SqliteConnection.ClearAllPools();
     }
     finally
