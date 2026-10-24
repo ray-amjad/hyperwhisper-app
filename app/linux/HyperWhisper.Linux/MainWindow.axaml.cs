@@ -149,7 +149,10 @@ public partial class MainWindow : Window
                 () => _settings.Get("storage.keepAudioFiles", true), _storageLifecycle,
                 new FfmpegM4aAudioTransformer(
                     () => _settings.Get("storage.storeAsM4A", false))),
-            audioPreprocessor: _platformServices.AudioPreprocessor);
+            audioPreprocessor: _platformServices.AudioPreprocessor,
+            // A retry of a non-WAV row in a Parakeet mode is converted to WAV
+            // first, as Transcribe File and the Local API are (#1572, #1675).
+            retryAudioImport: new DurableAudioImportService(_platformServices.PrivateFiles, _platformServices.Paths));
         _viewModel = new ApplicationShellViewModel(
             _database, _settings, _workflow, LinuxLocalPostProcessor.RuntimeStatus,
             _modelManager, _platformServices.AudioPlayback,
