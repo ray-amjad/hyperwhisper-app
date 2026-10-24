@@ -594,6 +594,12 @@ public class GpuInfoService
     }
 
     /// <summary>
+    /// The score of Intel UHD/HD integrated graphics, the slowest class. Parakeet runs
+    /// on the CPU when this is the best GPU (#1846).
+    /// </summary>
+    internal const int IntelUhdPriorityScore = 6;
+
+    /// <summary>
     /// Gets a priority score for a GPU based on its name.
     /// Lower score = higher priority (better for ML workloads).
     ///
@@ -655,7 +661,7 @@ public class GpuInfoService
             {
                 return 5;
             }
-            return 6;
+            return IntelUhdPriorityScore;
         }
 
         // Skip Microsoft Basic Render Driver (software rendering)
