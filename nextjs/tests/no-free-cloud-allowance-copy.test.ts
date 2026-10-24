@@ -15,12 +15,15 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const messagesDir = join(root, "messages");
 const locales = readdirSync(messagesDir).filter((f) => f.endsWith(".json"));
 
-test("no locale's subscription FAQ answer promises a number of free cloud minutes", () => {
+// The answer states no figures today, and the removed claim was its only one
+// ("5 minutes"), so a digit in any locale is the cheapest language-neutral
+// sign it came back. A future figure (a price) belongs in this test's update.
+test("no locale's subscription FAQ answer carries a number (the old free-minutes claim)", () => {
   assert.ok(locales.length >= 40, `expected every locale, found ${locales.length}`);
   for (const file of locales) {
     const messages = JSON.parse(readFileSync(join(messagesDir, file), "utf8"));
     const answer: string = messages.faq.questions.lifetime.answer;
-    assert.ok(answer.includes("HyperWhisper Cloud"), `${file}: answer still names HyperWhisper Cloud`);
+    assert.ok(answer.includes("HyperWhisper Cloud"), `${file}: answer no longer names HyperWhisper Cloud`);
     assert.doesNotMatch(answer, /\d/, `${file}: lifetime answer carries a number: ${answer}`);
   }
 });
