@@ -35,7 +35,7 @@ import type {
   BuyCreditsHandlerRequest,
   BuyCreditsTier,
 } from "../src/lib/buy-credits";
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 /** Every `createBuyCreditsHandler` call the card made, in order. */
 const factoryCalls: BuyCreditsHandlerRequest[] = [];
@@ -53,7 +53,7 @@ const handlerRuns: Array<{
  * navigates, what it shows and when it clears the busy flag is
  * `tests/buy-credits-seam.test.ts`.
  */
-moduleMock.module("../src/lib/buy-credits", {
+moduleMock.module(moduleUrl("../src/lib/buy-credits.ts"), {
   namedExports: {
     createBuyCreditsHandler: (request: BuyCreditsHandlerRequest) => {
       factoryCalls.push(request);
@@ -89,7 +89,7 @@ const captured: Array<{ error: unknown; properties: unknown }> = [];
  * configured and it never throws, so it is unobservable — which is why the
  * seam takes an injected `reportError` and why this asserts on the stub.
  */
-moduleMock.module("../src/lib/posthog-client", {
+moduleMock.module(moduleUrl("../src/lib/posthog-client.ts"), {
   namedExports: {
     loadPostHog: async () => ({
       captureException: (error: unknown, properties: unknown) => {
@@ -108,7 +108,7 @@ const viewRenders: CloudCreditsCardViewProps[] = [];
  * all — React never serialises a handler into static markup, which is exactly
  * how the #881 round 1 suite passed with the button's `onClick` deleted.
  */
-moduleMock.module("../components/customer/dashboard/CloudCreditsCardView.tsx", {
+moduleMock.module(moduleUrl("../components/customer/dashboard/CloudCreditsCardView.tsx"), {
   defaultExport: (props: CloudCreditsCardViewProps) => {
     viewRenders.push(props);
 

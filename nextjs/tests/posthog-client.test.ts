@@ -10,11 +10,11 @@ import test from "node:test";
 
 import { redactAccountKeyFromEvent } from "../src/lib/account-key-redaction";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const env: Record<string, string | undefined> = {};
 
-moduleMock.module("../src/env/client.mjs", { namedExports: { env } });
+moduleMock.module(moduleUrl("../src/env/client.mjs"), { namedExports: { env } });
 
 const inits: Array<{ key: string; options: unknown; href: string }> = [];
 const fakePostHog = {
