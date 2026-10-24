@@ -26,7 +26,7 @@
     "downloadCta": "Изтеглете сега",
     "demoCta": "Гледайте демо",
     "availableOn": "Налично за",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Какви са системните изисквания?",
-        "answer": "За Mac: macOS 14 или по-нова версия, с поддръжка на Apple Silicon и Intel. За Windows: Windows 10/11, x64 или ARM64. За Linux v1: Ubuntu 22.04 или по-нова версия или Debian 12 или по-нова версия, на amd64. За оптимална производителност се препоръчват 8GB RAM."
+        "answer": "За Mac: macOS 14.6 или по-нова версия, с поддръжка на Apple Silicon и Intel. За Windows: Windows 10/11, x64 или ARM64. За Linux v1: Ubuntu 22.04 или по-нова версия или Debian 12 или по-нова версия, на amd64. За оптимална производителност се препоръчват 8GB RAM."
       },
       "madeBy": {
         "question": "Кой го създаде?",

@@ -26,7 +26,7 @@
     "downloadCta": "立即下载",
     "demoCta": "观看演示",
     "availableOn": "适用于",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "系统要求是什么？",
-        "answer": "Mac：macOS 14 或更高版本，支持 Apple Silicon 和 Intel。Windows：Windows 10/11，x64 或 ARM64。Linux v1：amd64 上的 Ubuntu 22.04 或更高版本，或 Debian 12 或更高版本。建议 8GB 内存以获得最佳性能。"
+        "answer": "Mac：macOS 14.6 或更高版本，支持 Apple Silicon 和 Intel。Windows：Windows 10/11，x64 或 ARM64。Linux v1：amd64 上的 Ubuntu 22.04 或更高版本，或 Debian 12 或更高版本。建议 8GB 内存以获得最佳性能。"
       },
       "madeBy": {
         "question": "这是谁做的？",

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-HyperWhisper macOS — Swift 5 + SwiftUI app, MVVM, macOS 14+ deployment target. Audio via AVFoundation (`AVAudioEngine`), menu-bar UI via `MenuBarExtra`.
+HyperWhisper macOS — Swift 5 + SwiftUI app, MVVM, macOS 14.6+ deployment target. Audio via AVFoundation (`AVAudioEngine`), menu-bar UI via `MenuBarExtra`.
 
 ## Project map
 

@@ -26,7 +26,7 @@
     "downloadCta": "Tải xuống ngay",
     "demoCta": "Xem demo",
     "availableOn": "Có trên",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Yêu cầu hệ thống là gì?",
-        "answer": "Với Mac: macOS 14 trở lên, hỗ trợ cả Apple Silicon và Intel. Với Windows: Windows 10/11, x64 hoặc ARM64. Với Linux v1: Ubuntu 22.04 trở lên hoặc Debian 12 trở lên, trên amd64. Khuyến nghị 8GB RAM để đạt hiệu năng tối ưu."
+        "answer": "Với Mac: macOS 14.6 trở lên, hỗ trợ cả Apple Silicon và Intel. Với Windows: Windows 10/11, x64 hoặc ARM64. Với Linux v1: Ubuntu 22.04 trở lên hoặc Debian 12 trở lên, trên amd64. Khuyến nghị 8GB RAM để đạt hiệu năng tối ưu."
       },
       "madeBy": {
         "question": "Ai đã tạo ra sản phẩm này?",

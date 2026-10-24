@@ -26,7 +26,7 @@
     "downloadCta": "Завантажити зараз",
     "demoCta": "Дивитись демо",
     "availableOn": "Доступно на",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Які системні вимоги?",
-        "answer": "Для Mac: macOS 14 або новіше, підтримуються Apple Silicon і Intel. Для Windows: Windows 10/11, x64 або ARM64. Для Linux v1: Ubuntu 22.04 або новіше чи Debian 12 або новіше, на amd64. Для оптимальної продуктивності рекомендовано 8GB RAM."
+        "answer": "Для Mac: macOS 14.6 або новіше, підтримуються Apple Silicon і Intel. Для Windows: Windows 10/11, x64 або ARM64. Для Linux v1: Ubuntu 22.04 або новіше чи Debian 12 або новіше, на amd64. Для оптимальної продуктивності рекомендовано 8GB RAM."
       },
       "madeBy": {
         "question": "Хто це створив?",

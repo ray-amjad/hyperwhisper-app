@@ -26,7 +26,7 @@
     "downloadCta": "지금 다운로드",
     "demoCta": "데모 보기",
     "availableOn": "지원 플랫폼",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "시스템 요구사항은 무엇인가요?",
-        "answer": "Mac: macOS 14 이상, Apple Silicon 및 Intel 지원. Windows: Windows 10/11, x64 또는 ARM64. Linux v1: amd64 기반 Ubuntu 22.04 이상 또는 Debian 12 이상. 최적 성능을 위해 8GB RAM을 권장합니다."
+        "answer": "Mac: macOS 14.6 이상, Apple Silicon 및 Intel 지원. Windows: Windows 10/11, x64 또는 ARM64. Linux v1: amd64 기반 Ubuntu 22.04 이상 또는 Debian 12 이상. 최적 성능을 위해 8GB RAM을 권장합니다."
       },
       "madeBy": {
         "question": "누가 만들었나요?",

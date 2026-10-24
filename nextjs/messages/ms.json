@@ -26,7 +26,7 @@
     "downloadCta": "Muat turun sekarang",
     "demoCta": "Tonton demo",
     "availableOn": "Tersedia di",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Apakah keperluan sistem?",
-        "answer": "Untuk Mac: macOS 14 atau lebih baharu, menyokong Apple Silicon dan Intel. Untuk Windows: Windows 10/11, x64 atau ARM64. Untuk Linux v1: Ubuntu 22.04 atau lebih baharu, atau Debian 12 atau lebih baharu, pada amd64. 8GB RAM disyorkan untuk prestasi optimum."
+        "answer": "Untuk Mac: macOS 14.6 atau lebih baharu, menyokong Apple Silicon dan Intel. Untuk Windows: Windows 10/11, x64 atau ARM64. Untuk Linux v1: Ubuntu 22.04 atau lebih baharu, atau Debian 12 atau lebih baharu, pada amd64. 8GB RAM disyorkan untuk prestasi optimum."
       },
       "madeBy": {
         "question": "Siapa yang membangunkan ini?",

@@ -26,7 +26,7 @@
     "downloadCta": "Скачать сейчас",
     "demoCta": "Смотреть демо",
     "availableOn": "Доступно на",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Каковы системные требования?",
-        "answer": "Для Mac: macOS 14 или новее, поддерживаются Apple Silicon и Intel. Для Windows: Windows 10/11, x64 или ARM64. Для Linux v1: Ubuntu 22.04 или новее либо Debian 12 или новее, на amd64. Для оптимальной производительности рекомендуется 8GB RAM."
+        "answer": "Для Mac: macOS 14.6 или новее, поддерживаются Apple Silicon и Intel. Для Windows: Windows 10/11, x64 или ARM64. Для Linux v1: Ubuntu 22.04 или новее либо Debian 12 или новее, на amd64. Для оптимальной производительности рекомендуется 8GB RAM."
       },
       "madeBy": {
         "question": "Кто это сделал?",

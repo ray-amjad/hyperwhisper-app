@@ -26,7 +26,7 @@
     "downloadCta": "להוריד עכשיו",
     "demoCta": "לצפות בדמו",
     "availableOn": "זמין עבור",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "מה דרישות המערכת?",
-        "answer": "ל-Mac: macOS 14 ומעלה, תמיכה ב-Apple Silicon וב-Intel. ל-Windows: Windows 10/11, x64 או ARM64. ל-Linux v1: Ubuntu 22.04 ומעלה או Debian 12 ומעלה, על amd64. מומלץ 8GB RAM לביצועים מיטביים."
+        "answer": "ל-Mac: macOS 14.6 ומעלה, תמיכה ב-Apple Silicon וב-Intel. ל-Windows: Windows 10/11, x64 או ARM64. ל-Linux v1: Ubuntu 22.04 ומעלה או Debian 12 ומעלה, על amd64. מומלץ 8GB RAM לביצועים מיטביים."
       },
       "madeBy": {
         "question": "מי יצר את זה?",

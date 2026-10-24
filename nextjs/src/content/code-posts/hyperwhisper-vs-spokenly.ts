@@ -62,7 +62,7 @@ const html = `
 
 <h2>Platforms</h2>
 
-<p>Both apps cover all three desktop operating systems. HyperWhisper runs on macOS 14+ (Apple Silicon or Intel), Windows 10 and 11 (x64 or ARM64), and Linux (Ubuntu 22.04+ or Debian 12+ on amd64). Spokenly lists apps for macOS, Windows, Linux and iOS. If you need dictation on an iPhone, Spokenly has an app there; HyperWhisper is a desktop app.</p>
+<p>Both apps cover all three desktop operating systems. HyperWhisper runs on macOS 14.6+ (Apple Silicon or Intel), Windows 10 and 11 (x64 or ARM64), and Linux (Ubuntu 22.04+ or Debian 12+ on amd64). Spokenly lists apps for macOS, Windows, Linux and iOS. If you need dictation on an iPhone, Spokenly has an app there; HyperWhisper is a desktop app.</p>
 
 <h2>Which should you pick?</h2>
 

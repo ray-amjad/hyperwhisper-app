@@ -26,7 +26,7 @@
     "downloadCta": "Şimdi indir",
     "demoCta": "Demoyu izle",
     "availableOn": "Kullanılabildiği platformlar",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Sistem gereksinimleri nelerdir?",
-        "answer": "Mac için: macOS 14 veya üzeri, Apple Silicon ve Intel desteklenir. Windows için: Windows 10/11, x64 veya ARM64. Linux v1 için: amd64 üzerinde Ubuntu 22.04 veya üzeri ya da Debian 12 veya üzeri. En iyi performans için 8 GB RAM önerilir."
+        "answer": "Mac için: macOS 14.6 veya üzeri, Apple Silicon ve Intel desteklenir. Windows için: Windows 10/11, x64 veya ARM64. Linux v1 için: amd64 üzerinde Ubuntu 22.04 veya üzeri ya da Debian 12 veya üzeri. En iyi performans için 8 GB RAM önerilir."
       },
       "madeBy": {
         "question": "Bunu kim yaptı?",

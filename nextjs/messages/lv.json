@@ -26,7 +26,7 @@
     "downloadCta": "Lejupielādēt tagad",
     "demoCta": "Skatīties demo",
     "availableOn": "Pieejams",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Kādas ir sistēmas prasības?",
-        "answer": "Mac: macOS 14 vai jaunāka versija, atbalstīti Apple Silicon un Intel. Windows: Windows 10/11, x64 vai ARM64. Linux v1: Ubuntu 22.04 vai jaunāka versija vai Debian 12 vai jaunāka versija uz amd64. Optimālai veiktspējai ieteicami 8GB RAM."
+        "answer": "Mac: macOS 14.6 vai jaunāka versija, atbalstīti Apple Silicon un Intel. Windows: Windows 10/11, x64 vai ARM64. Linux v1: Ubuntu 22.04 vai jaunāka versija vai Debian 12 vai jaunāka versija uz amd64. Optimālai veiktspējai ieteicami 8GB RAM."
       },
       "madeBy": {
         "question": "Kas to izveidoja?",

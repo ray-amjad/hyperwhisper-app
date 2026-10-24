@@ -26,7 +26,7 @@
     "downloadCta": "Ladda ner nu",
     "demoCta": "Se demo",
     "availableOn": "Finns för",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Vilka är systemkraven?",
-        "answer": "För Mac: macOS 14 eller senare, stöd för både Apple Silicon och Intel. För Windows: Windows 10/11, x64 eller ARM64. För Linux v1: Ubuntu 22.04 eller senare eller Debian 12 eller senare på amd64. 8GB RAM rekommenderas för bästa prestanda."
+        "answer": "För Mac: macOS 14.6 eller senare, stöd för både Apple Silicon och Intel. För Windows: Windows 10/11, x64 eller ARM64. För Linux v1: Ubuntu 22.04 eller senare eller Debian 12 eller senare på amd64. 8GB RAM rekommenderas för bästa prestanda."
       },
       "madeBy": {
         "question": "Vem har skapat detta?",

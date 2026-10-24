@@ -26,7 +26,7 @@
     "downloadCta": "Sækja núna",
     "demoCta": "Sjá kynningu",
     "availableOn": "Í boði fyrir",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Hverjar eru kerfiskröfurnar?",
-        "answer": "Fyrir Mac: macOS 14 eða nýrra, bæði Apple Silicon og Intel studd. Fyrir Windows: Windows 10/11, x64 eða ARM64. Fyrir Linux v1: Ubuntu 22.04 eða nýrra eða Debian 12 eða nýrra á amd64. 8GB RAM mælt með fyrir bestu afköst."
+        "answer": "Fyrir Mac: macOS 14.6 eða nýrra, bæði Apple Silicon og Intel studd. Fyrir Windows: Windows 10/11, x64 eða ARM64. Fyrir Linux v1: Ubuntu 22.04 eða nýrra eða Debian 12 eða nýrra á amd64. 8GB RAM mælt með fyrir bestu afköst."
       },
       "madeBy": {
         "question": "Hver bjó þetta til?",

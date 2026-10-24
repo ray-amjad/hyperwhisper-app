@@ -53,7 +53,7 @@ const html = `
 
 <h2>Speech models and offline use</h2>
 
-<p>All three work offline. Handy runs Whisper models (Small, Medium, Turbo and Large) "with GPU acceleration when available" and Parakeet V3 on the CPU, all on your own computer. FluidVoice lists Nemotron Speech, Parakeet, Cohere Transcribe, Apple Speech and Whisper models, needs macOS 15 or later, and needs an Apple Silicon Mac for its full model list; Intel Macs are supported through the Whisper models. HyperWhisper runs local models offline on macOS 14+, Windows 10 and 11, and Linux (Ubuntu 22.04+ or Debian 12+ on amd64), and also lets you use cloud transcription with your own API keys or with HyperWhisper Cloud.</p>
+<p>All three work offline. Handy runs Whisper models (Small, Medium, Turbo and Large) "with GPU acceleration when available" and Parakeet V3 on the CPU, all on your own computer. FluidVoice lists Nemotron Speech, Parakeet, Cohere Transcribe, Apple Speech and Whisper models, needs macOS 15 or later, and needs an Apple Silicon Mac for its full model list; Intel Macs are supported through the Whisper models. HyperWhisper runs local models offline on macOS 14.6+, Windows 10 and 11, and Linux (Ubuntu 22.04+ or Debian 12+ on amd64), and also lets you use cloud transcription with your own API keys or with HyperWhisper Cloud.</p>
 
 <h2>Which should you pick?</h2>
 

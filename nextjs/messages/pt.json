@@ -26,7 +26,7 @@
     "downloadCta": "Baixar agora",
     "demoCta": "Ver demonstração",
     "availableOn": "Disponível em",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Quais são os requisitos do sistema?",
-        "answer": "Para Mac: macOS 14 ou mais recente, com suporte a Apple Silicon e Intel. Para Windows: Windows 10/11, x64 ou ARM64. Para Linux v1: Ubuntu 22.04 ou mais recente ou Debian 12 ou mais recente, em amd64. Recomenda-se 8GB de RAM para desempenho ideal."
+        "answer": "Para Mac: macOS 14.6 ou mais recente, com suporte a Apple Silicon e Intel. Para Windows: Windows 10/11, x64 ou ARM64. Para Linux v1: Ubuntu 22.04 ou mais recente ou Debian 12 ou mais recente, em amd64. Recomenda-se 8GB de RAM para desempenho ideal."
       },
       "madeBy": {
         "question": "Quem criou isso?",
