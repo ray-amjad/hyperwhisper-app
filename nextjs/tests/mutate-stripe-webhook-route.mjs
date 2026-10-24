@@ -49,13 +49,18 @@ const MUTANTS = [
   },
   {
     name: "invert the payment gate",
-    from: 'if (session.payment_status !== "paid") {',
+    from: 'if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") {',
     to: 'if (session.payment_status === "paid") {',
   },
   {
     name: "drop the payment gate entirely",
-    from: 'if (session.payment_status !== "paid") {',
+    from: 'if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") {',
     to: "if (false) {",
+  },
+  {
+    name: "make a 100%-off (no_payment_required) session wait forever again",
+    from: 'if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") {',
+    to: 'if (session.payment_status !== "paid") {',
   },
   {
     name: "route a retired license session to the credit handler",
