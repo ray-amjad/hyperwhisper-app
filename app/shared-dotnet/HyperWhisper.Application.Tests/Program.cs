@@ -1583,6 +1583,17 @@ try
         && reloadedStatisticsSettings.Get("advanced.typingSpeedWPM", 0) == 80,
         "home typing speed did not persist");
 
+    // #2546: the Linux Start Recording card marks its step complete after every successful start.
+    // A second start must leave it ticked (it used to toggle it off) and keep the saved setting.
+    statisticsHome.CompleteGettingStartedStep("recording");
+    statisticsHome.CompleteGettingStartedStep("recording");
+    var reloadedGettingStartedSettings = new PortableSettingsService(
+        statisticsFiles, Path.Combine(statisticsRoot, "settings.json"));
+    Assert(statisticsHome.IsRecordingStepComplete
+        && reloadedGettingStartedSettings.Load().IsSuccess
+        && reloadedGettingStartedSettings.Get("GettingStartedCompletedSteps", string.Empty) == "recording",
+        "completing the recording step twice un-ticked it or did not persist it as 'recording'");
+
     var diagnosticsDirectory = Path.Combine(root, "about-diagnostics");
     var about = new AboutViewModel(
         "1.2.3", "1.2.3-1",
