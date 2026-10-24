@@ -426,12 +426,14 @@ public partial class MainViewModel : ViewModelBase
     /// is skipped so the last verdict stays on screen instead of flashing Ready.
     /// </summary>
     private void OnTranscriptionProviderHealthChanged(object? sender, CloudTranscriptionProvider provider)
-    {
-        var mode = SelectedMode;
-        if (mode == null || CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider) != provider) return;
-        if (ModelStatusProviderHealth.GetStatus(provider) == ProviderHealth.Checking) return;
-        OnModelStatusSourceChanged(sender, EventArgs.Empty);
-    }
+        => RunModelStatusRefreshOnUiThread(() =>
+        {
+            // On the UI thread, so SelectedMode is read where it is written.
+            var mode = SelectedMode;
+            if (mode == null || CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider) != provider) return;
+            if (ModelStatusProviderHealth.GetStatus(provider) == ProviderHealth.Checking) return;
+            RefreshModelStatusSafely();
+        });
 
     /// <summary>
     /// A licence activation/deactivation or a BYOK key save/removal: refresh the
@@ -439,16 +441,19 @@ public partial class MainViewModel : ViewModelBase
     /// finished the validation, and a fault here must not escape into it.
     /// </summary>
     private void OnModelStatusSourceChanged(object? sender, EventArgs e)
+        => RunModelStatusRefreshOnUiThread(RefreshModelStatusSafely);
+
+    private static void RunModelStatusRefreshOnUiThread(Action refresh)
     {
         var dispatcher = System.Windows.Application.Current?.Dispatcher;
         if (dispatcher == null || dispatcher.CheckAccess())
         {
-            RefreshModelStatusSafely();
+            refresh();
             return;
         }
         if (dispatcher.HasShutdownStarted) return;
 
-        dispatcher.BeginInvoke(RefreshModelStatusSafely);
+        dispatcher.BeginInvoke(refresh);
     }
 
     private void RefreshModelStatusSafely()
@@ -475,7 +480,7 @@ public partial class MainViewModel : ViewModelBase
     /// </summary>
     internal static string CloudModelStatusKey(
         CloudTranscriptionProvider provider, bool cloudAccountKeyPresent, bool hasApiKey,
-        ProviderHealth health = ProviderHealth.Unknown)
+        ProviderHealth health)
     {
         if (WindowsLocalApiBackend.UsesCloudAccountKey(provider))
             return cloudAccountKeyPresent ? "status.model.ready" : "status.model.notActivated";
@@ -1878,9 +1883,7 @@ public partial class MainViewModel : ViewModelBase
                     && provider != CloudTranscriptionProvider.None
                     && ModelStatusApiKeys.HasApiKey(provider),
                 // The cached probe verdict only; the status bar never probes.
-                health: usesAccountKey || provider == CloudTranscriptionProvider.None
-                    ? ProviderHealth.Unknown
-                    : ModelStatusProviderHealth.GetStatus(provider));
+                health: ModelStatusProviderHealth.GetStatus(provider));
             ModelStatus = Loc.S(statusKey, cloudStatus);
             return;
         }

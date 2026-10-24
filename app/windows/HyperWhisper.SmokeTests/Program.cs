@@ -15525,14 +15525,14 @@ internal static class Program
                 string L(string key, string arg) => HyperWhisper.Localization.Loc.S(key, arg);
 
                 // The pure decision first: which credential each provider needs.
-                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, false, false) == "status.model.notActivated"
-                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, true, false) == "status.model.ready",
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, false, false, ProviderHealth.Unknown) == "status.model.notActivated"
+                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, true, false, ProviderHealth.Unknown) == "status.model.ready",
                     "HyperWhisper Cloud reads the account key");
-                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.MicrosoftAzureSpeech, false, true) == "status.model.notActivated"
-                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.GoogleSpeech, false, true) == "status.model.notActivated",
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.MicrosoftAzureSpeech, false, true, ProviderHealth.Unknown) == "status.model.notActivated"
+                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.GoogleSpeech, false, true, ProviderHealth.Unknown) == "status.model.notActivated",
                     "the HW-Cloud-routed Azure MAI / Chirp rows need the account key, not a BYOK key (as /transcribe and #650)");
-                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.OpenAI, true, false) == "status.model.noApiKey"
-                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.Deepgram, false, true) == "status.model.ready",
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.OpenAI, true, false, ProviderHealth.Unknown) == "status.model.noApiKey"
+                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.Deepgram, false, true, ProviderHealth.Unknown) == "status.model.ready",
                     "a BYOK provider reads its own key, whatever the licence");
                 foreach (var key in new[] { "status.model.notActivated", "status.model.noApiKey" })
                     Assert(L(key, "X") != key && L(key, "X").Contains('X'), $"{key} is missing from Strings.resx or lost its {{0}}");
