@@ -3031,8 +3031,8 @@ public partial class MainWindow : Window
     /// navigates and never records, because on Windows you start a recording with the global
     /// hotkey. On Linux the global hotkey frequently cannot register at all (which is what the
     /// shortcut-conflict banner above this card is about), and this button is the ONLY way to
-    /// start a recording from the UI. So it keeps its action and gains the completion toggle:
-    /// the step is "Try your first transcription", and pressing it does exactly that.
+    /// start a recording from the UI. So it keeps its action and marks the step complete (never
+    /// un-ticks it, #2546): the step is "Try your first transcription", and pressing it does exactly that.
     /// </summary>
     private async void OnStartRecording(object? sender, RoutedEventArgs e)
     {
@@ -3041,7 +3041,7 @@ public partial class MainWindow : Window
         // below it reported the failure. Tick it only once a recording is actually running.
         await _interaction.StartRecordingAsync();
         if (_viewModel.Recording is { HasError: false, State: "Recording" })
-            _viewModel.Home.ToggleGettingStartedStep("recording");
+            _viewModel.Home.CompleteGettingStartedStep("recording");
     }
 
     private void OnLiveCaptureChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(UpdateHomeRecordingActive);
