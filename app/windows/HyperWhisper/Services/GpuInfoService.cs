@@ -1,4 +1,5 @@
 using System.Management;
+using System.Text.RegularExpressions;
 using System.Runtime.InteropServices;
 
 namespace HyperWhisper.Services;
@@ -777,14 +778,16 @@ public class GpuInfoService
     }
 
     /// <summary>
-    /// Intel UHD / HD Graphics, the oldest integrated class. On an i7-8700's UHD 630
-    /// Parakeet's DirectML ran 2.9x slower than the CPU (#1846). Newer names
-    /// ("Intel(R) Graphics", Iris, Arc) are not matched: they were not measured.
+    /// Intel HD Graphics and UHD Graphics 6xx, the Gen9-era integrated class. On an
+    /// i7-8700's UHD 630 Parakeet's DirectML ran 2.9x slower than the CPU (#1846).
+    /// Newer Xe-class names (UHD 7xx, an unnumbered "UHD Graphics", "Intel(R)
+    /// Graphics", Iris, Arc) are not matched: they were not measured.
     /// </summary>
     internal static bool IsIntelUhdOrHdGraphicsName(string gpuName)
     {
         var name = gpuName.ToUpperInvariant();
-        return name.Contains("INTEL") && (name.Contains("UHD") || name.Contains("HD GRAPHICS"));
+        if (!name.Contains("INTEL")) return false;
+        return Regex.IsMatch(name, @"(?<!U)HD GRAPHICS") || Regex.IsMatch(name, @"UHD GRAPHICS\s+6\d\d");
     }
 
     private static bool IsIntelHighPriorityIntegratedGraphicsName(string uppercaseGpuName)

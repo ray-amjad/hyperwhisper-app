@@ -6,7 +6,6 @@
 
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Text;
 using HyperWhisper.Models;
 
@@ -174,7 +173,7 @@ internal static class ParakeetDaemonLaunchPlan
         string modelDirectory,
         string? language,
         EngineSelection engine,
-        DeviceChoice? device = null)
+        DeviceChoice device)
     {
         var engineArg = engine.EngineArg;
         LoggingService.Info($"  Engine: {engineArg}");
@@ -228,10 +227,6 @@ internal static class ParakeetDaemonLaunchPlan
         startInfo.ArgumentList.Add("--engine");
         startInfo.ArgumentList.Add(engineArg);
 
-        device ??= ResolveDevice(
-            GpuInfoService.GetBestGpu(),
-            engine,
-            RuntimeInformation.ProcessArchitecture == Architecture.X64);
         if (device.ProviderArg != null)
         {
             startInfo.ArgumentList.Add("--provider");

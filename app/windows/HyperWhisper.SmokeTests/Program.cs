@@ -2779,13 +2779,13 @@ internal static class Program
                 var wmiOnly = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("NVIDIA GeForce RTX 4060", null), parakeet, isX64: true);
                 Assert(wmiOnly.ProviderArg == null && wmiOnly.DmlAdapterLuid == null, "discrete GPU from WMI (no LUID) → daemon default");
 
-                foreach (var name in new[] { "Intel(R) UHD Graphics 630", "Intel(R) HD Graphics 520" })
+                foreach (var name in new[] { "Intel(R) UHD Graphics 630", "Intel(R) UHD Graphics 620", "Intel(R) HD Graphics 520", "Intel(R) HD Graphics" })
                 {
                     var uhd = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu(name, 0xc58a), parakeet, isX64: true);
                     Assert(uhd.ProviderArg == "cpu" && uhd.DmlAdapterLuid == null, $"{name} only → --provider cpu");
                 }
 
-                foreach (var name in new[] { "AMD Radeon(TM) Graphics", "Intel(R) Iris(R) Xe Graphics", "Intel(R) Graphics", "Intel(R) Arc(TM) Graphics" })
+                foreach (var name in new[] { "AMD Radeon(TM) Graphics", "Intel(R) Iris(R) Xe Graphics", "Intel(R) Graphics", "Intel(R) Arc(TM) Graphics", "Intel(R) UHD Graphics 770", "Intel(R) UHD Graphics" })
                 {
                     var keep = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu(name, 0xc58a), parakeet, isX64: true);
                     Assert(keep.ProviderArg == null && keep.DmlAdapterLuid == null, $"{name} → daemon default");

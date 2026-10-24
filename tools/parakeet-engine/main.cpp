@@ -138,8 +138,13 @@ static int dxgi_index_for_luid(long long luid) {
     for (UINT i = 0; found < 0 && factory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
         DXGI_ADAPTER_DESC1 desc;
         if (SUCCEEDED(adapter->GetDesc1(&desc))) {
-            long long id = (static_cast<long long>(desc.AdapterLuid.HighPart) << 32) |
-                           static_cast<long long>(desc.AdapterLuid.LowPart);
+            // Unsigned arithmetic: HighPart is a signed LONG, and shifting a
+            // negative value is undefined before C++20. Same bits as the host's
+            // 8-byte read of the LUID struct.
+            unsigned long long bits =
+                (static_cast<unsigned long long>(static_cast<unsigned long>(desc.AdapterLuid.HighPart)) << 32) |
+                static_cast<unsigned long long>(desc.AdapterLuid.LowPart);
+            long long id = static_cast<long long>(bits);
             if (id == luid) found = static_cast<int>(i);
         }
         adapter->Release();
