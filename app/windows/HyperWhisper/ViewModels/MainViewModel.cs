@@ -429,9 +429,17 @@ public partial class MainViewModel : ViewModelBase
         => RunModelStatusRefreshOnUiThread(() =>
         {
             // On the UI thread, so SelectedMode is read where it is written.
-            var mode = SelectedMode;
-            if (mode == null || CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider) != provider) return;
-            if (ModelStatusProviderHealth.GetStatus(provider) == ProviderHealth.Checking) return;
+            try
+            {
+                var mode = SelectedMode;
+                if (mode == null || CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider) != provider) return;
+                if (ModelStatusProviderHealth.GetStatus(provider) == ProviderHealth.Checking) return;
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Error("MainViewModel: Failed to read the provider health for the model status", ex);
+                return;
+            }
             RefreshModelStatusSafely();
         });
 
