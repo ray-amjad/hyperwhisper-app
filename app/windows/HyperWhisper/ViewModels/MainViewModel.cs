@@ -421,10 +421,17 @@ public partial class MainViewModel : ViewModelBase
 
     /// <summary>
     /// A provider's cached health changed, e.g. the probe after a key save found the
-    /// key rejected (#2547). Same UI-thread hop as a licence or key change.
+    /// key rejected (#2547). Same UI-thread hop as a licence or key change. Only the
+    /// selected mode's provider can change the bar, and a re-probe's interim Checking
+    /// is skipped so the last verdict stays on screen instead of flashing Ready.
     /// </summary>
     private void OnTranscriptionProviderHealthChanged(object? sender, CloudTranscriptionProvider provider)
-        => OnModelStatusSourceChanged(sender, EventArgs.Empty);
+    {
+        var mode = SelectedMode;
+        if (mode == null || CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider) != provider) return;
+        if (ModelStatusProviderHealth.GetStatus(provider) == ProviderHealth.Checking) return;
+        OnModelStatusSourceChanged(sender, EventArgs.Empty);
+    }
 
     /// <summary>
     /// A licence activation/deactivation or a BYOK key save/removal: refresh the

@@ -15691,6 +15691,17 @@ internal static class Program
                            && !vm.ModelStatus.Contains(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
                         $"the provider rejected the key, yet the status bar says '{vm.ModelStatus}'");
 
+                    // A re-probe's interim Checking keeps the verdict on screen, and another
+                    // provider's verdict does not touch a Groq mode's bar.
+                    Probe(ProviderHealth.Checking);
+                    Assert(vm.ModelStatus.EndsWith(L("status.model.keyInvalid", "").Trim(), StringComparison.Ordinal),
+                        $"a re-probe flashed the rejected key back to '{vm.ModelStatus}'");
+                    health.SetCachedTranscriptionStatusForTests(groq, ProviderHealth.Unauthorized);
+                    health.SetCachedTranscriptionStatusForTests(CloudTranscriptionProvider.Deepgram, ProviderHealth.Healthy);
+                    ((EventHandler<CloudTranscriptionProvider>?)statusChanged.GetValue(health))?.Invoke(health, CloudTranscriptionProvider.Deepgram);
+                    Assert(vm.ModelStatus.EndsWith(L("status.model.keyInvalid", "").Trim(), StringComparison.Ordinal),
+                        $"a Deepgram verdict changed a Groq mode's bar to '{vm.ModelStatus}'");
+
                     Probe(ProviderHealth.Healthy);
                     Assert(vm.ModelStatus.EndsWith(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
                         $"a healthy probe did not bring the status bar back to Ready: '{vm.ModelStatus}'");
@@ -15700,8 +15711,10 @@ internal static class Program
                     vm.DetachModelStatusSources();
                 }
 
-                // Detached: a later verdict no longer reaches this view model.
+                // Detached: a later verdict no longer reaches this view model, though a
+                // direct refresh would now read it.
                 Probe(ProviderHealth.Unauthorized);
+                Assert(health.GetStatus(groq) == ProviderHealth.Unauthorized, "precondition: the cache holds the rejection");
                 Assert(vm.ModelStatus.EndsWith(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
                     $"a detached view model still followed the health: '{vm.ModelStatus}'");
             });
