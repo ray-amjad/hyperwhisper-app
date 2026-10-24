@@ -442,7 +442,7 @@ public class PostProcessingService : IDisposable
                                 MapToPortableProvider(provider), apiKey!, resolvedModelId!,
                                 systemPrompt, systemInfo, text, cancellationToken),
                             text),
-                    PostProcessingProvider.LocalLlm => HyperwhisperCoreMethods.EvaluateCompletion(text, await CallLocalLlmAsync(resolvedModelId!, systemPrompt, userMessage, cancellationToken), CompletionState.Unspecified),
+                    PostProcessingProvider.LocalLlm => EvaluateLocalCompletion(text, await CallLocalLlmAsync(resolvedModelId!, systemPrompt, userMessage, cancellationToken)),
                     _ => HyperwhisperCoreMethods.EvaluateCompletion(text, "", CompletionState.Malformed)
                 };
             }
@@ -554,9 +554,30 @@ public class PostProcessingService : IDisposable
 
 
     /// <summary>
+    /// The shared completion policy for an in-process local model, plus one check
+    /// of its own (issue #2559): a transcript with words in it never comes back as
+    /// punctuation only. A small model that runs off its chat template can print a
+    /// stray "&lt;&lt;" or "..." and stop; that is a failed post-process, not an
+    /// answer, so the raw transcript stays.
+    /// </summary>
+    internal static CompletionEvaluation EvaluateLocalCompletion(string transcript, LocalLlmCompletion completion)
+    {
+        var evaluation = HyperwhisperCoreMethods.EvaluateCompletion(transcript, completion.Text, completion.State);
+        if (evaluation.accepted && IsDegenerateLocalOutput(transcript, evaluation.text))
+        {
+            return new CompletionEvaluation(false, transcript, CompletionFailure.MalformedResponse);
+        }
+
+        return evaluation;
+    }
+
+    internal static bool IsDegenerateLocalOutput(string transcript, string cleaned) =>
+        transcript.Any(char.IsLetterOrDigit) && !cleaned.Any(char.IsLetterOrDigit);
+
+    /// <summary>
     /// Calls the local LLamaSharp runtime for offline post-processing.
     /// </summary>
-    private async Task<string> CallLocalLlmAsync(
+    private async Task<LocalLlmCompletion> CallLocalLlmAsync(
         string modelId,
         string systemPrompt,
         string userMessage,
