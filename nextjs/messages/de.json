@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Gibt es ein Abonnement?",
-        "answer": "Nein — niemals. HyperWhisper ist eine Open-Source-App, die Ihnen gehört, kein Abonnement, das Sie mieten. Laden Sie sie kostenlos herunter und nutzen Sie die lokale, Offline-Transkription für immer gratis; die kostenlose Stufe umfasst außerdem 5 Minuten Cloud-Transkription pro Tag. Wenn Sie darüber hinaus Cloud-Transkription ohne Einrichtung wünschen, sind HyperWhisper Cloud einfach nutzungsabhängige Credits — laden Sie nur dann auf, wenn Sie es brauchen, ohne monatliche Gebühren und ohne etwas zu kündigen."
+        "answer": "Nein — niemals. HyperWhisper ist eine Open-Source-App, die Ihnen gehört, kein Abonnement, das Sie mieten. Laden Sie sie kostenlos herunter und nutzen Sie die lokale, Offline-Transkription für immer gratis. Wenn Sie Cloud-Transkription ohne Einrichtung wünschen, sind HyperWhisper Cloud einfach nutzungsabhängige Credits — laden Sie nur dann auf, wenn Sie es brauchen, ohne monatliche Gebühren und ohne etwas zu kündigen."
       },
       "deviceLimit": {
         "question": "Auf wie vielen Geräten kann ich meinen Kontoschlüssel nutzen?",

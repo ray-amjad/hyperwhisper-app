@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Is er een abonnement?",
-        "answer": "Nee — nooit. HyperWhisper is een open-source app die je bezit, geen abonnement dat je huurt. Download hem gratis en gebruik lokale, offline transcriptie voor altijd kosteloos; de gratis versie bevat ook 5 minuten cloudtranscriptie per dag. Wil je daarbovenop cloudtranscriptie zonder installatie, dan biedt HyperWhisper Cloud eenvoudige pay-as-you-go-credits — vul alleen op wanneer je dat nodig hebt, zonder maandelijkse kosten en niets om op te zeggen."
+        "answer": "Nee — nooit. HyperWhisper is een open-source app die je bezit, geen abonnement dat je huurt. Download hem gratis en gebruik lokale, offline transcriptie voor altijd kosteloos. Wil je cloudtranscriptie zonder installatie, dan biedt HyperWhisper Cloud eenvoudige pay-as-you-go-credits — vul alleen op wanneer je dat nodig hebt, zonder maandelijkse kosten en niets om op te zeggen."
       },
       "deviceLimit": {
         "question": "Op hoeveel apparaten kan ik mijn accountsleutel gebruiken?",

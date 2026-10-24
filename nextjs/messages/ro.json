@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Există vreun abonament?",
-        "answer": "Nu — niciodată. HyperWhisper este o aplicație open-source pe care o deții, nu un abonament pe care îl închiriezi. Descarc-o gratuit și folosește transcrierea locală, offline, fără niciun cost, pentru totdeauna; planul gratuit include și 5 minute de transcriere în cloud pe zi. Când vrei transcriere în cloud fără configurare dincolo de atât, HyperWhisper Cloud înseamnă credite simple, pay-as-you-go — adaugi fonduri doar când ai nevoie, fără taxe lunare și fără nimic de anulat."
+        "answer": "Nu — niciodată. HyperWhisper este o aplicație open-source pe care o deții, nu un abonament pe care îl închiriezi. Descarc-o gratuit și folosește transcrierea locală, offline, fără niciun cost, pentru totdeauna. Când vrei transcriere în cloud fără configurare, HyperWhisper Cloud înseamnă credite simple, pay-as-you-go — adaugi fonduri doar când ai nevoie, fără taxe lunare și fără nimic de anulat."
       },
       "deviceLimit": {
         "question": "Pe câte dispozitive îmi pot folosi cheia de cont?",

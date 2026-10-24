@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "¿Hay alguna suscripción?",
-        "answer": "No — nunca. HyperWhisper es una aplicación de código abierto que es tuya, no una suscripción que alquilas. Descárgala gratis y usa la transcripción local y sin conexión sin coste para siempre; el plan gratuito también incluye 5 minutos de transcripción en la nube al día. Cuando quieras transcripción en la nube sin configuración más allá de eso, HyperWhisper Cloud son simplemente créditos de pago por uso — recarga solo cuando lo necesites, sin cuotas mensuales y sin nada que cancelar."
+        "answer": "No — nunca. HyperWhisper es una aplicación de código abierto que es tuya, no una suscripción que alquilas. Descárgala gratis y usa la transcripción local y sin conexión sin coste para siempre. Cuando quieras transcripción en la nube sin configuración, HyperWhisper Cloud son simplemente créditos de pago por uso — recarga solo cuando lo necesites, sin cuotas mensuales y sin nada que cancelar."
       },
       "deviceLimit": {
         "question": "¿En cuántos dispositivos puedo usar mi clave de cuenta?",

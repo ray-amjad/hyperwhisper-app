@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Onko tilausta?",
-        "answer": "Ei — ei koskaan. HyperWhisper on avoimen lähdekoodin sovellus, jonka omistat, ei tilaus, jota vuokraat. Lataa se ilmaiseksi ja käytä paikallista, offline-transkriptiota maksutta ikuisesti; ilmaiseen tasoon sisältyy myös 5 minuuttia pilvitranskriptiota päivässä. Kun haluat ilman määrityksiä toimivaa pilvitranskriptiota sen lisäksi, HyperWhisper Cloud on yksinkertaisesti käytön mukaan maksettavia krediittejä — lataa tiliä vain kun tarvitset, ilman kuukausimaksuja ja ilman mitään peruttavaa."
+        "answer": "Ei — ei koskaan. HyperWhisper on avoimen lähdekoodin sovellus, jonka omistat, ei tilaus, jota vuokraat. Lataa se ilmaiseksi ja käytä paikallista, offline-transkriptiota maksutta ikuisesti. Kun haluat ilman määrityksiä toimivaa pilvitranskriptiota, HyperWhisper Cloud on yksinkertaisesti käytön mukaan maksettavia krediittejä — lataa tiliä vain kun tarvitset, ilman kuukausimaksuja ja ilman mitään peruttavaa."
       },
       "deviceLimit": {
         "question": "Kuinka monella laitteella voin käyttää tiliavaintani?",

@@ -174,7 +174,7 @@
       },
       "lifetime": {
         "question": "Is there a subscription?",
-        "answer": "No — never. HyperWhisper is an open-source app you own, not a subscription you rent. Download it free and use local, offline transcription at no cost forever; the free tier also includes 5 minutes of cloud transcription a day. When you want zero-setup cloud transcription beyond that, HyperWhisper Cloud is simple pay-as-you-go credits — top up only when you need to, with no monthly fees and nothing to cancel."
+        "answer": "No — never. HyperWhisper is an open-source app you own, not a subscription you rent. Download it free and use local, offline transcription at no cost forever. When you want zero-setup cloud transcription, HyperWhisper Cloud is simple pay-as-you-go credits — top up only when you need to, with no monthly fees and nothing to cancel."
       },
       "refund": {
         "question": "What's your refund policy?",

@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Postoji li pretplata?",
-        "answer": "Ne — nikada. HyperWhisper je aplikacija otvorenog koda koju posjedujete, a ne pretplata koju iznajmljujete. Preuzmite je besplatno i koristite lokalnu, izvanmreznu transkripciju bez naknade zauvijek; besplatna razina takoder ukljucuje 5 minuta transkripcije u oblaku dnevno. Kada zelite transkripciju u oblaku bez ikakvog postavljanja iznad toga, HyperWhisper Cloud su jednostavni krediti prema koristenju — nadoplacujte samo kada trebate, bez mjesecnih naknada i bez icega za otkazati."
+        "answer": "Ne — nikada. HyperWhisper je aplikacija otvorenog koda koju posjedujete, a ne pretplata koju iznajmljujete. Preuzmite je besplatno i koristite lokalnu, izvanmreznu transkripciju bez naknade zauvijek. Kada zelite transkripciju u oblaku bez ikakvog postavljanja, HyperWhisper Cloud su jednostavni krediti prema koristenju — nadoplacujte samo kada trebate, bez mjesecnih naknada i bez icega za otkazati."
       },
       "deviceLimit": {
         "question": "Na koliko uređaja mogu koristiti svoj ključ računa?",

@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Finns det någon prenumeration?",
-        "answer": "Nej — aldrig. HyperWhisper är en app med öppen källkod som du äger, inte en prenumeration du hyr. Ladda ner den gratis och använd lokal transkribering offline utan kostnad för alltid; gratisnivån inkluderar även 5 minuter molntranskribering per dag. När du vill ha molntranskribering utan installation utöver det är HyperWhisper Cloud enkla krediter enligt pay-as-you-go — fyll på bara när du behöver, utan månadsavgifter och utan något att säga upp."
+        "answer": "Nej — aldrig. HyperWhisper är en app med öppen källkod som du äger, inte en prenumeration du hyr. Ladda ner den gratis och använd lokal transkribering offline utan kostnad för alltid. När du vill ha molntranskribering utan installation är HyperWhisper Cloud enkla krediter enligt pay-as-you-go — fyll på bara när du behöver, utan månadsavgifter och utan något att säga upp."
       },
       "deviceLimit": {
         "question": "Hur många enheter kan jag använda min kontonyckel på?",

@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Y a-t-il un abonnement ?",
-        "answer": "Non — jamais. HyperWhisper est une application open source qui vous appartient, pas un abonnement que vous louez. Téléchargez-la gratuitement et utilisez la transcription locale et hors ligne sans frais pour toujours ; la formule gratuite inclut aussi 5 minutes de transcription cloud par jour. Lorsque vous voulez une transcription cloud sans configuration au-delà de cela, HyperWhisper Cloud propose de simples crédits à l'usage — rechargez seulement quand vous en avez besoin, sans frais mensuels et sans rien à résilier."
+        "answer": "Non — jamais. HyperWhisper est une application open source qui vous appartient, pas un abonnement que vous louez. Téléchargez-la gratuitement et utilisez la transcription locale et hors ligne sans frais pour toujours. Lorsque vous voulez une transcription cloud sans configuration, HyperWhisper Cloud propose de simples crédits à l'usage — rechargez seulement quand vous en avez besoin, sans frais mensuels et sans rien à résilier."
       },
       "deviceLimit": {
         "question": "Sur combien d'appareils puis-je utiliser ma clé de compte ?",

@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Apakah ada langganan?",
-        "answer": "Tidak — tidak akan pernah. HyperWhisper adalah aplikasi open-source yang Anda miliki, bukan langganan yang Anda sewa. Unduh gratis dan gunakan transkripsi lokal offline tanpa biaya selamanya; tingkat gratis juga mencakup 5 menit transkripsi cloud per hari. Saat Anda menginginkan transkripsi cloud tanpa penyiapan di luar itu, HyperWhisper Cloud adalah kredit bayar-sesuai-pakai yang sederhana — isi ulang hanya saat Anda perlu, tanpa biaya bulanan dan tidak ada yang perlu dibatalkan."
+        "answer": "Tidak — tidak akan pernah. HyperWhisper adalah aplikasi open-source yang Anda miliki, bukan langganan yang Anda sewa. Unduh gratis dan gunakan transkripsi lokal offline tanpa biaya selamanya. Saat Anda menginginkan transkripsi cloud tanpa penyiapan, HyperWhisper Cloud adalah kredit bayar-sesuai-pakai yang sederhana — isi ulang hanya saat Anda perlu, tanpa biaya bulanan dan tidak ada yang perlu dibatalkan."
       },
       "deviceLimit": {
         "question": "Berapa banyak perangkat yang bisa pakai kunci akun saya?",

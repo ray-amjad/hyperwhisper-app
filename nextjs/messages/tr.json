@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Abonelik var mı?",
-        "answer": "Hayır — asla. HyperWhisper, kiraladığınız bir abonelik değil, sahip olduğunuz açık kaynaklı bir uygulamadır. Ücretsiz indirin ve yerel, çevrimdışı transkripsiyonu sonsuza dek ücretsiz kullanın; ücretsiz katman ayrıca günde 5 dakika bulut transkripsiyonu içerir. Bunun ötesinde kurulum gerektirmeyen bulut transkripsiyonu istediğinizde, HyperWhisper Cloud basit, kullandıkça öde kredilerdir — yalnızca ihtiyaç duyduğunuzda yükleme yaparsınız, aylık ücret yok ve iptal edilecek bir şey yok."
+        "answer": "Hayır — asla. HyperWhisper, kiraladığınız bir abonelik değil, sahip olduğunuz açık kaynaklı bir uygulamadır. Ücretsiz indirin ve yerel, çevrimdışı transkripsiyonu sonsuza dek ücretsiz kullanın. Kurulum gerektirmeyen bulut transkripsiyonu istediğinizde, HyperWhisper Cloud basit, kullandıkça öde kredilerdir — yalnızca ihtiyaç duyduğunuzda yükleme yaparsınız, aylık ücret yok ve iptal edilecek bir şey yok."
       },
       "deviceLimit": {
         "question": "Hesap Anahtarımı kaç cihazda kullanabilirim?",

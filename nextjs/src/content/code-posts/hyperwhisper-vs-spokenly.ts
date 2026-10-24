@@ -16,7 +16,7 @@ const html = `
     <tr><th></th><th>HyperWhisper</th><th>Spokenly</th></tr>
   </thead>
   <tbody>
-    <tr><td>Free plan</td><td>Free forever: local, offline transcription, plus 5 minutes of cloud transcription a day</td><td>Free forever: local Whisper and Parakeet models, offline, unlimited use</td></tr>
+    <tr><td>Free plan</td><td>Free forever: local, offline transcription</td><td>Free forever: local Whisper and Parakeet models, offline, unlimited use</td></tr>
     <tr><td>One-time purchase</td><td>Not needed: the app itself is free and open source</td><td>Local+, $29 once: Notch and Capsule recording styles, settings sync across devices, priority support</td></tr>
     <tr><td>Subscription</td><td>None, ever</td><td>Pro, $99.99 billed yearly (from $8.33/month); a monthly option is also offered</td></tr>
     <tr><td>Built-in cloud transcription</td><td>HyperWhisper Cloud: pay-as-you-go credits from $5, spent at the providers' own processing cost, plus a 6% payment-processing fee at checkout</td><td>Included with Pro only</td></tr>
@@ -45,7 +45,7 @@ const html = `
 
 <p>HyperWhisper has no paid app tier to compare Local+ against. The app is free and open source under Apache-2.0, and local, offline transcription costs nothing, forever.</p>
 
-<p>You pay only if you want HyperWhisper's own cloud transcription beyond the free 5 minutes a day. HyperWhisper Cloud is pay-as-you-go: you top up from $5 (1,000 credits per $1) and spend credits only as you transcribe, at the providers' own processing cost with no markup on transcription. Checkout adds a flat 6% payment-processing fee. There is no monthly fee and nothing to cancel. Credits expire 12 months after purchase.</p>
+<p>You pay only if you want HyperWhisper's own cloud transcription. HyperWhisper Cloud is pay-as-you-go: you top up from $5 (1,000 credits per $1) and spend credits only as you transcribe, at the providers' own processing cost with no markup on transcription. Checkout adds a flat 6% payment-processing fee. There is no monthly fee and nothing to cancel. Credits expire 12 months after purchase.</p>
 
 <p>Or skip the cloud credits and bring your own API key from providers such as OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox or Google Gemini, and pay the provider directly.</p>
 
