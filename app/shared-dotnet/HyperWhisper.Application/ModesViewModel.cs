@@ -196,6 +196,12 @@ public sealed partial class ModesViewModel : ViewModelBase
             await _repository.UpsertSafelyAsync(mode, cancellationToken);
             CommitSavedMode(mode, customEndpointId);
         }
+        catch (ModeRuleViolationException exception)
+        {
+            // A rule the repository enforces (issue #2551): say which one, not "could not save".
+            RollBackFailedSave(settingsSnapshot, customEndpointId, credentialTouched, previousCredential);
+            Status.Failure(exception.Code, exception.Message);
+        }
         catch (Exception)
         {
             RollBackFailedSave(settingsSnapshot, customEndpointId, credentialTouched, previousCredential);
@@ -220,6 +226,11 @@ public sealed partial class ModesViewModel : ViewModelBase
             return false;
         }
         if (string.IsNullOrWhiteSpace(Name)) { Status.Failure("modes.name_required", "Enter a mode name."); return false; }
+        // Same comparison as ModeRepository.UpsertSafelyAsync, checked before anything is written (issue #2551).
+        var editingId = _isCreating ? (Guid?)null : Selected?.Id;
+        var trimmedName = Name.Trim();
+        if (Items.Any(item => item.Id != editingId && string.Equals(item.Name, trimmedName, StringComparison.OrdinalIgnoreCase)))
+        { Status.Failure("modes.name_taken", "A mode with that name already exists."); return false; }
         if (PostProcessingMode == "local"
             && (string.IsNullOrWhiteSpace(LocalPostProcessingModel)
                 || LocalPostProcessingModel != Path.GetFileName(LocalPostProcessingModel)
