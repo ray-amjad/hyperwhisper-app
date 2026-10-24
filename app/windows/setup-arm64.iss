@@ -108,9 +108,11 @@ begin
     WizardForm.ReadyMemo.Lines.Add('ARM64 Note:');
     WizardForm.ReadyMemo.Lines.Add('This ARM64 build includes native ARM64 runtime components.');
     // Keep each line short: the memo does not wrap and clips long lines.
+    // Keep the claims in step with HyperWhisper\Utilities\PlatformHelper.cs
+    // (SupportsWhisperTranscription, SupportsGpuTranscription).
     WizardForm.ReadyMemo.Lines.Add('All local engines (Whisper, Parakeet, Qwen3 ASR, Nemotron and');
-    WizardForm.ReadyMemo.Lines.Add('Local LLM) run natively on the CPU. GPU acceleration is x64 only.');
-    WizardForm.ReadyMemo.Lines.Add('Whisper needs Windows 11 or newer on ARM64.');
+    WizardForm.ReadyMemo.Lines.Add('Local LLM) run natively on the CPU; Whisper needs Windows 11.');
+    WizardForm.ReadyMemo.Lines.Add('GPU acceleration is x64 only.');
   end;
 end;
 
