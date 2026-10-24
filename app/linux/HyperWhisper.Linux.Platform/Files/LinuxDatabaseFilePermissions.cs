@@ -23,20 +23,27 @@ public static class LinuxDatabaseFilePermissions
             return validation;
         }
 
-        try
+        // Each step is tried on its own: a folder that cannot be chmodded (owned by root after a
+        // sudo run) must not stop the user's own database file from being repaired.
+        var failed = false;
+        var directory = Path.GetDirectoryName(databasePath)!;
+        failed |= !TryApply(() =>
         {
-            var directory = Path.GetDirectoryName(databasePath)!;
             // Only the app's own folder is made private: a missing parent such as ~/.local/state is
             // shared by every XDG app and keeps the umask mode.
             Directory.CreateDirectory(Path.GetDirectoryName(directory)!);
             Directory.CreateDirectory(directory, PrivateDirectoryMode);
             File.SetUnixFileMode(directory, PrivateDirectoryMode);
+        });
 
-            // An empty file is a valid empty SQLite database, and it is what SQLite would make here
-            // anyway (StaleMigrationLock opens the connection before EF's Create, so the store is in
-            // rollback-journal mode either way). Creating it at 0600 means it is never readable by
-            // others, and SQLite gives the -journal, -wal and -shm it makes the database's mode.
-            if (!File.Exists(databasePath))
+        // An empty file is a valid empty SQLite database, and it is what SQLite would make here
+        // anyway (StaleMigrationLock opens the connection before EF's Create, so the store is in
+        // rollback-journal mode either way). Creating it at 0600 means it is never readable by
+        // others, and SQLite gives the -journal, -wal and -shm it makes the database's mode.
+        // A file that appears in between is not a failure: the loop below chmods it.
+        failed |= !TryApply(() =>
+        {
+            try
             {
                 using var _ = new FileStream(databasePath, new FileStreamOptions
                 {
@@ -45,20 +52,37 @@ public static class LinuxDatabaseFilePermissions
                     UnixCreateMode = UnixPrivateFilePermissions.PrivateMode,
                 });
             }
+            catch (IOException) when (File.Exists(databasePath))
+            {
+            }
+        });
 
-            foreach (var path in SidecarSuffixes.Select(suffix => databasePath + suffix).Prepend(databasePath))
+        foreach (var path in SidecarSuffixes.Select(suffix => databasePath + suffix).Prepend(databasePath))
+        {
+            failed |= !TryApply(() =>
             {
                 if (File.Exists(path))
                 {
                     File.SetUnixFileMode(path, UnixPrivateFilePermissions.PrivateMode);
                 }
-            }
+            });
+        }
 
-            return PlatformResult.Success();
+        return failed
+            ? PlatformResult.Failure("permissions_update_failed", "Owner-only database permissions could not be applied.")
+            : PlatformResult.Success();
+    }
+
+    private static bool TryApply(Action step)
+    {
+        try
+        {
+            step();
+            return true;
         }
         catch (Exception exception) when (UnixPrivateFilePermissions.IsExpectedFileFailure(exception))
         {
-            return PlatformResult.Failure("permissions_update_failed", "Owner-only database permissions could not be applied.");
+            return false;
         }
     }
 }
