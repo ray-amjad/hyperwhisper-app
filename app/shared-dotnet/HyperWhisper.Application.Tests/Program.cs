@@ -71,6 +71,7 @@ try
 
     await RunChirp3TierMigrationTestsAsync(Path.Combine(root, "chirp3-tier-migration"));
     await RunDictationModeTestsAsync(Path.Combine(root, "dictation-modes"));
+    await RunModeNameTakenTestsAsync(Path.Combine(root, "mode-name-taken"));
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
     await RunBlankCloudProviderEditorLoadTestsAsync(Path.Combine(root, "blank-cloud-provider"));
     await RunLegacyCloudProviderFoldTestsAsync(Path.Combine(root, "legacy-cloud-provider-fold"));
@@ -2162,6 +2163,71 @@ static async Task RunDefaultModeInvariantTestsAsync(string root)
     var afterDelete = await orphanRepository.ListAsync();
     Assert(afterDelete.Count == 1 && afterDelete.Single().IsDefault,
         "deleting the default mode left the remaining mode without the flag");
+}
+
+// Issue #2551: a save the repository refuses on a mode rule used to fall into SaveAsync's catch-all
+// and show "Could not save the mode or its secure endpoint configuration", which sent the user to
+// the keyring when the fix was a different name.
+static async Task RunModeNameTakenTestsAsync(string root)
+{
+    var db = new ApplicationDb(new TestPaths(root));
+    await db.InitializeAsync();
+    var repository = new ModeRepository(db);
+    var editor = new ModesViewModel(repository);
+    await editor.RefreshAsync();
+    var theDefault = editor.Items.Single(item => item.IsDefault);
+    Assert(theDefault.Name == "Hyper", $"the seeded default mode is '{theDefault.Name}', expected 'Hyper'");
+    var countBefore = (await repository.ListAsync()).Count;
+
+    foreach (var clash in new[] { "hyper", "  HYPER " })
+    {
+        editor.NewCommand.Execute(null);
+        editor.Name = clash;
+        await editor.SaveAsync();
+        Assert(editor.Status.ErrorCode == "modes.name_taken"
+            && editor.Status.Message == "A mode with that name already exists.",
+            $"creating '{clash}' next to 'Hyper' showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+        Assert((await repository.ListAsync()).Count == countBefore, $"creating '{clash}' next to 'Hyper' inserted a mode");
+    }
+
+    // Renaming another mode onto a taken name is refused the same way; keeping a mode's own name is not.
+    var other = new Mode { Name = "Other", SortOrder = 1 };
+    await repository.UpsertAsync(other);
+    await editor.RefreshAsync();
+    editor.Selected = editor.Items.Single(item => item.Id == other.Id);
+    editor.Name = "Hyper";
+    await editor.SaveAsync();
+    Assert(editor.Status.ErrorCode == "modes.name_taken", $"renaming 'Other' to 'Hyper' showed {editor.Status.ErrorCode}");
+    Assert((await repository.ListAsync()).Single(item => item.Id == other.Id).Name == "Other", "a refused rename was saved");
+    Assert(editor.Items.Single(item => item.Id == other.Id).Name == "Other" && editor.Name == "Hyper",
+        "a refused rename left 'Hyper' on the listed mode, or cleared what the user typed");
+    editor.Name = "other";
+    await editor.SaveAsync();
+    Assert(!editor.Status.HasError && (await repository.ListAsync()).Single(item => item.Id == other.Id).Name == "other",
+        $"re-casing a mode's own name was refused: {editor.Status.ErrorCode}");
+
+    // The repository reads the rows at save time, so a name taken after the list was loaded is
+    // refused the same way, not with the secure-endpoint error.
+    editor.NewCommand.Execute(null);
+    editor.Name = "Late arrival";
+    await repository.UpsertAsync(new Mode { Name = "Late Arrival", SortOrder = 2 });
+    var countBeforeRace = (await repository.ListAsync()).Count;
+    await editor.SaveAsync();
+    Assert(editor.Status.ErrorCode == "modes.name_taken"
+        && !editor.Status.Message.Contains("secure endpoint", StringComparison.OrdinalIgnoreCase),
+        $"a name the repository refused showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+    Assert((await repository.ListAsync()).Count == countBeforeRace, "a name the repository refused was inserted");
+
+    // The default-name rule surfaces under its own code as well. (The last-default rule cannot be
+    // reached from this editor, which never clears IsDefault.)
+    await editor.RefreshAsync();
+    editor.Selected = editor.Items.Single(item => item.IsDefault);
+    editor.Name = "Renamed default";
+    await editor.SaveAsync();
+    Assert(editor.Status.ErrorCode == "modes.default_name_fixed",
+        $"renaming the default mode showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+    Assert((await repository.ListAsync()).Single(item => item.IsDefault).Name == "Hyper"
+        && editor.Items.Single(item => item.IsDefault).Name == "Hyper", "the default mode was renamed");
 }
 
 static async Task RunDictationModeTestsAsync(string root)
