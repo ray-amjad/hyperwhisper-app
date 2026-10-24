@@ -760,6 +760,22 @@
       ],
       "licensed": false,
       "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY in #hw-qa). Onboarding+vocabulary clean (validation for dup/case-dup/empty/whitespace OK; edit focuses word field by design). Scratch profile path is fixed, so its PasswordVault resource HyperWhisper.Test.<hash> keeps fake keys from earlier rounds (OpenAI 'sk-fu…ings' was pre-configured); the PS cleanup cannot clear the vault."
+    },
+    {
+      "at": "2026-10-24T01:47:29Z",
+      "platform": "mac",
+      "commit": "c1573a30",
+      "routes": [
+        "core-settings",
+        "licence",
+        "onboarding"
+      ],
+      "status": "nothing-found",
+      "issues": [
+        0
+      ],
+      "licensed": false,
+      "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY; Debug=staging). onboarding via defaults hasCompletedOnboarding=false; Set Up Later marks done by design. core-settings walked twice (General/Sound, then Shortcuts/Text Output/Storage). Only finding: cosmetic Sound mic picker truncation ('Default · MacBook Neo Microph...'), not filed. Codex denied mic TCC for this ad-hoc build in onboarding. Keychain prompts for 'license migration marker' and 'Local API token' need login password on every launch: denied."
     }
   ]
 }
