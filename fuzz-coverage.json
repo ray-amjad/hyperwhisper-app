@@ -776,6 +776,22 @@
       ],
       "licensed": false,
       "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY; Debug=staging). onboarding via defaults hasCompletedOnboarding=false; Set Up Later marks done by design. core-settings walked twice (General/Sound, then Shortcuts/Text Output/Storage). Only finding: cosmetic Sound mic picker truncation ('Default · MacBook Neo Microph...'), not filed. Codex denied mic TCC for this ad-hoc build in onboarding. Keychain prompts for 'license migration marker' and 'Local API token' need login password on every launch: denied."
+    },
+    {
+      "at": "2026-10-24T05:16:13Z",
+      "platform": "linux",
+      "commit": "c1573a30",
+      "routes": [
+        "updates",
+        "streaming",
+        "modes"
+      ],
+      "status": "1-filed",
+      "issues": [
+        2551
+      ],
+      "licensed": false,
+      "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY in hw-qa box). updates: only 'not installed as a system package' notice, auto-update toggle OK. streaming settings persist. modes: Codex burned steps scrolling the editor and never reached delete/switch-active; walk those next time."
     }
   ]
 }
