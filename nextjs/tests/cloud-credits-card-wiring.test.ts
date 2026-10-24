@@ -108,13 +108,16 @@ const viewRenders: CloudCreditsCardViewProps[] = [];
  * all — React never serialises a handler into static markup, which is exactly
  * how the #881 round 1 suite passed with the button's `onClick` deleted.
  */
-moduleMock.module(moduleUrl("../components/customer/dashboard/CloudCreditsCardView.tsx"), {
-  defaultExport: (props: CloudCreditsCardViewProps) => {
-    viewRenders.push(props);
+moduleMock.module(
+  moduleUrl("../components/customer/dashboard/CloudCreditsCardView.tsx"),
+  {
+    defaultExport: (props: CloudCreditsCardViewProps) => {
+      viewRenders.push(props);
 
-    return null;
+      return null;
+    },
   },
-});
+);
 
 // A VARIABLE specifier, and deferred: a static import would bind before the
 // `mock.module` calls above, and a literal `.tsx` specifier is a TS5097 error

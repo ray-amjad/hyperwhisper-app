@@ -14,7 +14,9 @@ import { moduleMock, moduleUrl } from "./module-mock";
 
 const env: Record<string, string | undefined> = {};
 
-moduleMock.module(moduleUrl("../src/env/client.mjs"), { namedExports: { env } });
+moduleMock.module(moduleUrl("../src/env/client.mjs"), {
+  namedExports: { env },
+});
 
 const inits: Array<{ key: string; options: unknown; href: string }> = [];
 const fakePostHog = {
