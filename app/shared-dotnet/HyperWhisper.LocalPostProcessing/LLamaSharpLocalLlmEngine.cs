@@ -103,7 +103,7 @@ public sealed class LLamaSharpLocalLlmEngine : ILocalLlmEngine
                 var prompt = LocalLlmPromptFormatter.Format(_weights, request.SystemPrompt, request.UserMessage);
 
                 using var context = _weights.CreateContext(_parameters!);
-                var executor = new InteractiveExecutor(context);
+                var executor = new PromptSafeInteractiveExecutor(context);
                 var inference = new InferenceParams
                 {
                     MaxTokens = Math.Clamp(request.MaxOutputTokens, 1, MaxTokens),
@@ -287,12 +287,27 @@ public sealed class LLamaSharpLocalLlmEngine : ILocalLlmEngine
         }
     }
 
-    private static ModelParams CreateParameters(string modelPath, int gpuLayers) =>
-        new(modelPath)
+    private static ModelParams CreateParameters(string modelPath, int gpuLayers)
+    {
+        var cpuThreads = CpuThreadCount(
+            System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture, Environment.ProcessorCount);
+        return new(modelPath)
         {
             ContextSize = ContextSize,
             GpuLayerCount = gpuLayers,
+            Threads = cpuThreads,
+            BatchThreads = cpuThreads,
         };
+    }
+
+    /// <summary>
+    /// CPU threads for inference. LLamaSharp defaults to half the logical
+    /// processors, one per core on an x64 CPU with SMT; ARM64 has no SMT, so
+    /// every core is used there (issue #2559). Null keeps the default. The
+    /// Windows app's LocalLlmService has the same rule; change both.
+    /// </summary>
+    public static int? CpuThreadCount(System.Runtime.InteropServices.Architecture architecture, int processorCount) =>
+        architecture == System.Runtime.InteropServices.Architecture.Arm64 ? Math.Max(1, processorCount) : null;
 
     private static LocalLlmGenerationResult CancellationFailure(
         CancellationToken callerToken,

@@ -23,7 +23,7 @@ namespace HyperWhisper.LocalPostProcessing;
 /// </remarks>
 public static class LocalLlmPromptFormatter
 {
-    internal const string ChatTemplateMetadataKey = "tokenizer.chat_template";
+    public const string ChatTemplateMetadataKey = "tokenizer.chat_template";
 
     /// <summary>Markers that only Gemma 4's chat template carries.</summary>
     private const string Gemma4TurnOpen = "<|turn>";

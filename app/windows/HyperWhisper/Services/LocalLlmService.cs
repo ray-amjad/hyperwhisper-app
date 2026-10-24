@@ -101,7 +101,7 @@ public sealed class LocalLlmService : IDisposable
             var prompt = LocalLlmPromptFormatter.Format(_weights!, systemPrompt, userMessage);
 
             using var context = _weights!.CreateContext(_parameters!);
-            var executor = new InteractiveExecutor(context);
+            var executor = new PromptSafeInteractiveExecutor(context);
             var inferenceParams = new InferenceParams
             {
                 MaxTokens = MaxTokens,
@@ -372,12 +372,26 @@ public sealed class LocalLlmService : IDisposable
 
     private static ModelParams CreateParameters(string modelPath, int gpuLayerCount)
     {
+        var cpuThreads = CpuThreadCount(
+            System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture, Environment.ProcessorCount);
         return new ModelParams(modelPath)
         {
             ContextSize = ContextSize,
-            GpuLayerCount = gpuLayerCount
+            GpuLayerCount = gpuLayerCount,
+            Threads = cpuThreads,
+            BatchThreads = cpuThreads
         };
     }
+
+    /// <summary>
+    /// CPU threads for inference. LLamaSharp defaults to half the logical
+    /// processors, which is one per core on an x64 CPU with SMT. ARM64 CPUs have
+    /// no SMT, so that default left half the cores idle: on the Surface (8-core
+    /// Snapdragon X Plus) all 8 threads cut a ~2,500-token prefill from ~64 s to
+    /// ~36 s, inside <see cref="InferenceTimeout"/> (issue #2559). Null keeps the default.
+    /// </summary>
+    internal static int? CpuThreadCount(System.Runtime.InteropServices.Architecture architecture, int processorCount) =>
+        architecture == System.Runtime.InteropServices.Architecture.Arm64 ? Math.Max(1, processorCount) : null;
 
     private void EnsurePromptFitsLocalContext(string systemPrompt, string userMessage)
     {

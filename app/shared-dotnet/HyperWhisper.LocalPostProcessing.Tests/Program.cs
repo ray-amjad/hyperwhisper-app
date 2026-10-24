@@ -12,6 +12,7 @@ var tests = new List<(string Name, Func<Task> Run)>
     ("Gemma 4 prompt uses its turn format (#2559)", Gemma4PromptFormat),
     ("cancellation is structured", CancellationIsStructured),
     ("prompt budget boundary", PromptBudget),
+    ("ARM64 inference uses every core (#2559)", Arm64UsesEveryCore),
     ("model store downloads and validates atomically", ModelDownload),
     ("model checksum mismatch is rejected", ModelChecksumMismatch),
     ("model download cancellation is structured", ModelDownloadCancellation),
@@ -21,6 +22,7 @@ var tests = new List<(string Name, Func<Task> Run)>
 if (Environment.GetEnvironmentVariable("HYPERWHISPER_TEST_GGUF") is { Length: > 0 })
 {
     tests.Add(("actual GGUF inference", ActualGgufInference));
+    tests.Add(("turn close on a prefill batch boundary still answers (#2559)", TurnCloseOnBatchBoundary));
 }
 
 var failures = 0;
@@ -263,6 +265,62 @@ static byte[] FakeGguf(int length)
     "GGUF"u8.CopyTo(bytes);
     bytes[4] = 3;
     return bytes;
+}
+
+// LLamaSharp 0.27 ended the stream with no output when the last token of a
+// 512-token prefill batch was end-of-generation, which Gemma 4's <turn|> is.
+// Pads the user turn until its <turn|> is exactly that token, then asks for an
+// answer. Runs only for a Gemma 4 GGUF.
+static async Task TurnCloseOnBatchBoundary()
+{
+    var path = Environment.GetEnvironmentVariable("HYPERWHISPER_TEST_GGUF")!;
+    const string system = "Reply with the single word OK.";
+    const int batchSize = 512;
+    string? user = null;
+    using (var weights = LLama.LLamaWeights.LoadFromFile(new LLama.Common.ModelParams(path) { GpuLayerCount = 0 }))
+    {
+        weights.Metadata.TryGetValue(LocalLlmPromptFormatter.ChatTemplateMetadataKey, out var template);
+        if (!LocalLlmPromptFormatter.IsGemma4Template(template))
+        {
+            Console.WriteLine("SKIP turn close on a prefill batch boundary: not a Gemma 4 GGUF");
+            return;
+        }
+        for (var words = 1; words < 2 * batchSize && user is null; words++)
+        {
+            var candidate = string.Join(" ", Enumerable.Repeat("note", words));
+            var tokens = weights.Tokenize(
+                LocalLlmPromptFormatter.FormatGemma4(system, candidate), true, true, System.Text.Encoding.UTF8);
+            var lastClose = Array.FindLastIndex(tokens, t => t.IsEndOfGeneration(weights.Vocab));
+            if (lastClose % batchSize == batchSize - 1)
+            {
+                user = candidate;
+            }
+        }
+    }
+    True(user is not null);
+
+    await using var engine = new LLamaSharpLocalLlmEngine();
+    var result = await engine.GenerateAsync(new(
+        path,
+        LocalLlmBackend.Cpu,
+        system,
+        user!,
+        AllowCpuFallback: true,
+        Timeout: TimeSpan.FromMinutes(5),
+        MaxOutputTokens: 16));
+    if (!result.IsSuccess)
+    {
+        throw new InvalidOperationException(
+            $"Inference failed: {result.Failure?.Code} {result.Failure?.Message}");
+    }
+    True(result.Completion!.Trim().Length > 0);
+}
+
+static Task Arm64UsesEveryCore()
+{
+    Equal<int?>(8, LLamaSharpLocalLlmEngine.CpuThreadCount(System.Runtime.InteropServices.Architecture.Arm64, 8));
+    Equal<int?>(null, LLamaSharpLocalLlmEngine.CpuThreadCount(System.Runtime.InteropServices.Architecture.X64, 16));
+    return Task.CompletedTask;
 }
 
 static void True(bool value)

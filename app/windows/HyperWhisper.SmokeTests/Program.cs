@@ -5294,6 +5294,14 @@ internal static class Program
                 Assert(PostProcessingService.IsDegenerateLocalOutput("thumbs up", "<< </>"), "marker debris only is degenerate");
             });
 
+            Run("Local LLM uses every core on ARM64 and the default elsewhere (#2559)", () =>
+            {
+                Assert(LocalLlmService.CpuThreadCount(System.Runtime.InteropServices.Architecture.Arm64, 8) == 8,
+                    "ARM64 has no SMT, so all 8 cores run inference");
+                Assert(LocalLlmService.CpuThreadCount(System.Runtime.InteropServices.Architecture.X64, 16) == null,
+                    "x64 keeps LLamaSharp's one-thread-per-core default");
+            });
+
             Run("Local LLM reserves an 8192-token output without context shifting", () =>
             {
                 Assert(LocalLlmService.MaxTokens == 8_192, "local output ceiling should be 8192");
