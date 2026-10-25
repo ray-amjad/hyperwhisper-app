@@ -184,6 +184,103 @@ internal static class Program
                     $"expected no LastSelectedModel: {output}");
             });
 
+            Run("RenderThreadFailureRecovery recovers once, reports once, and shows no dialog", () =>
+            {
+                // #2549: WPF raised UCEERR_RENDERTHREADFAILURE on every repaint, and
+                // the dispatcher handler showed a dialog and a Sentry event for each.
+                var recovery = new RenderThreadFailureRecovery();
+                var failure = new System.Runtime.InteropServices.COMException(
+                    "UCEERR_RENDERTHREADFAILURE", unchecked((int)0x88980406));
+                var switches = 0;
+                var reports = new List<RenderThreadFailureRecovery.Report>();
+
+                Assert(!recovery.TryHandle(new InvalidOperationException(), "ui_running",
+                        () => switches++, reports.Add),
+                    "an unrelated exception was taken as a render thread failure");
+                Assert(!recovery.TryHandle(
+                        new System.Runtime.InteropServices.COMException("other", unchecked((int)0x80004005)),
+                        "ui_running", () => switches++, reports.Add),
+                    "an unrelated COMException was taken as a render thread failure");
+                Assert(switches == 0 && reports.Count == 0,
+                    "an unrelated exception switched rendering or reported");
+
+                for (var i = 0; i < 50; i++)
+                {
+                    Assert(recovery.TryHandle(failure, "ui_running", () => switches++, reports.Add),
+                        $"render thread failure {i + 1} was not handled, so the dialog would show");
+                }
+
+                Assert(switches == 1, $"software rendering was switched {switches} times, not once");
+                Assert(reports.Count == 1, $"the failure was reported {reports.Count} times, not once");
+                Assert(reports[0].Fingerprint.SequenceEqual(new[] { "wpf-render-thread-failure" }),
+                    "the report does not carry the fixed fingerprint");
+                Assert(reports[0].Tags["render_recovery"] == "software_rendering",
+                    "the report does not say software rendering recovered it");
+                Assert(ReferenceEquals(reports[0].Exception, failure),
+                    "the report lost the original exception and its stack");
+
+                var wrapped = new InvalidOperationException("outer", failure);
+                Assert(RenderThreadFailureRecovery.IsRenderThreadFailure(wrapped),
+                    "a wrapped render thread failure was not recognised");
+
+                var failingSwitch = new RenderThreadFailureRecovery();
+                var failingReports = new List<RenderThreadFailureRecovery.Report>();
+                Assert(failingSwitch.TryHandle(failure, "ui_startup",
+                        () => throw new InvalidOperationException("switch failed"), failingReports.Add),
+                    "a failed software-rendering switch escaped the handler");
+                Assert(failingReports.Count == 1
+                        && failingReports[0].Tags["render_recovery"] == "software_rendering_failed",
+                    "a failed switch was not reported as failed");
+                Assert(failingSwitch.TryHandle(failure, "ui_startup", () => { },
+                        _ => throw new InvalidOperationException("report failed")),
+                    "a repeat after a failed switch was not handled");
+                Assert(new RenderThreadFailureRecovery().TryHandle(failure, "ui_running", () => { },
+                        _ => throw new InvalidOperationException("report failed")),
+                    "a failing reporter escaped the handler");
+            });
+
+            Run("App's dispatcher handler recovers a render thread failure with no dialog", () =>
+            {
+                // Drives the REAL App.DispatcherUnhandledException handler: the
+                // generic path would block this run on a modal message box, and an
+                // unhandled exception would escape PushFrame and fail the case.
+                var app = EnsureSmokeApplication();
+                var window = new Window();
+                var shutdownMode = app.ShutdownMode;
+                app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                try
+                {
+                    new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
+                    var source = (System.Windows.Interop.HwndSource)PresentationSource.FromVisual(window)!;
+                    Assert(source.CompositionTarget.RenderMode == System.Windows.Interop.RenderMode.Default,
+                        "the test window did not start on default rendering");
+
+                    for (var i = 0; i < 5; i++)
+                    {
+                        var frame = new System.Windows.Threading.DispatcherFrame();
+                        app.Dispatcher.BeginInvoke(() =>
+                            throw new System.Runtime.InteropServices.COMException(
+                                "UCEERR_RENDERTHREADFAILURE", unchecked((int)0x88980406)));
+                        app.Dispatcher.BeginInvoke(
+                            System.Windows.Threading.DispatcherPriority.Background,
+                            () => frame.Continue = false);
+                        System.Windows.Threading.Dispatcher.PushFrame(frame);
+                    }
+
+                    Assert(System.Windows.Media.RenderOptions.ProcessRenderMode
+                            == System.Windows.Interop.RenderMode.SoftwareOnly,
+                        "the process was not moved to software rendering");
+                    Assert(source.CompositionTarget.RenderMode == System.Windows.Interop.RenderMode.SoftwareOnly,
+                        "an open window was not moved to software rendering");
+                }
+                finally
+                {
+                    System.Windows.Media.RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.Default;
+                    window.Close();
+                    app.ShutdownMode = shutdownMode;
+                }
+            });
+
             Run("ApplicationControlDiagnostics handles only the classifier load failure", () =>
             {
                 const string privateUrl = "https://private.example.test/download";
