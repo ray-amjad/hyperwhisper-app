@@ -46,7 +46,7 @@ import Foundation
 import Testing
 @testable import HyperWhisper
 
-@Suite(.serialized)
+@Suite(.serialized, .timeLimit(.minutes(10)))
 struct EventTapThreadTests {
 
     // MARK: - Fixtures
@@ -88,8 +88,21 @@ struct EventTapThreadTests {
         return CFMachPortCreate(kCFAllocatorDefault, { _, _, _, _ in }, &context, nil)
     }
 
+    /// The bound on every wait for something that should happen. It is a hang
+    /// guard, not a deadline: a loaded CI runner can stall the test process for
+    /// 20-90 s (#2505, #2540). The suite's time limit is the backstop. Waits that
+    /// check something does NOT happen keep their short bounds.
+    static let hangGuard: TimeInterval = 120
+
+    /// What is left of a shared hang guard. The loop tests' exit checks share
+    /// one guard, started once every host is stopped, so a regression fails in
+    /// about 120 s, not 120 s per host.
+    static func remaining(until deadline: Date) -> TimeInterval {
+        max(0, deadline.timeIntervalSinceNow)
+    }
+
     /// Polls `condition` until it holds or `timeout` passes.
-    static func eventually(timeout: TimeInterval = 2, _ condition: () -> Bool) -> Bool {
+    static func eventually(timeout: TimeInterval = EventTapThreadTests.hangGuard, _ condition: () -> Bool) -> Bool {
         let deadline = Date(timeIntervalSinceNow: timeout)
         while Date() < deadline {
             if condition() { return true }
@@ -106,7 +119,7 @@ struct EventTapThreadTests {
         let host = EventTapThread(name: "test.tap", setTapEnabled: recorder.setTapEnabled)
         host.start(tap: port)
 
-        let loop = try #require(host.waitUntilRunning(timeout: 2))
+        let loop = try #require(host.waitUntilRunning(timeout: Self.hangGuard))
         #expect(loop !== CFRunLoopGetMain())
         // The initial enable runs after the source is added, on the tap thread.
         #expect(Self.eventually { recorder.calls.count >= 1 })
@@ -124,7 +137,7 @@ struct EventTapThreadTests {
         #expect(enable.runLoop === loop)
 
         host.stop()
-        #expect(host.waitUntilExited(timeout: 2))
+        #expect(host.waitUntilExited(timeout: Self.hangGuard))
     }
 
     // MARK: - 2. stop() tears down on the same run loop and the thread exits
@@ -134,14 +147,14 @@ struct EventTapThreadTests {
         let port = Self.makePort()
         let host = EventTapThread(name: "test.tap", setTapEnabled: recorder.setTapEnabled)
         host.start(tap: port)
-        let loop = try #require(host.waitUntilRunning(timeout: 2))
+        let loop = try #require(host.waitUntilRunning(timeout: Self.hangGuard))
         #expect(Self.eventually { recorder.calls.count >= 1 })
         let source = try #require(host.tapSourceForTesting)
         let thread = try #require(host.threadForTesting)
 
         host.stop()
 
-        #expect(host.waitUntilExited(timeout: 2))
+        #expect(host.waitUntilExited(timeout: Self.hangGuard))
         #expect(Self.eventually { thread.isFinished })
         #expect(!CFRunLoopContainsSource(loop, source, .commonModes))
         #expect(!CFMachPortIsValid(port))
@@ -156,14 +169,15 @@ struct EventTapThreadTests {
             let port = Self.makePort()
             let host = EventTapThread(name: "test.tap", setTapEnabled: EnableRecorder().setTapEnabled)
             host.start(tap: port)
-            _ = try #require(host.waitUntilRunning(timeout: 2))
+            _ = try #require(host.waitUntilRunning(timeout: Self.hangGuard))
             let thread = try #require(host.threadForTesting)
             hosts.append((host, thread, port))
             host.stop()
         }
+        let deadline = Date(timeIntervalSinceNow: Self.hangGuard)
         for (host, thread, port) in hosts {
-            #expect(host.waitUntilExited(timeout: 2))
-            #expect(Self.eventually { thread.isFinished })
+            #expect(host.waitUntilExited(timeout: Self.remaining(until: deadline)))
+            #expect(Self.eventually(timeout: Self.remaining(until: deadline)) { thread.isFinished })
             #expect(!CFMachPortIsValid(port))
         }
     }
@@ -180,9 +194,10 @@ struct EventTapThreadTests {
             let thread = try #require(host.threadForTesting)
             hosts.append((host, thread, port))
         }
+        let deadline = Date(timeIntervalSinceNow: Self.hangGuard)
         for (host, thread, port) in hosts {
-            #expect(host.waitUntilExited(timeout: 2))
-            #expect(Self.eventually { thread.isFinished })
+            #expect(host.waitUntilExited(timeout: Self.remaining(until: deadline)))
+            #expect(Self.eventually(timeout: Self.remaining(until: deadline)) { thread.isFinished })
             #expect(!CFMachPortIsValid(port))
         }
     }
@@ -194,7 +209,7 @@ struct EventTapThreadTests {
         host.stop()
         host.start(tap: port)
 
-        #expect(host.waitUntilExited(timeout: 2))
+        #expect(host.waitUntilExited(timeout: Self.hangGuard))
         #expect(!CFMachPortIsValid(port))
         #expect(!recorder.calls.contains { $0.enabled })
     }
@@ -216,7 +231,7 @@ struct EventTapThreadTests {
         let port = Self.makePort()
         let host = EventTapThread(name: "test.tap", setTapEnabled: recorder.setTapEnabled)
         host.start(tap: port)
-        #expect(await waitOffThePool(for: entered, seconds: 2))
+        #expect(await waitOffThePool(for: entered, seconds: Self.hangGuard))
 
         let startedAt = Date()
         host.stop()
@@ -225,7 +240,7 @@ struct EventTapThreadTests {
         #expect(!host.waitUntilExited(timeout: 0.1)) // still stuck, and that is fine
 
         release.signal()
-        #expect(host.waitUntilExited(timeout: 2))
+        #expect(host.waitUntilExited(timeout: Self.hangGuard))
         #expect(!CFMachPortIsValid(port))
     }
 
@@ -240,7 +255,7 @@ struct EventTapThreadTests {
         let port = Self.makePort()
         let host = EventTapThread(name: "test.tap", setTapEnabled: recorder.setTapEnabled)
         host.start(tap: port)
-        _ = try #require(host.waitUntilRunning(timeout: 2))
+        _ = try #require(host.waitUntilRunning(timeout: Self.hangGuard))
         #expect(Self.eventually { recorder.calls.count >= 1 })
 
         recorder.beforeEnable = { Thread.sleep(forTimeInterval: 0.05) }
@@ -254,7 +269,7 @@ struct EventTapThreadTests {
 
         host.stop()
         #expect(host.reEnableAfterSystemDisable(.tapDisabledByUserInput) == nil)
-        #expect(host.waitUntilExited(timeout: 2))
+        #expect(host.waitUntilExited(timeout: Self.hangGuard))
     }
 
     // MARK: - 5. The real callbacks, called off the main thread
@@ -306,7 +321,7 @@ struct EventTapThreadTests {
         #expect(swallowedDown)
         #expect(swallowedUp)
         #expect(letterPassed)
-        #expect(await waitOffThePool(for: escape.fired, seconds: 2))
+        #expect(await waitOffThePool(for: escape.fired, seconds: Self.hangGuard))
         #expect(escape.firedOnMain)
 
         // Once the overlay ends (the tap is stopped), Escape passes through
@@ -363,7 +378,7 @@ struct EventTapThreadTests {
             cancelOverlayEventTapCallback(Self.proxy, .keyUp, keyUp, info) == nil
         }
         #expect(swallowedLive)
-        #expect(await waitOffThePool(for: handlerFired, seconds: 2))
+        #expect(await waitOffThePool(for: handlerFired, seconds: Self.hangGuard))
         #expect((keyCode == 53 ? escape : returnKey).firedOnMain)
 
         // The same key, but the overlay ends between the swallow and the
@@ -383,7 +398,7 @@ struct EventTapThreadTests {
         let port = Self.makePort()
         let host = EventTapThread(name: "test.ptt", setTapEnabled: recorder.setTapEnabled)
         host.start(tap: port)
-        _ = try #require(host.waitUntilRunning(timeout: 2))
+        _ = try #require(host.waitUntilRunning(timeout: Self.hangGuard))
         #expect(Self.eventually { recorder.calls.count >= 1 })
         let info = Unmanaged.passUnretained(host).toOpaque()
         let keyDown = try Self.key(0, down: true)
@@ -403,7 +418,7 @@ struct EventTapThreadTests {
         #expect(!reEnable.onMainThread)
 
         host.stop()
-        #expect(host.waitUntilExited(timeout: 2))
+        #expect(host.waitUntilExited(timeout: Self.hangGuard))
     }
 
     // MARK: - 6. Neither production tap touches the main run loop
@@ -465,7 +480,7 @@ struct EventTapThreadTests {
                 EventTapThread.deliverOnMainInOrder { log.append(i) }
             }
         }
-        #expect(await waitOffThePool(for: log.done, seconds: 10))
+        #expect(await waitOffThePool(for: log.done, seconds: Self.hangGuard))
         #expect(log.values == Array(0..<count))
         #expect(log.allOnMain)
     }
