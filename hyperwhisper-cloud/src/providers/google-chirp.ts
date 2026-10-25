@@ -914,8 +914,8 @@ async function parseJsonBody<T>(
       bodyLength: raw.length,
       bodyKind: unparsedBodyKind(raw),
     }, context);
-    // No part of the body goes in the message: transcribe.ts logs it and
-    // returns it to the client, and a 200 body is the user's transcript.
+    // No part of the body goes in the message: the transcribe route logs it,
+    // and a 200 body is the user's transcript.
     throw new Error(`Google Speech returned non-JSON 200 body during ${phase} (content-type=${ct}, len=${raw.length})`);
   }
 }
