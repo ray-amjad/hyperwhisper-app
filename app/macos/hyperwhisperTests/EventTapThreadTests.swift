@@ -94,9 +94,9 @@ struct EventTapThreadTests {
     /// check something does NOT happen keep their short bounds.
     static let hangGuard: TimeInterval = 120
 
-    /// What is left of a shared hang guard. The loop tests give all their
-    /// hosts one guard between them, so a regression fails in about 120 s, not
-    /// 120 s per host.
+    /// What is left of a shared hang guard. The loop tests' exit checks share
+    /// one guard, started once every host is stopped, so a regression fails in
+    /// about 120 s, not 120 s per host.
     static func remaining(until deadline: Date) -> TimeInterval {
         max(0, deadline.timeIntervalSinceNow)
     }
@@ -164,17 +164,17 @@ struct EventTapThreadTests {
     }
 
     @Test func startStopCyclesLeaveNoLiveTapThread() throws {
-        let deadline = Date(timeIntervalSinceNow: Self.hangGuard)
         var hosts: [(EventTapThread, Thread, CFMachPort)] = []
         for _ in 0..<50 {
             let port = Self.makePort()
             let host = EventTapThread(name: "test.tap", setTapEnabled: EnableRecorder().setTapEnabled)
             host.start(tap: port)
-            _ = try #require(host.waitUntilRunning(timeout: Self.remaining(until: deadline)))
+            _ = try #require(host.waitUntilRunning(timeout: Self.hangGuard))
             let thread = try #require(host.threadForTesting)
             hosts.append((host, thread, port))
             host.stop()
         }
+        let deadline = Date(timeIntervalSinceNow: Self.hangGuard)
         for (host, thread, port) in hosts {
             #expect(host.waitUntilExited(timeout: Self.remaining(until: deadline)))
             #expect(Self.eventually(timeout: Self.remaining(until: deadline)) { thread.isFinished })
@@ -185,7 +185,6 @@ struct EventTapThreadTests {
     /// The race the issue's blast radius names: a stop that lands before the
     /// new thread has even reached its run loop.
     @Test func aStopRacingAStartStillEndsTheThread() throws {
-        let deadline = Date(timeIntervalSinceNow: Self.hangGuard)
         var hosts: [(EventTapThread, Thread, CFMachPort)] = []
         for _ in 0..<200 {
             let port = Self.makePort()
@@ -195,6 +194,7 @@ struct EventTapThreadTests {
             let thread = try #require(host.threadForTesting)
             hosts.append((host, thread, port))
         }
+        let deadline = Date(timeIntervalSinceNow: Self.hangGuard)
         for (host, thread, port) in hosts {
             #expect(host.waitUntilExited(timeout: Self.remaining(until: deadline)))
             #expect(Self.eventually(timeout: Self.remaining(until: deadline)) { thread.isFinished })

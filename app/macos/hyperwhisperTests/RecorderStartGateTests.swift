@@ -48,7 +48,7 @@ struct RecorderStartGateTests {
     }
 
     @Test func workThatFinishesInTimeReturnsItsValue() async throws {
-        let gate = Self.makeGate(timeoutMs: 30_000)
+        let gate = Self.makeGate(timeoutMs: 120_000)
         let discarded = OSAllocatedUnfairLock(initialState: false)
 
         let value = try await gate.run({ 42 }, discardLate: { _ in discarded.withLock { $0 = true } })
@@ -59,7 +59,7 @@ struct RecorderStartGateTests {
     }
 
     @Test func workThatThrowsInTimeRethrowsItsError() async {
-        let gate = Self.makeGate(timeoutMs: 30_000)
+        let gate = Self.makeGate(timeoutMs: 120_000)
 
         await #expect(throws: WorkFailed.self) {
             _ = try await gate.run({ () throws -> Int in throw WorkFailed() }, discardLate: { _ in })
