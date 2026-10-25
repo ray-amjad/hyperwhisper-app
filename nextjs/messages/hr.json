@@ -26,7 +26,7 @@
     "downloadCta": "Preuzmi odmah",
     "demoCta": "Pogledaj demo",
     "availableOn": "Dostupno na",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Postoji li pretplata?",
-        "answer": "Ne — nikada. HyperWhisper je aplikacija otvorenog koda koju posjedujete, a ne pretplata koju iznajmljujete. Preuzmite je besplatno i koristite lokalnu, izvanmreznu transkripciju bez naknade zauvijek; besplatna razina takoder ukljucuje 5 minuta transkripcije u oblaku dnevno. Kada zelite transkripciju u oblaku bez ikakvog postavljanja iznad toga, HyperWhisper Cloud su jednostavni krediti prema koristenju — nadoplacujte samo kada trebate, bez mjesecnih naknada i bez icega za otkazati."
+        "answer": "Ne — nikada. HyperWhisper je aplikacija otvorenog koda koju posjedujete, a ne pretplata koju iznajmljujete. Preuzmite je besplatno i koristite lokalnu, izvanmreznu transkripciju bez naknade zauvijek. Kada zelite transkripciju u oblaku bez ikakvog postavljanja, HyperWhisper Cloud su jednostavni krediti prema koristenju — nadoplacujte samo kada trebate, bez mjesecnih naknada i bez icega za otkazati."
       },
       "deviceLimit": {
         "question": "Na koliko uređaja mogu koristiti svoj ključ računa?",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Koji su sistemski zahtjevi?",
-        "answer": "Za Mac: macOS 14 ili noviji, uz podršku za Apple Silicon i Intel. Za Windows: Windows 10/11, x64 ili ARM64. Za Linux v1: Ubuntu 22.04 ili noviji ili Debian 12 ili noviji, na amd64. Za optimalne performanse preporučuje se 8 GB RAM-a."
+        "answer": "Za Mac: macOS 14.6 ili noviji, uz podršku za Apple Silicon i Intel. Za Windows: Windows 10/11, x64 ili ARM64. Za Linux v1: Ubuntu 22.04 ili noviji ili Debian 12 ili noviji, na amd64. Za optimalne performanse preporučuje se 8 GB RAM-a."
       },
       "madeBy": {
         "question": "Tko je ovo napravio?",
@@ -271,6 +271,7 @@
       "customerPortal": "Korisnički portal",
       "olderVersions": "Starije verzije",
       "blog": "Blog",
+      "openSource": "Otvoreni kod",
       "about": "O nama",
       "support": "Podrška",
       "privacyPolicy": "Pravila privatnosti",

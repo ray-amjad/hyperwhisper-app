@@ -772,6 +772,9 @@ Ova radnja se ne može poništiti.</value>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (Nema API ključa)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Nevažeći ključ)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>

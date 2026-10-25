@@ -31,7 +31,7 @@ import { sql } from "drizzle-orm";
 
 import { serverSchema } from "../src/env/schema.server.mjs";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 /** A complete, valid server env. Each case changes one key. */
 const VALID: Record<string, string> = {
@@ -155,7 +155,7 @@ describe("src/env/server.mjs at import (what the build runs)", () => {
 describe("src/db without PLANETSCALE_DATABASE_URL", () => {
   test("imports, then fails every query with a clear message", async () => {
     // The validated env as Preview has it: no database URL.
-    moduleMock.module(new URL("../src/env/server.mjs", import.meta.url).href, {
+    moduleMock.module(moduleUrl("../src/env/server.mjs"), {
       namedExports: { env: {} },
     });
     // A variable specifier, so the import binds to the mock above.

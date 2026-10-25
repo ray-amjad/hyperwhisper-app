@@ -26,7 +26,7 @@
     "downloadCta": "Descarcă acum",
     "demoCta": "Vezi demo",
     "availableOn": "Disponibil pe",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Există vreun abonament?",
-        "answer": "Nu — niciodată. HyperWhisper este o aplicație open-source pe care o deții, nu un abonament pe care îl închiriezi. Descarc-o gratuit și folosește transcrierea locală, offline, fără niciun cost, pentru totdeauna; planul gratuit include și 5 minute de transcriere în cloud pe zi. Când vrei transcriere în cloud fără configurare dincolo de atât, HyperWhisper Cloud înseamnă credite simple, pay-as-you-go — adaugi fonduri doar când ai nevoie, fără taxe lunare și fără nimic de anulat."
+        "answer": "Nu — niciodată. HyperWhisper este o aplicație open-source pe care o deții, nu un abonament pe care îl închiriezi. Descarc-o gratuit și folosește transcrierea locală, offline, fără niciun cost, pentru totdeauna. Când vrei transcriere în cloud fără configurare, HyperWhisper Cloud înseamnă credite simple, pay-as-you-go — adaugi fonduri doar când ai nevoie, fără taxe lunare și fără nimic de anulat."
       },
       "deviceLimit": {
         "question": "Pe câte dispozitive îmi pot folosi cheia de cont?",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Care sunt cerințele de sistem?",
-        "answer": "Pentru Mac: macOS 14 sau mai nou, cu suport pentru Apple Silicon și Intel. Pentru Windows: Windows 10/11, x64 sau ARM64. Pentru Linux v1: Ubuntu 22.04 sau mai nou ori Debian 12 sau mai nou, pe amd64. Pentru performanță optimă se recomandă 8GB RAM."
+        "answer": "Pentru Mac: macOS 14.6 sau mai nou, cu suport pentru Apple Silicon și Intel. Pentru Windows: Windows 10/11, x64 sau ARM64. Pentru Linux v1: Ubuntu 22.04 sau mai nou ori Debian 12 sau mai nou, pe amd64. Pentru performanță optimă se recomandă 8GB RAM."
       },
       "madeBy": {
         "question": "Cine a creat asta?",
@@ -271,6 +271,7 @@
       "customerPortal": "Portal clienți",
       "olderVersions": "Versiuni mai vechi",
       "blog": "Blog",
+      "openSource": "Sursă deschisă",
       "about": "Despre",
       "support": "Suport",
       "privacyPolicy": "Politica de confidențialitate",

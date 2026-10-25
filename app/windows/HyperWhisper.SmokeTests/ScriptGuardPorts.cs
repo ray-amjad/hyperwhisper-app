@@ -296,6 +296,45 @@ internal static class ScriptGuardPorts
             }
         });
 
+        run("models: the Model Library refuses to delete a local model a mode still uses (#2245)", () =>
+        {
+            // A deleted model a mode still points at breaks that mode: its local
+            // transcription, or its AI rewrite, fails on the next recording.
+            var llmId = LocalLlmModelInfo.AllModels[0].Id;
+            var otherLlmId = LocalLlmModelInfo.AllModels.First(m => m.Id != llmId).Id;
+            var localLlm = PostProcessingProvider.LocalLlm.ToStringValue();
+            Mode M(string name, Action<Mode> set) { var m = new Mode { Name = name }; set(m); return m; }
+
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("Rewrite", m => { m.PostProcessingProvider = localLlm; m.LocalPostProcessingModel = llmId; })], llmId)?.Name == "Rewrite",
+                "a mode whose LocalPostProcessingModel is the model did not protect it");
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("Legacy", m => { m.PostProcessingProvider = localLlm; m.LanguageModel = llmId; })], llmId)?.Name == "Legacy",
+                "a mode that keeps the model in the legacy LanguageModel field did not protect it");
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("Upper", m => { m.PostProcessingProvider = "LOCAL_LLM"; m.LocalPostProcessingModel = llmId.ToUpperInvariant(); })], llmId)?.Name == "Upper",
+                "the provider or model id match was case-sensitive");
+            // No retired id migrates to a local GGUF today, so this pins the
+            // MigrateModelId hop on both sides with a cloud id that does migrate.
+            const string retiredId = "llama-3.1-8b";
+            var migratedId = LanguageModelInfo.MigrateModelId(retiredId)!;
+            Assert(migratedId != retiredId, $"test premise: {retiredId} no longer migrates");
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("Old", m => { m.PostProcessingProvider = localLlm; m.LanguageModel = retiredId; })], migratedId)?.Name == "Old",
+                "a mode on a retired id did not protect the model it migrates to");
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("Other", m => { m.PostProcessingProvider = localLlm; m.LocalPostProcessingModel = otherLlmId; })], llmId) == null,
+                "a mode on a different local model blocked the delete");
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("Cloud", m => { m.PostProcessingProvider = "openai"; m.LanguageModel = llmId; })], llmId) == null,
+                "a mode whose provider is not the local LLM blocked the delete");
+
+            Assert(ModelInUse.FindModeUsingWhisperModel([M("W", m => { m.ProviderType = "local"; m.LocalEngine = "whisper"; m.ModelType = "base"; })], "base")?.Name == "W",
+                "a local Whisper mode did not protect its model");
+            Assert(ModelInUse.FindModeUsingWhisperModel([M("WLegacy", m => { m.ProviderType = "local"; m.LocalEngine = "whisper"; m.Model = "base"; })], "base")?.Name == "WLegacy",
+                "a local Whisper mode that keeps its model in the legacy Model field did not protect it");
+            Assert(ModelInUse.FindModeUsingWhisperModel([M("W", m => { m.ProviderType = "cloud"; m.LocalEngine = "whisper"; m.ModelType = "base"; })], "base") == null,
+                "a cloud mode's leftover Whisper model blocked the delete");
+            Assert(ModelInUse.FindModeUsingParakeetModel([M("P", m => { m.ProviderType = "local"; m.LocalEngine = "parakeet"; m.LocalParakeetModel = "pk"; })], "pk")?.Name == "P",
+                "a local Parakeet mode did not protect its model");
+            Assert(ModelInUse.FindModeUsingParakeetModel([M("P", m => { m.ProviderType = "local"; m.LocalEngine = "whisper"; m.LocalParakeetModel = "pk"; })], "pk") == null,
+                "a Whisper-engine mode's leftover Parakeet model blocked the delete");
+        });
+
         run("prompt: each detected app type puts its own context block in the AI prompt (#830)", () =>
         {
             // The AppType -> core HwAppType switch is C#. A wrong arm formats an
@@ -529,6 +568,686 @@ internal static class ScriptGuardPorts
                     $"{method}: no modes did not give one disabled '{Loc.S("menu.mode.none")}' item");
             }
         });
+
+        RunKeepWarm(run);
+        RunDictationModePinning(run);
+        RunStreamingCancel(run);
+    }
+
+    /// <summary>
+    /// The microphone keep-warm state machine (#2244), driven through its capture
+    /// seam with a fake capture, so a check sees every open and close the service
+    /// makes. It replaces the deleted verify_microphone_keep_warm_wiring.ps1, which
+    /// matched source text and failed on moved code. The Linux head has the same
+    /// rules (HyperWhisper.Linux.Platform.Tests, "microphone keep-warm ...").
+    /// </summary>
+    private static void RunKeepWarm(Action<string, Action> run)
+    {
+        run("keep-warm: re-selecting the warm device keeps the one capture (#2244)", () =>
+        {
+            var captures = new List<FakeCapture>();
+            using var keepWarm = NewKeepWarm(captures);
+
+            keepWarm.Configure(true, 2);
+            Assert(captures.Count == 1 && captures[0].Device == 2 && captures[0].Running,
+                "enabling keep-warm on device #2 did not open one running capture on #2");
+
+            // Settings and device-list refreshes call Configure again with the same
+            // device; a restart there re-pays the cold WASAPI activation.
+            keepWarm.Configure(true, 2);
+            keepWarm.Configure(true, 2);
+            Assert(captures.Count == 1 && captures[0].Running && captures[0].Stops == 0,
+                $"re-selecting the warm device restarted capture ({captures.Count} opened, {captures[0].Stops} stops)");
+
+            keepWarm.Configure(true, 5);
+            Assert(captures.Count == 2 && captures[0].Disposed && !captures[0].Running,
+                "changing device left the old capture open");
+            Assert(captures[1].Device == 5 && captures[1].Running,
+                "changing device did not open a capture on the new device");
+
+            // -1 is NAudio's system-default device: a device, not "no device".
+            keepWarm.Configure(true, -1);
+            Assert(captures.Count == 3 && captures[2].Device == -1 && captures[2].Running,
+                "the system-default device (-1) did not open a capture");
+
+            keepWarm.Configure(true, null);
+            Assert(captures.TrueForAll(c => c.Disposed) && captures.Count == 3,
+                "no selected device left a capture open, or opened one");
+
+            keepWarm.Configure(true, 5);
+            keepWarm.Configure(false, 5);
+            Assert(captures.Count == 4 && captures[3].Disposed,
+                "disabling keep-warm left the capture open");
+            keepWarm.Configure(false, 5);
+            Assert(captures.Count == 4, "keep-warm opened a capture while disabled");
+        });
+
+        run("keep-warm: a recording suspends it and stop/cancel resume it (#2244)", () =>
+        {
+            var captures = new List<FakeCapture>();
+            using var keepWarm = NewKeepWarm(captures);
+            keepWarm.Configure(true, 3);
+
+            // Start: the real recorder opens the same endpoint next, so the idle
+            // stream must be closed before it.
+            keepWarm.SuspendForRecording();
+            Assert(captures.Count == 1 && captures[0].Disposed && !captures[0].Running,
+                "starting a recording left the keep-warm capture open");
+
+            // A settings or device change mid-recording must not reopen it.
+            keepWarm.Configure(true, 3);
+            keepWarm.Configure(true, 4);
+            Assert(captures.Count == 1, "keep-warm reopened the microphone during a recording");
+
+            // Stop (or cancel, the same call): reopen on the device the app has now.
+            keepWarm.ResumeAfterRecording(4);
+            Assert(captures.Count == 2 && captures[1].Device == 4 && captures[1].Running,
+                "stopping the recording did not reopen keep-warm on the selected device");
+
+            // A cancel straight after a stop resumes twice: still one capture.
+            keepWarm.ResumeAfterRecording(4);
+            Assert(captures.Count == 2 && captures[1].Running,
+                "resuming twice opened a second capture");
+
+            // A recording while keep-warm is off resumes to off.
+            keepWarm.Configure(false, 4);
+            keepWarm.SuspendForRecording();
+            keepWarm.ResumeAfterRecording(4);
+            Assert(captures.Count == 2 && captures[1].Disposed,
+                "a recording with keep-warm off opened the microphone when it ended");
+        });
+
+        run("keep-warm: a failed or dropped capture recovers only while it is wanted (#2244)", () =>
+        {
+            var captures = new List<FakeCapture>();
+            var failStarts = 1;
+            using var keepWarm = new MicrophoneKeepWarmService(device =>
+            {
+                var capture = new FakeCapture(device, failStart: failStarts-- > 0);
+                captures.Add(capture);
+                return capture;
+            });
+
+            keepWarm.Configure(true, 1);
+            Assert(captures.Count == 1 && captures[0].Disposed && !captures[0].Running,
+                "a capture that failed to start was not disposed");
+            keepWarm.Configure(true, 1);
+            Assert(captures.Count == 2 && captures[1].Running,
+                "after a failed start, the next Configure did not try again");
+
+            // The device vanishes: NAudio stops with an error, and keep-warm reopens.
+            captures[1].Fail();
+            Assert(captures[1].Disposed && captures.Count == 3 && captures[2].Device == 1 && captures[2].Running,
+                "an unexpected capture stop did not reopen keep-warm");
+
+            // NAudio raises RecordingStopped on its capture thread, so a stop can land
+            // after keep-warm has unsubscribed and let that capture go. Such a late
+            // error stop from a replaced capture changes nothing.
+            captures[1].Fail(late: true);
+            Assert(captures.Count == 3 && captures[2].Running && !captures[2].Disposed,
+                "a replaced capture's late error stop tore down or replaced the live capture");
+
+            // During a recording, a late error stop from the capture keep-warm just
+            // closed must not reopen the microphone the recorder now holds.
+            keepWarm.SuspendForRecording();
+            captures[2].Fail(late: true);
+            Assert(captures.Count == 3, "a late error stop reopened keep-warm during a recording");
+            keepWarm.ResumeAfterRecording(1);
+            Assert(captures.Count == 4 && captures[3].Running, "keep-warm did not resume after the recording");
+
+            keepWarm.Dispose();
+            Assert(captures[3].Disposed, "disposing keep-warm left the capture open");
+            keepWarm.Configure(true, 1);
+            keepWarm.ResumeAfterRecording(1);
+            Assert(captures.Count == 4, "keep-warm opened a capture after it was disposed");
+        });
+
+        run("keep-warm: MainViewModel suspends it for recordings, resumes it after, and follows setting and device changes (#2244)", () =>
+        {
+            const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+            MethodInfo Vm(string name) => typeof(MainViewModel).GetMethod(name, all)
+                ?? throw new MissingMethodException(nameof(MainViewModel), name);
+            MethodInfo KeepWarm(string name) => typeof(MicrophoneKeepWarmService).GetMethod(name)
+                ?? throw new MissingMethodException(nameof(MicrophoneKeepWarmService), name);
+
+            Assert(Program.AsyncBodyCalls(Vm("SuspendMicrophoneKeepWarm"), KeepWarm(nameof(MicrophoneKeepWarmService.SuspendForRecording))),
+                "SuspendMicrophoneKeepWarm no longer suspends the keep-warm service");
+            Assert(Program.AsyncBodyCalls(Vm("ResumeMicrophoneKeepWarm"), KeepWarm(nameof(MicrophoneKeepWarmService.ResumeAfterRecording))),
+                "ResumeMicrophoneKeepWarm no longer resumes the keep-warm service");
+            Assert(Program.AsyncBodyCalls(Vm("UpdateMicrophoneKeepWarm"), KeepWarm(nameof(MicrophoneKeepWarmService.Configure))),
+                "UpdateMicrophoneKeepWarm no longer configures the keep-warm service");
+
+            // Presence only: the IL scan cannot see whether the suspend comes before
+            // the recorder opens.
+            foreach (var starter in new[] { "StartRecordingAsync", "StartStreamingRecordingAsync" })
+            {
+                Assert(Program.AsyncBodyCalls(Vm(starter), Vm("SuspendMicrophoneKeepWarm")),
+                    $"{starter} no longer suspends keep-warm, so the idle stream holds the microphone during the recording");
+            }
+            foreach (var resumer in new[] { "StopRecordingAndTranscribeAsync", "StopStreamingRecordingAsync", "CancelRecordingAsync", "CancelStreamingRecordingAsync", "CleanupFailedRecordingStart" })
+            {
+                Assert(Program.AsyncBodyCalls(Vm(resumer), Vm("ResumeMicrophoneKeepWarm")),
+                    $"{resumer} no longer resumes keep-warm, so the microphone stays cold after it");
+            }
+            foreach (var listener in new[] { "OnSelectedAudioDeviceChanged", "OnSettingsChanged" })
+            {
+                Assert(Program.AsyncBodyCalls(Vm(listener), Vm("UpdateMicrophoneKeepWarm")),
+                    $"{listener} no longer reconfigures keep-warm, so a setting or device change waits for the next recording");
+            }
+            Assert(Program.AsyncBodyCalls(Vm("CleanupAsync"), KeepWarm(nameof(MicrophoneKeepWarmService.Dispose))),
+                "CleanupAsync no longer disposes keep-warm, so the microphone stays open at exit");
+        });
+    }
+
+    /// <summary>
+    /// The mode a dictation runs on (#2241). A tray or hotkey mode switch while
+    /// the user is still speaking must not move the recording already in progress
+    /// to the new mode: its provider, language, trailing-period rule and History
+    /// label stay the ones it started with. The check drives the real start, stop
+    /// and cancel path through MainViewModel's dictation seams, with a fake
+    /// microphone, transcriber and paste target. It replaces the deleted
+    /// verify_ptt_tray_mode_pinning.ps1, which matched source text.
+    /// </summary>
+    private static void RunDictationModePinning(Action<string, Action> run)
+    {
+        run("dictation: a tray or hotkey mode switch mid-dictation leaves the recording on the mode it started with (#2241)", () =>
+        {
+            const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+            DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+            // Earlier cases can leave a WPF context on this thread, and the harness
+            // runs no Dispatcher loop, so an awaited continuation would never run.
+            var previousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+
+            var settings = SettingsService.Instance;
+            var saved = (settings.AutoPasteEnabled, settings.AutocapitalizeInsert, settings.AutoIncreaseMicVolume,
+                settings.StoreAsM4A, settings.MediaControlMode, settings.EnableSoundEffects);
+            var transcribed = new List<(string AudioPath, Mode Mode)>();
+            var pasted = new List<string>();
+            using var shortcuts = new KeyboardShortcutService();
+            using var pushToTalk = new PushToTalkMonitor();
+            MainViewModel? vm = null;
+            try
+            {
+                // The paste seam sits on the auto-paste branch; the rest keep the
+                // run off the machine (no mic boost, no media mute, no sounds, no focus read).
+                settings.AutoPasteEnabled = true;
+                settings.AutocapitalizeInsert = false;
+                settings.AutoIncreaseMicVolume = false;
+                settings.StoreAsM4A = false;
+                settings.MediaControlMode = "off";
+                settings.EnableSoundEffects = false;
+
+                // Alpha and Beta differ in everything the stop path reads from the
+                // mode: the name History shows, the language (Japanese gets no
+                // trailing space) and the trailing-period rule.
+                Mode CloudMode(string name, string language, bool removeTrailingPeriod)
+                {
+                    var mode = ModeDefaults.GetDefaultModes().Single();
+                    mode.Id = Guid.NewGuid();
+                    mode.Name = name;
+                    mode.Language = language;
+                    mode.RemoveTrailingPeriod = removeTrailingPeriod;
+                    mode.PostProcessingMode = 0;
+                    mode.EnableScreenOCR = false;
+                    return mode;
+                }
+                var alpha = CloudMode("G2241 Alpha", "ja", removeTrailingPeriod: true);
+                var beta = CloudMode("G2241 Beta", "en", removeTrailingPeriod: false);
+                Assert(alpha.ProviderType == "cloud", "precondition: the stock mode is a cloud mode, so no local model has to load");
+                const string spoken = "Hello world.";
+                const string alphaText = "Hello world";
+                const string betaText = "Hello world. ";
+
+                var recorder = new FakeDictationRecorder();
+                vm = (MainViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
+                foreach (var (name, value) in new (string, object?)[]
+                {
+                    ("_settingsService", settings),
+                    ("_modelService", new WhisperModelService()),
+                    ("_transcriptionService", new TranscriptionService()),
+                    ("_parakeetTranscriptionService", new ParakeetTranscriptionService()),
+                    ("_localLlmModelService", new LocalLlmModelService()),
+                    ("_vocabularyService", VocabularyService.Instance),
+                    ("_storageService", StorageService.Instance),
+                    ("_shortcutService", shortcuts),
+                    ("_pushToTalkMonitor", pushToTalk),
+                    ("_audioDevices", new List<AudioDeviceService.AudioDevice>()),
+                    ("_selectedAudioDevice", new AudioDeviceService.AudioDevice(3, "G2241 Microphone")),
+                    ("_modes", new List<Mode> { alpha, beta }),
+                    ("_selectedMode", alpha),
+                })
+                {
+                    SetField(vm, name, value);
+                }
+                // No BYOK key, and never the machine's Credential Manager.
+                vm.ApiKeyServiceOverride = new ApiKeyService(new Program.InMemoryCredentialBackend());
+                vm.CloudAccountKeyPresentOverride = () => false;
+                vm.DictationRecorderOverride = recorder;
+                vm.TranscribeRecordingOverride = (audioPath, mode) =>
+                {
+                    transcribed.Add((audioPath, mode));
+                    return Task.FromResult(new TranscriptionResult(spoken, spoken, "G2241 Provider"));
+                };
+                vm.DeliverAutoPasteOverride = text =>
+                {
+                    pasted.Add(text);
+                    return Task.FromResult((SmartPasteResult.Pasted, false));
+                };
+                var cycleMode = typeof(MainViewModel).GetMethod("CycleMode", all)
+                    ?? throw new MissingMethodException(nameof(MainViewModel), "CycleMode");
+
+                string? HistoryLabel(string audioPath)
+                {
+                    using var db = new HyperWhisperDbContext();
+                    var row = db.Transcripts.AsNoTracking().FirstOrDefault(t => t.AudioFilePath == audioPath);
+                    return row?.Status == TranscriptStatus.Completed ? row.Mode : $"<{row?.Status.ToString() ?? "no row"}>";
+                }
+
+                void Dictate(string label, Action switchMode, Mode expected, string expectedText)
+                {
+                    var before = transcribed.Count;
+                    vm.StartRecordingAsync().GetAwaiter().GetResult();
+                    Assert(vm.IsRecording && recorder.Recording, $"{label}: the dictation did not start");
+                    switchMode();
+                    Assert(!ReferenceEquals(vm.SelectedMode, expected), $"{label}: precondition: the switch moved the selection off {expected.Name}");
+                    vm.StopRecordingAndTranscribeAsync().GetAwaiter().GetResult();
+                    Assert(!vm.IsRecording && !vm.IsTranscribing, $"{label}: the dictation did not finish");
+                    Assert(transcribed.Count == before + 1, $"{label}: {transcribed.Count - before} transcriptions ran, expected 1");
+                    var (audioPath, mode) = transcribed[^1];
+                    Assert(ReferenceEquals(mode, expected),
+                        $"{label}: the recording was transcribed for '{mode.Name}', the mode selected mid-dictation, not '{expected.Name}' it started on");
+                    Assert(pasted.Count == transcribed.Count && pasted[^1] == expectedText,
+                        $"{label}: pasted '{pasted.LastOrDefault()}', expected '{expectedText}' ({expected.Name}'s language and trailing-period rule)");
+                    var history = HistoryLabel(audioPath);
+                    Assert(history == expected.Name, $"{label}: History labels the row '{history}', expected '{expected.Name}'");
+                }
+
+                // The changeMode hotkey goes through CycleMode, Alpha -> Beta.
+                Dictate("hotkey switch", () => Assert((bool)cycleMode.Invoke(vm, null)!, "CycleMode refused the switch"),
+                    alpha, alphaText);
+                Assert(ReferenceEquals(vm.SelectedMode, beta), "the hotkey's switch did not stay selected after the dictation");
+
+                // The tray's Mode submenu goes through TrySelectMode, Beta -> Alpha.
+                Dictate("tray switch", () => Assert(vm.TrySelectMode(alpha), "TrySelectMode refused the switch"),
+                    beta, betaText);
+
+                // Cancel: nothing is transcribed or pasted, and the next dictation
+                // runs on the mode selected when IT starts.
+                vm.StartRecordingAsync().GetAwaiter().GetResult();
+                Assert(vm.IsRecording && recorder.Recording, "cancel: the dictation did not start");
+                Assert(vm.TrySelectMode(beta), "cancel: TrySelectMode refused the switch");
+                var transcriptions = transcribed.Count;
+                vm.HandleCancelRequest().GetAwaiter().GetResult();
+                Assert(!vm.IsRecording && !recorder.Recording, "cancel: the recording is still running");
+                Assert(transcribed.Count == transcriptions && pasted.Count == transcriptions,
+                    "cancel: a cancelled dictation was transcribed or pasted");
+                Dictate("after cancel", () => Assert(vm.TrySelectMode(alpha), "TrySelectMode refused the switch"),
+                    beta, betaText);
+            }
+            finally
+            {
+                // A failed assertion can leave a dictation running: cancel it, so
+                // keep-warm and the audio-environment claim are handed back.
+                if (vm?.IsRecording == true)
+                {
+                    try { vm.HandleCancelRequest().GetAwaiter().GetResult(); }
+                    catch (Exception) { /* best effort */ }
+                }
+                // Every row this check made, including one a failed stop left behind.
+                using (var db = new HyperWhisperDbContext())
+                {
+                    var ids = db.Transcripts.AsNoTracking()
+                        .Where(t => t.Mode != null && t.Mode.StartsWith("G2241 "))
+                        .Select(t => t.Id)
+                        .ToList();
+                    foreach (var id in ids) HistoryService.Instance.DeleteTranscript(id);
+                }
+                foreach (var (audioPath, _) in transcribed) TryDeleteFile(audioPath);
+                settings.AutoPasteEnabled = saved.AutoPasteEnabled;
+                settings.AutocapitalizeInsert = saved.AutocapitalizeInsert;
+                settings.AutoIncreaseMicVolume = saved.AutoIncreaseMicVolume;
+                settings.StoreAsM4A = saved.StoreAsM4A;
+                settings.MediaControlMode = saved.MediaControlMode;
+                settings.EnableSoundEffects = saved.EnableSoundEffects;
+                SynchronizationContext.SetSynchronizationContext(previousContext);
+            }
+        });
+    }
+
+    /// <summary>
+    /// A microphone for the dictation seam (#2241): each stop hands back a short
+    /// WAV of silence, so the stop path saves and transcribes a real file.
+    /// </summary>
+    private sealed class FakeDictationRecorder : IDictationRecorder
+    {
+        public bool Recording { get; private set; }
+        public TimeSpan Duration => TimeSpan.FromSeconds(1);
+        public long CapturedAudioBytes { get; private set; }
+
+        public void StartRecording(int deviceNumber)
+        {
+            Recording = true;
+            CapturedAudioBytes = 0;
+        }
+
+        public Result<string> StopRecording()
+        {
+            if (!Recording) return Result<string>.Failure("not recording");
+            Recording = false;
+            Directory.CreateDirectory(AppPaths.ProfileTempRecordingsDirectory);
+            var path = Path.Combine(AppPaths.ProfileTempRecordingsDirectory, $"g2241-{Guid.NewGuid():N}.wav");
+            using (var writer = new NAudio.Wave.WaveFileWriter(path, new NAudio.Wave.WaveFormat(16000, 16, 1)))
+            {
+                var silence = new byte[3200];
+                writer.Write(silence, 0, silence.Length);
+                CapturedAudioBytes = silence.Length;
+            }
+            return Result<string>.Success(path);
+        }
+
+        public void BoostMicVolume(int deviceNumber) { }
+        public void RestoreMicVolume() { }
+    }
+
+    private static MicrophoneKeepWarmService NewKeepWarm(List<FakeCapture> captures) =>
+        new(device =>
+        {
+            var capture = new FakeCapture(device);
+            captures.Add(capture);
+            return capture;
+        });
+
+    /// <summary>
+    /// A capture that records what keep-warm did to it, and can fail like a pulled
+    /// device. Like WaveInEvent it raises RecordingStopped after StopRecording; and
+    /// because NAudio raises it on its capture thread, a "late" raise reaches every
+    /// handler ever attached, even one keep-warm has since removed.
+    /// </summary>
+    private sealed class FakeCapture(int device, bool failStart = false) : NAudio.Wave.IWaveIn
+    {
+        private readonly List<EventHandler<NAudio.Wave.StoppedEventArgs>> _everStopped = [];
+        private EventHandler<NAudio.Wave.StoppedEventArgs>? _stopped;
+
+        public int Device { get; } = device;
+        public bool Running { get; private set; }
+        public bool Disposed { get; private set; }
+        public int Stops { get; private set; }
+        public NAudio.Wave.WaveFormat WaveFormat { get; set; } = new(16000, 16, 1);
+
+        public event EventHandler<NAudio.Wave.WaveInEventArgs>? DataAvailable;
+        public event EventHandler<NAudio.Wave.StoppedEventArgs>? RecordingStopped
+        {
+            add { _stopped += value; if (value != null) _everStopped.Add(value); }
+            remove => _stopped -= value;
+        }
+
+        public void StartRecording()
+        {
+            if (failStart)
+                throw new InvalidOperationException("device busy");
+            Running = true;
+            DataAvailable?.Invoke(this, new NAudio.Wave.WaveInEventArgs(new byte[320], 320));
+        }
+
+        public void StopRecording()
+        {
+            Stops++;
+            Running = false;
+            RaiseStopped(null, late: true);
+        }
+
+        public void Fail(bool late = false)
+        {
+            Running = false;
+            RaiseStopped(new InvalidOperationException("device removed"), late);
+        }
+
+        private void RaiseStopped(Exception? error, bool late)
+        {
+            var args = new NAudio.Wave.StoppedEventArgs(error);
+            if (!late)
+            {
+                _stopped?.Invoke(this, args);
+                return;
+            }
+
+            foreach (var handler in _everStopped.ToArray())
+                handler(this, args);
+        }
+
+        public void Dispose()
+        {
+            Running = false;
+            Disposed = true;
+        }
+    }
+
+    /// <summary>
+    /// Esc during a live streaming session (#2242). The real StartStreamingRecordingAsync
+    /// opens the session through its factory seams with a fake client and capture, and the
+    /// real HandleCancelRequest must discard it: the stop-and-save path never entered, no
+    /// History row, the cancelled status. The session has no paste service, so a paste is
+    /// not seen directly; the stop path pastes between its transcribing signal and its
+    /// History write, and the check asserts neither happened. It replaces the deleted
+    /// verify_streaming_cancel_wiring.ps1, which matched source text. The second check is
+    /// the control: the same session stopped through StopStreamingRecordingAsync does
+    /// save, so "no row" above is not vacuous.
+    /// </summary>
+    private static void RunStreamingCancel(Action<string, Action> run)
+    {
+        run("streaming: Esc during a live session discards the text instead of saving and pasting it (#2242)", () =>
+        {
+            using var session = StreamingSession.Start();
+            var vm = session.Vm;
+            Assert(vm.IsRecording && session.Capture.StartedOn == StreamingSession.DeviceNumber && session.Client.Starts == 1,
+                "precondition: the fake session did not start (IsRecording, capture on the selected device, one client start)");
+
+            vm.HandleCancelRequest().GetAwaiter().GetResult();
+
+            Assert(session.Client.Stops == 1, $"the cancel stopped the streaming client {session.Client.Stops} times, not once");
+            Assert(session.Capture.Stopped && session.Capture.Disposed, "the cancel left the microphone capture running");
+            Assert(session.Client.Disposed && session.Client.Handlers == 0 && session.Capture.Handlers == 0,
+                "the cancel did not tear the session down (client disposed, every handler removed)");
+            // The stop-and-save path announces itself before its first await, and
+            // pastes before it writes the streamed text to History; the cancel does neither.
+            Assert(session.TranscribingShown == 0 && !session.SawTranscribing,
+                "the cancel entered the stop-and-save path (ShowTranscribingRequested / IsTranscribing)");
+            Assert(session.SavedRows() == 0, "the cancel saved the streamed text to History");
+            Assert(vm.StatusText == MainViewModel.CancelledStatusText(cancelledFileTranscription: false),
+                $"the status reads '{vm.StatusText}', not the cancelled text");
+            Assert(!vm.IsRecording && !vm.IsTranscribing, "the view model still reports a recording or a transcription");
+        });
+
+        run("streaming: the same live session stopped normally does save its text (control for #2242)", () =>
+        {
+            using var session = StreamingSession.Start();
+            var stop = typeof(MainViewModel).GetMethod("StopStreamingRecordingAsync", InstanceField)
+                ?? throw new MissingMethodException(nameof(MainViewModel), "StopStreamingRecordingAsync");
+            ((Task)stop.Invoke(session.Vm, null)!).GetAwaiter().GetResult();
+
+            Assert(session.Client.Stops == 1, $"the stop called the streaming client's StopAsync {session.Client.Stops} times");
+            Assert(session.TranscribingShown == 1, "the stop path did not show the transcribing state");
+            Assert(session.SavedRows() == 1, "the stop path did not save the streamed text to History, so the cancel check proves nothing");
+        });
+    }
+
+    /// <summary>
+    /// A MainViewModel with a live streaming session started by the real
+    /// StartStreamingRecordingAsync over the fakes below. Hermetic: no microphone, no
+    /// network, no paste service (so nothing can type into the runner's desktop), History
+    /// in the suite's scratch profile, and the settings that would touch the machine's
+    /// audio (mic boost, sounds, media muting) off for the duration.
+    /// </summary>
+    private sealed class StreamingSession : IDisposable
+    {
+        public const int DeviceNumber = 7;
+        private readonly SynchronizationContext? _previousContext = SynchronizationContext.Current;
+        private readonly (bool Boost, bool Sounds, string Media) _previousSettings;
+        private readonly List<IDisposable> _owned = [];
+        // The streamed text goes through the shared core's finalizer, which may recase
+        // or punctuate it, so the History lookup matches on the GUID in its middle.
+        private readonly string _marker = Guid.NewGuid().ToString("N");
+
+        public MainViewModel Vm { get; private set; } = null!;
+        public FakeStreamingClient Client { get; }
+        public FakeStreamingSource Capture { get; } = new();
+        public int TranscribingShown { get; private set; }
+        public bool SawTranscribing { get; private set; }
+
+        private StreamingSession()
+        {
+            DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+            // The suite's thread can hold a DispatcherSynchronizationContext no loop pumps;
+            // the stop path's History insert resumes on it and would hang (see Program.cs).
+            SynchronizationContext.SetSynchronizationContext(null);
+
+            var settings = SettingsService.Instance;
+            _previousSettings = (settings.AutoIncreaseMicVolume, settings.EnableSoundEffects, settings.MediaControlMode);
+            settings.AutoIncreaseMicVolume = false;
+            settings.EnableSoundEffects = false;
+            settings.MediaControlMode = "off";
+            Client = new FakeStreamingClient($"Streamed text for 2242, {_marker} end");
+        }
+
+        private void Wire()
+        {
+            var settings = SettingsService.Instance;
+            Vm = (MainViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
+            SetField(Vm, "_settingsService", settings);
+            SetField(Vm, "_vocabularyService", VocabularyService.Instance);
+            SetField(Vm, "_recorderService", Own(new AudioRecorderService()));
+            SetField(Vm, "_transcriptionService", Own(new TranscriptionService()));
+            SetField(Vm, "_parakeetTranscriptionService", new ParakeetTranscriptionService());
+            SetField(Vm, "_pushToTalkMonitor", Own(new PushToTalkMonitor()));
+            SetField(Vm, "_shortcutService", Own(new KeyboardShortcutService()));
+            SetField(Vm, "_selectedAudioDevice", new AudioDeviceService.AudioDevice(DeviceNumber, "G2242 Microphone"));
+            Vm.StreamingClientFactoryOverride = _ => Result<IStreamingTranscriptionClient>.Success(Client);
+            Vm.StreamingAudioSourceFactoryOverride = () => Capture;
+            Vm.ShowTranscribingRequested += (_, _) => TranscribingShown++;
+            Vm.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(MainViewModel.IsTranscribing) && Vm.IsTranscribing)
+                    SawTranscribing = true;
+            };
+        }
+
+        public static StreamingSession Start()
+        {
+            var session = new StreamingSession();
+            try
+            {
+                session.Wire();
+                var start = typeof(MainViewModel).GetMethod("StartStreamingRecordingAsync", InstanceField)
+                    ?? throw new MissingMethodException(nameof(MainViewModel), "StartStreamingRecordingAsync");
+                ((Task)start.Invoke(session.Vm, null)!).GetAwaiter().GetResult();
+                return session;
+            }
+            catch
+            {
+                session.Dispose();
+                throw;
+            }
+        }
+
+        /// <summary>History rows holding this session's streamed text.</summary>
+        public int SavedRows()
+        {
+            using var db = new HyperWhisperDbContext();
+            return db.Transcripts.AsNoTracking().Count(t => t.Text != null && t.Text.Contains(_marker));
+        }
+
+        private T Own<T>(T disposable) where T : IDisposable
+        {
+            _owned.Add(disposable);
+            return disposable;
+        }
+
+        public void Dispose()
+        {
+            try
+            {
+                // A session the check left running (it failed before its cancel/stop).
+                if (Vm != null)
+                    (typeof(MainViewModel).GetField("_durationTimer", InstanceField)?.GetValue(Vm) as IDisposable)?.Dispose();
+                using (var db = new HyperWhisperDbContext())
+                {
+                    foreach (var id in db.Transcripts.AsNoTracking().Where(t => t.Text != null && t.Text.Contains(_marker)).Select(t => t.Id).ToList())
+                        HistoryService.Instance.DeleteTranscript(id);
+                }
+                foreach (var owned in _owned)
+                    owned.Dispose();
+            }
+            finally
+            {
+                var settings = SettingsService.Instance;
+                settings.AutoIncreaseMicVolume = _previousSettings.Boost;
+                settings.EnableSoundEffects = _previousSettings.Sounds;
+                settings.MediaControlMode = _previousSettings.Media;
+                SynchronizationContext.SetSynchronizationContext(_previousContext);
+            }
+        }
+    }
+
+    /// <summary>
+    /// A streaming client that connects at once and returns <paramref name="finalText"/>
+    /// from StopAsync, as a provider would after the user spoke. Handlers counts the
+    /// view model's live subscriptions, so a check sees the session cleanup run.
+    /// </summary>
+    private sealed class FakeStreamingClient(string finalText) : IStreamingTranscriptionClient
+    {
+        public int Starts { get; private set; }
+        public int Stops { get; private set; }
+        public bool Disposed { get; private set; }
+        public int Handlers { get; private set; }
+        public StreamingConnectionState State { get; private set; } = StreamingConnectionState.Idle;
+        public int AudioSampleRate => 16000;
+
+        public event Action<StreamingConnectionState>? StateChanged { add => Handlers++; remove => Handlers--; }
+        public event Action<string>? FinalTranscriptSegmentReceived { add => Handlers++; remove => Handlers--; }
+        public event Action<string>? WarningReceived { add => Handlers++; remove => Handlers--; }
+        public event Action<string>? ErrorReceived { add => Handlers++; remove => Handlers--; }
+        public event Action<double, double>? SessionCompleted { add => Handlers++; remove => Handlers--; }
+
+        public Task<bool> StartAsync(CancellationToken cancellationToken = default)
+        {
+            Starts++;
+            State = StreamingConnectionState.Streaming;
+            return Task.FromResult(true);
+        }
+
+        public Task<string> StopAsync(CancellationToken cancellationToken = default)
+        {
+            Stops++;
+            State = StreamingConnectionState.Idle;
+            return Task.FromResult(finalText);
+        }
+
+        public Task SendAudioAsync(byte[] pcmData, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public ValueTask DisposeAsync()
+        {
+            Disposed = true;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    /// <summary>A microphone capture that records what the view model did to it.</summary>
+    private sealed class FakeStreamingSource : IStreamingAudioSource
+    {
+        public int? StartedOn { get; private set; }
+        public bool Stopped { get; private set; }
+        public bool Disposed { get; private set; }
+        public int Handlers { get; private set; }
+        public TimeSpan Duration => TimeSpan.Zero;
+
+        public event Action<byte[]>? AudioChunkAvailable { add => Handlers++; remove => Handlers--; }
+        public event Action<float>? AudioLevelChanged { add => Handlers++; remove => Handlers--; }
+
+        public void Start(int deviceNumber, int sampleRate) => StartedOn = deviceNumber;
+        public void Stop() => Stopped = true;
+        public void Dispose() => Disposed = true;
     }
 
     private sealed class WhitespaceProvider : ITranscriptionProvider

@@ -27,7 +27,7 @@ import { loadMessages } from "@/src/i18n/messages";
 // The locale comes from the segment params when Next passes them (a notFound()
 // under [locale]): there the request locale is not set yet when metadata
 // resolves, and the title came out in English on /de/blog. With no usable
-// param (/favicon.ico) it is the default locale, not getLocale(): that is a
+// param (/x.png) it is the default locale, not getLocale(): that is a
 // headers() call, and on a prerendered route it is a 500 (#843).
 export async function generateMetadata(props?: {
   params?: Promise<{ locale?: string }>;

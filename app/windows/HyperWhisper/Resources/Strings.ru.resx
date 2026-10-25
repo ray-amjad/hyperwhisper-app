@@ -772,6 +772,9 @@
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (нет API-ключа)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (недействительный ключ)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Не удалось загрузить</value>
   </data>

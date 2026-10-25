@@ -279,11 +279,13 @@ struct AudioDeviceNotificationRefreshTests {
 
     @Test func scanDurationExcludesDelayBeforeMainActorCanResume() async {
         let probe = NotificationScanProbe()
+        let providerStart = OSAllocatedUnfairLock<UInt64>(initialState: 0)
         let providerGate = NotificationScanGate()
         let mainActorGate = NotificationScanGate()
         let manager = AudioDeviceManager(
             registerNotificationListeners: false,
             notificationSnapshotProvider: { _ in
+                providerStart.withLock { $0 = DispatchTime.now().uptimeNanoseconds }
                 _ = probe.beginCall()
                 providerGate.wait()
                 return notificationSnapshot(devices: [notificationFirstDevice])
@@ -296,17 +298,24 @@ struct AudioDeviceNotificationRefreshTests {
         }
         await Self.waitUntil { probe.calls == 1 }
 
-        DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(20)) {
-            providerGate.release()
-        }
+        // Let the provider return only while this test holds the main actor, so the
+        // scan cannot resume on the main actor until the hold ends. A duration that
+        // wrongly ran until the main actor resumed is then at least the time from the
+        // provider's start to the end of the hold. That bound is measured, not a fixed
+        // wall-clock limit, so a slow runner cannot fail a correct scan (#2401).
         DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(150)) {
             mainActorGate.release()
         }
+        providerGate.release()
         mainActorGate.wait()
+        let mainActorResumeNanoseconds = DispatchTime.now().uptimeNanoseconds
+        let providerStartToMainActorResumeMs = Int(
+            (mainActorResumeNanoseconds - providerStart.withLock { $0 }) / 1_000_000
+        )
         await refresh.value
 
         #expect(probe.reports.count == 1)
-        #expect(probe.reports[0].durationMs < 100)
+        #expect(probe.reports[0].durationMs < providerStartToMainActorResumeMs)
     }
 
     @Test func missingSelectedDeviceInvalidatesOnceWithoutCoreAudio() async {

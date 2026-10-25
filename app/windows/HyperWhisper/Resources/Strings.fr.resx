@@ -772,6 +772,9 @@ Cette action est irréversible.</value>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (aucune clé API)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (clé non valide)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Échec du chargement</value>
   </data>

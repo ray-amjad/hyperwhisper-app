@@ -148,7 +148,7 @@ public sealed class CloudSttCatalog
     /// the same fact the other heads state literally:
     /// <c>GEMINI_TRANSCRIBE_LIVE_MODEL</c> in
     /// <c>hyperwhisper-cloud/src/providers/gemini-transcribe.ts</c> (which raises
-    /// the 400), <c>LIVE_MODEL</c> in hw-net's <c>gemini_transcribe.rs</c>,
+    /// the 400), <c>LIVE_MODEL</c> in hw-net's <c>gemini_transcribe/mod.rs</c>,
     /// <c>CloudSTTCatalog.liveOnlyModelIds</c> on macOS, and the deliberate
     /// omission from <c>CloudTranscriptionModel.GeminiTranscribe</c> here. Adding
     /// a catalog field would let all of them derive it — raised as a follow-up.

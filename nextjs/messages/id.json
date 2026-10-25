@@ -26,7 +26,7 @@
     "downloadCta": "Unduh sekarang",
     "demoCta": "Lihat demo",
     "availableOn": "Tersedia di",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Apakah ada langganan?",
-        "answer": "Tidak — tidak akan pernah. HyperWhisper adalah aplikasi open-source yang Anda miliki, bukan langganan yang Anda sewa. Unduh gratis dan gunakan transkripsi lokal offline tanpa biaya selamanya; tingkat gratis juga mencakup 5 menit transkripsi cloud per hari. Saat Anda menginginkan transkripsi cloud tanpa penyiapan di luar itu, HyperWhisper Cloud adalah kredit bayar-sesuai-pakai yang sederhana — isi ulang hanya saat Anda perlu, tanpa biaya bulanan dan tidak ada yang perlu dibatalkan."
+        "answer": "Tidak — tidak akan pernah. HyperWhisper adalah aplikasi open-source yang Anda miliki, bukan langganan yang Anda sewa. Unduh gratis dan gunakan transkripsi lokal offline tanpa biaya selamanya. Saat Anda menginginkan transkripsi cloud tanpa penyiapan, HyperWhisper Cloud adalah kredit bayar-sesuai-pakai yang sederhana — isi ulang hanya saat Anda perlu, tanpa biaya bulanan dan tidak ada yang perlu dibatalkan."
       },
       "deviceLimit": {
         "question": "Berapa banyak perangkat yang bisa pakai kunci akun saya?",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Apa persyaratan sistemnya?",
-        "answer": "Untuk Mac: macOS 14 atau lebih baru, mendukung Apple Silicon dan Intel. Untuk Windows: Windows 10/11, x64 atau ARM64. Untuk Linux v1: Ubuntu 22.04 atau lebih baru, atau Debian 12 atau lebih baru, pada amd64. Disarankan 8GB RAM untuk performa optimal."
+        "answer": "Untuk Mac: macOS 14.6 atau lebih baru, mendukung Apple Silicon dan Intel. Untuk Windows: Windows 10/11, x64 atau ARM64. Untuk Linux v1: Ubuntu 22.04 atau lebih baru, atau Debian 12 atau lebih baru, pada amd64. Disarankan 8GB RAM untuk performa optimal."
       },
       "madeBy": {
         "question": "Siapa yang membuat ini?",
@@ -271,6 +271,7 @@
       "customerPortal": "Portal Pelanggan",
       "olderVersions": "Versi Lama",
       "blog": "Blog",
+      "openSource": "Sumber Terbuka",
       "about": "Tentang",
       "support": "Dukungan",
       "privacyPolicy": "Kebijakan Privasi",

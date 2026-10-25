@@ -1,4 +1,5 @@
 using System.Management;
+using System.Text.RegularExpressions;
 using System.Runtime.InteropServices;
 
 namespace HyperWhisper.Services;
@@ -148,6 +149,13 @@ public class GpuInfoService
         /// the integrated GPU (adapter 0) on multi-GPU systems.
         /// </summary>
         public int AdapterIndex { get; set; }
+
+        /// <summary>
+        /// DXGI adapter LUID, or null when the GPU came from the WMI fallback. Unlike
+        /// <see cref="AdapterIndex"/> it names the same adapter in every process, so it
+        /// is what the Parakeet daemon is given (#1846).
+        /// </summary>
+        public long? AdapterLuid { get; set; }
 
         public override string ToString() => $"{Name} ({VramDisplay})";
     }
@@ -382,7 +390,8 @@ public class GpuInfoService
                         SharedMemoryBytes = (long)(ulong)desc.SharedSystemMemory,
                         PriorityScore = GetGpuPriorityScore(desc.Description),
                         IsDiscrete = IsDiscreteGpu(desc.Description),
-                        AdapterIndex = (int)adapterIndex
+                        AdapterIndex = (int)adapterIndex,
+                        AdapterLuid = desc.AdapterLuid
                     };
 
                     LoggingService.Debug($"  Found GPU via DXGI: {gpu.Name}");
@@ -766,6 +775,19 @@ public class GpuInfoService
         return uppercaseGpuName.Contains("ARC") &&
                !IsIntelArcDiscreteModelName(uppercaseGpuName) &&
                uppercaseGpuName.Contains("GRAPHICS");
+    }
+
+    /// <summary>
+    /// Intel HD Graphics and UHD Graphics 6xx, the Gen9-era integrated class. On an
+    /// i7-8700's UHD 630 Parakeet's DirectML ran 2.9x slower than the CPU (#1846).
+    /// Newer Xe-class names (UHD 7xx, an unnumbered "UHD Graphics", "Intel(R)
+    /// Graphics", Iris, Arc) are not matched: they were not measured.
+    /// </summary>
+    internal static bool IsIntelUhdOrHdGraphicsName(string gpuName)
+    {
+        var name = gpuName.ToUpperInvariant();
+        if (!name.Contains("INTEL")) return false;
+        return Regex.IsMatch(name, @"(?<!U)HD GRAPHICS") || Regex.IsMatch(name, @"UHD GRAPHICS\s+6\d\d");
     }
 
     private static bool IsIntelHighPriorityIntegratedGraphicsName(string uppercaseGpuName)

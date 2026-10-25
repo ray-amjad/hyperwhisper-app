@@ -26,7 +26,7 @@
     "downloadCta": "Laadi kohe alla",
     "demoCta": "Vaata demot",
     "availableOn": "Saadaval",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Kas on olemas tellimus?",
-        "answer": "Ei — mitte kunagi. HyperWhisper on avatud lähtekoodiga rakendus, mis kuulub sulle, mitte tellimus, mida üürid. Laadi see tasuta alla ja kasuta kohalikku, võrguühenduseta transkriptsiooni igavesti tasuta; tasuta tase sisaldab ka 5 minutit pilvetranskriptsiooni päevas. Kui soovid seadistuseta pilvetranskriptsiooni rohkem kui seda, on HyperWhisper Cloud lihtsalt kasutuspõhised krediidid — lae kontot ainult siis, kui vaja, ilma kuutasudeta ja ilma millegita, mida tühistada."
+        "answer": "Ei — mitte kunagi. HyperWhisper on avatud lähtekoodiga rakendus, mis kuulub sulle, mitte tellimus, mida üürid. Laadi see tasuta alla ja kasuta kohalikku, võrguühenduseta transkriptsiooni igavesti tasuta. Kui soovid seadistuseta pilvetranskriptsiooni, on HyperWhisper Cloud lihtsalt kasutuspõhised krediidid — lae kontot ainult siis, kui vaja, ilma kuutasudeta ja ilma millegita, mida tühistada."
       },
       "deviceLimit": {
         "question": "Mitmes seadmes saan oma kontovõtit kasutada?",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Millised on süsteeminõuded?",
-        "answer": "Macile: macOS 14 või uuem, toetatud on nii Apple Silicon kui Intel. Windowsile: Windows 10/11, x64 või ARM64. Linux v1: Ubuntu 22.04 või uuem või Debian 12 või uuem, amd64 platvormil. Parima jõudluse jaoks soovitame 8GB RAM-i."
+        "answer": "Macile: macOS 14.6 või uuem, toetatud on nii Apple Silicon kui Intel. Windowsile: Windows 10/11, x64 või ARM64. Linux v1: Ubuntu 22.04 või uuem või Debian 12 või uuem, amd64 platvormil. Parima jõudluse jaoks soovitame 8GB RAM-i."
       },
       "madeBy": {
         "question": "Kes selle tegi?",
@@ -271,6 +271,7 @@
       "customerPortal": "Kliendiportaal",
       "olderVersions": "Vanemad versioonid",
       "blog": "Blogi",
+      "openSource": "Avatud lähtekood",
       "about": "Meist",
       "support": "Tugi",
       "privacyPolicy": "Privaatsuspoliitika",
