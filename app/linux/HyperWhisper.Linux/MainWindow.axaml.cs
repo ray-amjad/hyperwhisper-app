@@ -2570,6 +2570,11 @@ public partial class MainWindow : Window
             if (PageContent is not null) PageContent.Margin = new Thickness(0);
             if (pageId == "localapi") Dispatcher.UIThread.Post(UpdateLocalApiConnectionUi);
             if (pageId == "shortcuts") Dispatcher.UIThread.Post(UpdateShortcutsUi);
+            // Each visit rebuilds the page from its DataTemplate, and the old page's localized
+            // bindings stay behind as dead entries in the app-wide bridge's weak-event table until
+            // the bridge raises PropertyChanged. Raise it once the old page has been detached, so
+            // Avalonia purges them instead of keeping them for the life of the process (#2100).
+            Dispatcher.UIThread.Post(_localization.CompactSubscriptions, DispatcherPriority.Background);
         }
         finally { _navigationSyncing = false; }
     }
