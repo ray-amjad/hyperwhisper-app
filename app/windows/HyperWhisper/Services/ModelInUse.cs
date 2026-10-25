@@ -30,14 +30,25 @@ public static class ModelInUse
     /// resolves the stored id (or the default local model) and the local runtime
     /// loads it with <see cref="LocalLlmModelInfo.GetByIdOrDefault"/>. A mode with
     /// no id, an empty one, or one the catalog does not know runs on the default.
-    /// A mode with AI rewrite off (<see cref="Mode.PostProcessingMode"/> 0) runs none.
+    /// A mode with AI rewrite off (<see cref="Mode.PostProcessingMode"/> 0) still
+    /// protects the model it names, so switching it back on works, but not the
+    /// default a leftover provider with no usable id would fall back to.
     /// </summary>
     public static Mode? FindModeUsingLocalLlm(IEnumerable<Mode> modes, string modelId) =>
-        modes.FirstOrDefault(m => m.PostProcessingMode != 0
-            && PostProcessingProviderExtensions.FromString(m.PostProcessingProvider) == PostProcessingProvider.LocalLlm
-            && LocalLlmModelInfo.GetByIdOrDefault(PostProcessingService.ResolveModel(
-                PostProcessingProvider.LocalLlm,
-                PostProcessingService.SelectedModelId(m, PostProcessingProvider.LocalLlm))?.Id).Id == modelId);
+        modes.FirstOrDefault(m => PostProcessingProviderExtensions.FromString(m.PostProcessingProvider) == PostProcessingProvider.LocalLlm
+            && LocalLlmModelRun(m)?.Id == modelId);
+
+    private static LocalLlmModelInfo? LocalLlmModelRun(Mode mode)
+    {
+        var selectedModelId = PostProcessingService.SelectedModelId(mode, PostProcessingProvider.LocalLlm);
+        if (mode.PostProcessingMode == 0)
+        {
+            return LocalLlmModelInfo.GetById(LanguageModelInfo.MigrateModelId(selectedModelId));
+        }
+
+        return LocalLlmModelInfo.GetByIdOrDefault(
+            PostProcessingService.ResolveModel(PostProcessingProvider.LocalLlm, selectedModelId)?.Id);
+    }
 
     /// <summary>
     /// The Whisper types a local mode can load, matched exactly as the loaders do.

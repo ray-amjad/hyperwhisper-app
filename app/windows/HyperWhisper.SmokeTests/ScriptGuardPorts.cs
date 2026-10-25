@@ -372,6 +372,8 @@ internal static class ScriptGuardPorts
                 "a Whisper mode with a blank ModelType did not protect the Model the Local API falls back to");
             Assert(ModelInUse.FindModeUsingLocalLlm([M("Off", m => { m.PostProcessingMode = 0; m.PostProcessingProvider = localLlm; })], defaultLlmId) == null,
                 "a mode with AI rewrite off blocked deleting the default local model");
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("OffNamed", m => { m.PostProcessingMode = 0; m.PostProcessingProvider = localLlm; m.LocalPostProcessingModel = nonDefaultLlmId; })], nonDefaultLlmId)?.Name == "OffNamed",
+                "a mode with AI rewrite off stopped protecting the local model it names");
         });
 
         run("prompt: each detected app type puts its own context block in the AI prompt (#830)", () =>
