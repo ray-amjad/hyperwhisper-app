@@ -111,7 +111,12 @@ public partial class ParakeetTranscriptionService
         var engine = ParakeetDaemonLaunchPlan.ResolveEngine(modelDirectory);
         _isQwen3 = engine.IsQwen3;
         _isOnline = engine.IsOnline;
-        return ParakeetDaemonLaunchPlan.Build(paths, modelDirectory, language, engine);
+        var device = ParakeetDaemonLaunchPlan.ResolveDevice(
+            GpuInfoService.GetBestGpu(),
+            engine,
+            System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture ==
+                System.Runtime.InteropServices.Architecture.X64);
+        return ParakeetDaemonLaunchPlan.Build(paths, modelDirectory, language, engine, device);
     }
 
     /// <summary>
