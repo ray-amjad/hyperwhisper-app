@@ -13,9 +13,6 @@ using HyperWhisper.Services;
 using HyperWhisper.Utilities;
 using PlatformContracts = HyperWhisper.Platform.Abstractions;
 
-using Brush = System.Windows.Media.Brush;
-using Brushes = System.Windows.Media.Brushes;
-
 namespace HyperWhisper.Views.Pages.Settings;
 
 public partial class ApiKeysSettingsPage : Page
@@ -180,12 +177,12 @@ public partial class ApiKeysSettingsPage : Page
         {
             var masked = ApiKeyService.Instance.GetMaskedApiKey(provider);
             statusText.Text = Loc.S("provider.status.configured", masked);
-            statusText.Foreground = FindResource("SuccessBrush") as Brush ?? Brushes.Green;
+            statusText.SetResourceReference(TextBlock.ForegroundProperty, "SuccessBrush");
         }
         else
         {
             statusText.Text = Loc.S("provider.status.notConfigured");
-            statusText.Foreground = FindResource("TextSecondaryBrush") as Brush ?? Brushes.Gray;
+            statusText.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
         }
     }
 
@@ -195,12 +192,12 @@ public partial class ApiKeysSettingsPage : Page
         {
             var masked = ApiKeyService.Instance.GetMaskedApiKey(keyType);
             statusText.Text = Loc.S("provider.status.configured", masked);
-            statusText.Foreground = FindResource("SuccessBrush") as Brush ?? Brushes.Green;
+            statusText.SetResourceReference(TextBlock.ForegroundProperty, "SuccessBrush");
         }
         else
         {
             statusText.Text = Loc.S("provider.status.notConfigured");
-            statusText.Foreground = FindResource("TextSecondaryBrush") as Brush ?? Brushes.Gray;
+            statusText.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
         }
     }
 

@@ -775,6 +775,9 @@
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (API 키 없음)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (키가 유효하지 않음)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>로드 실패</value>
   </data>

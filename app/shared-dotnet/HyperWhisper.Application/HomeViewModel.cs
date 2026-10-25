@@ -86,6 +86,24 @@ public sealed class HomeViewModel : ViewModelBase
         var completed = _gettingStartedCompleted.Add(stepId);
         if (!completed) _gettingStartedCompleted.Remove(stepId);
 
+        SaveGettingStarted();
+        return completed;
+    }
+
+    /// <summary>
+    /// Mark one card complete, never un-complete it. The Linux Start Recording card calls this after
+    /// every successful start (#2546): a toggle there un-ticked the step on every other recording.
+    /// Saves and notifies only when the step was not already complete.
+    /// </summary>
+    public void CompleteGettingStartedStep(string stepId)
+    {
+        if (!GettingStartedStepIds.Contains(stepId, StringComparer.Ordinal)) return;
+        if (!_gettingStartedCompleted.Add(stepId)) return;
+        SaveGettingStarted();
+    }
+
+    private void SaveGettingStarted()
+    {
         // Windows writes the ids sorted, so the setting has one canonical spelling per set.
         _settings.Set(GettingStartedSettingKey,
             string.Join(",", _gettingStartedCompleted.OrderBy(id => id, StringComparer.Ordinal)));
@@ -97,7 +115,6 @@ public sealed class HomeViewModel : ViewModelBase
         Notify(nameof(IsShortcutsStepComplete));
         Notify(nameof(IsModeStepComplete));
         Notify(nameof(IsVocabularyStepComplete));
-        return completed;
     }
 
     public UiStatus Status { get; } = new();

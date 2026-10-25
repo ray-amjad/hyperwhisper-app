@@ -26,7 +26,7 @@
     "downloadCta": "立即下載",
     "demoCta": "觀看示範",
     "availableOn": "適用於",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "有訂閱制嗎？",
-        "answer": "沒有——永遠不會有。HyperWhisper 是一款你擁有的開放原始碼應用程式，而不是你租用的訂閱服務。免費下載，並永遠免費使用本機離線轉錄；免費方案還包含每天 5 分鐘的雲端轉錄。當你需要超出這個額度、零設定的雲端轉錄時，HyperWhisper Cloud 採用簡單的隨用隨付點數制——只在需要時才儲值，沒有月費，也沒有任何需要取消的東西。"
+        "answer": "沒有——永遠不會有。HyperWhisper 是一款你擁有的開放原始碼應用程式，而不是你租用的訂閱服務。免費下載，並永遠免費使用本機離線轉錄。當你需要零設定的雲端轉錄時，HyperWhisper Cloud 採用簡單的隨用隨付點數制——只在需要時才儲值，沒有月費，也沒有任何需要取消的東西。"
       },
       "deviceLimit": {
         "question": "我的帳戶金鑰可以在多少台裝置上使用？",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "系統需求是什麼？",
-        "answer": "Mac：macOS 14 或更新版本，支援 Apple Silicon 與 Intel。Windows：Windows 10/11，x64 或 ARM64。Linux v1：amd64 上的 Ubuntu 22.04 或更新版本，或 Debian 12 或更新版本。建議 8GB 記憶體以獲得最佳效能。"
+        "answer": "Mac：macOS 14.6 或更新版本，支援 Apple Silicon 與 Intel。Windows：Windows 10/11，x64 或 ARM64。Linux v1：amd64 上的 Ubuntu 22.04 或更新版本，或 Debian 12 或更新版本。建議 8GB 記憶體以獲得最佳效能。"
       },
       "madeBy": {
         "question": "這是誰做的？",
@@ -271,6 +271,7 @@
       "customerPortal": "客戶入口",
       "olderVersions": "舊版本",
       "blog": "部落格",
+      "openSource": "開放原始碼",
       "about": "關於",
       "support": "支援",
       "privacyPolicy": "隱私權政策",

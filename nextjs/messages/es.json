@@ -26,7 +26,7 @@
     "downloadCta": "Descargar ahora",
     "demoCta": "Ver demo",
     "availableOn": "Disponible en",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "¿Hay alguna suscripción?",
-        "answer": "No — nunca. HyperWhisper es una aplicación de código abierto que es tuya, no una suscripción que alquilas. Descárgala gratis y usa la transcripción local y sin conexión sin coste para siempre; el plan gratuito también incluye 5 minutos de transcripción en la nube al día. Cuando quieras transcripción en la nube sin configuración más allá de eso, HyperWhisper Cloud son simplemente créditos de pago por uso — recarga solo cuando lo necesites, sin cuotas mensuales y sin nada que cancelar."
+        "answer": "No — nunca. HyperWhisper es una aplicación de código abierto que es tuya, no una suscripción que alquilas. Descárgala gratis y usa la transcripción local y sin conexión sin coste para siempre. Cuando quieras transcripción en la nube sin configuración, HyperWhisper Cloud son simplemente créditos de pago por uso — recarga solo cuando lo necesites, sin cuotas mensuales y sin nada que cancelar."
       },
       "deviceLimit": {
         "question": "¿En cuántos dispositivos puedo usar mi clave de cuenta?",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "¿Cuáles son los requisitos del sistema?",
-        "answer": "Para Mac: macOS 14 o superior, compatible con Apple Silicon e Intel. Para Windows: Windows 10/11, x64 o ARM64. Para Linux v1: Ubuntu 22.04 o superior o Debian 12 o superior, en amd64. Se recomiendan 8 GB de RAM para un rendimiento óptimo."
+        "answer": "Para Mac: macOS 14.6 o superior, compatible con Apple Silicon e Intel. Para Windows: Windows 10/11, x64 o ARM64. Para Linux v1: Ubuntu 22.04 o superior o Debian 12 o superior, en amd64. Se recomiendan 8 GB de RAM para un rendimiento óptimo."
       },
       "madeBy": {
         "question": "¿Quién lo hizo?",
@@ -271,6 +271,7 @@
       "customerPortal": "Portal de clientes",
       "olderVersions": "Versiones anteriores",
       "blog": "Blog",
+      "openSource": "Código abierto",
       "about": "Acerca de",
       "support": "Soporte",
       "privacyPolicy": "Política de privacidad",

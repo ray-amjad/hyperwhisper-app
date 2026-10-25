@@ -339,14 +339,14 @@ public partial class CustomEndpointWindow : Window
         {
             TestSuccessPanel.Visibility = Visibility.Visible;
             TestResultPanel.Visibility = Visibility.Visible;
-            TestResultPanel.Background = FindResource("SuccessBackgroundBrush") as System.Windows.Media.Brush;
+            TestResultPanel.SetResourceReference(System.Windows.Controls.Border.BackgroundProperty, "SuccessBackgroundBrush");
             TestResultText.Text = $"Response: {result.message}";
         }
         else if (showResult)
         {
             TestFailPanel.Visibility = Visibility.Visible;
             TestResultPanel.Visibility = Visibility.Visible;
-            TestResultPanel.Background = FindResource("ErrorBackgroundBrush") as System.Windows.Media.Brush;
+            TestResultPanel.SetResourceReference(System.Windows.Controls.Border.BackgroundProperty, "ErrorBackgroundBrush");
             TestResultText.Text = result.message;
         }
 

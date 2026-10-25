@@ -48,4 +48,10 @@
   <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve">
     <value>Mikrofonu neizdevās atvērt.</value>
   </data>
+  <data name="linux.credentials.not_stored" xml:space="preserve">
+    <value>Nav iestatīts</value>
+  </data>
+  <data name="linux.credentials.stored" xml:space="preserve">
+    <value>Saglabāts</value>
+  </data>
 </root>

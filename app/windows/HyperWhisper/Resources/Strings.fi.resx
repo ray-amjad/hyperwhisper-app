@@ -775,6 +775,9 @@ Tätä toimintoa ei voi perua.</value>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (Ei API-avainta)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Virheellinen avain)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>

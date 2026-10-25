@@ -442,7 +442,7 @@ public class PostProcessingService : IDisposable
                                 MapToPortableProvider(provider), apiKey!, resolvedModelId!,
                                 systemPrompt, systemInfo, text, cancellationToken),
                             text),
-                    PostProcessingProvider.LocalLlm => HyperwhisperCoreMethods.EvaluateCompletion(text, await CallLocalLlmAsync(resolvedModelId!, systemPrompt, userMessage, cancellationToken), CompletionState.Unspecified),
+                    PostProcessingProvider.LocalLlm => EvaluateLocalCompletion(text, await CallLocalLlmAsync(resolvedModelId!, systemPrompt, userMessage, cancellationToken)),
                     _ => HyperwhisperCoreMethods.EvaluateCompletion(text, "", CompletionState.Malformed)
                 };
             }
@@ -554,9 +554,38 @@ public class PostProcessingService : IDisposable
 
 
     /// <summary>
+    /// The shared completion policy for an in-process local model, plus one check
+    /// of its own (issue #2559): a transcript with words in it never comes back as
+    /// marker debris only. A cut-off or off-template answer can be a bare
+    /// "&lt;&lt;"; that is a failed post-process, not an answer, so the raw
+    /// transcript stays.
+    /// </summary>
+    internal static CompletionEvaluation EvaluateLocalCompletion(string transcript, LocalLlmCompletion completion)
+    {
+        var evaluation = HyperwhisperCoreMethods.EvaluateCompletion(transcript, completion.Text, completion.State);
+        if (evaluation.accepted && IsDegenerateLocalOutput(transcript, evaluation.text))
+        {
+            return new CompletionEvaluation(false, transcript, CompletionFailure.MalformedResponse);
+        }
+
+        return evaluation;
+    }
+
+    /// <summary>
+    /// Wrapper-marker debris only (<c>&lt;&lt;</c>, <c>&lt;/&gt;</c>, <c>|</c>),
+    /// from a transcript that has words. Real punctuation ("?" for "question
+    /// mark") and emoji are still answers. The Linux engine applies the same rule
+    /// in <c>LocalPostProcessingProtocol.IsDegenerateCompletion</c>.
+    /// </summary>
+    internal static bool IsDegenerateLocalOutput(string transcript, string cleaned) =>
+        transcript.Any(char.IsLetterOrDigit)
+        && cleaned.Length > 0
+        && cleaned.All(c => c is '<' or '>' or '/' or '|' || char.IsWhiteSpace(c));
+
+    /// <summary>
     /// Calls the local LLamaSharp runtime for offline post-processing.
     /// </summary>
-    private async Task<string> CallLocalLlmAsync(
+    private async Task<LocalLlmCompletion> CallLocalLlmAsync(
         string modelId,
         string systemPrompt,
         string userMessage,

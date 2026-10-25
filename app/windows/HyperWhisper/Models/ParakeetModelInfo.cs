@@ -129,11 +129,11 @@ public class ParakeetModelInfo
         _ => "nemo_transducer"
     };
 
-    // NOTE: CPU-only enforcement is NOT a C# concern — the daemon picks the
-    // provider from the --engine value (qwen3 and nemotron_ml are CPU-only inside
-    // parakeet-engine.exe). There is deliberately no ForceCpu property here; a C#
-    // flag would only be honoured if the daemon also read a --provider arg, which
-    // it does not, so it would be misleading dead code.
+    // NOTE: per-model CPU-only enforcement is NOT a C# concern — the daemon picks
+    // the provider from the --engine value (qwen3 and nemotron_ml are CPU-only
+    // inside parakeet-engine.exe). There is deliberately no ForceCpu property here.
+    // The daemon's --provider / --dml-adapter-luid args are a per-machine device
+    // choice (ParakeetDaemonLaunchPlan.ResolveDevice, #1846), not a model property.
 
     /// <summary>
     /// Whether the model is distributed as a multi-file tree (incl. a tokenizer

@@ -21,6 +21,7 @@ public sealed class TranscriptionWorkflow : IDisposable
     private readonly ITranscriptionHistoryStore _history;
     private readonly CompletedAudioRetention? _audioRetention;
     private readonly IBatchAudioPreprocessor? _audioPreprocessor;
+    private readonly DurableAudioImportService? _retryAudioImport;
     private readonly bool _ownsDependencies;
     private IReadOnlyList<AudioInputDevice> _audioDevices = [];
     private string? _selectedDeviceId;
@@ -40,7 +41,8 @@ public sealed class TranscriptionWorkflow : IDisposable
         ITextInjectionService? textInjection = null,
         bool ownsDependencies = false,
         CompletedAudioRetention? audioRetention = null,
-        IBatchAudioPreprocessor? audioPreprocessor = null)
+        IBatchAudioPreprocessor? audioPreprocessor = null,
+        DurableAudioImportService? retryAudioImport = null)
     {
         _recorder = recorder ?? throw new ArgumentNullException(nameof(recorder));
         _devices = devices ?? throw new ArgumentNullException(nameof(devices));
@@ -48,6 +50,10 @@ public sealed class TranscriptionWorkflow : IDisposable
         _history = history ?? throw new ArgumentNullException(nameof(history));
         _audioRetention = audioRetention;
         _audioPreprocessor = audioPreprocessor;
+        // Optional, and only the Linux head supplies it: the ffmpeg import
+        // Transcribe File runs, reused so a retry of a non-WAV row in a local
+        // Parakeet mode reaches the WAV-only daemon as a WAV (issue #1675).
+        _retryAudioImport = retryAudioImport;
         _postProcessor = postProcessor;
         _textInjection = textInjection;
         _ownsDependencies = ownsDependencies;
@@ -333,6 +339,10 @@ public sealed class TranscriptionWorkflow : IDisposable
         if (immediateFailure is not null) return immediateFailure;
 
         Transcript? claimedTranscript = null;
+        // The WAV a non-WAV row was converted into for Parakeet (#1675). The row
+        // keeps its own audio; this copy only feeds the daemon, so it is deleted
+        // whatever the outcome.
+        string? convertedRetryAudio = null;
         try
         {
             var candidate = await _history.GetAsync(transcriptId, operation.Token).ConfigureAwait(false);
@@ -370,8 +380,24 @@ public sealed class TranscriptionWorkflow : IDisposable
                     operation).ConfigureAwait(false);
             }
 
+            var retryAudioPath = claimedAudioPath;
+            if (_retryAudioImport is not null && IsLocalParakeet(frozenRequest.SelectedMode) && !IsWaveFile(claimedAudioPath))
+            {
+                var converted = await _retryAudioImport.ImportAsync(claimedAudioPath, progress: null, operation.Token).ConfigureAwait(false);
+                if (converted.IsSuccess) convertedRetryAudio = converted.Value!;
+                operation.Token.ThrowIfCancellationRequested();
+                if (converted.IsFailure)
+                    return await CompleteTerminalFailureAsync(
+                        started.Transcript,
+                        "workflow.retry_audio_conversion_failed",
+                        "Parakeet reads WAV audio only, and this recording could not be converted to WAV.",
+                        PortableTranscriptionErrorCode.InvalidRequest,
+                        operation).ConfigureAwait(false);
+                retryAudioPath = convertedRetryAudio!;
+            }
+
             return await TranscribeAndPersistAsync(
-                claimedAudioPath, TimeSpan.FromSeconds(started.Transcript.Duration), frozenRequest, operation,
+                retryAudioPath, TimeSpan.FromSeconds(started.Transcript.Duration), frozenRequest, operation,
                 ownsAudio: false, deleteOwnedAudioOnTerminalFailure: false,
                 injectText: false, cancellationToken, started.Transcript,
                 RetryCancellationSnapshot.Capture(started.Transcript)).ConfigureAwait(false);
@@ -397,6 +423,36 @@ public sealed class TranscriptionWorkflow : IDisposable
                 "The transcription retry failed unexpectedly.",
                 PortableTranscriptionErrorCode.TranscriptionFailed,
                 operation);
+        }
+        finally
+        {
+            if (convertedRetryAudio is not null) DeleteRecording(convertedRetryAudio);
+        }
+    }
+
+    /// <summary>A local (not cloud) Parakeet mode, whose daemon reads WAV only.</summary>
+    private static bool IsLocalParakeet(Mode? mode) =>
+        mode is not null
+        && !string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(mode.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Whether the file is a RIFF/WAVE by its content, not its name. An
+    /// unreadable file answers true, so it goes to the transcriber unconverted
+    /// and fails there as it always did.
+    /// </summary>
+    private static bool IsWaveFile(string path)
+    {
+        try
+        {
+            Span<byte> header = stackalloc byte[12];
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            if (stream.ReadAtLeast(header, header.Length, throwOnEndOfStream: false) < header.Length) return false;
+            return header[..4].SequenceEqual("RIFF"u8) && header[8..12].SequenceEqual("WAVE"u8);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return true;
         }
     }
 

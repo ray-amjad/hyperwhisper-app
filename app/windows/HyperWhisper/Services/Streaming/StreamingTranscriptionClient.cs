@@ -20,7 +20,7 @@ namespace HyperWhisper.Services.Streaming;
 /// assembles the transcript and fans provider events out, and <c>.State.cs</c> holds the
 /// state guard and the event raise.
 /// </remarks>
-public sealed partial class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
+public sealed partial class StreamingTranscriptionClient : IStreamingTranscriptionClient, IDisposable
 {
     private const int ReceiveBufferSize = 8192;
     private const int MaxReconnectAttempts = 3;
