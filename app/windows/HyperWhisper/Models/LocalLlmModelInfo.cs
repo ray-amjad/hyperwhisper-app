@@ -116,4 +116,7 @@ public class LocalLlmModelInfo
 
     public static LocalLlmModelInfo? GetById(string? id) =>
         string.IsNullOrEmpty(id) ? null : AllModels.FirstOrDefault(m => m.Id == id);
+
+    /// <summary>The GGUF a local AI rewrite loads for this id: an unknown id runs on the default.</summary>
+    public static LocalLlmModelInfo GetByIdOrDefault(string? id) => GetById(id) ?? GetDefault();
 }
