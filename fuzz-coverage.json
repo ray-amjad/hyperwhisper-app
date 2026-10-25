@@ -808,6 +808,22 @@
       ],
       "licensed": false,
       "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY in #hw-qa). Vocab dup/trim/unicode/long OK; API keys trim+0600 OK; onboarding skip persists. Not filed: onboarding mode step lists only seeded Hyper(cloud), no on-device choice (design, #285 single seed). fuzz drive 'text' drops non-ASCII (xdotool needs LC_ALL=C.UTF-8) - driver, not app."
+    },
+    {
+      "at": "2026-10-25T05:19:04Z",
+      "platform": "linux",
+      "commit": "3be24dc7",
+      "routes": [
+        "core-settings",
+        "licence",
+        "home-and-tray"
+      ],
+      "status": "nothing-found",
+      "issues": [
+        0
+      ],
+      "licensed": false,
+      "note": "unlicensed. Codex flagged 2, both dismissed: Start recording w/o licence is by design (fails at transcribe with 'A HyperWhisper account key is required', History keeps audio + Retry); openbox maximise no-op = MainWindow CanResize=False fixed 1000x680. Licence field trims/validates (AccountKeyFormat, max 64). Restore Delay clamps 1-60. Settings persist to settings.json."
     }
   ]
 }
