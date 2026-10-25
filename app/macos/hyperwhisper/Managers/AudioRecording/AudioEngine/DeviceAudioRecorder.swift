@@ -192,7 +192,7 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     /// The tap format for an input node, or `nil` when the device reports none (no
     /// permission, no device, a device mid-reconfiguration). Installing a tap with a
     /// zero-rate or zero-channel format raises an Objective-C exception. Validating
-    /// first keeps a good start possible; `installTap(on:format:context:tap:)` catches
+    /// first keeps a good start possible; `installTap(on:formats:context:tap:)` catches
     /// whatever mismatch this still misses (#2577) as a failed start, not a crash.
     static func tapFormat(for inputNode: AVAudioInputNode) -> AVAudioFormat? {
         tapFormat(output: inputNode.outputFormat(forBus: 0), hardware: inputNode.inputFormat(forBus: 0))
@@ -227,37 +227,67 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         return AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate, channelLayout: discrete)
     }
 
-    /// Install a tap, turning the Objective-C exception `installTap` raises on a
-    /// format mismatch into `DeviceAudioRecorderError.tapFormatMismatch` (issue
-    /// #2577). Reports the handled error to Sentry with both sides' formats, as
-    /// numbers only, so the next event names the cause. Shared with
-    /// `StreamingAudioCapture`.
+    /// The formats to try a tap at, in order: `tapFormat(for:)`, then, when that
+    /// only changed the channel count, the node's own output format (what every
+    /// release before #2577 tapped at). Empty when the device reports no format.
+    static func tapFormatCandidates(for inputNode: AVAudioInputNode) -> [AVAudioFormat] {
+        tapFormatCandidates(output: inputNode.outputFormat(forBus: 0), hardware: inputNode.inputFormat(forBus: 0))
+    }
+
+    /// `tapFormatCandidates(for:)` on the node's two formats, for a test.
+    static func tapFormatCandidates(output: AVAudioFormat, hardware: AVAudioFormat) -> [AVAudioFormat] {
+        guard let primary = tapFormat(output: output, hardware: hardware) else { return [] }
+        // A rate that differs from the device's is always refused, so the output
+        // format is a second chance only when the rates agree.
+        guard !primary.isEqual(output), primary.sampleRate == output.sampleRate else { return [primary] }
+        return [primary, output]
+    }
+
+    /// Install a tap at the first of `formats` the node accepts, and return it. An
+    /// Objective-C exception from `installTap` (a format mismatch, issue #2577) is
+    /// caught; when every format is refused this throws
+    /// `DeviceAudioRecorderError.tapFormatMismatch` and reports one handled error to
+    /// Sentry with both sides' formats, as numbers only, so the next event names the
+    /// cause. Shared with `StreamingAudioCapture`.
+    @discardableResult
     static func installTap(
         on inputNode: AVAudioInputNode,
-        format: AVAudioFormat,
+        formats: [AVAudioFormat],
         context: [String: Any] = [:],
         tap: @escaping AVAudioNodeTapBlock
-    ) throws {
-        do {
-            try ObjCExceptionGuard.run {
-                inputNode.installTap(onBus: 0, bufferSize: 1024, format: format, block: tap)
+    ) throws -> AVAudioFormat {
+        var lastRefused: AVAudioFormat?
+        for format in formats {
+            do {
+                try ObjCExceptionGuard.run {
+                    inputNode.installTap(onBus: 0, bufferSize: 1024, format: format, block: tap)
+                }
+                if lastRefused != nil {
+                    AppLogger.audio.notice("Tap accepted at the node's output format after the device format was refused")
+                }
+                return format
+            } catch {
+                AppLogger.audio.error("installTap refused the tap format (\(format.sampleRate, privacy: .public) Hz, \(format.channelCount, privacy: .public) ch): \((error as NSError).localizedFailureReason ?? "no reason", privacy: .public)")
+                lastRefused = format
+                // Clear anything the refused call left on the bus before the next try.
+                inputNode.removeTap(onBus: 0)
             }
-        } catch {
-            AppLogger.audio.error("installTap refused the tap format (\(format.sampleRate, privacy: .public) Hz, \(format.channelCount, privacy: .public) ch): \((error as NSError).localizedFailureReason ?? "no reason", privacy: .public)")
-            var extras = tapFormatExtras(
-                requested: format,
-                output: inputNode.outputFormat(forBus: 0),
-                hardware: inputNode.inputFormat(forBus: 0)
-            )
-            extras.merge(context) { _, new in new }
-            SentryService.capture(
-                error: DeviceAudioRecorderError.tapFormatMismatch,
-                message: "Audio tap format mismatch",
-                extras: extras,
-                tags: ["component": "audio_capture"]
-            )
-            throw DeviceAudioRecorderError.tapFormatMismatch
         }
+        guard let lastRefused else { throw DeviceAudioRecorderError.noInputFormat }
+        var extras = tapFormatExtras(
+            requested: lastRefused,
+            output: inputNode.outputFormat(forBus: 0),
+            hardware: inputNode.inputFormat(forBus: 0)
+        )
+        extras["tapAttemptCount"] = formats.count
+        extras.merge(context) { _, new in new }
+        SentryService.capture(
+            error: DeviceAudioRecorderError.tapFormatMismatch,
+            message: "Audio tap format mismatch",
+            extras: extras,
+            tags: ["component": "audio_capture"]
+        )
+        throw DeviceAudioRecorderError.tapFormatMismatch
     }
 
     /// The Sentry extras of a refused tap: every value a number or a Bool, never a
@@ -569,8 +599,19 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         let input = engine.inputNode
         try Self.setInputDevice(deviceID, on: input)
 
-        guard let format = Self.tapFormat(for: input) else {
+        let candidates = Self.tapFormatCandidates(for: input)
+        guard !candidates.isEmpty else {
             throw DeviceAudioRecorderError.noInputFormat
+        }
+
+        // Tap first: the format the node accepts picks the converter. No buffer
+        // reaches `process` before `engine.start()`, so the pipeline is in place in time.
+        let format = try Self.installTap(
+            on: input,
+            formats: candidates,
+            context: ["tapStartIsFallbackDevice": deviceID != self.deviceID]
+        ) { [weak self] buffer, _ in
+            self?.process(buffer)
         }
 
         tapLock.lock()
@@ -579,18 +620,12 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         pipeline = newPipeline
         tapLock.unlock()
         guard newPipeline != nil else {
+            input.removeTap(onBus: 0)
             throw DeviceAudioRecorderError.converterUnavailable
         }
 
         AppLogger.audio.info("Chosen microphone opened: \(format.sampleRate, privacy: .public) Hz, \(format.channelCount, privacy: .public) channel(s)")
 
-        try Self.installTap(
-            on: input,
-            format: format,
-            context: ["tapStartIsFallbackDevice": deviceID != self.deviceID]
-        ) { [weak self] buffer, _ in
-            self?.process(buffer)
-        }
         engine.prepare()
         do {
             try engine.start()

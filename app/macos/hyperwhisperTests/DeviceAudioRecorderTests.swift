@@ -312,6 +312,32 @@ struct DeviceAudioRecorderTests {
         #expect(tap.channelCount == 2)
     }
 
+    /// A channel-only change gets the node's own output format as a second try, so a
+    /// device that legitimately outputs fewer channels still records as it did before.
+    @Test func aChannelOnlyChangeKeepsTheOutputFormatAsASecondTry() throws {
+        let output = try Self.inputFormat(sampleRate: 48_000, channels: 1)
+        let hardware = try Self.inputFormat(sampleRate: 48_000, channels: 2)
+        let candidates = DeviceAudioRecorder.tapFormatCandidates(output: output, hardware: hardware)
+        #expect(candidates.count == 2)
+        #expect(candidates.first?.channelCount == 2)
+        #expect(candidates.last?.isEqual(output) == true)
+    }
+
+    @Test func aRateChangeHasNoSecondTry() throws {
+        let output = try Self.inputFormat(sampleRate: 48_000, channels: 1)
+        let hardware = try Self.inputFormat(sampleRate: 44_100, channels: 2)
+        let candidates = DeviceAudioRecorder.tapFormatCandidates(output: output, hardware: hardware)
+        #expect(candidates.count == 1)
+        #expect(candidates.first?.sampleRate == 44_100)
+    }
+
+    @Test func aMatchingFormatIsTheOnlyCandidate() throws {
+        let output = try Self.inputFormat(sampleRate: 48_000, channels: 2)
+        let candidates = DeviceAudioRecorder.tapFormatCandidates(output: output, hardware: output)
+        #expect(candidates.count == 1)
+        #expect(candidates.first?.isEqual(output) == true)
+    }
+
     @Test func tapFormatExtrasAreNumbersAndBoolsOnly() throws {
         let format = try Self.inputFormat(sampleRate: 48_000, channels: 1)
         let extras = DeviceAudioRecorder.tapFormatExtras(requested: format, output: format, hardware: format)

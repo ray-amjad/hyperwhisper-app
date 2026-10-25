@@ -234,16 +234,34 @@ class StreamingAudioCapture {
             }
         }
 
-        let inputFormat: AVAudioFormat
+        let formatCandidates: [AVAudioFormat]
         if pinnedDevice {
             // A just-switched device can report no format (or a lagging rate or
             // channel count); a tap with either raises an exception, so validate first.
-            guard let format = DeviceAudioRecorder.tapFormat(for: inputNode) else {
+            formatCandidates = DeviceAudioRecorder.tapFormatCandidates(for: inputNode)
+            guard !formatCandidates.isEmpty else {
                 throw StreamingError.audioEngineError("The chosen microphone reports no usable input format")
             }
-            inputFormat = format
         } else {
-            inputFormat = inputNode.outputFormat(forBus: 0)
+            formatCandidates = [inputNode.outputFormat(forBus: 0)]
+        }
+
+        // Install the tap now: the format the node accepts picks the converters
+        // below. No buffer arrives before `engine.start()`.
+        // Buffer size of 1024 samples at ~48kHz = ~21ms of audio
+        // A format the node refuses raises an Objective-C exception (#2577); the
+        // guard turns it into a failed start instead of a crash.
+        let inputFormat: AVAudioFormat
+        do {
+            inputFormat = try DeviceAudioRecorder.installTap(
+                on: inputNode,
+                formats: formatCandidates,
+                context: ["tapIsStreamingCapture": true]
+            ) { [weak self] buffer, _ in
+                self?.processAudioBuffer(buffer)
+            }
+        } catch {
+            throw StreamingError.audioEngineError("The microphone refused the capture format")
         }
 
         logger.debug("Input format: \(inputFormat.sampleRate, privacy: .public) Hz, \(inputFormat.channelCount, privacy: .public) channels, commonFormat: \(inputFormat.commonFormat.rawValue, privacy: .public)")
@@ -304,23 +322,7 @@ class StreamingAudioCapture {
         // Match the Int16 path's ~100ms capacity at 16kHz.
         float32Buffer = AVAudioPCMBuffer(pcmFormat: float32TargetFormat, frameCapacity: 1600)
 
-        // STEP 4: Install tap on input node to capture audio
-        // Buffer size of 1024 samples at ~48kHz = ~21ms of audio
-        // A format the node refuses raises an Objective-C exception (#2577); the
-        // guard turns it into a failed start instead of a crash.
-        do {
-            try DeviceAudioRecorder.installTap(
-                on: inputNode,
-                format: inputFormat,
-                context: ["tapIsStreamingCapture": true]
-            ) { [weak self] buffer, _ in
-                self?.processAudioBuffer(buffer)
-            }
-        } catch {
-            throw StreamingError.audioEngineError("The microphone refused the capture format")
-        }
-
-        // STEP 5: Start the engine
+        // STEP 4: Start the engine (the tap went in above)
         try engine.start()
         logger.info("Audio capture started")
     }
