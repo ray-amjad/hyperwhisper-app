@@ -18,9 +18,18 @@ import Testing
 @MainActor
 struct LicenseErrorDismissTests {
 
+    private static let notFoundMessage = "License key not found"
+
     private func makeLicenseManager() -> LicenseManager {
         LicenseManager(
-            networkService: NotFoundLicenseNetwork(),
+            networkService: StubLicenseNetwork(result: LicenseValidationResult(
+                isValid: false,
+                status: .invalid,
+                customerId: nil,
+                customerEmail: nil,
+                customerName: nil,
+                errorMessage: Self.notFoundMessage
+            )),
             loadStoredLicenseOnInit: false,
             notificationCenter: NotificationCenter()
         )
@@ -31,7 +40,7 @@ struct LicenseErrorDismissTests {
 
         let result = await manager.activateLicense("HW-AAAA-BBBB-CCCC-DDDD")
         #expect(result.isValid == false)
-        #expect(manager.lastError == NotFoundLicenseNetwork.message)
+        #expect(manager.lastError == Self.notFoundMessage)
 
         manager.dismissLastError()
         #expect(manager.lastError == nil)
@@ -39,39 +48,10 @@ struct LicenseErrorDismissTests {
 
     @Test func dismissKeepsTheErrorWhileACheckIsInFlight() {
         let manager = makeLicenseManager()
-        manager.lastError = NotFoundLicenseNetwork.message
+        manager.lastError = Self.notFoundMessage
         manager.isValidating = true
 
         manager.dismissLastError()
-        #expect(manager.lastError == NotFoundLicenseNetwork.message)
+        #expect(manager.lastError == Self.notFoundMessage)
     }
-}
-
-private final class NotFoundLicenseNetwork: LicenseNetworkServing {
-    static let message = "License key not found"
-
-    private let notFound = LicenseValidationResult(
-        isValid: false,
-        status: .invalid,
-        customerId: nil,
-        customerEmail: nil,
-        customerName: nil,
-        errorMessage: NotFoundLicenseNetwork.message
-    )
-
-    func activateLicense(_ licenseKey: String) async -> LicenseValidationResult { notFound }
-    func deactivateLicense() async -> (success: Bool, error: String?) { (true, nil) }
-    func validateLicense(
-        _ licenseKey: String,
-        isLaunchValidation: Bool,
-        expectedStoredLicenseKey: String?
-    ) async -> LicenseValidationResult { notFound }
-    func probeLicense(_ licenseKey: String) async -> LicenseValidationResult { notFound }
-    func shouldRevalidateLicense() -> Bool { false }
-    func getCachedLicenseStatus() -> LicenseStatus? { nil }
-    func getStoredLicenseKey() -> String? { nil }
-    func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead { .missing }
-    func readStoredLicenseKeyFromSecureStore() async -> RustLicenseStore.StoredLicenseKeyRead { .missing }
-    func clearStoredLicense() -> Bool { true }
-    func replaceStoredLicenseKeyForImport(_ licenseKey: String) -> Bool { true }
 }

@@ -93,7 +93,7 @@ struct HyperWhisperCloudCreditFetchTests {
     private func makeManager(_ server: ScriptedCreditServer) -> HyperWhisperCloudManager {
         HyperWhisperCloudManager(
             licenseManager: LicenseManager(
-                networkService: NoLicenseNetwork(),
+                networkService: StubLicenseNetwork(),
                 loadStoredLicenseOnInit: false,
                 notificationCenter: NotificationCenter()
             ),
@@ -161,33 +161,4 @@ private final class ScriptedCreditServer {
             return (Data(body.utf8), response)
         }
     }
-}
-
-/// A licence network with no stored key, so the default identity is the
-/// anonymous device id and nothing reaches the licensing API.
-private final class NoLicenseNetwork: LicenseNetworkServing {
-    private let none = LicenseValidationResult(
-        isValid: false,
-        status: .invalid,
-        customerId: nil,
-        customerEmail: nil,
-        customerName: nil,
-        errorMessage: nil
-    )
-
-    func activateLicense(_ licenseKey: String) async -> LicenseValidationResult { none }
-    func deactivateLicense() async -> (success: Bool, error: String?) { (true, nil) }
-    func validateLicense(
-        _ licenseKey: String,
-        isLaunchValidation: Bool,
-        expectedStoredLicenseKey: String?
-    ) async -> LicenseValidationResult { none }
-    func probeLicense(_ licenseKey: String) async -> LicenseValidationResult { none }
-    func shouldRevalidateLicense() -> Bool { false }
-    func getCachedLicenseStatus() -> LicenseStatus? { nil }
-    func getStoredLicenseKey() -> String? { nil }
-    func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead { .missing }
-    func readStoredLicenseKeyFromSecureStore() async -> RustLicenseStore.StoredLicenseKeyRead { .missing }
-    func clearStoredLicense() -> Bool { true }
-    func replaceStoredLicenseKeyForImport(_ licenseKey: String) -> Bool { true }
 }
