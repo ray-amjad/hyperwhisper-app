@@ -101,8 +101,13 @@ export default async function BlogPage({ params }: Props) {
                   src={featuredPost.frontMatter.image}
                 />
               ) : (
-                <div className="flex h-full min-h-[260px] items-center justify-center bg-gradient-to-br from-gray-900 via-purple-950/50 to-cyan-950/50 p-8 text-center">
-                  <span className="text-2xl font-semibold text-white">
+                <div className="flex h-full min-h-[260px] flex-col items-center justify-center gap-4 bg-gradient-to-br from-purple-600 to-blue-600 p-8 sm:flex-row">
+                  <img
+                    alt=""
+                    className="h-16 w-16 shrink-0 rounded-[20%] shadow-2xl shadow-purple-900/30 outline-1 -outline-offset-1 outline-white/10"
+                    src="/icon/256.png"
+                  />
+                  <span className="text-2xl font-semibold text-white sm:text-3xl">
                     HyperWhisper
                   </span>
                 </div>

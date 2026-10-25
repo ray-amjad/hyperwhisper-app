@@ -27,14 +27,21 @@ public sealed class ModelLibraryManager
         _health = health;
     }
 
-    public List<LibraryModel> Rebuild()
+    /// <summary>
+    /// Builds the library rows. <paramref name="keys"/> is a key-presence
+    /// snapshot from <see cref="ReadKeyPresence"/>; with none, this reads
+    /// Credential Manager itself, so a UI-thread caller passes one (#2385).
+    /// </summary>
+    public List<LibraryModel> Rebuild(ApiKeyPresence? keys = null)
     {
+        keys ??= ReadKeyPresence();
+
         var voiceRows = new List<LibraryModel>();
-        voiceRows.AddRange(BuildCloudTranscriptionRows());
+        voiceRows.AddRange(BuildCloudTranscriptionRows(keys));
         voiceRows.AddRange(BuildWhisperRows());
         voiceRows.AddRange(BuildParakeetRows());
 
-        var postRows = BuildPostProcessingRows().ToList();
+        var postRows = BuildPostProcessingRows(keys).ToList();
 
         var rows = new List<LibraryModel>();
         rows.AddRange(RecommendedSort(voiceRows));
@@ -46,6 +53,24 @@ public sealed class ModelLibraryManager
         return rows;
     }
 
+    /// <summary>
+    /// Reads which keyed providers have a stored API key. Every lookup is a
+    /// Credential Manager read (~20-30 ms for the whole set on the dev box),
+    /// so the Model Library page calls this off the UI thread (#2385).
+    /// </summary>
+    public ApiKeyPresence ReadKeyPresence()
+    {
+        // A cloud provider reads the shared key map (issue #1220): the paired
+        // post-processing key, else its own slot. A keyed provider with no slot
+        // in GetTranscriptionApiKeyType() reads as "not configured". Providers
+        // that route through HW Cloud take no key and are never looked up.
+        var cloud = Enum.GetValues<CloudTranscriptionProvider>()
+            .Where(p => p.RequiresApiKey() && _apiKeys.HasApiKey(p));
+        var post = Enum.GetValues<PostProcessingProvider>()
+            .Where(p => p.RequiresApiKey() && _apiKeys.HasApiKey(p));
+        return new ApiKeyPresence(cloud, post);
+    }
+
     private static List<LibraryModel> RecommendedSort(IEnumerable<LibraryModel> models)
         => models
             .OrderByDescending(m => m.Speed + m.Accuracy)
@@ -53,7 +78,7 @@ public sealed class ModelLibraryManager
             .ThenByDescending(m => m.Speed)
             .ToList();
 
-    private IEnumerable<LibraryModel> BuildCloudTranscriptionRows()
+    private IEnumerable<LibraryModel> BuildCloudTranscriptionRows(ApiKeyPresence keys)
     {
         foreach (var model in CloudTranscriptionModels.All.Where(m => m.IsAvailable))
         {
@@ -67,7 +92,7 @@ public sealed class ModelLibraryManager
                 ProviderAssetName = CloudProviderAssetName(model.Provider),
                 Kind = LibraryModelKind.Voice,
                 LocationKind = LibraryModelLocationKind.Cloud,
-                StatusKind = StatusForCloud(model.Provider, out var message),
+                StatusKind = StatusForCloud(model.Provider, keys, out var message),
                 StatusMessage = message,
                 Source = LibraryModelSource.CloudTranscription,
                 Speed = CloudSpeed(model.Id),
@@ -162,7 +187,7 @@ public sealed class ModelLibraryManager
         }
     }
 
-    private IEnumerable<LibraryModel> BuildPostProcessingRows()
+    private IEnumerable<LibraryModel> BuildPostProcessingRows(ApiKeyPresence keys)
     {
         foreach (var model in LanguageModelInfo.AvailableModels.Where(m => m.Provider != PostProcessingProvider.LocalLlm))
         {
@@ -175,7 +200,7 @@ public sealed class ModelLibraryManager
                 ProviderAssetName = ProviderAssetName(model.Provider),
                 Kind = LibraryModelKind.Text,
                 LocationKind = LibraryModelLocationKind.Cloud,
-                StatusKind = StatusForPostProcessing(model.Provider, out var message),
+                StatusKind = StatusForPostProcessing(model.Provider, keys, out var message),
                 StatusMessage = message,
                 Source = LibraryModelSource.PostProcessing,
                 Speed = PostSpeed(model.Id),
@@ -357,7 +382,7 @@ public sealed class ModelLibraryManager
                 || (bytes[0] == 192 && bytes[1] == 168)
                 || (bytes[0] == 169 && bytes[1] == 254));
 
-    private LibraryModelStatusKind StatusForCloud(CloudTranscriptionProvider provider, out string? message)
+    private LibraryModelStatusKind StatusForCloud(CloudTranscriptionProvider provider, ApiKeyPresence keys, out string? message)
     {
         message = null;
         if (!provider.RequiresApiKey())
@@ -365,12 +390,12 @@ public sealed class ModelLibraryManager
             return LibraryModelStatusKind.Enabled;
         }
 
-        var hasKey = HasCloudApiKey(provider);
+        var hasKey = keys.Has(provider);
         var status = _health.GetStatus(provider);
         return StatusForHealth(status, hasKey, out message);
     }
 
-    private LibraryModelStatusKind StatusForPostProcessing(PostProcessingProvider provider, out string? message)
+    private LibraryModelStatusKind StatusForPostProcessing(PostProcessingProvider provider, ApiKeyPresence keys, out string? message)
     {
         message = null;
         if (!provider.RequiresApiKey())
@@ -379,7 +404,7 @@ public sealed class ModelLibraryManager
         }
 
         var status = _health.GetStatus(provider);
-        return StatusForHealth(status, _apiKeys.HasApiKey(provider), out message);
+        return StatusForHealth(status, keys.Has(provider), out message);
     }
 
     private static LibraryModelStatusKind StatusForHealth(ProviderHealth health, bool hasKey, out string? message)
@@ -400,20 +425,6 @@ public sealed class ModelLibraryManager
     {
         message = value;
         return status;
-    }
-
-    private bool HasCloudApiKey(CloudTranscriptionProvider provider)
-    {
-        // Providers that route through HW Cloud (HW Cloud itself, Azure-MAI,
-        // Google-Chirp) don't take a user-supplied key — they're always
-        // "configured" from the library's perspective.
-        if (!provider.RequiresApiKey()) return true;
-
-        // The shared key map (issue #1220): the paired post-processing key,
-        // else the provider's own slot. A newly added keyed provider with no
-        // slot in GetTranscriptionApiKeyType() reads as "not configured"
-        // instead of silently true.
-        return _apiKeys.HasApiKey(provider);
     }
 
     // Single-sourced on CloudTranscriptionProviderExtensions.GetAssetName so the
@@ -572,4 +583,25 @@ public sealed class ModelLibraryManager
     private static int WhisperAccuracy(string id) => WhisperRatings.TryGetValue(id, out var r) ? r.accuracy : 3;
     private static int PostSpeed(string id) => PostProcessingRatings.TryGetValue(id, out var r) ? r.speed : 3;
     private static int PostAccuracy(string id) => PostProcessingRatings.TryGetValue(id, out var r) ? r.accuracy : 3;
+}
+
+/// <summary>
+/// Which keyed providers had a stored API key when
+/// <see cref="ModelLibraryManager.ReadKeyPresence"/> ran. A provider that takes
+/// no key always counts as configured.
+/// </summary>
+public sealed class ApiKeyPresence
+{
+    private readonly HashSet<CloudTranscriptionProvider> _cloud;
+    private readonly HashSet<PostProcessingProvider> _postProcessing;
+
+    public ApiKeyPresence(IEnumerable<CloudTranscriptionProvider> cloud, IEnumerable<PostProcessingProvider> postProcessing)
+    {
+        _cloud = new HashSet<CloudTranscriptionProvider>(cloud);
+        _postProcessing = new HashSet<PostProcessingProvider>(postProcessing);
+    }
+
+    public bool Has(CloudTranscriptionProvider provider) => !provider.RequiresApiKey() || _cloud.Contains(provider);
+
+    public bool Has(PostProcessingProvider provider) => !provider.RequiresApiKey() || _postProcessing.Contains(provider);
 }

@@ -24,6 +24,11 @@ public partial class ModelsSettingsPage : Page
     private readonly ObservableCollection<LibraryModelViewModel> _allRows = new();
     private MainViewModel? _mainViewModel;
 
+    // Which keyed providers have a stored key, read off the UI thread (#2385).
+    // Null until the first read lands; the rows are built then.
+    private ApiKeyPresence? _keyPresence;
+    private int _keyPresenceGeneration;
+
     private enum SortColumn { Name, Type, Rating, Location }
 
     private SortColumn? _sortColumn;
@@ -99,7 +104,7 @@ public partial class ModelsSettingsPage : Page
         ModelDownloadService.Instance.DownloadChanged += OnModelDownloadChanged;
         LocalModelHealth.Changed += OnLocalModelHealthChanged;
 
-        RebuildLibrary();
+        _ = RefreshKeyPresenceAsync();
         _ = RefreshProviderHealthAsync();
 
         // Observe the request flag from MainViewModel that fires when a credential-error
@@ -131,11 +136,15 @@ public partial class ModelsSettingsPage : Page
 
     private void RebuildLibrary()
     {
+        // The rows wait for the key snapshot, so they never flash "Connect"
+        // for a provider whose key is stored. RefreshKeyPresenceAsync builds them.
+        if (_keyPresence is null) return;
+
         var downloadingRows = ModelDownloadService.Instance.GetActiveDownloads()
             .ToDictionary(d => d.ModelId, d => d.Progress);
 
         _allRows.Clear();
-        foreach (var model in _libraryManager.Rebuild())
+        foreach (var model in _libraryManager.Rebuild(_keyPresence))
         {
             _allRows.Add(new LibraryModelViewModel(
                 downloadingRows.TryGetValue(model.Id, out var progress)
@@ -144,6 +153,28 @@ public partial class ModelsSettingsPage : Page
         }
 
         ApplyFilters();
+    }
+
+    // Each key lookup is a Credential Manager read, ~20-30 ms for the set, so
+    // it runs on the thread pool and the rows are rebuilt on the UI thread when
+    // it lands. Runs on the UI thread up to the await; a newer read wins.
+    private async Task RefreshKeyPresenceAsync()
+    {
+        var generation = ++_keyPresenceGeneration;
+        ApiKeyPresence presence;
+        try
+        {
+            presence = await Task.Run(_libraryManager.ReadKeyPresence);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"ModelsSettingsPage: API key presence read failed: {ex.Message}");
+            presence = new ApiKeyPresence([], []);
+        }
+
+        if (generation != _keyPresenceGeneration) return;
+        _keyPresence = presence;
+        RebuildLibrary();
     }
 
     private async Task RefreshProviderHealthAsync()
@@ -160,12 +191,14 @@ public partial class ModelsSettingsPage : Page
             .Distinct()
             .ToArray();
 
-        var tasks = cloudProviders.Select(p => CloudProviderHealthService.Instance.RefreshAsync(p))
-            .Concat(postProviders.Select(p => CloudProviderHealthService.Instance.RefreshAsync(p)));
-
         try
         {
-            await Task.WhenAll(tasks);
+            // On the thread pool: each RefreshAsync reads the provider's key from
+            // Credential Manager before its first await (#2385). The status
+            // events it raises are marshalled back with Dispatcher.Invoke.
+            await Task.Run(() => Task.WhenAll(
+                cloudProviders.Select(p => CloudProviderHealthService.Instance.RefreshAsync(p))
+                    .Concat(postProviders.Select(p => CloudProviderHealthService.Instance.RefreshAsync(p)))));
         }
         catch (Exception ex)
         {
@@ -946,7 +979,7 @@ public partial class ModelsSettingsPage : Page
 
     private void OnApiKeysChanged(object? sender, EventArgs e)
     {
-        Dispatcher.Invoke(RebuildLibrary);
+        Dispatcher.Invoke(() => { _ = RefreshKeyPresenceAsync(); });
         _ = RefreshProviderHealthAsync();
     }
 
