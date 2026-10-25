@@ -45,28 +45,37 @@ function toContextBias(initialPrompt: string): { spaced: string[]; sent: string[
     maxTermChars: MAX_CONTEXT_BIAS_TERM_CHARS,
     joinWordsWith: ' ',
   });
-  return { spaced, sent: spaced.map((term) => term.replace(/ /g, '_')) };
+  return { spaced, sent: spaced.map((term) => term.replace(/\s+/g, '_')) };
 }
 
 /**
  * Voxtral writes a biased phrase back the way it was sent: "HyperWhisper_Cloud"
  * for the term "HyperWhisper Cloud" (seen live on `voxtral-mini-latest` on
- * 2026-10-25, after Mistral's 2026-10-20 Voxtral 3 release, #2544). Put the user's spaces
- * back. Only a term that HAD whitespace is rewritten, so a real identifier such
- * as `__init__` passes through untouched. Longest first, so "New_York_City"
- * wins over a shorter "New_York".
+ * 2026-10-25, after Mistral's 2026-10-20 Voxtral 3 release, #2544). Put the
+ * user's spaces back, and nothing else:
+ * - only a term that HAD whitespace is rewritten, so `__init__` passes through,
+ *   and a joined form the user also listed as written (`snake_case` beside
+ *   "Snake Case") is left alone;
+ * - only a whole token, exact case, so `user_id_field` keeps its underscores
+ *   when "user id" is in the list;
+ * - one pass, longest first, so restored text is never matched again.
  */
 function restoreSpacedTerms(text: string, bias: { spaced: string[]; sent: string[] }): string {
-  const pairs = bias.spaced
-    .map((spaced, i) => ({ spaced, sent: bias.sent[i] }))
-    .filter(({ spaced, sent }) => spaced !== sent)
-    .sort((a, b) => b.sent.length - a.sent.length);
-  let out = text;
-  for (const { spaced, sent } of pairs) {
-    const escaped = sent.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    out = out.replace(new RegExp(escaped, 'gi'), () => spaced);
-  }
-  return out;
+  const writtenWithUnderscore = new Set(bias.spaced.filter((term, i) => term === bias.sent[i]));
+  const spacedBySent = new Map<string, string>();
+  bias.spaced.forEach((spaced, i) => {
+    const sent = bias.sent[i];
+    if (spaced !== sent && !writtenWithUnderscore.has(sent) && !spacedBySent.has(sent)) {
+      spacedBySent.set(sent, spaced);
+    }
+  });
+  if (spacedBySent.size === 0) return text;
+
+  const alternatives = [...spacedBySent.keys()]
+    .sort((x, y) => y.length - x.length)
+    .map((sent) => sent.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const pattern = new RegExp(`(?<![\\p{L}\\p{N}_])(?:${alternatives.join('|')})(?![\\p{L}\\p{N}_])`, 'gu');
+  return text.replace(pattern, (sent) => spacedBySent.get(sent) ?? sent);
 }
 
 export async function transcribeWithMistral(
