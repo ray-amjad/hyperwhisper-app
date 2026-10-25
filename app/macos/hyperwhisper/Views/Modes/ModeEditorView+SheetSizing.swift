@@ -13,6 +13,12 @@ extension ModeEditorView {
 
     // MARK: - Sheet sizing
 
+    /// Wide enough for the form's widest row: the 3-way Source segmented
+    /// control. macOS draws its segments equally wide, so it needs three times
+    /// "HyperWhisper Cloud" (about 450pt) and cannot shrink. At the old 480 the
+    /// cards' 416pt column could not hold it, the scroll content grew past the
+    /// sheet and every card ran into the sheet's left edge.
+    static let sheetWidth: CGFloat = 560
     /// Shortest the sheet may be drawn. Below this the form is unusable, and a
     /// `maxHeight` under a `minHeight` is an invalid frame range — which is why
     /// the clamp below is a `max(...)` and not a bare `min(700, available)`.
