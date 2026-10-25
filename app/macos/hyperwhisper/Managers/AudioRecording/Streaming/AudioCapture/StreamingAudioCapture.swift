@@ -306,8 +306,18 @@ class StreamingAudioCapture {
 
         // STEP 4: Install tap on input node to capture audio
         // Buffer size of 1024 samples at ~48kHz = ~21ms of audio
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { [weak self] buffer, _ in
-            self?.processAudioBuffer(buffer)
+        // A format the node refuses raises an Objective-C exception (#2577); the
+        // guard turns it into a failed start instead of a crash.
+        do {
+            try DeviceAudioRecorder.installTap(
+                on: inputNode,
+                format: inputFormat,
+                context: ["tapIsStreamingCapture": true]
+            ) { [weak self] buffer, _ in
+                self?.processAudioBuffer(buffer)
+            }
+        } catch {
+            throw StreamingError.audioEngineError("The microphone refused the capture format")
         }
 
         // STEP 5: Start the engine

@@ -255,4 +255,69 @@ struct DeviceAudioRecorderTests {
         #expect(String(decoding: header.prefix(4), as: UTF8.self) == "RIFF")
         #expect(String(decoding: header.suffix(4), as: UTF8.self) == "WAVE")
     }
+
+    // MARK: - Tap format (#2577)
+
+    @Test func tapFormatKeepsAnOutputFormatThatMatchesTheDevice() throws {
+        let output = try Self.inputFormat(sampleRate: 48_000, channels: 1)
+        let hardware = try Self.inputFormat(sampleRate: 48_000, channels: 1)
+        let tap = try #require(DeviceAudioRecorder.tapFormat(output: output, hardware: hardware))
+        #expect(tap.isEqual(output))
+    }
+
+    /// The Sentry HYPERWHISPER-11K crash: the node's output side said 1 channel at
+    /// 48 kHz while the device side did not, and `installTap` refused it.
+    @Test func tapFormatFollowsTheDeviceWhenTheChannelCountsDiffer() throws {
+        let output = try Self.inputFormat(sampleRate: 48_000, channels: 1)
+        let hardware = try Self.inputFormat(sampleRate: 48_000, channels: 2)
+        let tap = try #require(DeviceAudioRecorder.tapFormat(output: output, hardware: hardware))
+        #expect(tap.sampleRate == hardware.sampleRate)
+        #expect(tap.channelCount == hardware.channelCount)
+    }
+
+    @Test func tapFormatFollowsAMultiChannelDeviceLayout() throws {
+        let output = try Self.inputFormat(sampleRate: 48_000, channels: 2)
+        let hardware = try Self.inputFormat(sampleRate: 48_000, channels: 4)
+        let tap = try #require(DeviceAudioRecorder.tapFormat(output: output, hardware: hardware))
+        #expect(tap.channelCount == 4)
+    }
+
+    @Test func tapFormatFollowsTheDeviceRate() throws {
+        let output = try Self.inputFormat(sampleRate: 48_000, channels: 2)
+        let hardware = try Self.inputFormat(sampleRate: 44_100, channels: 2)
+        let tap = try #require(DeviceAudioRecorder.tapFormat(output: output, hardware: hardware))
+        #expect(tap.sampleRate == 44_100)
+        #expect(tap.channelCount == 2)
+    }
+
+    @Test func tapFormatExtrasAreNumbersAndBoolsOnly() throws {
+        let format = try Self.inputFormat(sampleRate: 48_000, channels: 1)
+        let extras = DeviceAudioRecorder.tapFormatExtras(requested: format, output: format, hardware: format)
+        #expect(extras.count == 12)
+        #expect(extras["tapRequestedChannelCount"] as? Int == 1)
+        #expect(extras["tapNodeHardwareSampleRateHz"] as? Double == 48_000)
+        #expect(extras.values.allSatisfy { !($0 is String) })
+    }
+
+    // MARK: - Objective-C exception guard (#2577)
+
+    @Test func exceptionGuardTurnsAnObjCExceptionIntoAnError() {
+        var thrown: NSError?
+        do {
+            try ObjCExceptionGuard.run {
+                NSException(name: .invalidArgumentException, reason: "Failed to create tap due to format mismatch", userInfo: nil).raise()
+            }
+        } catch {
+            thrown = error as NSError
+        }
+        #expect(thrown?.domain == "HyperWhisper.ObjCException")
+        #expect(thrown?.localizedFailureReason == "Failed to create tap due to format mismatch")
+        #expect(thrown?.userInfo["ObjCExceptionName"] as? String == NSExceptionName.invalidArgumentException.rawValue)
+    }
+
+    @Test func exceptionGuardRunsABodyThatDoesNotRaise() throws {
+        var ran = false
+        try ObjCExceptionGuard.run { ran = true }
+        #expect(ran)
+    }
 }

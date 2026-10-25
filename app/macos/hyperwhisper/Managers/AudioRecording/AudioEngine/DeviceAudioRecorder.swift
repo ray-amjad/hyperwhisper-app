@@ -49,6 +49,9 @@ enum DeviceAudioRecorderError: Error, CustomStringConvertible {
     case deviceSelectionFailed(OSStatus)
     case noInputFormat
     case converterUnavailable
+    /// `installTap` raised "Failed to create tap due to format mismatch" (issue #2577).
+    /// Caught by `ObjCExceptionGuard`, so a failed start the user can retry, not a crash.
+    case tapFormatMismatch
 
     var description: String {
         switch self {
@@ -60,6 +63,8 @@ enum DeviceAudioRecorderError: Error, CustomStringConvertible {
             return "The input device reports no usable format"
         case .converterUnavailable:
             return "Could not build a converter to 16 kHz mono Int16"
+        case .tapFormatMismatch:
+            return "The input node refused the tap format"
         }
     }
 }
@@ -188,22 +193,78 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     /// permission, no device, a device mid-reconfiguration). Installing a tap with a
     /// zero-rate or zero-channel format raises an Objective-C exception, which Swift
     /// cannot catch, so this check is what keeps a bad device from crashing the app.
+    /// `installTap(on:format:tap:)` still guards the call, for a mismatch this misses.
     static func tapFormat(for inputNode: AVAudioInputNode) -> AVAudioFormat? {
-        let output = inputNode.outputFormat(forBus: 0)
-        let hardware = inputNode.inputFormat(forBus: 0)
+        tapFormat(output: inputNode.outputFormat(forBus: 0), hardware: inputNode.inputFormat(forBus: 0))
+    }
+
+    /// `tapFormat(for:)` on the node's two formats, so a test can feed it any pair.
+    static func tapFormat(output: AVAudioFormat, hardware: AVAudioFormat) -> AVAudioFormat? {
         guard output.sampleRate > 0, output.channelCount > 0 else { return nil }
-        // A tap whose rate differs from the hardware's raises an exception too. After a
-        // device switch the output side can briefly lag behind the hardware side.
-        if hardware.sampleRate > 0, hardware.sampleRate != output.sampleRate {
-            AppLogger.audio.notice("Input node output rate \(output.sampleRate, privacy: .public) Hz differs from the device's \(hardware.sampleRate, privacy: .public) Hz - tapping at the device rate")
-            // `init(standardFormatWithSampleRate:channels:)` returns nil above two
-            // channels, so a multi-channel device keeps its layout.
-            if let layout = output.channelLayout {
-                return AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate, channelLayout: layout)
-            }
-            return AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate, channels: output.channelCount)
+        // A tap whose rate or channel count differs from the hardware's raises an
+        // exception too. After a device switch the output side can briefly lag behind
+        // the hardware side (#2577: a 1-channel 48 kHz output format was refused).
+        guard hardware.sampleRate > 0, hardware.channelCount > 0,
+              hardware.sampleRate != output.sampleRate || hardware.channelCount != output.channelCount
+        else { return output }
+
+        AppLogger.audio.notice("Input node output format (\(output.sampleRate, privacy: .public) Hz, \(output.channelCount, privacy: .public) ch) differs from the device's (\(hardware.sampleRate, privacy: .public) Hz, \(hardware.channelCount, privacy: .public) ch) - tapping at the device format")
+        // `init(standardFormatWithSampleRate:channels:)` returns nil above two
+        // channels, so a multi-channel device keeps its layout. Only a layout with
+        // the device's channel count will do.
+        if hardware.channelCount == output.channelCount, let layout = output.channelLayout {
+            return AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate, channelLayout: layout)
         }
-        return output
+        if let layout = hardware.channelLayout {
+            return AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate, channelLayout: layout)
+        }
+        return AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate, channels: hardware.channelCount)
+    }
+
+    /// Install a tap, turning the Objective-C exception `installTap` raises on a
+    /// format mismatch into `DeviceAudioRecorderError.tapFormatMismatch` (issue
+    /// #2577). Reports the handled error to Sentry with both sides' formats, as
+    /// numbers only, so the next event names the cause. Shared with
+    /// `StreamingAudioCapture`.
+    static func installTap(
+        on inputNode: AVAudioInputNode,
+        format: AVAudioFormat,
+        context: [String: Any] = [:],
+        tap: @escaping AVAudioNodeTapBlock
+    ) throws {
+        do {
+            try ObjCExceptionGuard.run {
+                inputNode.installTap(onBus: 0, bufferSize: 1024, format: format, block: tap)
+            }
+        } catch {
+            AppLogger.audio.error("installTap refused the tap format (\(format.sampleRate, privacy: .public) Hz, \(format.channelCount, privacy: .public) ch): \((error as NSError).localizedFailureReason ?? "no reason", privacy: .public)")
+            var extras = tapFormatExtras(
+                requested: format,
+                output: inputNode.outputFormat(forBus: 0),
+                hardware: inputNode.inputFormat(forBus: 0)
+            )
+            extras.merge(context) { _, new in new }
+            SentryService.capture(
+                error: DeviceAudioRecorderError.tapFormatMismatch,
+                message: "Audio tap format mismatch",
+                extras: extras,
+                tags: ["component": "audio_capture"]
+            )
+            throw DeviceAudioRecorderError.tapFormatMismatch
+        }
+    }
+
+    /// The Sentry extras of a refused tap: every value a number or a Bool, never a
+    /// device name or UID.
+    static func tapFormatExtras(requested: AVAudioFormat, output: AVAudioFormat, hardware: AVAudioFormat) -> [String: Any] {
+        var extras: [String: Any] = [:]
+        for (prefix, format) in [("tapRequested", requested), ("tapNodeOutput", output), ("tapNodeHardware", hardware)] {
+            extras["\(prefix)SampleRateHz"] = format.sampleRate
+            extras["\(prefix)ChannelCount"] = Int(format.channelCount)
+            extras["\(prefix)IsInterleaved"] = format.isInterleaved
+            extras["\(prefix)CommonFormat"] = Int(format.commonFormat.rawValue)
+        }
+        return extras
     }
 
     /// RMS power of a float buffer in dB, floored at `silentPowerDb`.
@@ -517,7 +578,11 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
 
         AppLogger.audio.info("Chosen microphone opened: \(format.sampleRate, privacy: .public) Hz, \(format.channelCount, privacy: .public) channel(s)")
 
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
+        try Self.installTap(
+            on: input,
+            format: format,
+            context: ["tapStartIsFallbackDevice": deviceID != self.deviceID]
+        ) { [weak self] buffer, _ in
             self?.process(buffer)
         }
         engine.prepare()
