@@ -2,9 +2,9 @@
 //  ModeEditorView+SheetSizing.swift
 //  HyperWhisper
 //
-//  The mode editor sheet's height clamp (issue #711), as pure statics. The
-//  instance property that reads the window, and the frame that applies the
-//  clamp, stay in ModeEditorView.swift.
+//  The mode editor sheet's width and its height clamp (issue #711), as pure
+//  statics. The instance property that reads the window, and the frames that
+//  apply them, stay in ModeEditorView.swift.
 //
 
 import SwiftUI
