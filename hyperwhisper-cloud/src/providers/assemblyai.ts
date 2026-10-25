@@ -731,7 +731,8 @@ async function pollUntilTerminal(
       if (job.status === 'error') {
         // Failed transcript returns HTTP 200 + status:"error" — a bad-input signal.
         // `job.error` is AssemblyAI's free text and is never logged (#2163):
-        // its length only. It still reaches the client's 400.
+        // its length only. It stays in `clientMessage`, which is neither logged
+        // nor sent: the client's 400 is fixed (#2131).
         logProviderEvent(provider, 'job_error', { model, polls, errorMessageLength: job.error?.length ?? 0 }, context);
         throw new ProviderInputError('AssemblyAI', 422, 'transcription failed', job.error || 'transcription failed');
       }

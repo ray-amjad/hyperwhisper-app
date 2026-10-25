@@ -271,7 +271,8 @@ describe('transcribeWithGemini — upstream error mapping', () => {
     const thrown = await transcribeWithGemini(audio(), 'audio/wav').catch((e) => e);
     expect(thrown).toBeInstanceOf(ProviderInputError);
     expect(thrown.status).toBe(400);
-    // The body reaches the client's text only, never the logged message (#2163).
+    // The body stays in `clientMessage` only, never the logged message (#2163);
+    // no route sends `clientMessage` (#2131).
     expect(thrown.message).not.toContain('unsupported audio mime type');
     expect(thrown.clientMessage).toContain('unsupported audio mime type');
   });
