@@ -101,7 +101,7 @@ public partial class MainWindow : Window
         var priorSettings = _platformServices.PrivateFiles.ReadAllText(
             Path.Combine(_platformServices.Paths.ConfigDirectory, "settings.json"));
         _isFreshProfile = priorSettings.IsSuccess && priorSettings.Value is null;
-        _database = new ApplicationDb(_platformServices.Paths);
+        _database = LinuxApplicationDatabase.Open(_platformServices.Paths);
         _settings = new PortableSettingsService(_platformServices.PrivateFiles, _platformServices.Paths);
         _modelManager = new PortableModelManager(_platformServices.Paths, _modelHttp);
         _onboardingReadiness = new LinuxOnboardingModeReadiness(
