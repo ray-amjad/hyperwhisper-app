@@ -39,7 +39,7 @@ import Testing
 /// as a six-hour infrastructure outage with no indication which test had
 /// stopped. `wait()` therefore races a deadline that records a swift-testing
 /// `Issue` naming the waiting call site and then permanently opens the gate, so
-/// the suite FAILS in seconds and says where.
+/// the suite FAILS within `defaultTimeout` and says where.
 ///
 /// The deadline is a failsafe, never a synchronisation device: on the happy path
 /// it is cancelled without having fired, and no assertion depends on it.
