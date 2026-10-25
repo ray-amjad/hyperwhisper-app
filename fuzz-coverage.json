@@ -824,6 +824,22 @@
       ],
       "licensed": false,
       "note": "unlicensed. Codex flagged 2, both dismissed: Start recording w/o licence is by design (fails at transcribe with 'A HyperWhisper account key is required', History keeps audio + Retry); openbox maximise no-op = MainWindow CanResize=False fixed 1000x680. Licence field trims/validates (AccountKeyFormat, max 64). Restore Delay clamps 1-60. Settings persist to settings.json."
+    },
+    {
+      "at": "2026-10-25T15:21:57Z",
+      "platform": "linux",
+      "commit": "6c437127",
+      "routes": [
+        "history-and-backup",
+        "local-api",
+        "modes"
+      ],
+      "status": "nothing-found",
+      "issues": [
+        0
+      ],
+      "licensed": false,
+      "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY); History empty so entry select/copy/retry/delete unwalked; backup pickers opened+cancelled only, no export/import round-trip. Not defects: token Copy 'No supported clipboard helper' (sandbox lacks xclip/wl-copy); in-use preferred port falls back to ephemeral by design; Tab from port field focuses title-bar minimise, Return then hides window to tray (MinimizeToTray) - looks like a crash on headless."
     }
   ]
 }
