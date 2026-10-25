@@ -157,6 +157,45 @@ describe('transcribeWithMistral — context_bias encoding', () => {
   });
 });
 
+describe('transcribeWithMistral — biased phrases in the transcript', () => {
+  // Live on voxtral-mini-latest, 2026-10-25 (#2544): the term "HyperWhisper Cloud",
+  // sent as "HyperWhisper_Cloud", came back in the text with the underscore.
+  test('puts the user\'s spaces back into a phrase Voxtral echoed with underscores', async () => {
+    captureRequest({ text: 'Ship it with HyperWhisper_Cloud and the Zeta_Fortnight team.', usage: { prompt_audio_seconds: 6 } });
+
+    const result = await transcribeWithMistral(audio(), 'audio/mpeg', 'en', 'Kubernetes, HyperWhisper Cloud, Zeta  Fortnight');
+    expect(result.text).toBe('Ship it with HyperWhisper Cloud and the Zeta Fortnight team.');
+  });
+
+  test('leaves real underscores alone, and prefers the longest phrase', async () => {
+    captureRequest({ text: 'call __init__ then visit New_York_City and New_York', usage: { prompt_audio_seconds: 6 } });
+
+    const result = await transcribeWithMistral(audio(), 'audio/wav', undefined, '__init__, New York, New York City, $1 a$b');
+    expect(result.text).toBe('call __init__ then visit New York City and New York');
+  });
+
+  test('rewrites only whole tokens in the exact case sent', async () => {
+    captureRequest({ text: 'user_id, get_user_id, user_id_field, USER_ID, src/ios_app/x', usage: { prompt_audio_seconds: 6 } });
+
+    const result = await transcribeWithMistral(audio(), 'audio/wav', undefined, 'user id, iOS App');
+    expect(result.text).toBe('user id, get_user_id, user_id_field, USER_ID, src/ios_app/x');
+  });
+
+  test('never rewrites restored text again, nor a joined form the user also listed as written', async () => {
+    captureRequest({ text: 'my_var_name and snake_case', usage: { prompt_audio_seconds: 6 } });
+
+    const result = await transcribeWithMistral(audio(), 'audio/wav', undefined, 'my_var name, my var, snake_case, snake case');
+    expect(result.text).toBe('my_var name and snake_case');
+  });
+
+  test('changes nothing when there is no vocabulary', async () => {
+    captureRequest({ text: 'snake_case stays', usage: { prompt_audio_seconds: 6 } });
+
+    const result = await transcribeWithMistral(audio(), 'audio/wav');
+    expect(result.text).toBe('snake_case stays');
+  });
+});
+
 describe('transcribeWithMistral — HTTP error classification', () => {
   test('401 and 403 throw a plain Error so the chain does NOT retry a bad key', async () => {
     for (const status of [401, 403]) {
