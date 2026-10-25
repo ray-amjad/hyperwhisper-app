@@ -239,12 +239,12 @@ internal static class Program
                     "a failing reporter escaped the handler");
             });
 
-            Run("App's dispatcher handler recovers a render thread failure with no dialog", () =>
+            Run("App's render thread branch moves the process and open windows to software rendering", () =>
             {
-                // Drives the REAL App.DispatcherUnhandledException handler: the
-                // generic path would block this run on a modal message box, and an
-                // unhandled exception would escape PushFrame and fail the case.
-                var app = EnsureSmokeApplication();
+                // Drives the branch the real dispatcher handler calls, with its real
+                // SwitchToSoftwareRendering, on a real window handle. Sentry is not
+                // initialized here, so the one report is a no-op.
+                var app = (App)EnsureSmokeApplication();
                 var window = new Window();
                 var shutdownMode = app.ShutdownMode;
                 app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
@@ -255,16 +255,19 @@ internal static class Program
                     Assert(source.CompositionTarget.RenderMode == System.Windows.Interop.RenderMode.Default,
                         "the test window did not start on default rendering");
 
+                    var recovery = new RenderThreadFailureRecovery();
+                    Assert(!app.TryRecoverRenderThreadFailure(new InvalidOperationException(), recovery),
+                        "App took an unrelated exception for a render thread failure");
+                    Assert(System.Windows.Media.RenderOptions.ProcessRenderMode
+                            == System.Windows.Interop.RenderMode.Default,
+                        "an unrelated exception changed the render mode");
+
+                    var failure = new System.Runtime.InteropServices.COMException(
+                        "UCEERR_RENDERTHREADFAILURE", unchecked((int)0x88980406));
                     for (var i = 0; i < 5; i++)
                     {
-                        var frame = new System.Windows.Threading.DispatcherFrame();
-                        app.Dispatcher.BeginInvoke(() =>
-                            throw new System.Runtime.InteropServices.COMException(
-                                "UCEERR_RENDERTHREADFAILURE", unchecked((int)0x88980406)));
-                        app.Dispatcher.BeginInvoke(
-                            System.Windows.Threading.DispatcherPriority.Background,
-                            () => frame.Continue = false);
-                        System.Windows.Threading.Dispatcher.PushFrame(frame);
+                        Assert(app.TryRecoverRenderThreadFailure(failure, recovery),
+                            $"render thread failure {i + 1} fell through to the generic dialog");
                     }
 
                     Assert(System.Windows.Media.RenderOptions.ProcessRenderMode

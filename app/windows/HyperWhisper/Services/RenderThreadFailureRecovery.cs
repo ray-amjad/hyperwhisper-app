@@ -97,7 +97,8 @@ internal sealed class RenderThreadFailureRecovery
         }
 
         LoggingService.Error(
-            $"RenderThreadFailureRecovery: render thread failed (stage={stage}), switching to software rendering");
+            $"RenderThreadFailureRecovery: render thread failed (stage={stage}), switching to software rendering",
+            exception!);
 
         string recovery;
         try

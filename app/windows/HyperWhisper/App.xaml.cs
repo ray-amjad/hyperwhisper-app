@@ -84,11 +84,7 @@ public partial class App : WpfApplication
         {
             // A failed render thread (#2549) repeats on every repaint: recovered once
             // by software rendering and reported once, never a dialog per repeat.
-            if (RenderThreadFailureRecovery.Shared.TryHandle(
-                    args.Exception,
-                    MainWindow is not { IsLoaded: true } ? "ui_startup" : "ui_running",
-                    SwitchToSoftwareRendering,
-                    RenderThreadFailureRecovery.SendReport))
+            if (TryRecoverRenderThreadFailure(args.Exception, RenderThreadFailureRecovery.Shared))
             {
                 args.Handled = true;
                 return;
@@ -423,6 +419,17 @@ public partial class App : WpfApplication
     }
 
     private static int _applicationControlNoticeShown;
+
+    /// <summary>
+    /// The dispatcher handler's render thread branch (#2549), apart so the smoke
+    /// tests can drive it: OnStartup, which subscribes the handler, never runs there.
+    /// </summary>
+    internal bool TryRecoverRenderThreadFailure(Exception? exception, RenderThreadFailureRecovery recovery) =>
+        recovery.TryHandle(
+            exception,
+            MainWindow is not { IsLoaded: true } ? "ui_startup" : "ui_running",
+            SwitchToSoftwareRendering,
+            RenderThreadFailureRecovery.SendReport);
 
     /// <summary>
     /// Moves the whole process to software rendering after the GPU render thread
