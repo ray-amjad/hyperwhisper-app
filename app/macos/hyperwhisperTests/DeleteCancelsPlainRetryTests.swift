@@ -22,7 +22,7 @@ import Testing
 
 @testable import HyperWhisper
 
-@Suite("Deleting a row cancels its plain Retry (#1743)")
+@Suite("Deleting a row cancels its plain Retry (#1743)", .timeLimit(.minutes(10)))
 struct DeleteCancelsPlainRetryTests {
 
     private static let originalText = "Transcription failed: the engine could not decode the audio"
@@ -392,10 +392,14 @@ struct DeleteCancelsPlainRetryTests {
         return url
     }
 
-    /// Waits up to two seconds for `task` to end; a cancel ends it.
+    /// Waits for `task` to end; a cancel ends it. The 120 s bound is a hang
+    /// guard, not a deadline: a loaded CI runner can stall the test process for
+    /// 20-90 s (#2505, #2540). The suite's time limit is the backstop.
     @MainActor
     private func ended(_ task: Task<Void, Never>) async -> Bool {
-        for _ in 0..<200 {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(120))
+        while clock.now < deadline {
             if task.isCancelled { return true }
             try? await Task.sleep(nanoseconds: 10_000_000)
         }

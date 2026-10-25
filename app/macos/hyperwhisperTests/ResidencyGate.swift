@@ -46,9 +46,10 @@ import Testing
 final class ResidencyGate: @unchecked Sendable {
 
     /// How long any single `wait()` may block before it is declared a hang.
-    /// Generous next to the microseconds these handshakes actually take, and
-    /// tiny next to the six hours it replaces.
-    static let defaultTimeout: TimeInterval = 30
+    /// Generous next to the microseconds these handshakes actually take, above
+    /// the 20-90 s a loaded CI runner can stall the test process (#2505, #2540),
+    /// and tiny next to the six hours it replaces.
+    static let defaultTimeout: TimeInterval = 120
 
     private let mutex = NSLock()
     /// Buffered `signal()`s that no waiter has consumed yet.

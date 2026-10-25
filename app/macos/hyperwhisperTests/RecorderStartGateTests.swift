@@ -13,14 +13,15 @@ import Testing
 /// promises: the caller stops waiting at the deadline, a late result is handed to
 /// `discardLate` and never to the caller, and new work is refused while a timed-out
 /// call is still blocking the queue.
+@Suite(.timeLimit(.minutes(10)))
 struct RecorderStartGateTests {
 
     private struct WorkFailed: Error {}
 
     /// How long blocked work waits for the test to release it. Only the test's
     /// `release.signal()` should end the block, so this is far past any deadline a
-    /// loaded CI runner can miss (#1216).
-    private static let blockCap: DispatchTimeInterval = .seconds(60)
+    /// loaded CI runner can miss (#1216), and above the tests' 120 s waits (#2540).
+    private static let blockCap: DispatchTimeInterval = .seconds(300)
 
     private static func makeQueue() -> DispatchQueue {
         DispatchQueue(label: "RecorderStartGateTests.\(UUID().uuidString)")
@@ -32,7 +33,7 @@ struct RecorderStartGateTests {
 
     /// Wait on a thread of its own, so a blocked semaphore never starves the
     /// cooperative pool that every other suite shares.
-    private static func wait(_ semaphore: DispatchSemaphore, seconds: Double = 30) async -> Bool {
+    private static func wait(_ semaphore: DispatchSemaphore, seconds: Double = 120) async -> Bool {
         await waitOffThePool(for: semaphore, seconds: seconds)
     }
 
