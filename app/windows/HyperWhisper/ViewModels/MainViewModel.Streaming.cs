@@ -30,6 +30,18 @@ public partial class MainViewModel : ViewModelBase
             ? _streamingFailureMessage
             : "Streaming transcription connection could not be started.";
 
+    /// <summary>
+    /// Test seam (#2242): builds the streaming client for a session. Null in the app,
+    /// which uses <see cref="StreamingTranscriptionSessionFactory.Create"/>.
+    /// </summary>
+    internal Func<IReadOnlyCollection<string>, Result<IStreamingTranscriptionClient>>? StreamingClientFactoryOverride { get; set; }
+
+    /// <summary>
+    /// Test seam (#2242): builds the microphone capture for a session. Null in the
+    /// app, which opens a <see cref="StreamingAudioCapture"/>.
+    /// </summary>
+    internal Func<IStreamingAudioSource>? StreamingAudioSourceFactoryOverride { get; set; }
+
     private async Task StartStreamingRecordingAsync()
     {
         // The second capture entry point; see StartRecordingAsync for why the
@@ -55,7 +67,8 @@ public partial class MainViewModel : ViewModelBase
         // No local trial gate — local transcription is unlimited (open source).
 
         var vocabulary = _vocabularyService.GetVocabularyWords(100);
-        var clientResult = StreamingTranscriptionSessionFactory.Create(vocabulary);
+        var clientResult = StreamingClientFactoryOverride?.Invoke(vocabulary)
+            ?? StreamingTranscriptionSessionFactory.Create(vocabulary).Map<IStreamingTranscriptionClient>(client => client);
         if (clientResult.IsFailure)
         {
             LoggingService.Warn($"StartStreamingRecordingAsync: {clientResult.Error}");
@@ -94,7 +107,7 @@ public partial class MainViewModel : ViewModelBase
             "audio.streaming",
             data: new Dictionary<string, string> { ["provider"] = providerName });
 
-        _streamingAudioCapture = new StreamingAudioCapture();
+        _streamingAudioCapture = StreamingAudioSourceFactoryOverride?.Invoke() ?? new StreamingAudioCapture();
         _streamingAudioCapture.AudioChunkAvailable += OnStreamingAudioChunkAvailable;
         _streamingAudioCapture.AudioLevelChanged += _audioLevelHandler;
 

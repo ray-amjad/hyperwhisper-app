@@ -26,7 +26,7 @@
     "downloadCta": "Download nu",
     "demoCta": "Se demo",
     "availableOn": "Tilgængelig på",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Er der et abonnement?",
-        "answer": "Nej — aldrig. HyperWhisper er en open source-app, du ejer, ikke et abonnement, du lejer. Hent den gratis, og brug lokal offline-transskription uden omkostninger for altid; gratisplanen inkluderer også 5 minutters cloudtransskription om dagen. Når du vil have cloudtransskription uden opsætning ud over det, er HyperWhisper Cloud enkle credits efter forbrug — du fylder kun op, når du har brug for det, uden månedlige gebyrer og uden noget at opsige."
+        "answer": "Nej — aldrig. HyperWhisper er en open source-app, du ejer, ikke et abonnement, du lejer. Hent den gratis, og brug lokal offline-transskription uden omkostninger for altid. Når du vil have cloudtransskription uden opsætning, er HyperWhisper Cloud enkle credits efter forbrug — du fylder kun op, når du har brug for det, uden månedlige gebyrer og uden noget at opsige."
       },
       "deviceLimit": {
         "question": "Hvor mange enheder kan jeg bruge min kontonøgle på?",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Hvad er systemkravene?",
-        "answer": "Til Mac: macOS 14 eller nyere, med støtte til både Apple Silicon og Intel. Til Windows: Windows 10/11, x64 eller ARM64. Til Linux v1: Ubuntu 22.04 eller nyere eller Debian 12 eller nyere på amd64. 8GB RAM anbefales for optimal ydeevne."
+        "answer": "Til Mac: macOS 14.6 eller nyere, med støtte til både Apple Silicon og Intel. Til Windows: Windows 10/11, x64 eller ARM64. Til Linux v1: Ubuntu 22.04 eller nyere eller Debian 12 eller nyere på amd64. 8GB RAM anbefales for optimal ydeevne."
       },
       "madeBy": {
         "question": "Hvem har lavet dette?",

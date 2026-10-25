@@ -26,7 +26,7 @@
     "downloadCta": "Preuzmi sada",
     "demoCta": "Pogledaj demo",
     "availableOn": "Dostupno na",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Da li postoji pretplata?",
-        "answer": "Ne — nikada. HyperWhisper je aplikacija otvorenog koda koju posedujete, a ne pretplata koju iznajmljujete. Preuzmite je besplatno i zauvek besplatno koristite lokalnu, offline transkripciju; besplatni nivo takodje ukljucuje 5 minuta cloud transkripcije dnevno. Kada pozelite cloud transkripciju bez podesavanja iznad toga, HyperWhisper Cloud su jednostavni krediti po modelu placanja po potrosnji — dopunjavate samo kada vam zatreba, bez mesecnih naknada i bez iceg za otkazivanje."
+        "answer": "Ne — nikada. HyperWhisper je aplikacija otvorenog koda koju posedujete, a ne pretplata koju iznajmljujete. Preuzmite je besplatno i zauvek besplatno koristite lokalnu, offline transkripciju. Kada pozelite cloud transkripciju bez podesavanja, HyperWhisper Cloud su jednostavni krediti po modelu placanja po potrosnji — dopunjavate samo kada vam zatreba, bez mesecnih naknada i bez iceg za otkazivanje."
       },
       "deviceLimit": {
         "question": "Na koliko uređaja mogu da koristim svoj ključ naloga?",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Koji su sistemski zahtevi?",
-        "answer": "Za Mac: macOS 14 ili noviji, uz podršku za Apple Silicon i Intel. Za Windows: Windows 10/11, x64 ili ARM64. Za Linux v1: Ubuntu 22.04 ili noviji ili Debian 12 ili noviji, na amd64. Za optimalne performanse preporučeno je 8GB RAM-a."
+        "answer": "Za Mac: macOS 14.6 ili noviji, uz podršku za Apple Silicon i Intel. Za Windows: Windows 10/11, x64 ili ARM64. Za Linux v1: Ubuntu 22.04 ili noviji ili Debian 12 ili noviji, na amd64. Za optimalne performanse preporučeno je 8GB RAM-a."
       },
       "madeBy": {
         "question": "Ko je ovo napravio?",

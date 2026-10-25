@@ -32,7 +32,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import type { SignOutHandlerRequest } from "../src/lib/sign-out";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 /** Every `createSignOutHandler` call the component made, in order. */
 const factoryCalls: SignOutHandlerRequest[] = [];
@@ -46,7 +46,7 @@ const handlerRuns: SignOutHandlerRequest[] = [];
  * own behaviour — when it navigates, when it clears the busy flag — is
  * `sign-out-seam.test.ts`.
  */
-moduleMock.module("../src/lib/sign-out", {
+moduleMock.module(moduleUrl("../src/lib/sign-out.ts"), {
   namedExports: {
     createSignOutHandler: (request: SignOutHandlerRequest) => {
       factoryCalls.push(request);
@@ -63,7 +63,7 @@ moduleMock.module("../src/lib/sign-out", {
  * `window` and for `BETTER_AUTH_URL` at import time; neither exists here, and
  * neither is part of what this file proves.
  */
-moduleMock.module("../src/lib/auth-client", {
+moduleMock.module(moduleUrl("../src/lib/auth-client.ts"), {
   namedExports: { authClient: { signOut: async () => ({ error: null }) } },
 });
 
@@ -86,7 +86,7 @@ const viewRenders: ViewProps[] = [];
  * which is exactly how the round 1 version of this file passed with the
  * button's `onClick` deleted.
  */
-moduleMock.module("../components/user/UserHeaderView.tsx", {
+moduleMock.module(moduleUrl("../components/user/UserHeaderView.tsx"), {
   defaultExport: (props: ViewProps) => {
     viewRenders.push(props);
 

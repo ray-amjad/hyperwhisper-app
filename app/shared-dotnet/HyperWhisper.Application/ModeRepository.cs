@@ -65,16 +65,16 @@ public sealed class ModeRepository(ApplicationDb database)
         await using var context = _database.CreateContext();
         var all = await context.Modes.OrderBy(item => item.SortOrder).ToListAsync(cancellationToken);
         if (all.Any(item => item.Id != mode.Id && string.Equals(item.Name, mode.Name, StringComparison.OrdinalIgnoreCase)))
-            throw new InvalidOperationException("A mode with that name already exists.");
+            throw new ModeRuleViolationException("modes.name_taken", "A mode with that name already exists.");
         var existing = all.SingleOrDefault(item => item.Id == mode.Id);
         // Both checks read the row as it stands BEFORE the write (issue #536).
         if (existing is not null
             && DefaultModePolicy.CheckRename(existing, mode.Name)
                 == PortableModeNameChange.RejectedDefaultIsFixed)
-            throw new InvalidOperationException("The default mode's name cannot be changed.");
+            throw new ModeRuleViolationException("modes.default_name_fixed", "The default mode's name cannot be changed.");
         if (DefaultModePolicy.CheckDefaultFlag(all, mode.Id, mode.IsDefault)
             == PortableDefaultFlagChange.RejectedLastDefault)
-            throw new InvalidOperationException("At least one mode must remain the default.");
+            throw new ModeRuleViolationException("modes.last_default", "At least one mode must remain the default.");
         if (existing is null)
         {
             context.Modes.Add(mode);
@@ -87,4 +87,13 @@ public sealed class ModeRepository(ApplicationDb database)
         DefaultModePolicy.Apply(all, mode.IsDefault ? mode.Id : null);
         await context.SaveChangesAsync(cancellationToken);
     }
+}
+
+/// <summary>
+/// A save <see cref="ModeRepository.UpsertSafelyAsync"/> refused on a mode rule, not on a storage
+/// fault. <see cref="Code"/> is the status code the editor shows it under (issue #2551).
+/// </summary>
+public sealed class ModeRuleViolationException(string code, string message) : InvalidOperationException(message)
+{
+    public string Code { get; } = code;
 }

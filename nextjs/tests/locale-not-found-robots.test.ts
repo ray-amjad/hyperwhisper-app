@@ -24,7 +24,7 @@ import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const MESSAGES_DIR = path.join(__dirname, "..", "messages");
 
@@ -83,7 +83,7 @@ function FakeLocaleLayout() {
   return null;
 }
 
-moduleMock.module("../app/[locale]/layout.tsx", {
+moduleMock.module(moduleUrl("../app/[locale]/layout.tsx"), {
   defaultExport: FakeLocaleLayout,
 });
 
@@ -142,7 +142,7 @@ test("[locale] not-found titles a thrown 404 in the segment's locale", async () 
 });
 
 test("[locale] not-found titles a non-locale segment in the default locale", async () => {
-  // /favicon.ico reaches [locale] with a param that is not a locale. The
+  // /x.png reaches [locale] with a param that is not a locale. The
   // fallback must not be getLocale(): on a prerendered route that headers()
   // read is a 500, not a 404 (#843).
   request.locale = "de";
@@ -151,7 +151,7 @@ test("[locale] not-found titles a non-locale segment in the default locale", asy
   )) as LocaleNotFoundModule;
 
   const metadata = await generateMetadata({
-    params: Promise.resolve({ locale: "favicon.ico" }),
+    params: Promise.resolve({ locale: "x.png" }),
   });
 
   assert.equal(metadata.title, en.title);
@@ -237,7 +237,7 @@ test("the English-only pages throw their 404 from generateMetadata too", () => {
 });
 
 test("the [locale] layout 404s an unknown locale in its metadata and its render", () => {
-  // The proxy matcher skips dotted paths, so /favicon.ico and /.env reach the
+  // The proxy matcher skips dotted paths, so /x.png and /.env reach the
   // layout with a "locale" that is not one. Both entry points must refuse it
   // before the canonical or the page is built from it (#1853). The real layout
   // imports CSS and next/font, so the source is read instead.

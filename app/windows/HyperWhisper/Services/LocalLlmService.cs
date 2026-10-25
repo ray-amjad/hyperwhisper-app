@@ -5,6 +5,7 @@ using LLama;
 using LLama.Common;
 using LLama.Native;
 using LLama.Sampling;
+using uniffi.hyperwhisper_core;
 using static HyperWhisper.Services.LocalLlmGpuLoadCrashStore;
 
 namespace HyperWhisper.Services;
@@ -68,7 +69,12 @@ public sealed class LocalLlmService : IDisposable
         }
     }
 
-    public async Task<string> GenerateAsync(
+    /// <summary>
+    /// Runs one post-processing completion. Returns the raw model text and how the
+    /// model stopped; throws <see cref="TimeoutException"/> when inference ran out
+    /// of time, so a cut-off answer can never replace the transcript.
+    /// </summary>
+    internal async Task<LocalLlmCompletion> GenerateAsync(
         string modelPath,
         string systemPrompt,
         string userMessage,
@@ -90,40 +96,67 @@ public sealed class LocalLlmService : IDisposable
 
             EnsurePromptFitsLocalContext(systemPrompt, userMessage);
 
-            using var context = _weights!.CreateContext(_parameters!);
-            var executor = new InteractiveExecutor(context);
-            var chatHistory = new ChatHistory();
-            chatHistory.AddMessage(AuthorRole.System, systemPrompt);
+            // The model's own chat template, not ChatSession's generic
+            // "System:/User:/Assistant:" transform (issue #2559).
+            var prompt = LocalLlmPromptFormatter.Format(_weights!, systemPrompt, userMessage);
 
-            var session = new ChatSession(executor, chatHistory);
+            using var context = _weights!.CreateContext(_parameters!);
+            var executor = new PromptSafeInteractiveExecutor(context);
             var inferenceParams = new InferenceParams
             {
                 MaxTokens = MaxTokens,
-                AntiPrompts =
-                [
-                    "User:",
-                    "\nUser:",
-                    "<|end|>",
-                    "<|eot_id|>",
-                    "</s>"
-                ],
+                AntiPrompts = [.. prompt.AntiPrompts],
                 SamplingPipeline = new DefaultSamplingPipeline()
             };
 
             var builder = new StringBuilder();
-            await foreach (var token in session.ChatAsync(
-                new ChatHistory.Message(AuthorRole.User, userMessage),
-                inferenceParams).WithCancellation(timeoutCts.Token))
+            var generatedTokens = 0;
+            await foreach (var token in executor.InferAsync(prompt.Text, inferenceParams, timeoutCts.Token))
             {
                 builder.Append(token);
+                generatedTokens++;
             }
 
-            return builder.ToString();
+            // LLamaSharp's InferAsync does NOT throw when its token is cancelled: it
+            // breaks out of the loop and ends the stream, so a timeout used to hand
+            // back whatever had been decoded so far as a normal answer. On a slow CPU
+            // (Windows ARM64) that was "<<", the first piece of "<<CLEANED>>", logged
+            // as a success (issue #2559). Check the token ourselves.
+            cancellationToken.ThrowIfCancellationRequested();
+            _shutdownCts.Token.ThrowIfCancellationRequested();
+            if (timeoutCts.IsCancellationRequested)
+            {
+                throw new TimeoutException(
+                    $"Local LLM inference did not finish within {InferenceTimeout.TotalSeconds:F0}s ({generatedTokens:N0} tokens generated).");
+            }
+
+            var text = TrimAntiPrompt(builder.ToString(), prompt.AntiPrompts);
+            var state = generatedTokens >= MaxTokens ? CompletionState.OutputLimit : CompletionState.Complete;
+            return new LocalLlmCompletion(text, state);
         }
         finally
         {
             _inferenceLock.Release();
         }
+    }
+
+    /// <summary>
+    /// Drops a trailing stop string: the executor stops AFTER it has yielded the
+    /// anti-prompt text, so it would otherwise end up in the answer.
+    /// </summary>
+    internal static string TrimAntiPrompt(string text, IReadOnlyList<string> antiPrompts)
+    {
+        var trimmed = text.TrimEnd();
+        foreach (var antiPrompt in antiPrompts)
+        {
+            var marker = antiPrompt.Trim();
+            if (marker.Length > 0 && trimmed.EndsWith(marker, StringComparison.Ordinal))
+            {
+                return trimmed[..^marker.Length].TrimEnd();
+            }
+        }
+
+        return text;
     }
 
     public void UnloadModel()
@@ -339,12 +372,26 @@ public sealed class LocalLlmService : IDisposable
 
     private static ModelParams CreateParameters(string modelPath, int gpuLayerCount)
     {
+        var cpuThreads = CpuThreadCount(
+            System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture, Environment.ProcessorCount);
         return new ModelParams(modelPath)
         {
             ContextSize = ContextSize,
-            GpuLayerCount = gpuLayerCount
+            GpuLayerCount = gpuLayerCount,
+            Threads = cpuThreads,
+            BatchThreads = cpuThreads
         };
     }
+
+    /// <summary>
+    /// CPU threads for inference. LLamaSharp defaults to half the logical
+    /// processors, which is one per core on an x64 CPU with SMT. ARM64 CPUs have
+    /// no SMT, so that default left half the cores idle: on the Surface (8-core
+    /// Snapdragon X Plus) all 8 threads cut a ~2,500-token prefill from ~64 s to
+    /// ~36 s, inside <see cref="InferenceTimeout"/> (issue #2559). Null keeps the default.
+    /// </summary>
+    internal static int? CpuThreadCount(System.Runtime.InteropServices.Architecture architecture, int processorCount) =>
+        architecture == System.Runtime.InteropServices.Architecture.Arm64 ? Math.Max(1, processorCount) : null;
 
     private void EnsurePromptFitsLocalContext(string systemPrompt, string userMessage)
     {
@@ -476,3 +523,9 @@ public sealed class LocalLlmService : IDisposable
         }
     }
 }
+
+/// <summary>
+/// One local completion: the raw model text and how generation ended, for
+/// <c>EvaluateCompletion</c>.
+/// </summary>
+internal readonly record struct LocalLlmCompletion(string Text, CompletionState State);

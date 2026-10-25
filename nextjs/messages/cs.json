@@ -26,7 +26,7 @@
     "downloadCta": "Stáhnout nyní",
     "demoCta": "Podívat se na demo",
     "availableOn": "Dostupné pro",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Existuje předplatné?",
-        "answer": "Ne — nikdy. HyperWhisper je open source aplikace, kterou vlastníte, ne předplatné, které si pronajímáte. Stáhněte si ji zdarma a používejte lokální offline přepis bez jakýchkoli nákladů navždy; bezplatná úroveň navíc zahrnuje 5 minut cloudového přepisu denně. Když budete chtít cloudový přepis bez jakéhokoli nastavení nad rámec toho, HyperWhisper Cloud jsou jednoduché kredity s platbou podle spotřeby — dobíjíte jen tehdy, když potřebujete, bez měsíčních poplatků a bez čehokoli, co byste museli rušit."
+        "answer": "Ne — nikdy. HyperWhisper je open source aplikace, kterou vlastníte, ne předplatné, které si pronajímáte. Stáhněte si ji zdarma a používejte lokální offline přepis bez jakýchkoli nákladů navždy. Když budete chtít cloudový přepis bez jakéhokoli nastavení, HyperWhisper Cloud jsou jednoduché kredity s platbou podle spotřeby — dobíjíte jen tehdy, když potřebujete, bez měsíčních poplatků a bez čehokoli, co byste museli rušit."
       },
       "deviceLimit": {
         "question": "Na kolika zařízeních mohu svůj klíč k účtu používat?",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Jaké jsou systémové požadavky?",
-        "answer": "Pro Mac: macOS 14 nebo novější, podporován Apple Silicon i Intel. Pro Windows: Windows 10/11, x64 nebo ARM64. Pro Linux v1: Ubuntu 22.04 nebo novější či Debian 12 nebo novější, na amd64. Pro optimální výkon doporučujeme 8 GB RAM."
+        "answer": "Pro Mac: macOS 14.6 nebo novější, podporován Apple Silicon i Intel. Pro Windows: Windows 10/11, x64 nebo ARM64. Pro Linux v1: Ubuntu 22.04 nebo novější či Debian 12 nebo novější, na amd64. Pro optimální výkon doporučujeme 8 GB RAM."
       },
       "madeBy": {
         "question": "Kdo to vytvořil?",

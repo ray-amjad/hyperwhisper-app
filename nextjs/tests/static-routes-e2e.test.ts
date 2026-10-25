@@ -198,3 +198,17 @@ test("a non-locale first segment is a 404, not a 500", { skip }, async () => {
 
   assert.equal(status, 404);
 });
+
+test("the root icon paths browsers ask for are served, not 404", { skip }, async () => {
+  // Browsers and iOS request these whatever the <link rel=icon> tags say.
+  for (const [route, type] of [
+    ["/favicon.ico", /^image\/(x-icon|vnd\.microsoft\.icon)/],
+    ["/apple-touch-icon.png", /^image\/png/],
+    ["/apple-touch-icon-precomposed.png", /^image\/png/],
+  ] as const) {
+    const res = await fetch(base + route, { redirect: "manual" });
+
+    assert.equal(res.status, 200, route);
+    assert.match(res.headers.get("content-type") ?? "", type, route);
+  }
+});

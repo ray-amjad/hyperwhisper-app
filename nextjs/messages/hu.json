@@ -26,7 +26,7 @@
     "downloadCta": "Letöltés most",
     "demoCta": "Demó megtekintése",
     "availableOn": "Elérhető",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Van elofizetes?",
-        "answer": "Nem — soha. A HyperWhisper egy nyilt forraskodu alkalmazas, amely az One, nem elofizetes, amelyet berel. Toltse le ingyen, es hasznalja a helyi, offline atirast orokre, dijmentesen; az ingyenes csomag napi 5 perc felhoalapu atirast is tartalmaz. Amikor ezen tul beallitas nelkuli felhoalapu atirast szeretne, a HyperWhisper Cloud egyszeru, hasznalat alapu kredit — csak akkor toltson fel, amikor szuksege van ra, havi dijak nelkul es lemondanivalo nelkul."
+        "answer": "Nem — soha. A HyperWhisper egy nyilt forraskodu alkalmazas, amely az One, nem elofizetes, amelyet berel. Toltse le ingyen, es hasznalja a helyi, offline atirast orokre, dijmentesen. Amikor beallitas nelkuli felhoalapu atirast szeretne, a HyperWhisper Cloud egyszeru, hasznalat alapu kredit — csak akkor toltson fel, amikor szuksege van ra, havi dijak nelkul es lemondanivalo nelkul."
       },
       "deviceLimit": {
         "question": "Hány eszközön használhatom a fiókkulcsomat?",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Mik a rendszerkövetelmények?",
-        "answer": "Machez: macOS 14 vagy újabb, Apple Silicon és Intel támogatással. Windowshoz: Windows 10/11, x64 vagy ARM64. Linux v1-hez: Ubuntu 22.04 vagy újabb, illetve Debian 12 vagy újabb, amd64-en. Az optimális teljesítményhez 8GB RAM ajánlott."
+        "answer": "Machez: macOS 14.6 vagy újabb, Apple Silicon és Intel támogatással. Windowshoz: Windows 10/11, x64 vagy ARM64. Linux v1-hez: Ubuntu 22.04 vagy újabb, illetve Debian 12 vagy újabb, amd64-en. Az optimális teljesítményhez 8GB RAM ajánlott."
       },
       "madeBy": {
         "question": "Ki készítette ezt?",

@@ -772,6 +772,9 @@
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (Χωρίς κλειδί API)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Μη έγκυρο κλειδί)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
