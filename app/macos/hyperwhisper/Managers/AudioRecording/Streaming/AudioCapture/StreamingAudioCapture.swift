@@ -236,8 +236,8 @@ class StreamingAudioCapture {
 
         let inputFormat: AVAudioFormat
         if pinnedDevice {
-            // A just-switched device can report no format (or a lagging rate); a tap with
-            // either raises an uncatchable exception, so validate first.
+            // A just-switched device can report no format (or a lagging rate or
+            // channel count); a tap with either raises an exception, so validate first.
             guard let format = DeviceAudioRecorder.tapFormat(for: inputNode) else {
                 throw StreamingError.audioEngineError("The chosen microphone reports no usable input format")
             }

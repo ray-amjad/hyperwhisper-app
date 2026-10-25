@@ -282,6 +282,28 @@ struct DeviceAudioRecorderTests {
         #expect(tap.channelCount == 4)
     }
 
+    /// A layout-less format above two channels, as a device can report: the tap still
+    /// gets a format with the device's channel count rather than nil.
+    @Test func tapFormatBuildsALayoutForAMultiChannelDeviceWithNone() throws {
+        let output = try Self.inputFormat(sampleRate: 48_000, channels: 2)
+        var description = AudioStreamBasicDescription(
+            mSampleRate: 48_000,
+            mFormatID: kAudioFormatLinearPCM,
+            mFormatFlags: kAudioFormatFlagsNativeFloatPacked | kAudioFormatFlagIsNonInterleaved,
+            mBytesPerPacket: 4,
+            mFramesPerPacket: 1,
+            mBytesPerFrame: 4,
+            mChannelsPerFrame: 8,
+            mBitsPerChannel: 32,
+            mReserved: 0
+        )
+        let hardware = try #require(AVAudioFormat(streamDescription: &description))
+        try #require(hardware.channelLayout == nil)
+        let tap = try #require(DeviceAudioRecorder.tapFormat(output: output, hardware: hardware))
+        #expect(tap.channelCount == 8)
+        #expect(tap.sampleRate == 48_000)
+    }
+
     @Test func tapFormatFollowsTheDeviceRate() throws {
         let output = try Self.inputFormat(sampleRate: 48_000, channels: 2)
         let hardware = try Self.inputFormat(sampleRate: 44_100, channels: 2)

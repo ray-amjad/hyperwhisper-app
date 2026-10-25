@@ -191,9 +191,9 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
 
     /// The tap format for an input node, or `nil` when the device reports none (no
     /// permission, no device, a device mid-reconfiguration). Installing a tap with a
-    /// zero-rate or zero-channel format raises an Objective-C exception, which Swift
-    /// cannot catch, so this check is what keeps a bad device from crashing the app.
-    /// `installTap(on:format:tap:)` still guards the call, for a mismatch this misses.
+    /// zero-rate or zero-channel format raises an Objective-C exception. Validating
+    /// first keeps a good start possible; `installTap(on:format:context:tap:)` catches
+    /// whatever mismatch this still misses (#2577) as a failed start, not a crash.
     static func tapFormat(for inputNode: AVAudioInputNode) -> AVAudioFormat? {
         tapFormat(output: inputNode.outputFormat(forBus: 0), hardware: inputNode.inputFormat(forBus: 0))
     }
@@ -211,14 +211,20 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         AppLogger.audio.notice("Input node output format (\(output.sampleRate, privacy: .public) Hz, \(output.channelCount, privacy: .public) ch) differs from the device's (\(hardware.sampleRate, privacy: .public) Hz, \(hardware.channelCount, privacy: .public) ch) - tapping at the device format")
         // `init(standardFormatWithSampleRate:channels:)` returns nil above two
         // channels, so a multi-channel device keeps its layout. Only a layout with
-        // the device's channel count will do.
+        // the device's channel count will do; with none, a discrete one.
         if hardware.channelCount == output.channelCount, let layout = output.channelLayout {
             return AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate, channelLayout: layout)
         }
         if let layout = hardware.channelLayout {
             return AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate, channelLayout: layout)
         }
-        return AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate, channels: hardware.channelCount)
+        if hardware.channelCount <= 2 {
+            return AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate, channels: hardware.channelCount)
+        }
+        guard let discrete = AVAudioChannelLayout(layoutTag: kAudioChannelLayoutTag_DiscreteInOrder | hardware.channelCount) else {
+            return nil
+        }
+        return AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate, channelLayout: discrete)
     }
 
     /// Install a tap, turning the Objective-C exception `installTap` raises on a
