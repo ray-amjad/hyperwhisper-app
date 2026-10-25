@@ -303,7 +303,8 @@ internal static class ScriptGuardPorts
             var llmId = LocalLlmModelInfo.AllModels[0].Id;
             var otherLlmId = LocalLlmModelInfo.AllModels.First(m => m.Id != llmId).Id;
             var localLlm = PostProcessingProvider.LocalLlm.ToStringValue();
-            Mode M(string name, Action<Mode> set) { var m = new Mode { Name = name }; set(m); return m; }
+            // PostProcessingMode 2: local AI rewrite on. A mode with it off (0) runs no local LLM.
+            Mode M(string name, Action<Mode> set) { var m = new Mode { Name = name, PostProcessingMode = 2 }; set(m); return m; }
 
             Assert(ModelInUse.FindModeUsingLocalLlm([M("Rewrite", m => { m.PostProcessingProvider = localLlm; m.LocalPostProcessingModel = llmId; })], llmId)?.Name == "Rewrite",
                 "a mode whose LocalPostProcessingModel is the model did not protect it");
@@ -358,8 +359,19 @@ internal static class ScriptGuardPorts
                 "a stale legacy Model blocked a delete the mode's ModelType does not use");
             Assert(ModelInUse.FindModeUsingWhisperModel([M("WCase", m => { m.ProviderType = "local"; m.LocalEngine = "whisper"; m.ModelType = "BASE"; })], "base") == null,
                 "an id in different case blocked a delete; the runtime loads Whisper types by exact match");
-            Assert(ModelInUse.FindModeUsingParakeetModel([M("P", m => { m.ProviderType = "local"; m.LocalEngine = "Parakeet"; m.LocalParakeetModel = "pk"; })], "pk") == null,
-                "a mode whose engine is not exactly \"parakeet\" (it runs Whisper) blocked a Parakeet delete");
+            // The Local API reads a mode a little differently from the recording
+            // path (any case of "parakeet", a blank id falls back to Model); a mode
+            // protects what either path would load.
+            Assert(ModelInUse.FindModeUsingParakeetModel([M("PCase", m => { m.ProviderType = "local"; m.LocalEngine = "Parakeet"; m.LocalParakeetModel = "pk"; })], "pk")?.Name == "PCase",
+                "a mode the Local API runs on Parakeet (engine \"Parakeet\") did not protect its model");
+            Assert(ModelInUse.FindModeUsingWhisperModel([M("PCase", m => { m.ProviderType = "local"; m.LocalEngine = "Parakeet"; m.ModelType = "base"; })], "base")?.Name == "PCase",
+                "a mode the recording path runs on Whisper (engine \"Parakeet\") did not protect its Whisper model");
+            Assert(ModelInUse.FindModeUsingParakeetModel([M("PBlank", m => { m.ProviderType = "local"; m.LocalEngine = "parakeet"; m.LocalParakeetModel = " "; m.Model = "pk"; })], "pk")?.Name == "PBlank",
+                "a Parakeet mode with a blank id did not protect the Model the Local API falls back to");
+            Assert(ModelInUse.FindModeUsingWhisperModel([M("WBlank", m => { m.ProviderType = "local"; m.LocalEngine = "whisper"; m.ModelType = ""; m.Model = "base"; })], "base")?.Name == "WBlank",
+                "a Whisper mode with a blank ModelType did not protect the Model the Local API falls back to");
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("Off", m => { m.PostProcessingMode = 0; m.PostProcessingProvider = localLlm; })], defaultLlmId) == null,
+                "a mode with AI rewrite off blocked deleting the default local model");
         });
 
         run("prompt: each detected app type puts its own context block in the AI prompt (#830)", () =>
