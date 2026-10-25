@@ -204,35 +204,6 @@ private final class ScriptedCloudURLProtocol: URLProtocol {
     }
 }
 
-/// Reports a stored account key, so the real entitlement check passes; every
-/// network call is a no-op refusal, so nothing leaves the process.
-private final class StoredKeyLicenseNetwork: LicenseNetworkServing {
-    private let invalid = LicenseValidationResult(
-        isValid: false,
-        status: .invalid,
-        customerId: nil,
-        customerEmail: nil,
-        customerName: nil,
-        errorMessage: nil
-    )
-
-    func activateLicense(_ licenseKey: String) async -> LicenseValidationResult { invalid }
-    func deactivateLicense() async -> (success: Bool, error: String?) { (true, nil) }
-    func validateLicense(
-        _ licenseKey: String,
-        isLaunchValidation: Bool,
-        expectedStoredLicenseKey: String?
-    ) async -> LicenseValidationResult { invalid }
-    func probeLicense(_ licenseKey: String) async -> LicenseValidationResult { invalid }
-    func shouldRevalidateLicense() -> Bool { false }
-    func getCachedLicenseStatus() -> LicenseStatus? { nil }
-    func getStoredLicenseKey() -> String? { "fixture-account-key-754" }
-    func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead { .missing }
-    func readStoredLicenseKeyFromSecureStore() async -> RustLicenseStore.StoredLicenseKeyRead { .missing }
-    func clearStoredLicense() -> Bool { true }
-    func replaceStoredLicenseKeyForImport(_ licenseKey: String) -> Bool { true }
-}
-
 // MARK: - A conformer for the protocol-level contract
 
 /// One shared instance whose German pass is held until released, so a French
@@ -338,7 +309,7 @@ struct TranscriptionOutcomePerCallTests {
 
     private static func licensedManager() -> LicenseManager {
         let manager = LicenseManager(
-            networkService: StoredKeyLicenseNetwork(),
+            networkService: StubLicenseNetwork(storedKey: "fixture-account-key-754"),
             loadStoredLicenseOnInit: false,
             notificationCenter: NotificationCenter()
         )

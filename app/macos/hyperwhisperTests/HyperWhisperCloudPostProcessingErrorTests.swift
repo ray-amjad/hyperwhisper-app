@@ -153,7 +153,7 @@ struct HyperWhisperCloudPostProcessingErrorTests {
     private func makeLicensedProcessor() -> (AIPostProcessor, LicenseManager) {
         let processor = AIPostProcessor(settingsManager: SettingsManager.shared)
         let licenseManager = LicenseManager(
-            networkService: StoredKeyLicenseNetwork(),
+            networkService: StubLicenseNetwork(storedKey: "stubbed-account-key"),
             loadStoredLicenseOnInit: false,
             notificationCenter: NotificationCenter()
         )
@@ -337,34 +337,4 @@ private final class StubbedCloudURLProtocol: URLProtocol {
     }
 
     override func stopLoading() {}
-}
-
-/// A stored account key, so `getTranscriptionIdentifier()` answers licensed
-/// once the manager's status is `.active`. The key never leaves the stubbed
-/// session.
-private final class StoredKeyLicenseNetwork: LicenseNetworkServing {
-    private let invalid = LicenseValidationResult(
-        isValid: false,
-        status: .invalid,
-        customerId: nil,
-        customerEmail: nil,
-        customerName: nil,
-        errorMessage: nil
-    )
-
-    func activateLicense(_ licenseKey: String) async -> LicenseValidationResult { invalid }
-    func deactivateLicense() async -> (success: Bool, error: String?) { (true, nil) }
-    func validateLicense(
-        _ licenseKey: String,
-        isLaunchValidation: Bool,
-        expectedStoredLicenseKey: String?
-    ) async -> LicenseValidationResult { invalid }
-    func probeLicense(_ licenseKey: String) async -> LicenseValidationResult { invalid }
-    func shouldRevalidateLicense() -> Bool { false }
-    func getCachedLicenseStatus() -> LicenseStatus? { nil }
-    func getStoredLicenseKey() -> String? { "stubbed-account-key" }
-    func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead { .missing }
-    func readStoredLicenseKeyFromSecureStore() async -> RustLicenseStore.StoredLicenseKeyRead { .missing }
-    func clearStoredLicense() -> Bool { true }
-    func replaceStoredLicenseKeyForImport(_ licenseKey: String) -> Bool { true }
 }

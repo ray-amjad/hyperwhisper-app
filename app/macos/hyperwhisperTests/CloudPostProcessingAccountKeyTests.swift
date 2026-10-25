@@ -26,7 +26,7 @@ struct CloudPostProcessingAccountKeyTests {
     private func makeProcessor() -> (AIPostProcessor, LicenseManager, ErrorBox) {
         let processor = AIPostProcessor(settingsManager: SettingsManager.shared)
         let licenseManager = LicenseManager(
-            networkService: NoAccountKeyLicenseNetwork(),
+            networkService: StubLicenseNetwork(),
             loadStoredLicenseOnInit: false,
             notificationCenter: NotificationCenter()
         )
@@ -97,32 +97,4 @@ struct CloudPostProcessingAccountKeyTests {
 
 private final class ErrorBox {
     var errors: [TranscriptionError] = []
-}
-
-/// No stored key, so `getTranscriptionIdentifier()` answers unlicensed.
-private final class NoAccountKeyLicenseNetwork: LicenseNetworkServing {
-    private let invalid = LicenseValidationResult(
-        isValid: false,
-        status: .invalid,
-        customerId: nil,
-        customerEmail: nil,
-        customerName: nil,
-        errorMessage: nil
-    )
-
-    func activateLicense(_ licenseKey: String) async -> LicenseValidationResult { invalid }
-    func deactivateLicense() async -> (success: Bool, error: String?) { (true, nil) }
-    func validateLicense(
-        _ licenseKey: String,
-        isLaunchValidation: Bool,
-        expectedStoredLicenseKey: String?
-    ) async -> LicenseValidationResult { invalid }
-    func probeLicense(_ licenseKey: String) async -> LicenseValidationResult { invalid }
-    func shouldRevalidateLicense() -> Bool { false }
-    func getCachedLicenseStatus() -> LicenseStatus? { nil }
-    func getStoredLicenseKey() -> String? { nil }
-    func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead { .missing }
-    func readStoredLicenseKeyFromSecureStore() async -> RustLicenseStore.StoredLicenseKeyRead { .missing }
-    func clearStoredLicense() -> Bool { true }
-    func replaceStoredLicenseKeyForImport(_ licenseKey: String) -> Bool { true }
 }

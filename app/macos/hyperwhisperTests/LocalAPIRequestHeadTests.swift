@@ -112,14 +112,17 @@ struct LocalAPIRequestHeadTests {
 
     // MARK: - The line limit
 
-    /// A header line of exactly 8,192 bytes (CRLF not counted) is accepted.
-    /// It is also the 8 KB case the issue measured at 2.5 s: here it must be
-    /// answered at once.
+    /// A header line of exactly 8,192 bytes (CRLF not counted) is accepted,
+    /// with a 200 rather than a close at the read deadline. The bound is the
+    /// deadline, not a wall-clock budget: a 1 s budget failed on a loaded
+    /// hosted runner with no code at fault (issue #2221). The O(n²) reader the
+    /// issue measured is caught by the 64 KB head test below, which it could
+    /// not read inside the deadline.
     @Test func aHeaderLineAtTheLimitIsAccepted() async throws {
         try await withProbe { port in
             let line = RawRequest.headerLine(name: "X-Pad", length: LocalAPIRequestHeadLimit.maxLineBytes)
             let (reply, elapsed) = try await offPool {
-                let connection = try RawConnection(port: port)
+                let connection = try RawConnection(port: port, timeout: slowRunnerTimeout)
                 defer { connection.close() }
                 let start = Date()
                 try connection.write(RawRequest.get(port: port, extraLines: [line]))
@@ -127,7 +130,10 @@ struct LocalAPIRequestHeadTests {
                 return (reply, Date().timeIntervalSince(start))
             }
             #expect(reply?.status == 200)
-            #expect(elapsed < 1.0, "an 8 KB header line took \(elapsed) s")
+            #expect(
+                elapsed < LocalAPIRequestHeadLimit.readDeadline,
+                "an 8 KB header line took \(elapsed) s, past the head deadline"
+            )
         }
     }
 
@@ -158,8 +164,9 @@ struct LocalAPIRequestHeadTests {
     // MARK: - The head limit
 
     /// Exactly 65,536 bytes of head (every line under the line limit, CRLFs and
-    /// the final blank line counted) is served, and quickly: 8 lines of about
-    /// 8 KB each. One byte more is refused.
+    /// the final blank line counted) is served inside the head deadline: 8
+    /// lines of about 8 KB each. One byte more is refused. The deadline, not
+    /// 1 s, is the bound, for the reason on the 8 KB test above (#2221).
     @Test func aHeadAtTheLimitIsServedAndOneByteMoreGets431() async throws {
         try await withProbe { port in
             let atLimit = RawRequest.getWithHead(port: port, totalBytes: LocalAPIRequestHeadLimit.maxHeadBytes)
@@ -168,7 +175,7 @@ struct LocalAPIRequestHeadTests {
             #expect(overLimit.count == 65_537)
 
             let (accepted, elapsed) = try await offPool {
-                let connection = try RawConnection(port: port)
+                let connection = try RawConnection(port: port, timeout: slowRunnerTimeout)
                 defer { connection.close() }
                 let start = Date()
                 try connection.write(atLimit)
@@ -176,7 +183,10 @@ struct LocalAPIRequestHeadTests {
                 return (reply, Date().timeIntervalSince(start))
             }
             #expect(accepted?.status == 200)
-            #expect(elapsed < 1.0, "a 64 KB head took \(elapsed) s to read")
+            #expect(
+                elapsed < LocalAPIRequestHeadLimit.readDeadline,
+                "a 64 KB head took \(elapsed) s to read, past the head deadline"
+            )
 
             let refused = try await offPool { try RawConnection.sendAndReadToClose(port: port, overLimit) }
             #expect(refused.reply?.status == 431)
@@ -184,20 +194,23 @@ struct LocalAPIRequestHeadTests {
         }
     }
 
-    /// The issue's shape: one 100 KB header line. Refused at once, not after
-    /// minutes of CPU.
-    @Test func aHundredKilobyteHeaderIsRefusedInWellUnderASecond() async throws {
+    /// The issue's shape: one 100 KB header line. Refused with a 431 inside the
+    /// head deadline, not after minutes of CPU (bound: #2221).
+    @Test func aHundredKilobyteHeaderIsRefusedBeforeTheDeadline() async throws {
         try await withProbe { port in
             let line = RawRequest.headerLine(name: "X-Junk", length: 100 * 1024)
             let request = RawRequest.get(port: port, extraLines: [line])
             let (outcome, elapsed) = try await offPool {
                 let start = Date()
-                let outcome = try RawConnection.sendAndReadToClose(port: port, request)
+                let outcome = try RawConnection.sendAndReadToClose(port: port, request, timeout: slowRunnerTimeout)
                 return (outcome, Date().timeIntervalSince(start))
             }
             #expect(outcome.reply?.status == 431)
             #expect(outcome.closedAfterReply)
-            #expect(elapsed < 1.0, "a 100 KB head took \(elapsed) s to refuse")
+            #expect(
+                elapsed < LocalAPIRequestHeadLimit.readDeadline,
+                "a 100 KB head took \(elapsed) s to refuse, past the head deadline"
+            )
         }
     }
 
@@ -258,6 +271,11 @@ struct LocalAPIRequestHeadTests {
 }
 
 // MARK: - Fixtures
+
+/// The client's socket timeout in the tests that bound a reply by the head
+/// deadline: past the deadline, so a slow runner fails on the deadline
+/// `#expect` with its elapsed time rather than on a client-side recv timeout.
+private let slowRunnerTimeout: TimeInterval = 2 * LocalAPIRequestHeadLimit.readDeadline
 
 private func withProbe(
     headReadDeadline: TimeInterval = LocalAPIRequestHeadLimit.readDeadline,
@@ -467,8 +485,12 @@ private final class RawConnection {
 
     /// Connect, send `request`, read one response, then read on until the
     /// server closes.
-    static func sendAndReadToClose(port: UInt16, _ request: Data) throws -> RawOutcome {
-        let connection = try RawConnection(port: port)
+    static func sendAndReadToClose(
+        port: UInt16,
+        _ request: Data,
+        timeout: TimeInterval = 5
+    ) throws -> RawOutcome {
+        let connection = try RawConnection(port: port, timeout: timeout)
         defer { connection.close() }
         try connection.write(request)
         let reply = try connection.readResponse()
