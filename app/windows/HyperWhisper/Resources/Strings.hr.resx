@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Ovo je zadani način rada pa se njegov naziv ne može promijeniti. Svaki drugi način rada možete preimenovati.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Način rada s tim nazivom već postoji.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -771,6 +774,9 @@ Ova radnja se ne može poništiti.</value>
   </data>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (Nema API ključa)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Nevažeći ključ)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>

@@ -66,6 +66,16 @@
                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                    Margin="0,4,0,0"
                                    Visibility="Collapsed"/>
+                        <!-- Another mode already uses this name (issue #2478, as
+                             macOS #1435). Save is disabled while it shows. -->
+                        <TextBlock x:Name="ModeNameTakenHint"
+                                   Text="{loc:Loc mode.editor.field.name.taken}"
+                                   FontSize="11"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource ErrorForegroundBrush}"
+                                   Margin="0,4,0,0"
+                                   AutomationProperties.LiveSetting="Assertive"
+                                   Visibility="Collapsed"/>
                     </StackPanel>
                 </StackPanel>
             </Border>

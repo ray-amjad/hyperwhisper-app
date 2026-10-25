@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Þetta er sjálfgefna stillingin, svo ekki er hægt að breyta nafni hennar. Þú getur endurnefnt allar aðrar stillingar.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Hamur með þessu nafni er þegar til.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -771,6 +774,9 @@
   </data>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (Enginn API-lykill)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Ógildur lykill)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>

@@ -26,7 +26,7 @@
     "downloadCta": "Stiahnuť teraz",
     "demoCta": "Pozrieť demo",
     "availableOn": "Dostupné na",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Existuje predplatné?",
-        "answer": "Nie — nikdy. HyperWhisper je open-source aplikácia, ktorú vlastníte, nie predplatné, ktoré si prenajímate. Stiahnite si ju zadarmo a používajte lokálnu, offline transkripciu bez akýchkoľvek nákladov navždy; bezplatná úroveň zahŕňa aj 5 minút cloudovej transkripcie denne. Keď budete chcieť cloudovú transkripciu bez nastavovania nad rámec toho, HyperWhisper Cloud sú jednoduché kredity platené podľa spotreby — dobíjate len vtedy, keď to potrebujete, bez mesačných poplatkov a bez čohokoľvek, čo by ste museli rušiť."
+        "answer": "Nie — nikdy. HyperWhisper je open-source aplikácia, ktorú vlastníte, nie predplatné, ktoré si prenajímate. Stiahnite si ju zadarmo a používajte lokálnu, offline transkripciu bez akýchkoľvek nákladov navždy. Keď budete chcieť cloudovú transkripciu bez nastavovania, HyperWhisper Cloud sú jednoduché kredity platené podľa spotreby — dobíjate len vtedy, keď to potrebujete, bez mesačných poplatkov a bez čohokoľvek, čo by ste museli rušiť."
       },
       "deviceLimit": {
         "question": "Na koľkých zariadeniach môžem používať svoj kľúč k účtu?",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Aké sú systémové požiadavky?",
-        "answer": "Pre Mac: macOS 14 alebo novší, podpora Apple Silicon aj Intel. Pre Windows: Windows 10/11, x64 alebo ARM64. Pre Linux v1: Ubuntu 22.04 alebo novší či Debian 12 alebo novší, na amd64. Pre optimálny výkon odporúčame 8 GB RAM."
+        "answer": "Pre Mac: macOS 14.6 alebo novší, podpora Apple Silicon aj Intel. Pre Windows: Windows 10/11, x64 alebo ARM64. Pre Linux v1: Ubuntu 22.04 alebo novší či Debian 12 alebo novší, na amd64. Pre optimálny výkon odporúčame 8 GB RAM."
       },
       "madeBy": {
         "question": "Kto to vytvoril?",

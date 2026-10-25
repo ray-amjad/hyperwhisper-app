@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>זהו מצב ברירת המחדל, ולכן לא ניתן לשנות את שמו. אפשר לשנות את השם של כל מצב אחר.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>כבר קיים מצב בשם הזה.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -771,6 +774,9 @@
   </data>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (אין מפתח API)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (מפתח לא חוקי)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>

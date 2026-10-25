@@ -36,7 +36,7 @@ import { createElement, type ReactElement } from "react";
 import * as realJsxRuntime from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const enMessages = JSON.parse(
   readFileSync(new URL("../messages/en.json", import.meta.url), "utf8"),
@@ -122,7 +122,7 @@ moduleMock.module("next/navigation", {
  * and `BETTER_AUTH_URL` at import time. `magicLink` throws synchronously so the
  * send handler's `catch` runs inside the render.
  */
-moduleMock.module("../src/lib/auth-client", {
+moduleMock.module(moduleUrl("../src/lib/auth-client.ts"), {
   namedExports: {
     authClient: {
       signIn: {

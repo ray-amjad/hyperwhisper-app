@@ -208,6 +208,26 @@ test("a guest credit purchase mints a key, grants the credits and sends the mint
   assert.equal(calls.emails[0].payload.customerEmail, "Buyer@Example.com ");
 });
 
+test("a 100%-off credit checkout (no_payment_required) mints a key and grants the credits (#2055)", async () => {
+  behaviour.generatedKeys = ["HW-FREE-0001"];
+
+  await handleCreditPurchase(
+    checkoutSession({
+      id: "cs_free",
+      payment_status: "no_payment_required",
+      metadata: { credit_amount: "5000" },
+    }),
+    "evt_free",
+  );
+
+  assert.equal(calls.grantCreditsForStripeEvent.length, 1);
+  assert.equal(calls.grantCreditsForStripeEvent[0].creditAmount, 5_000);
+  assert.equal(calls.grantCreditsForStripeEvent[0].sourceId, "cs_free");
+  assert.equal(calls.emails.length, 1);
+  assert.equal(calls.emails[0].kind, "mint");
+  assert.equal(calls.emails[0].payload.licenseKey, "HW-FREE-0001");
+});
+
 test("a guest credit purchase pools into the buyer's existing granted key", async () => {
   behaviour.byEmail.set("buyer@example.com", [
     accountKeyRow({ key: "HW-LIVE-0002", userId: "user_live", status: "granted" }),

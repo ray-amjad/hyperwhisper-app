@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Det här är standardläget, så dess namn kan inte ändras. Du kan byta namn på alla andra lägen.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Det finns redan ett läge med det namnet.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -771,6 +774,9 @@ Denna åtgärd kan inte ångras.</value>
   </data>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (Ingen API-nyckel)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Ogiltig nyckel)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>

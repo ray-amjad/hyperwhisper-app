@@ -26,7 +26,7 @@
     "downloadCta": "Lataa nyt",
     "demoCta": "Katso demo",
     "availableOn": "Saatavilla",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Onko tilausta?",
-        "answer": "Ei — ei koskaan. HyperWhisper on avoimen lähdekoodin sovellus, jonka omistat, ei tilaus, jota vuokraat. Lataa se ilmaiseksi ja käytä paikallista, offline-transkriptiota maksutta ikuisesti; ilmaiseen tasoon sisältyy myös 5 minuuttia pilvitranskriptiota päivässä. Kun haluat ilman määrityksiä toimivaa pilvitranskriptiota sen lisäksi, HyperWhisper Cloud on yksinkertaisesti käytön mukaan maksettavia krediittejä — lataa tiliä vain kun tarvitset, ilman kuukausimaksuja ja ilman mitään peruttavaa."
+        "answer": "Ei — ei koskaan. HyperWhisper on avoimen lähdekoodin sovellus, jonka omistat, ei tilaus, jota vuokraat. Lataa se ilmaiseksi ja käytä paikallista, offline-transkriptiota maksutta ikuisesti. Kun haluat ilman määrityksiä toimivaa pilvitranskriptiota, HyperWhisper Cloud on yksinkertaisesti käytön mukaan maksettavia krediittejä — lataa tiliä vain kun tarvitset, ilman kuukausimaksuja ja ilman mitään peruttavaa."
       },
       "deviceLimit": {
         "question": "Kuinka monella laitteella voin käyttää tiliavaintani?",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Mitkä ovat järjestelmävaatimukset?",
-        "answer": "Mac: macOS 14 tai uudempi, tuki sekä Apple Siliconille että Intelille. Windows: Windows 10/11, x64 tai ARM64. Linux v1: Ubuntu 22.04 tai uudempi tai Debian 12 tai uudempi, amd64. 8GB RAM suositellaan optimaaliseen suorituskykyyn."
+        "answer": "Mac: macOS 14.6 tai uudempi, tuki sekä Apple Siliconille että Intelille. Windows: Windows 10/11, x64 tai ARM64. Linux v1: Ubuntu 22.04 tai uudempi tai Debian 12 tai uudempi, amd64. 8GB RAM suositellaan optimaaliseen suorituskykyyn."
       },
       "madeBy": {
         "question": "Kuka tämän teki?",

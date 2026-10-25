@@ -26,7 +26,7 @@
     "downloadCta": "Ladda ner nu",
     "demoCta": "Se demo",
     "availableOn": "Finns för",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Finns det någon prenumeration?",
-        "answer": "Nej — aldrig. HyperWhisper är en app med öppen källkod som du äger, inte en prenumeration du hyr. Ladda ner den gratis och använd lokal transkribering offline utan kostnad för alltid; gratisnivån inkluderar även 5 minuter molntranskribering per dag. När du vill ha molntranskribering utan installation utöver det är HyperWhisper Cloud enkla krediter enligt pay-as-you-go — fyll på bara när du behöver, utan månadsavgifter och utan något att säga upp."
+        "answer": "Nej — aldrig. HyperWhisper är en app med öppen källkod som du äger, inte en prenumeration du hyr. Ladda ner den gratis och använd lokal transkribering offline utan kostnad för alltid. När du vill ha molntranskribering utan installation är HyperWhisper Cloud enkla krediter enligt pay-as-you-go — fyll på bara när du behöver, utan månadsavgifter och utan något att säga upp."
       },
       "deviceLimit": {
         "question": "Hur många enheter kan jag använda min kontonyckel på?",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Vilka är systemkraven?",
-        "answer": "För Mac: macOS 14 eller senare, stöd för både Apple Silicon och Intel. För Windows: Windows 10/11, x64 eller ARM64. För Linux v1: Ubuntu 22.04 eller senare eller Debian 12 eller senare på amd64. 8GB RAM rekommenderas för bästa prestanda."
+        "answer": "För Mac: macOS 14.6 eller senare, stöd för både Apple Silicon och Intel. För Windows: Windows 10/11, x64 eller ARM64. För Linux v1: Ubuntu 22.04 eller senare eller Debian 12 eller senare på amd64. 8GB RAM rekommenderas för bästa prestanda."
       },
       "madeBy": {
         "question": "Vem har skapat detta?",

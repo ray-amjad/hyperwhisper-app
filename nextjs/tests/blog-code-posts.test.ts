@@ -8,10 +8,10 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { before, test } from "node:test";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 let rows: unknown[] = [];
-moduleMock.module(new URL("../src/db/index.ts", import.meta.url).href, {
+moduleMock.module(moduleUrl("../src/db/index.ts"), {
   namedExports: {
     db: { select: () => ({ from: () => ({ orderBy: async () => rows }) }) },
   },
@@ -28,6 +28,8 @@ nodeModule._load = function (request, ...rest) {
 
 const SLUG = "hyperwhisper-vs-spokenly";
 const URL_ = `https://www.hyperwhisper.com/en/blog/${SLUG}`;
+const THREE_WAY_SLUG = "hyperwhisper-vs-handy-vs-fluidvoice";
+const THREE_WAY_URL = `https://www.hyperwhisper.com/en/blog/${THREE_WAY_SLUG}`;
 
 let blog: typeof import("../src/content/blog");
 let sitemap: typeof import("../app/sitemap").default;
@@ -54,11 +56,11 @@ const stored = (slug: string, date: string, html = "<p>Stored</p>") => ({
   updatedAt: new Date(date),
 });
 
-test("the Spokenly comparison is listed by date among stored posts", async () => {
+test("the code comparisons are listed by date among stored posts", async () => {
   rows = [stored("newer", "2026-12-01"), stored("older", "2026-01-01")];
   assert.deepEqual(
     (await blog.getBlogPosts()).map((post) => post.slug),
-    ["newer", SLUG, "older"],
+    ["newer", THREE_WAY_SLUG, SLUG, "older"],
   );
 });
 
@@ -85,4 +87,21 @@ test("a stored row with the same slug replaces the code post", async () => {
   const posts = await blog.getBlogPosts();
   assert.equal(posts.filter((post) => post.slug === SLUG).length, 1);
   assert.equal((await blog.getBlogPost(SLUG))?.html, "<p>From Outrank</p>");
+});
+
+test("the Handy and FluidVoice comparison renders with its sources and a scrollable table", async () => {
+  rows = [];
+  const post = await blog.getBlogPost(THREE_WAY_SLUG);
+  assert.ok(post);
+  assert.match(post.frontMatter.title, /HyperWhisper vs Handy vs FluidVoice/);
+  assert.match(post.html, /href="https:\/\/github\.com\/cjpais\/Handy"/);
+  assert.match(post.html, /href="https:\/\/github\.com\/altic-dev\/FluidVoice"/);
+  assert.match(post.html, /October 24, 2026/);
+  assert.match(post.html, /role="region"[^>]*>\s*<table/);
+});
+
+test("the Handy and FluidVoice comparison is in the sitemap once", async () => {
+  rows = [];
+  const entries = await sitemap();
+  assert.equal(entries.filter((entry) => entry.url === THREE_WAY_URL).length, 1);
 });

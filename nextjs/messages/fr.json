@@ -26,7 +26,7 @@
     "downloadCta": "Télécharger maintenant",
     "demoCta": "Voir la démo",
     "availableOn": "Disponible sur",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Y a-t-il un abonnement ?",
-        "answer": "Non — jamais. HyperWhisper est une application open source qui vous appartient, pas un abonnement que vous louez. Téléchargez-la gratuitement et utilisez la transcription locale et hors ligne sans frais pour toujours ; la formule gratuite inclut aussi 5 minutes de transcription cloud par jour. Lorsque vous voulez une transcription cloud sans configuration au-delà de cela, HyperWhisper Cloud propose de simples crédits à l'usage — rechargez seulement quand vous en avez besoin, sans frais mensuels et sans rien à résilier."
+        "answer": "Non — jamais. HyperWhisper est une application open source qui vous appartient, pas un abonnement que vous louez. Téléchargez-la gratuitement et utilisez la transcription locale et hors ligne sans frais pour toujours. Lorsque vous voulez une transcription cloud sans configuration, HyperWhisper Cloud propose de simples crédits à l'usage — rechargez seulement quand vous en avez besoin, sans frais mensuels et sans rien à résilier."
       },
       "deviceLimit": {
         "question": "Sur combien d'appareils puis-je utiliser ma clé de compte ?",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Quelles sont les exigences système ?",
-        "answer": "Pour Mac : macOS 14 ou plus récent, Apple Silicon et Intel pris en charge. Pour Windows : Windows 10/11, x64 ou ARM64. Pour Linux v1 : Ubuntu 22.04 ou plus récent, ou Debian 12 ou plus récent, sur amd64. 8 Go de RAM recommandés pour des performances optimales."
+        "answer": "Pour Mac : macOS 14.6 ou plus récent, Apple Silicon et Intel pris en charge. Pour Windows : Windows 10/11, x64 ou ARM64. Pour Linux v1 : Ubuntu 22.04 ou plus récent, ou Debian 12 ou plus récent, sur amd64. 8 Go de RAM recommandés pour des performances optimales."
       },
       "madeBy": {
         "question": "Qui a créé cela ?",

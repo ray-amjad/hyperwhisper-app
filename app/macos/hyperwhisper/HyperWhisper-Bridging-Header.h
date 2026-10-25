@@ -18,4 +18,8 @@
 // is false and the binding links against the C ABI declared here.
 #import "Libraries/hyperwhisper_coreFFI.h"
 
+// Catches the Objective-C exceptions Swift cannot (issue #2577): see
+// `ObjCExceptionGuard`.
+#import "Utilities/ObjCException/ObjCExceptionCatcher.h"
+
 #endif /* HyperWhisper_Bridging_Header_h */

@@ -1666,7 +1666,7 @@ static async Task TestMidSessionTurnBoundaryAsync()
 /// <summary>
 /// Gemini discards audio that arrives before `setupComplete`, so pumping the
 /// stream the moment the socket opens loses the opening words — the requirement
-/// is stated in `hw-net/src/providers/gemini_transcribe.rs` ("Audio sent before
+/// is stated in `hw-net/src/providers/gemini_transcribe/live.rs` ("Audio sent before
 /// this arrives must be buffered") and mirrored on the Cloud route as
 /// `readyOnOpen: false`. Windows and macOS both gate on session-started; this
 /// pins the .NET/Linux path to the same contract.

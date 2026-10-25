@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Dit is de standaardmodus, dus de naam kan niet worden gewijzigd. Je kunt elke andere modus hernoemen.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Er bestaat al een modus met die naam.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -771,6 +774,9 @@ Dit kan niet ongedaan worden gemaakt.</value>
   </data>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (geen API-sleutel)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (ongeldige sleutel)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Laden mislukt</value>

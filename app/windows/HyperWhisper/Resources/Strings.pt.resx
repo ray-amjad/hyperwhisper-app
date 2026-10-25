@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Este é o modo predefinido, por isso o seu nome não pode ser alterado. Pode mudar o nome de qualquer outro modo.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Já existe um modo com esse nome.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Fornecedor</value>
   </data>
@@ -771,6 +774,9 @@ Esta ação não pode ser desfeita.</value>
   </data>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (sem chave de API)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (chave inválida)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Falha ao carregar</value>

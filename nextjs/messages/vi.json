@@ -26,7 +26,7 @@
     "downloadCta": "Tải xuống ngay",
     "demoCta": "Xem demo",
     "availableOn": "Có trên",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Có gói đăng ký không?",
-        "answer": "Không — không bao giờ. HyperWhisper là một ứng dụng mã nguồn mở mà bạn sở hữu, không phải gói đăng ký bạn thuê. Tải về miễn phí và dùng phiên âm cục bộ, ngoại tuyến hoàn toàn miễn phí mãi mãi; gói miễn phí cũng bao gồm 5 phút phiên âm đám mây mỗi ngày. Khi bạn muốn phiên âm đám mây không cần thiết lập vượt quá mức đó, HyperWhisper Cloud là tín dụng trả theo mức dùng đơn giản — chỉ nạp khi bạn cần, không có phí hằng tháng và không có gì để hủy."
+        "answer": "Không — không bao giờ. HyperWhisper là một ứng dụng mã nguồn mở mà bạn sở hữu, không phải gói đăng ký bạn thuê. Tải về miễn phí và dùng phiên âm cục bộ, ngoại tuyến hoàn toàn miễn phí mãi mãi. Khi bạn muốn phiên âm đám mây không cần thiết lập, HyperWhisper Cloud là tín dụng trả theo mức dùng đơn giản — chỉ nạp khi bạn cần, không có phí hằng tháng và không có gì để hủy."
       },
       "deviceLimit": {
         "question": "Tôi có thể dùng khóa tài khoản trên bao nhiêu thiết bị?",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Yêu cầu hệ thống là gì?",
-        "answer": "Với Mac: macOS 14 trở lên, hỗ trợ cả Apple Silicon và Intel. Với Windows: Windows 10/11, x64 hoặc ARM64. Với Linux v1: Ubuntu 22.04 trở lên hoặc Debian 12 trở lên, trên amd64. Khuyến nghị 8GB RAM để đạt hiệu năng tối ưu."
+        "answer": "Với Mac: macOS 14.6 trở lên, hỗ trợ cả Apple Silicon và Intel. Với Windows: Windows 10/11, x64 hoặc ARM64. Với Linux v1: Ubuntu 22.04 trở lên hoặc Debian 12 trở lên, trên amd64. Khuyến nghị 8GB RAM để đạt hiệu năng tối ưu."
       },
       "madeBy": {
         "question": "Ai đã tạo ra sản phẩm này?",

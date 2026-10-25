@@ -1,4 +1,6 @@
 using System.Windows;
+using System.Windows.Interop;
+using System.Windows.Media;
 using HyperWhisper.Data;
 using HyperWhisper.Localization;
 using HyperWhisper.Services;
@@ -80,6 +82,14 @@ public partial class App : WpfApplication
         // exception, and the user is told what blocked the app.
         DispatcherUnhandledException += (s, args) =>
         {
+            // A failed render thread (#2549) repeats on every repaint: recovered once
+            // by software rendering and reported once, never a dialog per repeat.
+            if (TryRecoverRenderThreadFailure(args.Exception, RenderThreadFailureRecovery.Shared))
+            {
+                args.Handled = true;
+                return;
+            }
+
             LoggingService.Error("Unhandled UI exception", args.Exception);
 
             // MainWindow is not loaded yet: the block hit while WPF built it (the
@@ -409,6 +419,48 @@ public partial class App : WpfApplication
     }
 
     private static int _applicationControlNoticeShown;
+
+    /// <summary>
+    /// The dispatcher handler's render thread branch (#2549), apart so the smoke
+    /// tests can drive it: OnStartup, which subscribes the handler, never runs there.
+    /// </summary>
+    internal bool TryRecoverRenderThreadFailure(Exception? exception, RenderThreadFailureRecovery recovery) =>
+        recovery.TryHandle(
+            exception,
+            MainWindow is not { IsLoaded: true } ? "ui_startup" : "ui_running",
+            SwitchToSoftwareRendering,
+            RenderThreadFailureRecovery.SendReport);
+
+    /// <summary>
+    /// Moves the whole process to software rendering after the GPU render thread
+    /// failed: the process default covers windows and popups built from now on, and
+    /// each open window's composition target is switched in place.
+    /// </summary>
+    private static void SwitchToSoftwareRendering()
+    {
+        RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
+
+        foreach (Window window in Current.Windows)
+        {
+            try
+            {
+                // By handle, not FromVisual: a window whose handle exists but that
+                // was never shown has no root visual yet, and still renders later.
+                var handle = new WindowInteropHelper(window).Handle;
+                if (handle != IntPtr.Zero
+                    && HwndSource.FromHwnd(handle) is { CompositionTarget: { } target })
+                {
+                    target.RenderMode = RenderMode.SoftwareOnly;
+                }
+            }
+            catch (Exception ex)
+            {
+                // One window that cannot switch must not keep the others on the GPU.
+                LoggingService.Warn(
+                    $"App: software rendering switch failed for a window (exception_type={ex.GetType().Name})");
+            }
+        }
+    }
 
     /// <summary>
     /// Reports and explains an Application Control block (#933). Returns false, and

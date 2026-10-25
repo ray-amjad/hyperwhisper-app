@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>To jest tryb domyślny, więc jego nazwy nie można zmienić. Nazwę każdego innego trybu można zmienić.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Tryb o tej nazwie już istnieje.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Dostawca</value>
   </data>
@@ -771,6 +774,9 @@ Tej czynności nie można cofnąć.</value>
   </data>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (brak klucza API)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (nieprawidłowy klucz)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Ładowanie nie powiodło się</value>

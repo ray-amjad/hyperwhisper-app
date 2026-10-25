@@ -25,11 +25,11 @@
 import assert from "node:assert/strict";
 import { before, test } from "node:test";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const resendCalls: unknown[] = [];
 
-moduleMock.module(new URL("../lib/clients/resend.ts", import.meta.url).href, {
+moduleMock.module(moduleUrl("../lib/clients/resend.ts"), {
   namedExports: {
     resend: {
       emails: {

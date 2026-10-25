@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Ini adalah mode default, jadi namanya tidak dapat diubah. Anda dapat mengganti nama mode lainnya.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Mode dengan nama itu sudah ada.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Penyedia</value>
   </data>
@@ -771,6 +774,9 @@ Tindakan ini tidak dapat dibatalkan.</value>
   </data>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (Tidak ada kunci API)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Kunci tidak valid)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Gagal memuat</value>

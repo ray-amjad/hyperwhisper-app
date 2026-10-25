@@ -48,8 +48,8 @@ public partial class MainViewModel : ViewModelBase
     private readonly KeyboardShortcutService _shortcutService;
     private readonly PushToTalkMonitor _pushToTalkMonitor;
     private SmartPasteService? _pasteService;
-    private StreamingAudioCapture? _streamingAudioCapture;
-    private StreamingTranscriptionClient? _streamingClient;
+    private IStreamingAudioSource? _streamingAudioCapture;
+    private IStreamingTranscriptionClient? _streamingClient;
     private System.Timers.Timer? _durationTimer;
     private CancellationTokenSource? _activeTranscriptionCts;
 
@@ -357,8 +357,42 @@ public partial class MainViewModel : ViewModelBase
 
     private ApiKeyService ModelStatusApiKeys => ApiKeyServiceOverride ?? ApiKeyService.Instance;
 
+    /// <summary>Test seam: null in the app, which uses <see cref="CloudProviderHealthService.Instance"/>.</summary>
+    internal CloudProviderHealthService? ProviderHealthOverride { get; set; }
+
+    private CloudProviderHealthService? _subscribedProviderHealth;
+
+    private CloudProviderHealthService ModelStatusProviderHealth =>
+        ProviderHealthOverride ?? CloudProviderHealthService.Instance;
+
     private bool CloudAccountKeyPresent() =>
         (CloudAccountKeyPresentOverride ?? WindowsLocalApiBackend.CloudAccountKeyPresent)();
+
+    // =========================================================================
+    // DICTATION SEAMS (#2241)
+    // The dictation start, stop and cancel path reaches the microphone, the
+    // transcription and the paste target only through these, so the smoke suite
+    // can drive that whole path with fakes. Its check pins the rule that a mode
+    // switch mid-dictation (tray or hotkey) leaves the recording on the mode it
+    // started with. All three are null in the app.
+    // =========================================================================
+
+    /// <summary>Test seam: null in the app, which records with <see cref="_recorderService"/>.</summary>
+    internal IDictationRecorder? DictationRecorderOverride { get; set; }
+
+    /// <summary>
+    /// Test seam: receives the audio path and the mode the recording is transcribed
+    /// for. Null in the app, which transcribes through the orchestrator.
+    /// </summary>
+    internal Func<string, Mode, Task<TranscriptionResult>>? TranscribeRecordingOverride { get; set; }
+
+    /// <summary>
+    /// Test seam: receives the text auto-paste would deliver. Null in the app, which
+    /// pastes through <see cref="DeliverAutoPasteAsync"/>.
+    /// </summary>
+    internal Func<string, Task<(SmartPasteResult Result, bool LostTranscript)>>? DeliverAutoPasteOverride { get; set; }
+
+    private IDictationRecorder DictationRecorder => DictationRecorderOverride ?? _recorderService;
 
     internal void AttachModelStatusSources()
     {
@@ -366,6 +400,8 @@ public partial class MainViewModel : ViewModelBase
         LicenseManager.Instance.LicenseStatusChanged += OnModelStatusSourceChanged;
         _subscribedApiKeyService = ModelStatusApiKeys;
         _subscribedApiKeyService.ApiKeysChanged += OnModelStatusSourceChanged;
+        _subscribedProviderHealth = ModelStatusProviderHealth;
+        _subscribedProviderHealth.TranscriptionProviderStatusChanged += OnTranscriptionProviderHealthChanged;
     }
 
     internal void DetachModelStatusSources()
@@ -376,7 +412,36 @@ public partial class MainViewModel : ViewModelBase
             _subscribedApiKeyService.ApiKeysChanged -= OnModelStatusSourceChanged;
             _subscribedApiKeyService = null;
         }
+        if (_subscribedProviderHealth != null)
+        {
+            _subscribedProviderHealth.TranscriptionProviderStatusChanged -= OnTranscriptionProviderHealthChanged;
+            _subscribedProviderHealth = null;
+        }
     }
+
+    /// <summary>
+    /// A provider's cached health changed, e.g. the probe after a key save found the
+    /// key rejected (#2547). Same UI-thread hop as a licence or key change. Only the
+    /// selected mode's provider can change the bar, and a re-probe's interim Checking
+    /// is skipped so the last verdict stays on screen instead of flashing Ready.
+    /// </summary>
+    private void OnTranscriptionProviderHealthChanged(object? sender, CloudTranscriptionProvider provider)
+        => RunModelStatusRefreshOnUiThread(() =>
+        {
+            // On the UI thread, so SelectedMode is read where it is written.
+            try
+            {
+                var mode = SelectedMode;
+                if (mode == null || CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider) != provider) return;
+                if (ModelStatusProviderHealth.GetStatus(provider) == ProviderHealth.Checking) return;
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Error("MainViewModel: Failed to read the provider health for the model status", ex);
+                return;
+            }
+            RefreshModelStatusSafely();
+        });
 
     /// <summary>
     /// A licence activation/deactivation or a BYOK key save/removal: refresh the
@@ -384,16 +449,19 @@ public partial class MainViewModel : ViewModelBase
     /// finished the validation, and a fault here must not escape into it.
     /// </summary>
     private void OnModelStatusSourceChanged(object? sender, EventArgs e)
+        => RunModelStatusRefreshOnUiThread(RefreshModelStatusSafely);
+
+    private static void RunModelStatusRefreshOnUiThread(Action refresh)
     {
         var dispatcher = System.Windows.Application.Current?.Dispatcher;
         if (dispatcher == null || dispatcher.CheckAccess())
         {
-            RefreshModelStatusSafely();
+            refresh();
             return;
         }
         if (dispatcher.HasShutdownStarted) return;
 
-        dispatcher.BeginInvoke(RefreshModelStatusSafely);
+        dispatcher.BeginInvoke(refresh);
     }
 
     private void RefreshModelStatusSafely()
@@ -413,10 +481,14 @@ public partial class MainViewModel : ViewModelBase
     /// providers (HyperWhisper Cloud, and the Azure MAI / Google Chirp models it
     /// serves) need the account key the transcription path refuses on with
     /// MISSING_API_KEY; every other provider needs its own BYOK key. Only a
-    /// provider that can transcribe right now reads "(Ready)".
+    /// provider that can transcribe right now reads "(Ready)": a BYOK key the
+    /// provider rejected (cached health Unauthorized, the Model Library's "Key
+    /// invalid") reads "(Key invalid)" (#2547). Every other health keeps the key
+    /// check, so an offline or unprobed provider never turns Ready into an error.
     /// </summary>
     internal static string CloudModelStatusKey(
-        CloudTranscriptionProvider provider, bool cloudAccountKeyPresent, bool hasApiKey)
+        CloudTranscriptionProvider provider, bool cloudAccountKeyPresent, bool hasApiKey,
+        ProviderHealth health)
     {
         if (WindowsLocalApiBackend.UsesCloudAccountKey(provider))
             return cloudAccountKeyPresent ? "status.model.ready" : "status.model.notActivated";
@@ -426,7 +498,8 @@ public partial class MainViewModel : ViewModelBase
         if (provider == CloudTranscriptionProvider.None)
             return "status.model.ready";
 
-        return hasApiKey ? "status.model.ready" : "status.model.noApiKey";
+        if (!hasApiKey) return "status.model.noApiKey";
+        return health == ProviderHealth.Unauthorized ? "status.model.keyInvalid" : "status.model.ready";
     }
 
     /// <summary>
@@ -1816,7 +1889,9 @@ public partial class MainViewModel : ViewModelBase
                 cloudAccountKeyPresent: usesAccountKey && CloudAccountKeyPresent(),
                 hasApiKey: !usesAccountKey
                     && provider != CloudTranscriptionProvider.None
-                    && ModelStatusApiKeys.HasApiKey(provider));
+                    && ModelStatusApiKeys.HasApiKey(provider),
+                // The cached probe verdict only; the status bar never probes.
+                health: ModelStatusProviderHealth.GetStatus(provider));
             ModelStatus = Loc.S(statusKey, cloudStatus);
             return;
         }
@@ -2171,11 +2246,11 @@ public partial class MainViewModel : ViewModelBase
             SuspendMicrophoneKeepWarm();
 
             if (SettingsService.Instance.AutoIncreaseMicVolume)
-                _recorderService.BoostMicVolume(SelectedAudioDevice.DeviceNumber);
+                DictationRecorder.BoostMicVolume(SelectedAudioDevice.DeviceNumber);
 
             audioRestoreClaim = AudioEnvironmentService.Instance.ClaimRestoreOwnershipForRecording();
             _audioEnvironmentState = audioRestoreClaim.InheritedRestoreState;
-            _recorderService.StartRecording(SelectedAudioDevice.DeviceNumber);
+            DictationRecorder.StartRecording(SelectedAudioDevice.DeviceNumber);
         }
         catch (Exception ex)
         {
@@ -2199,7 +2274,7 @@ public partial class MainViewModel : ViewModelBase
         _durationTimer = new System.Timers.Timer(100);
         _durationTimer.Elapsed += (s, e) =>
         {
-            RecordingDuration = _recorderService.Duration;
+            RecordingDuration = DictationRecorder.Duration;
             CheckRecordingDurationLimit();
         };
         _durationTimer.Start();
@@ -2385,7 +2460,7 @@ public partial class MainViewModel : ViewModelBase
 
     private void CleanupFailedRecordingStart()
     {
-        _recorderService.RestoreMicVolume();
+        DictationRecorder.RestoreMicVolume();
         RestoreAudioEnvironment();
         ResumeMicrophoneKeepWarm();
         _pasteService?.EndRecordingSession();
@@ -2485,8 +2560,8 @@ public partial class MainViewModel : ViewModelBase
 
             // STEP 1: Stop recording and get the audio file path
             // Uses Result<T> pattern to handle both success and failure cases explicitly
-            var stopResult = _recorderService.StopRecording();
-            _recorderService.RestoreMicVolume();
+            var stopResult = DictationRecorder.StopRecording();
+            DictationRecorder.RestoreMicVolume();
             RestoreAudioEnvironment();
             ResumeMicrophoneKeepWarm();
             IsRecording = false;
@@ -2513,7 +2588,7 @@ public partial class MainViewModel : ViewModelBase
             // EMPTY CAPTURE GUARD (#750): the device sent no frames, so the file is a
             // bare WAV header. Uploading it spends a request and comes back as "No
             // speech detected", which blames the user for the device's fault.
-            if (AudioRecorderService.IsEmptyCapture(_recorderService.CapturedAudioBytes))
+            if (AudioRecorderService.IsEmptyCapture(DictationRecorder.CapturedAudioBytes))
             {
                 try
                 {
@@ -2568,20 +2643,22 @@ public partial class MainViewModel : ViewModelBase
                 ShowStatusRequested?.Invoke(this, Loc.S("recording.state.enhancing"));
             }
 
-            var result = await _transcriptionOrchestrator.TranscribeAsync(
-                permanentAudioPath,
-                recordingMode,
-                vocabulary,
-                localTranscriptionProvider: GetLocalProvider(recordingMode),
-                applicationContext: _capturedApplicationContext,
-                cancellationToken: transcriptionCts.Token,
-                // Already tracked above (logged a few lines earlier) for the
-                // same audio content — avoids AssemblyAIService re-reading the
-                // file a second time just for its sync-eligibility gate. This
-                // is the PRIMARY target of the sub-120s sync fast path (the
-                // most latency-sensitive flow), so it must forward the known
-                // duration the same way the file-import call site does.
-                knownDurationSeconds: RecordingDuration.TotalSeconds);
+            var result = TranscribeRecordingOverride != null
+                ? await TranscribeRecordingOverride(permanentAudioPath, recordingMode)
+                : await _transcriptionOrchestrator.TranscribeAsync(
+                    permanentAudioPath,
+                    recordingMode,
+                    vocabulary,
+                    localTranscriptionProvider: GetLocalProvider(recordingMode),
+                    applicationContext: _capturedApplicationContext,
+                    cancellationToken: transcriptionCts.Token,
+                    // Already tracked above (logged a few lines earlier) for the
+                    // same audio content — avoids AssemblyAIService re-reading the
+                    // file a second time just for its sync-eligibility gate. This
+                    // is the PRIMARY target of the sub-120s sync fast path (the
+                    // most latency-sensitive flow), so it must forward the known
+                    // duration the same way the file-import call site does.
+                    knownDurationSeconds: RecordingDuration.TotalSeconds);
             transcriptionCts.Token.ThrowIfCancellationRequested();
             if (ReferenceEquals(_activeTranscriptionCts, transcriptionCts))
             {
@@ -2626,7 +2703,9 @@ public partial class MainViewModel : ViewModelBase
             var autoPasteLostTranscript = false;
             if (SettingsService.Instance.AutoPasteEnabled)
             {
-                (pasteResult, autoPasteLostTranscript) = await DeliverAutoPasteAsync(_pasteService, spacedText);
+                (pasteResult, autoPasteLostTranscript) = DeliverAutoPasteOverride != null
+                    ? await DeliverAutoPasteOverride(spacedText)
+                    : await DeliverAutoPasteAsync(_pasteService, spacedText);
             }
             else
             {
@@ -3003,8 +3082,8 @@ public partial class MainViewModel : ViewModelBase
 
             // Stop recording and discard the audio file
             // Uses Result<T> pattern to handle both success and failure cases
-            var stopResult = _recorderService.StopRecording();
-            _recorderService.RestoreMicVolume();
+            var stopResult = DictationRecorder.StopRecording();
+            DictationRecorder.RestoreMicVolume();
             RestoreAudioEnvironment(immediate: true);
             ResumeMicrophoneKeepWarm();
             IsRecording = false;

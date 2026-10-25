@@ -49,6 +49,9 @@ enum DeviceAudioRecorderError: Error, CustomStringConvertible {
     case deviceSelectionFailed(OSStatus)
     case noInputFormat
     case converterUnavailable
+    /// `installTap` raised "Failed to create tap due to format mismatch" (issue #2577).
+    /// Caught by `ObjCExceptionGuard`, so a failed start the user can retry, not a crash.
+    case tapFormatMismatch
 
     var description: String {
         switch self {
@@ -60,6 +63,8 @@ enum DeviceAudioRecorderError: Error, CustomStringConvertible {
             return "The input device reports no usable format"
         case .converterUnavailable:
             return "Could not build a converter to 16 kHz mono Int16"
+        case .tapFormatMismatch:
+            return "The input node refused the tap format"
         }
     }
 }
@@ -186,24 +191,116 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
 
     /// The tap format for an input node, or `nil` when the device reports none (no
     /// permission, no device, a device mid-reconfiguration). Installing a tap with a
-    /// zero-rate or zero-channel format raises an Objective-C exception, which Swift
-    /// cannot catch, so this check is what keeps a bad device from crashing the app.
+    /// zero-rate or zero-channel format raises an Objective-C exception. Validating
+    /// first keeps a good start possible; `installTap(on:formats:context:tap:)` catches
+    /// whatever mismatch this still misses (#2577) as a failed start, not a crash.
     static func tapFormat(for inputNode: AVAudioInputNode) -> AVAudioFormat? {
-        let output = inputNode.outputFormat(forBus: 0)
-        let hardware = inputNode.inputFormat(forBus: 0)
+        tapFormat(output: inputNode.outputFormat(forBus: 0), hardware: inputNode.inputFormat(forBus: 0))
+    }
+
+    /// `tapFormat(for:)` on the node's two formats, so a test can feed it any pair.
+    static func tapFormat(output: AVAudioFormat, hardware: AVAudioFormat) -> AVAudioFormat? {
         guard output.sampleRate > 0, output.channelCount > 0 else { return nil }
-        // A tap whose rate differs from the hardware's raises an exception too. After a
-        // device switch the output side can briefly lag behind the hardware side.
-        if hardware.sampleRate > 0, hardware.sampleRate != output.sampleRate {
-            AppLogger.audio.notice("Input node output rate \(output.sampleRate, privacy: .public) Hz differs from the device's \(hardware.sampleRate, privacy: .public) Hz - tapping at the device rate")
-            // `init(standardFormatWithSampleRate:channels:)` returns nil above two
-            // channels, so a multi-channel device keeps its layout.
-            if let layout = output.channelLayout {
-                return AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate, channelLayout: layout)
-            }
-            return AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate, channels: output.channelCount)
+        // A tap whose rate or channel count differs from the hardware's raises an
+        // exception too. After a device switch the output side can briefly lag behind
+        // the hardware side (#2577: a 1-channel 48 kHz output format was refused).
+        guard hardware.sampleRate > 0, hardware.channelCount > 0,
+              hardware.sampleRate != output.sampleRate || hardware.channelCount != output.channelCount
+        else { return output }
+
+        AppLogger.audio.notice("Input node output format (\(output.sampleRate, privacy: .public) Hz, \(output.channelCount, privacy: .public) ch) differs from the device's (\(hardware.sampleRate, privacy: .public) Hz, \(hardware.channelCount, privacy: .public) ch) - tapping at the device format")
+        // `init(standardFormatWithSampleRate:channels:)` returns nil above two
+        // channels, so a multi-channel device keeps its layout. Only a layout with
+        // the device's channel count will do; with none, a discrete one.
+        if hardware.channelCount == output.channelCount, let layout = output.channelLayout {
+            return AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate, channelLayout: layout)
         }
-        return output
+        if let layout = hardware.channelLayout {
+            return AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate, channelLayout: layout)
+        }
+        if hardware.channelCount <= 2 {
+            return AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate, channels: hardware.channelCount)
+        }
+        guard let discrete = AVAudioChannelLayout(layoutTag: kAudioChannelLayoutTag_DiscreteInOrder | hardware.channelCount) else {
+            return nil
+        }
+        return AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate, channelLayout: discrete)
+    }
+
+    /// The formats to try a tap at, in order: `tapFormat(for:)`, then, when that
+    /// only changed the channel count, the node's own output format (what every
+    /// release before #2577 tapped at). Empty when the device reports no format.
+    static func tapFormatCandidates(for inputNode: AVAudioInputNode) -> [AVAudioFormat] {
+        tapFormatCandidates(output: inputNode.outputFormat(forBus: 0), hardware: inputNode.inputFormat(forBus: 0))
+    }
+
+    /// `tapFormatCandidates(for:)` on the node's two formats, for a test.
+    static func tapFormatCandidates(output: AVAudioFormat, hardware: AVAudioFormat) -> [AVAudioFormat] {
+        guard let primary = tapFormat(output: output, hardware: hardware) else { return [] }
+        // A rate that differs from the device's is always refused, so the output
+        // format is a second chance only when the rates agree.
+        guard !primary.isEqual(output), primary.sampleRate == output.sampleRate else { return [primary] }
+        return [primary, output]
+    }
+
+    /// Install a tap at the first of `formats` the node accepts, and return it. An
+    /// Objective-C exception from `installTap` (a format mismatch, issue #2577) is
+    /// caught; when every format is refused this throws
+    /// `DeviceAudioRecorderError.tapFormatMismatch` and reports one handled error to
+    /// Sentry with both sides' formats, as numbers only, so the next event names the
+    /// cause. Shared with `StreamingAudioCapture`.
+    @discardableResult
+    static func installTap(
+        on inputNode: AVAudioInputNode,
+        formats: [AVAudioFormat],
+        context: [String: Any] = [:],
+        tap: @escaping AVAudioNodeTapBlock
+    ) throws -> AVAudioFormat {
+        var lastRefused: AVAudioFormat?
+        for format in formats {
+            do {
+                try ObjCExceptionGuard.run {
+                    inputNode.installTap(onBus: 0, bufferSize: 1024, format: format, block: tap)
+                }
+                if lastRefused != nil {
+                    AppLogger.audio.notice("Tap accepted at the node's output format after the device format was refused")
+                }
+                return format
+            } catch {
+                AppLogger.audio.error("installTap refused the tap format (\(format.sampleRate, privacy: .public) Hz, \(format.channelCount, privacy: .public) ch): \((error as NSError).localizedFailureReason ?? "no reason", privacy: .public)")
+                lastRefused = format
+                // Clear anything the refused call left on the bus before the next try.
+                inputNode.removeTap(onBus: 0)
+            }
+        }
+        guard let lastRefused else { throw DeviceAudioRecorderError.noInputFormat }
+        var extras = tapFormatExtras(
+            requested: lastRefused,
+            output: inputNode.outputFormat(forBus: 0),
+            hardware: inputNode.inputFormat(forBus: 0)
+        )
+        extras["tapAttemptCount"] = formats.count
+        extras.merge(context) { _, new in new }
+        SentryService.capture(
+            error: DeviceAudioRecorderError.tapFormatMismatch,
+            message: "Audio tap format mismatch",
+            extras: extras,
+            tags: ["component": "audio_capture"]
+        )
+        throw DeviceAudioRecorderError.tapFormatMismatch
+    }
+
+    /// The Sentry extras of a refused tap: every value a number or a Bool, never a
+    /// device name or UID.
+    static func tapFormatExtras(requested: AVAudioFormat, output: AVAudioFormat, hardware: AVAudioFormat) -> [String: Any] {
+        var extras: [String: Any] = [:]
+        for (prefix, format) in [("tapRequested", requested), ("tapNodeOutput", output), ("tapNodeHardware", hardware)] {
+            extras["\(prefix)SampleRateHz"] = format.sampleRate
+            extras["\(prefix)ChannelCount"] = Int(format.channelCount)
+            extras["\(prefix)IsInterleaved"] = format.isInterleaved
+            extras["\(prefix)CommonFormat"] = Int(format.commonFormat.rawValue)
+        }
+        return extras
     }
 
     /// RMS power of a float buffer in dB, floored at `silentPowerDb`.
@@ -427,6 +524,17 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     /// was built for. A notification that leaves the engine running on the same format
     /// (the one every start on a non-default device posts) needs nothing: restarting on
     /// it posts another and loops.
+    /// The device's tap format now, for `configurationChangeNeedsRestart`: the candidate
+    /// the capture already taps at when it is still one, else the first. A capture that
+    /// fell back to the node's output format (#2577) then does not restart on every
+    /// benign notification just because the device-format candidate comes first.
+    static func currentTapFormat(matching captureFormat: AVAudioFormat?, in candidates: [AVAudioFormat]) -> AVAudioFormat? {
+        if let captureFormat, let same = candidates.first(where: { $0.isEqual(captureFormat) }) {
+            return same
+        }
+        return candidates.first
+    }
+
     static func configurationChangeNeedsRestart(
         engineIsRunning: Bool,
         captureFormat: AVAudioFormat?,
@@ -502,8 +610,19 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         let input = engine.inputNode
         try Self.setInputDevice(deviceID, on: input)
 
-        guard let format = Self.tapFormat(for: input) else {
+        let candidates = Self.tapFormatCandidates(for: input)
+        guard !candidates.isEmpty else {
             throw DeviceAudioRecorderError.noInputFormat
+        }
+
+        // Tap first: the format the node accepts picks the converter. No buffer
+        // reaches `process` before `engine.start()`, so the pipeline is in place in time.
+        let format = try Self.installTap(
+            on: input,
+            formats: candidates,
+            context: ["tapStartIsFallbackDevice": deviceID != self.deviceID]
+        ) { [weak self] buffer, _ in
+            self?.process(buffer)
         }
 
         tapLock.lock()
@@ -512,14 +631,12 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         pipeline = newPipeline
         tapLock.unlock()
         guard newPipeline != nil else {
+            input.removeTap(onBus: 0)
             throw DeviceAudioRecorderError.converterUnavailable
         }
 
         AppLogger.audio.info("Chosen microphone opened: \(format.sampleRate, privacy: .public) Hz, \(format.channelCount, privacy: .public) channel(s)")
 
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
-            self?.process(buffer)
-        }
         engine.prepare()
         do {
             try engine.start()
@@ -670,7 +787,9 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         let needsRestart = Self.configurationChangeNeedsRestart(
             engineIsRunning: engine.isRunning,
             captureFormat: captureFormat,
-            currentFormat: engine.isRunning ? Self.tapFormat(for: engine.inputNode) : nil
+            currentFormat: engine.isRunning
+                ? Self.currentTapFormat(matching: captureFormat, in: Self.tapFormatCandidates(for: engine.inputNode))
+                : nil
         )
         guard needsRestart else {
             // The notification every start on a non-default device posts: the engine

@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Dies ist der Standardmodus, daher kann sein Name nicht geändert werden. Jeden anderen Modus können Sie umbenennen.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Es gibt bereits einen Modus mit diesem Namen.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Anbieter</value>
   </data>
@@ -771,6 +774,9 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value>
   </data>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (kein API-Schlüssel)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Schlüssel ungültig)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Laden fehlgeschlagen</value>

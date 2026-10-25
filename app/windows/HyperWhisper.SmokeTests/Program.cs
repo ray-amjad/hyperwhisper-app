@@ -184,6 +184,107 @@ internal static class Program
                     $"expected no LastSelectedModel: {output}");
             });
 
+            Run("RenderThreadFailureRecovery recovers once, reports once, and shows no dialog", () =>
+            {
+                // #2549: WPF raised UCEERR_RENDERTHREADFAILURE on every repaint, and
+                // the dispatcher handler showed a dialog and a Sentry event for each.
+                var recovery = new RenderThreadFailureRecovery();
+                var failure = new System.Runtime.InteropServices.COMException(
+                    "UCEERR_RENDERTHREADFAILURE", unchecked((int)0x88980406));
+                var switches = 0;
+                var reports = new List<RenderThreadFailureRecovery.Report>();
+
+                Assert(!recovery.TryHandle(new InvalidOperationException(), "ui_running",
+                        () => switches++, reports.Add),
+                    "an unrelated exception was taken as a render thread failure");
+                Assert(!recovery.TryHandle(
+                        new System.Runtime.InteropServices.COMException("other", unchecked((int)0x80004005)),
+                        "ui_running", () => switches++, reports.Add),
+                    "an unrelated COMException was taken as a render thread failure");
+                Assert(switches == 0 && reports.Count == 0,
+                    "an unrelated exception switched rendering or reported");
+
+                for (var i = 0; i < 50; i++)
+                {
+                    Assert(recovery.TryHandle(failure, "ui_running", () => switches++, reports.Add),
+                        $"render thread failure {i + 1} was not handled, so the dialog would show");
+                }
+
+                Assert(switches == 1, $"software rendering was switched {switches} times, not once");
+                Assert(reports.Count == 1, $"the failure was reported {reports.Count} times, not once");
+                Assert(reports[0].Fingerprint.SequenceEqual(new[] { "wpf-render-thread-failure" }),
+                    "the report does not carry the fixed fingerprint");
+                Assert(reports[0].Tags["render_recovery"] == "software_rendering",
+                    "the report does not say software rendering recovered it");
+                Assert(ReferenceEquals(reports[0].Exception, failure),
+                    "the report lost the original exception and its stack");
+
+                var wrapped = new InvalidOperationException("outer", failure);
+                Assert(RenderThreadFailureRecovery.IsRenderThreadFailure(wrapped),
+                    "a wrapped render thread failure was not recognised");
+
+                var failingSwitch = new RenderThreadFailureRecovery();
+                var failingReports = new List<RenderThreadFailureRecovery.Report>();
+                Assert(failingSwitch.TryHandle(failure, "ui_startup",
+                        () => throw new InvalidOperationException("switch failed"), failingReports.Add),
+                    "a failed software-rendering switch escaped the handler");
+                Assert(failingReports.Count == 1
+                        && failingReports[0].Tags["render_recovery"] == "software_rendering_failed",
+                    "a failed switch was not reported as failed");
+                Assert(failingSwitch.TryHandle(failure, "ui_startup", () => { },
+                        _ => throw new InvalidOperationException("report failed")),
+                    "a repeat after a failed switch was not handled");
+                Assert(new RenderThreadFailureRecovery().TryHandle(failure, "ui_running", () => { },
+                        _ => throw new InvalidOperationException("report failed")),
+                    "a failing reporter escaped the handler");
+            });
+
+            Run("App's render thread branch moves the process and open windows to software rendering", () =>
+            {
+                // Drives the branch the real dispatcher handler calls, with its real
+                // SwitchToSoftwareRendering, on a real window handle. Sentry is not
+                // initialized here, so the one report is a no-op.
+                var app = (App)EnsureSmokeApplication();
+                var window = new Window();
+                var shutdownMode = app.ShutdownMode;
+                app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                try
+                {
+                    var handle = new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
+                    var source = System.Windows.Interop.HwndSource.FromHwnd(handle);
+                    Assert(source?.CompositionTarget is not null, "the test window has no HwndSource");
+                    Assert(source!.CompositionTarget.RenderMode == System.Windows.Interop.RenderMode.Default,
+                        "the test window did not start on default rendering");
+
+                    var recovery = new RenderThreadFailureRecovery();
+                    Assert(!app.TryRecoverRenderThreadFailure(new InvalidOperationException(), recovery),
+                        "App took an unrelated exception for a render thread failure");
+                    Assert(System.Windows.Media.RenderOptions.ProcessRenderMode
+                            == System.Windows.Interop.RenderMode.Default,
+                        "an unrelated exception changed the render mode");
+
+                    var failure = new System.Runtime.InteropServices.COMException(
+                        "UCEERR_RENDERTHREADFAILURE", unchecked((int)0x88980406));
+                    for (var i = 0; i < 5; i++)
+                    {
+                        Assert(app.TryRecoverRenderThreadFailure(failure, recovery),
+                            $"render thread failure {i + 1} fell through to the generic dialog");
+                    }
+
+                    Assert(System.Windows.Media.RenderOptions.ProcessRenderMode
+                            == System.Windows.Interop.RenderMode.SoftwareOnly,
+                        "the process was not moved to software rendering");
+                    Assert(source.CompositionTarget.RenderMode == System.Windows.Interop.RenderMode.SoftwareOnly,
+                        "an open window was not moved to software rendering");
+                }
+                finally
+                {
+                    System.Windows.Media.RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.Default;
+                    window.Close();
+                    app.ShutdownMode = shutdownMode;
+                }
+            });
+
             Run("ApplicationControlDiagnostics handles only the classifier load failure", () =>
             {
                 const string privateUrl = "https://private.example.test/download";
@@ -2759,6 +2860,59 @@ internal static class Program
                     Assert(ParakeetTranscriptionService.ResolveSegmentJoinArgument(code) == null, $"'{code}' → not passed");
             });
 
+            // #1846: sherpa puts DirectML on DXGI adapter 0, usually the iGPU.
+            Run("Parakeet daemon device: discrete GPU by LUID, UHD-only on CPU, else unchanged", () =>
+            {
+                static GpuInfoService.GpuInfo Gpu(string name, long? luid) => new()
+                {
+                    Name = name,
+                    PriorityScore = GpuInfoService.GetGpuPriorityScore(name),
+                    AdapterLuid = luid
+                };
+                var parakeet = new ParakeetDaemonLaunchPlan.EngineSelection("parakeet-v2", "nemo_transducer", false, false);
+                var qwen3 = new ParakeetDaemonLaunchPlan.EngineSelection("qwen3-asr", "qwen3", true, false);
+                var nemotron = new ParakeetDaemonLaunchPlan.EngineSelection("nemotron", "nemotron_ml", false, true);
+
+                var rtx = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("NVIDIA GeForce RTX 4060", 0xb5cf), parakeet, isX64: true);
+                Assert(rtx.ProviderArg == null && rtx.DmlAdapterLuid == 0xb5cf, "discrete NVIDIA → its LUID");
+                var rx = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("AMD Radeon RX 7800 XT", 0x1234_0000_5678), parakeet, isX64: true);
+                Assert(rx.ProviderArg == null && rx.DmlAdapterLuid == 0x1234_0000_5678, "discrete AMD → its LUID (HighPart kept)");
+                var wmiOnly = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("NVIDIA GeForce RTX 4060", null), parakeet, isX64: true);
+                Assert(wmiOnly.ProviderArg == null && wmiOnly.DmlAdapterLuid == null, "discrete GPU from WMI (no LUID) → daemon default");
+
+                foreach (var name in new[] { "Intel(R) UHD Graphics 630", "Intel(R) UHD Graphics 620", "Intel(R) HD Graphics 520", "Intel(R) HD Graphics" })
+                {
+                    var uhd = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu(name, 0xc58a), parakeet, isX64: true);
+                    Assert(uhd.ProviderArg == "cpu" && uhd.DmlAdapterLuid == null, $"{name} only → --provider cpu");
+                }
+
+                foreach (var name in new[] { "AMD Radeon(TM) Graphics", "Intel(R) Iris(R) Xe Graphics", "Intel(R) Graphics", "Intel(R) Arc(TM) Graphics", "Intel(R) UHD Graphics 770", "Intel(R) UHD Graphics" })
+                {
+                    var keep = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu(name, 0xc58a), parakeet, isX64: true);
+                    Assert(keep.ProviderArg == null && keep.DmlAdapterLuid == null, $"{name} → daemon default");
+                }
+                var none = ParakeetDaemonLaunchPlan.ResolveDevice(null, parakeet, isX64: true);
+                Assert(none.ProviderArg == null && none.DmlAdapterLuid == null, "no GPU info → daemon default");
+
+                var arm = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("NVIDIA GeForce RTX 4060", 0xb5cf), parakeet, isX64: false);
+                Assert(arm.ProviderArg == null && arm.DmlAdapterLuid == null, "ARM64 → daemon default");
+                foreach (var engine in new[] { qwen3, nemotron })
+                {
+                    var other = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("NVIDIA GeForce RTX 4060", 0xb5cf), engine, isX64: true);
+                    Assert(other.ProviderArg == null && other.DmlAdapterLuid == null, $"{engine.EngineArg} → daemon default");
+                }
+
+                // The flags reach the daemon's argument list.
+                var paths = new ParakeetDaemonLaunchPlan.DaemonPaths(@"C:\app\parakeet-engine\parakeet-engine.exe", @"C:\app\parakeet-engine\silero_vad.onnx");
+                var args = ParakeetDaemonLaunchPlan.Build(paths, @"C:\m\parakeet-v2", "en", parakeet, rtx).StartInfo.ArgumentList.ToList();
+                var at = args.IndexOf("--dml-adapter-luid");
+                Assert(at >= 0 && args[at + 1] == "46543" && !args.Contains("--provider"), "Build passes --dml-adapter-luid 46543");
+                var cpu = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("Intel(R) UHD Graphics 630", 0xc58a), parakeet, isX64: true);
+                args = ParakeetDaemonLaunchPlan.Build(paths, @"C:\m\parakeet-v2", "en", parakeet, cpu).StartInfo.ArgumentList.ToList();
+                at = args.IndexOf("--provider");
+                Assert(at >= 0 && args[at + 1] == "cpu" && !args.Contains("--dml-adapter-luid"), "Build passes --provider cpu");
+            });
+
             Run("Grok GetRequestTimeout scales with file size", () =>
             {
                 Assert(GrokSttService.GetRequestTimeout(0) == TimeSpan.FromMinutes(5), "0 bytes → 5min base");
@@ -3593,30 +3747,39 @@ internal static class Program
                 // The write is keyed on the PROVIDER, not on `PostProcessingMode`,
                 // because that is what `PostProcessingService.ProcessAsync` routes
                 // on — it parses `Mode.PostProcessingProvider` and never reads
-                // `PostProcessingMode` past the `== 0` skip. `"local"` is the
-                // reachable proof: `FromString` maps it to `LocalLlm` (so the run
-                // IS local) while `IsLocalLlmProvider` above does not (so the mode
-                // int is 1, not 2). A mode-int guard skipped the write on exactly
-                // this input. The worse shape — a SAVED mode with post-processing
-                // off whose provider is still `local_llm`, where the skipped write
-                // meant a stale GGUF ran and was honestly reported as a model the
-                // caller never asked for — needs `ModeService` and is covered by
-                // this predicate alignment rather than end to end.
-                Assert(PostProcessingProviderExtensions.FromString("local") == PostProcessingProvider.LocalLlm
-                        && PostProcessingProviderExtensions.FromString("local_llm") == PostProcessingProvider.LocalLlm,
-                    "the local_llm spellings ProcessAsync routes on have drifted");
-                var altSpelling = WindowsLocalApiBackend.BuildWorkingMode(
-                    new HyperWhisper.LocalApi.PostProcessRequest(
-                        Text: "raw",
-                        ModeId: null,
-                        Preset: null,
-                        Prompt: null,
-                        Provider: "local",
-                        Model: "gemma-4-12b-it-Q4_K_M.gguf"));
-                Assert(altSpelling.PostProcessingMode == 1,
-                    "the PostProcessingMode this case depends on being 1 has changed");
-                Assert(altSpelling.LocalPostProcessingModel == "gemma-4-12b-it-Q4_K_M.gguf",
-                    "the model override missed the local GGUF field for a run ProcessAsync routes local");
+                // `PostProcessingMode` past the `== 0` skip. The worse shape — a
+                // SAVED mode with post-processing off whose provider is still
+                // `local_llm`, where the skipped write meant a stale GGUF ran and
+                // was honestly reported as a model the caller never asked for —
+                // needs `ModeService` and is covered by this predicate alignment
+                // rather than end to end.
+                //
+                // #2557: every local spelling a caller can send — including
+                // `localLLM`, the shared catalog's provider id — must route local
+                // in `ProcessAsync` (`FromString`) AND get mode 2 here. Before the
+                // fix `localLLM` got mode 2 but `FromString` answered `None`, so
+                // `/post-process` silently skipped with `provider: none`; `local`
+                // had the opposite split (routed local, mode 1).
+                foreach (var spelling in new[] { "localLLM", "localLlm", "local_llm", "LOCAL_LLM", "local" })
+                {
+                    Assert(PostProcessingProviderExtensions.FromString(spelling) == PostProcessingProvider.LocalLlm,
+                        $"FromString(\"{spelling}\") no longer routes to the local LLM, so ProcessAsync skips the run");
+                    var working = WindowsLocalApiBackend.BuildWorkingMode(
+                        new HyperWhisper.LocalApi.PostProcessRequest(
+                            Text: "raw",
+                            ModeId: null,
+                            Preset: null,
+                            Prompt: null,
+                            Provider: spelling,
+                            Model: "gemma-4-12b-it-Q4_K_M.gguf"));
+                    Assert(working.PostProcessingMode == 2,
+                        $"provider \"{spelling}\" did not switch the working mode to local post-processing");
+                    Assert(working.LocalPostProcessingModel == "gemma-4-12b-it-Q4_K_M.gguf",
+                        $"provider \"{spelling}\": the model override missed the local GGUF field");
+                    Assert(PostProcessingProviderExtensions.FromString(working.PostProcessingProvider)
+                            == PostProcessingProvider.LocalLlm,
+                        $"provider \"{spelling}\": the working mode's provider would not route local");
+                }
             });
 
             Run("Retired cloud models resolve to selectable canonical models", () =>
@@ -5251,6 +5414,55 @@ internal static class Program
                 Assert(accepted.accepted && accepted.text == "clean", "wrapped unspecified response should be accepted");
                 Assert(acceptedMarkerless.accepted && acceptedMarkerless.text == "clean, no markers",
                     "markerless unspecified response should be accepted leniently");
+            });
+
+            Run("Local LLM speaks Gemma 4's turn format, not System:/User: (issue #2559)", () =>
+            {
+                const string gemma4Template = "{{- bos_token -}}{{- '<|turn>system\\n' -}}{{- '<turn|>\\n' -}}{{- '<|turn>model\\n' -}}";
+                Assert(LocalLlmPromptFormatter.IsGemma4Template(gemma4Template), "Gemma 4 template should be detected");
+                Assert(!LocalLlmPromptFormatter.IsGemma4Template("<start_of_turn>user\n{{ content }}<end_of_turn>"),
+                    "Gemma 3 template is not Gemma 4");
+                Assert(!LocalLlmPromptFormatter.IsGemma4Template(null), "a model with no template is not Gemma 4");
+
+                var prompt = LocalLlmPromptFormatter.FormatGemma4("  SYSTEM RULES \n", "--TRANSCRIPT--\nhi\n--ENDTRANSCRIPT--\n");
+                Assert(prompt == "<|turn>system\nSYSTEM RULES<turn|>\n<|turn>user\n--TRANSCRIPT--\nhi\n--ENDTRANSCRIPT--<turn|>\n<|turn>model\n",
+                    $"unexpected Gemma 4 prompt: {prompt}");
+                Assert(!prompt.Contains("User:") && !prompt.Contains("System:"), "no generic role prefixes");
+                Assert(LocalLlmPromptFormatter.Gemma4AntiPrompts[0] == "<turn|>", "Gemma 4 end-of-turn is the first stop string");
+                Assert(!LocalLlmPromptFormatter.Gemma4AntiPrompts.Contains("</s>"), "dictated '</s>' must not end a Gemma 4 answer");
+                Assert(!LocalLlmPromptFormatter.TemplateAntiPrompts.Any(a => a.Contains("User:")),
+                    "a templated prompt must not stop on a dictated 'User:'");
+                Assert(LocalLlmService.TrimAntiPrompt("<<CLEANED>>x<<END>>\nUser:", LocalLlmPromptFormatter.PlainAntiPrompts) == "<<CLEANED>>x<<END>>",
+                    "trailing stop string is dropped");
+            });
+
+            Run("Local LLM punctuation-only or cut-off output keeps the raw transcript (issue #2559)", () =>
+            {
+                const string raw = "um so the quick brown fox uh jumps over the the lazy dog and then we we go home";
+                var garbage = PostProcessingService.EvaluateLocalCompletion(raw, new LocalLlmCompletion("<<", CompletionState.Complete));
+                Assert(!garbage.accepted && garbage.text == raw, "'<<' must not replace the transcript");
+
+                var cutOff = PostProcessingService.EvaluateLocalCompletion(raw, new LocalLlmCompletion("<<CLEANED>>So the quick", CompletionState.OutputLimit));
+                Assert(!cutOff.accepted && cutOff.text == raw, "an output-limited answer must not replace the transcript");
+
+                var good = PostProcessingService.EvaluateLocalCompletion(raw,
+                    new LocalLlmCompletion("<<CLEANED>>So the quick brown fox jumps over the lazy dog, and then we go home.<<END>>", CompletionState.Complete));
+                Assert(good.accepted && good.text == "So the quick brown fox jumps over the lazy dog, and then we go home.", "a clean answer is accepted");
+
+                var shortButReal = PostProcessingService.EvaluateLocalCompletion("um uh okay", new LocalLlmCompletion("<<CLEANED>>Okay.<<END>>", CompletionState.Complete));
+                Assert(shortButReal.accepted && shortButReal.text == "Okay.", "a much shorter real answer is still accepted");
+
+                Assert(!PostProcessingService.IsDegenerateLocalOutput("question mark", "?"), "spoken punctuation is an answer");
+                Assert(!PostProcessingService.IsDegenerateLocalOutput("thumbs up", "\U0001F44D"), "an emoji-only answer is content");
+                Assert(PostProcessingService.IsDegenerateLocalOutput("thumbs up", "<< </>"), "marker debris only is degenerate");
+            });
+
+            Run("Local LLM uses every core on ARM64 and the default elsewhere (#2559)", () =>
+            {
+                Assert(LocalLlmService.CpuThreadCount(System.Runtime.InteropServices.Architecture.Arm64, 8) == 8,
+                    "ARM64 has no SMT, so all 8 cores run inference");
+                Assert(LocalLlmService.CpuThreadCount(System.Runtime.InteropServices.Architecture.X64, 16) == null,
+                    "x64 keeps LLamaSharp's one-thread-per-core default");
             });
 
             Run("Local LLM reserves an 8192-token output without context shifting", () =>
@@ -14719,8 +14931,9 @@ internal static class Program
                 // ...AND THE COLLISION CHECK RUNS ONLY ON A REAL RENAME (issue
                 // #356, review round 1). `HyperWhisperDbContext` declares a
                 // NON-unique index on `Name` and nothing outside these endpoints
-                // checks, so two modes named "Work" are producible from the GUI
-                // or a backup restore. A read-modify-write client PATCHing the
+                // checks, so two modes named "Work" are producible from a backup
+                // restore (and were from the Windows mode editor until #2478).
+                // A read-modify-write client PATCHing the
                 // whole object back must not be told its own unchanged name is
                 // taken — that mode would be patchable only by omitting `name`.
                 Assert(!WindowsLocalApiBackend.PatchNameCollides("Work", "Work", ["Work", "Personal"]),
@@ -14731,6 +14944,24 @@ internal static class Program
                     "a real rename onto a taken name stopped being refused");
                 Assert(!WindowsLocalApiBackend.PatchNameCollides("Personal", "Work", ["Archive"]),
                     "a real rename onto a free name was refused");
+
+                // THE MODE EDITOR USES THE SAME RULE (issue #2478). It saved
+                // a second "Hyper" with no warning while POST /modes refused
+                // it. Create (no stored name), rename, own name, blank.
+                Assert(ModeNameRules.IsTaken("hyper", null, ["Hyper", "Work"]),
+                    "the editor let a new mode take an existing name in another case");
+                Assert(ModeNameRules.IsTaken("  HYPER  ", null, ["Hyper"]),
+                    "the editor let a new mode take an existing name with extra spaces");
+                Assert(ModeNameRules.IsTaken("Hyper", "Fuzz Mode", ["Hyper"]),
+                    "the editor let a mode be renamed onto another mode's name");
+                Assert(!ModeNameRules.IsTaken("Fresh", null, ["Hyper"]),
+                    "the editor refused a free name");
+                Assert(!ModeNameRules.IsTaken("Hyper", "Hyper", ["hyper"]),
+                    "the editor refused a mode's own unchanged name because an older duplicate shares it");
+                Assert(!ModeNameRules.IsTaken(" fuzz mode ", "Fuzz Mode", ["Hyper"]),
+                    "the editor treated a case/space edit of the mode's own name as a collision");
+                Assert(!ModeNameRules.IsTaken("   ", null, ["Hyper", ""]),
+                    "a blank name was reported as taken; the editor refuses blank on its own");
 
                 // ITEM 3 — one alias table. `qwen3_asr` is this head's own
                 // response label; the trim is new here and could only ever
@@ -15525,14 +15756,14 @@ internal static class Program
                 string L(string key, string arg) => HyperWhisper.Localization.Loc.S(key, arg);
 
                 // The pure decision first: which credential each provider needs.
-                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, false, false) == "status.model.notActivated"
-                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, true, false) == "status.model.ready",
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, false, false, ProviderHealth.Unknown) == "status.model.notActivated"
+                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, true, false, ProviderHealth.Unknown) == "status.model.ready",
                     "HyperWhisper Cloud reads the account key");
-                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.MicrosoftAzureSpeech, false, true) == "status.model.notActivated"
-                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.GoogleSpeech, false, true) == "status.model.notActivated",
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.MicrosoftAzureSpeech, false, true, ProviderHealth.Unknown) == "status.model.notActivated"
+                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.GoogleSpeech, false, true, ProviderHealth.Unknown) == "status.model.notActivated",
                     "the HW-Cloud-routed Azure MAI / Chirp rows need the account key, not a BYOK key (as /transcribe and #650)");
-                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.OpenAI, true, false) == "status.model.noApiKey"
-                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.Deepgram, false, true) == "status.model.ready",
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.OpenAI, true, false, ProviderHealth.Unknown) == "status.model.noApiKey"
+                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.Deepgram, false, true, ProviderHealth.Unknown) == "status.model.ready",
                     "a BYOK provider reads its own key, whatever the licence");
                 foreach (var key in new[] { "status.model.notActivated", "status.model.noApiKey" })
                     Assert(L(key, "X") != key && L(key, "X").Contains('X'), $"{key} is missing from Strings.resx or lost its {{0}}");
@@ -15612,6 +15843,111 @@ internal static class Program
                 Assert(vm.ModelStatus.EndsWith(L("status.model.noApiKey", "").Trim(), StringComparison.Ordinal)
                        && !vm.ModelStatus.Contains(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
                     $"an OpenAI mode with no key must say No API key, got '{vm.ModelStatus}'");
+            });
+
+            Run("issue #2547: a BYOK key the provider rejected reads (Key invalid), not (Ready), and follows the health with no restart", () =>
+            {
+                const BindingFlags all = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+                string L(string key, string arg) => HyperWhisper.Localization.Loc.S(key, arg);
+                var groq = CloudTranscriptionProvider.Groq;
+
+                // The pure decision: only Unauthorized turns a stored key into Key invalid.
+                Assert(MainViewModel.CloudModelStatusKey(groq, false, hasApiKey: true, ProviderHealth.Unauthorized) == "status.model.keyInvalid",
+                    "a rejected Groq key must read Key invalid");
+                foreach (var verdict in new[] { ProviderHealth.Healthy, ProviderHealth.Unknown, ProviderHealth.Checking, ProviderHealth.Unreachable })
+                    Assert(MainViewModel.CloudModelStatusKey(groq, false, hasApiKey: true, verdict) == "status.model.ready",
+                        $"a stored Groq key with health {verdict} must stay Ready");
+                Assert(MainViewModel.CloudModelStatusKey(groq, false, hasApiKey: false, ProviderHealth.Unauthorized) == "status.model.noApiKey",
+                    "no key at all still reads No API key");
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, true, false, ProviderHealth.Unauthorized) == "status.model.ready",
+                    "the account-key path (#649) does not read BYOK health");
+                Assert(L("status.model.keyInvalid", "X") != "status.model.keyInvalid" && L("status.model.keyInvalid", "X").Contains('X'),
+                    "status.model.keyInvalid is missing from Strings.resx or lost its {0}");
+
+                // Then the real status bar on a Groq mode, with the key saved and a
+                // private health cache on a frozen clock (no network, no 60 s expiry).
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(MainViewModel));
+                foreach (var (name, value) in new (string, object)[]
+                {
+                    ("_settingsService", SettingsService.Instance),
+                    ("_modelService", new WhisperModelService()),
+                    ("_transcriptionService", new TranscriptionService()),
+                    ("_parakeetTranscriptionService", new ParakeetTranscriptionService()),
+                    ("_localLlmModelService", new LocalLlmModelService()),
+                })
+                {
+                    (typeof(MainViewModel).GetField(name, all)
+                        ?? throw new InvalidOperationException($"MainViewModel.{name} is gone; update this test"))
+                        .SetValue(vm, value);
+                }
+                var selectedMode = typeof(MainViewModel).GetField("_selectedMode", all)
+                    ?? throw new InvalidOperationException("MainViewModel._selectedMode is gone; update this test");
+                var updateModelStatus = typeof(MainViewModel).GetMethod("UpdateModelStatus", all, Type.EmptyTypes)
+                    ?? throw new InvalidOperationException("MainViewModel.UpdateModelStatus() is gone; update this test");
+
+                var frozen = DateTime.UtcNow;
+                var health = new CloudProviderHealthService(() => frozen);
+                // The key goes straight into the fake vault: a SetApiKey would start a
+                // debounced re-probe that could overwrite the health this test sets.
+                var vault = new InMemoryCredentialBackend();
+                vault.Write("groq", "groq", "sk-test-123");
+                var keys = new ApiKeyService(vault);
+                Assert(keys.HasApiKey(groq), "precondition: Groq reads the saved key");
+                vm.ApiKeyServiceOverride = keys;
+                vm.ProviderHealthOverride = health;
+                vm.CloudAccountKeyPresentOverride = () => false;
+
+                var mode = new Mode { Name = "Hyper", ProviderType = "cloud", CloudProvider = "groq", CloudTranscriptionModel = "whisper-large-v3-turbo" };
+                Assert(CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider) == groq, "precondition: the mode is a Groq mode");
+                selectedMode.SetValue(vm, mode);
+                updateModelStatus.Invoke(vm, null);
+                Assert(vm.ModelStatus.EndsWith(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                    $"an unprobed Groq key must stay Ready, got '{vm.ModelStatus}'");
+
+                // The probe's verdict arrives through TranscriptionProviderStatusChanged.
+                var statusChanged = typeof(CloudProviderHealthService).GetField(nameof(CloudProviderHealthService.TranscriptionProviderStatusChanged), all)
+                    ?? throw new InvalidOperationException("CloudProviderHealthService.TranscriptionProviderStatusChanged has no backing field; update this test");
+                void Probe(ProviderHealth verdict)
+                {
+                    health.SetCachedTranscriptionStatusForTests(groq, verdict);
+                    ((EventHandler<CloudTranscriptionProvider>?)statusChanged.GetValue(health))?.Invoke(health, groq);
+                }
+
+                vm.AttachModelStatusSources();
+                try
+                {
+                    Probe(ProviderHealth.Unauthorized);
+                    Assert(vm.ModelStatus.EndsWith(L("status.model.keyInvalid", "").Trim(), StringComparison.Ordinal)
+                           && !vm.ModelStatus.Contains(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                        $"the provider rejected the key, yet the status bar says '{vm.ModelStatus}'");
+
+                    // A re-probe's interim Checking keeps the verdict on screen, and another
+                    // provider's verdict does not touch a Groq mode's bar.
+                    Probe(ProviderHealth.Checking);
+                    Assert(vm.ModelStatus.EndsWith(L("status.model.keyInvalid", "").Trim(), StringComparison.Ordinal),
+                        $"a re-probe flashed the rejected key back to '{vm.ModelStatus}'");
+                    health.SetCachedTranscriptionStatusForTests(groq, ProviderHealth.Unauthorized);
+                    health.SetCachedTranscriptionStatusForTests(CloudTranscriptionProvider.Deepgram, ProviderHealth.Healthy);
+                    ((EventHandler<CloudTranscriptionProvider>?)statusChanged.GetValue(health))?.Invoke(health, CloudTranscriptionProvider.Deepgram);
+                    Assert(vm.ModelStatus.EndsWith(L("status.model.keyInvalid", "").Trim(), StringComparison.Ordinal),
+                        $"a Deepgram verdict changed a Groq mode's bar to '{vm.ModelStatus}'");
+
+                    Probe(ProviderHealth.Healthy);
+                    Assert(vm.ModelStatus.EndsWith(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                        $"a healthy probe did not bring the status bar back to Ready: '{vm.ModelStatus}'");
+                }
+                finally
+                {
+                    vm.DetachModelStatusSources();
+                }
+
+                // Detached: a later verdict no longer reaches this view model, though a
+                // direct refresh would now read it.
+                Probe(ProviderHealth.Unauthorized);
+                Assert(health.GetStatus(groq) == ProviderHealth.Unauthorized, "precondition: the cache holds the rejection");
+                Assert(vm.ModelStatus.EndsWith(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                    $"a detached view model still followed the health: '{vm.ModelStatus}'");
             });
 
             Run("issue #742: a failed Credential Manager write is reported, and the log holds no ApiKeys: Saved for it", () =>
@@ -25065,6 +25401,163 @@ internal static class Program
                 }
             });
 
+            // #1584: a transcript pasted over an EMPTY clipboard has nothing to
+            // restore, so #1496's keep-the-snapshot mark was never armed, and a
+            // second dictation inside the restore window snapshotted transcript A
+            // as "the user's clipboard" and restored it over B. The mark now
+            // counts only until A's restore delay would have ended (Ray,
+            // 2026-10-19). These drive the real service on the real clipboard,
+            // with the TickCountMs seam standing in for the 10 s wait.
+            Run("clipboard restore (#1584): two quick dictations from an empty clipboard leave the last transcript", () =>
+            {
+                static string Clip() => ReadClipboardText();
+                var operatorClipboard = SnapshotWholeClipboard();
+                var previousGate = TextDeliveryGate.IsSuppressed;
+                var previousRestore = SettingsService.Instance.RestoreClipboardAfterPaste;
+                var restoreDelay = TimeSpan.FromSeconds(10);
+                try
+                {
+                    TextDeliveryGate.SetSuppressed(false);
+                    SettingsService.Instance.RestoreClipboardAfterPaste = true;
+
+                    // A clock the case moves by hand, starting well away from 0.
+                    long now = 1_000_000;
+                    SmartPasteService NewService() => new SmartPasteService { TickCountMs = () => now };
+
+                    // One dictation as the batch flow runs it, with the default
+                    // 10 s delay. Over an empty clipboard no restore is pending.
+                    void Dictate(SmartPasteService paste, string transcript)
+                    {
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste(transcript) == SmartPasteResult.CopiedToClipboard,
+                            $"precondition: '{transcript}' must reach the clipboard");
+                        Assert(Clip() == transcript,
+                            $"precondition: the clipboard must hold '{transcript}', got '{Clip()}'");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(restoreDelay);
+                        paste.EndRecordingSession();
+                    }
+
+                    // The issue: empty clipboard, A, then B 3 s later. B stays.
+                    using (var paste = NewService())
+                    {
+                        Clipboard.Clear();
+                        Dictate(paste, "The apple tree grows near the riverbank. ");
+                        Assert(!paste.HasPendingClipboardRestore, "an empty clipboard leaves nothing to restore");
+                        now += 3_000;
+                        Dictate(paste, "Blue whale sing across the cold ocean. ");
+                        Assert(!paste.HasPendingClipboardRestore,
+                            "B inside A's window must keep 'nothing to restore', not snapshot A");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Blue whale sing across the cold ocean. ",
+                            $"two quick dictations from an empty clipboard must leave the last transcript, got '{Clip()}'");
+                    }
+
+                    // B starts after A's window ended: A is now the clipboard's
+                    // content, so B's restore brings A back, as before the fix.
+                    using (var paste = NewService())
+                    {
+                        Clipboard.Clear();
+                        Dictate(paste, "The apple tree grows near the riverbank. ");
+                        now += (long)restoreDelay.TotalMilliseconds;
+                        Dictate(paste, "Blue whale sing across the cold ocean. ");
+                        Assert(paste.HasPendingClipboardRestore, "B after A's window must snapshot A and schedule its restore");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "The apple tree grows near the riverbank. ",
+                            $"a dictation after the window must restore the earlier transcript, got '{Clip()}'");
+                    }
+
+                    // Restore OFF from an empty clipboard: nothing is ever
+                    // restored, and the transcript is the clipboard's content. A
+                    // later dictation with restore on snapshots it afresh.
+                    using (var paste = NewService())
+                    {
+                        SettingsService.Instance.RestoreClipboardAfterPaste = false;
+                        Clipboard.Clear();
+                        Dictate(paste, "Dictated with restore off. ");
+                        now += 3_000;
+                        Dictate(paste, "Again with restore off. ");
+                        Assert(!paste.HasPendingClipboardRestore, "restore off schedules nothing");
+                        Assert(Clip() == "Again with restore off. ",
+                            $"with restore off the last transcript stays, got '{Clip()}'");
+
+                        SettingsService.Instance.RestoreClipboardAfterPaste = true;
+                        now += 1_000;
+                        Dictate(paste, "Restore back on. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Again with restore off. ",
+                            $"a transcript left with restore off must come back after the next dictation, got '{Clip()}'");
+                    }
+
+                    // A transcript kept ON PURPOSE over an empty clipboard (no
+                    // restore scheduled, the SecureFieldSkipped shape) is never
+                    // marked, so even a dictation 1 s later snapshots it.
+                    using (var paste = NewService())
+                    {
+                        Clipboard.Clear();
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste("Secret left for a manual paste. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the kept transcript must reach the clipboard");
+                        paste.EndRecordingSession();
+                        now += 1_000;
+                        Dictate(paste, "The next dictation. ");
+                        Assert(paste.HasPendingClipboardRestore, "the next dictation must snapshot the kept transcript");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Secret left for a manual paste. ",
+                            $"a transcript kept on purpose must come back after the next dictation, got '{Clip()}'");
+                    }
+
+                    // A late segment (written after the restore was scheduled)
+                    // over an empty clipboard keeps the window's expiry, not a
+                    // new one from its own write: inside the window the next
+                    // dictation leaves its own transcript ...
+                    using (var paste = NewService())
+                    {
+                        Clipboard.Clear();
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste("Streamed segment. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the segment must reach the clipboard");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(restoreDelay);
+                        now += 9_000;
+                        Assert(paste.SmartPaste("Late segment. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the late segment must reach the clipboard");
+                        paste.EndRecordingSession();
+                        now += 500;
+                        Dictate(paste, "Inside the window. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Inside the window. ",
+                            $"a dictation inside the window after a late segment must leave its own transcript, got '{Clip()}'");
+                    }
+
+                    // ... and once the clock passes the window (1 s after the
+                    // late segment, well inside 10 s of it), the next dictation
+                    // snapshots that segment and restores it.
+                    using (var paste = NewService())
+                    {
+                        Clipboard.Clear();
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste("Streamed segment. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the segment must reach the clipboard");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(restoreDelay);
+                        now += 9_000;
+                        Assert(paste.SmartPaste("Late segment. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the late segment must reach the clipboard");
+                        paste.EndRecordingSession();
+                        now += 1_000;
+                        Dictate(paste, "After the window. ");
+                        Assert(paste.HasPendingClipboardRestore, "after the window the next dictation must snapshot the late segment");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Late segment. ",
+                            $"a late segment must lapse with the window, not a new one, got '{Clip()}'");
+                    }
+                }
+                finally
+                {
+                    TextDeliveryGate.SetSuppressed(previousGate);
+                    SettingsService.Instance.RestoreClipboardAfterPaste = previousRestore;
+                    PutBackWholeClipboard(operatorClipboard);
+                }
+            });
+
             Run("shortcuts: the recorder's red border never appears without its reason", () =>
             {
                 // C8. ShowError gated only the TEXT on ShowsInlineError and painted
@@ -26428,6 +26921,7 @@ internal static class Program
             });
             SynchronizationContext.SetSynchronizationContext(assemblyAiPreviousContext);
             ScriptGuardPorts.RunAll(Run);
+            OutputMuteOwnershipChecks.RunAll(Run);
 
             // Issue #738: LicenseNetworkService over a scripted HttpClient (its internal
             // seam), so the rules that ACT on a server reply run without the backend.
@@ -28824,7 +29318,7 @@ internal static class Program
         public void Delete(string resource, string account) => _values.Remove(account);
     }
 
-    private sealed class InMemoryCredentialBackend : IWindowsCredentialBackend
+    internal sealed class InMemoryCredentialBackend : IWindowsCredentialBackend
     {
         public string? StoredValue { get; private set; }
         public bool ThrowOnRead { get; set; }
