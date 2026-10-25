@@ -115,9 +115,10 @@ struct LocalAPIRequestHeadTests {
     /// A header line of exactly 8,192 bytes (CRLF not counted) is accepted,
     /// with a 200 rather than a close at the read deadline. The bound is the
     /// deadline, not a wall-clock budget: a 1 s budget failed on a loaded
-    /// hosted runner with no code at fault (issue #2221). The O(n²) reader the
-    /// issue measured is caught by the 64 KB head test below, which it could
-    /// not read inside the deadline.
+    /// hosted runner with no code at fault (issue #2221). The trade: a reader
+    /// that went back to O(n²) still fails the 64 KB head test below at the
+    /// issue's ~2.5 s a line (8 lines, past the deadline), but a much faster
+    /// machine could read it in time. No test here bounds speed tighter.
     @Test func aHeaderLineAtTheLimitIsAccepted() async throws {
         try await withProbe { port in
             let line = RawRequest.headerLine(name: "X-Pad", length: LocalAPIRequestHeadLimit.maxLineBytes)
