@@ -168,7 +168,9 @@ static void AllCatalogsLoad()
     // "should start with" rule refused them), so no invalid-key dialog is left.
     // 860 -> 861 (#1415): `settings.backup.import.summary.settings` is new (the Windows
     // backup import says "Settings restored." instead of zero mode/vocabulary counts).
-    Equal(861,PortableLocalizer.BaseKeyCount, "base key count");
+    // 861 -> 862 (#2547): `status.model.keyInvalid` is new (the Windows status bar when the
+    // provider rejected the saved BYOK key, instead of Ready).
+    Equal(862,PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

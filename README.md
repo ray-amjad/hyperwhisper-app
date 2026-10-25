@@ -83,7 +83,7 @@ git submodule update --init --recursive
 Each app has its own setup; see the per-directory `AGENTS.md` for details.
 
 - **macOS** — open `app/macos/hyperwhisper.xcodeproj` in Xcode and run (⌘R).
-  Dependencies resolve via Swift Package Manager. Requires macOS 14+.
+  Dependencies resolve via Swift Package Manager. Requires macOS 14.6+.
 - **Windows** — `dotnet run -c Debug` from `app/windows/HyperWhisper/`. Requires
   the .NET 10 SDK on Windows. See `app/windows/AGENTS.md` for installer builds.
 - **Linux** —

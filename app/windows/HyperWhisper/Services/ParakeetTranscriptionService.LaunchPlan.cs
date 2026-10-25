@@ -35,6 +35,53 @@ internal static class ParakeetDaemonLaunchPlan
         string DaemonLanguage);
 
     /// <summary>
+    /// Where Parakeet's DirectML session runs. <see cref="ProviderArg"/> is the daemon's
+    /// <c>--provider</c> value and <see cref="DmlAdapterLuid"/> its <c>--dml-adapter-luid</c>
+    /// (the daemon finds that adapter's index in its own DXGI order); null means the flag
+    /// is not passed and the daemon keeps its default (DirectML on adapter 0, then CPU).
+    /// <see cref="Reason"/> is for the log only.
+    /// </summary>
+    internal sealed record DeviceChoice(string? ProviderArg, long? DmlAdapterLuid, string Reason);
+
+    /// <summary>
+    /// The device rule (#1846). sherpa-onnx puts DirectML on DXGI adapter 0, which on most
+    /// multi-GPU PCs is the integrated GPU: on an i7-8700 + UHD 630 + RTX 4060 box a warm
+    /// 42 s clip took 9.5 s there, 3.3 s on the CPU and 1.7 s on the RTX 4060.
+    /// <list type="bullet">
+    /// <item>The best GPU is a discrete ML-class part (NVIDIA, AMD RX/PRO, Intel Arc) with a DXGI LUID: DirectML on it.</item>
+    /// <item>The best GPU is Intel UHD/HD graphics (the class measured): CPU.</item>
+    /// <item>Anything else (APUs, Iris, newer Intel iGPUs, unknown parts, a WMI-only GPU, no GPU info,
+    /// ARM64, Qwen3, Nemotron): unchanged.</item>
+    /// </list>
+    /// </summary>
+    internal static DeviceChoice ResolveDevice(GpuInfoService.GpuInfo? bestGpu, EngineSelection engine, bool isX64)
+    {
+        if (!isX64 || engine.IsQwen3 || engine.IsOnline)
+        {
+            return new DeviceChoice(null, null, "engine default");
+        }
+
+        if (bestGpu == null)
+        {
+            return new DeviceChoice(null, null, "no GPU info");
+        }
+
+        if (bestGpu.IsDiscreteForMl)
+        {
+            return bestGpu.AdapterLuid is long luid
+                ? new DeviceChoice(null, luid, $"discrete GPU {bestGpu.Name}")
+                : new DeviceChoice(null, null, $"discrete GPU {bestGpu.Name} has no DXGI LUID (WMI fallback)");
+        }
+
+        if (GpuInfoService.IsIntelUhdOrHdGraphicsName(bestGpu.Name))
+        {
+            return new DeviceChoice("cpu", null, $"integrated GPU only ({bestGpu.Name})");
+        }
+
+        return new DeviceChoice(null, null, $"best GPU {bestGpu.Name} kept on the default");
+    }
+
+    /// <summary>
     /// Resolves the absolute path to the parakeet-engine.exe daemon binary.
     /// </summary>
     private static string GetDaemonPath()
@@ -121,7 +168,12 @@ internal static class ParakeetDaemonLaunchPlan
     /// The daemon's <see cref="ProcessStartInfo"/>: its arguments, working directory
     /// and stdio encoding, and the language the spawn is recorded with.
     /// </summary>
-    internal static LaunchSpec Build(DaemonPaths paths, string modelDirectory, string? language, EngineSelection engine)
+    internal static LaunchSpec Build(
+        DaemonPaths paths,
+        string modelDirectory,
+        string? language,
+        EngineSelection engine,
+        DeviceChoice device)
     {
         var engineArg = engine.EngineArg;
         LoggingService.Info($"  Engine: {engineArg}");
@@ -174,6 +226,21 @@ internal static class ParakeetDaemonLaunchPlan
         startInfo.ArgumentList.Add(paths.VadModelPath);
         startInfo.ArgumentList.Add("--engine");
         startInfo.ArgumentList.Add(engineArg);
+
+        if (device.ProviderArg != null)
+        {
+            startInfo.ArgumentList.Add("--provider");
+            startInfo.ArgumentList.Add(device.ProviderArg);
+        }
+        if (device.DmlAdapterLuid is long luid)
+        {
+            startInfo.ArgumentList.Add("--dml-adapter-luid");
+            startInfo.ArgumentList.Add(luid.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+        LoggingService.Info(
+            $"  Parakeet device: provider={device.ProviderArg ?? "default"}, " +
+            $"dml_adapter={(device.DmlAdapterLuid is long l ? $"luid 0x{l:X}" : "default")}, " +
+            $"reason={device.Reason}");
 
         // The argument SHAPE, not the command line. ArgumentList holds the model
         // directory and the VAD model path, both under the user's profile, so

@@ -101,7 +101,7 @@ public partial class MainWindow : Window
         var priorSettings = _platformServices.PrivateFiles.ReadAllText(
             Path.Combine(_platformServices.Paths.ConfigDirectory, "settings.json"));
         _isFreshProfile = priorSettings.IsSuccess && priorSettings.Value is null;
-        _database = new ApplicationDb(_platformServices.Paths);
+        _database = LinuxApplicationDatabase.Open(_platformServices.Paths);
         _settings = new PortableSettingsService(_platformServices.PrivateFiles, _platformServices.Paths);
         _modelManager = new PortableModelManager(_platformServices.Paths, _modelHttp);
         _onboardingReadiness = new LinuxOnboardingModeReadiness(
@@ -149,7 +149,10 @@ public partial class MainWindow : Window
                 () => _settings.Get("storage.keepAudioFiles", true), _storageLifecycle,
                 new FfmpegM4aAudioTransformer(
                     () => _settings.Get("storage.storeAsM4A", false))),
-            audioPreprocessor: _platformServices.AudioPreprocessor);
+            audioPreprocessor: _platformServices.AudioPreprocessor,
+            // A retry of a non-WAV row in a Parakeet mode is converted to WAV
+            // first, as Transcribe File and the Local API are (#1572, #1675).
+            retryAudioImport: new DurableAudioImportService(_platformServices.PrivateFiles, _platformServices.Paths));
         _viewModel = new ApplicationShellViewModel(
             _database, _settings, _workflow, LinuxLocalPostProcessor.RuntimeStatus,
             _modelManager, _platformServices.AudioPlayback,
@@ -3031,8 +3034,8 @@ public partial class MainWindow : Window
     /// navigates and never records, because on Windows you start a recording with the global
     /// hotkey. On Linux the global hotkey frequently cannot register at all (which is what the
     /// shortcut-conflict banner above this card is about), and this button is the ONLY way to
-    /// start a recording from the UI. So it keeps its action and gains the completion toggle:
-    /// the step is "Try your first transcription", and pressing it does exactly that.
+    /// start a recording from the UI. So it keeps its action and marks the step complete (never
+    /// un-ticks it, #2546): the step is "Try your first transcription", and pressing it does exactly that.
     /// </summary>
     private async void OnStartRecording(object? sender, RoutedEventArgs e)
     {
@@ -3041,7 +3044,7 @@ public partial class MainWindow : Window
         // below it reported the failure. Tick it only once a recording is actually running.
         await _interaction.StartRecordingAsync();
         if (_viewModel.Recording is { HasError: false, State: "Recording" })
-            _viewModel.Home.ToggleGettingStartedStep("recording");
+            _viewModel.Home.CompleteGettingStartedStep("recording");
     }
 
     private void OnLiveCaptureChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(UpdateHomeRecordingActive);

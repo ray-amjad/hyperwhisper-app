@@ -86,7 +86,8 @@ export async function handleCreditPurchase(
     );
   }
 
-  if (session.payment_status !== "paid") {
+  // no_payment_required: a 100%-off promotion code paid the whole order (#2055).
+  if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") {
     console.log(
       `Skipping credit purchase for session ${session.id}: payment_status=${session.payment_status}`
     );

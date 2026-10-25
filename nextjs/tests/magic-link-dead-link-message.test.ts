@@ -154,7 +154,7 @@ const magicLinkCalls: MagicLinkArgs[] = [];
 // Also keeps Better Auth's browser client out of the graph. The call is
 // recorded synchronously; the promise never settles, so the render stays on
 // the form.
-moduleMock.module("../src/lib/auth-client", {
+moduleMock.module(moduleUrl("../src/lib/auth-client.ts"), {
   namedExports: {
     authClient: {
       signIn: {

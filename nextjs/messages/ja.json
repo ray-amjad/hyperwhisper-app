@@ -26,7 +26,7 @@
     "downloadCta": "今すぐダウンロード",
     "demoCta": "デモ動画を見る",
     "availableOn": "対応OS",
-    "macos": "macOS 14以降",
+    "macos": "macOS 14.6以降",
     "windows": "Windows 10以降",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "サブスクリプションはありますか？",
-        "answer": "いいえ、決してありません。HyperWhisperは、あなたが所有するオープンソースアプリであり、レンタルするサブスクリプションではありません。無料でダウンロードし、ローカルのオフライン文字起こしをいつまでも無料で使えます。無料プランには1日5分のクラウド文字起こしも含まれます。それを超えてセットアップ不要のクラウド文字起こしが必要になったら、HyperWhisper Cloudはシンプルな従量課金制のクレジットです。必要なときだけチャージでき、月額料金もなく、解約するものもありません。"
+        "answer": "いいえ、決してありません。HyperWhisperは、あなたが所有するオープンソースアプリであり、レンタルするサブスクリプションではありません。無料でダウンロードし、ローカルのオフライン文字起こしをいつまでも無料で使えます。セットアップ不要のクラウド文字起こしが必要になったら、HyperWhisper Cloudはシンプルな従量課金制のクレジットです。必要なときだけチャージでき、月額料金もなく、解約するものもありません。"
       },
       "deviceLimit": {
         "question": "アカウントキーは何台のデバイスで利用できますか？",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "動作環境を教えてください。",
-        "answer": "Mac：macOS 14以降、Apple SiliconとIntelの両方に対応。Windows：Windows 10/11、x64またはARM64。Linux v1：amd64上のUbuntu 22.04以降またはDebian 12以降。最適なパフォーマンスには8GB以上のRAMを推奨します。"
+        "answer": "Mac：macOS 14.6以降、Apple SiliconとIntelの両方に対応。Windows：Windows 10/11、x64またはARM64。Linux v1：amd64上のUbuntu 22.04以降またはDebian 12以降。最適なパフォーマンスには8GB以上のRAMを推奨します。"
       },
       "madeBy": {
         "question": "開発者は誰ですか？",

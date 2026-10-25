@@ -26,7 +26,7 @@
     "downloadCta": "Baixar agora",
     "demoCta": "Ver demonstração",
     "availableOn": "Disponível em",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Existe alguma assinatura?",
-        "answer": "Não — nunca. O HyperWhisper é um aplicativo de código aberto que você possui, não uma assinatura que você aluga. Baixe-o gratuitamente e use a transcrição local e offline sem custo para sempre; o plano gratuito também inclui 5 minutos de transcrição em nuvem por dia. Quando você quiser transcrição em nuvem sem configuração além disso, o HyperWhisper Cloud são simples créditos pagos conforme o uso — recarregue apenas quando precisar, sem mensalidades e sem nada para cancelar."
+        "answer": "Não — nunca. O HyperWhisper é um aplicativo de código aberto que você possui, não uma assinatura que você aluga. Baixe-o gratuitamente e use a transcrição local e offline sem custo para sempre. Quando você quiser transcrição em nuvem sem configuração, o HyperWhisper Cloud são simples créditos pagos conforme o uso — recarregue apenas quando precisar, sem mensalidades e sem nada para cancelar."
       },
       "deviceLimit": {
         "question": "Em quantos dispositivos posso usar minha chave da conta?",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Quais são os requisitos do sistema?",
-        "answer": "Para Mac: macOS 14 ou mais recente, com suporte a Apple Silicon e Intel. Para Windows: Windows 10/11, x64 ou ARM64. Para Linux v1: Ubuntu 22.04 ou mais recente ou Debian 12 ou mais recente, em amd64. Recomenda-se 8GB de RAM para desempenho ideal."
+        "answer": "Para Mac: macOS 14.6 ou mais recente, com suporte a Apple Silicon e Intel. Para Windows: Windows 10/11, x64 ou ARM64. Para Linux v1: Ubuntu 22.04 ou mais recente ou Debian 12 ou mais recente, em amd64. Recomenda-se 8GB de RAM para desempenho ideal."
       },
       "madeBy": {
         "question": "Quem criou isso?",

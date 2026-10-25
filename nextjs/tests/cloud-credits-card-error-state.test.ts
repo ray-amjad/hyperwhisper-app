@@ -45,7 +45,7 @@ import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import type { BuyCreditsHandlerRequest } from "../src/lib/buy-credits";
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 /** The message the route sends for the amount #737 was filed about. */
 const REFUSAL = "Amount too large";
@@ -64,7 +64,7 @@ const factoryCalls: BuyCreditsHandlerRequest[] = [];
  */
 let armed = false;
 
-moduleMock.module("../src/lib/buy-credits", {
+moduleMock.module(moduleUrl("../src/lib/buy-credits.ts"), {
   namedExports: {
     createBuyCreditsHandler: (request: BuyCreditsHandlerRequest) => {
       factoryCalls.push(request);
@@ -101,7 +101,7 @@ moduleMock.module("next-intl", {
   },
 });
 
-moduleMock.module("../src/lib/posthog-client", {
+moduleMock.module(moduleUrl("../src/lib/posthog-client.ts"), {
   namedExports: { loadPostHog: async () => ({ captureException: () => {} }) },
 });
 
