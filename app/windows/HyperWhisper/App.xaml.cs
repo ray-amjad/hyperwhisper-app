@@ -444,7 +444,11 @@ public partial class App : WpfApplication
         {
             try
             {
-                if (PresentationSource.FromVisual(window) is HwndSource { CompositionTarget: { } target })
+                // By handle, not FromVisual: a window whose handle exists but that
+                // was never shown has no root visual yet, and still renders later.
+                var handle = new WindowInteropHelper(window).Handle;
+                if (handle != IntPtr.Zero
+                    && HwndSource.FromHwnd(handle) is { CompositionTarget: { } target })
                 {
                     target.RenderMode = RenderMode.SoftwareOnly;
                 }

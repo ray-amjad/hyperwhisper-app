@@ -250,9 +250,10 @@ internal static class Program
                 app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
                 try
                 {
-                    new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
-                    var source = (System.Windows.Interop.HwndSource)PresentationSource.FromVisual(window)!;
-                    Assert(source.CompositionTarget.RenderMode == System.Windows.Interop.RenderMode.Default,
+                    var handle = new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
+                    var source = System.Windows.Interop.HwndSource.FromHwnd(handle);
+                    Assert(source?.CompositionTarget is not null, "the test window has no HwndSource");
+                    Assert(source!.CompositionTarget.RenderMode == System.Windows.Interop.RenderMode.Default,
                         "the test window did not start on default rendering");
 
                     var recovery = new RenderThreadFailureRecovery();
