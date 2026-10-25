@@ -35,13 +35,38 @@ const MISTRAL_AUDIO_EXTENSIONS = [...DEFAULT_AUDIO_EXTENSIONS, 'aac'] as const;
  * Underscores are the documented way to bias a phrase (docs.mistral.ai
  * audio/speech_to_text → `["affordable_health_care", "American_people"]`), so
  * joining beats dropping the term.
+ *
+ * Returns the phrases as the user wrote them (whitespace collapsed to one space)
+ * and as sent, index for index, so `restoreSpacedTerms` can map one to the other.
  */
-function toContextBias(initialPrompt: string): string[] {
-  return splitVocabularyTerms(initialPrompt, {
+function toContextBias(initialPrompt: string): { spaced: string[]; sent: string[] } {
+  const spaced = splitVocabularyTerms(initialPrompt, {
     maxTerms: MAX_CONTEXT_BIAS_TERMS,
     maxTermChars: MAX_CONTEXT_BIAS_TERM_CHARS,
-    joinWordsWith: '_',
+    joinWordsWith: ' ',
   });
+  return { spaced, sent: spaced.map((term) => term.replace(/ /g, '_')) };
+}
+
+/**
+ * Voxtral writes a biased phrase back the way it was sent: "HyperWhisper_Cloud"
+ * for the term "HyperWhisper Cloud" (seen live on `voxtral-mini-latest` on
+ * 2026-10-25, after Mistral's 2026-10-20 Voxtral 3 release, #2544). Put the user's spaces
+ * back. Only a term that HAD whitespace is rewritten, so a real identifier such
+ * as `__init__` passes through untouched. Longest first, so "New_York_City"
+ * wins over a shorter "New_York".
+ */
+function restoreSpacedTerms(text: string, bias: { spaced: string[]; sent: string[] }): string {
+  const pairs = bias.spaced
+    .map((spaced, i) => ({ spaced, sent: bias.sent[i] }))
+    .filter(({ spaced, sent }) => spaced !== sent)
+    .sort((a, b) => b.sent.length - a.sent.length);
+  let out = text;
+  for (const { spaced, sent } of pairs) {
+    const escaped = sent.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    out = out.replace(new RegExp(escaped, 'gi'), () => spaced);
+  }
+  return out;
 }
 
 export async function transcribeWithMistral(
@@ -72,8 +97,8 @@ export async function transcribeWithMistral(
     formData.append('language', langCode);
   }
 
-  const contextBias = initialPrompt ? toContextBias(initialPrompt) : [];
-  if (contextBias.length) {
+  const contextBias = initialPrompt ? toContextBias(initialPrompt) : { spaced: [], sent: [] };
+  if (contextBias.sent.length) {
     // `context_bias` is typed as an ARRAY (List[str]) in Mistral's API schema and
     // SDKs, so over multipart/form-data it must be sent as one REPEATED form field
     // per term — `context_bias=a` `context_bias=b` — which the server collects into
@@ -84,7 +109,7 @@ export async function transcribeWithMistral(
     // Refs: github.com/mistralai/client-python issue #338 (curl shows repeated
     // `-F context_bias=...`); docs.mistral.ai/api (audio/transcriptions →
     // context_bias: array). Each term appended individually below.
-    for (const term of contextBias) {
+    for (const term of contextBias.sent) {
       formData.append('context_bias', term);
     }
   }
@@ -94,7 +119,7 @@ export async function transcribeWithMistral(
     audioBytes: audio.byteLength,
     contentType,
     language: language || 'auto',
-    contextBiasCount: contextBias.length,
+    contextBiasCount: contextBias.sent.length,
   }, context);
 
   const response = await fetchWithTimeout(provider, MISTRAL_URL, {
@@ -124,7 +149,7 @@ export async function transcribeWithMistral(
     throw new ProviderUnavailableError('Mistral', 'malformed 200 response body');
   }
 
-  const transcript = data.text || '';
+  const transcript = restoreSpacedTerms(data.text || '', contextBias);
   const rawDurationSeconds = data.usage?.prompt_audio_seconds || 0;
 
   if (!transcript || transcript.trim().length === 0) {
