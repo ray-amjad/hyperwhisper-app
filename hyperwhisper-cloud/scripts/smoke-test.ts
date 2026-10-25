@@ -249,7 +249,7 @@ async function checkTranscribe(check: SttCheck): Promise<void> {
   }
 }
 
-async function checkPostProcess(provider: string, expectedModel: string): Promise<void> {
+async function checkPostProcess(provider: string, expectedModel: string, attempt = 1): Promise<void> {
   const name = `POST /post-process ${provider}`;
   try {
     const res = await fetchWithTimeout(`${BASE_URL}/post-process`, {
@@ -277,9 +277,17 @@ async function checkPostProcess(provider: string, expectedModel: string): Promis
     // 2026-10-19): a fallback here hid a broken tier on every deploy. The
     // /transcribe fallback above stays a warning, so one STT vendor's bad minute
     // cannot block a prod deploy.
+    // One fallback is asked again before it fails: a broken tier falls back
+    // twice, a single 20 s upstream timeout does not (gemini 2026-10-25, grok
+    // 2026-10-21 each blocked a prod deploy and passed on the re-run).
     const served = res.headers.get('X-LLM-Provider') || '?';
     if (served !== expectedModel) {
-      return fail(name, `fell back — requested ${provider} (${expectedModel}), served ${served}`);
+      const msg = `fell back — requested ${provider} (${expectedModel}), served ${served}`;
+      if (attempt === 1) {
+        warn(name, `${msg}; asking once more`);
+        return checkPostProcess(provider, expectedModel, 2);
+      }
+      return fail(name, `${msg} (twice)`);
     }
     pass(name, `via ${served}`);
   } catch (err) {
