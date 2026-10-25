@@ -14830,8 +14830,9 @@ internal static class Program
                 // ...AND THE COLLISION CHECK RUNS ONLY ON A REAL RENAME (issue
                 // #356, review round 1). `HyperWhisperDbContext` declares a
                 // NON-unique index on `Name` and nothing outside these endpoints
-                // checks, so two modes named "Work" are producible from the GUI
-                // or a backup restore. A read-modify-write client PATCHing the
+                // checks, so two modes named "Work" are producible from a backup
+                // restore (and were from the Windows mode editor until #2478).
+                // A read-modify-write client PATCHing the
                 // whole object back must not be told its own unchanged name is
                 // taken — that mode would be patchable only by omitting `name`.
                 Assert(!WindowsLocalApiBackend.PatchNameCollides("Work", "Work", ["Work", "Personal"]),
@@ -14842,6 +14843,24 @@ internal static class Program
                     "a real rename onto a taken name stopped being refused");
                 Assert(!WindowsLocalApiBackend.PatchNameCollides("Personal", "Work", ["Archive"]),
                     "a real rename onto a free name was refused");
+
+                // THE MODE EDITOR USES THE SAME RULE (issue #2478). It saved
+                // a second "Hyper" with no warning while POST /modes refused
+                // it. Create (no stored name), rename, own name, blank.
+                Assert(ModeNameRules.IsTaken("hyper", null, ["Hyper", "Work"]),
+                    "the editor let a new mode take an existing name in another case");
+                Assert(ModeNameRules.IsTaken("  HYPER  ", null, ["Hyper"]),
+                    "the editor let a new mode take an existing name with extra spaces");
+                Assert(ModeNameRules.IsTaken("Hyper", "Fuzz Mode", ["Hyper"]),
+                    "the editor let a mode be renamed onto another mode's name");
+                Assert(!ModeNameRules.IsTaken("Fresh", null, ["Hyper"]),
+                    "the editor refused a free name");
+                Assert(!ModeNameRules.IsTaken("Hyper", "Hyper", ["hyper"]),
+                    "the editor refused a mode's own unchanged name because an older duplicate shares it");
+                Assert(!ModeNameRules.IsTaken(" fuzz mode ", "Fuzz Mode", ["Hyper"]),
+                    "the editor treated a case/space edit of the mode's own name as a collision");
+                Assert(!ModeNameRules.IsTaken("   ", null, ["Hyper", ""]),
+                    "a blank name was reported as taken; the editor refuses blank on its own");
 
                 // ITEM 3 — one alias table. `qwen3_asr` is this head's own
                 // response label; the trim is new here and could only ever

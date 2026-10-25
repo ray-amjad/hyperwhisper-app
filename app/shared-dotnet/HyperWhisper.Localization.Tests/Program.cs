@@ -170,7 +170,9 @@ static void AllCatalogsLoad()
     // backup import says "Settings restored." instead of zero mode/vocabulary counts).
     // 861 -> 862 (#2547): `status.model.keyInvalid` is new (the Windows status bar when the
     // provider rejected the saved BYOK key, instead of Ready).
-    Equal(862,PortableLocalizer.BaseKeyCount, "base key count");
+    // 862 -> 863 (#2478): `mode.editor.field.name.taken` is new (the Windows mode editor
+    // refuses a name another mode already uses, as macOS and the Local API do).
+    Equal(863,PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");
