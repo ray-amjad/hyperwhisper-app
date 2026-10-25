@@ -20,6 +20,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("recordings path rejects relative and root overrides", RecordingsPathRejectsUnsafe),
     ("recordings directory validator requires private writable path", RecordingsDirectoryValidation),
     ("private writes create exact 0600 files", PrivateFileMode),
+    ("database permissions repair an existing store and its sidecars", DatabasePermissionsRepairExisting),
     ("private overwrite restores exact 0600", PrivateOverwriteMode),
     ("atomic failure preserves prior contents", AtomicFailurePreservesTarget),
     ("private reads reject permissive files", RejectPermissiveRead),
@@ -350,6 +351,25 @@ static Task PrivateFileMode() => WithTemporaryDirectory(directory =>
     Assert.Success(service.WriteAllTextAtomically(path, "secret"));
     Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(path));
     Assert.Equal("secret", service.ReadAllText(path).Value);
+});
+
+static Task DatabasePermissionsRepairExisting() => WithTemporaryDirectory(directory =>
+{
+    // #2573: a store from before the fix is 0644 in a 0755 folder; the existing file must be
+    // chmodded, not re-created, and an existing file is not a failure.
+    var state = Path.Combine(directory, "hyperwhisper");
+    Directory.CreateDirectory(state);
+    File.SetUnixFileMode(state, (UnixFileMode)0b111_101_101);
+    var database = Path.Combine(state, "hyperwhisper.db");
+    File.WriteAllText(database, "store");
+    File.WriteAllText(database + "-journal", "journal");
+    File.SetUnixFileMode(database, (UnixFileMode)0b110_100_100);
+    File.SetUnixFileMode(database + "-journal", (UnixFileMode)0b110_100_100);
+    Assert.Success(LinuxDatabaseFilePermissions.Secure(database));
+    Assert.Equal((UnixFileMode)0b111_000_000, File.GetUnixFileMode(state));
+    Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(database));
+    Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(database + "-journal"));
+    Assert.Equal("store", File.ReadAllText(database));
 });
 
 static Task PrivateOverwriteMode() => WithTemporaryDirectory(directory =>

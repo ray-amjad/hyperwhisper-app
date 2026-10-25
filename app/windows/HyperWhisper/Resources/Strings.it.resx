@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Questa è la modalità predefinita, quindi il suo nome non può essere modificato. Puoi rinominare qualsiasi altra modalità.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Esiste già una modalità con questo nome.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -771,6 +774,9 @@ Questa azione non può essere annullata.</value>
   </data>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (nessuna chiave API)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (chiave non valida)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Caricamento non riuscito</value>

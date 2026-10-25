@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Ово је подразумевани режим, па се његово име не може променити. Сваки други режим можете преименовати.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Режим са тим називом већ постоји.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -771,6 +774,9 @@
   </data>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (Нема API кључа)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Неважећи кључ)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>

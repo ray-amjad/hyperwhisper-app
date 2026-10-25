@@ -25,9 +25,9 @@ import { NextRequest } from "next/server";
 
 import { GET as getConfig } from "../app/api/config/route";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
-moduleMock.module(new URL("../lib/rate-limit.ts", import.meta.url).href, {
+moduleMock.module(moduleUrl("../lib/rate-limit.ts"), {
   namedExports: {
     checkoutRateLimiter: { limit: async () => ({ success: true }) },
   },

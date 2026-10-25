@@ -276,6 +276,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Este es el modo predeterminado, por lo que su nombre no se puede cambiar. Puede cambiar el nombre de cualquier otro modo.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Ya existe un modo con ese nombre.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Proveedor</value>
   </data>
@@ -859,6 +862,9 @@
   </data>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (Sin clave de API)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Clave no válida)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>La carga falló</value>

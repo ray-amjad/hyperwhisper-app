@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>هذا هو الوضع الافتراضي، لذا لا يمكن تغيير اسمه. يمكنك إعادة تسمية أي وضع آخر.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>يوجد وضع بهذا الاسم بالفعل.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -771,6 +774,9 @@
   </data>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (لا يوجد مفتاح API)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (مفتاح غير صالح)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>

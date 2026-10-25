@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Toto je predvolený režim, preto jeho názov nemožno zmeniť. Ktorýkoľvek iný režim môžete premenovať.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Režim s týmto názvom už existuje.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -771,6 +774,9 @@ Túto akciu sa nedá vrátiť.</value>
   </data>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (Chýba kľúč API)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Neplatný kľúč)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>

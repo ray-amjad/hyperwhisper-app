@@ -20,12 +20,12 @@ import { beforeEach, test } from "node:test";
 
 import { NextRequest } from "next/server";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const signOutCalls: { headers: Headers; asResponse: boolean }[] = [];
 let betterAuthSetCookies: string[] = [];
 
-moduleMock.module(new URL("../src/lib/auth.ts", import.meta.url).href, {
+moduleMock.module(moduleUrl("../src/lib/auth.ts"), {
   namedExports: {
     auth: {
       api: {

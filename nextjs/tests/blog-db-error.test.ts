@@ -11,10 +11,10 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { afterEach, before, beforeEach, describe, test } from "node:test";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 let select: () => unknown;
-moduleMock.module(new URL("../src/db/index.ts", import.meta.url).href, {
+moduleMock.module(moduleUrl("../src/db/index.ts"), {
   namedExports: { db: { select: () => select() } },
 });
 
@@ -80,6 +80,9 @@ afterEach(() => {
 
 const blogUrl = "https://www.hyperwhisper.com/en/blog/a-real-post";
 
+// The posts written in src/content/code-posts, newest first.
+const CODE_SLUGS = ["hyperwhisper-vs-handy-vs-fluidvoice", "hyperwhisper-vs-spokenly"];
+
 describe("at runtime (a background revalidation)", () => {
   beforeEach(() => {
     delete process.env.NEXT_PHASE;
@@ -97,9 +100,12 @@ describe("at runtime (a background revalidation)", () => {
     await assert.rejects(sitemap(), /ECONNREFUSED/);
   });
 
-  test("an empty table is not a failure: no posts, and an unknown slug is null", async () => {
+  test("an empty table is not a failure: only the code posts, and an unknown slug is null", async () => {
     select = tableWith([]);
-    assert.deepEqual(await blog.getBlogPosts(), []);
+    assert.deepEqual(
+      (await blog.getBlogPosts()).map((post) => post.slug),
+      CODE_SLUGS,
+    );
     assert.equal(await blog.getBlogPost("a-real-post"), null);
   });
 
@@ -107,7 +113,7 @@ describe("at runtime (a background revalidation)", () => {
     select = tableWith([row]);
     assert.deepEqual(
       (await blog.getBlogPosts()).map((post) => post.slug),
-      ["a-real-post"],
+      [...CODE_SLUGS, "a-real-post"],
     );
     assert.equal((await blog.getBlogPost("a-real-post"))?.html, "<p>Body</p>");
     assert.ok((await sitemap()).some((entry) => entry.url === blogUrl));
@@ -119,13 +125,17 @@ describe("during next build", () => {
     process.env.NEXT_PHASE = "phase-production-build";
   });
 
-  test("a database error ships the blog empty and logs it, so the build does not fail", async () => {
+  test("a database error ships only the code posts and logs it, so the build does not fail", async () => {
     select = dbDown;
-    assert.deepEqual(await blog.getBlogPosts(), []);
+    assert.deepEqual(
+      (await blog.getBlogPosts()).map((post) => post.slug),
+      CODE_SLUGS,
+    );
     assert.equal(await blog.getBlogPost("a-real-post"), null);
     const entries = await sitemap();
     assert.ok(entries.some((entry) => entry.url === "https://www.hyperwhisper.com/en/blog"));
     assert.ok(!entries.some((entry) => entry.url === blogUrl));
+    assert.ok(entries.some((entry) => entry.url.endsWith("/en/blog/hyperwhisper-vs-spokenly")));
     assert.ok(logged.some((args) => String(args[0]).startsWith("[blog]")));
   });
 });

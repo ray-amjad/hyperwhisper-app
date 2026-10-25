@@ -26,7 +26,7 @@
     "downloadCta": "Atsisiųsti dabar",
     "demoCta": "Žiūrėti demonstraciją",
     "availableOn": "Prieinama",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Ar yra prenumerata?",
-        "answer": "Ne — niekada. HyperWhisper yra atvirojo kodo programėlė, kuri priklauso jums, o ne prenumerata, kurią nuomojate. Atsisiųskite ją nemokamai ir naudokite vietinę, neprisijungus veikiančią transkripciją nemokamai amžinai; nemokamas lygis taip pat apima 5 minutes debesų transkripcijos per dieną. Kai norite debesų transkripcijos be jokio konfigūravimo virš to, HyperWhisper Cloud yra paprasti kreditai, už kuriuos mokama pagal naudojimą — papildykite tik tada, kai reikia, be mėnesinių mokesčių ir be nieko, ką reikėtų atšaukti."
+        "answer": "Ne — niekada. HyperWhisper yra atvirojo kodo programėlė, kuri priklauso jums, o ne prenumerata, kurią nuomojate. Atsisiųskite ją nemokamai ir naudokite vietinę, neprisijungus veikiančią transkripciją nemokamai amžinai. Kai norite debesų transkripcijos be jokio konfigūravimo, HyperWhisper Cloud yra paprasti kreditai, už kuriuos mokama pagal naudojimą — papildykite tik tada, kai reikia, be mėnesinių mokesčių ir be nieko, ką reikėtų atšaukti."
       },
       "deviceLimit": {
         "question": "Kiek įrenginių galiu naudoti su savo paskyros raktu?",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Kokie sistemos reikalavimai?",
-        "answer": "Mac: macOS 14 arba naujesnė versija, palaikomi Apple Silicon ir Intel. Windows: Windows 10/11, x64 arba ARM64. Linux v1: Ubuntu 22.04 arba naujesnė arba Debian 12 arba naujesnė versija, amd64. Optimaliam veikimui rekomenduojama 8 GB RAM."
+        "answer": "Mac: macOS 14.6 arba naujesnė versija, palaikomi Apple Silicon ir Intel. Windows: Windows 10/11, x64 arba ARM64. Linux v1: Ubuntu 22.04 arba naujesnė arba Debian 12 arba naujesnė versija, amd64. Optimaliam veikimui rekomenduojama 8 GB RAM."
       },
       "madeBy": {
         "question": "Kas tai sukūrė?",
@@ -271,6 +271,7 @@
       "customerPortal": "Klientų portalas",
       "olderVersions": "Senesnės versijos",
       "blog": "Tinklaraštis",
+      "openSource": "Atvirasis kodas",
       "about": "Apie",
       "support": "Pagalba",
       "privacyPolicy": "Privatumo politika",

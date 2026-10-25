@@ -324,43 +324,6 @@ class CoreAudioDeviceHelper {
         return copyDeviceUID(for: deviceID)
     }
 
-    /// Set system default input device
-    ///
-    /// **What This Does:**
-    /// Changes the system's default input device. This affects all applications
-    /// that use the default input device.
-    ///
-    /// **Important:**
-    /// This is a system-wide change. Always restore the previous device after
-    /// recording to avoid affecting other apps.
-    ///
-    /// **Parameters:**
-    /// - `deviceID`: The CoreAudio device ID to set as default
-    ///
-    /// **Returns:**
-    /// true if successful, false otherwise
-    nonisolated static func setSystemDefaultInputDevice(to deviceID: AudioDeviceID) -> Bool {
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDefaultInputDevice,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-
-        var id = deviceID
-        let dataSize = UInt32(MemoryLayout<AudioDeviceID>.size)
-
-        let status = AudioObjectSetPropertyData(
-            AudioObjectID(kAudioObjectSystemObject),
-            &address,
-            0,
-            nil,
-            dataSize,
-            &id
-        )
-
-        return status == noErr
-    }
-
     // MARK: - Device Lookup
 
     /// Find AudioDeviceID by UID string

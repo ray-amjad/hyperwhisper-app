@@ -55,7 +55,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Props) {
   const { locale } = await params;
 
-  // The proxy skips any path with a dot, so /favicon.ico or /.env reaches this
+  // The proxy skips any path with a dot, so /x.png or /.env reaches this
   // segment with a locale that is not one (#1853). 404 before the canonical is
   // built from it.
   if (!isSupportedLocale(locale)) notFound();

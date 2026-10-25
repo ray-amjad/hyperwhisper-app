@@ -26,7 +26,7 @@
     "downloadCta": "Scarica ora",
     "demoCta": "Guarda la demo",
     "availableOn": "Disponibile su",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "C'è un abbonamento?",
-        "answer": "No — mai. HyperWhisper è un'app open-source che possiedi, non un abbonamento che noleggi. Scaricala gratis e usa la trascrizione locale offline senza alcun costo per sempre; il piano gratuito include anche 5 minuti di trascrizione cloud al giorno. Quando vuoi una trascrizione cloud senza configurazione oltre a quel limite, HyperWhisper Cloud sono semplici crediti a consumo — ricarichi solo quando ti serve, senza canoni mensili e senza niente da disdire."
+        "answer": "No — mai. HyperWhisper è un'app open-source che possiedi, non un abbonamento che noleggi. Scaricala gratis e usa la trascrizione locale offline senza alcun costo per sempre. Quando vuoi una trascrizione cloud senza configurazione, HyperWhisper Cloud sono semplici crediti a consumo — ricarichi solo quando ti serve, senza canoni mensili e senza niente da disdire."
       },
       "deviceLimit": {
         "question": "Su quanti dispositivi posso usare la mia chiave dell'account?",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Quali sono i requisiti di sistema?",
-        "answer": "Per Mac: macOS 14 o successivo, supporto per Apple Silicon e Intel. Per Windows: Windows 10/11, x64 o ARM64. Per Linux v1: Ubuntu 22.04 o successivo oppure Debian 12 o successivo, su amd64. Si consigliano 8GB di RAM per prestazioni ottimali."
+        "answer": "Per Mac: macOS 14.6 o successivo, supporto per Apple Silicon e Intel. Per Windows: Windows 10/11, x64 o ARM64. Per Linux v1: Ubuntu 22.04 o successivo oppure Debian 12 o successivo, su amd64. Si consigliano 8GB di RAM per prestazioni ottimali."
       },
       "madeBy": {
         "question": "Chi l'ha creato?",
@@ -271,6 +271,7 @@
       "customerPortal": "Portale clienti",
       "olderVersions": "Versioni precedenti",
       "blog": "Blog",
+      "openSource": "Open source",
       "about": "Chi siamo",
       "support": "Supporto",
       "privacyPolicy": "Informativa sulla privacy",

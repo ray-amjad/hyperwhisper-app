@@ -191,20 +191,6 @@ class RecordingSessionManager {
 
     // MARK: - Cleanup
 
-    /// Clear current session reference without saving
-    ///
-    /// **What This Does:**
-    /// Clears the currentRecordingSession reference. Used for cleanup
-    /// when recording fails or is cancelled.
-    ///
-    /// **When to Call:**
-    /// - Recording start fails after session creation
-    /// - Recording is cancelled before completion
-    func clearCurrentSession() {
-        currentRecordingSession = nil
-        AppLogger.audio.debug("Cleared current recording session reference")
-    }
-
     /// Delete the current recording session from Core Data
     ///
     /// **What This Does:**

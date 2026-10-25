@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Tai numatytasis režimas, todėl jo pavadinimo keisti negalima. Bet kurį kitą režimą galite pervadinti.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Režimas tokiu pavadinimu jau yra.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -771,6 +774,9 @@
   </data>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (Nėra API rakto)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Neteisingas raktas)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>

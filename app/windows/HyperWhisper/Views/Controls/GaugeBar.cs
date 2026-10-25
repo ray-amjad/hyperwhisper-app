@@ -1,11 +1,8 @@
 using System.Windows;
-using Border = System.Windows.Controls.Border;
 using Brush = System.Windows.Media.Brush;
-using Brushes = System.Windows.Media.Brushes;
-using Color = System.Windows.Media.Color;
-using SolidColorBrush = System.Windows.Media.SolidColorBrush;
+using DrawingContext = System.Windows.Media.DrawingContext;
+using Size = System.Windows.Size;
 using SystemColors = System.Windows.SystemColors;
-using UserControl = System.Windows.Controls.UserControl;
 
 namespace HyperWhisper.Views.Controls;
 
@@ -14,24 +11,34 @@ namespace HyperWhisper.Views.Controls;
 /// bars: the first <see cref="Rating"/> segments use <see cref="FilledBrush"/>
 /// and the rest use <see cref="UnfilledBrush"/>.
 /// </summary>
-public partial class GaugeBar : UserControl
+/// <remarks>
+/// Drawn in <see cref="OnRender"/> with no XAML and no child elements. The
+/// Model Library shows two per row, 158 on one page, and a UserControl with five
+/// <c>Border</c>s cost about 100 ms of UI-thread time per visit in XAML parsing,
+/// layout and brush registration (#2385).
+/// </remarks>
+public class GaugeBar : FrameworkElement
 {
+    private const int SegmentCount = 5;
+    private const double SegmentWidth = 12;
+    private const double SegmentHeight = 4;
+    private const double SegmentGap = 3;
+    private const double CornerRadius = 1;
+
     public GaugeBar()
     {
-        InitializeComponent();
         if (UnfilledBrush is null) SetResourceReference(UnfilledBrushProperty, "BorderBrush");
-        Loaded += (_, _) => Refresh();
     }
 
     public static readonly DependencyProperty RatingProperty =
         DependencyProperty.Register(
             nameof(Rating), typeof(int), typeof(GaugeBar),
-            new PropertyMetadata(0, OnVisualChanged));
+            new FrameworkPropertyMetadata(0, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public static readonly DependencyProperty FilledBrushProperty =
         DependencyProperty.Register(
             nameof(FilledBrush), typeof(Brush), typeof(GaugeBar),
-            new PropertyMetadata(null, OnVisualChanged));
+            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     // Lets callers pass a theme resource KEY (e.g. "AccentBrush") instead of a
     // resolved brush, so the fill tracks light/dark switches like a DynamicResource.
@@ -43,7 +50,7 @@ public partial class GaugeBar : UserControl
     public static readonly DependencyProperty UnfilledBrushProperty =
         DependencyProperty.Register(
             nameof(UnfilledBrush), typeof(Brush), typeof(GaugeBar),
-            new PropertyMetadata(null, OnVisualChanged));
+            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public int Rating
     {
@@ -69,7 +76,7 @@ public partial class GaugeBar : UserControl
         if (e.NewValue is string key && key.Length > 0)
         {
             // DynamicResource-style reference: re-resolves on theme switch and
-            // raises a FilledBrush change, which repaints via OnVisualChanged.
+            // raises a FilledBrush change, which repaints (AffectsRender).
             gauge.SetResourceReference(FilledBrushProperty, key);
         }
         else
@@ -84,21 +91,22 @@ public partial class GaugeBar : UserControl
         set => SetValue(UnfilledBrushProperty, value);
     }
 
-    private static void OnVisualChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        => ((GaugeBar)d).Refresh();
+    private static double GaugeWidth => SegmentCount * SegmentWidth + (SegmentCount - 1) * SegmentGap;
 
-    private void Refresh()
+    protected override Size MeasureOverride(Size availableSize) => new(GaugeWidth, SegmentHeight);
+
+    protected override void OnRender(DrawingContext drawingContext)
     {
         var filled = FilledBrush ?? SystemColors.HighlightBrush;
         var unfilled = UnfilledBrush ?? SystemColors.ControlBrush;
         var rating = Rating;
 
-        for (var i = 0; i < Segments.Children.Count; i++)
+        // Left-aligned and vertically centred, as the old horizontal StackPanel was.
+        var top = Math.Max(0, (RenderSize.Height - SegmentHeight) / 2);
+        for (var i = 0; i < SegmentCount; i++)
         {
-            if (Segments.Children[i] is Border segment)
-            {
-                segment.Background = i < rating ? filled : unfilled;
-            }
+            var rect = new Rect(i * (SegmentWidth + SegmentGap), top, SegmentWidth, SegmentHeight);
+            drawingContext.DrawRoundedRectangle(i < rating ? filled : unfilled, null, rect, CornerRadius, CornerRadius);
         }
     }
 }

@@ -26,7 +26,7 @@
     "downloadCta": "Şimdi indir",
     "demoCta": "Demoyu izle",
     "availableOn": "Kullanılabildiği platformlar",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Abonelik var mı?",
-        "answer": "Hayır — asla. HyperWhisper, kiraladığınız bir abonelik değil, sahip olduğunuz açık kaynaklı bir uygulamadır. Ücretsiz indirin ve yerel, çevrimdışı transkripsiyonu sonsuza dek ücretsiz kullanın; ücretsiz katman ayrıca günde 5 dakika bulut transkripsiyonu içerir. Bunun ötesinde kurulum gerektirmeyen bulut transkripsiyonu istediğinizde, HyperWhisper Cloud basit, kullandıkça öde kredilerdir — yalnızca ihtiyaç duyduğunuzda yükleme yaparsınız, aylık ücret yok ve iptal edilecek bir şey yok."
+        "answer": "Hayır — asla. HyperWhisper, kiraladığınız bir abonelik değil, sahip olduğunuz açık kaynaklı bir uygulamadır. Ücretsiz indirin ve yerel, çevrimdışı transkripsiyonu sonsuza dek ücretsiz kullanın. Kurulum gerektirmeyen bulut transkripsiyonu istediğinizde, HyperWhisper Cloud basit, kullandıkça öde kredilerdir — yalnızca ihtiyaç duyduğunuzda yükleme yaparsınız, aylık ücret yok ve iptal edilecek bir şey yok."
       },
       "deviceLimit": {
         "question": "Hesap Anahtarımı kaç cihazda kullanabilirim?",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Sistem gereksinimleri nelerdir?",
-        "answer": "Mac için: macOS 14 veya üzeri, Apple Silicon ve Intel desteklenir. Windows için: Windows 10/11, x64 veya ARM64. Linux v1 için: amd64 üzerinde Ubuntu 22.04 veya üzeri ya da Debian 12 veya üzeri. En iyi performans için 8 GB RAM önerilir."
+        "answer": "Mac için: macOS 14.6 veya üzeri, Apple Silicon ve Intel desteklenir. Windows için: Windows 10/11, x64 veya ARM64. Linux v1 için: amd64 üzerinde Ubuntu 22.04 veya üzeri ya da Debian 12 veya üzeri. En iyi performans için 8 GB RAM önerilir."
       },
       "madeBy": {
         "question": "Bunu kim yaptı?",
@@ -271,6 +271,7 @@
       "customerPortal": "Müşteri Portalı",
       "olderVersions": "Eski Sürümler",
       "blog": "Blog",
+      "openSource": "Açık kaynak",
       "about": "Hakkımızda",
       "support": "Destek",
       "privacyPolicy": "Gizlilik Politikası",

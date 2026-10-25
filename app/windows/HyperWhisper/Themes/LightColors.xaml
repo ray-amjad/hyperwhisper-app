@@ -1,5 +1,8 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                    xmlns:po="http://schemas.microsoft.com/winfx/2006/xaml/presentation/options"
+                    mc:Ignorable="po">
 
     <!-- LIGHT THEME COLORS
          Light mode color palette for HyperWhisper Windows app.
@@ -78,5 +81,90 @@
     <Color x:Key="StatisticsPurple">#A855F7</Color>
     <Color x:Key="StatisticsOrange">#F97316</Color>
     <Color x:Key="StatisticsChartBar">#6366F1</Color>
+
+    <!-- BRUSHES
+         Frozen, with this theme's colours resolved at load (StaticResource,
+         so each colour above must stay defined before its brush).
+         ThemeService swaps this whole dictionary, which re-resolves every
+         {DynamicResource XBrush} consumer. A frozen brush takes no Changed
+         subscribers, so consumers that leave the tree are not kept alive by
+         an app-wide brush (issue #2386). Never write .Color on one; set a
+         theme brush in code with SetResourceReference, not FindResource,
+         so it follows the next theme switch.
+    -->
+
+    <!-- Primary Accent Brushes -->
+    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentColorHover}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="AccentPressedBrush" Color="{StaticResource AccentColorPressed}" po:Freeze="True"/>
+
+    <!-- Sidebar Icon Brushes -->
+    <SolidColorBrush x:Key="HomeIconBrush" Color="{StaticResource HomeIconColor}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="HistoryIconBrush" Color="{StaticResource HistoryIconColor}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="ModesIconBrush" Color="{StaticResource ModesIconColor}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="VocabularyIconBrush" Color="{StaticResource VocabularyIconColor}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="SettingsIconBrush" Color="{StaticResource SettingsIconColor}" po:Freeze="True"/>
+
+    <!-- Status Brushes -->
+    <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="ProcessingBrush" Color="{StaticResource ProcessingColor}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="PostProcessingBrush" Color="{StaticResource PostProcessingColor}" po:Freeze="True"/>
+
+    <!-- Background Brushes -->
+    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="{StaticResource SidebarBackground}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="ContentBackgroundBrush" Color="{StaticResource ContentBackground}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="CardBackgroundBrush" Color="{StaticResource CardBackground}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="HoverBackgroundBrush" Color="{StaticResource HoverBackground}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="SelectedBackgroundBrush" Color="{StaticResource SelectedBackground}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="InputBackgroundBrush" Color="{StaticResource InputBackground}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}" po:Freeze="True"/>
+
+    <!-- Text Brushes -->
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="TextTertiaryBrush" Color="{StaticResource TextTertiary}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="TextOnAccentBrush" Color="{StaticResource TextOnAccent}" po:Freeze="True"/>
+
+    <!-- Semantic Alert Brushes - Warning -->
+    <SolidColorBrush x:Key="WarningBackgroundBrush" Color="{StaticResource WarningBackground}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="WarningForegroundBrush" Color="{StaticResource WarningForeground}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="WarningBorderBrush" Color="{StaticResource WarningBorder}" po:Freeze="True"/>
+
+    <!-- Semantic Alert Brushes - Error -->
+    <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="{StaticResource ErrorBackground}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="ErrorForegroundBrush" Color="{StaticResource ErrorForeground}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="ErrorBorderBrush" Color="{StaticResource ErrorBorder}" po:Freeze="True"/>
+
+    <!-- Semantic Alert Brushes - Info -->
+    <SolidColorBrush x:Key="InfoBackgroundBrush" Color="{StaticResource InfoBackground}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="InfoForegroundBrush" Color="{StaticResource InfoForeground}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="InfoBorderBrush" Color="{StaticResource InfoBorder}" po:Freeze="True"/>
+
+    <!-- Semantic Alert Brushes - Success -->
+    <SolidColorBrush x:Key="SuccessBackgroundBrush" Color="{StaticResource SuccessBackground}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="SuccessForegroundBrush" Color="{StaticResource SuccessForeground}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="SuccessBorderBrush" Color="{StaticResource SuccessBorder}" po:Freeze="True"/>
+
+    <!-- Badge Brushes -->
+    <SolidColorBrush x:Key="BadgeGrayBackgroundBrush" Color="{StaticResource BadgeGrayBackground}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="BadgeGrayForegroundBrush" Color="{StaticResource BadgeGrayForeground}" po:Freeze="True"/>
+
+    <!-- Progress Bar Brushes -->
+    <SolidColorBrush x:Key="ProgressBackgroundBrush" Color="{StaticResource ProgressBackground}" po:Freeze="True"/>
+
+    <!-- Hover State Brushes -->
+    <SolidColorBrush x:Key="DeleteHoverBackgroundBrush" Color="{StaticResource DeleteHoverBackground}" po:Freeze="True"/>
+
+    <!-- Sidebar Icon Brushes - Statistics -->
+    <SolidColorBrush x:Key="StatisticsIconBrush" Color="{StaticResource StatisticsIconColor}" po:Freeze="True"/>
+
+    <!-- Statistics Card Accent Brushes -->
+    <SolidColorBrush x:Key="StatisticsBlueBrush" Color="{StaticResource StatisticsBlue}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="StatisticsGreenBrush" Color="{StaticResource StatisticsGreen}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="StatisticsPurpleBrush" Color="{StaticResource StatisticsPurple}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="StatisticsOrangeBrush" Color="{StaticResource StatisticsOrange}" po:Freeze="True"/>
+    <SolidColorBrush x:Key="StatisticsChartBarBrush" Color="{StaticResource StatisticsChartBar}" po:Freeze="True"/>
 
 </ResourceDictionary>

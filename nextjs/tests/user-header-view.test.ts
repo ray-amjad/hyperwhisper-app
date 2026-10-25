@@ -32,7 +32,7 @@ import {
 } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 /**
  * `next-intl`'s `createNavigation` builds a `Link` that reads the request
@@ -40,7 +40,7 @@ import { moduleMock } from "./module-mock";
  * provide. The stub is a plain anchor: the logo link is not what this file is
  * about, but it must render for the header to render at all.
  */
-moduleMock.module("../src/i18n/navigation", {
+moduleMock.module(moduleUrl("../src/i18n/navigation.ts"), {
   namedExports: {
     Link: ({ children, ...props }: { children?: ReactNode; href: string }) =>
       createElement("a", props, children),

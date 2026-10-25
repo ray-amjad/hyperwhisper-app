@@ -26,12 +26,12 @@ import { after, before, beforeEach, describe, test } from "node:test";
 import { Redis } from "@upstash/redis";
 
 import { listen, store, upstashRestServer } from "./fake-upstash-server";
-import { captureConsole, moduleMock } from "./module-mock";
+import { captureConsole, moduleMock, moduleUrl } from "./module-mock";
 
 import type { auth as AuthInstance } from "@/src/lib/auth";
 import type * as StorageModule from "@/src/lib/auth-rate-limit-storage";
 
-moduleMock.module(new URL("../lib/clients/resend.ts", import.meta.url).href, {
+moduleMock.module(moduleUrl("../lib/clients/resend.ts"), {
   namedExports: {
     resend: { emails: { send: async () => ({ data: null, error: null }) } },
     DEFAULT_FROM_EMAIL: "HyperWhisper <support@hyperwhisper.com>",
@@ -44,7 +44,7 @@ moduleMock.module(new URL("../lib/clients/resend.ts", import.meta.url).href, {
  */
 const fakeEnv: Record<string, string | undefined> = {};
 
-moduleMock.module(new URL("../src/env/server.mjs", import.meta.url).href, {
+moduleMock.module(moduleUrl("../src/env/server.mjs"), {
   namedExports: { env: fakeEnv },
 });
 

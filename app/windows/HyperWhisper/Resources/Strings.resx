@@ -296,6 +296,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>This is the default mode, so its name cannot be changed. You can rename any other mode.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>A mode with that name already exists.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -1028,6 +1031,9 @@ Do you want to restart now?</value>
   </data>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (No API key)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Key invalid)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>

@@ -34,6 +34,7 @@ try
     MicrophoneSelectionTests.Run();
     await MicrophonePickerTests.RunAsync(Path.Combine(root, "microphone-picker"));
     await RunHistoryRetryTestsAsync(root);
+    await RunParakeetRetryConversionTestsAsync(root);
     await RunHistoryExperienceTestsAsync(root);
     await RunHistoryBulkLoadTestsAsync(root);
     await RunHistoryRevisitTestsAsync(root);
@@ -71,6 +72,7 @@ try
 
     await RunChirp3TierMigrationTestsAsync(Path.Combine(root, "chirp3-tier-migration"));
     await RunDictationModeTestsAsync(Path.Combine(root, "dictation-modes"));
+    await RunModeNameTakenTestsAsync(Path.Combine(root, "mode-name-taken"));
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
     await RunBlankCloudProviderEditorLoadTestsAsync(Path.Combine(root, "blank-cloud-provider"));
     await RunLegacyCloudProviderFoldTestsAsync(Path.Combine(root, "legacy-cloud-provider-fold"));
@@ -358,6 +360,41 @@ try
     nonIntegerVersion["schemaVersion"] = "2";
     Assert((await backupService.ImportAsync(nonIntegerVersion.ToJsonString())).Error?.Code == "backup.unsupported_version",
         "non-integer schemaVersion escaped structured validation");
+    // #2115: `2.0` is schemaVersion 2 by value (the core's `integral_i64`); `2.5` and `3.0` are not.
+    string WithRawSchemaVersion(string raw)
+    {
+        var document = JsonNode.Parse(exported)!.AsObject();
+        document["schemaVersion"] = JsonNode.Parse(raw);
+        return document.ToJsonString();
+    }
+    var wholeFloatVersion = WithRawSchemaVersion("2.0");
+    Assert(wholeFloatVersion.Contains("\"schemaVersion\":2.0", StringComparison.Ordinal),
+        "the #2115 fixture lost its 2.0 literal");
+    var wholeFloatInspect = backupService.Inspect(wholeFloatVersion);
+    Assert(wholeFloatInspect.IsSuccess && wholeFloatInspect.Value!.SchemaVersion == 2,
+        $"a backup with schemaVersion 2.0 was refused by Inspect: {wholeFloatInspect.Error?.Code} {wholeFloatInspect.Error?.Message}");
+    var wholeFloatImport = await backupService.ImportAsync(wholeFloatVersion);
+    Assert(wholeFloatImport.IsSuccess,
+        $"a backup with schemaVersion 2.0 was refused by import: {wholeFloatImport.Error?.Code} {wholeFloatImport.Error?.Message}");
+    Assert(backupService.Inspect(WithRawSchemaVersion("2.5")).Error?.Code == "backup.unsupported_version",
+        "a fractional schemaVersion 2.5 was accepted");
+    Assert(backupService.Inspect(WithRawSchemaVersion("3.0")).Error?.Code == "backup.unsupported_version",
+        "schemaVersion 3.0 was accepted");
+    // The same by-value read covers every field the schema types "integer" (sortOrder, postProcessingMode).
+    var wholeFloatFields = JsonNode.Parse(wholeFloatVersion)!.AsObject();
+    var wholeFloatMode = wholeFloatFields["modes"]!.AsArray()[0]!.AsObject();
+    wholeFloatMode["sortOrder"] = JsonNode.Parse("0.0");
+    wholeFloatMode["postProcessingMode"] = JsonNode.Parse("0.0");
+    wholeFloatFields["vocabulary"]!.AsArray()[0]!["sortOrder"] = JsonNode.Parse("1.0");
+    wholeFloatFields["settings"]!["advanced"]!["typingSpeedWPM"] = JsonNode.Parse("61.0");
+    var wholeFloatFieldsImport = await backupService.ImportAsync(wholeFloatFields.ToJsonString());
+    Assert(wholeFloatFieldsImport.IsSuccess,
+        $"a backup with whole-float sortOrder / postProcessingMode was refused: {wholeFloatFieldsImport.Error?.Code} {wholeFloatFieldsImport.Error?.Message}");
+    Assert(reloadedSettings.Get<int>("advanced.typingSpeedWPM") == 61,
+        "a whole-float typingSpeedWPM 61.0 was not stored as the integer 61");
+    var fractionalSortOrder = JsonNode.Parse(exported)!.AsObject();
+    fractionalSortOrder["vocabulary"]!.AsArray()[0]!["sortOrder"] = JsonNode.Parse("1.5");
+    Assert(backupService.Inspect(fractionalSortOrder.ToJsonString()).IsFailure, "a fractional vocabulary sortOrder 1.5 was accepted");
     var extendedBackup = JsonNode.Parse(exported)!.AsObject();
     var extensionSlices = extendedBackup["platformExtensions"]!.AsObject();
     extensionSlices["windows"] = new JsonObject { ["futureWindows"] = 17 };
@@ -868,6 +905,13 @@ try
         // model id must never be offered as a BYOK cloud model: re-selecting it saves the mode with
         // CloudTranscriptionModel=null and shows no error.
         shell.Modes.NewCommand.Execute(null);
+        // Create Mode seeds the system region's English spelling variant, as Windows and macOS do
+        // (#2382): a blank value would send no spelling instruction for every mode the user makes.
+        var regionSpelling = PortableModeDefaults.EnglishSpellingForRegion(
+            System.Globalization.RegionInfo.CurrentRegion.TwoLetterISORegionName);
+        Assert(!string.IsNullOrEmpty(shell.Modes.EnglishSpelling)
+            && shell.Modes.EnglishSpelling == regionSpelling,
+            $"Create Mode seeded EnglishSpelling '{shell.Modes.EnglishSpelling}', expected the region's '{regionSpelling}'");
         shell.Modes.IsYourProviderSource = true;
         var createModeModels = shell.Modes.CloudModels;
         Assert(!createModeModels.Contains("base", StringComparer.Ordinal)
@@ -1541,6 +1585,17 @@ try
         && reloadedStatisticsSettings.Get("advanced.typingSpeedWPM", 0) == 80,
         "home typing speed did not persist");
 
+    // #2546: the Linux Start Recording card marks its step complete after every successful start.
+    // A second start must leave it ticked (it used to toggle it off) and keep the saved setting.
+    statisticsHome.CompleteGettingStartedStep("recording");
+    statisticsHome.CompleteGettingStartedStep("recording");
+    var reloadedGettingStartedSettings = new PortableSettingsService(
+        statisticsFiles, Path.Combine(statisticsRoot, "settings.json"));
+    Assert(statisticsHome.IsRecordingStepComplete
+        && reloadedGettingStartedSettings.Load().IsSuccess
+        && reloadedGettingStartedSettings.Get("GettingStartedCompletedSteps", string.Empty) == "recording",
+        "completing the recording step twice un-ticked it or did not persist it as 'recording'");
+
     var diagnosticsDirectory = Path.Combine(root, "about-diagnostics");
     var about = new AboutViewModel(
         "1.2.3", "1.2.3-1",
@@ -2109,6 +2164,71 @@ static async Task RunDefaultModeInvariantTestsAsync(string root)
     var afterDelete = await orphanRepository.ListAsync();
     Assert(afterDelete.Count == 1 && afterDelete.Single().IsDefault,
         "deleting the default mode left the remaining mode without the flag");
+}
+
+// Issue #2551: a save the repository refuses on a mode rule used to fall into SaveAsync's catch-all
+// and show "Could not save the mode or its secure endpoint configuration", which sent the user to
+// the keyring when the fix was a different name.
+static async Task RunModeNameTakenTestsAsync(string root)
+{
+    var db = new ApplicationDb(new TestPaths(root));
+    await db.InitializeAsync();
+    var repository = new ModeRepository(db);
+    var editor = new ModesViewModel(repository);
+    await editor.RefreshAsync();
+    var theDefault = editor.Items.Single(item => item.IsDefault);
+    Assert(theDefault.Name == "Hyper", $"the seeded default mode is '{theDefault.Name}', expected 'Hyper'");
+    var countBefore = (await repository.ListAsync()).Count;
+
+    foreach (var clash in new[] { "hyper", "  HYPER " })
+    {
+        editor.NewCommand.Execute(null);
+        editor.Name = clash;
+        await editor.SaveAsync();
+        Assert(editor.Status.ErrorCode == "modes.name_taken"
+            && editor.Status.Message == "A mode with that name already exists.",
+            $"creating '{clash}' next to 'Hyper' showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+        Assert((await repository.ListAsync()).Count == countBefore, $"creating '{clash}' next to 'Hyper' inserted a mode");
+    }
+
+    // Renaming another mode onto a taken name is refused the same way; keeping a mode's own name is not.
+    var other = new Mode { Name = "Other", SortOrder = 1 };
+    await repository.UpsertAsync(other);
+    await editor.RefreshAsync();
+    editor.Selected = editor.Items.Single(item => item.Id == other.Id);
+    editor.Name = "Hyper";
+    await editor.SaveAsync();
+    Assert(editor.Status.ErrorCode == "modes.name_taken", $"renaming 'Other' to 'Hyper' showed {editor.Status.ErrorCode}");
+    Assert((await repository.ListAsync()).Single(item => item.Id == other.Id).Name == "Other", "a refused rename was saved");
+    Assert(editor.Items.Single(item => item.Id == other.Id).Name == "Other" && editor.Name == "Hyper",
+        "a refused rename left 'Hyper' on the listed mode, or cleared what the user typed");
+    editor.Name = "other";
+    await editor.SaveAsync();
+    Assert(!editor.Status.HasError && (await repository.ListAsync()).Single(item => item.Id == other.Id).Name == "other",
+        $"re-casing a mode's own name was refused: {editor.Status.ErrorCode}");
+
+    // The repository reads the rows at save time, so a name taken after the list was loaded is
+    // refused the same way, not with the secure-endpoint error.
+    editor.NewCommand.Execute(null);
+    editor.Name = "Late arrival";
+    await repository.UpsertAsync(new Mode { Name = "Late Arrival", SortOrder = 2 });
+    var countBeforeRace = (await repository.ListAsync()).Count;
+    await editor.SaveAsync();
+    Assert(editor.Status.ErrorCode == "modes.name_taken"
+        && !editor.Status.Message.Contains("secure endpoint", StringComparison.OrdinalIgnoreCase),
+        $"a name the repository refused showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+    Assert((await repository.ListAsync()).Count == countBeforeRace, "a name the repository refused was inserted");
+
+    // The default-name rule surfaces under its own code as well. (The last-default rule cannot be
+    // reached from this editor, which never clears IsDefault.)
+    await editor.RefreshAsync();
+    editor.Selected = editor.Items.Single(item => item.IsDefault);
+    editor.Name = "Renamed default";
+    await editor.SaveAsync();
+    Assert(editor.Status.ErrorCode == "modes.default_name_fixed",
+        $"renaming the default mode showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+    Assert((await repository.ListAsync()).Single(item => item.IsDefault).Name == "Hyper"
+        && editor.Items.Single(item => item.IsDefault).Name == "Hyper", "the default mode was renamed");
 }
 
 static async Task RunDictationModeTestsAsync(string root)
@@ -4090,6 +4210,128 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
             "an unplugged microphone did not reach the view model");
         Assert(viewModel.SelectedAudioDevice is null,
             "an unplugged microphone stayed selected");
+    }
+}
+
+/// <summary>
+/// A retry of a Failed row whose audio is not WAV, in a local Parakeet mode,
+/// reaches the transcriber as a WAV (issue #1675).
+/// </summary>
+/// <remarks>
+/// Uses the REAL ffmpeg import Linux Transcribe File and the Local API run
+/// (<see cref="DurableAudioImportService"/> over the ffmpeg normalizer). Before
+/// the fix the WAV-only Parakeet daemon got the row's stored MP3 and failed at
+/// once. The row keeps its own audio, and the converted WAV is deleted after.
+/// </remarks>
+static async Task RunParakeetRetryConversionTestsAsync(string root)
+{
+    static Mode Parakeet() => new()
+    {
+        Id = Guid.NewGuid(), Name = "Parakeet retry", Language = "en",
+        ProviderType = "local", LocalEngine = "parakeet",
+    };
+    static Mode Whisper() => new()
+    {
+        Id = Guid.NewGuid(), Name = "Whisper retry", Language = "en",
+        ProviderType = "local", LocalEngine = "whisper",
+    };
+    static bool IsWave(string path)
+    {
+        var header = File.ReadAllBytes(path).AsSpan(0, 12);
+        return header[..4].SequenceEqual("RIFF"u8) && header[8..12].SequenceEqual("WAVE"u8);
+    }
+
+    var storeRoot = Path.Combine(root, "retry-parakeet-convert");
+    Directory.CreateDirectory(storeRoot);
+    var paths = new TestPaths(storeRoot);
+    var database = new ApplicationDb(paths);
+    await database.MigrateAsync();
+    var history = new HistoryRepository(database);
+    Directory.CreateDirectory(paths.RecordingsDirectory);
+    var mp3 = Path.Combine(paths.RecordingsDirectory, $"local-api-{Guid.NewGuid():N}.mp3");
+    using (var ffmpeg = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("ffmpeg")
+    {
+        ArgumentList = { "-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-f", "lavfi",
+            "-i", "sine=frequency=440:duration=3", "-ac", "1", "-ar", "16000", "-b:a", "16k", mp3 },
+        RedirectStandardError = true,
+    })!)
+    {
+        var stderr = await ffmpeg.StandardError.ReadToEndAsync();
+        await ffmpeg.WaitForExitAsync();
+        Assert(ffmpeg.ExitCode == 0 && File.Exists(mp3), $"ffmpeg could not make the fixture MP3: {stderr}");
+    }
+    Assert(!IsWave(mp3), "the fixture MP3 is already a WAV; the test would prove nothing");
+
+    async Task<Transcript> FailedRowAsync(string audio)
+    {
+        var row = new Transcript
+        {
+            Text = "Transcription failed: The Parakeet daemon could not transcribe the audio.",
+            FailedReason = "The Parakeet daemon could not transcribe the audio.",
+            Status = TranscriptStatus.Failed,
+            AudioFilePath = audio,
+        };
+        await history.AddAsync(row);
+        return row;
+    }
+    TranscriptionWorkflow Workflow(FakeTranscriber transcriber) => new(
+        new FakeRecorder(mp3), new FakeDevices(), transcriber, history,
+        retryAudioImport: new DurableAudioImportService(new AcceptPrivateFileService(), paths));
+
+    // 1. MP3 row, Parakeet mode: the transcriber sees a WAV; the row completes,
+    //    keeps its MP3, and the converted WAV is gone afterwards.
+    string? seenPath = null;
+    var seenWave = false;
+    var converting = new FakeTranscriber((path, _, _) =>
+    {
+        seenPath = path;
+        seenWave = IsWave(path);
+        return Task.FromResult(PortableTranscriptionResult.Success("converted words", "Parakeet"));
+    });
+    var mp3Row = await FailedRowAsync(mp3);
+    using (var workflow = Workflow(converting))
+    {
+        var result = await workflow.RetryTranscriptAsync(mp3Row.Id, new TranscriptionWorkflowRequest(SelectedMode: Parakeet()));
+        var saved = await history.GetAsync(mp3Row.Id);
+        Assert(result.IsSuccess && seenWave && seenPath != mp3, "a Parakeet retry of an MP3 row did not reach the transcriber as a WAV");
+        Assert(saved is { Status: TranscriptStatus.Completed, Text: "converted words" } && saved.AudioFilePath == mp3 && File.Exists(mp3),
+            "a converted Parakeet retry did not complete the row on its own audio");
+        Assert(seenPath is not null && !File.Exists(seenPath), "the converted retry WAV was left behind");
+    }
+
+    // 2. Bytes ffmpeg cannot decode: a clear format failure at once, and the
+    //    transcriber never runs.
+    var garbage = Path.Combine(paths.RecordingsDirectory, $"local-api-{Guid.NewGuid():N}.mp3");
+    await File.WriteAllBytesAsync(garbage, Enumerable.Repeat((byte)0x5A, 4096).ToArray());
+    var garbageRow = await FailedRowAsync(garbage);
+    var never = new FakeTranscriber((_, _, _) => Task.FromResult(PortableTranscriptionResult.Success("unreachable", "Parakeet")));
+    using (var workflow = Workflow(never))
+    {
+        var result = await workflow.RetryTranscriptAsync(garbageRow.Id, new TranscriptionWorkflowRequest(SelectedMode: Parakeet()));
+        var saved = await history.GetAsync(garbageRow.Id);
+        Assert(!result.IsSuccess && result.Failure?.Code == PortableTranscriptionErrorCode.InvalidRequest
+            && result.Failure.Message.Contains("WAV", StringComparison.Ordinal) && never.CallCount == 0,
+            "an undecodable Parakeet retry did not fail with a clear format error before the transcriber");
+        Assert(saved is { Status: TranscriptStatus.Failed, RetryCount: 1 } && saved.FailedReason!.Contains("WAV", StringComparison.Ordinal)
+            && saved.AudioFilePath == garbage && File.Exists(garbage),
+            "an undecodable Parakeet retry did not leave the row Failed on its own audio with the format reason");
+        Assert(!Directory.GetFiles(paths.RecordingsDirectory).Any(file =>
+                file.EndsWith(".wav", StringComparison.Ordinal) || file.EndsWith(".partial", StringComparison.Ordinal)),
+            "a failed retry conversion left files in the recordings directory");
+    }
+
+    // 3. A Whisper mode reads any format: the MP3 passes through unconverted.
+    var whisperRow = await FailedRowAsync(mp3);
+    string? whisperPath = null;
+    var whisper = new FakeTranscriber((path, _, _) =>
+    {
+        whisperPath = path;
+        return Task.FromResult(PortableTranscriptionResult.Success("whisper words", "Whisper"));
+    });
+    using (var workflow = Workflow(whisper))
+    {
+        var result = await workflow.RetryTranscriptAsync(whisperRow.Id, new TranscriptionWorkflowRequest(SelectedMode: Whisper()));
+        Assert(result.IsSuccess && whisperPath == mp3, "a Whisper retry converted audio it did not need to");
     }
 }
 

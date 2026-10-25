@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Ez az alapértelmezett mód, ezért a neve nem módosítható. Bármelyik másik módot átnevezheti.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Már létezik ilyen nevű mód.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -771,6 +774,9 @@ Ez a művelet nem vonható vissza.</value>
   </data>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (Nincs API-kulcs)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Érvénytelen kulcs)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>

@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>See on vaikerežiim, seega selle nime ei saa muuta. Kõiki teisi režiime saab ümber nimetada.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Selle nimega režiim on juba olemas.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -771,6 +774,9 @@ Seda toimingut ei saa tagasi võtta.</value>
   </data>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (API-võti puudub)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Vigane võti)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>

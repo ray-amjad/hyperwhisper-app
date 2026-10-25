@@ -26,7 +26,7 @@
     "downloadCta": "Jetzt herunterladen",
     "demoCta": "Demo ansehen",
     "availableOn": "Verfügbar für",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -139,7 +139,7 @@
       },
       "lifetime": {
         "question": "Gibt es ein Abonnement?",
-        "answer": "Nein — niemals. HyperWhisper ist eine Open-Source-App, die Ihnen gehört, kein Abonnement, das Sie mieten. Laden Sie sie kostenlos herunter und nutzen Sie die lokale, Offline-Transkription für immer gratis; die kostenlose Stufe umfasst außerdem 5 Minuten Cloud-Transkription pro Tag. Wenn Sie darüber hinaus Cloud-Transkription ohne Einrichtung wünschen, sind HyperWhisper Cloud einfach nutzungsabhängige Credits — laden Sie nur dann auf, wenn Sie es brauchen, ohne monatliche Gebühren und ohne etwas zu kündigen."
+        "answer": "Nein — niemals. HyperWhisper ist eine Open-Source-App, die Ihnen gehört, kein Abonnement, das Sie mieten. Laden Sie sie kostenlos herunter und nutzen Sie die lokale, Offline-Transkription für immer gratis. Wenn Sie Cloud-Transkription ohne Einrichtung wünschen, sind HyperWhisper Cloud einfach nutzungsabhängige Credits — laden Sie nur dann auf, wenn Sie es brauchen, ohne monatliche Gebühren und ohne etwas zu kündigen."
       },
       "deviceLimit": {
         "question": "Auf wie vielen Geräten kann ich meinen Kontoschlüssel nutzen?",
@@ -147,7 +147,7 @@
       },
       "requirements": {
         "question": "Was sind die Systemvoraussetzungen?",
-        "answer": "Für Mac: macOS 14 oder neuer, sowohl Apple Silicon als auch Intel werden unterstützt. Für Windows: Windows 10/11, x64 oder ARM64. Für Linux v1: Ubuntu 22.04 oder neuer bzw. Debian 12 oder neuer, auf amd64. Für optimale Leistung werden 8 GB RAM empfohlen."
+        "answer": "Für Mac: macOS 14.6 oder neuer, sowohl Apple Silicon als auch Intel werden unterstützt. Für Windows: Windows 10/11, x64 oder ARM64. Für Linux v1: Ubuntu 22.04 oder neuer bzw. Debian 12 oder neuer, auf amd64. Für optimale Leistung werden 8 GB RAM empfohlen."
       },
       "madeBy": {
         "question": "Wer hat HyperWhisper entwickelt?",
@@ -271,6 +271,7 @@
       "customerPortal": "Kundenportal",
       "olderVersions": "Ältere Versionen",
       "blog": "Blog",
+      "openSource": "Open Source",
       "about": "Über uns",
       "support": "Support",
       "privacyPolicy": "Datenschutzrichtlinie",
