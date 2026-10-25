@@ -367,7 +367,7 @@ struct ModeEditorView: View {
             Divider()
             editorFooter
         }
-        .frame(width: 480)
+        .frame(width: Self.sheetWidth)
         // Bounded instead of a hard 700: the fixed height drew the footer
         // (Cancel / Create / Delete) below the bottom of the screen's visible
         // area, and the window cannot be resized to reach it (issue #711).
