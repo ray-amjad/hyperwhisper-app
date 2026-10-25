@@ -338,6 +338,20 @@ struct DeviceAudioRecorderTests {
         #expect(candidates.first?.isEqual(output) == true)
     }
 
+    /// A capture that fell back to the output format is still "the same format" on a
+    /// benign configuration change, so it is not restarted in a loop.
+    @Test func aCaptureOnTheFallbackFormatNeedsNoRestart() throws {
+        let output = try Self.inputFormat(sampleRate: 48_000, channels: 1)
+        let hardware = try Self.inputFormat(sampleRate: 48_000, channels: 2)
+        let candidates = DeviceAudioRecorder.tapFormatCandidates(output: output, hardware: hardware)
+        let current = DeviceAudioRecorder.currentTapFormat(matching: output, in: candidates)
+        #expect(DeviceAudioRecorder.configurationChangeNeedsRestart(engineIsRunning: true, captureFormat: output, currentFormat: current) == false)
+        // A format the device no longer offers still restarts.
+        let stale = try Self.inputFormat(sampleRate: 44_100, channels: 1)
+        let moved = DeviceAudioRecorder.currentTapFormat(matching: stale, in: candidates)
+        #expect(DeviceAudioRecorder.configurationChangeNeedsRestart(engineIsRunning: true, captureFormat: stale, currentFormat: moved))
+    }
+
     @Test func tapFormatExtrasAreNumbersAndBoolsOnly() throws {
         let format = try Self.inputFormat(sampleRate: 48_000, channels: 1)
         let extras = DeviceAudioRecorder.tapFormatExtras(requested: format, output: format, hardware: format)

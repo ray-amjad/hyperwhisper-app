@@ -524,6 +524,17 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
     /// was built for. A notification that leaves the engine running on the same format
     /// (the one every start on a non-default device posts) needs nothing: restarting on
     /// it posts another and loops.
+    /// The device's tap format now, for `configurationChangeNeedsRestart`: the candidate
+    /// the capture already taps at when it is still one, else the first. A capture that
+    /// fell back to the node's output format (#2577) then does not restart on every
+    /// benign notification just because the device-format candidate comes first.
+    static func currentTapFormat(matching captureFormat: AVAudioFormat?, in candidates: [AVAudioFormat]) -> AVAudioFormat? {
+        if let captureFormat, let same = candidates.first(where: { $0.isEqual(captureFormat) }) {
+            return same
+        }
+        return candidates.first
+    }
+
     static func configurationChangeNeedsRestart(
         engineIsRunning: Bool,
         captureFormat: AVAudioFormat?,
@@ -776,7 +787,9 @@ final class DeviceAudioRecorder: NSObject, LiveAudioRecording, @unchecked Sendab
         let needsRestart = Self.configurationChangeNeedsRestart(
             engineIsRunning: engine.isRunning,
             captureFormat: captureFormat,
-            currentFormat: engine.isRunning ? Self.tapFormat(for: engine.inputNode) : nil
+            currentFormat: engine.isRunning
+                ? Self.currentTapFormat(matching: captureFormat, in: Self.tapFormatCandidates(for: engine.inputNode))
+                : nil
         )
         guard needsRestart else {
             // The notification every start on a non-default device posts: the engine
