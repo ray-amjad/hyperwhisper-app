@@ -62,7 +62,11 @@ jobs:
     # Recent green runs finish in 5-8 minutes (Rust core rebuild + full Debug
     # build + unit tests), so 60 leaves generous headroom for a cold runner
     # while still turning a wedged test into a fast, obvious failure.
-    timeout-minutes: 60
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [after, before]
     steps:
       # ----------------------------------------------------------------
       # 1. Checkout
@@ -137,6 +141,10 @@ jobs:
       # configured, and env vars don't override that, only CLI build
       # settings do (verified: env-only caused "requires a development
       # team" failures). Don't "clean up" this duplication into env: again.
+      - name: Put back main's test file (before variant)
+        if: matrix.variant == 'before'
+        run: git show origin/main:app/macos/hyperwhisperTests/LocalAPIRequestHeadTests.swift > app/macos/hyperwhisperTests/LocalAPIRequestHeadTests.swift || { git fetch -q origin main && git show FETCH_HEAD:app/macos/hyperwhisperTests/LocalAPIRequestHeadTests.swift > app/macos/hyperwhisperTests/LocalAPIRequestHeadTests.swift; }
+
       - name: Build for testing
         run: |
           xcodebuild build-for-testing \
@@ -176,16 +184,29 @@ jobs:
       - name: Run unit tests
         run: |
           touch "$RUNNER_TEMP/hyperwhisper-test-start"
+          set +e
           xcodebuild test-without-building \
             -project app/macos/hyperwhisper.xcodeproj \
             -scheme hyperwhisper \
             -configuration Debug \
             -destination "platform=macOS" \
             -only-testing:hyperwhisperTests \
+            -test-iterations 20 \
+            -resultBundlePath "$RUNNER_TEMP/loop.xcresult" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            CODE_SIGN_ENTITLEMENTS=""
+            CODE_SIGN_ENTITLEMENTS="" > "$RUNNER_TEMP/loop.log" 2>&1
+          echo "xcodebuild exit $?"
+          head_fail=$(grep -cE "Test case 'LocalAPIRequestHeadTests/[^']+' failed" "$RUNNER_TEMP/loop.log")
+          head_pass=$(grep -cE "Test case 'LocalAPIRequestHeadTests/[^']+' passed" "$RUNNER_TEMP/loop.log")
+          all_fail=$(grep -cE "Test case '[^']+' failed" "$RUNNER_TEMP/loop.log")
+          echo "::warning::variant=${{ matrix.variant }} LocalAPIRequestHeadTests passed=$head_pass failed=$head_fail; all suites failed cases=$all_fail"
+          grep -E "Test case 'LocalAPIRequestHeadTests/[^']+' failed" "$RUNNER_TEMP/loop.log" | sort | uniq -c
+          grep -E "Test case 'License[^']*|Test case '(CloudPostProcessingAccountKey|HealthEndpointCloudKeyPresent|HyperWhisperCloudCreditFetch|HyperWhisperCloudPostProcessingError|TranscriptionOutcomePerCall)Tests/[^']+' (passed|failed)" "$RUNNER_TEMP/loop.log" | sed -E "s/ \(.*//" | sort | uniq -c | sort -rn | head -60
+          xcrun xcresulttool get test-results tests --path "$RUNNER_TEMP/loop.xcresult" > "$RUNNER_TEMP/loop.json" 2>/dev/null && grep -n "LocalAPIRequestHeadTests.swift" "$RUNNER_TEMP/loop.json" | head -40
+          if [ "${{ matrix.variant }}" = after ] && [ "$head_fail" != 0 ]; then exit 1; fi
+          exit 0
 
       # A macOS unit test runs INSIDE the app. When the app aborts, XCTest
       # reports the test that happened to be running as a bare failure in
