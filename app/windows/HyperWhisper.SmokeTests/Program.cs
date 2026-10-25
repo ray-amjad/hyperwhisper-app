@@ -22290,18 +22290,75 @@ internal static class Program
                     $"a settings + modes import reads '{both}', expected '{settingsRestored} {counts}'");
 
                 // Settings picked but the settings step failed (SettingsImported false):
-                // never a bare "imported successfully" — the counts stay, as on main.
+                // the line says so, and the import is not reported as a plain success (#2377).
+                var settingsFailed = HyperWhisper.Localization.Loc.S("settings.backup.import.summary.settingsFailed");
                 var failed = BackupExportSettingsPage.BuildImportSummary(
                     new ImportSummary { SettingsImported = false },
                     new ImportSelection { IncludeSettings = true });
-                Assert(failed == zeroCounts,
-                    $"a settings-only import whose settings step failed reads '{failed}', expected '{zeroCounts}'");
+                Assert(failed == settingsFailed,
+                    $"a settings-only import whose settings step failed reads '{failed}', expected '{settingsFailed}'");
+                Assert(BackupExportSettingsPage.ImportHadFailure(
+                        new ImportSummary { SettingsImported = false },
+                        new ImportSelection { IncludeSettings = true }),
+                    "a settings import whose settings step failed is reported as a plain success");
 
                 // No selection (an older caller) keeps the counts.
                 var legacy = BackupExportSettingsPage.BuildImportSummary(
                     new ImportSummary { ModesImported = 2, VocabularyAdded = 1 }, null);
                 Assert(legacy == HyperWhisper.Localization.Loc.S("settings.backup.import.summary", 2, 1, 0),
                     $"an import with no selection reads '{legacy}' instead of the counts");
+            });
+
+            Run("backup: an API-keys-only import says whether the keys were restored — issue #2377", () =>
+            {
+                // An API-keys-only import read "Modes: 0, vocabulary added: 0, conflicts: 0."
+                // and never named the keys, so a failed Credential Manager write
+                // (ApiKeysImported false, only a WARN in the log) still read as success.
+                EnsureSmokeApplication();
+                var keysRestored = HyperWhisper.Localization.Loc.S("settings.backup.import.summary.apiKeys");
+                var keysFailed = HyperWhisper.Localization.Loc.S("settings.backup.import.summary.apiKeysFailed");
+                var zeroCounts = HyperWhisper.Localization.Loc.S("settings.backup.import.summary", 0, 0, 0);
+                var keysOnly = new ImportSelection { IncludeApiKeys = true };
+
+                var page = new BackupExportSettingsPage();
+                page.ApplyImportSuccess(new ImportSummary { ApiKeysImported = true, ApiKeysInBackup = 3 }, keysOnly);
+                var ok = page.ImportStatusText.Text;
+                Assert(ok == HyperWhisper.Localization.Loc.S("settings.backup.import.success", keysRestored),
+                    $"an API-keys-only import that landed reads '{ok}', expected the success line with '{keysRestored}'");
+                Assert(!ok.Contains(zeroCounts),
+                    $"an API-keys-only import still reports the zero counts: '{ok}'");
+
+                page.ApplyImportSuccess(new ImportSummary { ApiKeysImported = false }, keysOnly);
+                var bad = page.ImportStatusText.Text;
+                Assert(bad == HyperWhisper.Localization.Loc.S("settings.backup.import.partial", keysFailed),
+                    $"an API-keys-only import whose key write failed reads '{bad}', expected the problems line with '{keysFailed}'");
+                Assert(!bad.Contains(HyperWhisper.Localization.Loc.S("settings.backup.import.success", "").Trim()),
+                    $"an API-keys import whose key write failed still says it succeeded: '{bad}'");
+
+                // Settings + modes + keys: each picked section is named, keys last.
+                var all = BackupExportSettingsPage.BuildImportSummary(
+                    new ImportSummary { SettingsImported = true, ModesImported = 2, ApiKeysImported = true, ApiKeysInBackup = 1 },
+                    new ImportSelection { IncludeSettings = true, IncludeModes = true, IncludeApiKeys = true });
+                var expected = HyperWhisper.Localization.Loc.S("settings.backup.import.summary.settings") + " "
+                    + HyperWhisper.Localization.Loc.S("settings.backup.import.summary", 2, 0, 0) + " " + keysRestored;
+                Assert(all == expected, $"a settings + modes + keys import reads '{all}', expected '{expected}'");
+                Assert(!BackupExportSettingsPage.ImportHadFailure(
+                        new ImportSummary { SettingsImported = true, ModesImported = 2, ApiKeysImported = true },
+                        new ImportSelection { IncludeSettings = true, IncludeModes = true, IncludeApiKeys = true }),
+                    "an import where every picked section landed is reported as having problems");
+
+                // An export with no keys configured still writes an empty apiKeys object:
+                // nothing to restore is said as such, never as "API keys restored".
+                var none = BackupExportSettingsPage.BuildImportSummary(
+                    new ImportSummary { ApiKeysImported = true, ApiKeysInBackup = 0 }, keysOnly);
+                Assert(none == HyperWhisper.Localization.Loc.S("settings.backup.import.summary.apiKeysNone"),
+                    $"an API-keys-only import of a backup with no keys reads '{none}'");
+
+                // Keys not picked: no key sentence at all.
+                var noKeys = BackupExportSettingsPage.BuildImportSummary(
+                    new ImportSummary { ModesImported = 1 }, new ImportSelection { IncludeModes = true });
+                Assert(!noKeys.Contains(keysRestored) && !noKeys.Contains(keysFailed),
+                    $"an import with API keys unticked mentions the keys: '{noKeys}'");
             });
 
             Run("backup: a merge import that fails on a later batch leaves the modes as they were — issue #1605", () =>

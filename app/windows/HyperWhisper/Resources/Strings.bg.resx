@@ -2212,6 +2212,21 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Настройките са възстановени.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API ключовете са възстановени.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Един или повече API ключа не можаха да бъдат възстановени.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Резервното копие не съдържа API ключове.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Настройките не можаха да бъдат възстановени.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Резервното копие е импортирано с проблеми. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Ако думата вече съществува:</value>
   </data>

@@ -2212,6 +2212,21 @@
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Настройки восстановлены.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API-ключи восстановлены.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Не удалось восстановить один или несколько API-ключей.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Резервная копия не содержит API-ключей.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Не удалось восстановить настройки.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Резервная копия импортирована с ошибками. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Если слово уже существует:</value>
   </data>

@@ -2212,6 +2212,21 @@ Vous pourrez le télécharger à nouveau plus tard.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Paramètres restaurés.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>Clés API restaurées.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Une ou plusieurs clés API n'ont pas pu être restaurées.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>La sauvegarde ne contient aucune clé API.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Les paramètres n'ont pas pu être restaurés.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Sauvegarde importée avec des problèmes. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Si un mot existe déjà :</value>
   </data>

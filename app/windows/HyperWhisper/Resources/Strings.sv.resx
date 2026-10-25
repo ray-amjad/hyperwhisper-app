@@ -2212,6 +2212,21 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Inställningar återställda.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API-nycklar återställda.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>En eller flera API-nycklar kunde inte återställas.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Säkerhetskopian innehåller inga API-nycklar.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Inställningarna kunde inte återställas.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Säkerhetskopian importerades med problem. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Om ett ord redan finns:</value>
   </data>

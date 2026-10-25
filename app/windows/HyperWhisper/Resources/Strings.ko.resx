@@ -2212,6 +2212,21 @@
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>설정 복원됨.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API 키 복원됨.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>하나 이상의 API 키를 복원할 수 없습니다.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>백업에 API 키가 없습니다.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>설정을 복원할 수 없습니다.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>백업을 가져왔지만 문제가 발생했습니다. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>단어가 이미 존재하는 경우:</value>
   </data>

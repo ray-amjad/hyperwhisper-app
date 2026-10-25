@@ -2212,6 +2212,21 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Tetapan dipulihkan.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>Kunci API dipulihkan.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Satu atau lebih kunci API tidak dapat dipulihkan.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Sandaran tidak mengandungi kunci API.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Tetapan tidak dapat dipulihkan.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Sandaran diimport dengan masalah. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Jika perkataan sudah wujud:</value>
   </data>

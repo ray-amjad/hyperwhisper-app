@@ -2216,6 +2216,21 @@
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>已恢复设置。</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>已恢复 API 密钥。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>一个或多个 API 密钥无法恢复。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>备份中没有 API 密钥。</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>无法恢复设置。</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>备份已导入，但存在问题。{0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>如果词语已经存在：</value>
   </data>

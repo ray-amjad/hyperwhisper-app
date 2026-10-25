@@ -2212,6 +2212,21 @@ Daha sonra yeniden indirebilirsiniz.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Ayarlar geri yüklendi.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API anahtarları geri yüklendi.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Bir veya daha fazla API anahtarı geri yüklenemedi.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Yedekte API anahtarı yok.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Ayarlar geri yüklenemedi.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Yedek sorunlarla içe aktarıldı. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Bir kelime zaten mevcutsa:</value>
   </data>

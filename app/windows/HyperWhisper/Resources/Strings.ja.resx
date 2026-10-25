@@ -2216,6 +2216,21 @@
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>設定を復元しました。</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>APIキーを復元しました。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>1つ以上のAPIキーを復元できませんでした。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>バックアップにAPIキーは含まれていません。</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>設定を復元できませんでした。</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>バックアップをインポートしましたが、問題が発生しました。{0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>単語が既に存在する場合:</value>
   </data>

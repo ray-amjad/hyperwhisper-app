@@ -2212,6 +2212,21 @@ Potrai scaricarlo di nuovo in seguito.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Impostazioni ripristinate.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>Chiavi API ripristinate.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Non è stato possibile ripristinare una o più chiavi API.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Il backup non contiene chiavi API.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Non è stato possibile ripristinare le impostazioni.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Backup importato con problemi. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Se una parola esiste già:</value>
   </data>

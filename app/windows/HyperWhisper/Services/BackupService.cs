@@ -477,6 +477,13 @@ public class BackupService
             {
                 try
                 {
+                    // Count what the backup actually carries, through the same mapping
+                    // (writers that only count), so the page can tell "restored" from
+                    // "there was nothing to restore": an export with no keys configured
+                    // still writes an empty apiKeys object (#2377).
+                    var keysInBackup = 0;
+                    UniversalBackupMapper.ApplyApiKeys(backup.ApiKeys, (_, _) => keysInBackup++, (_, _) => keysInBackup++);
+                    summary.ApiKeysInBackup = keysInBackup;
                     summary.ApiKeysImported = UniversalBackupMapper.ApplyApiKeys(backup.ApiKeys, ApiKeyService.Instance);
                     if (!summary.ApiKeysImported)
                         LoggingService.Warn("BackupService: One or more API keys could not be written to Credential Manager (selective)");
@@ -1006,10 +1013,12 @@ public sealed class ImportSummary
     public int VocabularyAdded { get; set; }
     public int VocabularyConflicts { get; set; }
     public bool ApiKeysImported { get; set; }
+    /// <summary>Non-empty keys the backup's apiKeys section carried (0 when it held none).</summary>
+    public int ApiKeysInBackup { get; set; }
     public string SourcePlatform { get; set; } = "";
 
     public string ToLogString() =>
         $"settings={(SettingsImported ? "yes" : "no")}, modes={ModesImported}, " +
         $"vocabAdded={VocabularyAdded}, vocabConflicts={VocabularyConflicts}, " +
-        $"apiKeys={(ApiKeysImported ? "yes" : "no")}, source={SourcePlatform}";
+        $"apiKeys={(ApiKeysImported ? "yes" : "no")}, apiKeysInBackup={ApiKeysInBackup}, source={SourcePlatform}";
 }

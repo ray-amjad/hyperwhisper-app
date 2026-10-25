@@ -172,7 +172,10 @@ static void AllCatalogsLoad()
     // provider rejected the saved BYOK key, instead of Ready).
     // 862 -> 863 (#2478): `mode.editor.field.name.taken` is new (the Windows mode editor
     // refuses a name another mode already uses, as macOS and the Local API do).
-    Equal(863,PortableLocalizer.BaseKeyCount, "base key count");
+    // 863 -> 868 (#2377): `settings.backup.import.summary.apiKeys`, `.apiKeysFailed`,
+    // `.apiKeysNone`, `.settingsFailed` and `settings.backup.import.partial` are new (the Windows backup
+    // import says whether the API keys landed, and a failed section is not a plain success).
+    Equal(868,PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

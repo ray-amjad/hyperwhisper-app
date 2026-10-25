@@ -2212,6 +2212,21 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Setări restaurate.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>Cheile API au fost restaurate.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Una sau mai multe chei API nu au putut fi restaurate.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Backup-ul nu conține chei API.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Setările nu au putut fi restaurate.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Backup-ul a fost importat cu probleme. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Dacă un cuvânt există deja:</value>
   </data>

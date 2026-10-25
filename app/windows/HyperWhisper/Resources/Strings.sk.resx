@@ -2212,6 +2212,21 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Nastavenia obnovené.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>Kľúče API obnovené.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Jeden alebo viac kľúčov API sa nepodarilo obnoviť.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Záloha neobsahuje žiadne kľúče API.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Nastavenia sa nepodarilo obnoviť.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Záloha importovaná s problémami. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Ak slovo už existuje:</value>
   </data>

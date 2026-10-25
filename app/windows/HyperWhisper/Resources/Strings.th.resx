@@ -2212,6 +2212,21 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>กู้คืนการตั้งค่าแล้ว</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>กู้คืนคีย์ API แล้ว</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>ไม่สามารถกู้คืนคีย์ API อย่างน้อยหนึ่งรายการได้</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>ข้อมูลสำรองไม่มีคีย์ API</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>ไม่สามารถกู้คืนการตั้งค่าได้</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>นำเข้าข้อมูลสำรองแล้วแต่มีปัญหา {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>หากคำนั้นมีอยู่แล้ว:</value>
   </data>

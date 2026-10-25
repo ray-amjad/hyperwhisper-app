@@ -2212,6 +2212,21 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Seaded taastatud.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API-võtmed taastatud.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Ühte või mitut API-võtit ei õnnestunud taastada.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Varukoopia ei sisalda API-võtmeid.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Seadeid ei õnnestunud taastada.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Varukoopia imporditi probleemidega. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Kui sõna on juba olemas:</value>
   </data>

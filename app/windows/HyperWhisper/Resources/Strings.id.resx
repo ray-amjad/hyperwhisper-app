@@ -2212,6 +2212,21 @@ Anda dapat mengunduhnya lagi nanti.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Pengaturan dipulihkan.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>Kunci API dipulihkan.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Satu atau beberapa kunci API tidak dapat dipulihkan.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Cadangan tidak berisi kunci API.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Pengaturan tidak dapat dipulihkan.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Cadangan diimpor dengan masalah. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Jika kata sudah ada:</value>
   </data>

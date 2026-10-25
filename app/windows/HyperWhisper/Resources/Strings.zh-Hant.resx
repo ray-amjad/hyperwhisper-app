@@ -2211,6 +2211,21 @@
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>已還原設定。</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>已還原 API 金鑰。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>一個或多個 API 金鑰無法還原。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>備份中沒有 API 金鑰。</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>無法還原設定。</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>備份已匯入，但發生問題。{0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>如果詞語已經存在：</value>
   </data>

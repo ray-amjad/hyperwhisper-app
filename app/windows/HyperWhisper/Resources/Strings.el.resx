@@ -2212,6 +2212,21 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Οι ρυθμίσεις επαναφέρθηκαν.</value>
   </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>Τα κλειδιά API επαναφέρθηκαν.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Δεν ήταν δυνατή η επαναφορά ενός ή περισσότερων κλειδιών API.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Το αντίγραφο ασφαλείας δεν περιέχει κλειδιά API.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Δεν ήταν δυνατή η επαναφορά των ρυθμίσεων.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Το αντίγραφο ασφαλείας εισήχθη με προβλήματα. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Εάν μια λέξη υπάρχει ήδη:</value>
   </data>
