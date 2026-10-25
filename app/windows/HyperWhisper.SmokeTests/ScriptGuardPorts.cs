@@ -309,15 +309,32 @@ internal static class ScriptGuardPorts
                 "a mode whose LocalPostProcessingModel is the model did not protect it");
             Assert(ModelInUse.FindModeUsingLocalLlm([M("Legacy", m => { m.PostProcessingProvider = localLlm; m.LanguageModel = llmId; })], llmId)?.Name == "Legacy",
                 "a mode that keeps the model in the legacy LanguageModel field did not protect it");
-            Assert(ModelInUse.FindModeUsingLocalLlm([M("Upper", m => { m.PostProcessingProvider = "LOCAL_LLM"; m.LocalPostProcessingModel = llmId.ToUpperInvariant(); })], llmId)?.Name == "Upper",
-                "the provider or model id match was case-sensitive");
-            // No retired id migrates to a local GGUF today, so this pins the
-            // MigrateModelId hop on both sides with a cloud id that does migrate.
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("Upper", m => { m.PostProcessingProvider = "LOCAL_LLM"; m.LocalPostProcessingModel = llmId; })], llmId)?.Name == "Upper",
+                "the provider match was case-sensitive");
+
+            // #2536: a mode runs on the default local model whenever its stored id
+            // does not resolve (PostProcessingService.ResolveModel, then
+            // LocalLlmModelInfo.GetByIdOrDefault), so it protects that default.
+            var defaultLlmId = LocalLlmModelInfo.GetDefault().Id;
+            var nonDefaultLlmId = LocalLlmModelInfo.AllModels.First(m => m.Id != defaultLlmId).Id;
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("NoId", m => { m.PostProcessingProvider = localLlm; })], defaultLlmId)?.Name == "NoId",
+                "a local-LLM mode with no model id did not protect the default it runs on");
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("Empty", m => { m.PostProcessingProvider = localLlm; m.LocalPostProcessingModel = ""; m.LanguageModel = nonDefaultLlmId; })], defaultLlmId)?.Name == "Empty",
+                "a local-LLM mode with an empty LocalPostProcessingModel did not protect the default it runs on");
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("Empty", m => { m.PostProcessingProvider = localLlm; m.LocalPostProcessingModel = ""; m.LanguageModel = nonDefaultLlmId; })], nonDefaultLlmId) == null,
+                "an empty LocalPostProcessingModel fell back to LanguageModel, which the runtime does not");
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("Case", m => { m.PostProcessingProvider = localLlm; m.LocalPostProcessingModel = nonDefaultLlmId.ToUpperInvariant(); })], defaultLlmId)?.Name == "Case",
+                "a mode on an id in different case did not protect the default it runs on");
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("Case", m => { m.PostProcessingProvider = localLlm; m.LocalPostProcessingModel = nonDefaultLlmId.ToUpperInvariant(); })], nonDefaultLlmId) == null,
+                "a mode on an id in different case blocked a model the runtime never loads for it");
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("Unknown", m => { m.PostProcessingProvider = localLlm; m.LocalPostProcessingModel = "retired-model.gguf"; })], defaultLlmId)?.Name == "Unknown",
+                "a mode on an unknown id did not protect the default it runs on");
+            // A cloud id (even a retired one that migrates) is another provider's,
+            // so a local-LLM mode holding one runs on the default local model.
             const string retiredId = "llama-3.1-8b";
-            var migratedId = LanguageModelInfo.MigrateModelId(retiredId)!;
-            Assert(migratedId != retiredId, $"test premise: {retiredId} no longer migrates");
-            Assert(ModelInUse.FindModeUsingLocalLlm([M("Old", m => { m.PostProcessingProvider = localLlm; m.LanguageModel = retiredId; })], migratedId)?.Name == "Old",
-                "a mode on a retired id did not protect the model it migrates to");
+            Assert(LanguageModelInfo.MigrateModelId(retiredId) != retiredId, $"test premise: {retiredId} no longer migrates");
+            Assert(ModelInUse.FindModeUsingLocalLlm([M("Old", m => { m.PostProcessingProvider = localLlm; m.LanguageModel = retiredId; })], defaultLlmId)?.Name == "Old",
+                "a local-LLM mode on a retired cloud id did not protect the default it runs on");
             Assert(ModelInUse.FindModeUsingLocalLlm([M("Other", m => { m.PostProcessingProvider = localLlm; m.LocalPostProcessingModel = otherLlmId; })], llmId) == null,
                 "a mode on a different local model blocked the delete");
             Assert(ModelInUse.FindModeUsingLocalLlm([M("Cloud", m => { m.PostProcessingProvider = "openai"; m.LanguageModel = llmId; })], llmId) == null,
@@ -333,6 +350,16 @@ internal static class ScriptGuardPorts
                 "a local Parakeet mode did not protect its model");
             Assert(ModelInUse.FindModeUsingParakeetModel([M("P", m => { m.ProviderType = "local"; m.LocalEngine = "whisper"; m.LocalParakeetModel = "pk"; })], "pk") == null,
                 "a Whisper-engine mode's leftover Parakeet model blocked the delete");
+            Assert(ModelInUse.FindModeUsingWhisperModel([M("WNoEngine", m => { m.ProviderType = "local"; m.LocalEngine = ""; m.ModelType = "base"; })], "base")?.Name == "WNoEngine",
+                "a local mode with no engine set (it runs Whisper) did not protect its model");
+            Assert(ModelInUse.FindModeUsingWhisperModel([M("WNull", m => { m.ProviderType = null; m.LocalEngine = "whisper"; m.ModelType = "base"; })], "base")?.Name == "WNull",
+                "a mode with no ProviderType (it runs locally) did not protect its model");
+            Assert(ModelInUse.FindModeUsingWhisperModel([M("WNew", m => { m.ProviderType = "local"; m.LocalEngine = "whisper"; m.ModelType = "small"; m.Model = "base"; })], "base") == null,
+                "a stale legacy Model blocked a delete the mode's ModelType does not use");
+            Assert(ModelInUse.FindModeUsingWhisperModel([M("WCase", m => { m.ProviderType = "local"; m.LocalEngine = "whisper"; m.ModelType = "BASE"; })], "base") == null,
+                "an id in different case blocked a delete; the runtime loads Whisper types by exact match");
+            Assert(ModelInUse.FindModeUsingParakeetModel([M("P", m => { m.ProviderType = "local"; m.LocalEngine = "Parakeet"; m.LocalParakeetModel = "pk"; })], "pk") == null,
+                "a mode whose engine is not exactly \"parakeet\" (it runs Whisper) blocked a Parakeet delete");
         });
 
         run("prompt: each detected app type puts its own context block in the AI prompt (#830)", () =>

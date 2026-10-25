@@ -366,22 +366,17 @@ public class PostProcessingService : IDisposable
                 }
             }
 
-            var selectedModelId = provider == PostProcessingProvider.LocalLlm
-                ? mode.LocalPostProcessingModel ?? mode.LanguageModel
-                : mode.LanguageModel;
-            var modelIdMigrated = LanguageModelInfo.MigrateModelId(selectedModelId);
-            var model = LanguageModelInfo.GetById(modelIdMigrated ?? "");
-            if (model == null || model.Provider != provider)
+            var selectedModelId = SelectedModelId(mode, provider);
+            var model = ResolveModel(provider, selectedModelId);
+            if (model == null)
             {
-                var fallback = LanguageModelInfo.GetDefaultForProvider(provider);
-                if (fallback == null)
-                {
-                    LoggingService.Warn($"PostProcessingService: Unknown model '{selectedModelId}' for {provider}");
-                    return PostProcessingResult.Skipped(text);
-                }
+                LoggingService.Warn($"PostProcessingService: Unknown model '{selectedModelId}' for {provider}");
+                return PostProcessingResult.Skipped(text);
+            }
 
-                LoggingService.Warn($"PostProcessingService: Unknown model '{selectedModelId}' for {provider}; using {fallback.Id}");
-                model = fallback;
+            if (model.Id != LanguageModelInfo.MigrateModelId(selectedModelId))
+            {
+                LoggingService.Warn($"PostProcessingService: Unknown model '{selectedModelId}' for {provider}; using {model.Id}");
             }
             resolvedModelId = model.Id;
         }
@@ -552,6 +547,29 @@ public class PostProcessingService : IDisposable
         _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Provider has no shared LLM builder arm")
     };
 
+    /// <summary>
+    /// The model id a mode stores for this provider. A local-LLM mode keeps its
+    /// GGUF in <see cref="Mode.LocalPostProcessingModel"/>; older modes kept it in
+    /// the legacy <see cref="Mode.LanguageModel"/>.
+    /// </summary>
+    internal static string? SelectedModelId(Mode mode, PostProcessingProvider provider) =>
+        provider == PostProcessingProvider.LocalLlm
+            ? mode.LocalPostProcessingModel ?? mode.LanguageModel
+            : mode.LanguageModel;
+
+    /// <summary>
+    /// The model an AI rewrite actually runs on: the stored id after
+    /// <see cref="LanguageModelInfo.MigrateModelId"/>, or the provider's default
+    /// when that id is missing, unknown or another provider's. Null only when the
+    /// provider has no models. <see cref="ModelInUse"/> asks the same question (#2536).
+    /// </summary>
+    internal static LanguageModelInfo? ResolveModel(PostProcessingProvider provider, string? selectedModelId)
+    {
+        var model = LanguageModelInfo.GetById(LanguageModelInfo.MigrateModelId(selectedModelId));
+        return model != null && model.Provider == provider
+            ? model
+            : LanguageModelInfo.GetDefaultForProvider(provider);
+    }
 
     /// <summary>
     /// The shared completion policy for an in-process local model, plus one check
@@ -597,7 +615,7 @@ public class PostProcessingService : IDisposable
                 "Local LLM post-processing is not supported by this Windows architecture.");
         }
 
-        var model = LocalLlmModelInfo.GetById(modelId) ?? LocalLlmModelInfo.GetDefault();
+        var model = LocalLlmModelInfo.GetByIdOrDefault(modelId);
         if (!_localLlmModelService.IsModelDownloaded(model))
         {
             throw new FileNotFoundException(
