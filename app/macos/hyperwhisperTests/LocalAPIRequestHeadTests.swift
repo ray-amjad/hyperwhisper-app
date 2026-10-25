@@ -240,10 +240,14 @@ struct LocalAPIRequestHeadTests {
     /// A client that sends part of a head and then goes quiet loses the
     /// connection at the deadline, with no answer, and does not hold its server
     /// task. The deadline is injected (0.5 s) so the test does not wait 10 s.
+    /// The upper bound is the production deadline, not a few seconds: a 3 s
+    /// bound failed once in 20 full-bundle runs on a loaded runner (#2221).
+    /// Closing before 10 s still proves the injected deadline closed it, and
+    /// `readToClose` throws `timedOut` if the server never closes at all.
     @Test func aHeadThatStallsIsDroppedAtTheDeadline() async throws {
         try await withProbe(headReadDeadline: 0.5) { port in
             let (rest, elapsed) = try await offPool {
-                let connection = try RawConnection(port: port, timeout: 5)
+                let connection = try RawConnection(port: port, timeout: slowRunnerTimeout)
                 defer { connection.close() }
                 let start = Date()
                 try connection.write(Data("GET /health HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\n".utf8))
@@ -252,21 +256,28 @@ struct LocalAPIRequestHeadTests {
             }
             #expect(rest.isEmpty, "a stalled head gets no response, only a close")
             #expect(elapsed >= 0.4, "closed after \(elapsed) s, before the deadline")
-            #expect(elapsed < 3.0, "closed after \(elapsed) s, long after the 0.5 s deadline")
+            #expect(
+                elapsed < LocalAPIRequestHeadLimit.readDeadline,
+                "closed after \(elapsed) s, not by the injected 0.5 s deadline"
+            )
         }
     }
 
     /// A connection that never sends a byte is closed at the deadline too.
+    /// Bounded the same way as the stalled head above.
     @Test func aSilentConnectionIsDroppedAtTheDeadline() async throws {
         try await withProbe(headReadDeadline: 0.5) { port in
             let elapsed = try await offPool {
-                let connection = try RawConnection(port: port, timeout: 5)
+                let connection = try RawConnection(port: port, timeout: slowRunnerTimeout)
                 defer { connection.close() }
                 let start = Date()
                 _ = try connection.readToClose()
                 return Date().timeIntervalSince(start)
             }
-            #expect(elapsed < 3.0, "a silent connection stayed open \(elapsed) s")
+            #expect(
+                elapsed < LocalAPIRequestHeadLimit.readDeadline,
+                "a silent connection stayed open \(elapsed) s, past the injected 0.5 s deadline"
+            )
         }
     }
 }
