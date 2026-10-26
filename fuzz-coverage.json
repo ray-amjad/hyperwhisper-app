@@ -856,6 +856,22 @@
       ],
       "licensed": false,
       "note": "Unlicensed (no HYPERWHISPER_ACCOUNT_KEY). Core DLL from 6c437127 (empty shared-core-rs diff). Seeded 6 History rows via python sqlite3 (app must be stopped first, else cp get reads zeros). History search/delete/Home stats, backup export+import, updates toggle persistence and home stats gear all clean. Codex's 2 updates clicks found #2594 (stacked hidden Up-to-Date dialog). Backup export defaults to the user's real Documents folder: delete it after. Seeded failed rows need non-empty Text (real failures write the reason into Text)."
+    },
+    {
+      "at": "2026-10-26T04:14:21Z",
+      "platform": "linux",
+      "commit": "6e3e06c2",
+      "routes": [
+        "updates",
+        "streaming",
+        "onboarding"
+      ],
+      "status": "1-filed",
+      "issues": [
+        2596
+      ],
+      "licensed": false,
+      "note": "unlicensed. Codex 0 defects on all 3; #2596 from my code read (autoUpdateEnabled saved, never read on Linux). Streaming re-hit #1348 (Nova 3 Medical offers all languages, still open; not re-commented). Onboarding Skip after picking mic saves no mic (auto-pick by design). Updates About dialog honest."
     }
   ]
 }
