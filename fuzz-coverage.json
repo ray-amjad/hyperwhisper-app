@@ -872,6 +872,22 @@
       ],
       "licensed": false,
       "note": "unlicensed. Codex 0 defects on all 3; #2596 from my code read (autoUpdateEnabled saved, never read on Linux). Streaming re-hit #1348 (Nova 3 Medical offers all languages, still open; not re-commented). Onboarding Skip after picking mic saves no mic (auto-pick by design). Updates About dialog honest."
+    },
+    {
+      "at": "2026-10-26T16:17:04Z",
+      "platform": "linux",
+      "commit": "6e3e06c2",
+      "routes": [
+        "vocabulary",
+        "provider-settings",
+        "home-and-tray"
+      ],
+      "status": "1-filed",
+      "issues": [
+        2599
+      ],
+      "licensed": false,
+      "note": "Codex 0 on all 3 again; #2599 from my read of the status bar during a Home recording (hint appended to every status). Vocabulary: #2323/#2324 closed+fixed, dup/empty/case checks clean. API Keys dialog: trims, 0600, Saved label OK; only nit = 'Credential deleted' on a never-set key (not filed). Unlicensed."
     }
   ]
 }
