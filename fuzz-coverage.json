@@ -840,6 +840,22 @@
       ],
       "licensed": false,
       "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY); History empty so entry select/copy/retry/delete unwalked; backup pickers opened+cancelled only, no export/import round-trip. Not defects: token Copy 'No supported clipboard helper' (sandbox lacks xclip/wl-copy); in-use preferred port falls back to ephemeral by design; Tab from port field focuses title-bar minimise, Return then hides window to tray (MinimizeToTray) - looks like a crash on headless."
+    },
+    {
+      "at": "2026-10-26T02:19:27Z",
+      "platform": "win",
+      "commit": "6e3e06c2",
+      "routes": [
+        "history-and-backup",
+        "updates",
+        "home-and-tray"
+      ],
+      "status": "1-filed",
+      "issues": [
+        2594
+      ],
+      "licensed": false,
+      "note": "Unlicensed (no HYPERWHISPER_ACCOUNT_KEY). Core DLL from 6c437127 (empty shared-core-rs diff). Seeded 6 History rows via python sqlite3 (app must be stopped first, else cp get reads zeros). History search/delete/Home stats, backup export+import, updates toggle persistence and home stats gear all clean. Codex's 2 updates clicks found #2594 (stacked hidden Up-to-Date dialog). Backup export defaults to the user's real Documents folder: delete it after. Seeded failed rows need non-empty Text (real failures write the reason into Text)."
     }
   ]
 }
