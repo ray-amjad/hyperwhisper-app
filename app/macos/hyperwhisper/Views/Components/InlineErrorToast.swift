@@ -8,7 +8,7 @@
 //
 //  DESIGN SPECIFICATIONS:
 //  - Shape: Rounded pill (same as RecordingDialog - cornerRadius: height/2)
-//  - Size: ~280x40px (slightly wider than recording dialog's 200x40)
+//  - Size: 360x40px (wider than recording dialog's 200x40)
 //  - Background: Same as recording dialog (Color.black.opacity(0.85))
 //  - Border: Same subtle white border (Color.white.opacity(0.1))
 //

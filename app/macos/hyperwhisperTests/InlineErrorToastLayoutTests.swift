@@ -96,18 +96,23 @@ struct InlineErrorToastLayoutTests {
         return toasts
     }
 
-    /// The fix only works if the copy really needs a second line; a toast that
-    /// fit on one line would not have shown the bug in the first place.
-    @Test func everyKeptTranscriptToastSaysSoAndNeedsMoreThanOneLine() throws {
+    /// The toasts under test are the kept-transcript ones, and the toast the
+    /// issue captured ("OpenAI rejected your API key — yo...") really needs a
+    /// second line, so the old one-line layout did cut it. Shorter ones (no
+    /// Settings button, a short provider name) may fit one line; that is fine.
+    @Test func theIssuesToastNeedsMoreThanOneLine() throws {
         let toasts = try Self.keptTranscriptToasts()
         #expect(toasts.count == 1 + 4 * PostProcessingProvider.allCases.count)
-        let oneLine = Self.messageHeight("Ag", width: 1000)
         for toast in toasts {
             #expect(toast.message.contains("your raw transcript was kept"), "\(toast.message)")
-            let width = Self.messageColumnWidth(showSettingsButton: toast.showSettingsButton)
-            #expect(Self.messageHeight(toast.message, width: width) > oneLine * 1.5,
-                    "'\(toast.message)' fits one line, so it never needed the fix")
         }
+        let issueToast = try #require(toasts.first {
+            $0.message == "OpenAI rejected your API key — your raw transcript was kept."
+        })
+        #expect(issueToast.showSettingsButton)
+        let oneLine = Self.messageHeight("Ag", width: 1000)
+        let width = Self.messageColumnWidth(showSettingsButton: true)
+        #expect(Self.messageHeight(issueToast.message, width: width) > oneLine * 1.5)
     }
 
     /// The acceptance check of #1563: each English toast shows its whole text,
