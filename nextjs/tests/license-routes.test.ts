@@ -1055,7 +1055,7 @@ describe("a NUL byte in a device field never reaches the device write (#2688)", 
     );
   });
 
-  test("validate: a NUL device_name records the device with the NUL removed", async () => {
+  test("validate: a NUL device_name records the device with the NUL as a space", async () => {
     storeRow(accountKeyRow({ key: GRANTED_KEY, id: "key_row_9" }));
     const { POST } = await loadValidateRoute();
 
@@ -1069,7 +1069,43 @@ describe("a NUL byte in a device field never reaches the device write (#2688)", 
 
     assert.equal(response.status, 200);
     assert.deepEqual(calls.upsertDeviceValidation, [
-      { licenseKeyId: "key_row_9", deviceId: "device-abc", deviceName: "StudioMac" },
+      { licenseKeyId: "key_row_9", deviceId: "device-abc", deviceName: "Studio Mac" },
     ]);
+  });
+
+  test("validate: a device_name of only NULs records the device with an empty name", async () => {
+    storeRow(accountKeyRow({ key: GRANTED_KEY, id: "key_row_9" }));
+    const { POST } = await loadValidateRoute();
+
+    const response = await POST(
+      postRequest(VALIDATE_PATH, {
+        license_key: GRANTED_KEY,
+        device_id: "device-abc",
+        device_name: "\0\0",
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(calls.upsertDeviceValidation, [
+      { licenseKeyId: "key_row_9", deviceId: "device-abc", deviceName: "" },
+    ]);
+  });
+
+  test("validate: a rejected key with a NUL device_id logs no device warning", async () => {
+    const { POST } = await loadValidateRoute();
+    warnLines.length = 0;
+
+    const response = await POST(
+      postRequest(VALIDATE_PATH, {
+        license_key: "HW-NOPE-NOPE-NOPE-NOPE",
+        device_id: "device-abc\0",
+      }),
+    );
+
+    assert.notEqual(response.status, 200);
+    assert.deepEqual(
+      warnLines.filter((line) => line.includes("device_id contains NUL")),
+      [],
+    );
   });
 });

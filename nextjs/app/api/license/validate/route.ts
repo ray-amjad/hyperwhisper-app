@@ -23,8 +23,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * byte in a text parameter (#2688), which failed the whole device write:
  * - a `device_id` with NUL is malformed, so the device is not tracked (a
  *   warning says so; stripping could merge two ids into one row);
- * - a `device_name` with NUL loses the NUL. Dropping the name instead would
- *   make the upsert overwrite a stored name with null.
+ * - a `device_name` with NUL has each NUL replaced by a space (then trimmed),
+ *   so the name is kept (dropping it would make the upsert overwrite a stored
+ *   name with null) and "Studio\0Mac" stays two words. A name that is only NULs and spaces
+ *   ends up empty and is handled like an empty name today.
+ * Called only once the key is valid, so a rejected key logs no warning.
  */
 function deviceFields(payload: Record<string, unknown>): {
   deviceId?: string;
@@ -40,10 +43,12 @@ function deviceFields(payload: Record<string, unknown>): {
     deviceId = undefined;
   }
 
-  const deviceName =
-    typeof payload.device_name === "string"
-      ? payload.device_name.replaceAll("\0", "")
-      : undefined;
+  let deviceName =
+    typeof payload.device_name === "string" ? payload.device_name : undefined;
+
+  if (deviceName !== undefined && !isStorableText(deviceName)) {
+    deviceName = deviceName.replaceAll("\0", " ").trim();
+  }
 
   return { deviceId, deviceName };
 }
@@ -155,8 +160,6 @@ export async function POST(req: NextRequest) {
       ? payload.license_key.trim()
       : undefined;
   const include_credits = payload.include_credits === true;
-  const { deviceId: device_id, deviceName: device_name } =
-    deviceFields(payload);
   const probe_only = payload.probe_only === true;
 
   if (!license_key) {
@@ -187,8 +190,9 @@ export async function POST(req: NextRequest) {
     const license = result.license;
 
     // DEVICE TRACKING: Record device validation for fair usage monitoring
-    if (device_id) {
-      await trackDeviceValidation(license.id, device_id, device_name);
+    const { deviceId, deviceName } = deviceFields(payload);
+    if (deviceId) {
+      await trackDeviceValidation(license.id, deviceId, deviceName);
     }
 
     // License is valid - return extended info if requested
