@@ -656,8 +656,12 @@ struct FileJobAskFirstTests {
         if engineRunsBoth {
             #expect(await Rig.eventually { provider.started.count == 2 }, "the History retry never started")
         } else {
-            // One pass at a time: the History retry waits for the engine.
-            try await Task.sleep(nanoseconds: 300_000_000)
+            // One pass at a time: the History retry queues for the engine.
+            // Queued means it is past its own same-kind cancel step, so the
+            // asserts below see whatever it would have cancelled.
+            let engine = TranscriptionEngineAccess.key(for: provider)
+            #expect(await Rig.eventually { pipeline.engineAccess.waiterCount(on: engine) == 1 },
+                    "the History retry never queued for the engine")
             #expect(provider.started.count == 1)
         }
         #expect(provider.cancelled.isEmpty, "the History retry cancelled the pending retry")
