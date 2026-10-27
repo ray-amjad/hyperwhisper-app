@@ -4,7 +4,7 @@
  * All database operations go through Drizzle ORM (Neon/PlanetScale).
  */
 
-import { eq, ne, and, or, asc, desc, gte, inArray, count, countDistinct, sql, ilike } from "drizzle-orm";
+import { eq, ne, and, or, asc, desc, gte, inArray, count, countDistinct, sql, ilike, type SQL } from "drizzle-orm";
 import { generateLicenseKey } from "@/lib/services/license-key";
 import { db } from "@/src/db";
 import {
@@ -739,6 +739,17 @@ export async function hasProcessedStripeObject(stripeObjectId: string): Promise<
  * `refunded_amount` so the running total stays right. The caller sees the gap
  * as `refundedAmount - removedAmount` and logs it.
  */
+/**
+ * True (in SQL) when `remaining` is stored as 0.00 or less. Grant amounts are
+ * subtracted in floating point, so a grant can be left with a residue like
+ * 2.78e-17 that the numeric(20,2) column stores as 0.00. A grant's status is
+ * decided on the stored value, so a grant that holds 0.00 is never left
+ * 'active' (#2620).
+ */
+function storesAsZero(remaining: number): SQL {
+  return sql`${remaining.toString()}::numeric(20,2) <= 0`;
+}
+
 export async function refundCreditGrant(
   data: CreditGrantRefund
 ): Promise<CreditGrantRefundResult> {
@@ -795,7 +806,7 @@ export async function refundCreditGrant(
         // A grant with nothing left after a refund is closed as refunded. A
         // partly refunded grant with credits left keeps its status, so the
         // rest stays spendable.
-        status: newRemaining <= 0 ? "refunded" : grant.status,
+        status: sql`CASE WHEN ${storesAsZero(newRemaining)} THEN 'refunded' ELSE ${grant.status} END`,
         updatedAt: new Date(),
       })
       .where(eq(creditGrants.id, grant.id));
@@ -849,16 +860,11 @@ export async function spendCreditGrantsByProvenance(
       if (deduction <= 0) continue;
 
       const newRemaining = grantRemaining - deduction;
-      // The subtraction is in floating point, so a charge that spans two grants
-      // can leave a residue like 2.78e-17 that the numeric(20,2) column stores as
-      // 0.00. Decide the status on the stored (rounded) value, so a grant that
-      // holds 0.00 is always 'spent' (#2620).
-      const storedRemaining = sql`${newRemaining.toString()}::numeric(20,2)`;
       await tx
         .update(creditGrants)
         .set({
           remainingAmount: newRemaining.toString(),
-          status: sql`CASE WHEN ${storedRemaining} <= 0 THEN 'spent' ELSE 'active' END`,
+          status: sql`CASE WHEN ${storesAsZero(newRemaining)} THEN 'spent' ELSE 'active' END`,
           updatedAt: new Date(),
         })
         .where(eq(creditGrants.id, grant.id));
