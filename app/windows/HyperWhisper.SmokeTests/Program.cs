@@ -26922,6 +26922,7 @@ internal static class Program
             SynchronizationContext.SetSynchronizationContext(assemblyAiPreviousContext);
             ScriptGuardPorts.RunAll(Run);
             OutputMuteOwnershipChecks.RunAll(Run);
+            CloudCreditsWarningChecks.RunAll(Run);
             PendingHistoryUnreadableChecks.RunAll(Run);
 
             // Issue #738: LicenseNetworkService over a scripted HttpClient (its internal
