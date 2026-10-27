@@ -36,7 +36,8 @@ export async function POST(req: NextRequest) {
       ? body.license_key
       : undefined;
 
-  if (typeof license_key !== "string" || !license_key) {
+  // Trimmed before the required check, as activate and validate do (#2319).
+  if (typeof license_key !== "string" || !license_key.trim()) {
     return NextResponse.json(
       { success: false, error: "License key is required" },
       { status: 400 }

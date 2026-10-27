@@ -58,6 +58,13 @@ pub const ENDPOINT: &str = "https://api.deepgram.com/v1/listen";
 /// The `cloud-stt-catalog.json` entry this provider's models live under.
 pub const CATALOG_ENTRY_ID: &str = "deepgramNova3";
 
+/// At most this many `keyterm` / `keywords` values per request. Deepgram holds
+/// all keyterms to a 500-token total and answers 400 past it, a non-retryable
+/// failure. 100 is the cap the live path (`live/deepgram.rs`), the Cloud
+/// adapter (`hyperwhisper-cloud` `providers/deepgram.ts`) and the macOS
+/// vocabulary copy ("only the first 100 are used") already apply.
+pub const MAX_KEYTERMS: usize = 100;
+
 /// Default model when the caller leaves `params.model` empty (and the resolved
 /// model is empty). Read from the shared catalog, which macOS and Windows read
 /// too — see [`super::defaults`] and issue #580.
@@ -181,7 +188,7 @@ pub fn build_transcribe_request(
     // Model-dependent vocabulary. Terms are routed through the shared sanitizer
     // so provider egress applies identical filtering/dedup/length caps.
     if let Some(param) = vocab_param_name(&model, monolingual) {
-        for t in crate::helpers::keyword_boost_terms(&params.vocabulary, None) {
+        for t in crate::helpers::keyword_boost_terms(&params.vocabulary, Some(MAX_KEYTERMS)) {
             let value = if param == "keyterm" {
                 // Nova-3 monolingual: bare term, no intensifier.
                 t.to_string()

@@ -723,10 +723,17 @@ describe("POST /api/license/deactivate", () => {
     });
   });
 
-  test("rejects an absent, empty or non-string license_key", async () => {
+  test("rejects an absent, empty, whitespace-only or non-string license_key", async () => {
     const { POST } = await loadDeactivateRoute();
 
-    for (const body of [{}, { license_key: "" }, { license_key: 5 }, []]) {
+    for (const body of [
+      {},
+      { license_key: "" },
+      { license_key: "   " },
+      { license_key: " \t\n" },
+      { license_key: 5 },
+      [],
+    ]) {
       const response = await POST(postRequest(DEACTIVATE_PATH, body));
 
       assert.equal(response.status, 400, JSON.stringify(body));
@@ -965,4 +972,57 @@ describe("the licence routes fail open when the rate limiter is down (#2058)", (
       assert.equal(body.reason, "not_entitled");
     });
   }
+});
+
+describe("a key containing a NUL byte is a bad request, not a server fault (#2079)", () => {
+  /** What Postgres does with 0x00 in a text parameter (SQLSTATE 22021). */
+  function postgresRefusesNul(): Error {
+    return Object.assign(
+      new Error('invalid byte sequence for encoding "UTF8": 0x00'),
+      { code: "22021" },
+    );
+  }
+
+  const cases = [
+    { name: "validate", path: VALIDATE_PATH, load: loadValidateRoute, extra: {} },
+    {
+      name: "validate probe_only",
+      path: VALIDATE_PATH,
+      load: loadValidateRoute,
+      extra: { probe_only: true },
+    },
+    { name: "activate", path: ACTIVATE_PATH, load: loadActivateRoute, extra: {} },
+  ];
+
+  for (const { name, path, load, extra } of cases) {
+    test(`${name}: answers 400 bad_request and never queries the database`, async () => {
+      behaviour.lookupError = postgresRefusesNul();
+      const { POST } = await load();
+
+      const response = await POST(
+        postRequest(path, { license_key: "HW-AAAA-BBBB-CCCC-DD\0D", ...extra }),
+      );
+      const body = await readJson(response);
+
+      assert.equal(response.status, 400);
+      assert.deepEqual(body, {
+        valid: false,
+        error: "Invalid license key",
+        reason: "bad_request",
+      });
+      assert.deepEqual(calls.findAccountByKey, []);
+    });
+  }
+
+  test("a real database fault is still a 500 lookup_failed", async () => {
+    behaviour.lookupError = postgresRefusesNul();
+    const { POST } = await loadValidateRoute();
+
+    const response = await POST(
+      postRequest(VALIDATE_PATH, { license_key: GRANTED_KEY }),
+    );
+
+    assert.equal(response.status, 500);
+    assert.equal((await readJson(response)).reason, "lookup_failed");
+  });
 });
