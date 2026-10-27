@@ -80,8 +80,10 @@ function PopCredits({ text }: { text: string }) {
 
   if (changes === 0) return text;
 
+  // nowrap: the split characters are inline-blocks, and the line may not
+  // break between them where the plain text could not break.
   return (
-    <span key={changes}>
+    <span key={changes} className="whitespace-nowrap">
       <span className="sr-only">{text}</span>
       {Array.from(text).map((char, index) => (
         <span
