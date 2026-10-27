@@ -80,8 +80,8 @@ function formatCurrency(cents: number) {
   return currencyFormatter.format(cents / 100);
 }
 
-// The height tween below: --motion-ease-smooth-out over 300 ms, the
-// `01-card-resize` timing the other resizing boxes use (.t-resize).
+// The height tween: 300 ms on --motion-ease-smooth-out, the `01-card-resize`
+// timing #916 asked for.
 const HEIGHT_TWEEN_MS = 300;
 const HEIGHT_TRANSITION = `height ${HEIGHT_TWEEN_MS}ms var(--motion-ease-smooth-out)`;
 
@@ -95,7 +95,11 @@ const HEIGHT_TRANSITION = `height ${HEIGHT_TWEEN_MS}ms var(--motion-ease-smooth-
  * inline editor or an error reveal inside it sizes it at once, as before. The
  * same pin-then-release as SignInClient (#752) and the /download panel (#767).
  * Under reduced motion the global guard in globals.css ends the transition at
- * once, and the timer unpins it either way.
+ * once.
+ *
+ * Only a change from one value of `trigger` to another tweens: the first
+ * value after `undefined` (the first load's rows replacing the skeleton)
+ * lands at once, as before.
  *
  * `transition` is any other transition the box keeps (the table's in-flight
  * dim); it is listed beside height, never as `all` (#668).
@@ -112,40 +116,54 @@ function HeightTween({
   children: ReactNode;
 }) {
   const box = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
   const settledHeight = useRef<number | null>(null);
-  // Ends the tween in flight, so a second change mid-tween starts from where
-  // the box is now.
-  const stopTween = useRef<(() => void) | null>(null);
+  const previousTrigger = useRef(trigger);
+  // The tween in flight: `stop` ends it (a second change mid-tween starts
+  // from where the box is now), `retarget` moves its end height.
+  const tween = useRef<{ stop: () => void; retarget: () => void } | null>(null);
 
   useEffect(() => {
     const element = box.current;
+    const inner = content.current;
 
-    if (!element) return;
+    if (!element || !inner) return;
 
     // Reports after layout and before paint, so it always holds the height
-    // the last painted frame showed. A pinned height mid-tween is not settled.
+    // the last painted frame showed. Mid-tween the box is pinned, so a change
+    // of the content's own size (an editor opening) moves the pin instead:
+    // nothing is clipped, and nothing jumps when the pin comes off.
     const observer = new ResizeObserver(() => {
-      if (!stopTween.current) settledHeight.current = element.offsetHeight;
+      if (tween.current) tween.current.retarget();
+      else settledHeight.current = element.offsetHeight;
     });
 
     observer.observe(element);
+    observer.observe(inner);
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      tween.current?.stop();
+    };
   }, []);
 
   useLayoutEffect(() => {
     const element = box.current;
+    const inner = content.current;
+    const previous = previousTrigger.current;
 
-    if (!element) return;
+    previousTrigger.current = trigger;
+    if (!element || !inner || previous === undefined) return;
 
     let from = settledHeight.current;
 
-    if (stopTween.current) {
+    if (tween.current) {
       // The computed height mid-transition is where the box is drawn now
       // (offsetHeight would read the pinned target).
       from = parseFloat(getComputedStyle(element).height);
-      stopTween.current();
+      tween.current.stop();
     }
+
     const to = element.offsetHeight;
 
     if (from === null || Math.abs(from - to) < 1) return;
@@ -161,20 +179,32 @@ function HeightTween({
       element.removeEventListener("transitionend", onEnd);
       element.style.height = "";
       element.style.overflow = "";
-      stopTween.current = null;
+      tween.current = null;
       settledHeight.current = element.offsetHeight;
     };
     // Children's transitions bubble here too; only the box's own counts.
     const onEnd = (event: TransitionEvent) => {
       if (event.target === element && event.propertyName === "height") unpin();
     };
-    // A transition that never runs fires no transitionend.
-    const timer = window.setTimeout(unpin, HEIGHT_TWEEN_MS + 100);
+    // A transition that never runs fires no transitionend. Generous, so a
+    // slow first paint of 100 rows cannot unpin the box mid-tween.
+    const bound = () => window.setTimeout(unpin, HEIGHT_TWEEN_MS + 1000);
+    let timer = bound();
 
     element.addEventListener("transitionend", onEnd);
-    stopTween.current = unpin;
-    // No cleanup: Strict Mode's dev-only re-run would unpin the box before
-    // the tween ran. The timer bounds the pin either way.
+    tween.current = {
+      stop: unpin,
+      retarget: () => {
+        const chrome = element.offsetHeight - element.clientHeight;
+        const target = inner.offsetHeight + chrome;
+
+        // Its own frames report too; a pixel of rounding is not a change.
+        if (Math.abs(parseFloat(element.style.height) - target) < 2) return;
+        element.style.height = `${target}px`;
+        window.clearTimeout(timer);
+        timer = bound();
+      },
+    };
   }, [trigger]);
 
   const style: CSSProperties = {
@@ -183,9 +213,12 @@ function HeightTween({
       : HEIGHT_TRANSITION,
   };
 
+  // flow-root: the content's own margins count in its measured height.
   return (
     <div ref={box} className={className} style={style}>
-      {children}
+      <div ref={content} className="flow-root">
+        {children}
+      </div>
     </div>
   );
 }
