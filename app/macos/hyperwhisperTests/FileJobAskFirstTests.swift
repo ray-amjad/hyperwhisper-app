@@ -628,6 +628,81 @@ struct FileJobAskFirstTests {
         #expect(await Rig.eventually { pipeline.state == .idle })
     }
 
+    /// #1394 path 3: History's Retry with… runs as a file job, so it never
+    /// cancels an in-flight pending-file retry, which runs as a dictation. No
+    /// cancel means the retry's catch never writes "Error: …cancelled".
+    @Test(arguments: [true, false])
+    func aHistoryRetryWithLeavesADictationRunning(engineRunsBoth: Bool) async throws {
+        let provider = HeldTranscriptionProvider(supportsConcurrentPasses: engineRunsBoth)
+        let (pipeline, asks) = Rig.pipeline(provider)
+        let persistence = PersistenceController(inMemory: true)
+        defer { Rig.removeCopiedAudio(persistence) }
+        let mode = Rig.mode(persistence)
+
+        // The pending-file retry runs exactly this call, with the default kind.
+        let pendingAudio = try Rig.toneWAV("pending-retry.wav")
+        let pendingRetry = Task { @MainActor in
+            try await pipeline.transcribeWithDetails(audioURL: pendingAudio, mode: mode)
+        }
+        #expect(await Rig.eventually { provider.started.contains("pending-retry.wav") })
+
+        let retryAudio = try Rig.toneWAV("retry-source.wav")
+        let source = persistence.createProcessingTranscript(duration: 1.5, mode: mode.name, audioFilePath: retryAudio.path)
+        source.setValue("failed", forKey: "status")
+        persistence.save()
+        let handler = TranscriptActionHandler(transcriptionPipeline: pipeline, persistenceController: persistence)
+        #expect(await handler.retryTranscription(source, with: mode))
+
+        if engineRunsBoth {
+            #expect(await Rig.eventually { provider.started.count == 2 }, "the History retry never started")
+        } else {
+            // One pass at a time: the History retry waits for the engine.
+            try await Task.sleep(nanoseconds: 300_000_000)
+            #expect(provider.started.count == 1)
+        }
+        #expect(provider.cancelled.isEmpty, "the History retry cancelled the pending retry")
+        #expect(pipeline.runningTasks[.dictation] != nil, "the pending retry still runs")
+
+        provider.release("pending-retry.wav")
+        let result = try await pendingRetry.value
+        #expect(result.rawText == "held words")
+        #expect(await Rig.eventually { provider.started.count == 2 })
+        provider.releaseAll()
+        #expect(await Rig.eventually { pipeline.fileJobs.running == nil })
+        #expect(provider.cancelled.isEmpty, "neither run was cancelled")
+        #expect(asks.asked == 0, "no file job was running to ask about")
+    }
+
+    /// #1394 path 3, the plain History Retry (`TranscriptionRetryController`).
+    @Test func aHistoryRetryLeavesADictationRunning() async throws {
+        let provider = HeldTranscriptionProvider(supportsConcurrentPasses: true)
+        let (pipeline, asks) = Rig.pipeline(provider)
+        let persistence = PersistenceController(inMemory: true)
+        defer { Rig.removeCopiedAudio(persistence) }
+        let mode = Rig.mode(persistence)
+
+        let pendingAudio = try Rig.toneWAV("pending-retry.wav")
+        let pendingRetry = Task { @MainActor in
+            try await pipeline.transcribeWithDetails(audioURL: pendingAudio, mode: mode)
+        }
+        #expect(await Rig.eventually { provider.started.contains("pending-retry.wav") })
+
+        let reason = "the engine could not decode the audio"
+        let row = try retryRow(persistence, mode, status: "failed", reason: reason, text: "Transcription failed: \(reason)")
+        let handler = TranscriptActionHandler(transcriptionPipeline: pipeline, persistenceController: persistence)
+        let retry = Task { @MainActor in await handler.retryTranscriptionOutcome(row) }
+        #expect(await Rig.eventually { provider.started.count == 2 }, "the History retry never started")
+        #expect(provider.cancelled.isEmpty, "the History retry cancelled the pending retry")
+        #expect(pipeline.runningTasks[.dictation] != nil, "the pending retry still runs")
+
+        provider.releaseAll()
+        let result = try await pendingRetry.value
+        #expect(result.rawText == "held words")
+        _ = await retry.value
+        #expect(provider.cancelled.isEmpty, "neither run was cancelled")
+        #expect(asks.asked == 0)
+    }
+
     @Test func aDictationStillSupersedesADictation() async throws {
         let provider = HeldTranscriptionProvider(supportsConcurrentPasses: false)
         let (pipeline, _) = Rig.pipeline(provider)
