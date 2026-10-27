@@ -168,13 +168,19 @@ function HeightTween({
 
     if (from === null || Math.abs(from - to) < 1) return;
 
+    // Pin the box where it was drawn; the new content must not spill out of
+    // it while it is still shorter.
     element.style.height = `${from}px`;
-    // The new content must not spill out while the box is still shorter.
     element.style.overflow = "clip";
-    void element.offsetHeight;
-    element.style.height = `${to}px`;
+
+    const target = () =>
+      inner.offsetHeight + element.offsetHeight - element.clientHeight;
+    let started = false;
+    let timer = 0;
+    let frame = 0;
 
     const unpin = () => {
+      window.cancelAnimationFrame(frame);
       window.clearTimeout(timer);
       element.removeEventListener("transitionend", onEnd);
       element.style.height = "";
@@ -186,23 +192,38 @@ function HeightTween({
     const onEnd = (event: TransitionEvent) => {
       if (event.target === element && event.propertyName === "height") unpin();
     };
-    // A transition that never runs fires no transitionend. Generous, so a
-    // slow first paint of 100 rows cannot unpin the box mid-tween.
-    const bound = () => window.setTimeout(unpin, HEIGHT_TWEEN_MS + 1000);
-    let timer = bound();
+    // A transition that never runs fires no transitionend.
+    const bound = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(unpin, HEIGHT_TWEEN_MS + 400);
+    };
+
+    // The tween starts two frames later, after the frame that draws the new
+    // content: a 100-row page takes one frame of ~250 ms to lay out and
+    // paint, and a transition started inside it is ~99% done by the first
+    // frame anyone sees (verify on #916). The first callback runs before that
+    // frame is drawn, the second in the frame after it.
+    frame = window.requestAnimationFrame(() => {
+      frame = window.requestAnimationFrame(() => {
+        started = true;
+        element.style.height = `${target()}px`;
+        bound();
+      });
+    });
 
     element.addEventListener("transitionend", onEnd);
     tween.current = {
       stop: unpin,
       retarget: () => {
-        const chrome = element.offsetHeight - element.clientHeight;
-        const target = inner.offsetHeight + chrome;
+        // Before the start the box stays pinned: the content is still being
+        // drawn, and the start reads its height then.
+        if (!started) return;
+        const height = target();
 
         // Its own frames report too; a pixel of rounding is not a change.
-        if (Math.abs(parseFloat(element.style.height) - target) < 2) return;
-        element.style.height = `${target}px`;
-        window.clearTimeout(timer);
-        timer = bound();
+        if (Math.abs(parseFloat(element.style.height) - height) < 2) return;
+        element.style.height = `${height}px`;
+        bound();
       },
     };
   }, [trigger]);
