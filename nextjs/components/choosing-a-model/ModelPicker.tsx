@@ -597,7 +597,7 @@ export default function ModelPicker({ measured, regions }: Props) {
                   : `${best.model.vendorLabel} · runs on HyperWhisper Cloud`}
               </p>
 
-              <dl ref={statsRef} className="mt-6 grid gap-3 sm:grid-cols-4">
+              <dl ref={statsRef} className="mt-6 grid gap-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2.5">
                   <dt className="text-xs uppercase tracking-wider text-gray-400">
                     Word errors
