@@ -95,8 +95,13 @@ struct AppleSpeechTimeLimitTests {
     private struct StubFailure: Error, Equatable {}
 
     /// The timer `run` sleeps on, ended by the test with `fire()` instead of
-    /// by the clock. Like `Task.sleep`, it throws when its task is cancelled.
+    /// by the clock. Like `Task.sleep`, it throws when its task is cancelled,
+    /// unless made with `ignoresCancel`: then it keeps sleeping until fired,
+    /// which lets a test reach the timer path after the work has finished.
     private final class ManualDeadline: @unchecked Sendable {
+        private let ignoresCancel: Bool
+        init(ignoresCancel: Bool = false) { self.ignoresCancel = ignoresCancel }
+
         private let lock = NSLock()
         private var waiting: CheckedContinuation<Void, Error>?
         private var fired = false
@@ -105,7 +110,7 @@ struct AppleSpeechTimeLimitTests {
 
         /// Signalled when `run` starts sleeping on this deadline.
         let armed = DispatchSemaphore(value: 0)
-        /// Signalled when that sleep is cancelled (the work ended first).
+        /// Signalled when that sleep's task is cancelled (the work ended first).
         let didCancel = DispatchSemaphore(value: 0)
 
         /// The limit `run` asked to sleep for.
@@ -135,6 +140,10 @@ struct AppleSpeechTimeLimitTests {
                     armed.signal()
                 }
             } onCancel: {
+                if ignoresCancel {
+                    didCancel.signal()
+                    return
+                }
                 lock.lock()
                 cancelled = true
                 let continuation = waiting
@@ -201,7 +210,9 @@ struct AppleSpeechTimeLimitTests {
         #expect(await waitOffThePool(for: parking.didPark, seconds: Self.hangGuard), "the operation never started")
         #expect(deadline.requestedLimit == limit)
         // Before the limit is up, the hung work holds `run`.
-        #expect(await waitOffThePool(for: ended, seconds: 0.2) == false, "run returned before the limit")
+        let returnedEarly = await waitOffThePool(for: ended, seconds: 0.2)
+        #expect(returnedEarly == false, "run returned before the limit")
+        if returnedEarly { ended.signal() } // leave the signal for the wait below
 
         deadline.fire()
         await Self.expectEnds(ended, "run waited on the hung work") { parking.release() }
@@ -285,7 +296,7 @@ struct AppleSpeechTimeLimitTests {
     // MARK: - A normal transcription is not cut short
 
     @Test func aFastOperationReturnsItsValueAndTheHookNeverRuns() async throws {
-        let deadline = ManualDeadline()
+        let deadline = ManualDeadline(ignoresCancel: true)
         let hookRan = DispatchSemaphore(value: 0)
 
         let value = try await AppleSpeechTimeLimit.run(
@@ -299,9 +310,10 @@ struct AppleSpeechTimeLimitTests {
         )
 
         #expect(value == ["hello", "world"])
-        // The timer was cancelled with the work's result, so the hook (the
-        // analyzer cancel) never runs on a finished run. Firing the deadline
-        // afterwards wakes nothing: the cancelled sleep has already thrown.
+        // The timer was cancelled with the work's result. This deadline keeps
+        // sleeping through the cancel, so firing it now runs the timer path
+        // after the result: it must neither run the hook (the analyzer
+        // cancel) nor resume the caller a second time.
         #expect(await waitOffThePool(for: deadline.didCancel, seconds: Self.hangGuard), "the timer was never cancelled")
         deadline.fire()
         #expect(await waitOffThePool(for: hookRan, seconds: 0.5) == false, "onTimeout ran after a finished operation")
@@ -353,7 +365,6 @@ struct AppleSpeechTimeLimitTests {
         caller.cancel()
         // The limit is never up here, so a `run` that waited for it would hang.
         await Self.expectEnds(ended, "the cancellation waited for the limit") { deadline.fire() }
-        deadline.fire()
         let outcome = await caller.value
 
         let error = try #require(outcome.error)
@@ -401,7 +412,9 @@ struct AppleSpeechTimeLimitTests {
         #expect(await waitOffThePool(for: deadline.armed, seconds: Self.hangGuard), "run never started its timer")
         caller.cancel()
         // The work ignores the cancel, so `run` is still waiting...
-        #expect(await waitOffThePool(for: ended, seconds: 0.2) == false, "the ignored cancel ended run")
+        let endedOnCancel = await waitOffThePool(for: ended, seconds: 0.2)
+        #expect(endedOnCancel == false, "the ignored cancel ended run")
+        if endedOnCancel { ended.signal() } // leave the signal for the wait below
         // ...until the limit is up.
         deadline.fire()
         await Self.expectEnds(ended, "the limit did not end run") { parking.release() }
