@@ -1124,7 +1124,7 @@ describe("a licence key containing a NUL byte is a 400, not a 500 (#2079)", () =
     const response = await GET(getRequest(`${CREDITS_PATH}?license_key=hw-%00abc`));
 
     assert.equal(response.status, 400);
-    assert.deepEqual(await readJson(response), { error: "Invalid license key" });
+    assert.deepEqual(await readJson(response), { error: "License key not found" });
     assert.deepEqual(calls.findAccountByKey, []);
   });
 
@@ -1137,7 +1137,7 @@ describe("a licence key containing a NUL byte is a 400, not a 500 (#2079)", () =
     );
 
     assert.equal(response.status, 400);
-    assert.deepEqual(await readJson(response), { error: "Invalid license key" });
+    assert.deepEqual(await readJson(response), { error: "License key not found" });
     assert.deepEqual(calls.findAccountByKey, []);
     assert.deepEqual(calls.deductCreditBalance, []);
   });

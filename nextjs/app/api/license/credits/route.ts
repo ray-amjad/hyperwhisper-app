@@ -61,9 +61,11 @@ export async function GET(req: NextRequest) {
   }
 
   // A NUL byte would make Postgres throw and land in the 500 below (#2079).
+  // No stored key has one, so it is answered exactly as an unknown key: the
+  // cloud's `isLicenseRefusal` reads this text as "a key we will not charge".
   if (!isLookupableLicenseKey(licenseKey)) {
     return NextResponse.json(
-      { error: "Invalid license key" },
+      { error: "License key not found" },
       { status: 400 }
     );
   }
@@ -159,9 +161,10 @@ export async function POST(req: NextRequest) {
     }
 
     // A NUL byte would make Postgres throw and land in the 500 below (#2079).
+    // Answered as an unknown key, as the GET above explains.
     if (!isLookupableLicenseKey(license_key)) {
       return NextResponse.json(
-        { error: "Invalid license key" },
+        { error: "License key not found" },
         { status: 400 }
       );
     }
