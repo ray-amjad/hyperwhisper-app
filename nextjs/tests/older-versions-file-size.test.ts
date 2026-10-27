@@ -11,9 +11,10 @@
  * This file renders the REAL page with the real `public/appcast-windows.xml`
  * and `public/appcast.xml` data. `renderToStaticMarkup` renders once and runs
  * no effect, so the fetch never happens: `react` is mocked with the real
- * module plus a `useState` that hands the page the parsed versions, the
- * platform under test and `loading: false`. Every other `useState` call goes
- * to React untouched. The parse below mirrors the page's own (`sparkle:version`
+ * module plus a `useState` that hands the page's own first five calls the
+ * parsed versions, the platform under test and `loading: false` (matched by
+ * call order, see `PAGE_STATE`). Every other `useState` call goes to React
+ * untouched. The parse below mirrors the page's own (`sparkle:version`
  * groups the variants, `sparkle:os` names the arch, `length` is the size); the
  * page's parse runs on the browser's DOMParser, which Node does not have.
  */
@@ -78,23 +79,48 @@ const mb = (bytes: number): string => `${(bytes / (1024 * 1024)).toFixed(2)} MB`
 
 /** What the next render's `useState` calls start with; `null` = React's own. */
 let forced: { versions: Version[]; platform: Platform } | null = null;
+/** How many `useState` calls the current forced render has made. */
+let stateCalls = 0;
 
 const realReact = require("react") as typeof import("react");
 // Captured first: the mock below can write its exports back onto this object.
 const realUseState = realReact.useState;
+
+/**
+ * The page's own first five `useState` calls, in order, with the initial value
+ * each one has in `page.tsx`. Only these are forced, matched by CALL ORDER:
+ * the children render after the page returns, so a HeroUI hook's own
+ * `useState([])` (the Button ripple) or `useState(true)` is never touched.
+ * An initial value that no longer matches means the page's state moved, and
+ * the render throws rather than force the wrong slot.
+ */
+const PAGE_STATE: [initial: unknown, forcedValue: (f: NonNullable<typeof forced>) => unknown][] = [
+  ["[]", (f) => f.versions], // versions
+  [true, () => false], // loading
+  [null, () => null], // error
+  ["mac", (f) => f.platform], // selectedPlatform
+  ["mac", (f) => f.platform], // listPlatform
+];
 
 moduleMock.module("react", {
   defaultExport: realReact,
   namedExports: {
     ...realReact,
     useState: (initial: unknown) => {
-      if (forced === null) return realUseState(initial);
-      // `versions` starts as [], `loading` as true, both platforms as "mac".
-      if (Array.isArray(initial)) return [forced.versions, () => {}];
-      if (initial === true) return [false, () => {}];
-      if (initial === "mac") return [forced.platform, () => {}];
+      if (forced === null || stateCalls >= PAGE_STATE.length) {
+        return realUseState(initial);
+      }
+      const [expected, value] = PAGE_STATE[stateCalls];
+      const seen = Array.isArray(initial) ? JSON.stringify(initial) : initial;
 
-      return realUseState(initial);
+      if (seen !== expected) {
+        throw new Error(
+          `page useState #${stateCalls + 1} starts as ${String(seen)}, expected ${String(expected)}`,
+        );
+      }
+      stateCalls += 1;
+
+      return [value(forced), () => {}];
     },
   },
 });
@@ -127,6 +153,7 @@ async function render(platform: Platform, versions: Version[]): Promise<string> 
   };
 
   forced = { versions, platform };
+  stateCalls = 0;
   try {
     return renderToStaticMarkup(createElement(Page));
   } finally {
@@ -150,6 +177,8 @@ function cardFor(html: string, href: string): string {
 /** The markup of the `<a>` whose href is `href`, up to its close. */
 function buttonFor(html: string, href: string): string {
   const at = html.indexOf(`href="${href}"`);
+
+  assert.ok(at > 0, `no link to ${href} in the page`);
   const start = html.lastIndexOf("<a", at);
 
   return html.slice(start, html.indexOf("</a>", at));
