@@ -104,7 +104,7 @@ actor WhisperContext {
     
     // MARK: - Initialization
     
-    /// Use `createContext(path:)` to get a loaded context. Internal, not
+    /// Use `createContext(path:model:)` to get a loaded context. Internal, not
     /// private, so a test can hold an unloaded one (#2048).
     init() {}
     

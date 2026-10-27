@@ -140,14 +140,12 @@ extension SentryService {
         private let lock = NSLock()
         private var engines: Set<NativeEngine> = []
 
-        /// Adds or removes `engine`, then runs `body` with the set after the
-        /// change, still under the lock, so two engines that begin and end at
-        /// once cannot write the `native_init` tag out of order.
-        func update(_ engine: NativeEngine, inFlight: Bool, _ body: (Set<NativeEngine>) -> Void) {
+        /// Runs `body` on the set under the lock, so two engines that begin
+        /// and end at once cannot write the `native_init` tag out of order.
+        func withEngines(_ body: (inout Set<NativeEngine>) -> Void) {
             lock.lock()
             defer { lock.unlock() }
-            if inFlight { engines.insert(engine) } else { engines.remove(engine) }
-            body(engines)
+            body(&engines)
         }
     }
 
@@ -162,11 +160,14 @@ extension SentryService {
     static func beginNativeInit(_ snapshot: NativeInitSnapshot) {
         nativeInitLogger.notice("native init begin \(snapshot.summary, privacy: .public)")
         addBreadcrumb(message: "native init begin", category: "native_init", data: snapshot.tags)
-        nativeInitsInFlight.update(snapshot.engine, inFlight: true) { engines in
+        nativeInitsInFlight.withEngines { engines in
             #if canImport(Sentry)
             // Gated like `setTag`. Not mirrored into `logScopeState`: these
             // are for the crash report, and the Logs path would redact them.
+            // An engine whose tags were not written is not counted in flight,
+            // so `native_init` never names an init the scope says nothing of.
             guard isReportingEnabled else { return }
+            engines.insert(snapshot.engine)
             let inFlight = nativeInitInFlightValue(engines)
             let inFlightKey = nativeInitInFlightTag
             SentrySDK.configureScope { scope in
@@ -186,7 +187,8 @@ extension SentryService {
     /// finished.
     static func endNativeInit(_ engine: NativeEngine, succeeded: Bool) {
         nativeInitLogger.notice("native init end engine=\(engine.rawValue, privacy: .public) succeeded=\(succeeded, privacy: .public)")
-        nativeInitsInFlight.update(engine, inFlight: false) { engines in
+        nativeInitsInFlight.withEngines { engines in
+            engines.remove(engine)
             #if canImport(Sentry)
             // Not gated on the switch: a tag set while it was on must not
             // outlive its init.
