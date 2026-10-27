@@ -48,7 +48,7 @@ use crate::contract::{
     TranscriptionError,
 };
 use crate::helpers::{keyword_boost_terms, resolve_mime, MULTIPART_BOUNDARY};
-use crate::providers::common::{filename_of, retry_after};
+use crate::providers::common::{filename_of, is_out_of_credits_body, retry_after};
 
 /// Soniox API base URL.
 pub const BASE_URL: &str = "https://api.soniox.com/v1";
@@ -426,9 +426,12 @@ fn parse_id(resp: &HttpResponse, op: &str) -> Result<String, TranscriptionError>
 ///
 /// PARITY (`SonioxProvider.swift` `throwForFailure` + `SonioxService.cs`
 /// `HandleErrorResponseAsync`):
-/// - 401 / 403 → `Unauthorized`
+/// - 401 / 403 → `QuotaExceeded` for an out-of-credits body
+///   (`common::is_out_of_credits_body`), else `Unauthorized`
+/// - 402 → `QuotaExceeded`
+/// - 408 → `ProviderUnavailable` (request timeout is transient, same as 5xx)
 /// - 413 → `FileTooLarge`
-/// - 429 → `RateLimited { retry_after_secs }`
+/// - 429 → `RateLimited { retry_after_secs }` (always: no quota-body check)
 /// - 5xx → `ProviderUnavailable`
 /// - 400 / 404 / 409 / other 4xx → `BadRequest` (message from `message`/body)
 fn classify_soniox_http(resp: &HttpResponse, raw: &str) -> TranscriptionError {
@@ -443,7 +446,10 @@ fn classify_soniox_http(resp: &HttpResponse, raw: &str) -> TranscriptionError {
         .map(str::to_string);
 
     match status {
+        401 | 403 if is_out_of_credits_body(raw) => TranscriptionError::QuotaExceeded,
         401 | 403 => TranscriptionError::Unauthorized,
+        402 => TranscriptionError::QuotaExceeded,
+        408 => TranscriptionError::ProviderUnavailable { status },
         413 => TranscriptionError::FileTooLarge,
         429 => TranscriptionError::RateLimited {
             retry_after_secs: retry_after(resp),

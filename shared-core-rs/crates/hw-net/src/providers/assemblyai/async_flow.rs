@@ -207,14 +207,16 @@ pub fn build_poll_request(
 ///
 /// PARITY: a transient HTTP status on a poll (429/5xx) means the job is still
 /// running server-side; the macOS/Windows impls keep polling. We surface those as
-/// [`PollOutcome::Pending`] so the platform retries (401/403 still fail).
+/// [`PollOutcome::Pending`] so the platform retries (401/403 still fail, through
+/// `classify_http`: `QuotaExceeded` for an out-of-credits body, else
+/// `Unauthorized`).
 pub fn parse_poll_response(resp: &HttpResponse) -> Result<PollOutcome, TranscriptionError> {
     let raw = resp.text();
 
     if !(200..=299).contains(&resp.status) {
-        // Unauthorized is terminal; transient statuses keep the loop alive.
+        // Transient statuses keep the loop alive; everything else (401/403
+        // included) is terminal and classified like the upload and create steps.
         match resp.status {
-            401 | 403 => return Err(TranscriptionError::Unauthorized),
             429 | 500..=599 => return Ok(PollOutcome::Pending),
             _ => return Err(classify_http(resp, &raw)),
         }

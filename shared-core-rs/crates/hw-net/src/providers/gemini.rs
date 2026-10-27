@@ -45,7 +45,7 @@ use crate::contract::{
     Body, HttpMethod, HttpRequest, HttpResponse, TranscribeParams, Transcript, TranscriptionError,
 };
 use crate::helpers::{keyword_boost_terms, resolve_mime};
-use crate::providers::common::{filename_of, retry_after};
+use crate::providers::common::{filename_of, is_out_of_credits_body, retry_after};
 
 /// Gemini API root. `params.base_url` overrides it (tests/staging).
 pub const API_ROOT: &str = "https://generativelanguage.googleapis.com";
@@ -426,13 +426,20 @@ pub fn build_delete_request(
 /// inspects the 400 body for non-auth "invalid request" cases, but in the STT
 /// flow a 400 is overwhelmingly an auth/credential problem and both clients
 /// surface it as such — we map 400/401/403 → `Unauthorized` for parity with
-/// Windows and macOS's dominant path.) 429 → `RateLimited`; 5xx →
+/// Windows and macOS's dominant path.) A 401/403 out-of-credits body
+/// (`common::is_out_of_credits_body`) and a 402 → `QuotaExceeded`; 408 →
+/// `ProviderUnavailable` (transient, same as 5xx); 429 → `RateLimited`; 5xx →
 /// `ProviderUnavailable`; other 4xx → `BadRequest`.
 fn classify_gemini(resp: &HttpResponse) -> TranscriptionError {
     let raw = resp.text();
     let msg = gemini_error_message(&raw);
     match resp.status {
+        401 | 403 if is_out_of_credits_body(&raw) => TranscriptionError::QuotaExceeded,
         400 | 401 | 403 => TranscriptionError::Unauthorized,
+        402 => TranscriptionError::QuotaExceeded,
+        408 => TranscriptionError::ProviderUnavailable {
+            status: resp.status,
+        },
         429 => TranscriptionError::RateLimited {
             retry_after_secs: retry_after(resp),
         },

@@ -49,7 +49,7 @@ use crate::contract::{
     TranscriptionError,
 };
 use crate::helpers::resolve_mime;
-use crate::providers::common::retry_after;
+use crate::providers::common::{is_out_of_credits_body, retry_after};
 use crate::providers::hyperwhisper_cloud::encode_query;
 
 /// Deepgram transcription endpoint.
@@ -307,7 +307,8 @@ pub fn parse_transcribe_response(resp: &HttpResponse) -> Result<Transcript, Tran
 /// Map a non-2xx Deepgram response to a [`TranscriptionError`].
 ///
 /// PARITY (macOS `DeepgramProvider.swift` switch + Windows `HandleErrorResponseAsync`):
-/// - 401 / 403 → `Unauthorized`
+/// - 401 / 403 → `QuotaExceeded` for an out-of-credits body
+///   (`common::is_out_of_credits_body`), else `Unauthorized`
 /// - 402 → `QuotaExceeded` (`ASR_PAYMENT_REQUIRED`: the project is out of
 ///   credits; same as `common::classify_http` and `retry::classify_error`)
 /// - 408 → `ProviderUnavailable` (request timeout is transient, same as 5xx)
@@ -320,6 +321,7 @@ fn classify_deepgram_http(resp: &HttpResponse, raw: &str) -> TranscriptionError 
     let json: Option<serde_json::Value> = serde_json::from_str(raw).ok();
 
     match status {
+        401 | 403 if is_out_of_credits_body(raw) => TranscriptionError::QuotaExceeded,
         401 | 403 => TranscriptionError::Unauthorized,
         402 => TranscriptionError::QuotaExceeded,
         408 => TranscriptionError::ProviderUnavailable { status },
