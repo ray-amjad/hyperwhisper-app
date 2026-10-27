@@ -249,6 +249,10 @@ async function checkTranscribe(check: SttCheck): Promise<void> {
   }
 }
 
+// All lowercase, no punctuation: a tier that post-processed anything changes it,
+// so a `corrected` equal to this is the route's raw fallback (#2143).
+const POST_PROCESS_INPUT = 'hello world this is a ci smoke test';
+
 async function checkPostProcess(provider: string, expectedModel: string, attempt = 1): Promise<void> {
   const name = `POST /post-process ${provider}`;
   try {
@@ -258,7 +262,7 @@ async function checkPostProcess(provider: string, expectedModel: string, attempt
       body: JSON.stringify({
         license_key: LICENSE_KEY,
         device_id: DEVICE_ID,
-        text: 'hello world this is a ci smoke test',
+        text: POST_PROCESS_INPUT,
         // The route wraps `text` in --TRANSCRIPT-- … --ENDTRANSCRIPT--
         // (buildTranscriptUserContent), and every real client prompt names that
         // wrapper. A prompt that does not lets gpt-5.6-luna echo the markers, the
@@ -280,16 +284,27 @@ async function checkPostProcess(provider: string, expectedModel: string, attempt
     // One fallback is asked again before it fails: a broken tier falls back
     // twice, a single 20 s upstream timeout does not (gemini 2026-10-25, grok
     // 2026-10-21 each blocked a prod deploy and passed on the re-run).
+    // The header alone misses the raw fallback: when the requested provider's
+    // output is rejected (leakage, cut off, empty) and no retry serves it, the
+    // route returns the input unchanged with X-LLM-Provider still naming the
+    // requested model (#2143). So an unchanged `corrected` is a fallback too.
     const served = res.headers.get('X-LLM-Provider') || '?';
+    const body = (await res.json().catch(() => ({}))) as { corrected?: unknown };
+    const corrected = typeof body.corrected === 'string' ? body.corrected.trim() : '';
+    let msg = '';
     if (served !== expectedModel) {
-      const msg = `fell back — requested ${provider} (${expectedModel}), served ${served}`;
+      msg = `fell back — requested ${provider} (${expectedModel}), served ${served}`;
+    } else if (!corrected || corrected === POST_PROCESS_INPUT) {
+      msg = `fell back to the raw input — ${provider} (${served}) returned ${JSON.stringify(corrected)}`;
+    }
+    if (msg) {
       if (attempt === 1) {
         warn(name, `${msg}; asking once more`);
         return checkPostProcess(provider, expectedModel, 2);
       }
       return fail(name, `${msg} (twice)`);
     }
-    pass(name, `via ${served}`);
+    pass(name, `via ${served}: ${JSON.stringify(corrected.slice(0, 50))}`);
   } catch (err) {
     fail(name, String(err));
   }
