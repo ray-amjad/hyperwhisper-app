@@ -381,6 +381,18 @@
     "customSub": "your amount",
     "topUp": "Top up"
   },
+  "licenseKeysCard": {
+    "rotate": "Rotate key",
+    "confirmTitle": "Rotate this Account Key?",
+    "confirmBody": "You'll get a new key, and this one stops working right away. Every device using the old key will need the new one: enter it in HyperWhisper on each device. Your credits, plan and purchase history stay with your account. You'll also be signed out of this website in your other browsers.",
+    "confirm": "Rotate key",
+    "cancel": "Cancel",
+    "rotating": "Rotating…",
+    "rotated": "Key rotated. Enter the new key in HyperWhisper on each of your devices.",
+    "errorRateLimited": "Too many rotations. Please try again later.",
+    "errorStale": "This key was already rotated. The current key is shown above.",
+    "errorGeneric": "Couldn't rotate the key. Please try again."
+  },
   "notFound": {
     "title": "Page not found",
     "heading": "This page does not exist",

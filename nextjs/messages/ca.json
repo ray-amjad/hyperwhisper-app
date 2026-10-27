@@ -354,6 +354,18 @@
     "customSub": "el teu import",
     "topUp": "Recarrega"
   },
+  "licenseKeysCard": {
+    "rotate": "Regenera la clau",
+    "confirmTitle": "Vols regenerar aquesta clau del compte?",
+    "confirmBody": "Rebràs una clau nova i aquesta deixarà de funcionar immediatament. Tots els dispositius que facin servir la clau antiga necessitaran la nova: introdueix-la a HyperWhisper a cada dispositiu. Els teus crèdits, el teu pla i l'historial de compres es mantenen al teu compte. També es tancarà la teva sessió en aquest lloc web als altres navegadors.",
+    "confirm": "Regenera la clau",
+    "cancel": "Cancel·la",
+    "rotating": "S'està regenerant…",
+    "rotated": "S'ha regenerat la clau. Introdueix la clau nova a HyperWhisper a cadascun dels teus dispositius.",
+    "errorRateLimited": "Massa regeneracions. Torna-ho a provar més tard.",
+    "errorStale": "Aquesta clau ja s'ha regenerat. La clau actual es mostra a dalt.",
+    "errorGeneric": "No s'ha pogut regenerar la clau. Torna-ho a provar."
+  },
   "openSource": {
     "heading": "Codi obert. Res a amagar.",
     "body": "HyperWhisper és totalment de codi obert sota Apache-2.0 — tant les aplicacions d'escriptori com el backend de Cloud. Una aplicació que escolta el teu micròfon hauria de ser quelcom que puguis verificar, no només confiar-hi: llegeix cada línia, audita exactament on va el teu àudio i tingues la certesa que mai no quedaràs lligat — el codi és teu per fer-ne un fork i allotjar-lo tu mateix per sempre. Creat de manera oberta pel creador independent Ray Amjad.",

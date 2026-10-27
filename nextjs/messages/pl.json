@@ -354,6 +354,18 @@
     "customSub": "Twoja kwota",
     "topUp": "Doładuj"
   },
+  "licenseKeysCard": {
+    "rotate": "Wygeneruj nowy klucz",
+    "confirmTitle": "Wygenerować nowy klucz konta?",
+    "confirmBody": "Otrzymasz nowy klucz, a obecny natychmiast przestanie działać. Każde urządzenie korzystające ze starego klucza będzie potrzebować nowego: wpisz go w HyperWhisper na każdym urządzeniu. Twoje kredyty, plan i historia zakupów pozostają na Twoim koncie. Zostaniesz też wylogowany z tej strony w innych przeglądarkach.",
+    "confirm": "Wygeneruj nowy klucz",
+    "cancel": "Anuluj",
+    "rotating": "Generowanie…",
+    "rotated": "Wygenerowano nowy klucz. Wpisz go w HyperWhisper na każdym ze swoich urządzeń.",
+    "errorRateLimited": "Zbyt wiele zmian klucza. Spróbuj ponownie później.",
+    "errorStale": "Ten klucz został już zastąpiony. Aktualny klucz jest widoczny powyżej.",
+    "errorGeneric": "Nie udało się wygenerować nowego klucza. Spróbuj ponownie."
+  },
   "openSource": {
     "heading": "Otwarty kod. Nie mamy nic do ukrycia.",
     "body": "HyperWhisper jest w pełni otwartoźródłowy na licencji Apache-2.0 — zarówno aplikacje desktopowe, jak i backend Cloud. Aplikacja, która słucha Twojego mikrofonu, powinna być czymś, co możesz zweryfikować, a nie tylko czemu musisz ufać: przeczytaj każdą linię kodu, sprawdź dokładnie, dokąd trafia Twoje audio, i miej pewność, że nigdy nie zostaniesz uzależniony od dostawcy — kod jest Twój, by go sforkować i hostować samodzielnie na zawsze. Tworzony otwarcie przez niezależnego twórcę Raya Amjada.",

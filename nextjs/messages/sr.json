@@ -354,6 +354,18 @@
     "customSub": "vas iznos",
     "topUp": "Dopuni"
   },
+  "licenseKeysCard": {
+    "rotate": "Generiši novi ključ",
+    "confirmTitle": "Generisati novi ključ naloga?",
+    "confirmBody": "Dobićete novi ključ, a ovaj će odmah prestati da radi. Svaki uređaj koji koristi stari ključ trebaće novi: unesite ga u HyperWhisper na svakom uređaju. Vaši krediti, plan i istorija kupovina ostaju na vašem nalogu. Takođe ćete biti odjavljeni sa ovog veb-sajta u drugim pregledačima.",
+    "confirm": "Generiši novi ključ",
+    "cancel": "Otkaži",
+    "rotating": "Generisanje…",
+    "rotated": "Novi ključ je generisan. Unesite ga u HyperWhisper na svakom svom uređaju.",
+    "errorRateLimited": "Previše zamena ključa. Pokušajte ponovo kasnije.",
+    "errorStale": "Ovaj ključ je već zamenjen. Trenutni ključ je prikazan iznad.",
+    "errorGeneric": "Generisanje novog ključa nije uspelo. Pokušajte ponovo."
+  },
   "openSource": {
     "heading": "Otvoreni kod. Nema sta da se krije.",
     "body": "HyperWhisper je potpuno otvorenog koda pod Apache-2.0 — kako desktop aplikacije, tako i Cloud pozadina. Aplikacija koja slusa vas mikrofon treba da bude nesto sto mozete da proverite, a ne samo da joj verujete: procitajte svaku liniju, proverite tacno kuda ide vas zvuk i znajte da nikada necete biti zakljucani — kod je vas da ga zauvek forkujete i hostujete sami. Napravio ga je u otvorenom nezavisni tvorac Ray Amjad.",

@@ -354,6 +354,18 @@
     "customSub": "jouw bedrag",
     "topUp": "Bijvullen"
   },
+  "licenseKeysCard": {
+    "rotate": "Sleutel vernieuwen",
+    "confirmTitle": "Deze accountsleutel vernieuwen?",
+    "confirmBody": "Je krijgt een nieuwe sleutel en deze werkt direct niet meer. Elk apparaat dat de oude sleutel gebruikt, heeft de nieuwe nodig: voer die op elk apparaat in HyperWhisper in. Je credits, abonnement en aankoopgeschiedenis blijven bij je account. Je wordt ook afgemeld bij deze website in je andere browsers.",
+    "confirm": "Sleutel vernieuwen",
+    "cancel": "Annuleren",
+    "rotating": "Vernieuwen…",
+    "rotated": "Sleutel vernieuwd. Voer de nieuwe sleutel op elk van je apparaten in HyperWhisper in.",
+    "errorRateLimited": "Te vaak vernieuwd. Probeer het later opnieuw.",
+    "errorStale": "Deze sleutel is al vernieuwd. De huidige sleutel staat hierboven.",
+    "errorGeneric": "De sleutel kon niet worden vernieuwd. Probeer het opnieuw."
+  },
   "openSource": {
     "heading": "Open source. Niets te verbergen.",
     "body": "HyperWhisper is volledig open source onder Apache-2.0 — zowel de desktop-apps als de Cloud-backend. Een app die naar je microfoon luistert, moet iets zijn dat je kunt verifiëren, niet alleen vertrouwen: lees elke regel, controleer precies waar je audio naartoe gaat en weet zeker dat je nooit vastzit — de code is van jou om voor altijd te forken en zelf te hosten. Gemaakt in de openbaarheid door indie maker Ray Amjad.",

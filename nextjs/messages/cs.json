@@ -354,6 +354,18 @@
     "customSub": "vaše částka",
     "topUp": "Dobít"
   },
+  "licenseKeysCard": {
+    "rotate": "Vygenerovat nový klíč",
+    "confirmTitle": "Vygenerovat nový klíč k účtu?",
+    "confirmBody": "Získáte nový klíč a tento okamžitě přestane fungovat. Každé zařízení, které používá starý klíč, bude potřebovat nový: zadejte ho do HyperWhisper na každém zařízení. Vaše kredity, tarif a historie nákupů zůstávají ve vašem účtu. V ostatních prohlížečích budete také odhlášeni z tohoto webu.",
+    "confirm": "Vygenerovat nový klíč",
+    "cancel": "Zrušit",
+    "rotating": "Generování…",
+    "rotated": "Nový klíč byl vygenerován. Zadejte ho do HyperWhisper na každém ze svých zařízení.",
+    "errorRateLimited": "Příliš mnoho změn klíče. Zkuste to prosím později.",
+    "errorStale": "Tento klíč už byl nahrazen. Aktuální klíč je zobrazen výše.",
+    "errorGeneric": "Nový klíč se nepodařilo vygenerovat. Zkuste to prosím znovu."
+  },
   "openSource": {
     "heading": "Otevřený zdroj. Nic ke skrývání.",
     "body": "HyperWhisper je plně open source pod licencí Apache-2.0 — desktopové aplikace i Cloud backend. Aplikace, která poslouchá váš mikrofon, by měla být něco, co si můžete ověřit, ne jen čemu věříte: přečtěte si každý řádek, prověřte přesně, kam jde váš zvuk, a mějte jistotu, že nikdy nebudete uzamčeni — kód je váš, můžete ho forknout a hostovat sami navždy. Vytvořeno otevřeně nezávislým tvůrcem Ray Amjad.",

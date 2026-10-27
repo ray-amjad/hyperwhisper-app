@@ -354,6 +354,18 @@
     "customSub": "jūsų suma",
     "topUp": "Papildyti"
   },
+  "licenseKeysCard": {
+    "rotate": "Sugeneruoti naują raktą",
+    "confirmTitle": "Sugeneruoti naują paskyros raktą?",
+    "confirmBody": "Gausite naują raktą, o šis iš karto nustos veikti. Kiekvienam įrenginiui, kuriame naudojamas senasis raktas, reikės naujojo: įveskite jį HyperWhisper kiekviename įrenginyje. Jūsų kreditai, planas ir pirkimų istorija lieka jūsų paskyroje. Be to, kitose naršyklėse būsite atjungti nuo šios svetainės.",
+    "confirm": "Sugeneruoti naują raktą",
+    "cancel": "Atšaukti",
+    "rotating": "Generuojama…",
+    "rotated": "Naujas raktas sugeneruotas. Įveskite jį HyperWhisper kiekviename savo įrenginyje.",
+    "errorRateLimited": "Per daug rakto keitimų. Bandykite vėliau.",
+    "errorStale": "Šis raktas jau pakeistas. Dabartinis raktas rodomas aukščiau.",
+    "errorGeneric": "Nepavyko sugeneruoti naujo rakto. Bandykite dar kartą."
+  },
   "openSource": {
     "heading": "Atvirasis kodas. Nėra ko slėpti.",
     "body": "HyperWhisper yra visiškai atvirojo kodo pagal Apache-2.0 — tiek darbalaukio programėlės, tiek Cloud vidinė sistema. Programėlė, kuri klausosi jūsų mikrofono, turėtų būti tokia, kurią galite patikrinti, o ne tik ja pasitikėti: perskaitykite kiekvieną eilutę, patikrinkite, kur tiksliai patenka jūsų garsas, ir žinokite, kad niekada nebūsite pririšti — kodas yra jūsų, kad galėtumėte jį šakoti ir talpinti patys amžinai. Sukurta atvirai, ją sukūrė indie kūrėjas Ray Amjad.",

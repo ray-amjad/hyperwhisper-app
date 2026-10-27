@@ -354,6 +354,18 @@
     "customSub": "þín upphæð",
     "topUp": "Bæta við inneign"
   },
+  "licenseKeysCard": {
+    "rotate": "Búa til nýjan lykil",
+    "confirmTitle": "Búa til nýjan aðgangslykil?",
+    "confirmBody": "Þú færð nýjan lykil og þessi hættir strax að virka. Öll tæki sem nota gamla lykilinn þurfa þann nýja: sláðu hann inn í HyperWhisper á hverju tæki. Inneignir þínar, áskrift og kaupsaga haldast á aðganginum þínum. Einnig lokast innskráning þín á þessum vef í öðrum vöfrum.",
+    "confirm": "Búa til nýjan lykil",
+    "cancel": "Hætta við",
+    "rotating": "Býr til…",
+    "rotated": "Nýr lykill hefur verið búinn til. Sláðu hann inn í HyperWhisper á hverju tækjanna þinna.",
+    "errorRateLimited": "Of margar lyklaskiptingar. Reyndu aftur síðar.",
+    "errorStale": "Þessum lykli hefur þegar verið skipt út. Núverandi lykill er sýndur hér að ofan.",
+    "errorGeneric": "Ekki tókst að búa til nýjan lykil. Reyndu aftur."
+  },
   "openSource": {
     "heading": "Opinn hugbúnaður. Ekkert að fela.",
     "body": "HyperWhisper er algjörlega opinn hugbúnaður undir Apache-2.0 — bæði skjáborðsforritin og Cloud-bakendinn. Forrit sem hlustar á hljóðnemann þinn ætti að vera eitthvað sem þú getur sannreynt, ekki bara treyst: lestu hverja línu, kannaðu nákvæmlega hvert hljóðið þitt fer, og vittu að þú verður aldrei innilokuð — kóðinn er þinn til að forka og hýsa sjálf(ur) að eilífu. Byggt fyrir opnum tjöldum af indie-höfundinum Ray Amjad.",

@@ -1,6 +1,7 @@
 "use client";
 
 import { LicenseKeysCard, CloudCreditsCard, CreditHistoryCard, BillingCard } from "@/components/customer/dashboard";
+import RotateAccountKeyControl from "@/components/customer/dashboard/RotateAccountKeyControl";
 import { api } from "@/lib/trpc/client";
 import { ErrorReveal } from "@/components/ErrorReveal";
 import { Spinner } from "@/components/ui/Spinner";
@@ -69,7 +70,16 @@ export default function UserDashboardClient({
         </div>
       ) : error ? null : data?.licenses && data.licenses.length > 0 ? (
         <>
-          <LicenseKeysCard licenses={data.licenses} />
+          <LicenseKeysCard
+            licenses={data.licenses}
+            // Only a granted key rotates (a revoked or refunded one is already
+            // dead); the server enforces the same rule.
+            renderActions={(license, reveal) =>
+              license.status === "granted" ? (
+                <RotateAccountKeyControl license={license} onRotated={reveal} />
+              ) : null
+            }
+          />
           <CloudCreditsCard
             totalCredits={totalCredits}
             totalMinutesRemaining={totalMinutesRemaining}

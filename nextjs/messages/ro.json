@@ -354,6 +354,18 @@
     "customSub": "suma ta",
     "topUp": "Reîncarcă"
   },
+  "licenseKeysCard": {
+    "rotate": "Regenerează cheia",
+    "confirmTitle": "Regenerezi această cheie de cont?",
+    "confirmBody": "Vei primi o cheie nouă, iar aceasta va înceta imediat să funcționeze. Fiecare dispozitiv care folosește cheia veche va avea nevoie de cea nouă: introdu-o în HyperWhisper pe fiecare dispozitiv. Creditele, planul și istoricul achizițiilor rămân în contul tău. De asemenea, vei fi deconectat de pe acest site în celelalte browsere.",
+    "confirm": "Regenerează cheia",
+    "cancel": "Anulează",
+    "rotating": "Se regenerează…",
+    "rotated": "Cheia a fost regenerată. Introdu cheia nouă în HyperWhisper pe fiecare dintre dispozitivele tale.",
+    "errorRateLimited": "Prea multe regenerări. Încearcă din nou mai târziu.",
+    "errorStale": "Această cheie a fost deja regenerată. Cheia actuală este afișată mai sus.",
+    "errorGeneric": "Cheia nu a putut fi regenerată. Încearcă din nou."
+  },
   "openSource": {
     "heading": "Sursă deschisă. Nimic de ascuns.",
     "body": "HyperWhisper este complet open-source sub Apache-2.0 — atât aplicațiile desktop, cât și backendul Cloud. O aplicație care îți ascultă microfonul ar trebui să fie ceva ce poți verifica, nu doar ceva în care ai încredere: citește fiecare linie, auditează exact unde ajunge audio-ul tău și fii sigur că nu vei fi niciodată blocat la un furnizor — codul este al tău, să-i faci fork și să-l găzduiești singur pentru totdeauna. Construit în mod deschis de creatorul independent Ray Amjad.",

@@ -354,6 +354,18 @@
     "customSub": "jumlah anda",
     "topUp": "Tambah nilai"
   },
+  "licenseKeysCard": {
+    "rotate": "Jana semula kunci",
+    "confirmTitle": "Jana semula kunci akaun ini?",
+    "confirmBody": "Anda akan mendapat kunci baharu, dan kunci ini akan berhenti berfungsi serta-merta. Setiap peranti yang menggunakan kunci lama memerlukan kunci baharu: masukkannya dalam HyperWhisper pada setiap peranti. Kredit, pelan dan sejarah pembelian anda kekal dalam akaun anda. Anda juga akan dilog keluar daripada laman web ini dalam pelayar anda yang lain.",
+    "confirm": "Jana semula kunci",
+    "cancel": "Batal",
+    "rotating": "Menjana semula…",
+    "rotated": "Kunci telah dijana semula. Masukkan kunci baharu dalam HyperWhisper pada setiap peranti anda.",
+    "errorRateLimited": "Terlalu banyak penjanaan semula. Sila cuba lagi nanti.",
+    "errorStale": "Kunci ini sudah dijana semula. Kunci semasa dipaparkan di atas.",
+    "errorGeneric": "Tidak dapat menjana semula kunci. Sila cuba lagi."
+  },
   "openSource": {
     "heading": "Sumber terbuka. Tiada apa-apa untuk disembunyikan.",
     "body": "HyperWhisper sepenuhnya sumber terbuka di bawah Apache-2.0 — kedua-dua aplikasi desktop dan backend Cloud. Aplikasi yang mendengar mikrofon anda sepatutnya sesuatu yang boleh anda sahkan, bukan sekadar percaya: baca setiap baris, audit dengan tepat ke mana audio anda pergi, dan ketahui yang anda tidak akan sekali-kali terkurung — kod itu milik anda untuk difork dan dihos sendiri selamanya. Dibina secara terbuka oleh pereka indie Ray Amjad.",
