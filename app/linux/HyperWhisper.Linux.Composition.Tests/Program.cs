@@ -160,6 +160,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a live stream that fails after delivering text keeps that text in History, the error only in FailedReason (#2282)", LiveFailureHistoryTests.KeepsDeliveredText),
     ("Home's state follows a live stream: Recording while it runs, Failed once it fails and is held (#2038)", HomeLiveStateRenderTests.MappingFollowsTheLiveStream),
     ("the real Home caption reads Failed for a held live stream and Idle again after Stop (#2038)", HomeLiveStateRenderTests.RunAsync),
+    ("Home reads Recording from the moment a live start shows the overlay, Failed once it turns red, and the workflow state after a failed start (#2038)", HomeLiveStartTests.StartWindowFollowsTheOverlay),
     ("the status bar drops the record hint while anything is in flight (recording, finishing, Busy) and on an error line (#2599)", RecordingStatusAfterStopTests.StatusHintDroppedWhileInFlightOrOnError),
     ("the record hint comes back after a stop that wrote its own line while still finishing (#2599)", RecordingStatusAfterStopTests.HintReturnsAfterAStopThatWroteItsOwnLine),
     ("the real status bar drops the record hint while a stream is open, on a Busy line or an error line, and keeps History's hotkey line (#2599)", StatusHintRenderTests.RunAsync),
