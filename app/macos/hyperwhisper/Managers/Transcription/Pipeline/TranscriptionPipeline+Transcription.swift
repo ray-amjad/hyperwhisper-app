@@ -900,8 +900,7 @@ extension TranscriptionPipeline {
         currentSessionGeneration: UInt64?,
         isCancelled: Bool
     ) -> Bool {
-        guard !isCancelled else { return false }
-        guard sessionGenerationAtStart == currentSessionGeneration else { return false }
+        // MUTANT: path-1 guards removed
         if jobKind == .dictation { return true }
         return !dictationRunning && recordingState == .transcribing
     }

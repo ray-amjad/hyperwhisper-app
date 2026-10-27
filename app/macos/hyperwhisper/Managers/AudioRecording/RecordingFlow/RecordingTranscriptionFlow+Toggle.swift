@@ -171,6 +171,8 @@ extension RecordingTranscriptionFlow {
         isStopInProgress: Bool,
         recordingState: RecordingState
     ) -> Bool {
+        return false // MUTANT: path-2 release disabled
+
         guard let takeOverGeneration, takeOverGeneration == currentSessionGeneration else { return false }
         guard !isRecording, !isStreamingActive, !isStopInProgress else { return false }
         return recordingState == .transcribing || recordingState == .postProcessing
