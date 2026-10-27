@@ -77,6 +77,10 @@ if (args is [StatusHintRenderTests.ProbeArgument])
 {
     Environment.Exit(StatusHintRenderTests.RunProbe());
 }
+if (args is [AccountLinkToastRenderTests.ProbeArgument])
+{
+    Environment.Exit(AccountLinkToastRenderTests.RunProbe());
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -162,6 +166,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("the real Home caption reads Failed for a held live stream and Idle again after Stop (#2038)", HomeLiveStateRenderTests.RunAsync),
     ("the status bar adds the record hint only to the resting line, as Windows does (#2599)", RecordingStatusAfterStopTests.StatusHintOnlyOnRestingLine),
     ("the real status bar drops the record hint while a stream is open or after a failure, and brings it back after (#2599)", StatusHintRenderTests.RunAsync),
+    ("an account page the browser could not open gets no Open Settings button; other account codes keep it (#2632)", AccountLinkToastRenderTests.ClassifierDropsTheButtonForAccountLinks),
+    ("the real error toast shows the account-link failure with no button and a selectable URL (#2632)", AccountLinkToastRenderTests.RunAsync),
 };
 
 foreach (var test in tests)

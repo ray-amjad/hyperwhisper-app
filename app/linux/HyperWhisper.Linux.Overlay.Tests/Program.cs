@@ -34,6 +34,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("overlay interaction policy cannot activate or focus", OverlayDoesNotActivate),
     ("live preview remains ephemeral bounded and lifecycle-owned", LivePreviewIsEphemeral),
     ("error toast message is readable in full", ErrorToastMessageIsFullyReadable),
+    ("error toast message can be selected, so a URL in it can be copied (#2632)", ErrorToastSelectableMessageTests.MessageCanBeSelected),
 };
 
 var failed = 0;

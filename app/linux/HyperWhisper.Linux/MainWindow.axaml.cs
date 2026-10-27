@@ -1392,9 +1392,14 @@ public partial class MainWindow : Window
     /// and a missing local post-processing model goes to the Model Library. Linux carries the same
     /// distinctions in the error CODE, so the mapping is made from that rather than from the text.
     /// </summary>
-    private static LinuxErrorToastAction ClassifyErrorToastAction(string code)
+    internal static LinuxErrorToastAction ClassifyErrorToastAction(string code)
     {
         var value = code.ToLowerInvariant();
+        // The browser could not open (or refused) an account page. The Cloud settings page is where
+        // the user clicked Get Credits or Manage account, and nothing there fixes a missing browser,
+        // so the toast offers no button; its message carries the URL to copy (#2632).
+        if (value is "account.link_failed" or "account.link_rejected")
+            return LinuxErrorToastAction.None;
         if (value.Contains("credential", StringComparison.Ordinal)
             || value.Contains("api_key", StringComparison.Ordinal)
             || value.Contains("apikey", StringComparison.Ordinal)
