@@ -5,6 +5,7 @@ import { generateLicenseKey } from "@/lib/services/license-key";
 import { emailTag } from "@/lib/shared/redact";
 import { refundedCreditsTotal } from "@/lib/services/credit-refund";
 import { CREDITS_PER_DOLLAR } from "@/app/api/checkout/credits/validation";
+import type { AccountKeyRow } from "@/src/lib/db-layer";
 import {
   dbErrorCode,
   dbErrorConstraint,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/shared/db-error";
 import {
   findAccountByKey,
+  findAccountById,
   getAccountKeysByEmail,
   findAccountByStripeSession,
   insertAccountKey,
@@ -21,6 +23,30 @@ import {
   hasProcessedStripeObject,
   getCreditBalance,
 } from "@/src/lib/db-layer";
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The Account Key a top-up checkout was opened for.
+ *
+ * By ROW ID first (`metadata.account_key_id`), because the key string can
+ * change under an open checkout: the owner may rotate the key between opening
+ * the Stripe page and paying, and a lookup by the old string would then miss
+ * and the paid credits would never land. The id never changes. Sessions
+ * created before the id was written carry only `license_key`, so the string
+ * is the fallback.
+ */
+async function findTopUpAccount(
+  metadata: Stripe.Metadata | null | undefined,
+): Promise<AccountKeyRow | null> {
+  const id = metadata?.account_key_id;
+  if (id && UUID_PATTERN.test(id)) {
+    const byId = await findAccountById(id);
+    if (byId) return byId;
+  }
+  const key = metadata?.license_key;
+  return key ? findAccountByKey(key) : null;
+}
 
 function getStripeCustomerId(
   customer: Stripe.Checkout.Session["customer"]
@@ -115,7 +141,7 @@ async function handleCreditTopUp(
     `Processing credit top-up: ${creditAmount} credits for license ${licenseKey.substring(0, 7)}...`
   );
 
-  const license = await findAccountByKey(licenseKey);
+  const license = await findTopUpAccount(session.metadata);
 
   if (!license) {
     throw new Error(`License not found: ${licenseKey.substring(0, 7)}...`);
@@ -161,7 +187,8 @@ async function handleCreditTopUp(
   const emailResult = await emailService.sendCreditTopUp({
     customerName,
     customerEmail,
-    licenseKey,
+    // The row's current key, not the checkout's: it may have been rotated.
+    licenseKey: license.key,
     creditAmount,
     newBalance,
     productName: "HyperWhisper",
@@ -511,7 +538,7 @@ async function permanentMissingGrantReason(
 
   const licenseKey = checkoutSession.metadata?.license_key;
   if (licenseKey) {
-    const license = await findAccountByKey(licenseKey);
+    const license = await findTopUpAccount(checkoutSession.metadata);
     if (!license) {
       return `top-up licence ${licenseKey.substring(0, 7)}... does not exist`;
     }

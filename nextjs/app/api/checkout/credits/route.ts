@@ -171,6 +171,9 @@ export async function POST(req: NextRequest) {
       }
 
       metadata.license_key = normalizedLicenseKey;
+      // The webhook resolves the top-up by this id first: the key string can
+      // be rotated while the Stripe page is open, the row id cannot.
+      metadata.account_key_id = license.id;
 
       // Find or create the Stripe customer by email and cache it on the license.
       // The cached customer is reused only while it still belongs to the

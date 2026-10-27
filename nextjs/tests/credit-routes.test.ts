@@ -334,6 +334,8 @@ describe("POST /api/checkout/credits — a licenseKey that is not a string (#208
 
     assert.equal(response.status, 200);
     assert.equal(metadata.license_key, GRANTED_KEY);
+    // The row id too, so a key rotated mid-checkout still finds its owner.
+    assert.equal(metadata.account_key_id, "key_row_1");
   });
 
   test("still mints when the key is absent", async () => {
