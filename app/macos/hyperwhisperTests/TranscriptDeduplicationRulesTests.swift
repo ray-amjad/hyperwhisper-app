@@ -156,6 +156,7 @@ struct TranscriptDeduplicationRulesTests {
         let before = Date()
 
         let createdID = try #require(try await createProcessing(writer, path: path, duration: 4, in: persistence))
+        let after = Date()
 
         let context = persistence.container.newBackgroundContext()
         let fields = await context.perform { () -> [String?]? in
@@ -168,10 +169,12 @@ struct TranscriptDeduplicationRulesTests {
                 row.audioFilePath,
                 row.value(forKey: "status") as? String,
                 String(row.duration),
-                row.date.map { $0 >= before ? "fresh" : "stale" },
+                row.date.map { $0 >= before && $0 <= after ? "now" : "not now" },
             ]
         }
-        #expect(fields == ["Processing transcription...", "Dedup", path, "processing", "4.0", "fresh"])
+        #expect(fields == ["Processing transcription...", "Dedup", path, "processing", "4.0", "now"])
+        let left = await rows(for: path, in: persistence)
+        #expect(left.map(\.id) == [createdID], "exactly one row is inserted")
     }
 
     // MARK: - Transient-twin collapse

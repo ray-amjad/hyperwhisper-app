@@ -1375,17 +1375,12 @@ class PersistenceController: ObservableObject {
         context.performAndWait {
             // Idempotency guard: reuse a processing row for the same audio
             // file instead of creating a duplicate.
-            if let reused = Self.reuseProcessingTranscript(
+            transcript = Self.reuseProcessingTranscript(
                 in: context,
                 audioFilePath: audioFilePath,
                 duration: duration,
                 mode: mode
-            ) {
-                transcript = reused
-                return
-            }
-
-            transcript = Self.makeProcessingTranscript(
+            ) ?? Self.makeProcessingTranscript(
                 in: context,
                 duration: duration,
                 mode: mode,
