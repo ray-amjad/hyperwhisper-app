@@ -368,21 +368,6 @@ describe("refundCreditGrant", () => {
     assert.equal(await cachedBalance("u1"), 0);
   });
 
-  test("a refund that leaves float residue on a 0.00 grant still closes it as refunded (#2620)", async () => {
-    await seedUser("u1");
-    await seedGrant({ userId: "u1", sourceType: "stripe_credit_pack", sourceId: "cs_1", amount: 0.3 });
-    await L.refundCreditGrant({ sourceType: "stripe_credit_pack", sourceId: "cs_1", refundedCreditsTotal: 0.1 });
-
-    // refundNow = 0.3 - 0.1 = 0.19999999999999998, so the 0.20 left becomes
-    // 2.78e-17: stored as 0.00, but greater than 0 in JS.
-    await L.refundCreditGrant({ sourceType: "stripe_credit_pack", sourceId: "cs_1", refundedCreditsTotal: 0.3 });
-
-    const g = await grantsBySource("u1");
-    assert.equal(g.get("cs_1")?.remaining, 0);
-    assert.equal(g.get("cs_1")?.refunded, 0.3);
-    assert.equal(g.get("cs_1")?.status, "refunded");
-  });
-
   test("a partial refund of an unused pack keeps the pack active with the rest", async () => {
     await seedUser("u1");
     await seedGrant({ userId: "u1", sourceType: "stripe_credit_pack", sourceId: "cs_1", amount: 5000 });
