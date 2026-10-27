@@ -57,6 +57,7 @@ moduleMock.module(moduleUrl("../src/env/server.mjs"), {
 });
 
 const ORIGIN = "http://localhost:3000";
+const BASE = `${ORIGIN}/api/auth`;
 
 /**
  * A fixed instant for the tests that count to a limit. `@upstash/ratelimit`'s
@@ -77,7 +78,6 @@ function pinClock(now: number) {
     typeof mock.timers.enable
   >[0]);
 }
-const BASE = `${ORIGIN}/api/auth`;
 
 type Handler = (request: Request) => Promise<Response>;
 
@@ -181,6 +181,7 @@ describe("Better Auth sign-in limits count in Upstash", () => {
   });
 
   test("a second Better Auth instance with the same options shares the budget", async () => {
+    pinClock(PINNED_NOW);
     const { betterAuth } = await import("better-auth");
     const { licenseKeyPlugin } = await import("@/src/lib/auth-license-key-plugin");
     // What a second Vercel instance is: its own process, its own storage
@@ -190,7 +191,6 @@ describe("Better Auth sign-in limits count in Upstash", () => {
       rateLimit: storageModule.authRateLimitOptions(),
       plugins: [licenseKeyPlugin()],
     });
-    pinClock(PINNED_NOW);
     const ip = "203.0.113.60";
 
     for (let i = 0; i < 3; i += 1) {
