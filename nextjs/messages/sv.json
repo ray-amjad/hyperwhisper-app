@@ -280,7 +280,9 @@
       "dataTraining": "Dataintegritet"
     },
     "copyright": "© 2026 HyperWhisper. Alla rättigheter förbehållna.",
-    "linkedinAria": "LinkedIn"
+    "linkedinAria": "LinkedIn",
+    "xAria": "Följ HyperWhisper på X (Twitter)",
+    "githubAria": "HyperWhisper på GitHub"
   },
   "cloudSection": {
     "eyebrow": "Cloud",

@@ -280,7 +280,9 @@
       "dataTraining": "データプライバシー"
     },
     "copyright": "© 2026 HyperWhisper. All rights reserved.",
-    "linkedinAria": "LinkedIn"
+    "linkedinAria": "LinkedIn",
+    "xAria": "X（Twitter）でHyperWhisperをフォロー",
+    "githubAria": "GitHubのHyperWhisper"
   },
   "cloudSection": {
     "eyebrow": "クラウド",
