@@ -40,11 +40,21 @@ function app() {
   return hono;
 }
 
-function post(body: unknown, headers: Record<string, string> = { [INTERNAL_SECRET_HEADER]: SECRET }) {
+function post(
+  body: unknown,
+  headers: Record<string, string> = { [INTERNAL_SECRET_HEADER]: SECRET },
+  contentLength?: string | null,
+) {
+  const text = typeof body === 'string' ? body : JSON.stringify(body);
+  const length = contentLength === undefined ? String(Buffer.byteLength(text)) : contentLength;
   return app().request('/internal/license-cache/invalidate', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
-    body: typeof body === 'string' ? body : JSON.stringify(body),
+    headers: {
+      'Content-Type': 'application/json',
+      ...(length === null ? {} : { 'Content-Length': length }),
+      ...headers,
+    },
+    body: text,
   });
 }
 
@@ -98,8 +108,21 @@ describe('POST /internal/license-cache/invalidate', () => {
     expect((await post({})).status).toBe(400);
     expect((await post({ account_key: 42 })).status).toBe(400);
     expect((await post({ account_key: '   ' })).status).toBe(400);
-    expect((await post({ account_key: 'x'.repeat(129) })).status).toBe(400);
+    expect((await post({ account_key: 'x'.repeat(129) })).status).toBe(400); // under the byte cap, over the key cap
     expect(invalidated).toEqual([]);
+  });
+
+  test('the body size is gated on Content-Length before anything is parsed', async () => {
+    // No header: refused, so chunked encoding cannot skip the cap.
+    expect((await post({ account_key: KEY }, undefined, null)).status).toBe(400);
+    // Declared too large: 413 before the body is read.
+    expect((await post({ account_key: 'x'.repeat(2000) })).status).toBe(413);
+    expect((await post({ account_key: KEY }, undefined, '1000000')).status).toBe(413);
+    expect(invalidated).toEqual([]);
+  });
+
+  test('the secret is checked before the size gate', async () => {
+    expect((await post({ account_key: KEY }, { [INTERNAL_SECRET_HEADER]: 'nope' }, null)).status).toBe(401);
   });
 
   test('a cache failure is 503 so the site logs that the old verdict may remain', async () => {

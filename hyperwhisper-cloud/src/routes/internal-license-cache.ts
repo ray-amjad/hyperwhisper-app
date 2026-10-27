@@ -21,12 +21,21 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import type { Context } from 'hono';
 import { invalidateCachedLicense } from '../lib/redis-core';
+import { validateContentLength } from '../lib/request-limits';
 import { createRedisGetter } from '../lib/redis-client';
 
 export const INTERNAL_SECRET_HEADER = 'x-internal-secret';
 
-/** Longer than any key the site mints (19 chars); bounds the body we read. */
+/** Longer than any key the site mints (19 chars). */
 const MAX_KEY_LENGTH = 128;
+
+/**
+ * The most body this route reads. `{"account_key":"<128 chars>"}` is ~150
+ * bytes; the cap is checked on Content-Length BEFORE `c.req.json()` buffers
+ * anything, and the header is required so chunked encoding cannot skip it
+ * (`lib/request-limits.ts`, the `/post-process` gate).
+ */
+export const MAX_INVALIDATE_BODY_BYTES = 1024;
 
 export interface LicenseCacheInvalidateDeps {
   /** Read per request, so a secret rotated in Infisical needs no restart. */
@@ -52,6 +61,9 @@ export function createLicenseCacheInvalidateRoute(deps: LicenseCacheInvalidateDe
     if (!secretMatches(c.req.header(INTERNAL_SECRET_HEADER), expected)) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
+
+    const size = validateContentLength(c.req.header('content-length'), MAX_INVALIDATE_BODY_BYTES);
+    if (!size.ok) return size.response;
 
     let body: unknown;
     try {
