@@ -13,8 +13,11 @@
  * PostHog and Stripe all load third-party scripts, so a `script-src` /
  * `default-src` policy needs its own Report-Only run before it is enforced.
  *
- * `/docs` is a Vercel rewrite to Mintlify (vercel.json), so these headers do
- * not reach those pages.
+ * These headers DO reach `/docs`, though it is a Vercel rewrite to Mintlify
+ * (vercel.json): production sends them on the rewritten pages, and our
+ * `Content-Security-Policy` replaces Mintlify's own (#1343). The docs were
+ * checked with them on 2026-10-06: pages render, Ctrl+K search works and
+ * the Loom videos play.
  */
 export const securityHeaders = [
   { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
