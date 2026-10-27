@@ -11,6 +11,7 @@
 
 import Foundation
 import FlyingFox
+import FlyingSocks
 import AppKit
 
 /// User-defaults key controlling whether the server starts at launch /
@@ -77,10 +78,10 @@ final class LocalAPIServer: ObservableObject {
 
     private var server: HTTPServer?
     private var runTask: Task<Void, Never>?
-    /// The port we *asked* the kernel for on the current start() call. Used
-    /// during the fallback retry when the persisted port is taken so we know
-    /// what to overwrite in UserDefaults.
-    private var preferredPort: UInt16 = 0
+    /// The current bind's wait for FlyingFox to report it is listening.
+    /// Cancelled when its run task ends and by `stop()`, so a failed or stopped
+    /// bind does not hold `self` and its dead `HTTPServer` for `listenWait`.
+    private var listenWaitTask: Task<Void, Never>?
     /// Monotonic id of the token operation allowed to publish `bearerToken`.
     ///
     /// Both `start()` and `regenerateBearerToken()` end in a Keychain call that
@@ -134,18 +135,18 @@ final class LocalAPIServer: ObservableObject {
     /// not finished by then is stuck, not slow.
     nonisolated static let releaseWait: Duration = .seconds(2)
 
-    /// How long a bind to the persisted port waits for FlyingFox to report it is
-    /// listening before it reads the silence as a taken port and falls back to
-    /// an ephemeral one. FlyingFox's own default. A bind refused with EADDRINUSE
-    /// never resumes that wait, so this is also how long the fallback takes.
-    nonisolated static let listenWait: TimeInterval = 5
+    /// How long a bind waits for FlyingFox to report it is listening before it
+    /// shows the start as stuck. It is NOT the taken-port signal: a bind refused
+    /// with EADDRINUSE throws from the run task, and that error is what sends
+    /// the server to an ephemeral port, at once (issue #2452). Before, a 5 s
+    /// silence here was the only signal, so a run task starved past 5 s (a busy
+    /// main actor at launch or on wake) gave a free persisted port up. So this
+    /// is long: a timeout only reports, and the server may still come up.
+    nonisolated static let listenWait: TimeInterval = 30
 
-    /// How long a bind to an ephemeral port waits. It has no fallback, so a
-    /// timeout there only shows an error while the server may still come up;
-    /// a run task starved past 5 s (a busy main actor at launch, a loaded test
-    /// host) must not end in that error (issue #2398). The test probes wait the
-    /// same.
-    nonisolated static let ephemeralListenWait: TimeInterval = 30
+    /// What the request-head probes wait for their own servers to listen. The
+    /// same as `listenWait`, for the same reason (issue #2398).
+    nonisolated static let ephemeralListenWait: TimeInterval = listenWait
 
     // MARK: - Environment (issue #1838)
 
@@ -156,10 +157,6 @@ final class LocalAPIServer: ObservableObject {
     /// Replaces the Keychain read in `start()`. `nil` in the app, so `start()`
     /// still reads through `LocalAPIAuth.loadOrCreateTokenOffMainActor()`.
     private let tokenLoader: (@Sendable () async -> String)?
-    /// `listenWait` in the app. A test whose server must keep the port it asked
-    /// for passes a longer one, because a test host under load can starve the
-    /// run task past 5 s and the fallback then gives that port up (issue #2398).
-    private let listenTimeout: TimeInterval
 
     private convenience init() {
         self.init(defaults: .standard, portFileURL: Self.portFileURL, tokenLoader: nil)
@@ -172,13 +169,11 @@ final class LocalAPIServer: ObservableObject {
     init(
         defaults: UserDefaults,
         portFileURL: URL,
-        tokenLoader: (@Sendable () async -> String)?,
-        listenTimeout: TimeInterval = LocalAPIServer.listenWait
+        tokenLoader: (@Sendable () async -> String)?
     ) {
         self.defaults = defaults
         self.portFileURL = portFileURL
         self.tokenLoader = tokenLoader
-        self.listenTimeout = listenTimeout
         listenerShutdown.onChange = { [weak self] ports in
             self?.closingPorts = ports
         }
@@ -351,7 +346,7 @@ final class LocalAPIServer: ObservableObject {
             // A server switched off a moment ago may still hold the port this
             // start is about to ask for (issue #1464). Wait for it to let go;
             // if it has not by `releaseWait`, give the port up for an
-            // ephemeral one, as the EADDRINUSE fallback in bindAndRun() would.
+            // ephemeral one, as the EADDRINUSE fallback in handleRunFailure would.
             // A stop() or a newer claim during the wait withdraws the bind.
             let released = await self.listenerShutdown.awaitRelease(within: Self.releaseWait)
             if !released {
@@ -366,7 +361,7 @@ final class LocalAPIServer: ObservableObject {
     }
 
     /// Everything from address construction to the discovery-file write.
-    /// Split out of `start()` so the EADDRINUSE retry can re-enter the BIND
+    /// Split out of `start()` so the EADDRINUSE fallback can re-enter the BIND
     /// step with the token already loaded (issue #655).
     private func bindAndRun() {
         // Bind IPv4 127.0.0.1 explicitly. FlyingFox's `.loopback(port:)` is
@@ -391,99 +386,62 @@ final class LocalAPIServer: ObservableObject {
         // close) both live in `serverConfiguration` (LocalAPIRequestHead.swift).
         let httpServer = HTTPServer(config: Self.serverConfiguration(address: address))
         self.server = httpServer
-        self.preferredPort = preferredPort
 
         Task { [weak self] in
             guard let self else { return }
             await self.registerRoutes(on: httpServer)
         }
 
-        // Run server on a detached task; FlyingFox blocks for the lifetime of run().
+        // Wait until the kernel has assigned a port, then write the discovery
+        // file. Only a stuck start runs this wait out; a taken port is the run
+        // task's own error, below (issue #2452).
+        let listenWaitTask = Task { [weak self] in
+            do {
+                try await httpServer.waitUntilListening(timeout: Self.listenWait)
+            } catch {
+                // Cancelled: the run task ended or stop() let this server go,
+                // and whichever it was has already said what happened.
+                if error is CancellationError || Task.isCancelled { return }
+                // A server stop() or the fallback has let go of: its timeout is
+                // not the current server's error.
+                guard let self, self.server === httpServer else { return }
+                self.lastError = error.localizedDescription
+                AppLogger.network.error("LocalAPI server failed to start · \(error.localizedDescription, privacy: .public)")
+                return
+            }
+            let port = await Self.extractPort(from: httpServer)
+            // A server stop() let go of while it was still coming up must not
+            // publish itself as running or rewrite the discovery file.
+            guard let self, self.server === httpServer else { return }
+            self.listeningPort = port
+            self.isRunning = port > 0
+            if port > 0 {
+                // A bind that succeeded retires whatever the last one failed
+                // with. `start()` clears `lastError` on the click, but the
+                // EADDRINUSE fallback re-enters bindAndRun() directly and never
+                // passes through start() again. Clearing it here rather than at
+                // the top of bindAndRun() also settles the race with
+                // handleRunFailure(), which sets lastError from the run task.
+                self.lastError = nil
+            }
+            self.writePortFile(port: port)
+            self.defaults.set(Int(port), forKey: LocalAPIServerPersistedPortKey)
+            AppLogger.network.info("LocalAPI server listening on 127.0.0.1:\(port, privacy: .public)")
+        }
+        self.listenWaitTask = listenWaitTask
+
+        // Run server on its own task; FlyingFox blocks for the lifetime of run().
+        // When run() ends, however it ends, nothing is left to wait for: the
+        // wait is cancelled rather than left to run out its timeout holding
+        // `self` and this dead `HTTPServer`.
         runTask = Task { [weak self] in
+            defer { listenWaitTask.cancel() }
             do {
                 try await httpServer.run()
             } catch is CancellationError {
                 // Normal shutdown
             } catch {
-                await self?.handleRunFailure(error)
-            }
-        }
-
-        // If the kernel rejected our preferred (persisted) port — typically
-        // EADDRINUSE because another process grabbed it between launches —
-        // FlyingFox's run task will throw quickly. Detect that case via a
-        // short timeout on waitUntilListening, then retry with port 0.
-
-        // Wait until the kernel has assigned a port, then write the discovery file.
-        let listenTimeout = preferredPort == 0
-            ? max(self.listenTimeout, Self.ephemeralListenWait)
-            : self.listenTimeout
-        Task { [weak self] in
-            guard let self else { return }
-            do {
-                try await httpServer.waitUntilListening(timeout: listenTimeout)
-                let port = await Self.extractPort(from: httpServer)
-                await MainActor.run {
-                    // A server stop() let go of while it was still coming up
-                    // (more likely now an ephemeral bind waits 30 s) must not
-                    // publish itself as running or rewrite the discovery file.
-                    guard self.server === httpServer else { return }
-                    self.listeningPort = port
-                    self.isRunning = port > 0
-                    if port > 0 {
-                        // A bind that succeeded retires whatever the last one
-                        // failed with. `start()` clears `lastError` on the
-                        // click, but the EADDRINUSE fallback re-enters
-                        // bindAndRun() directly and never passes through
-                        // start() again — so without this the retry's healthy
-                        // "Running" row sits next to a stale "Address already
-                        // in use". Clearing it here rather than at the top of
-                        // bindAndRun() also settles the race with
-                        // handleRunFailure(), which sets lastError from the
-                        // run task and can land after the retry has begun.
-                        self.lastError = nil
-                    }
-                    self.writePortFile(port: port)
-                    self.defaults.set(Int(port), forKey: LocalAPIServerPersistedPortKey)
-                    AppLogger.network.info("LocalAPI server listening on 127.0.0.1:\(port, privacy: .public)")
-                }
-            } catch {
-                // Most common cause: persisted port is already taken on this
-                // machine. Wipe the preference and let the next start() pick
-                // an ephemeral port.
-                let preferred = await MainActor.run { self.preferredPort }
-                if preferred != 0 {
-                    self.defaults.removeObject(forKey: LocalAPIServerPersistedPortKey)
-                    AppLogger.network.info("LocalAPI server: persisted port \(preferred, privacy: .public) unavailable; clearing preference and retrying with ephemeral port")
-                    await MainActor.run {
-                        // Reset state then re-enter the bind step so the next
-                        // bind uses port 0. Deliberately NOT start(): the token
-                        // is already in hand, so a second Keychain read would be
-                        // wasted — and that read is the one issue #655 is about.
-                        //
-                        // Not because start() would refuse. It might not: the
-                        // line below clears `server`, and a stop() that landed
-                        // in this failed-bind window has already cleared the
-                        // rest, so `isLiveOrStarting` can be false by the time
-                        // start() asks. That this retry rebinds after such a
-                        // stop() is a pre-existing hole, recorded in the PR body
-                        // and out of scope here — do not read this comment as a
-                        // claim that the in-flight guard closes it.
-                        self.server = nil
-                        self.runTask?.cancel()
-                        self.runTask = nil
-                        self.bindAndRun()
-                    }
-                    return
-                }
-                await MainActor.run {
-                    // A stop() or a failed run (which set its own error) during
-                    // the ephemeral wait has already let this server go; its
-                    // timeout is not the current server's error.
-                    guard self.server === httpServer else { return }
-                    self.lastError = error.localizedDescription
-                    AppLogger.network.error("LocalAPI server failed to start · \(error.localizedDescription, privacy: .public)")
-                }
+                self?.handleRunFailure(error, of: httpServer, preferredPort: preferredPort)
             }
         }
     }
@@ -518,6 +476,8 @@ final class LocalAPIServer: ObservableObject {
 
         self.server = nil
         self.runTask = nil
+        self.listenWaitTask?.cancel()
+        self.listenWaitTask = nil
         self.isRunning = false
         self.listeningPort = 0
         deletePortFile()
@@ -817,21 +777,55 @@ final class LocalAPIServer: ObservableObject {
 
     // MARK: - Helpers
 
-    private func handleRunFailure(_ error: Error) async {
-        await MainActor.run {
-            self.lastError = error.localizedDescription
-            self.isRunning = false
-            self.listeningPort = 0
-            // Drop the broken HTTPServer + run-task references so the next
-            // start() (e.g. user toggling off then on) can actually bind a
-            // new socket. Without this, start() bails on `server != nil`
-            // and the UI gets stuck in "Starting…" forever.
-            self.server = nil
-            self.runTask?.cancel()
-            self.runTask = nil
-            self.deletePortFile()
-            AppLogger.network.error("LocalAPI server stopped with error · \(error.localizedDescription, privacy: .public)")
+    /// What a bind's run task failing does, for the server that ran it.
+    ///
+    /// A run that failed with EADDRINUSE on the persisted port clears the
+    /// preference and binds an ephemeral port at once: the port is taken, and
+    /// FlyingFox said so (issue #2452). Any other failure, or a taken ephemeral
+    /// port, shows its error and lets the server go.
+    ///
+    /// Only for the current server. A run task whose server stop() or an
+    /// earlier fallback has already let go of fails into nothing: without the
+    /// check a stale failure would clear the newer server and delete its
+    /// discovery file.
+    private func handleRunFailure(_ error: Error, of httpServer: HTTPServer, preferredPort: UInt16) {
+        guard server === httpServer else { return }
+        if preferredPort != 0, Self.isAddressInUse(error) {
+            defaults.removeObject(forKey: LocalAPIServerPersistedPortKey)
+            AppLogger.network.info("LocalAPI server: persisted port \(preferredPort, privacy: .public) is in use; clearing preference and retrying with ephemeral port")
+            // Re-enter the bind step so the next bind uses port 0. Deliberately
+            // NOT start(): the token is already in hand, so a second Keychain
+            // read would be wasted, and that read is the one issue #655 is about.
+            server = nil
+            runTask = nil
+            listenWaitTask?.cancel()
+            listenWaitTask = nil
+            bindAndRun()
+            return
         }
+        lastError = error.localizedDescription
+        isRunning = false
+        listeningPort = 0
+        // Drop the broken HTTPServer + run-task references so the next
+        // start() (e.g. user toggling off then on) can actually bind a
+        // new socket. Without this, start() bails on `server != nil`
+        // and the UI gets stuck in "Starting…" forever.
+        server = nil
+        runTask?.cancel()
+        runTask = nil
+        listenWaitTask?.cancel()
+        listenWaitTask = nil
+        deletePortFile()
+        AppLogger.network.error("LocalAPI server stopped with error · \(error.localizedDescription, privacy: .public)")
+    }
+
+    /// Whether a run task's error is a bind refused because the port is taken.
+    /// Pure and `static`, so the fallback's trigger can be tested by calling it.
+    nonisolated static func isAddressInUse(_ error: Error) -> Bool {
+        if case let SocketError.failed(_, code, _) = error {
+            return code == EADDRINUSE
+        }
+        return false
     }
 
     /// FlyingFox exposes the bound socket address once `waitUntilListening`
@@ -1143,6 +1137,10 @@ final class LocalAPISwitchProbe {
     private(set) var port: UInt16 = 0
     private var server: HTTPServer?
     private var runTask: Task<Void, Never>?
+    /// The current bind's wait for FlyingFox to report it is listening.
+    /// Cancelled when its run task ends and by `stop()`, so a failed or stopped
+    /// bind does not hold `self` and its dead `HTTPServer` for `listenWait`.
+    private var listenWaitTask: Task<Void, Never>?
 
     init(headReadDeadline: TimeInterval = LocalAPIRequestHeadLimit.readDeadline) {
         self.headReadDeadline = headReadDeadline
