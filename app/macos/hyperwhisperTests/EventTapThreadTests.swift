@@ -22,7 +22,7 @@
 //  2. stop() removes the source from that same run loop, invalidates the port
 //     and the thread exits; start/stop cycles, a stop racing a start and a
 //     stop before start leave no live thread.
-//  3. stop() returns at once while the tap thread is stuck in an enable — the
+//  3. stop() returns without waiting while the tap thread is stuck in an enable — the
 //     freeze can no longer reach the caller.
 //  4. The re-enable reports a reason slug and elapsed ms, and does nothing
 //     once a stop was requested.
@@ -233,10 +233,22 @@ struct EventTapThreadTests {
         host.start(tap: port)
         #expect(await waitOffThePool(for: entered, seconds: Self.hangGuard))
 
-        let startedAt = Date()
+        // No wall-clock bound on stop(): a stalled runner can pause the
+        // process for longer than any sub-second limit (issue #2587). Only
+        // this watchdog ends the enable before stop() returns, after the hang
+        // guard, so a stop() that waits for the tap thread fails here instead
+        // of hanging.
+        let stopReturned = DispatchSemaphore(value: 0)
+        let guardFired = DispatchSemaphore(value: 0)
+        Thread.detachNewThread {
+            if stopReturned.wait(timeout: .now() + Self.hangGuard) == .timedOut {
+                guardFired.signal()
+                release.signal()
+            }
+        }
         host.stop()
-        let stopTook = Date().timeIntervalSince(startedAt)
-        #expect(stopTook < 0.25)
+        stopReturned.signal()
+        #expect(guardFired.wait(timeout: .now()) == .timedOut, "stop() waited for the stuck enable")
         #expect(!host.waitUntilExited(timeout: 0.1)) // still stuck, and that is fine
 
         release.signal()
