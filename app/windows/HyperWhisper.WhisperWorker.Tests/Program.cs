@@ -611,7 +611,7 @@ await CheckAsync("client: a missing worker exe fails as start_failed without a r
 
 await CheckAsync("launcher: a worker exe that will not start fails with no path in the message (#2381)", async () =>
 {
-    // A real Process.Start failure: a text file is no program on Windows (error 193)
+    // A real Process.Start failure: a text file is no program on Windows (error 216)
     // and is not executable on Linux (error 13). Its Win32Exception names the full
     // path, and the folder stands in for C:\Users\<account name>.
     var folder = Path.Combine(Path.GetTempPath(), $"hw-2381-JaneDoe-{Guid.NewGuid():N}");
