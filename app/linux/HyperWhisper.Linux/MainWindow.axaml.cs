@@ -250,6 +250,11 @@ public partial class MainWindow : Window
         _viewModel.Settings.TelemetrySettingsChanged += OnTelemetrySettingsChanged;
         _viewModel.Settings.StorageSettingsChanged += OnStorageSettingsChanged;
         _viewModel.Status.PropertyChanged += OnShellStatusChanged;
+        _statusBarWatch = WatchStatusBarInputs(_viewModel.Status, _viewModel.Recording, _recordingSession, () =>
+        {
+            if (Dispatcher.UIThread.CheckAccess()) UpdateShortcutHint();
+            else Dispatcher.UIThread.Post(UpdateShortcutHint);
+        });
         _interaction.OperationFailed += OnInteractionFailed;
         _recordingSession.LiveCaptureChanged += OnLiveCaptureChanged;
         _recordingSession.ActivityChanged += OnRecordingActivityChanged;
@@ -406,6 +411,7 @@ public partial class MainWindow : Window
         _interaction.OperationFailed -= OnInteractionFailed;
         _recordingSession.LiveCaptureChanged -= OnLiveCaptureChanged;
         _recordingSession.ActivityChanged -= OnRecordingActivityChanged;
+        _statusBarWatch?.Dispose();
         _interaction.ChangeModeRequested -= OnChangeModeRequested;
         _platformServices.Tray.ActionRequested -= OnTrayActionRequested;
         _platformServices.Tray.Unavailable -= OnTrayUnavailable;
@@ -2767,21 +2773,67 @@ public partial class MainWindow : Window
     private void UpdateShortcutHint()
     {
         if (StatusText is null) return;
-        StatusText.Text = ComposeStatusLine(
-            _viewModel.Status.Message, _viewModel.Status.HasError, _viewModel.Status.ErrorCode,
-            _viewModel.Settings.ToggleShortcutDisplay, _localization["linux.status.record_hint"],
-            IsRecordingInFlight(_recordingSession, _viewModel.Recording));
+        var shortcut = _viewModel.Settings.ToggleShortcutDisplay;
+        var hintFormat = _localization["linux.status.record_hint"];
+        StatusText.Text = StatusBarLine(_viewModel.Status, shortcut, hintFormat, _recordingSession, _viewModel.Recording);
         // Windows prints the same composed line a second time, under "No recordings yet" in the
         // History empty state. Nothing was assigning it, so the Linux empty state showed the
-        // title alone where Windows shows two lines.
-        _viewModel.History.HotkeyInstruction = StatusText.Text;
+        // title alone where Windows shows two lines. That line keeps its hint in every state: the
+        // #2599 rule is for the status bar only, and the History empty state is out of its scope.
+        var status = _viewModel.Status;
+        _viewModel.History.HotkeyInstruction = ComposeStatusLine(
+            status.Message, status.HasError, status.ErrorCode, shortcut, hintFormat, withHint: true);
     }
 
-    /// <summary>The status bar line. The record hint is added only to the resting line, as Windows adds it
-    /// only to "Ready" (status.ready.withHotkey): never while a recording, stream, transcription or import
-    /// is in flight, where the shortcut stops rather than records, and never after a failure (#2599).</summary>
+    /// <summary>The status bar's line for the shell status and what is in flight (#2599): no record hint
+    /// while anything is in flight (a recording, a stream, a stop still finishing, a transcription, an
+    /// import, or a shell Busy line such as "Importing universal backup…"), where the shortcut would stop
+    /// rather than record or the app is busy, and none on an error line, as Windows' status.failed has none.
+    /// Every other line, the resting "Ready" among them, keeps it.</summary>
+    internal static string StatusBarLine(UiStatus status, string? shortcut, string hintFormat,
+        LinuxInteractionRecordingSession? session, TranscriptionWorkflowViewModel? recording) =>
+        ComposeStatusLine(status.Message, status.HasError, status.ErrorCode, shortcut, hintFormat,
+            withHint: !status.HasError && !status.IsBusy && !IsRecordingInFlight(session, recording));
+
+    private IDisposable? _statusBarWatch;
+
+    /// <summary>Calls <paramref name="changed"/> whenever an input of <see cref="StatusBarLine"/> changes, on
+    /// whatever thread changed it: any shell status property (message, error, Busy), the Home recorder's
+    /// CanCancel or IsImporting, and the session's ActivityChanged. The last is what brings the hint back
+    /// after a stop that wrote its own line while still finishing, such as "Transcription saved, but text
+    /// injection failed" or "Live transcription pasted and saved": nothing else changes after it (#2599).</summary>
+    internal static IDisposable WatchStatusBarInputs(UiStatus status, TranscriptionWorkflowViewModel? recording,
+        LinuxInteractionRecordingSession session, Action changed)
+    {
+        PropertyChangedEventHandler onStatus = (_, _) => changed();
+        PropertyChangedEventHandler onRecording = (_, e) =>
+        {
+            if (e.PropertyName is nameof(TranscriptionWorkflowViewModel.CanCancel)
+                or nameof(TranscriptionWorkflowViewModel.IsImporting))
+                changed();
+        };
+        EventHandler onActivity = (_, _) => changed();
+        status.PropertyChanged += onStatus;
+        if (recording is not null) recording.PropertyChanged += onRecording;
+        session.ActivityChanged += onActivity;
+        return new StatusBarWatch(() =>
+        {
+            status.PropertyChanged -= onStatus;
+            if (recording is not null) recording.PropertyChanged -= onRecording;
+            session.ActivityChanged -= onActivity;
+        });
+    }
+
+    private sealed class StatusBarWatch(Action unsubscribe) : IDisposable
+    {
+        private Action? _unsubscribe = unsubscribe;
+        public void Dispose() => Interlocked.Exchange(ref _unsubscribe, null)?.Invoke();
+    }
+
+    /// <summary>The message (or, for an error with no message, its code), then the record hint when
+    /// <paramref name="withHint"/> and a shortcut is set, joined with " - ".</summary>
     internal static string ComposeStatusLine(string? message, bool hasError, string? errorCode,
-        string? shortcut, string hintFormat, bool inFlight)
+        string? shortcut, string hintFormat, bool withHint)
     {
         var parts = new List<string>(2);
         if (!string.IsNullOrWhiteSpace(message)) parts.Add(message);
@@ -2792,7 +2844,7 @@ public partial class MainWindow : Window
         // in the diagnostic log.
         else if (hasError && !string.IsNullOrWhiteSpace(errorCode))
             parts.Add(errorCode!);
-        if (!inFlight && !hasError && !string.IsNullOrEmpty(shortcut))
+        if (withHint && !string.IsNullOrEmpty(shortcut))
             parts.Add(string.Format(hintFormat, shortcut));
         return string.Join(" - ", parts);
     }
@@ -2805,9 +2857,7 @@ public partial class MainWindow : Window
 
     private void OnShellStatusChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (Dispatcher.UIThread.CheckAccess()) UpdateShortcutHint();
-        else Dispatcher.UIThread.Post(UpdateShortcutHint);
-
+        // The status bar line itself is re-composed by the status-bar watch (WatchStatusBarInputs).
         if (e.PropertyName is nameof(UiStatus.ErrorCode) or nameof(UiStatus.Message)
             && _viewModel.Status.HasError)
             QueueErrorToast(() => (_viewModel.Status.ErrorCode, _viewModel.Status.Message));
@@ -2828,9 +2878,6 @@ public partial class MainWindow : Window
             UpdateFileTranscriptionProgressWindow();
         if (e.PropertyName is nameof(recording.CanStop)) Dispatcher.UIThread.Post(UpdateHomeRecordingActive);
         if (e.PropertyName is nameof(recording.State)) Dispatcher.UIThread.Post(UpdateHomeRecordingState);
-        // The record hint comes back with the resting line once nothing is in flight (#2599).
-        if (e.PropertyName is nameof(recording.CanCancel) or nameof(recording.IsImporting))
-            Dispatcher.UIThread.Post(UpdateShortcutHint);
     }
 
     private LinuxFileTranscriptionProgressWindow? _fileProgress;
@@ -3091,13 +3138,7 @@ public partial class MainWindow : Window
         IsHomeRecordingActive = _recordingSession.IsLiveCaptureActive || _viewModel.Recording?.CanStop == true;
 
     // Raised from the live worker's thread as well as the UI thread (#2038).
-    private void OnRecordingActivityChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
-    {
-        UpdateHomeRecordingState();
-        // A stop that wrote its own line ("Live transcription pasted and saved") wrote it while still
-        // finishing, so the hint is re-composed once the session is done (#2599).
-        UpdateShortcutHint();
-    });
+    private void OnRecordingActivityChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(UpdateHomeRecordingState);
 
     private void UpdateHomeRecordingState() =>
         HomeRecordingState = _recordingSession.HomeRecordingState(_viewModel.Recording?.State);
