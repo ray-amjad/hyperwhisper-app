@@ -26,7 +26,8 @@ public sealed class LinuxSingleInstanceCoordinator : ISingleInstanceCoordinator
     public LinuxSingleInstanceCoordinator(IAppPaths paths)
     {
         var state = Path.GetFullPath(paths.StateDirectory);
-        var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(state))).ToLowerInvariant()[..16];
+        // 8 hex digits tell one user's profiles apart and keep the path well inside sun_path's 108 bytes.
+        var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(state))).ToLowerInvariant()[..8];
         SocketPath = Path.Combine(paths.RuntimeDirectory, $"instance-{key}.sock");
         _legacySocketPath = Path.Combine(paths.RuntimeDirectory, "instance.sock");
         _lockPath = Path.Combine(state, "instance.lock");
@@ -124,13 +125,13 @@ public sealed class LinuxSingleInstanceCoordinator : ISingleInstanceCoordinator
             Thread.Sleep(50);
         }
     }
-    private static bool TrySignal(string path)
+    private static bool TrySignal(string path) => TryConnect(path, signal: true);
+    private static bool CanConnect(string path) => TryConnect(path, signal: false);
+    private static bool TryConnect(string path, bool signal)
     {
-        try { using var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified); socket.Connect(new UnixDomainSocketEndPoint(path)); socket.Send([1]); return true; }
+        try { using var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified); socket.Connect(new UnixDomainSocketEndPoint(path)); if (signal) socket.Send([1]); return true; }
         catch { return false; }
     }
-    private static bool CanConnect(string path)
-    { try { using var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified); socket.Connect(new UnixDomainSocketEndPoint(path)); return true; } catch { return false; } }
     private async Task ListenAsync(CancellationToken token)
     {
         while (!token.IsCancellationRequested)

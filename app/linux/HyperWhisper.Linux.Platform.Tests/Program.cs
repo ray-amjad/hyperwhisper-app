@@ -3336,8 +3336,10 @@ static Task SingleInstanceDefersToPreLockBuild() => WithTemporaryDirectoryAsync(
         signalled = await client.ReceiveAsync(new byte[1], SocketFlags.None) == 1;
     }
     Assert.True(signalled, "the activation byte reached the pre-lock build");
+    // Deferring must give the lock back: once the old build is gone, the next launch owns the profile.
+    legacy.Close();
     using var next = new LinuxSingleInstanceCoordinator(new FakeAppPaths(directory));
-    Assert.True(next.TryAcquire() is { IsSuccess: true, Value: false }, "the lock was given back on deferral");
+    Assert.True(next.TryAcquire() is { IsSuccess: true, Value: true }, "the lock was given back on deferral");
 });
 
 // GNOME, KDE and every XDG session read only $XDG_CONFIG_HOME/autostart/ (#2023). The entry was
