@@ -25,7 +25,7 @@ export default function Error({
         Something went wrong!
       </h2>
       <Button
-        color="primary"
+        className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold"
         onPress={
           // Attempt to recover by trying to re-render the segment
           () => reset()
