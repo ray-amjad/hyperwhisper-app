@@ -14,7 +14,7 @@
 //
 //  LAYOUT: [⚠️ Error icon] [Error message...] [8] [Open Settings]
 //  - Warning icon (yellow/orange)
-//  - Truncated error message (single line)
+//  - Error message, up to two lines (issue #1563), truncated past that
 //  - Countdown number (8→7→6→5→4→3→2→1)
 //  - "Open Settings" button (optional, only for actionable errors)
 //
@@ -43,7 +43,7 @@ import SwiftUI
 struct InlineErrorToast: View {
     // MARK: - Properties
 
-    /// The error message to display (will be truncated if too long)
+    /// The error message to display (wraps to two lines, truncated past that)
     let message: String
 
     /// Whether to show the "Open Settings" button
@@ -71,24 +71,41 @@ struct InlineErrorToast: View {
 
     // MARK: - Size Configuration
 
-    /// Toast dimensions - wider than recording dialog for better readability
-    private let toastWidth: CGFloat = 360
-    private let toastHeight: CGFloat = 40
+    /// Toast dimensions - wider than recording dialog for better readability.
+    /// `InlineErrorToastManager` sizes its panel to the same 360x40.
+    static let toastWidth: CGFloat = 360
+    static let toastHeight: CGFloat = 40
+
+    /// Insets and gaps of the row. The vertical inset is small so two message
+    /// lines fit inside the 40 pt height.
+    static let horizontalPadding: CGFloat = 12
+    static let verticalPadding: CGFloat = 4
+    static let itemSpacing: CGFloat = 8
+    static let countdownWidth: CGFloat = 14
+
+    /// Issue #1563: the message gets two lines. Every "your raw transcript was
+    /// kept" toast is longer than one line, and a single line cut off the half
+    /// that tells the user their transcript is safe.
+    /// `InlineErrorToastLayoutTests` checks the English copy fits.
+    static let messageLineLimit = 2
+    static let messageFont: Font = .system(size: 11, weight: .medium)
+
+    private var toastWidth: CGFloat { Self.toastWidth }
+    private var toastHeight: CGFloat { Self.toastHeight }
 
     // MARK: - Body
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Self.itemSpacing) {
             // Warning icon (yellow/orange)
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(.orange)
+            Self.warningIcon
 
-            // Error message (centered, single line)
+            // Error message (centered, up to two lines)
             Text(message)
-                .font(.system(size: 11, weight: .medium))
+                .font(Self.messageFont)
                 .foregroundColor(.white.opacity(0.9))
-                .lineLimit(1)
+                .multilineTextAlignment(.center)
+                .lineLimit(Self.messageLineLimit)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity)
 
@@ -96,7 +113,7 @@ struct InlineErrorToast: View {
             Text("\(countdown)")
                 .font(.system(size: 10, weight: .semibold, design: .monospaced))
                 .foregroundColor(.white.opacity(0.6))
-                .frame(width: 14)
+                .frame(width: Self.countdownWidth)
 
             // Open Settings button (optional)
             if showSettingsButton {
@@ -104,21 +121,13 @@ struct InlineErrorToast: View {
                     stopTimer()
                     onOpenSettings()
                 } label: {
-                    Text("common.open.settings".localized)
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule()
-                                .fill(Color.white.opacity(0.15))
-                        )
+                    Self.settingsButtonLabel
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, Self.horizontalPadding)
+        .padding(.vertical, Self.verticalPadding)
         .frame(width: toastWidth, height: toastHeight)
         .background(
             // BACKGROUND: Same style as RecordingDialog
@@ -145,6 +154,28 @@ struct InlineErrorToast: View {
         .onDisappear {
             stopTimer()
         }
+    }
+
+    // MARK: - Fixed-Width Parts
+
+    /// The row's fixed-width parts, shared with `InlineErrorToastLayoutTests`
+    /// so it measures the width the message is really left with.
+    static var warningIcon: some View {
+        Image(systemName: "exclamationmark.triangle.fill")
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundColor(.orange)
+    }
+
+    static var settingsButtonLabel: some View {
+        Text("common.open.settings".localized)
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundColor(.white)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(Color.white.opacity(0.15))
+            )
     }
 
     // MARK: - Timer Methods
@@ -201,9 +232,17 @@ struct InlineErrorToast: View {
             onOpenSettings: {}
         )
 
-        // Preview: Long message (should truncate)
+        // Preview: Two-line message (issue #1563)
         InlineErrorToast(
-            message: "This is a very long error message that should be truncated because it won't fit",
+            message: "OpenAI rejected your API key — your raw transcript was kept.",
+            showSettingsButton: true,
+            onDismiss: {},
+            onOpenSettings: {}
+        )
+
+        // Preview: Longer than two lines (should truncate)
+        InlineErrorToast(
+            message: "This is a very long error message that should be truncated because it won't fit even on two lines of the toast",
             showSettingsButton: true,
             onDismiss: {},
             onOpenSettings: {}
