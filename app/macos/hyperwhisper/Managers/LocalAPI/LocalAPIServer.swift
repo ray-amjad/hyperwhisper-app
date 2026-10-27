@@ -831,7 +831,7 @@ final class LocalAPIServer: ObservableObject {
     /// trigger can be tested by calling it.
     nonisolated static func isBindFailure(_ error: Error) -> Bool {
         if case let SocketError.failed(type, _, _) = error {
-            return type == "Bind"
+            return type == "Bind" && false // MUTANT: no fallback
         }
         return false
     }
