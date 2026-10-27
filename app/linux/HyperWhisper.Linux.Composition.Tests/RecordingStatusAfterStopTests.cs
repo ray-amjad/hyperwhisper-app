@@ -108,6 +108,31 @@ static class RecordingStatusAfterStopTests
         Check(line == expected, $"after the stop finished the status bar read '{line}', not '{expected}' (#2599)");
     });
 
+    // The live connect phase: the streaming overlay is up and connecting, but the session is neither
+    // active nor capturing yet. The status bar must drop the hint for it, recomposed when the start mark
+    // flips, and get the hint back once the start has returned. The start fails here (no provider key),
+    // which writes no shell line of its own, so the resting line is the one to read.
+    public static Task HintDroppedWhileALiveStartConnects() => RunAsync(new FakeTextInjection(), async (shell, session, overlay) =>
+    {
+        shell.Settings.StreamingEnabled = true;
+        shell.ShowReadyStatus();
+        var line = "";
+        var lines = new List<string>();
+        using var watch = WatchLine(shell, session, value => { line = value; lines.Add(value); });
+        var resting = $"{shell.Status.Message} - Press Ctrl+Alt to record";
+        Check(line == resting, $"at rest the status bar read '{line}', not '{resting}'");
+        string? atOverlay = null;
+        overlay.StreamingStartedHook = () => atOverlay = line;
+
+        var started = await session.StartAsync(InteractionRecordingKind.Streaming);
+        Console.WriteLine($"  [en] live start {(started.IsSuccess ? "connected" : started.Error?.Code)}; status bar when the overlay showed "
+            + $"\"{atOverlay}\", after \"{line}\"");
+        Check(started.IsFailure, "the live start connected with no provider key in the profile");
+        Check(atOverlay == shell.Status.Message,
+            $"while the live start was connecting the status bar read '{atOverlay}', not '{shell.Status.Message}' with no hint (#2599)");
+        Check(line == resting, $"after the failed live start the status bar read '{line}', not '{resting}'");
+    });
+
     private const string Hint = "Press {0} to record";
 
     private static IDisposable WatchLine(ApplicationShellViewModel shell, LinuxInteractionRecordingSession session, Action<string> show)
@@ -216,7 +241,8 @@ sealed class StatusTestOverlay : ILinuxRecordingOverlayFeedback
     public bool Completed => Completion is not null;
     public LinuxRecordingOverlayCompletion? Completion { get; private set; }
     public void RecordingStarted(LinuxOverlayModeLabel mode) { }
-    public void StreamingStarted(LinuxOverlayModeLabel mode) { }
+    public Action? StreamingStartedHook { get; set; }
+    public void StreamingStarted(LinuxOverlayModeLabel mode) => StreamingStartedHook?.Invoke();
     public void StreamingConnectionChanged(LinuxStreamingOverlayConnectionState state) { }
     public void AudioLevelChanged(float level) { }
     public void Transcribing() { }

@@ -167,6 +167,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Home reads Recording from the moment a live start shows the overlay, Failed once it turns red, and the workflow state after a failed start (#2038)", HomeLiveStartTests.StartWindowFollowsTheOverlay),
     ("the status bar drops the record hint while anything is in flight (recording, finishing, Busy) and on an error line (#2599)", RecordingStatusAfterStopTests.StatusHintDroppedWhileInFlightOrOnError),
     ("the record hint comes back after a stop that wrote its own line while still finishing (#2599)", RecordingStatusAfterStopTests.HintReturnsAfterAStopThatWroteItsOwnLine),
+    ("the status bar drops the record hint while a live start is still connecting and brings it back after (#2599)", RecordingStatusAfterStopTests.HintDroppedWhileALiveStartConnects),
     ("the real status bar drops the record hint while a stream is open, on a Busy line or an error line, and keeps History's hotkey line (#2599)", StatusHintRenderTests.RunAsync),
     ("an account page the browser could not open gets no Open Settings button; other account codes keep it (#2632)", AccountLinkToastRenderTests.ClassifierDropsTheButtonForAccountLinks),
     ("the real error toast shows the account-link failure with no button and a selectable URL (#2632)", AccountLinkToastRenderTests.RunAsync),
