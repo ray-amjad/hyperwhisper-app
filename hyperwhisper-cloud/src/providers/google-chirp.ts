@@ -33,8 +33,8 @@ import {
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  readJson200,
   splitVocabularyTerms,
-  unparsedBodyKind,
   type ProviderHttpErrorPolicy,
 } from './utils';
 import { readUpstreamError, safeErrorToken, upstreamErrorLogFields, type UpstreamErrorRead } from './upstream-error';
@@ -375,7 +375,7 @@ async function recognizeInline(params: InlineRecognizeParams): Promise<Normalize
     throw await speechHttpError(provider, response, startedAt, context, errorRead);
   }
 
-  const data = await parseJsonBody<SpeechRecognizeResponse>(response, provider, 'sync_recognize', context);
+  const data = await readSpeech200<SpeechRecognizeResponse>(response, provider, 'sync_recognize', startedAt, context);
   return normalizeSpeechResults(data.results, data.metadata);
 }
 
@@ -649,7 +649,7 @@ async function runBatchRecognize(params: BatchRecognizeParams): Promise<Normaliz
     throw await speechHttpError(provider, submitResponse, startedAt, context, submitErrorRead);
   }
 
-  const submitData = await parseJsonBody<{ name?: string }>(submitResponse, provider, 'batch_submit', context);
+  const submitData = await readSpeech200<{ name?: string }>(submitResponse, provider, 'batch_submit', startedAt, context);
   if (!submitData.name) {
     throw new Error('Google Speech batchRecognize did not return an operation name');
   }
@@ -814,7 +814,7 @@ async function pollOperation(
     throw await speechHttpError(provider, response, startedAt, context);
   }
 
-  return parseJsonBody<BatchOperationResponse>(response, provider, 'batch_poll', context);
+  return readSpeech200<BatchOperationResponse>(response, provider, 'batch_poll', startedAt, context);
 }
 
 function sleep(ms: number): Promise<void> {
@@ -885,37 +885,19 @@ function mergeMetadata(
 }
 
 /**
- * Bun's `response.json()` has been observed to throw "Failed to parse JSON" on
- * gzip+chunked 200 responses (same quirk that bit ElevenLabs). Read as text
- * first and JSON.parse — bypasses the Bun bug and surfaces actionable
- * diagnostics if the body ever becomes genuinely empty or non-JSON.
+ * Read a Speech 200 body through the shared `readJson200` contract (#2176).
+ * An empty, unreadable, non-JSON or non-object body (`null`, an array) is a
+ * `bad_response` ProviderUnavailableError, so Chirp answers the same 502 as
+ * any other unavailable provider instead of a 500, and no part of the body
+ * (the user's transcript) is logged. The phase rides in the label, so the
+ * route's failure log still says which call it was.
  */
-async function parseJsonBody<T>(
+function readSpeech200<T extends object>(
   response: Response,
   provider: string,
-  phase: string,
+  phase: 'sync_recognize' | 'batch_submit' | 'batch_poll',
+  startedAt: number,
   context: ProviderRequestContext,
-): Promise<T> {
-  const raw = await response.text();
-  if (!raw) {
-    const ct = response.headers.get('content-type') ?? 'unknown';
-    const ce = response.headers.get('content-encoding') ?? 'none';
-    logProviderEvent(provider, 'empty_body', { phase, contentType: ct, contentEncoding: ce }, context);
-    throw new Error(`Google Speech returned empty 200 body during ${phase} (content-type=${ct}, content-encoding=${ce})`);
-  }
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    const ct = response.headers.get('content-type') ?? 'unknown';
-    logProviderEvent(provider, 'parse_error', {
-      phase,
-      contentType: ct,
-      contentEncoding: response.headers.get('content-encoding') ?? 'none',
-      bodyLength: raw.length,
-      bodyKind: unparsedBodyKind(raw),
-    }, context);
-    // No part of the body goes in the message: the transcribe route logs it,
-    // and a 200 body is the user's transcript.
-    throw new Error(`Google Speech returned non-JSON 200 body during ${phase} (content-type=${ct}, len=${raw.length})`);
-  }
+): Promise<Partial<T>> {
+  return readJson200<T>(provider, `Google Chirp ${phase}`, response, startedAt, context);
 }
