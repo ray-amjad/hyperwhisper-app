@@ -117,6 +117,33 @@ describe('postProcessRoute validation', () => {
     expect(response.status).toBe(400);
   });
 
+  test('accepts an uppercase JSON Content-Type such as Application/JSON (#2326)', async () => {
+    // A body with no "text" gets past the Content-Type gate only if the gate
+    // reads the media type case-insensitively; it then fails on the field.
+    const response = await buildApp().fetch(
+      postProcessRequest({ prompt: 'fix grammar', account_key: 'lk' }, { 'Content-Type': 'Application/JSON' })
+    );
+    const body = await response.json() as { error: string };
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe('Missing field');
+  });
+
+  test('echoes the Content-Type as sent when it is not JSON', async () => {
+    const response = await buildApp().fetch(
+      new Request('http://localhost/post-process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'Text/Plain' },
+        body: 'hello',
+      })
+    );
+    const body = await response.json() as { error: string; received: string };
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe('Invalid Content-Type');
+    expect(body.received).toBe('Text/Plain');
+  });
+
   test('rejects a missing "text" field with 400', async () => {
     const response = await buildApp().fetch(postProcessRequest({ prompt: 'fix grammar', account_key: 'lk' }));
     const body = await response.json() as { error: string };

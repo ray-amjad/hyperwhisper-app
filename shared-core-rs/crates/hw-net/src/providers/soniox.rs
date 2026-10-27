@@ -56,6 +56,16 @@ pub const BASE_URL: &str = "https://api.soniox.com/v1";
 /// The `cloud-stt-catalog.json` entry this provider's models live under.
 pub const CATALOG_ENTRY_ID: &str = "soniox";
 
+/// At most this many vocabulary terms in `context`, the Cloud adapter's
+/// `MAX_CONTEXT_TERMS` (`hyperwhisper-cloud` `providers/soniox.ts`).
+pub const MAX_CONTEXT_TERMS: usize = 200;
+
+/// The `context` string stays at or under this many characters. Soniox caps the
+/// whole context at 8,000 tokens (~10,000 characters, `cloud-stt-catalog.json`
+/// `soniox.customVocabulary`) and rejects the create call past it, after the
+/// upload already succeeded.
+pub const MAX_CONTEXT_CHARS: usize = 10_000;
+
 /// Default model when the caller leaves `params.model` empty. Read from the
 /// shared catalog, which macOS and Windows read too — see
 /// [`super::defaults`] and issue #580.
@@ -135,6 +145,28 @@ pub fn parse_upload_response(resp: &HttpResponse) -> Result<String, Transcriptio
 // Step 2 — create transcription (JSON)
 // ---------------------------------------------------------------------------
 
+/// The `context` string: the first [`MAX_CONTEXT_TERMS`] sanitized, de-duplicated
+/// terms joined with `", "`, stopping before the term that would take it past
+/// [`MAX_CONTEXT_CHARS`]. Whole terms only, so a term is never cut in half.
+/// Characters are Unicode scalar values (`chars()`), not bytes.
+fn context_from_vocabulary(vocabulary: &[String]) -> String {
+    let mut context = String::new();
+    let mut chars = 0;
+    for term in keyword_boost_terms(vocabulary, Some(MAX_CONTEXT_TERMS)) {
+        let sep = if context.is_empty() { 0 } else { 2 };
+        let len = term.chars().count();
+        if chars + sep + len > MAX_CONTEXT_CHARS {
+            break;
+        }
+        if sep > 0 {
+            context.push_str(", ");
+        }
+        context.push_str(&term);
+        chars += sep + len;
+    }
+    context
+}
+
 /// Build the **create-transcription** request: `POST {base}/transcriptions` with
 /// JSON body `{file_id, model, [language_hints], [context]}`.
 pub fn build_create_request(
@@ -159,12 +191,9 @@ pub fn build_create_request(
     }
 
     // context: comma-space-joined vocabulary after shared sanitizer/dedup.
-    let terms = keyword_boost_terms(&params.vocabulary, None);
-    if !terms.is_empty() {
-        obj.insert(
-            "context".to_string(),
-            serde_json::Value::String(terms.join(", ")),
-        );
+    let context = context_from_vocabulary(&params.vocabulary);
+    if !context.is_empty() {
+        obj.insert("context".to_string(), serde_json::Value::String(context));
     }
 
     let data = serde_json::to_vec(&serde_json::Value::Object(obj)).map_err(|e| {
