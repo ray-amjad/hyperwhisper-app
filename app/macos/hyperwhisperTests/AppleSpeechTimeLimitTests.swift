@@ -160,6 +160,16 @@ struct AppleSpeechTimeLimitTests {
     /// on it: a hang is forever, a stalled runner is not.
     private static let hangGuard: Double = 120
 
+    /// Waits up to `hangGuard` for the caller task to signal `ended`. If it
+    /// does not, records `message` and runs `free`, which releases every stub
+    /// the caller could be stuck on, so the `await caller.value` after this
+    /// fails the test instead of hanging the suite.
+    private static func expectEnds(_ ended: DispatchSemaphore, _ message: Comment, free: () -> Void) async {
+        let inTime = await waitOffThePool(for: ended, seconds: hangGuard)
+        #expect(inTime, message)
+        if !inTime { free() }
+    }
+
     // MARK: - A hung analyzer ends with an error in bounded time
 
     @Test func aResultsStreamThatNeverEndsTimesOutAndRunsTheHook() async {
@@ -194,7 +204,7 @@ struct AppleSpeechTimeLimitTests {
         #expect(await waitOffThePool(for: ended, seconds: 0.2) == false, "run returned before the limit")
 
         deadline.fire()
-        #expect(await waitOffThePool(for: ended, seconds: Self.hangGuard), "run waited on the hung work")
+        await Self.expectEnds(ended, "run waited on the hung work") { parking.release() }
         switch await caller.value {
         case .success(let segments):
             Issue.record("A results stream that never ends returned \(segments) instead of timing out")
@@ -264,7 +274,10 @@ struct AppleSpeechTimeLimitTests {
         deadline.fire()
         #expect(await waitOffThePool(for: hook.didPark, seconds: Self.hangGuard), "onTimeout never ran")
         // The hook is parked for good; `run` must not wait on it.
-        #expect(await waitOffThePool(for: ended, seconds: Self.hangGuard), "the timeout waited on the hook")
+        await Self.expectEnds(ended, "the timeout waited on the hook") {
+            work.release()
+            hook.release()
+        }
         let error = await caller.value
         #expect(error is AppleSpeechTimeLimit.TimedOut, "got \(String(describing: error))")
     }
@@ -339,7 +352,7 @@ struct AppleSpeechTimeLimitTests {
         #expect(await waitOffThePool(for: started, seconds: Self.hangGuard))
         caller.cancel()
         // The limit is never up here, so a `run` that waited for it would hang.
-        #expect(await waitOffThePool(for: ended, seconds: Self.hangGuard), "the cancellation waited for the limit")
+        await Self.expectEnds(ended, "the cancellation waited for the limit") { deadline.fire() }
         deadline.fire()
         let outcome = await caller.value
 
@@ -391,7 +404,7 @@ struct AppleSpeechTimeLimitTests {
         #expect(await waitOffThePool(for: ended, seconds: 0.2) == false, "the ignored cancel ended run")
         // ...until the limit is up.
         deadline.fire()
-        #expect(await waitOffThePool(for: ended, seconds: Self.hangGuard), "the limit did not end run")
+        await Self.expectEnds(ended, "the limit did not end run") { parking.release() }
         let error = await caller.value
         #expect(error is AppleSpeechTimeLimit.TimedOut, "got \(String(describing: error))")
     }
