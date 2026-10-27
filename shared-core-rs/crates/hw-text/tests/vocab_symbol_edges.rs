@@ -120,3 +120,85 @@ fn replacement_text_stays_literal() {
         "$0 $1 here"
     );
 }
+
+/// A symbol edge still needs a whole-word neighbour: not a word character and
+/// not the same symbol. So `c#` stays out of `c##`, `c++` out of `c+++`, and
+/// `.net` out of `..net` and `asp.net` (review round 1 on PR #2647).
+#[test]
+fn a_symbol_edge_next_to_more_symbols_or_a_word_does_not_match() {
+    assert_eq!(
+        apply_hardened_replacement("c## and c#", "c#", "C-Sharp"),
+        "c## and C-Sharp"
+    );
+    assert_eq!(
+        apply_hardened_replacement("c+++ and c++", "c++", "C Plus Plus"),
+        "c+++ and C Plus Plus"
+    );
+    assert_eq!(
+        apply_hardened_replacement("..net and .net", ".net", ".NET"),
+        "..net and .NET"
+    );
+    assert_eq!(
+        apply_hardened_replacement("asp.net and .net", ".net", ".NET"),
+        "asp.net and .NET"
+    );
+}
+
+/// An entry made only of symbols replaces a standalone occurrence and leaves
+/// the same symbol inside `C++`, `5%`, `C#` and `#tag` alone. With no anchor at
+/// all, `+` → `plus` would turn `C++` into `Cplusplus`.
+#[test]
+fn a_symbol_only_entry_does_not_rewrite_inside_other_tokens() {
+    assert_eq!(
+        apply_hardened_replacement("I use C++ + Rust", "+", "plus"),
+        "I use C++ plus Rust"
+    );
+    assert_eq!(
+        apply_hardened_replacement("5% more, 100 %", "%", "percent"),
+        "5% more, 100 percent"
+    );
+    assert_eq!(
+        apply_hardened_replacement("C# #tag # x", "#", "hash"),
+        "C# #tag hash x"
+    );
+    assert_eq!(
+        apply_hardened_replacement("a -- b --- c", "--", "—"),
+        "a — b --- c"
+    );
+}
+
+/// Other punctuation next to a symbol edge is a boundary.
+#[test]
+fn other_punctuation_next_to_a_symbol_edge_still_matches() {
+    assert_eq!(
+        apply_hardened_replacement("(c++), c#. .net!", "c++", "C Plus Plus"),
+        "(C Plus Plus), c#. .net!"
+    );
+    assert_eq!(
+        apply_hardened_replacement("(c++), c#. .net!", "c#", "C-Sharp"),
+        "(c++), C-Sharp. .net!"
+    );
+    assert_eq!(
+        apply_hardened_replacement("(c++), c#. .net!", ".net", ".NET"),
+        "(c++), c#. .NET!"
+    );
+    assert_eq!(
+        apply_hardened_replacement("\"5%\"", "5%", "five percent"),
+        "\"five percent\""
+    );
+}
+
+/// A rejected candidate does not hide a real occurrence right after it, and
+/// non-ASCII neighbours are handled on char boundaries.
+#[test]
+fn rejected_candidates_and_non_ascii_neighbours() {
+    assert_eq!(apply_hardened_replacement("++ +", "+", "plus"), "++ plus");
+    assert_eq!(
+        apply_hardened_replacement("é% 5% ü", "5%", "five percent"),
+        "é% five percent ü"
+    );
+    assert_eq!(
+        apply_hardened_replacement("日本c# c#", "c#", "C-Sharp"),
+        "日本c# C-Sharp"
+    );
+}
