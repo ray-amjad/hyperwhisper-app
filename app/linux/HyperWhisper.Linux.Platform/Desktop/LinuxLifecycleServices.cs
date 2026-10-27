@@ -1,42 +1,86 @@
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 using HyperWhisper.Linux.Platform.Files;
 using HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.Linux.Platform.Desktop;
 
+// One instance per database (#1334). The guard is an exclusive flock on a file beside
+// hyperwhisper.db: the kernel grants it to one process at a time and drops it when that process
+// dies, so there is no stale state to race over and no XDG_RUNTIME_DIR split. The socket under the
+// runtime directory only carries the activation signal; only the lock's holder may replace it.
 public sealed class LinuxSingleInstanceCoordinator : ISingleInstanceCoordinator
 {
     private readonly string _socketPath;
+    private readonly string _lockPath;
+    private SafeFileHandle? _lock;
     private Socket? _listener;
     private CancellationTokenSource? _cancellation;
     private Task? _listenTask;
     private bool _disposed;
-    public LinuxSingleInstanceCoordinator(IAppPaths paths) => _socketPath = Path.Combine(paths.RuntimeDirectory, "instance.sock");
+    public LinuxSingleInstanceCoordinator(IAppPaths paths)
+    {
+        _socketPath = Path.Combine(paths.RuntimeDirectory, "instance.sock");
+        _lockPath = Path.Combine(paths.StateDirectory, "instance.lock");
+    }
     public LinuxSingleInstanceCoordinator() : this(new LinuxAppPaths()) { }
     public event EventHandler? ActivationRequested;
     public PlatformResult<bool> TryAcquire()
     {
         if (_disposed) return PlatformResult<bool>.Failure("single_instance.disposed", "The coordinator is disposed.");
         if (_listener is not null) return PlatformResult<bool>.Success(true);
+        SafeFileHandle? profileLock = null;
+        Socket? listener = null;
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(_socketPath)!, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-            var listener = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-            try { listener.Bind(new UnixDomainSocketEndPoint(_socketPath)); }
-            catch (SocketException)
-            {
-                listener.Dispose();
-                if (CanConnect()) return PlatformResult<bool>.Success(false);
-                File.Delete(_socketPath);
-                listener = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-                listener.Bind(new UnixDomainSocketEndPoint(_socketPath));
-            }
+            const UnixFileMode privateDirectory = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+            Directory.CreateDirectory(Path.GetDirectoryName(_lockPath)!, privateDirectory);
+            profileLock = TryLockProfile(_lockPath);
+            if (profileLock is null) return PlatformResult<bool>.Success(false);
+            // Holding the lock, a socket that still answers belongs to a build from before #1334,
+            // which takes no lock. Defer to it. Anything else at the path is dead and ours to replace.
+            if (CanConnect()) { profileLock.Dispose(); return PlatformResult<bool>.Success(false); }
+            Directory.CreateDirectory(Path.GetDirectoryName(_socketPath)!, privateDirectory);
+            File.Delete(_socketPath);
+            listener = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+            listener.Bind(new UnixDomainSocketEndPoint(_socketPath));
             File.SetUnixFileMode(_socketPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-            listener.Listen(4); _listener = listener; _cancellation = new(); _listenTask = Task.Run(() => ListenAsync(_cancellation.Token));
+            listener.Listen(4);
+            _lock = profileLock; _listener = listener; _cancellation = new(); _listenTask = Task.Run(() => ListenAsync(_cancellation.Token));
             return PlatformResult<bool>.Success(true);
         }
-        catch { return PlatformResult<bool>.Failure("single_instance.acquire_failed", "The instance socket could not be acquired."); }
+        catch
+        {
+            listener?.Dispose();
+            profileLock?.Dispose();
+            return PlatformResult<bool>.Failure("single_instance.acquire_failed", "The instance socket could not be acquired.");
+        }
     }
+    // Null when another process holds the lock. Raw open + flock, because a FileStream takes its own
+    // flock (LOCK_SH unless FileShare.None) and two shared holders can never both upgrade.
+    private static SafeFileHandle? TryLockProfile(string path)
+    {
+        var fd = OpenFile(path, OpenReadWrite | OpenCreate | OpenCloseOnExec, 0b110_000_000);
+        if (fd < 0) throw new IOException($"open failed: errno {Marshal.GetLastPInvokeError()}");
+        var handle = new SafeFileHandle(fd, ownsHandle: true);
+        while (true)
+        {
+            if (FileLock(fd, LockExclusive | LockNonBlocking) == 0) return handle;
+            var errno = Marshal.GetLastPInvokeError();
+            if (errno == ErrorInterrupted) continue;
+            handle.Dispose();
+            if (errno == ErrorWouldBlock) return null;
+            throw new IOException($"flock failed: errno {errno}");
+        }
+    }
+    // Linux values, the same on x86-64 and arm64.
+    private const int OpenReadWrite = 0x2, OpenCreate = 0x40, OpenCloseOnExec = 0x80000;
+    private const int LockExclusive = 2, LockNonBlocking = 4, ErrorInterrupted = 4, ErrorWouldBlock = 11;
+    [DllImport("libc", EntryPoint = "open", SetLastError = true)]
+    private static extern int OpenFile(string path, int flags, uint mode);
+    [DllImport("libc", EntryPoint = "flock", SetLastError = true)]
+    private static extern int FileLock(int fd, int operation);
     public PlatformResult SignalExistingInstance()
     {
         if (_disposed) return PlatformResult.Failure("single_instance.disposed", "The coordinator is disposed.");
@@ -67,6 +111,9 @@ public sealed class LinuxSingleInstanceCoordinator : ISingleInstanceCoordinator
         _cancellation?.Cancel(); try { _listener?.Dispose(); } catch { } try { _listenTask?.Wait(TimeSpan.FromSeconds(2)); } catch { }
         _listener = null; _listenTask = null; _cancellation?.Dispose(); _cancellation = null;
         if (owned) try { File.Delete(_socketPath); } catch { }
+        // Unlock only after the socket is gone, so the next holder never loses its fresh socket to
+        // this delete. The lock file itself stays: unlinking it would let two processes lock two inodes.
+        _lock?.Dispose(); _lock = null;
     }
     public void Dispose() { if (_disposed) return; Release(); _disposed = true; ActivationRequested = null; }
 }

@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Diagnostics;
+using System.Net.Sockets;
 using System.Runtime.Versioning;
 using HyperWhisper.Linux.Platform.Files;
 using HyperWhisper.Linux.Platform.Input;
@@ -171,6 +172,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Secret Service tells a failed lookup from no stored credential", SecretServiceLookupFailure),
     ("external process runner keeps stderr only when asked", ExternalProcessCapturesErrorOnlyWhenAsked),
     ("single-instance socket signals primary safely", SingleInstanceSocket),
+    ("single-instance guard admits exactly one of two launches racing a stale socket", SingleInstanceStaleSocketRace),
+    ("single-instance guard excludes launches with different runtime dirs on one database", SingleInstanceKeyedByDatabaseDirectory),
     ("XDG autostart is atomic and owner-only", XdgAutostart),
     ("push-to-talk emits only configured logical action", PushToTalkPrivacy),
     ("push-to-talk double-press latches and unlatches", PushToTalkDoubleLock),
@@ -3248,6 +3251,62 @@ static Task SingleInstanceSocket() => WithTemporaryDirectoryAsync(async director
     Assert.True(File.Exists(Path.Combine(directory, "instance.sock")));
 });
 
+// #1334: TryAcquire was check-then-act. Two launches that both found a stale instance.sock could
+// both fail Bind, both fail to connect, both delete the file and both bind. Each round leaves a
+// dead socket file behind, then releases two guards on one profile at the same moment.
+static Task SingleInstanceStaleSocketRace() => WithTemporaryDirectoryAsync(directory =>
+{
+    var socketPath = Path.Combine(directory, "instance.sock");
+    for (var round = 0; round < 200; round++)
+    {
+        // A crashed instance leaves its socket file with nobody listening. .NET unlinks a socket
+        // file when the Socket is disposed, so bind elsewhere and move the file into place first.
+        var bound = Path.Combine(directory, "bound.sock");
+        using (var stale = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified))
+        {
+            stale.Bind(new UnixDomainSocketEndPoint(bound));
+            stale.Listen(1);
+            File.Move(bound, socketPath);
+        }
+        Assert.True(File.Exists(socketPath), "the dead socket file must survive its socket");
+        var guards = new[] { new LinuxSingleInstanceCoordinator(new FakeAppPaths(directory)), new LinuxSingleInstanceCoordinator(new FakeAppPaths(directory)) };
+        var results = new bool[guards.Length];
+        try
+        {
+            using var start = new Barrier(guards.Length);
+            var threads = guards.Select((guard, i) => new Thread(() => { start.SignalAndWait(); results[i] = guard.TryAcquire() is { IsSuccess: true, Value: true }; })).ToArray();
+            foreach (var thread in threads) thread.Start();
+            foreach (var thread in threads) thread.Join();
+            var acquired = results.Count(value => value);
+            Assert.True(acquired == 1, $"round {round}: exactly one guard must acquire, {acquired} did");
+        }
+        finally
+        {
+            // Losers first: a loser that (wrongly) believes it owns the socket would delete the
+            // winner's file on dispose, and the next round must start from a fresh stale file.
+            foreach (var i in Enumerable.Range(0, guards.Length).OrderBy(i => results[i])) guards[i].Dispose();
+        }
+        if (File.Exists(socketPath)) File.Delete(socketPath);
+    }
+    return Task.CompletedTask;
+});
+
+// #1334: the socket lives under XDG_RUNTIME_DIR, the database under XDG_STATE_HOME. Two launches
+// with different runtime dirs must still exclude each other, because they share hyperwhisper.db.
+static Task SingleInstanceKeyedByDatabaseDirectory() => WithTemporaryDirectoryAsync(directory =>
+{
+    var state = Path.Combine(directory, "state");
+    using var first = new LinuxSingleInstanceCoordinator(new SplitAppPaths(state, Path.Combine(directory, "run-a")));
+    using var second = new LinuxSingleInstanceCoordinator(new SplitAppPaths(state, Path.Combine(directory, "run-b")));
+    Assert.True(first.TryAcquire() is { IsSuccess: true, Value: true }, "the first launch owns the profile");
+    Assert.True(second.TryAcquire() is { IsSuccess: true, Value: false }, "a second launch on the same database must not acquire");
+    first.Release();
+    Assert.True(second.TryAcquire() is { IsSuccess: true, Value: true }, "the guard frees when its owner releases");
+    using var other = new LinuxSingleInstanceCoordinator(new SplitAppPaths(Path.Combine(directory, "other-state"), Path.Combine(directory, "run-a")));
+    Assert.True(other.TryAcquire() is { IsSuccess: true, Value: true }, "a different database is a different instance");
+    return Task.CompletedTask;
+});
+
 // GNOME, KDE and every XDG session read only $XDG_CONFIG_HOME/autostart/ (#2023). The entry was
 // written under the app's own config folder, and this test passed because its fake paths had no
 // hyperwhisper segment. Build the paths the real way so the two folders differ.
@@ -4383,6 +4442,19 @@ sealed class FakeDiagnostics : IGlobalShortcutDiagnostics
     public void MalformedFrame() { }
     public void SourceFailed() { }
     public void SubscriberFailed() => SubscriberFailures++;
+}
+
+sealed class SplitAppPaths(string state, string runtime) : IAppPaths
+{
+    public string DataDirectory => state;
+    public string ConfigDirectory => state;
+    public string CacheDirectory => state;
+    public string StateDirectory => state;
+    public string LogsDirectory => state;
+    public string ModelsDirectory => state;
+    public string RecordingsDirectory => state;
+    public string RuntimeDirectory => runtime;
+    public string TemporaryDirectory => state;
 }
 
 sealed class FakeAppPaths(string root) : IAppPaths
