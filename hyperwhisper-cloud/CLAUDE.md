@@ -77,7 +77,7 @@ The auth credential is accepted under **two param names**: `account_key` (canoni
 | `key` | 60 / min | SHA-256 of the account key (never the raw key) | `keyRateLimitResponse` inside each route, right AFTER `validateAuth` accepts the key and before any credit hold |
 | `ws_upgrade` | 10 / min | same key hash | `makeStreamingPreflight`, on top of `key` — an upgrade counts against both |
 
-Limited: `/transcribe`, `/post-process`, `/usage` and every `/ws/streaming-*` upgrade. `/health`, `/warmup` and CORS preflights are not. A new key-accepting route needs `ipRateLimit` in `index.ts` and a `keyRateLimitResponse` call after its auth; a new `/ws/streaming-*` route gets the key buckets from `makeStreamingPreflight` but still needs `ipRateLimit` in `index.ts`.
+Limited: `/transcribe`, `/post-process`, `/usage` and every `/ws/streaming-*` upgrade. `/health`, `/warmup` and CORS preflights are not. `POST /internal/license-cache/invalidate` (site → cloud after an Account Key rotation, gated by `x-internal-secret` = `HYPERWHISPER_INTERNAL_SECRET`, `src/routes/internal-license-cache.ts`) runs `ipRateLimit` only; it accepts no key as a credential. A new key-accepting route needs `ipRateLimit` in `index.ts` and a `keyRateLimitResponse` call after its auth; a new `/ws/streaming-*` route gets the key buckets from `makeStreamingPreflight` but still needs `ipRateLimit` in `index.ts`.
 
 Over a limit: HTTP 429, a `Retry-After` header in whole seconds, and the usual `{ error: 'Too many requests', message, retry_after_seconds }` body; the log line is `rate_limit.rejected` (endpoint + bucket, never the IP or key). The native clients already treat 429 as rate limited.
 
