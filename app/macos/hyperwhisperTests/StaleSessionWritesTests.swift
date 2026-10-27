@@ -188,7 +188,7 @@ struct StaleSessionWritesTests {
         for state: RecordingState in [.transcribing, .postProcessing] {
             #expect(Flow.shouldReleaseStateAfterToggle(
                 takeOverGeneration: 5, currentSessionGeneration: 5,
-                isRecording: false, isStreamingActive: false, recordingState: state
+                isRecording: false, isStreamingActive: false, isStopInProgress: false, recordingState: state
             ), "\(state) was left behind")
         }
     }
@@ -196,11 +196,11 @@ struct StaleSessionWritesTests {
     @Test func aStartThatRecordsKeepsItsState() {
         #expect(!Flow.shouldReleaseStateAfterToggle(
             takeOverGeneration: 5, currentSessionGeneration: 5,
-            isRecording: true, isStreamingActive: false, recordingState: .transcribing
+            isRecording: true, isStreamingActive: false, isStopInProgress: false, recordingState: .transcribing
         ))
         #expect(!Flow.shouldReleaseStateAfterToggle(
             takeOverGeneration: 5, currentSessionGeneration: 5,
-            isRecording: false, isStreamingActive: true, recordingState: .transcribing
+            isRecording: false, isStreamingActive: true, isStopInProgress: false, recordingState: .transcribing
         ))
     }
 
@@ -208,7 +208,7 @@ struct StaleSessionWritesTests {
     @Test func aNewerFlowKeepsItsState() {
         #expect(!Flow.shouldReleaseStateAfterToggle(
             takeOverGeneration: 5, currentSessionGeneration: 6,
-            isRecording: false, isStreamingActive: false, recordingState: .transcribing
+            isRecording: false, isStreamingActive: false, isStopInProgress: false, recordingState: .transcribing
         ))
     }
 
@@ -217,7 +217,7 @@ struct StaleSessionWritesTests {
     @Test func aToggleThatBeganNoSessionReleasesNothing() {
         #expect(!Flow.shouldReleaseStateAfterToggle(
             takeOverGeneration: nil, currentSessionGeneration: 5,
-            isRecording: false, isStreamingActive: false, recordingState: .transcribing
+            isRecording: false, isStreamingActive: false, isStopInProgress: false, recordingState: .transcribing
         ))
     }
 
@@ -227,7 +227,7 @@ struct StaleSessionWritesTests {
         for state: RecordingState in [.idle, .recording, .processing, .complete("x"), .error("x")] {
             #expect(!Flow.shouldReleaseStateAfterToggle(
                 takeOverGeneration: 5, currentSessionGeneration: 5,
-                isRecording: false, isStreamingActive: false, recordingState: state
+                isRecording: false, isStreamingActive: false, isStopInProgress: false, recordingState: state
             ), "\(state) was released")
         }
     }
@@ -241,37 +241,68 @@ struct StaleSessionWritesTests {
         let toggle = appState.beginTranscriptionSession()  // the record toggle
         #expect(Flow.shouldReleaseStateAfterToggle(
             takeOverGeneration: toggle, currentSessionGeneration: appState.transcriptionSessionGeneration,
-            isRecording: false, isStreamingActive: false, recordingState: appState.recordingState
+            isRecording: false, isStreamingActive: false, isStopInProgress: false, recordingState: appState.recordingState
         ))
 
         appState.beginTranscriptionSession()  // a file import took the state meanwhile
         #expect(!Flow.shouldReleaseStateAfterToggle(
             takeOverGeneration: toggle, currentSessionGeneration: appState.transcriptionSessionGeneration,
-            isRecording: false, isStreamingActive: false, recordingState: appState.recordingState
+            isRecording: false, isStreamingActive: false, isStopInProgress: false, recordingState: appState.recordingState
         ))
     }
 
     private static let togglePath =
         "app/macos/hyperwhisper/Managers/AudioRecording/RecordingFlow/RecordingTranscriptionFlow+Toggle.swift"
 
-    /// The toggle keeps the generation it began, for starts only, and
-    /// releases after the start returns and on each cancelled exit before it.
+    /// A start that recorded, then was stopped during the start's own later
+    /// awaits (a lost capture, the max-duration auto-stop: neither bumps),
+    /// leaves the user's dictation `.transcribing` with nothing recording.
+    /// Its stop holds `isStopInProgress` throughout, so nothing is released.
+    @Test func aStartStoppedDuringItsOwnStartKeepsItsDictation() {
+        for state: RecordingState in [.transcribing, .postProcessing] {
+            #expect(!Flow.shouldReleaseStateAfterToggle(
+                takeOverGeneration: 5, currentSessionGeneration: 5,
+                isRecording: false, isStreamingActive: false, isStopInProgress: true, recordingState: state
+            ), "the toggle released its own dictation's \(state)")
+        }
+    }
+
+    /// The toggle begins a session through the #1276 decision, makes ONE
+    /// start/stop decision per run, and releases only on the start side:
+    /// on the pre-run cancel (gated by that decision), the pre-start cancel
+    /// and after the start returns. Never in the stop arm.
     @Test func theToggleReleasesAfterAStartThatStartedNothing() throws {
         let toggle = try ProductionSource.slice(
             of: Self.togglePath,
             from: "func toggleRecordingWithTranscription(",
             to: "private func releaseStateNoSessionTookOver("
         )
-        #expect(toggle.contains("takeOverGeneration = appState?.beginTranscriptionSession()"), "\(toggle)")
-        #expect(toggle.contains("let ownedGeneration = startsASession ? takeOverGeneration : nil"), "\(toggle)")
-        let start = try #require(toggle.range(of: "await handleStartRecording(mode: modeToUse)"), "\(toggle)")
-        let afterStart = toggle[start.upperBound...]
-        #expect(afterStart.contains("releaseStateNoSessionTookOver(ownedGeneration)"), "no release after the start")
-        let releases = toggle.components(separatedBy: "releaseStateNoSessionTookOver(ownedGeneration)").count - 1
+        #expect(toggle.contains("let takeOverGeneration: UInt64? = Self.toggleTakesOverSession("), "\(toggle)")
+        #expect(toggle.contains("? appState?.beginTranscriptionSession() : nil"), "\(toggle)")
+        let release = "releaseStateNoSessionTookOver(takeOverGeneration)"
+        let releases = toggle.components(separatedBy: release).count - 1
         #expect(releases == 3, "the pre-run cancel, the pre-start cancel and the post-start release: \(releases)")
+
+        // One decision, read once, used by the cancel guard and the branch.
+        #expect(toggle.components(separatedBy: "recordingLifecycle.isRecording || isStreamingActive").count - 1 == 1,
+                "the start/stop decision is stated more than once: \(toggle)")
+        #expect(toggle.contains("let startsASession = !stopsASession && !stopOnly"), "\(toggle)")
+        #expect(toggle.contains("if stopsASession {"), "\(toggle)")
+        #expect(toggle.contains("} else if startsASession {"), "\(toggle)")
+
+        let preRun = try #require(toggle.range(of: "guard !Task.isCancelled else {"), "\(toggle)")
+        let preRunBody = toggle[preRun.upperBound...]
+        let preRunEnd = try #require(preRunBody.range(of: "return"))
+        let preRunArm = preRunBody[..<preRunEnd.lowerBound]
+        let gate = try #require(preRunArm.range(of: "if startsASession {"), "the pre-run release is not gated: \(preRunArm)")
+        let gatedRelease = try #require(preRunArm.range(of: release), "\(preRunArm)")
+        #expect(gate.lowerBound < gatedRelease.lowerBound)
+
+        let start = try #require(toggle.range(of: "await handleStartRecording(mode: modeToUse)"), "\(toggle)")
+        #expect(toggle[start.upperBound...].contains(release), "no release after the start")
         let stop = try #require(toggle.range(of: "await handleStopRecordingWithTranscription("), "\(toggle)")
         let stopArm = toggle[stop.upperBound...]
-        let stopArmEnd = try #require(stopArm.range(of: "} else if !stopOnly {"))
+        let stopArmEnd = try #require(stopArm.range(of: "} else if startsASession {"))
         #expect(!stopArm[..<stopArmEnd.lowerBound].contains("releaseStateNoSessionTookOver"),
                 "a stop's own flow owns the state it leaves")
     }
@@ -286,6 +317,7 @@ struct StaleSessionWritesTests {
             to: "nonisolated static func shouldReleaseStateAfterToggle("
         )
         let decision = try #require(release.range(of: "Self.shouldReleaseStateAfterToggle("), "\(release)")
+        #expect(release.contains("isStopInProgress: isStopInProgress"), "the release ignores a stop in progress: \(release)")
         let text = try #require(release.range(of: "appState.lastTranscription = \"\""), "\(release)")
         let idle = try #require(release.range(of: "appState.recordingState = .idle"), "\(release)")
         let hide = try #require(release.range(of: "appState.showRecordingDialog = false"), "\(release)")
