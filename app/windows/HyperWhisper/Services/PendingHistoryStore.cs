@@ -317,9 +317,11 @@ internal sealed class PendingHistoryStore
     }
 
     /// <summary>
-    /// Renames the unreadable file to <c>.unreadable</c>, kept for diagnosis. True when it
-    /// is out of the way (moved, or already gone). Logs the path and the error type, never
-    /// row text. Caller holds <see cref="_sync"/>, or is <see cref="Load"/>.
+    /// Renames the unreadable file to <c>.unreadable</c>, kept for diagnosis. An earlier
+    /// <c>.unreadable</c> may hold rows of its own, so it is never replaced: the new one
+    /// gets a time-stamped name instead. True when the file is out of the way (moved, or
+    /// already gone). Logs the path and the error, never row text. Caller holds
+    /// <see cref="_sync"/>, or is <see cref="Load"/>.
     /// </summary>
     private bool TryMoveUnreadableAside()
     {
@@ -327,7 +329,9 @@ internal sealed class PendingHistoryStore
         try
         {
             if (!File.Exists(_filePath)) return true;
-            File.Move(_filePath, asidePath, overwrite: true);
+            if (File.Exists(asidePath))
+                asidePath = $"{asidePath}.{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}";
+            File.Move(_filePath, asidePath, overwrite: false);
             LoggingService.Warn($"PendingHistoryStore: Moved the unreadable pending History file aside to {asidePath}");
             return true;
         }

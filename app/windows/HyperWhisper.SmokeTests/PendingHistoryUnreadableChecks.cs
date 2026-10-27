@@ -90,6 +90,18 @@ internal static class PendingHistoryUnreadableChecks
                 Assert(store.Upsert(row), "the first save after a moved-aside corrupt file failed");
                 Assert(File.ReadAllText(storePath).Contains(row.Id.ToString(), StringComparison.OrdinalIgnoreCase),
                     "the new pending file does not hold the row");
+
+                // A second unreadable file must not replace the first .unreadable copy, whose
+                // rows exist nowhere else.
+                const string earlier = "earlier unreadable copy";
+                File.WriteAllText(storePath + ".unreadable", earlier);
+                File.WriteAllText(storePath, "{ corrupt again");
+                Assert(new PendingHistoryStore(storePath).Count == 0, "the second corrupt file read as rows");
+                Assert(File.ReadAllText(storePath + ".unreadable") == earlier,
+                    "the second move-aside overwrote the earlier .unreadable copy");
+                var stamped = Directory.GetFiles(folder, PendingHistoryStore.FileName + ".unreadable.*");
+                Assert(stamped.Length == 1 && File.ReadAllText(stamped[0]) == "{ corrupt again",
+                    $"the second unreadable file was not kept beside the first ({stamped.Length} stamped copies)");
             }
             finally
             {
