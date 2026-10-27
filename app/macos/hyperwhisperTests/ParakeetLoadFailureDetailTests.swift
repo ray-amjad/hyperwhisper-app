@@ -339,4 +339,48 @@ struct ParakeetLoadFailureDetailTests {
             #expect(code.contains("LocalModelLoadFailureDetail.publicSummary(for: error)"), "\(file)")
         }
     }
+
+    // MARK: - Model path in the warmup log line (#2020)
+
+    /// A `.path` (or `.path()`, `.absoluteString`) logged with `privacy: .public`.
+    private static let publicPathPattern =
+        #"\.(path|absoluteString)(\(\))?\s*,\s*privacy:\s*\.public"#
+    /// A `.path` interpolated into an engine's `logDetail:` string.
+    private static let pathInLogDetailPattern =
+        #"logDetail:\s*"[^"\n]*\\\([^)\n]*\.(path|absoluteString)(\(\))?\)"#
+
+    /// A path holds the account name (`/Users/<name>/…`), so no live
+    /// streaming file may log one publicly: neither a `.path` interpolated
+    /// with `privacy: .public`, nor a `.path` in an engine's `logDetail`,
+    /// which the shared client logs with `privacy: .public`.
+    @Test func liveStreamingFilesLogNoPublicPath() throws {
+        let directory = "app/macos/hyperwhisper/Managers/AudioRecording/Streaming/Local/"
+        for file in [
+            "LocalParakeetStreamingClient.swift",
+            "LocalNemotronStreamingClient.swift",
+            "LocalStreamingClient.swift",
+            "ParakeetStreamingSession.swift",
+            "NemotronStreamingSession.swift",
+        ] {
+            let code = try ProductionSource.code(of: directory + file)
+            #expect(code.range(of: Self.publicPathPattern, options: .regularExpression) == nil, "\(file)")
+            #expect(code.range(of: Self.pathInLogDetailPattern, options: .regularExpression) == nil, "\(file)")
+        }
+    }
+
+    /// The two scan patterns above catch the shapes they are meant to, so a
+    /// typo in a pattern cannot make the scan pass vacuously.
+    @Test func publicPathPatternsMatchTheLeakShapes() {
+        let leaks = [
+            (#"logger.info("at \(directory.path, privacy: .public)")"#, Self.publicPathPattern),
+            (#"logger.info("at \(url.path(), privacy: .public)")"#, Self.publicPathPattern),
+            (#"return .present(logDetail: "models present at \(directory.path)")"#, Self.pathInLogDetailPattern),
+        ]
+        for (line, pattern) in leaks {
+            #expect(line.range(of: pattern, options: .regularExpression) != nil, "\(line)")
+        }
+        let safe = #"return .present(logDetail: "models present in \(directory.lastPathComponent)")"#
+        #expect(safe.range(of: Self.publicPathPattern, options: .regularExpression) == nil)
+        #expect(safe.range(of: Self.pathInLogDetailPattern, options: .regularExpression) == nil)
+    }
 }
