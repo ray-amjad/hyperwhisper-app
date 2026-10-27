@@ -110,9 +110,9 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         RaiseActivityChanged();
     }
 
-    /// <summary>Something <see cref="HomeRecordingState"/> reads changed: live capture began or ended, the
-    /// stream's connection failed, or its worker ended while the stream is still held. Raised on any
-    /// thread; a UI subscriber marshals (#2038).</summary>
+    /// <summary>Something <see cref="HomeRecordingState"/> or <see cref="IsRecordingOrFinishing"/> reads
+    /// changed: live capture began or ended, the stream's connection failed, its worker ended while the
+    /// stream is still held, or a stop finished. Raised on any thread; a UI subscriber marshals (#2038, #2599).</summary>
     public event EventHandler? ActivityChanged;
     private bool _liveConnectionFailed;
 
@@ -382,6 +382,8 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             {
                 Volatile.Write(ref _finishing, false);
                 ReleaseRecordingStatus();
+                // IsRecordingOrFinishing went false: the status bar's record hint may come back (#2599).
+                RaiseActivityChanged();
             }
         }
     }

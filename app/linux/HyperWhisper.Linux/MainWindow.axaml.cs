@@ -2762,25 +2762,41 @@ public partial class MainWindow : Window
     private void UpdateShortcutHint()
     {
         if (StatusText is null) return;
-        var parts = new List<string>(3);
-        var message = _viewModel.Status.Message;
+        StatusText.Text = ComposeStatusLine(
+            _viewModel.Status.Message, _viewModel.Status.HasError, _viewModel.Status.ErrorCode,
+            _viewModel.Settings.ToggleShortcutDisplay, _localization["linux.status.record_hint"],
+            IsRecordingInFlight(_recordingSession, _viewModel.Recording));
+        // Windows prints the same composed line a second time, under "No recordings yet" in the
+        // History empty state. Nothing was assigning it, so the Linux empty state showed the
+        // title alone where Windows shows two lines.
+        _viewModel.History.HotkeyInstruction = StatusText.Text;
+    }
+
+    /// <summary>The status bar line. The record hint is added only to the resting line, as Windows adds it
+    /// only to "Ready" (status.ready.withHotkey): never while a recording, stream, transcription or import
+    /// is in flight, where the shortcut stops rather than records, and never after a failure (#2599).</summary>
+    internal static string ComposeStatusLine(string? message, bool hasError, string? errorCode,
+        string? shortcut, string hintFormat, bool inFlight)
+    {
+        var parts = new List<string>(2);
         if (!string.IsNullOrWhiteSpace(message)) parts.Add(message);
         // The raw error code used to be appended next to the message, so the status bar read
         // "No audio input device is available. - workflow.start_failed - Press Ctrl+Alt to record".
         // The code is an internal identifier and reads as a crash. Windows shows only the message.
         // It is still shown when there is no message, so an error is never silent, and it is always
         // in the diagnostic log.
-        else if (_viewModel.Status.HasError && !string.IsNullOrWhiteSpace(_viewModel.Status.ErrorCode))
-            parts.Add(_viewModel.Status.ErrorCode!);
-        var shortcut = _viewModel.Settings.ToggleShortcutDisplay;
-        if (!string.IsNullOrEmpty(shortcut))
-            parts.Add(string.Format(_localization["linux.status.record_hint"], shortcut));
-        StatusText.Text = string.Join(" - ", parts);
-        // Windows prints the same composed line a second time, under "No recordings yet" in the
-        // History empty state. Nothing was assigning it, so the Linux empty state showed the
-        // title alone where Windows shows two lines.
-        _viewModel.History.HotkeyInstruction = StatusText.Text;
+        else if (hasError && !string.IsNullOrWhiteSpace(errorCode))
+            parts.Add(errorCode!);
+        if (!inFlight && !hasError && !string.IsNullOrEmpty(shortcut))
+            parts.Add(string.Format(hintFormat, shortcut));
+        return string.Join(" - ", parts);
     }
+
+    /// <summary>A recording or live stream is running or still finishing (the #1190 predicate), a failed live
+    /// stream is held until Stop (#1246), or the Home recorder is stopping, transcribing or importing (#2599).</summary>
+    internal static bool IsRecordingInFlight(LinuxInteractionRecordingSession? session, TranscriptionWorkflowViewModel? recording) =>
+        session is { IsRecordingOrFinishing: true } or { HasOpenSession: true }
+        || recording is { CanCancel: true } or { IsImporting: true };
 
     private void OnShellStatusChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
@@ -2807,6 +2823,9 @@ public partial class MainWindow : Window
             UpdateFileTranscriptionProgressWindow();
         if (e.PropertyName is nameof(recording.CanStop)) Dispatcher.UIThread.Post(UpdateHomeRecordingActive);
         if (e.PropertyName is nameof(recording.State)) Dispatcher.UIThread.Post(UpdateHomeRecordingState);
+        // The record hint comes back with the resting line once nothing is in flight (#2599).
+        if (e.PropertyName is nameof(recording.CanCancel) or nameof(recording.IsImporting))
+            Dispatcher.UIThread.Post(UpdateShortcutHint);
     }
 
     private LinuxFileTranscriptionProgressWindow? _fileProgress;
@@ -3067,7 +3086,13 @@ public partial class MainWindow : Window
         IsHomeRecordingActive = _recordingSession.IsLiveCaptureActive || _viewModel.Recording?.CanStop == true;
 
     // Raised from the live worker's thread as well as the UI thread (#2038).
-    private void OnRecordingActivityChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(UpdateHomeRecordingState);
+    private void OnRecordingActivityChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
+    {
+        UpdateHomeRecordingState();
+        // A stop that wrote its own line ("Live transcription pasted and saved") wrote it while still
+        // finishing, so the hint is re-composed once the session is done (#2599).
+        UpdateShortcutHint();
+    });
 
     private void UpdateHomeRecordingState() =>
         HomeRecordingState = _recordingSession.HomeRecordingState(_viewModel.Recording?.State);

@@ -53,6 +53,36 @@ static class RecordingStatusAfterStopTests
             "the overlay completion mapping changed");
     });
 
+    // Issue #2599: the status bar appended "Press Ctrl+Alt to record" to every line, so a recording read
+    // "Recording… - Press Ctrl+Alt to record" while Ctrl+Alt would stop it. The hint is now only on the
+    // resting line (Windows' status.ready.withHotkey). This composes the line the way UpdateShortcutHint
+    // does, from the real session and the real Home recorder of a real batch dictation.
+    public static Task StatusHintOnlyOnRestingLine() => RunAsync(new FakeTextInjection(), async (shell, session, _) =>
+    {
+        const string hint = "Press {0} to record";
+        string Line() => MainWindow.ComposeStatusLine(shell.Status.Message, shell.Status.HasError, shell.Status.ErrorCode,
+            "Ctrl+Alt", hint, MainWindow.IsRecordingInFlight(session, shell.Recording));
+
+        shell.ShowReadyStatus();
+        Check(Line() == "Ready - Press Ctrl+Alt to record", $"at rest the status bar read '{Line()}'");
+
+        Check((await session.StartAsync(InteractionRecordingKind.Batch)).IsSuccess, "the batch recording did not start");
+        Check(Line() == "Recording…", $"while recording the status bar read '{Line()}', not 'Recording…' (#2599)");
+
+        var stopped = await session.StopAsync();
+        Check(stopped.Result.IsSuccess, $"the batch stop failed: {stopped.Result.Error?.Code} {stopped.Result.Error?.Message}");
+        Check(Line() == "Ready - Press Ctrl+Alt to record", $"after the recording ended the status bar read '{Line()}'");
+
+        // Windows' status.failed carries no hint.
+        shell.Status.Failure("provider.credential_rejected", "The provider rejected the supplied credential.");
+        Check(Line() == "The provider rejected the supplied credential.", $"after a failure the status bar read '{Line()}' (#2599)");
+        // A failure with no message still names its code, and still no hint.
+        Check(MainWindow.ComposeStatusLine(null, true, "workflow.start_failed", "Ctrl+Alt", hint, false) == "workflow.start_failed",
+            "an error with no message lost its code or gained the hint");
+        // No shortcut set: the resting line is the message alone.
+        Check(MainWindow.ComposeStatusLine("Ready", false, null, "", hint, false) == "Ready", "an empty shortcut still added a hint");
+    });
+
     private static async Task RunAsync(ITextInjectionService textInjection,
         Func<ApplicationShellViewModel, LinuxInteractionRecordingSession, StatusTestOverlay, Task> body)
     {

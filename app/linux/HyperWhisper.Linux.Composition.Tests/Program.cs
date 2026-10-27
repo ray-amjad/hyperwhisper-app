@@ -73,6 +73,10 @@ if (args is [HomeLiveStateRenderTests.ProbeArgument])
 {
     Environment.Exit(HomeLiveStateRenderTests.RunProbe());
 }
+if (args is [StatusHintRenderTests.ProbeArgument])
+{
+    Environment.Exit(StatusHintRenderTests.RunProbe());
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -156,6 +160,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a live stream that fails after delivering text keeps that text in History, the error only in FailedReason (#2282)", LiveFailureHistoryTests.KeepsDeliveredText),
     ("Home's state follows a live stream: Recording while it runs, Failed once it fails and is held (#2038)", HomeLiveStateRenderTests.MappingFollowsTheLiveStream),
     ("the real Home caption reads Failed for a held live stream and Idle again after Stop (#2038)", HomeLiveStateRenderTests.RunAsync),
+    ("the status bar adds the record hint only to the resting line, as Windows does (#2599)", RecordingStatusAfterStopTests.StatusHintOnlyOnRestingLine),
+    ("the real status bar drops the record hint while a stream is open or after a failure, and brings it back after (#2599)", StatusHintRenderTests.RunAsync),
 };
 
 foreach (var test in tests)
