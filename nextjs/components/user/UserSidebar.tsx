@@ -148,8 +148,9 @@ export default function UserSidebar({ locale }: UserSidebarProps) {
           <li key={item.name}>
             <Link
               // Colour alone does not tell a screen reader which page is
-              // open (#1314).
-              aria-current={isActive ? "page" : undefined}
+              // open (#1314). Read from the committed path, not the pending
+              // click: a stalled navigation must not name a page not shown.
+              aria-current={pathname === item.href ? "page" : undefined}
               href={item.href}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg border transition-[background-color,color,border-color] duration-200 motion-reduce:transition-none ${
                 isActive
