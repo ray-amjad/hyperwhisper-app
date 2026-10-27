@@ -253,7 +253,7 @@ async function checkTranscribe(check: SttCheck): Promise<void> {
 // so a `corrected` equal to this is the route's raw fallback (#2143).
 const POST_PROCESS_INPUT = 'hello world this is a ci smoke test';
 
-async function checkPostProcess(provider: string, expectedModel: string, attempt = 1): Promise<void> {
+async function checkPostProcess(provider: string, expectedModel: string, firstFallback = ''): Promise<void> {
   const name = `POST /post-process ${provider}`;
   try {
     const res = await fetchWithTimeout(`${BASE_URL}/post-process`, {
@@ -289,8 +289,11 @@ async function checkPostProcess(provider: string, expectedModel: string, attempt
     // route returns the input unchanged with X-LLM-Provider still naming the
     // requested model (#2143). So an unchanged `corrected` is a fallback too.
     const served = res.headers.get('X-LLM-Provider') || '?';
-    const body = (await res.json().catch(() => ({}))) as { corrected?: unknown };
-    const corrected = typeof body.corrected === 'string' ? body.corrected.trim() : '';
+    const body = (await res.json().catch(() => null)) as { corrected?: unknown } | null;
+    if (typeof body?.corrected !== 'string') {
+      return fail(name, `200 without a string \`corrected\` in a JSON body (served ${served})`);
+    }
+    const corrected = body.corrected.trim();
     let msg = '';
     if (served !== expectedModel) {
       msg = `fell back — requested ${provider} (${expectedModel}), served ${served}`;
@@ -298,11 +301,11 @@ async function checkPostProcess(provider: string, expectedModel: string, attempt
       msg = `fell back to the raw input — ${provider} (${served}) returned ${JSON.stringify(corrected)}`;
     }
     if (msg) {
-      if (attempt === 1) {
+      if (!firstFallback) {
         warn(name, `${msg}; asking once more`);
-        return checkPostProcess(provider, expectedModel, 2);
+        return checkPostProcess(provider, expectedModel, msg);
       }
-      return fail(name, `${msg} (twice)`);
+      return fail(name, msg === firstFallback ? `${msg} (twice)` : `${msg}; first request: ${firstFallback}`);
     }
     pass(name, `via ${served}: ${JSON.stringify(corrected.slice(0, 50))}`);
   } catch (err) {

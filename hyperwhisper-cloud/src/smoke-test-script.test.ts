@@ -10,11 +10,12 @@ import { servedNameFor, type SttProviderId } from './lib/stt-models';
 import { LLM_PROVIDER_NAMES } from './lib/llm-provider';
 
 const SCRIPT = join(import.meta.dir, '..', 'scripts', 'smoke-test.ts');
-const SMOKE_INPUT = 'hello world this is a ci smoke test';
 const FIXED = 'Hello world, this is a CI smoke test.';
+const RAW = Symbol('raw input');
 
+// `raw` echoes the request's `text` back, the way the route's raw fallback does.
 interface PostProcessReply {
-  corrected: string;
+  corrected: string | typeof RAW;
   served?: string; // X-LLM-Provider; defaults to the requested provider's model
 }
 
@@ -43,13 +44,13 @@ function startFakeCloud(reply: Reply): string {
       }
       if (url.pathname === '/post-process') {
         const body = (await req.json()) as { text: string };
-        expect(body.text).toBe(SMOKE_INPUT);
         const provider = req.headers.get('X-LLM-Provider') ?? '';
         const attempt = (calls.get(provider) ?? 0) + 1;
         calls.set(provider, attempt);
         const r = reply(provider, attempt);
         const served = r.served ?? LLM_PROVIDER_NAMES[provider as keyof typeof LLM_PROVIDER_NAMES];
-        return Response.json({ corrected: r.corrected }, { headers: { 'X-LLM-Provider': served } });
+        const corrected = r.corrected === RAW ? body.text : r.corrected;
+        return Response.json({ corrected }, { headers: { 'X-LLM-Provider': served } });
       }
       return new Response('not found', { status: 404 });
     },
@@ -60,7 +61,8 @@ function startFakeCloud(reply: Reply): string {
 async function runSmoke(reply: Reply): Promise<{ code: number; out: string }> {
   const base = startFakeCloud(reply);
   const proc = Bun.spawn(['bun', 'run', SCRIPT], {
-    env: { ...process.env, SMOKE_BASE_URL: base, SMOKE_LICENSE_KEY: 'smoke-test-fake', SMOKE_TIMEOUT_MS: '10000' },
+    // Only what the run needs, so a shell's own SMOKE_* settings cannot leak in.
+    env: { PATH: process.env.PATH ?? '', HOME: process.env.HOME ?? '', SMOKE_BASE_URL: base, SMOKE_LICENSE_KEY: 'smoke-test-fake', SMOKE_TIMEOUT_MS: '10000' },
     stdout: 'pipe',
     stderr: 'pipe',
   });
@@ -75,13 +77,13 @@ async function runSmoke(reply: Reply): Promise<{ code: number; out: string }> {
 describe('deploy smoke /post-process rows', () => {
   test('pass when every provider corrects the input', async () => {
     const { code, out } = await runSmoke(() => ({ corrected: FIXED }));
-    expect(out).toContain('✓ POST /post-process openai — via openai-gpt-5.6-luna');
+    expect(out).toContain(`✓ POST /post-process openai — via ${LLM_PROVIDER_NAMES.openai}`);
     expect(out).toContain('✓ Smoke test passed');
     expect(code).toBe(0);
   }, 30_000);
 
   test('fail when a provider returns the raw input under its own model name, twice', async () => {
-    const { code, out } = await runSmoke((p) => ({ corrected: p === 'openai' ? SMOKE_INPUT : FIXED }));
+    const { code, out } = await runSmoke((p) => ({ corrected: p === 'openai' ? RAW : FIXED }));
     expect(out).toContain('! POST /post-process openai — fell back to the raw input');
     expect(out).toContain('✗ POST /post-process openai — fell back to the raw input');
     expect(out).toContain('(twice)');
@@ -97,10 +99,10 @@ describe('deploy smoke /post-process rows', () => {
 
   test('a single raw fallback is asked once more and passes on a corrected retry', async () => {
     const { code, out } = await runSmoke((p, attempt) => ({
-      corrected: p === 'grok' && attempt === 1 ? SMOKE_INPUT : FIXED,
+      corrected: p === 'grok' && attempt === 1 ? RAW : FIXED,
     }));
     expect(out).toContain('! POST /post-process grok — fell back to the raw input');
-    expect(out).toContain('✓ POST /post-process grok — via xai-grok-4.3');
+    expect(out).toContain(`✓ POST /post-process grok — via ${LLM_PROVIDER_NAMES.grok}`);
     expect(code).toBe(0);
   }, 30_000);
 
@@ -110,6 +112,26 @@ describe('deploy smoke /post-process rows', () => {
       served: p === 'mistral' ? LLM_PROVIDER_NAMES.groq : undefined,
     }));
     expect(out).toContain('✗ POST /post-process mistral — fell back — requested mistral');
+    expect(code).toBe(1);
+  }, 30_000);
+
+  test('a header fallback then a raw fallback names both requests', async () => {
+    const { code, out } = await runSmoke((p, attempt) =>
+      p === 'cerebras'
+        ? attempt === 1
+          ? { corrected: FIXED, served: LLM_PROVIDER_NAMES.groq }
+          : { corrected: RAW }
+        : { corrected: FIXED },
+    );
+    expect(out).toContain('✗ POST /post-process cerebras — fell back to the raw input');
+    expect(out).toContain('; first request: fell back — requested cerebras');
+    expect(code).toBe(1);
+  }, 30_000);
+
+  test('a 200 with no `corrected` fails as a broken response, not a fallback', async () => {
+    const { code, out } = await runSmoke((p) => ({ corrected: p === 'anthropic' ? (undefined as never) : FIXED }));
+    expect(out).toContain('✗ POST /post-process anthropic — 200 without a string `corrected`');
+    expect(out).not.toContain('! POST /post-process anthropic');
     expect(code).toBe(1);
   }, 30_000);
 });
