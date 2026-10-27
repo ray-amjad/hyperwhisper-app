@@ -139,7 +139,9 @@ extension AccessibilityHelper {
                 }
                 targetHandled = true
 
-                // Non-blocking delay using Task.sleep
+                // Wait until the target is frontmost with a focused element (#994).
+                // The old fixed settle per app type is now only the upper bound, so
+                // no app waits longer than it did before.
                 let isBrowser = isBrowserBundleId(targetBundleID ?? "")
                 let isElectron = targetBundleID.map { isElectronCodeEditor($0) || $0 == "com.tinyspeck.slackmacgap" } ?? false
                 let delayMs: UInt64 = isBrowser ? 250 : (isElectron ? 180 : 100)
@@ -150,7 +152,11 @@ extension AccessibilityHelper {
                     return .failed(CancellationError())
                 }
 
-                try? await Task.sleep(nanoseconds: delayMs * 1_000_000)
+                let targetPID = app.processIdentifier
+                let wait = await Self.waitForPasteTargetReady(upperBoundMs: delayMs) {
+                    self.isPasteTargetReady(pid: targetPID)
+                }
+                logger.info("⏱️ Paste target settle: \(wait.waitedMs, privacy: .public) ms of \(delayMs, privacy: .public) ms bound, ready=\(wait.ready, privacy: .public)")
 
                 // Check for cancellation after delay
                 if Task.isCancelled {
@@ -370,6 +376,58 @@ extension AccessibilityHelper {
 
         // Await and return the result
         return await task.value
+    }
+
+    // MARK: - Paste Target Readiness (#994)
+
+    /// How long the readiness wait took, and whether the target became ready
+    /// before the upper bound ran out.
+    struct PasteTargetWait {
+        let ready: Bool
+        let waitedMs: Int
+    }
+
+    /// Polls `isReady` every `pollIntervalMs` until it returns true or
+    /// `upperBoundMs` has passed, whichever comes first. A cancelled task stops
+    /// waiting at once; the caller checks `Task.isCancelled` after this returns.
+    @MainActor
+    static func waitForPasteTargetReady(upperBoundMs: UInt64,
+                                        pollIntervalMs: UInt64 = 15,
+                                        isReady: () -> Bool) async -> PasteTargetWait {
+        let clock = ContinuousClock()
+        let start = clock.now
+        let deadline = start.advanced(by: .milliseconds(Int64(upperBoundMs)))
+        func elapsedMs() -> Int {
+            let elapsed = start.duration(to: clock.now).components
+            return Int(elapsed.seconds * 1_000 + elapsed.attoseconds / 1_000_000_000_000_000)
+        }
+        while true {
+            if isReady() {
+                return PasteTargetWait(ready: true, waitedMs: elapsedMs())
+            }
+            let now = clock.now
+            if now >= deadline || Task.isCancelled {
+                return PasteTargetWait(ready: false, waitedMs: elapsedMs())
+            }
+            let step = min(Duration.milliseconds(Int64(pollIntervalMs)), now.duration(to: deadline))
+            try? await Task.sleep(for: step)
+        }
+    }
+
+    /// True when the app with `pid` is frontmost and Accessibility reports a
+    /// focused element inside it. The AX read uses a short messaging timeout,
+    /// so a hung target costs one poll, not the system default of seconds.
+    func isPasteTargetReady(pid: pid_t) -> Bool {
+        guard NSWorkspace.shared.frontmostApplication?.processIdentifier == pid else {
+            return false
+        }
+        let appElement = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(appElement, 0.05)
+        var focused: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(appElement,
+                                                   kAXFocusedUIElementAttribute as CFString,
+                                                   &focused)
+        return result == .success && AXCast.element(focused) != nil
     }
 
     // MARK: - PID-Reuse Defense
