@@ -369,10 +369,9 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         {
             if (transcript is not null)
             {
-                transcript.Status = TranscriptStatus.Failed;
-                transcript.Text = outcome.CaptureFailure?.Message ?? outcome.Transcription.Failure?.Message ?? "Live transcription failed";
-                transcript.FailedReason = transcript.Text;
-                transcript.Duration = outcome.CaptureDuration.TotalSeconds;
+                RecordLiveFailure(transcript, rawTranscript,
+                    outcome.CaptureFailure?.Message ?? outcome.Transcription.Failure?.Message ?? "Live transcription failed",
+                    outcome.CaptureDuration.TotalSeconds);
                 _ = await _history.UpdateAsync(transcript, cancellationToken);
             }
             await RefreshHistoryAsync(cancellationToken);
@@ -559,6 +558,22 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private string ReadDeliveredTranscript()
     {
         lock (_liveDeliveryGate) return _liveFinalText.ToString();
+    }
+
+    /// <summary>A stream that failed after final segments arrived (already pasted or copied) keeps that
+    /// text in History, with the error in FailedReason only, as Windows does (#2282). Before, both
+    /// fields held the error and the user's text existed only on the clipboard.</summary>
+    internal static void RecordLiveFailure(Transcript transcript, string? receivedText, string failure, double durationSeconds)
+    {
+        transcript.Status = TranscriptStatus.Failed;
+        transcript.FailedReason = failure;
+        if (string.IsNullOrWhiteSpace(receivedText)) transcript.Text = failure;
+        else
+        {
+            transcript.Text = receivedText;
+            transcript.TranscribedText = receivedText;
+        }
+        transcript.Duration = durationSeconds;
     }
 
     // A failed write must not read as "Copied!" while the diagnostics log says Clipboard Failed (#1703).
