@@ -42,6 +42,13 @@ extension TranscriptionPipeline {
     ) async throws -> TranscriptionResult {
         lastFailedAttemptDiagnostics = nil
 
+        // The session this request belongs to, read before the first
+        // suspension. Every caller that takes `recordingState` over bumps the
+        // generation BEFORE it calls here, so a newer flow (a new recording, a
+        // newer retry, a file import) moves it past this value. This run then
+        // leaves `recordingState` to that flow (#1394).
+        let sessionGenerationAtStart = appState?.transcriptionSessionGeneration
+
         // If a run of the SAME kind is in flight, cancel it so the latest
         // request wins: rapid hotkey presses and re-records. A run of the other
         // kind is left alone: a dictation during a file job runs beside it, and
@@ -491,8 +498,18 @@ extension TranscriptionPipeline {
                 setJobState(.postProcessing, for: jobKind)
                 // A file job moves the shared `recordingState` only while it is
                 // the one showing it, so it never relabels a dictation (#1425).
-                if jobKind == .dictation
-                    || (runningTasks[.dictation] == nil && appState?.recordingState == .transcribing) {
+                // No run moves it once a newer flow owns it, or once it is
+                // cancelled: the post-processing health check is not reached
+                // by the cancel, so a superseded retry gets here and would set
+                // `.postProcessing` over a new recording (#1394).
+                if Self.mayShowPostProcessingState(
+                    jobKind: jobKind,
+                    dictationRunning: runningTasks[.dictation] != nil,
+                    recordingState: appState?.recordingState,
+                    sessionGenerationAtStart: sessionGenerationAtStart,
+                    currentSessionGeneration: appState?.transcriptionSessionGeneration,
+                    isCancelled: Task.isCancelled
+                ) {
                     appState?.recordingState = .postProcessing
                 }
                 markStage("post_processing")
@@ -848,6 +865,35 @@ extension TranscriptionPipeline {
             }
             return transcriptionError
         }
+    }
+
+    /// Whether a run that reached client-side post-processing may set the
+    /// shared `recordingState` to `.postProcessing` (#1394).
+    ///
+    /// - A cancelled run never does. Its post-processing health check is an
+    ///   unstructured task the cancel does not reach, so a run can get past it
+    ///   after the cancel.
+    /// - A run whose session a newer flow took over never does: a new
+    ///   recording, a newer pending-file retry or a file import bumps
+    ///   `AppState.transcriptionSessionGeneration` before it starts, so the
+    ///   state is that flow's now. Checking `.transcribing` alone would not do:
+    ///   a newer retry that supersedes an older one is `.transcribing` too.
+    /// - Otherwise, as before (#1425): a dictation does; a file job only while
+    ///   no dictation runs and it is the one showing `.transcribing`.
+    ///
+    /// `nil` generations mean no `AppState`; the write is then a no-op anyway.
+    nonisolated static func mayShowPostProcessingState(
+        jobKind: TranscriptionJobKind,
+        dictationRunning: Bool,
+        recordingState: RecordingState?,
+        sessionGenerationAtStart: UInt64?,
+        currentSessionGeneration: UInt64?,
+        isCancelled: Bool
+    ) -> Bool {
+        guard !isCancelled else { return false }
+        guard sessionGenerationAtStart == currentSessionGeneration else { return false }
+        if jobKind == .dictation { return true }
+        return !dictationRunning && recordingState == .transcribing
     }
 
     /// Surface a non-fatal post-processing failure through the channel
