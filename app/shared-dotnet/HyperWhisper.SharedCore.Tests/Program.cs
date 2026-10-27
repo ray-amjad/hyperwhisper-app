@@ -2744,6 +2744,7 @@ static async Task TestDictationUnpatchedWaveAsync()
             // The shared readers trust neither a zero nor a sub-frame length, whatever the RIFF size says.
             ("patched RIFF, data 0", Wave((uint)(36 + audio.Length), 0, audio), []),
             ("data under one frame", Wave(36, 1, audio), []),
+            ("patched RIFF, data 0xFFFFFFFF", Wave((uint)(36 + audio.Length), uint.MaxValue, audio), []),
         })
         {
             File.WriteAllBytes(path, input);
