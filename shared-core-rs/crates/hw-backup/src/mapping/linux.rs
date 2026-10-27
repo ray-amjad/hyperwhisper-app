@@ -129,6 +129,18 @@ pub const LINUX_ADVANCED_PAIRS: &[LinuxSettingPair] = &[
     ("advanced.typingSpeedWPM", "typingSpeedWPM", I(40)),
 ];
 
+/// The native keys the Linux head reads back as an Int32
+/// (`PortableSettingsService.Get<int>`, e.g. `HomeViewModel`'s typing speed).
+/// The schema types them as unbounded integers, so a schema-valid backup can
+/// carry a number no Int32 read accepts (#2616).
+const LINUX_INT32_KEYS: &[&str] = &["advanced.maxRecordingDuration", "advanced.typingSpeedWPM"];
+
+/// Whether `v` is a whole number inside the Int32 range (`60` and `60.0`
+/// both are), the same test as `ApplicationBackupSelection.TryReadIntegralInt32`.
+fn is_integral_i32(v: &Value) -> bool {
+    integral_i64(v).is_some_and(|i| i32::try_from(i).is_ok())
+}
+
 const LINUX_SECTIONS: &[(&str, &[LinuxSettingPair])] = &[
     ("general", LINUX_GENERAL_PAIRS),
     ("textOutput", LINUX_TEXT_OUTPUT_PAIRS),
@@ -182,6 +194,11 @@ pub fn linux_settings_to_universal(native: &Map<String, Value>) -> UniversalSett
 /// JSON `null` leaves the live value alone (`source[key] is { } value` is false
 /// for a JSON null). That drop is the Linux half of the unknown-key gap #288
 /// names; it is reproduced here, not fixed.
+///
+/// One value rule: an Int32 key ([`LINUX_INT32_KEYS`]) whose value is not a
+/// whole number inside the Int32 range is dropped like a `null`, so the live
+/// value stays. Stored raw, every later `Get<int>` of it would throw and the
+/// app would fail at the next launch (#2616).
 pub fn universal_to_linux_settings(record: &UniversalSettings) -> Map<String, Value> {
     let categories = [
         ("general", record.general.as_ref()),
@@ -203,6 +220,7 @@ pub fn universal_to_linux_settings(record: &UniversalSettings) -> Map<String, Va
         for (native_key, universal, _) in *pairs {
             match obj.get(*universal) {
                 Some(Value::Null) | None => continue,
+                Some(v) if LINUX_INT32_KEYS.contains(native_key) && !is_integral_i32(v) => continue,
                 Some(v) => {
                     flat.insert((*native_key).to_string(), v.clone());
                 }
@@ -319,5 +337,83 @@ mod tests {
         }
         let back = universal_to_linux_settings(&linux_settings_to_universal(&native));
         assert_eq!(back, native);
+    }
+
+    #[test]
+    fn linux_int32_keys_are_the_integer_defaults() {
+        let mut ints: Vec<&str> = LINUX_SECTIONS
+            .iter()
+            .flat_map(|(_, pairs)| pairs.iter())
+            .filter(|(_, _, d)| matches!(d, LinuxSettingDefault::Int(_)))
+            .map(|(native, _, _)| *native)
+            .collect();
+        ints.sort_unstable();
+        assert_eq!(ints, LINUX_INT32_KEYS, "every Int row is read back as an Int32");
+    }
+
+    #[test]
+    fn linux_import_drops_an_integer_setting_no_int32_read_accepts() {
+        let out = universal_to_linux_settings(&universal(json!({
+            "advanced": { "typingSpeedWPM": 3000000000_i64, "maxRecordingDuration": -3000000000_i64 }
+        })));
+        assert_eq!(Value::Object(out), json!({}), "out of Int32 range: keep the live value");
+
+        let out = universal_to_linux_settings(&universal(json!({
+            "advanced": { "typingSpeedWPM": 2.5, "maxRecordingDuration": "600" }
+        })));
+        assert_eq!(Value::Object(out), json!({}), "not a whole number: keep the live value");
+
+        let out = universal_to_linux_settings(&universal(json!({
+            "advanced": { "typingSpeedWPM": i32::MAX, "maxRecordingDuration": 60.0 }
+        })));
+        assert_eq!(
+            Value::Object(out),
+            json!({ "advanced.typingSpeedWPM": i32::MAX, "advanced.maxRecordingDuration": 60.0 }),
+            "a whole Int32 is copied as-is; the head stores 60.0 as 60 (#2115)"
+        );
+    }
+
+    /// The #2616 bug-hunt repro, as filed: a schema-valid backup's integer
+    /// settings must reach the Linux store readable as an Int32, given that the
+    /// head (`ApplicationBackupExport.ApplySharedSettings`) stores whatever the
+    /// core hands it when its own Int32 read fails.
+    #[test]
+    fn linux_integer_settings_from_a_valid_backup_are_int32_readable() {
+        /// Faithful port of ApplicationBackupSelection.TryReadIntegralInt32.
+        fn try_read_integral_i32(v: &Value) -> Option<i32> {
+            if let Some(i) = v.as_i64() {
+                if i >= i32::MIN as i64 && i <= i32::MAX as i64 {
+                    return Some(i as i32);
+                }
+            }
+            let n = v.as_f64()?;
+            if n.floor() != n || n < i32::MIN as f64 || n > i32::MAX as f64 {
+                return None;
+            }
+            Some(n as i32)
+        }
+
+        let backup = r#"{"schemaVersion":2,"exportDate":"2026-01-01T00:00:00Z","appVersion":"1","platform":"macos",
+            "settings":{"advanced":{"typingSpeedWPM":3000000000,"maxRecordingDuration":3600}}}"#;
+        assert!(
+            crate::validate_str(backup).is_empty(),
+            "the backup is schema-valid: {:?}",
+            crate::validate_str(backup)
+        );
+        let parsed = crate::parse_backup(backup).expect("parses");
+        let settings = parsed.settings.expect("settings");
+        let linux = universal_to_linux_settings(&settings);
+        for key in ["advanced.typingSpeedWPM", "advanced.maxRecordingDuration"] {
+            let Some(v) = linux.get(key) else { continue };
+            let stored = try_read_integral_i32(v)
+                .map(|i| json!(i))
+                .unwrap_or_else(|| v.clone());
+            assert!(
+                try_read_integral_i32(&stored).is_some() && stored.is_i64(),
+                "{key} reaches the Linux store as {stored}, which Get<int> (HomeViewModel.cs:37) cannot read"
+            );
+        }
+        assert!(!linux.contains_key("advanced.typingSpeedWPM"));
+        assert_eq!(linux["advanced.maxRecordingDuration"], json!(3600));
     }
 }

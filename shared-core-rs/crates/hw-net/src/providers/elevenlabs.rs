@@ -47,6 +47,11 @@ pub const HEADER_API_KEY: &str = "xi-api-key";
 /// The `cloud-stt-catalog.json` entry this provider's models live under.
 pub const CATALOG_ENTRY_ID: &str = "elevenLabsScribeV2";
 
+/// ElevenLabs refuses a keyterm of more than this many words
+/// (`cloud-stt-catalog.json` `maxWordsPerPhrase`; the Cloud adapter's
+/// `MAX_KEYTERM_WORDS`).
+pub const MAX_KEYTERM_WORDS: usize = 5;
+
 /// Default model when the caller leaves `params.model` empty. Read from the
 /// shared catalog, which macOS and Windows read too — see
 /// [`super::defaults`] and issue #580.
@@ -91,7 +96,7 @@ pub fn build_transcribe_request(
         parts.push(multipart_field("language_code", lang));
     }
 
-    // keyterms — Scribe v2 and v2 Medical only, capped 100 terms, drop terms > 50 chars.
+    // keyterms — Scribe v2 and v2 Medical only, capped 100 terms, drop terms > 50 chars or > 5 words.
     if supports_keyterms(&model_id) {
         for term in keyterms(&params.vocabulary) {
             parts.push(multipart_field("keyterms", term));
@@ -121,7 +126,9 @@ pub fn build_transcribe_request(
 }
 
 /// Build the capped keyterms list: trim, drop empties, drop terms longer than
-/// [`ELEVENLABS_MAX_TERM_CHARS`], take at most [`ELEVENLABS_MAX_TERMS`].
+/// [`ELEVENLABS_MAX_TERM_CHARS`] or of more than [`MAX_KEYTERM_WORDS`] words,
+/// take at most [`ELEVENLABS_MAX_TERMS`]. A dropped term does not use a slot,
+/// as in the Cloud adapter.
 ///
 /// PARITY: the length filter counts Unicode scalar values (Swift `String.count`
 /// counts grapheme clusters and C# `string.Length` counts UTF-16 code units;
@@ -131,6 +138,7 @@ fn keyterms(vocabulary: &[String]) -> Vec<String> {
     keyword_boost_terms(vocabulary, None)
         .into_iter()
         .filter(|w| w.chars().count() <= ELEVENLABS_MAX_TERM_CHARS)
+        .filter(|w| w.split_whitespace().count() <= MAX_KEYTERM_WORDS)
         .take(ELEVENLABS_MAX_TERMS)
         .collect()
 }
