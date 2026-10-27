@@ -130,10 +130,15 @@ struct BackupImportSQLiteRefusalTests {
             }
         }
 
+        /// Ends a pending `release(after:)` early, so its thread does not
+        /// outlive the test.
+        private let releasedEarly = DispatchSemaphore(value: 0)
+
         func release() {
             lock.lock()
             defer { lock.unlock() }
             guard let db else { return }
+            releasedEarly.signal()
             sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
             sqlite3_close_v2(db)
             self.db = nil
@@ -143,10 +148,10 @@ struct BackupImportSQLiteRefusalTests {
         /// Not `DispatchQueue.global().asyncAfter`: a loaded CI runner can
         /// hold a global-queue block back for longer than the wait it is
         /// meant to end (issue #2345). A plain thread is scheduled like any
-        /// other.
+        /// other. A `release()` before then ends the thread at once.
         func release(after delay: TimeInterval) {
             Thread.detachNewThread {
-                Thread.sleep(forTimeInterval: delay)
+                _ = self.releasedEarly.wait(timeout: .now() + delay)
                 self.release()
             }
         }
@@ -273,9 +278,11 @@ struct BackupImportSQLiteRefusalTests {
         let store = try await MainActor.run { try Self.makeStore() }
         defer { store.remove() }
 
+        // A wait that slept its timeout even on a free lock would take 600 s.
+        // The bound sits far above any stall a loaded runner adds (#2445).
         let started = Date()
-        try PersistenceController.waitForStoreWriteLock(at: store.url, timeout: 10)
-        #expect(Date().timeIntervalSince(started) < 1)
+        try PersistenceController.waitForStoreWriteLock(at: store.url, timeout: 600)
+        #expect(Date().timeIntervalSince(started) < Self.heldLockHangGuard)
         #expect(PersistenceController.backupImportWriteLockTimeout == 10)
     }
 
