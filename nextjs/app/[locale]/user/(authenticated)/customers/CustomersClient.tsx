@@ -1054,8 +1054,9 @@ export default function CustomersClient() {
                 </div>
               ) : (
                 <>
-                  {/* #2286: the error reveals; the space-y-5 gap rides inside
-                      the clip as pb-5. */}
+                  {/* #2286: the error reveals; its pb-5 is the gap to the
+                      buttons (the dialog's space-y-5 stops at the HeightTween
+                      box, one level up). */}
                   <ErrorReveal gap="pb-5">
                     {refundMutation.error && (
                       <div
