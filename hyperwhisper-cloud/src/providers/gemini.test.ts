@@ -1,5 +1,7 @@
-import { describe, expect, test } from 'bun:test';
-import { geminiMimeType, resolveAudioInputTokens, type GeminiUsageMetadata } from './gemini';
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { geminiMimeType, resolveAudioInputTokens, transcribeWithGemini, type GeminiUsageMetadata } from './gemini';
+import { computeGeminiTranscriptionCost } from '../lib/cost-calculator';
+import { stubEnv } from '../test-support/env';
 
 // Mirror the module constants used by the byte-estimate tier so the expected
 // value tracks the implementation: BYTES_PER_MINUTE_ESTIMATE = 480_000 (lib/
@@ -112,5 +114,61 @@ describe('geminiMimeType', () => {
   test('falls back to audio/wav only when there is no usable audio/* type', () => {
     expect(geminiMimeType('')).toBe('audio/wav');
     expect(geminiMimeType('application/octet-stream')).toBe('audio/wav');
+  });
+});
+
+// Issue #2634: :generateContent is TOKEN-billed. Google charges the audio input,
+// the prompt text and any thinking tokens whether or not a word comes back, so a
+// no_speech result charges them, never $0 (same stance as gemini-transcribe).
+describe('transcribeWithGemini — no_speech is billed (#2634)', () => {
+  const originalFetch = globalThis.fetch;
+  let restoreKey: () => void;
+  let restoreAltKey: () => void;
+  beforeEach(() => {
+    restoreKey = stubEnv('GEMINI_API_KEY', 'test-key');
+    restoreAltKey = stubEnv('GOOGLE_GEMINI_API_KEY', undefined);
+  });
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    restoreKey();
+    restoreAltKey();
+  });
+
+  function reply(body: unknown) {
+    globalThis.fetch = mock(async () => new Response(JSON.stringify(body), {
+      status: 200, headers: { 'content-type': 'application/json' },
+    })) as unknown as typeof fetch;
+  }
+
+  const AUDIO = new ArrayBuffer(480_000);
+
+  test('an empty transcript with usage bills the audio, prompt text and thinking tokens', async () => {
+    const usageMetadata: GeminiUsageMetadata = {
+      promptTokenCount: 576_100,
+      promptTokensDetails: [{ modality: 'TEXT', tokenCount: 100 }, { modality: 'AUDIO', tokenCount: 576_000 }],
+      candidatesTokenCount: 0,
+      thoughtsTokenCount: 2_000,
+    };
+    reply({ candidates: [{ content: { parts: [{ text: '' }] } }], usageMetadata });
+    const r = await transcribeWithGemini(AUDIO, 'audio/wav', 'en', undefined, { model: 'gemini-3.8-flash' });
+    expect(r.source).toBe('no_speech');
+    expect(r.text).toBe('');
+    const expected = computeGeminiTranscriptionCost('gemini-3.8-flash', {
+      audioInputTokens: 576_000, textInputTokens: 100, outputTokens: 2_000,
+    });
+    expect(r.costUsd).toBeGreaterThan(0);
+    expect(r.costUsd).toBe(expected);
+    // Thinking tokens are part of it: the bill is more than the input alone.
+    expect(r.costUsd).toBeGreaterThan(computeGeminiTranscriptionCost('gemini-3.8-flash', {
+      audioInputTokens: 576_000, textInputTokens: 100, outputTokens: 0,
+    }));
+    expect(r.durationSeconds).toBe(576_000 / AUDIO_TOKENS_PER_SECOND);
+  });
+
+  test('an empty reply with no usage at all falls back to the byte estimate, never $0', async () => {
+    reply({ candidates: [] });
+    const r = await transcribeWithGemini(AUDIO, 'audio/wav', 'en', undefined, { model: 'gemini-3.8-flash' });
+    expect(r.source).toBe('no_speech');
+    expect(r.costUsd).toBeGreaterThan(0);
   });
 });
