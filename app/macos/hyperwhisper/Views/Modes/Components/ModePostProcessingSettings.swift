@@ -15,8 +15,10 @@ import AppKit
 /// Whether an on-device (`.local`) post-processing selection can't actually run.
 /// The editor's `onAppear` turns such a selection Off, and the Mode editor's
 /// Save/Create button refuses it (issue #1858), so Save never writes a state
-/// the next open silently undoes. Same policy as
-/// `PersistenceController.repairBrokenLocalModes`.
+/// the next open silently undoes. Same Off-never-Cloud policy as
+/// `PersistenceController.repairBrokenLocalModes`, but stricter: that launch
+/// repair checks only that the model file exists, while the editor also
+/// rejects a downloaded model whose checksum failed.
 enum LocalPostProcessingCheck {
 
     static func isBroken(
@@ -700,7 +702,10 @@ struct LanguageProcessingSettingsView: View {
                             )
                             Divider()
                         }
-                        if !hasLocalModel {
+                        // Also shown for any selection the Save button refuses (#1858),
+                        // e.g. a downloaded model whose checksum failed, so a disabled
+                        // Save always has a reason on screen.
+                        if !hasLocalModel || localPostProcessingIsBroken {
                                 HStack(alignment: .top, spacing: 8) {
                                     Image(systemName: "exclamationmark.triangle.fill")
                                         .foregroundColor(.orange)
