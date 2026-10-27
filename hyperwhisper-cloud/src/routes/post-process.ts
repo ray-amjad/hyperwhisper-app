@@ -64,9 +64,11 @@ async function handlePostProcess(c: Context) {
   }
   logEvent(requestId, startTime, 'post_process.ip_check_done');
 
-  const contentType = c.req.header('Content-Type') || '';
-  if (!contentType.includes('application/json')) {
-    return invalidContentTypeResponse('application/json', contentType);
+  // Media types are case-insensitive (RFC 9110 §8.3.1), so `Application/JSON`
+  // is a JSON body too (#2326). The 400 still echoes the header as sent.
+  const rawContentType = c.req.header('Content-Type') || '';
+  if (!rawContentType.toLowerCase().includes('application/json')) {
+    return invalidContentTypeResponse('application/json', rawContentType);
   }
 
   // Size gate BEFORE parsing: `c.req.json()` buffers the whole body, and auth
