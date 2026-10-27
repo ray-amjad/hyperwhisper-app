@@ -464,6 +464,7 @@ describe('graceful shutdown', () => {
     // in-flight request below (150 ms + the 500 ms flush grace), so the drains
     // still find them pending after the request wait.
     let deductionReachedApi = false;
+    let lateChargeReachedApi = false;
     let reportReachedApi = false;
     // An in-flight /post-process whose licence check takes 150 ms. Nothing it
     // has started is pending for a drain yet, so an exit that waits only for
@@ -482,6 +483,8 @@ describe('graceful shutdown', () => {
         const body = JSON.parse(String(init?.body)) as { metadata: Record<string, unknown> };
         if (body.metadata.endpoint === '/ws/streaming-deepgram') {
           liveChargeSeconds.push(body.metadata.audio_duration_seconds);
+        } else if (body.metadata.requestId === 'late-charge') {
+          lateChargeReachedApi = true;
         } else {
           deductionReachedApi = true;
         }
@@ -529,6 +532,17 @@ describe('graceful shutdown', () => {
       process.exit = ((code?: number) => { exitedAt = Date.now(); resolve(code ?? 0); }) as never;
     });
     process.emit('SIGTERM' as never);
+    // A request still running after the wait fires its charge while the first
+    // drain pass (the 1 s writes above) is under way. That pass snapshotted its
+    // pending set before this charge existed, so only a second pass awaits it.
+    setTimeout(() => {
+      void deductCredits(
+        { identifier: 'HW-ROUTINE-FIXTURE', credits: 10, licenseKey: 'HW-ROUTINE-FIXTURE' },
+        0.05,
+        { requestId: 'late-charge' },
+        '203.0.113.1',
+      );
+    }, 700);
     const inFlightAnswered = inFlightRequest.then((res) => {
       inFlightAnsweredBeforeExit = exitedAt === 0;
       return res;
@@ -546,6 +560,7 @@ describe('graceful shutdown', () => {
     expect((await inFlightAnswered).status).toBe(401);
 
     expect(deductionReachedApi).toBe(true);
+    expect(lateChargeReachedApi).toBe(true);
     expect(reportReachedApi).toBe(true);
     expect(liveChargeSeconds).toEqual([60]);
     expect(liveClient.closes).toEqual([1012]);
@@ -563,7 +578,7 @@ describe('graceful shutdown', () => {
     expect(logEvents.indexOf('machine.shutdown_ended_streaming_sessions'))
       .toBeLessThan(logEvents.indexOf('machine.shutdown_drained_deductions'));
     expect(logPayloads.find((entry) => entry.event === 'machine.shutdown_drained_deductions')!.args[1])
-      .toEqual({ count: 2 });
+      .toEqual({ count: 3 });
     expect(logPayloads.find((entry) => entry.event === 'machine.shutdown_drained_latency_reports')!.args[1])
       .toEqual({ count: 1 });
   });

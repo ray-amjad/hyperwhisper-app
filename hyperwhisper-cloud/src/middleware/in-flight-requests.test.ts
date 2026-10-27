@@ -13,8 +13,10 @@ import {
   IN_FLIGHT_REQUEST_WAIT_MS,
   inFlightRequestCount,
   resetInFlightRequestsForTests,
+  RESPONSE_FLUSH_GRACE_MS,
   trackInFlightRequests,
   waitForInFlightRequests,
+  waitForResponseFlush,
 } from './in-flight-requests';
 
 const realLog = console.log;
@@ -177,5 +179,55 @@ describe('trackInFlightRequests', () => {
     second.release();
     await b;
     expect(await waited).toBe(2);
+  });
+});
+
+describe('waitForResponseFlush', () => {
+  test('no reply returned yet: the exit is not held', async () => {
+    const startedAt = Date.now();
+    await waitForResponseFlush(Date.now() + 10_000);
+    expect(Date.now() - startedAt).toBeLessThan(50);
+  });
+
+  test('a reply just returned holds the exit for the flush grace', async () => {
+    const app = makeApp();
+    slow.release();
+    expect((await post(app, '/transcribe')).status).toBe(200);
+
+    const startedAt = Date.now();
+    await waitForResponseFlush(Date.now() + 10_000);
+    const elapsed = Date.now() - startedAt;
+    expect(elapsed).toBeGreaterThanOrEqual(RESPONSE_FLUSH_GRACE_MS - 50);
+    expect(elapsed).toBeLessThan(RESPONSE_FLUSH_GRACE_MS + 300);
+  });
+
+  test('a reply that failed in its handler still counts as a reply to flush', async () => {
+    const app = makeApp();
+    expect((await post(app, '/boom')).status).toBe(500);
+
+    const startedAt = Date.now();
+    await waitForResponseFlush(Date.now() + 10_000);
+    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(RESPONSE_FLUSH_GRACE_MS - 50);
+  });
+
+  test('the grace never runs past the deadline', async () => {
+    const app = makeApp();
+    slow.release();
+    await post(app, '/transcribe');
+
+    const startedAt = Date.now();
+    await waitForResponseFlush(Date.now() + 40);
+    expect(Date.now() - startedAt).toBeLessThan(200);
+  });
+
+  test('a reply older than the grace does not hold the exit', async () => {
+    const app = makeApp();
+    slow.release();
+    await post(app, '/transcribe');
+    await new Promise((resolve) => setTimeout(resolve, RESPONSE_FLUSH_GRACE_MS + 50));
+
+    const startedAt = Date.now();
+    await waitForResponseFlush(Date.now() + 10_000);
+    expect(Date.now() - startedAt).toBeLessThan(50);
   });
 });

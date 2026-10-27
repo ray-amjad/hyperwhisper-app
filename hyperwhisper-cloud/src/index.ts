@@ -26,6 +26,7 @@ import {
   inFlightRequestCount,
   trackInFlightRequests,
   waitForInFlightRequests,
+  waitForResponseFlush,
 } from './middleware/in-flight-requests';
 import { MAX_AUDIO_SIZE_BYTES } from './lib/constants';
 import { toRedactedLogLine } from './lib/log-redaction';
@@ -185,19 +186,32 @@ async function gracefulShutdown(signal: string): Promise<void> {
     });
   }
 
-  const drainBudgetMs = Math.max(0, startedAt + SHUTDOWN_DRAIN_MS - Date.now());
   // Both drains are fire-and-forget writes made after the response is flushed,
   // so they race the same SIGKILL. Run them together rather than in series —
   // the grace period is one budget, not two.
   // Credit-hold releases too: one left behind narrows the user's balance until
   // its TTL frees it (#2008).
-  const [drained, drainedReports, drainedHoldReleases] = await Promise.all([
-    drainPendingDeductions(drainBudgetMs),
-    drainPendingLatencyReports(drainBudgetMs),
-    drainPendingHoldReleases(drainBudgetMs),
-    // Error events still queued for Sentry; a no-op with no DSN.
-    flushErrorTracking(2_000),
-  ]);
+  // Each drain awaits only what is pending when it is called. A request still
+  // in flight after the wait can fire a charge while a pass runs, so pass again
+  // until one finds nothing pending, or the deadline passes.
+  const drainDeadline = startedAt + SHUTDOWN_DRAIN_MS;
+  // Error events still queued for Sentry; a no-op with no DSN.
+  const errorFlush = flushErrorTracking(2_000);
+  let drained = 0;
+  let drainedReports = 0;
+  let drainedHoldReleases = 0;
+  for (let budgetMs = drainDeadline - Date.now(); budgetMs > 0; budgetMs = drainDeadline - Date.now()) {
+    const [deductions, reports, holdReleases] = await Promise.all([
+      drainPendingDeductions(budgetMs),
+      drainPendingLatencyReports(budgetMs),
+      drainPendingHoldReleases(budgetMs),
+    ]);
+    drained += deductions;
+    drainedReports += reports;
+    drainedHoldReleases += holdReleases;
+    if (deductions + reports + holdReleases === 0) break;
+  }
+  await errorFlush;
   if (drained > 0) {
     console.log('machine.shutdown_drained_deductions', { count: drained });
   }
@@ -207,6 +221,9 @@ async function gracefulShutdown(signal: string): Promise<void> {
   if (drainedHoldReleases > 0) {
     console.log('machine.shutdown_drained_hold_releases', { count: drainedHoldReleases });
   }
+  // A reply returned during the drains, or just before the signal, still has
+  // to be written out; exiting in the same tick cuts it.
+  await waitForResponseFlush(drainDeadline);
   process.exit(0);
 }
 

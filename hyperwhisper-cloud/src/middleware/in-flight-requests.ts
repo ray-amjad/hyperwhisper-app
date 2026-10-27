@@ -33,14 +33,16 @@ export const IN_FLIGHT_REQUEST_WAIT_MS = 100_000;
 
 /**
  * The count drops when the handler RETURNS its Response; Bun still has to write
- * it to the socket. An exit in the same tick can cut the reply the wait was
- * for, so a wait that saw requests finish holds this much longer (never past
- * its deadline).
+ * it to the socket. An exit in the same tick can cut that reply, so the exit
+ * waits until this long has passed since the last tracked reply was returned
+ * (`waitForResponseFlush`), never past its deadline.
  */
 export const RESPONSE_FLUSH_GRACE_MS = 500;
 
 let inFlight = 0;
 let shuttingDown = false;
+/** When the last tracked request returned its Response (ms epoch); 0 = never. */
+let lastResponseAt = 0;
 /** Resolvers of `waitForInFlightRequests` calls, run when the count hits 0. */
 let idleWaiters: Array<() => void> = [];
 
@@ -67,6 +69,7 @@ export async function trackInFlightRequests(c: Context, next: Next): Promise<Res
     await next();
   } finally {
     inFlight -= 1;
+    lastResponseAt = Date.now();
     if (inFlight === 0) settleIdleWaiters();
   }
 }
@@ -81,32 +84,39 @@ export function inFlightRequestCount(): number {
 }
 
 /**
- * Resolve when no tracked request is in flight (plus RESPONSE_FLUSH_GRACE_MS),
- * or after `timeoutMs`, whichever comes first. Resolves to the number that
- * were in flight when it was called; 0 resolves at once.
+ * Resolve when no tracked request is in flight, or after `timeoutMs`,
+ * whichever comes first. Resolves to the number that were in flight when it
+ * was called; 0 resolves at once.
  */
 export async function waitForInFlightRequests(timeoutMs: number): Promise<number> {
   const pendingCount = inFlight;
   if (pendingCount === 0) return 0;
 
-  const deadline = Date.now() + timeoutMs;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const idle = new Promise<'idle'>((resolve) => { idleWaiters.push(() => resolve('idle')); });
-  const timeout = new Promise<'timeout'>((resolve) => {
-    timer = setTimeout(() => resolve('timeout'), Math.max(0, timeoutMs));
-  });
-  const outcome = await Promise.race([idle, timeout]);
+  const idle = new Promise<void>((resolve) => { idleWaiters.push(resolve); });
+  const timeout = new Promise<void>((resolve) => { timer = setTimeout(resolve, Math.max(0, timeoutMs)); });
+  await Promise.race([idle, timeout]);
   clearTimeout(timer);
-  if (outcome === 'idle') {
-    const graceMs = Math.min(RESPONSE_FLUSH_GRACE_MS, deadline - Date.now());
-    if (graceMs > 0) await new Promise((resolve) => setTimeout(resolve, graceMs));
-  }
   return pendingCount;
+}
+
+/**
+ * Hold until RESPONSE_FLUSH_GRACE_MS has passed since the last tracked reply
+ * was returned, or until `deadlineAt` (ms epoch), whichever comes first. Run
+ * right before the exit, so a reply returned during the drains (or just before
+ * the signal) is written out. No recent reply: resolves at once.
+ */
+export async function waitForResponseFlush(deadlineAt: number): Promise<void> {
+  if (lastResponseAt === 0) return;
+  const now = Date.now();
+  const graceMs = Math.min(lastResponseAt + RESPONSE_FLUSH_GRACE_MS, deadlineAt) - now;
+  if (graceMs > 0) await new Promise((resolve) => setTimeout(resolve, graceMs));
 }
 
 /** Test-only: bun runs every test file in one process, and the latch is module state. */
 export function resetInFlightRequestsForTests(): void {
   inFlight = 0;
   shuttingDown = false;
+  lastResponseAt = 0;
   settleIdleWaiters();
 }
