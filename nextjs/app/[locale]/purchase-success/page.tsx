@@ -135,7 +135,7 @@ function PurchaseSuccessContent() {
             size="lg"
           >
             {t("manageButton")}
-            <ArrowRight className="w-[18px] h-[18px] ml-2" />
+            <ArrowRight className="w-[18px] h-[18px] ms-2 rtl:-scale-x-100" />
           </Button>
         </m.div>
       </m.div>
