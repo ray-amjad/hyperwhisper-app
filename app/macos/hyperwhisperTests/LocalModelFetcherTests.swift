@@ -166,6 +166,22 @@ struct LocalModelFetcherTests {
         #expect(sent.first?.httpMethod == "GET")
     }
 
+    @Test func lmStudioDecodesItsOwnShapeNotOllamas() async {
+        let host = FetcherStubURLProtocol.register(.reply(status: 200, body: #"{"models":[{"name":"llama3"}]}"#))
+
+        do {
+            _ = try await fetcher.fetchLMStudioModels(baseURL: "http://\(host)/v1", session: session)
+            Issue.record("expected .decodingFailed, got a model list")
+        } catch let error as LocalModelFetcher.FetchError {
+            guard case .decodingFailed = error else {
+                Issue.record("expected .decodingFailed, got \(error)")
+                return
+            }
+        } catch {
+            Issue.record("expected a FetchError, got \(error)")
+        }
+    }
+
     @Test func lmStudioReachesModelsUnderTheV1Base() async throws {
         let host = FetcherStubURLProtocol.register(.reply(
             status: 200, body: #"{"data":[{"id":"qwen2.5-7b-instruct"}]}"#))
