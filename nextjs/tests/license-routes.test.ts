@@ -1026,3 +1026,45 @@ describe("a key containing a NUL byte is a bad request, not a server fault (#207
     assert.equal((await readJson(response)).reason, "lookup_failed");
   });
 });
+
+describe("a NUL byte in a device field never reaches the device write (#2688)", () => {
+  test("validate: a NUL device_id skips tracking and still answers 200", async () => {
+    storeRow(accountKeyRow({ key: GRANTED_KEY }));
+    const { POST } = await loadValidateRoute();
+    logLines.length = 0;
+
+    const response = await POST(
+      postRequest(VALIDATE_PATH, {
+        license_key: GRANTED_KEY,
+        device_id: "device-abc\0",
+        device_name: "Studio Mac",
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await readJson(response), { valid: true });
+    assert.deepEqual(calls.upsertDeviceValidation, []);
+    assert.deepEqual(
+      logLines.filter((line) => line.includes("Device tracking error")),
+      [],
+    );
+  });
+
+  test("validate: a NUL device_name records the device with no name", async () => {
+    storeRow(accountKeyRow({ key: GRANTED_KEY, id: "key_row_9" }));
+    const { POST } = await loadValidateRoute();
+
+    const response = await POST(
+      postRequest(VALIDATE_PATH, {
+        license_key: GRANTED_KEY,
+        device_id: "device-abc",
+        device_name: "Studio\0Mac",
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(calls.upsertDeviceValidation, [
+      { licenseKeyId: "key_row_9", deviceId: "device-abc", deviceName: undefined },
+    ]);
+  });
+});

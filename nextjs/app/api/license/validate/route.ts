@@ -12,9 +12,19 @@ import { countFailOpen } from "@/lib/rate-limit-gate";
 import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
 import { describeDbError } from "@/lib/shared/db-error";
 import { creditPoolIdFor } from "@/src/lib/credit-pool-id";
+import { isStorableText } from "@/src/lib/license-key-input";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+/**
+ * A device field as the database can store it: a string with no NUL byte, or
+ * undefined. A NUL makes Postgres refuse the device write (#2688), so such a
+ * field counts as not sent, the same as a non-string one.
+ */
+function deviceField(value: unknown): string | undefined {
+  return typeof value === "string" && isStorableText(value) ? value : undefined;
 }
 
 /**
@@ -124,10 +134,8 @@ export async function POST(req: NextRequest) {
       ? payload.license_key.trim()
       : undefined;
   const include_credits = payload.include_credits === true;
-  const device_id =
-    typeof payload.device_id === "string" ? payload.device_id : undefined;
-  const device_name =
-    typeof payload.device_name === "string" ? payload.device_name : undefined;
+  const device_id = deviceField(payload.device_id);
+  const device_name = deviceField(payload.device_name);
   const probe_only = payload.probe_only === true;
 
   if (!license_key) {

@@ -12,5 +12,16 @@
  * widen this into catching driver errors and calling them bad keys.
  */
 export function isLookupableLicenseKey(key: string): boolean {
-  return !key.includes("\0");
+  return isStorableText(key);
+}
+
+/**
+ * Whether a caller-supplied string can be bound as a Postgres text parameter:
+ * false when it contains NUL, which Postgres refuses (SQLSTATE 22021, as
+ * above). The validate route uses it on `device_id` / `device_name` (#2688):
+ * a field that fails it is treated as absent, so it never reaches
+ * `upsertDeviceValidation` and is never logged as a database fault.
+ */
+export function isStorableText(value: string): boolean {
+  return !value.includes("\0");
 }
