@@ -286,8 +286,9 @@ struct AppleSpeechTimeLimitTests {
         )
 
         #expect(value == ["hello", "world"])
-        // The timer was cancelled with the work's result, and a limit that is
-        // up after the result does not run the hook (the analyzer cancel).
+        // The timer was cancelled with the work's result, so the hook (the
+        // analyzer cancel) never runs on a finished run. Firing the deadline
+        // afterwards wakes nothing: the cancelled sleep has already thrown.
         #expect(await waitOffThePool(for: deadline.didCancel, seconds: Self.hangGuard), "the timer was never cancelled")
         deadline.fire()
         #expect(await waitOffThePool(for: hookRan, seconds: 0.5) == false, "onTimeout ran after a finished operation")
