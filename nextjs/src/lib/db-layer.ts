@@ -849,11 +849,16 @@ export async function spendCreditGrantsByProvenance(
       if (deduction <= 0) continue;
 
       const newRemaining = grantRemaining - deduction;
+      // The subtraction is in floating point, so a charge that spans two grants
+      // can leave a residue like 2.78e-17 that the numeric(20,2) column stores as
+      // 0.00. Decide the status on the stored (rounded) value, so a grant that
+      // holds 0.00 is always 'spent' (#2620).
+      const storedRemaining = sql`${newRemaining.toString()}::numeric(20,2)`;
       await tx
         .update(creditGrants)
         .set({
           remainingAmount: newRemaining.toString(),
-          status: newRemaining === 0 ? "spent" : "active",
+          status: sql`CASE WHEN ${storedRemaining} <= 0 THEN 'spent' ELSE 'active' END`,
           updatedAt: new Date(),
         })
         .where(eq(creditGrants.id, grant.id));
