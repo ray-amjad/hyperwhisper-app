@@ -425,22 +425,26 @@ export default function DownloadsPage() {
                           size="lg"
                           startContent={
                             <Download
-                              className="w-4 h-4"
+                              className="w-4 h-4 shrink-0"
                               strokeWidth={isLatestVersion(index) ? 2 : 1.5}
                             />
                           }
                         >
-                          {dl.arch ? `${dl.arch}` : downloadLabel}
-                          {/* The space keeps the link's text and accessible
-                              name "ARM64 172.02 MB", not "ARM64172.02 MB"; the
-                              flex gap alone is only visual. */}
-                          {version.downloads.length > 1 && (
-                            <>
-                              {" "}
+                          {version.downloads.length > 1 ? (
+                            // Two buttons share a ~350px row: the size goes on
+                            // a second line, so the label, size and icon fit.
+                            // The space keeps the link's text and accessible
+                            // name "ARM64 172.02 MB", not "ARM64172.02 MB".
+                            <span className="flex flex-col items-start leading-tight">
+                              <span>{dl.arch}</span>{" "}
                               <span className="text-xs font-normal opacity-80">
                                 {formatFileSize(dl.fileSize)}
                               </span>
-                            </>
+                            </span>
+                          ) : dl.arch ? (
+                            `${dl.arch}`
+                          ) : (
+                            downloadLabel
                           )}
                         </Button>
                       ))}
