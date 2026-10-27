@@ -21,7 +21,39 @@ use std::sync::{Mutex, OnceLock};
 
 use regex::{NoExpand, Regex, RegexBuilder};
 
-/// Cache compiled regexes by trimmed search word (case-insensitive, `\b`-anchored).
+/// The whole-word pattern for `word`: `\b` on each side where the word starts or
+/// ends with a word character, nothing on a side that is a symbol.
+///
+/// `\b` needs a word character on exactly one side of it, so a `\b` next to a
+/// symbol can never sit between that symbol and a following space: `\bC\+\+\b`
+/// never matches `I write C++ daily`, and `C#`, `.NET` and `5%` were skipped the
+/// same way (#2612). On a word-character side `\b` is the same as "no word
+/// character next to it", so plain words keep their old whole-word behaviour
+/// (`cat` still leaves `category` alone), and `c#` still does not match inside
+/// `abc#`. The symbol side carries no anchor.
+///
+/// "Word character" is the regex engine's own Unicode `\w`, so the anchor goes
+/// exactly where `\b` can hold.
+fn pattern_for(word: &str) -> String {
+    static WORD_CHAR: OnceLock<Regex> = OnceLock::new();
+    let word_char = WORD_CHAR.get_or_init(|| Regex::new(r"\A\w\z").unwrap());
+    let is_word =
+        |c: Option<char>| c.is_some_and(|c| word_char.is_match(c.encode_utf8(&mut [0; 4])));
+    let lead = if is_word(word.chars().next()) {
+        r"\b"
+    } else {
+        ""
+    };
+    let trail = if is_word(word.chars().next_back()) {
+        r"\b"
+    } else {
+        ""
+    };
+    format!("{lead}{}{trail}", regex::escape(word))
+}
+
+/// Cache compiled regexes by trimmed search word (case-insensitive, whole-word
+/// per [`pattern_for`]).
 /// Mirrors the Windows compiled-regex cache; macOS rebuilt per call (behaviour is
 /// identical, this is purely a speed win that both platforms now share).
 fn regex_for(word: &str) -> Option<Regex> {
@@ -31,8 +63,7 @@ fn regex_for(word: &str) -> Option<Regex> {
     if let Some(re) = map.get(word) {
         return Some(re.clone());
     }
-    let pattern = format!(r"\b{}\b", regex::escape(word));
-    let re = RegexBuilder::new(&pattern)
+    let re = RegexBuilder::new(&pattern_for(word))
         .case_insensitive(true)
         .build()
         .ok()?;
@@ -52,5 +83,6 @@ pub fn apply_hardened_replacement(text: &str, word: &str, replacement: &str) -> 
     let Some(re) = regex_for(trimmed_word) else {
         return text.to_string();
     };
-    re.replace_all(text, NoExpand(trimmed_replacement)).into_owned()
+    re.replace_all(text, NoExpand(trimmed_replacement))
+        .into_owned()
 }
