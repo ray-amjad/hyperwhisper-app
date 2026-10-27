@@ -20,7 +20,8 @@ public sealed record FileAudioMetadata(
     ushort? WaveEncoding = null,
     ushort? Channels = null,
     uint? SampleRate = null,
-    ushort? BitsPerSample = null)
+    ushort? BitsPerSample = null,
+    bool DataLengthRecomputed = false)
 {
     public bool IsMuseCompatibleWave => MetaMuseAudioContract.IsCanonicalWave(this);
 }
@@ -43,6 +44,8 @@ public static class MetaMuseAudioContract
         && metadata.Channels == 1
         && metadata.BitsPerSample == 16
         && metadata.SampleRate is 16_000 or 24_000
+        // An unpatched data length is sent as-is without normalization; rewrite it.
+        && !metadata.DataLengthRecomputed
         && metadata.Duration is { } duration
         && duration > TimeSpan.Zero
         && !double.IsNaN(duration.TotalSeconds)
@@ -440,6 +443,7 @@ public sealed class StreamingFileAudioMetadataSource : IFileAudioMetadataSource
 
         uint? bytesPerSecond = null;
         long? dataBytes = null;
+        var dataLengthRecomputed = false;
         ushort? waveEncoding = null;
         ushort? channels = null;
         uint? sampleRate = null;
@@ -458,6 +462,7 @@ public sealed class StreamingFileAudioMetadataSource : IFileAudioMetadataSource
                 if (size == 0 || size > remaining)
                 {
                     dataBytes = remaining;
+                    dataLengthRecomputed = true;
                     break;
                 }
                 dataBytes = size;
@@ -481,7 +486,7 @@ public sealed class StreamingFileAudioMetadataSource : IFileAudioMetadataSource
         }
         TimeSpan? duration = bytesPerSecond is > 0 && dataBytes is { } data
             ? TimeSpan.FromSeconds((double)data / bytesPerSecond.Value) : null;
-        return new(length, duration, waveEncoding, channels, sampleRate, bitsPerSample);
+        return new(length, duration, waveEncoding, channels, sampleRate, bitsPerSample, dataLengthRecomputed);
     }
 
     private static async ValueTask<bool> TryReadExactlyAsync(

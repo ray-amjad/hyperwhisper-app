@@ -482,6 +482,19 @@ static async Task UnpatchedWaveDataLength()
                     source, new FakeLocalReadiness(), new FakeCredentials(api: true, account: false))
                 .ValidateAsync(path, new(FileTranscriptionRoute.Local, "base", LocalTranscriptionEngine.Whisper));
             Assert(result.IsSuccess, $"preflight refused a WAV with data length 0x{declared:x}");
+
+            // Meta Muse uploads a canonical WAV as-is, so an unpatched header must be rewritten.
+            Assert(metadata is { DataLengthRecomputed: true, IsMuseCompatibleWave: false },
+                $"data length 0x{declared:x} passed as a canonical Muse WAV");
+            foreach (var target in MetaMuseTargets())
+            {
+                var muse = await new PortableFileTranscriptionPreflight(source, new FakeLocalReadiness(),
+                        new FakeCredentials(api: true,
+                            account: target.CloudProvider == CloudTranscriptionProvider.HyperWhisperCloud))
+                    .ValidateAsync(path, target);
+                Assert(muse is { IsSuccess: true, RequiresNormalization: true },
+                    $"Meta Muse sent data length 0x{declared:x} without normalization");
+            }
         }
     }
     finally { Directory.Delete(root, recursive: true); }
