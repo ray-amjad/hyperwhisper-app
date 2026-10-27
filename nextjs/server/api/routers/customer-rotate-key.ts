@@ -15,7 +15,8 @@
  *      rotations at once cannot both win; device rows cleared and every other
  *      web session of the user signed out in the same transaction;
  *   3. after commit, best effort: purge the old string from the cloud's licence
- *      cache, and email the owner a notice that names only the new key's prefix.
+ *      cache (awaited, bounded by its 3 s timeout), and, after the response
+ *      is sent, email the owner a notice that names only the new key's prefix.
  *
  * No log line here carries a key.
  */
@@ -25,6 +26,7 @@ import { rotateAccountKey } from "@/src/lib/db-layer";
 import { accountKeyRotateRateLimiter } from "@/lib/rate-limit";
 import { countFailOpen } from "@/lib/rate-limit-gate";
 import { emailService } from "@/lib/services/email";
+import { afterResponse } from "@/lib/shared/after-response";
 import { purgeCloudLicenseCache } from "@/lib/services/cloud-license-cache";
 import { canRotateAccountKeys } from "@/src/lib/session-sign-in-method";
 
@@ -122,23 +124,37 @@ export async function rotateKeyForCaller(
     `Account Key rotated: license ${license.id}, ${devicesCleared} device row(s) cleared`,
   );
 
-  // Committed: from here a failure cannot bring the old key back. The cloud
-  // purge and the notice are independent, each bounded and non-throwing, so
-  // they run together and the caller waits for the slower one only.
-  const [, notice] = await Promise.allSettled([
-    purgeCloudLicenseCache(previousKey),
-    emailService.sendKeyRotated({
-      customerName: ctx.user.name?.trim() || "there",
-      customerEmail: license.email,
-      newLicenseKey: license.key,
-      rotatedAt: new Date(),
-      supportEmail: "hi@support.hyperwhisper.com",
-    }),
-  ]);
+  // Committed: from here a failure cannot bring the old key back.
+  //
+  // The notice is sent after the response: it retries with no per-send
+  // timeout, and the owner should see the new key without waiting on email.
+  const ownerName = ctx.user.name?.trim() || "there";
 
-  if (notice.status === "rejected" || !notice.value.success) {
-    console.error(`Key-rotated notice not sent for license ${license.id}`);
-  }
+  afterResponse(async () => {
+    let sent = false;
+
+    try {
+      const result = await emailService.sendKeyRotated({
+        customerName: ownerName,
+        customerEmail: license.email,
+        newLicenseKey: license.key,
+        rotatedAt: new Date(),
+        supportEmail: "hi@support.hyperwhisper.com",
+      });
+
+      sent = result.success;
+    } catch {
+      sent = false;
+    }
+    if (!sent) {
+      console.error(`Key-rotated notice not sent for license ${license.id}`);
+    }
+  });
+
+  // The purge stays in the request: it is what makes the cloud stop
+  // accepting the old key before it expires from the cache, so "rotated"
+  // is shown once it was tried. It is bounded (3 s) and never throws.
+  await purgeCloudLicenseCache(previousKey);
 
   return { id: license.id, key: license.key };
 }

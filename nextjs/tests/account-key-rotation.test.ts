@@ -62,6 +62,25 @@ moduleMock.module(moduleUrl("../lib/clients/resend.ts"), {
   },
 });
 
+/**
+ * Work the rotation queues to run after its response (the notice email).
+ * Next's `after()` needs its request scope, which a route called directly
+ * does not have; `flushAfterResponse()` runs what was queued.
+ */
+const afterResponseTasks: Array<() => Promise<void>> = [];
+
+moduleMock.module(moduleUrl("../lib/shared/after-response.ts"), {
+  namedExports: {
+    afterResponse: (task: () => Promise<void>) => {
+      afterResponseTasks.push(task);
+    },
+  },
+});
+
+async function flushAfterResponse(): Promise<void> {
+  for (const task of afterResponseTasks.splice(0)) await task();
+}
+
 moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
   namedExports: { stripe: {} },
 });
@@ -150,6 +169,7 @@ beforeEach(async () => {
   await db.execute(sql`TRUNCATE device_validations`);
   sentEmails.length = 0;
   purgeCalls.length = 0;
+  afterResponseTasks.length = 0;
   logLines.length = 0;
   rotateCalls.clear();
   rotateMax = 5;
@@ -343,6 +363,10 @@ describe("customer.rotateAccountKey, end to end", () => {
     assert.equal(reply.status, 200, `rotate answered ${reply.code}`);
     assert.ok(reply.data);
     const newKey = reply.data.key;
+    // The notice is queued for after the response; the reply did not wait on it.
+    assert.equal(sentEmails.length, 0, "no email before the response");
+    assert.equal(afterResponseTasks.length, 1);
+    await flushAfterResponse();
     assert.equal(reply.data.id, owner.keyId, "same row: purchase history and Stripe link stay");
     assert.match(newKey, KEY_FORMAT);
     assert.notEqual(newKey, owner.key);
