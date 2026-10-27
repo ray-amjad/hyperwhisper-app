@@ -100,12 +100,12 @@ internal static class AssemblyAiDictation
 
     // Read actual RIFF chunks, not MIME labels, caller duration hints or file-size estimates.
     // Both desktop recorders already emit PCM16 WAV. Unsupported imports fail explicitly.
-    // A header that was never patched (#2654: a crash-interrupted recorder writes RIFF 36 and
-    // data 0; a piped ffmpeg writes 0xFFFFFFFF for both) has a RIFF size that does not match
-    // the file AND a data length of zero or past the end of the file. Its audio is read to the
-    // end of the file, as PcmWaveHeader and WaveFileDuration do, and unpatchedData says where,
-    // so the caller can upload a corrected copy. A header whose RIFF size matches the file is
-    // patched, and its data length is trusted exactly as before.
+    // A data length that was never patched (#2654: a crash-interrupted recorder writes RIFF 36
+    // and data 0; a piped ffmpeg writes 0xFFFFFFFF for both) is read to the end of the file, as
+    // PcmWaveHeader and WaveFileDuration do, and unpatchedData says where, so the caller can
+    // upload a corrected copy. Unpatched means zero or less than one whole frame, or past the
+    // end of the file when the RIFF size is wrong too. A past-the-end length in a header whose
+    // RIFF size matches the file is a corrupt field, not a placeholder, and stays refused.
     internal static double ValidateWave(string path, out UnpatchedData? unpatchedData)
     {
         unpatchedData = null;
@@ -129,8 +129,9 @@ internal static class AssemblyAiDictation
             {
                 stream.ReadExactly(chunk);
                 var size = BinaryPrimitives.ReadUInt32LittleEndian(chunk[4..]);
-                if (!riffMatches && chunk[..4].SequenceEqual("data"u8) && !dataBytes.HasValue
-                    && (size == 0 || stream.Position + size > stream.Length))
+                if (chunk[..4].SequenceEqual("data"u8) && !dataBytes.HasValue
+                    && (size == 0 || (hasFormat && size < blockAlign)
+                        || (!riffMatches && stream.Position + size > stream.Length)))
                 {
                     // Unpatched: the audio runs to the end of the file, so this is the last chunk.
                     dataOffset = stream.Position;

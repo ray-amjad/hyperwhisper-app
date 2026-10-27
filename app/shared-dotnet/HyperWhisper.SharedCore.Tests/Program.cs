@@ -2741,6 +2741,9 @@ static async Task TestDictationUnpatchedWaveAsync()
             ("crash 36/0", Wave(36, 0, audio), []),
             ("ffmpeg pipe 0xFFFFFFFF", Wave(uint.MaxValue, uint.MaxValue, audio, list, tail: 1), list),
             ("past EOF", Wave(0, 1_000_000, audio), []),
+            // The shared readers trust neither a zero nor a sub-frame length, whatever the RIFF size says.
+            ("patched RIFF, data 0", Wave((uint)(36 + audio.Length), 0, audio), []),
+            ("data under one frame", Wave(36, 1, audio), []),
         })
         {
             File.WriteAllBytes(path, input);
@@ -2792,12 +2795,11 @@ static async Task TestDictationUnpatchedWaveAsync()
             Assert.True(handler.LastRequest is null, "no upload without a copy");
         }
         // Still refused before any request: an unpatched header with no audio, one over 120 s,
-        // and a PATCHED header (RIFF matches the file) that declares data 0 or past the end.
+        // and a PATCHED header (RIFF matches the file) whose data length runs past the end.
         foreach (var (label, input, message) in new (string, byte[], string)[] {
             ("unpatched, no audio", Wave(36, 0, []), "valid PCM16 WAV"),
             ("unpatched, 1 byte", Wave(36, 0, [1]), "valid PCM16 WAV"),
             ("unpatched, over 120 s", Wave(uint.MaxValue, uint.MaxValue, new byte[(120 * 16_000 + 1) * 2]), "120"),
-            ("patched RIFF, data 0", Wave((uint)(36 + audio.Length), 0, audio), "valid PCM16 WAV"),
             ("patched RIFF, data past EOF", Wave((uint)(36 + audio.Length), (uint)audio.Length + 2, audio), "valid PCM16 WAV"),
         })
         {
