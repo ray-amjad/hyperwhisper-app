@@ -94,8 +94,8 @@ const HEIGHT_TRANSITION = `height ${HEIGHT_TWEEN_MS}ms var(--motion-ease-smooth-
  * comes off when the tween ends, so at rest the box is `height: auto` and an
  * inline editor or an error reveal inside it sizes it at once, as before. The
  * same pin-then-release as SignInClient (#752) and the /download panel (#767).
- * Under reduced motion the global guard in globals.css ends the transition at
- * once.
+ * Under reduced motion nothing is pinned: the box takes its new height in the
+ * same frame as the new content, as before.
  *
  * Only a change from one value of `trigger` to another tweens: the first
  * value after `undefined` (the first load's rows replacing the skeleton)
@@ -163,6 +163,11 @@ function HeightTween({
       from = parseFloat(getComputedStyle(element).height);
       tween.current.stop();
     }
+
+    // The two-frame start below would hold the old height for those frames,
+    // and the global guard would then end the transition at once: a late step
+    // instead of an on-time one.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     const to = element.offsetHeight;
 
