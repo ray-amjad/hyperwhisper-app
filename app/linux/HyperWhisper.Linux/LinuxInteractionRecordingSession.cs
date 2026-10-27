@@ -353,14 +353,17 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
 
     public async ValueTask<InteractionStopOutcome> StopAsync(CancellationToken cancellationToken = default)
     {
-        var open = HasOpenSession;
-        SetLiveCapture(false);
-        if (!open) return new(PlatformResult.Failure("interaction.not_recording", "No transcription is active."), false);
-        await ReportAsync(DiagnosticComponent.Transcription, DiagnosticOutcome.Started);
-        _overlay.Transcribing();
+        // HasOpenSession includes live capture, so a closed session has no capture to clear.
+        if (!HasOpenSession) return new(PlatformResult.Failure("interaction.not_recording", "No transcription is active."), false);
+        // The stop is in flight before live capture clears: for a held stream (IsActive already false) the
+        // ActivityChanged that SetLiveCapture raises must not see an idle session and put the record hint
+        // back for the whole finalization (#2599). The finally below clears it whatever throws.
+        Volatile.Write(ref _finishing, true);
         try
         {
-            Volatile.Write(ref _finishing, true);
+            SetLiveCapture(false);
+            await ReportAsync(DiagnosticComponent.Transcription, DiagnosticOutcome.Started);
+            _overlay.Transcribing();
             if (_viewModel.Settings.EnableSoundEffects) _ = _services.SoundEffects.Play(SoundEffect.RecordingStopped);
             InteractionStopOutcome outcome;
             if (_streaming) outcome = await StopStreamingAsync(cancellationToken);
