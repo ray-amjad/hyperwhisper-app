@@ -42,7 +42,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none prose-invert">
       <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: October 21, 2026
+        Last Updated: October 27, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -1062,7 +1062,13 @@ export default function PrivacyPolicyPage() {
         </a>{" "}
         for analytics to understand how our website is used and to improve the
         experience. PostHog may set its own cookies. We do not use this data for
-        advertising purposes.
+        advertising purposes. Our website also sends PostHog an error report
+        when a page hits an error, for example a failed sign-in, checkout or
+        download, so we can find and fix it. A report holds the error type and
+        message, the stack trace, the page address, and your browser and
+        device details. We do not add your email address, your Account Key or a
+        sign-in link to a report, and an Account Key anywhere in a report is
+        removed before it is sent.
       </p>
       <p>
         The demo video on our home page is hosted by{" "}
