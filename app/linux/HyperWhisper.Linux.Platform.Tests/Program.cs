@@ -174,6 +174,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("single-instance socket signals primary safely", SingleInstanceSocket),
     ("single-instance guard admits exactly one of two launches racing a stale socket", SingleInstanceStaleSocketRace),
     ("single-instance guard excludes launches with different runtime dirs on one database", SingleInstanceKeyedByDatabaseDirectory),
+    ("single-instance guard defers to a running pre-lock build", SingleInstanceDefersToPreLockBuild),
     ("XDG autostart is atomic and owner-only", XdgAutostart),
     ("push-to-talk emits only configured logical action", PushToTalkPrivacy),
     ("push-to-talk double-press latches and unlatches", PushToTalkDoubleLock),
@@ -3248,7 +3249,7 @@ static Task SingleInstanceSocket() => WithTemporaryDirectoryAsync(async director
     Assert.Success(secondary.SignalExistingInstance());
     await activated.Task.WaitAsync(TimeSpan.FromSeconds(2));
     secondary.Dispose();
-    Assert.True(File.Exists(Path.Combine(directory, "instance.sock")));
+    Assert.True(File.Exists(primary.SocketPath));
 });
 
 // #1334: TryAcquire was check-then-act. Two launches that both found a stale instance.sock could
@@ -3256,7 +3257,8 @@ static Task SingleInstanceSocket() => WithTemporaryDirectoryAsync(async director
 // dead socket file behind, then releases two guards on one profile at the same moment.
 static Task SingleInstanceStaleSocketRace() => WithTemporaryDirectoryAsync(directory =>
 {
-    var socketPath = Path.Combine(directory, "instance.sock");
+    string socketPath;
+    using (var probe = new LinuxSingleInstanceCoordinator(new FakeAppPaths(directory))) socketPath = probe.SocketPath;
     for (var round = 0; round < 200; round++)
     {
         // A crashed instance leaves its socket file with nobody listening. .NET unlinks a socket
@@ -3292,19 +3294,50 @@ static Task SingleInstanceStaleSocketRace() => WithTemporaryDirectoryAsync(direc
 });
 
 // #1334: the socket lives under XDG_RUNTIME_DIR, the database under XDG_STATE_HOME. Two launches
-// with different runtime dirs must still exclude each other, because they share hyperwhisper.db.
-static Task SingleInstanceKeyedByDatabaseDirectory() => WithTemporaryDirectoryAsync(directory =>
+// with different runtime dirs must still exclude each other, because they share hyperwhisper.db,
+// and the loser must still reach the owner's window.
+static Task SingleInstanceKeyedByDatabaseDirectory() => WithTemporaryDirectoryAsync(async directory =>
 {
     var state = Path.Combine(directory, "state");
     using var first = new LinuxSingleInstanceCoordinator(new SplitAppPaths(state, Path.Combine(directory, "run-a")));
     using var second = new LinuxSingleInstanceCoordinator(new SplitAppPaths(state, Path.Combine(directory, "run-b")));
     Assert.True(first.TryAcquire() is { IsSuccess: true, Value: true }, "the first launch owns the profile");
     Assert.True(second.TryAcquire() is { IsSuccess: true, Value: false }, "a second launch on the same database must not acquire");
-    first.Release();
-    Assert.True(second.TryAcquire() is { IsSuccess: true, Value: true }, "the guard frees when its owner releases");
+    var activated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    first.ActivationRequested += (_, _) => activated.TrySetResult();
+    Assert.Success(second.SignalExistingInstance());
+    await activated.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+    // A different database on the SAME runtime dir is a different instance, while the first runs.
     using var other = new LinuxSingleInstanceCoordinator(new SplitAppPaths(Path.Combine(directory, "other-state"), Path.Combine(directory, "run-a")));
     Assert.True(other.TryAcquire() is { IsSuccess: true, Value: true }, "a different database is a different instance");
-    return Task.CompletedTask;
+    Assert.True(other.SocketPath != first.SocketPath && File.Exists(first.SocketPath), "each database keeps its own socket");
+
+    first.Release();
+    Assert.True(second.TryAcquire() is { IsSuccess: true, Value: true }, "the guard frees when its owner releases");
+});
+
+// #1334: a build from before the lock listens on instance.sock and takes no lock. A new build on
+// the same runtime dir must defer to it and raise its window, not open the database beside it.
+static Task SingleInstanceDefersToPreLockBuild() => WithTemporaryDirectoryAsync(async directory =>
+{
+    using var legacy = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+    legacy.Bind(new UnixDomainSocketEndPoint(Path.Combine(directory, "instance.sock")));
+    legacy.Listen(4);
+    using var guard = new LinuxSingleInstanceCoordinator(new FakeAppPaths(directory));
+    Assert.True(guard.TryAcquire() is { IsSuccess: true, Value: false }, "a live pre-lock instance wins");
+    Assert.Success(guard.SignalExistingInstance());
+    // The first connection is TryAcquire's own liveness probe, which sends nothing; the old build's
+    // listener skips it the same way.
+    var signalled = false;
+    for (var connection = 0; connection < 2 && !signalled; connection++)
+    {
+        using var client = await legacy.AcceptAsync().WaitAsync(TimeSpan.FromSeconds(2));
+        signalled = await client.ReceiveAsync(new byte[1], SocketFlags.None) == 1;
+    }
+    Assert.True(signalled, "the activation byte reached the pre-lock build");
+    using var next = new LinuxSingleInstanceCoordinator(new FakeAppPaths(directory));
+    Assert.True(next.TryAcquire() is { IsSuccess: true, Value: false }, "the lock was given back on deferral");
 });
 
 // GNOME, KDE and every XDG session read only $XDG_CONFIG_HOME/autostart/ (#2023). The entry was
