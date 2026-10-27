@@ -306,7 +306,7 @@ static async Task NonMuseCloudTierLimits()
         new(FileTranscriptionRoute.Cloud, "", CloudProvider: CloudTranscriptionProvider.HyperWhisperCloud,
             CloudCatalogTier: "gemini"));
     Assert(result.IsSuccess && result.Constraints is
-        { MaximumBytes: 2L * ByteSizes.GiB, MaximumDuration: null, RequiresMuseWave: false },
+        { MaximumBytes: 128L * ByteSizes.MiB, MaximumDuration: null, RequiresMuseWave: false },
         "a non-Muse cloud tier inherited catalog file limits");
 }
 
