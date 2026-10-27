@@ -487,12 +487,17 @@ export default function CustomersClient() {
                     </p>
                   )}
                 </ErrorReveal>
-                {grantResult && (
-                  <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg space-y-1">
-                    <p className="text-emerald-300 text-sm">Account Key granted to <span className="font-medium">{grantResult.email}</span></p>
-                    <p className="text-white font-mono text-sm select-all">{grantResult.licenseKey}</p>
-                  </div>
-                )}
+                {/* #965: the granted key fades in while its row grows open,
+                    so the panel grows to it instead of stepping ~80 px in one
+                    frame. Same reveal and margins as the error above. */}
+                <ErrorReveal className="-mt-3" gap="pt-3">
+                  {grantResult && (
+                    <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg space-y-1">
+                      <p className="text-emerald-300 text-sm">Account Key granted to <span className="font-medium">{grantResult.email}</span></p>
+                      <p className="text-white font-mono text-sm select-all">{grantResult.licenseKey}</p>
+                    </div>
+                  )}
+                </ErrorReveal>
               </div>
             </div>
           </div>
@@ -967,54 +972,63 @@ export default function CustomersClient() {
               <p className="text-gray-400">Key: <code className="text-white font-mono text-xs">{refundTarget.key}</code></p>
             </div>
 
-            {refundMutation.isSuccess ? (
-              <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg">
-                <p className="text-emerald-300 text-sm">
-                  Refund processed successfully{refundMutation.data?.revoked ? " and Account Key revoked" : ""}.
-                </p>
-              </div>
-            ) : (
-              <>
-                {/* #2286: the error reveals; the space-y-5 gap rides inside
-                    the clip as pb-5. */}
-                <ErrorReveal gap="pb-5">
-                  {refundMutation.error && (
-                    <div
-                      className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg"
-                      role="alert"
-                    >
-                      <p className="text-red-300 text-sm">{errorSentence(refundMutation.error, INVALID_INPUT)}</p>
-                    </div>
-                  )}
-                </ErrorReveal>
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={() =>
-                      refundMutation.mutate({
-                        licenseKeyId: refundTarget.id,
-                        revokeLicense: true,
-                      })
-                    }
-                    disabled={refundMutation.isPending}
-                    className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50 text-sm font-medium"
-                  >
-                    {refundMutation.isPending ? "Processing..." : "Refund & Revoke"}
-                  </button>
-                  <button
-                    onClick={() =>
-                      refundMutation.mutate({
-                        licenseKeyId: refundTarget.id,
-                        revokeLicense: false,
-                      })
-                    }
-                    disabled={refundMutation.isPending}
-                    className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/15 text-gray-300 rounded-lg transition-colors disabled:opacity-50 text-sm font-medium border border-white/10"
-                  >
-                    {refundMutation.isPending ? "Processing..." : "Refund Only"}
-                  </button>
+            {/* #965: the success banner replaces the two buttons. The box
+                tweens between their heights (HeightTween) and the banner
+                rises out of a small blur (.t-panel-content), instead of both
+                landing in one frame. No spin: it is a text box, not an icon. */}
+            <HeightTween trigger={refundMutation.isSuccess}>
+              {refundMutation.isSuccess ? (
+                <div
+                  className="t-panel-content p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg"
+                  data-enter=""
+                >
+                  <p className="text-emerald-300 text-sm">
+                    Refund processed successfully{refundMutation.data?.revoked ? " and Account Key revoked" : ""}.
+                  </p>
                 </div>
-              </>
-            )}
+              ) : (
+                <>
+                  {/* #2286: the error reveals; the space-y-5 gap rides inside
+                      the clip as pb-5. */}
+                  <ErrorReveal gap="pb-5">
+                    {refundMutation.error && (
+                      <div
+                        className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg"
+                        role="alert"
+                      >
+                        <p className="text-red-300 text-sm">{errorSentence(refundMutation.error, INVALID_INPUT)}</p>
+                      </div>
+                    )}
+                  </ErrorReveal>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() =>
+                        refundMutation.mutate({
+                          licenseKeyId: refundTarget.id,
+                          revokeLicense: true,
+                        })
+                      }
+                      disabled={refundMutation.isPending}
+                      className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50 text-sm font-medium"
+                    >
+                      {refundMutation.isPending ? "Processing..." : "Refund & Revoke"}
+                    </button>
+                    <button
+                      onClick={() =>
+                        refundMutation.mutate({
+                          licenseKeyId: refundTarget.id,
+                          revokeLicense: false,
+                        })
+                      }
+                      disabled={refundMutation.isPending}
+                      className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/15 text-gray-300 rounded-lg transition-colors disabled:opacity-50 text-sm font-medium border border-white/10"
+                    >
+                      {refundMutation.isPending ? "Processing..." : "Refund Only"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </HeightTween>
           </AnimatedDialog>
         )}
       </AnimatePresence>
