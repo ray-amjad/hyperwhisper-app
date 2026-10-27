@@ -7,6 +7,8 @@
  * read procedures (and the suites that drive them) do not need.
  *
  * Order of work:
+ *   0. the session must have been proven by email (magic link), not by the
+ *      key being rotated (`src/lib/session-sign-in-method.ts`);
  *   1. per-user rate limit (fails open, like every site limiter);
  *   2. `rotateAccountKey()` in db-layer: one transaction, row locked, owner
  *      checked, only `granted` keys, optimistic `currentKey` check so two
@@ -24,12 +26,15 @@ import { accountKeyRotateRateLimiter } from "@/lib/rate-limit";
 import { countFailOpen } from "@/lib/rate-limit-gate";
 import { emailService } from "@/lib/services/email";
 import { purgeCloudLicenseCache } from "@/lib/services/cloud-license-cache";
+import { canRotateAccountKeys } from "@/src/lib/session-sign-in-method";
 
 /** The copy for each refusal. Owner-facing; never echoes the key. */
 export const ROTATE_KEY_ERRORS = {
   rateLimited: "Too many key rotations. Please try again later.",
   notFound: "Account Key not found",
   notGranted: "Only an active Account Key can be rotated",
+  needsEmailSignIn:
+    "Sign in with the email link to rotate an Account Key. A session opened with the key itself cannot rotate it.",
   stale:
     "This Account Key has already been rotated. Refresh to see the current key.",
 } as const;
@@ -37,6 +42,7 @@ export const ROTATE_KEY_ERRORS = {
 export interface RotateKeyCaller {
   user: { id: string; email?: string | null; name?: string | null };
   sessionId?: string | null;
+  signInMethod?: string | null;
 }
 
 export interface RotateKeyInput {
@@ -54,6 +60,18 @@ export async function rotateKeyForCaller(
     throw new TRPCError({
       code: "BAD_REQUEST",
       message: "User email not found",
+    });
+  }
+
+  // Rotation is the remedy for a leaked key, so a session proven only by
+  // that key (license-key sign-in) must not be able to rotate it: it would
+  // keep the leaker's session, sweep the owner's and hand the leaker the new
+  // key. Only a session proven by the account's inbox may. Checked before the
+  // limiter, so a refused session does not spend the owner's budget.
+  if (!canRotateAccountKeys(ctx.signInMethod)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: ROTATE_KEY_ERRORS.needsEmailSignIn,
     });
   }
 

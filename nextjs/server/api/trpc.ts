@@ -34,6 +34,11 @@ export interface TRPCContext {
   isAdmin: boolean;
   headers: Headers;
   sessionId?: string | null;
+  /**
+   * How that session was proven (`src/lib/session-sign-in-method.ts`):
+   * "email", "account_key", or null for a session older than the column.
+   */
+  signInMethod?: string | null;
 }
 
 /**
@@ -59,6 +64,7 @@ export async function createTRPCContext(opts: {
     isAdmin,
     headers: opts.headers,
     sessionId: session?.session?.id ?? null,
+    signInMethod: session?.session?.signInMethod ?? null,
   };
 }
 

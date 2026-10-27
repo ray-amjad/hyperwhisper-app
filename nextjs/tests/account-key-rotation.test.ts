@@ -107,6 +107,7 @@ const logging = consoleSilencer(["log", "warn", "error"], logLines);
 
 type Handler = (request: Request) => Promise<Response>;
 let authPOST: Handler;
+let authGET: Handler;
 let trpcPOST: Handler;
 let validatePOST: Handler;
 let accountValidatePOST: Handler;
@@ -121,6 +122,7 @@ const ACCOUNT_VALIDATE_ROUTE = "../app/api/account/validate/route.ts";
 before(async () => {
   L = await loadDbLayer();
   authPOST = (await import(AUTH_ROUTE)).POST;
+  authGET = (await import(AUTH_ROUTE)).GET;
   trpcPOST = (await import(TRPC_ROUTE)).POST;
   validatePOST = (await import(VALIDATE_ROUTE)).POST;
   accountValidatePOST = (await import(ACCOUNT_VALIDATE_ROUTE)).POST;
@@ -198,6 +200,42 @@ async function signIn(
   const session = setCookie.find((c) => c.includes("session_token="));
   const body = (await response.json()) as { error?: unknown };
   return { cookie: session ? session.split(";")[0] : null, error: body.error };
+}
+
+/**
+ * Sign in by magic link through the real endpoints: ask for the link, read it
+ * out of the captured email, and follow it. The session this mints is the one
+ * proven by the inbox, so it is the only kind that may rotate.
+ */
+async function signInByEmail(email: string): Promise<string> {
+  const before = sentEmails.length;
+  const response = await authPOST(
+    new Request(`${ORIGIN}/api/auth/sign-in/magic-link`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: ORIGIN },
+      body: JSON.stringify({ email, callbackURL: "/en/user/dashboard" }),
+    }),
+  );
+  assert.equal(response.status, 200, "magic link requested");
+  const mail = sentEmails[before];
+  assert.ok(mail, "a magic-link email was sent");
+  sentEmails.splice(before, 1);
+  const link = /https?:\/\/\S+\/api\/auth\/magic-link\/verify\?[^\s"<]+/.exec(mail.text)?.[0];
+  assert.ok(link, "the email carries the verify link");
+  const verified = await authGET(new Request(link.replace(/&amp;/g, "&")));
+  const cookie = (verified.headers.getSetCookie?.() ?? []).find((c) =>
+    c.includes("session_token="),
+  );
+  assert.ok(cookie, `verify set a session cookie (status ${verified.status})`);
+  return cookie.split(";")[0];
+}
+
+async function signInMethods(userId: string): Promise<Array<string | null>> {
+  const rows = await db
+    .select({ m: schema.session.signInMethod })
+    .from(schema.session)
+    .where(sql`${schema.session.userId} = ${userId}`);
+  return rows.map((r) => r.m).sort();
 }
 
 interface TrpcReply {
@@ -293,11 +331,13 @@ describe("customer.rotateAccountKey, end to end", () => {
     const poolBefore = before.body.credit_pool_id;
     assert.ok(poolBefore, "credit_pool_id is issued when the secret is set");
 
-    // Two web sessions: the dashboard tab that rotates, and another browser.
-    const here = await signIn(owner.key);
+    // Two web sessions: the dashboard tab that rotates (proven by email) and
+    // another browser that signed in with the key.
+    const here = { cookie: await signInByEmail("owner@example.test") };
     const elsewhere = await signIn(owner.key);
-    assert.ok(here.cookie && elsewhere.cookie);
+    assert.ok(elsewhere.cookie);
     assert.equal(await sessionCount(owner.userId), 2);
+    assert.deepEqual(await signInMethods(owner.userId), ["account_key", "email"]);
 
     const reply = await rotate(here.cookie, { id: owner.keyId, currentKey: owner.key });
     assert.equal(reply.status, 200, `rotate answered ${reply.code}`);
@@ -338,11 +378,12 @@ describe("customer.rotateAccountKey, end to end", () => {
     // Devices: the old rows were cleared; only the re-validated one is back.
     assert.equal(await deviceCount(owner.keyId), 1);
 
-    // Sessions: the other browser is signed out, the rotating tab is kept.
+    // Sessions: the session minted from the OLD key is gone; the rotating tab
+    // is kept (the new-key sign-in above is the only other one).
     const stillHere = await rotate(here.cookie, { id: owner.keyId, currentKey: "x" });
     assert.equal(stillHere.code, "CONFLICT", "the rotating session still authenticates");
     const gone = await rotate(elsewhere.cookie, { id: owner.keyId, currentKey: newKey });
-    assert.equal(gone.code, "UNAUTHORIZED", "every other session was swept");
+    assert.equal(gone.code, "UNAUTHORIZED", "the old key's session was swept");
 
     // Cloud purge: the old string, to the configured cloud, with a timeout.
     assert.equal(purgeCalls.length, 1);
@@ -368,11 +409,35 @@ describe("customer.rotateAccountKey, end to end", () => {
     }
   });
 
+  test("a session minted with the key itself cannot rotate it (the leaked-key takeover)", async () => {
+    const owner = await seedOwner("leaked");
+    const ownerSession = await signInByEmail("leaked@example.test");
+    // Someone who holds only the key string signs in with it.
+    const leaker = await signIn(owner.key);
+    assert.ok(leaker.cookie);
+
+    const reply = await rotate(leaker.cookie, { id: owner.keyId, currentKey: owner.key });
+    assert.equal(reply.status, 403);
+    assert.equal(reply.code, "FORBIDDEN");
+    assert.equal(await storedKey(owner.keyId), owner.key, "nothing rotated");
+    assert.equal(await sessionCount(owner.userId), 2, "nobody was signed out");
+    assert.equal(rotateCalls.size, 0, "the owner's rate-limit budget is untouched");
+    assert.equal(purgeCalls.length, 0);
+    assert.equal(sentEmails.length, 0);
+
+    // The owner, proven by email, rotates; the leaker's session dies with the key.
+    const rotated = await rotate(ownerSession, { id: owner.keyId, currentKey: owner.key });
+    assert.equal(rotated.status, 200);
+    const after = await rotate(leaker.cookie, { id: owner.keyId, currentKey: rotated.data!.key });
+    assert.equal(after.code, "UNAUTHORIZED", "the leaker's session was swept");
+    assert.equal(await sessionCount(owner.userId), 1);
+    assert.deepEqual(await signInMethods(owner.userId), ["email"]);
+  });
+
   test("a non-owner cannot rotate someone else's key", async () => {
     const owner = await seedOwner("victim");
     const other = await seedOwner("other");
-    const session = await signIn(other.key);
-    assert.ok(session.cookie);
+    const session = { cookie: await signInByEmail("other@example.test") };
 
     const reply = await rotate(session.cookie, { id: owner.keyId, currentKey: owner.key });
     assert.equal(reply.status, 404);
@@ -395,8 +460,7 @@ describe("customer.rotateAccountKey, end to end", () => {
   test("the per-user rate limit applies", async () => {
     rotateMax = 2;
     const owner = await seedOwner("busy");
-    const session = await signIn(owner.key);
-    assert.ok(session.cookie);
+    const session = { cookie: await signInByEmail("busy@example.test") };
 
     let current = owner.key;
     for (let i = 0; i < 2; i++) {
@@ -413,8 +477,7 @@ describe("customer.rotateAccountKey, end to end", () => {
 
   test("a revoked key is refused", async () => {
     const owner = await seedOwner("revoked");
-    const session = await signIn(owner.key);
-    assert.ok(session.cookie);
+    const session = { cookie: await signInByEmail("revoked@example.test") };
     await db.execute(sql`UPDATE account_keys SET status = 'revoked' WHERE id = ${owner.keyId}`);
     // Revoking through SQL leaves the session; the procedure must still refuse.
     const reply = await rotate(session.cookie, { id: owner.keyId, currentKey: owner.key });
@@ -425,8 +488,7 @@ describe("customer.rotateAccountKey, end to end", () => {
 
   test("two rotations at once: exactly one wins, the other is CONFLICT, no stale key", async () => {
     const owner = await seedOwner("racer");
-    const session = await signIn(owner.key);
-    assert.ok(session.cookie);
+    const session = { cookie: await signInByEmail("racer@example.test") };
 
     const [a, b] = await Promise.all([
       rotate(session.cookie, { id: owner.keyId, currentKey: owner.key }),
@@ -443,8 +505,7 @@ describe("customer.rotateAccountKey, end to end", () => {
 
   test("the rotation still lands when the cloud purge fails", async () => {
     const owner = await seedOwner("offline");
-    const session = await signIn(owner.key);
-    assert.ok(session.cookie);
+    const session = { cookie: await signInByEmail("offline@example.test") };
     const prev = globalThis.fetch;
     globalThis.fetch = (async () => {
       throw new TypeError("fetch failed");
