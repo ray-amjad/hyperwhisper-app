@@ -154,10 +154,11 @@ extension AccessibilityHelper {
 
                 let targetPID = app.processIdentifier
                 let targetElement = AXUIElementCreateApplication(targetPID)
+                // Not wrapped in MainActorHangTrace: each probe's AX read is capped at
+                // 50 ms, far below the 10 s hang threshold, and a frame per poll would
+                // log and publish up to ~17 times for a target that never reports focus.
                 let wait = await Self.waitForPasteTargetReady(upperBoundMs: delayMs) { remaining in
-                    MainActorHangTrace.shared.withActive(flow: .autoPaste, step: .inspectFocusedElement) {
-                        self.isPasteTargetReady(pid: targetPID, element: targetElement, timeout: remaining)
-                    }
+                    self.isPasteTargetReady(pid: targetPID, element: targetElement, timeout: remaining)
                 }
                 logger.info("⏱️ Paste target settle: \(wait.waitedMs, privacy: .public) ms of \(delayMs, privacy: .public) ms bound, ready=\(wait.ready, privacy: .public)")
 

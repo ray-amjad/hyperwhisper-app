@@ -58,13 +58,19 @@ struct PasteTargetReadinessWaitTests {
     }
 
     @Test func cancelBeforeTheFirstPollStopsWaiting() async {
+        let probes = ProbeCount()
         let task = Task { @MainActor in
             await AccessibilityHelper.waitForPasteTargetReady(upperBoundMs: 600_000,
-                                                              pollIntervalMs: 15) { _ in false }
+                                                              pollIntervalMs: 15) { _ in
+                probes.value += 1
+                return false
+            }
         }
         task.cancel()
         let wait = await task.value
         #expect(!wait.ready)
+        // A cancelled paste sends no AX message to the target.
+        #expect(probes.value == 0)
         // Stopped long before the 10-minute bound.
         #expect(wait.waitedMs < 300_000)
     }
@@ -80,7 +86,13 @@ struct PasteTargetReadinessWaitTests {
                 return false
             }
         }
-        while probes.value == 0 { await Task.yield() }
+        // Bounded, so a wait that never probes fails here instead of hanging the suite.
+        var spins = 0
+        while probes.value == 0 && spins < 1_000_000 {
+            spins += 1
+            await Task.yield()
+        }
+        #expect(probes.value == 1)
         task.cancel()
         let wait = await task.value
         #expect(!wait.ready)
