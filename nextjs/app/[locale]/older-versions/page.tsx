@@ -383,15 +383,22 @@ export default function DownloadsPage() {
                           {formatDate(version.pubDate)}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-gray-400">
-                        <HardDrive
-                          className="w-4 h-4 text-purple-400"
-                          strokeWidth={1.5}
-                        />
-                        <span className="text-sm">
-                          {formatFileSize(version.downloads[0]?.fileSize ?? 0)}
-                        </span>
-                      </div>
+                      {/* One size per card only when there is one file; a
+                          multi-arch card puts each file's size on its own
+                          button (#2086). */}
+                      {version.downloads.length === 1 && (
+                        <div className="flex items-center gap-2 text-gray-400">
+                          <HardDrive
+                            className="w-4 h-4 text-purple-400"
+                            strokeWidth={1.5}
+                          />
+                          <span className="text-sm">
+                            {formatFileSize(
+                              version.downloads[0]?.fileSize ?? 0,
+                            )}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex items-center gap-2 text-gray-400">
                         <Monitor
                           className="w-4 h-4 text-purple-400"
@@ -424,6 +431,11 @@ export default function DownloadsPage() {
                           }
                         >
                           {dl.arch ? `${dl.arch}` : downloadLabel}
+                          {version.downloads.length > 1 && (
+                            <span className="text-xs font-normal opacity-80">
+                              {formatFileSize(dl.fileSize)}
+                            </span>
+                          )}
                         </Button>
                       ))}
                     </div>
