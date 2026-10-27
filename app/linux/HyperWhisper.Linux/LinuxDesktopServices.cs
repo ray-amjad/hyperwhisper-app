@@ -189,9 +189,9 @@ internal sealed class LazySileroVoiceActivityDetector(string modelPath) : IVoice
         {
             return new SileroVoiceActivityDetector(new OnnxSileroInferenceSession(modelPath));
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
-                                           or Microsoft.ML.OnnxRuntime.OnnxRuntimeException or DllNotFoundException
-                                           or TypeInitializationException or InvalidOperationException or InvalidDataException)
+        // Any load fault falls back. This runs inside a dictation's trim, where an escaping exception
+        // would be cached by the Lazy and rethrown on every later trim.
+        catch (Exception)
         {
             return new PcmEnergyVoiceActivityDetector();
         }
