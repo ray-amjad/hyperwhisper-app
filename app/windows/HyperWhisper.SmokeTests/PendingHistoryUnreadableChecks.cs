@@ -99,7 +99,10 @@ internal static class PendingHistoryUnreadableChecks
                 Assert(new PendingHistoryStore(storePath).Count == 0, "the second corrupt file read as rows");
                 Assert(File.ReadAllText(storePath + ".unreadable") == earlier,
                     "the second move-aside overwrote the earlier .unreadable copy");
-                var stamped = Directory.GetFiles(folder, PendingHistoryStore.FileName + ".unreadable.*");
+                // Not a "*.unreadable.*" pattern: on Windows a trailing ".*" also matches the bare name.
+                var stamped = Directory.GetFiles(folder)
+                    .Where(f => Path.GetFileName(f).StartsWith(PendingHistoryStore.FileName + ".unreadable.", StringComparison.Ordinal))
+                    .ToArray();
                 Assert(stamped.Length == 1 && File.ReadAllText(stamped[0]) == "{ corrupt again",
                     $"the second unreadable file was not kept beside the first ({stamped.Length} stamped copies)");
             }
