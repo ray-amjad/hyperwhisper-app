@@ -24,6 +24,11 @@ import { getConfiguredBucket } from './gcs-config';
 import { getGoogleAccessToken } from './google-auth';
 import { ProviderUnavailableError } from '../providers/types';
 import { markProviderNetworkCall } from '../providers/utils';
+import {
+  readUpstreamError,
+  upstreamErrorLogFields,
+  upstreamErrorReason,
+} from '../providers/upstream-error';
 
 const GCS_API_BASE = 'https://storage.googleapis.com';
 const UPLOAD_TIMEOUT_FLOOR_MS = 30_000;
@@ -144,7 +149,11 @@ export async function uploadTranscriptionAudio(
   const elapsedMs = Math.round(performance.now() - start);
 
   if (!response.ok) {
-    const preview = await response.text().catch(() => '<unreadable>');
+    // Content-free fields only (#2176): the route logs these messages, and
+    // the README promises no upstream error body is logged. A GCS body names
+    // buckets and IAM principals, not audio, but the rule has no exceptions.
+    const { fields } = await readUpstreamError(response);
+    const reason = upstreamErrorReason(fields);
     // Route transient GCS failures (429 throttling, 5xx outages) through
     // ProviderUnavailableError so transcribe.ts surfaces them as 502 via the
     // chain-fail path. Non-transient codes (403 bad IAM, 404 missing bucket,
@@ -153,11 +162,11 @@ export async function uploadTranscriptionAudio(
     if (response.status === 429 || response.status >= 500) {
       throw new ProviderUnavailableError(
         'GCS upload',
-        `upload ${response.status} after ${elapsedMs}ms: ${preview.slice(0, 200)}`,
+        `upload ${response.status} after ${elapsedMs}ms (${reason})`,
       );
     }
     throw new Error(
-      `GCS upload failed (status=${response.status}, elapsedMs=${elapsedMs}): ${preview.slice(0, 400)}`,
+      `GCS upload failed (status=${response.status}, elapsedMs=${elapsedMs}): ${reason}`,
     );
   }
 
@@ -196,13 +205,12 @@ export async function deleteTranscriptionAudio(ref: TranscriptionAudioRef): Prom
 
     // 404 is fine — already gone (re-entrant cleanup or lifecycle race).
     if (!response.ok && response.status !== 404) {
-      const preview = await response.text().catch(() => '<unreadable>');
+      const { fields } = await readUpstreamError(response);
       console.warn('gcs.delete_failed', {
         bucket: ref.bucket,
         objectName: ref.objectName,
-        status: response.status,
+        ...upstreamErrorLogFields(fields),
         elapsedMs,
-        bodyPreview: preview.slice(0, 200),
       });
       return;
     }
