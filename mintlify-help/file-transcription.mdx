@@ -96,7 +96,7 @@ macOS sends the first file through the normal HyperWhisper Cloud path. If Meta r
     If the file is too large for the provider of the selected mode, HyperWhisper shows an error. The error gives the file size, the limit of the provider, and the name of the provider. To transcribe larger files, change the mode to a different provider (for example, HyperWhisper Cloud or a local model).
 
     <Warning>
-      The HyperWhisper Cloud server accepts a file of 128 MB or smaller. The macOS app checks only a general limit of 2 GB before the upload, so a file between 128 MB and 2 GB uploads and then gets a "File too large" error from the server. Four Cloud engines have a smaller limit on the server:
+      The HyperWhisper Cloud server accepts a file of 128 MB or smaller. The macOS app checks this limit before the upload, so a larger file gets the "File too large" error with the file size and does not upload. Four Cloud engines have a smaller limit on the server:
 
       | Cloud engine | Server limit |
       | --- | --- |
@@ -105,7 +105,7 @@ macOS sends the first file through the normal HyperWhisper Cloud path. If Meta r
       | Google Gemini 3.5 Transcribe | 14 MB |
       | Meta Muse Voice Transcribe | 32 MB and 10 minutes |
 
-      A file that is larger than the server limit gets a "file too large" error from the server. The macOS app does not stop it first. For a large file, select a different Cloud engine, for example ElevenLabs Scribe v2 or Deepgram Nova 3.
+      A file that is larger than the limit of one of these engines gets a "file too large" error from the server. The macOS app does not stop it first. For a large file, select a different Cloud engine, for example ElevenLabs Scribe v2 or Deepgram Nova 3. For a file over 128 MB, use a local model or a provider with your own API key.
     </Warning>
 
     ## What happens during transcription
@@ -176,7 +176,7 @@ macOS sends the first file through the normal HyperWhisper Cloud path. If Meta r
     If the file is larger than the limit, HyperWhisper shows a toast notification before the upload. The notification gives the maximum size for that provider.
 
     <Warning>
-      The HyperWhisper Cloud server accepts a file of 128 MB or smaller. The Windows app checks a general limit of 2 GB, so a larger file that is under 2 GB gets a "File too large" error from the server. Windows uses the selected Cloud engine's smaller limit when the catalog provides one:
+      The HyperWhisper Cloud server accepts a file of 128 MB or smaller. The Windows app checks this limit before the upload, so a larger file gets the size notification and does not upload. Windows uses the selected Cloud engine's smaller limit when the catalog provides one:
 
       | Cloud engine | Server limit |
       | --- | --- |
@@ -185,7 +185,7 @@ macOS sends the first file through the normal HyperWhisper Cloud path. If Meta r
       | Google Gemini 3.5 Transcribe | 14 MB |
       | Meta Muse Voice Transcribe | 32 MB and 10 minutes, after conversion |
 
-      Windows checks the selected Cloud engine before the upload. For a large file, select a different Cloud engine, for example ElevenLabs Scribe v2 or Deepgram Nova 3.
+      Windows checks the selected Cloud engine before the upload. For a large file, select a different Cloud engine, for example ElevenLabs Scribe v2 or Deepgram Nova 3. For a file over 128 MB, use a local model or a provider with your own API key.
     </Warning>
 
     ## What happens during transcription

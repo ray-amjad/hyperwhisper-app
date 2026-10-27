@@ -403,7 +403,8 @@ public sealed class PortableFileTranscriptionPreflight
             // because it is WebSocket-only and cannot serve a file.
             [CloudTranscriptionProvider.GeminiTranscribe] = Cloud(14L * 1024 * 1024, "gemini-3.5-transcribe",
                 ["gemini-3.5-transcribe"]),
-            [CloudTranscriptionProvider.HyperWhisperCloud] = Cloud(2L * 1024 * 1024 * 1024, "default", ["default"], account: true),
+            // The server's body cap (hyperwhisper-cloud MAX_AUDIO_SIZE_BYTES).
+            [CloudTranscriptionProvider.HyperWhisperCloud] = Cloud(128L * 1024 * 1024, "default", ["default"], account: true),
             [CloudTranscriptionProvider.Meta] = new(
                 "muse-voice-transcribe-1.0",
                 new HashSet<string>(["muse-voice-transcribe-1.0"], StringComparer.Ordinal),

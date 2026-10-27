@@ -226,7 +226,9 @@ enum CloudProvider: String, CaseIterable, Identifiable {
     var maxFileSizeBytes: Int64 {
         switch self {
         case .hyperwhisper:
-            return 2 * 1024 * 1024 * 1024  // 2 GB (uses Deepgram backend)
+            // The server's body cap (hyperwhisper-cloud MAX_AUDIO_SIZE_BYTES).
+            // A larger upload gets Bun's bare 413, which has no size message.
+            return 128 * 1024 * 1024  // 128 MB
         case .openai:
             return 25 * 1024 * 1024  // 25 MB
         case .groq:
