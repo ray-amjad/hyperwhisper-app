@@ -740,11 +740,11 @@ export async function hasProcessedStripeObject(stripeObjectId: string): Promise<
  * as `refundedAmount - removedAmount` and logs it.
  */
 /**
- * True (in SQL) when `remaining` is stored as 0.00 or less. Grant amounts are
- * subtracted in floating point, so a grant can be left with a residue like
- * 2.78e-17 that the numeric(20,2) column stores as 0.00. A grant's status is
- * decided on the stored value, so a grant that holds 0.00 is never left
- * 'active' (#2620).
+ * True (in SQL) when `remaining` is stored as 0.00 or less. A spend subtracts
+ * in floating point, so a charge spanning two grants can leave a residue like
+ * 2.78e-17 that the numeric(20,2) column stores as 0.00. Deciding the status
+ * on the stored value means a grant that holds 0.00 is never left 'active'
+ * (#2620).
  */
 function storesAsZero(remaining: number): SQL {
   return sql`${remaining.toString()}::numeric(20,2) <= 0`;
@@ -806,7 +806,7 @@ export async function refundCreditGrant(
         // A grant with nothing left after a refund is closed as refunded. A
         // partly refunded grant with credits left keeps its status, so the
         // rest stays spendable.
-        status: sql`CASE WHEN ${storesAsZero(newRemaining)} THEN 'refunded' ELSE ${grant.status} END`,
+        status: newRemaining <= 0 ? "refunded" : grant.status,
         updatedAt: new Date(),
       })
       .where(eq(creditGrants.id, grant.id));
