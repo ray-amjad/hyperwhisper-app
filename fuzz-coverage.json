@@ -888,6 +888,22 @@
       ],
       "licensed": false,
       "note": "Codex 0 on all 3 again; #2599 from my read of the status bar during a Home recording (hint appended to every status). Vocabulary: #2323/#2324 closed+fixed, dup/empty/case checks clean. API Keys dialog: trims, 0600, Saved label OK; only nit = 'Credential deleted' on a never-set key (not filed). Unlicensed."
+    },
+    {
+      "at": "2026-10-27T01:42:59Z",
+      "platform": "mac",
+      "commit": "6e3e06c2",
+      "routes": [
+        "local-api",
+        "streaming",
+        "home-and-tray"
+      ],
+      "status": "1-filed",
+      "issues": [
+        2631
+      ],
+      "licensed": false,
+      "note": "unlicensed Debug build (staging). local-api: Codex 'port not editable' is by design (read-only + Copy); curl probe of 25 requests matched the contract (401/403 carry INVALID_REQUEST per #289). home-and-tray: menu-bar Select Mode agrees with Modes page + status bar. Codex left Streaming provider on Deepgram/Nova 3 Medical in percy's profile."
     }
   ]
 }
