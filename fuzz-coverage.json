@@ -904,6 +904,22 @@
       ],
       "licensed": false,
       "note": "unlicensed Debug build (staging). local-api: Codex 'port not editable' is by design (read-only + Copy); curl probe of 25 requests matched the contract (401/403 carry INVALID_REQUEST per #289). home-and-tray: menu-bar Select Mode agrees with Modes page + status bar. Codex left Streaming provider on Deepgram/Nova 3 Medical in percy's profile."
+    },
+    {
+      "at": "2026-10-27T04:15:56Z",
+      "platform": "linux",
+      "commit": "6e3e06c2",
+      "routes": [
+        "core-settings",
+        "licence",
+        "modes"
+      ],
+      "status": "1-filed",
+      "issues": [
+        2632
+      ],
+      "licensed": false,
+      "note": "unlicensed. Codex 0 on core-settings + modes; licence toast Open Settings no-op filed #2632. Keep-mic-warm on then theme change no longer freezes (#1186 fix holds). Modes: empty name disables Save, duplicate name rejected, delete of selected mode falls back to Hyper. Every Linux settings toggle has a reader (dead-toggle grep clean)."
     }
   ]
 }
