@@ -342,12 +342,14 @@ struct ParakeetLoadFailureDetailTests {
 
     // MARK: - Model path in the warmup log line (#2020)
 
-    /// A `.path` (or `.path()`, `.absoluteString`) logged with `privacy: .public`.
+    /// A `.path` (or `.path(…)`, `.relativePath`, `.absoluteString`) logged
+    /// with `privacy: .public`.
     private static let publicPathPattern =
-        #"\.(path|absoluteString)(\(\))?\s*,\s*privacy:\s*\.public"#
-    /// A `.path` interpolated into an engine's `logDetail:` string.
+        #"\.(path|relativePath|absoluteString)\b(\([^)\n]*\))?\s*,\s*privacy:\s*\.public"#
+    /// Any of those inside an engine's `logDetail:` string, however deep the
+    /// interpolated expression is.
     private static let pathInLogDetailPattern =
-        #"logDetail:\s*"[^"\n]*\\\([^)\n]*\.(path|absoluteString)(\(\))?\)"#
+        #"logDetail:\s*"[^"\n]*\\\([^"\n]*\.(path|relativePath|absoluteString)\b"#
 
     /// A path holds the account name (`/Users/<name>/…`), so no live
     /// streaming file may log one publicly: neither a `.path` interpolated
@@ -374,7 +376,10 @@ struct ParakeetLoadFailureDetailTests {
         let leaks = [
             (#"logger.info("at \(directory.path, privacy: .public)")"#, Self.publicPathPattern),
             (#"logger.info("at \(url.path(), privacy: .public)")"#, Self.publicPathPattern),
+            (#"logger.info("at \(url.path(percentEncoded: false), privacy: .public)")"#, Self.publicPathPattern),
+            (#"logger.info("at \(url.relativePath, privacy: .public)")"#, Self.publicPathPattern),
             (#"return .present(logDetail: "models present at \(directory.path)")"#, Self.pathInLogDetailPattern),
+            (#"return .present(logDetail: "at \(AsrModels.defaultCacheDirectory(for: version).path)")"#, Self.pathInLogDetailPattern),
         ]
         for (line, pattern) in leaks {
             #expect(line.range(of: pattern, options: .regularExpression) != nil, "\(line)")
@@ -382,5 +387,7 @@ struct ParakeetLoadFailureDetailTests {
         let safe = #"return .present(logDetail: "models present in \(directory.lastPathComponent)")"#
         #expect(safe.range(of: Self.publicPathPattern, options: .regularExpression) == nil)
         #expect(safe.range(of: Self.pathInLogDetailPattern, options: .regularExpression) == nil)
+        let pathExtension = #"logger.info("ext \(url.pathExtension, privacy: .public)")"#
+        #expect(pathExtension.range(of: Self.publicPathPattern, options: .regularExpression) == nil)
     }
 }
