@@ -193,9 +193,14 @@ public sealed partial class ApplicationBackupService(
             ?? new JsonObject();
         // The core copies these schema integers raw, so a valid `60.0` would be stored as a double
         // and every later Get<int> of it would throw (#2115). Store the whole number instead.
+        // A value no Int32 read accepts (3000000000, 2.5) is dropped, so the live value stays:
+        // stored raw, it would throw on every read and fail the next launch (#2616).
         foreach (var key in IntegerSettingKeys)
-            if (fromCore[key] is { } node && TryReadIntegralInt32(node, out var whole))
-                fromCore[key] = whole;
+        {
+            if (fromCore[key] is not { } node) continue;
+            if (TryReadIntegralInt32(node, out var whole)) fromCore[key] = whole;
+            else fromCore.Remove(key);
+        }
 
         var baseline = new JsonObject();
         foreach (var entry in _settings.Snapshot())

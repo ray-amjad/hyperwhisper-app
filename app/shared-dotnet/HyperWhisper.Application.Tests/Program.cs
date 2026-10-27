@@ -73,6 +73,7 @@ try
     await RunChirp3TierMigrationTestsAsync(Path.Combine(root, "chirp3-tier-migration"));
     await RunDictationModeTestsAsync(Path.Combine(root, "dictation-modes"));
     await RunModeNameTakenTestsAsync(Path.Combine(root, "mode-name-taken"));
+    await RunModeDeleteFailureCodeTestsAsync(Path.Combine(root, "mode-delete-failure-code"));
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
     await RunBlankCloudProviderEditorLoadTestsAsync(Path.Combine(root, "blank-cloud-provider"));
     await RunLegacyCloudProviderFoldTestsAsync(Path.Combine(root, "legacy-cloud-provider-fold"));
@@ -392,6 +393,17 @@ try
         $"a backup with whole-float sortOrder / postProcessingMode was refused: {wholeFloatFieldsImport.Error?.Code} {wholeFloatFieldsImport.Error?.Message}");
     Assert(reloadedSettings.Get<int>("advanced.typingSpeedWPM") == 61,
         "a whole-float typingSpeedWPM 61.0 was not stored as the integer 61");
+    // #2616: a schema-valid integer no Int32 read accepts is dropped, so the live value stays readable.
+    foreach (var outOfRange in new[] { "3000000000", "-3000000000" })
+    {
+        var outOfRangeSettings = JsonNode.Parse(wholeFloatFields.ToJsonString())!.AsObject();
+        outOfRangeSettings["settings"]!["advanced"]!["typingSpeedWPM"] = JsonNode.Parse(outOfRange);
+        var outOfRangeImport = await backupService.ImportAsync(outOfRangeSettings.ToJsonString());
+        Assert(outOfRangeImport.IsSuccess,
+            $"a backup with typingSpeedWPM {outOfRange} was refused: {outOfRangeImport.Error?.Code} {outOfRangeImport.Error?.Message}");
+        Assert(reloadedSettings.Get<int>("advanced.typingSpeedWPM") == 61,
+            $"typingSpeedWPM {outOfRange} replaced the live value 61 instead of being dropped");
+    }
     var fractionalSortOrder = JsonNode.Parse(exported)!.AsObject();
     fractionalSortOrder["vocabulary"]!.AsArray()[0]!["sortOrder"] = JsonNode.Parse("1.5");
     Assert(backupService.Inspect(fractionalSortOrder.ToJsonString()).IsFailure, "a fractional vocabulary sortOrder 1.5 was accepted");
@@ -2229,6 +2241,50 @@ static async Task RunModeNameTakenTestsAsync(string root)
         $"renaming the default mode showed {editor.Status.ErrorCode}: {editor.Status.Message}");
     Assert((await repository.ListAsync()).Single(item => item.IsDefault).Name == "Hyper"
         && editor.Items.Single(item => item.IsDefault).Name == "Hyper", "the default mode was renamed");
+}
+
+// Issue #2561: DeleteAsync caught every InvalidOperationException as the last-mode rule, so an EF
+// fault on delete showed "modes.last_mode" with EF's own exception text.
+static async Task RunModeDeleteFailureCodeTestsAsync(string root)
+{
+    var paths = new TestPaths(root);
+    var faulted = false;
+    var database = new ApplicationDb(() =>
+    {
+        var context = new HyperWhisper.Data.HyperWhisperDbContext(paths);
+        // A disposed context throws ObjectDisposedException, an InvalidOperationException that is
+        // not a mode rule.
+        if (faulted) context.Dispose();
+        return context;
+    });
+    await database.InitializeAsync();
+    var repository = new ModeRepository(database);
+    var editor = new ModesViewModel(repository);
+    await editor.RefreshAsync();
+    Assert(editor.Items.Count == 1, $"expected one seeded mode, got {editor.Items.Count}");
+
+    // The rule itself still shows under its own code.
+    editor.Selected = editor.Items.Single();
+    await editor.DeleteAsync();
+    Assert(editor.Status.ErrorCode == "modes.last_mode" && editor.Status.Message == "Cannot delete the last remaining mode.",
+        $"deleting the last mode showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+    Assert((await repository.ListAsync()).Count == 1, "the last mode was deleted");
+
+    var other = new Mode { Name = "Other", SortOrder = 1 };
+    await repository.UpsertAsync(other);
+    await editor.RefreshAsync();
+    editor.Selected = editor.Items.Single(item => item.Id == other.Id);
+    faulted = true;
+    await editor.DeleteAsync();
+    faulted = false;
+    Assert(editor.Status.ErrorCode == "modes.delete_failed" && editor.Status.Message == "Could not delete the mode.",
+        $"a storage fault on delete showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+    Assert(editor.Items.Any(item => item.Id == other.Id) && (await repository.ListAsync()).Any(item => item.Id == other.Id),
+        "a failed delete removed the mode");
+
+    await editor.DeleteAsync();
+    Assert(!editor.Status.HasError && (await repository.ListAsync()).All(item => item.Id != other.Id),
+        $"deleting a mode with another left failed: {editor.Status.ErrorCode}");
 }
 
 static async Task RunDictationModeTestsAsync(string root)
