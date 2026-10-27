@@ -36,20 +36,11 @@ internal sealed class LinuxDesktopServices : IDisposable
         PushToTalk = new LinuxPushToTalkMonitor();
         AudioDevices = new PulseAudioInputDeviceService();
         AudioRecorder = new PulseAudioRecorder(Paths);
-        IVoiceActivityDetector detector;
-        try
-        {
-            var silero = new SileroVoiceActivityDetector(new OnnxSileroInferenceSession(
-                Path.Combine(AppContext.BaseDirectory, "parakeet-engine", "silero_vad.onnx")));
-            detector = silero;
-            _voiceActivityDetector = silero;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
-                                           or Microsoft.ML.OnnxRuntime.OnnxRuntimeException or DllNotFoundException
-                                           or TypeInitializationException or InvalidOperationException)
-        {
-            detector = new PcmEnergyVoiceActivityDetector();
-        }
+        // #1005: the Silero ONNX session maps libonnxruntime (+17 MB RSS), so it loads when a batch
+        // trim first needs it, not at startup.
+        var detector = new LazySileroVoiceActivityDetector(
+            Path.Combine(AppContext.BaseDirectory, "parakeet-engine", "silero_vad.onnx"));
+        _voiceActivityDetector = detector;
         AudioPreprocessor = new PortableWaveVoiceActivityTrimmer(detector, ShareVoiceActivityTrimming);
         AudioTranscriber = LinuxModeAwareTranscriptionFactory.Create(
             Paths, PrivateFiles, CredentialStore, DeviceIdentity, out _localWhisper, out _localParakeet);
@@ -161,5 +152,48 @@ internal sealed class LinuxDesktopServices : IDisposable
     {
         var settings = new HyperWhisper.PortableApplication.Persistence.PortableSettingsService(PrivateFiles, Paths);
         return settings.Load().IsFailure || settings.Get("audio.enableVoiceActivityTrimming", true);
+    }
+}
+
+/// <summary>Creates the Silero session on first use, and falls back to the PCM energy detector when
+/// the packaged ONNX runtime or model cannot load.</summary>
+internal sealed class LazySileroVoiceActivityDetector(string modelPath) : IVoiceActivityDetector, IDisposable
+{
+    private readonly Lazy<IVoiceActivityDetector> _detector = new(() => Create(modelPath));
+    private bool _disposed;
+
+    public ValueTask ResetAsync(CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return _detector.Value.ResetAsync(cancellationToken);
+    }
+
+    public ValueTask<PlatformResult<bool>> ContainsSpeechAsync(
+        ReadOnlyMemory<float> mono16KhzPcm,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return _detector.Value.ContainsSpeechAsync(mono16KhzPcm, cancellationToken);
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        if (_detector.IsValueCreated && _detector.Value is IDisposable disposable) disposable.Dispose();
+    }
+
+    private static IVoiceActivityDetector Create(string modelPath)
+    {
+        try
+        {
+            return new SileroVoiceActivityDetector(new OnnxSileroInferenceSession(modelPath));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+                                           or Microsoft.ML.OnnxRuntime.OnnxRuntimeException or DllNotFoundException
+                                           or TypeInitializationException or InvalidOperationException or InvalidDataException)
+        {
+            return new PcmEnergyVoiceActivityDetector();
+        }
     }
 }
