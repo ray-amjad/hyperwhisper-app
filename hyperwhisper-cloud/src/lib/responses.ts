@@ -82,7 +82,9 @@ export function sizeLimitWords(actualBytes: number, maxBytes: number): { max: st
   const unit = maxBytes % MIB === 0 ? MIB : 1_000_000;
   return {
     max: `${parseFloat((maxBytes / unit).toFixed(2))} MB`,
-    actual: `${(actualBytes / unit).toFixed(2)} MB`,
+    // Rounded UP, so a file a few bytes over the cap never reads as equal to
+    // it ("must be 9.5 MB or smaller. Your file is 9.50 MB.").
+    actual: `${(Math.ceil((actualBytes / unit) * 100) / 100).toFixed(2)} MB`,
   };
 }
 

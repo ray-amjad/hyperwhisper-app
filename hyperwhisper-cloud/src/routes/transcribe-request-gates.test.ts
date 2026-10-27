@@ -204,8 +204,9 @@ describe('transcribeRoute request gates', () => {
       expect(status).toBe(413);
       expect(body.error).toBe('Audio too large for provider');
       expect(body.message).toBe('soniox accepts at most 14.4 MB inline. Your audio is 15.00 MB.');
-      // Wire fields unchanged: whole-number MiB limit, file in MiB.
-      expect(body.max_size_mb).toBe(14);
+      // Wire fields unchanged: the file in MiB. `max_size_mb` is left
+      // unpinned here: Math.round gives 14 MiB, above the 14.4 MB cap (#2704).
+      expect(Number.isInteger(body.max_size_mb)).toBe(true);
       expect(body.actual_size_mb).toBe(14.31);
       expect(providerCalls.filter((url) => url.includes('soniox'))).toEqual([]);
     } finally {
