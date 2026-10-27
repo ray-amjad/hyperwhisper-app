@@ -75,6 +75,7 @@ try
     await RunModeNameTakenTestsAsync(Path.Combine(root, "mode-name-taken"));
     await RunModeDeleteFailureCodeTestsAsync(Path.Combine(root, "mode-delete-failure-code"));
     await RunModeDeleteRaceTestsAsync(Path.Combine(root, "mode-delete-race"));
+    await RunModeDeleteStaleCardTestsAsync(Path.Combine(root, "mode-delete-stale-card"));
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
     await RunBlankCloudProviderEditorLoadTestsAsync(Path.Combine(root, "blank-cloud-provider"));
     await RunLegacyCloudProviderFoldTestsAsync(Path.Combine(root, "legacy-cloud-provider-fold"));
@@ -2333,6 +2334,52 @@ static async Task RunModeDeleteRaceTestsAsync(string root)
         Assert(left.Count == 1 && left.Single().IsDefault,
             $"{store}: two overlapping deletes left {left.Count} modes, {left.Count(item => item.IsDefault)} of them default");
     }
+}
+
+// Issue #2667: a delete refused because another writer had removed a mode only set Status, so the
+// Modes page kept a card for a row that was gone.
+static async Task RunModeDeleteStaleCardTestsAsync(string root)
+{
+    var db = new ApplicationDb(new TestPaths(root));
+    await db.InitializeAsync();
+    var repository = new ModeRepository(db);
+    var outsideWriter = new ModeRepository(db);
+    var editor = new ModesViewModel(repository);
+    var other = new Mode { Name = "B", SortOrder = 1 };
+    await repository.UpsertAsync(other);
+    await editor.RefreshAsync();
+    Assert(editor.Items.Count == 2, $"expected Hyper and B, got {editor.Items.Count} modes");
+
+    // The issue's steps: Hyper's editor is open with an edit not yet saved, B's row goes, and
+    // Delete Mode on Hyper is refused as the last mode.
+    var hyper = editor.Items.Single(item => item.IsDefault);
+    editor.Selected = hyper;
+    editor.CustomInstructions = "typed, not saved";
+    Assert(await outsideWriter.DeleteAsync(other.Id), "the outside writer could not delete B");
+    await editor.DeleteAsync();
+    Assert(editor.Status.ErrorCode == "modes.last_mode" && editor.Status.Message == "Cannot delete the last remaining mode.",
+        $"the refused delete showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+    Assert(editor.Items.Count == 1 && editor.Items.Single().Id == hyper.Id,
+        $"after the refused delete the Modes page lists [{string.Join(", ", editor.Items.Select(item => item.Name))}], expected only Hyper");
+    // The selected mode keeps its instance, so the editor's Cancel (which restores Selected by
+    // reference) and the next save still find it in the list.
+    Assert(ReferenceEquals(editor.Selected, hyper) && editor.Items.Contains(hyper),
+        "the refused delete left Selected on an instance the list no longer holds");
+    Assert(editor.CustomInstructions == "typed, not saved", "the refused delete threw away the open editor's unsaved edit");
+    Assert((await repository.ListAsync()).Single().Id == hyper.Id, "the refused delete changed the stored modes");
+
+    // A delete of a mode that is already gone reloads the list the same way, and selects what is left.
+    var gone = new Mode { Name = "C", SortOrder = 2 };
+    await repository.UpsertAsync(gone);
+    await editor.RefreshAsync();
+    editor.Selected = editor.Items.Single(item => item.Id == gone.Id);
+    Assert(await outsideWriter.DeleteAsync(gone.Id), "the outside writer could not delete C");
+    await editor.DeleteAsync();
+    Assert(editor.Status.ErrorCode == "modes.not_found", $"deleting a mode already gone showed {editor.Status.ErrorCode}");
+    Assert(editor.Items.Count == 1 && editor.Items.Single().Id == hyper.Id,
+        $"after deleting a mode already gone the Modes page lists [{string.Join(", ", editor.Items.Select(item => item.Name))}]");
+    Assert(editor.Selected is { } fallback && editor.Items.Contains(fallback) && fallback.Id == hyper.Id,
+        "deleting a mode already gone left Selected on it");
 }
 
 static async Task RunDictationModeTestsAsync(string root)

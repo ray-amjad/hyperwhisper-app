@@ -376,9 +376,47 @@ public sealed partial class ModesViewModel : ViewModelBase
     {
         if (Selected == null) { Status.Failure("modes.no_selection", "Select a mode to delete."); return; }
         var selected = Selected;
-        try { if (await _repository.DeleteSafelyAsync(selected.Id, cancellationToken)) { Items.Remove(selected); Selected = FallbackSelection(); Status.Success("Mode deleted"); } else Status.Failure("modes.not_found", "The mode no longer exists."); }
+        bool deleted;
+        try { deleted = await _repository.DeleteSafelyAsync(selected.Id, cancellationToken); }
         // Only the repository's own rule says "last mode"; an EF or storage fault is a failed delete (issue #2561).
-        catch (ModeRuleViolationException rule) { Status.Failure(rule.Code, rule.Message); }
-        catch (Exception) { Status.Failure("modes.delete_failed", "Could not delete the mode."); }
+        catch (ModeRuleViolationException rule)
+        {
+            // A refusal means the rows are not what Items shows: another writer removed a mode
+            // (issue #2667). Reload first, then report, so the refusal is what the user reads.
+            await ReloadItemsAfterRefusedDeleteAsync(cancellationToken);
+            Status.Failure(rule.Code, rule.Message);
+            return;
+        }
+        catch (Exception) { Status.Failure("modes.delete_failed", "Could not delete the mode."); return; }
+        if (deleted) { Items.Remove(selected); Selected = FallbackSelection(); Status.Success("Mode deleted"); return; }
+        await ReloadItemsAfterRefusedDeleteAsync(cancellationToken);
+        Status.Failure("modes.not_found", "The mode no longer exists.");
+    }
+
+    /// <summary>
+    /// Issue #2667: puts <see cref="Items"/> back in line with the repository after a delete it
+    /// refused, so the page drops cards whose rows another writer removed. The selected mode keeps
+    /// its instance (its stored values are copied onto it): the Linux editor's Cancel restores
+    /// <see cref="Selected"/> by reference, and an instance missing from Items would make the next
+    /// save add the mode a second time. A selected mode that is gone falls back as after a delete.
+    /// A failed reload leaves the list alone; the caller still reports the delete's own failure.
+    /// </summary>
+    private async Task ReloadItemsAfterRefusedDeleteAsync(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<Mode> rows;
+        try { rows = await _repository.ListAsync(cancellationToken); }
+        catch (Exception) { return; }
+        // Read before Clear: a list bound to Selected can null it while its items go.
+        var current = _selected;
+        Items.Clear();
+        foreach (var row in rows)
+            Items.Add(current is not null && current.Id == row.Id ? CopyModeValues(row, current) : row);
+        if (current is not null && Items.Contains(current))
+        {
+            // Backing field, not the setter: the setter would reload every editor field from disk
+            // and discard what the open editor still shows.
+            if (!ReferenceEquals(_selected, current)) { _selected = current; Notify(nameof(Selected)); }
+        }
+        else Selected = FallbackSelection();
     }
 }
