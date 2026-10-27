@@ -74,12 +74,12 @@ app.get('/warmup', (c) => {
 });
 
 // Every key-accepting route runs the per-IP rate limit (`ipRateLimit`, 120/min)
-// first, before it parses a body or looks up a key. The per-key limits run
-// inside each route, after auth (middleware/rate-limit.ts, #2010).
+// before it parses a body or looks up a key. The per-key limits run inside each
+// route, after auth (middleware/rate-limit.ts, #2010).
 //
-// `/transcribe` and `/post-process` are counted by `trackInFlightRequests`
-// first of all, so a deploy's SIGTERM waits for them (and refuses new ones)
-// instead of exiting under them (#2031).
+// Only `trackInFlightRequests` runs before it, on `/transcribe` and
+// `/post-process`: it counts them so a deploy's SIGTERM waits for them (and
+// refuses new ones) instead of exiting under them (#2031). It reads no body.
 
 // Main transcription endpoint
 app.post('/transcribe', trackInFlightRequests, ipRateLimit, transcribeRoute);

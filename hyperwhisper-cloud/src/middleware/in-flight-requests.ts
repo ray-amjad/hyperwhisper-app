@@ -61,6 +61,8 @@ export async function trackInFlightRequests(c: Context, next: Next): Promise<Res
       'This server is restarting. Please try again.',
     );
     response.headers.set('Retry-After', '1');
+    // A refusal is a reply too: the exit must not cut it (`waitForResponseFlush`).
+    lastResponseAt = Date.now();
     return response;
   }
 

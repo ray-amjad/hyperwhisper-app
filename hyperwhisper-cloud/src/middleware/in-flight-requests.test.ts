@@ -230,4 +230,14 @@ describe('waitForResponseFlush', () => {
     await waitForResponseFlush(Date.now() + 10_000);
     expect(Date.now() - startedAt).toBeLessThan(50);
   });
+
+  test('a refused request holds the exit too, so its 503 is written out', async () => {
+    const app = makeApp();
+    beginRequestShutdown();
+    expect((await post(app, '/transcribe')).status).toBe(503);
+
+    const startedAt = Date.now();
+    await waitForResponseFlush(Date.now() + 10_000);
+    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(RESPONSE_FLUSH_GRACE_MS - 50);
+  });
 });
