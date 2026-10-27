@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using HyperWhisper.Linux;
 using HyperWhisper.Linux.Overlay;
@@ -133,6 +134,33 @@ static class RecordingStatusAfterStopTests
         Check(line == resting, $"after the failed live start the status bar read '{line}', not '{resting}'");
     });
 
+    // A held live stream (the worker ended, IsActive is false, only live capture keeps the session open):
+    // its stop clears live capture, which raises ActivityChanged. The stop must already be in flight
+    // then, or that recompose puts the hint back for the whole finalization (post-processing, paste,
+    // save), and nothing re-raises before the stop's finally.
+    public static Task HeldStreamStopKeepsTheHintOffWhileFinishing() => RunAsync(new FakeTextInjection(), async (shell, session, overlay) =>
+    {
+        var line = "";
+        using var watch = WatchLine(shell, session, value => line = value);
+        typeof(LinuxInteractionRecordingSession).GetField("_streaming", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(session, true);
+        typeof(LinuxInteractionRecordingSession).GetMethod("SetLiveCapture", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(session, [true]);
+        shell.Status.Success("Live transcription recording…");
+        Check(!session.IsActive && session.HasOpenSession, "the stream is not held (IsActive false, session open)");
+        Check(line == "Live transcription recording…", $"the held stream's line read '{line}', with the hint");
+        string? whileFinishing = null;
+        overlay.TranscribingHook = () => whileFinishing = line;
+
+        try { await session.StopAsync(); } catch { }
+        Console.WriteLine($"  [en] held-stream stop: status bar while finishing \"{whileFinishing}\", after \"{line}\"");
+        Check(whileFinishing is not null && !whileFinishing.Contains("Press Ctrl+Alt", StringComparison.Ordinal),
+            $"while the held stream's stop was finishing the status bar read '{whileFinishing}', with the record hint (#2599)");
+        Check(line.EndsWith(" - Press Ctrl+Alt to record", StringComparison.Ordinal),
+            $"after the held stream's stop the status bar read '{line}', with no record hint");
+        Check(!session.IsRecordingOrFinishing, "the stop left the session finishing");
+    });
+
     private const string Hint = "Press {0} to record";
 
     private static IDisposable WatchLine(ApplicationShellViewModel shell, LinuxInteractionRecordingSession session, Action<string> show)
@@ -245,7 +273,8 @@ sealed class StatusTestOverlay : ILinuxRecordingOverlayFeedback
     public void StreamingStarted(LinuxOverlayModeLabel mode) => StreamingStartedHook?.Invoke();
     public void StreamingConnectionChanged(LinuxStreamingOverlayConnectionState state) { }
     public void AudioLevelChanged(float level) { }
-    public void Transcribing() { }
+    public Action? TranscribingHook { get; set; }
+    public void Transcribing() => TranscribingHook?.Invoke();
     void ILinuxRecordingOverlayFeedback.Completed(LinuxRecordingOverlayCompletion completion) => Completion = completion;
     public void CancelConfirmationRequested() { }
     public void CancelConfirmationDismissed() { }
