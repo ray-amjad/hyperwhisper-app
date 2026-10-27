@@ -275,6 +275,17 @@ describe("addCredits", () => {
     });
   }
 
+  for (const [label, amount, stored] of [
+    ["0.1 + 0.2", 0.1 + 0.2, 0.3],
+    ["999999.9900000001", 999999.9900000001, 999999.99],
+  ] as const) {
+    test(`grants and reports ${label} as the whole cent the ledger stores`, async () => {
+      const res = await callCustomers("addCredits", "mutation", { licenseKeyId: LICENSE_ID, amount });
+      assert.equal(calls.grantCreditLot[0].amount, stored);
+      assert.equal((res as { addedAmount: number }).addedAmount, stored);
+    });
+  }
+
   test("accepts exactly the 1,000,000 cap", async () => {
     await callCustomers("addCredits", "mutation", {
       licenseKeyId: LICENSE_ID,

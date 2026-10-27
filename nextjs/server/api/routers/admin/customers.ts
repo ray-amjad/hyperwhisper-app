@@ -496,8 +496,15 @@ export const customersRouter = createTRPCRouter({
         licenseKeyId: z.string().uuid(),
         // The ledger columns are numeric(20,2): a sub-cent amount would be
         // rounded (0.004 -> 0.00, 1.005 -> 1.01) while the reply reports the
-        // unrounded amount as added, so refuse it (#2624).
-        amount: z.number().positive().multipleOf(0.01).max(MAX_ADMIN_CREDIT_GRANT),
+        // unrounded amount as added, so refuse it (#2624). multipleOf is
+        // float-tolerant (0.1 + 0.2 passes), so snap what passes to the exact
+        // cent the ledger stores, and the reply reports that value.
+        amount: z
+          .number()
+          .positive()
+          .multipleOf(0.01)
+          .max(MAX_ADMIN_CREDIT_GRANT)
+          .transform((amount) => Math.round(amount * 100) / 100),
       }),
     )
     .mutation(async ({ ctx, input }) => {
