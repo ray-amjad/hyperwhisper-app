@@ -195,6 +195,10 @@ struct BackupImportSQLiteRefusalTests {
     /// asserts a wall-clock ceiling on the timed-out wait.
     private static let heldLockHangGuard: TimeInterval = 120
 
+    /// The most a wait on a FREE lock may take. Far above any stall a loaded
+    /// runner adds (#2445); a wait that sleeps its 600 s timeout crosses it.
+    private static let freeLockWaitCeiling: TimeInterval = 120
+
     // MARK: - Constraint
 
     @Test("A trigger that refuses every insert throws, and the process lives")
@@ -278,11 +282,9 @@ struct BackupImportSQLiteRefusalTests {
         let store = try await MainActor.run { try Self.makeStore() }
         defer { store.remove() }
 
-        // A wait that slept its timeout even on a free lock would take 600 s.
-        // The bound sits far above any stall a loaded runner adds (#2445).
         let started = Date()
         try PersistenceController.waitForStoreWriteLock(at: store.url, timeout: 600)
-        #expect(Date().timeIntervalSince(started) < Self.heldLockHangGuard)
+        #expect(Date().timeIntervalSince(started) < Self.freeLockWaitCeiling)
         #expect(PersistenceController.backupImportWriteLockTimeout == 10)
     }
 
@@ -320,6 +322,8 @@ struct BackupImportSQLiteRefusalTests {
 
         let wait = await Self.offThePool { _ = try PersistenceController.acquireStoreWriteLocks(at: urls, timeout: 0.5) }
         #expect(throws: PersistenceController.BackupImportStoreLockedError.self) { try wait.result.get() }
+        // It waited out the timeout on the held store, not less.
+        #expect(wait.seconds >= 0.4)
         // The first store's lock was let go when the second timed out.
         try WriteLockHolder(url: first.url).release()
     }
