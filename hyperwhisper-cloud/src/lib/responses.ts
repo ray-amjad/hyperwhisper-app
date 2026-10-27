@@ -81,10 +81,12 @@ const MIB = 1024 * 1024;
 export function sizeLimitWords(actualBytes: number, maxBytes: number): { max: string; actual: string } {
   const unit = maxBytes % MIB === 0 ? MIB : 1_000_000;
   return {
-    max: `${parseFloat((maxBytes / unit).toFixed(2))} MB`,
-    // Rounded UP, so a file a few bytes over the cap never reads as equal to
-    // it ("must be 9.5 MB or smaller. Your file is 9.50 MB.").
-    actual: `${(Math.ceil((actualBytes / unit) * 100) / 100).toFixed(2)} MB`,
+    // Cap rounded DOWN and file rounded UP, on whole bytes (`bytes * 100 / unit`
+    // is exact for a decimal unit, unlike `bytes / unit * 100`), so a file a
+    // few bytes over the cap never reads as equal to it ("must be 9.5 MB or
+    // smaller. Your file is 9.50 MB.").
+    max: `${Math.floor((maxBytes * 100) / unit) / 100} MB`,
+    actual: `${(Math.ceil((actualBytes * 100) / unit) / 100).toFixed(2)} MB`,
   };
 }
 

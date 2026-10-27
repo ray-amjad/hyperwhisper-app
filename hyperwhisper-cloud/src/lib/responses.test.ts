@@ -227,6 +227,10 @@ describe('the Google Chirp 413 states the real 9.5 MB cap (#2607)', () => {
     expect(sizeLimitWords(129 * MB, MAX_AUDIO_SIZE_BYTES)).toEqual({ max: '128 MB', actual: '129.00 MB' });
     // A file just over the cap never reads as equal to it.
     expect(sizeLimitWords(9_500_001, 9_500_000).actual).toBe('9.51 MB');
+    // Exact sizes stay exact (16.1 * 100 is 1610.0000000000002 in floats).
+    expect(sizeLimitWords(16_100_000, 9_500_000).actual).toBe('16.10 MB');
+    // A cap is never rounded up past itself.
+    expect(sizeLimitWords(10_000_000, 9_999_999)).toEqual({ max: '9.99 MB', actual: '10.00 MB' });
   });
 });
 
