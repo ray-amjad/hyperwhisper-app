@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/clients/stripe";
 import { stripeCustomerBelongsTo } from "@/lib/services/stripe-customer";
 import { findAccountByKey, updateAccountKey } from "@/src/lib/db-layer";
+import { isLookupableLicenseKey } from "@/src/lib/license-key-input";
 import { isRecord } from "@/src/lib/type-guards";
 import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
 import { describeDbError } from "@/lib/shared/db-error";
@@ -139,6 +140,14 @@ export async function POST(req: NextRequest) {
     let stripeCustomerId: string | undefined;
 
     if (normalizedLicenseKey) {
+      // A NUL byte would make Postgres throw and land in the 500 below (#2079).
+      if (!isLookupableLicenseKey(normalizedLicenseKey)) {
+        return NextResponse.json(
+          { error: "Invalid license key" },
+          { status: 400 }
+        );
+      }
+
       const license = await findAccountByKey(normalizedLicenseKey);
 
       if (!license) {

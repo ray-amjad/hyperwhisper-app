@@ -20,7 +20,8 @@ public sealed record FileAudioMetadata(
     ushort? WaveEncoding = null,
     ushort? Channels = null,
     uint? SampleRate = null,
-    ushort? BitsPerSample = null)
+    ushort? BitsPerSample = null,
+    bool DataLengthRecomputed = false)
 {
     public bool IsMuseCompatibleWave => MetaMuseAudioContract.IsCanonicalWave(this);
 }
@@ -43,6 +44,8 @@ public static class MetaMuseAudioContract
         && metadata.Channels == 1
         && metadata.BitsPerSample == 16
         && metadata.SampleRate is 16_000 or 24_000
+        // An unpatched data length is sent as-is without normalization; rewrite it.
+        && !metadata.DataLengthRecomputed
         && metadata.Duration is { } duration
         && duration > TimeSpan.Zero
         && !double.IsNaN(duration.TotalSeconds)
@@ -439,7 +442,8 @@ public sealed class StreamingFileAudioMetadataSource : IFileAudioMetadataSource
             return new(length, null);
 
         uint? bytesPerSecond = null;
-        uint? dataBytes = null;
+        long? dataBytes = null;
+        var dataLengthRecomputed = false;
         ushort? waveEncoding = null;
         ushort? channels = null;
         uint? sampleRate = null;
@@ -450,8 +454,22 @@ public sealed class StreamingFileAudioMetadataSource : IFileAudioMetadataSource
             if (!await TryReadExactlyAsync(stream, chunkHeader, cancellationToken).ConfigureAwait(false)) break;
             var size = BinaryPrimitives.ReadUInt32LittleEndian(chunkHeader.AsSpan(4));
             var remaining = length - stream.Position;
-            if (size > remaining) break;
-            if (chunkHeader.AsSpan(0, 4).SequenceEqual("fmt "u8) && size >= 16)
+            if (chunkHeader.AsSpan(0, 4).SequenceEqual("data"u8))
+            {
+                // A zero or past-EOF length (a crash-interrupted recorder, a piped
+                // ffmpeg/sox WAV) means "to the end of the file", as PcmWaveHeader
+                // and WaveFileDuration read it.
+                if (size == 0 || size > remaining)
+                {
+                    dataBytes = remaining;
+                    dataLengthRecomputed = true;
+                    break;
+                }
+                dataBytes = size;
+                stream.Seek(size, SeekOrigin.Current);
+            }
+            else if (size > remaining) break;
+            else if (chunkHeader.AsSpan(0, 4).SequenceEqual("fmt "u8) && size >= 16)
             {
                 var format = new byte[16];
                 if (!await TryReadExactlyAsync(stream, format, cancellationToken).ConfigureAwait(false)) break;
@@ -462,18 +480,13 @@ public sealed class StreamingFileAudioMetadataSource : IFileAudioMetadataSource
                 bitsPerSample = BinaryPrimitives.ReadUInt16LittleEndian(format.AsSpan(14));
                 stream.Seek(size - 16, SeekOrigin.Current);
             }
-            else if (chunkHeader.AsSpan(0, 4).SequenceEqual("data"u8))
-            {
-                dataBytes = size;
-                stream.Seek(size, SeekOrigin.Current);
-            }
             else stream.Seek(size, SeekOrigin.Current);
             if ((size & 1) != 0 && stream.Position < length) stream.Seek(1, SeekOrigin.Current);
             if (bytesPerSecond is > 0 && dataBytes is not null) break;
         }
         TimeSpan? duration = bytesPerSecond is > 0 && dataBytes is { } data
             ? TimeSpan.FromSeconds((double)data / bytesPerSecond.Value) : null;
-        return new(length, duration, waveEncoding, channels, sampleRate, bitsPerSample);
+        return new(length, duration, waveEncoding, channels, sampleRate, bitsPerSample, dataLengthRecomputed);
     }
 
     private static async ValueTask<bool> TryReadExactlyAsync(
