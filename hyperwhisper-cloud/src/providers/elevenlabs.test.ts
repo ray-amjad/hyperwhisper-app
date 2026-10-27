@@ -4,6 +4,7 @@ import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUn
 import { captureNoSpeechEvent } from './test-support';
 import { stubEnv } from '../test-support/env';
 import { computeElevenLabsTranscriptionCost, creditsForCost } from '../lib/cost-calculator';
+import { pcm16Wav, wav as buildWav, type WavOptions } from '../test-support/wav';
 
 const originalFetch = globalThis.fetch;
 
@@ -190,17 +191,7 @@ describe('transcribeWithElevenLabs — successful response handling', () => {
 // not the last word's end time. The first two tests are the issue's repro.
 describe('transcribeWithElevenLabs — billed duration is the audio length (#2601)', () => {
   // 16 kHz / 16-bit mono PCM WAV — what the desktop apps upload.
-  function wav(seconds: number): ArrayBuffer {
-    const dataBytes = seconds * 16_000 * 2;
-    const buf = new ArrayBuffer(44 + dataBytes);
-    const v = new DataView(buf);
-    const s = (o: number, t: string) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
-    s(0, 'RIFF'); v.setUint32(4, 36 + dataBytes, true); s(8, 'WAVE');
-    s(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
-    v.setUint32(24, 16_000, true); v.setUint32(28, 32_000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
-    s(36, 'data'); v.setUint32(40, dataBytes, true);
-    return buf;
-  }
+  const wav = (seconds: number) => pcm16Wav(seconds);
 
   test('a 60 s clip with speech only in its first 1.2 s is billed for 60 s of audio', async () => {
     mockFetchOnce(() => jsonResponse({ text: 'Hello there.', language_code: 'en', language_probability: 1,
@@ -219,18 +210,32 @@ describe('transcribeWithElevenLabs — billed duration is the audio length (#260
   });
 
   test('a 44.1 kHz stereo WAV is billed from its header, not the 16 kHz mono byte rate', async () => {
-    const seconds = 10;
-    const dataBytes = seconds * 44_100 * 2 * 2;
-    const buf = new ArrayBuffer(44 + dataBytes);
-    const v = new DataView(buf);
-    const s = (o: number, t: string) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
-    s(0, 'RIFF'); v.setUint32(4, 36 + dataBytes, true); s(8, 'WAVE');
-    s(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 2, true);
-    v.setUint32(24, 44_100, true); v.setUint32(28, 176_400, true); v.setUint16(32, 4, true); v.setUint16(34, 16, true);
-    s(36, 'data'); v.setUint32(40, dataBytes, true);
+    mockFetchOnce(() => jsonResponse({ text: 'hi', words: [{ start: 0, end: 1, text: 'hi' }] }));
+    const r = await transcribeWithElevenLabs(pcm16Wav(10, 44_100, 2), 'audio/wav', 'en');
+    expect(r.durationSeconds).toBeCloseTo(10, 6);
+  });
+
+  test.each<[string, WavOptions]>([
+    ['32-bit float, 48 kHz stereo', { formatTag: 3, bitsPerSample: 32, sampleRate: 48_000, channels: 2 }],
+    ['EXTENSIBLE 16-bit, 48 kHz stereo', { formatTag: 0xfffe, bitsPerSample: 16, sampleRate: 48_000, channels: 2 }],
+    ['24-bit PCM, 96 kHz mono', { formatTag: 1, bitsPerSample: 24, sampleRate: 96_000, channels: 1 }],
+    ['16-bit PCM with a JUNK chunk before data', { junkBytes: 27 }],
+  ])('a %s WAV is billed for its real length, not the 16 kHz byte rate', async (_label, opts) => {
+    const sampleRate = opts.sampleRate ?? 16_000;
+    const bytesPerSecond = sampleRate * (opts.channels ?? 1) * ((opts.bitsPerSample ?? 16) / 8);
+    mockFetchOnce(() => jsonResponse({ text: 'hi', words: [{ start: 0, end: 1, text: 'hi' }] }));
+    const r = await transcribeWithElevenLabs(buildWav({ ...opts, dataBytes: 10 * bytesPerSecond }), 'audio/wav', 'en');
+    expect(r.durationSeconds).toBeCloseTo(10, 6);
+  });
+
+  test('a streaming writer\'s 0xFFFFFFFF data size is cut to the bytes actually sent', async () => {
+    const buf = pcm16Wav(20);
+    const view = new DataView(buf);
+    view.setUint32(4, 0xffffffff, true);
+    view.setUint32(40, 0xffffffff, true);
     mockFetchOnce(() => jsonResponse({ text: 'hi', words: [{ start: 0, end: 1, text: 'hi' }] }));
     const r = await transcribeWithElevenLabs(buf, 'audio/wav', 'en');
-    expect(r.durationSeconds).toBeCloseTo(10, 6);
+    expect(r.durationSeconds).toBeCloseTo(20, 6);
   });
 
   test('a non-WAV upload falls back to the byte-rate estimate', async () => {
