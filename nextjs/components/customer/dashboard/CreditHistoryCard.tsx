@@ -9,8 +9,13 @@ import { formatDate } from "@/lib/format-date";
  * Lists the user's paid credit-pack purchases (top-ups and mints), newest-first,
  * with the amount, purchase date, expiry, and remaining balance per grant.
  * Paid packs only — free/included bundles are not shown here.
+ *
+ * Its query settles after the dashboard's own, so the card grows its slot open
+ * (`.t-cell-reveal`, #865) instead of pushing the cards below it down in one
+ * frame. `gap` is the space it has above it: it sits inside the clip, so it
+ * grows with the tween and a hidden card takes no space.
  */
-export default function CreditHistoryCard() {
+export default function CreditHistoryCard({ gap }: { gap?: string }) {
   const { data, isLoading, error } = api.customer.creditHistory.useQuery();
 
   // Hide the card entirely when there's nothing to show (no purchases yet).
@@ -18,48 +23,54 @@ export default function CreditHistoryCard() {
   if (!data || data.grants.length === 0) return null;
 
   return (
-    <div className="bg-white/5 rounded-xl border border-white/10 p-5">
-      <p className="text-sm text-gray-400 mb-4">Credit Purchases</p>
+    <div className="t-cell-reveal">
+      <div>
+        <div className={gap}>
+          <div className="bg-white/5 rounded-xl border border-white/10 p-5">
+            <p className="text-sm text-gray-400 mb-4">Credit Purchases</p>
 
-      <div className="space-y-3">
-        {data.grants.map((grant) => (
-          <div
-            key={grant.id}
-            className="flex items-center justify-between gap-4 border-b border-white/5 pb-3 last:border-0 last:pb-0"
-          >
-            <div className="min-w-0">
-              {/* <bdi> keeps the English number-and-word order on an RTL page (#1659). */}
-              <p className="text-white font-medium">
-                <bdi>{grant.originalAmount.toLocaleString()} credits</bdi>
-              </p>
-              <p className="text-xs text-gray-400 mt-0.5">
-                <bdi>
-                  {formatDate(grant.createdAt)}
-                  {grant.expiresAt && (
-                    <>
-                      {" · "}
-                      {grant.expired ? (
-                        <span className="text-red-400">
-                          expired {formatDate(grant.expiresAt)}
-                        </span>
-                      ) : (
-                        <span>expires {formatDate(grant.expiresAt)}</span>
-                      )}
-                    </>
-                  )}
-                </bdi>
-              </p>
-            </div>
-            <div className="text-right shrink-0">
-              <p className="text-sm text-gray-300">
-                <bdi>
-                  {grant.expired ? 0 : grant.remainingAmount.toLocaleString()}{" "}
-                  left
-                </bdi>
-              </p>
+            <div className="space-y-3">
+              {data.grants.map((grant) => (
+                <div
+                  key={grant.id}
+                  className="flex items-center justify-between gap-4 border-b border-white/5 pb-3 last:border-0 last:pb-0"
+                >
+                  <div className="min-w-0">
+                    {/* <bdi> keeps the English number-and-word order on an RTL page (#1659). */}
+                    <p className="text-white font-medium">
+                      <bdi>{grant.originalAmount.toLocaleString()} credits</bdi>
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      <bdi>
+                        {formatDate(grant.createdAt)}
+                        {grant.expiresAt && (
+                          <>
+                            {" · "}
+                            {grant.expired ? (
+                              <span className="text-red-400">
+                                expired {formatDate(grant.expiresAt)}
+                              </span>
+                            ) : (
+                              <span>expires {formatDate(grant.expiresAt)}</span>
+                            )}
+                          </>
+                        )}
+                      </bdi>
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm text-gray-300">
+                      <bdi>
+                        {grant.expired ? 0 : grant.remainingAmount.toLocaleString()}{" "}
+                        left
+                      </bdi>
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        ))}
+        </div>
       </div>
     </div>
   );

@@ -1,10 +1,15 @@
 "use client";
 
-import { LicenseKeysCard, CloudCreditsCard, CreditHistoryCard, BillingCard } from "@/components/customer/dashboard";
+import {
+  LicenseKeysCard,
+  CloudCreditsCard,
+  CreditHistoryCard,
+  BillingCard,
+  DashboardCardsSkeleton,
+} from "@/components/customer/dashboard";
 import RotateAccountKeyControl from "@/components/customer/dashboard/RotateAccountKeyControl";
 import { api } from "@/lib/trpc/client";
 import { ErrorReveal } from "@/components/ErrorReveal";
-import { Spinner } from "@/components/ui/Spinner";
 
 interface UserDashboardClientProps {
   user: {
@@ -63,47 +68,76 @@ export default function UserDashboardClient({
         ) : null}
       </ErrorReveal>
 
-      {/* License Keys Card */}
-      {isLoading ? (
-        <div className="bg-white/5 rounded-xl border border-white/10 p-5">
-          <div className="flex items-center gap-2">
-            <Spinner className="w-4 h-4 text-emerald-400" />
-            <span className="text-gray-400 text-sm">Loading Account Keys...</span>
-          </div>
+      {/* Account cards (#865). The skeleton holds the cards' slot while the
+          query runs, then fades out under them as they fade in, so the page
+          does not swap a placeholder for the whole account in one frame. Once
+          revealed it leaves the flow (absolute, clipped to the cards' height)
+          and turns invisible when its fade ends. An error renders no cards,
+          and the ErrorReveal above already carries the gap, so mb-0 drops
+          this wrapper's space-y margin. */}
+      <div className={`relative${!isLoading && error ? " mb-0" : ""}`}>
+        <div
+          aria-hidden
+          className={`pointer-events-none transition-[opacity,filter,visibility] duration-[400ms] ease-in-out motion-reduce:transition-none ${
+            isLoading
+              ? "opacity-100 blur-[0px]"
+              : "invisible absolute inset-0 overflow-hidden opacity-0 blur-[2px]"
+          }`}
+        >
+          <DashboardCardsSkeleton />
         </div>
-      ) : error ? null : data?.licenses && data.licenses.length > 0 ? (
-        <>
-          <LicenseKeysCard
-            licenses={data.licenses}
-            // Only a granted key rotates (a revoked or refunded one is already
-            // dead); the server enforces the same rule.
-            renderActions={(license, reveal) =>
-              license.status === "granted" ? (
-                <RotateAccountKeyControl
-                  email={user.email}
-                  emailProven={canRotateKeys}
-                  license={license}
-                  onRotated={reveal}
+        {/* The skeleton is aria-hidden, so this status says what it shows. */}
+        <p className="sr-only" role="status">
+          {isLoading ? "Loading Account Keys..." : ""}
+        </p>
+        {/* Fill mode backwards, not both: a filter left on after the fade
+            would make this box the containing block of any position: fixed
+            dialog inside the cards. */}
+        {isLoading || error ? null : (
+          <div className="t-skel-content animate-[skel-reveal_400ms_ease-in-out_backwards] motion-reduce:animate-none">
+            {data?.licenses && data.licenses.length > 0 ? (
+              <>
+                <LicenseKeysCard
+                  licenses={data.licenses}
+                  // Only a granted key rotates (a revoked or refunded one is already
+                  // dead); the server enforces the same rule.
+                  renderActions={(license, reveal) =>
+                    license.status === "granted" ? (
+                      <RotateAccountKeyControl
+                        email={user.email}
+                        emailProven={canRotateKeys}
+                        license={license}
+                        onRotated={reveal}
+                      />
+                    ) : null
+                  }
                 />
-              ) : null
-            }
-          />
-          <CloudCreditsCard
-            totalCredits={totalCredits}
-            totalMinutesRemaining={totalMinutesRemaining}
-            creditsPerMinute={data.creditsPerMinute}
-            activeLicenseKey={activeLicenseKey}
-          />
-          <CreditHistoryCard />
-        </>
-      ) : (
-        <div className="bg-white/5 rounded-xl border border-white/10 p-5 text-center">
-          <p className="text-gray-400">No Account Keys found</p>
-          <a href="/" className="text-emerald-400 hover:text-emerald-300 transition-colors text-sm mt-2 inline-block">
-            Get an Account Key →
-          </a>
-        </div>
-      )}
+                <div className="mt-6">
+                  <CloudCreditsCard
+                    totalCredits={totalCredits}
+                    totalMinutesRemaining={totalMinutesRemaining}
+                    creditsPerMinute={data.creditsPerMinute}
+                    activeLicenseKey={activeLicenseKey}
+                  />
+                </div>
+                {/* Its own query settles later: it grows its slot open
+                    instead of pushing Billing down in one frame. */}
+                <CreditHistoryCard gap="pt-6" />
+              </>
+            ) : (
+              <div className="bg-white/5 rounded-xl border border-white/10 p-5 text-center">
+                <p className="text-gray-400">No Account Keys found</p>
+                <a
+                  href="/"
+                  className="text-emerald-400 hover:text-emerald-300 transition-colors text-sm mt-2 inline-block"
+                >
+                  Get an Account Key →
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Billing */}
       <BillingCard />
