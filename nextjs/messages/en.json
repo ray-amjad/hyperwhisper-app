@@ -393,7 +393,7 @@
     "errorStale": "This key was already rotated. The current key is shown above.",
     "errorGeneric": "Couldn't rotate the key. Please try again.",
     "verifyTitle": "Confirm it's you by email",
-    "verifyBody": "You signed in with your Account Key, and a key sign-in can't replace that key: anyone who has the key could. We'll email a sign-in link to your account's address. Open it, then rotate the key from this page.",
+    "verifyBody": "To replace your key, confirm it's you by email first. We'll email a sign-in link to your account's address. Open it, then rotate the key from this page.",
     "sendLink": "Email me a sign-in link",
     "sendingLink": "Sending…",
     "linkSent": "Sign-in link sent. Open it from your inbox, then rotate the key.",

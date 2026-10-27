@@ -366,7 +366,7 @@
     "errorStale": "Den här nyckeln har redan bytts. Den aktuella nyckeln visas ovan.",
     "errorGeneric": "Det gick inte att byta nyckeln. Försök igen.",
     "verifyTitle": "Bekräfta via e-post att det är du",
-    "verifyBody": "Du loggade in med din kontonyckel, och en inloggning med nyckeln kan inte byta ut den nyckeln: då skulle vem som helst som har nyckeln kunna göra det. Vi skickar en inloggningslänk till e-postadressen för ditt konto. Öppna den och byt sedan nyckeln från den här sidan.",
+    "verifyBody": "Om du vill byta nyckel måste du först bekräfta via e-post att det är du. Vi skickar en inloggningslänk till e-postadressen för ditt konto. Öppna den och byt sedan nyckeln från den här sidan.",
     "sendLink": "Skicka en inloggningslänk till mig",
     "sendingLink": "Skickar…",
     "linkSent": "Inloggningslänken har skickats. Öppna den från din inkorg och byt sedan nyckeln.",

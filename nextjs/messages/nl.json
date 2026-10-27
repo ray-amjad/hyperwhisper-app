@@ -366,7 +366,7 @@
     "errorStale": "Deze sleutel is al vernieuwd. De huidige sleutel staat hierboven.",
     "errorGeneric": "De sleutel kon niet worden vernieuwd. Probeer het opnieuw.",
     "verifyTitle": "Bevestig via e-mail dat jij het bent",
-    "verifyBody": "Je bent ingelogd met je accountsleutel, en met een inlog via de sleutel kun je die sleutel niet vervangen: anders zou iedereen die de sleutel heeft dat kunnen. We sturen een inloglink naar het e-mailadres van je account. Open die en vernieuw daarna de sleutel vanaf deze pagina.",
+    "verifyBody": "Bevestig eerst via e-mail dat jij het bent om je sleutel te vernieuwen. We sturen een inloglink naar het e-mailadres van je account. Open die en vernieuw daarna de sleutel vanaf deze pagina.",
     "sendLink": "Stuur me een inloglink",
     "sendingLink": "Versturen…",
     "linkSent": "Inloglink verstuurd. Open hem vanuit je inbox en vernieuw daarna de sleutel.",

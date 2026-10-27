@@ -366,7 +366,7 @@
     "errorStale": "Questa chiave è già stata rigenerata. La chiave attuale è mostrata sopra.",
     "errorGeneric": "Impossibile rigenerare la chiave. Riprova.",
     "verifyTitle": "Conferma via email che sei tu",
-    "verifyBody": "Hai effettuato l'accesso con la chiave dell'account, e un accesso con la chiave non può sostituire quella chiave: altrimenti potrebbe farlo chiunque la possieda. Invieremo un link di accesso all'indirizzo email del tuo account. Aprilo, poi rigenera la chiave da questa pagina.",
+    "verifyBody": "Per rigenerare la chiave, conferma prima via email che sei tu. Invieremo un link di accesso all'indirizzo email del tuo account. Aprilo, poi rigenera la chiave da questa pagina.",
     "sendLink": "Inviami un link di accesso",
     "sendingLink": "Invio in corso…",
     "linkSent": "Link di accesso inviato. Aprilo dalla tua casella di posta, poi rigenera la chiave.",

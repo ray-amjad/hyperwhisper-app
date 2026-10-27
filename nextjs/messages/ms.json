@@ -366,7 +366,7 @@
     "errorStale": "Kunci ini sudah dijana semula. Kunci semasa dipaparkan di atas.",
     "errorGeneric": "Tidak dapat menjana semula kunci. Sila cuba lagi.",
     "verifyTitle": "Sahkan identiti anda melalui e-mel",
-    "verifyBody": "Anda log masuk dengan kunci akaun anda, dan log masuk dengan kunci tidak boleh menggantikan kunci itu: jika boleh, sesiapa sahaja yang memiliki kunci itu boleh melakukannya. Kami akan menghantar pautan log masuk ke alamat e-mel akaun anda. Bukanya, kemudian jana semula kunci dari halaman ini.",
+    "verifyBody": "Untuk menjana semula kunci anda, sahkan identiti anda melalui e-mel terlebih dahulu. Kami akan menghantar pautan log masuk ke alamat e-mel akaun anda. Bukanya, kemudian jana semula kunci dari halaman ini.",
     "sendLink": "E-melkan saya pautan log masuk",
     "sendingLink": "Menghantar…",
     "linkSent": "Pautan log masuk telah dihantar. Bukanya dari peti masuk anda, kemudian jana semula kunci.",

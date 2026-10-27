@@ -8,7 +8,9 @@
  *
  * Better Auth's `session.create.before` hook in `auth.ts` stamps it from the
  * endpoint that created the session; it is never taken from client input.
- * Sessions created before the column existed have null and count as unproven.
+ * Sessions created before the column existed have null and count as unproven,
+ * even a magic-link one: the dashboard copy (`licenseKeysCard.verifyBody`)
+ * therefore asks to confirm by email without claiming how the user signed in.
  *
  * Rotating an Account Key is the remedy for a leaked key, so it needs an
  * `email` session (`server/api/routers/customer-rotate-key.ts`): a session

@@ -366,7 +366,7 @@
     "errorStale": "Această cheie a fost deja regenerată. Cheia actuală este afișată mai sus.",
     "errorGeneric": "Cheia nu a putut fi regenerată. Încearcă din nou.",
     "verifyTitle": "Confirmă prin e-mail că ești tu",
-    "verifyBody": "Te-ai conectat cu cheia de cont, iar o conectare cu cheia nu poate înlocui acea cheie: altfel, oricine are cheia ar putea face asta. Îți vom trimite un link de conectare la adresa de e-mail a contului tău. Deschide-l, apoi regenerează cheia de pe această pagină.",
+    "verifyBody": "Pentru a regenera cheia, confirmă mai întâi prin e-mail că ești tu. Îți vom trimite un link de conectare la adresa de e-mail a contului tău. Deschide-l, apoi regenerează cheia de pe această pagină.",
     "sendLink": "Trimite-mi un link de conectare",
     "sendingLink": "Se trimite…",
     "linkSent": "Linkul de conectare a fost trimis. Deschide-l din căsuța de e-mail, apoi regenerează cheia.",

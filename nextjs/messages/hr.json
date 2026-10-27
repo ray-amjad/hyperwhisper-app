@@ -366,7 +366,7 @@
     "errorStale": "Ovaj ključ je već zamijenjen. Trenutačni ključ prikazan je iznad.",
     "errorGeneric": "Generiranje novog ključa nije uspjelo. Pokušajte ponovno.",
     "verifyTitle": "Potvrdite e-poštom da ste to vi",
-    "verifyBody": "Prijavili ste se ključem računa, a prijava ključem ne može zamijeniti taj ključ: inače bi to mogao svatko tko ima ključ. Poslat ćemo poveznicu za prijavu na adresu e-pošte vašeg računa. Otvorite je, a zatim na ovoj stranici generirajte novi ključ.",
+    "verifyBody": "Da biste generirali novi ključ, najprije e-poštom potvrdite da ste to vi. Poslat ćemo poveznicu za prijavu na adresu e-pošte vašeg računa. Otvorite je, a zatim na ovoj stranici generirajte novi ključ.",
     "sendLink": "Pošalji mi poveznicu za prijavu",
     "sendingLink": "Slanje…",
     "linkSent": "Poveznica za prijavu je poslana. Otvorite je iz ulazne pošte, a zatim generirajte novi ključ.",

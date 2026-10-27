@@ -366,7 +366,7 @@
     "errorStale": "Cette clé a déjà été régénérée. La clé actuelle est affichée ci-dessus.",
     "errorGeneric": "Impossible de régénérer la clé. Veuillez réessayer.",
     "verifyTitle": "Confirmez votre identité par e-mail",
-    "verifyBody": "Vous vous êtes connecté avec votre clé de compte, et une connexion par clé ne permet pas de remplacer cette clé : sinon, n'importe qui possédant la clé pourrait le faire. Nous allons envoyer un lien de connexion à l'adresse e-mail de votre compte. Ouvrez-le, puis régénérez la clé depuis cette page.",
+    "verifyBody": "Pour régénérer votre clé, confirmez d'abord votre identité par e-mail. Nous allons envoyer un lien de connexion à l'adresse e-mail de votre compte. Ouvrez-le, puis régénérez la clé depuis cette page.",
     "sendLink": "M'envoyer un lien de connexion",
     "sendingLink": "Envoi…",
     "linkSent": "Lien de connexion envoyé. Ouvrez-le depuis votre boîte de réception, puis régénérez la clé.",

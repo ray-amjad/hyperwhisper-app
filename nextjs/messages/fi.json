@@ -366,7 +366,7 @@
     "errorStale": "Tämä avain on jo vaihdettu. Nykyinen avain näkyy yllä.",
     "errorGeneric": "Avaimen vaihtaminen epäonnistui. Yritä uudelleen.",
     "verifyTitle": "Vahvista henkilöllisyytesi sähköpostilla",
-    "verifyBody": "Kirjauduit sisään tiliavaimellasi, eikä avaimella kirjautuminen voi vaihtaa tätä avainta: muuten kuka tahansa avaimen haltija voisi tehdä sen. Lähetämme kirjautumislinkin tilisi sähköpostiosoitteeseen. Avaa se ja vaihda sitten avain tällä sivulla.",
+    "verifyBody": "Vahvista ensin henkilöllisyytesi sähköpostilla, jotta voit vaihtaa avaimesi. Lähetämme kirjautumislinkin tilisi sähköpostiosoitteeseen. Avaa se ja vaihda sitten avain tällä sivulla.",
     "sendLink": "Lähetä minulle kirjautumislinkki",
     "sendingLink": "Lähetetään…",
     "linkSent": "Kirjautumislinkki lähetetty. Avaa se saapuneista viesteistä ja vaihda sitten avain.",

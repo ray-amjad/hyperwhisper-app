@@ -366,7 +366,7 @@
     "errorStale": "Tento klíč už byl nahrazen. Aktuální klíč je zobrazen výše.",
     "errorGeneric": "Nový klíč se nepodařilo vygenerovat. Zkuste to prosím znovu.",
     "verifyTitle": "Potvrďte svou totožnost e-mailem",
-    "verifyBody": "Přihlásili jste se klíčem k účtu a přihlášení klíčem nemůže tento klíč nahradit: to by mohl kdokoli, kdo klíč má. Pošleme přihlašovací odkaz na e-mailovou adresu vašeho účtu. Otevřete ho a pak na této stránce vygenerujte nový klíč.",
+    "verifyBody": "Než vygenerujete nový klíč, nejprve potvrďte svou totožnost e-mailem. Pošleme přihlašovací odkaz na e-mailovou adresu vašeho účtu. Otevřete ho a pak na této stránce vygenerujte nový klíč.",
     "sendLink": "Poslat přihlašovací odkaz e-mailem",
     "sendingLink": "Odesílání…",
     "linkSent": "Přihlašovací odkaz byl odeslán. Otevřete ho ve své doručené poště a pak vygenerujte nový klíč.",

@@ -366,7 +366,7 @@
     "errorStale": "Bu anahtar zaten yenilendi. Geçerli anahtar yukarıda gösteriliyor.",
     "errorGeneric": "Anahtar yenilenemedi. Lütfen tekrar deneyin.",
     "verifyTitle": "Kimliğinizi e-postayla doğrulayın",
-    "verifyBody": "Hesap Anahtarınızla giriş yaptınız ve anahtarla yapılan bir giriş bu anahtarı değiştiremez: aksi halde anahtara sahip olan herkes bunu yapabilirdi. Hesabınızın e-posta adresine bir giriş bağlantısı göndereceğiz. Bağlantıyı açın, ardından anahtarı bu sayfadan yenileyin.",
+    "verifyBody": "Anahtarınızı yenilemek için önce kimliğinizi e-postayla doğrulayın. Hesabınızın e-posta adresine bir giriş bağlantısı göndereceğiz. Bağlantıyı açın, ardından anahtarı bu sayfadan yenileyin.",
     "sendLink": "Bana giriş bağlantısı gönder",
     "sendingLink": "Gönderiliyor…",
     "linkSent": "Giriş bağlantısı gönderildi. Gelen kutunuzdan açın, ardından anahtarı yenileyin.",

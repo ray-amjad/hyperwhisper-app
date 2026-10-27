@@ -366,7 +366,7 @@
     "errorStale": "Esta clave ya se regeneró. La clave actual se muestra arriba.",
     "errorGeneric": "No se pudo regenerar la clave. Inténtalo de nuevo.",
     "verifyTitle": "Confirma que eres tú por correo",
-    "verifyBody": "Iniciaste sesión con tu clave de cuenta, y un inicio de sesión con clave no puede reemplazar esa clave: cualquiera que la tuviera podría hacerlo. Te enviaremos un enlace de inicio de sesión a la dirección de correo de tu cuenta. Ábrelo y luego regenera la clave desde esta página.",
+    "verifyBody": "Para regenerar tu clave, primero confirma que eres tú por correo. Te enviaremos un enlace de inicio de sesión a la dirección de correo de tu cuenta. Ábrelo y luego regenera la clave desde esta página.",
     "sendLink": "Envíame un enlace de inicio de sesión",
     "sendingLink": "Enviando…",
     "linkSent": "Enlace de inicio de sesión enviado. Ábrelo desde tu bandeja de entrada y luego regenera la clave.",

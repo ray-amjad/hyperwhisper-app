@@ -366,7 +366,7 @@
     "errorStale": "Esta chave já foi regenerada. A chave atual é exibida acima.",
     "errorGeneric": "Não foi possível regenerar a chave. Tente novamente.",
     "verifyTitle": "Confirme por e-mail que é você",
-    "verifyBody": "Você entrou com sua chave da conta, e um acesso feito com a chave não pode substituí-la: caso contrário, qualquer pessoa com a chave poderia fazer isso. Enviaremos um link de acesso para o endereço de e-mail da sua conta. Abra-o e, em seguida, regenere a chave nesta página.",
+    "verifyBody": "Para regenerar sua chave, primeiro confirme por e-mail que é você. Enviaremos um link de acesso para o endereço de e-mail da sua conta. Abra-o e, em seguida, regenere a chave nesta página.",
     "sendLink": "Enviar link de acesso por e-mail",
     "sendingLink": "Enviando…",
     "linkSent": "Link de acesso enviado. Abra-o na sua caixa de entrada e, em seguida, regenere a chave.",
