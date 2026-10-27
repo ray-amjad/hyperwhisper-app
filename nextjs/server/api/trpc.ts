@@ -25,11 +25,15 @@ import { DB_ERROR_MESSAGE, isDbError } from "@/lib/shared/db-error";
  * @property user - The authenticated Better Auth user, or null if not logged in
  * @property isAdmin - Whether the user is in the admin email whitelist
  * @property headers - Request headers (for rate limiting, IP extraction, etc.)
+ * @property sessionId - The id of the session row the request rode in on, when
+ *   there is one. A procedure that signs the user out everywhere else (Account
+ *   Key rotation) keeps exactly this one.
  */
 export interface TRPCContext {
   user: BetterAuthUser | null;
   isAdmin: boolean;
   headers: Headers;
+  sessionId?: string | null;
 }
 
 /**
@@ -50,7 +54,12 @@ export async function createTRPCContext(opts: {
   const user = session?.user ?? null;
   const isAdmin = user?.role === "admin";
 
-  return { user, isAdmin, headers: opts.headers };
+  return {
+    user,
+    isAdmin,
+    headers: opts.headers,
+    sessionId: session?.session?.id ?? null,
+  };
 }
 
 /**

@@ -705,6 +705,7 @@ test("the customer router exposes exactly the portal procedures", async () => {
     "creditHistory",
     "credits",
     "licensesWithCredits",
+    "rotateAccountKey",
     "stripePortalUrl",
   ]);
 });

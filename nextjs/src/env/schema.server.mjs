@@ -43,6 +43,13 @@ export const serverSchema = z.object({
   // /api/internal/grant-license and /api/internal/licenses-for-email with it)
   HYPERWHISPER_INTERNAL_SECRET: z.string().optional(),
 
+  // Comma-separated base URLs of the HyperWhisper Cloud apps whose licence
+  // cache an Account Key rotation purges (lib/services/cloud-license-cache.ts,
+  // sent with HYPERWHISPER_INTERNAL_SECRET). Not a secret. Unset: production
+  // and staging. Empty: no purge (the old key's cached verdict then expires
+  // on its own within the cloud's 1-hour TTL).
+  HYPERWHISPER_CLOUD_URLS: z.string().optional(),
+
   // HMAC key for `credit_pool_id` (src/lib/credit-pool-id.ts, #2026): the
   // opaque per-user id the licence routes hand HyperWhisper Cloud so it counts
   // credit holds per user, not per key. Optional so the site deploys before the
@@ -112,6 +119,7 @@ export const serverEnv = {
   // Shared secret for internal license endpoints (Agentic Coding School calls
   // /api/internal/grant-license and /api/internal/licenses-for-email with it)
   HYPERWHISPER_INTERNAL_SECRET: process.env.HYPERWHISPER_INTERNAL_SECRET,
+  HYPERWHISPER_CLOUD_URLS: process.env.HYPERWHISPER_CLOUD_URLS,
 
   // HMAC key for `credit_pool_id` (see the schema above)
   CREDIT_POOL_ID_SECRET: process.env.CREDIT_POOL_ID_SECRET,

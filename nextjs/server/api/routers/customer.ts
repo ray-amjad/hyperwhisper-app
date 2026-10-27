@@ -8,8 +8,10 @@
  * - credits: Get total credit balance for logged-in user
  * - billingProviders: Check which billing providers the user has history with
  * - stripePortalUrl: Generate Stripe billing portal session URL
+ * - rotateAccountKey: Replace one of the user's Account Keys with a fresh one
  */
 import { TRPCError } from "@trpc/server";
+import { z } from "zod";
 
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import {
@@ -240,4 +242,31 @@ export const customerRouter = createTRPCRouter({
       });
     }
   }),
+
+  /**
+   * Rotate one of the signed-in user's Account Keys: the row keeps its id (and
+   * with it credits, plan, purchase history and the Stripe link), and gets a
+   * fresh key in the generator's format. The old key stops validating at once
+   * on the site; the cloud's cached verdict for it is purged right after.
+   *
+   * `currentKey` is the key the dashboard showed. Two rotations racing for one
+   * row serialise on its lock, and the loser gets CONFLICT instead of a key
+   * that the winner has already replaced.
+   *
+   * Never logs a key, old or new.
+   */
+  rotateAccountKey: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        currentKey: z.string().trim().min(1).max(64),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Loaded on first use: it pulls in the email client, the Upstash
+      // limiter and the cloud purge, none of which the read procedures above
+      // need at import time.
+      const { rotateKeyForCaller } = await import("./customer-rotate-key");
+      return rotateKeyForCaller(ctx, input);
+    }),
 });
