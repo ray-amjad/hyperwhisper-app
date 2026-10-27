@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { getPortalSession } from "@/src/lib/auth";
+import { canRotateAccountKeys } from "@/src/lib/session-sign-in-method";
 import UserDashboardClient from "./UserDashboardClient";
 
 export const metadata: Metadata = {
@@ -35,6 +36,8 @@ export default async function UserDashboardPage({
 
   return (
     <UserDashboardClient
+      // Only a session proven by the inbox may rotate an Account Key.
+      canRotateKeys={canRotateAccountKeys(session.session.signInMethod)}
       user={{
         email: user.email || "",
         id: user.id,

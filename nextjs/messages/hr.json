@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Značajke",
-    "pricing": "Cijene",
     "faq": "ČPP",
     "support": "Podrška",
     "download": "Preuzmi",
@@ -20,7 +19,6 @@
     "githubAria": "Pogledajte HyperWhisper na GitHubu"
   },
   "hero": {
-    "openSourceBadge": "Otvoreni kod · Apache-2.0",
     "logoAlt": "HyperWhisper logotip",
     "headline": "Pišite, sastavljajte i stvarajte",
     "headlineAccent": "5x brže uz AI",
@@ -28,7 +26,7 @@
     "downloadCta": "Preuzmi odmah",
     "demoCta": "Pogledaj demo",
     "availableOn": "Dostupno na",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -98,57 +96,6 @@
     "languagesSupported": "Podržani jezici",
     "providersSupported": "Podržani pružatelji"
   },
-  "pricing": {
-    "title": "Bez pretplate. Zauvijek.",
-    "subtitle": "Platite jednom, koristite zauvijek. I mi mrzimo pretplate.",
-    "guarantee": "14-dnevno jamstvo povrata novca",
-    "guaranteeExtended": "ako niste potpuno zadovoljni.",
-    "learnMore": "Saznajte više",
-    "free": {
-      "name": "Besplatno",
-      "price": "$0",
-      "period": "zauvijek",
-      "description": "Savršeno za isprobavanje HyperWhispera",
-      "cta": "Preuzmi besplatno",
-      "features": {
-        "transcriptionLimit": "5 minuta transkripcije dnevno",
-        "basicModes": "Osnovni načini transkripcije",
-        "offlineTranscription": "Offline transkripcija",
-        "apiTranscription": "API transkripcija (vlastiti ključevi)",
-        "postProcessing": "Naknadna obrada teksta",
-        "providers": "9+ pružatelja za odabir",
-        "lifetimeUpdates": "Doživotna ažuriranja",
-        "cloudLimited": "HyperWhisper Cloud (ograničeno korištenje)",
-        "customVocabulary": "Prilagođeni rječnik",
-        "prioritySupport": "Prioritetna podrška"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "doživotno",
-      "description": "Jednokratna kupnja, neograničena snaga zauvijek",
-      "cta": "Kupi sada - Doživotni pristup",
-      "mostPopular": "Najpopularnije",
-      "features": {
-        "unlimitedTranscription": "Neograničena transkripcija",
-        "allModes": "Svi načini transkripcije",
-        "offlineTranscription": "Offline transkripcija",
-        "apiTranscription": "API transkripcija (vlastiti ključevi)",
-        "postProcessing": "Naknadna obrada teksta",
-        "providers": "9+ pružatelja za odabir",
-        "lifetimeUpdates": "Doživotna ažuriranja",
-        "cloudCredits": "HyperWhisper Cloud ($5 kredita)",
-        "customVocabulary": "Prilagođeni rječnik",
-        "prioritySupport": "Prioritetna podrška"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise i prilagođene cijene",
-      "description": "Količinski popusti, SSO, prioritetna podrška, interni hosting i prilagođene integracije",
-      "cta": "Kontaktiraj prodaju"
-    }
-  },
   "faq": {
     "title": "Često postavljana pitanja",
     "subtitle": "Sve što trebate znati o HyperWhisperu",
@@ -192,7 +139,7 @@
       },
       "lifetime": {
         "question": "Postoji li pretplata?",
-        "answer": "Ne — nikada. HyperWhisper je aplikacija otvorenog koda koju posjedujete, a ne pretplata koju iznajmljujete. Preuzmite je besplatno i koristite lokalnu, izvanmreznu transkripciju bez naknade zauvijek; besplatna razina takoder ukljucuje 5 minuta transkripcije u oblaku dnevno. Kada zelite transkripciju u oblaku bez ikakvog postavljanja iznad toga, HyperWhisper Cloud su jednostavni krediti prema koristenju — nadoplacujte samo kada trebate, bez mjesecnih naknada i bez icega za otkazati."
+        "answer": "Ne — nikada. HyperWhisper je aplikacija otvorenog koda koju posjedujete, a ne pretplata koju iznajmljujete. Preuzmite je besplatno i koristite lokalnu, izvanmreznu transkripciju bez naknade zauvijek. Kada zelite transkripciju u oblaku bez ikakvog postavljanja, HyperWhisper Cloud su jednostavni krediti prema koristenju — nadoplacujte samo kada trebate, bez mjesecnih naknada i bez icega za otkazati."
       },
       "deviceLimit": {
         "question": "Na koliko uređaja mogu koristiti svoj ključ računa?",
@@ -200,7 +147,7 @@
       },
       "requirements": {
         "question": "Koji su sistemski zahtjevi?",
-        "answer": "Za Mac: macOS 14 ili noviji, uz podršku za Apple Silicon i Intel. Za Windows: Windows 10/11, x64 ili ARM64. Za Linux v1: Ubuntu 22.04 ili noviji ili Debian 12 ili noviji, na amd64. Za optimalne performanse preporučuje se 8 GB RAM-a."
+        "answer": "Za Mac: macOS 14.6 ili noviji, uz podršku za Apple Silicon i Intel. Za Windows: Windows 10/11, x64 ili ARM64. Za Linux v1: Ubuntu 22.04 ili noviji ili Debian 12 ili noviji, na amd64. Za optimalne performanse preporučuje se 8 GB RAM-a."
       },
       "madeBy": {
         "question": "Tko je ovo napravio?",
@@ -252,10 +199,7 @@
     "downloadButton": "Preuzmi HyperWhisper",
     "errorGeneric": "Nešto je pošlo po zlu. Molimo pokušajte ponovno.",
     "errorEmail": "Unesite valjanu adresu e-pošte.",
-    "errorNetwork": "Mrežna pogreška. Provjerite vezu i pokušajte ponovno.",
-    "thankYouTitle": "Hvala!",
     "downloadStarted": "Preuzimanje bi trebalo započeti automatski.",
-    "manualDownload": "Preuzimanje nije krenulo? Kliknite ovdje",
     "skipAndDownloadButton": "Preskoči i preuzmi"
   },
   "downloadPage": {
@@ -324,10 +268,10 @@
       "download": "Preuzmi",
       "roadmap": "Plan razvoja",
       "helpCenter": "Centar pomoći",
-      "manageBilling": "Upravljanje naplatom",
       "customerPortal": "Korisnički portal",
       "olderVersions": "Starije verzije",
       "blog": "Blog",
+      "openSource": "Otvoreni kod",
       "about": "O nama",
       "support": "Podrška",
       "privacyPolicy": "Pravila privatnosti",
@@ -409,6 +353,25 @@
     "custom": "Prilagođeno",
     "customSub": "vaš iznos",
     "topUp": "Nadoplati"
+  },
+  "licenseKeysCard": {
+    "rotate": "Generiraj novi ključ",
+    "confirmTitle": "Generirati novi ključ računa?",
+    "confirmBody": "Dobit ćete novi ključ, a ovaj će odmah prestati raditi. Svaki uređaj koji koristi stari ključ trebat će novi: unesite ga u HyperWhisper na svakom uređaju. Vaši krediti, plan i povijest kupnji ostaju na vašem računu. Također ćete biti odjavljeni s ove web-stranice u svojim drugim preglednicima.",
+    "confirm": "Generiraj novi ključ",
+    "cancel": "Odustani",
+    "rotating": "Generiranje…",
+    "rotated": "Novi ključ je generiran. Unesite ga u HyperWhisper na svakom svom uređaju.",
+    "errorRateLimited": "Previše zamjena ključa. Pokušajte ponovno kasnije.",
+    "errorStale": "Ovaj ključ je već zamijenjen. Trenutačni ključ prikazan je iznad.",
+    "errorGeneric": "Generiranje novog ključa nije uspjelo. Pokušajte ponovno.",
+    "verifyTitle": "Potvrdite e-poštom da ste to vi",
+    "verifyBody": "Da biste generirali novi ključ, najprije e-poštom potvrdite da ste to vi. Poslat ćemo poveznicu za prijavu na adresu e-pošte vašeg računa. Otvorite je, a zatim na ovoj stranici generirajte novi ključ.",
+    "sendLink": "Pošalji mi poveznicu za prijavu",
+    "sendingLink": "Slanje…",
+    "linkSent": "Poveznica za prijavu je poslana. Otvorite je iz ulazne pošte, a zatim generirajte novi ključ.",
+    "linkFailed": "Slanje poveznice za prijavu nije uspjelo. Pokušajte ponovno.",
+    "errorUnavailable": "Za ovaj ključ više nije moguće generirati novi. Njegov trenutačni status prikazan je iznad."
   },
   "openSource": {
     "heading": "Otvoreni kod. Nista za skrivati.",

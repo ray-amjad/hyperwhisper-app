@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 import { Hono } from 'hono';
 import { computeCerebrasChatCost, computeGroqChatCost, creditsForCost } from '../lib/cost-calculator';
+import { stubEnv } from '../test-support/env';
 
 // A valid, well-funded licensed user so auth + credit checks pass entirely
 // in-memory (no network) and the route reaches the LLM provider chain.
@@ -573,25 +574,23 @@ describe('postProcessRoute billing when the output is unusable', () => {
 // what these assert.
 // ---------------------------------------------------------------------------
 describe('postProcessRoute per-provider retry budget', () => {
-  const originalOpenAIKey = process.env.OPENAI_API_KEY;
-  const originalAnthropicKey = process.env.ANTHROPIC_API_KEY;
+  let restoreOpenAIKey: () => void;
+  let restoreAnthropicKey: () => void;
 
   beforeEach(() => {
     cachedLicense = { isValid: true, credits: 1000, cachedAt: 'cached' };
     process.env.CEREBRAS_API_KEY = 'test-cerebras-key';
     process.env.GROQ_API_KEY = 'test-groq-key';
-    process.env.OPENAI_API_KEY = 'test-openai-key';
-    process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+    restoreOpenAIKey = stubEnv('OPENAI_API_KEY', 'test-openai-key');
+    restoreAnthropicKey = stubEnv('ANTHROPIC_API_KEY', 'test-anthropic-key');
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
     // These two keys are not set by the other suites in this file — leaving
     // them behind would change what an unrelated suite sees.
-    if (originalOpenAIKey === undefined) delete process.env.OPENAI_API_KEY;
-    else process.env.OPENAI_API_KEY = originalOpenAIKey;
-    if (originalAnthropicKey === undefined) delete process.env.ANTHROPIC_API_KEY;
-    else process.env.ANTHROPIC_API_KEY = originalAnthropicKey;
+    restoreOpenAIKey();
+    restoreAnthropicKey();
   });
 
   test('cerebras gets no retry — one attempt, then straight to the fallback', async () => {
@@ -693,6 +692,24 @@ describe('postProcessRoute request gates', () => {
 
     expect(response.status).toBe(400);
     expect(body.error).toBe('Invalid JSON');
+    expect(providerCalled).toBe(false);
+  });
+
+  // #2085: `null` parses, and reading `.text` off it threw past the route into a 500.
+  test('rejects a JSON body that is not an object (null, number, string, array) with 400', async () => {
+    let providerCalled = false;
+    withProviders({
+      'api.cerebras.ai': () => {
+        providerCalled = true;
+        return Response.json(chatCompletion('should not be reached'));
+      },
+    });
+
+    for (const raw of ['null', '42', '"hello wrld"', '[]', '[{"text":"hello wrld","prompt":"fix grammar"}]']) {
+      const response = await buildApp().fetch(jsonRequest(raw));
+      const body = await response.json() as { error: string };
+      expect({ raw, status: response.status, error: body.error }).toEqual({ raw, status: 400, error: 'Invalid JSON' });
+    }
     expect(providerCalled).toBe(false);
   });
 });
@@ -809,20 +826,19 @@ describe('postProcessRoute size gate', () => {
 // that belongs in the logs, never in the reply.
 describe('postProcessRoute 500 replies do not echo the failure text', () => {
   const GENERIC = 'The language model request failed. Please try again.';
-  const originalAnthropicKey = process.env.ANTHROPIC_API_KEY;
+  let restoreAnthropicKey: () => void;
   const UPSTREAM_BODY = '{"type":"error","error":{"type":"invalid_request_error","message":"UPSTREAM-INTERNAL-DETAIL org_abc123"}}';
 
   beforeEach(() => {
     cachedLicense = { isValid: true, credits: 1000, cachedAt: 'cached' };
     process.env.CEREBRAS_API_KEY = 'test-cerebras-key';
     process.env.GROQ_API_KEY = 'test-groq-key';
-    process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+    restoreAnthropicKey = stubEnv('ANTHROPIC_API_KEY', 'test-anthropic-key');
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
-    if (originalAnthropicKey === undefined) delete process.env.ANTHROPIC_API_KEY;
-    else process.env.ANTHROPIC_API_KEY = originalAnthropicKey;
+    restoreAnthropicKey();
   });
 
   async function readFailure(response: Response) {

@@ -12,7 +12,7 @@
  * `license-routes-harness.ts`; the route modules themselves are the real ones.
  */
 import assert from "node:assert/strict";
-import { after, before, beforeEach, describe, test } from "node:test";
+import { after, afterEach, before, beforeEach, describe, test } from "node:test";
 
 import {
   accountKeyRow,
@@ -148,6 +148,38 @@ describe("POST /api/license/validate", () => {
     assert.deepEqual(calls.findAccountByKey, []);
   });
 
+  test("rejects a whitespace-only license_key as required, not as unknown (#2080)", async () => {
+    const { POST } = await loadValidateRoute();
+
+    for (const body of [
+      { license_key: "   " },
+      { license_key: " \t\n " },
+      { license_key: "   ", probe_only: true },
+    ]) {
+      const response = await POST(postRequest(VALIDATE_PATH, body));
+      const json = await readJson(response);
+
+      assert.equal(response.status, 400, `body ${JSON.stringify(body)}`);
+      assert.equal(json.valid, false);
+      assert.equal(json.error, "License key is required");
+      assert.equal(json.reason, "bad_request");
+    }
+    assert.deepEqual(calls.findAccountByKey, []);
+  });
+
+  test("still accepts a granted key sent with surrounding whitespace", async () => {
+    storeRow(accountKeyRow({ key: GRANTED_KEY }));
+    const { POST } = await loadValidateRoute();
+
+    const response = await POST(
+      postRequest(VALIDATE_PATH, { license_key: `  ${GRANTED_KEY}\n` }),
+    );
+    const body = await readJson(response);
+
+    assert.equal(response.status, 200);
+    assert.equal(body.valid, true);
+  });
+
   test("rejects a key the database does not hold", async () => {
     const { POST } = await loadValidateRoute();
 
@@ -237,6 +269,64 @@ describe("POST /api/license/validate", () => {
     });
     // The balance belongs to the key's owner, not to the key.
     assert.deepEqual(calls.getCreditBalance, ["user_42"]);
+  });
+
+  describe("credit_pool_id (#2026)", () => {
+    const POOL_SECRET = "test-pool-secret-0123456789abcdef0123456789";
+    const realPoolSecret = process.env.CREDIT_POOL_ID_SECRET;
+
+    afterEach(() => {
+      if (realPoolSecret === undefined) delete process.env.CREDIT_POOL_ID_SECRET;
+      else process.env.CREDIT_POOL_ID_SECRET = realPoolSecret;
+    });
+
+    async function poolIdFor(key: string): Promise<unknown> {
+      const { POST } = await loadValidateRoute();
+      const response = await POST(
+        postRequest(VALIDATE_PATH, { license_key: key, include_credits: true }),
+      );
+      assert.equal(response.status, 200);
+      return (await readJson(response)).credit_pool_id;
+    }
+
+    test("is the same for every key one user holds, and differs across users", async () => {
+      process.env.CREDIT_POOL_ID_SECRET = POOL_SECRET;
+      storeRow(accountKeyRow({ key: GRANTED_KEY, id: "row_a", userId: "user_42" }));
+      storeRow(accountKeyRow({ key: "HW-TEST-0000-0002", id: "row_b", userId: "user_42" }));
+      storeRow(accountKeyRow({ key: "HW-TEST-0000-0003", id: "row_c", userId: "user_43" }));
+
+      const first = await poolIdFor(GRANTED_KEY);
+      const second = await poolIdFor("HW-TEST-0000-0002");
+      const other = await poolIdFor("HW-TEST-0000-0003");
+
+      assert.match(String(first), /^[0-9a-f]{64}$/);
+      assert.equal(second, first);
+      assert.notEqual(other, first);
+      // Opaque: the raw user id never leaves the site.
+      assert.ok(!String(first).includes("user_42"));
+    });
+
+    test("is absent when CREDIT_POOL_ID_SECRET is unset", async () => {
+      delete process.env.CREDIT_POOL_ID_SECRET;
+      storeRow(accountKeyRow({ key: GRANTED_KEY, userId: "user_42" }));
+      const { POST } = await loadValidateRoute();
+
+      const response = await POST(
+        postRequest(VALIDATE_PATH, { license_key: GRANTED_KEY, include_credits: true }),
+      );
+
+      assert.ok(!("credit_pool_id" in (await readJson(response))));
+    });
+
+    test("is never sent without include_credits", async () => {
+      process.env.CREDIT_POOL_ID_SECRET = POOL_SECRET;
+      storeRow(accountKeyRow({ key: GRANTED_KEY, userId: "user_42" }));
+      const { POST } = await loadValidateRoute();
+
+      const response = await POST(postRequest(VALIDATE_PATH, { license_key: GRANTED_KEY }));
+
+      assert.deepEqual(await readJson(response), { valid: true });
+    });
   });
 
   test("normalises a missing stripe_customer_id to null, and always sends the field", async () => {
@@ -511,6 +601,39 @@ describe("POST /api/license/activate", () => {
     assert.ok(!("activation_id" in body));
   });
 
+  test("rejects an empty or whitespace-only key as required without a lookup (#2080)", async () => {
+    for (const [load, path] of [
+      [loadActivateRoute, ACTIVATE_PATH],
+      [loadAccountActivateRoute, "/api/account/activate"],
+    ] as const) {
+      const { POST } = await load();
+      for (const license_key of ["", "   ", " \t\n "]) {
+        const response = await POST(postRequest(path, { license_key }));
+        const body = await readJson(response);
+
+        assert.deepEqual(
+          { status: response.status, reason: body.reason, error: body.error },
+          { status: 400, reason: "bad_request", error: "License key is required" },
+          `${path} ${JSON.stringify(license_key)}`,
+        );
+        assert.ok(!("activation_id" in body));
+      }
+    }
+    assert.deepEqual(calls.findAccountByKey, []);
+  });
+
+  test("activates a granted key sent with surrounding whitespace", async () => {
+    storeRow(accountKeyRow({ key: GRANTED_KEY }));
+    const { POST } = await loadActivateRoute();
+
+    const body = await readJson(
+      await POST(postRequest(ACTIVATE_PATH, { license_key: ` ${GRANTED_KEY} ` })),
+    );
+
+    assert.equal(body.valid, true);
+    assert.ok(typeof body.activation_id === "string");
+  });
+
   test("fails closed for a key the database does not hold", async () => {
     const { POST } = await loadActivateRoute();
 
@@ -600,10 +723,17 @@ describe("POST /api/license/deactivate", () => {
     });
   });
 
-  test("rejects an absent, empty or non-string license_key", async () => {
+  test("rejects an absent, empty, whitespace-only or non-string license_key", async () => {
     const { POST } = await loadDeactivateRoute();
 
-    for (const body of [{}, { license_key: "" }, { license_key: 5 }, []]) {
+    for (const body of [
+      {},
+      { license_key: "" },
+      { license_key: "   " },
+      { license_key: " \t\n" },
+      { license_key: 5 },
+      [],
+    ]) {
       const response = await POST(postRequest(DEACTIVATE_PATH, body));
 
       assert.equal(response.status, 400, JSON.stringify(body));

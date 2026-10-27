@@ -276,6 +276,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>これは既定のモードのため、名前を変更できません。他のモードの名前は変更できます。</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>その名前のモードは既に存在します。</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>プロバイダー</value>
   </data>
@@ -619,39 +622,6 @@
   <data name="settings.api.postProcessing.subtitle" xml:space="preserve">
     <value>AIによるテキスト整形・補正サービス用のAPIキー</value>
   </data>
-  <data name="settings.api.invalidKey.title" xml:space="preserve">
-    <value>無効なキー</value>
-  </data>
-  <data name="settings.api.invalidKey.openai" xml:space="preserve">
-    <value>無効なAPIキー形式です。OpenAIキーは「sk-」で始まる必要があります。</value>
-  </data>
-  <data name="settings.api.invalidKey.groq" xml:space="preserve">
-    <value>無効なAPIキー形式です。Groqキーは「gsk_」で始まる必要があります。</value>
-  </data>
-  <data name="settings.api.invalidKey.anthropic" xml:space="preserve">
-    <value>無効なAPIキー形式です。Anthropicキーは「sk-ant-」で始まる必要があります。</value>
-  </data>
-  <data name="settings.api.invalidKey.gemini" xml:space="preserve">
-    <value>無効なAPIキー形式です。Google APIキーは「AIza」で始まる必要があります。</value>
-  </data>
-  <data name="settings.api.invalidKey.cerebras" xml:space="preserve">
-    <value>無効なAPIキー形式です。Cerebrasキーは「csk-」で始まる必要があります。</value>
-  </data>
-  <data name="settings.api.invalidKey.deepgram" xml:space="preserve">
-    <value>無効なAPIキー形式です。Deepgramキーは32文字以上である必要があります。</value>
-  </data>
-  <data name="settings.api.invalidKey.assemblyai" xml:space="preserve">
-    <value>無効なAPIキー形式です。AssemblyAIキーは32文字以上である必要があります。</value>
-  </data>
-  <data name="settings.api.invalidKey.elevenlabs" xml:space="preserve">
-    <value>無効なAPIキー形式です。ElevenLabsキーは「sk_」で始まる必要があります。</value>
-  </data>
-  <data name="settings.api.invalidKey.mistral" xml:space="preserve">
-    <value>無効なAPIキー形式です。Mistralキーは20文字以上である必要があります。</value>
-  </data>
-  <data name="settings.api.invalidKey.grok" xml:space="preserve">
-    <value>APIキーの形式が無効です。GrokキーはXAI-」で始まり、20文字以上である必要があります。</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>表示</value>
   </data>
@@ -886,6 +856,15 @@
   </data>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (準備完了)</value>
+  </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (未有効化)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (APIキーなし)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (キーが無効)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>読み込み失敗</value>
@@ -1592,12 +1571,6 @@
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
-  <data name="settings.api.invalidKey.soniox" xml:space="preserve">
-    <value>APIキーの形式が無効です。SonioxのキーはRobot 10文字以上必要です。</value>
-  </data>
-  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
-    <value>APIキーの形式が無効です。Gemini 3.5 Transcribeキーは「AIza」で始まり、30文字以上である必要があります。</value>
-  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Sonioxによる非同期多言語文字起こし</value>
   </data>
@@ -1893,6 +1866,27 @@
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>録音と録音の間も静かな入力ストリームを開いたままにして、開始時の遅延を減らします。Bluetooth マイクで特に効果があります。</value>
   </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>HyperWhisper でのみ使用されます。再起動後も保持されます。</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>デフォルト · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0}（未接続）</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>{1} が再接続されるまで {0} を使用します。</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>マイクが接続されていません。{0} が再接続されると、HyperWhisper はそれを使用します。</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>テスト</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>停止</value>
+  </data>
 
   <!-- Synced fallback strings -->
   <data name="window.caption.minimize" xml:space="preserve">
@@ -2050,12 +2044,6 @@
   </data>
   <data name="providerApiKey.secureStorage" xml:space="preserve">
     <value>Windows 資格情報マネージャーに安全に保存されます。</value>
-  </data>
-  <data name="providerApiKey.invalid.title" xml:space="preserve">
-    <value>無効な API キー</value>
-  </data>
-  <data name="providerApiKey.invalid.message" xml:space="preserve">
-    <value>有効な {0} の API キーではないようです。</value>
   </data>
   <data name="settings.nav.localApi" xml:space="preserve">
     <value>ローカル API</value>
@@ -2225,6 +2213,24 @@
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>モード: {0}、追加した語彙: {1}、競合: {2}。</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>設定を復元しました。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>APIキーを復元しました。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>1つ以上のAPIキーを復元できませんでした。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>バックアップにAPIキーは含まれていません。</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>設定を復元できませんでした。</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>バックアップをインポートしましたが、問題が発生しました。{0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>単語が既に存在する場合:</value>
   </data>
@@ -2242,9 +2248,6 @@
   </data>
   <data name="settings.api.provider.meta.description" xml:space="preserve">
     <value>Meta Muse Voice Transcribe 1.0 - ご自分の Meta Model API キーによるバッチ文字起こし</value>
-  </data>
-  <data name="settings.api.invalidKey.meta" xml:space="preserve">
-    <value>Meta API キーの形式が正しくありません。Meta for Developers のキーを省略せずに入力してください。</value>
   </data>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
     <value>ご自分の Meta Model API キーを使って Muse でバッチ文字起こしを行います</value>

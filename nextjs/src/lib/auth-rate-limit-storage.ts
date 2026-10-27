@@ -6,6 +6,7 @@ import type {
 
 import { Ratelimit } from "@upstash/ratelimit";
 import { countFailOpen } from "@/lib/rate-limit-gate";
+import { env } from "@/src/env/server.mjs";
 
 /**
  * SHARED STORAGE FOR BETTER AUTH'S RATE LIMITER (#2010)
@@ -46,8 +47,8 @@ export type RedisSource = () => Promise<Redis | null>;
  */
 export const siteRedis: RedisSource = async () => {
   if (
-    !process.env.UPSTASH_REDIS_SITE_URL ||
-    !process.env.UPSTASH_REDIS_SITE_TOKEN
+    !env.UPSTASH_REDIS_SITE_URL ||
+    !env.UPSTASH_REDIS_SITE_TOKEN
   ) {
     return null;
   }

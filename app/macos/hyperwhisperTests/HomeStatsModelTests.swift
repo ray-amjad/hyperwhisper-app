@@ -11,13 +11,23 @@
 //  - a save that touches a Transcript while Home is visible updates the figures;
 //  - a save while Home is hidden waits for the next visit.
 //
+//  Issue #2019: the tests used to poll the figures against a 5 s wall-clock
+//  deadline. A recompute crosses the main actor three times (the save
+//  notification's hop, the debounce, the detached load's hand-back), and on a
+//  loaded CI runner the main actor stalled long enough that the deadline ran
+//  out first. They now wait on the model's published figures, which ends the
+//  moment the expected value is set however slow the runner is; the suite's
+//  time limit is only a backstop for a recompute that never comes.
+//
 
+import Combine
 import CoreData
 import Foundation
 import Testing
 @testable import HyperWhisper
 
 @MainActor
+@Suite(.timeLimit(.minutes(2)))
 struct HomeStatsModelTests {
 
     // MARK: - Fixtures
@@ -46,17 +56,19 @@ struct HomeStatsModelTests {
         if let saveError { throw saveError }
     }
 
-    private func waitUntil(
-        timeout: Duration = .seconds(5),
-        _ condition: () -> Bool
-    ) async -> Bool {
-        let clock = ContinuousClock()
-        let deadline = clock.now.advanced(by: timeout)
-        while clock.now < deadline {
-            if condition() { return true }
-            try? await Task.sleep(for: .milliseconds(20))
+    /// Waits until the model publishes figures that satisfy `predicate`, and
+    /// returns them. `@Published` hands a new subscriber its current value and
+    /// keeps the latest one until it is asked for, so a value set before or
+    /// during the wait is never missed. Returns nil only when the test task is
+    /// cancelled, which the suite's time limit does.
+    private func figures(
+        of model: HomeStatsModel,
+        where predicate: (HomeStatsFigures) -> Bool
+    ) async -> HomeStatsFigures? {
+        for await figures in model.$figures.values where predicate(figures) {
+            return figures
         }
-        return condition()
+        return nil
     }
 
     private let now = Date()
@@ -119,7 +131,7 @@ struct HomeStatsModelTests {
 
         model.homeAppeared(typingSpeed: 40)
         #expect(model.loadCount == 1)
-        #expect(await waitUntil { model.figures.monthWords == 7 })
+        #expect(await figures(of: model) { $0.monthWords == 7 } != nil)
         model.homeDisappeared()
 
         model.homeAppeared(typingSpeed: 40)
@@ -137,13 +149,13 @@ struct HomeStatsModelTests {
         let model = HomeStatsModel(container: persistence.container, debounce: .milliseconds(50))
 
         model.homeAppeared(typingSpeed: 40)
-        #expect(await waitUntil { model.figures.monthWords == 7 })
+        #expect(await figures(of: model) { $0.monthWords == 7 } != nil)
 
         try insert(
             [Row(text: "ten eleven twelve", date: now, duration: 2, status: "completed")],
             into: persistence.container)
 
-        #expect(await waitUntil { model.figures.monthWords == 10 })
+        #expect(await figures(of: model) { $0.monthWords == 10 } != nil)
         #expect(model.loadCount == 2)
     }
 
@@ -154,7 +166,7 @@ struct HomeStatsModelTests {
         let model = HomeStatsModel(container: persistence.container, debounce: .milliseconds(50))
 
         model.homeAppeared(typingSpeed: 40)
-        #expect(await waitUntil { model.figures.monthWords == 7 })
+        #expect(await figures(of: model) { $0.monthWords == 7 } != nil)
         model.homeDisappeared()
 
         try insert(
@@ -166,7 +178,7 @@ struct HomeStatsModelTests {
 
         model.homeAppeared(typingSpeed: 40)
         #expect(model.loadCount == 2)
-        #expect(await waitUntil { model.figures.monthWords == 10 })
+        #expect(await figures(of: model) { $0.monthWords == 10 } != nil)
     }
 
     @Test("leaving Home during the debounce waits for the next visit")
@@ -176,7 +188,7 @@ struct HomeStatsModelTests {
         let model = HomeStatsModel(container: persistence.container, debounce: .milliseconds(200))
 
         model.homeAppeared(typingSpeed: 40)
-        #expect(await waitUntil { model.figures.monthWords == 7 })
+        #expect(await figures(of: model) { $0.monthWords == 7 } != nil)
 
         try insert(
             [Row(text: "ten eleven twelve", date: now, duration: 2, status: "completed")],
@@ -190,7 +202,7 @@ struct HomeStatsModelTests {
 
         model.homeAppeared(typingSpeed: 40)
         #expect(model.loadCount == 2)
-        #expect(await waitUntil { model.figures.monthWords == 10 })
+        #expect(await figures(of: model) { $0.monthWords == 10 } != nil)
     }
 
     @Test("a save into another container does not wake the model")
@@ -201,7 +213,7 @@ struct HomeStatsModelTests {
         let model = HomeStatsModel(container: persistence.container, debounce: .milliseconds(50))
 
         model.homeAppeared(typingSpeed: 40)
-        #expect(await waitUntil { model.figures.monthWords == 7 })
+        #expect(await figures(of: model) { $0.monthWords == 7 } != nil)
 
         try insert(sampleRows, into: other.container)
         try await Task.sleep(for: .milliseconds(300))
@@ -215,7 +227,7 @@ struct HomeStatsModelTests {
         let model = HomeStatsModel(container: persistence.container, debounce: .milliseconds(50))
 
         model.homeAppeared(typingSpeed: 40)
-        #expect(await waitUntil { model.figures.monthWords == 7 })
+        #expect(await figures(of: model) { $0.monthWords == 7 } != nil)
 
         model.typingSpeedChanged(to: 100)
         #expect(model.loadCount == 2)

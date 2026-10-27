@@ -51,6 +51,13 @@ internal sealed class PendingHistoryStore
     /// </summary>
     private bool _saveFailed;
 
+    /// <summary>
+    /// The file could not be read at load and could not be moved aside either (#2630):
+    /// it may still hold rows only it has. No save may replace or delete it until the
+    /// move-aside succeeds, or those rows are gone with no trace.
+    /// </summary>
+    private bool _unreadableFileKept;
+
     public PendingHistoryStore(string filePath)
     {
         if (string.IsNullOrWhiteSpace(filePath))
@@ -161,6 +168,41 @@ internal sealed class PendingHistoryStore
 
     public bool Remove(Guid id) => Remove(new[] { id }) > 0;
 
+    /// <summary>
+    /// The user's delete of these visible records (#2126): they go only when the file is
+    /// rewritten without them. Returns false, and keeps every one of them in memory as it
+    /// was, when the file could not be written: the old file still holds them, so dropping
+    /// them here would bring them back at the next launch, after their audio was deleted.
+    /// </summary>
+    public bool Delete(IEnumerable<Guid> ids)
+    {
+        var idSet = ids.ToHashSet();
+        lock (_sync)
+        {
+            var before = new List<Transcript>(Records);
+            if (Records.RemoveAll(r => idSet.Contains(r.Id) && IsVisible(r)) == 0) return true;
+            if (Save()) return true;
+
+            _records = before;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Puts back records a <see cref="Delete"/> took, when the database half of the same
+    /// delete did not commit (#2126). One file write. Returns false when the file could
+    /// not be written: the records are then held in memory, as after a failed Upsert.
+    /// </summary>
+    public bool Restore(IEnumerable<Transcript> records)
+    {
+        lock (_sync)
+        {
+            foreach (var record in records)
+                Put(record);
+            return Save();
+        }
+    }
+
     private bool IsVisible(Transcript record) => !_writeAhead.Contains(record.Id);
 
     private void Put(Transcript transcript)
@@ -198,7 +240,8 @@ internal sealed class PendingHistoryStore
         {
             // Keep the unreadable file for diagnosis rather than overwriting it on the next save.
             LoggingService.Error("PendingHistoryStore: Could not read the pending History file; starting empty", ex);
-            try { File.Move(_filePath, _filePath + ".unreadable", overwrite: true); } catch { }
+            if (!TryMoveUnreadableAside())
+                _unreadableFileKept = true;
             return new List<Transcript>();
         }
 
@@ -229,6 +272,20 @@ internal sealed class PendingHistoryStore
     /// </summary>
     private bool Save(List<Transcript> records)
     {
+        // The file this session never read is still there: move it aside first, and
+        // never write over it. Same contract as a failed write: the list stays in
+        // memory and the next change retries.
+        if (_unreadableFileKept)
+        {
+            if (!TryMoveUnreadableAside())
+            {
+                _saveFailed = true;
+                LoggingService.Warn($"PendingHistoryStore: Not saving {_filePath}; it could not be read or moved aside, so writing would lose its rows. Will retry on the next change");
+                return false;
+            }
+            _unreadableFileKept = false;
+        }
+
         try
         {
             if (records.Count == 0)
@@ -255,6 +312,38 @@ internal sealed class PendingHistoryStore
             // never transcript text.
             _saveFailed = true;
             LoggingService.Error($"PendingHistoryStore: Could not save {_filePath}; will retry on the next change", ex);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Renames the unreadable file to <c>.unreadable</c>, kept for diagnosis. An earlier
+    /// <c>.unreadable</c> may hold rows of its own, so it is never replaced: the new one
+    /// gets a time-stamped name instead. True when the file is out of the way (moved, or
+    /// already gone). Logs the path and the error, never row text. Caller holds
+    /// <see cref="_sync"/>, or is <see cref="Load"/>.
+    /// </summary>
+    private bool TryMoveUnreadableAside()
+    {
+        var asidePath = _filePath + ".unreadable";
+        try
+        {
+            // No File.Exists guard on the source: it answers false for a file the process
+            // cannot read the attributes of, which would let the next save overwrite it.
+            // Only the move itself proves the file is gone.
+            if (File.Exists(asidePath))
+                asidePath = $"{asidePath}.{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}";
+            File.Move(_filePath, asidePath, overwrite: false);
+            LoggingService.Warn($"PendingHistoryStore: Moved the unreadable pending History file aside to {asidePath}");
+            return true;
+        }
+        catch (FileNotFoundException)
+        {
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            LoggingService.Warn($"PendingHistoryStore: Could not move the unreadable pending History file {_filePath} aside; it will not be overwritten", ex);
             return false;
         }
     }

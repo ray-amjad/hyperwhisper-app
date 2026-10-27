@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Ciri",
-    "pricing": "Harga",
     "faq": "Soalan Lazim",
     "support": "Sokongan",
     "download": "Muat turun",
@@ -20,7 +19,6 @@
     "githubAria": "Lihat HyperWhisper di GitHub"
   },
   "hero": {
-    "openSourceBadge": "Sumber terbuka · Apache-2.0",
     "logoAlt": "Logo HyperWhisper",
     "headline": "Tulis, gubah dan cipta",
     "headlineAccent": "5x lebih pantas dengan AI",
@@ -28,7 +26,7 @@
     "downloadCta": "Muat turun sekarang",
     "demoCta": "Tonton demo",
     "availableOn": "Tersedia di",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -98,57 +96,6 @@
     "languagesSupported": "Bahasa disokong",
     "providersSupported": "Penyedia disokong"
   },
-  "pricing": {
-    "title": "Tiada langganan. Selamanya.",
-    "subtitle": "Bayar sekali, guna selamanya. Kami juga benci langganan.",
-    "guarantee": "Jaminan pulangan wang 14 hari",
-    "guaranteeExtended": "jika anda tidak berpuas hati sepenuhnya.",
-    "learnMore": "Ketahui lebih lanjut",
-    "free": {
-      "name": "Percuma",
-      "price": "$0",
-      "period": "selamanya",
-      "description": "Sesuai untuk mencuba HyperWhisper",
-      "cta": "Muat turun percuma",
-      "features": {
-        "transcriptionLimit": "5 minit transkripsi sehari",
-        "basicModes": "Mod transkripsi asas",
-        "offlineTranscription": "Transkripsi luar talian",
-        "apiTranscription": "Transkripsi API (gunakan kunci anda sendiri)",
-        "postProcessing": "Pascapemprosesan teks",
-        "providers": "9+ penyedia untuk dipilih",
-        "lifetimeUpdates": "Kemas kini seumur hidup",
-        "cloudLimited": "HyperWhisper Cloud (penggunaan terhad)",
-        "customVocabulary": "Perbendaharaan kata tersuai",
-        "prioritySupport": "Sokongan keutamaan"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "seumur hidup",
-      "description": "Pembelian sekali, kuasa tanpa had selamanya",
-      "cta": "Beli Sekarang - Akses Seumur Hidup",
-      "mostPopular": "Paling Popular",
-      "features": {
-        "unlimitedTranscription": "Transkripsi tanpa had",
-        "allModes": "Semua mod transkripsi",
-        "offlineTranscription": "Transkripsi luar talian",
-        "apiTranscription": "Transkripsi API (gunakan kunci anda sendiri)",
-        "postProcessing": "Pascapemprosesan teks",
-        "providers": "9+ penyedia untuk dipilih",
-        "lifetimeUpdates": "Kemas kini seumur hidup",
-        "cloudCredits": "HyperWhisper Cloud ($5 dalam kredit)",
-        "customVocabulary": "Perbendaharaan kata tersuai",
-        "prioritySupport": "Sokongan keutamaan"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise & Harga Tersuai",
-      "description": "Diskaun volum, SSO, sokongan keutamaan, pengehosan dalaman dan integrasi tersuai",
-      "cta": "Hubungi Jualan"
-    }
-  },
   "faq": {
     "title": "Soalan lazim",
     "subtitle": "Semua yang anda perlu tahu tentang HyperWhisper",
@@ -192,7 +139,7 @@
       },
       "lifetime": {
         "question": "Adakah terdapat langganan?",
-        "answer": "Tidak — tidak sekali-kali. HyperWhisper ialah aplikasi sumber terbuka yang anda miliki, bukan langganan yang anda sewa. Muat turun secara percuma dan gunakan transkripsi luar talian setempat tanpa kos selamanya; peringkat percuma juga termasuk 5 minit transkripsi awan sehari. Apabila anda mahukan transkripsi awan tanpa persediaan melebihi itu, HyperWhisper Cloud ialah kredit bayar sambil guna yang mudah — tambah nilai hanya apabila anda perlu, tanpa yuran bulanan dan tiada apa-apa untuk dibatalkan."
+        "answer": "Tidak — tidak sekali-kali. HyperWhisper ialah aplikasi sumber terbuka yang anda miliki, bukan langganan yang anda sewa. Muat turun secara percuma dan gunakan transkripsi luar talian setempat tanpa kos selamanya. Apabila anda mahukan transkripsi awan tanpa persediaan, HyperWhisper Cloud ialah kredit bayar sambil guna yang mudah — tambah nilai hanya apabila anda perlu, tanpa yuran bulanan dan tiada apa-apa untuk dibatalkan."
       },
       "deviceLimit": {
         "question": "Berapa banyak peranti boleh guna kunci akaun saya?",
@@ -200,7 +147,7 @@
       },
       "requirements": {
         "question": "Apakah keperluan sistem?",
-        "answer": "Untuk Mac: macOS 14 atau lebih baharu, menyokong Apple Silicon dan Intel. Untuk Windows: Windows 10/11, x64 atau ARM64. Untuk Linux v1: Ubuntu 22.04 atau lebih baharu, atau Debian 12 atau lebih baharu, pada amd64. 8GB RAM disyorkan untuk prestasi optimum."
+        "answer": "Untuk Mac: macOS 14.6 atau lebih baharu, menyokong Apple Silicon dan Intel. Untuk Windows: Windows 10/11, x64 atau ARM64. Untuk Linux v1: Ubuntu 22.04 atau lebih baharu, atau Debian 12 atau lebih baharu, pada amd64. 8GB RAM disyorkan untuk prestasi optimum."
       },
       "madeBy": {
         "question": "Siapa yang membangunkan ini?",
@@ -252,10 +199,7 @@
     "downloadButton": "Muat Turun HyperWhisper",
     "errorGeneric": "Sesuatu tidak kena. Sila cuba lagi.",
     "errorEmail": "Sila masukkan alamat emel yang sah.",
-    "errorNetwork": "Ralat rangkaian. Sila semak sambungan dan cuba lagi.",
-    "thankYouTitle": "Terima kasih!",
     "downloadStarted": "Muat turun anda sepatutnya bermula secara automatik.",
-    "manualDownload": "Muat turun tidak bermula? Klik di sini",
     "skipAndDownloadButton": "Langkau dan muat turun"
   },
   "downloadPage": {
@@ -324,10 +268,10 @@
       "download": "Muat turun",
       "roadmap": "Pelan hala tuju",
       "helpCenter": "Pusat bantuan",
-      "manageBilling": "Urus Bil",
       "customerPortal": "Portal Pelanggan",
       "olderVersions": "Versi Lama",
       "blog": "Blog",
+      "openSource": "Sumber Terbuka",
       "about": "Tentang",
       "support": "Sokongan",
       "privacyPolicy": "Dasar Privasi",
@@ -409,6 +353,25 @@
     "custom": "Tersuai",
     "customSub": "jumlah anda",
     "topUp": "Tambah nilai"
+  },
+  "licenseKeysCard": {
+    "rotate": "Jana semula kunci",
+    "confirmTitle": "Jana semula kunci akaun ini?",
+    "confirmBody": "Anda akan mendapat kunci baharu, dan kunci ini akan berhenti berfungsi serta-merta. Setiap peranti yang menggunakan kunci lama memerlukan kunci baharu: masukkannya dalam HyperWhisper pada setiap peranti. Kredit, pelan dan sejarah pembelian anda kekal dalam akaun anda. Anda juga akan dilog keluar daripada laman web ini dalam pelayar anda yang lain.",
+    "confirm": "Jana semula kunci",
+    "cancel": "Batal",
+    "rotating": "Menjana semula…",
+    "rotated": "Kunci telah dijana semula. Masukkan kunci baharu dalam HyperWhisper pada setiap peranti anda.",
+    "errorRateLimited": "Terlalu banyak penjanaan semula. Sila cuba lagi nanti.",
+    "errorStale": "Kunci ini sudah dijana semula. Kunci semasa dipaparkan di atas.",
+    "errorGeneric": "Tidak dapat menjana semula kunci. Sila cuba lagi.",
+    "verifyTitle": "Sahkan identiti anda melalui e-mel",
+    "verifyBody": "Untuk menjana semula kunci anda, sahkan identiti anda melalui e-mel terlebih dahulu. Kami akan menghantar pautan log masuk ke alamat e-mel akaun anda. Bukanya, kemudian jana semula kunci dari halaman ini.",
+    "sendLink": "E-melkan saya pautan log masuk",
+    "sendingLink": "Menghantar…",
+    "linkSent": "Pautan log masuk telah dihantar. Bukanya dari peti masuk anda, kemudian jana semula kunci.",
+    "linkFailed": "Tidak dapat menghantar pautan log masuk. Sila cuba lagi.",
+    "errorUnavailable": "Kunci ini tidak boleh dijana semula lagi. Status semasanya dipaparkan di atas."
   },
   "openSource": {
     "heading": "Sumber terbuka. Tiada apa-apa untuk disembunyikan.",

@@ -102,7 +102,7 @@ public class ApiKeyService
     /// Sets or removes the API key for a provider.
     /// </summary>
     /// <param name="provider">The post-processing provider.</param>
-    /// <param name="apiKey">The API key to store, or null/empty to remove.</param>
+    /// <param name="apiKey">The API key to store, or null/blank to remove. It is trimmed (<see cref="NormalizeKey"/>).</param>
     /// <returns>
     /// Success when Credential Manager holds the new value (or no longer holds a
     /// cleared one). A failure means the key was NOT stored; the caller must say so.
@@ -113,6 +113,7 @@ public class ApiKeyService
         {
             var settingName = provider.GetApiKeySettingName();
             if (string.IsNullOrEmpty(settingName)) return NoKeySlot();
+            apiKey = NormalizeKey(apiKey);
             var result = SaveToVault(settingName, apiKey);
             // Registered on failure too, with what the vault holds now: the backend
             // deletes before it adds, so a failed add can already have removed the
@@ -130,46 +131,6 @@ public class ApiKeyService
     public bool HasApiKey(PostProcessingProvider provider)
     {
         return !string.IsNullOrEmpty(GetApiKey(provider));
-    }
-
-    /// <summary>
-    /// Validates the format of an API key for a provider.
-    /// This is a basic format check, not a validity check against the API.
-    /// </summary>
-    /// <param name="provider">The provider to validate against.</param>
-    /// <param name="key">The API key to validate.</param>
-    /// <returns>True if the key format appears valid.</returns>
-    public static bool IsValidKeyFormat(PostProcessingProvider provider, string? key)
-    {
-        if (string.IsNullOrWhiteSpace(key)) return false;
-
-        return provider switch
-        {
-            // OpenAI keys start with "sk-" and are typically 51+ characters
-            PostProcessingProvider.OpenAI => key.StartsWith("sk-") && key.Length > 20,
-
-            // Anthropic keys start with "sk-ant-" and are typically 100+ characters
-            PostProcessingProvider.Anthropic => key.StartsWith("sk-ant-") && key.Length > 20,
-
-            // Groq keys start with "gsk_" and are typically 50+ characters
-            PostProcessingProvider.Groq => key.StartsWith("gsk_") && key.Length > 20,
-
-            // xAI Grok keys start with "xai-" and are shared with Grok STT
-            PostProcessingProvider.Grok => key.StartsWith("xai-") && key.Length >= 20,
-
-            // Gemini keys start with "AIza" and are typically 39 characters
-            PostProcessingProvider.Gemini => key.StartsWith("AIza") && key.Length >= 30,
-
-            // Cerebras keys start with "csk-" and are typically 64+ characters
-            PostProcessingProvider.Cerebras => key.StartsWith("csk-") && key.Length > 20,
-
-            // Mistral keys have no fixed prefix; match the Mistral STT key rule
-            // (TranscriptionApiKeyType.Mistral: min length 20). PP and STT share
-            // the same MistralApiKey store.
-            PostProcessingProvider.Mistral => key.Length >= 20,
-
-            _ => false
-        };
     }
 
     /// <summary>
@@ -208,7 +169,7 @@ public class ApiKeyService
     /// Sets or removes the API key for a transcription provider without a primary post-processing provider.
     /// </summary>
     /// <param name="type">The transcription API key type.</param>
-    /// <param name="apiKey">The API key to store, or null/empty to remove.</param>
+    /// <param name="apiKey">The API key to store, or null/blank to remove. It is trimmed (<see cref="NormalizeKey"/>).</param>
     /// <returns>Success, or a failure meaning the key was NOT stored.</returns>
     public PlatformContracts.PlatformResult SetApiKey(TranscriptionApiKeyType type, string? apiKey)
     {
@@ -216,6 +177,7 @@ public class ApiKeyService
         {
             var settingName = type.GetSettingName();
             if (string.IsNullOrEmpty(settingName)) return NoKeySlot();
+            apiKey = NormalizeKey(apiKey);
             var result = SaveToVault(settingName, apiKey);
             // See the PostProcessingProvider overload: a failed write still
             // invalidates health, against the value the vault really holds.
@@ -258,31 +220,6 @@ public class ApiKeyService
     }
 
     /// <summary>
-    /// Validates the format of an API key for a transcription provider without a primary post-processing provider.
-    /// </summary>
-    /// <param name="type">The transcription API key type to validate against.</param>
-    /// <param name="key">The API key to validate.</param>
-    /// <returns>True if the key format appears valid.</returns>
-    public static bool IsValidKeyFormat(TranscriptionApiKeyType type, string? key)
-    {
-        if (string.IsNullOrWhiteSpace(key)) return false;
-
-        var prefix = type.GetKeyPrefix();
-        var minLength = type.GetMinLength();
-
-        // Check minimum length
-        if (key.Length < minLength) return false;
-
-        // Check prefix if required
-        if (!string.IsNullOrEmpty(prefix) && !key.StartsWith(prefix))
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    /// <summary>
     /// Gets a masked version of the API key for a transcription provider without a primary post-processing provider.
     /// </summary>
     public string? GetMaskedApiKey(TranscriptionApiKeyType type)
@@ -322,6 +259,19 @@ public class ApiKeyService
     // =========================================================================
     // HELPER METHODS
     // =========================================================================
+
+    /// <summary>
+    /// The one rule for what a BYOK provider key write stores: the text trimmed,
+    /// or null (a clear) when nothing but whitespace is left. Both SetApiKey
+    /// overloads apply it, so the API Keys page, the provider modal, onboarding
+    /// and backup import store a key pasted with a trailing newline the same way.
+    /// Custom endpoint keys are not normalised here: CustomEndpointManager and
+    /// its window test and compare the key exactly as typed.
+    /// There is deliberately no prefix or length rule: vendors change their key
+    /// formats (#2389), and a wrong key fails at the provider, which says so.
+    /// </summary>
+    internal static string? NormalizeKey(string? apiKey)
+        => string.IsNullOrWhiteSpace(apiKey) ? null : apiKey.Trim();
 
     /// <summary>
     /// Connects the production key-write seam to transcription health. The

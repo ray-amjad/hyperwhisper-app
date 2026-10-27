@@ -293,6 +293,18 @@ public sealed class CloudAccountViewModel : ViewModelBase
         LoadAsync(forceRevalidate: false, cancellationToken);
 
     /// <summary>
+    /// Fetches the balance for an account that is already active, the way the Refresh button
+    /// does. The startup status load answers from the validation cache and brings no balance, so
+    /// after a relaunch the balance card was an empty box, Credits was blank and "Cost per Minute"
+    /// read ~0.0 until the user clicked Refresh (#2405). With no active account it does nothing.
+    /// </summary>
+    public async Task LoadBalanceAsync(CancellationToken cancellationToken = default)
+    {
+        if (!IsActiveAccount) return;
+        await RefreshCreditsAsync(cancellationToken);
+    }
+
+    /// <summary>
     /// Asks the server again, whatever the validation cache says. This is the
     /// explicit refresh the user pressed, so it also brings back the customer
     /// email and the expiry, which the cached verdict does not hold.

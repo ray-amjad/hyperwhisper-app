@@ -102,9 +102,35 @@ class StorageSettingsManager: ObservableObject {
     /// once one is accepted. `presentRecordingsFolderRefusedAlert()` shows it.
     @Published var validationError: String?
 
+    // MARK: - Fallback Seams
+
+    /// Checks and creates the recordings folder and its fallbacks while the
+    /// folder is prepared. A test passes a `FileManager` that refuses them, to
+    /// reach the all-fallbacks-failed path (#773).
+    private let fileManager: FileManager
+
+    /// How many `prepareRecordingsFolderIfNeededAsync()` calls are waiting.
+    /// Each one's caller shows `presentStorageRecoveryPrompt()` on a false, so
+    /// an answer to the Documents question must not show a second one.
+    private var folderWaitsInFlight = 0
+
+    /// Whether the last `fallbackToBestAvailableLocation()` found no folder.
+    /// The async prepare reads it so a chain that just failed is not run again.
+    private var lastFallbackChainFailed = false
+
+    /// Asks the user to choose a folder after the Documents question was
+    /// answered and no fallback could be created (#773). The real prompt is an
+    /// NSAlert, so a test swaps in a recorder.
+    lazy var requestStorageRecoveryPrompt: () -> Void = { [weak self] in
+        guard let self else { return }
+        // Next turn of the run loop, so the SwiftUI alert that called us is gone.
+        Task { @MainActor [weak self] in _ = await self?.presentStorageRecoveryPrompt() }
+    }
+
     // MARK: - Initialization
 
-    init() {
+    init(fileManager: FileManager = .default) {
+        self.fileManager = fileManager
         // Create app folder if it doesn't exist (safe location, no TCC required)
         createAppFolderIfNeeded()
 
@@ -208,7 +234,9 @@ class StorageSettingsManager: ObservableObject {
         alert.messageText = "settings.storage.folderRefused.title".localized
         alert.informativeText = message
         alert.addButton(withTitle: "common.ok".localized)
-        alert.runModal()
+        // Modeless, like the other storage alerts (#1734), so the Local API
+        // keeps answering while it is open.
+        ModelessAlert.show(alert)
     }
 
     /// Ensure recordings folder exists
@@ -250,8 +278,8 @@ class StorageSettingsManager: ObservableObject {
 
         // If the folder already exists and is writable, nothing to do.
         var isDir: ObjCBool = false
-        if FileManager.default.fileExists(atPath: recordingsURL.path, isDirectory: &isDir), isDir.boolValue,
-           FileManager.default.isWritableFile(atPath: recordingsURL.path) {
+        if fileManager.fileExists(atPath: recordingsURL.path, isDirectory: &isDir), isDir.boolValue,
+           fileManager.isWritableFile(atPath: recordingsURL.path) {
             return
         }
 
@@ -276,7 +304,7 @@ class StorageSettingsManager: ObservableObject {
 
         // Otherwise attempt to create (may trigger TCC). On failure, fall back.
         do {
-            try FileManager.default.createDirectory(at: recordingsURL, withIntermediateDirectories: true)
+            try fileManager.createDirectory(at: recordingsURL, withIntermediateDirectories: true)
         } catch {
             // Permission denied or other error → try fallbacks in order
             _ = fallbackToBestAvailableLocation()
@@ -288,18 +316,21 @@ class StorageSettingsManager: ObservableObject {
     ///
     /// TIMEOUT HANDLING:
     /// Waits up to `timeoutSeconds` (default 120s) for user to respond to alerts
-    /// Polls every 200-300ms to check if folder is ready
+    /// Polls every 200ms while the Documents alert is up
     ///
     /// - Parameter timeoutSeconds: Maximum wait time (default 120s)
     /// - Returns: True if folder is ready and writable
     func prepareRecordingsFolderIfNeededAsync(timeoutSeconds: Double = 120) async -> Bool {
+        folderWaitsInFlight += 1
+        defer { folderWaitsInFlight -= 1 }
+        lastFallbackChainFailed = false
         prepareRecordingsFolderIfNeeded()
         let start = Date()
         while Date().timeIntervalSince(start) < timeoutSeconds {
             let url = URL(fileURLWithPath: recordingsFolder)
             var isDir: ObjCBool = false
-            if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue,
-               FileManager.default.isWritableFile(atPath: url.path) {
+            if fileManager.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue,
+               fileManager.isWritableFile(atPath: url.path) {
                 return true
             }
             // NO-PRESENTER GUARD:
@@ -331,11 +362,13 @@ class StorageSettingsManager: ObservableObject {
             if needsDocumentsPermissionExplanation {
                 return false
             }
-            // If we aren't showing an alert and not writable, try fallbacks
-            if fallbackToBestAvailableLocation() {
-                return true
-            }
-            try? await Task.sleep(nanoseconds: 300_000_000)
+            // If we aren't showing an alert and not writable, try fallbacks.
+            // When all of them fail, waiting will not change that: report
+            // not-ready now so the caller can ask (#773), instead of retrying
+            // (and logging the failure) every 300ms until the timeout. A chain
+            // that already failed since this wait began is not run again.
+            if lastFallbackChainFailed { return false }
+            return fallbackToBestAvailableLocation()
         }
         return false
     }
@@ -347,21 +380,40 @@ class StorageSettingsManager: ObservableObject {
         showDocumentsPermissionAlert = false
         let target = URL(fileURLWithPath: recordingsFolder)
         do {
-            try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
+            try fileManager.createDirectory(at: target, withIntermediateDirectories: true)
         } catch {
             // Likely denied by the system — switch to a safe location
             documentsAccessDenied = true
-            _ = fallbackToBestAvailableLocation()
+            if !fallbackToBestAvailableLocation() {
+                requestRecoveryUnlessAWaiterWill()
+            }
         }
     }
 
     /// User declined Documents access; switch to a safe storage location.
     /// Sets flags and immediately falls back to Application Support
+    ///
+    /// The answer is recorded only once a fallback worked (#773). Recorded
+    /// first, a total failure left the folder unwritable with the question
+    /// marked answered: the alert was gone, and every later prepare took the
+    /// `userChoseAlternateStorage` branch, failed the same way and returned.
+    /// Unrecorded, the user is asked to choose a folder now, and the Documents
+    /// question is asked again next time.
     func useAlternateStorageInstead() {
+        showDocumentsPermissionAlert = false
+        guard fallbackToBestAvailableLocation() else {
+            requestRecoveryUnlessAWaiterWill()
+            return
+        }
         documentsPermissionExplained = true
         userChoseAlternateStorage = true
-        showDocumentsPermissionAlert = false
-        _ = fallbackToBestAvailableLocation()
+    }
+
+    /// Ask the user to choose a folder, unless an async prepare is waiting:
+    /// it returns false once the alert closes, and its caller asks then.
+    private func requestRecoveryUnlessAWaiterWill() {
+        guard folderWaitsInFlight == 0 else { return }
+        requestStorageRecoveryPrompt()
     }
 
     /// Try fallbacks in order: Application Support → Downloads → Temp
@@ -373,18 +425,36 @@ class StorageSettingsManager: ObservableObject {
     /// 3. Temp (last resort, cleared on reboot)
     @discardableResult
     func fallbackToBestAvailableLocation() -> Bool {
+        lastFallbackChainFailed = false
         if fallbackRecordingsLocationToAppSupport() { return true }
         if fallbackRecordingsLocationToDownloads() { return true }
         if fallbackRecordingsLocationToTemp() { return true }
+        lastFallbackChainFailed = true
+        logger.error("❌ No recordings folder fallback could be created; recordings folder is still: \(self.recordingsFolder, privacy: .public)")
+        if AppLogger.isErrorLoggingEnabled {
+            SentryService.addBreadcrumb(
+                message: "Storage fallback failed",
+                category: "settings.storage",
+                level: .error,
+                data: [
+                    "fallback": "none",
+                    "path": self.recordingsFolder
+                ]
+            )
+        }
         return false
     }
 
     /// Offer manual folder selection when all automatic options fail
     /// Presents NSOpenPanel for user to choose a writable location
     ///
+    /// Uses `begin` and awaits it rather than `runModal()` (issue #1734): runModal
+    /// held the main actor until the user chose, and the Local API (@MainActor)
+    /// answered nothing meanwhile.
+    ///
     /// - Returns: True if user selected a folder, false if cancelled
     @MainActor
-    func offerManualFolderSelection() -> Bool {
+    func offerManualFolderSelection() async -> Bool {
         let panel = NSOpenPanel()
         panel.title = "storage.folder.choose.title".localized
         panel.message = "storage.folder.choose.message".localized
@@ -393,7 +463,11 @@ class StorageSettingsManager: ObservableObject {
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = true
-        let response = panel.runModal()
+        // Reached from a recording start, often while another app is frontmost.
+        NSApp.activate(ignoringOtherApps: true)
+        let response = await withCheckedContinuation { continuation in
+            panel.begin { continuation.resume(returning: $0) }
+        }
         if response == .OK, let url = panel.url {
             guard changeRecordingsFolder(to: url) else {
                 presentRecordingsFolderRefusedAlert()
@@ -407,18 +481,21 @@ class StorageSettingsManager: ObservableObject {
     /// Present a recovery alert and offer manual folder selection
     /// Called when all automatic fallbacks have failed
     ///
+    /// Modeless (issue #1734): the caller needs the answer, so it awaits it, which
+    /// leaves the main actor — and the Local API — free while the alert is open.
+    ///
     /// - Returns: True if user selected a folder, false otherwise
     @MainActor
-    func presentStorageRecoveryPrompt() -> Bool {
+    func presentStorageRecoveryPrompt() async -> Bool {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = "storage.recovery.title".localized
         alert.informativeText = "storage.recovery.message".localized
         alert.addButton(withTitle: "storage.recovery.choose".localized)
         alert.addButton(withTitle: "common.cancel".localized)
-        let result = alert.runModal()
+        let result = await ModelessAlert.response(for: alert)
         if result == .alertFirstButtonReturn {
-            return offerManualFolderSelection()
+            return await offerManualFolderSelection()
         }
         return false
     }
@@ -496,11 +573,11 @@ class StorageSettingsManager: ObservableObject {
     ///
     /// - Returns: True if successful, false otherwise
     private func fallbackRecordingsLocationToAppSupport() -> Bool {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let base = appSupport.appendingPathComponent("HyperWhisper", isDirectory: true)
         let recs = base.appendingPathComponent("recordings", isDirectory: true)
         do {
-            try FileManager.default.createDirectory(at: recs, withIntermediateDirectories: true)
+            try fileManager.createDirectory(at: recs, withIntermediateDirectories: true)
             appFolderPath = base.path
             recordingsFolder = recs.path
             logger.info("↩️ Using Application Support for recordings: \(self.recordingsFolder, privacy: .public)")
@@ -516,6 +593,7 @@ class StorageSettingsManager: ObservableObject {
             }
             return true
         } catch {
+            logger.warning("⚠️ Recordings fallback to Application Support failed: \(error.localizedDescription, privacy: .public)")
             return false
         }
     }
@@ -525,10 +603,10 @@ class StorageSettingsManager: ObservableObject {
     ///
     /// - Returns: True if successful, false otherwise
     private func fallbackRecordingsLocationToDownloads() -> Bool {
-        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first!
+        let downloads = fileManager.urls(for: .downloadsDirectory, in: .userDomainMask).first!
         let recs = downloads.appendingPathComponent("HyperWhisper Recordings", isDirectory: true)
         do {
-            try FileManager.default.createDirectory(at: recs, withIntermediateDirectories: true)
+            try fileManager.createDirectory(at: recs, withIntermediateDirectories: true)
             recordingsFolder = recs.path
             logger.info("↩️ Using Downloads for recordings: \(self.recordingsFolder, privacy: .public)")
             if AppLogger.isErrorLoggingEnabled {
@@ -543,6 +621,7 @@ class StorageSettingsManager: ObservableObject {
             }
             return true
         } catch {
+            logger.warning("⚠️ Recordings fallback to Downloads failed: \(error.localizedDescription, privacy: .public)")
             return false
         }
     }
@@ -552,9 +631,9 @@ class StorageSettingsManager: ObservableObject {
     ///
     /// - Returns: True if successful, false otherwise
     private func fallbackRecordingsLocationToTemp() -> Bool {
-        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("HyperWhisper/recordings", isDirectory: true)
+        let tmp = fileManager.temporaryDirectory.appendingPathComponent("HyperWhisper/recordings", isDirectory: true)
         do {
-            try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+            try fileManager.createDirectory(at: tmp, withIntermediateDirectories: true)
             recordingsFolder = tmp.path
             logger.info("↩️ Using temporary directory for recordings: \(self.recordingsFolder, privacy: .public)")
             if AppLogger.isErrorLoggingEnabled {
@@ -569,6 +648,7 @@ class StorageSettingsManager: ObservableObject {
             }
             return true
         } catch {
+            logger.warning("⚠️ Recordings fallback to the temporary directory failed: \(error.localizedDescription, privacy: .public)")
             return false
         }
     }

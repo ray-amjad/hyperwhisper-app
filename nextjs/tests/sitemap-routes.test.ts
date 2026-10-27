@@ -1,22 +1,18 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import test, { mock } from "node:test";
+import test from "node:test";
 
 import { locales } from "../src/i18n/locales";
+
+import { moduleMock, moduleUrl } from "./module-mock";
 
 // Runs the REAL sitemap() and checks every URL it emits against the route files
 // on disk, so a hand-written path with no page (#735: /pricing, /about,
 // /legal/privacy …) or a locale-gated page in the 40-locale loop goes red here.
 
-// `mock.module` exists in Node 22 behind --experimental-test-module-mocks, but
-// @types/node@20 has no declaration for it; narrow to the one method used.
-const moduleMock = mock as unknown as {
-  module(specifier: string, options: { namedExports: Record<string, unknown> }): void;
-};
-
 // The blog loader imports "server-only" and the database; the posts are not
 // under test here, only the page list.
-moduleMock.module(new URL("../src/content/blog.ts", import.meta.url).href, {
+moduleMock.module(moduleUrl("../src/content/blog.ts"), {
   namedExports: { getAllBlogPosts: async () => [] },
 });
 

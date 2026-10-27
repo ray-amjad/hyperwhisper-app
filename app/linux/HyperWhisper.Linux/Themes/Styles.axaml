@@ -1212,7 +1212,8 @@
   <!-- The Windows Appearance page uses the stock WPF RadioButton, which on this dark page draws
        a 12px control with a ~10px white disc. Unselected is a solid white disc; checked keeps the
        white disc and punches a dark #212121 centre out of it, so the two states are the inverse
-       of Fluent's. Fluent's is a 20px ring that fills with its own #0078D7 accent when checked:
+       of Fluent's. The light theme inverts the pair (HwRadioDisc / HwRadioCentre in Colors.axaml),
+       since a white disc on the light card is invisible. Fluent's is a 20px ring that fills with its own #0078D7 accent when checked:
        67% too big, the wrong accent, the wrong way round, and it pushes the row label 13px
        right. Only a whole ControlTheme can resize it: the Fluent template pins the glyph column
        and scales all three ellipses to fill it. -->
@@ -1230,8 +1231,8 @@
         <ControlTemplate>
           <Grid ColumnDefinitions="Auto,*" Background="Transparent">
             <Panel Width="12" Height="12" VerticalAlignment="Center">
-              <Ellipse x:Name="Disc" Width="12" Height="12" Fill="#FFFFFF"/>
-              <Ellipse x:Name="Centre" Width="5" Height="5" Fill="#212121" IsVisible="False"
+              <Ellipse x:Name="Disc" Width="12" Height="12" Fill="{DynamicResource HwRadioDiscBrush}"/>
+              <Ellipse x:Name="Centre" Width="5" Height="5" Fill="{DynamicResource HwRadioCentreBrush}" IsVisible="False"
                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Panel>
             <ContentPresenter x:Name="PART_ContentPresenter" Grid.Column="1"

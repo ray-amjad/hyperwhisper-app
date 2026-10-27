@@ -10,6 +10,20 @@ export interface AuthContext {
   identifier: string; // license key
   credits: number;
   licenseKey: string;
+  /**
+   * The licence API's opaque per-user `credit_pool_id` (#2026). Credit holds
+   * are counted per pool, so one user's keys share one hold budget. Absent
+   * (website not deployed yet, secret unset): holds are per key.
+   */
+  creditPoolId?: string;
+}
+
+// An HMAC in hex today; anything outside this shape is dropped, not trusted
+// into a Redis key name.
+const CREDIT_POOL_ID_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;
+
+export function readCreditPoolId(value: unknown): string | undefined {
+  return typeof value === 'string' && CREDIT_POOL_ID_PATTERN.test(value) ? value : undefined;
 }
 
 export interface AuthInput {
@@ -59,6 +73,7 @@ export type AuthResult =
 interface ApiValidationResult {
   isValid: boolean;
   credits: number;
+  creditPoolId?: string;
   outcome: AuthOutcome;
   elapsedMs: number;
   errorCode?: string;
@@ -86,6 +101,9 @@ async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationR
   const validateUrl = `${apiBase}/api/license/validate`;
 
   try {
+    // Taken BEFORE the request goes out: the pool balance cache orders replies
+    // by when the site was asked (#2026), see `WRITE_POOL_BALANCE_SCRIPT`.
+    const issuedAtMs = Date.now();
     const response = await fetch(validateUrl, {
       method: 'POST',
       headers: {
@@ -99,7 +117,7 @@ async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationR
     });
 
     const responseText = await response.text();
-    let data: { valid?: boolean; credits?: number } = {};
+    let data: { valid?: boolean; credits?: number; creditPoolId?: string } = {};
 
     let parsedResponse = true;
     try {
@@ -110,6 +128,7 @@ async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationR
           credits: typeof parsed.credits === 'number' && Number.isFinite(parsed.credits)
             ? parsed.credits
             : undefined,
+          creditPoolId: readCreditPoolId(parsed.credit_pool_id),
         };
       } else {
         parsedResponse = false;
@@ -131,6 +150,7 @@ async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationR
     const verdict = {
       isValid: accepted,
       credits: accepted ? credits : 0,
+      ...(accepted && data.creditPoolId ? { creditPoolId: data.creditPoolId } : {}),
     };
 
     // Only a successful validation response or the licensing API's definitive
@@ -140,6 +160,7 @@ async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationR
       await cacheLicense(licenseKey, {
         ...verdict,
         cachedAt: new Date().toISOString(),
+        issuedAtMs,
       });
     }
 
@@ -183,9 +204,25 @@ async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationR
   }
 }
 
+/**
+ * The one spelling of an account key this service keys anything on (#2461).
+ * The site trims the key before its lookup, so ` KEY` and `KEY` are one
+ * account; the licence cache, the credit hold and `auth.identifier` must all
+ * use the trimmed form, or a padded variant is a second hold budget for the
+ * same balance. Case is kept: the site matches the key case-sensitively.
+ * Whitespace only, or a value that is not a string, is no key at all.
+ */
+export function canonicalAccountKey(raw: unknown): string | undefined {
+  // `/post-process` reads the key from an untyped JSON body, so a number or an
+  // object can arrive here: that is no key, never a throw.
+  if (typeof raw !== 'string') return undefined;
+  const trimmed = raw.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 export async function validateAuth(input: AuthInput, forceRefresh = false): Promise<AuthResult> {
   const startedAt = performance.now();
-  const { licenseKey } = input;
+  const licenseKey = canonicalAccountKey(input.licenseKey);
 
   // HyperWhisper Cloud is licensed-only: a valid license key (which carries the
   // credit balance) is required for every request. There is no anonymous/trial
@@ -224,6 +261,7 @@ export async function validateAuth(input: AuthInput, forceRefresh = false): Prom
           identifier: licenseKey,
           credits: cached.credits,
           licenseKey,
+          ...(cached.creditPoolId ? { creditPoolId: cached.creditPoolId } : {}),
         },
         diagnostics: {
           source: 'cache',
@@ -256,6 +294,7 @@ export async function validateAuth(input: AuthInput, forceRefresh = false): Prom
       identifier: licenseKey,
       credits: validation.credits,
       licenseKey,
+      ...(validation.creditPoolId ? { creditPoolId: validation.creditPoolId } : {}),
     },
     diagnostics,
   };

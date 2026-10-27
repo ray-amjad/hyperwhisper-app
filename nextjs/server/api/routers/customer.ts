@@ -8,8 +8,10 @@
  * - credits: Get total credit balance for logged-in user
  * - billingProviders: Check which billing providers the user has history with
  * - stripePortalUrl: Generate Stripe billing portal session URL
+ * - rotateAccountKey: Replace one of the user's Account Keys with a fresh one
  */
 import { TRPCError } from "@trpc/server";
+import { z } from "zod";
 
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import {
@@ -18,10 +20,16 @@ import {
   getPaidCreditGrantsForUsers,
 } from "@/src/lib/db-layer";
 import { stripe } from "@/lib/clients/stripe";
+import { stripeCustomerBelongsTo } from "@/lib/services/stripe-customer";
+import { env } from "@/src/env/server.mjs";
 import { CREDITS_PER_MINUTE } from "@/lib/credits-per-minute";
 import { createCreditHistoryPresenter } from "./customer-credit-history";
 
 const presentCreditHistory = createCreditHistoryPresenter();
+
+/** What the dashboard shows when Stripe will not open the billing portal. */
+export const STRIPE_PORTAL_ERROR_MESSAGE =
+  "Could not open the billing portal. Please try again.";
 
 export const customerRouter = createTRPCRouter({
   /**
@@ -182,11 +190,30 @@ export const customerRouter = createTRPCRouter({
       });
     }
 
-    // Find license with Stripe customer ID
+    // Find a license whose cached Stripe customer still belongs to this
+    // email. After an admin email move the cached customer is the OLD
+    // address's, and its portal shows that holder's payments (#2460).
     const licenses = await getAccountKeysByEmail(userEmail);
-    const licenseWithStripe = licenses.find((l) => l.stripeCustomerId);
+    const cachedCustomerIds = Array.from(
+      new Set(licenses.flatMap((l) => l.stripeCustomerId ?? [])),
+    );
+    let stripeCustomerId: string | undefined;
+    try {
+      for (const id of cachedCustomerIds) {
+        if (await stripeCustomerBelongsTo(id, userEmail)) {
+          stripeCustomerId = id;
+          break;
+        }
+      }
+    } catch (error) {
+      console.error("Stripe customer lookup failed:", error);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: STRIPE_PORTAL_ERROR_MESSAGE,
+      });
+    }
 
-    if (!licenseWithStripe?.stripeCustomerId) {
+    if (!stripeCustomerId) {
       throw new TRPCError({
         code: "NOT_FOUND",
         message: "No Stripe billing history found",
@@ -194,14 +221,52 @@ export const customerRouter = createTRPCRouter({
     }
 
     const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";
+      env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";
 
-    // Create Stripe billing portal session
-    const session = await stripe.billingPortal.sessions.create({
-      customer: licenseWithStripe.stripeCustomerId,
-      return_url: `${siteUrl}/user`,
-    });
+    // Create Stripe billing portal session. A Stripe error's message is
+    // written for developers (it can name the customer id and the key mode),
+    // and BillingCard prints error.message as is, so it is logged here and
+    // the customer gets fixed copy instead (#2082).
+    try {
+      const session = await stripe.billingPortal.sessions.create({
+        customer: stripeCustomerId,
+        return_url: `${siteUrl}/user`,
+      });
 
-    return { url: session.url };
+      return { url: session.url };
+    } catch (error) {
+      console.error("Stripe billing portal session failed:", error);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: STRIPE_PORTAL_ERROR_MESSAGE,
+      });
+    }
   }),
+
+  /**
+   * Rotate one of the signed-in user's Account Keys: the row keeps its id (and
+   * with it credits, plan, purchase history and the Stripe link), and gets a
+   * fresh key in the generator's format. The old key stops validating at once
+   * on the site; the cloud's cached verdict for it is purged right after.
+   *
+   * `currentKey` is the key the dashboard showed. Two rotations racing for one
+   * row serialise on its lock, and the loser gets CONFLICT instead of a key
+   * that the winner has already replaced.
+   *
+   * Never logs a key, old or new.
+   */
+  rotateAccountKey: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        currentKey: z.string().trim().min(1).max(64),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Loaded on first use: it pulls in the email client, the Upstash
+      // limiter and the cloud purge, none of which the read procedures above
+      // need at import time.
+      const { rotateKeyForCaller } = await import("./customer-rotate-key");
+      return rotateKeyForCaller(ctx, input);
+    }),
 });

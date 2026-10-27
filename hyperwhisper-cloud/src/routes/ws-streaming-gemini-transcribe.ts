@@ -172,7 +172,7 @@ export function parseGeminiLiveFrame(raw: string): UpstreamEvent[] {
   // instead leaves the turn permanently uncommitted, because the interim
   // restarts at the next turn boundary and no later frame repeats these words.
   // The three native heads (`GeminiLiveProtocol.cs`, the macOS strategy and the
-  // Rust core's `gemini_transcribe.rs`) all read final-first for this reason —
+  // Rust core's `gemini_transcribe/live.rs`) all read final-first for this reason —
   // an order this backend has to match, not choose.
   //
   // AND THE COMPLETION RIDES ALONG. Google answers the stop's
@@ -184,7 +184,7 @@ export function parseGeminiLiveFrame(raw: string): UpstreamEvent[] {
   // halves go out, final first: `handleUpstreamEvent`'s `complete` arm is
   // already gated on `stopRequested`, so a mid-dictation turn boundary is a
   // no-op there and only the post-stop frame ends the session. This matches
-  // `gemini_transcribe.rs`' `LiveServerMessage::FinalTranscriptAndComplete`
+  // `gemini_transcribe/live.rs`' `LiveServerMessage::FinalTranscriptAndComplete`
   // and the `finalTranscriptAndComplete` conformance vector.
   const final = readText(content, 'inputTranscription');
   if (final !== undefined) {
@@ -197,7 +197,7 @@ export function parseGeminiLiveFrame(raw: string): UpstreamEvent[] {
 
   // An interim carries no committed text, so there is no half worth pairing a
   // completion with. The preview goes out alone and a completion riding on it
-  // is dropped — deliberately the same answer `gemini_transcribe.rs` gives,
+  // is dropped — deliberately the same answer `gemini_transcribe/live.rs` gives,
   // because the two decoders disagreeing about one frame shape is the fault
   // this block exists to remove.
   const interim = readText(content, 'interimInputTranscription');
@@ -246,6 +246,13 @@ export function parseGeminiLiveClose(code: number, reason: string): UpstreamEven
     // A malformed setup frame is OUR bug and identical for every user, so a
     // reconnect is a retry storm. Terminal.
     return [{ kind: 'error', message: 'Transcription service rejected the session setup', terminal: true }];
+  }
+
+  if (code === 1002) {
+    // The upgrade was refused (Bun: "Expected 101 status code"), whatever the
+    // HTTP status, a vendor 503 included. Terminal so the client closes 1011
+    // and neither app reconnects into the same refusal (Ray, 2026-10-19, #1410).
+    return [{ kind: 'error', message: 'Transcription service error', terminal: true }];
   }
 
   return [{ kind: 'error', message: 'Transcription service error', terminal: false }];

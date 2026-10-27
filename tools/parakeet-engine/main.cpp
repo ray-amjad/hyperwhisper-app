@@ -12,6 +12,10 @@
 //
 // PROTOCOL:
 //   Args:    --model <dir> --vad-model <path> [--engine <name>] [--language <code>] [--segment-join none|space] [--join-language <code>]
+//            [--provider auto|cpu] [--dml-adapter-luid <decimal LUID>]
+//            --provider cpu skips DirectML for Parakeet; --dml-adapter-luid runs
+//            Parakeet's DirectML on the DXGI adapter with that LUID instead of
+//            adapter 0 (#1846).
 //   Ready:   stdout: {"status":"ready","provider":"directml"|"cpu"}
 //   Request: stdin:  {"audio_path":"/path/to/file.wav"}
 //   Result:  stdout: {"text":"Hello world","duration_ms":1234}
@@ -40,6 +44,8 @@
 #include <io.h>
 #include <fcntl.h>
 #include <windows.h>
+#include <dxgi.h>
+#pragma comment(lib, "dxgi.lib")
 #endif
 
 #include "sherpa-onnx/c-api/c-api.h"
@@ -51,6 +57,102 @@
 static void log_info(const char* msg) { fprintf(stderr, "[INFO] %s\n", msg); }
 static void log_warn(const char* msg) { fprintf(stderr, "[WARN] %s\n", msg); }
 static void log_error(const char* msg) { fprintf(stderr, "[ERROR] %s\n", msg); }
+
+// =========================================================================
+// DIRECTML ADAPTER SELECTION (#1846)
+// =========================================================================
+// sherpa-onnx v1.13.3 always calls OrtSessionOptionsAppendExecutionProvider_DML
+// with device_id 0 (session.cc), and DirectML's device_id is the DXGI adapter
+// index. On most PCs adapter 0 is the integrated GPU, so a discrete GPU sat idle
+// while Parakeet ran 2.5x slower than on the CPU. sherpa-onnx-c-api.dll imports
+// that function from onnxruntime.dll, so we rewrite its slot in the c-api DLL's
+// import address table to a shim that swaps in the adapter the host chose
+// (--dml-adapter-luid). Only that one slot of that one module changes; onnxruntime and
+// DirectML are untouched. If the slot is not found, DirectML stays on adapter 0
+// and the caller decides what to do about it.
+
+#ifdef _WIN32
+// OrtStatus* (*)(OrtSessionOptions*, int); both pointers are opaque here.
+typedef void* (*DmlAppendFn)(void*, int);
+
+static DmlAppendFn g_real_dml_append = nullptr;
+static int g_dml_device_id = 0;
+
+static void* dml_append_shim(void* session_options, int /*device_id*/) {
+    return g_real_dml_append(session_options, g_dml_device_id);
+}
+
+// Point sherpa-onnx-c-api.dll's import of OrtSessionOptionsAppendExecutionProvider_DML
+// at dml_append_shim. Returns true when the slot was rewritten.
+static bool redirect_dml_device(int device_id) {
+    HMODULE sherpa = GetModuleHandleA("sherpa-onnx-c-api.dll");
+    HMODULE ort = GetModuleHandleA("onnxruntime.dll");
+    if (!sherpa || !ort) return false;
+    auto real = reinterpret_cast<DmlAppendFn>(
+        GetProcAddress(ort, "OrtSessionOptionsAppendExecutionProvider_DML"));
+    if (!real) return false;
+
+    auto base = reinterpret_cast<BYTE*>(sherpa);
+    auto dos = reinterpret_cast<IMAGE_DOS_HEADER*>(base);
+    if (dos->e_magic != IMAGE_DOS_SIGNATURE) return false;
+    auto nt = reinterpret_cast<IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
+    if (nt->Signature != IMAGE_NT_SIGNATURE) return false;
+    const IMAGE_DATA_DIRECTORY& dir = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+    if (dir.VirtualAddress == 0) return false;
+
+    // The import is by ordinal in the shipped DLL, so match the bound address,
+    // not the name: every IAT slot of onnxruntime.dll that holds `real`.
+    bool patched = false;
+    for (auto imp = reinterpret_cast<IMAGE_IMPORT_DESCRIPTOR*>(base + dir.VirtualAddress);
+         imp->Name != 0; ++imp) {
+        const char* dll = reinterpret_cast<const char*>(base + imp->Name);
+        if (_stricmp(dll, "onnxruntime.dll") != 0) continue;
+        for (auto slot = reinterpret_cast<IMAGE_THUNK_DATA*>(base + imp->FirstThunk);
+             slot->u1.Function != 0; ++slot) {
+            if (reinterpret_cast<void*>(slot->u1.Function) != reinterpret_cast<void*>(real)) continue;
+            DWORD old_protect = 0;
+            if (!VirtualProtect(&slot->u1.Function, sizeof(slot->u1.Function), PAGE_READWRITE, &old_protect)) {
+                return false;
+            }
+            g_real_dml_append = real;
+            g_dml_device_id = device_id;
+            slot->u1.Function = reinterpret_cast<ULONG_PTR>(&dml_append_shim);
+            VirtualProtect(&slot->u1.Function, sizeof(slot->u1.Function), old_protect, &old_protect);
+            patched = true;
+        }
+    }
+    return patched;
+}
+
+// The DXGI adapter index of `luid` in THIS process's enumeration, the order
+// onnxruntime's DirectML device_id indexes. The host passes the LUID, not its
+// own index, because Windows can order adapters differently per executable
+// (a per-app GPU preference on a hybrid laptop). -1 when no adapter matches.
+static int dxgi_index_for_luid(long long luid) {
+    IDXGIFactory1* factory = nullptr;
+    if (FAILED(CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&factory)))) {
+        return -1;
+    }
+    int found = -1;
+    IDXGIAdapter1* adapter = nullptr;
+    for (UINT i = 0; found < 0 && factory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
+        DXGI_ADAPTER_DESC1 desc;
+        if (SUCCEEDED(adapter->GetDesc1(&desc))) {
+            // Unsigned arithmetic: HighPart is a signed LONG, and shifting a
+            // negative value is undefined before C++20. Same bits as the host's
+            // 8-byte read of the LUID struct.
+            unsigned long long bits =
+                (static_cast<unsigned long long>(static_cast<unsigned long>(desc.AdapterLuid.HighPart)) << 32) |
+                static_cast<unsigned long long>(desc.AdapterLuid.LowPart);
+            long long id = static_cast<long long>(bits);
+            if (id == luid) found = static_cast<int>(i);
+        }
+        adapter->Release();
+    }
+    factory->Release();
+    return found;
+}
+#endif
 
 // =========================================================================
 // SIMPLE JSON HELPERS
@@ -460,6 +562,8 @@ struct DaemonArgs {
     std::string segment_join; // "none" | "space" | "" (not passed: use the table)
     std::string vad_model_path;
     std::string engine = "nemo_transducer"; // nemo_transducer | qwen3 | nemotron_ml
+    std::string provider = "auto";          // auto (DirectML, then CPU) | cpu
+    long long dml_adapter_luid = 0;         // DXGI adapter LUID; 0 = sherpa's adapter 0
 };
 
 static bool parse_args(int argc, char** argv, DaemonArgs& args) {
@@ -476,6 +580,17 @@ static bool parse_args(int argc, char** argv, DaemonArgs& args) {
             args.vad_model_path = argv[++i];
         } else if (strcmp(argv[i], "--engine") == 0 && i + 1 < argc) {
             args.engine = argv[++i];
+        } else if (strcmp(argv[i], "--provider") == 0 && i + 1 < argc) {
+            args.provider = argv[++i];
+        } else if (strcmp(argv[i], "--dml-adapter-luid") == 0 && i + 1 < argc) {
+            // A bad value is ignored, not fatal: DirectML stays on adapter 0.
+            char* end = nullptr;
+            long long v = strtoll(argv[++i], &end, 10);
+            if (end && *end == '\0' && v != 0) {
+                args.dml_adapter_luid = v;
+            } else {
+                log_warn("Ignoring an invalid --dml-adapter-luid value");
+            }
         }
     }
 
@@ -487,6 +602,11 @@ static bool parse_args(int argc, char** argv, DaemonArgs& args) {
     if (args.engine != "nemo_transducer" && args.engine != "qwen3" &&
         args.engine != "nemotron_ml") {
         log_error(("Unknown --engine value: " + args.engine).c_str());
+        return false;
+    }
+
+    if (args.provider != "auto" && args.provider != "cpu") {
+        log_error(("Unknown --provider value: " + args.provider).c_str());
         return false;
     }
 
@@ -650,17 +770,33 @@ int main(int argc, char** argv) {
             return 1;
         }
     } else {
-        // Parakeet: try DirectML, fall back to CPU — unchanged.
-        config.model_config.provider = "directml";
-        log_info("Attempting DirectML provider...");
-
-        recognizer = SherpaOnnxCreateOfflineRecognizer(&config);
+        // Parakeet: DirectML (on the host's adapter when it named one), falling
+        // back to CPU; or CPU straight away when the host asked for it (#1846).
+        if (args.provider == "cpu") {
+            log_info("Parakeet: CPU provider requested by the host");
+        } else {
+            if (args.dml_adapter_luid != 0) {
+#ifdef _WIN32
+                int index = dxgi_index_for_luid(args.dml_adapter_luid);
+                if (index < 0) {
+                    log_warn("No DXGI adapter has the requested LUID; sherpa-onnx will use adapter 0");
+                } else if (redirect_dml_device(index)) {
+                    log_info(("DirectML adapter: DXGI index " + std::to_string(index)).c_str());
+                } else {
+                    log_warn("Could not redirect the DirectML adapter; sherpa-onnx will use adapter 0");
+                }
+#endif
+            }
+            config.model_config.provider = "directml";
+            log_info("Attempting DirectML provider...");
+            recognizer = SherpaOnnxCreateOfflineRecognizer(&config);
+        }
 
         if (recognizer) {
             active_provider = "directml";
             log_info("DirectML provider initialized successfully");
         } else {
-            log_warn("DirectML failed, falling back to CPU provider...");
+            if (args.provider != "cpu") log_warn("DirectML failed, falling back to CPU provider...");
             config.model_config.provider = "cpu";
             recognizer = SherpaOnnxCreateOfflineRecognizer(&config);
 

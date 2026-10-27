@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Hono } from 'hono';
+import { pcm16Wav } from '../test-support/wav';
+import { saveEnv, stubEnv } from '../test-support/env';
 
 // Well-funded licensed user by default; individual tests can lower the balance.
 let cachedCredits = 1000;
@@ -10,12 +12,11 @@ mock.module('../lib/redis', () => ({
   cacheLicense: async () => {},
 }));
 
-const { transcribeRoute, estimateCreditsForProviderFallbacks } = await import('./transcribe');
+const { transcribeRoute } = await import('./transcribe');
+const { estimateCreditsForProviderFallbacks } = await import('./transcribe-audio');
 const { drainPendingDeductions } = await import('../middleware/credits');
 
 const originalFetch = globalThis.fetch;
-const originalMetaModelApiKey = process.env.META_MODEL_API_KEY;
-
 function buildApp(): Hono {
   const app = new Hono();
   app.post('/transcribe', transcribeRoute);
@@ -36,21 +37,7 @@ function request(headers: Record<string, string>, query = ''): Request {
 }
 
 function metaWavRequest(seconds: number, query = '', sampleRate = 16_000, channels = 1): Request {
-  const dataBytes = sampleRate * channels * 2 * seconds;
-  const audio = new Uint8Array(44 + dataBytes);
-  const view = new DataView(audio.buffer);
-  for (const [offset, text] of [[0, 'RIFF'], [8, 'WAVE'], [12, 'fmt '], [36, 'data']] as const) {
-    for (let index = 0; index < text.length; index++) view.setUint8(offset + index, text.charCodeAt(index));
-  }
-  view.setUint32(4, audio.byteLength - 8, true);
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, channels, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * channels * 2, true);
-  view.setUint16(32, channels * 2, true);
-  view.setUint16(34, 16, true);
-  view.setUint32(40, dataBytes, true);
+  const audio = new Uint8Array(pcm16Wav(seconds, sampleRate, channels));
   return new Request(`http://localhost/transcribe?license_key=test-license${query}`, {
     method: 'POST',
     headers: {
@@ -64,14 +51,14 @@ function metaWavRequest(seconds: number, query = '', sampleRate = 16_000, channe
 }
 
 describe('Meta Muse batch routing and billing', () => {
+  let restoreMetaModelApiKey: () => void;
   beforeEach(() => {
     cachedCredits = 1000;
-    process.env.META_MODEL_API_KEY = 'test-meta-key';
+    restoreMetaModelApiKey = stubEnv('META_MODEL_API_KEY', 'test-meta-key');
   });
   afterEach(() => {
     globalThis.fetch = originalFetch;
-    if (originalMetaModelApiKey === undefined) delete process.env.META_MODEL_API_KEY;
-    else process.env.META_MODEL_API_KEY = originalMetaModelApiKey;
+    restoreMetaModelApiKey();
   });
 
   test('routes the exact model, returns provider headers and deducts 3 credits for one minute', async () => {
@@ -1071,7 +1058,7 @@ describe('OpenAI pre-buffer size gate (413 before any upstream call)', () => {
 });
 
 describe('Google Chirp pre-buffer size gate (conditional on the GCS scratch bucket)', () => {
-  const originalBucket = process.env.GOOGLE_SPEECH_GCS_BUCKET;
+  const restoreBucket = saveEnv('GOOGLE_SPEECH_GCS_BUCKET');
   const oversizedContentLength = 50 * 1024 * 1024;
 
   function oversizedChirpRequest(): Request {
@@ -1089,11 +1076,7 @@ describe('Google Chirp pre-buffer size gate (conditional on the GCS scratch buck
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
-    if (originalBucket === undefined) {
-      delete process.env.GOOGLE_SPEECH_GCS_BUCKET;
-    } else {
-      process.env.GOOGLE_SPEECH_GCS_BUCKET = originalBucket;
-    }
+    restoreBucket();
   });
 
   test('rejects an oversized Content-Length with 413 when no bucket is configured', async () => {
@@ -1339,21 +1322,19 @@ async function captureRouteEvents(run: () => Response | Promise<Response>): Prom
 }
 
 describe('empty-transcript failover, end to end (issue #381)', () => {
-  const savedXai = process.env.XAI_API_KEY;
-  const savedGrok = process.env.GROK_API_KEY;
+  let restoreXai: () => void;
+  let restoreGrok: () => void;
 
   beforeEach(() => {
-    process.env.XAI_API_KEY = 'test-xai-key';
-    delete process.env.GROK_API_KEY;
+    restoreXai = stubEnv('XAI_API_KEY', 'test-xai-key');
+    restoreGrok = stubEnv('GROK_API_KEY', undefined);
     process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
-    if (savedXai === undefined) delete process.env.XAI_API_KEY;
-    else process.env.XAI_API_KEY = savedXai;
-    if (savedGrok === undefined) delete process.env.GROK_API_KEY;
-    else process.env.GROK_API_KEY = savedGrok;
+    restoreXai();
+    restoreGrok();
   });
 
   test('grok returning empty text for 22.2 s of audio is recovered by deepgram, at one charge', async () => {
@@ -1826,8 +1807,7 @@ describe('empty-transcript failover, end to end (issue #381)', () => {
     // An oversized upload from nrt cannot be replayed, so elevenlabs is dropped
     // and the chain is ['deepgram', 'groq'] — groq is last, and a refusal there
     // has nowhere to go but a 429 for what is a benign no_speech.
-    const savedRegion = process.env.FLY_REGION;
-    process.env.FLY_REGION = 'nrt';
+    const restoreRegion = stubEnv('FLY_REGION', 'nrt');
     process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
     process.env.GROQ_API_KEY = 'test-groq-key';
     const sttCalls: string[] = [];
@@ -1884,8 +1864,7 @@ describe('empty-transcript failover, end to end (issue #381)', () => {
       expect(body.metadata.stt_provider).not.toContain('scribe');
       expect(body.metadata.stt_provider).not.toContain('fallback from');
     } finally {
-      if (savedRegion === undefined) delete process.env.FLY_REGION;
-      else process.env.FLY_REGION = savedRegion;
+      restoreRegion();
     }
   });
 
@@ -1899,8 +1878,7 @@ describe('empty-transcript failover, end to end (issue #381)', () => {
     // provider this request cannot use. Round 1 granted groq the refusal at
     // index 1 on `1 < 2` and spent the spec's one extra call on elevenlabs.
     // (review r2)
-    const savedRegion = process.env.FLY_REGION;
-    process.env.FLY_REGION = 'nrt';
+    const restoreRegion = stubEnv('FLY_REGION', 'nrt');
     process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
     process.env.GROQ_API_KEY = 'test-groq-key';
     process.env.ELEVENLABS_API_KEY = 'test-11-key';
@@ -1938,20 +1916,18 @@ describe('empty-transcript failover, end to end (issue #381)', () => {
       expect(sttCalls).not.toContain('elevenlabs');
     } finally {
       delete process.env.ELEVENLABS_API_KEY;
-      if (savedRegion === undefined) delete process.env.FLY_REGION;
-      else process.env.FLY_REGION = savedRegion;
+      restoreRegion();
     }
   });
 });
 
 describe('AssemblyAI Dictation routing and billing', () => {
-  const previousKey = process.env.ASSEMBLYAI_API_KEY;
+  const restorePreviousKey = saveEnv('ASSEMBLYAI_API_KEY');
   beforeEach(() => { cachedCredits = 1000; process.env.ASSEMBLYAI_API_KEY = 'test-key'; });
   afterEach(() => {
     globalThis.fetch = originalFetch;
     cachedCredits = 1000;
-    if (previousKey === undefined) delete process.env.ASSEMBLYAI_API_KEY;
-    else process.env.ASSEMBLYAI_API_KEY = previousKey;
+    restorePreviousKey();
   });
   function dictationRequest(seconds: number, query = '&language=en', domain?: string, rate = 16000) {
     const req = metaWavRequest(seconds, query, rate);
@@ -2038,11 +2014,11 @@ describe('AssemblyAI Dictation routing and billing', () => {
 });
 
 describe('empty-transcript failover for a chosen elevenlabs (issue #720)', () => {
-  const saved = {
-    ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY,
-    DEEPGRAM_API_KEY: process.env.DEEPGRAM_API_KEY,
-    GROQ_API_KEY: process.env.GROQ_API_KEY,
-  };
+  const restoreSaved = [
+    saveEnv('ELEVENLABS_API_KEY'),
+    saveEnv('DEEPGRAM_API_KEY'),
+    saveEnv('GROQ_API_KEY'),
+  ];
 
   beforeEach(() => {
     process.env.ELEVENLABS_API_KEY = 'test-11l-key';
@@ -2052,10 +2028,7 @@ describe('empty-transcript failover for a chosen elevenlabs (issue #720)', () =>
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
-    for (const [name, value] of Object.entries(saved)) {
-      if (value === undefined) delete process.env[name];
-      else process.env[name] = value;
-    }
+    for (const restore of restoreSaved) restore();
   });
 
   // ElevenLabs' empty 200 carries no duration at all: it derives one from the

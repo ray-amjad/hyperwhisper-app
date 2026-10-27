@@ -1027,12 +1027,15 @@ class AIPostProcessor: ObservableObject {
     ///   - text: The transcribed text to enhance
     ///   - mode: The transcription mode for building the prompt
     ///   - applicationContext: Application context for prompt building
+    ///   - session: The session that sends the request. Tests pass a stubbed
+    ///     one (issue #936); every runtime caller keeps the default.
     /// - Returns: The AI-enhanced text, or original text if processing fails
-    private func performHyperWhisperCloudPostProcessing(
+    func performHyperWhisperCloudPostProcessing(
         text: String,
         mode: Mode?,
         applicationContext: ApplicationContext?,
-        mutationSignal: MutationSignal? = nil
+        mutationSignal: MutationSignal? = nil,
+        session: URLSession = CredentialNetworkCache.session
     ) async throws -> String {
         let signal = mutationSignal ?? MutationSignal()
         // STEP 1: Verify license manager is available
@@ -1122,7 +1125,7 @@ class AIPostProcessor: ObservableObject {
                 AppLogger.network.debug("HyperWhisper Cloud post-processing attempt \(attempt, privacy: .public) of \(config.maxAttempts, privacy: .public)")
                 AppLogger.network.info("POST \(NetworkConfig.hyperwhisperCloudPostProcessEndpoint, privacy: .public)")
 
-                let (data, response) = try await CredentialNetworkCache.session.data(for: request)
+                let (data, response) = try await session.data(for: request)
 
                 guard let httpResponse = response as? HTTPURLResponse else {
                     throw TranscriptionError.invalidResponse(details: "Invalid server response")
@@ -1188,7 +1191,7 @@ class AIPostProcessor: ObservableObject {
                 }
 
                 // Handle error responses
-                try self.handleHyperWhisperCloudError(statusCode: httpResponse.statusCode, data: data)
+                try Self.handleHyperWhisperCloudError(statusCode: httpResponse.statusCode, data: data)
                 throw TranscriptionError.invalidResponse(details: "HTTP \(httpResponse.statusCode)")
             }
         } catch {
@@ -1210,8 +1213,9 @@ class AIPostProcessor: ObservableObject {
         }
     }
 
-    /// Handles HTTP error responses from HyperWhisper Cloud /post-process endpoint
-    private func handleHyperWhisperCloudError(statusCode: Int, data: Data) throws {
+    /// Handles HTTP error responses from HyperWhisper Cloud /post-process endpoint.
+    /// Reads no instance state, so it is `static` and tests call it directly (#936).
+    static func handleHyperWhisperCloudError(statusCode: Int, data: Data) throws {
         let responseString = String(data: data, encoding: .utf8) ?? "No response body"
         AppLogger.network.error("HyperWhisper Cloud post-processing error · status=\(statusCode, privacy: .public)")
 

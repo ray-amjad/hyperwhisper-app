@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Eiginleikar",
-    "pricing": "Verð",
     "faq": "Algengar spurningar",
     "support": "Aðstoð",
     "download": "Sækja",
@@ -20,7 +19,6 @@
     "githubAria": "Skoða HyperWhisper á GitHub"
   },
   "hero": {
-    "openSourceBadge": "Opinn hugbúnaður · Apache-2.0",
     "logoAlt": "HyperWhisper merki",
     "headline": "Skrifaðu, semdu og skapaðu",
     "headlineAccent": "5x hraðar með AI",
@@ -28,7 +26,7 @@
     "downloadCta": "Sækja núna",
     "demoCta": "Sjá kynningu",
     "availableOn": "Í boði fyrir",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -98,57 +96,6 @@
     "languagesSupported": "Studd tungumál",
     "providersSupported": "Studdir veitendur"
   },
-  "pricing": {
-    "title": "Engar áskriftir. Aldrei.",
-    "subtitle": "Borgaðu einu sinni, notaðu að eilífu. Við hatum líka áskriftir.",
-    "guarantee": "14 daga endurgreiðsluábyrgð",
-    "guaranteeExtended": "ef þú ert ekki fullkomlega sátt(ur).",
-    "learnMore": "Læra meira",
-    "free": {
-      "name": "Ókeypis",
-      "price": "$0",
-      "period": "að eilífu",
-      "description": "Fullkomið til að prófa HyperWhisper",
-      "cta": "Sækja ókeypis",
-      "features": {
-        "transcriptionLimit": "5 mínútur af umritun á dag",
-        "basicModes": "Grunnhamir umritunar",
-        "offlineTranscription": "Offline umritun",
-        "apiTranscription": "API umritun (með þínum eigin lyklum)",
-        "postProcessing": "Eftirvinnsla texta",
-        "providers": "9+ veitendur til að velja úr",
-        "lifetimeUpdates": "Ævilangar uppfærslur",
-        "cloudLimited": "HyperWhisper Cloud (takmörkuð notkun)",
-        "customVocabulary": "Sérsniðinn orðaforði",
-        "prioritySupport": "Forgangsaðstoð"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "ævilangt",
-      "description": "Einskiptiskaup, ótakmörkuð kraftur að eilífu",
-      "cta": "Kaupa núna - Ævilangur aðgangur",
-      "mostPopular": "Vinsælast",
-      "features": {
-        "unlimitedTranscription": "Ótakmörkuð umritun",
-        "allModes": "Allir umritunarhamir",
-        "offlineTranscription": "Offline umritun",
-        "apiTranscription": "API umritun (með þínum eigin lyklum)",
-        "postProcessing": "Eftirvinnsla texta",
-        "providers": "9+ veitendur til að velja úr",
-        "lifetimeUpdates": "Ævilangar uppfærslur",
-        "cloudCredits": "HyperWhisper Cloud ($5 í inneign)",
-        "customVocabulary": "Sérsniðinn orðaforði",
-        "prioritySupport": "Forgangsaðstoð"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise og sérsniðið verð",
-      "description": "Magnafslættir, SSO, forgangsaðstoð, innanhússhýsing og sérsniðnar samþættingar",
-      "cta": "Hafa samband við sölu"
-    }
-  },
   "faq": {
     "title": "Algengar spurningar",
     "subtitle": "Allt sem þú þarft að vita um HyperWhisper",
@@ -192,7 +139,7 @@
       },
       "lifetime": {
         "question": "Er einhver áskrift?",
-        "answer": "Nei — aldrei. HyperWhisper er opinn hugbúnaður sem þú átt, ekki áskrift sem þú leigir. Sæktu hann ókeypis og notaðu staðbundna umritun án nettengingar þér að kostnaðarlausu að eilífu; ókeypis útgáfan inniheldur einnig 5 mínútur af skýjaumritun á dag. Þegar þú vilt skýjaumritun án uppsetningar umfram það eru HyperWhisper Cloud einfaldar inneignir sem þú greiðir eftir notkun — fylltu á aðeins þegar þú þarft, án mánaðargjalda og með ekkert til að segja upp."
+        "answer": "Nei — aldrei. HyperWhisper er opinn hugbúnaður sem þú átt, ekki áskrift sem þú leigir. Sæktu hann ókeypis og notaðu staðbundna umritun án nettengingar þér að kostnaðarlausu að eilífu. Þegar þú vilt skýjaumritun án uppsetningar eru HyperWhisper Cloud einfaldar inneignir sem þú greiðir eftir notkun — fylltu á aðeins þegar þú þarft, án mánaðargjalda og með ekkert til að segja upp."
       },
       "deviceLimit": {
         "question": "Á hversu mörgum tækjum má ég nota aðgangslykilinn minn?",
@@ -200,7 +147,7 @@
       },
       "requirements": {
         "question": "Hverjar eru kerfiskröfurnar?",
-        "answer": "Fyrir Mac: macOS 14 eða nýrra, bæði Apple Silicon og Intel studd. Fyrir Windows: Windows 10/11, x64 eða ARM64. Fyrir Linux v1: Ubuntu 22.04 eða nýrra eða Debian 12 eða nýrra á amd64. 8GB RAM mælt með fyrir bestu afköst."
+        "answer": "Fyrir Mac: macOS 14.6 eða nýrra, bæði Apple Silicon og Intel studd. Fyrir Windows: Windows 10/11, x64 eða ARM64. Fyrir Linux v1: Ubuntu 22.04 eða nýrra eða Debian 12 eða nýrra á amd64. 8GB RAM mælt með fyrir bestu afköst."
       },
       "madeBy": {
         "question": "Hver bjó þetta til?",
@@ -252,10 +199,7 @@
     "downloadButton": "Sækja HyperWhisper",
     "errorGeneric": "Eitthvað fór úrskeiðis. Vinsamlegast reyndu aftur.",
     "errorEmail": "Sláðu inn gilt netfang.",
-    "errorNetwork": "Netvilla. Athugaðu tenginguna og reyndu aftur.",
-    "thankYouTitle": "Takk!",
     "downloadStarted": "Niðurhal ætti að hefjast sjálfkrafa.",
-    "manualDownload": "Niðurhal hófst ekki? Smelltu hér",
     "skipAndDownloadButton": "Sleppa og sækja"
   },
   "downloadPage": {
@@ -324,10 +268,10 @@
       "download": "Sækja",
       "roadmap": "Vegvísir",
       "helpCenter": "Hjálparmiðstöð",
-      "manageBilling": "Stjórna greiðslum",
       "customerPortal": "Viðskiptavinagátt",
       "olderVersions": "Eldri útgáfur",
       "blog": "Blogg",
+      "openSource": "Opinn hugbúnaður",
       "about": "Um okkur",
       "support": "Aðstoð",
       "privacyPolicy": "Persónuverndarstefna",
@@ -409,6 +353,25 @@
     "custom": "Sérsniðið",
     "customSub": "þín upphæð",
     "topUp": "Bæta við inneign"
+  },
+  "licenseKeysCard": {
+    "rotate": "Búa til nýjan lykil",
+    "confirmTitle": "Búa til nýjan aðgangslykil?",
+    "confirmBody": "Þú færð nýjan lykil og þessi hættir strax að virka. Öll tæki sem nota gamla lykilinn þurfa þann nýja: sláðu hann inn í HyperWhisper á hverju tæki. Inneignir þínar, áskrift og kaupsaga haldast á aðganginum þínum. Einnig lokast innskráning þín á þessum vef í öðrum vöfrum.",
+    "confirm": "Búa til nýjan lykil",
+    "cancel": "Hætta við",
+    "rotating": "Býr til…",
+    "rotated": "Nýr lykill hefur verið búinn til. Sláðu hann inn í HyperWhisper á hverju tækjanna þinna.",
+    "errorRateLimited": "Of margar lyklaskiptingar. Reyndu aftur síðar.",
+    "errorStale": "Þessum lykli hefur þegar verið skipt út. Núverandi lykill er sýndur hér að ofan.",
+    "errorGeneric": "Ekki tókst að búa til nýjan lykil. Reyndu aftur.",
+    "verifyTitle": "Staðfestu með tölvupósti að þetta sért þú",
+    "verifyBody": "Til að búa til nýjan lykil skaltu fyrst staðfesta með tölvupósti að þetta sért þú. Við sendum innskráningartengil á netfang aðgangsins þíns. Opnaðu hann og búðu svo til nýjan lykil á þessari síðu.",
+    "sendLink": "Senda mér innskráningartengil",
+    "sendingLink": "Sendir…",
+    "linkSent": "Innskráningartengill sendur. Opnaðu hann úr pósthólfinu og búðu svo til nýjan lykil.",
+    "linkFailed": "Ekki tókst að senda innskráningartengilinn. Reyndu aftur.",
+    "errorUnavailable": "Ekki er lengur hægt að búa til nýjan lykil í stað þessa. Núverandi staða hans er sýnd hér að ofan."
   },
   "openSource": {
     "heading": "Opinn hugbúnaður. Ekkert að fela.",

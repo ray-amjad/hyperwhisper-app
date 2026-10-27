@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Funktioner",
-    "pricing": "Priser",
     "faq": "FAQ",
     "support": "Support",
     "download": "Download",
@@ -20,7 +19,6 @@
     "githubAria": "Se HyperWhisper på GitHub"
   },
   "hero": {
-    "openSourceBadge": "Open source · Apache-2.0",
     "logoAlt": "HyperWhisper-logo",
     "headline": "Skriv, komponer og skab",
     "headlineAccent": "5x hurtigere med AI",
@@ -28,7 +26,7 @@
     "downloadCta": "Download nu",
     "demoCta": "Se demo",
     "availableOn": "Tilgængelig på",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -98,57 +96,6 @@
     "languagesSupported": "Understøttede sprog",
     "providersSupported": "Understøttede udbydere"
   },
-  "pricing": {
-    "title": "Ingen abonnementer. Nogensinde.",
-    "subtitle": "Betal én gang, brug for altid. Vi hader også abonnementer.",
-    "guarantee": "14 dages pengene-tilbage-garanti",
-    "guaranteeExtended": "hvis du ikke er helt tilfreds.",
-    "learnMore": "Læs mere",
-    "free": {
-      "name": "Gratis",
-      "price": "$0",
-      "period": "for altid",
-      "description": "Perfekt til at prøve HyperWhisper",
-      "cta": "Download gratis",
-      "features": {
-        "transcriptionLimit": "5 minutters transskription pr. dag",
-        "basicModes": "Grundlæggende transskriptionstilstande",
-        "offlineTranscription": "Offline-transskription",
-        "apiTranscription": "API-transskription (brug dine egne nøgler)",
-        "postProcessing": "Tekst-efterbehandling",
-        "providers": "9+ udbydere at vælge imellem",
-        "lifetimeUpdates": "Livstidsopdateringer",
-        "cloudLimited": "HyperWhisper Cloud (begrænset brug)",
-        "customVocabulary": "Brugerdefineret ordforråd",
-        "prioritySupport": "Prioriteret support"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "livstid",
-      "description": "Engangskøb, ubegrænset kraft for altid",
-      "cta": "Køb nu - Livstidsadgang",
-      "mostPopular": "Mest populær",
-      "features": {
-        "unlimitedTranscription": "Ubegrænset transskription",
-        "allModes": "Alle transskriptionstilstande",
-        "offlineTranscription": "Offline-transskription",
-        "apiTranscription": "API-transskription (brug dine egne nøgler)",
-        "postProcessing": "Tekst-efterbehandling",
-        "providers": "9+ udbydere at vælge imellem",
-        "lifetimeUpdates": "Livstidsopdateringer",
-        "cloudCredits": "HyperWhisper Cloud ($5 i credits)",
-        "customVocabulary": "Brugerdefineret ordforråd",
-        "prioritySupport": "Prioriteret support"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise og tilpasset pris",
-      "description": "Mængderabatter, SSO, prioriteret support, intern hosting og tilpassede integrationer",
-      "cta": "Kontakt salg"
-    }
-  },
   "faq": {
     "title": "Ofte stillede spørgsmål",
     "subtitle": "Alt, du skal vide om HyperWhisper",
@@ -192,7 +139,7 @@
       },
       "lifetime": {
         "question": "Er der et abonnement?",
-        "answer": "Nej — aldrig. HyperWhisper er en open source-app, du ejer, ikke et abonnement, du lejer. Hent den gratis, og brug lokal offline-transskription uden omkostninger for altid; gratisplanen inkluderer også 5 minutters cloudtransskription om dagen. Når du vil have cloudtransskription uden opsætning ud over det, er HyperWhisper Cloud enkle credits efter forbrug — du fylder kun op, når du har brug for det, uden månedlige gebyrer og uden noget at opsige."
+        "answer": "Nej — aldrig. HyperWhisper er en open source-app, du ejer, ikke et abonnement, du lejer. Hent den gratis, og brug lokal offline-transskription uden omkostninger for altid. Når du vil have cloudtransskription uden opsætning, er HyperWhisper Cloud enkle credits efter forbrug — du fylder kun op, når du har brug for det, uden månedlige gebyrer og uden noget at opsige."
       },
       "deviceLimit": {
         "question": "Hvor mange enheder kan jeg bruge min kontonøgle på?",
@@ -200,7 +147,7 @@
       },
       "requirements": {
         "question": "Hvad er systemkravene?",
-        "answer": "Til Mac: macOS 14 eller nyere, med støtte til både Apple Silicon og Intel. Til Windows: Windows 10/11, x64 eller ARM64. Til Linux v1: Ubuntu 22.04 eller nyere eller Debian 12 eller nyere på amd64. 8GB RAM anbefales for optimal ydeevne."
+        "answer": "Til Mac: macOS 14.6 eller nyere, med støtte til både Apple Silicon og Intel. Til Windows: Windows 10/11, x64 eller ARM64. Til Linux v1: Ubuntu 22.04 eller nyere eller Debian 12 eller nyere på amd64. 8GB RAM anbefales for optimal ydeevne."
       },
       "madeBy": {
         "question": "Hvem har lavet dette?",
@@ -252,10 +199,7 @@
     "downloadButton": "Download HyperWhisper",
     "errorGeneric": "Noget gik galt. Prøv igen.",
     "errorEmail": "Indtast en gyldig e-mailadresse.",
-    "errorNetwork": "Netværksfejl. Tjek din forbindelse og prøv igen.",
-    "thankYouTitle": "Tak!",
     "downloadStarted": "Din download bør starte automatisk.",
-    "manualDownload": "Startede download ikke? Klik her",
     "skipAndDownloadButton": "Spring over og download"
   },
   "downloadPage": {
@@ -324,10 +268,10 @@
       "download": "Download",
       "roadmap": "Roadmap",
       "helpCenter": "Hjælpecenter",
-      "manageBilling": "Administrer betaling",
       "customerPortal": "Kundeportal",
       "olderVersions": "Ældre versioner",
       "blog": "Blog",
+      "openSource": "Åben kildekode",
       "about": "Om",
       "support": "Support",
       "privacyPolicy": "Privatlivspolitik",
@@ -409,6 +353,25 @@
     "custom": "Brugerdefineret",
     "customSub": "dit beløb",
     "topUp": "Fyld op"
+  },
+  "licenseKeysCard": {
+    "rotate": "Udskift nøgle",
+    "confirmTitle": "Udskift denne kontonøgle?",
+    "confirmBody": "Du får en ny nøgle, og denne holder op med at virke med det samme. Alle enheder, der bruger den gamle nøgle, skal have den nye: indtast den i HyperWhisper på hver enhed. Dine kreditter, dit abonnement og din købshistorik forbliver på din konto. Du bliver også logget ud af dette websted i dine andre browsere.",
+    "confirm": "Udskift nøgle",
+    "cancel": "Annuller",
+    "rotating": "Udskifter…",
+    "rotated": "Nøglen er udskiftet. Indtast den nye nøgle i HyperWhisper på hver af dine enheder.",
+    "errorRateLimited": "For mange udskiftninger. Prøv igen senere.",
+    "errorStale": "Denne nøgle er allerede udskiftet. Den aktuelle nøgle vises ovenfor.",
+    "errorGeneric": "Nøglen kunne ikke udskiftes. Prøv igen.",
+    "verifyTitle": "Bekræft, at det er dig, via e-mail",
+    "verifyBody": "For at udskifte din nøgle skal du først bekræfte, at det er dig, via e-mail. Vi sender et login-link til din kontos e-mailadresse. Åbn det, og udskift derefter nøglen fra denne side.",
+    "sendLink": "Send mig et login-link",
+    "sendingLink": "Sender…",
+    "linkSent": "Login-linket er sendt. Åbn det fra din indbakke, og udskift derefter nøglen.",
+    "linkFailed": "Login-linket kunne ikke sendes. Prøv igen.",
+    "errorUnavailable": "Denne nøgle kan ikke længere udskiftes. Dens aktuelle status vises ovenfor."
   },
   "openSource": {
     "heading": "Åben kildekode. Intet at skjule.",

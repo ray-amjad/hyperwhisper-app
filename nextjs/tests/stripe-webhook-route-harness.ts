@@ -10,11 +10,12 @@
  * fault turns into. A wrong answer on any of those either drops a paid
  * purchase or accepts a forged one.
  *
- * The route reaches two collaborators at import time: the Stripe client
- * (`lib/clients/stripe.ts`, for `webhooks.constructEvent`) and the two
- * handlers in `lib/services/stripe-webhook.ts`. Both are replaced here with
- * `mock.module`, so the tests run the REAL route module with no Stripe
- * account, no database and no network.
+ * The route reaches three collaborators at import time: the Stripe client
+ * (`lib/clients/stripe.ts`, for `webhooks.constructEvent`), the two handlers
+ * in `lib/services/stripe-webhook.ts`, and the validated server env
+ * (`src/env/server.mjs`, for `STRIPE_WEBHOOK_SECRET`, #682). All are replaced
+ * here with `mock.module`, so the tests run the REAL route module with no
+ * Stripe account, no database and no network.
  *
  * Mocking at the module boundary is what the repo's CLAUDE.md asks for: the
  * signature check stays in the source and no test key and no bypass is added
@@ -25,11 +26,9 @@
  * the only way the tests reach the route. A test file that imports the route
  * path itself would bind to the real collaborators, so do not.
  */
-import { mock } from "node:test";
-
 import { NextRequest } from "next/server";
 
-import { formatLogArgs } from "./db-error-fixture";
+import { consoleSilencer, moduleMock, moduleUrl } from "./module-mock";
 
 export interface ConstructEventCall {
   body: string;
@@ -48,6 +47,7 @@ export const calls = {
   constructEvent: [] as ConstructEventCall[],
   creditPurchase: [] as CreditPurchaseCall[],
   chargeRefunded: [] as Record<string, unknown>[],
+  disputeClosed: [] as Record<string, unknown>[],
 };
 
 /** What the collaborators answer. Each test sets only what it cares about. */
@@ -63,19 +63,31 @@ export const behaviour = {
   creditError: null as unknown,
   /** Thrown by `handleChargeRefunded` when set. */
   refundError: null as unknown,
+  /** Thrown by `handleDisputeClosed` when set. */
+  disputeError: null as unknown,
 };
 
 export function resetHarness(): void {
   calls.constructEvent.length = 0;
   calls.creditPurchase.length = 0;
   calls.chargeRefunded.length = 0;
+  calls.disputeClosed.length = 0;
 
   behaviour.verifiedEvent = null;
   behaviour.verifyError =
     "No signatures found matching the expected signature for payload";
   behaviour.creditError = null;
   behaviour.refundError = null;
+  behaviour.disputeError = null;
+
+  for (const key of Object.keys(fakeEnv)) delete fakeEnv[key];
 }
+
+/**
+ * The fake validated env the route reads `STRIPE_WEBHOOK_SECRET` from. The
+ * route reads it per request, so a test may change it between calls.
+ */
+export const fakeEnv: Record<string, string | undefined> = {};
 
 /**
  * A `checkout.session.completed`-shaped event. Only the fields the route reads
@@ -122,6 +134,26 @@ export function refundEvent(
   };
 }
 
+/** A `charge.dispute.*`-shaped event (#2482). */
+export function disputeEvent(
+  overrides: { id?: string; type?: string; status?: string; chargeId?: string } = {},
+): Record<string, unknown> {
+  return {
+    id: overrides.id ?? "evt_dispute_1",
+    type: overrides.type ?? "charge.dispute.closed",
+    data: {
+      object: {
+        id: "dp_1",
+        object: "dispute",
+        charge: overrides.chargeId ?? "ch_credit_pack",
+        status: overrides.status ?? "lost",
+        amount: 500,
+        payment_intent: "pi_1",
+      },
+    },
+  };
+}
+
 /**
  * The route logs on every branch, including the success ones. Swallow it so
  * the run stays readable, and keep the lines so a failing test can still be
@@ -129,41 +161,10 @@ export function refundEvent(
  */
 export const logLines: string[] = [];
 
-const realConsole = { error: console.error, log: console.log };
+const routeLogging = consoleSilencer(["error", "log"], logLines);
 
-export function silenceRouteLogging(): void {
-  const capture =
-    (level: string) =>
-    (...args: unknown[]): void => {
-      logLines.push(`${level} ${formatLogArgs(args)}`);
-    };
-  console.error = capture("error");
-  console.log = capture("log");
-}
-
-export function restoreRouteLogging(): void {
-  console.error = realConsole.error;
-  console.log = realConsole.log;
-}
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
-
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrow the tracker to the one method used here rather
- * than bumping the types in a test-only change.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports: Record<string, unknown> },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+export const silenceRouteLogging = routeLogging.silence;
+export const restoreRouteLogging = routeLogging.restore;
 
 moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
   namedExports: {
@@ -185,6 +186,10 @@ moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
   },
 });
 
+moduleMock.module(moduleUrl("../src/env/server.mjs"), {
+  namedExports: { env: fakeEnv },
+});
+
 moduleMock.module(moduleUrl("../lib/services/stripe-webhook.ts"), {
   namedExports: {
     handleCreditPurchase: async (
@@ -200,6 +205,12 @@ moduleMock.module(moduleUrl("../lib/services/stripe-webhook.ts"), {
     ): Promise<void> => {
       calls.chargeRefunded.push(charge);
       if (behaviour.refundError) throw behaviour.refundError;
+    },
+    handleDisputeClosed: async (
+      dispute: Record<string, unknown>,
+    ): Promise<void> => {
+      calls.disputeClosed.push(dispute);
+      if (behaviour.disputeError) throw behaviour.disputeError;
     },
   },
 });

@@ -202,7 +202,67 @@ class StreamingAudioCapture {
 
         // STEP 2: Detect input format
         let inputNode = engine.inputNode
-        let inputFormat = inputNode.outputFormat(forBus: 0)
+
+        // Open the microphone chosen in HyperWhisper — the same device the WAV recording
+        // opens — without changing the macOS default input. With no connected choice that
+        // is the automatic pick (a physical input when the default is virtual, #2408).
+        // `.systemDefault` (the device to use is already the default) keeps the engine on
+        // the default. The route's devices are tried in order; a route pinned to skip a
+        // virtual default never falls back to it — the start fails instead.
+        // Blocking CoreAudio reads; `start()` is not on the main actor.
+        let route = MicrophoneCaptureRouting.captureRoute(
+            preferredUID: MicrophoneRoutingStore.shared.preferredDeviceUID
+        )
+        var pinnedDevice = false
+        for deviceID in route.deviceIDs {
+            do {
+                try DeviceAudioRecorder.setInputDevice(deviceID, on: inputNode)
+                pinnedDevice = true
+                logger.info("Streaming capture opened the pinned microphone (device \(deviceID, privacy: .public))")
+                break
+            } catch {
+                logger.warning("Streaming capture could not open the pinned microphone (device \(deviceID, privacy: .public)): \(String(describing: error), privacy: .public)")
+            }
+        }
+        if !pinnedDevice {
+            guard route.fallsBackToSystemDefault else {
+                logger.error("Streaming capture opened no non-virtual microphone - not falling back to the virtual macOS default input")
+                throw StreamingError.audioEngineError("No non-virtual microphone could be opened")
+            }
+            if !route.deviceIDs.isEmpty {
+                logger.warning("Streaming capture could not open the chosen microphone, using the default input")
+            }
+        }
+
+        let formatCandidates: [AVAudioFormat]
+        if pinnedDevice {
+            // A just-switched device can report no format (or a lagging rate or
+            // channel count); a tap with either raises an exception, so validate first.
+            formatCandidates = DeviceAudioRecorder.tapFormatCandidates(for: inputNode)
+            guard !formatCandidates.isEmpty else {
+                throw StreamingError.audioEngineError("The chosen microphone reports no usable input format")
+            }
+        } else {
+            formatCandidates = [inputNode.outputFormat(forBus: 0)]
+        }
+
+        // Install the tap now: the format the node accepts picks the converters
+        // below. No buffer arrives before `engine.start()`.
+        // Buffer size of 1024 samples at ~48kHz = ~21ms of audio
+        // A format the node refuses raises an Objective-C exception (#2577); the
+        // guard turns it into a failed start instead of a crash.
+        let inputFormat: AVAudioFormat
+        do {
+            inputFormat = try DeviceAudioRecorder.installTap(
+                on: inputNode,
+                formats: formatCandidates,
+                context: ["tapIsStreamingCapture": true]
+            ) { [weak self] buffer, _ in
+                self?.processAudioBuffer(buffer)
+            }
+        } catch {
+            throw StreamingError.audioEngineError("The microphone refused the capture format")
+        }
 
         logger.debug("Input format: \(inputFormat.sampleRate, privacy: .public) Hz, \(inputFormat.channelCount, privacy: .public) channels, commonFormat: \(inputFormat.commonFormat.rawValue, privacy: .public)")
 
@@ -262,13 +322,7 @@ class StreamingAudioCapture {
         // Match the Int16 path's ~100ms capacity at 16kHz.
         float32Buffer = AVAudioPCMBuffer(pcmFormat: float32TargetFormat, frameCapacity: 1600)
 
-        // STEP 4: Install tap on input node to capture audio
-        // Buffer size of 1024 samples at ~48kHz = ~21ms of audio
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { [weak self] buffer, _ in
-            self?.processAudioBuffer(buffer)
-        }
-
-        // STEP 5: Start the engine
+        // STEP 4: Start the engine (the tap went in above)
         try engine.start()
         logger.info("Audio capture started")
     }

@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithElevenLabs } from './elevenlabs';
 import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
+import { captureNoSpeechEvent } from './test-support';
+import { stubEnv } from '../test-support/env';
+import { computeElevenLabsTranscriptionCost, creditsForCost } from '../lib/cost-calculator';
+import { pcm16Wav, wav as buildWav, type WavOptions } from '../test-support/wav';
 
 const originalFetch = globalThis.fetch;
 
@@ -33,25 +37,6 @@ function mockFetchOnce(handler: (url: string, init?: RequestInit) => Response | 
     init: () => capturedInit,
     formData: () => capturedInit!.body as FormData,
   };
-}
-
-/**
- * Swaps `console.log` for the duration of `run` and returns the details object of
- * the `provider.no_speech` event it logged. Same swap-the-global idiom as
- * `utils.test.ts` — no spy library is used anywhere in this suite.
- */
-async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
-  const logged: unknown[][] = [];
-  const originalLog = console.log;
-  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
-  try {
-    await run();
-  } finally {
-    console.log = originalLog;
-  }
-  const event = logged.find((args) => args[0] === 'provider.no_speech');
-  if (!event) throw new Error('no provider.no_speech event was logged');
-  return event[1] as Record<string, unknown>;
 }
 
 describe('transcribeWithElevenLabs — configuration', () => {
@@ -193,11 +178,84 @@ describe('transcribeWithElevenLabs — successful response handling', () => {
     expect(JSON.parse(JSON.stringify(details))).toHaveProperty('upstreamDurationSeconds', null);
   });
 
-  test('a response with no words array defaults duration to 0', async () => {
+  test('a response with no words array is billed for the audio length, never 0', async () => {
     mockFetchOnce(() => jsonResponse({ text: 'hi' }));
     const result = await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US');
-    expect(result.durationSeconds).toBe(0);
-    expect(result.costUsd).toBe(0);
+    // 1,000 B of 16 kHz/16-bit WAV at 32,000 B/s.
+    expect(result.durationSeconds).toBeCloseTo(1_000 / 32_000, 6);
+    expect(result.costUsd).toBeGreaterThan(0);
+  });
+});
+
+// Issue #2601: ElevenLabs bills the whole file, so we bill the audio length,
+// not the last word's end time. The first two tests are the issue's repro.
+describe('transcribeWithElevenLabs — billed duration is the audio length (#2601)', () => {
+  // 16 kHz / 16-bit mono PCM WAV — what the desktop apps upload.
+  const wav = (seconds: number) => pcm16Wav(seconds);
+
+  test('a 60 s clip with speech only in its first 1.2 s is billed for 60 s of audio', async () => {
+    mockFetchOnce(() => jsonResponse({ text: 'Hello there.', language_code: 'en', language_probability: 1,
+      words: [{ text: 'Hello', start: 0.2, end: 0.6, type: 'word' }, { text: 'there.', start: 0.7, end: 1.2, type: 'word' }] }));
+    const r = await transcribeWithElevenLabs(wav(60), 'audio/wav', 'en');
+    expect(r.durationSeconds).toBeGreaterThanOrEqual(59);
+    expect(r.costUsd).toBeCloseTo(computeElevenLabsTranscriptionCost(r.durationSeconds), 9);
+    expect(creditsForCost(r.costUsd)).toBe(creditsForCost(computeElevenLabsTranscriptionCost(60)));
+  });
+
+  test('a transcript with no word timings is not billed as zero seconds', async () => {
+    mockFetchOnce(() => jsonResponse({ text: 'Hello there, this is a whole minute of dictation.', language_code: 'en', language_probability: 1 }));
+    const r = await transcribeWithElevenLabs(wav(60), 'audio/wav', 'en');
+    expect(r.durationSeconds).toBeGreaterThanOrEqual(59);
+    expect(r.costUsd).toBeGreaterThan(0);
+  });
+
+  test('a 44.1 kHz stereo WAV is billed from its header, not the 16 kHz mono byte rate', async () => {
+    mockFetchOnce(() => jsonResponse({ text: 'hi', words: [{ start: 0, end: 1, text: 'hi' }] }));
+    const r = await transcribeWithElevenLabs(pcm16Wav(10, 44_100, 2), 'audio/wav', 'en');
+    expect(r.durationSeconds).toBeCloseTo(10, 6);
+  });
+
+  test.each<[string, WavOptions]>([
+    ['32-bit float, 48 kHz stereo', { formatTag: 3, bitsPerSample: 32, sampleRate: 48_000, channels: 2 }],
+    ['EXTENSIBLE 16-bit, 48 kHz stereo', { formatTag: 0xfffe, bitsPerSample: 16, sampleRate: 48_000, channels: 2 }],
+    ['24-bit PCM, 96 kHz mono', { formatTag: 1, bitsPerSample: 24, sampleRate: 96_000, channels: 1 }],
+    ['16-bit PCM with a JUNK chunk before data', { junkBytes: 27 }],
+  ])('a %s WAV is billed for its real length, not the 16 kHz byte rate', async (_label, opts) => {
+    const sampleRate = opts.sampleRate ?? 16_000;
+    const bytesPerSecond = sampleRate * (opts.channels ?? 1) * ((opts.bitsPerSample ?? 16) / 8);
+    mockFetchOnce(() => jsonResponse({ text: 'hi', words: [{ start: 0, end: 1, text: 'hi' }] }));
+    const r = await transcribeWithElevenLabs(buildWav({ ...opts, dataBytes: 10 * bytesPerSecond }), 'audio/wav', 'en');
+    expect(r.durationSeconds).toBeCloseTo(10, 6);
+  });
+
+  test('a streaming writer\'s 0xFFFFFFFF data size is cut to the bytes actually sent', async () => {
+    const buf = pcm16Wav(20);
+    const view = new DataView(buf);
+    view.setUint32(4, 0xffffffff, true);
+    view.setUint32(40, 0xffffffff, true);
+    mockFetchOnce(() => jsonResponse({ text: 'hi', words: [{ start: 0, end: 1, text: 'hi' }] }));
+    const r = await transcribeWithElevenLabs(buf, 'audio/wav', 'en');
+    expect(r.durationSeconds).toBeCloseTo(20, 6);
+  });
+
+  test('a non-WAV upload falls back to the byte-rate estimate', async () => {
+    // 16,000 B/s for mp3: 480,000 B ≈ 30 s.
+    mockFetchOnce(() => jsonResponse({ text: 'hi', words: [{ start: 0, end: 1, text: 'hi' }] }));
+    const r = await transcribeWithElevenLabs(new ArrayBuffer(480_000), 'audio/mpeg', 'en');
+    expect(r.durationSeconds).toBeCloseTo(30, 6);
+  });
+
+  test('the last word\'s end is a floor: a low estimate never bills less than the speech', async () => {
+    mockFetchOnce(() => jsonResponse({ text: 'hi', words: [{ start: 0, end: 75, text: 'hi' }] }));
+    const r = await transcribeWithElevenLabs(wav(60), 'audio/wav', 'en');
+    expect(r.durationSeconds).toBe(75);
+  });
+
+  test('an empty transcript stays a zero-cost no_speech result', async () => {
+    mockFetchOnce(() => jsonResponse({ text: '', language_code: 'en' }));
+    const r = await transcribeWithElevenLabs(wav(60), 'audio/wav', 'en');
+    expect(r.source).toBe('no_speech');
+    expect(r.costUsd).toBe(0);
   });
 });
 
@@ -295,6 +353,28 @@ describe('transcribeWithElevenLabs — upstream error mapping', () => {
     expect((error as Error).message).not.toContain('socket');
   });
 
+  for (const [label, body] of [
+    ['a JSON null', 'null'],
+    ['a bare number', '7'],
+    ['a bare string', '"hello"'],
+    ['a JSON array', '[]'],
+    ['a non-string text', '{"text":1}'],
+  ] as const) {
+    test(`a 200 with ${label} body is ProviderUnavailableError (bad_response), not a TypeError (#2151)`, async () => {
+      mockFetchOnce(() => new Response(body, { status: 200, headers: { 'content-type': 'application/json' } }));
+      const error = await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US').catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(ProviderUnavailableError);
+      expect((error as ProviderUnavailableError).kind).toBe('bad_response');
+      expect((error as ProviderUnavailableError).status).toBe(200);
+    });
+  }
+
+  test('a 200 with an odd words field still parses, with duration 0 (#2151)', async () => {
+    mockFetchOnce(() => Response.json({ text: 'hello', words: [{ start: 0, end: 'x' }] }));
+    const result = await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US');
+    expect(result.text).toBe('hello');
+  });
+
   test('a truncated 200 JSON body logs no part of the transcript, only its shape (issue #1069)', async () => {
     const marker = 'zebracanary';
     mockFetchOnce(() => new Response(`{"language_code":"eng","text":"my password is ${marker}","words":[{"start":0,"end"`, {
@@ -322,8 +402,7 @@ describe('transcribeWithElevenLabs — upstream error mapping', () => {
   });
 
   test('a transport-level failure (e.g. timeout via fetchWithTimeout) surfaces as ProviderUnavailableError with kind timeout', async () => {
-    const originalTimeoutEnv = process.env.STT_PROVIDER_TIMEOUT_MS;
-    process.env.STT_PROVIDER_TIMEOUT_MS = '20';
+    const restoreTimeoutEnv = stubEnv('STT_PROVIDER_TIMEOUT_MS', '20');
     globalThis.fetch = mock(async (_url: string, init?: RequestInit) => new Promise((_resolve, reject) => {
       init?.signal?.addEventListener('abort', () => reject(new DOMException('The operation was aborted', 'AbortError')));
     })) as unknown as typeof fetch;
@@ -335,8 +414,7 @@ describe('transcribeWithElevenLabs — upstream error mapping', () => {
       expect(error).toBeInstanceOf(ProviderUnavailableError);
       expect((error as ProviderUnavailableError).kind).toBe('timeout');
     } finally {
-      if (originalTimeoutEnv === undefined) delete process.env.STT_PROVIDER_TIMEOUT_MS;
-      else process.env.STT_PROVIDER_TIMEOUT_MS = originalTimeoutEnv;
+      restoreTimeoutEnv();
     }
   });
 });

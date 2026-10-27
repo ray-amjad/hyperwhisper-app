@@ -6,25 +6,17 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import test, { mock } from "node:test";
+import test from "node:test";
 
 import { redactAccountKeyFromEvent } from "../src/lib/account-key-redaction";
 
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: {
-      namedExports?: Record<string, unknown>;
-      defaultExport?: unknown;
-    },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const env: Record<string, string | undefined> = {};
 
-moduleMock.module("../src/env/client.mjs", { namedExports: { env } });
+moduleMock.module(moduleUrl("../src/env/client.mjs"), {
+  namedExports: { env },
+});
 
 const inits: Array<{ key: string; options: unknown; href: string }> = [];
 const fakePostHog = {

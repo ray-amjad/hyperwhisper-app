@@ -11,7 +11,8 @@ namespace HyperWhisper.PortableApplication.Persistence;
 public sealed partial class ApplicationBackupService(
     ApplicationDb database,
     PortableSettingsService settings,
-    ICredentialStore? credentialStore = null)
+    ICredentialStore? credentialStore = null,
+    string appVersion = "unknown")
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {
@@ -21,6 +22,9 @@ public sealed partial class ApplicationBackupService(
     private readonly ApplicationDb _database = database ?? throw new ArgumentNullException(nameof(database));
     private readonly PortableSettingsService _settings = settings ?? throw new ArgumentNullException(nameof(settings));
     private readonly ICredentialStore? _credentialStore = credentialStore;
+    private readonly string _appVersion = string.IsNullOrWhiteSpace(appVersion)
+        ? throw new ArgumentException("App version is required.", nameof(appVersion))
+        : appVersion;
 
     public Task<string> ExportAsync(CancellationToken cancellationToken = default)
         => ExportAsync(BackupExportSelection.All, cancellationToken);
@@ -56,7 +60,7 @@ public sealed partial class ApplicationBackupService(
         {
             ["schemaVersion"] = 2,
             ["exportDate"] = DateTimeOffset.UtcNow.ToString("O"),
-            ["appVersion"] = "1.0.0",
+            ["appVersion"] = _appVersion,
             ["platform"] = "linux",
         };
         if (selection.IncludeSettings)
@@ -153,6 +157,9 @@ public sealed partial class ApplicationBackupService(
             ?? new JsonObject();
     }
 
+    // The universal settings the schema types "integer" (shared-backup/hyperwhisper-backup.schema.json).
+    private static readonly string[] IntegerSettingKeys = ["advanced.maxRecordingDuration", "advanced.typingSpeedWPM"];
+
     /// <summary>
     /// Applies an imported universal-v2 shared <c>settings</c> block to the live
     /// settings store, through the shared core's Linux settings adapter
@@ -184,6 +191,11 @@ public sealed partial class ApplicationBackupService(
         var fromCore = JsonNode.Parse(
             SharedCoreBridge.UniversalSettingsToLinuxSettings(settings.ToJsonString())) as JsonObject
             ?? new JsonObject();
+        // The core copies these schema integers raw, so a valid `60.0` would be stored as a double
+        // and every later Get<int> of it would throw (#2115). Store the whole number instead.
+        foreach (var key in IntegerSettingKeys)
+            if (fromCore[key] is { } node && TryReadIntegralInt32(node, out var whole))
+                fromCore[key] = whole;
 
         var baseline = new JsonObject();
         foreach (var entry in _settings.Snapshot())
@@ -519,5 +531,11 @@ public sealed partial class ApplicationBackupService(
     private static JsonObject? ReadObject(string? json) { try { return string.IsNullOrWhiteSpace(json) ? null : JsonNode.Parse(json) as JsonObject; } catch (JsonException) { return null; } }
     private static string? String(JsonObject? value, string key) => value?[key] is null ? null : value[key]!.GetValue<string?>();
     private static bool Bool(JsonObject? value, string key, bool fallback = false) => value?[key]?.GetValue<bool?>() ?? fallback;
-    private static int Int(JsonObject value, string key) => value[key]?.GetValue<int?>() ?? 0;
+    // By value, like the core (#2115): `"sortOrder": 1.0` is 1. A fraction or a string still throws.
+    private static int Int(JsonObject value, string key) => value[key] switch
+    {
+        null => 0,
+        var node when TryReadIntegralInt32(node, out var result) => result,
+        _ => throw new InvalidOperationException($"{key} must be an integer.")
+    };
 }

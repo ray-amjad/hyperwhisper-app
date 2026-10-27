@@ -6,21 +6,11 @@
  * a rejection would stay cached for the rest of the page.
  */
 import assert from "node:assert/strict";
-import test, { mock } from "node:test";
+import test from "node:test";
 
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: {
-      namedExports?: Record<string, unknown>;
-      defaultExport?: unknown;
-    },
-  ): void;
-}
+import { moduleMock, moduleUrl } from "./module-mock";
 
-const moduleMock = mock as unknown as ModuleMocker;
-
-moduleMock.module("../src/env/client.mjs", {
+moduleMock.module(moduleUrl("../src/env/client.mjs"), {
   namedExports: { env: { NEXT_PUBLIC_POSTHOG_KEY: "phc_test" } },
 });
 

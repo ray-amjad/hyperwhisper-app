@@ -19,9 +19,9 @@
  * the only way the tests reach the endpoint. A test file that imports the
  * plugin path itself would bind to the real collaborators, so do not.
  */
-import { mock } from "node:test";
-
 import type { AccountKeyRow } from "@/src/lib/db-layer";
+
+import { consoleSilencer, moduleMock, moduleUrl } from "./module-mock";
 
 export interface SessionRow {
   token: string;
@@ -47,6 +47,8 @@ export interface SetSessionCookieCall {
 /** Everything the endpoint asked its collaborators to do, in call order. */
 export const calls = {
   findAccountByKey: [] as string[],
+  /** Whether each `findAccountByKey` call asked for a locking read. */
+  findAccountByKeyLocked: [] as boolean[],
   selectUserById: [] as string[],
   createSession: [] as string[],
   deleteSession: [] as string[],
@@ -115,6 +117,7 @@ export function storeUser(row: UserRow): UserRow {
 
 export function resetHarness(): void {
   calls.findAccountByKey.length = 0;
+  calls.findAccountByKeyLocked.length = 0;
   calls.selectUserById.length = 0;
   calls.createSession.length = 0;
   calls.deleteSession.length = 0;
@@ -127,50 +130,28 @@ export function resetHarness(): void {
 }
 
 /**
- * The endpoint logs one audit line on the success path. Swallow it so the run
- * stays readable, and keep the lines so the tests can assert on them — the
- * audit line is the only record of who signed in with which key.
+ * The endpoint logs one structured line per attempt: `log` on success, `warn`
+ * on a refusal, `error` when the session could not be created. Swallow them so
+ * the run stays readable, and keep the lines (each prefixed with its level) so
+ * the tests can assert on them — Better Auth answers a refusal as HTTP 200, so
+ * this line is the only record of what happened.
  */
 export const logLines: string[] = [];
 
-const realConsole = { log: console.log };
+const endpointLogging = consoleSilencer(["log", "warn", "error"], logLines);
 
-export function silenceEndpointLogging(): void {
-  console.log = (...args: unknown[]): void => {
-    logLines.push(args.map((a) => String(a)).join(" "));
-  };
-}
-
-export function restoreEndpointLogging(): void {
-  console.log = realConsole.log;
-}
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
-
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrow the tracker to the one method used here rather
- * than bumping the types in a test-only change.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: {
-      namedExports?: Record<string, unknown>;
-      defaultExport?: unknown;
-    },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+export const silenceEndpointLogging = endpointLogging.silence;
+export const restoreEndpointLogging = endpointLogging.restore;
 
 moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
   namedExports: {
-    findAccountByKey: async (key: string): Promise<AccountKeyRow | null> => {
+    findAccountByKey: async (
+      key: string,
+      _executor?: unknown,
+      options?: { lockForShare?: boolean },
+    ): Promise<AccountKeyRow | null> => {
       calls.findAccountByKey.push(key);
+      calls.findAccountByKeyLocked.push(options?.lockForShare === true);
       behaviour.beforeLookup?.(calls.findAccountByKey.length);
       return behaviour.rows.get(key) ?? null;
     },

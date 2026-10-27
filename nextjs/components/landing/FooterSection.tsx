@@ -42,7 +42,7 @@ export default function FooterSection() {
         translated.
       */
       { label: t("links.blog"), href: "/en/blog", raw: true },
-      { label: "Open Source", href: "/open-source" },
+      { label: t("links.openSource"), href: "/open-source" },
     ],
     [t("company")]: [
       { label: t("links.about"), href: "/" },
@@ -66,7 +66,7 @@ export default function FooterSection() {
             <div className="flex items-center gap-2 mb-4">
               <img
                 alt="HyperWhisper Logo"
-                className="w-10 h-10 rounded-xl"
+                className="w-10 h-10 rounded-xl outline-1 -outline-offset-1 outline-white/10"
                 src="/icon/128.png"
               />
               <span className="text-xl font-bold text-white">HyperWhisper</span>
@@ -134,7 +134,7 @@ export default function FooterSection() {
             <HeroUILink
               isExternal
               aria-label={t("linkedinAria")}
-              className="text-gray-400 hover:text-white transition-colors"
+              className="text-gray-400 hover:text-white transition-[color,opacity]"
               href="https://www.linkedin.com/company/hyperwhisper/"
             >
               <Linkedin className="w-5 h-5" />
@@ -142,7 +142,7 @@ export default function FooterSection() {
             <HeroUILink
               isExternal
               aria-label="Follow HyperWhisper on X (Twitter)"
-              className="text-gray-400 hover:text-white transition-colors"
+              className="text-gray-400 hover:text-white transition-[color,opacity]"
               href="https://x.com/HyperWhisperApp"
             >
               <Twitter className="w-5 h-5" />
@@ -150,7 +150,7 @@ export default function FooterSection() {
             <HeroUILink
               isExternal
               aria-label="HyperWhisper on GitHub"
-              className="text-gray-400 hover:text-white transition-colors"
+              className="text-gray-400 hover:text-white transition-[color,opacity]"
               href="https://github.com/ray-amjad/hyperwhisper-app"
             >
               <Github className="w-5 h-5" />

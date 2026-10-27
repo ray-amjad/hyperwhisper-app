@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Iespējas",
-    "pricing": "Cenas",
     "faq": "BUJ",
     "support": "Atbalsts",
     "download": "Lejupielādēt",
@@ -20,7 +19,6 @@
     "githubAria": "Skatīt HyperWhisper vietnē GitHub"
   },
   "hero": {
-    "openSourceBadge": "Atvērtais kods · Apache-2.0",
     "logoAlt": "HyperWhisper logotips",
     "headline": "Raksti, veido un radi",
     "headlineAccent": "5x ātrāk ar AI",
@@ -28,7 +26,7 @@
     "downloadCta": "Lejupielādēt tagad",
     "demoCta": "Skatīties demo",
     "availableOn": "Pieejams",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -98,57 +96,6 @@
     "languagesSupported": "Atbalstītās valodas",
     "providersSupported": "Atbalstītie pakalpojumu sniedzēji"
   },
-  "pricing": {
-    "title": "Bez abonēšanas. Nekad.",
-    "subtitle": "Maksā vienreiz, lieto mūžīgi. Arī mēs neciešam abonēšanu.",
-    "guarantee": "14 dienu naudas atgriešanas garantija",
-    "guaranteeExtended": "ja neesat pilnībā apmierināts.",
-    "learnMore": "Uzzināt vairāk",
-    "free": {
-      "name": "Bezmaksas",
-      "price": "$0",
-      "period": "uz visiem laikiem",
-      "description": "Ideāli, lai izmēģinātu HyperWhisper",
-      "cta": "Lejupielādēt bez maksas",
-      "features": {
-        "transcriptionLimit": "5 minūtes transkripcijas dienā",
-        "basicModes": "Pamata transkripcijas režīmi",
-        "offlineTranscription": "Transkripcija bezsaistē",
-        "apiTranscription": "API transkripcija (izmantojiet savas atslēgas)",
-        "postProcessing": "Teksta pēcapstrāde",
-        "providers": "9+ pakalpojumu sniedzēji izvēlei",
-        "lifetimeUpdates": "Atjauninājumi uz mūžu",
-        "cloudLimited": "HyperWhisper Cloud (ierobežota lietošana)",
-        "customVocabulary": "Pielāgots vārdu krājums",
-        "prioritySupport": "Prioritārs atbalsts"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "uz mūžu",
-      "description": "Vienreizējs pirkums, neierobežota jauda uz visiem laikiem",
-      "cta": "Pirkt tagad - mūža piekļuve",
-      "mostPopular": "Populārākais",
-      "features": {
-        "unlimitedTranscription": "Neierobežota transkripcija",
-        "allModes": "Visi transkripcijas režīmi",
-        "offlineTranscription": "Transkripcija bezsaistē",
-        "apiTranscription": "API transkripcija (izmantojiet savas atslēgas)",
-        "postProcessing": "Teksta pēcapstrāde",
-        "providers": "9+ pakalpojumu sniedzēji izvēlei",
-        "lifetimeUpdates": "Atjauninājumi uz mūžu",
-        "cloudCredits": "HyperWhisper Cloud ($5 kredīti)",
-        "customVocabulary": "Pielāgots vārdu krājums",
-        "prioritySupport": "Prioritārs atbalsts"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise un pielāgota cenu politika",
-      "description": "Apjoma atlaides, SSO, prioritārs atbalsts, iekšējais hostings un pielāgotas integrācijas",
-      "cta": "Sazināties ar pārdošanu"
-    }
-  },
   "faq": {
     "title": "Biežāk uzdotie jautājumi",
     "subtitle": "Viss, kas jums jāzina par HyperWhisper",
@@ -192,7 +139,7 @@
       },
       "lifetime": {
         "question": "Vai ir abonements?",
-        "answer": "Nē — nekad. HyperWhisper ir atvērtā koda lietotne, kas pieder jums, nevis abonements, ko īrējat. Lejupielādējiet to bez maksas un izmantojiet vietējo bezsaistes transkripciju bez maksas mūžīgi; bezmaksas līmenis ietver arī 5 minūtes mākoņa transkripcijas dienā. Kad vēlaties mākoņa transkripciju bez konfigurēšanas papildus tam, HyperWhisper Cloud ir vienkārši kredīti, par kuriem maksā lietošanas laikā — papildiniet tikai tad, kad nepieciešams, bez ikmēneša maksām un bez kā atcelšanas."
+        "answer": "Nē — nekad. HyperWhisper ir atvērtā koda lietotne, kas pieder jums, nevis abonements, ko īrējat. Lejupielādējiet to bez maksas un izmantojiet vietējo bezsaistes transkripciju bez maksas mūžīgi. Kad vēlaties mākoņa transkripciju bez konfigurēšanas, HyperWhisper Cloud ir vienkārši kredīti, par kuriem maksā lietošanas laikā — papildiniet tikai tad, kad nepieciešams, bez ikmēneša maksām un bez kā atcelšanas."
       },
       "deviceLimit": {
         "question": "Cik ierīcēs varu izmantot savu konta atslēgu?",
@@ -200,7 +147,7 @@
       },
       "requirements": {
         "question": "Kādas ir sistēmas prasības?",
-        "answer": "Mac: macOS 14 vai jaunāka versija, atbalstīti Apple Silicon un Intel. Windows: Windows 10/11, x64 vai ARM64. Linux v1: Ubuntu 22.04 vai jaunāka versija vai Debian 12 vai jaunāka versija uz amd64. Optimālai veiktspējai ieteicami 8GB RAM."
+        "answer": "Mac: macOS 14.6 vai jaunāka versija, atbalstīti Apple Silicon un Intel. Windows: Windows 10/11, x64 vai ARM64. Linux v1: Ubuntu 22.04 vai jaunāka versija vai Debian 12 vai jaunāka versija uz amd64. Optimālai veiktspējai ieteicami 8GB RAM."
       },
       "madeBy": {
         "question": "Kas to izveidoja?",
@@ -252,10 +199,7 @@
     "downloadButton": "Lejupielādēt HyperWhisper",
     "errorGeneric": "Kaut kas nogāja greizi. Lūdzu, mēģiniet vēlreiz.",
     "errorEmail": "Ievadiet derīgu e-pasta adresi.",
-    "errorNetwork": "Tīkla kļūda. Lūdzu, pārbaudiet savienojumu un mēģiniet vēlreiz.",
-    "thankYouTitle": "Paldies!",
     "downloadStarted": "Lejupielādei vajadzētu sākties automātiski.",
-    "manualDownload": "Lejupielāde nesākās? Spiediet šeit",
     "skipAndDownloadButton": "Izlaist un lejupielādēt"
   },
   "downloadPage": {
@@ -324,10 +268,10 @@
       "download": "Lejupielādēt",
       "roadmap": "Ceļvedis",
       "helpCenter": "Palīdzības centrs",
-      "manageBilling": "Pārvaldīt norēķinus",
       "customerPortal": "Klientu portāls",
       "olderVersions": "Vecākas versijas",
       "blog": "Blogs",
+      "openSource": "Atvērtais kods",
       "about": "Par mums",
       "support": "Atbalsts",
       "privacyPolicy": "Privātuma politika",
@@ -409,6 +353,25 @@
     "custom": "Pielāgota",
     "customSub": "jūsu summa",
     "topUp": "Papildināt"
+  },
+  "licenseKeysCard": {
+    "rotate": "Ģenerēt jaunu atslēgu",
+    "confirmTitle": "Ģenerēt jaunu konta atslēgu?",
+    "confirmBody": "Jūs saņemsiet jaunu atslēgu, un šī uzreiz pārstās darboties. Katrai ierīcei, kas izmanto veco atslēgu, būs nepieciešama jaunā: ievadiet to HyperWhisper katrā ierīcē. Jūsu kredīti, plāns un pirkumu vēsture paliek jūsu kontā. Turklāt citās pārlūkprogrammās jūs tiksiet izrakstīts no šīs vietnes.",
+    "confirm": "Ģenerēt jaunu atslēgu",
+    "cancel": "Atcelt",
+    "rotating": "Ģenerē…",
+    "rotated": "Jaunā atslēga ir ģenerēta. Ievadiet to HyperWhisper katrā savā ierīcē.",
+    "errorRateLimited": "Pārāk daudz atslēgas maiņu. Lūdzu, mēģiniet vēlāk.",
+    "errorStale": "Šī atslēga jau ir nomainīta. Pašreizējā atslēga ir redzama augstāk.",
+    "errorGeneric": "Neizdevās ģenerēt jaunu atslēgu. Lūdzu, mēģiniet vēlreiz.",
+    "verifyTitle": "Apstipriniet e-pastā, ka tas esat jūs",
+    "verifyBody": "Lai ģenerētu jaunu atslēgu, vispirms apstipriniet e-pastā, ka tas esat jūs. Mēs nosūtīsim pierakstīšanās saiti uz jūsu konta e-pasta adresi. Atveriet to un pēc tam šajā lapā ģenerējiet jaunu atslēgu.",
+    "sendLink": "Nosūtīt man pierakstīšanās saiti",
+    "sendingLink": "Sūta…",
+    "linkSent": "Pierakstīšanās saite nosūtīta. Atveriet to no iesūtnes un pēc tam ģenerējiet jaunu atslēgu.",
+    "linkFailed": "Neizdevās nosūtīt pierakstīšanās saiti. Lūdzu, mēģiniet vēlreiz.",
+    "errorUnavailable": "Šai atslēgai vairs nevar ģenerēt jaunu. Tās pašreizējais statuss ir redzams augstāk."
   },
   "openSource": {
     "heading": "Atvērtais kods. Nav ko slēpt.",

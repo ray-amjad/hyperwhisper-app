@@ -236,7 +236,7 @@ public partial class BackupExportSettingsPage : Page
 
         if (result.IsSuccess)
         {
-            ApplyImportSuccess(result.Value!);
+            ApplyImportSuccess(result.Value!, selection);
         }
         else
         {
@@ -258,12 +258,17 @@ public partial class BackupExportSettingsPage : Page
     // internal (not private): test seam for HyperWhisper.SmokeTests via
     // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
     // change is intended.
-    internal void ApplyImportSuccess(ImportSummary result)
+    internal void ApplyImportSuccess(ImportSummary result, ImportSelection? selection = null)
     {
-        var summary = Loc.S("settings.backup.import.summary",
-            result.ModesImported, result.VocabularyAdded, result.VocabularyConflicts);
+        // A section the user picked that did not land (the settings step threw, or a
+        // key could not be written to Credential Manager) turns the line into a
+        // warning: the import still committed what it could, but it was not a plain
+        // success (#2377).
+        var hadFailure = ImportHadFailure(result, selection);
         ShowStatus(ImportStatusText,
-            Loc.S("settings.backup.import.success", summary), isError: false);
+            Loc.S(hadFailure ? "settings.backup.import.partial" : "settings.backup.import.success",
+                BuildImportSummary(result, selection)),
+            isError: hadFailure);
         ImportSelectionPanel.Visibility = Visibility.Collapsed;
         _pendingImportPath = null;
 
@@ -272,6 +277,53 @@ public partial class BackupExportSettingsPage : Page
         // constructed with until the user navigates away and back.
         RefreshVocabularyExportLabel();
     }
+
+    /// <summary>
+    /// The part of the success line that says what landed. The mode and vocabulary
+    /// counts appear only when the user picked one of those sections, so a
+    /// settings-only import says the settings were restored instead of reading
+    /// "Modes: 0, vocabulary added: 0" as if nothing happened (#1415, the Windows
+    /// twin of macOS #1406). The settings and API-key sections each say whether they
+    /// landed (#2377). With no selection, or when nothing else would be said, the
+    /// counts are shown as before, so the line never reads as a bare success.
+    /// </summary>
+    /// <remarks>
+    /// A section checkbox is enabled only when the backup carries that section
+    /// (<see cref="BackupContents"/>), so a picked section whose flag is false is a
+    /// section that failed, not one the backup lacked.
+    /// </remarks>
+    internal static string BuildImportSummary(ImportSummary result, ImportSelection? selection)
+    {
+        var parts = new List<string>();
+        if (result.SettingsImported)
+            parts.Add(Loc.S("settings.backup.import.summary.settings"));
+        else if (selection?.IncludeSettings == true)
+            parts.Add(Loc.S("settings.backup.import.summary.settingsFailed"));
+        var apiKeys = selection?.IncludeApiKeys == true
+            ? Loc.S(!result.ApiKeysImported
+                ? "settings.backup.import.summary.apiKeysFailed"
+                : result.ApiKeysInBackup > 0
+                    ? "settings.backup.import.summary.apiKeys"
+                    : "settings.backup.import.summary.apiKeysNone")
+            : null;
+        if (selection is null || selection.IncludeModes || selection.IncludeVocabulary
+            || (parts.Count == 0 && apiKeys is null))
+            parts.Add(Loc.S("settings.backup.import.summary",
+                result.ModesImported, result.VocabularyAdded, result.VocabularyConflicts));
+        if (apiKeys is not null)
+            parts.Add(apiKeys);
+        return string.Join(" ", parts);
+    }
+
+    /// <summary>
+    /// True when a section the user picked did not land: the settings step failed
+    /// (<see cref="BackupService"/> logs it and carries on), or one or more API keys
+    /// could not be written. The import is then reported as one with problems.
+    /// </summary>
+    internal static bool ImportHadFailure(ImportSummary result, ImportSelection? selection) =>
+        selection is not null
+        && ((selection.IncludeSettings && !result.SettingsImported)
+            || (selection.IncludeApiKeys && !result.ApiKeysImported));
 
     private static void ShowStatus(TextBlock textBlock, string message, bool isError)
     {
@@ -282,10 +334,10 @@ public partial class BackupExportSettingsPage : Page
         }
 
         textBlock.Text = message;
-        textBlock.Foreground = isError
-            ? System.Windows.Media.Brushes.OrangeRed
-            : textBlock.TryFindResource("TextSecondaryBrush") as System.Windows.Media.Brush
-              ?? System.Windows.Media.Brushes.Gray;
+        if (isError)
+            textBlock.Foreground = System.Windows.Media.Brushes.OrangeRed;
+        else
+            textBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
         textBlock.Visibility = Visibility.Visible;
     }
 }

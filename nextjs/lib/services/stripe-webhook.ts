@@ -1,10 +1,12 @@
 import Stripe from "stripe";
+import { z } from "zod";
 import { stripe } from "@/lib/clients/stripe";
 import { emailService } from "@/lib/services/email";
 import { generateLicenseKey } from "@/lib/services/license-key";
 import { emailTag } from "@/lib/shared/redact";
 import { refundedCreditsTotal } from "@/lib/services/credit-refund";
 import { CREDITS_PER_DOLLAR } from "@/app/api/checkout/credits/validation";
+import type { AccountKeyRow } from "@/src/lib/db-layer";
 import {
   dbErrorCode,
   dbErrorConstraint,
@@ -12,6 +14,8 @@ import {
 } from "@/lib/shared/db-error";
 import {
   findAccountByKey,
+  findAccountById,
+  findAccountsByStripeCustomer,
   getAccountKeysByEmail,
   findAccountByStripeSession,
   insertAccountKey,
@@ -21,6 +25,59 @@ import {
   hasProcessedStripeObject,
   getCreditBalance,
 } from "@/src/lib/db-layer";
+
+/** The same id check `customer.rotateAccountKey` applies to its input. */
+const accountKeyId = z.string().uuid();
+
+/**
+ * The Account Key a top-up checkout was opened for, or null.
+ *
+ * The key string can change under an open checkout: the owner may rotate the
+ * key between opening the Stripe page and paying. So, in order:
+ * 1. by ROW ID (`metadata.account_key_id`), which never changes;
+ * 2. by the key string (`metadata.license_key`), which still works when no
+ *    rotation happened;
+ * 3. by the session's Stripe customer. Checkouts opened before the id was
+ *    written carry only the string, which a rotation kills, but every top-up
+ *    checkout runs under the customer cached on its key row
+ *    (`app/api/checkout/credits/route.ts`), and a rotation keeps that. Used
+ *    only when every row billed to that customer belongs to one user, since
+ *    credits are the user's; the newest granted row wins.
+ */
+async function findTopUpAccount(
+  session: Pick<Stripe.Checkout.Session, "metadata" | "customer">,
+): Promise<AccountKeyRow | null> {
+  const id = session.metadata?.account_key_id;
+
+  if (id && accountKeyId.safeParse(id).success) {
+    const byId = await findAccountById(id);
+
+    if (byId) return byId;
+  }
+
+  const key = session.metadata?.license_key;
+  const byKey = key ? await findAccountByKey(key) : null;
+
+  if (byKey) return byKey;
+
+  const customerId = getStripeCustomerId(session.customer);
+
+  if (!customerId) return null;
+
+  const rows = await findAccountsByStripeCustomer(customerId);
+
+  if (rows.length === 0) return null;
+  // Ambiguous: the credits could land on the wrong user. Left unresolved, so
+  // the webhook answers 500 and the event surfaces for manual review.
+  if (new Set(rows.map((r) => r.userId)).size > 1) return null;
+
+  return rows.find((r) => r.status === "granted") ?? rows[0];
+}
+
+/** Why a top-up's key row could not be found, for logs (never the full key). */
+function missingTopUpAccount(licenseKey: string): string {
+  return `top-up licence ${licenseKey.substring(0, 7)}... not found by row id, key or Stripe customer (deleted, or its key was rotated)`;
+}
 
 function getStripeCustomerId(
   customer: Stripe.Checkout.Session["customer"]
@@ -86,7 +143,8 @@ export async function handleCreditPurchase(
     );
   }
 
-  if (session.payment_status !== "paid") {
+  // no_payment_required: a 100%-off promotion code paid the whole order (#2055).
+  if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") {
     console.log(
       `Skipping credit purchase for session ${session.id}: payment_status=${session.payment_status}`
     );
@@ -114,10 +172,10 @@ async function handleCreditTopUp(
     `Processing credit top-up: ${creditAmount} credits for license ${licenseKey.substring(0, 7)}...`
   );
 
-  const license = await findAccountByKey(licenseKey);
+  const license = await findTopUpAccount(session);
 
   if (!license) {
-    throw new Error(`License not found: ${licenseKey.substring(0, 7)}...`);
+    throw new Error(missingTopUpAccount(licenseKey));
   }
 
   // Refuse to credit a non-granted (e.g. revoked) license: those credits would be
@@ -160,7 +218,8 @@ async function handleCreditTopUp(
   const emailResult = await emailService.sendCreditTopUp({
     customerName,
     customerEmail,
-    licenseKey,
+    // The row's current key, not the checkout's: it may have been rotated.
+    licenseKey: license.key,
     creditAmount,
     newBalance,
     productName: "HyperWhisper",
@@ -355,10 +414,12 @@ async function handleCreditMint(
  * Charge -> PaymentIntent -> Checkout Session -> credit grant (source_id)
  *
  * IDEMPOTENCY:
- * A credit refund passes
- * the grant's cumulative refunded total (Stripe's amount_refunded is
- * cumulative) and the grant's refunded_amount records it, so a retried or
- * repeated charge.refunded event never double-deducts.
+ * A credit refund passes the grant's cumulative reversed total
+ * (`reversedCents`: Stripe's cumulative amount_refunded PLUS every lost
+ * dispute on the charge, #2482) and the grant's refunded_amount records it,
+ * so a retried or repeated charge.refunded event never double-deducts. Never
+ * pass bare amount_refunded: after a lost dispute it is below the recorded
+ * total, and the ledger would read a real refund as a duplicate.
  */
 export async function handleChargeRefunded(
   charge: Stripe.Charge
@@ -366,7 +427,71 @@ export async function handleChargeRefunded(
   console.log(
     `Processing refund for charge ${charge.id} (${charge.amount_refunded}/${charge.amount})`
   );
+  await reverseCreditCharge(charge, null);
+}
 
+/**
+ * Process a closed dispute (chargeback) (#2482).
+ *
+ * Only a LOST dispute takes credits back: the bank returned the money to the
+ * buyer, so the pack is reversed like a refund of the disputed amount. `won`,
+ * `warning_closed` and any other outcome leave the pack alone, and so does an
+ * open dispute (`charge.dispute.created` / `funds_withdrawn` are not routed
+ * here): the merchant may still win it.
+ *
+ * It shares the refund's trace (charge -> PaymentIntent -> Checkout Session
+ * -> grant), its missing-grant retry and its spent-credit shortfall, and the
+ * same running total (`reversedCents`), so refunds and lost disputes on one
+ * charge add up in any order, and a re-delivered event takes nothing more.
+ */
+export async function handleDisputeClosed(
+  dispute: Stripe.Dispute
+): Promise<void> {
+  if (dispute.status !== "lost") {
+    console.log(
+      `Dispute ${dispute.id} closed as ${dispute.status}, no credits taken back`
+    );
+    return;
+  }
+
+  const charge =
+    typeof dispute.charge === "string"
+      ? await stripe.charges.retrieve(dispute.charge)
+      : dispute.charge;
+  console.log(
+    `Processing lost dispute ${dispute.id} on charge ${charge.id} (${dispute.amount}/${charge.amount})`
+  );
+  await reverseCreditCharge(charge, dispute);
+}
+
+/**
+ * The cents of a charge the buyer has got back so far: every refund plus
+ * every LOST dispute, capped at the charge (#2482). Stripe keeps disputed
+ * money out of `amount_refunded`, so a refund event and a dispute event must
+ * both count the other, or whichever lands last undercounts and the ledger
+ * reads it as a duplicate. `closing` is the dispute whose event is being
+ * handled; it counts even if the list has not caught up with it yet.
+ */
+async function reversedCents(
+  charge: Stripe.Charge,
+  closing: Stripe.Dispute | null
+): Promise<number> {
+  let lostCents = 0;
+  if (charge.disputed || closing) {
+    const disputes = await stripe.disputes.list({ charge: charge.id, limit: 100 });
+    for (const d of disputes.data) {
+      if (d.status === "lost" && d.id !== closing?.id) lostCents += d.amount;
+    }
+    if (closing) lostCents += closing.amount;
+  }
+  return Math.min(charge.amount, (charge.amount_refunded ?? 0) + lostCents);
+}
+
+/** Trace a refunded or charged-back charge to its purchase and reverse it. */
+async function reverseCreditCharge(
+  charge: Stripe.Charge,
+  closingDispute: Stripe.Dispute | null
+): Promise<void> {
   // STEP 2: Get PaymentIntent ID from the charge
   const paymentIntentId =
     typeof charge.payment_intent === "string"
@@ -398,8 +523,13 @@ export async function handleChargeRefunded(
 
   // STEP 4: Route by purchase type.
   if (purchaseType === "credits") {
-    // Any refund, partial or full, removes credits at the price paid (#1351).
-    await handleCreditRefund(charge, checkoutSession);
+    // Any refund or lost dispute, partial or full, removes credits at the
+    // price paid (#1351, #2482).
+    await handleCreditRefund(
+      charge,
+      checkoutSession,
+      await reversedCents(charge, closingDispute)
+    );
     return;
   }
 
@@ -439,10 +569,8 @@ async function permanentMissingGrantReason(
 
   const licenseKey = checkoutSession.metadata?.license_key;
   if (licenseKey) {
-    const license = await findAccountByKey(licenseKey);
-    if (!license) {
-      return `top-up licence ${licenseKey.substring(0, 7)}... does not exist`;
-    }
+    const license = await findTopUpAccount(checkoutSession);
+    if (!license) return missingTopUpAccount(licenseKey);
     if (license.status !== "granted") {
       return `top-up licence ${licenseKey.substring(0, 7)}... is ${license.status}`;
     }
@@ -456,16 +584,17 @@ async function permanentMissingGrantReason(
 }
 
 /**
- * Reverse a refunded credit-pack purchase, in whole or in part.
+ * Reverse a refunded or charged-back credit-pack purchase, in whole or in part.
  *
- * Turns the charge's cumulative refunded cents into the grant's cumulative
+ * Turns the charge's cumulative reversed cents (`reversedCents`) into the grant's cumulative
  * refunded credits at the price paid, then lets `refundCreditGrant` remove
  * the part not yet recorded, from that grant only. Idempotent: the same
  * cumulative total twice removes nothing the second time.
  */
 async function handleCreditRefund(
   charge: Stripe.Charge,
-  checkoutSession: Stripe.Checkout.Session
+  checkoutSession: Stripe.Checkout.Session,
+  reversedCents: number
 ): Promise<void> {
   // license_key is only present on top-ups; minted credit purchases carry none.
   // The clawback is keyed on the checkout session id (the grant's source_id),
@@ -495,12 +624,12 @@ async function handleCreditRefund(
     listFeeCents: Number.isFinite(feeCents) ? feeCents : 0,
     amountTotal,
     amountTax,
-    amountRefunded: charge.amount_refunded,
+    amountRefunded: reversedCents,
   });
 
   if (refundedCredits <= 0) {
     console.log(
-      `Refund ${charge.amount_refunded}/${charge.amount} on charge ${charge.id} is worth no credits for session ${checkoutSession.id}, skipping`
+      `Refund ${reversedCents}/${charge.amount} on charge ${charge.id} is worth no credits for session ${checkoutSession.id}, skipping`
     );
     return;
   }

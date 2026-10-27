@@ -83,18 +83,26 @@ struct RetryConfiguration {
     /// keeps the poll loop from hanging far past its documented budget.
     static let maxPollRetryAfterSeconds = 10
 
-    /// Calculate delay for a given attempt number
-    func delay(for attempt: Int) -> TimeInterval {
+    /// Calculate delay for a given attempt number.
+    /// `jitterUnit` is injectable only as a pure seam for boundary tests; runtime
+    /// callers pass nil and get a random value in `jitterRange`. (A default
+    /// argument cannot read `self`, hence the optional.)
+    func delay(for attempt: Int, jitterUnit: Double? = nil) -> TimeInterval {
         let baseDelay = initialDelay * pow(backoffMultiplier, Double(attempt - 1))
-        let jitter = Double.random(in: jitterRange) * baseDelay
+        let jitter = (jitterUnit ?? Double.random(in: jitterRange)) * baseDelay
         return min(baseDelay + jitter, maxDelay)
     }
 }
 
 /// Generic retry helper with exponential backoff
-/// Used by both TranscriptionPipeline and CloudWhisperProvider
+/// Used by AI post-processing and license validation.
+/// `sleep` is injectable only as a seam for loop tests; runtime callers keep
+/// the default `Task.sleep`.
 func performWithRetry<T>(
     config: RetryConfiguration,
+    sleep: @escaping (TimeInterval) async throws -> Void = { seconds in
+        try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+    },
     operation: @escaping (Int) async throws -> T
 ) async throws -> T {
     var lastError: Error = TranscriptionError.transientNetwork(details: nil)
@@ -118,7 +126,7 @@ func performWithRetry<T>(
             if attempt < config.maxAttempts {
                 let delay = config.delay(for: attempt)
                 AppLogger.network.debug("Retry delay: \(String(format: "%.1f", delay), privacy: .public) seconds")
-                try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                try await sleep(delay)
             }
         }
     }

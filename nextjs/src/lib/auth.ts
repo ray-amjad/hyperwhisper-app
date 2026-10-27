@@ -5,6 +5,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/src/db";
+import { env } from "@/src/env/server.mjs";
 import { resend, DEFAULT_FROM_EMAIL } from "@/lib/clients/resend";
 import { sha256Hex } from "@/lib/shared/sha256";
 import { redactAddresses } from "@/lib/shared/redact";
@@ -14,6 +15,7 @@ import {
   magicLinkEmailText,
 } from "@/lib/templates/magic-link-email";
 import { licenseKeyPlugin } from "./auth-license-key-plugin";
+import { signInMethodForPath } from "./session-sign-in-method";
 import { authRateLimitOptions } from "./auth-rate-limit-storage";
 
 /**
@@ -73,7 +75,7 @@ function resendErrorFieldsOf(error: unknown): {
 }
 
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL,
+  baseURL: env.BETTER_AUTH_URL,
   database: drizzleAdapter(db, { provider: "pg" }),
   // Explicit session config: Better Auth's defaults are a 7-day `expiresIn`
   // with a 1-day `updateAge`, which signed active users out after a hard week.
@@ -126,6 +128,27 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 90, // 90 days
     updateAge: 60 * 60 * 24, // refresh at most once a day
     deferSessionRefresh: true,
+    // How the session was proven (`./session-sign-in-method.ts`). Server-set
+    // only (`input: false`) and with no default, so the hook below is the one
+    // writer. An Account Key rotation needs an "email" session.
+    additionalFields: {
+      signInMethod: {
+        type: "string",
+        required: false,
+        input: false,
+      },
+    },
+  },
+  databaseHooks: {
+    session: {
+      create: {
+        // Stamp the method from the endpoint creating the session: the magic
+        // link verify or the license-key sign-in. Anything else stays null.
+        before: async (session, ctx) => ({
+          data: { ...session, signInMethod: signInMethodForPath(ctx?.path) },
+        }),
+      },
+    },
   },
   // Better Auth's own rate-limit rules, counted in the site's Upstash so every
   // Vercel instance shares one budget (#2010). `customStorage`, deliberately

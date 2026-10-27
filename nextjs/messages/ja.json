@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "機能",
-    "pricing": "料金",
     "faq": "よくある質問",
     "support": "サポート",
     "download": "ダウンロード",
@@ -20,7 +19,6 @@
     "githubAria": "HyperWhisperをGitHubで見る"
   },
   "hero": {
-    "openSourceBadge": "オープンソース · Apache-2.0",
     "logoAlt": "HyperWhisperロゴ",
     "headline": "執筆、作成、創造が",
     "headlineAccent": "AIで5倍速くなる",
@@ -28,7 +26,7 @@
     "downloadCta": "今すぐダウンロード",
     "demoCta": "デモ動画を見る",
     "availableOn": "対応OS",
-    "macos": "macOS 14以降",
+    "macos": "macOS 14.6以降",
     "windows": "Windows 10以降",
     "linux": "Linux (amd64)"
   },
@@ -98,57 +96,6 @@
     "languagesSupported": "対応言語数",
     "providersSupported": "対応プロバイダー数"
   },
-  "pricing": {
-    "title": "サブスク不要。買い切り型。",
-    "subtitle": "一度の購入で永久に使えます。私たちもサブスクは嫌いです。",
-    "guarantee": "14日間返金保証",
-    "guaranteeExtended": "ご満足いただけない場合は全額返金いたします。",
-    "learnMore": "詳しく見る",
-    "free": {
-      "name": "無料版",
-      "price": "$0",
-      "period": "永久無料",
-      "description": "HyperWhisperをお試しいただけます",
-      "cta": "無料ダウンロード",
-      "features": {
-        "transcriptionLimit": "1日5分まで文字起こし可能",
-        "basicModes": "基本的な文字起こしモード",
-        "offlineTranscription": "オフライン文字起こし",
-        "apiTranscription": "API文字起こし（APIキーの用意が必要）",
-        "postProcessing": "テキスト後処理",
-        "providers": "9種類以上のプロバイダーから選択可能",
-        "lifetimeUpdates": "永久アップデート",
-        "cloudLimited": "HyperWhisper Cloud（利用制限あり）",
-        "customVocabulary": "カスタム辞書",
-        "prioritySupport": "優先サポート"
-      }
-    },
-    "pro": {
-      "name": "Pro版",
-      "price": "$39",
-      "period": "買い切り",
-      "description": "一度の購入で、すべての機能が永久に使えます",
-      "cta": "今すぐ購入 - 永久ライセンス",
-      "mostPopular": "人気No.1",
-      "features": {
-        "unlimitedTranscription": "無制限の文字起こし",
-        "allModes": "すべての文字起こしモード",
-        "offlineTranscription": "オフライン文字起こし",
-        "apiTranscription": "API文字起こし（APIキーの用意が必要）",
-        "postProcessing": "テキスト後処理",
-        "providers": "9種類以上のプロバイダーから選択可能",
-        "lifetimeUpdates": "永久アップデート",
-        "cloudCredits": "HyperWhisper Cloud（$5分のクレジット付き）",
-        "customVocabulary": "カスタム辞書",
-        "prioritySupport": "優先サポート"
-      }
-    },
-    "enterprise": {
-      "title": "エンタープライズ・カスタムプラン",
-      "description": "ボリュームディスカウント、SSO、優先サポート、オンプレミスホスティング、カスタム統合をご提供",
-      "cta": "営業へお問い合わせ"
-    }
-  },
   "faq": {
     "title": "よくある質問",
     "subtitle": "HyperWhisperについて知っておきたいこと",
@@ -192,7 +139,7 @@
       },
       "lifetime": {
         "question": "サブスクリプションはありますか？",
-        "answer": "いいえ、決してありません。HyperWhisperは、あなたが所有するオープンソースアプリであり、レンタルするサブスクリプションではありません。無料でダウンロードし、ローカルのオフライン文字起こしをいつまでも無料で使えます。無料プランには1日5分のクラウド文字起こしも含まれます。それを超えてセットアップ不要のクラウド文字起こしが必要になったら、HyperWhisper Cloudはシンプルな従量課金制のクレジットです。必要なときだけチャージでき、月額料金もなく、解約するものもありません。"
+        "answer": "いいえ、決してありません。HyperWhisperは、あなたが所有するオープンソースアプリであり、レンタルするサブスクリプションではありません。無料でダウンロードし、ローカルのオフライン文字起こしをいつまでも無料で使えます。セットアップ不要のクラウド文字起こしが必要になったら、HyperWhisper Cloudはシンプルな従量課金制のクレジットです。必要なときだけチャージでき、月額料金もなく、解約するものもありません。"
       },
       "deviceLimit": {
         "question": "アカウントキーは何台のデバイスで利用できますか？",
@@ -200,7 +147,7 @@
       },
       "requirements": {
         "question": "動作環境を教えてください。",
-        "answer": "Mac：macOS 14以降、Apple SiliconとIntelの両方に対応。Windows：Windows 10/11、x64またはARM64。Linux v1：amd64上のUbuntu 22.04以降またはDebian 12以降。最適なパフォーマンスには8GB以上のRAMを推奨します。"
+        "answer": "Mac：macOS 14.6以降、Apple SiliconとIntelの両方に対応。Windows：Windows 10/11、x64またはARM64。Linux v1：amd64上のUbuntu 22.04以降またはDebian 12以降。最適なパフォーマンスには8GB以上のRAMを推奨します。"
       },
       "madeBy": {
         "question": "開発者は誰ですか？",
@@ -252,10 +199,7 @@
     "downloadButton": "HyperWhisperをダウンロード",
     "errorGeneric": "エラーが発生しました。もう一度お試しください。",
     "errorEmail": "有効なメールアドレスを入力してください。",
-    "errorNetwork": "ネットワークエラーが発生しました。接続を確認してから再度お試しください。",
-    "thankYouTitle": "ありがとうございます！",
     "downloadStarted": "ダウンロードが自動的に開始されます。",
-    "manualDownload": "ダウンロードが開始されない場合はこちら",
     "skipAndDownloadButton": "スキップしてダウンロード"
   },
   "downloadPage": {
@@ -324,10 +268,10 @@
       "download": "ダウンロード",
       "roadmap": "ロードマップ",
       "helpCenter": "ヘルプセンター",
-      "manageBilling": "請求管理",
       "customerPortal": "カスタマーポータル",
       "olderVersions": "過去のバージョン",
       "blog": "ブログ",
+      "openSource": "オープンソース",
       "about": "について",
       "support": "サポート",
       "privacyPolicy": "プライバシーポリシー",
@@ -409,6 +353,25 @@
     "custom": "カスタム",
     "customSub": "任意の金額",
     "topUp": "チャージ"
+  },
+  "licenseKeysCard": {
+    "rotate": "キーを再発行",
+    "confirmTitle": "このアカウントキーを再発行しますか？",
+    "confirmBody": "新しいキーが発行され、このキーはすぐに使えなくなります。古いキーを使用しているすべてのデバイスで新しいキーが必要になります。各デバイスのHyperWhisperに新しいキーを入力してください。クレジット、プラン、購入履歴はアカウントにそのまま残ります。また、他のブラウザではこのウェブサイトからサインアウトされます。",
+    "confirm": "キーを再発行",
+    "cancel": "キャンセル",
+    "rotating": "再発行中…",
+    "rotated": "キーを再発行しました。各デバイスのHyperWhisperに新しいキーを入力してください。",
+    "errorRateLimited": "再発行の回数が多すぎます。しばらくしてからもう一度お試しください。",
+    "errorStale": "このキーはすでに再発行されています。現在のキーは上に表示されています。",
+    "errorGeneric": "キーを再発行できませんでした。もう一度お試しください。",
+    "verifyTitle": "メールで本人確認してください",
+    "verifyBody": "キーを再発行するには、まずメールで本人確認してください。アカウントのメールアドレスにサインインリンクをお送りします。リンクを開いてから、このページでキーを再発行してください。",
+    "sendLink": "サインインリンクをメールで受け取る",
+    "sendingLink": "送信中…",
+    "linkSent": "サインインリンクを送信しました。受信トレイからリンクを開き、キーを再発行してください。",
+    "linkFailed": "サインインリンクを送信できませんでした。もう一度お試しください。",
+    "errorUnavailable": "このキーはこれ以上再発行できません。現在のステータスは上に表示されています。"
   },
   "openSource": {
     "heading": "オープンソース。隠すものは何もありません。",

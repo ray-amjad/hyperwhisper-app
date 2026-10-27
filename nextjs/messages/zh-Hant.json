@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "功能",
-    "pricing": "定價",
     "faq": "常見問題",
     "support": "支援",
     "download": "下載",
@@ -20,7 +19,6 @@
     "githubAria": "在 GitHub 上查看 HyperWhisper"
   },
   "hero": {
-    "openSourceBadge": "開放原始碼 · Apache-2.0",
     "logoAlt": "HyperWhisper 標誌",
     "headline": "寫作、構思、創作",
     "headlineAccent": "AI 加持快 5 倍",
@@ -28,7 +26,7 @@
     "downloadCta": "立即下載",
     "demoCta": "觀看示範",
     "availableOn": "適用於",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -98,57 +96,6 @@
     "languagesSupported": "支援語言",
     "providersSupported": "支援供應商"
   },
-  "pricing": {
-    "title": "無需訂閱，永久使用。",
-    "subtitle": "一次購買，永久使用。我們也討厭訂閱。",
-    "guarantee": "14 天退款保證",
-    "guaranteeExtended": "如果你不完全滿意。",
-    "learnMore": "了解更多",
-    "free": {
-      "name": "免費",
-      "price": "$0",
-      "period": "永久",
-      "description": "適合體驗 HyperWhisper",
-      "cta": "免費下載",
-      "features": {
-        "transcriptionLimit": "每天 5 分鐘轉寫",
-        "basicModes": "基礎轉寫模式",
-        "offlineTranscription": "離線轉寫",
-        "apiTranscription": "API 轉寫（自備金鑰）",
-        "postProcessing": "文字後處理",
-        "providers": "可選 9+ 供應商",
-        "lifetimeUpdates": "終身更新",
-        "cloudLimited": "HyperWhisper Cloud（有限使用）",
-        "customVocabulary": "自訂詞彙",
-        "prioritySupport": "優先支援"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "終身",
-      "description": "一次購買，永久解鎖全部能力",
-      "cta": "立即購買 - 終身存取",
-      "mostPopular": "最受歡迎",
-      "features": {
-        "unlimitedTranscription": "無限轉寫",
-        "allModes": "全部轉寫模式",
-        "offlineTranscription": "離線轉寫",
-        "apiTranscription": "API 轉寫（自備金鑰）",
-        "postProcessing": "文字後處理",
-        "providers": "可選 9+ 供應商",
-        "lifetimeUpdates": "終身更新",
-        "cloudCredits": "HyperWhisper Cloud（$5 額度）",
-        "customVocabulary": "自訂詞彙",
-        "prioritySupport": "優先支援"
-      }
-    },
-    "enterprise": {
-      "title": "企業與客製化定價",
-      "description": "批量折扣、SSO、優先支援、內部部署託管與客製整合",
-      "cta": "聯絡銷售"
-    }
-  },
   "faq": {
     "title": "常見問題",
     "subtitle": "關於 HyperWhisper 你需要了解的一切",
@@ -192,7 +139,7 @@
       },
       "lifetime": {
         "question": "有訂閱制嗎？",
-        "answer": "沒有——永遠不會有。HyperWhisper 是一款你擁有的開放原始碼應用程式，而不是你租用的訂閱服務。免費下載，並永遠免費使用本機離線轉錄；免費方案還包含每天 5 分鐘的雲端轉錄。當你需要超出這個額度、零設定的雲端轉錄時，HyperWhisper Cloud 採用簡單的隨用隨付點數制——只在需要時才儲值，沒有月費，也沒有任何需要取消的東西。"
+        "answer": "沒有——永遠不會有。HyperWhisper 是一款你擁有的開放原始碼應用程式，而不是你租用的訂閱服務。免費下載，並永遠免費使用本機離線轉錄。當你需要零設定的雲端轉錄時，HyperWhisper Cloud 採用簡單的隨用隨付點數制——只在需要時才儲值，沒有月費，也沒有任何需要取消的東西。"
       },
       "deviceLimit": {
         "question": "我的帳戶金鑰可以在多少台裝置上使用？",
@@ -200,7 +147,7 @@
       },
       "requirements": {
         "question": "系統需求是什麼？",
-        "answer": "Mac：macOS 14 或更新版本，支援 Apple Silicon 與 Intel。Windows：Windows 10/11，x64 或 ARM64。Linux v1：amd64 上的 Ubuntu 22.04 或更新版本，或 Debian 12 或更新版本。建議 8GB 記憶體以獲得最佳效能。"
+        "answer": "Mac：macOS 14.6 或更新版本，支援 Apple Silicon 與 Intel。Windows：Windows 10/11，x64 或 ARM64。Linux v1：amd64 上的 Ubuntu 22.04 或更新版本，或 Debian 12 或更新版本。建議 8GB 記憶體以獲得最佳效能。"
       },
       "madeBy": {
         "question": "這是誰做的？",
@@ -252,10 +199,7 @@
     "downloadButton": "下載 HyperWhisper",
     "errorGeneric": "出了點問題，請再試一次。",
     "errorEmail": "請輸入有效的電子郵件地址。",
-    "errorNetwork": "網路錯誤。請檢查連線後再試一次。",
-    "thankYouTitle": "謝謝！",
     "downloadStarted": "下載應會自動開始。",
-    "manualDownload": "下載尚未開始？點這裡",
     "skipAndDownloadButton": "略過並下載"
   },
   "downloadPage": {
@@ -324,10 +268,10 @@
       "download": "下載",
       "roadmap": "路線圖",
       "helpCenter": "幫助中心",
-      "manageBilling": "管理帳單",
       "customerPortal": "客戶入口",
       "olderVersions": "舊版本",
       "blog": "部落格",
+      "openSource": "開放原始碼",
       "about": "關於",
       "support": "支援",
       "privacyPolicy": "隱私權政策",
@@ -409,6 +353,25 @@
     "custom": "自訂",
     "customSub": "你的金額",
     "topUp": "儲值"
+  },
+  "licenseKeysCard": {
+    "rotate": "重新產生金鑰",
+    "confirmTitle": "要重新產生此帳戶金鑰嗎？",
+    "confirmBody": "你將取得一組新金鑰，目前的金鑰會立即失效。所有使用舊金鑰的裝置都需要改用新金鑰：請在每台裝置的 HyperWhisper 中輸入新金鑰。你的點數、方案與購買紀錄都會保留在你的帳戶中。你在其他瀏覽器中也會被登出本網站。",
+    "confirm": "重新產生金鑰",
+    "cancel": "取消",
+    "rotating": "正在重新產生…",
+    "rotated": "金鑰已重新產生。請在你每台裝置的 HyperWhisper 中輸入新金鑰。",
+    "errorRateLimited": "重新產生次數過多，請稍後再試。",
+    "errorStale": "此金鑰已重新產生。目前的金鑰顯示於上方。",
+    "errorGeneric": "無法重新產生金鑰，請再試一次。",
+    "verifyTitle": "透過電子郵件確認是你本人",
+    "verifyBody": "如要重新產生金鑰，請先透過電子郵件確認是你本人。我們會將登入連結寄到你帳戶的電子郵件地址。請開啟連結，然後在此頁面重新產生金鑰。",
+    "sendLink": "寄送登入連結給我",
+    "sendingLink": "正在寄送…",
+    "linkSent": "登入連結已寄出。請從收件匣開啟連結，然後重新產生金鑰。",
+    "linkFailed": "無法寄送登入連結，請再試一次。",
+    "errorUnavailable": "此金鑰已無法再重新產生。其目前狀態顯示於上方。"
   },
   "openSource": {
     "heading": "開放原始碼，無所隱藏。",

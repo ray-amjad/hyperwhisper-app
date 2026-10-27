@@ -54,7 +54,7 @@ const MUTANTS = [
   {
     file: EMAILS,
     name: "accept any x-internal-secret",
-    from: "if (!timingSafeEqualSecret(secret, process.env.HYPERWHISPER_INTERNAL_SECRET)) {",
+    from: "if (!timingSafeEqualSecret(secret, env.HYPERWHISPER_INTERNAL_SECRET)) {",
     to: "if (false) {",
   },
   {

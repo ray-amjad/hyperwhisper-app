@@ -297,6 +297,12 @@ public static class CloudTranscriptionModels
             Description = "Latest model with keyterm prompting (up to 100 terms)",
             Provider = CloudTranscriptionProvider.ElevenLabs,
             IsPopular = true
+        },
+        new CloudTranscriptionModel
+        {
+            Id = "scribe_v2_medical",
+            Description = "Scribe v2 tuned for clinical audio. Keyterm prompting (up to 100 terms) highlights drug names and medical phrases. Same rate as Scribe v2.",
+            Provider = CloudTranscriptionProvider.ElevenLabs
         }
     };
 

@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Tính năng",
-    "pricing": "Giá",
     "faq": "Câu hỏi thường gặp",
     "support": "Hỗ trợ",
     "download": "Tải xuống",
@@ -20,7 +19,6 @@
     "githubAria": "Xem HyperWhisper trên GitHub"
   },
   "hero": {
-    "openSourceBadge": "Mã nguồn mở · Apache-2.0",
     "logoAlt": "Logo HyperWhisper",
     "headline": "Viết, soạn thảo và sáng tạo",
     "headlineAccent": "nhanh hơn 5x với AI",
@@ -28,7 +26,7 @@
     "downloadCta": "Tải xuống ngay",
     "demoCta": "Xem demo",
     "availableOn": "Có trên",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -98,57 +96,6 @@
     "languagesSupported": "Ngôn ngữ hỗ trợ",
     "providersSupported": "Nhà cung cấp hỗ trợ"
   },
-  "pricing": {
-    "title": "Không đăng ký. Mãi mãi.",
-    "subtitle": "Trả một lần, dùng mãi mãi. Chúng tôi cũng ghét đăng ký hàng tháng.",
-    "guarantee": "Hoàn tiền trong 14 ngày",
-    "guaranteeExtended": "nếu bạn không hoàn toàn hài lòng.",
-    "learnMore": "Tìm hiểu thêm",
-    "free": {
-      "name": "Miễn phí",
-      "price": "$0",
-      "period": "mãi mãi",
-      "description": "Hoàn hảo để thử HyperWhisper",
-      "cta": "Tải Miễn Phí",
-      "features": {
-        "transcriptionLimit": "5 phút chuyển giọng nói mỗi ngày",
-        "basicModes": "Các chế độ chuyển giọng nói cơ bản",
-        "offlineTranscription": "Chuyển giọng nói offline",
-        "apiTranscription": "Chuyển giọng nói qua API (dùng khóa của bạn)",
-        "postProcessing": "Hậu xử lý văn bản",
-        "providers": "9+ nhà cung cấp để lựa chọn",
-        "lifetimeUpdates": "Cập nhật trọn đời",
-        "cloudLimited": "HyperWhisper Cloud (giới hạn sử dụng)",
-        "customVocabulary": "Từ vựng tùy chỉnh",
-        "prioritySupport": "Hỗ trợ ưu tiên"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "trọn đời",
-      "description": "Mua một lần, sức mạnh không giới hạn mãi mãi",
-      "cta": "Mua Ngay - Truy Cập Trọn Đời",
-      "mostPopular": "Phổ biến nhất",
-      "features": {
-        "unlimitedTranscription": "Chuyển giọng nói không giới hạn",
-        "allModes": "Tất cả chế độ chuyển giọng nói",
-        "offlineTranscription": "Chuyển giọng nói offline",
-        "apiTranscription": "Chuyển giọng nói qua API (dùng khóa của bạn)",
-        "postProcessing": "Hậu xử lý văn bản",
-        "providers": "9+ nhà cung cấp để lựa chọn",
-        "lifetimeUpdates": "Cập nhật trọn đời",
-        "cloudCredits": "HyperWhisper Cloud ($5 tín dụng)",
-        "customVocabulary": "Từ vựng tùy chỉnh",
-        "prioritySupport": "Hỗ trợ ưu tiên"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise & Báo giá tùy chỉnh",
-      "description": "Chiết khấu theo số lượng, SSO, hỗ trợ ưu tiên, lưu trữ nội bộ và tích hợp tùy chỉnh",
-      "cta": "Liên hệ Sales"
-    }
-  },
   "faq": {
     "title": "Câu hỏi thường gặp",
     "subtitle": "Mọi điều bạn cần biết về HyperWhisper",
@@ -192,7 +139,7 @@
       },
       "lifetime": {
         "question": "Có gói đăng ký không?",
-        "answer": "Không — không bao giờ. HyperWhisper là một ứng dụng mã nguồn mở mà bạn sở hữu, không phải gói đăng ký bạn thuê. Tải về miễn phí và dùng phiên âm cục bộ, ngoại tuyến hoàn toàn miễn phí mãi mãi; gói miễn phí cũng bao gồm 5 phút phiên âm đám mây mỗi ngày. Khi bạn muốn phiên âm đám mây không cần thiết lập vượt quá mức đó, HyperWhisper Cloud là tín dụng trả theo mức dùng đơn giản — chỉ nạp khi bạn cần, không có phí hằng tháng và không có gì để hủy."
+        "answer": "Không — không bao giờ. HyperWhisper là một ứng dụng mã nguồn mở mà bạn sở hữu, không phải gói đăng ký bạn thuê. Tải về miễn phí và dùng phiên âm cục bộ, ngoại tuyến hoàn toàn miễn phí mãi mãi. Khi bạn muốn phiên âm đám mây không cần thiết lập, HyperWhisper Cloud là tín dụng trả theo mức dùng đơn giản — chỉ nạp khi bạn cần, không có phí hằng tháng và không có gì để hủy."
       },
       "deviceLimit": {
         "question": "Tôi có thể dùng khóa tài khoản trên bao nhiêu thiết bị?",
@@ -200,7 +147,7 @@
       },
       "requirements": {
         "question": "Yêu cầu hệ thống là gì?",
-        "answer": "Với Mac: macOS 14 trở lên, hỗ trợ cả Apple Silicon và Intel. Với Windows: Windows 10/11, x64 hoặc ARM64. Với Linux v1: Ubuntu 22.04 trở lên hoặc Debian 12 trở lên, trên amd64. Khuyến nghị 8GB RAM để đạt hiệu năng tối ưu."
+        "answer": "Với Mac: macOS 14.6 trở lên, hỗ trợ cả Apple Silicon và Intel. Với Windows: Windows 10/11, x64 hoặc ARM64. Với Linux v1: Ubuntu 22.04 trở lên hoặc Debian 12 trở lên, trên amd64. Khuyến nghị 8GB RAM để đạt hiệu năng tối ưu."
       },
       "madeBy": {
         "question": "Ai đã tạo ra sản phẩm này?",
@@ -252,10 +199,7 @@
     "downloadButton": "Tải xuống HyperWhisper",
     "errorGeneric": "Đã xảy ra lỗi. Vui lòng thử lại.",
     "errorEmail": "Vui lòng nhập địa chỉ email hợp lệ.",
-    "errorNetwork": "Lỗi mạng. Vui lòng kiểm tra kết nối và thử lại.",
-    "thankYouTitle": "Cảm ơn!",
     "downloadStarted": "Bản tải xuống của bạn sẽ tự động bắt đầu.",
-    "manualDownload": "Chưa bắt đầu tải? Bấm vào đây",
     "skipAndDownloadButton": "Bỏ qua và tải xuống"
   },
   "downloadPage": {
@@ -324,10 +268,10 @@
       "download": "Tải xuống",
       "roadmap": "Lộ trình",
       "helpCenter": "Trung tâm trợ giúp",
-      "manageBilling": "Quản lý Thanh toán",
       "customerPortal": "Cổng Khách hàng",
       "olderVersions": "Phiên bản cũ",
       "blog": "Blog",
+      "openSource": "Mã nguồn mở",
       "about": "Giới thiệu",
       "support": "Hỗ trợ",
       "privacyPolicy": "Chính sách Quyền riêng tư",
@@ -409,6 +353,25 @@
     "custom": "Tùy chỉnh",
     "customSub": "số tiền của bạn",
     "topUp": "Nạp thêm"
+  },
+  "licenseKeysCard": {
+    "rotate": "Tạo lại khóa",
+    "confirmTitle": "Tạo lại khóa tài khoản này?",
+    "confirmBody": "Bạn sẽ nhận được khóa mới và khóa này sẽ ngừng hoạt động ngay lập tức. Mọi thiết bị đang dùng khóa cũ đều cần khóa mới: hãy nhập khóa mới vào HyperWhisper trên từng thiết bị. Tín dụng, gói và lịch sử mua hàng của bạn vẫn được giữ trong tài khoản. Bạn cũng sẽ bị đăng xuất khỏi trang web này trên các trình duyệt khác.",
+    "confirm": "Tạo lại khóa",
+    "cancel": "Hủy",
+    "rotating": "Đang tạo lại…",
+    "rotated": "Đã tạo lại khóa. Hãy nhập khóa mới vào HyperWhisper trên từng thiết bị của bạn.",
+    "errorRateLimited": "Bạn đã tạo lại khóa quá nhiều lần. Vui lòng thử lại sau.",
+    "errorStale": "Khóa này đã được tạo lại. Khóa hiện tại được hiển thị ở trên.",
+    "errorGeneric": "Không thể tạo lại khóa. Vui lòng thử lại.",
+    "verifyTitle": "Xác nhận qua email rằng đó là bạn",
+    "verifyBody": "Để tạo lại khóa, trước tiên hãy xác nhận qua email rằng đó là bạn. Chúng tôi sẽ gửi liên kết đăng nhập đến địa chỉ email của tài khoản bạn. Hãy mở liên kết, rồi tạo lại khóa từ trang này.",
+    "sendLink": "Gửi cho tôi liên kết đăng nhập",
+    "sendingLink": "Đang gửi…",
+    "linkSent": "Đã gửi liên kết đăng nhập. Hãy mở liên kết từ hộp thư đến, rồi tạo lại khóa.",
+    "linkFailed": "Không thể gửi liên kết đăng nhập. Vui lòng thử lại.",
+    "errorUnavailable": "Khóa này không thể tạo lại được nữa. Trạng thái hiện tại của khóa được hiển thị ở trên."
   },
   "openSource": {
     "heading": "Mã nguồn mở. Không có gì để giấu.",

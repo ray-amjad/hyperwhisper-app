@@ -27,6 +27,28 @@ on:
       # classifier since issue #279, so a catalog edit changes its behaviour.
       - "shared-app-classification/**"
       - "packaging/linux/**"
+      # Files under the Windows and macOS heads that the Linux build compiles,
+      # embeds or reads (issue #1574). A Windows-only PR that adds a key to
+      # Strings.resx changed the Linux base key count three times without
+      # running this job, and main went red on the next Linux PR. Keep this list
+      # in step with every `../../windows/` include in app/shared-dotnet and
+      # app/linux csproj files.
+      #   HyperWhisper.Localization embeds the catalogs, and its validator reads
+      #   translation-status.json beside them.
+      - "app/windows/HyperWhisper/Resources/Strings*.resx"
+      - "app/windows/HyperWhisper/Resources/translation-status.json"
+      #   HyperWhisper.Application compiles the one EF model both heads share.
+      - "app/windows/HyperWhisper/Data/HyperWhisperDbContext.cs"
+      - "app/windows/HyperWhisper/Data/Entities/**"
+      - "app/windows/HyperWhisper/Migrations/**"
+      #   The Linux app ships these assets, linked from the Windows head.
+      - "app/windows/HyperWhisper/Assets/Sounds/start1.wav"
+      - "app/windows/HyperWhisper/Assets/Sounds/stop1.wav"
+      - "app/windows/HyperWhisper/Assets/Providers/**"
+      - "app/windows/HyperWhisper/Resources/parakeet-engine/x64/silero_vad.onnx"
+      #   HyperWhisper.CatalogConformance.Tests reads both live-only mirrors.
+      - "app/windows/HyperWhisper/Services/AppClassification/CloudSttCatalog.cs"
+      - "app/macos/hyperwhisper/Utilities/AppClassification/CloudSTTCatalog.swift"
       - "tools/parakeet-engine-dotnet/**"
       - "tools/parakeet-engine-dotnet.Tests/**"
       - ".github/scripts/test-linux-release-policy.py"
@@ -327,11 +349,14 @@ jobs:
           app/linux/scripts/run-ui-smoke.sh
           app/linux/scripts/run-ui-smoke-xwayland.sh
 
+          # Same ReadyToRun publish as linux-release.yml, so CI builds and
+          # package-tests the binaries that ship (#999).
           dotnet publish \
             app/linux/HyperWhisper.Linux/HyperWhisper.Linux.csproj \
             --configuration Release \
             --runtime linux-x64 \
             --self-contained true \
+            -p:PublishReadyToRun=true \
             --output artifacts/hyperwhisper-linux
 
           dotnet publish \
@@ -339,6 +364,7 @@ jobs:
             --configuration Release \
             --runtime linux-x64 \
             --self-contained true \
+            -p:PublishReadyToRun=true \
             --output artifacts/hyperwhisper-linux/parakeet-engine
 
           test -x artifacts/hyperwhisper-linux/HyperWhisper

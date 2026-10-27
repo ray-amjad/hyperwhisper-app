@@ -18,44 +18,39 @@
  *
  * Every case stops before a database query, so `@/src/db` is real but never
  * used (see `magic-link-send.test.ts` for why `drizzle()` tolerates that). The
- * one mocked module is `lib/clients/resend.ts`, the email edge, which also
- * keeps `src/env/server.mjs` out of the graph. No case reaches it.
+ * one mocked module is `lib/clients/resend.ts`, the email edge. No case
+ * reaches it. `src/env/server.mjs` is real, with its format check skipped
+ * (this file sets only the one variable it needs, `BETTER_AUTH_URL`).
  */
 import assert from "node:assert/strict";
-import { before, mock, test } from "node:test";
+import { before, test } from "node:test";
 
-/** See credit-routes-harness.ts: @types/node@20 has no `mock.module`. */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports: Record<string, unknown> },
-  ): void;
-}
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const resendCalls: unknown[] = [];
 
-(mock as unknown as ModuleMocker).module(
-  new URL("../lib/clients/resend.ts", import.meta.url).href,
-  {
-    namedExports: {
-      resend: {
-        emails: {
-          send: async (payload: unknown) => {
-            resendCalls.push(payload);
-            return { data: { id: "unused" }, error: null };
-          },
+moduleMock.module(moduleUrl("../lib/clients/resend.ts"), {
+  namedExports: {
+    resend: {
+      emails: {
+        send: async (payload: unknown) => {
+          resendCalls.push(payload);
+          return { data: { id: "unused" }, error: null };
         },
       },
-      DEFAULT_FROM_EMAIL: "HyperWhisper <support@hyperwhisper.com>",
     },
+    DEFAULT_FROM_EMAIL: "HyperWhisper <support@hyperwhisper.com>",
   },
-);
+});
 
 const ORIGIN = "http://localhost:3000";
 const BASE = `${ORIGIN}/api/auth`;
 const FOREIGN_ORIGIN = "https://evil.example";
 
-// `auth.ts` reads this once, when `betterAuth()` runs at import time.
+// `auth.ts` reads this once, when `betterAuth()` runs at import time, through
+// `src/env/server.mjs`, which snapshots process.env on its first import (#682).
+// The other required secrets are absent here, so the format check is skipped.
+process.env.SKIP_ENV_VALIDATION = "1";
 process.env.BETTER_AUTH_URL = ORIGIN;
 
 type Handler = (request: Request) => Promise<Response>;

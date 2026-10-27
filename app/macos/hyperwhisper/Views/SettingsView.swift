@@ -102,6 +102,7 @@ struct SettingsView: View {
     let licenseManager = LicenseManager()
     return SettingsView()
         .environmentObject(SettingsManager())
+        .environmentObject(AudioRecordingManager())
         .environmentObject(AppState())
         .environmentObject(ParakeetModelManager())
         .environmentObject(TranscriptionPipeline())

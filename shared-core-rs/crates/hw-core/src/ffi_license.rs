@@ -1,6 +1,6 @@
-//! UniFFI surface for the M3 license/usage core (`hw_license`).
+//! UniFFI surface for the M3 license core (`hw_license`).
 //!
-//! Mirrors the public records/enums and exposes the validate/cache/usage
+//! Mirrors the public records/enums and exposes the validate/cache
 //! functions. Persistence-taking functions accept the foreign
 //! `Arc<dyn KeyValueStore>` (defined in lib.rs), wrap it in [`KvAdapter`] — which
 //! implements the leaf crate's plain `hw_license::KeyValueStore` trait — and pass
@@ -105,81 +105,9 @@ impl From<hw_license::validate::ValidationOutcome> for ValidationOutcome {
     }
 }
 
-/// Remote trial-limit override. Mirrors `hw_license::cache::TrialLimits`.
-#[derive(uniffi::Record)]
-pub struct TrialLimits {
-    pub daily_seconds: i64,
-    pub model_downloads: i64,
-}
-
-impl From<TrialLimits> for hw_license::cache::TrialLimits {
-    fn from(t: TrialLimits) -> Self {
-        hw_license::cache::TrialLimits {
-            daily_seconds: t.daily_seconds,
-            model_downloads: t.model_downloads,
-        }
-    }
-}
-
-impl From<hw_license::cache::TrialLimits> for TrialLimits {
-    fn from(t: hw_license::cache::TrialLimits) -> Self {
-        TrialLimits {
-            daily_seconds: t.daily_seconds,
-            model_downloads: t.model_downloads,
-        }
-    }
-}
-
-/// Active usage limits. Mirrors `hw_license::usage::Limits`.
-#[derive(uniffi::Record)]
-pub struct Limits {
-    pub daily_seconds: i64,
-    pub model_downloads: i64,
-}
-
-impl From<Limits> for hw_license::usage::Limits {
-    fn from(l: Limits) -> Self {
-        hw_license::usage::Limits {
-            daily_seconds: l.daily_seconds,
-            model_downloads: l.model_downloads,
-        }
-    }
-}
-
-/// A snapshot of current usage vs. the active limits. Mirrors
-/// `hw_license::usage::UsageSnapshot`.
-#[derive(uniffi::Record)]
-pub struct UsageSnapshot {
-    pub daily_seconds_used: i64,
-    pub models_downloaded: i64,
-    pub daily_limit_reached: bool,
-    pub model_limit_reached: bool,
-    pub remaining_daily_seconds: i64,
-    pub remaining_model_downloads: i64,
-}
-
-impl From<hw_license::usage::UsageSnapshot> for UsageSnapshot {
-    fn from(s: hw_license::usage::UsageSnapshot) -> Self {
-        UsageSnapshot {
-            daily_seconds_used: s.daily_seconds_used,
-            models_downloaded: s.models_downloaded,
-            daily_limit_reached: s.daily_limit_reached,
-            model_limit_reached: s.model_limit_reached,
-            remaining_daily_seconds: s.remaining_daily_seconds,
-            remaining_model_downloads: s.remaining_model_downloads,
-        }
-    }
-}
-
 // ===========================================================================
 // validate
 // ===========================================================================
-
-/// The `/api/license/validate` endpoint URL.
-#[uniffi::export]
-pub fn license_validate_url() -> String {
-    hw_license::validate::VALIDATE_URL.to_string()
-}
 
 /// Build the POST `/api/license/validate` request.
 #[uniffi::export]
@@ -213,49 +141,17 @@ pub fn license_parse_validate_response(body: Vec<u8>) -> ValidationOutcome {
 // cache (constants + store-taking fns)
 // ===========================================================================
 
-/// 24h validation cache TTL (seconds).
-#[uniffi::export]
-pub fn license_validation_cache_secs() -> i64 {
-    hw_license::cache::VALIDATION_CACHE_SECS
-}
-
-/// 7-day offline grace period (seconds).
-#[uniffi::export]
-pub fn license_offline_grace_secs() -> i64 {
-    hw_license::cache::OFFLINE_GRACE_SECS
-}
-
-/// 24h remote-override TTL (seconds).
-#[uniffi::export]
-pub fn license_remote_override_ttl_secs() -> i64 {
-    hw_license::cache::REMOTE_OVERRIDE_TTL_SECS
-}
-
-#[uniffi::export]
-pub fn license_store_license_key(store: Arc<dyn KeyValueStore>, key: String) {
-    hw_license::cache::store_license_key(&KvAdapter(store), &key)
-}
-
 #[uniffi::export]
 pub fn license_stored_license_key(store: Arc<dyn KeyValueStore>) -> Option<String> {
     hw_license::cache::stored_license_key(&KvAdapter(store))
 }
 
-#[uniffi::export]
-pub fn license_update_validation_cache(
-    store: Arc<dyn KeyValueStore>,
-    status: HwLicenseStatus,
-    now_unix_secs: i64,
-) {
-    hw_license::cache::update_validation_cache(&KvAdapter(store), status.into(), now_unix_secs)
-}
-
 /// Persist a server validation verdict for the attempted key: stores the key on
 /// a valid (`Active`) verdict, and updates the validation cache only when the
-/// verdict is valid or the attempted key matches the stored key. Prefer this
-/// over the raw `license_update_validation_cache` after a validate response —
-/// it prevents a rejected *replacement* key from clobbering the stored key's
-/// cached status (a 24h lockout for a valid user).
+/// verdict is valid or the attempted key matches the stored key. This is the
+/// only FFI write path for a validate response: it prevents a rejected
+/// *replacement* key from clobbering the stored key's cached status (a 24h
+/// lockout for a valid user).
 #[uniffi::export]
 pub fn license_persist_validation_verdict(
     store: Arc<dyn KeyValueStore>,
@@ -297,100 +193,6 @@ pub fn license_clear_stored_license(store: Arc<dyn KeyValueStore>) {
     hw_license::cache::clear_stored_license(&KvAdapter(store))
 }
 
-#[uniffi::export]
-pub fn license_store_remote_override(
-    store: Arc<dyn KeyValueStore>,
-    limits: TrialLimits,
-    now_unix_secs: i64,
-) {
-    hw_license::cache::store_remote_override(&KvAdapter(store), limits.into(), now_unix_secs)
-}
-
-#[uniffi::export]
-pub fn license_remote_override_if_fresh(
-    store: Arc<dyn KeyValueStore>,
-    now_unix_secs: i64,
-) -> Option<TrialLimits> {
-    hw_license::cache::remote_override_if_fresh(&KvAdapter(store), now_unix_secs).map(Into::into)
-}
-
-// ===========================================================================
-// usage (constants + Limits::defaults + store-taking fns)
-// ===========================================================================
-
-/// Default daily seconds limit for release builds.
-#[uniffi::export]
-pub fn license_default_daily_limit_release() -> i64 {
-    hw_license::usage::DEFAULT_DAILY_LIMIT_RELEASE
-}
-
-/// Default daily seconds limit for debug builds.
-#[uniffi::export]
-pub fn license_default_daily_limit_debug() -> i64 {
-    hw_license::usage::DEFAULT_DAILY_LIMIT_DEBUG
-}
-
-/// Default model-download limit.
-#[uniffi::export]
-pub fn license_default_model_limit() -> i64 {
-    hw_license::usage::DEFAULT_MODEL_LIMIT
-}
-
-/// The hardcoded default limits for the given build flavor.
-#[uniffi::export]
-pub fn license_limits_defaults(debug_build: bool) -> Limits {
-    let l = hw_license::usage::Limits::defaults(debug_build);
-    Limits {
-        daily_seconds: l.daily_seconds,
-        model_downloads: l.model_downloads,
-    }
-}
-
-#[uniffi::export]
-pub fn license_record_usage(store: Arc<dyn KeyValueStore>, seconds: i64, now_unix_secs: i64) {
-    hw_license::usage::record_usage(&KvAdapter(store), seconds, now_unix_secs)
-}
-
-#[uniffi::export]
-pub fn license_record_model_download(store: Arc<dyn KeyValueStore>) {
-    hw_license::usage::record_model_download(&KvAdapter(store))
-}
-
-#[uniffi::export]
-pub fn license_check_limits(
-    store: Arc<dyn KeyValueStore>,
-    status: HwLicenseStatus,
-    limits: Limits,
-    now_unix_secs: i64,
-) -> UsageSnapshot {
-    hw_license::usage::check_limits(&KvAdapter(store), status.into(), limits.into(), now_unix_secs)
-        .into()
-}
-
-#[uniffi::export]
-pub fn license_can_start_recording(
-    store: Arc<dyn KeyValueStore>,
-    status: HwLicenseStatus,
-    limits: Limits,
-    now_unix_secs: i64,
-) -> bool {
-    hw_license::usage::can_start_recording(
-        &KvAdapter(store),
-        status.into(),
-        limits.into(),
-        now_unix_secs,
-    )
-}
-
-#[uniffi::export]
-pub fn license_can_download_model(
-    store: Arc<dyn KeyValueStore>,
-    status: HwLicenseStatus,
-    limits: Limits,
-) -> bool {
-    hw_license::usage::can_download_model(&KvAdapter(store), status.into(), limits.into())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -423,12 +225,10 @@ mod tests {
     const K_OVERRIDE_DAILY: &str = "com.hyperwhisper.config.trialDailyLimitSeconds";
     const K_OVERRIDE_MODELS: &str = "com.hyperwhisper.config.trialModelDownloadLimit";
     const K_OVERRIDE_FETCHED_AT: &str = "com.hyperwhisper.config.lastFetchTimestamp";
-    const K_OVERRIDE_MAX_AGE: &str = "com.hyperwhisper.config.maxAgeSecs";
 
     const DAY: i64 = 86_400;
     const CACHE_SECS: i64 = 86_400;
     const GRACE_SECS: i64 = 604_800;
-    const OVERRIDE_DEFAULT_TTL: i64 = 21_600;
 
     /// The foreign `KeyValueStore` a platform would supply, plus raw read/write
     /// access so a test can inspect exactly what the bridge persisted.
@@ -471,6 +271,15 @@ mod tests {
         s.clone()
     }
 
+    /// Write the validation cache the way the bridge's own adapter would: the
+    /// foreign store through `KvAdapter`, the mirrored status through its
+    /// `From` impl. The cache writer has no FFI export of its own (heads write
+    /// a verdict through `license_persist_validation_verdict`), so the tests
+    /// that need a cached validation seed it here.
+    fn seed_validation_cache(s: &Arc<TestStore>, status: HwLicenseStatus, now_unix_secs: i64) {
+        hw_license::cache::update_validation_cache(&KvAdapter(kv(s)), status.into(), now_unix_secs)
+    }
+
     /// A distinct label per FFI status arm, written independently of the `From`
     /// impls under test. The exhaustive `match` also fails to compile if a new
     /// arm is added without a test.
@@ -497,13 +306,6 @@ mod tests {
 
     const ALL_STATUS_TAGS: [&str; 4] = ["trial", "active", "expired", "invalid"];
 
-    fn limits(daily_seconds: i64, model_downloads: i64) -> Limits {
-        Limits {
-            daily_seconds,
-            model_downloads,
-        }
-    }
-
     fn body(json: &str) -> Vec<u8> {
         json.as_bytes().to_vec()
     }
@@ -515,7 +317,7 @@ mod tests {
     #[test]
     fn validate_url_is_the_production_endpoint() {
         assert_eq!(
-            license_validate_url(),
+            hw_license::validate::VALIDATE_URL,
             "https://www.hyperwhisper.com/api/license/validate"
         );
     }
@@ -534,7 +336,7 @@ mod tests {
             text,
             r#"{"license_key":"KEY-AAA","device_id":"device-BBB","device_name":"host-CCC"}"#
         );
-        assert_eq!(req.url, license_validate_url());
+        assert_eq!(req.url, hw_license::validate::VALIDATE_URL);
         assert_eq!(req.content_type, "application/json");
     }
 
@@ -669,9 +471,8 @@ mod tests {
 
     #[test]
     fn cache_window_constants_match_their_documented_durations() {
-        assert_eq!(license_validation_cache_secs(), CACHE_SECS);
-        assert_eq!(license_offline_grace_secs(), GRACE_SECS);
-        assert_eq!(license_remote_override_ttl_secs(), 86_400);
+        assert_eq!(hw_license::cache::VALIDATION_CACHE_SECS, CACHE_SECS);
+        assert_eq!(hw_license::cache::OFFLINE_GRACE_SECS, GRACE_SECS);
     }
 
     #[test]
@@ -686,7 +487,7 @@ mod tests {
         ];
         for (tag, persisted) in expected {
             let s = store();
-            license_update_validation_cache(kv(&s), status_from_tag(tag), 1_700_000_000);
+            seed_validation_cache(&s, status_from_tag(tag), 1_700_000_000);
             assert_eq!(s.raw(K_CACHED_STATUS).as_deref(), Some(persisted), "{tag}");
             assert_eq!(
                 s.raw(K_LAST_VALIDATION).as_deref(),
@@ -727,7 +528,7 @@ mod tests {
     fn should_revalidate_flips_at_the_validation_cache_boundary() {
         let s = store();
         let t0 = 1_700_000_000;
-        license_update_validation_cache(kv(&s), HwLicenseStatus::Active, t0);
+        seed_validation_cache(&s, HwLicenseStatus::Active, t0);
         assert!(!license_should_revalidate(kv(&s), t0));
         assert!(!license_should_revalidate(kv(&s), t0 + CACHE_SECS));
         assert!(license_should_revalidate(kv(&s), t0 + CACHE_SECS + 1));
@@ -739,7 +540,7 @@ mod tests {
         assert!(license_should_revalidate(kv(&s), 1_700_000_000));
 
         let t0 = 1_700_000_000;
-        license_update_validation_cache(kv(&s), HwLicenseStatus::Active, t0);
+        seed_validation_cache(&s, HwLicenseStatus::Active, t0);
         // A clock correction that moves time backwards must not make the cache
         // look permanently fresh.
         assert!(license_should_revalidate(kv(&s), t0 - 1));
@@ -749,7 +550,7 @@ mod tests {
     fn cached_status_expires_at_the_offline_grace_boundary() {
         let s = store();
         let t0 = 1_700_000_000;
-        license_update_validation_cache(kv(&s), HwLicenseStatus::Active, t0);
+        seed_validation_cache(&s, HwLicenseStatus::Active, t0);
         assert!(license_cached_status_within_grace(kv(&s), t0 + GRACE_SECS).is_some());
         assert!(license_cached_status_within_grace(kv(&s), t0 + GRACE_SECS + 1).is_none());
     }
@@ -763,10 +564,10 @@ mod tests {
         let s = store();
         assert!(license_stored_license_key(kv(&s)).is_none());
 
-        license_store_license_key(kv(&s), "   ".to_string());
+        hw_license::cache::store_license_key(&KvAdapter(kv(&s)), "   ");
         assert!(s.raw(K_LICENSE_KEY).is_none());
 
-        license_store_license_key(kv(&s), "HW-KEY-1".to_string());
+        hw_license::cache::store_license_key(&KvAdapter(kv(&s)), "HW-KEY-1");
         assert_eq!(
             license_stored_license_key(kv(&s)).as_deref(),
             Some("HW-KEY-1")
@@ -846,14 +647,9 @@ mod tests {
             1_000,
         );
         s.seed(K_CUSTOMER_ID, "cus_333");
-        license_store_remote_override(
-            kv(&s),
-            TrialLimits {
-                daily_seconds: 900,
-                model_downloads: 7,
-            },
-            1_000,
-        );
+        s.seed(K_OVERRIDE_DAILY, "900");
+        s.seed(K_OVERRIDE_MODELS, "7");
+        s.seed(K_OVERRIDE_FETCHED_AT, "1000");
 
         license_clear_stored_license(kv(&s));
 
@@ -862,7 +658,9 @@ mod tests {
         assert!(s.raw(K_LAST_VALIDATION).is_none());
         assert!(s.raw(K_CACHED_STATUS).is_none());
         // The config override is not the user's licence — it survives.
-        assert!(license_remote_override_if_fresh(kv(&s), 1_000).is_some());
+        assert_eq!(s.raw(K_OVERRIDE_DAILY).as_deref(), Some("900"));
+        assert_eq!(s.raw(K_OVERRIDE_MODELS).as_deref(), Some("7"));
+        assert_eq!(s.raw(K_OVERRIDE_FETCHED_AT).as_deref(), Some("1000"));
     }
 
     // -----------------------------------------------------------------------
@@ -873,7 +671,7 @@ mod tests {
     fn offline_fallback_uses_the_cached_status_and_customer_within_grace() {
         let s = store();
         let t0 = 1_700_000_000;
-        license_update_validation_cache(kv(&s), HwLicenseStatus::Active, t0);
+        seed_validation_cache(&s, HwLicenseStatus::Active, t0);
         s.seed(K_CUSTOMER_ID, "cus_444");
 
         let outcome = license_offline_fallback_outcome(kv(&s), t0 + DAY);
@@ -890,7 +688,7 @@ mod tests {
     fn offline_fallback_for_a_cached_non_active_status_is_not_valid() {
         let s = store();
         let t0 = 1_700_000_000;
-        license_update_validation_cache(kv(&s), HwLicenseStatus::Expired, t0);
+        seed_validation_cache(&s, HwLicenseStatus::Expired, t0);
 
         let outcome = license_offline_fallback_outcome(kv(&s), t0 + DAY);
         assert!(!outcome.is_valid);
@@ -905,7 +703,7 @@ mod tests {
     fn offline_fallback_past_the_grace_period_is_invalid_with_no_customer() {
         let s = store();
         let t0 = 1_700_000_000;
-        license_update_validation_cache(kv(&s), HwLicenseStatus::Active, t0);
+        seed_validation_cache(&s, HwLicenseStatus::Active, t0);
         s.seed(K_CUSTOMER_ID, "cus_555");
 
         let outcome = license_offline_fallback_outcome(kv(&s), t0 + GRACE_SECS + 1);
@@ -916,196 +714,5 @@ mod tests {
             outcome.error_message.as_deref(),
             Some("Offline and no cached license")
         );
-    }
-
-    // -----------------------------------------------------------------------
-    // cache: remote trial-limit override
-    // -----------------------------------------------------------------------
-
-    #[test]
-    fn store_remote_override_writes_each_field_to_its_own_key() {
-        // Asymmetric values: swapping the two fields cannot pass.
-        let s = store();
-        license_store_remote_override(
-            kv(&s),
-            TrialLimits {
-                daily_seconds: 900,
-                model_downloads: 7,
-            },
-            1_700_000_000,
-        );
-        assert_eq!(s.raw(K_OVERRIDE_DAILY).as_deref(), Some("900"));
-        assert_eq!(s.raw(K_OVERRIDE_MODELS).as_deref(), Some("7"));
-        assert_eq!(s.raw(K_OVERRIDE_FETCHED_AT).as_deref(), Some("1700000000"));
-    }
-
-    #[test]
-    fn remote_override_reads_each_field_back_into_its_own_slot() {
-        let s = store();
-        s.seed(K_OVERRIDE_DAILY, "1200");
-        s.seed(K_OVERRIDE_MODELS, "5");
-        s.seed(K_OVERRIDE_FETCHED_AT, "1000");
-
-        let got = license_remote_override_if_fresh(kv(&s), 2_000).expect("fresh override");
-        assert_eq!(got.daily_seconds, 1200);
-        assert_eq!(got.model_downloads, 5);
-    }
-
-    #[test]
-    fn remote_override_expires_at_the_default_ttl_when_no_max_age_is_stored() {
-        let s = store();
-        let t0 = 1_700_000_000;
-        license_store_remote_override(
-            kv(&s),
-            TrialLimits {
-                daily_seconds: 900,
-                model_downloads: 7,
-            },
-            t0,
-        );
-        assert!(license_remote_override_if_fresh(kv(&s), t0 + OVERRIDE_DEFAULT_TTL).is_some());
-        assert!(license_remote_override_if_fresh(kv(&s), t0 + OVERRIDE_DEFAULT_TTL + 1).is_none());
-    }
-
-    #[test]
-    fn a_stored_max_age_extends_the_override_but_is_clamped_to_the_24h_cap() {
-        let s = store();
-        let t0 = 1_700_000_000;
-        license_store_remote_override(
-            kv(&s),
-            TrialLimits {
-                daily_seconds: 900,
-                model_downloads: 7,
-            },
-            t0,
-        );
-        // A server max-age longer than the cap cannot pin a stale override.
-        s.seed(K_OVERRIDE_MAX_AGE, "999999");
-        let cap = license_remote_override_ttl_secs();
-        assert!(license_remote_override_if_fresh(kv(&s), t0 + cap).is_some());
-        assert!(license_remote_override_if_fresh(kv(&s), t0 + cap + 1).is_none());
-    }
-
-    #[test]
-    fn remote_override_rejects_a_backward_clock() {
-        let s = store();
-        let t0 = 1_700_000_000;
-        license_store_remote_override(
-            kv(&s),
-            TrialLimits {
-                daily_seconds: 900,
-                model_downloads: 7,
-            },
-            t0,
-        );
-        assert!(license_remote_override_if_fresh(kv(&s), t0 - 1).is_none());
-    }
-
-    // -----------------------------------------------------------------------
-    // usage
-    // -----------------------------------------------------------------------
-
-    #[test]
-    fn default_limit_constants_are_exposed_unswapped() {
-        assert_eq!(license_default_daily_limit_release(), 300);
-        assert_eq!(license_default_daily_limit_debug(), 1800);
-        assert_eq!(license_default_model_limit(), 3);
-    }
-
-    #[test]
-    fn limits_defaults_follow_the_build_flavor_flag() {
-        let release = license_limits_defaults(false);
-        assert_eq!(release.daily_seconds, 300);
-        assert_eq!(release.model_downloads, 3);
-
-        let debug = license_limits_defaults(true);
-        assert_eq!(debug.daily_seconds, 1800);
-        assert_eq!(debug.model_downloads, 3);
-    }
-
-    #[test]
-    fn the_snapshot_counts_seconds_and_downloads_in_separate_slots() {
-        let s = store();
-        let now = 10 * DAY + 500;
-        license_record_usage(kv(&s), 42, now);
-        license_record_model_download(kv(&s));
-        license_record_model_download(kv(&s));
-
-        let snap = license_check_limits(kv(&s), HwLicenseStatus::Trial, limits(300, 3), now);
-        assert_eq!(snap.daily_seconds_used, 42);
-        assert_eq!(snap.models_downloaded, 2);
-    }
-
-    #[test]
-    fn record_usage_ignores_non_positive_seconds() {
-        let s = store();
-        let now = 10 * DAY + 500;
-        license_record_usage(kv(&s), 0, now);
-        license_record_usage(kv(&s), -30, now);
-        let snap = license_check_limits(kv(&s), HwLicenseStatus::Trial, limits(300, 3), now);
-        assert_eq!(snap.daily_seconds_used, 0);
-    }
-
-    #[test]
-    fn local_usage_is_unlimited_for_every_status() {
-        // Local transcription is free and unlimited (open source); the paid moat
-        // is HyperWhisper Cloud, enforced server-side. A status or limits value
-        // that starts gating locally is a regression, not a feature.
-        let now = 10 * DAY + 500;
-        for tag in ALL_STATUS_TAGS {
-            let s = store();
-            license_record_usage(kv(&s), 100_000, now);
-            for _ in 0..20 {
-                license_record_model_download(kv(&s));
-            }
-            let snap = license_check_limits(kv(&s), status_from_tag(tag), limits(1, 0), now);
-            assert!(!snap.daily_limit_reached, "{tag}");
-            assert!(!snap.model_limit_reached, "{tag}");
-            assert_eq!(snap.remaining_daily_seconds, i64::MAX, "{tag}");
-            assert_eq!(snap.remaining_model_downloads, i64::MAX, "{tag}");
-            assert!(
-                license_can_start_recording(kv(&s), status_from_tag(tag), limits(1, 0), now),
-                "{tag}"
-            );
-            assert!(
-                license_can_download_model(kv(&s), status_from_tag(tag), limits(1, 0)),
-                "{tag}"
-            );
-        }
-    }
-
-    #[test]
-    fn daily_seconds_reset_at_the_utc_day_boundary_but_downloads_do_not() {
-        let s = store();
-        license_record_usage(kv(&s), 250, 10 * DAY + 100);
-        license_record_model_download(kv(&s));
-
-        let snap = license_check_limits(
-            kv(&s),
-            HwLicenseStatus::Trial,
-            limits(300, 3),
-            11 * DAY + 100,
-        );
-        assert_eq!(snap.daily_seconds_used, 0);
-        // The download count is a lifetime counter, not a daily one.
-        assert_eq!(snap.models_downloaded, 1);
-    }
-
-    #[test]
-    fn the_day_reset_is_durable_across_calls() {
-        let s = store();
-        license_record_usage(kv(&s), 250, 10 * DAY + 100);
-        // Reading on the next day must persist the reset, so a later record on
-        // that day starts from zero rather than from 250.
-        let _ = license_check_limits(kv(&s), HwLicenseStatus::Trial, limits(300, 3), 11 * DAY);
-        license_record_usage(kv(&s), 40, 11 * DAY + 10);
-
-        let snap = license_check_limits(
-            kv(&s),
-            HwLicenseStatus::Trial,
-            limits(300, 3),
-            11 * DAY + 20,
-        );
-        assert_eq!(snap.daily_seconds_used, 40);
     }
 }

@@ -54,8 +54,13 @@ class TranscriptionProviderRouter {
     /// HyperWhisper Cloud provider (built-in, credit-based)
     private var hyperwhisperCloudProvider: HyperWhisperCloudProvider?
 
-    /// Cloud Whisper provider (OpenAI/Groq)
-    private let cloudProvider = CloudWhisperProvider()
+    /// Cloud Whisper providers, ONE PER VENDOR (issue #1338). They used to be
+    /// one shared instance that each request re-pointed at its vendor, so a
+    /// Groq request suspended at `ensureHealthy` could resume on OpenAI with the
+    /// OpenAI key after an overlapping OpenAI request configured it. Route
+    /// `.openai` and `.groq` only through `whisperProvider(for:)`.
+    private let openAIProvider: CloudWhisperProvider
+    private let groqProvider: CloudWhisperProvider
 
     /// Additional cloud providers
     private let deepgramProvider = DeepgramProvider()
@@ -99,8 +104,17 @@ class TranscriptionProviderRouter {
 
     // MARK: - Initialization
 
-    init() {
+    /// - Parameter cloudWhisperExecute: transport for the OpenAI/Groq Whisper
+    ///   requests. Tests inject one to see where each request went; every
+    ///   production call site takes the default.
+    init(
+        cloudWhisperExecute: @escaping RustRetry.Executor = { request, session in
+            try await RustHTTPExecutor.execute(request, session: session)
+        }
+    ) {
         // Providers will be configured as needed
+        openAIProvider = CloudWhisperProvider(provider: .openai, execute: cloudWhisperExecute)
+        groqProvider = CloudWhisperProvider(provider: .groq, execute: cloudWhisperExecute)
     }
 
     // MARK: - Dependency Injection
@@ -152,16 +166,23 @@ class TranscriptionProviderRouter {
     /// - Parameter apiKey: OpenAI API key
     func setupCloudProvider(with apiKey: String) {
         if !apiKey.isEmpty {
-            cloudProvider.configure(apiKey: apiKey)
+            openAIProvider.configure(apiKey: apiKey)
         }
     }
 
     /// Refresh API configuration when settings change
     func refreshConfiguration(openAIAPIKey: String) {
         if !openAIAPIKey.isEmpty {
-            cloudProvider.configure(apiKey: openAIAPIKey)
+            openAIProvider.configure(apiKey: openAIAPIKey)
             AppLogger.network.debug("Refreshed OpenAI configuration")
         }
+    }
+
+    /// The OpenAI-compatible Whisper instance for `vendor`. Only `.openai` and
+    /// `.groq` reach it; each has its own instance, so configuring one vendor
+    /// can never re-point a request already resolved to the other (issue #1338).
+    private func whisperProvider(for vendor: CloudProvider) -> CloudWhisperProvider {
+        vendor == .groq ? groqProvider : openAIProvider
     }
 
     // MARK: - Provider Selection
@@ -288,36 +309,7 @@ class TranscriptionProviderRouter {
                 throw TranscriptionError.apiKeyMissing(provider: cloudProviderType.displayName)
             }
 
-            // Configure selected cloud provider
-            switch cloudProviderType {
-            case .hyperwhisper, .microsoftAzureSpeech, .googleSpeech:
-                // Unreachable: these providers return `false` from `requiresAPIKey`
-                // and are filtered by the outer guard. Kept explicit so the switch
-                // stays exhaustive without a `default` arm that would silently
-                // swallow future providers; `assertionFailure` catches a
-                // regression where the outer guard is loosened.
-                assertionFailure("BYOK-free providers should not enter the API-key configuration switch")
-            case .openai, .groq:
-                cloudProvider.configure(apiKey: apiKey, provider: cloudProviderType)
-            case .deepgram:
-                deepgramProvider.configure(apiKey: apiKey)
-            case .assemblyAI:
-                assemblyAIProvider.configure(apiKey: apiKey)
-            case .elevenLabs:
-                elevenLabsProvider.configure(apiKey: apiKey)
-            case .mistral:
-                mistralProvider.configure(apiKey: apiKey)
-            case .soniox:
-                sonioxProvider.configure(apiKey: apiKey)
-            case .gemini:
-                geminiTranscriptionProvider.configure(apiKey: apiKey)
-            case .grok:
-                grokSTTProvider.configure(apiKey: apiKey)
-            case .geminiTranscribe:
-                geminiTranscribeProvider.configure(apiKey: apiKey)
-            case .meta:
-                metaMuseProvider.configure(apiKey: apiKey)
-            }
+            configureBYOKKey(apiKey, for: cloudProviderType)
         }
 
         // Select cloud provider instance
@@ -580,75 +572,10 @@ class TranscriptionProviderRouter {
             guard !apiKey.isEmpty else {
                 throw TranscriptionError.apiKeyMissing(provider: cloudProviderType.displayName)
             }
-            switch cloudProviderType {
-            case .hyperwhisper, .microsoftAzureSpeech, .googleSpeech:
-                // Unreachable: filtered by the outer `requiresAPIKey` guard.
-                // Mirrors the same dead-arm pattern in `selectProvider(for:vocabulary:)`.
-                assertionFailure("BYOK-free providers should not enter the API-key configuration switch")
-            case .openai, .groq:
-                cloudProvider.configure(apiKey: apiKey, provider: cloudProviderType)
-            case .deepgram:
-                deepgramProvider.configure(apiKey: apiKey)
-            case .assemblyAI:
-                assemblyAIProvider.configure(apiKey: apiKey)
-            case .elevenLabs:
-                elevenLabsProvider.configure(apiKey: apiKey)
-            case .mistral:
-                mistralProvider.configure(apiKey: apiKey)
-            case .soniox:
-                sonioxProvider.configure(apiKey: apiKey)
-            case .gemini:
-                geminiTranscriptionProvider.configure(apiKey: apiKey)
-            case .grok:
-                grokSTTProvider.configure(apiKey: apiKey)
-            case .geminiTranscribe:
-                geminiTranscribeProvider.configure(apiKey: apiKey)
-            case .meta:
-                metaMuseProvider.configure(apiKey: apiKey)
-            }
+            configureBYOKKey(apiKey, for: cloudProviderType)
         }
 
-        let provider: TranscriptionProvider
-        switch cloudProviderType {
-        case .hyperwhisper:
-            ensureHyperWhisperCloudProvider()
-            guard let hw = hyperwhisperCloudProvider else {
-                throw TranscriptionError.providerNotAvailable(provider: "HyperWhisper Cloud", reason: "Failed to initialize provider")
-            }
-            provider = hw
-        case .openai, .groq:
-            provider = cloudProvider
-        case .deepgram:
-            provider = deepgramProvider
-        case .assemblyAI:
-            provider = assemblyAIProvider
-        case .elevenLabs:
-            provider = elevenLabsProvider
-        case .mistral:
-            provider = mistralProvider
-        case .soniox:
-            provider = sonioxProvider
-        case .gemini:
-            provider = geminiTranscriptionProvider
-        case .grok:
-            provider = grokSTTProvider
-        case .microsoftAzureSpeech:
-            ensureAzureMAIProvider()
-            guard let azure = azureMAIProvider else {
-                throw TranscriptionError.providerNotAvailable(provider: "Microsoft MAI-Transcribe", reason: "Failed to initialize provider")
-            }
-            provider = azure
-        case .googleSpeech:
-            ensureGoogleChirpProvider()
-            guard let google = googleChirpProvider else {
-                throw TranscriptionError.providerNotAvailable(provider: "Google Chirp 3", reason: "Failed to initialize provider")
-            }
-            provider = google
-        case .geminiTranscribe:
-            provider = geminiTranscribeProvider
-        case .meta:
-            provider = metaMuseProvider
-        }
+        let provider = try cloudProviderInstance(for: cloudProviderType)
 
         if let healthManager = providerHealthManager {
             let status = await healthManager.ensureHealthy(cloudProviderType)
@@ -760,22 +687,48 @@ class TranscriptionProviderRouter {
         modelId == "apple-speech-analyzer"
     }
 
+    /// Hands a bring-your-own-key provider its key. Both cloud paths
+    /// (`selectProvider` and `selectCloudProviderForLocalAPI`) call it after
+    /// checking `requiresAPIKey` and that the key is not empty.
+    private func configureBYOKKey(_ apiKey: String, for cloudProviderType: CloudProvider) {
+        switch cloudProviderType {
+        case .hyperwhisper, .microsoftAzureSpeech, .googleSpeech:
+            // Unreachable: these providers return `false` from `requiresAPIKey`
+            // and both callers filter on it first. Kept explicit so the switch
+            // stays exhaustive without a `default` arm that would silently
+            // swallow future providers; `assertionFailure` catches a
+            // regression where a caller's guard is loosened.
+            assertionFailure("BYOK-free providers should not enter the API-key configuration switch")
+        case .openai, .groq:
+            whisperProvider(for: cloudProviderType).configure(apiKey: apiKey)
+        case .deepgram:
+            deepgramProvider.configure(apiKey: apiKey)
+        case .assemblyAI:
+            assemblyAIProvider.configure(apiKey: apiKey)
+        case .elevenLabs:
+            elevenLabsProvider.configure(apiKey: apiKey)
+        case .mistral:
+            mistralProvider.configure(apiKey: apiKey)
+        case .soniox:
+            sonioxProvider.configure(apiKey: apiKey)
+        case .gemini:
+            geminiTranscriptionProvider.configure(apiKey: apiKey)
+        case .grok:
+            grokSTTProvider.configure(apiKey: apiKey)
+        case .geminiTranscribe:
+            geminiTranscribeProvider.configure(apiKey: apiKey)
+        case .meta:
+            metaMuseProvider.configure(apiKey: apiKey)
+        }
+    }
+
     /// The shared instance that serves `cloudProviderType`. Creates the
     /// HyperWhisper Cloud, Azure and Google providers on first use; configures
     /// and checks nothing.
     private func cloudProviderInstance(for cloudProviderType: CloudProvider) throws -> any TranscriptionProvider {
         switch cloudProviderType {
         case .hyperwhisper:
-            // Initialize HyperWhisper Cloud provider if needed
-            if hyperwhisperCloudProvider == nil,
-               let licenseManager = licenseManager,
-               let creditManager = creditManager {
-                hyperwhisperCloudProvider = HyperWhisperCloudProvider(
-                    licenseManager: licenseManager,
-                    creditManager: creditManager,
-                    settingsManager: settingsManager
-                )
-            }
+            ensureHyperWhisperCloudProvider()
             guard let hwProvider = hyperwhisperCloudProvider else {
                 // SENTRY BREADCRUMB: Track HyperWhisper Cloud provider initialization failure
                 SentryService.addBreadcrumb(
@@ -792,7 +745,7 @@ class TranscriptionProviderRouter {
             }
             return hwProvider
         case .openai, .groq:
-            return cloudProvider
+            return whisperProvider(for: cloudProviderType)
         case .deepgram:
             return deepgramProvider
         case .assemblyAI:
@@ -967,7 +920,7 @@ class TranscriptionProviderRouter {
         case .unreachable:
             return .transientNetwork(details: "Provider unreachable")
         case .notInstalled:
-            return .modelNotDownloaded
+            return .modelNotDownloaded()
         case .checking, .unknown:
             return .providerNotAvailable(provider: providerDisplayName, reason: "Provider health check failed")
         case .healthy, .configured:

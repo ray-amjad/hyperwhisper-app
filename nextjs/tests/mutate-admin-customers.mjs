@@ -50,7 +50,8 @@ const MUTANTS = [
   { name: "refund: always revoke", from: "      if (revokeLicense) {", to: "      if (true) {" },
   { name: "refund: never revoke", from: "      if (revokeLicense) {", to: "      if (false) {" },
   { name: "refund: sign the acting admin out too", from: "        await revokeAccountKey(licenseKeyId, license.userId, {\n          actingUserId: ctx.user.id,\n        });", to: "        await revokeAccountKey(licenseKeyId, license.userId, {});" },
-  { name: "refund: pin the refund client to a newer API", from: 'apiVersion: "2025-02-24.acacia"', to: 'apiVersion: "2025-09-30.clover"' },
+  { name: "refund: create the refund on the shared client", from: "await stripeRefundApi.refunds.create(", to: "await stripe.refunds.create(" },
+  { name: "refund: retrieve the session on the shared client", from: "await stripeRefundApi.checkout.sessions.retrieve(", to: "await stripe.checkout.sessions.retrieve(" },
   // --- updateEmail ----------------------------------------------------------
   { name: "updateEmail: keep the case", from: "const email = input.newEmail.toLowerCase().trim();", to: "const email = input.newEmail.trim();" },
   { name: "updateEmail: skip the collision check", from: "      if (existing && existing.id !== input.userId) {", to: "      if (false) {" },

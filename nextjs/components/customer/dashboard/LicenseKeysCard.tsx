@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, m } from "framer-motion";
 
 import { ICON_SWAP } from "@/lib/icon-swap";
+import { ErrorReveal } from "@/components/ErrorReveal";
 
 interface License {
   id: string;
@@ -13,6 +14,14 @@ interface License {
 
 interface LicenseKeysCardProps {
   licenses: License[];
+  /**
+   * Per-key controls under the key's row (the dashboard passes the rotate
+   * control). A render slot, not a hook here: this card holds only useState,
+   * useRef and useEffect, so a test can call it as a plain function and
+   * render it without any provider. `reveal` shows that key unmasked (used
+   * after a rotation, so the new key is on screen to copy).
+   */
+  renderActions?: (license: License, reveal: () => void) => ReactNode;
 }
 
 /**
@@ -20,7 +29,7 @@ interface LicenseKeysCardProps {
  *
  * Displays all license keys in a single card with show/hide and copy functionality.
  */
-export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
+export default function LicenseKeysCard({ licenses, renderActions }: LicenseKeysCardProps) {
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   // The row whose last copy was refused (#872). Cleared by the next copy click.
@@ -124,7 +133,7 @@ export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
                         {...ICON_SWAP}
                       >
                         {isCopied ? (
-                          <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-4 h-4 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
                         ) : (
@@ -139,23 +148,33 @@ export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded shrink-0 ${
                     isActive
-                      ? "bg-green-500/20 text-green-400"
+                      ? "bg-emerald-500/20 text-emerald-300"
                       : "bg-gray-500/20 text-gray-400"
                   }`}
                 >
                   {isActive ? "Active" : "Inactive"}
                 </span>
               </div>
-              {/* Its own line, so the message never takes the key's width (#1325). */}
-              <p
-                aria-live="polite"
-                className="mt-1.5 text-xs text-red-400 empty:hidden"
-                role="status"
-              >
-                {copyFailed
-                  ? "Copy failed — reveal the key and copy it by hand"
-                  : null}
-              </p>
+              {/* Its own line, so the message never takes the key's width (#1325).
+                  #2286: it reveals instead of arriving in one frame. The live
+                  region stays mounted, so the wrapper opens on `open`, and its
+                  gap is padding inside the clip. */}
+              <ErrorReveal className="" open={copyFailed}>
+                <p
+                  aria-live="polite"
+                  className="pt-1.5 text-xs text-red-400 empty:hidden"
+                  role="status"
+                >
+                  {copyFailed
+                    ? "Copy failed — reveal the key and copy it by hand"
+                    : null}
+                </p>
+              </ErrorReveal>
+              {renderActions
+                ? renderActions(license, () =>
+                    setShowKeys((prev) => ({ ...prev, [license.id]: true })),
+                  )
+                : null}
             </div>
           );
         })}

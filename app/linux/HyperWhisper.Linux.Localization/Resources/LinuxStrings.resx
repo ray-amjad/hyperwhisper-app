@@ -178,6 +178,14 @@
   <data name="linux.settings.sound.autoIncreaseMicVolume.subtitle" xml:space="preserve"><value>Boosts a quiet mic to 90% while recording, then restores it.</value></data>
   <data name="linux.settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve"><value>Keeps the mic open between recordings to cut startup delay.</value></data>
   <data name="linux.settings.sound.mediaControl.muffleAudio" xml:space="preserve"><value>Muffle audio</value></data>
+  <data name="linux.settings.sound.microphone.default" xml:space="preserve"><value>Default · {0}</value></data>
+  <data name="linux.settings.sound.microphone.defaultNone" xml:space="preserve"><value>Default</value></data>
+  <data name="linux.settings.sound.microphone.fallback" xml:space="preserve"><value>Using {0} until {1} is reconnected.</value></data>
+  <data name="linux.settings.sound.microphone.notConnected" xml:space="preserve"><value>{0} (not connected)</value></data>
+  <data name="linux.settings.sound.microphone.stop" xml:space="preserve"><value>Stop</value></data>
+  <data name="linux.settings.sound.microphone.subtitle" xml:space="preserve"><value>Used by HyperWhisper only. Remembered across restarts.</value></data>
+  <data name="linux.settings.sound.microphone.test" xml:space="preserve"><value>Test</value></data>
+  <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve"><value>The microphone could not be opened.</value></data>
   <data name="linux.settings.storage.notice" xml:space="preserve"><value>A new folder affects new recordings only.</value></data>
   <data name="linux.settings.storage.storeAsM4A.subtitle" xml:space="preserve"><value>Converts recordings to smaller files after transcription.</value></data>
   <data name="linux.settings.backup.export.subtitle" xml:space="preserve"><value>Save settings, modes and vocabulary to a file you can restore later.</value></data>
@@ -312,6 +320,8 @@
   <data name="linux.clipboard.privacy_enabled" xml:space="preserve"><value>Hints sent; enforcement is desktop-dependent.</value></data>
   <data name="linux.clipboard.privacy_unavailable" xml:space="preserve"><value>This clipboard backend cannot send the hint.</value></data>
   <data name="linux.clipboard.privacy_disabled" xml:space="preserve"><value>Hints are off.</value></data>
+  <data name="linux.credentials.stored" xml:space="preserve"><value>Saved</value></data>
+  <data name="linux.credentials.not_stored" xml:space="preserve"><value>Not set</value></data>
   <data name="linux.desktop.context_gnome" xml:space="preserve"><value>Application context: {0} The optional packaged GNOME companion improves title discovery; AT-SPI remains the local fallback.</value></data>
   <data name="linux.desktop.context" xml:space="preserve"><value>Application context: {0}</value></data>
   <data name="linux.error.shortcut_modifiers_invalid" xml:space="preserve"><value>Shortcut modifiers must use Control, Alt, Shift, or Meta separated by commas.</value></data>
@@ -357,7 +367,6 @@
   <data name="linux.format.speaking.value.wpm" xml:space="preserve"><value>Speaking: {0} WPM</value></data>
   <data name="linux.format.state.value" xml:space="preserve"><value>State: {0}</value></data>
   <data name="linux.format.status.value" xml:space="preserve"><value>Status: {0}</value></data>
-  <data name="linux.format.stored.value" xml:space="preserve"><value>Stored: {0}</value></data>
   <data name="linux.format.typing.value.min" xml:space="preserve"><value>Typing: {0:F1} min</value></data>
   <data name="linux.format.value" xml:space="preserve"><value> / {0}</value></data>
   <data name="linux.format.words.added.value" xml:space="preserve"><value>Words added: {0}</value></data>

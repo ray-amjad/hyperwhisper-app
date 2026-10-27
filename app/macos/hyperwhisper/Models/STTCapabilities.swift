@@ -349,6 +349,13 @@ enum STTCapabilities {
                         id: "scribe_v2",
                         languages: STTLanguageTemplates.elevenLabsScribeV2,
                         notes: "Latest generation Scribe model with improved accuracy. Supports custom vocabulary with keyterm prompting (up to 100 terms)."
+                    ),
+                    // ElevenLabs: "Same features, languages, pricing, and API as Scribe v2"
+                    // (elevenlabs.io/docs/overview/models), so it shares Scribe v2's set (#2201).
+                    STTModelSpec(
+                        id: "scribe_v2_medical",
+                        languages: STTLanguageTemplates.elevenLabsScribeV2,
+                        notes: "Scribe v2 tuned for clinical audio. Supports custom vocabulary with keyterm prompting (up to 100 terms) for drug names and medical phrases."
                     )
                 ]
             ),

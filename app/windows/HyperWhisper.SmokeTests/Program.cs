@@ -184,6 +184,107 @@ internal static class Program
                     $"expected no LastSelectedModel: {output}");
             });
 
+            Run("RenderThreadFailureRecovery recovers once, reports once, and shows no dialog", () =>
+            {
+                // #2549: WPF raised UCEERR_RENDERTHREADFAILURE on every repaint, and
+                // the dispatcher handler showed a dialog and a Sentry event for each.
+                var recovery = new RenderThreadFailureRecovery();
+                var failure = new System.Runtime.InteropServices.COMException(
+                    "UCEERR_RENDERTHREADFAILURE", unchecked((int)0x88980406));
+                var switches = 0;
+                var reports = new List<RenderThreadFailureRecovery.Report>();
+
+                Assert(!recovery.TryHandle(new InvalidOperationException(), "ui_running",
+                        () => switches++, reports.Add),
+                    "an unrelated exception was taken as a render thread failure");
+                Assert(!recovery.TryHandle(
+                        new System.Runtime.InteropServices.COMException("other", unchecked((int)0x80004005)),
+                        "ui_running", () => switches++, reports.Add),
+                    "an unrelated COMException was taken as a render thread failure");
+                Assert(switches == 0 && reports.Count == 0,
+                    "an unrelated exception switched rendering or reported");
+
+                for (var i = 0; i < 50; i++)
+                {
+                    Assert(recovery.TryHandle(failure, "ui_running", () => switches++, reports.Add),
+                        $"render thread failure {i + 1} was not handled, so the dialog would show");
+                }
+
+                Assert(switches == 1, $"software rendering was switched {switches} times, not once");
+                Assert(reports.Count == 1, $"the failure was reported {reports.Count} times, not once");
+                Assert(reports[0].Fingerprint.SequenceEqual(new[] { "wpf-render-thread-failure" }),
+                    "the report does not carry the fixed fingerprint");
+                Assert(reports[0].Tags["render_recovery"] == "software_rendering",
+                    "the report does not say software rendering recovered it");
+                Assert(ReferenceEquals(reports[0].Exception, failure),
+                    "the report lost the original exception and its stack");
+
+                var wrapped = new InvalidOperationException("outer", failure);
+                Assert(RenderThreadFailureRecovery.IsRenderThreadFailure(wrapped),
+                    "a wrapped render thread failure was not recognised");
+
+                var failingSwitch = new RenderThreadFailureRecovery();
+                var failingReports = new List<RenderThreadFailureRecovery.Report>();
+                Assert(failingSwitch.TryHandle(failure, "ui_startup",
+                        () => throw new InvalidOperationException("switch failed"), failingReports.Add),
+                    "a failed software-rendering switch escaped the handler");
+                Assert(failingReports.Count == 1
+                        && failingReports[0].Tags["render_recovery"] == "software_rendering_failed",
+                    "a failed switch was not reported as failed");
+                Assert(failingSwitch.TryHandle(failure, "ui_startup", () => { },
+                        _ => throw new InvalidOperationException("report failed")),
+                    "a repeat after a failed switch was not handled");
+                Assert(new RenderThreadFailureRecovery().TryHandle(failure, "ui_running", () => { },
+                        _ => throw new InvalidOperationException("report failed")),
+                    "a failing reporter escaped the handler");
+            });
+
+            Run("App's render thread branch moves the process and open windows to software rendering", () =>
+            {
+                // Drives the branch the real dispatcher handler calls, with its real
+                // SwitchToSoftwareRendering, on a real window handle. Sentry is not
+                // initialized here, so the one report is a no-op.
+                var app = (App)EnsureSmokeApplication();
+                var window = new Window();
+                var shutdownMode = app.ShutdownMode;
+                app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                try
+                {
+                    var handle = new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
+                    var source = System.Windows.Interop.HwndSource.FromHwnd(handle);
+                    Assert(source?.CompositionTarget is not null, "the test window has no HwndSource");
+                    Assert(source!.CompositionTarget.RenderMode == System.Windows.Interop.RenderMode.Default,
+                        "the test window did not start on default rendering");
+
+                    var recovery = new RenderThreadFailureRecovery();
+                    Assert(!app.TryRecoverRenderThreadFailure(new InvalidOperationException(), recovery),
+                        "App took an unrelated exception for a render thread failure");
+                    Assert(System.Windows.Media.RenderOptions.ProcessRenderMode
+                            == System.Windows.Interop.RenderMode.Default,
+                        "an unrelated exception changed the render mode");
+
+                    var failure = new System.Runtime.InteropServices.COMException(
+                        "UCEERR_RENDERTHREADFAILURE", unchecked((int)0x88980406));
+                    for (var i = 0; i < 5; i++)
+                    {
+                        Assert(app.TryRecoverRenderThreadFailure(failure, recovery),
+                            $"render thread failure {i + 1} fell through to the generic dialog");
+                    }
+
+                    Assert(System.Windows.Media.RenderOptions.ProcessRenderMode
+                            == System.Windows.Interop.RenderMode.SoftwareOnly,
+                        "the process was not moved to software rendering");
+                    Assert(source.CompositionTarget.RenderMode == System.Windows.Interop.RenderMode.SoftwareOnly,
+                        "an open window was not moved to software rendering");
+                }
+                finally
+                {
+                    System.Windows.Media.RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.Default;
+                    window.Close();
+                    app.ShutdownMode = shutdownMode;
+                }
+            });
+
             Run("ApplicationControlDiagnostics handles only the classifier load failure", () =>
             {
                 const string privateUrl = "https://private.example.test/download";
@@ -1751,6 +1852,322 @@ internal static class Program
                     "invalid WaveIn device ID was accepted");
             });
 
+            // Settings -> Sound microphone picker: ONE saved choice
+            // (SettingsService.LastSelectedMicrophone, a WaveIn NAME) resolved
+            // against the connected devices; unplugged falls back to the Windows
+            // default and keeps the choice.
+            Run("Microphone names match across the WaveIn 31-character truncation", () =>
+            {
+                const string full = "Microphone (Scarlett 2i2 USB Audio Interface)";
+                var truncated = full[..MicrophoneSelection.WaveInNameLimit];
+                Assert(MicrophoneSelection.NamesMatch(truncated, full), "a 31-char WaveIn name must match its full Core Audio name");
+                Assert(MicrophoneSelection.NamesMatch(full, truncated), "matching is symmetric");
+                Assert(MicrophoneSelection.NamesMatch("microphone (realtek(r) audio)", "Microphone (Realtek(R) Audio)"), "case is ignored");
+                Assert(!MicrophoneSelection.NamesMatch("Microphone", "Microphone (Realtek(R) Audio)"),
+                    "a SHORT name is never a prefix match: it was not truncated");
+                Assert(!MicrophoneSelection.NamesMatch(null, "Mic"), "null never matches");
+                Assert(!MicrophoneSelection.NamesMatch("  ", "  "), "blank never matches");
+
+                var devices = new List<AudioDeviceService.AudioDevice>
+                {
+                    new(0, "Microphone (Realtek(R) Audio)"),
+                    new(1, truncated),
+                };
+                Assert(MicrophoneSelection.FindByName(devices, full)?.DeviceNumber == 1, "a full name finds its truncated WaveIn row");
+                Assert(MicrophoneSelection.FindByName(devices, "Microphone (Realtek(R) Audio)")?.DeviceNumber == 0, "an exact name wins");
+                Assert(MicrophoneSelection.FindByName(devices, "Headset (Jabra)") is null, "an absent name finds nothing");
+
+                var twins = new List<AudioDeviceService.AudioDevice>
+                {
+                    new(0, truncated),
+                    new(1, "MICROPHONE (SCARLETT 2I2 USB AUDIO"[..MicrophoneSelection.WaveInNameLimit]),
+                };
+                Assert(MicrophoneSelection.FindByName(twins, full) is null,
+                    "two rows matching one full name is ambiguous: pick neither rather than guess");
+            });
+
+            Run("Microphone resolution: saved if connected, else the Windows default, choice kept", () =>
+            {
+                var builtin = new AudioDeviceService.AudioDevice(0, "Microphone (Realtek(R) Audio)");
+                var usb = new AudioDeviceService.AudioDevice(1, "Scarlett 2i2 USB");
+                var devices = new List<AudioDeviceService.AudioDevice> { builtin, usb };
+
+                // The Windows default, asked of Core Audio, mapped to a WaveIn row.
+                Assert(MicrophoneSelection.ResolveDefault(devices, "Scarlett 2i2 USB", -1) == usb, "default by name");
+                Assert(MicrophoneSelection.ResolveDefault(devices, "Renamed by the driver", 1) == usb, "default by endpoint ordinal when no name matches");
+                Assert(MicrophoneSelection.ResolveDefault(devices, null, -1) == builtin, "first row only when Windows names nothing");
+                Assert(MicrophoneSelection.ResolveDefault(new List<AudioDeviceService.AudioDevice>(), "x", 0) is null, "no devices, no default");
+
+                var saved = MicrophoneSelection.Resolve(devices, "Scarlett 2i2 USB", builtin);
+                Assert(saved.Source == MicrophoneSource.Saved && saved.Device == usb, "a connected saved device is used");
+                Assert(!saved.IsSavedMissing, "and it is not missing");
+
+                var followsDefault = MicrophoneSelection.Resolve(devices, null, usb);
+                Assert(followsDefault.Source == MicrophoneSource.SystemDefault && followsDefault.Device == usb,
+                    "nothing saved follows the Windows default, NOT the first device");
+                Assert(MicrophoneSelection.Resolve(devices, "  ", usb).Source == MicrophoneSource.SystemDefault, "a blank name is nothing saved");
+
+                var unplugged = MicrophoneSelection.Resolve(new List<AudioDeviceService.AudioDevice> { builtin }, "Scarlett 2i2 USB", builtin);
+                Assert(unplugged.Source == MicrophoneSource.SavedMissingUsingDefault, "an unplugged saved device falls back");
+                Assert(unplugged.Device == builtin, "to the Windows default");
+                Assert(unplugged.SavedName == "Scarlett 2i2 USB", "and the choice is KEPT for when it comes back");
+
+                var back = MicrophoneSelection.Resolve(devices, unplugged.SavedName, builtin);
+                Assert(back.Source == MicrophoneSource.Saved && back.Device == usb, "re-plugged, the next resolve uses it again");
+
+                var none = MicrophoneSelection.Resolve(new List<AudioDeviceService.AudioDevice>(), "Scarlett 2i2 USB", null);
+                Assert(none.Source == MicrophoneSource.SavedMissingNoDevice && none.Device is null && none.SavedName == "Scarlett 2i2 USB",
+                    "no devices: nothing to open, the choice still kept and reported missing");
+                var nothingAtAll = MicrophoneSelection.Resolve(new List<AudioDeviceService.AudioDevice>(), null, null);
+                Assert(nothingAtAll.Source == MicrophoneSource.None && !nothingAtAll.IsSavedMissing,
+                    "no devices and nothing saved is None");
+
+                Assert(AudioDeviceSelectionReason.For(AudioDeviceSelectionReason.Phase.Startup, MicrophoneSource.Saved) == AudioDeviceSelectionReason.StartupSaved, "startup saved slug");
+                Assert(AudioDeviceSelectionReason.For(AudioDeviceSelectionReason.Phase.Refresh, MicrophoneSource.SavedMissingUsingDefault) == AudioDeviceSelectionReason.RefreshSavedMissing, "refresh missing slug");
+                Assert(AudioDeviceSelectionReason.For(AudioDeviceSelectionReason.Phase.Startup, MicrophoneSource.None) == AudioDeviceSelectionReason.StartupNoDevices, "startup none slug");
+                Assert(AudioDeviceSelectionReason.For(AudioDeviceSelectionReason.Phase.Startup, MicrophoneSource.SavedMissingNoDevice) == AudioDeviceSelectionReason.StartupNoDevices, "startup saved-missing-no-device slug");
+                Assert(AudioDeviceSelectionReason.For(AudioDeviceSelectionReason.Phase.Refresh, MicrophoneSource.SavedMissingNoDevice) == AudioDeviceSelectionReason.RefreshNoDevices, "refresh saved-missing-no-device slug");
+                foreach (var slug in new[]
+                {
+                    AudioDeviceSelectionReason.StartupSaved, AudioDeviceSelectionReason.StartupSystemDefault,
+                    AudioDeviceSelectionReason.StartupSavedMissing, AudioDeviceSelectionReason.RefreshSaved,
+                    AudioDeviceSelectionReason.RefreshSystemDefault, AudioDeviceSelectionReason.RefreshSavedMissing,
+                })
+                {
+                    Assert(AudioDeviceSelectionReason.Normalize(slug) == slug, $"{slug} survives diagnostics normalisation");
+                }
+            });
+
+            Run("Microphone picker rows: Default first, (not connected) kept and selected", () =>
+            {
+                var builtin = new AudioDeviceService.AudioDevice(0, "Microphone (Realtek(R) Audio)");
+                var usb = new AudioDeviceService.AudioDevice(1, "Scarlett 2i2 USB");
+                var both = new List<AudioDeviceService.AudioDevice> { builtin, usb };
+
+                var (rows, selected) = MicrophoneSelection.BuildOptions(both, MicrophoneSelection.Resolve(both, null, builtin));
+                Assert(rows.Count == 3, $"Default + 2 devices, got {rows.Count}");
+                Assert(rows[0].IsDefault && rows[0].Name is null, "the Default row is first and saves nothing");
+                Assert(rows[0].Label == HyperWhisper.Localization.Loc.S("settings.sound.microphone.default", builtin.Name),
+                    "the Default row names the current Windows default");
+                Assert(rows[0].Label.Contains(builtin.Name), "with the device name in it");
+                Assert(selected == rows[0], "nothing saved selects Default");
+
+                (rows, selected) = MicrophoneSelection.BuildOptions(both, MicrophoneSelection.Resolve(both, usb.Name, builtin));
+                Assert(selected.Name == usb.Name && !selected.IsMissing, "a connected saved device selects its row");
+
+                var onlyBuiltin = new List<AudioDeviceService.AudioDevice> { builtin };
+                var unplugged = MicrophoneSelection.Resolve(onlyBuiltin, usb.Name, builtin);
+                (rows, selected) = MicrophoneSelection.BuildOptions(onlyBuiltin, unplugged);
+                Assert(rows.Count == 3, "Default + the connected device + the missing saved one");
+                Assert(selected.IsMissing && selected.Name == usb.Name, "the missing saved device stays selected");
+                Assert(selected.Label == MicrophoneSelection.NotConnectedLabel(usb.Name), "labelled (not connected)");
+                Assert(selected.Label.Contains(usb.Name) && selected.Label != usb.Name, "and the label adds to the name");
+
+                var message = MicrophoneSelection.FallbackMessage(unplugged);
+                Assert(message != null && message.Contains(builtin.Name) && message.Contains(usb.Name),
+                    $"the amber line names the fallback and the saved device, got '{message}'");
+                Assert(MicrophoneSelection.FallbackMessage(MicrophoneSelection.Resolve(both, usb.Name, builtin)) is null,
+                    "no amber line while the saved device is connected");
+
+                var nameless = MicrophoneSelection.DefaultLabel(null);
+                Assert(nameless == HyperWhisper.Localization.Loc.S("onboarding.mic.device.systemDefault"),
+                    "with no named Windows default the row reads System Default");
+            });
+
+            Run("Microphone picker, zero devices + saved name: (not connected) row and the no-device amber line (W3)", () =>
+            {
+                // The saved microphone was the ONLY capture device and is unplugged.
+                var empty = new List<AudioDeviceService.AudioDevice>();
+                const string savedName = "Scarlett 2i2 USB";
+
+                var resolution = MicrophoneSelection.Resolve(empty, savedName, null);
+                Assert(resolution.Source == MicrophoneSource.SavedMissingNoDevice, $"saved but missing with no fallback, got {resolution.Source}");
+                Assert(resolution.IsSavedMissing, "IsSavedMissing is true, so the picker shows the missing row");
+                Assert(resolution.Device is null && resolution.DefaultDevice is null, "nothing to record from");
+                Assert(resolution.SavedName == savedName, "the choice is kept");
+
+                var (rows, selected) = MicrophoneSelection.BuildOptions(empty, resolution);
+                Assert(rows.Count == 2, $"Default + the missing saved one, got {rows.Count}");
+                Assert(rows[0].IsDefault && rows[0].Name is null, "Default stays first so the choice can be cleared");
+                Assert(rows[0].Label == HyperWhisper.Localization.Loc.S("onboarding.mic.device.systemDefault"),
+                    "with no device the Default row reads System Default");
+                Assert(selected == rows[1] && selected.IsMissing && selected.Name == savedName, "the missing saved row is selected");
+                Assert(selected.Label == MicrophoneSelection.NotConnectedLabel(savedName), "labelled (not connected)");
+
+                var message = MicrophoneSelection.FallbackMessage(resolution);
+                Assert(message == HyperWhisper.Localization.Loc.S("settings.sound.microphone.fallbackNoDevice", savedName),
+                    $"the amber line uses the no-device wording, got '{message}'");
+                Assert(message!.Contains(savedName), "and names the saved device");
+                Assert(!message.Contains(HyperWhisper.Localization.Loc.S("onboarding.mic.device.systemDefault")),
+                    "it does not claim System Default is being used");
+
+                // Cleared via Default: nothing saved, nothing missing, no amber line.
+                var cleared = MicrophoneSelection.Resolve(empty, null, null);
+                Assert(cleared.Source == MicrophoneSource.None && MicrophoneSelection.FallbackMessage(cleared) is null,
+                    "after picking Default with no device there is no amber line");
+                (rows, selected) = MicrophoneSelection.BuildOptions(empty, cleared);
+                Assert(rows.Count == 1 && selected.IsDefault, "only the Default row remains, selected");
+            });
+
+            Run("Microphone picker, (not connected) row splits around the name so only the name is ellipsized", () =>
+            {
+                // A WaveIn name cut at 31 characters can end in a space.
+                const string savedName = "CABLE Output (VB-Audio Virtual ";
+                var resolution = MicrophoneSelection.Resolve(new List<AudioDeviceService.AudioDevice>(), savedName, null);
+                var (_, selected) = MicrophoneSelection.BuildOptions(new List<AudioDeviceService.AudioDevice>(), resolution);
+
+                Assert(selected.LabelName == savedName.Trim(), $"the name part is the trimmed name, got '{selected.LabelName}'");
+                Assert(selected.LabelSuffix.Length > 0, "the (not connected) text sits outside the ellipsized name");
+                Assert(selected.LabelPrefix + selected.LabelName + selected.LabelSuffix == selected.Label,
+                    $"the parts rebuild the label, got '{selected.LabelPrefix}|{selected.LabelName}|{selected.LabelSuffix}' for '{selected.Label}'");
+                Assert(!selected.Label.Contains("  "), $"no double space before the suffix, got '{selected.Label}'");
+
+                var row = new MicrophoneOption("USB Mic", "USB Mic", IsDefault: false, IsMissing: false, 0);
+                Assert(row.LabelPrefix == "" && row.LabelName == "USB Mic" && row.LabelSuffix == "",
+                    "a connected row carries its whole label as the name");
+            });
+
+            Run("Microphone picker: same-named devices keep the exact device picked", () =>
+            {
+                // Two identical USB microphones: one WaveIn name, two device numbers.
+                var builtin = new AudioDeviceService.AudioDevice(0, "Microphone (Realtek(R) Audio)");
+                var first = new AudioDeviceService.AudioDevice(1, "USB Microphone");
+                var second = new AudioDeviceService.AudioDevice(2, "USB Microphone");
+                var devices = new List<AudioDeviceService.AudioDevice> { builtin, first, second };
+
+                Assert(MicrophoneSelection.FindByName(devices, "USB Microphone") == first, "no preference: the first match");
+                Assert(MicrophoneSelection.FindByName(devices, "USB Microphone", 2) == second, "the preferred device wins among same-named ones");
+                Assert(MicrophoneSelection.FindByName(devices, "USB Microphone", 0) == first,
+                    "a preferred device with a different name is not a match");
+                Assert(MicrophoneSelection.FindByName(devices, "USB Microphone", null, 2) == second, "the next preference is used when the first is unset");
+
+                // MainViewModel passes (picked this session, currently recording).
+                var picked = MicrophoneSelection.Resolve(devices, "USB Microphone", builtin, 2, 1);
+                Assert(picked.Source == MicrophoneSource.Saved && picked.Device == second, "the device picked this session records");
+                var current = MicrophoneSelection.Resolve(devices, "USB Microphone", builtin, null, 2);
+                Assert(current.Device == second, "with no pick, the device already in use stays");
+
+                var (rows, selected) = MicrophoneSelection.BuildOptions(devices, picked);
+                Assert(rows.Count == 4, $"Default + 3 devices, got {rows.Count}");
+                Assert(rows[2] != rows[3], "two same-named devices are two different rows");
+                Assert(selected == rows[3] && selected.DeviceNumber == 2, "the exact picked device's row is selected, not the first same-named one");
+                Assert(selected.Name == "USB Microphone", "and what it saves is still the name");
+                Assert(rows[0].DeviceNumber is null, "the Default row names no device");
+            });
+
+            // #2408: a virtual Windows default (BlackHole, VB-CABLE, VoiceMeeter...)
+            // is skipped by the automatic pick, never by a hand-made choice.
+            Run("Microphone virtual inputs: detected by name, incl. the 31-char WaveIn cut, Krisp is not", () =>
+            {
+                var truncatedCable = "CABLE Output (VB-Audio Virtual Cable)"[..MicrophoneSelection.WaveInNameLimit];
+                Assert(truncatedCable == "CABLE Output (VB-Audio Virtual ", $"the WaveIn cut, got '{truncatedCable}'");
+                Assert(MicrophoneSelection.IsVirtualInput(truncatedCable), "the 31-char VB-CABLE WaveIn name is virtual");
+                Assert(MicrophoneSelection.IsVirtualInput("CABLE-A Output (VB-Audio Cable A)"), "VB-CABLE A");
+                Assert(MicrophoneSelection.IsVirtualInput("VoiceMeeter Out B1 (VB-Audio Vo"), "VoiceMeeter");
+                Assert(MicrophoneSelection.IsVirtualInput("blackhole 2ch"), "case is ignored");
+                Assert(MicrophoneSelection.IsVirtualInput("Microsoft Teams Audio"), "Teams audio");
+                Assert(MicrophoneSelection.IsVirtualInput("Stereo Mix (Realtek(R) Audio)"), "Stereo Mix");
+                Assert(MicrophoneSelection.IsVirtualInput("Line 1 (Virtual Audio Cable)"), "Virtual Audio Cable");
+                Assert(!MicrophoneSelection.IsVirtualInput("Microphone (Krisp Microphone)"), "Krisp carries the user's voice: NOT virtual");
+                Assert(!MicrophoneSelection.IsVirtualInput("Microphone (NVIDIA Broadcast)"), "NVIDIA Broadcast is NOT virtual");
+                Assert(!MicrophoneSelection.IsVirtualInput("Wave Link MicrophoneFX (Elgato "), "Elgato Wave Link is NOT virtual");
+                Assert(!MicrophoneSelection.IsVirtualInput("Microphone (Realtek(R) Audio)"), "a built-in mic is not virtual");
+                Assert(!MicrophoneSelection.IsVirtualInput(null) && !MicrophoneSelection.IsVirtualInput("  "), "no name is not virtual");
+                Assert(HyperWhisper.PortableApplication.MicrophoneSelection.VirtualNameMarkers.Count == 17, "the list matches the sibling heads' 17 entries");
+            });
+
+            Run("Microphone automatic pick skips a virtual Windows default; a hand-made choice is never overridden", () =>
+            {
+                var cable = new AudioDeviceService.AudioDevice(0, "CABLE Output (VB-Audio Virtual ");
+                var builtin = new AudioDeviceService.AudioDevice(1, "Microphone (Realtek(R) Audio)");
+                var usb = new AudioDeviceService.AudioDevice(2, "Scarlett 2i2 USB");
+                var devices = new List<AudioDeviceService.AudioDevice> { cable, builtin, usb };
+
+                var auto = MicrophoneSelection.Resolve(devices, null, cable);
+                Assert(auto.Source == MicrophoneSource.SystemDefault && auto.Device == builtin,
+                    $"virtual default + physical present -> the first physical input, got '{auto.Device?.Name}'");
+                Assert(auto.DefaultDevice == builtin && auto.SystemDefaultDevice == cable && auto.SkippedVirtualDefault,
+                    "the resolution reports the skipped virtual default");
+                var (rows, selected) = MicrophoneSelection.BuildOptions(devices, auto);
+                Assert(rows[0].Label == HyperWhisper.Localization.Loc.S("settings.sound.microphone.default", builtin.Name),
+                    $"the Default row names the device that records, got '{rows[0].Label}'");
+                Assert(selected == rows[0], "and Default stays selected");
+                Assert(rows.Count == 4 && rows.Any(r => r.Name == cable.Name), "the virtual device stays in the picker");
+
+                var onlyVirtual = new List<AudioDeviceService.AudioDevice>
+                {
+                    cable,
+                    new(1, "VoiceMeeter Output (VB-Audio Vo"),
+                };
+                var allVirtual = MicrophoneSelection.Resolve(onlyVirtual, null, cable);
+                Assert(allVirtual.Device == cable && !allVirtual.SkippedVirtualDefault,
+                    "only virtual inputs -> the Windows default still records");
+
+                var chosen = MicrophoneSelection.Resolve(devices, cable.Name, cable);
+                Assert(chosen.Source == MicrophoneSource.Saved && chosen.Device == cable,
+                    "an explicit VB-CABLE choice, connected, is used as is");
+                chosen = MicrophoneSelection.Resolve(devices, cable.Name, builtin);
+                Assert(chosen.Device == cable, "also when the Windows default is physical");
+
+                var physical = MicrophoneSelection.Resolve(devices, null, usb);
+                Assert(physical.Device == usb && !physical.SkippedVirtualDefault,
+                    "a physical Windows default is unchanged, even when it is not the first input");
+
+                var unplugged = MicrophoneSelection.Resolve(
+                    new List<AudioDeviceService.AudioDevice> { cable, builtin }, usb.Name, cable);
+                Assert(unplugged.Source == MicrophoneSource.SavedMissingUsingDefault && unplugged.Device == builtin,
+                    $"chosen but unplugged + virtual default -> the physical stand-in, got '{unplugged.Device?.Name}'");
+                Assert(unplugged.SavedName == usb.Name, "and the choice is kept");
+                var message = MicrophoneSelection.FallbackMessage(unplugged);
+                Assert(message != null && message.Contains(builtin.Name) && !message.Contains(cable.Name),
+                    $"the amber line names the stand-in that records, got '{message}'");
+
+                Assert(MicrophoneSelection.AutomaticPick(devices, null) is null, "no Windows default, no pick");
+            });
+
+            Run("Microphone Test meter: shared level maths, idle bar empty", () =>
+            {
+                var silence = new byte[3200];
+                Assert(AudioLevelMath.NextLevel(silence, silence.Length, 0f) == 0f, "silence from idle reads zero");
+                var decayed = AudioLevelMath.NextLevel(silence, silence.Length, 0.8f);
+                Assert(decayed > 0f && decayed < 0.8f, "silence after speech decays, it does not drop");
+
+                var loud = new byte[3200];
+                for (var i = 0; i + 1 < loud.Length; i += 2)
+                {
+                    BitConverter.GetBytes((short)(i % 4 == 0 ? 30000 : -30000)).CopyTo(loud, i);
+                }
+                Assert(AudioLevelMath.NextLevel(loud, loud.Length, 0f) > 0.9f, "a loud buffer attacks at once");
+                Assert(AudioLevelMath.NextLevel(loud, 1, 0f) == 0f, "a buffer with no whole sample is silence");
+
+                Assert(SegmentedLevelBar.LitSegments(0.9f, 24, active: false) == 0, "idle: every segment grey");
+                Assert(SegmentedLevelBar.LitSegments(0f, 24, active: true) == 0, "running and silent: none lit");
+                Assert(SegmentedLevelBar.LitSegments(0.5f, 24, active: true) == 12, "half lights half");
+                Assert(SegmentedLevelBar.LitSegments(7f, 24, active: true) == 24, "clamped at full");
+                Assert(SegmentedLevelBar.LitSegments(float.NaN, 24, active: true) == 0, "NaN lights nothing");
+                Assert(MicrophonePickerViewModel.TestDuration == TimeSpan.FromSeconds(10), "Test runs about 10 s");
+            });
+
+            Run("Every catalog translates the Settings microphone picker strings", () =>
+            {
+                foreach (var key in new[]
+                {
+                    "settings.sound.microphone.subtitle", "settings.sound.microphone.default",
+                    "settings.sound.microphone.notConnected", "settings.sound.microphone.fallback",
+                    "settings.sound.microphone.test", "settings.sound.microphone.stop",
+                })
+                {
+                    var neutral = HyperWhisper.Resources.Strings.ResourceManager.GetString(key, CultureInfo.InvariantCulture);
+                    Assert(!string.IsNullOrWhiteSpace(neutral), $"{key} is missing from Strings.resx");
+                    foreach (var name in ShippedSatelliteCultures())
+                    {
+                        var text = HyperWhisper.Resources.Strings.ResourceManager.GetString(key, new CultureInfo(name));
+                        Assert(!string.IsNullOrWhiteSpace(text) && text != neutral,
+                            $"Strings.{name}.resx does not translate {key}");
+                    }
+                }
+            });
+
             Run("Windows system seams preserve portable metadata", () =>
             {
                 var windowsGpu = new GpuInfoService.GpuInfo
@@ -2441,6 +2858,59 @@ internal static class Program
                     Assert(ParakeetTranscriptionService.ResolveSegmentJoinArgument(code) == "space", $"{code} → space");
                 foreach (var code in new[] { null, "", "  ", "auto", "AUTO" })
                     Assert(ParakeetTranscriptionService.ResolveSegmentJoinArgument(code) == null, $"'{code}' → not passed");
+            });
+
+            // #1846: sherpa puts DirectML on DXGI adapter 0, usually the iGPU.
+            Run("Parakeet daemon device: discrete GPU by LUID, UHD-only on CPU, else unchanged", () =>
+            {
+                static GpuInfoService.GpuInfo Gpu(string name, long? luid) => new()
+                {
+                    Name = name,
+                    PriorityScore = GpuInfoService.GetGpuPriorityScore(name),
+                    AdapterLuid = luid
+                };
+                var parakeet = new ParakeetDaemonLaunchPlan.EngineSelection("parakeet-v2", "nemo_transducer", false, false);
+                var qwen3 = new ParakeetDaemonLaunchPlan.EngineSelection("qwen3-asr", "qwen3", true, false);
+                var nemotron = new ParakeetDaemonLaunchPlan.EngineSelection("nemotron", "nemotron_ml", false, true);
+
+                var rtx = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("NVIDIA GeForce RTX 4060", 0xb5cf), parakeet, isX64: true);
+                Assert(rtx.ProviderArg == null && rtx.DmlAdapterLuid == 0xb5cf, "discrete NVIDIA → its LUID");
+                var rx = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("AMD Radeon RX 7800 XT", 0x1234_0000_5678), parakeet, isX64: true);
+                Assert(rx.ProviderArg == null && rx.DmlAdapterLuid == 0x1234_0000_5678, "discrete AMD → its LUID (HighPart kept)");
+                var wmiOnly = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("NVIDIA GeForce RTX 4060", null), parakeet, isX64: true);
+                Assert(wmiOnly.ProviderArg == null && wmiOnly.DmlAdapterLuid == null, "discrete GPU from WMI (no LUID) → daemon default");
+
+                foreach (var name in new[] { "Intel(R) UHD Graphics 630", "Intel(R) UHD Graphics 620", "Intel(R) HD Graphics 520", "Intel(R) HD Graphics" })
+                {
+                    var uhd = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu(name, 0xc58a), parakeet, isX64: true);
+                    Assert(uhd.ProviderArg == "cpu" && uhd.DmlAdapterLuid == null, $"{name} only → --provider cpu");
+                }
+
+                foreach (var name in new[] { "AMD Radeon(TM) Graphics", "Intel(R) Iris(R) Xe Graphics", "Intel(R) Graphics", "Intel(R) Arc(TM) Graphics", "Intel(R) UHD Graphics 770", "Intel(R) UHD Graphics" })
+                {
+                    var keep = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu(name, 0xc58a), parakeet, isX64: true);
+                    Assert(keep.ProviderArg == null && keep.DmlAdapterLuid == null, $"{name} → daemon default");
+                }
+                var none = ParakeetDaemonLaunchPlan.ResolveDevice(null, parakeet, isX64: true);
+                Assert(none.ProviderArg == null && none.DmlAdapterLuid == null, "no GPU info → daemon default");
+
+                var arm = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("NVIDIA GeForce RTX 4060", 0xb5cf), parakeet, isX64: false);
+                Assert(arm.ProviderArg == null && arm.DmlAdapterLuid == null, "ARM64 → daemon default");
+                foreach (var engine in new[] { qwen3, nemotron })
+                {
+                    var other = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("NVIDIA GeForce RTX 4060", 0xb5cf), engine, isX64: true);
+                    Assert(other.ProviderArg == null && other.DmlAdapterLuid == null, $"{engine.EngineArg} → daemon default");
+                }
+
+                // The flags reach the daemon's argument list.
+                var paths = new ParakeetDaemonLaunchPlan.DaemonPaths(@"C:\app\parakeet-engine\parakeet-engine.exe", @"C:\app\parakeet-engine\silero_vad.onnx");
+                var args = ParakeetDaemonLaunchPlan.Build(paths, @"C:\m\parakeet-v2", "en", parakeet, rtx).StartInfo.ArgumentList.ToList();
+                var at = args.IndexOf("--dml-adapter-luid");
+                Assert(at >= 0 && args[at + 1] == "46543" && !args.Contains("--provider"), "Build passes --dml-adapter-luid 46543");
+                var cpu = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("Intel(R) UHD Graphics 630", 0xc58a), parakeet, isX64: true);
+                args = ParakeetDaemonLaunchPlan.Build(paths, @"C:\m\parakeet-v2", "en", parakeet, cpu).StartInfo.ArgumentList.ToList();
+                at = args.IndexOf("--provider");
+                Assert(at >= 0 && args[at + 1] == "cpu" && !args.Contains("--dml-adapter-luid"), "Build passes --provider cpu");
             });
 
             Run("Grok GetRequestTimeout scales with file size", () =>
@@ -3277,30 +3747,39 @@ internal static class Program
                 // The write is keyed on the PROVIDER, not on `PostProcessingMode`,
                 // because that is what `PostProcessingService.ProcessAsync` routes
                 // on — it parses `Mode.PostProcessingProvider` and never reads
-                // `PostProcessingMode` past the `== 0` skip. `"local"` is the
-                // reachable proof: `FromString` maps it to `LocalLlm` (so the run
-                // IS local) while `IsLocalLlmProvider` above does not (so the mode
-                // int is 1, not 2). A mode-int guard skipped the write on exactly
-                // this input. The worse shape — a SAVED mode with post-processing
-                // off whose provider is still `local_llm`, where the skipped write
-                // meant a stale GGUF ran and was honestly reported as a model the
-                // caller never asked for — needs `ModeService` and is covered by
-                // this predicate alignment rather than end to end.
-                Assert(PostProcessingProviderExtensions.FromString("local") == PostProcessingProvider.LocalLlm
-                        && PostProcessingProviderExtensions.FromString("local_llm") == PostProcessingProvider.LocalLlm,
-                    "the local_llm spellings ProcessAsync routes on have drifted");
-                var altSpelling = WindowsLocalApiBackend.BuildWorkingMode(
-                    new HyperWhisper.LocalApi.PostProcessRequest(
-                        Text: "raw",
-                        ModeId: null,
-                        Preset: null,
-                        Prompt: null,
-                        Provider: "local",
-                        Model: "gemma-4-12b-it-Q4_K_M.gguf"));
-                Assert(altSpelling.PostProcessingMode == 1,
-                    "the PostProcessingMode this case depends on being 1 has changed");
-                Assert(altSpelling.LocalPostProcessingModel == "gemma-4-12b-it-Q4_K_M.gguf",
-                    "the model override missed the local GGUF field for a run ProcessAsync routes local");
+                // `PostProcessingMode` past the `== 0` skip. The worse shape — a
+                // SAVED mode with post-processing off whose provider is still
+                // `local_llm`, where the skipped write meant a stale GGUF ran and
+                // was honestly reported as a model the caller never asked for —
+                // needs `ModeService` and is covered by this predicate alignment
+                // rather than end to end.
+                //
+                // #2557: every local spelling a caller can send — including
+                // `localLLM`, the shared catalog's provider id — must route local
+                // in `ProcessAsync` (`FromString`) AND get mode 2 here. Before the
+                // fix `localLLM` got mode 2 but `FromString` answered `None`, so
+                // `/post-process` silently skipped with `provider: none`; `local`
+                // had the opposite split (routed local, mode 1).
+                foreach (var spelling in new[] { "localLLM", "localLlm", "local_llm", "LOCAL_LLM", "local" })
+                {
+                    Assert(PostProcessingProviderExtensions.FromString(spelling) == PostProcessingProvider.LocalLlm,
+                        $"FromString(\"{spelling}\") no longer routes to the local LLM, so ProcessAsync skips the run");
+                    var working = WindowsLocalApiBackend.BuildWorkingMode(
+                        new HyperWhisper.LocalApi.PostProcessRequest(
+                            Text: "raw",
+                            ModeId: null,
+                            Preset: null,
+                            Prompt: null,
+                            Provider: spelling,
+                            Model: "gemma-4-12b-it-Q4_K_M.gguf"));
+                    Assert(working.PostProcessingMode == 2,
+                        $"provider \"{spelling}\" did not switch the working mode to local post-processing");
+                    Assert(working.LocalPostProcessingModel == "gemma-4-12b-it-Q4_K_M.gguf",
+                        $"provider \"{spelling}\": the model override missed the local GGUF field");
+                    Assert(PostProcessingProviderExtensions.FromString(working.PostProcessingProvider)
+                            == PostProcessingProvider.LocalLlm,
+                        $"provider \"{spelling}\": the working mode's provider would not route local");
+                }
             });
 
             Run("Retired cloud models resolve to selectable canonical models", () =>
@@ -3576,6 +4055,51 @@ internal static class Program
                     $"a Cloud mode with cloudProvider openai restored as {restored["Cloud, OpenAI"].ProviderType} / '{restored["Cloud, OpenAI"].CloudProvider}'");
                 Assert(restored["Local, no provider"].ProviderType == "local" && restored["Local, no provider"].CloudProvider is null,
                     $"a local mode with no cloudProvider restored as {restored["Local, no provider"].ProviderType} / '{restored["Local, no provider"].CloudProvider}'");
+            });
+
+            // #2041: a windows slice with no providerType key (an older or hand-edited
+            // Windows backup) falls back to the same inference as a sliceless mode, as
+            // Linux ParseMode does. It restored ProviderType = null before.
+            Run("backup import (#2041): a windows slice with no providerType infers Cloud or local", () =>
+            {
+                const string windowsBackupJson = """
+                {
+                  "schemaVersion": 2,
+                  "exportDate": "2026-10-21T00:00:00Z",
+                  "appVersion": "3.0.0",
+                  "platform": "windows",
+                  "modes": [
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e2041", "name": "Slice, cloud model", "preset": "custom",
+                      "language": "en", "model": "cloud", "isDefault": true, "sortOrder": 0,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": { "windows": { "modelType": "cloud" } } },
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e2042", "name": "Slice, openai provider", "preset": "custom",
+                      "language": "en", "model": "base", "cloudProvider": "openai", "isDefault": false, "sortOrder": 1,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": { "windows": { "modelType": "base" } } },
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e2043", "name": "Slice, local", "preset": "custom",
+                      "language": "en", "model": "base", "isDefault": false, "sortOrder": 2,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": { "windows": { "modelType": "base" } } },
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e2044", "name": "Slice says local", "preset": "custom",
+                      "language": "en", "model": "cloud", "isDefault": false, "sortOrder": 3,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": { "windows": { "modelType": "base", "providerType": "local" } } }
+                  ]
+                }
+                """;
+                var backup = JsonSerializer.Deserialize<UniversalBackup>(windowsBackupJson)
+                    ?? throw new InvalidOperationException("the windows no-providerType backup did not deserialize");
+                var restored = backup.Modes!.Select(UniversalBackupMapper.MapToMode).ToDictionary(mode => mode.Name);
+
+                Assert(restored["Slice, cloud model"].ProviderType == "cloud" && restored["Slice, cloud model"].CloudProvider == "hyperwhisper",
+                    $"a windows-slice mode with model cloud and no providerType restored as {restored["Slice, cloud model"].ProviderType ?? "null"} / '{restored["Slice, cloud model"].CloudProvider}', not cloud / hyperwhisper");
+                Assert(restored["Slice, openai provider"].ProviderType == "cloud" && restored["Slice, openai provider"].CloudProvider == "openai",
+                    $"a windows-slice mode with cloudProvider openai and no providerType restored as {restored["Slice, openai provider"].ProviderType ?? "null"} / '{restored["Slice, openai provider"].CloudProvider}'");
+                Assert(restored["Slice, local"].ProviderType == "local",
+                    $"a windows-slice local mode with no providerType restored as {restored["Slice, local"].ProviderType ?? "null"}, not local");
+                Assert(restored["Slice says local"].ProviderType == "local",
+                    $"a windows slice's own providerType local was overridden to {restored["Slice says local"].ProviderType ?? "null"}");
             });
 
             // #1712: both .NET heads write a mode's vocabulary and local-engine fields
@@ -4150,6 +4674,99 @@ internal static class Program
                     $"probe went to '{handler.LastRequestUri}'");
             });
 
+            // Issue #741. PostProcessingService promises graceful degradation: when
+            // the clean-up fails, the user keeps the raw transcription, and the
+            // toast says why. The service built its own HttpClient, so none of its
+            // failure routes could run without a live provider. These drive the
+            // custom-endpoint route, the one that needs no stored API key, through
+            // the internal constructor and a scripted handler.
+            RunAsync("post-processing: a provider 500 keeps the original transcription", async () =>
+            {
+                const string Raw = "um so the meeting is at three";
+                var run = await ProcessThroughScriptedEndpointAsync(Raw,
+                    () => Respond(HttpStatusCode.InternalServerError, """{"error":{"message":"boom"}}"""));
+
+                Assert(run.Handler.Sends == 1, $"expected one upstream call, saw {run.Handler.Sends}");
+                Assert(!run.Result.WasApplied, "a 500 must not report the clean-up as applied");
+                Assert(run.Result.Text == Raw, $"a 500 must return the original text, got '{run.Result.Text}'");
+                Assert(run.Result.ResolvedProvider is null && run.Result.ResolvedModel is null,
+                    "a failed run must not name a provider or model that produced nothing");
+            });
+
+            RunAsync("post-processing: a provider 500 raises one plain failure toast", async () =>
+            {
+                var run = await ProcessThroughScriptedEndpointAsync("um so the meeting is at three",
+                    () => Respond(HttpStatusCode.InternalServerError, """{"error":{"message":"boom"}}"""));
+
+                Assert(run.Toasts.Count == 1, $"expected exactly one toast, saw {run.Toasts.Count}");
+                var toast = run.Toasts[0];
+                Assert(toast.Message == HyperWhisper.Localization.Loc.S("postprocessing.error.failed"),
+                    $"expected the plain failure message, got '{toast.Message}'");
+                Assert(!toast.ShowSettingsButton && toast.SettingsSection is null && !toast.OpenApiKeysManager,
+                    "a network failure toast must not send the user to Settings or the API keys manager");
+            });
+
+            RunAsync("post-processing: a rejected completion keeps the original transcription", async () =>
+            {
+                const string Raw = "um so the meeting is at three";
+                // A 200 the shared core refuses: the model hit its output limit, so
+                // the completion is cut short. Not a network failure, same outcome.
+                var run = await ProcessThroughScriptedEndpointAsync(Raw,
+                    () => Respond(HttpStatusCode.OK,
+                        """{"choices":[{"message":{"content":"<<CLEANED>>So the meet"},"finish_reason":"length"}]}"""));
+
+                Assert(run.Handler.Sends == 1, $"expected one upstream call, saw {run.Handler.Sends}");
+                Assert(!run.Result.WasApplied, "a truncated completion must not report the clean-up as applied");
+                Assert(run.Result.Text == Raw, $"a rejected completion must return the original text, got '{run.Result.Text}'");
+                Assert(run.Toasts.Count == 1 && run.Toasts[0].Message == HyperWhisper.Localization.Loc.S("postprocessing.error.failed")
+                        && !run.Toasts[0].ShowSettingsButton,
+                    $"a rejected completion must raise the plain failure toast once, saw {run.Toasts.Count}");
+            });
+
+            RunAsync("post-processing: a cancelled request keeps the text and raises no toast", async () =>
+            {
+                const string Raw = "um so the meeting is at three";
+                // The user cancels while the request is in flight. A scripted handler
+                // ignores the token, so it throws the way the socket handler does on a
+                // cancel; a token cancelled before the call never reached the service's
+                // catch, because HttpClient handed the canned 200 straight back.
+                using var cancel = new CancellationTokenSource();
+                var run = await ProcessThroughScriptedEndpointAsync(Raw,
+                    () =>
+                    {
+                        cancel.Cancel();
+                        cancel.Token.ThrowIfCancellationRequested();
+                        throw new InvalidOperationException("unreachable");
+                    },
+                    cancel.Token);
+
+                Assert(run.Handler.Sends == 1, $"expected one upstream call, saw {run.Handler.Sends}");
+                Assert(!run.Result.WasApplied, "a cancelled request must not report the clean-up as applied");
+                Assert(run.Result.Text == Raw, $"a cancelled request must return the original text, got '{run.Result.Text}'");
+                // The user cancelled; telling them it failed would be wrong. This is
+                // the one Skipped route with no toast.
+                Assert(run.Toasts.Count == 0, $"a cancelled request must raise no toast, saw {run.Toasts.Count}");
+            });
+
+            RunAsync("post-processing: an accepted completion reports the provider that ran", async () =>
+            {
+                var run = await ProcessThroughScriptedEndpointAsync("um so the meeting is at three",
+                    () => Respond(HttpStatusCode.OK,
+                        """{"choices":[{"message":{"content":"<<CLEANED>>So the meeting is at three.<<END>>"},"finish_reason":"stop"}]}"""));
+
+                Assert(run.Result.WasApplied, "an accepted completion must report the clean-up as applied");
+                Assert(run.Result.Text == "So the meeting is at three.",
+                    $"expected the cleaned text without wrapper markers, got '{run.Result.Text}'");
+                Assert(run.Result.ResolvedProvider == run.ProviderString,
+                    $"expected the endpoint's provider string '{run.ProviderString}', got '{run.Result.ResolvedProvider}'");
+                Assert(run.Result.ResolvedModel == ScriptedEndpointModel,
+                    $"expected model '{ScriptedEndpointModel}', got '{run.Result.ResolvedModel}'");
+                Assert(run.Toasts.Count == 0, $"a success must raise no toast, saw {run.Toasts.Count}");
+                Assert(run.Handler.LastRequestUri?.Host == "percy.example.com"
+                        && run.Handler.LastRequestUri?.AbsolutePath == "/v1/chat/completions",
+                    $"the request went to '{run.Handler.LastRequestUri}', not the configured endpoint");
+            });
+
             // Issue #509. The Model Library called a custom endpoint "Connected"
             // when nothing had ever connected to it. Two independent gaps, so
             // two independent groups of assertions: the outcome was never
@@ -4359,6 +4976,99 @@ internal static class Program
                     "a MainWindow was built after the startup was aborted");
             });
 
+            // Issue #2386. The 46 theme brushes in Brushes.xaml took their Color
+            // from a {DynamicResource}, so they could not freeze, and every
+            // {DynamicResource XBrush} consumer hooked their Changed event. WPF
+            // drops a dead hook only when the brush raises Changed, so each page
+            // visit left ~33-412 handlers behind for good. The brushes now live
+            // frozen inside each theme's colour dictionary, and a theme switch
+            // swaps the whole dictionary, which re-resolves every consumer.
+            Run("theme brushes are frozen in light and dark, and a resource reference follows the switch - issue #2386", () =>
+            {
+                var app = EnsureSmokeApplication();
+                var theme = ThemeService.Instance;
+                var wasDark = theme.IsDarkMode;
+
+                // The key list comes from the light dictionary itself, so every
+                // brush is checked; the count pins the 46 that #2386 moved, so a
+                // brush added or lost on the way fails here first.
+                var lightDictionary = new ResourceDictionary
+                {
+                    Source = new Uri("pack://application:,,,/HyperWhisper;component/Themes/LightColors.xaml")
+                };
+                var darkDictionary = new ResourceDictionary
+                {
+                    Source = new Uri("pack://application:,,,/HyperWhisper;component/Themes/DarkColors.xaml")
+                };
+                var brushKeys = lightDictionary.Keys.OfType<string>()
+                    .Where(key => lightDictionary[key] is System.Windows.Media.Brush)
+                    .OrderBy(key => key, StringComparer.Ordinal)
+                    .ToList();
+                var darkBrushKeys = darkDictionary.Keys.OfType<string>()
+                    .Where(key => darkDictionary[key] is System.Windows.Media.Brush)
+                    .OrderBy(key => key, StringComparer.Ordinal)
+                    .ToList();
+                Assert(brushKeys.Count == 46, $"the light theme should define the 46 theme brushes, found {brushKeys.Count}");
+                Assert(brushKeys.SequenceEqual(darkBrushKeys),
+                    $"light and dark must define the same brushes; only in one: {string.Join(", ", brushKeys.Except(darkBrushKeys).Concat(darkBrushKeys.Except(brushKeys)))}");
+
+                // Nothing outside the theme dictionary may define these keys
+                // again: a second, unfrozen copy would win the lookup.
+                foreach (var merged in app.Resources.MergedDictionaries)
+                {
+                    if (merged.Source?.ToString().Contains("Colors.xaml") == true)
+                        continue;
+                    var shadow = brushKeys.Where(merged.Contains).ToList();
+                    Assert(shadow.Count == 0,
+                        $"{merged.Source} redefines theme brushes: {string.Join(", ", shadow)}");
+                }
+
+                var consumer = new System.Windows.Controls.TextBlock();
+                consumer.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "TextPrimaryBrush");
+                // A theme switch re-resolves the trees of the app's windows, so
+                // the consumer sits in one (never shown) as a page would.
+                var host = new Window { Content = consumer };
+                // Closing it must not end the shared smoke Application when it is
+                // the only window (OnLastWindowClose), or every later case that
+                // needs App fails.
+                var shutdownMode = app.ShutdownMode;
+
+                try
+                {
+                    foreach (var dark in new[] { false, true, false })
+                    {
+                        theme.ApplyTheme(dark ? HyperWhisper.Models.ThemeMode.Dark : HyperWhisper.Models.ThemeMode.Light);
+                        var label = dark ? "dark" : "light";
+                        var expected = dark ? darkDictionary : lightDictionary;
+
+                        foreach (var key in brushKeys)
+                        {
+                            var brush = app.TryFindResource(key) as System.Windows.Media.SolidColorBrush;
+                            Assert(brush is not null, $"{label}: '{key}' does not resolve to a SolidColorBrush");
+                            Assert(brush!.IsFrozen, $"{label}: '{key}' is not frozen, so every consumer hooks its Changed event");
+                            var want = ((System.Windows.Media.SolidColorBrush)expected[key]).Color;
+                            Assert(brush.Color == want, $"{label}: '{key}' is {brush.Color}, the {label} theme says {want}");
+                        }
+
+                        var shown = ((System.Windows.Media.SolidColorBrush)consumer.Foreground).Color;
+                        var primary = (System.Windows.Media.Color)expected["TextPrimary"];
+                        Assert(shown == primary,
+                            $"{label}: a SetResourceReference consumer shows {shown}, not the theme's TextPrimary {primary}");
+                    }
+
+                    var lightPrimary = ((System.Windows.Media.SolidColorBrush)lightDictionary["TextPrimaryBrush"]).Color;
+                    var darkPrimary = ((System.Windows.Media.SolidColorBrush)darkDictionary["TextPrimaryBrush"]).Color;
+                    Assert(lightPrimary != darkPrimary, "light and dark TextPrimaryBrush are the same colour, so the switch above proved nothing");
+                }
+                finally
+                {
+                    app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                    host.Close();
+                    app.ShutdownMode = shutdownMode;
+                    theme.ApplyTheme(wasDark ? HyperWhisper.Models.ThemeMode.Dark : HyperWhisper.Models.ThemeMode.Light);
+                }
+            });
+
             // Issue #510. The heading said "Edit Endpoint" and Window.Title still
             // said "Add Endpoint", so the taskbar entry and Alt+Tab named the
             // wrong operation. The two now come from one string, and this asserts
@@ -4445,6 +5155,63 @@ internal static class Program
                     window.ShowProgress("next.mp3", () => { });
                     Assert(!window.IsIndeterminate && percent.Text == "0%",
                         $"the next file did not start at 0% ({percent.Text})");
+                }
+                finally
+                {
+                    window.Close();
+                }
+            });
+
+            // Issue #1924. Each frame eased from the LAST frame's value instead of the
+            // ramp's start, so the easing compounded: the 60 s transcribing ramp read
+            // 80% after ~5 s. And every jump of 20% or more got 60 s, so on a short job
+            // the 85/95/100% steps barely moved before the window hid near 32%.
+            Run("the Transcribe File ramp follows its curve for 60 s and a short job reaches 100% - issue #1924", () =>
+            {
+                EnsureSmokeApplication();
+                var window = new HyperWhisper.Views.Windows.FileTranscriptionProgressWindow();
+                var percent = (System.Windows.Controls.TextBlock)window.FindName("PercentageText")!;
+                const float rampStart = 0.15f;
+                float ramp = HyperWhisper.ViewModels.MainViewModel.FileTranscribingRampTarget;
+                static double EaseOutCubic(double t) => 1.0 - Math.Pow(1.0 - t, 3);
+                try
+                {
+                    // A long job: frames every few seconds, driven with a clock.
+                    window.AnimateStep(rampStart);
+                    window.AdvanceAnimation(DateTime.Now.AddSeconds(1));
+                    window.AnimateStep(ramp);
+                    var start = DateTime.Now;
+                    window.AdvanceAnimation(start.AddSeconds(5));
+                    Assert(window.CurrentProgress < 0.5f,
+                        $"5 s into the 60 s ramp the bar already reads {window.CurrentProgress:P0}");
+                    window.AdvanceAnimation(start.AddSeconds(30));
+                    double halfway = rampStart + (ramp - rampStart) * EaseOutCubic(0.5);
+                    Assert(Math.Abs(window.CurrentProgress - halfway) < 0.01,
+                        $"30 s into the ramp the bar reads {window.CurrentProgress:F3}, not {halfway:F3} on the ease curve");
+                    // At 45 s the curve is at ~0.790: still short of the target.
+                    window.AdvanceAnimation(start.AddSeconds(45));
+                    double late = rampStart + (ramp - rampStart) * EaseOutCubic(0.75);
+                    Assert(Math.Abs(window.CurrentProgress - late) < 0.003 && !window.IsIndeterminate,
+                        $"45 s into the ramp the bar reads {window.CurrentProgress:F3}, not {late:F3}");
+                    window.AdvanceAnimation(start.AddSeconds(60.5));
+                    Assert(window.CurrentProgress == ramp && window.IsIndeterminate,
+                        $"the ramp did not end at {ramp:P0} at 60 s ({window.CurrentProgress:F3})");
+
+                    // A short job: the transcription returns 2 s into the ramp, then
+                    // the finishing steps come back to back and the window hides 500 ms
+                    // after 100% (MainViewModel.TranscribeFileAsync).
+                    window.SetProgress(0f);
+                    window.AnimateStep(rampStart);
+                    window.AdvanceAnimation(DateTime.Now.AddSeconds(1));
+                    window.AnimateStep(ramp);
+                    window.AdvanceAnimation(DateTime.Now.AddSeconds(2));
+                    window.AnimateStep(0.85f);
+                    window.AdvanceAnimation(DateTime.Now.AddMilliseconds(50));
+                    window.AnimateStep(0.95f);
+                    window.AnimateStep(1.0f);
+                    window.AdvanceAnimation(DateTime.Now.AddMilliseconds(500));
+                    Assert(percent.Text == "100%",
+                        $"the bar reads {percent.Text} when a short job's window hides, not 100%");
                 }
                 finally
                 {
@@ -4649,6 +5416,55 @@ internal static class Program
                     "markerless unspecified response should be accepted leniently");
             });
 
+            Run("Local LLM speaks Gemma 4's turn format, not System:/User: (issue #2559)", () =>
+            {
+                const string gemma4Template = "{{- bos_token -}}{{- '<|turn>system\\n' -}}{{- '<turn|>\\n' -}}{{- '<|turn>model\\n' -}}";
+                Assert(LocalLlmPromptFormatter.IsGemma4Template(gemma4Template), "Gemma 4 template should be detected");
+                Assert(!LocalLlmPromptFormatter.IsGemma4Template("<start_of_turn>user\n{{ content }}<end_of_turn>"),
+                    "Gemma 3 template is not Gemma 4");
+                Assert(!LocalLlmPromptFormatter.IsGemma4Template(null), "a model with no template is not Gemma 4");
+
+                var prompt = LocalLlmPromptFormatter.FormatGemma4("  SYSTEM RULES \n", "--TRANSCRIPT--\nhi\n--ENDTRANSCRIPT--\n");
+                Assert(prompt == "<|turn>system\nSYSTEM RULES<turn|>\n<|turn>user\n--TRANSCRIPT--\nhi\n--ENDTRANSCRIPT--<turn|>\n<|turn>model\n",
+                    $"unexpected Gemma 4 prompt: {prompt}");
+                Assert(!prompt.Contains("User:") && !prompt.Contains("System:"), "no generic role prefixes");
+                Assert(LocalLlmPromptFormatter.Gemma4AntiPrompts[0] == "<turn|>", "Gemma 4 end-of-turn is the first stop string");
+                Assert(!LocalLlmPromptFormatter.Gemma4AntiPrompts.Contains("</s>"), "dictated '</s>' must not end a Gemma 4 answer");
+                Assert(!LocalLlmPromptFormatter.TemplateAntiPrompts.Any(a => a.Contains("User:")),
+                    "a templated prompt must not stop on a dictated 'User:'");
+                Assert(LocalLlmService.TrimAntiPrompt("<<CLEANED>>x<<END>>\nUser:", LocalLlmPromptFormatter.PlainAntiPrompts) == "<<CLEANED>>x<<END>>",
+                    "trailing stop string is dropped");
+            });
+
+            Run("Local LLM punctuation-only or cut-off output keeps the raw transcript (issue #2559)", () =>
+            {
+                const string raw = "um so the quick brown fox uh jumps over the the lazy dog and then we we go home";
+                var garbage = PostProcessingService.EvaluateLocalCompletion(raw, new LocalLlmCompletion("<<", CompletionState.Complete));
+                Assert(!garbage.accepted && garbage.text == raw, "'<<' must not replace the transcript");
+
+                var cutOff = PostProcessingService.EvaluateLocalCompletion(raw, new LocalLlmCompletion("<<CLEANED>>So the quick", CompletionState.OutputLimit));
+                Assert(!cutOff.accepted && cutOff.text == raw, "an output-limited answer must not replace the transcript");
+
+                var good = PostProcessingService.EvaluateLocalCompletion(raw,
+                    new LocalLlmCompletion("<<CLEANED>>So the quick brown fox jumps over the lazy dog, and then we go home.<<END>>", CompletionState.Complete));
+                Assert(good.accepted && good.text == "So the quick brown fox jumps over the lazy dog, and then we go home.", "a clean answer is accepted");
+
+                var shortButReal = PostProcessingService.EvaluateLocalCompletion("um uh okay", new LocalLlmCompletion("<<CLEANED>>Okay.<<END>>", CompletionState.Complete));
+                Assert(shortButReal.accepted && shortButReal.text == "Okay.", "a much shorter real answer is still accepted");
+
+                Assert(!PostProcessingService.IsDegenerateLocalOutput("question mark", "?"), "spoken punctuation is an answer");
+                Assert(!PostProcessingService.IsDegenerateLocalOutput("thumbs up", "\U0001F44D"), "an emoji-only answer is content");
+                Assert(PostProcessingService.IsDegenerateLocalOutput("thumbs up", "<< </>"), "marker debris only is degenerate");
+            });
+
+            Run("Local LLM uses every core on ARM64 and the default elsewhere (#2559)", () =>
+            {
+                Assert(LocalLlmService.CpuThreadCount(System.Runtime.InteropServices.Architecture.Arm64, 8) == 8,
+                    "ARM64 has no SMT, so all 8 cores run inference");
+                Assert(LocalLlmService.CpuThreadCount(System.Runtime.InteropServices.Architecture.X64, 16) == null,
+                    "x64 keeps LLamaSharp's one-thread-per-core default");
+            });
+
             Run("Local LLM reserves an 8192-token output without context shifting", () =>
             {
                 Assert(LocalLlmService.MaxTokens == 8_192, "local output ceiling should be 8192");
@@ -4747,6 +5563,122 @@ internal static class Program
                     "vulkan entry must not pin CUDA");
                 Assert(LocalLlmService.CrashEntryPinsBackend("CUDA", LocalLlmGpuHelper.CudaBackendId),
                     "backend match should be case-insensitive");
+            });
+
+            // Issue #1036: the Cloud connection-recovery rules, on a fake clock and a
+            // stub handler (CloudConnectionRig). Each check fails when its rule is removed.
+            RunAsync("Cloud warmup debounce: a 2nd prewarm inside 60s sends nothing, one at 60s sends (#1036)", async () =>
+            {
+                using var rig = new CloudConnectionRig(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
+                var t = rig.Now;
+
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.Handler.Sends == 1, $"first prewarm sends {rig.Handler.Sends}");
+
+                rig.Now = t.AddSeconds(59);
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.Handler.Sends == 1, $"prewarm at t+59s sends {rig.Handler.Sends}, want the debounce to hold");
+
+                rig.Now = t.AddSeconds(60);
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.Handler.Sends == 2, $"prewarm at t+60s sends {rig.Handler.Sends}, want the window to be over");
+            });
+
+            RunAsync("Cloud forced warmup sends inside the debounce window (#1036)", async () =>
+            {
+                // The public entry returns void, so the 2nd send signals instead of being awaited.
+                var sends = 0;
+                var secondSend = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                using var rig = new CloudConnectionRig(_ =>
+                {
+                    if (Interlocked.Increment(ref sends) == 2) secondSend.TrySetResult();
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+                });
+                var t = rig.Now;
+
+                await rig.Service.PrewarmConnectionAsync();
+                rig.Now = t.AddSeconds(1);
+                rig.Service.PrewarmConnectionForced();
+                try { await secondSend.Task.WaitAsync(TimeSpan.FromSeconds(5)); }
+                catch (TimeoutException) { throw new InvalidOperationException($"forced warmup at t+1s never sent ({sends} sends)"); }
+            });
+
+            RunAsync("Cloud warmup that fails clears the debounce, so the next prewarm retries (#1036)", async () =>
+            {
+                using var rig = new CloudConnectionRig(_ => throw new HttpRequestException("connection refused",
+                    new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.ConnectionRefused)));
+                var t = rig.Now;
+
+                await rig.Service.PrewarmConnectionAsync();
+                rig.Now = t.AddSeconds(1);
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.Handler.Sends == 2, $"prewarm at t+1s after a failure sends {rig.Handler.Sends}, want a retry");
+                Assert(rig.ClientsBuilt == 1, $"a refused connection rebuilt the client ({rig.ClientsBuilt} built)");
+            });
+
+            RunAsync("Cloud DNS failure: only HostNotFound/TryAgain, at any depth, rebuild the client (#1036)", async () =>
+            {
+                static Exception Wrapped(System.Net.Sockets.SocketError code) =>
+                    new HttpRequestException("send failed", new System.Net.Sockets.SocketException((int)code));
+
+                Assert(HyperWhisperCloudService.IsDnsError(Wrapped(System.Net.Sockets.SocketError.HostNotFound)), "HostNotFound is not DNS");
+                Assert(HyperWhisperCloudService.IsDnsError(Wrapped(System.Net.Sockets.SocketError.TryAgain)), "TryAgain is not DNS");
+                Assert(HyperWhisperCloudService.IsDnsError(new TaskCanceledException("outer", Wrapped(System.Net.Sockets.SocketError.HostNotFound))),
+                    "a DNS error two levels down is not found");
+                Assert(!HyperWhisperCloudService.IsDnsError(Wrapped(System.Net.Sockets.SocketError.ConnectionRefused)), "ConnectionRefused counts as DNS");
+                Assert(!HyperWhisperCloudService.IsDnsError(new HttpRequestException("no socket")), "a bare HttpRequestException counts as DNS");
+
+                using (var dns = new CloudConnectionRig(_ => throw Wrapped(System.Net.Sockets.SocketError.HostNotFound)))
+                {
+                    await dns.Service.PrewarmConnectionAsync();
+                    Assert(dns.ClientsBuilt == 2, $"a HostNotFound warmup built {dns.ClientsBuilt} clients, want a rebuild");
+                }
+                using (var refused = new CloudConnectionRig(_ => throw Wrapped(System.Net.Sockets.SocketError.ConnectionRefused)))
+                {
+                    await refused.Service.PrewarmConnectionAsync();
+                    Assert(refused.ClientsBuilt == 1, $"a ConnectionRefused warmup built {refused.ClientsBuilt} clients, want none rebuilt");
+                }
+            });
+
+            RunAsync("Cloud DNS rebuild runs at most once per 60s (#1036)", async () =>
+            {
+                using var rig = new CloudConnectionRig(_ => throw new HttpRequestException("dns",
+                    new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.HostNotFound)));
+                var t = rig.Now;
+
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.ClientsBuilt == 2, $"first DNS failure built {rig.ClientsBuilt} clients");
+
+                rig.Now = t.AddSeconds(30);
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.Handler.Sends == 2, $"retry at t+30s sends {rig.Handler.Sends}");
+                Assert(rig.ClientsBuilt == 2, $"DNS failure at t+30s rebuilt again ({rig.ClientsBuilt} built)");
+
+                rig.Now = t.AddSeconds(60);
+                await rig.Service.PrewarmConnectionAsync();
+                Assert(rig.ClientsBuilt == 3, $"DNS failure at t+60s built {rig.ClientsBuilt} clients, want a 2nd rebuild");
+            });
+
+            RunAsync("Cloud DNS failure after Dispose does not rebuild the client (#1036)", async () =>
+            {
+                var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                var rig = new CloudConnectionRig(async _ =>
+                {
+                    entered.SetResult();
+                    await release.Task;
+                    throw new HttpRequestException("dns",
+                        new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.HostNotFound));
+                });
+
+                var warmup = rig.Service.PrewarmConnectionAsync();
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                rig.Dispose();
+                release.SetResult();
+                await warmup.WaitAsync(TimeSpan.FromSeconds(5));
+
+                Assert(rig.Handler.Sends == 1, $"sends {rig.Handler.Sends}");
+                Assert(rig.ClientsBuilt == 1, $"a DNS failure after Dispose built {rig.ClientsBuilt} clients, want no resurrection");
             });
 
             RunAsync("RustRetry caps transport failures at 4 and resolves the client per attempt", async () =>
@@ -5319,6 +6251,204 @@ internal static class Program
                 }
             });
 
+            // #983: the success/copied overlay hides on a deferred, generation-
+            // guarded timer, so the dictation flows can unblock the hotkey right
+            // after the paste. The fake delay lets each case decide when the hold
+            // ends; the context is detached because an await posted to a leftover
+            // WPF context would never run in this console harness.
+            Run("DeferredOverlayHide keeps the success and copied holds main used (#983)", () =>
+            {
+                Assert(DeferredOverlayHide.EndStateFor(SmartPasteResult.Pasted) == new OverlayEndState(OverlayEndKind.Success, TimeSpan.FromMilliseconds(400)),
+                    "a paste no longer shows the success tick for 400 ms");
+                Assert(DeferredOverlayHide.EndStateFor(SmartPasteResult.CopiedToClipboard) == new OverlayEndState(OverlayEndKind.Copied, TimeSpan.FromMilliseconds(500)),
+                    "a clipboard copy no longer shows the copied state for 500 ms");
+                Assert(DeferredOverlayHide.EndStateFor(SmartPasteResult.SecureFieldSkipped) == new OverlayEndState(OverlayEndKind.Copied, TimeSpan.FromMilliseconds(500)),
+                    "a secure-field skip no longer shows the copied state for 500 ms");
+                Assert(DeferredOverlayHide.EndStateFor(SmartPasteResult.Failed) == null,
+                    "a failed delivery shows no end state, so the overlay must hide at once");
+            });
+
+            RunAsync("DeferredOverlayHide hides after the hold when no recording has started (#983)", async () =>
+            {
+                var previousContext = SynchronizationContext.Current;
+                SynchronizationContext.SetSynchronizationContext(null);
+                try
+                {
+                    var hold = new TaskCompletionSource();
+                    TimeSpan? askedFor = null;
+                    var hides = 0;
+                    var scheduler = new DeferredOverlayHide(
+                        delay: d => { askedFor = d; return hold.Task; },
+                        runOnUi: a => a());
+
+                    var pending = scheduler.Schedule(DeferredOverlayHide.SuccessHold, () => hides++);
+                    Assert(hides == 0 && !pending.IsCompleted, "the hide ran before the hold ended");
+                    Assert(askedFor == DeferredOverlayHide.SuccessHold, $"the hold asked for {askedFor}, not 400 ms");
+
+                    hold.SetResult();
+                    Assert(await pending, "an unsuperseded hide reported that it did not run");
+                    Assert(hides == 1, $"the overlay was hidden {hides} times, expected once");
+                }
+                finally
+                {
+                    SynchronizationContext.SetSynchronizationContext(previousContext);
+                }
+            });
+
+            RunAsync("DeferredOverlayHide never hides a newer recording's overlay (#983)", async () =>
+            {
+                var previousContext = SynchronizationContext.Current;
+                SynchronizationContext.SetSynchronizationContext(null);
+                try
+                {
+                    // The quick second dictation: the success tick is up, the hotkey
+                    // is already free, and the next press shows its recording overlay
+                    // (Supersede, then the show) before the 400 ms run out.
+                    var hold = new TaskCompletionSource();
+                    var hides = 0;
+                    var scheduler = new DeferredOverlayHide(delay: _ => hold.Task, runOnUi: a => a());
+
+                    var pending = scheduler.Schedule(DeferredOverlayHide.SuccessHold, () => hides++);
+                    scheduler.Supersede();
+                    hold.SetResult();
+
+                    Assert(!await pending, "a superseded hide reported that it ran");
+                    Assert(hides == 0, "the late success hide hid the new recording's overlay");
+                }
+                finally
+                {
+                    SynchronizationContext.SetSynchronizationContext(previousContext);
+                }
+            });
+
+            RunAsync("DeferredOverlayHide lets only the latest scheduled hide fire (#983)", async () =>
+            {
+                var previousContext = SynchronizationContext.Current;
+                SynchronizationContext.SetSynchronizationContext(null);
+                try
+                {
+                    // Two dictations end inside one hold: the first one's timer must
+                    // not cut the second one's success state short.
+                    var holds = new List<TaskCompletionSource>();
+                    var hidden = new List<string>();
+                    var scheduler = new DeferredOverlayHide(
+                        delay: _ => { var t = new TaskCompletionSource(); holds.Add(t); return t.Task; },
+                        runOnUi: a => a());
+
+                    var first = scheduler.Schedule(DeferredOverlayHide.SuccessHold, () => hidden.Add("first"));
+                    var second = scheduler.Schedule(DeferredOverlayHide.CopiedHold, () => hidden.Add("second"));
+                    holds[0].SetResult();
+                    Assert(!await first, "the older hide ran after a newer one was scheduled");
+                    Assert(hidden.Count == 0, "the older hide cut the newer success state short");
+                    holds[1].SetResult();
+                    Assert(await second, "the newest hide did not run");
+                    Assert(hidden.SequenceEqual(new[] { "second" }), $"hides ran: {string.Join(",", hidden)}");
+
+                    // A supersede before a schedule must not cancel that later hide.
+                    scheduler.Supersede();
+                    var third = scheduler.Schedule(DeferredOverlayHide.SuccessHold, () => hidden.Add("third"));
+                    holds[2].SetResult();
+                    Assert(await third, "a supersede made BEFORE the schedule cancelled its hide");
+                }
+                finally
+                {
+                    SynchronizationContext.SetSynchronizationContext(previousContext);
+                }
+            });
+
+            RunAsync("DeferredOverlayHide checks the generation on the UI hop and swallows a failed hide (#983)", async () =>
+            {
+                var previousContext = SynchronizationContext.Current;
+                SynchronizationContext.SetSynchronizationContext(null);
+                try
+                {
+                    // The generation is read INSIDE the UI step: a recording that
+                    // starts while the hide waits for the dispatcher still wins.
+                    var hides = 0;
+                    DeferredOverlayHide? scheduler = null;
+                    scheduler = new DeferredOverlayHide(
+                        delay: _ => Task.CompletedTask,
+                        runOnUi: a => { scheduler!.Supersede(); a(); });
+                    Assert(!await scheduler.Schedule(DeferredOverlayHide.SuccessHold, () => hides++),
+                        "the generation was checked before the UI hop, not inside it");
+                    Assert(hides == 0, "a recording that started during the UI hop was hidden");
+
+                    // Discarded by the flow, so the task must never fault.
+                    var throwing = new DeferredOverlayHide(delay: _ => Task.CompletedTask, runOnUi: a => a());
+                    var result = throwing.Schedule(DeferredOverlayHide.SuccessHold,
+                        () => throw new InvalidOperationException("dispatcher gone"));
+                    Assert(!await result && !result.IsFaulted, "a failing hide faulted the discarded task");
+
+                    // The default delay is a real timer: the hide lands after the hold.
+                    var real = new DeferredOverlayHide(runOnUi: a => a());
+                    var clock = Stopwatch.StartNew();
+                    Assert(await real.Schedule(TimeSpan.FromMilliseconds(50), () => { }), "the real-timer hide did not run");
+                    Assert(clock.ElapsedMilliseconds >= 40, $"the real-timer hide ran after {clock.ElapsedMilliseconds} ms");
+                }
+                finally
+                {
+                    SynchronizationContext.SetSynchronizationContext(previousContext);
+                }
+            });
+
+            Run("neither dictation flow awaits the success animation before its teardown (#983)", () =>
+            {
+                // The flows ran the success/copied wait as `await Task.Delay(400/500)`
+                // inside the try, so their finally (teardown + `_hotkeyBlocked = false`)
+                // waited for the animation and a quick second press was dropped.
+                // Read each flow's async state machine IL: no Task.Delay call may be
+                // left in it, and the deferred hide must be what it uses instead.
+                foreach (var flowName in new[] { "StopRecordingAndTranscribeAsync", "StopStreamingRecordingAsync" })
+                {
+                    var flow = typeof(MainViewModel).GetMethod(flowName,
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    Assert(flow != null, $"MainViewModel.{flowName} is gone; update this check");
+                    var stateMachine = flow!.GetCustomAttribute<System.Runtime.CompilerServices.AsyncStateMachineAttribute>()?.StateMachineType;
+                    Assert(stateMachine != null, $"MainViewModel.{flowName} is no longer async; update this check");
+                    var moveNext = stateMachine!.GetMethod("MoveNext", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)!;
+                    var called = CalledMethods(moveNext);
+
+                    Assert(called.Any(m => m.Name == "EnsureTranscriptTerminalStatus"),
+                        $"the IL scan of {flowName} found no call it is known to make; the scan is blind");
+                    var delays = called.Where(m => m.DeclaringType == typeof(Task) && m.Name == nameof(Task.Delay)).ToList();
+                    Assert(delays.Count == 0,
+                        $"{flowName} still awaits Task.Delay ({delays.Count} call(s)) before its finally, " +
+                        "so the hotkey stays blocked through the success animation");
+                    Assert(called.Any(m => m.DeclaringType == typeof(MainViewModel) && m.Name == "ShowPasteEndState"),
+                        $"{flowName} no longer shows its end state through ShowPasteEndState");
+                }
+
+                // The one helper both flows share reads the end-state table and asks
+                // the overlay for the late hide, never waiting for it itself.
+                var helper = typeof(MainViewModel).GetMethod("ShowPasteEndState", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert(helper != null, "MainViewModel.ShowPasteEndState is gone; update this check");
+                Assert(helper!.GetCustomAttribute<System.Runtime.CompilerServices.AsyncStateMachineAttribute>() == null,
+                    "ShowPasteEndState became async, so a flow could await the hold again");
+                var helperCalls = CalledMethods(helper!);
+                Assert(helperCalls.Any(m => m.DeclaringType == typeof(DeferredOverlayHide) && m.Name == nameof(DeferredOverlayHide.EndStateFor)),
+                    "ShowPasteEndState no longer reads DeferredOverlayHide.EndStateFor");
+            });
+
+            Run("every overlay show and hide supersedes a pending late hide (#983)", () =>
+            {
+                // The guard lives in the overlay window, not in each flow: whatever
+                // shows the overlay next, the last dictation's late hide must not
+                // hide it. Read each show/hide method's IL for the Supersede call.
+                var overlay = typeof(HyperWhisper.Views.Windows.RecordingOverlayWindow);
+                foreach (var name in new[] { "ShowRecording", "ShowStatusState", "ShowSuccess", "ShowCopied", "ShowCancelConfirmation", "Hide" })
+                {
+                    var method = overlay.GetMethod(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly, Type.EmptyTypes);
+                    Assert(method != null, $"RecordingOverlayWindow.{name}() is gone; update this check");
+                    Assert(CalledMethods(method!).Any(m => m.DeclaringType == typeof(DeferredOverlayHide) && m.Name == nameof(DeferredOverlayHide.Supersede)),
+                        $"RecordingOverlayWindow.{name} does not supersede the pending late hide");
+                }
+
+                var hideAfter = overlay.GetMethod("HideAfter", BindingFlags.Instance | BindingFlags.Public);
+                Assert(hideAfter != null, "RecordingOverlayWindow.HideAfter is gone; update this check");
+                Assert(CalledMethods(hideAfter!).Any(m => m.DeclaringType == typeof(DeferredOverlayHide) && m.Name == nameof(DeferredOverlayHide.Schedule)),
+                    "RecordingOverlayWindow.HideAfter no longer schedules through DeferredOverlayHide");
+            });
+
             Run("CaptureDeviceNameCache: one FriendlyName read per endpoint ID, dropped on invalidate / clear (#980)", () =>
             {
                 var cache = new CaptureDeviceNameCache();
@@ -5699,6 +6829,188 @@ internal static class Program
                 }
             });
 
+            // #1782: DownloadModelAsync against a scripted Hugging Face, through the
+            // internal HttpClient constructor. Each check uses its own model id.
+            RunAsync("ParakeetModelService.DownloadModelAsync follows every Qwen3 tree page and skips repo metadata and test_wavs (#1782)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-qwen3-tree", "Smoke", "1 KB", 16, false, ["en"], [], "smoke/qwen3-tree",
+                    engine: ParakeetEngine.Qwen3);
+                var treeUrl = "https://huggingface.co/api/models/smoke/qwen3-tree/tree/main?recursive=true";
+                var page2Url = treeUrl + "&cursor=page2";
+                var handler = new HuggingFaceStubHandler((request, _) =>
+                {
+                    var url = request.RequestUri!.ToString();
+                    if (url == treeUrl)
+                    {
+                        var page1 = TreeJson(("file", "conv_frontend.int8.onnx"), ("file", "README.md"),
+                            ("file", ".gitattributes"), ("directory", "tokenizer"), ("file", "test_wavs/a.wav"));
+                        page1.Headers.TryAddWithoutValidation("Link", $"<{page2Url}>; rel=\"next\"");
+                        return page1;
+                    }
+                    if (url == page2Url)
+                        return TreeJson(("file", "encoder.int8.onnx"), ("file", "decoder.int8.onnx"), ("file", "tokenizer/vocab.json"));
+                    return url.StartsWith("https://huggingface.co/smoke/qwen3-tree/resolve/main/", StringComparison.Ordinal)
+                        ? Respond(HttpStatusCode.OK, "onnx")
+                        : Respond(HttpStatusCode.NotFound, "");
+                });
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+                try
+                {
+                    var result = await service.DownloadModelAsync(model);
+
+                    Assert(result.IsSuccess, $"the 2-page tree download failed: {result.Error}");
+                    var installed = Directory.EnumerateFiles(finalDir, "*", SearchOption.AllDirectories)
+                        .Select(f => Path.GetRelativePath(finalDir, f).Replace(Path.DirectorySeparatorChar, '/'))
+                        .OrderBy(f => f, StringComparer.Ordinal)
+                        .ToList();
+                    var expected = new[] { "conv_frontend.int8.onnx", "decoder.int8.onnx", "encoder.int8.onnx", "tokenizer/vocab.json" };
+                    Assert(installed.SequenceEqual(expected),
+                        $"expected the files of both pages and nothing else, got [{string.Join(", ", installed)}]");
+                    Assert(!handler.Requested.Any(u => u.Contains("README.md") || u.Contains(".gitattributes") || u.Contains("test_wavs")),
+                        $"a skipped path was fetched: {string.Join(", ", handler.Requested)}");
+                    Assert(service.IsModelDownloaded(model), "the installed tree should count as downloaded");
+                    Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was left behind");
+                }
+                finally
+                {
+                    try { Directory.Delete(finalDir, recursive: true); } catch { /* best effort */ }
+                }
+            });
+
+            RunAsync("ParakeetModelService.DownloadModelAsync fails an empty Qwen3 tree and leaves no .temp folder (#1782)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-qwen3-empty", "Smoke", "1 KB", 16, false, ["en"], [], "smoke/qwen3-empty",
+                    engine: ParakeetEngine.Qwen3);
+                var handler = new HuggingFaceStubHandler((request, _) =>
+                    request.RequestUri!.AbsolutePath.StartsWith("/api/models/", StringComparison.Ordinal)
+                        ? TreeJson()
+                        : Respond(HttpStatusCode.NotFound, ""));
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+
+                var result = await service.DownloadModelAsync(model);
+
+                Assert(result.IsFailure, "an empty repository tree should fail the download");
+                Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was left behind");
+                Assert(!Directory.Exists(finalDir), "an empty tree should install nothing");
+                Assert(handler.Requested.Count == 1, $"expected only the tree request, got {handler.Requested.Count}");
+            });
+
+            RunAsync("ParakeetModelService.DownloadModelAsync rejects a short body and keeps the old install (#1782, #1598)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-short-body", "Smoke", "1 KB", 7, true, ["en"], ["model.onnx", "tokens.txt"], "smoke/short-body",
+                    fileSizes: new Dictionary<string, long> { ["model.onnx"] = 4, ["tokens.txt"] = 3 });
+                var handler = new HuggingFaceStubHandler((request, _) => request.RequestUri!.AbsolutePath switch
+                {
+                    "/smoke/short-body/resolve/main/model.onnx" => Respond(HttpStatusCode.OK, "abcd"),
+                    "/smoke/short-body/resolve/main/tokens.txt" => Respond(HttpStatusCode.OK, "ab"), // 1 byte short
+                    _ => Respond(HttpStatusCode.NotFound, ""),
+                });
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+                Directory.CreateDirectory(finalDir);
+                File.WriteAllText(Path.Combine(finalDir, "model.onnx"), "good");
+                File.WriteAllText(Path.Combine(finalDir, "tokens.txt"), "old");
+                try
+                {
+                    Assert(service.IsModelDownloaded(model), "precondition: the old install is complete");
+
+                    var result = await service.DownloadModelAsync(model);
+
+                    Assert(result.IsFailure, "a body 1 byte short of its pinned size should fail the download");
+                    Assert(File.ReadAllText(Path.Combine(finalDir, "tokens.txt")) == "old", "the failed download replaced the old install");
+                    Assert(service.IsModelDownloaded(model), "the old install should still count as downloaded");
+                    Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was left behind");
+                }
+                finally
+                {
+                    try { Directory.Delete(finalDir, recursive: true); } catch { /* best effort */ }
+                }
+            });
+
+            RunAsync("ParakeetModelService.DownloadModelAsync fails an HTTP 500 on the second file and leaves no .temp folder (#1782)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-http-500", "Smoke", "1 KB", 7, true, ["en"], ["model.onnx", "tokens.txt"], "smoke/http-500",
+                    fileSizes: new Dictionary<string, long> { ["model.onnx"] = 4, ["tokens.txt"] = 3 });
+                var handler = new HuggingFaceStubHandler((request, _) => request.RequestUri!.AbsolutePath switch
+                {
+                    "/smoke/http-500/resolve/main/model.onnx" => Respond(HttpStatusCode.OK, "abcd"),
+                    "/smoke/http-500/resolve/main/tokens.txt" => Respond(HttpStatusCode.InternalServerError, "boom"),
+                    _ => Respond(HttpStatusCode.NotFound, ""),
+                });
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+
+                var result = await service.DownloadModelAsync(model);
+
+                Assert(result.IsFailure, "an HTTP 500 should fail the download");
+                Assert(result.Error != HyperWhisper.Localization.Loc.S("settings.models.download.cancelled"), "an HTTP failure was reported as a cancel");
+                Assert(handler.Requested.Count == 2, $"expected both files to be requested, got {handler.Requested.Count}");
+                Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder of partial files was left behind");
+                Assert(!Directory.Exists(finalDir), "a failed download should install nothing");
+            });
+
+            RunAsync("ParakeetModelService.DownloadModelAsync moves temp to final and clears a broken mark (#1782, #1598)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-good", "Smoke", "1 KB", 7, true, ["en"], ["model.onnx", "tokens.txt"], "smoke/good",
+                    fileSizes: new Dictionary<string, long> { ["model.onnx"] = 4, ["tokens.txt"] = 3 });
+                var handler = new HuggingFaceStubHandler((request, _) => request.RequestUri!.AbsolutePath switch
+                {
+                    "/smoke/good/resolve/main/model.onnx" => Respond(HttpStatusCode.OK, "abcd"),
+                    "/smoke/good/resolve/main/tokens.txt" => Respond(HttpStatusCode.OK, "abc"),
+                    _ => Respond(HttpStatusCode.NotFound, ""),
+                });
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+                LocalModelHealth.MarkBroken(finalDir, "smoke 1782");
+                try
+                {
+                    var result = await service.DownloadModelAsync(model);
+
+                    Assert(result.IsSuccess, $"a good download failed: {result.Error}");
+                    Assert(result.Value == finalDir, $"expected the final folder, got {result.Value}");
+                    Assert(File.ReadAllText(Path.Combine(finalDir, "tokens.txt")) == "abc", "the downloaded file is not in the final folder");
+                    Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was not moved");
+                    Assert(!LocalModelHealth.IsBroken(finalDir), "the re-downloaded model is still marked broken");
+                    Assert(service.IsModelDownloaded(model), "the re-downloaded model should count as downloaded");
+                }
+                finally
+                {
+                    LocalModelHealth.ClearBroken(finalDir);
+                    try { Directory.Delete(finalDir, recursive: true); } catch { /* best effort */ }
+                }
+            });
+
+            RunAsync("ParakeetModelService.DownloadModelAsync reports a cancel as cancelled and leaves no .temp folder (#1782)", async () =>
+            {
+                var model = new ParakeetModelInfo(
+                    "smoke-1782-cancel", "Smoke", "1 KB", 7, true, ["en"], ["model.onnx", "tokens.txt"], "smoke/cancel",
+                    fileSizes: new Dictionary<string, long> { ["model.onnx"] = 4, ["tokens.txt"] = 3 });
+                using var cts = new CancellationTokenSource();
+                var handler = new HuggingFaceStubHandler((request, _) =>
+                {
+                    // The user presses Cancel while the first file is arriving.
+                    cts.Cancel();
+                    return Respond(HttpStatusCode.OK, "abcd");
+                });
+                var service = new ParakeetModelService(new HttpClient(handler));
+                var finalDir = service.GetModelDirectory(model);
+
+                var result = await service.DownloadModelAsync(model, cancellationToken: cts.Token);
+
+                Assert(result.IsFailure, "a cancelled download should fail");
+                Assert(result.Error == HyperWhisper.Localization.Loc.S("settings.models.download.cancelled"),
+                    $"expected the cancelled message, got '{result.Error}'");
+                Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was left behind");
+                Assert(!Directory.Exists(finalDir), "a cancelled download should install nothing");
+            });
+
             Run("Model Library offers Download for a broken model, even one a mode uses (#1598)", () =>
             {
                 // A real catalog row: Base, the default "Hyper" mode's model. The
@@ -5826,6 +7138,111 @@ internal static class Program
                     "the x64 engine's Nemotron validation error must not mark the model broken");
                 Assert(!ParakeetTranscriptionService.IsModelFileLoadFailure(fail, null, dir),
                     "no stderr capture must not mark the model broken");
+            });
+
+            RunAsync("Parakeet: a daemon start Application Control blocks is a clear error, and the next load does not throw on the unstarted Process (#2379)", async () =>
+            {
+                var root = Path.Combine(Path.GetTempPath(), "hw-2379-" + Guid.NewGuid().ToString("N"));
+                var engineDir = Path.Combine(root, "parakeet-engine");
+                var modelDir = Path.Combine(root, "parakeet-tdt-0.6b-v2");
+                Directory.CreateDirectory(engineDir);
+                Directory.CreateDirectory(modelDir);
+                var daemonPath = Path.Combine(engineDir, "parakeet-engine.exe");
+                File.WriteAllText(daemonPath, "not an executable");
+
+                // What Process.Start threw on the user's machine (HYPERWHISPER-113):
+                // ERROR_SYSTEM_INTEGRITY_POLICY_VIOLATION, with the install path in the message.
+                // The apostrophe pins the file-name parse: it must not stop at "O".
+                var blockedPath = @"C:\Users\Jane O'Doe\AppData\Local\Programs\HyperWhisper\parakeet-engine\parakeet-engine.exe";
+                var expectedNotice = ApplicationControlDiagnostics.BuildBlockedNotice("parakeet-engine.exe", static key => HyperWhisper.Localization.Loc.S(key)).Message;
+                var starts = 0;
+                var service = new ParakeetTranscriptionService
+                {
+                    DaemonPathOverride = daemonPath,
+                    StartDaemonProcess = _ =>
+                    {
+                        starts++;
+                        throw new System.ComponentModel.Win32Exception(
+                            4551,
+                            $"An error occurred trying to start process '{blockedPath}' with working directory '{Path.GetDirectoryName(blockedPath)}'. An Application Control policy has blocked this file.");
+                    },
+                };
+
+                try
+                {
+                    for (var attempt = 1; attempt <= 2; attempt++)
+                    {
+                        // The second load is the production crash (HYPERWHISPER-112): its
+                        // DisposeModel read HasExited on the first load's never-started Process.
+                        TranscriptionException? failure = null;
+                        try
+                        {
+                            await service.InitializeAsync(modelDir, null);
+                        }
+                        catch (TranscriptionException ex)
+                        {
+                            failure = ex;
+                        }
+
+                        Assert(failure != null, $"load {attempt} must fail as a TranscriptionException");
+                        Assert(failure!.Code == TranscriptionErrorCode.DaemonStartFailed, $"load {attempt}: code {failure.Code}");
+                        Assert(failure.Message == expectedNotice,
+                            $"load {attempt}: the status bar must show the Application Control notice for parakeet-engine.exe, got: {failure.Message}");
+                        Assert(failure.GetUserMessage() == failure.Message,
+                            $"load {attempt}: a dictation toast must show the same notice, got: {failure.GetUserMessage()}");
+                        Assert(!failure.Message.Contains("Doe", StringComparison.Ordinal) && !failure.Message.Contains(@"C:\", StringComparison.Ordinal),
+                            $"load {attempt}: the message must carry no path, got: {failure.Message}");
+                        Assert(failure.InnerException == null, $"load {attempt}: the raw Win32Exception (with its path) must not ride along");
+                        Assert(!service.IsAvailable, $"load {attempt}: IsAvailable must be false, and must not throw");
+                    }
+
+                    Assert(starts == 2, $"each load must try the daemon once, tried {starts}");
+                    service.DisposeModel();
+                }
+                finally
+                {
+                    try { Directory.Delete(root, recursive: true); } catch { }
+                }
+            });
+
+            RunAsync("Parakeet: any other daemon start failure leaves no unstarted Process and puts no path in the message (#2379)", async () =>
+            {
+                var root = Path.Combine(Path.GetTempPath(), "hw-2379-" + Guid.NewGuid().ToString("N"));
+                var modelDir = Path.Combine(root, "parakeet-tdt-0.6b-v2");
+                Directory.CreateDirectory(modelDir);
+                var daemonPath = Path.Combine(root, "parakeet-engine.exe");
+                // A file that exists and is not a program: the REAL Process.Start throws
+                // a Win32Exception (ERROR_BAD_EXE_FORMAT) with the path in its message.
+                File.WriteAllText(daemonPath, "not an executable");
+                var service = new ParakeetTranscriptionService { DaemonPathOverride = daemonPath };
+
+                try
+                {
+                    for (var attempt = 1; attempt <= 2; attempt++)
+                    {
+                        TranscriptionException? failure = null;
+                        try
+                        {
+                            await service.InitializeAsync(modelDir, null);
+                        }
+                        catch (TranscriptionException ex)
+                        {
+                            failure = ex;
+                        }
+
+                        Assert(failure != null, $"load {attempt} must fail as a TranscriptionException");
+                        Assert(failure!.Code == TranscriptionErrorCode.DaemonStartFailed, $"load {attempt}: code {failure.Code}");
+                        Assert(!failure.Message.Contains(root, StringComparison.OrdinalIgnoreCase),
+                            $"load {attempt}: the message must carry no path, got: {failure.Message}");
+                        Assert(!service.IsAvailable, $"load {attempt}: IsAvailable must be false, and must not throw");
+                    }
+
+                    service.DisposeModel();
+                }
+                finally
+                {
+                    try { Directory.Delete(root, recursive: true); } catch { }
+                }
             });
 
             Run("Parakeet start-failure stderr tail drops the user's identifiers and is capped (#854)", () =>
@@ -5958,6 +7375,89 @@ internal static class Program
                 Assert(MainViewModel.LocalLibraryModelId(parakeetMode) is { } p && rowIds.Contains(p),
                     $"parakeet id '{MainViewModel.LocalLibraryModelId(parakeetMode)}' is not a library row");
                 Assert(MainViewModel.LocalLibraryModelId(cloudMode) == null, "a cloud mode has no local model row");
+            });
+
+            Run("Model Library search: every word must match, each in any field (#2169)", () =>
+            {
+                // Windows ships one Nemotron row, so these rows mirror the macOS PR #2168
+                // test for #1447 to pin the AND rule itself.
+                LibraryModel Row(string id, string name, string? tag) => new()
+                {
+                    Id = $"parakeet-{id}",
+                    DisplayName = name,
+                    ProviderName = "Nemotron",
+                    ProviderAssetName = "row",
+                    Kind = LibraryModelKind.Voice,
+                    LocationKind = LibraryModelLocationKind.Offline,
+                    StatusKind = LibraryModelStatusKind.Downloadable,
+                    Source = LibraryModelSource.Parakeet,
+                    Tag = tag,
+                    SupportsCustomVocabulary = false,
+                    AvailableViaHyperWhisperCloud = false
+                };
+                var rows = new[]
+                {
+                    Row("nemotron-3.5-latin", "Nemotron 3.5 (Latin)", "Latin"),
+                    Row("nemotron-3.5-ml", "Nemotron 3.5 (Multilingual)", "Multilingual"),
+                };
+                string[] Hits(string query) => rows
+                    .Where(r => LibraryModelSearch.Matches(r, query))
+                    .Select(r => r.DisplayName).ToArray();
+
+                Assert(Hits("nemotron latin").SequenceEqual(new[] { "Nemotron 3.5 (Latin)" }),
+                    $"'nemotron latin' found [{string.Join(", ", Hits("nemotron latin"))}]");
+                Assert(Hits("  LATIN   nemotron ").SequenceEqual(new[] { "Nemotron 3.5 (Latin)" }),
+                    "word order, case and extra spaces must not matter");
+                Assert(Hits("nemotron").Length == 2, "one word still matches both rows");
+                Assert(Hits("nemotron zzz").Length == 0, "one unmatched word must hide the row");
+            });
+
+            Run("Model Library search: model ids match, and one-word, empty and junk queries keep their rows (#2169)", () =>
+            {
+                var library = new ModelLibraryManager(
+                    new WhisperModelService(),
+                    new ParakeetModelService(),
+                    new LocalLlmModelService(),
+                    ApiKeyService.Instance,
+                    CloudProviderHealthService.Instance);
+                var rows = library.Rebuild().ToList();
+                string[] Hits(string query) => rows
+                    .Where(r => LibraryModelSearch.Matches(r, query))
+                    .Select(r => r.Id).ToArray();
+
+                // The model id, local and cloud alike.
+                Assert(Hits("base.en").SequenceEqual(new[] { "whisper-base.en" }),
+                    $"'base.en' found [{string.Join(", ", Hits("base.en"))}]");
+                Assert(Hits("small.en").SequenceEqual(new[] { "whisper-small.en" }),
+                    $"'small.en' found [{string.Join(", ", Hits("small.en"))}]");
+                Assert(Hits("gpt-4o-transcribe").Contains("cloud-tx-openai-gpt-4o-transcribe"),
+                    $"'gpt-4o-transcribe' found [{string.Join(", ", Hits("gpt-4o-transcribe"))}]");
+                Assert(Hits("nemotron multilingual").Length == 1
+                        && Hits("nemotron multilingual")[0].StartsWith("parakeet-nemotron", StringComparison.Ordinal),
+                    $"'nemotron multilingual' found [{string.Join(", ", Hits("nemotron multilingual"))}]");
+                // The row-id prefix is not searchable: "pp" and "tx" are not
+                // words the user sees.
+                Assert(Hits("cloud-tx").Length == 0, "the row-id prefix must not be searchable");
+
+                // Empty and junk queries.
+                Assert(Hits("").Length == rows.Count && Hits("   ").Length == rows.Count,
+                    "an empty query must keep every row");
+                Assert(Hits("qqzzxx").Length == 0 && Hits("whisper qqzzxx").Length == 0,
+                    "a junk word must match nothing");
+
+                // One word: every row the old whole-string match kept is still kept.
+                static bool OldMatch(LibraryModel m, string s)
+                    => m.DisplayName.Contains(s, StringComparison.OrdinalIgnoreCase)
+                        || m.ProviderName.Contains(s, StringComparison.OrdinalIgnoreCase)
+                        || (m.Detail?.Contains(s, StringComparison.OrdinalIgnoreCase) ?? false)
+                        || (m.Tag?.Contains(s, StringComparison.OrdinalIgnoreCase) ?? false);
+                foreach (var word in new[] { "whisper", "Base", "en", "openai", "deepgram", "Multilingual", "VRAM", "gemini", "large" })
+                {
+                    var old = rows.Where(r => OldMatch(r, word)).Select(r => r.Id).ToArray();
+                    Assert(old.Length > 0, $"'{word}' matched no row before the change; pick another word");
+                    var lost = old.Except(Hits(word)).ToArray();
+                    Assert(lost.Length == 0, $"'{word}' lost rows: {string.Join(", ", lost)}");
+                }
             });
 
             Run("TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech skips exactly at the low-signal threshold boundary (inclusive <=)", () =>
@@ -11347,6 +12847,80 @@ internal static class Program
                     "an unset Azure model did not fall back to the catalog default");
             });
 
+            // #1421: HyperWhisperRoutedTranscriptionClient (Azure MAI, Google
+            // Chirp) is driven end to end with a scripted HttpClient and an
+            // explicit licensed identity, so the request it builds and the
+            // errors it maps are pinned, not just ResolveRoutedModel above.
+            RunAsync("routed: azure-mai sends X-STT-Provider azure-mai and X-STT-Model mai-transcribe-1.5", async () =>
+            {
+                var (handler, error) = await RunRoutedAsync("azure-mai", "mai-transcribe-1.5",
+                    HttpStatusCode.OK, "{\"text\":\"hello\"}");
+                Assert(error == null, $"a 200 threw: {error}");
+                Assert(handler.Sends == 1, $"expected 1 request, got {handler.Sends}");
+                Assert(handler.Header("X-STT-Provider") == "azure-mai",
+                    $"X-STT-Provider was '{handler.Header("X-STT-Provider")}'");
+                Assert(handler.Header("X-STT-Model") == "mai-transcribe-1.5",
+                    $"X-STT-Model was '{handler.Header("X-STT-Model")}': the user's model (and price) is lost on the wire");
+            });
+
+            RunAsync("routed: google-chirp sends X-STT-Provider google-chirp and no X-STT-Model", async () =>
+            {
+                var (handler, error) = await RunRoutedAsync("google-chirp", null,
+                    HttpStatusCode.OK, "{\"text\":\"hello\"}");
+                Assert(error == null, $"a 200 threw: {error}");
+                Assert(handler.Header("X-STT-Provider") == "google-chirp",
+                    $"X-STT-Provider was '{handler.Header("X-STT-Provider")}'");
+                Assert(handler.Header("X-STT-Model") == null,
+                    $"Google Chirp sent X-STT-Model '{handler.Header("X-STT-Model")}' with no model chosen");
+            });
+
+            RunAsync("routed: the licence key goes in license_key and no device_id is sent", async () =>
+            {
+                var (handler, _) = await RunRoutedAsync("azure-mai", "mai-transcribe-2",
+                    HttpStatusCode.OK, "{\"text\":\"hello\"}");
+                var query = System.Web.HttpUtility.ParseQueryString(handler.LastRequestUri?.Query ?? string.Empty);
+                Assert(query["license_key"] == RoutedTestKey,
+                    $"license_key was '{query["license_key"]}'");
+                Assert(query["device_id"] == null, $"device_id was sent: '{query["device_id"]}'");
+            });
+
+            RunAsync("routed: a 402 with credits_remaining/credits_required maps to InsufficientCredits with both numbers", async () =>
+            {
+                var (_, error) = await RunRoutedAsync("azure-mai", "mai-transcribe-2",
+                    HttpStatusCode.PaymentRequired,
+                    "{\"error\":\"insufficient_credits\",\"message\":\"Not enough credits\",\"credits_remaining\":3,\"credits_required\":12}");
+                Assert(error is TranscriptionException, $"expected a TranscriptionException, got {error?.GetType().Name ?? "none"}");
+                var ex = (TranscriptionException)error!;
+                Assert(ex.IsInsufficientCredits && ex.Code == TranscriptionErrorCode.QuotaExceeded,
+                    $"a 402 mapped to {ex.Code} (insufficient={ex.IsInsufficientCredits}), not the buy-credits path");
+                Assert(ex.HttpStatusCode == 402, $"status was {ex.HttpStatusCode}");
+                Assert(ex.Message.Contains("remaining: 3", StringComparison.Ordinal)
+                        && ex.Message.Contains("required: 12", StringComparison.Ordinal),
+                    $"the credit numbers were lost: '{ex.Message}'");
+            });
+
+            RunAsync("routed: a 413 with max_size_mb/actual_size_mb carries the size context", async () =>
+            {
+                var (_, error) = await RunRoutedAsync("google-chirp", null,
+                    HttpStatusCode.RequestEntityTooLarge,
+                    "{\"error\":\"file_too_large\",\"message\":\"File too large\",\"max_size_mb\":25,\"actual_size_mb\":31.5}");
+                Assert(error is TranscriptionException, $"expected a TranscriptionException, got {error?.GetType().Name ?? "none"}");
+                var ex = (TranscriptionException)error!;
+                Assert(ex.Code == TranscriptionErrorCode.FileTooLarge, $"a 413 mapped to {ex.Code}");
+                Assert(ex.Message.Contains("31.5 MB", StringComparison.Ordinal)
+                        && ex.Message.Contains("25 MB", StringComparison.Ordinal),
+                    $"the size context was lost: '{ex.Message}'");
+            });
+
+            RunAsync("routed: an unlicensed identity throws CloudAccountRequired and sends 0 requests", async () =>
+            {
+                var (handler, error) = await RunRoutedAsync("azure-mai", "mai-transcribe-2",
+                    HttpStatusCode.OK, "{\"text\":\"hello\"}", licensed: false);
+                Assert(error is TranscriptionException { Code: TranscriptionErrorCode.CloudAccountRequired },
+                    $"expected CloudAccountRequired, got {(error as TranscriptionException)?.Code.ToString() ?? error?.GetType().Name ?? "no error"}");
+                Assert(handler.Sends == 0, $"an unlicensed call sent {handler.Sends} request(s)");
+            });
+
             Run("two overlapping Azure MAI requests keep their own model", () =>
             {
                 // REGRESSION GUARD for a billing bug. The first cut of the fix
@@ -12190,6 +13764,65 @@ internal static class Program
                     foreach (var row in vocabulary.GetAll().Where(v => v.Word.Contains(token, StringComparison.Ordinal)))
                         vocabulary.Delete(row.Id);
                     try { File.Delete(backupPath); } catch { }
+                }
+            });
+
+            Run("backup: schemaVersion 2.0 inspects and imports; 2.5 and \"2\" are still refused — issue #2115", () =>
+            {
+                // The shared core reads schemaVersion by value (`integral_i64`, #2111), so a
+                // hand-edited `2.0` is version 2. The typed model used to refuse it as an int.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                var vocabulary = VocabularyService.Instance;
+                var token = Guid.NewGuid().ToString("N")[..8];
+                var directory = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests");
+                Directory.CreateDirectory(directory);
+                var integralJson = JsonSerializer.Serialize(new UniversalBackup
+                {
+                    SchemaVersion = 2,
+                    ExportDate = DateTime.UtcNow,
+                    AppVersion = "smoke-2115",
+                    Platform = "macos",
+                    Vocabulary = [new UniversalVocabularyItem { Id = Guid.NewGuid(), Word = $"w{token}", SortOrder = 1 }]
+                }, UniversalCaptureOptions);
+                Assert(integralJson.Contains("\"schemaVersion\":2,", StringComparison.Ordinal),
+                    "the #2115 fixture did not serialize schemaVersion as 2");
+                string WriteVariant(string name, string rawVersion)
+                {
+                    var path = Path.Combine(directory, $"issue2115-{name}-{token}.hwbackup.json");
+                    File.WriteAllText(path, integralJson.Replace("\"schemaVersion\":2,", $"\"schemaVersion\":{rawVersion},", StringComparison.Ordinal));
+                    return path;
+                }
+                var wholeFloatPath = WriteVariant("float", "2.0");
+                // Every field the schema types "integer" is read by value too (sortOrder here).
+                Assert(integralJson.Contains("\"sortOrder\":1", StringComparison.Ordinal),
+                    "the #2115 fixture did not serialize the vocabulary sortOrder as 1");
+                File.WriteAllText(wholeFloatPath, File.ReadAllText(wholeFloatPath)
+                    .Replace("\"sortOrder\":1", "\"sortOrder\":1.0", StringComparison.Ordinal));
+                var fractionalPath = WriteVariant("fraction", "2.5");
+                var stringPath = WriteVariant("string", "\"2\"");
+                try
+                {
+                    var inspect = BackupService.Instance.Inspect(wholeFloatPath);
+                    Assert(inspect.IsSuccess && inspect.Value!.VocabularyCount == 1,
+                        $"a backup with schemaVersion 2.0 was refused by Inspect: {inspect.Error}");
+
+                    var import = BackupService.Instance.Import(wholeFloatPath, replaceExisting: false);
+                    Assert(import.IsSuccess, $"a backup with schemaVersion 2.0 was refused by Import: {import.Error}");
+                    Assert(vocabulary.GetAll().Any(v => v.Word == $"w{token}"),
+                        "the schemaVersion 2.0 import reported success but saved no vocabulary");
+
+                    Assert(BackupService.Instance.Inspect(fractionalPath).IsFailure, "a backup with schemaVersion 2.5 was accepted");
+                    Assert(BackupService.Instance.Import(fractionalPath, replaceExisting: false).IsFailure,
+                        "a backup with schemaVersion 2.5 imported");
+                    Assert(BackupService.Instance.Inspect(stringPath).IsFailure, "a backup with schemaVersion \"2\" was accepted");
+                }
+                finally
+                {
+                    foreach (var row in vocabulary.GetAll().Where(v => v.Word.Contains(token, StringComparison.Ordinal)))
+                        vocabulary.Delete(row.Id);
+                    foreach (var path in new[] { wholeFloatPath, fractionalPath, stringPath })
+                        try { File.Delete(path); } catch { }
                 }
             });
 
@@ -13298,8 +14931,9 @@ internal static class Program
                 // ...AND THE COLLISION CHECK RUNS ONLY ON A REAL RENAME (issue
                 // #356, review round 1). `HyperWhisperDbContext` declares a
                 // NON-unique index on `Name` and nothing outside these endpoints
-                // checks, so two modes named "Work" are producible from the GUI
-                // or a backup restore. A read-modify-write client PATCHing the
+                // checks, so two modes named "Work" are producible from a backup
+                // restore (and were from the Windows mode editor until #2478).
+                // A read-modify-write client PATCHing the
                 // whole object back must not be told its own unchanged name is
                 // taken — that mode would be patchable only by omitting `name`.
                 Assert(!WindowsLocalApiBackend.PatchNameCollides("Work", "Work", ["Work", "Personal"]),
@@ -13310,6 +14944,24 @@ internal static class Program
                     "a real rename onto a taken name stopped being refused");
                 Assert(!WindowsLocalApiBackend.PatchNameCollides("Personal", "Work", ["Archive"]),
                     "a real rename onto a free name was refused");
+
+                // THE MODE EDITOR USES THE SAME RULE (issue #2478). It saved
+                // a second "Hyper" with no warning while POST /modes refused
+                // it. Create (no stored name), rename, own name, blank.
+                Assert(ModeNameRules.IsTaken("hyper", null, ["Hyper", "Work"]),
+                    "the editor let a new mode take an existing name in another case");
+                Assert(ModeNameRules.IsTaken("  HYPER  ", null, ["Hyper"]),
+                    "the editor let a new mode take an existing name with extra spaces");
+                Assert(ModeNameRules.IsTaken("Hyper", "Fuzz Mode", ["Hyper"]),
+                    "the editor let a mode be renamed onto another mode's name");
+                Assert(!ModeNameRules.IsTaken("Fresh", null, ["Hyper"]),
+                    "the editor refused a free name");
+                Assert(!ModeNameRules.IsTaken("Hyper", "Hyper", ["hyper"]),
+                    "the editor refused a mode's own unchanged name because an older duplicate shares it");
+                Assert(!ModeNameRules.IsTaken(" fuzz mode ", "Fuzz Mode", ["Hyper"]),
+                    "the editor treated a case/space edit of the mode's own name as a collision");
+                Assert(!ModeNameRules.IsTaken("   ", null, ["Hyper", ""]),
+                    "a blank name was reported as taken; the editor refuses blank on its own");
 
                 // ITEM 3 — one alias table. `qwen3_asr` is this head's own
                 // response label; the trim is new here and could only ever
@@ -13603,6 +15255,137 @@ internal static class Program
                 }
             });
 
+            // =================================================================
+            // Issue #740: the HyperWhisper Cloud credit balance.
+            //
+            // HyperWhisperCloudManager reads the user's paid balance from /usage.
+            // Its internal constructor takes the HTTP client and the clock, so the
+            // 60 s cache, force_refresh, the error path and the onboarding key
+            // override run against a scripted /usage reply with no network and no
+            // wall-clock wait. A test instance never subscribes to the process-wide
+            // LicenseManager, so no handler leaks onto that singleton.
+            // =================================================================
+
+            static string UsageReply(double credits) =>
+                "{\"credits_remaining\":" + credits.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                + ",\"minutes_remaining\":10,\"credits_per_minute\":1.67,\"is_licensed\":false}";
+
+            static DateTime CreditsEpoch() => new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            RunAsync("credits: two reads inside 60s send one request", async () =>
+            {
+                var now = CreditsEpoch();
+                var handler = new CapturingHandler { Next = () => Respond(HttpStatusCode.OK, UsageReply(500)) };
+                using var client = new HttpClient(handler);
+                using var manager = new HyperWhisperCloudManager(client, () => now);
+
+                var first = await manager.FetchCreditsAsync();
+                Assert(first?.CreditsRemaining == 500, $"first read returned {first?.CreditsRemaining}");
+
+                // AddMilliseconds, not AddSeconds(59.9): see issue #379 (b) further down.
+                now = now.AddMilliseconds(59_900);
+                handler.Next = () => Respond(HttpStatusCode.OK, UsageReply(400));
+                var second = await manager.FetchCreditsAsync();
+
+                Assert(handler.Sends == 1, $"two reads inside 60s sent {handler.Sends} requests");
+                Assert(ReferenceEquals(second, first), "the second read did not return the cached balance");
+            });
+
+            RunAsync("credits: a read after 60s sends a second request", async () =>
+            {
+                var now = CreditsEpoch();
+                var handler = new CapturingHandler { Next = () => Respond(HttpStatusCode.OK, UsageReply(500)) };
+                using var client = new HttpClient(handler);
+                using var manager = new HyperWhisperCloudManager(client, () => now);
+
+                await manager.FetchCreditsAsync();
+
+                // The gate is `elapsed < 60 s` -> cached, so exactly 60 s is already stale.
+                now = now.AddSeconds(60);
+                handler.Next = () => Respond(HttpStatusCode.OK, UsageReply(400));
+                var second = await manager.FetchCreditsAsync();
+
+                Assert(handler.Sends == 2, $"a read at 60s sent {handler.Sends} requests in total");
+                Assert(second?.CreditsRemaining == 400, $"the read after 60s returned {second?.CreditsRemaining}");
+                Assert(manager.Credits?.CreditsRemaining == 400, $"Credits holds {manager.Credits?.CreditsRemaining}");
+            });
+
+            RunAsync("credits: forceRefresh bypasses the warm cache and sets force_refresh=true", async () =>
+            {
+                var now = CreditsEpoch();
+                var handler = new CapturingHandler { Next = () => Respond(HttpStatusCode.OK, UsageReply(500)) };
+                using var client = new HttpClient(handler);
+                using var manager = new HyperWhisperCloudManager(client, () => now);
+
+                await manager.FetchCreditsAsync();
+                var firstQuery = handler.LastRequestUri?.Query ?? "";
+                Assert(!firstQuery.Contains("force_refresh"), $"a plain read sent {firstQuery}");
+
+                now = now.AddSeconds(1);
+                handler.Next = () => Respond(HttpStatusCode.OK, UsageReply(400));
+                var forced = await manager.FetchCreditsAsync(forceRefresh: true);
+
+                Assert(handler.Sends == 2, $"forceRefresh on a warm cache sent {handler.Sends} requests in total");
+                Assert(handler.LastRequestUri?.Query.Contains("&force_refresh=true") == true,
+                    $"forced read query {handler.LastRequestUri?.Query}");
+                Assert(forced?.CreditsRemaining == 400, $"forced read returned {forced?.CreditsRemaining}");
+            });
+
+            RunAsync("credits: a 500 keeps the last known balance and records LastError", async () =>
+            {
+                var now = CreditsEpoch();
+                var handler = new CapturingHandler { Next = () => Respond(HttpStatusCode.OK, UsageReply(500)) };
+                using var client = new HttpClient(handler);
+                using var manager = new HyperWhisperCloudManager(client, () => now);
+
+                var known = await manager.FetchCreditsAsync();
+                var shownBalance = manager.FormattedBalance;
+
+                // A JSON error body: the server's own message becomes LastError.
+                now = now.AddSeconds(61);
+                handler.Next = () => Respond(HttpStatusCode.InternalServerError, "{\"error\":\"usage store unavailable\"}");
+                var failed = await manager.FetchCreditsAsync();
+
+                Assert(handler.Sends == 2, $"the stale read sent {handler.Sends} requests in total");
+                Assert(failed is null, "a 500 returned a balance");
+                Assert(ReferenceEquals(manager.Credits, known), "a 500 replaced or cleared the last known balance");
+                Assert(manager.FormattedBalance == shownBalance,
+                    $"the panel balance moved from \"{shownBalance}\" to \"{manager.FormattedBalance}\"");
+                Assert(manager.LastError == "usage store unavailable", $"LastError \"{manager.LastError}\"");
+                Assert(manager.HasError, "HasError is false after a 500");
+                Assert(!manager.IsFetchingCredits, "IsFetchingCredits stuck true after a 500");
+
+                // A body with no message falls back to the status code, and still keeps the balance.
+                handler.Next = () => Respond(HttpStatusCode.InternalServerError, "<html>bad gateway</html>");
+                await manager.FetchCreditsAsync(forceRefresh: true);
+
+                Assert(manager.LastError == "HTTP 500", $"LastError for a non-JSON 500 \"{manager.LastError}\"");
+                Assert(ReferenceEquals(manager.Credits, known), "a non-JSON 500 replaced or cleared the last known balance");
+            });
+
+            RunAsync("credits: licenseKeyOverride selects the identifier, not the device id", async () =>
+            {
+                const string typedKey = "OVERRIDE-KEY-740";
+                var handler = new CapturingHandler { Next = () => Respond(HttpStatusCode.OK, UsageReply(500)) };
+                using var client = new HttpClient(handler);
+                using var manager = new HyperWhisperCloudManager(client, CreditsEpoch);
+
+                // Surrounding whitespace, as a pasted key often has: the override is trimmed.
+                await manager.FetchCreditsAsync(licenseKeyOverride: "  " + typedKey + " ");
+
+                Assert(handler.Sends == 1, $"the override read sent {handler.Sends} requests");
+                Assert(handler.LastRequestUri?.Query == "?identifier=" + typedKey,
+                    $"override read query {handler.LastRequestUri?.Query}");
+
+                // Without the override the same manager asks about the stored identity
+                // (the device id on a CI runner), which is a different identifier.
+                var stored = LicenseManager.Instance.GetTranscriptionIdentifier().Identifier;
+                Assert(stored != typedKey, "the stored identifier equals the override; the check proves nothing");
+                await manager.FetchCreditsAsync(forceRefresh: true);
+                Assert(handler.LastRequestUri?.Query.StartsWith("?identifier=" + Uri.EscapeDataString(stored) + "&") == true,
+                    "a read with no override did not ask about the stored identifier");
+            });
+
             SynchronizationContext.SetSynchronizationContext(limitsPreviousContext);
 
             // =================================================================
@@ -13794,6 +15577,89 @@ internal static class Program
                     "an unrelated Deepgram key edit discarded a valid Google outcome");
             });
 
+            Run("BYOK key check: no vendor prefix, so a Gemini key that does not start with AIza saves", () =>
+            {
+                // Google's newer Gemini keys do not start with "AIza". The prefix rule
+                // refused them with "Invalid API key format" on Windows and Linux; a
+                // wrong key fails at the provider anyway. There is no prefix and no
+                // length rule for any provider (#2389): the store takes any non-blank text.
+                var newGeminiKey = "AQ." + new string('k', 37);
+                var apiKeys = new ApiKeyService(new InMemoryCredentialBackend());
+                Assert(apiKeys.SetApiKey(TranscriptionApiKeyType.GeminiTranscribe, newGeminiKey).IsSuccess,
+                    "the store refused a non-AIza Gemini 3.5 Transcribe key");
+                Assert(apiKeys.GetApiKey(TranscriptionApiKeyType.GeminiTranscribe) == newGeminiKey,
+                    "the stored Gemini 3.5 Transcribe key does not read back");
+                Assert(apiKeys.SetApiKey(PostProcessingProvider.Gemini, newGeminiKey).IsSuccess &&
+                       apiKeys.GetApiKey(PostProcessingProvider.Gemini) == newGeminiKey,
+                    "the store refused a non-AIza Gemini post-processing key");
+                Assert(apiKeys.SetApiKey(PostProcessingProvider.OpenAI, "k").IsSuccess &&
+                       apiKeys.GetApiKey(PostProcessingProvider.OpenAI) == "k",
+                    "the store refused a one-character key");
+                Assert(apiKeys.SetApiKey(PostProcessingProvider.HyperWhisperCloud, newGeminiKey).IsFailure,
+                    "a key for HyperWhisper Cloud, which takes none, was stored");
+            });
+
+            Run("issue #2410: every BYOK key write trims, from the store, onboarding and backup import", () =>
+            {
+                const string key = "sk-padded-key";
+                const string padded = "  sk-padded-key \r\n";
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                // The store itself: every provider and transcription slot trims, and whitespace alone clears.
+                foreach (var provider in new[]
+                {
+                    PostProcessingProvider.OpenAI, PostProcessingProvider.Anthropic, PostProcessingProvider.Groq,
+                    PostProcessingProvider.Grok, PostProcessingProvider.Gemini, PostProcessingProvider.Cerebras,
+                    PostProcessingProvider.Mistral,
+                })
+                {
+                    var backend = new InMemoryCredentialBackend();
+                    var store = new ApiKeyService(backend, health);
+                    Assert(store.SetApiKey(provider, padded).IsSuccess && backend.StoredValue == key,
+                        $"a padded {provider} key was stored as '{backend.StoredValue}'");
+                    Assert(store.SetApiKey(provider, " \t ").IsSuccess && backend.StoredValue == null,
+                        $"a whitespace-only {provider} key was stored instead of clearing the slot");
+                }
+                foreach (var type in Enum.GetValues<TranscriptionApiKeyType>())
+                {
+                    var backend = new InMemoryCredentialBackend();
+                    var store = new ApiKeyService(backend, health);
+                    Assert(store.SetApiKey(type, padded).IsSuccess && backend.StoredValue == key,
+                        $"a padded {type} key was stored as '{backend.StoredValue}'");
+                    Assert(store.SetApiKey(type, "   ").IsSuccess && backend.StoredValue == null,
+                        $"a whitespace-only {type} key was stored instead of clearing the slot");
+                }
+
+                // Onboarding: the gateway's write and its read-back agree on the trimmed
+                // key, so a padded key saves, and a restore point holding a key stored
+                // with padding before #2389 still counts as restored.
+                foreach (var provider in new[] { CloudTranscriptionProvider.OpenAI, CloudTranscriptionProvider.Deepgram })
+                {
+                    var backend = new InMemoryCredentialBackend();
+                    var gateway = new LiveOnboardingProviderKeyGateway(new ApiKeyService(backend, health), health);
+                    Assert(gateway.Persist(padded, provider), $"onboarding refused a padded {provider} key: {gateway.ValidationError}");
+                    Assert(backend.StoredValue == key, $"onboarding stored the {provider} key as '{backend.StoredValue}'");
+                    Assert(gateway.Persist("", provider) && backend.StoredValue == null,
+                        $"onboarding's empty-string restore did not clear the {provider} key");
+                }
+
+                // Backup import: a padded key is restored trimmed, and a whitespace-only
+                // entry leaves the stored key alone instead of clearing it.
+                var importBackend = new InMemoryCredentialBackend();
+                var importStore = new ApiKeyService(importBackend, health);
+                var importJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["deepgram"] = padded });
+                Assert(UniversalBackupMapper.ApplyApiKeys(JsonSerializer.Deserialize<UniversalApiKeys>(importJson)!, importStore),
+                    "the backup import reported a failed key write");
+                Assert(importStore.GetApiKey(TranscriptionApiKeyType.Deepgram) == key,
+                    $"the backup import stored the Deepgram key as '{importBackend.StoredValue}'");
+                var blankJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["deepgram"] = "   " });
+                Assert(UniversalBackupMapper.ApplyApiKeys(JsonSerializer.Deserialize<UniversalApiKeys>(blankJson)!, importStore),
+                    "the backup import reported a failed write for a blank key");
+                Assert(importStore.GetApiKey(TranscriptionApiKeyType.Deepgram) == key,
+                    "a whitespace-only key in a backup cleared the stored Deepgram key");
+            });
+
             Run("issue #650: /health key_present for the HW-Cloud rows follows the account key /transcribe refuses on", () =>
             {
                 var cloudTranscription = new[]
@@ -13882,6 +15748,206 @@ internal static class Program
                     Assert(WindowsLocalApiBackend.ToEntry(byokRow, keyPresent).Installed,
                         $"an Enabled BYOK row read as not installed with account key present={keyPresent}");
                 }
+            });
+
+            Run("issue #649: the status bar says (Not activated) / (No API key) instead of (Ready), and follows the licence with no restart", () =>
+            {
+                const BindingFlags all = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+                string L(string key, string arg) => HyperWhisper.Localization.Loc.S(key, arg);
+
+                // The pure decision first: which credential each provider needs.
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, false, false, ProviderHealth.Unknown) == "status.model.notActivated"
+                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, true, false, ProviderHealth.Unknown) == "status.model.ready",
+                    "HyperWhisper Cloud reads the account key");
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.MicrosoftAzureSpeech, false, true, ProviderHealth.Unknown) == "status.model.notActivated"
+                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.GoogleSpeech, false, true, ProviderHealth.Unknown) == "status.model.notActivated",
+                    "the HW-Cloud-routed Azure MAI / Chirp rows need the account key, not a BYOK key (as /transcribe and #650)");
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.OpenAI, true, false, ProviderHealth.Unknown) == "status.model.noApiKey"
+                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.Deepgram, false, true, ProviderHealth.Unknown) == "status.model.ready",
+                    "a BYOK provider reads its own key, whatever the licence");
+                foreach (var key in new[] { "status.model.notActivated", "status.model.noApiKey" })
+                    Assert(L(key, "X") != key && L(key, "X").Contains('X'), $"{key} is missing from Strings.resx or lost its {{0}}");
+
+                // Then the real status bar, on a MainViewModel with no model loaded.
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(MainViewModel));
+                foreach (var (name, value) in new (string, object)[]
+                {
+                    ("_settingsService", SettingsService.Instance),
+                    ("_modelService", new WhisperModelService()),
+                    ("_transcriptionService", new TranscriptionService()),
+                    ("_parakeetTranscriptionService", new ParakeetTranscriptionService()),
+                    ("_localLlmModelService", new LocalLlmModelService()),
+                })
+                {
+                    (typeof(MainViewModel).GetField(name, all)
+                        ?? throw new InvalidOperationException($"MainViewModel.{name} is gone; update this test"))
+                        .SetValue(vm, value);
+                }
+                var selectedMode = typeof(MainViewModel).GetField("_selectedMode", all)
+                    ?? throw new InvalidOperationException("MainViewModel._selectedMode is gone; update this test");
+                var updateModelStatus = typeof(MainViewModel).GetMethod("UpdateModelStatus", all, Type.EmptyTypes)
+                    ?? throw new InvalidOperationException("MainViewModel.UpdateModelStatus() is gone; update this test");
+                // No BYOK key anywhere, and never the machine's Credential Manager.
+                vm.ApiKeyServiceOverride = new ApiKeyService(new InMemoryCredentialBackend());
+
+                var hyper = ModeDefaults.GetDefaultModes().Single();
+                Assert(hyper.ProviderType == "cloud"
+                       && CloudTranscriptionProviderExtensions.FromModeCloudProvider(hyper.CloudProvider) == CloudTranscriptionProvider.HyperWhisperCloud,
+                    "precondition: the stock Hyper mode is a HyperWhisper Cloud mode");
+                var cloudName = CloudTranscriptionProvider.HyperWhisperCloud.GetDisplayName();
+
+                // Fresh profile: this process has never loaded or activated a licence.
+                Assert(!WindowsLocalApiBackend.CloudAccountKeyPresent(), "precondition: the smoke process is unlicensed");
+                selectedMode.SetValue(vm, hyper);
+                updateModelStatus.Invoke(vm, null);
+                Assert(!vm.ModelStatus.Contains(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                    $"no account key, yet the status bar says Ready: '{vm.ModelStatus}'");
+                Assert(vm.ModelStatus == L("status.model.notActivated", cloudName),
+                    $"expected '{L("status.model.notActivated", cloudName)}', got '{vm.ModelStatus}'");
+
+                // Activation, through LicenseManager and its LicenseStatusChanged, no
+                // restart. A smoke run has no account key and must never store one in
+                // the machine's Credential Manager, so the stored-key half of the
+                // production predicate is stood in for; the status flip is real.
+                var manager = LicenseManager.Instance;
+                var statusSetter = typeof(LicenseManager).GetProperty(nameof(LicenseManager.LicenseStatus))!.GetSetMethod(nonPublic: true)
+                    ?? throw new InvalidOperationException("LicenseManager.LicenseStatus has no setter; update this test");
+                var statusBefore = manager.LicenseStatus;
+                vm.CloudAccountKeyPresentOverride = () => LicenseManager.Instance.IsLicensed;
+                vm.AttachModelStatusSources();
+                try
+                {
+                    statusSetter.Invoke(manager, new object[] { LicenseStatus.Trial });
+                    updateModelStatus.Invoke(vm, null);
+                    Assert(vm.ModelStatus == L("status.model.notActivated", cloudName), "still not activated before the licence lands");
+
+                    statusSetter.Invoke(manager, new object[] { LicenseStatus.Active });
+                    Assert(vm.ModelStatus == L("status.model.ready", cloudName),
+                        $"LicenseStatusChanged did not refresh the status bar to Ready: '{vm.ModelStatus}'");
+
+                    statusSetter.Invoke(manager, new object[] { LicenseStatus.Trial });
+                    Assert(vm.ModelStatus == L("status.model.notActivated", cloudName),
+                        $"a deactivated licence left the status bar on Ready: '{vm.ModelStatus}'");
+                }
+                finally
+                {
+                    vm.DetachModelStatusSources();
+                    statusSetter.Invoke(manager, new object[] { statusBefore });
+                }
+
+                // A BYOK mode with no key: (No API key), licence or not.
+                vm.CloudAccountKeyPresentOverride = () => true;
+                selectedMode.SetValue(vm, new Mode { Name = "OpenAI", ProviderType = "cloud", CloudProvider = "openai" });
+                updateModelStatus.Invoke(vm, null);
+                Assert(vm.ModelStatus.EndsWith(L("status.model.noApiKey", "").Trim(), StringComparison.Ordinal)
+                       && !vm.ModelStatus.Contains(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                    $"an OpenAI mode with no key must say No API key, got '{vm.ModelStatus}'");
+            });
+
+            Run("issue #2547: a BYOK key the provider rejected reads (Key invalid), not (Ready), and follows the health with no restart", () =>
+            {
+                const BindingFlags all = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+                string L(string key, string arg) => HyperWhisper.Localization.Loc.S(key, arg);
+                var groq = CloudTranscriptionProvider.Groq;
+
+                // The pure decision: only Unauthorized turns a stored key into Key invalid.
+                Assert(MainViewModel.CloudModelStatusKey(groq, false, hasApiKey: true, ProviderHealth.Unauthorized) == "status.model.keyInvalid",
+                    "a rejected Groq key must read Key invalid");
+                foreach (var verdict in new[] { ProviderHealth.Healthy, ProviderHealth.Unknown, ProviderHealth.Checking, ProviderHealth.Unreachable })
+                    Assert(MainViewModel.CloudModelStatusKey(groq, false, hasApiKey: true, verdict) == "status.model.ready",
+                        $"a stored Groq key with health {verdict} must stay Ready");
+                Assert(MainViewModel.CloudModelStatusKey(groq, false, hasApiKey: false, ProviderHealth.Unauthorized) == "status.model.noApiKey",
+                    "no key at all still reads No API key");
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, true, false, ProviderHealth.Unauthorized) == "status.model.ready",
+                    "the account-key path (#649) does not read BYOK health");
+                Assert(L("status.model.keyInvalid", "X") != "status.model.keyInvalid" && L("status.model.keyInvalid", "X").Contains('X'),
+                    "status.model.keyInvalid is missing from Strings.resx or lost its {0}");
+
+                // Then the real status bar on a Groq mode, with the key saved and a
+                // private health cache on a frozen clock (no network, no 60 s expiry).
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(MainViewModel));
+                foreach (var (name, value) in new (string, object)[]
+                {
+                    ("_settingsService", SettingsService.Instance),
+                    ("_modelService", new WhisperModelService()),
+                    ("_transcriptionService", new TranscriptionService()),
+                    ("_parakeetTranscriptionService", new ParakeetTranscriptionService()),
+                    ("_localLlmModelService", new LocalLlmModelService()),
+                })
+                {
+                    (typeof(MainViewModel).GetField(name, all)
+                        ?? throw new InvalidOperationException($"MainViewModel.{name} is gone; update this test"))
+                        .SetValue(vm, value);
+                }
+                var selectedMode = typeof(MainViewModel).GetField("_selectedMode", all)
+                    ?? throw new InvalidOperationException("MainViewModel._selectedMode is gone; update this test");
+                var updateModelStatus = typeof(MainViewModel).GetMethod("UpdateModelStatus", all, Type.EmptyTypes)
+                    ?? throw new InvalidOperationException("MainViewModel.UpdateModelStatus() is gone; update this test");
+
+                var frozen = DateTime.UtcNow;
+                var health = new CloudProviderHealthService(() => frozen);
+                // The key goes straight into the fake vault: a SetApiKey would start a
+                // debounced re-probe that could overwrite the health this test sets.
+                var vault = new InMemoryCredentialBackend();
+                vault.Write("groq", "groq", "sk-test-123");
+                var keys = new ApiKeyService(vault);
+                Assert(keys.HasApiKey(groq), "precondition: Groq reads the saved key");
+                vm.ApiKeyServiceOverride = keys;
+                vm.ProviderHealthOverride = health;
+                vm.CloudAccountKeyPresentOverride = () => false;
+
+                var mode = new Mode { Name = "Hyper", ProviderType = "cloud", CloudProvider = "groq", CloudTranscriptionModel = "whisper-large-v3-turbo" };
+                Assert(CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider) == groq, "precondition: the mode is a Groq mode");
+                selectedMode.SetValue(vm, mode);
+                updateModelStatus.Invoke(vm, null);
+                Assert(vm.ModelStatus.EndsWith(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                    $"an unprobed Groq key must stay Ready, got '{vm.ModelStatus}'");
+
+                // The probe's verdict arrives through TranscriptionProviderStatusChanged.
+                var statusChanged = typeof(CloudProviderHealthService).GetField(nameof(CloudProviderHealthService.TranscriptionProviderStatusChanged), all)
+                    ?? throw new InvalidOperationException("CloudProviderHealthService.TranscriptionProviderStatusChanged has no backing field; update this test");
+                void Probe(ProviderHealth verdict)
+                {
+                    health.SetCachedTranscriptionStatusForTests(groq, verdict);
+                    ((EventHandler<CloudTranscriptionProvider>?)statusChanged.GetValue(health))?.Invoke(health, groq);
+                }
+
+                vm.AttachModelStatusSources();
+                try
+                {
+                    Probe(ProviderHealth.Unauthorized);
+                    Assert(vm.ModelStatus.EndsWith(L("status.model.keyInvalid", "").Trim(), StringComparison.Ordinal)
+                           && !vm.ModelStatus.Contains(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                        $"the provider rejected the key, yet the status bar says '{vm.ModelStatus}'");
+
+                    // A re-probe's interim Checking keeps the verdict on screen, and another
+                    // provider's verdict does not touch a Groq mode's bar.
+                    Probe(ProviderHealth.Checking);
+                    Assert(vm.ModelStatus.EndsWith(L("status.model.keyInvalid", "").Trim(), StringComparison.Ordinal),
+                        $"a re-probe flashed the rejected key back to '{vm.ModelStatus}'");
+                    health.SetCachedTranscriptionStatusForTests(groq, ProviderHealth.Unauthorized);
+                    health.SetCachedTranscriptionStatusForTests(CloudTranscriptionProvider.Deepgram, ProviderHealth.Healthy);
+                    ((EventHandler<CloudTranscriptionProvider>?)statusChanged.GetValue(health))?.Invoke(health, CloudTranscriptionProvider.Deepgram);
+                    Assert(vm.ModelStatus.EndsWith(L("status.model.keyInvalid", "").Trim(), StringComparison.Ordinal),
+                        $"a Deepgram verdict changed a Groq mode's bar to '{vm.ModelStatus}'");
+
+                    Probe(ProviderHealth.Healthy);
+                    Assert(vm.ModelStatus.EndsWith(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                        $"a healthy probe did not bring the status bar back to Ready: '{vm.ModelStatus}'");
+                }
+                finally
+                {
+                    vm.DetachModelStatusSources();
+                }
+
+                // Detached: a later verdict no longer reaches this view model, though a
+                // direct refresh would now read it.
+                Probe(ProviderHealth.Unauthorized);
+                Assert(health.GetStatus(groq) == ProviderHealth.Unauthorized, "precondition: the cache holds the rejection");
+                Assert(vm.ModelStatus.EndsWith(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                    $"a detached view model still followed the health: '{vm.ModelStatus}'");
             });
 
             Run("issue #742: a failed Credential Manager write is reported, and the log holds no ApiKeys: Saved for it", () =>
@@ -17045,6 +19111,115 @@ internal static class Program
                 }), "a BYOK cloud mode must not read as HyperWhisper Cloud");
             });
 
+            RunAsync("Local API POST/PATCH /modes (#1624): a mode made local stores what the editor stores", async () =>
+            {
+                // #1624, the Local API sibling of #1477. The editor stores an
+                // on-device mode as Model = its local id and CloudProvider = null
+                // (LocalModeModel.ApplyOnDevice); the Local API kept the caller's
+                // cloudProvider and could leave Model = "cloud". Ray (inbox #450):
+                // store what the editor stores, and refuse a PATCH that makes a
+                // Model = "cloud" mode local without naming the model. Driven over
+                // the REAL host: POST / PATCH / GET on a loopback port, then the row.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                const string Prefix = "percy1624-";
+                var (app, port, token) = await StartRealLocalApiAsync();
+                using var client = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}") };
+                client.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+                async Task<JsonElement> Send(System.Net.Http.HttpMethod method, string path, string? json)
+                {
+                    using var request = new HttpRequestMessage(method, path);
+                    if (json is not null)
+                        request.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+                    using var response = await client.SendAsync(request);
+                    var text = await response.Content.ReadAsStringAsync();
+                    Assert((int)response.StatusCode == 200, $"{method} {path} answered HTTP {(int)response.StatusCode}: {text}");
+                    return JsonDocument.Parse(text).RootElement.Clone();
+                }
+
+                async Task<(string Id, JsonElement Mode)> Create(string name, string extra)
+                {
+                    var root = await Send(System.Net.Http.HttpMethod.Post, "/modes",
+                        $$"""{"name":"{{Prefix}}{{name}}","preset":"hyper","language":"en","punctuation":true,"capitalization":true,"profanityFilter":false,{{extra}}}""");
+                    Assert(root.TryGetProperty("mode", out var mode), $"POST {name} failed: {root}");
+                    return (mode.GetProperty("id").GetString()!, mode);
+                }
+
+                static string? Str(JsonElement mode, string key)
+                    => mode.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+
+                Mode Row(string id) => ModeService.Instance.GetMode(Guid.Parse(id))
+                    ?? throw new InvalidOperationException($"mode {id} is not in the database");
+
+                try
+                {
+                    // POST: a local Whisper mode sent with a cloud provider.
+                    var (whisperId, whisperWire) = await Create("whisper",
+                        """ "model":"base","providerType":"local","cloudProvider":"deepgram" """);
+                    var whisper = Row(whisperId);
+                    Assert(whisper.ProviderType == "local" && whisper.Model == "base" && whisper.CloudProvider is null,
+                        $"POST local+deepgram stored ProviderType {whisper.ProviderType}, Model {whisper.Model}, CloudProvider {whisper.CloudProvider ?? "<null>"}");
+                    Assert(Str(whisperWire, "cloudProvider") is null, $"POST answered cloudProvider {Str(whisperWire, "cloudProvider")}");
+
+                    // POST: a local Parakeet mode with a null model stores its Parakeet id.
+                    var (parakeetId, _) = await Create("parakeet",
+                        """ "model":null,"providerType":"local","localEngine":"parakeet","localParakeetModel":"parakeet-v3","cloudProvider":"openai" """);
+                    var parakeet = Row(parakeetId);
+                    Assert(parakeet.Model == "parakeet-v3" && parakeet.CloudProvider is null,
+                        $"POST Parakeet stored Model {parakeet.Model ?? "<null>"}, CloudProvider {parakeet.CloudProvider ?? "<null>"}");
+
+                    // A CLOUD mode keeps its provider: the rule is for local modes only.
+                    var (cloudId, cloudWire) = await Create("cloud", """ "model":"cloud","cloudProvider":"deepgram" """);
+                    Assert(Row(cloudId).ProviderType == "cloud" && Row(cloudId).Model == "cloud" && Row(cloudId).CloudProvider == "deepgram",
+                        $"a cloud mode lost its fields: {Row(cloudId).ProviderType} {Row(cloudId).Model} {Row(cloudId).CloudProvider}");
+                    Assert(Str(cloudWire, "cloudProvider") == "deepgram", "a cloud mode must still answer its cloudProvider");
+
+                    // PATCH providerType:"local" alone on a Model = "cloud" mode: refused,
+                    // asking for model, and the row is untouched.
+                    var refused = await Send(System.Net.Http.HttpMethod.Patch, $"/modes/{cloudId}", """{"providerType":"local"}""");
+                    Assert(refused.TryGetProperty("error", out var error)
+                            && error.GetProperty("code").GetString() == "INVALID_REQUEST"
+                            && error.GetProperty("message").GetString()!.Contains("'model'", StringComparison.Ordinal),
+                        $"PATCH providerType:local alone must be INVALID_REQUEST asking for model, got {refused}");
+                    Assert(Row(cloudId).ProviderType == "cloud" && Row(cloudId).Model == "cloud" && Row(cloudId).CloudProvider == "deepgram",
+                        "a refused PATCH changed the row");
+
+                    // PATCH providerType:"local" + model: local, Model = the id, provider cleared.
+                    var flipped = await Send(System.Net.Http.HttpMethod.Patch, $"/modes/{cloudId}", """{"providerType":"local","model":"small"}""");
+                    Assert(Str(flipped.GetProperty("mode"), "cloudProvider") is null,
+                        $"PATCH to local answered cloudProvider {Str(flipped.GetProperty("mode"), "cloudProvider")}");
+                    Assert(Row(cloudId).ProviderType == "local" && Row(cloudId).Model == "small" && Row(cloudId).CloudProvider is null,
+                        $"PATCH to local stored {Row(cloudId).ProviderType} {Row(cloudId).Model} {Row(cloudId).CloudProvider ?? "<null>"}");
+
+                    // PATCH model:<local id> alone on a cloud mode flips it local and
+                    // clears the provider too (the issue's second PATCH bullet).
+                    var (cloud2Id, _) = await Create("cloud2", """ "model":"cloud","cloudProvider":"openai" """);
+                    await Send(System.Net.Http.HttpMethod.Patch, $"/modes/{cloud2Id}", """{"model":"base"}""");
+                    Assert(Row(cloud2Id).ProviderType == "local" && Row(cloud2Id).Model == "base" && Row(cloud2Id).CloudProvider is null,
+                        $"PATCH model:base stored {Row(cloud2Id).ProviderType} {Row(cloud2Id).Model} {Row(cloud2Id).CloudProvider ?? "<null>"}");
+
+                    // GET /modes agrees with the rows.
+                    var listed = (await Send(System.Net.Http.HttpMethod.Get, "/modes", null)).GetProperty("modes").EnumerateArray()
+                        .Where(m => Str(m, "name")?.StartsWith(Prefix, StringComparison.Ordinal) == true).ToList();
+                    Assert(listed.Count == 4, $"GET /modes listed {listed.Count} test modes");
+                    foreach (var mode in listed)
+                    {
+                        var isCloud = Str(mode, "providerType") == "cloud";
+                        Assert(isCloud || Str(mode, "cloudProvider") is null,
+                            $"GET /modes answered cloudProvider {Str(mode, "cloudProvider")} for local mode {Str(mode, "name")}");
+                    }
+                }
+                finally
+                {
+                    await app.StopAsync();
+                    await app.DisposeAsync();
+                    using var ctx = new HyperWhisperDbContext();
+                    ctx.Modes.RemoveRange(ctx.Modes.Where(m => m.Name.StartsWith(Prefix)));
+                    ctx.SaveChanges();
+                }
+            });
+
             Run("backup export (#1477): an On-device mode switched back to Cloud exports model cloud", () =>
             {
                 // Saved On-device (Model now holds the local id), then a later save
@@ -18172,6 +20347,31 @@ internal static class Program
                         $"{Path.GetFileName(path)} manifest lost the dpiAware true/pm fallback");
                     Assert(manifest.Contains("level=\"asInvoker\"", StringComparison.Ordinal),
                         $"{Path.GetFileName(path)} manifest must keep requestedExecutionLevel asInvoker");
+                }
+            });
+
+            // Issue #1940. With no recording overlay, the mode-change toast and the
+            // Transcribe File window centred on the work area's width alone, so a
+            // taskbar docked left (or top) pushed them off centre by its own size.
+            Run("the mode-change toast and the file progress window centre on a work area offset by a left or top taskbar (#1940)", () =>
+            {
+                // A 1920x1080 screen with a 200 DIP bar docked left, then a 48 DIP bar docked top.
+                var leftBar = new Rect(200, 0, 1720, 1080);
+                var topBar = new Rect(0, 48, 1920, 1032);
+                const double w = 300, h = 60;
+
+                var toast = HyperWhisper.Views.Windows.ModeChangeToastWindow.FallbackPosition(leftBar, w, h);
+                Assert(Math.Abs(toast.X + w / 2 - (leftBar.Left + leftBar.Width / 2)) < 0.01,
+                    $"the toast's centre is x={toast.X + w / 2}, not the work area's {leftBar.Left + leftBar.Width / 2}");
+                Assert(toast.Y == leftBar.Bottom - h - 80, $"the toast moved off its bottom slot (y={toast.Y})");
+
+                foreach (var area in new[] { leftBar, topBar })
+                {
+                    var p = HyperWhisper.Views.Windows.FileTranscriptionProgressWindow.CentredIn(area, w, h);
+                    Assert(Math.Abs(p.X + w / 2 - (area.Left + area.Width / 2)) < 0.01
+                            && Math.Abs(p.Y + h / 2 - (area.Top + area.Height / 2)) < 0.01,
+                        $"the progress window's centre is ({p.X + w / 2}, {p.Y + h / 2}) in work area {area}, " +
+                        $"not ({area.Left + area.Width / 2}, {area.Top + area.Height / 2})");
                 }
             });
 
@@ -20062,6 +22262,105 @@ internal static class Program
                 }
             });
 
+            Run("backup: a settings-only import says the settings were restored, not 'Modes: 0' — issue #1415", () =>
+            {
+                // The success line used to name modes and vocabulary whatever was picked,
+                // so a Settings-only import read "Modes: 0, vocabulary added: 0" as if
+                // nothing had landed. Driven through the same method the click handler calls.
+                EnsureSmokeApplication();
+                var settingsRestored = HyperWhisper.Localization.Loc.S("settings.backup.import.summary.settings");
+                var zeroCounts = HyperWhisper.Localization.Loc.S("settings.backup.import.summary", 0, 0, 0);
+
+                var page = new BackupExportSettingsPage();
+                page.ApplyImportSuccess(
+                    new ImportSummary { SettingsImported = true },
+                    new ImportSelection { IncludeSettings = true });
+                var text = page.ImportStatusText.Text;
+                Assert(text.Contains(settingsRestored),
+                    $"a settings-only import reads '{text}', which does not say the settings were restored");
+                Assert(!text.Contains(zeroCounts),
+                    $"a settings-only import still reports the zero counts: '{text}'");
+
+                // Settings + modes keeps the counts, after the settings sentence.
+                var both = BackupExportSettingsPage.BuildImportSummary(
+                    new ImportSummary { SettingsImported = true, ModesImported = 3 },
+                    new ImportSelection { IncludeSettings = true, IncludeModes = true });
+                var counts = HyperWhisper.Localization.Loc.S("settings.backup.import.summary", 3, 0, 0);
+                Assert(both == settingsRestored + " " + counts,
+                    $"a settings + modes import reads '{both}', expected '{settingsRestored} {counts}'");
+
+                // Settings picked but the settings step failed (SettingsImported false):
+                // the line says so, and the import is not reported as a plain success (#2377).
+                var settingsFailed = HyperWhisper.Localization.Loc.S("settings.backup.import.summary.settingsFailed");
+                var failed = BackupExportSettingsPage.BuildImportSummary(
+                    new ImportSummary { SettingsImported = false },
+                    new ImportSelection { IncludeSettings = true });
+                Assert(failed == settingsFailed,
+                    $"a settings-only import whose settings step failed reads '{failed}', expected '{settingsFailed}'");
+                Assert(BackupExportSettingsPage.ImportHadFailure(
+                        new ImportSummary { SettingsImported = false },
+                        new ImportSelection { IncludeSettings = true }),
+                    "a settings import whose settings step failed is reported as a plain success");
+
+                // No selection (an older caller) keeps the counts.
+                var legacy = BackupExportSettingsPage.BuildImportSummary(
+                    new ImportSummary { ModesImported = 2, VocabularyAdded = 1 }, null);
+                Assert(legacy == HyperWhisper.Localization.Loc.S("settings.backup.import.summary", 2, 1, 0),
+                    $"an import with no selection reads '{legacy}' instead of the counts");
+            });
+
+            Run("backup: an API-keys-only import says whether the keys were restored — issue #2377", () =>
+            {
+                // An API-keys-only import read "Modes: 0, vocabulary added: 0, conflicts: 0."
+                // and never named the keys, so a failed Credential Manager write
+                // (ApiKeysImported false, only a WARN in the log) still read as success.
+                EnsureSmokeApplication();
+                var keysRestored = HyperWhisper.Localization.Loc.S("settings.backup.import.summary.apiKeys");
+                var keysFailed = HyperWhisper.Localization.Loc.S("settings.backup.import.summary.apiKeysFailed");
+                var zeroCounts = HyperWhisper.Localization.Loc.S("settings.backup.import.summary", 0, 0, 0);
+                var keysOnly = new ImportSelection { IncludeApiKeys = true };
+
+                var page = new BackupExportSettingsPage();
+                page.ApplyImportSuccess(new ImportSummary { ApiKeysImported = true, ApiKeysInBackup = 3 }, keysOnly);
+                var ok = page.ImportStatusText.Text;
+                Assert(ok == HyperWhisper.Localization.Loc.S("settings.backup.import.success", keysRestored),
+                    $"an API-keys-only import that landed reads '{ok}', expected the success line with '{keysRestored}'");
+                Assert(!ok.Contains(zeroCounts),
+                    $"an API-keys-only import still reports the zero counts: '{ok}'");
+
+                page.ApplyImportSuccess(new ImportSummary { ApiKeysImported = false }, keysOnly);
+                var bad = page.ImportStatusText.Text;
+                Assert(bad == HyperWhisper.Localization.Loc.S("settings.backup.import.partial", keysFailed),
+                    $"an API-keys-only import whose key write failed reads '{bad}', expected the problems line with '{keysFailed}'");
+                Assert(!bad.Contains(HyperWhisper.Localization.Loc.S("settings.backup.import.success", "").Trim()),
+                    $"an API-keys import whose key write failed still says it succeeded: '{bad}'");
+
+                // Settings + modes + keys: each picked section is named, keys last.
+                var all = BackupExportSettingsPage.BuildImportSummary(
+                    new ImportSummary { SettingsImported = true, ModesImported = 2, ApiKeysImported = true, ApiKeysInBackup = 1 },
+                    new ImportSelection { IncludeSettings = true, IncludeModes = true, IncludeApiKeys = true });
+                var expected = HyperWhisper.Localization.Loc.S("settings.backup.import.summary.settings") + " "
+                    + HyperWhisper.Localization.Loc.S("settings.backup.import.summary", 2, 0, 0) + " " + keysRestored;
+                Assert(all == expected, $"a settings + modes + keys import reads '{all}', expected '{expected}'");
+                Assert(!BackupExportSettingsPage.ImportHadFailure(
+                        new ImportSummary { SettingsImported = true, ModesImported = 2, ApiKeysImported = true },
+                        new ImportSelection { IncludeSettings = true, IncludeModes = true, IncludeApiKeys = true }),
+                    "an import where every picked section landed is reported as having problems");
+
+                // An export with no keys configured still writes an empty apiKeys object:
+                // nothing to restore is said as such, never as "API keys restored".
+                var none = BackupExportSettingsPage.BuildImportSummary(
+                    new ImportSummary { ApiKeysImported = true, ApiKeysInBackup = 0 }, keysOnly);
+                Assert(none == HyperWhisper.Localization.Loc.S("settings.backup.import.summary.apiKeysNone"),
+                    $"an API-keys-only import of a backup with no keys reads '{none}'");
+
+                // Keys not picked: no key sentence at all.
+                var noKeys = BackupExportSettingsPage.BuildImportSummary(
+                    new ImportSummary { ModesImported = 1 }, new ImportSelection { IncludeModes = true });
+                Assert(!noKeys.Contains(keysRestored) && !noKeys.Contains(keysFailed),
+                    $"an import with API keys unticked mentions the keys: '{noKeys}'");
+            });
+
             Run("backup: a merge import that fails on a later batch leaves the modes as they were — issue #1605", () =>
             {
                 // ImportEntities committed every batch of 200 modes with its own
@@ -21360,6 +23659,110 @@ internal static class Program
                     if (droppedId.HasValue) history.DeleteTranscript(droppedId.Value);
                     if (other != null) history.DeleteTranscript(other.Id);
                     foreach (var path in new[] { keptAudio, droppedAudio, compressedAudio })
+                    {
+                        try { File.Delete(path); } catch { }
+                    }
+                }
+            });
+
+            Run("history: deleting a pending row whose file cannot be rewritten fails, keeps the row and its audio, and a retry deletes it — issue #2126", () =>
+            {
+                // The pending file is held open with no sharing (as an antivirus scan does), so
+                // neither its rewrite nor its delete can happen. The file still holds the row, so
+                // a delete reported as done would bring the row back at the next launch, without audio.
+                var dbPath = SuiteDatabasePath();
+
+                var history = HistoryService.Instance;
+                var recordings = StorageService.Instance.GetRecordingsFolder();
+                var singleAudio = Path.Combine(recordings, $"percy2126-{Guid.NewGuid():N}.wav");
+                var bulkAudio = Path.Combine(recordings, $"percy2126-{Guid.NewGuid():N}.wav");
+                var savedAudio = Path.Combine(recordings, $"percy2126-{Guid.NewGuid():N}.wav");
+                File.WriteAllBytes(singleAudio, new byte[] { 1, 2, 3, 4 });
+                File.WriteAllBytes(bulkAudio, new byte[] { 1, 2, 3, 4 });
+                File.WriteAllBytes(savedAudio, new byte[] { 1, 2, 3, 4 });
+                var storePath = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests", $"percy2126-{Guid.NewGuid():N}.json");
+                Guid? singleId = null;
+                Guid? bulkId = null;
+                Transcript? saved = null;
+                Transcript? other = null;
+                FileStream? held = null;
+
+                var previous = history.ReplacePendingStoreForTests(new PendingHistoryStore(storePath));
+                PoisonTranscriptInserts(dbPath, "percy2126poison");
+                var triggerDropped = false;
+                var deleteRefused = false;
+                try
+                {
+                    // A row the database took, deleted in one selection with a pending row.
+                    saved = history.CreateProcessingTranscript(1.0, "percy2126saved", savedAudio);
+                    var single = history.CreateProcessingTranscriptAsync(1.0, "percy2126poison", singleAudio).GetAwaiter().GetResult();
+                    singleId = single.Transcript.Id;
+                    var bulk = history.CreateProcessingTranscriptAsync(1.0, "percy2126poison", bulkAudio).GetAwaiter().GetResult();
+                    bulkId = bulk.Transcript.Id;
+                    Assert(single.SavedLater && bulk.SavedLater, "a poisoned insert was saved");
+                    Assert(File.ReadAllText(storePath).Contains(singleId.Value.ToString()), "the pending row is not in the pending file");
+
+                    held = new FileStream(storePath, FileMode.Open, FileAccess.Read, FileShare.None);
+
+                    var deleted = history.DeleteTranscript(singleId.Value);
+                    Assert(!deleted.IsSuccess, "a pending delete whose file could not be rewritten was reported as done");
+                    Assert(deleted.Error == HyperWhisper.Localization.Loc.S("transcripts.delete.failed"),
+                        $"the failed delete said \"{deleted.Error}\", not the delete-failed copy");
+                    Assert(File.Exists(singleAudio), "the audio of a row whose delete failed was deleted");
+                    Assert(history.GetTranscript(singleId.Value) != null, "the row whose delete failed is gone from memory, so a retry cannot find it");
+
+                    // A selection of a saved row and a pending row: a failure deletes nothing.
+                    var selection = new[] { saved.Id, bulkId.Value };
+                    var bulkDeleted = history.DeleteTranscripts(selection);
+                    Assert(!bulkDeleted.IsSuccess, "a bulk delete of a pending row whose file could not be rewritten was reported as done");
+                    Assert(File.Exists(bulkAudio) && File.Exists(savedAudio), "the audio of a row kept by a failed bulk delete was deleted");
+                    Assert(history.GetTranscript(saved.Id) != null, "a failed bulk delete still deleted the saved row");
+                    Assert(history.PendingTranscriptCount == 2, $"{history.PendingTranscriptCount} rows are pending, not the 2 that were never deleted");
+
+                    held.Dispose();
+                    held = null;
+
+                    // The database refuses its part inside SaveChanges, before the pending file is touched:
+                    // nothing is deleted, and the pending row stays in memory and in its file.
+                    ExecSql(dbPath, "CREATE TRIGGER IF NOT EXISTS percy2126_refuse BEFORE DELETE ON Transcripts " +
+                        "WHEN OLD.Mode = 'percy2126saved' BEGIN SELECT RAISE(ABORT, 'percy2126 refused delete'); END;");
+                    deleteRefused = true;
+                    bulkDeleted = history.DeleteTranscripts(selection);
+                    Assert(!bulkDeleted.IsSuccess, "a bulk delete the database refused was reported as done");
+                    Assert(history.GetTranscript(bulkId.Value) != null && File.ReadAllText(storePath).Contains(bulkId.Value.ToString()),
+                        "a bulk delete the database refused dropped the pending row");
+                    Assert(File.Exists(bulkAudio) && File.Exists(savedAudio), "the audio of a row kept by a refused bulk delete was deleted");
+                    ExecSql(dbPath, "DROP TRIGGER IF EXISTS percy2126_refuse;");
+                    deleteRefused = false;
+
+                    deleted = history.DeleteTranscript(singleId.Value);
+                    Assert(deleted.IsSuccess && deleted.Value, "the retried delete was not reported as a delete");
+                    Assert(!File.Exists(singleAudio), "the retried delete left the audio behind");
+                    bulkDeleted = history.DeleteTranscripts(selection);
+                    Assert(bulkDeleted.IsSuccess && bulkDeleted.Value == 2, $"the retried bulk delete removed {bulkDeleted.Value}, not 2");
+                    Assert(!File.Exists(bulkAudio) && !File.Exists(savedAudio), "the retried bulk delete left audio behind");
+                    Assert(!File.Exists(storePath), "the pending file is still there after its last row was deleted");
+
+                    UnpoisonTranscriptInserts(dbPath);
+                    triggerDropped = true;
+
+                    // A successful write flushes whatever is still pending: the deleted rows must not land.
+                    other = history.CreateProcessingTranscript(1.0, "percy2126next", audioFilePath: null);
+                    using var check = new HyperWhisperDbContext();
+                    Assert(!check.Transcripts.AsNoTracking().Any(t => t.Id == singleId.Value || t.Id == bulkId.Value || t.Id == saved.Id),
+                        "a deleted row is in the database");
+                }
+                finally
+                {
+                    held?.Dispose();
+                    if (deleteRefused) ExecSql(dbPath, "DROP TRIGGER IF EXISTS percy2126_refuse;");
+                    if (!triggerDropped) UnpoisonTranscriptInserts(dbPath);
+                    if (singleId.HasValue) history.DeleteTranscript(singleId.Value);
+                    if (bulkId.HasValue) history.DeleteTranscript(bulkId.Value);
+                    history.ReplacePendingStoreForTests(previous);
+                    if (saved != null) history.DeleteTranscript(saved.Id);
+                    if (other != null) history.DeleteTranscript(other.Id);
+                    foreach (var path in new[] { singleAudio, bulkAudio, savedAudio, storePath, storePath + ".tmp" })
                     {
                         try { File.Delete(path); } catch { }
                     }
@@ -22998,6 +25401,163 @@ internal static class Program
                 }
             });
 
+            // #1584: a transcript pasted over an EMPTY clipboard has nothing to
+            // restore, so #1496's keep-the-snapshot mark was never armed, and a
+            // second dictation inside the restore window snapshotted transcript A
+            // as "the user's clipboard" and restored it over B. The mark now
+            // counts only until A's restore delay would have ended (Ray,
+            // 2026-10-19). These drive the real service on the real clipboard,
+            // with the TickCountMs seam standing in for the 10 s wait.
+            Run("clipboard restore (#1584): two quick dictations from an empty clipboard leave the last transcript", () =>
+            {
+                static string Clip() => ReadClipboardText();
+                var operatorClipboard = SnapshotWholeClipboard();
+                var previousGate = TextDeliveryGate.IsSuppressed;
+                var previousRestore = SettingsService.Instance.RestoreClipboardAfterPaste;
+                var restoreDelay = TimeSpan.FromSeconds(10);
+                try
+                {
+                    TextDeliveryGate.SetSuppressed(false);
+                    SettingsService.Instance.RestoreClipboardAfterPaste = true;
+
+                    // A clock the case moves by hand, starting well away from 0.
+                    long now = 1_000_000;
+                    SmartPasteService NewService() => new SmartPasteService { TickCountMs = () => now };
+
+                    // One dictation as the batch flow runs it, with the default
+                    // 10 s delay. Over an empty clipboard no restore is pending.
+                    void Dictate(SmartPasteService paste, string transcript)
+                    {
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste(transcript) == SmartPasteResult.CopiedToClipboard,
+                            $"precondition: '{transcript}' must reach the clipboard");
+                        Assert(Clip() == transcript,
+                            $"precondition: the clipboard must hold '{transcript}', got '{Clip()}'");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(restoreDelay);
+                        paste.EndRecordingSession();
+                    }
+
+                    // The issue: empty clipboard, A, then B 3 s later. B stays.
+                    using (var paste = NewService())
+                    {
+                        Clipboard.Clear();
+                        Dictate(paste, "The apple tree grows near the riverbank. ");
+                        Assert(!paste.HasPendingClipboardRestore, "an empty clipboard leaves nothing to restore");
+                        now += 3_000;
+                        Dictate(paste, "Blue whale sing across the cold ocean. ");
+                        Assert(!paste.HasPendingClipboardRestore,
+                            "B inside A's window must keep 'nothing to restore', not snapshot A");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Blue whale sing across the cold ocean. ",
+                            $"two quick dictations from an empty clipboard must leave the last transcript, got '{Clip()}'");
+                    }
+
+                    // B starts after A's window ended: A is now the clipboard's
+                    // content, so B's restore brings A back, as before the fix.
+                    using (var paste = NewService())
+                    {
+                        Clipboard.Clear();
+                        Dictate(paste, "The apple tree grows near the riverbank. ");
+                        now += (long)restoreDelay.TotalMilliseconds;
+                        Dictate(paste, "Blue whale sing across the cold ocean. ");
+                        Assert(paste.HasPendingClipboardRestore, "B after A's window must snapshot A and schedule its restore");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "The apple tree grows near the riverbank. ",
+                            $"a dictation after the window must restore the earlier transcript, got '{Clip()}'");
+                    }
+
+                    // Restore OFF from an empty clipboard: nothing is ever
+                    // restored, and the transcript is the clipboard's content. A
+                    // later dictation with restore on snapshots it afresh.
+                    using (var paste = NewService())
+                    {
+                        SettingsService.Instance.RestoreClipboardAfterPaste = false;
+                        Clipboard.Clear();
+                        Dictate(paste, "Dictated with restore off. ");
+                        now += 3_000;
+                        Dictate(paste, "Again with restore off. ");
+                        Assert(!paste.HasPendingClipboardRestore, "restore off schedules nothing");
+                        Assert(Clip() == "Again with restore off. ",
+                            $"with restore off the last transcript stays, got '{Clip()}'");
+
+                        SettingsService.Instance.RestoreClipboardAfterPaste = true;
+                        now += 1_000;
+                        Dictate(paste, "Restore back on. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Again with restore off. ",
+                            $"a transcript left with restore off must come back after the next dictation, got '{Clip()}'");
+                    }
+
+                    // A transcript kept ON PURPOSE over an empty clipboard (no
+                    // restore scheduled, the SecureFieldSkipped shape) is never
+                    // marked, so even a dictation 1 s later snapshots it.
+                    using (var paste = NewService())
+                    {
+                        Clipboard.Clear();
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste("Secret left for a manual paste. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the kept transcript must reach the clipboard");
+                        paste.EndRecordingSession();
+                        now += 1_000;
+                        Dictate(paste, "The next dictation. ");
+                        Assert(paste.HasPendingClipboardRestore, "the next dictation must snapshot the kept transcript");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Secret left for a manual paste. ",
+                            $"a transcript kept on purpose must come back after the next dictation, got '{Clip()}'");
+                    }
+
+                    // A late segment (written after the restore was scheduled)
+                    // over an empty clipboard keeps the window's expiry, not a
+                    // new one from its own write: inside the window the next
+                    // dictation leaves its own transcript ...
+                    using (var paste = NewService())
+                    {
+                        Clipboard.Clear();
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste("Streamed segment. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the segment must reach the clipboard");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(restoreDelay);
+                        now += 9_000;
+                        Assert(paste.SmartPaste("Late segment. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the late segment must reach the clipboard");
+                        paste.EndRecordingSession();
+                        now += 500;
+                        Dictate(paste, "Inside the window. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Inside the window. ",
+                            $"a dictation inside the window after a late segment must leave its own transcript, got '{Clip()}'");
+                    }
+
+                    // ... and once the clock passes the window (1 s after the
+                    // late segment, well inside 10 s of it), the next dictation
+                    // snapshots that segment and restores it.
+                    using (var paste = NewService())
+                    {
+                        Clipboard.Clear();
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste("Streamed segment. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the segment must reach the clipboard");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(restoreDelay);
+                        now += 9_000;
+                        Assert(paste.SmartPaste("Late segment. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the late segment must reach the clipboard");
+                        paste.EndRecordingSession();
+                        now += 1_000;
+                        Dictate(paste, "After the window. ");
+                        Assert(paste.HasPendingClipboardRestore, "after the window the next dictation must snapshot the late segment");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Late segment. ",
+                            $"a late segment must lapse with the window, not a new one, got '{Clip()}'");
+                    }
+                }
+                finally
+                {
+                    TextDeliveryGate.SetSuppressed(previousGate);
+                    SettingsService.Instance.RestoreClipboardAfterPaste = previousRestore;
+                    PutBackWholeClipboard(operatorClipboard);
+                }
+            });
+
             Run("shortcuts: the recorder's red border never appears without its reason", () =>
             {
                 // C8. ShowError gated only the TEXT on ShowsInlineError and painted
@@ -23509,6 +26069,96 @@ internal static class Program
                 }
             });
 
+            Run("shortcuts: a stored bare typing key as the push-to-talk custom key turns push-to-talk off at load - issue #2139", () =>
+            {
+                // #2139, the push-to-talk sibling of #2114. A profile that saved a bare
+                // Tab as the custom push-to-talk key on an older build kept it, and the
+                // hook started push-to-talk on every Tab the user typed. Ray (inbox
+                // #1811): turn push-to-talk OFF (a fresh PushToTalkSettings), never
+                // LeftAlt. Driven end to end: settings.json -> Reload -> the monitor's hook.
+                EnsureSmokeApplication();
+
+                var settings = SettingsService.Instance;
+                var settingsFile = Path.Combine(AppPaths.AppDataRoot, "settings.json");
+                // Two real changes, so settings.json exists whatever ran before this case.
+                var cancelBefore = settings.CancelShortcut;
+                settings.CancelShortcut = KeyboardShortcut.FromPersistedString("F14");
+                settings.CancelShortcut = cancelBefore;
+                var original = File.ReadAllText(settingsFile);
+
+                void SeedAndReload(PushToTalkMode mode, string custom)
+                {
+                    var node = JsonNode.Parse(original)!.AsObject();
+                    node["PushToTalk"] = JsonSerializer.SerializeToNode(new PushToTalkSettings
+                    {
+                        Mode = mode,
+                        Modifier = "RightAlt",
+                        DoublePressLock = true,
+                        CustomShortcut = KeyboardShortcut.FromPersistedString(custom),
+                    });
+                    File.WriteAllText(settingsFile, node.ToJsonString());
+                    settings.Reload();
+                }
+
+                HyperWhisper.SharedCore.PortablePttState StateAfterKeyDown(int vk)
+                {
+                    using var monitor = new PushToTalkMonitor();
+                    monitor.Configure(settings.PushToTalk);
+                    monitor.Hook.HandleKeyEvent(LowLevelKeyboardHook.WM_KEYDOWN, vk, 0, IntPtr.Zero);
+                    return monitor.State;
+                }
+
+                const int VkTab = 0x09, VkK = 0x4B, VkF13 = 0x7C;
+                try
+                {
+                    // THE DONE-WHEN: a stored Custom bare Tab loads as push-to-talk off,
+                    // and a Tab key-down no longer starts it.
+                    SeedAndReload(PushToTalkMode.Custom, "Tab");
+                    var ptt = settings.PushToTalk;
+                    Assert(ptt.Mode == PushToTalkMode.Disabled, $"a stored Custom bare Tab must load as Disabled, got {ptt.Mode}");
+                    Assert(ptt.CustomShortcut == null, $"the unsafe custom key must be cleared, got '{ptt.CustomShortcut}'");
+                    Assert(ptt.Modifier == "LeftAlt" && !ptt.DoublePressLock, "a fresh PushToTalkSettings, not LeftAlt armed or the old lock flag");
+                    Assert(StateAfterKeyDown(VkTab) == HyperWhisper.SharedCore.PortablePttState.Idle,
+                        "a Tab key-down started push-to-talk from a stored bare Tab custom key");
+
+                    // Bare K and a single bare modifier get the same treatment.
+                    foreach (var unsafeValue in new[] { "K", "Shift+Tab", "Alt" })
+                    {
+                        SeedAndReload(PushToTalkMode.Custom, unsafeValue);
+                        Assert(settings.PushToTalk.Mode == PushToTalkMode.Disabled && settings.PushToTalk.CustomShortcut == null,
+                            $"a stored Custom '{unsafeValue}' must load as push-to-talk off, got {settings.PushToTalk.Mode} '{settings.PushToTalk.CustomShortcut}'");
+                    }
+                    SeedAndReload(PushToTalkMode.Custom, "K");
+                    Assert(StateAfterKeyDown(VkK) == HyperWhisper.SharedCore.PortablePttState.Idle,
+                        "a K key-down started push-to-talk from a stored bare K custom key");
+
+                    // A stale unsafe custom key under Modifier mode is not live: clear it,
+                    // keep the user's working Modifier push-to-talk as it was.
+                    SeedAndReload(PushToTalkMode.Modifier, "Tab");
+                    ptt = settings.PushToTalk;
+                    Assert(ptt.Mode == PushToTalkMode.Modifier && ptt.Modifier == "RightAlt" && ptt.DoublePressLock,
+                        $"Modifier push-to-talk must survive a stale custom Tab, got {ptt.Mode} {ptt.Modifier} lock={ptt.DoublePressLock}");
+                    Assert(ptt.CustomShortcut == null, $"the stale unsafe custom key must be cleared, got '{ptt.CustomShortcut}'");
+
+                    // A legal custom key loads as it is and still drives the hook.
+                    foreach (var legalValue in new[] { "F13", "Ctrl+Shift+K", "Ctrl+Alt" })
+                    {
+                        SeedAndReload(PushToTalkMode.Custom, legalValue);
+                        Assert(settings.PushToTalk.Mode == PushToTalkMode.Custom
+                            && settings.PushToTalk.CustomShortcut?.ToPersistedString() == legalValue,
+                            $"a legal custom '{legalValue}' must survive load, got {settings.PushToTalk.Mode} '{settings.PushToTalk.CustomShortcut}'");
+                    }
+                    SeedAndReload(PushToTalkMode.Custom, "F13");
+                    Assert(StateAfterKeyDown(VkF13) == HyperWhisper.SharedCore.PortablePttState.WaitingForActivation,
+                        "a legal F13 custom key must still start push-to-talk");
+                }
+                finally
+                {
+                    File.WriteAllText(settingsFile, original);
+                    settings.Reload();
+                }
+            });
+
             Run("shortcuts: Settings > Streaming stores nothing until the gesture closes", () =>
             {
                 // #794. The SAME setting had two editors and only one was fixed:
@@ -23854,7 +26504,6 @@ internal static class Program
                 // rides on the one navigation. This stands in for MainWindow's
                 // subscription, which is the only reader of the pending section.
                 var settings = SettingsService.Instance;
-                var savedSteps = settings.GettingStartedCompletedSteps;
                 var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
                     .GetUninitializedObject(typeof(MainViewModel));
                 typeof(MainViewModel).GetField("_settingsService", BindingFlags.Instance | BindingFlags.NonPublic)!
@@ -23872,29 +26521,149 @@ internal static class Program
                         navigations.Add((vm.CurrentPage, vm.TakePendingSettingsSection()));
                 };
 
-                try
-                {
-                    settings.GettingStartedCompletedSteps = "";
-                    vm.ToggleGettingStartedStepCommand.Execute("shortcuts");
-                    Assert(navigations.Count == 1, $"the row makes one navigation, not {navigations.Count}");
-                    Assert(navigations[0] == (MainViewModel.NavigationPage.Settings, "Shortcuts"),
-                        $"the Customize Shortcuts row lands on Settings > Shortcuts, not {navigations[0]}");
+                vm.OpenGettingStartedStepCommand.Execute("shortcuts");
+                Assert(navigations.Count == 1, $"the row makes one navigation, not {navigations.Count}");
+                Assert(navigations[0] == (MainViewModel.NavigationPage.Settings, "Shortcuts"),
+                    $"the Customize Shortcuts row lands on Settings > Shortcuts, not {navigations[0]}");
 
-                    navigations.Clear();
-                    vm.OpenSettingsSection("License");
-                    Assert(navigations.Count == 1 && navigations[0] == (MainViewModel.NavigationPage.Settings, "License"),
-                        "already on Settings, a section request still navigates to that section");
+                navigations.Clear();
+                vm.OpenSettingsSection("License");
+                Assert(navigations.Count == 1 && navigations[0] == (MainViewModel.NavigationPage.Settings, "License"),
+                    "already on Settings, a section request still navigates to that section");
 
-                    navigations.Clear();
-                    vm.CurrentPage = MainViewModel.NavigationPage.Home;
-                    vm.CurrentPage = MainViewModel.NavigationPage.Settings;
-                    Assert(navigations.Count == 2 && navigations.All(n => n.Section is null),
-                        "a plain navigation carries no stale section from an earlier request");
-                }
-                finally
+                navigations.Clear();
+                vm.CurrentPage = MainViewModel.NavigationPage.Home;
+                vm.CurrentPage = MainViewModel.NavigationPage.Settings;
+                Assert(navigations.Count == 2 && navigations.All(n => n.Section is null),
+                    "a plain navigation carries no stale section from an earlier request");
+            });
+
+            Run("home: a Getting Started row click acts and never ticks or un-ticks it (#638)", () =>
+            {
+                // #638. The old row command flipped the row on every click: a
+                // second click on a done row took the tick away and skipped the
+                // navigation, a click on Start Recording ticked it with nothing
+                // recorded, and four clicks hid the whole section with no work done.
+                // A click now only acts; ticks come from real state alone.
+                var settings = SettingsService.Instance;
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(MainViewModel));
+                typeof(MainViewModel).GetField("_settingsService", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(vm, settings);
+                var items = new System.Collections.ObjectModel.ObservableCollection<GettingStartedItem>
                 {
-                    settings.GettingStartedCompletedSteps = savedSteps;
+                    new() { Id = "recording" },
+                    new() { Id = "shortcuts", IsCompleted = true },
+                    new() { Id = "mode" },
+                    new() { Id = "vocabulary" },
+                };
+                vm.GettingStartedItems = items;
+                vm.ShowGettingStarted = true;
+                // GetUninitializedObject skips field initialisers: give the refused
+                // start the empty device list a machine with no microphone has.
+                typeof(MainViewModel).GetField("_audioDevices", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(vm, new List<AudioDeviceService.AudioDevice>());
+                var toasts = 0;
+                vm.ShowErrorToastRequested += (_, _) => toasts++;
+
+                var navigations = new List<(MainViewModel.NavigationPage Page, string? Section)>();
+                vm.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(MainViewModel.CurrentPage))
+                        navigations.Add((vm.CurrentPage, vm.TakePendingSettingsSection()));
+                };
+
+                // A completed step, clicked twice: still complete, and BOTH clicks navigate.
+                vm.OpenGettingStartedStepCommand.Execute("shortcuts");
+                vm.OpenGettingStartedStepCommand.Execute("shortcuts");
+                Assert(items[1].IsCompleted, "a second click must not un-tick a completed row");
+                Assert(navigations.Count == 2
+                       && navigations.All(n => n == (MainViewModel.NavigationPage.Settings, "Shortcuts")),
+                    $"each click opens Settings > Shortcuts - got {navigations.Count} navigation(s)");
+
+                // Start Recording with no saved transcript: the start is attempted
+                // (and refused here, with no microphone), and the row stays unticked.
+                vm.OpenGettingStartedStepCommand.ExecuteAsync("recording").GetAwaiter().GetResult();
+                Assert(!items[0].IsCompleted, "Start Recording must not tick itself on a click");
+                Assert(!vm.IsRecording, "with no microphone the refused start leaves no recording behind");
+                Assert(toasts == 1, $"the click reaches the real start, which refuses with the no-microphone toast - got {toasts} toast(s)");
+
+                // The other two rows navigate on every click and tick nothing.
+                navigations.Clear();
+                vm.OpenGettingStartedStepCommand.Execute("mode");
+                vm.OpenGettingStartedStepCommand.Execute("vocabulary");
+                Assert(navigations.Count == 2
+                       && navigations[0].Page == MainViewModel.NavigationPage.Modes
+                       && navigations[1].Page == MainViewModel.NavigationPage.Vocabulary,
+                    "Create a Mode opens Modes and Add Vocabulary opens Vocabulary");
+                Assert(!items[2].IsCompleted && !items[3].IsCompleted,
+                    "opening the Modes or Vocabulary page is not making a Mode or a word");
+
+                // Four rows clicked, no work done: the section stays.
+                var section = MainViewModel.ApplyGettingStartedProgress(items, default);
+                Assert(section && vm.ShowGettingStarted,
+                    "four clicks with no work must leave Getting Started on Home");
+                Assert(items.All(i => !i.IsCompleted),
+                    "with no real state behind them, every row reads not done - including the "
+                    + "one a click marked under the old toggle");
+            });
+
+            Run("home: each Getting Started row ticks from its real-state signal (#638)", () =>
+            {
+                var items = new List<GettingStartedItem>
+                {
+                    new() { Id = "recording" },
+                    new() { Id = "shortcuts" },
+                    new() { Id = "mode" },
+                    new() { Id = "vocabulary" },
+                };
+
+                Assert(MainViewModel.ApplyGettingStartedProgress(items, default) && items.All(i => !i.IsCompleted),
+                    "a fresh profile: nothing done, the section shows");
+
+                var each = new (string Id, GettingStartedSignals Signal)[]
+                {
+                    ("recording", new GettingStartedSignals(HasCompletedTranscript: true, false, false, false)),
+                    ("shortcuts", new GettingStartedSignals(false, HasCustomShortcut: true, false, false)),
+                    ("mode", new GettingStartedSignals(false, false, HasUserMode: true, false)),
+                    ("vocabulary", new GettingStartedSignals(false, false, false, HasVocabularyWord: true)),
+                };
+                foreach (var (id, signal) in each)
+                {
+                    var show = MainViewModel.ApplyGettingStartedProgress(items, signal);
+                    Assert(show, $"one step done ({id}) leaves the section showing");
+                    Assert(items.Single(i => i.IsCompleted).Id == id,
+                        $"the {id} signal ticks the {id} row and no other");
                 }
+
+                var all = new GettingStartedSignals(true, true, true, true);
+                Assert(!MainViewModel.ApplyGettingStartedProgress(items, all) && items.All(i => i.IsCompleted),
+                    "all four really done: every row ticked and the section hides");
+                Assert(MainViewModel.ApplyGettingStartedProgress(items, all with { HasCompletedTranscript = false })
+                       && !items[0].IsCompleted,
+                    "the tick follows the state back down (the last transcript deleted)");
+
+                // shortcuts: any shortcut off its default, or Push to Talk on.
+                KeyboardShortcut D(string role) => SettingsService.DefaultActionShortcut(role);
+                Assert(!MainViewModel.HasCustomShortcut(D("Toggle"), D("Cancel"), D("ChangeMode"), D("Streaming"), PushToTalkMode.Disabled),
+                    "every shortcut at its default and Push to Talk off is not a customization");
+                Assert(MainViewModel.HasCustomShortcut(KeyboardShortcut.FromPersistedString("Alt+F9"), D("Cancel"), D("ChangeMode"), D("Streaming"), PushToTalkMode.Disabled),
+                    "a changed toggle shortcut counts");
+                Assert(MainViewModel.HasCustomShortcut(D("Toggle"), D("Cancel"), D("ChangeMode"), KeyboardShortcut.FromPersistedString("Ctrl+Shift+F8"), PushToTalkMode.Disabled),
+                    "a changed streaming shortcut counts");
+                Assert(MainViewModel.HasCustomShortcut(D("Toggle"), D("Cancel"), D("ChangeMode"), D("Streaming"), PushToTalkMode.Modifier),
+                    "Push to Talk switched on counts (Ray, 2026-10-20, #652/#2171)");
+
+                // mode: one the user made, not the seeded Hyper mode.
+                var seeded = new Mode { Id = ModeDefaults.DefaultModeId, Name = "Hyper", IsSystemProvided = true, IsDefault = true };
+                var restoredSeed = new Mode { Id = ModeDefaults.DefaultModeId, Name = "Hyper", IsSystemProvided = false };
+                var systemOther = new Mode { Name = "Stock", IsSystemProvided = true };
+                Assert(!MainViewModel.HasUserMode(new[] { seeded, systemOther }), "stock modes are not the user's");
+                Assert(!MainViewModel.HasUserMode(new[] { restoredSeed }),
+                    "the seeded id restored from a backup without its flag is not the user's either");
+                Assert(!MainViewModel.HasUserMode(null), "no modes loaded yet is not done");
+                Assert(MainViewModel.HasUserMode(new[] { seeded, new Mode { Name = "Email", IsSystemProvided = false } }),
+                    "a Mode the user made ticks the row");
             });
 
             // ------------------------------------------------------------------
@@ -23985,6 +26754,327 @@ internal static class Program
                     release.Dispose();
                 }
             });
+
+            // RunAsync blocks on GetAwaiter().GetResult(), and an earlier WPF case
+            // has left a DispatcherSynchronizationContext on this thread that
+            // nothing pumps. AssemblyAIService awaits without ConfigureAwait(false),
+            // so detach for the #886 cases, as the onboarding block does.
+            var assemblyAiPreviousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+
+            // Issue #886: AssemblyAIService.TranscribeResolvedAsync was one
+            // 187-line method running five flows. These cases pin the two
+            // statics it was split into, and then drive the whole method through
+            // a fake vendor so the sync fast path, the async fallback, the skip
+            // and the error exits are each reached from the real entry point.
+            Run("AssemblyAI DescribeSyncSkipReason names why the sync fast path was skipped (#886)", () =>
+            {
+                var cap = HyperwhisperCoreMethods.AssemblyaiSyncMaxDurationSecs();
+                var over = cap + 10;
+
+                // The same format strings the log has always used, in the
+                // runner's own culture, so a comma-decimal locale passes too.
+                var atCap = AssemblyAIService.DescribeSyncSkipReason(Result<double>.Success(cap), cap, isMedicalModel: false);
+                Assert(atCap == $"duration {cap:F1}s >= {cap:F0}s sync cap", $"at the cap: '{atCap}'");
+
+                var overCap = AssemblyAIService.DescribeSyncSkipReason(Result<double>.Success(over), cap, isMedicalModel: false);
+                Assert(overCap == $"duration {over:F1}s >= {cap:F0}s sync cap", $"over the cap: '{overCap}'");
+
+                var unknown = AssemblyAIService.DescribeSyncSkipReason(
+                    Result<double>.Failure("duration probe failed"), cap, isMedicalModel: false);
+                Assert(unknown == "duration unknown (duration probe failed)", $"failed probe: '{unknown}'");
+
+                // Medical wins over every duration reason, a failed probe included.
+                const string medical = "medical model (sync has no medical/domain concept)";
+                foreach (var duration in new[] { Result<double>.Success(cap - 1), Result<double>.Success(over), Result<double>.Failure("x") })
+                {
+                    var reason = AssemblyAIService.DescribeSyncSkipReason(duration, cap, isMedicalModel: true);
+                    Assert(reason == medical, $"medical model gave '{reason}'");
+                }
+            });
+
+            Run("AssemblyAI ParsePollOutcome: pending, done, and mapped errors carry the poll's status (#886)", () =>
+            {
+                static uniffi.hyperwhisper_core.HttpResponse Poll(ushort status, string json) =>
+                    new(status, new List<Header>(), System.Text.Encoding.UTF8.GetBytes(json));
+
+                Assert(AssemblyAIService.ParsePollOutcome(Poll(200, "{\"status\":\"processing\"}")) is AssemblyaiPollOutcome.Pending,
+                    "processing must keep polling");
+                Assert(AssemblyAIService.ParsePollOutcome(Poll(503, "{}")) is AssemblyaiPollOutcome.Pending,
+                    "a transient 503 must keep polling");
+
+                var done = AssemblyAIService.ParsePollOutcome(Poll(200, "{\"status\":\"completed\",\"text\":\"hello there\"}"));
+                Assert(done is AssemblyaiPollOutcome.Done d && d.@transcript.@text == "hello there", $"completed gave {done}");
+
+                var failed = Expect<TranscriptionException>(() =>
+                    AssemblyAIService.ParsePollOutcome(Poll(200, "{\"status\":\"error\",\"error\":\"audio too short\"}")));
+                Assert(failed.Message.Contains("audio too short", StringComparison.Ordinal), $"error message '{failed.Message}'");
+                Assert(failed.HttpStatusCode == 200, $"error status {failed.HttpStatusCode}");
+
+                var unauthorized = Expect<TranscriptionException>(() => AssemblyAIService.ParsePollOutcome(Poll(401, "{}")));
+                Assert(unauthorized.Code == TranscriptionErrorCode.Unauthorized, $"401 code {unauthorized.Code}");
+                Assert(unauthorized.HttpStatusCode == 401, $"401 status {unauthorized.HttpStatusCode}");
+            });
+
+            RunAsync("AssemblyAI TranscribeAsync runs sync, async fallback, skip and error exits against a fake vendor (#886)", async () =>
+            {
+                var cap = HyperwhisperCoreMethods.AssemblyaiSyncMaxDurationSecs();
+                var audioPath = Path.Combine(Path.GetTempPath(), $"hw-886-{Guid.NewGuid():N}.wav");
+                await File.WriteAllBytesAsync(audioPath, new byte[] { 0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0 });
+                try
+                {
+                    // Each scenario: the model, the known duration, and a script of
+                    // (status, body) answers keyed by the request's host + path.
+                    async Task<(string? Text, TranscriptionException? Error, List<string> Calls)> Drive(
+                        string modelId, double? knownSeconds, Func<string, int, (HttpStatusCode, string)> answer)
+                    {
+                        var calls = new List<string>();
+                        RoutedCaptureHandler handler = null!;
+                        handler = new RoutedCaptureHandler(() =>
+                        {
+                            var uri = handler.LastRequestUri!;
+                            var key = uri.Host + uri.AbsolutePath;
+                            var seen = calls.Count(c => c == key);
+                            calls.Add(key);
+                            var (status, body) = answer(key, seen);
+                            return new HttpResponseMessage(status) { Content = new StringContent(body) };
+                        });
+                        var service = new AssemblyAIService(handler);
+                        service.Configure("placeholder");
+                        var request = new TranscriptionRequest(audioPath, Language: "en", Vocabulary: null, ModelId: modelId, CustomPrompt: null);
+                        try
+                        {
+                            var text = await service.TranscribeAsync(request, knownSeconds, CancellationToken.None)
+                                .WaitAsync(TimeSpan.FromSeconds(60));
+                            return (text, null, calls);
+                        }
+                        catch (TranscriptionException ex)
+                        {
+                            return (null, ex, calls);
+                        }
+                    }
+
+                    const string sync = "sync.assemblyai.com/v1/transcribe";
+                    const string upload = "api.assemblyai.com/v2/upload";
+                    const string create = "api.assemblyai.com/v2/transcript";
+                    const string poll = "api.assemblyai.com/v2/transcript/t-886";
+                    (HttpStatusCode, string) Async(string key, int seen, string pollAnswer) => key switch
+                    {
+                        upload => (HttpStatusCode.OK, "{\"upload_url\":\"https://cdn.example.invalid/a\"}"),
+                        create => (HttpStatusCode.OK, "{\"id\":\"t-886\",\"status\":\"queued\"}"),
+                        poll => (HttpStatusCode.OK, pollAnswer),
+                        _ => (HttpStatusCode.NotFound, "{}"),
+                    };
+                    const string completed = "{\"status\":\"completed\",\"text\":\"async words\"}";
+
+                    // 1. A short clip: one sync call, and nothing else.
+                    var r1 = await Drive("universal-2", 5, (key, _) => key == sync
+                        ? (HttpStatusCode.OK, "{\"text\":\"sync words\"}")
+                        : (HttpStatusCode.NotFound, "{}"));
+                    Assert(r1.Text == "sync words", $"sync: text '{r1.Text}', error {r1.Error?.Message}");
+                    Assert(string.Join(",", r1.Calls) == sync, $"sync: calls {string.Join(",", r1.Calls)}");
+
+                    // 2. The sync call fails: the async workflow runs, and one pending
+                    // poll is waited out before the completed one.
+                    var r2 = await Drive("universal-2", 5, (key, seen) => key == sync
+                        ? (HttpStatusCode.InternalServerError, "{\"error\":\"down\"}")
+                        : Async(key, seen, seen == 0 ? "{\"status\":\"processing\"}" : completed));
+                    Assert(r2.Text == "async words", $"fallback: text '{r2.Text}', error {r2.Error?.Message}");
+                    Assert(string.Join(",", r2.Calls) == string.Join(",", new[] { sync, upload, create, poll, poll }),
+                        $"fallback: calls {string.Join(",", r2.Calls)}");
+
+                    // 3. Over the cap, and 4. a medical model: no sync call at all.
+                    foreach (var (model, seconds) in new[] { ("universal-2", cap + 10), ("universal-3-5-pro-medical", 5.0) })
+                    {
+                        var r = await Drive(model, seconds, (key, seen) => Async(key, seen, completed));
+                        Assert(r.Text == "async words", $"{model} {seconds}s: text '{r.Text}', error {r.Error?.Message}");
+                        Assert(string.Join(",", r.Calls) == string.Join(",", new[] { upload, create, poll }),
+                            $"{model} {seconds}s: calls {string.Join(",", r.Calls)}");
+                    }
+
+                    // 5. A sync answer with no speech is terminal: no async fallback.
+                    var r5 = await Drive("universal-2", 5, (key, _) => key == sync
+                        ? (HttpStatusCode.OK, "{\"text\":\"  \"}")
+                        : (HttpStatusCode.NotFound, "{}"));
+                    Assert(r5.Error?.Code == TranscriptionErrorCode.NoSpeechDetected, $"no speech: code {r5.Error?.Code}, text '{r5.Text}'");
+                    Assert(string.Join(",", r5.Calls) == sync, $"no speech: calls {string.Join(",", r5.Calls)}");
+
+                    // 6. The upload is refused: mapped to Unauthorized, nothing created.
+                    var r6 = await Drive("universal-2", cap + 10, (key, _) => key == upload
+                        ? (HttpStatusCode.Unauthorized, "{\"error\":\"bad key\"}")
+                        : (HttpStatusCode.NotFound, "{}"));
+                    Assert(r6.Error?.Code == TranscriptionErrorCode.Unauthorized, $"upload 401: code {r6.Error?.Code}");
+                    Assert(string.Join(",", r6.Calls) == upload, $"upload 401: calls {string.Join(",", r6.Calls)}");
+
+                    // 7. The job itself fails: the poll's error message reaches the caller.
+                    var r7 = await Drive("universal-2", cap + 10, (key, seen) =>
+                        Async(key, seen, "{\"status\":\"error\",\"error\":\"audio too short\"}"));
+                    Assert(r7.Error != null && r7.Error.Message.Contains("audio too short", StringComparison.Ordinal),
+                        $"poll error: '{r7.Error?.Message}', text '{r7.Text}'");
+                    Assert(string.Join(",", r7.Calls) == string.Join(",", new[] { upload, create, poll }),
+                        $"poll error: calls {string.Join(",", r7.Calls)}");
+                }
+                finally
+                {
+                    try { File.Delete(audioPath); } catch (IOException) { }
+                }
+            });
+            SynchronizationContext.SetSynchronizationContext(assemblyAiPreviousContext);
+            ScriptGuardPorts.RunAll(Run);
+            OutputMuteOwnershipChecks.RunAll(Run);
+            CloudCreditsWarningChecks.RunAll(Run);
+            PendingHistoryUnreadableChecks.RunAll(Run);
+
+            // Issue #738: LicenseNetworkService over a scripted HttpClient (its internal
+            // seam), so the rules that ACT on a server reply run without the backend.
+            // The store is the suite's scratch profile: AppPaths scopes kvstore.json and
+            // the Credential Manager resource to the temp root set at the top of Main.
+            // The probe and the transient-validate rules both answer with this text.
+            const string licenceSeamOfflineMessage = "Unable to verify license while offline";
+            const string licenceSeamProbeKey = "HW-AAAA-BBBB-CCCC-DDDD";
+
+            // RunAsync blocks on GetAwaiter().GetResult(), and an earlier case leaves a
+            // DispatcherSynchronizationContext on this thread that no loop pumps. The
+            // timeout reply completes truly asynchronously, so its continuation would
+            // never run and the suite would hang. Detach for the block, as the
+            // onboarding and limits blocks do.
+            var licenceSeamPreviousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+
+            RunAsync("probe: a 429 reports unavailable, not an invalid key", async () =>
+            {
+                var handler = new LicenceSeamReplyHandler(HttpStatusCode.TooManyRequests, "{\"valid\":false,\"error\":\"rate limited\"}");
+                using var service = new LicenseNetworkService(new HttpClient(handler));
+                var result = await service.ProbeLicenseAsync(licenceSeamProbeKey);
+                Assert(handler.Bodies.Count == 1, $"the probe must reach the scripted server once, sent {handler.Bodies.Count}");
+                Assert(!result.IsValid && result.ErrorMessage == licenceSeamOfflineMessage,
+                    $"a 429 is not a verdict about the key, got valid={result.IsValid} message='{result.ErrorMessage}'");
+            });
+
+            RunAsync("probe: a 503 reports unavailable, not an invalid key", async () =>
+            {
+                var handler = new LicenceSeamReplyHandler(HttpStatusCode.ServiceUnavailable, "{\"valid\":false,\"error\":\"maintenance\"}");
+                using var service = new LicenseNetworkService(new HttpClient(handler));
+                var result = await service.ProbeLicenseAsync(licenceSeamProbeKey);
+                Assert(handler.Bodies.Count == 1, $"the probe must reach the scripted server once, sent {handler.Bodies.Count}");
+                Assert(!result.IsValid && result.ErrorMessage == licenceSeamOfflineMessage,
+                    $"a 503 is not a verdict about the key, got valid={result.IsValid} message='{result.ErrorMessage}'");
+            });
+
+            RunAsync("probe: a 400 not_entitled reply is a real Invalid verdict", async () =>
+            {
+                var handler = new LicenceSeamReplyHandler(HttpStatusCode.BadRequest,
+                    "{\"valid\":false,\"error\":\"License key not found\",\"reason\":\"not_entitled\"}");
+                using var service = new LicenseNetworkService(new HttpClient(handler));
+                var result = await service.ProbeLicenseAsync(licenceSeamProbeKey);
+                Assert(!result.IsValid && result.Status == LicenseStatus.Invalid,
+                    $"a not_entitled reply must be Invalid, got valid={result.IsValid} status={result.Status}");
+                Assert(result.ErrorMessage == "License key not found",
+                    $"the server's own message must reach the user, not the offline text, got '{result.ErrorMessage}'");
+            });
+
+            RunAsync("probe: a valid key is NOT stored by a probe", async () =>
+            {
+                var handler = new LicenceSeamReplyHandler(HttpStatusCode.OK,
+                    "{\"valid\":true,\"status\":\"active\",\"customer_id\":\"cus_seam_0738\"}");
+                using var service = new LicenseNetworkService(new HttpClient(handler));
+                var keyBefore = service.GetStoredLicenseKey();
+                var cachedBefore = service.GetCachedStatus();
+                Assert(keyBefore != licenceSeamProbeKey, "the probe key is already stored; this check would prove nothing");
+
+                var result = await service.ProbeLicenseAsync(licenceSeamProbeKey);
+                Assert(result.IsValid && result.Status == LicenseStatus.Active,
+                    $"the scripted valid reply must read as Active, got valid={result.IsValid} status={result.Status}");
+                Assert(service.GetStoredLicenseKey() == keyBefore,
+                    "a probe stored the key it checked; only an activation may");
+                Assert(service.GetCachedStatus() == cachedBefore,
+                    $"a probe wrote the validation cache ({cachedBefore} -> {service.GetCachedStatus()})");
+            });
+
+            RunAsync("probe: the request body carries probe_only and no device_id", async () =>
+            {
+                var handler = new LicenceSeamReplyHandler(HttpStatusCode.OK, "{\"valid\":true}");
+                using var service = new LicenseNetworkService(new HttpClient(handler));
+                await service.ProbeLicenseAsync("  " + licenceSeamProbeKey + "\n");
+                Assert(handler.Bodies.Count == 1, $"expected one request, sent {handler.Bodies.Count}");
+
+                using var body = JsonDocument.Parse(handler.Bodies[0]);
+                var root = body.RootElement;
+                Assert(root.TryGetProperty("probe_only", out var probeOnly) && probeOnly.ValueKind == JsonValueKind.True,
+                    $"the body must carry probe_only=true: {handler.Bodies[0]}");
+                Assert(root.TryGetProperty("license_key", out var sentKey) && sentKey.GetString() == licenceSeamProbeKey,
+                    $"the body must carry the trimmed key: {handler.Bodies[0]}");
+                Assert(!root.EnumerateObject().Any(p => p.Name.StartsWith("device", StringComparison.Ordinal)),
+                    $"a probe must send no device identity: {handler.Bodies[0]}");
+            });
+
+            // ValidateLicenseAsync's transient rule. This half needs a stored key with a
+            // cached verdict, so the first check seeds one through the real persist path
+            // and the finally clears it again.
+            const string licenceSeamStoredKey = "HW-EEEE-FFFF-GGGG-HHHH";
+            try
+            {
+                RunAsync("validate: a 200 valid reply stores the key and caches Active (seed for the transient checks)", async () =>
+                {
+                    var handler = new LicenceSeamReplyHandler(HttpStatusCode.OK,
+                        "{\"valid\":true,\"status\":\"active\",\"customer_id\":\"cus_seam_0738\"}");
+                    using var service = new LicenseNetworkService(new HttpClient(handler));
+                    var result = await service.ValidateLicenseAsync(licenceSeamStoredKey);
+                    Assert(result.IsValid && result.Status == LicenseStatus.Active,
+                        $"the scripted valid reply must read as Active, got valid={result.IsValid} status={result.Status}");
+                    Assert(service.GetStoredLicenseKey() == licenceSeamStoredKey, "an Active verdict must store the key");
+                    Assert(service.GetCachedStatus() == LicenseStatus.Active, "an Active verdict must be cached");
+                });
+
+                RunAsync("validate: a 429, a 500 and a timeout fall back to the stored key's cached verdict", async () =>
+                {
+                    var replies = new (string Label, LicenceSeamReplyHandler Handler)[]
+                    {
+                        ("429", new LicenceSeamReplyHandler(HttpStatusCode.TooManyRequests, "{\"valid\":false,\"error\":\"rate limited\"}")),
+                        ("500", new LicenceSeamReplyHandler(HttpStatusCode.InternalServerError, "{\"valid\":false,\"error\":\"boom\"}")),
+                        ("timeout", new LicenceSeamReplyHandler(async ct =>
+                        {
+                            await Task.Delay(Timeout.Infinite, ct);
+                            throw new InvalidOperationException("unreachable");
+                        })),
+                    };
+
+                    foreach (var (label, handler) in replies)
+                    {
+                        using var service = new LicenseNetworkService(
+                            new HttpClient(handler) { Timeout = TimeSpan.FromMilliseconds(200) });
+                        var result = await service.ValidateLicenseAsync(licenceSeamStoredKey);
+                        Assert(handler.Bodies.Count == 1, $"{label}: expected one request, sent {handler.Bodies.Count}");
+                        Assert(result.IsValid && result.Status == LicenseStatus.Active,
+                            $"{label}: a transient failure downgraded a paying user, got valid={result.IsValid} status={result.Status} message='{result.ErrorMessage}'");
+                        Assert(result.ErrorMessage == "Using cached license (offline)",
+                            $"{label}: expected the cached-offline verdict, got '{result.ErrorMessage}'");
+                        Assert(service.GetStoredLicenseKey() == licenceSeamStoredKey && service.GetCachedStatus() == LicenseStatus.Active,
+                            $"{label}: a transient failure must leave the stored key and its cache alone");
+                    }
+                });
+
+                RunAsync("validate: offline, a key that is not the stored one gets no cached verdict", async () =>
+                {
+                    var handler = new LicenceSeamReplyHandler(HttpStatusCode.TooManyRequests, "{\"valid\":false,\"error\":\"rate limited\"}");
+                    using var service = new LicenseNetworkService(new HttpClient(handler));
+                    var result = await service.ValidateLicenseAsync(licenceSeamProbeKey);
+                    Assert(handler.Bodies.Count == 1, $"expected one request, sent {handler.Bodies.Count}");
+                    Assert(!result.IsValid && result.Status == LicenseStatus.Invalid && result.ErrorMessage == licenceSeamOfflineMessage,
+                        $"a different key inherited the stored key's verdict: valid={result.IsValid} status={result.Status} message='{result.ErrorMessage}'");
+                    Assert(service.GetStoredLicenseKey() == licenceSeamStoredKey && service.GetCachedStatus() == LicenseStatus.Active,
+                        "an unverified replacement key must leave the stored key and its cache alone");
+                });
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(licenceSeamPreviousContext);
+                using var cleanup = new LicenseNetworkService(new HttpClient());
+                if (cleanup.GetStoredLicenseKey() == licenceSeamStoredKey)
+                {
+                    cleanup.ClearStoredLicense();
+                }
+            }
 
             Console.WriteLine(_failures == 0
                 ? "All smoke tests passed."
@@ -24240,6 +27330,39 @@ internal static class Program
             Console.Error.WriteLine($"  FAIL {name}");
             Console.Error.WriteLine($"       {ex}");
         }
+    }
+
+    /// <summary>
+    /// Every method a method body calls (call/callvirt/newobj), read from its IL.
+    /// A byte that only looks like a call opcode resolves to nothing and is skipped.
+    /// </summary>
+    private static List<MethodBase> CalledMethods(MethodInfo method)
+    {
+        var il = method.GetMethodBody()?.GetILAsByteArray() ?? Array.Empty<byte>();
+        var found = new List<MethodBase>();
+        for (var i = 0; i + 4 < il.Length; i++)
+        {
+            if (il[i] is not (0x28 or 0x6F or 0x73))
+                continue;
+
+            var token = BitConverter.ToInt32(il, i + 1);
+            if ((token >> 24) is not (0x06 or 0x0A or 0x2B))
+                continue;
+
+            try
+            {
+                var target = method.Module.ResolveMethod(token,
+                    method.DeclaringType?.GetGenericArguments(), method.GetGenericArguments());
+                if (target != null)
+                    found.Add(target);
+            }
+            catch (Exception)
+            {
+                // Not a method token at this offset (or one this process cannot load).
+            }
+        }
+
+        return found;
     }
 
     private static void RunAsync(string name, Func<Task> check)
@@ -24917,7 +28040,7 @@ internal static class Program
     /// try/catch: a stray byte pair can only resolve to some unrelated member,
     /// so a hit on the exact target is a real call site (#1534).
     /// </summary>
-    private static bool AsyncBodyCalls(MethodInfo method, MethodInfo target)
+    internal static bool AsyncBodyCalls(MethodInfo method, MethodInfo target)
     {
         const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
         var body = method;
@@ -25681,6 +28804,113 @@ internal static class Program
         }
     }
 
+    private const string RoutedTestKey = "test-key";
+
+    /// <summary>
+    /// #1421: one call to HyperWhisperRoutedTranscriptionClient with a scripted
+    /// response and an explicit identity. Returns the handler (what went on the
+    /// wire) and the exception, if any.
+    /// </summary>
+    private static async Task<(RoutedCaptureHandler Handler, Exception? Error)> RunRoutedAsync(
+        string sttProvider, string? model, HttpStatusCode status, string body, bool licensed = true)
+    {
+        var handler = new RoutedCaptureHandler(() => new HttpResponseMessage(status)
+        {
+            Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json")
+        });
+        var wav = Path.Combine(Path.GetTempPath(), $"hw-routed-{Guid.NewGuid():N}.wav");
+        await File.WriteAllBytesAsync(wav, new byte[1024]);
+        try
+        {
+            using var client = new HttpClient(handler);
+            await HyperWhisperRoutedTranscriptionClient.TranscribeAsync(
+                client, sttProvider, "Routed test", wav, language: "en", vocabulary: null,
+                CancellationToken.None, model: model, identity: (RoutedTestKey, licensed));
+            return (handler, null);
+        }
+        catch (Exception ex)
+        {
+            return (handler, ex);
+        }
+        finally
+        {
+            File.Delete(wav);
+        }
+    }
+
+    private sealed class RoutedCaptureHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpResponseMessage> _respond;
+        private readonly Dictionary<string, string> _headers = new(StringComparer.OrdinalIgnoreCase);
+        public int Sends;
+        public Uri? LastRequestUri;
+
+        public RoutedCaptureHandler(Func<HttpResponseMessage> respond) => _respond = respond;
+
+        public string? Header(string name) => _headers.TryGetValue(name, out var v) ? v : null;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Sends++;
+            LastRequestUri = request.RequestUri;
+            _headers.Clear();
+            foreach (var h in request.Headers.Concat(request.Content?.Headers ?? Enumerable.Empty<KeyValuePair<string, IEnumerable<string>>>()))
+                _headers[h.Key] = string.Join(",", h.Value);
+            return Task.FromResult(_respond());
+        }
+    }
+
+    private const string ScriptedEndpointModel = "m-741";
+
+    /// <summary>
+    /// Issue #741. Runs one <see cref="PostProcessingService.ProcessAsync"/> on a
+    /// custom endpoint whose only reply is <paramref name="reply"/>, and returns
+    /// what came back plus every toast the service raised. The endpoint lives in
+    /// an empty endpoint list that is put back afterwards.
+    /// </summary>
+    private static async Task<(PostProcessingResult Result, List<ErrorToastEventArgs> Toasts, CapturingHandler Handler, string ProviderString)>
+        ProcessThroughScriptedEndpointAsync(
+            string transcript,
+            Func<HttpResponseMessage> reply,
+            CancellationToken cancellationToken = default)
+    {
+        // ProcessAsync reads the vocabulary table for the prompt, so the suite's
+        // scratch database must exist even when this runs before any DB check.
+        await DatabaseInitializer.InitializeAsync();
+
+        var settings = SettingsService.Instance;
+        var saved = settings.CustomEndpoints;
+        settings.CustomEndpoints = new List<CustomPostProcessingEndpoint>();
+        try
+        {
+            var endpoint = CustomEndpointManager.Instance.AddEndpoint(
+                "Percy #741", "https://percy.example.com/v1/chat/completions", ScriptedEndpointModel, out var error);
+            Assert(endpoint is not null, $"the fixture endpoint should save, got '{error}'");
+
+            var handler = new CapturingHandler { Next = reply };
+            var toasts = new List<ErrorToastEventArgs>();
+            // The service owns and disposes the client it is given.
+            using var service = new PostProcessingService(
+                new HttpClient(handler), new LocalLlmModelService(), new LocalLlmService());
+            service.WarningOccurred += (_, e) => toasts.Add(e);
+
+            var mode = new Mode
+            {
+                Name = "Smoke",
+                PostProcessingMode = 1,
+                PostProcessingProvider = endpoint!.ProviderString,
+            };
+            // A fixed context, so the prompt never reads the CI runner's foreground window.
+            var context = new ApplicationContext { ProcessName = "notepad", WindowTitle = "Untitled - Notepad" };
+            var result = await service.ProcessAsync(transcript, mode, context, cancellationToken);
+            return (result, toasts, handler, endpoint.ProviderString);
+        }
+        finally
+        {
+            settings.CustomEndpoints = saved;
+        }
+    }
+
     private sealed class CapturingHandler : HttpMessageHandler
     {
         public Func<HttpResponseMessage>? Next;
@@ -25746,6 +28976,58 @@ internal static class Program
                 Content = new StringContent(body.ToJsonString(), System.Text.Encoding.UTF8, "application/json")
             };
         }
+    }
+
+    /// <summary>
+    /// Scripted Hugging Face for <c>ParakeetModelService.DownloadModelAsync</c> (#1782):
+    /// records every URL it was asked for and answers each from <c>respond</c>.
+    /// </summary>
+    private sealed class HuggingFaceStubHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, CancellationToken, HttpResponseMessage> _respond;
+        public List<string> Requested { get; } = new();
+
+        public HuggingFaceStubHandler(Func<HttpRequestMessage, CancellationToken, HttpResponseMessage> respond) => _respond = respond;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Requested.Add(request.RequestUri!.ToString());
+            return Task.FromResult(_respond(request, cancellationToken));
+        }
+    }
+
+    /// <summary>A Hugging Face tree API page: one <c>{type, path}</c> entry per item.</summary>
+    private static HttpResponseMessage TreeJson(params (string Type, string Path)[] entries)
+    {
+        var page = new JsonArray(entries.Select(e => (JsonNode)new JsonObject { ["type"] = e.Type, ["path"] = e.Path }).ToArray());
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(page.ToJsonString(), System.Text.Encoding.UTF8, "application/json")
+        };
+    }
+
+    /// <summary>
+    /// Issue #1036: a <see cref="HyperWhisperCloudService"/> on a fake clock
+    /// (<see cref="Now"/>), whose every HttpClient (the first one and each DNS
+    /// rebuild) sends through one <see cref="StubHandler"/>.
+    /// <see cref="ClientsBuilt"/> counts the factory calls, so 2 means one rebuild.
+    /// </summary>
+    private sealed class CloudConnectionRig : IDisposable
+    {
+        public DateTime Now = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        public int ClientsBuilt;
+        public readonly StubHandler Handler;
+        public readonly HyperWhisperCloudService Service;
+
+        public CloudConnectionRig(Func<CancellationToken, Task<HttpResponseMessage>> respond)
+        {
+            Handler = new StubHandler(respond);
+            Service = new HyperWhisperCloudService(
+                () => { Interlocked.Increment(ref ClientsBuilt); return new HttpClient(Handler, disposeHandler: false); },
+                () => Now);
+        }
+
+        public void Dispose() => Service.Dispose();
     }
 
     /// <summary>
@@ -26038,7 +29320,7 @@ internal static class Program
         public void Delete(string resource, string account) => _values.Remove(account);
     }
 
-    private sealed class InMemoryCredentialBackend : IWindowsCredentialBackend
+    internal sealed class InMemoryCredentialBackend : IWindowsCredentialBackend
     {
         public string? StoredValue { get; private set; }
         public bool ThrowOnRead { get; set; }
@@ -26932,4 +30214,31 @@ internal static class Win32ManifestReader
     [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
     [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
     private static extern bool FreeLibrary(IntPtr hModule);
+}
+
+/// <summary>
+/// Issue #738: the scripted server behind LicenseNetworkService's HttpClient seam.
+/// Records every request body it is sent, then answers with the scripted reply,
+/// which may also hang on the token so the client's own timeout fires.
+/// </summary>
+internal sealed class LicenceSeamReplyHandler : HttpMessageHandler
+{
+    private readonly Func<CancellationToken, Task<HttpResponseMessage>> _reply;
+    public readonly List<string> Bodies = new();
+
+    public LicenceSeamReplyHandler(Func<CancellationToken, Task<HttpResponseMessage>> reply) => _reply = reply;
+
+    public LicenceSeamReplyHandler(HttpStatusCode status, string json)
+        : this(_ => Task.FromResult(new HttpResponseMessage(status)
+        {
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
+        }))
+    {
+    }
+
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        Bodies.Add(request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken));
+        return await _reply(cancellationToken);
+    }
 }

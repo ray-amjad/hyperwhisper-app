@@ -12,9 +12,9 @@
  * file that imports the route path itself would bind to the real
  * collaborators, so do not.
  */
-import { mock } from "node:test";
-
 import { NextRequest } from "next/server";
+
+import { moduleMock, moduleUrl } from "./module-mock";
 
 /** Made-up bearer value. Only the fake env below holds it. */
 export const OUTRANK_BEARER = "outrank-bearer-for-tests";
@@ -66,25 +66,6 @@ export function resetHarness(): void {
   delete dbHandlers.select;
   delete dbHandlers.insert;
 }
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
-
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrow the tracker to the one method used here rather
- * than bumping the types in a test-only change.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports: Record<string, unknown> },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
 
 function recordDb(method: "select" | "insert") {
   return (...args: unknown[]) => {

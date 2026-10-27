@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Functies",
-    "pricing": "Prijzen",
     "faq": "FAQ",
     "support": "Support",
     "download": "Download",
@@ -20,7 +19,6 @@
     "githubAria": "Bekijk HyperWhisper op GitHub"
   },
   "hero": {
-    "openSourceBadge": "Open source · Apache-2.0",
     "logoAlt": "HyperWhisper-logo",
     "headline": "Schrijf, composeer en creëer",
     "headlineAccent": "5x sneller met AI",
@@ -28,7 +26,7 @@
     "downloadCta": "Nu downloaden",
     "demoCta": "Demo bekijken",
     "availableOn": "Beschikbaar op",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -98,57 +96,6 @@
     "languagesSupported": "Ondersteunde talen",
     "providersSupported": "Ondersteunde providers"
   },
-  "pricing": {
-    "title": "Geen abonnementen. Ooit.",
-    "subtitle": "Betaal één keer, gebruik voor altijd. Wij haten abonnementen ook.",
-    "guarantee": "14 dagen geld-terug-garantie",
-    "guaranteeExtended": "als je niet volledig tevreden bent.",
-    "learnMore": "Meer informatie",
-    "free": {
-      "name": "Gratis",
-      "price": "$0",
-      "period": "voor altijd",
-      "description": "Perfect om HyperWhisper uit te proberen",
-      "cta": "Gratis downloaden",
-      "features": {
-        "transcriptionLimit": "5 minuten transcriptie per dag",
-        "basicModes": "Basis transcriptiemodi",
-        "offlineTranscription": "Offline transcriptie",
-        "apiTranscription": "API-transcriptie (gebruik je eigen sleutels)",
-        "postProcessing": "Tekstnabewerking",
-        "providers": "9+ providers om uit te kiezen",
-        "lifetimeUpdates": "Levenslange updates",
-        "cloudLimited": "HyperWhisper Cloud (beperkt gebruik)",
-        "customVocabulary": "Aangepaste woordenschat",
-        "prioritySupport": "Prioritaire support"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "levenslang",
-      "description": "Eenmalige aankoop, onbeperkte kracht voor altijd",
-      "cta": "Nu kopen - Levenslange toegang",
-      "mostPopular": "Meest populair",
-      "features": {
-        "unlimitedTranscription": "Onbeperkte transcriptie",
-        "allModes": "Alle transcriptiemodi",
-        "offlineTranscription": "Offline transcriptie",
-        "apiTranscription": "API-transcriptie (gebruik je eigen sleutels)",
-        "postProcessing": "Tekstnabewerking",
-        "providers": "9+ providers om uit te kiezen",
-        "lifetimeUpdates": "Levenslange updates",
-        "cloudCredits": "HyperWhisper Cloud ($5 aan credits)",
-        "customVocabulary": "Aangepaste woordenschat",
-        "prioritySupport": "Prioritaire support"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise & maatwerkprijzen",
-      "description": "Volumekorting, SSO, prioritaire support, interne hosting en maatwerkintegraties",
-      "cta": "Contact opnemen met sales"
-    }
-  },
   "faq": {
     "title": "Veelgestelde vragen",
     "subtitle": "Alles wat je moet weten over HyperWhisper",
@@ -192,7 +139,7 @@
       },
       "lifetime": {
         "question": "Is er een abonnement?",
-        "answer": "Nee — nooit. HyperWhisper is een open-source app die je bezit, geen abonnement dat je huurt. Download hem gratis en gebruik lokale, offline transcriptie voor altijd kosteloos; de gratis versie bevat ook 5 minuten cloudtranscriptie per dag. Wil je daarbovenop cloudtranscriptie zonder installatie, dan biedt HyperWhisper Cloud eenvoudige pay-as-you-go-credits — vul alleen op wanneer je dat nodig hebt, zonder maandelijkse kosten en niets om op te zeggen."
+        "answer": "Nee — nooit. HyperWhisper is een open-source app die je bezit, geen abonnement dat je huurt. Download hem gratis en gebruik lokale, offline transcriptie voor altijd kosteloos. Wil je cloudtranscriptie zonder installatie, dan biedt HyperWhisper Cloud eenvoudige pay-as-you-go-credits — vul alleen op wanneer je dat nodig hebt, zonder maandelijkse kosten en niets om op te zeggen."
       },
       "deviceLimit": {
         "question": "Op hoeveel apparaten kan ik mijn accountsleutel gebruiken?",
@@ -200,7 +147,7 @@
       },
       "requirements": {
         "question": "Wat zijn de systeemvereisten?",
-        "answer": "Voor Mac: macOS 14 of nieuwer, zowel Apple Silicon als Intel ondersteund. Voor Windows: Windows 10/11, x64 of ARM64. Voor Linux v1: Ubuntu 22.04 of nieuwer of Debian 12 of nieuwer op amd64. 8GB RAM aanbevolen voor optimale prestaties."
+        "answer": "Voor Mac: macOS 14.6 of nieuwer, zowel Apple Silicon als Intel ondersteund. Voor Windows: Windows 10/11, x64 of ARM64. Voor Linux v1: Ubuntu 22.04 of nieuwer of Debian 12 of nieuwer op amd64. 8GB RAM aanbevolen voor optimale prestaties."
       },
       "madeBy": {
         "question": "Door wie is dit gemaakt?",
@@ -252,10 +199,7 @@
     "downloadButton": "Download HyperWhisper",
     "errorGeneric": "Er is iets misgegaan. Probeer het opnieuw.",
     "errorEmail": "Voer een geldig e-mailadres in.",
-    "errorNetwork": "Netwerkfout. Controleer je verbinding en probeer opnieuw.",
-    "thankYouTitle": "Bedankt!",
     "downloadStarted": "Je download zou automatisch moeten starten.",
-    "manualDownload": "Is de download niet gestart? Klik hier",
     "skipAndDownloadButton": "Overslaan en downloaden"
   },
   "downloadPage": {
@@ -324,10 +268,10 @@
       "download": "Download",
       "roadmap": "Roadmap",
       "helpCenter": "Helpcentrum",
-      "manageBilling": "Facturering beheren",
       "customerPortal": "Klantportaal",
       "olderVersions": "Oudere versies",
       "blog": "Blog",
+      "openSource": "Open source",
       "about": "Over",
       "support": "Support",
       "privacyPolicy": "Privacybeleid",
@@ -409,6 +353,25 @@
     "custom": "Aangepast",
     "customSub": "jouw bedrag",
     "topUp": "Bijvullen"
+  },
+  "licenseKeysCard": {
+    "rotate": "Sleutel vernieuwen",
+    "confirmTitle": "Deze accountsleutel vernieuwen?",
+    "confirmBody": "Je krijgt een nieuwe sleutel en deze werkt direct niet meer. Elk apparaat dat de oude sleutel gebruikt, heeft de nieuwe nodig: voer die op elk apparaat in HyperWhisper in. Je credits, abonnement en aankoopgeschiedenis blijven bij je account. Je wordt ook afgemeld bij deze website in je andere browsers.",
+    "confirm": "Sleutel vernieuwen",
+    "cancel": "Annuleren",
+    "rotating": "Vernieuwen…",
+    "rotated": "Sleutel vernieuwd. Voer de nieuwe sleutel op elk van je apparaten in HyperWhisper in.",
+    "errorRateLimited": "Te vaak vernieuwd. Probeer het later opnieuw.",
+    "errorStale": "Deze sleutel is al vernieuwd. De huidige sleutel staat hierboven.",
+    "errorGeneric": "De sleutel kon niet worden vernieuwd. Probeer het opnieuw.",
+    "verifyTitle": "Bevestig via e-mail dat jij het bent",
+    "verifyBody": "Bevestig eerst via e-mail dat jij het bent om je sleutel te vernieuwen. We sturen een inloglink naar het e-mailadres van je account. Open die en vernieuw daarna de sleutel vanaf deze pagina.",
+    "sendLink": "Stuur me een inloglink",
+    "sendingLink": "Versturen…",
+    "linkSent": "Inloglink verstuurd. Open hem vanuit je inbox en vernieuw daarna de sleutel.",
+    "linkFailed": "Kan de inloglink niet versturen. Probeer het opnieuw.",
+    "errorUnavailable": "Deze sleutel kan niet meer worden vernieuwd. De huidige status staat hierboven."
   },
   "openSource": {
     "heading": "Open source. Niets te verbergen.",

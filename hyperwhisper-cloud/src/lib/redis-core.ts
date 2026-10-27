@@ -16,13 +16,15 @@
 // which says why a raw Upstash error is a credential leak.
 
 import { LICENSE_CACHE_TTL_SECONDS } from './constants';
+import { WRITE_POOL_BALANCE_SCRIPT, creditPoolBalanceKey, type CreditPoolBalanceEntry } from './credit-hold-store';
 import { toRedactedLogLine } from './log-redaction';
 import { isRecord } from './utils';
 
-/** The two Upstash commands this module uses. */
+/** The three Upstash commands this module uses. */
 export interface RedisStore {
   get<TData = unknown>(key: string): Promise<TData | null>;
   set(key: string, value: unknown, opts: { ex: number }): Promise<unknown>;
+  eval<TArgs extends unknown[], TData = unknown>(script: string, keys: string[], args: TArgs): Promise<TData>;
 }
 
 /**
@@ -66,13 +68,27 @@ export interface CachedLicense {
   isValid: boolean;
   credits: number;
   cachedAt: string;
+  /**
+   * The licence API's opaque `credit_pool_id` (#2026): the user the key's
+   * credits belong to, which credit holds are counted per. Absent when the API
+   * sent none; holds are then per key.
+   */
+  creditPoolId?: string;
+  /**
+   * Epoch ms taken just BEFORE the licence API request whose reply this is was
+   * sent (#2026). Orders writes of the pool balance, which several requests
+   * race to write (see `WRITE_POOL_BALANCE_SCRIPT`), and of this entry itself
+   * (#1899, see `WRITE_LICENSE_SCRIPT`).
+   */
+  issuedAtMs?: number;
 }
 
 function isCachedLicense(value: unknown): value is CachedLicense {
   if (!isRecord(value)) return false;
   return typeof value.isValid === 'boolean'
     && typeof value.credits === 'number'
-    && typeof value.cachedAt === 'string';
+    && typeof value.cachedAt === 'string'
+    && (value.creditPoolId === undefined || typeof value.creditPoolId === 'string');
 }
 
 export async function getCachedLicense(
@@ -96,14 +112,119 @@ export async function getCachedLicense(
   }
 }
 
+// KEYS: license:<key>. ARGV: entry JSON, ttl seconds, issuedAtMs. Returns 1 if
+// written.
+//
+// The entry from whichever licence API call was ASKED last wins, not whichever
+// reply got here last (#1899). Validation, the usage read and every charge
+// reply all write this one entry, and they race: a slow success to a charge
+// sent before a revoke would otherwise rewrite the refusal as "valid" and admit
+// the key for a whole TTL (and a request that never charges, such as silent
+// audio, never corrects it). A slow refusal to a call sent before a re-grant is
+// dropped the same way. A tie (two calls asked in the same millisecond, so
+// either could be the later verdict) never replaces a stored refusal: the safe
+// side, as a revoke beats a charge sent the same instant. Any other tie is
+// written. A stored entry with no stamp, or one that does not parse, is
+// replaced. One script, so no reply can land between the read and the write.
+export const WRITE_LICENSE_SCRIPT = `
+local incomingIssued = tonumber(ARGV[3])
+local raw = redis.call('GET', KEYS[1])
+if raw and incomingIssued then
+  local ok, stored = pcall(function() return cjson.decode(raw) end)
+  if ok and type(stored) == 'table' and type(stored.issuedAtMs) == 'number' then
+    if stored.issuedAtMs > incomingIssued then return 0 end
+    if stored.issuedAtMs == incomingIssued and stored.isValid == false then return 0 end
+  end
+end
+redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2])
+return 1
+`;
+
 export async function cacheLicense(
   store: RedisStoreFactory,
   licenseKey: string,
-  license: CachedLicense
+  license: CachedLicense,
+  receivedAtMs: number = Date.now(),
 ): Promise<void> {
   try {
-    await store().set(`license:${licenseKey}`, license, { ex: LICENSE_CACHE_TTL_SECONDS });
+    const redis = store();
+    // Every caller stamps its write; an unstamped one (a machine still on an
+    // older build mid-deploy) keeps the plain last-write-wins `set` it had.
+    const writes: Array<Promise<unknown>> = [
+      license.issuedAtMs !== undefined
+        ? redis.eval(
+          WRITE_LICENSE_SCRIPT,
+          [`license:${licenseKey}`],
+          [JSON.stringify(license), String(LICENSE_CACHE_TTL_SECONDS), String(license.issuedAtMs)],
+        )
+        : redis.set(`license:${licenseKey}`, license, { ex: LICENSE_CACHE_TTL_SECONDS }),
+    ];
+    // A pooled key's balance is the USER's (#2026), so it is also the latest
+    // word on every other key of that user. The credit-hold script caps a
+    // pooled reservation by this entry too, or a key whose own cache predates
+    // a sibling's spend would reserve the spent credits again. The write is a
+    // compare-and-set on when the site was asked, not last-write-wins: a slow
+    // reply to an older request must not replace a newer, lower balance.
+    if (license.creditPoolId) {
+      const entry: CreditPoolBalanceEntry = {
+        credits: license.credits,
+        cachedAt: license.cachedAt,
+        ...(license.issuedAtMs !== undefined ? { issuedAtMs: license.issuedAtMs, receivedAtMs } : {}),
+      };
+      writes.push(redis.eval(
+        WRITE_POOL_BALANCE_SCRIPT,
+        [creditPoolBalanceKey(license.creditPoolId)],
+        [
+          JSON.stringify(entry),
+          String(LICENSE_CACHE_TTL_SECONDS),
+          String(license.credits),
+          license.issuedAtMs !== undefined ? String(license.issuedAtMs) : '',
+          String(receivedAtMs),
+        ],
+      ));
+    }
+    await Promise.all(writes);
   } catch (error) {
     console.error('Failed to cache license:', toRedactedLogLine(error, { licenseKey }));
+  }
+}
+
+/**
+ * Mark a key's cached verdict REFUSED, now, for the full TTL: the site rotated
+ * (replaced) the key, so it must stop admitting requests before the hour its
+ * last "valid" entry would otherwise live. Called by
+ * `POST /internal/license-cache/invalidate`, which only the site can call.
+ *
+ * Why write a refusal instead of deleting the entry: a licence API call ASKED
+ * before the rotation can still be in flight. On a delete its slow "valid"
+ * reply would land in an empty slot and admit the old key for another hour.
+ * Through `WRITE_LICENSE_SCRIPT`, stamped with now, this refusal is newer than
+ * any such reply, so the compare-and-set drops it (#1899's ordering rule).
+ *
+ * Unlike `cacheLicense`, this reports failure (`false`) instead of swallowing
+ * it, so the caller can answer non-2xx and the site can log that the cloud
+ * still holds the old verdict.
+ */
+export async function invalidateCachedLicense(
+  store: RedisStoreFactory,
+  licenseKey: string,
+  nowMs: number = Date.now(),
+): Promise<boolean> {
+  const entry: CachedLicense = {
+    isValid: false,
+    credits: 0,
+    cachedAt: new Date(nowMs).toISOString(),
+    issuedAtMs: nowMs,
+  };
+  try {
+    await store().eval(
+      WRITE_LICENSE_SCRIPT,
+      [`license:${licenseKey}`],
+      [JSON.stringify(entry), String(LICENSE_CACHE_TTL_SECONDS), String(nowMs)],
+    );
+    return true;
+  } catch (error) {
+    console.error('Failed to invalidate cached license:', toRedactedLogLine(error, { licenseKey }));
+    return false;
   }
 }

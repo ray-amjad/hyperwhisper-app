@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
-using System.Runtime.InteropServices;
 using System.Windows.Media;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Localization;
@@ -19,12 +18,6 @@ namespace HyperWhisper.Views.Windows;
 
 public partial class MainWindow : Window
 {
-    private const int DwmwaUseImmersiveDarkMode = 20;
-    private const int DwmwaWindowCornerPreference = 33;
-    private const int DwmwaSystemBackdropType = 38;
-    private const int DwmWindowCornerPreferenceRound = 2;
-    private const int DwmSystemBackdropTypeMica = 2;
-
     private readonly MainViewModel _viewModel;
     private RecordingOverlayWindow? _recordingOverlay;
     private FileTranscriptionProgressWindow? _fileProgressWindow;
@@ -94,6 +87,7 @@ public partial class MainWindow : Window
         _viewModel.StreamingConnectionStateChanged += (s, state) => Dispatcher.Invoke(() =>
             _recordingOverlay?.UpdateStreamingConnectionState(state));
         _viewModel.HideOverlayRequested += (s, e) => Dispatcher.Invoke(() => _recordingOverlay?.Hide());
+        _viewModel.HideOverlayAfterHoldRequested += (s, hold) => Dispatcher.Invoke(() => _recordingOverlay?.HideAfter(hold));
         _viewModel.ShowTranscribingRequested += (s, e) => Dispatcher.Invoke(() =>
         {
             // Show transcribing state even if recording window was hidden
@@ -152,21 +146,8 @@ public partial class MainWindow : Window
         });
         _viewModel.UpdateFileProgressRequested += (s, progress) => Dispatcher.Invoke(() =>
         {
-            // Smart animation duration based on progress delta
-            float progressDelta = Math.Abs(progress - (_fileProgressWindow?.CurrentProgress ?? 0f));
-
-            double duration = progressDelta switch
-            {
-                < 0.05f => 0.3,  // Small jumps: quick (0.3s)
-                < 0.20f => 1.0,  // Medium jumps: moderate (1s)
-                _ => 60.0        // Large jumps (transcribing): slow (60s)
-            };
-
-            // Only the transcribing ramp waits on a job with no real progress, so a job
-            // that outlasts it turns the bar indeterminate instead of sitting at 80% (#1911)
-            bool thenIndeterminate = progress == MainViewModel.FileTranscribingRampTarget;
-
-            _fileProgressWindow?.AnimateProgress(progress, duration, thenIndeterminate);
+            // The window picks the duration: a slow ramp only while transcribing (#1911, #1924)
+            _fileProgressWindow?.AnimateStep(progress);
         });
 
         InitializeSystemTray();
@@ -295,30 +276,7 @@ public partial class MainWindow : Window
         await shutdownTask;
     }
 
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int pvAttribute, int cbAttribute);
-
-    private void ApplyMacStyleWindowBackdrop()
-    {
-        try
-        {
-            var hwnd = new WindowInteropHelper(this).Handle;
-            if (hwnd == IntPtr.Zero) return;
-
-            var darkMode = ThemeService.Instance.IsDarkMode ? 1 : 0;
-            _ = DwmSetWindowAttribute(hwnd, DwmwaUseImmersiveDarkMode, ref darkMode, Marshal.SizeOf<int>());
-
-            var cornerPreference = DwmWindowCornerPreferenceRound;
-            _ = DwmSetWindowAttribute(hwnd, DwmwaWindowCornerPreference, ref cornerPreference, Marshal.SizeOf<int>());
-
-            var backdropType = DwmSystemBackdropTypeMica;
-            _ = DwmSetWindowAttribute(hwnd, DwmwaSystemBackdropType, ref backdropType, Marshal.SizeOf<int>());
-        }
-        catch (Exception ex)
-        {
-            LoggingService.Debug($"MainWindow: Native backdrop unavailable: {ex.Message}");
-        }
-    }
+    private void ApplyMacStyleWindowBackdrop() => WindowBackdrop.ApplyMacStyle(this, nameof(MainWindow));
 
     private void OnThemeChanged(object? sender, bool isDarkMode) => Dispatcher.Invoke(ApplyMacStyleWindowBackdrop);
 
@@ -654,7 +612,8 @@ public partial class MainWindow : Window
                 }
 
                 if (e.PropertyName == nameof(MainViewModel.AudioDevices) ||
-                    e.PropertyName == nameof(MainViewModel.SelectedAudioDevice))
+                    e.PropertyName == nameof(MainViewModel.SelectedAudioDevice) ||
+                    e.PropertyName == nameof(MainViewModel.MicrophoneResolution))
                 {
                     Dispatcher.Invoke(RefreshMicrophoneMenu);
                 }
@@ -862,9 +821,34 @@ public partial class MainWindow : Window
             return;
         }
 
+        // The same rows as Settings -> Sound, from the same saved choice: "Default ·
+        // <Windows default>" first (checked when nothing is saved), then each
+        // device (checked when it is the saved one and connected). A saved device
+        // that is unplugged checks nothing here; Settings shows "(not connected)".
+        var resolution = _viewModel.MicrophoneResolution;
+        var followsDefault = resolution == null || resolution.Source == MicrophoneSource.SystemDefault;
+        var defaultLabel = MicrophoneSelection.DefaultLabel(resolution?.DefaultDevice?.Name);
+        var defaultItem = new System.Windows.Forms.ToolStripMenuItem(MenuItemText.Bound(defaultLabel))
+        {
+            ToolTipText = MenuItemText.Tooltip(defaultLabel),
+            Checked = followsDefault,
+            Enabled = !IsOnboardingOpen,
+        };
+        defaultItem.Click += (s, e) =>
+        {
+            if (!_viewModel.SelectMicrophone(null))
+                return;
+
+            LoggingService.Info("System tray: Microphone set to follow the Windows default");
+        };
+        _microphoneMenu.DropDownItems.Add(defaultItem);
+        _microphoneMenu.DropDownItems.Add(new System.Windows.Forms.ToolStripSeparator());
+
         foreach (var device in devices)
         {
-            bool isSelected = selectedDevice != null && selectedDevice.DeviceNumber == device.DeviceNumber;
+            bool isSelected = resolution?.Source == MicrophoneSource.Saved
+                && selectedDevice != null
+                && selectedDevice.DeviceNumber == device.DeviceNumber;
 
             // A device name comes from its driver, not from us, and nothing caps
             // it either — same submenu, same Win32 constraint, so it is bounded

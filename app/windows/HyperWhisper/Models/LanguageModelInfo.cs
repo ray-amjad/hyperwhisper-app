@@ -105,7 +105,7 @@ public class LanguageModelInfo
         // Mistral Models
         // Fast, multilingual models via OpenAI-compatible endpoint
         new("mistral-small-latest", "Mistral Small", PostProcessingProvider.Mistral, "Fast, multilingual"),
-        new("mistral-medium-3.5", "Mistral Medium 3.5", PostProcessingProvider.Mistral, "High quality, multilingual, balanced cost"),
+        new("mistral-medium-3-5", "Mistral Medium 3.5", PostProcessingProvider.Mistral, "High quality, multilingual, balanced cost"),
 
         // Cerebras Models
         // Ultra-fast inference on custom silicon
@@ -200,6 +200,9 @@ public class LanguageModelInfo
         // Mistral: open-mistral-nemo weights retired 2026-07-31 → mistral-small-latest
         // (the redirect used on macOS).
         "open-mistral-nemo" => "mistral-small-latest",
+        // Mistral's API id is mistral-medium-3-5 (#2200); the dotted id the picker
+        // used to save is not a Mistral model id.
+        "mistral-medium-3.5" => "mistral-medium-3-5",
         // Local LLM: migrated from Qwen 3.5 to Gemma 4 (matches macOS).
         "Qwen3.5-4B-Q4_K_M.gguf" => "gemma-4-E2B-it-Q4_K_M.gguf",
         "Qwen3.5-9B-Q4_K_M.gguf" => "gemma-4-E4B-it-Q4_K_M.gguf",

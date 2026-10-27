@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { stripe } from "@/lib/clients/stripe";
+import { stripeCustomerBelongsTo } from "@/lib/services/stripe-customer";
 import { findAccountByKey, updateAccountKey } from "@/src/lib/db-layer";
 import { isRecord } from "@/src/lib/type-guards";
 import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
-import { describeDbError, safeErrorMessage } from "@/lib/shared/db-error";
+import { describeDbError } from "@/lib/shared/db-error";
 import { checkoutRateLimiter } from "@/lib/rate-limit";
 import { rateLimitGate } from "@/lib/rate-limit-gate";
 import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
@@ -170,9 +171,21 @@ export async function POST(req: NextRequest) {
       }
 
       metadata.license_key = normalizedLicenseKey;
+      // The webhook resolves the top-up by this id first: the key string can
+      // be rotated while the Stripe page is open, the row id cannot.
+      metadata.account_key_id = license.id;
 
       // Find or create the Stripe customer by email and cache it on the license.
+      // The cached customer is reused only while it still belongs to the
+      // license's email: after an admin email move it is the OLD address's
+      // customer, and billing it sends the receipt there (#2460).
       stripeCustomerId = license.stripeCustomerId ?? undefined;
+      if (
+        stripeCustomerId &&
+        !(await stripeCustomerBelongsTo(stripeCustomerId, email))
+      ) {
+        stripeCustomerId = undefined;
+      }
       if (!stripeCustomerId) {
         const existingCustomers = await stripe.customers.list({
           email,
@@ -263,12 +276,12 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Credit checkout error:", describeDbError(error));
 
+    // No `details`: the throw's own message stays in the server log above. A
+    // DB error's message is its SQL plus the bound key and email (#1049), and a
+    // Stripe error's names the customer id and the key mode (#2311). No caller
+    // reads the field.
     return NextResponse.json(
-      {
-        error: "Failed to create checkout session",
-        // A DB error's message is its SQL plus the bound key and email (#1049).
-        details: safeErrorMessage(error, "Unknown error"),
-      },
+      { error: "Failed to create checkout session" },
       { status: 500 }
     );
   }

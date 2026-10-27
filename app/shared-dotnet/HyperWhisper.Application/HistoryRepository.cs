@@ -37,6 +37,18 @@ public sealed class HistoryRepository : ITranscriptionHistoryStore, ITranscripti
 {
     private readonly ApplicationDb _database;
     private readonly string? _recordingsRoot;
+    private static long s_writeGeneration;
+
+    /// <summary>
+    /// Moves on every committed transcript write, through any repository instance: the workflow,
+    /// the recording session, the Local API, retry and crash recovery each build their own, and
+    /// not all of them tell History to reload. History compares it to the value it read before its
+    /// last load, so a revisit can tell whether its rows are still the table (#2099). One app
+    /// process has one database, so a process-wide counter only ever errs towards a reload.
+    /// </summary>
+    public static long WriteGeneration => Interlocked.Read(ref s_writeGeneration);
+
+    private static void NoteWrite() => Interlocked.Increment(ref s_writeGeneration);
 
     public HistoryRepository(ApplicationDb database, IAppPaths? paths = null)
     {
@@ -141,6 +153,7 @@ public sealed class HistoryRepository : ITranscriptionHistoryStore, ITranscripti
         await using var context = _database.CreateContext();
         context.Transcripts.Add(transcript);
         await context.SaveChangesAsync(cancellationToken);
+        NoteWrite();
     }
 
     public async Task<bool> UpdateAsync(Transcript transcript, CancellationToken cancellationToken = default)
@@ -151,6 +164,7 @@ public sealed class HistoryRepository : ITranscriptionHistoryStore, ITranscripti
             return false;
         context.Transcripts.Update(transcript);
         await context.SaveChangesAsync(cancellationToken);
+        NoteWrite();
         return true;
     }
 
@@ -179,6 +193,7 @@ public sealed class HistoryRepository : ITranscriptionHistoryStore, ITranscripti
                 .SetProperty(item => item.RetryCount, item => item.RetryCount + 1)
                 .SetProperty(item => item.LastRetryDate, retryDateUtc), cancellationToken);
         if (affected != 1) return new(HistoryRetryStartStatus.ConcurrentlyChanged);
+        NoteWrite();
 
         var claimed = await context.Transcripts.AsNoTracking()
             .SingleAsync(item => item.Id == id, cancellationToken);
@@ -192,6 +207,7 @@ public sealed class HistoryRepository : ITranscriptionHistoryStore, ITranscripti
         if (transcript == null) return false;
         context.Transcripts.Remove(transcript);
         await context.SaveChangesAsync(cancellationToken);
+        NoteWrite();
         return true;
     }
 
@@ -252,6 +268,7 @@ public sealed class HistoryRepository : ITranscriptionHistoryStore, ITranscripti
         context.Transcripts.RemoveRange(transcripts);
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+        if (transcripts.Count > 0) NoteWrite();
 
         if (!deleteAudio) return new(transcripts.Count, 0, paths.Length, []);
 
@@ -328,7 +345,11 @@ public sealed class HistoryRepository : ITranscriptionHistoryStore, ITranscripti
                 : transcript.FailedReason;
             transcript.Text = string.IsNullOrWhiteSpace(transcript.Text) ? reason : transcript.Text;
         }
-        if (orphaned.Count > 0) await context.SaveChangesAsync(cancellationToken);
+        if (orphaned.Count > 0)
+        {
+            await context.SaveChangesAsync(cancellationToken);
+            NoteWrite();
+        }
         return orphaned.Count;
     }
 }

@@ -11,8 +11,9 @@ import {
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  estimateAudioSeconds,
+  readJson200,
   splitVocabularyTerms,
-  unparsedBodyKind,
 } from './utils';
 
 // ElevenLabs treats mp3 as the *fallback* container rather than one it matches
@@ -25,6 +26,60 @@ const ELEVENLABS_AUDIO_EXTENSIONS = ['wav', 'm4a', 'webm', 'ogg', 'flac'] as con
 const MAX_KEYTERMS = 100;
 const MAX_KEYTERM_CHARS = 50;
 const MAX_KEYTERM_WORDS = 5;
+
+/**
+ * A RIFF/WAVE file's length in seconds from its `fmt ` byte rate and `data`
+ * size, for ANY WAV encoding (PCM at any depth, float, EXTENSIBLE), or null
+ * when the bytes are not a readable WAV. Deliberately more tolerant than
+ * `parsePcm16Wav`, which validates what an upstream accepts: billing only
+ * needs the length. A `data` size past the end of the buffer (a streaming
+ * writer's 0xFFFFFFFF, a truncated file) is cut to the bytes actually sent.
+ */
+function wavDurationSeconds(audio: ArrayBuffer): number | null {
+  if (audio.byteLength < 12) return null;
+  const view = new DataView(audio);
+  const tag = (offset: number) => String.fromCharCode(
+    view.getUint8(offset), view.getUint8(offset + 1), view.getUint8(offset + 2), view.getUint8(offset + 3),
+  );
+  if (tag(0) !== 'RIFF' || tag(8) !== 'WAVE') return null;
+  let byteRate = 0;
+  let offset = 12;
+  while (offset + 8 <= audio.byteLength) {
+    const id = tag(offset);
+    const size = view.getUint32(offset + 4, true);
+    const body = offset + 8;
+    if (id === 'fmt ' && size >= 16 && body + 16 <= audio.byteLength) {
+      byteRate = view.getUint32(body + 8, true);
+    } else if (id === 'data') {
+      if (byteRate <= 0) return null;
+      const dataBytes = Math.min(size, audio.byteLength - body);
+      return dataBytes / byteRate;
+    }
+    offset = body + size + (size % 2);
+  }
+  return null;
+}
+
+/**
+ * The seconds a successful ElevenLabs request is billed for: the audio's
+ * length, never less than the last word's end time. A WAV (every desktop
+ * recording, and imported WAVs of any rate, depth or channel count) is read
+ * from its header; anything else falls back to `estimateAudioSeconds`, a
+ * per-container byte-rate guess (the route's credit hold uses a different,
+ * flat estimate). ElevenLabs sends no audio duration of its own.
+ */
+function elevenLabsBilledSeconds(
+  lastWordEndSeconds: number,
+  audio: ArrayBuffer,
+  contentType: string,
+): { seconds: number; source: 'wav_header' | 'estimate' } {
+  const wavSeconds = wavDurationSeconds(audio);
+  const audioSeconds = wavSeconds ?? estimateAudioSeconds(audio.byteLength, contentType);
+  return {
+    seconds: Math.max(audioSeconds, lastWordEndSeconds),
+    source: wavSeconds !== null ? 'wav_header' : 'estimate',
+  };
+}
 
 /**
  * Split an initial prompt into ElevenLabs Scribe `keyterms` (scribe_v2 only).
@@ -137,78 +192,44 @@ export async function transcribeWithElevenLabs(
 
   // Bun's `response.json()` has been observed to throw "Failed to parse JSON"
   // on gzip+chunked ElevenLabs 200 responses, even though the same payload
-  // parses cleanly in Node. Read as text first, then JSON.parse — both
-  // sidesteps the Bun quirk and surfaces actionable diagnostics if the body
-  // is ever genuinely empty or non-JSON in future.
-  let rawText: string;
-  try {
-    rawText = await response.text();
-  } catch (readError) {
-    // The 200 arrived but its body broke mid-read (a reset connection, a cut
-    // chunked transfer). Same fault as a non-JSON body: a sibling can serve
-    // it. The raw socket text goes to this log line only. (#2064)
-    logProviderEvent(provider, 'body_read_error', {
-      elapsedMs: Math.round(performance.now() - startTime),
-      contentType: response.headers.get('content-type') ?? 'unknown',
-      contentEncoding: response.headers.get('content-encoding') ?? 'none',
-      message: readError instanceof Error ? readError.message : String(readError),
-    }, context);
-    throw new ProviderUnavailableError('ElevenLabs', '200 body could not be read', {
-      kind: 'bad_response',
-      status: response.status,
-      elapsedMs: Math.round(performance.now() - startTime),
-    });
-  }
-  if (!rawText) {
-    const ct = response.headers.get('content-type') ?? 'unknown';
-    const ce = response.headers.get('content-encoding') ?? 'none';
-    logProviderEvent(provider, 'empty_body', {
-      elapsedMs: Math.round(performance.now() - startTime),
-      contentType: ct,
-      contentEncoding: ce,
-    }, context);
-    // A malformed/empty 200 body is recoverable by failing over, not by
-    // 500ing a request the siblings could serve.
-    throw new ProviderUnavailableError('ElevenLabs', `empty 200 body (content-type=${ct}, content-encoding=${ce})`, {
-      kind: 'bad_response',
-      status: response.status,
-      elapsedMs: Math.round(performance.now() - startTime),
-    });
-  }
-  let data: {
-    text?: string;
-    language_code?: string;
-    language_probability?: number;
-    words?: Array<{ start: number; end: number; text: string }>;
-  };
-  try {
-    data = JSON.parse(rawText);
-  } catch (parseError) {
-    const ct = response.headers.get('content-type') ?? 'unknown';
+  // parses cleanly in Node, so the body is read as text first. A body that
+  // breaks mid-read, is empty, is not JSON or is not an object (`null`) is
+  // recoverable by failing over, not by 500ing a request the siblings could
+  // serve. (#2064, #2151)
+  const data = await readJson200<{
+    text: unknown;
+    language_code: string;
+    language_probability: number;
+    words: unknown;
+  }>(provider, 'ElevenLabs', response, startTime, context);
+
+  // A `text` that is present but not a string is a broken body too: `.trim()`
+  // below would throw a TypeError and answer a 500.
+  if (data.text !== undefined && data.text !== null && typeof data.text !== 'string') {
     logProviderEvent(provider, 'parse_error', {
       elapsedMs: Math.round(performance.now() - startTime),
-      contentType: ct,
-      contentEncoding: response.headers.get('content-encoding') ?? 'none',
-      bodyLength: rawText.length,
-      bodyKind: unparsedBodyKind(rawText),
+      field: 'text',
+      fieldType: typeof data.text,
     }, context);
-    // A non-JSON 200 body is recoverable by failing over, not by 500ing a
-    // request the siblings could serve.
-    throw new ProviderUnavailableError('ElevenLabs', `non-JSON 200 body (content-type=${ct}, len=${rawText.length})`, {
+    throw new ProviderUnavailableError('ElevenLabs', 'malformed 200 response body', {
       kind: 'bad_response',
       status: response.status,
       elapsedMs: Math.round(performance.now() - startTime),
     });
   }
 
-  // Calculate duration from word timings
+  // Calculate duration from word timings. Only a finite number counts: a
+  // missing or odd `words` field leaves it 0, never a TypeError.
   let duration = 0;
-  if (data.words && data.words.length > 0) {
-    const lastWord = data.words[data.words.length - 1];
-    duration = lastWord.end;
+  if (Array.isArray(data.words) && data.words.length > 0) {
+    const lastWord: unknown = data.words[data.words.length - 1];
+    const end = typeof lastWord === 'object' && lastWord !== null ? (lastWord as { end?: unknown }).end : undefined;
+    if (typeof end === 'number' && Number.isFinite(end)) {
+      duration = end;
+    }
   }
 
-  const transcript = data.text || '';
+  const transcript = typeof data.text === 'string' ? data.text : '';
 
   if (!transcript || transcript.trim().length === 0) {
     // A parsed JSON 200 with no text: ElevenLabs processed the audio and found
@@ -239,18 +260,27 @@ export async function transcribeWithElevenLabs(
     });
   }
 
+  // Bill the audio ElevenLabs processed (and bills us for), not the speech in
+  // it: the last word's end time leaves out trailing silence, and a reply with
+  // no `words` would bill 0 s. The last word's end is only a lower bound.
+  // (issue ray-amjad/hyperwhisper-app#2601)
+  const billed = elevenLabsBilledSeconds(duration, audio, contentType);
+  const billedSeconds = billed.seconds;
+
   logProviderEvent(provider, 'success', {
     elapsedMs: Math.round(performance.now() - startTime),
     transcriptChars: transcript.length,
-    durationSeconds: duration,
+    durationSeconds: billedSeconds,
+    durationSource: billed.source,
+    lastWordEndSeconds: duration,
     language: data.language_code,
   }, context);
 
   return {
     text: transcript,
     language: data.language_code,
-    durationSeconds: duration,
-    costUsd: computeElevenLabsTranscriptionCost(duration, keyterms.length > 0),
+    durationSeconds: billedSeconds,
+    costUsd: computeElevenLabsTranscriptionCost(billedSeconds, keyterms.length > 0),
     source: 'elevenlabs',
   };
 }

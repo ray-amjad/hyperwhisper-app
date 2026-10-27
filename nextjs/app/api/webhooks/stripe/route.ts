@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { stripe } from "@/lib/clients/stripe";
+import { env } from "@/src/env/server.mjs";
 import { describeDbError } from "@/lib/shared/db-error";
 import {
   handleCreditPurchase,
   handleChargeRefunded,
+  handleDisputeClosed,
 } from "@/lib/services/stripe-webhook";
 
 /**
@@ -12,6 +14,8 @@ import {
  *
  * Handles Stripe webhook events for HyperWhisper purchases.
  * Primary event: checkout.session.completed
+ * Reversals: charge.refunded, and charge.dispute.closed when the dispute is
+ * lost (#2482). The Stripe endpoint must be subscribed to both.
  *
  * SUPPORTED PURCHASE TYPES:
  * - "credits": Credit pack purchase (adds to Stripe Billing Meter)
@@ -32,7 +36,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No signature" }, { status: 400 });
   }
 
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const webhookSecret = env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
     console.error("Stripe webhook: STRIPE_WEBHOOK_SECRET not configured");
     return NextResponse.json(
@@ -67,7 +71,10 @@ export async function POST(req: NextRequest) {
     const session = event.data.object;
     const purchaseType = session.metadata?.purchase_type;
 
-    if (session.payment_status !== "paid") {
+    // A session fully covered by a 100%-off promotion code completes as
+    // no_payment_required and gets no later async_payment_succeeded, so it is
+    // settled now (#2055). Only "unpaid" waits for the money.
+    if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") {
       console.log(
         `Stripe webhook: ${event.type} for ${purchaseType} session ${session.id} is ${session.payment_status}, waiting for payment success`,
       );
@@ -127,6 +134,25 @@ export async function POST(req: NextRequest) {
       // left in this log.
       return NextResponse.json(
         { error: "Failed to process refund" },
+        { status: 500 }
+      );
+    }
+  }
+
+  // A lost chargeback takes the pack back like a refund (#2482). An open
+  // dispute is not acted on: the merchant may still win it.
+  if (event.type === "charge.dispute.closed") {
+    const dispute = event.data.object;
+    try {
+      await handleDisputeClosed(dispute);
+    } catch (error) {
+      console.error(
+        "Stripe webhook: Error processing dispute:",
+        describeDbError(error),
+      );
+      // 500 so Stripe retries, as for a refund: the reversal is idempotent.
+      return NextResponse.json(
+        { error: "Failed to process dispute" },
         { status: 500 }
       );
     }

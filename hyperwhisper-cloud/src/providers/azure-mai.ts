@@ -26,9 +26,9 @@ import {
   computeUploadTimeoutMs,
   fetchWithTimeout,
   logProviderEvent,
-  readErrorBodyPreview,
+  providerHttpError,
   splitVocabularyTerms,
-  unparsedBodyKind,
+  readJson200,
 } from './utils';
 
 const MAX_PHRASES = 100;
@@ -222,78 +222,48 @@ export async function transcribeWithAzureMai(
   }, context, computeUploadTimeoutMs(audio.byteLength));
 
   if (!response.ok) {
-    const errorText = await readErrorBodyPreview(response);
-    const elapsedMs = Math.round(performance.now() - startedAt);
-    const kind = response.status >= 500 ? 'upstream_5xx' : response.status === 429 ? 'rate_limit' : 'http_error';
-
-    logProviderEvent(provider, 'http_error', {
-      elapsedMs,
-      status: response.status,
-      kind,
-      bodyPreview: errorText,
-    }, context);
-
-    if (response.status === 401) {
-      throw new Error('Azure Speech subscription key is invalid or expired');
-    }
-    if (response.status === 403) {
-      // 403 from Azure Speech is usually "subscription suspended" or
-      // "quota exceeded for free tier", not "wrong key".
-      throw new Error('Azure Speech subscription is disabled or out of quota');
-    }
-    if (response.status === 402) {
-      throw new Error('Azure Speech account has insufficient funds');
-    }
-    if (response.status === 429) {
-      throw new ProviderUnavailableError('Azure MAI', 'rate limit exceeded');
-    }
-    if (response.status >= 500) {
-      throw new ProviderUnavailableError('Azure MAI', `upstream 5xx: ${response.status}`);
-    }
-
-    throw new Error(`Azure MAI error: ${response.status}`);
+    // The helper logs content-free fields only: the body can quote the phrase
+    // list (#2163). Every status but 429 and 5xx ends the request — azure-mai
+    // is self-only, so there is no sibling to try.
+    throw await providerHttpError(provider, response, startedAt, context, {
+      label: 'Azure MAI',
+      authStatuses: [],
+      terminalStatuses: {
+        401: 'Azure Speech subscription key is invalid or expired',
+        // 403 from Azure Speech is usually "subscription suspended" or
+        // "quota exceeded for free tier", not "wrong key".
+        403: 'Azure Speech subscription is disabled or out of quota',
+        402: 'Azure Speech account has insufficient funds',
+      },
+      otherStatusError: (status) => new Error(`Azure MAI error: ${status}`),
+    });
   }
 
-  // A 200 whose body is cut off, not JSON, or breaks mid-read is an upstream
-  // hiccup, not a request fault: answer the retryable 502 the other adapters
-  // give, not a 500 carrying the parser's text. The detail goes to the log
-  // only. (#2064)
-  const badBody = (event: string, details: Record<string, unknown>) => {
-    logProviderEvent(provider, event, {
+  // A 200 whose body is cut off, not JSON, not an object, or breaks mid-read
+  // is an upstream hiccup, not a request fault: answer the retryable 502 the
+  // other adapters give, not a 500 carrying the parser's text. The shape goes
+  // to the log only. (#2064, #2151)
+  const data = await readJson200<{
+    combinedPhrases: Array<{ text?: unknown }>;
+    durationMilliseconds: number;
+    phrases: Array<{ locale?: string }>;
+  }>(provider, 'Azure MAI', response, startedAt, context);
+
+  const rawTranscript = Array.isArray(data.combinedPhrases) ? data.combinedPhrases[0]?.text : undefined;
+  // A truthy non-string `text` would reach `.trim()` and throw a TypeError.
+  if (rawTranscript !== undefined && rawTranscript !== null && typeof rawTranscript !== 'string') {
+    logProviderEvent(provider, 'parse_error', {
       elapsedMs: Math.round(performance.now() - startedAt),
-      contentType: response.headers.get('content-type') ?? 'unknown',
-      ...details,
+      field: 'combinedPhrases[0].text',
+      fieldType: typeof rawTranscript,
     }, context);
-    return new ProviderUnavailableError('Azure MAI', 'malformed 200 response body', {
+    throw new ProviderUnavailableError('Azure MAI', 'malformed 200 response body', {
       kind: 'bad_response',
       status: response.status,
       elapsedMs: Math.round(performance.now() - startedAt),
     });
-  };
-  let rawText: string;
-  try {
-    rawText = await response.text();
-  } catch (readError) {
-    throw badBody('body_read_error', {
-      message: readError instanceof Error ? readError.message : String(readError),
-    });
   }
-  let data: {
-    combinedPhrases?: Array<{ text?: string }>;
-    durationMilliseconds?: number;
-    phrases?: Array<{ locale?: string }>;
-  };
-  try {
-    data = JSON.parse(rawText);
-  } catch {
-    throw badBody('parse_error', { bodyLength: rawText.length, bodyKind: unparsedBodyKind(rawText) });
-  }
-  // `null` or a bare string parses, then fails on the first field read.
-  if (!data || typeof data !== 'object') {
-    throw badBody('parse_error', { bodyLength: rawText.length, bodyKind: 'other' });
-  }
-
-  const transcript = data.combinedPhrases?.[0]?.text || '';
+  const transcript = rawTranscript || '';
   const durationSeconds = (data.durationMilliseconds || 0) / 1000;
   const detectedLanguage = data.phrases?.[0]?.locale;
 

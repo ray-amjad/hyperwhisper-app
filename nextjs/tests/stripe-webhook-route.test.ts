@@ -27,12 +27,14 @@
  * is the real one, signature gate included.
  */
 import assert from "node:assert/strict";
-import { after, afterEach, before, beforeEach, describe, test } from "node:test";
+import { after, before, beforeEach, describe, test } from "node:test";
 
 import {
   behaviour,
   calls,
   checkoutEvent,
+  disputeEvent,
+  fakeEnv,
   loadStripeWebhookRoute,
   logLines,
   refundEvent,
@@ -45,8 +47,6 @@ import { leakyDbError, leakyLines } from "./db-error-fixture";
 
 /** A made-up secret. Only the stand-in verifier in the harness ever sees it. */
 const WEBHOOK_SECRET = "whsec_harness_only";
-
-const realWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 type JsonBody = Record<string, unknown>;
 
@@ -72,15 +72,8 @@ after(() => {
 beforeEach(() => {
   resetHarness();
   logLines.length = 0;
-  process.env.STRIPE_WEBHOOK_SECRET = WEBHOOK_SECRET;
-});
-
-afterEach(() => {
-  if (realWebhookSecret === undefined) {
-    delete process.env.STRIPE_WEBHOOK_SECRET;
-  } else {
-    process.env.STRIPE_WEBHOOK_SECRET = realWebhookSecret;
-  }
+  // The route reads the validated env (#682), which the harness fakes.
+  fakeEnv.STRIPE_WEBHOOK_SECRET = WEBHOOK_SECRET;
 });
 
 /** Sends a signed request and returns the response. */
@@ -109,7 +102,7 @@ describe("POST /api/webhooks/stripe — the signature gate", () => {
   });
 
   test("refuses every request when STRIPE_WEBHOOK_SECRET is not configured", async () => {
-    delete process.env.STRIPE_WEBHOOK_SECRET;
+    delete fakeEnv.STRIPE_WEBHOOK_SECRET;
     behaviour.verifiedEvent = checkoutEvent({ purchaseType: "credits" });
 
     const response = await signedPost(behaviour.verifiedEvent);
@@ -219,6 +212,26 @@ describe("POST /api/webhooks/stripe — the payment gate", () => {
 
     assert.equal(response.status, 200);
     assertNoHandlerRan();
+  });
+  test("dispatches a 100%-off credits session (no_payment_required) now (#2055)", async () => {
+    // A promotion code that covers the whole order completes the session with
+    // no_payment_required. Stripe sends no later async_payment_succeeded for
+    // it, so waiting here would drop the purchase for good.
+    behaviour.verifiedEvent = checkoutEvent({
+      id: "evt_free",
+      purchaseType: "credits",
+      paymentStatus: "no_payment_required",
+      sessionId: "cs_free",
+    });
+
+    const response = await signedPost(behaviour.verifiedEvent);
+
+    assert.equal(response.status, 200);
+    assert.equal(calls.creditPurchase.length, 1);
+    assert.equal(
+      (calls.creditPurchase[0].session as { id: string }).id,
+      "cs_free",
+    );
   });
 });
 
@@ -396,10 +409,67 @@ describe("POST /api/webhooks/stripe — refunds", () => {
   });
 });
 
+describe("POST /api/webhooks/stripe — disputes (#2482)", () => {
+  test("a lost dispute on a credit charge reaches the clawback handler", async () => {
+    // The bug hunt's repro: Stripe sent charge.dispute.closed (lost), the
+    // route answered 200 and no reversal ran, so the pack stayed spendable.
+    behaviour.verifiedEvent = disputeEvent({ chargeId: "ch_credit_pack" });
+
+    const response = await signedPost(behaviour.verifiedEvent);
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await readJson(response), { received: true });
+    assert.equal(
+      calls.disputeClosed.length,
+      1,
+      "charge.dispute.closed (lost) was acknowledged but no credit reversal ran",
+    );
+    const dispute = calls.disputeClosed[0] as { id: string; charge: string };
+    assert.equal(dispute.id, "dp_1", "the handler must receive the dispute, not the event");
+    assert.equal(dispute.charge, "ch_credit_pack");
+    assert.equal(calls.chargeRefunded.length, 0);
+    assert.equal(calls.creditPurchase.length, 0);
+  });
+
+  for (const type of [
+    "charge.dispute.created",
+    "charge.dispute.funds_withdrawn",
+    "charge.dispute.updated",
+  ]) {
+    test(`an open dispute (${type}) takes nothing back`, async () => {
+      // The merchant may still win it: only the closed, lost outcome reverses.
+      behaviour.verifiedEvent = disputeEvent({ type, status: "needs_response" });
+
+      const response = await signedPost(behaviour.verifiedEvent);
+
+      assert.equal(response.status, 200);
+      assert.equal(calls.disputeClosed.length, 0);
+      assert.equal(calls.chargeRefunded.length, 0);
+    });
+  }
+
+  test("answers 500 so Stripe retries a dispute fault", async () => {
+    behaviour.verifiedEvent = disputeEvent();
+    behaviour.disputeError = new Error("Connection terminated unexpectedly");
+
+    const response = await signedPost(behaviour.verifiedEvent);
+
+    assert.equal(response.status, 500);
+    assert.deepEqual(await readJson(response), {
+      error: "Failed to process dispute",
+    });
+    assert.ok(
+      logLines.some((line) => line.includes("Error processing dispute")),
+      "a dispute fault must be logged",
+    );
+  });
+});
+
 describe("POST /api/webhooks/stripe — a drizzle error in a handler (#1039)", () => {
   const cases = [
     { name: "credit", event: () => checkoutEvent({ purchaseType: "credits" }), set: (e: unknown) => { behaviour.creditError = e; }, status: 500 },
     { name: "refund", event: () => refundEvent(), set: (e: unknown) => { behaviour.refundError = e; }, status: 500 },
+    { name: "dispute", event: () => disputeEvent(), set: (e: unknown) => { behaviour.disputeError = e; }, status: 500 },
   ];
 
   for (const c of cases) {

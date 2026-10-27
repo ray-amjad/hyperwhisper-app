@@ -22,13 +22,28 @@ public sealed class CredentialManagementViewModel : ViewModelBase
         Refresh();
     }
     public ObservableCollection<CredentialAccount> Items { get; } = new();
-    public CredentialAccount? Selected { get => _selected; set => Set(ref _selected, value); }
+    public CredentialAccount? Selected
+    {
+        get => _selected;
+        set
+        {
+            // A failed write keeps the typed key in Secret (#1388); a key typed for one account
+            // must never be saved under another, so moving to a different account empties it.
+            var previous = _selected?.Account;
+            if (Set(ref _selected, value) && !string.Equals(previous, value?.Account, StringComparison.Ordinal))
+                Secret = string.Empty;
+        }
+    }
     public string Secret { get => _secret; set => Set(ref _secret, value); }
     public UiStatus Status { get; } = new();
     public ICommand SaveCommand { get; }
     public ICommand DeleteCommand { get; }
     public void Refresh()
     {
+        // Read the account before Clear(): the dialog's two-way SelectedItem binding pushes null
+        // into Selected while the list is empty. Save and Delete must stay on the account they acted
+        // on, or the next Delete removes a different provider's key (#2324).
+        var previous = _selected?.Account;
         Items.Clear();
         foreach (var pair in Accounts)
         {
@@ -37,7 +52,8 @@ public sealed class CredentialManagementViewModel : ViewModelBase
             if (read.Value is { } sensitive) CryptographicOperations.ZeroMemory(sensitive);
             Items.Add(new(pair.Account, pair.Name, present));
         }
-        Selected = Items.FirstOrDefault();
+        Selected = Items.FirstOrDefault(item => string.Equals(item.Account, previous, StringComparison.Ordinal))
+            ?? Items.FirstOrDefault();
     }
     public void SelectAccount(string account)
     {
@@ -51,9 +67,8 @@ public sealed class CredentialManagementViewModel : ViewModelBase
         try
         {
             var result = _store.Write(Resource, Selected.Account, bytes);
-            Secret = string.Empty;
             if (result.IsFailure) Status.Failure(result.Error!.Code, result.Error.Message);
-            else { Refresh(); Status.Success("Credential saved securely"); }
+            else { Secret = string.Empty; Refresh(); Status.Success("Credential saved securely"); }
         }
         finally { CryptographicOperations.ZeroMemory(bytes); }
         return Task.CompletedTask;

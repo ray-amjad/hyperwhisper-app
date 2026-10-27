@@ -24,6 +24,7 @@ import {
   behaviour,
   callCustomer,
   calls,
+  fakeEnv,
   grantRow,
   loadCustomerRouter,
   loadTRPC,
@@ -597,17 +598,11 @@ test("stripePortalUrl opens the portal for the first key with a Stripe customer"
   ];
   behaviour.portalUrl = "https://billing.stripe.test/session/bps_wanted";
 
-  const previous = process.env.NEXT_PUBLIC_SITE_URL;
-  process.env.NEXT_PUBLIC_SITE_URL = "https://staging.hyperwhisper.test";
-  try {
-    const result = await callCustomer("stripePortalUrl", ctx, "mutation");
-    assert.deepEqual(result, {
-      url: "https://billing.stripe.test/session/bps_wanted",
-    });
-  } finally {
-    if (previous === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
-    else process.env.NEXT_PUBLIC_SITE_URL = previous;
-  }
+  fakeEnv.NEXT_PUBLIC_SITE_URL = "https://staging.hyperwhisper.test";
+  const result = await callCustomer("stripePortalUrl", ctx, "mutation");
+  assert.deepEqual(result, {
+    url: "https://billing.stripe.test/session/bps_wanted",
+  });
 
   assert.deepEqual(onlyPortalSession(), {
     customer: "cus_wanted",
@@ -619,13 +614,9 @@ test("stripePortalUrl falls back to the production site for the return URL", asy
   const ctx = await contextFor(customerUser());
   behaviour.accountKeys = [accountKeyRow({ stripeCustomerId: "cus_1" })];
 
-  const previous = process.env.NEXT_PUBLIC_SITE_URL;
-  delete process.env.NEXT_PUBLIC_SITE_URL;
-  try {
-    await callCustomer("stripePortalUrl", ctx, "mutation");
-  } finally {
-    if (previous !== undefined) process.env.NEXT_PUBLIC_SITE_URL = previous;
-  }
+  // resetHarness left the fake env empty: no NEXT_PUBLIC_SITE_URL.
+  assert.equal(fakeEnv.NEXT_PUBLIC_SITE_URL, undefined);
+  await callCustomer("stripePortalUrl", ctx, "mutation");
 
   assert.equal(onlyPortalSession().return_url, "https://hyperwhisper.com/user");
 });
@@ -647,6 +638,40 @@ test("stripePortalUrl refuses when no key carries a Stripe customer", async () =
     },
   );
   // Stripe is never asked for a session the account cannot have.
+  assert.deepEqual(calls.portalSessionCreate, []);
+});
+
+test("stripePortalUrl skips a cached customer that belongs to another email (#2460)", async () => {
+  const ctx = await contextFor(customerUser());
+  // row_a still caches the customer of the address the account was moved
+  // away from; row_b's customer is at the account's current email.
+  behaviour.accountKeys = [
+    accountKeyRow({ id: "row_a", stripeCustomerId: "cus_old" }),
+    accountKeyRow({ id: "row_b", stripeCustomerId: "cus_current" }),
+  ];
+  behaviour.customerEmails = {
+    cus_old: "previous-holder@example.com",
+    cus_current: "buyer@example.com",
+  };
+
+  await callCustomer("stripePortalUrl", ctx, "mutation");
+  assert.equal(onlyPortalSession().customer, "cus_current");
+});
+
+test("stripePortalUrl refuses when every cached customer belongs to another email (#2460)", async () => {
+  const ctx = await contextFor(customerUser());
+  behaviour.accountKeys = [accountKeyRow({ stripeCustomerId: "cus_old" })];
+  behaviour.customerEmails = { cus_old: "previous-holder@example.com" };
+
+  await assert.rejects(
+    callCustomer("stripePortalUrl", ctx, "mutation"),
+    (error: unknown) => {
+      assert.ok(error instanceof TRPCError);
+      assert.equal(error.code, "NOT_FOUND");
+      return true;
+    },
+  );
+  // The old holder's payment history is never opened for the new owner.
   assert.deepEqual(calls.portalSessionCreate, []);
 });
 
@@ -680,6 +705,7 @@ test("the customer router exposes exactly the portal procedures", async () => {
     "creditHistory",
     "credits",
     "licensesWithCredits",
+    "rotateAccountKey",
     "stripePortalUrl",
   ]);
 });

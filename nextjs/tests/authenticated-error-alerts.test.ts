@@ -18,20 +18,9 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import test, { mock } from "node:test";
+import test from "node:test";
 
-/** See `devices-range-aria-pressed.test.ts`: `@types/node@20` lacks this. */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: {
-      namedExports?: Record<string, unknown>;
-      defaultExport?: unknown;
-    },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const LOAD_ERROR = "Failed to load: upstream timed out";
 
@@ -67,7 +56,7 @@ function idleMutation() {
   };
 }
 
-moduleMock.module(new URL("../lib/trpc/client.ts", import.meta.url).href, {
+moduleMock.module(moduleUrl("../lib/trpc/client.ts"), {
   namedExports: {
     api: {
       useUtils: () => ({

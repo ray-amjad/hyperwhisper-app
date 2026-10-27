@@ -11,13 +11,31 @@ public sealed class MicrophoneKeepWarmService : IDisposable
     public static MicrophoneKeepWarmService Instance => _instance.Value;
 
     private readonly object _lock = new();
-    private WaveInEvent? _waveIn;
+    private readonly Func<int, IWaveIn> _captureFactory;
+    private IWaveIn? _waveIn;
     private int? _activeDeviceNumber;
     private bool _enabled;
     private bool _suspended;
     private bool _disposed;
 
-    private MicrophoneKeepWarmService() { }
+    private MicrophoneKeepWarmService() : this(CreateWaveIn) { }
+
+    /// <summary>
+    /// Test seam (#2244): HyperWhisper.SmokeTests (InternalsVisibleTo, see
+    /// HyperWhisper.csproj) passes a fake capture so it can drive the state
+    /// machine below without a microphone. The app uses <see cref="Instance"/>.
+    /// </summary>
+    internal MicrophoneKeepWarmService(Func<int, IWaveIn> captureFactory)
+    {
+        _captureFactory = captureFactory;
+    }
+
+    private static IWaveIn CreateWaveIn(int deviceNumber) => new WaveInEvent
+    {
+        DeviceNumber = deviceNumber,
+        WaveFormat = new WaveFormat(16000, 16, 1),
+        BufferMilliseconds = 250
+    };
 
     public void Configure(bool enabled, int? deviceNumber)
     {
@@ -65,12 +83,7 @@ public sealed class MicrophoneKeepWarmService : IDisposable
 
         try
         {
-            _waveIn = new WaveInEvent
-            {
-                DeviceNumber = deviceNumber,
-                WaveFormat = new WaveFormat(16000, 16, 1),
-                BufferMilliseconds = 250
-            };
+            _waveIn = _captureFactory(deviceNumber);
             _waveIn.DataAvailable += OnDataAvailable;
             _waveIn.RecordingStopped += OnRecordingStopped;
             _waveIn.StartRecording();

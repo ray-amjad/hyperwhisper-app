@@ -8,6 +8,7 @@ import { websocket } from 'hono/bun';
 import { transcribeRoute } from './routes/transcribe';
 import { postProcessRoute } from './routes/post-process';
 import { usageRoute } from './routes/usage';
+import { licenseCacheInvalidateRoute } from './routes/internal-license-cache';
 import { wsStreamingPreflight, wsStreamingRoute } from './routes/ws-streaming-deepgram';
 import {
   wsStreamingGeminiTranscribePreflight,
@@ -20,6 +21,11 @@ import { drainPendingHoldReleases } from './middleware/credit-holds';
 import { drainPendingLatencyReports } from './lib/latency-report';
 import { ipRateLimit } from './middleware/rate-limit';
 import { MAX_AUDIO_SIZE_BYTES } from './lib/constants';
+import { toRedactedLogLine } from './lib/log-redaction';
+import { captureServerError, flushErrorTracking, initErrorTracking } from './lib/error-tracking';
+
+// Server error tracking (#2013): a no-op unless SENTRY_DSN is set.
+initErrorTracking();
 
 const app = new Hono();
 
@@ -83,17 +89,39 @@ app.get(
   wsStreamingGeminiTranscribeRoute,
 );
 
+// Site -> cloud: the site rotated an Account Key, so drop the old key's cached
+// "valid" verdict now instead of when its hour runs out. Gated by the shared
+// internal secret inside the route; the per-IP limit still runs first.
+app.post('/internal/license-cache/invalidate', ipRateLimit, licenseCacheInvalidateRoute);
+
 // Fallback - match Cloudflare (405, plain text)
 app.notFound((c) => {
   return c.text('Method not allowed', 405);
 });
 
 // Error handler — never echo raw err.message to the client (it can contain
-// env-var names, upstream provider bodies, request IDs). Log the full error
+// env-var names, upstream provider bodies, request IDs). Log the error
 // server-side with an error_id the client can quote to support.
+//
+// Not the raw error object either (#2163): its message can quote an upstream
+// body and it prints a multi-line stack the log shipper splits into several
+// records. Logged instead: the error's name, its message through
+// `toRedactedLogLine` (secrets cut, payloads cut, capped at 200 characters),
+// and up to 8 stack frames, which are code locations, not data.
+const UNHANDLED_ERROR_STACK_FRAMES = 8;
+
+export function unhandledErrorLogFields(err: unknown): { errorName: string; message: string; stack: string[] } {
+  const errorName = err instanceof Error ? err.name : typeof err;
+  const stack = err instanceof Error && typeof err.stack === 'string'
+    ? err.stack.split('\n').map((line) => line.trim()).filter((line) => line.startsWith('at ')).slice(0, UNHANDLED_ERROR_STACK_FRAMES)
+    : [];
+  return { errorName, message: toRedactedLogLine(err), stack };
+}
+
 app.onError((err, c) => {
   const errorId = crypto.randomUUID();
-  console.error(`Unhandled error [${errorId}]:`, err);
+  console.error(`Unhandled error [${errorId}]:`, JSON.stringify(unhandledErrorLogFields(err)));
+  captureServerError(err, { errorId, route: c.req.routePath, method: c.req.method });
   return c.json({
     error: 'Internal server error',
     message: 'An unexpected error occurred. Please try again.',
@@ -138,6 +166,8 @@ async function gracefulShutdown(signal: string): Promise<void> {
     drainPendingDeductions(SHUTDOWN_DRAIN_MS),
     drainPendingLatencyReports(SHUTDOWN_DRAIN_MS),
     drainPendingHoldReleases(SHUTDOWN_DRAIN_MS),
+    // Error events still queued for Sentry; a no-op with no DSN.
+    flushErrorTracking(2_000),
   ]);
   if (drained > 0) {
     console.log('machine.shutdown_drained_deductions', { count: drained });

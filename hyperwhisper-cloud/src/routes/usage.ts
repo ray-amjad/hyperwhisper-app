@@ -3,7 +3,7 @@
 
 import type { Context } from 'hono';
 import { CREDITS_PER_MINUTE, DEFAULT_API_BASE_URL, LICENSE_API_TIMEOUT_MS } from '../lib/constants';
-import { authDiagnosticsForLog, validateAuth, type AuthDiagnostics } from '../middleware/auth';
+import { authDiagnosticsForLog, canonicalAccountKey, readCreditPoolId, validateAuth, type AuthDiagnostics } from '../middleware/auth';
 import { generateRequestId, getClientIP } from '../lib/request-id';
 import { logEvent } from '../lib/logging';
 import { getCachedLicense, cacheLicense } from '../lib/redis';
@@ -37,6 +37,9 @@ async function getCreditsBalance(
   const apiBase = (process.env.NEXTJS_LICENSE_API_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
 
   try {
+    // Taken BEFORE the request goes out: the pool balance cache orders replies
+    // by when the site was asked (#2026), see `WRITE_POOL_BALANCE_SCRIPT`.
+    const issuedAtMs = Date.now();
     const response = await fetch(`${apiBase}/api/license/credits?license_key=${encodeURIComponent(licenseKey)}`, {
       method: 'GET',
       signal: AbortSignal.timeout(LICENSE_API_TIMEOUT_MS),
@@ -53,10 +56,15 @@ async function getCreditsBalance(
       return { credits: 0, error: 'invalid_response', status: response.status };
     }
 
+    // Keep the shared credit pool (#2026): a rewrite without it would make this
+    // key's next holds count apart from the user's other keys.
+    const creditPoolId = readCreditPoolId((data as { credit_pool_id?: unknown }).credit_pool_id);
     await cacheLicense(licenseKey, {
       isValid: true,
       credits,
       cachedAt: new Date().toISOString(),
+      ...(creditPoolId ? { creditPoolId } : {}),
+      issuedAtMs,
     });
 
     return { credits };
@@ -79,8 +87,12 @@ export async function usageRoute(c: Context) {
 
   // `account_key` is the canonical param; `license_key` is the legacy alias that
   // installed native apps still send, so we accept either.
+  // Trimmed (#2461): the cache and the balance lookup below key on it directly.
   const licenseKey =
-    c.req.query('account_key') || c.req.query('license_key') || c.req.query('identifier')?.trim() || null;
+    canonicalAccountKey(c.req.query('account_key')) ||
+    canonicalAccountKey(c.req.query('license_key')) ||
+    canonicalAccountKey(c.req.query('identifier')) ||
+    null;
   const forceRefresh = c.req.query('force_refresh') === 'true';
 
   if (licenseKey) {

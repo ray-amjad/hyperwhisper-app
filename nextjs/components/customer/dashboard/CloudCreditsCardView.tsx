@@ -1,5 +1,8 @@
 "use client";
 
+import { ErrorReveal } from "@/components/ErrorReveal";
+import { Spinner } from "@/components/ui/Spinner";
+
 /**
  * The tier a checkout is in flight for: the dollar amount of a preset, or the
  * `"custom"` sentinel for the free-entry box. `null` is "nothing in flight".
@@ -143,7 +146,7 @@ export default function CloudCreditsCardView({
                   onClick={() => onBuy(tier.amount, tier.amount)}
                 >
                   {isLoading ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <Spinner className="w-5 h-5 text-white" />
                   ) : (
                     <>
                       <span className="text-lg font-semibold">
@@ -179,50 +182,60 @@ export default function CloudCreditsCardView({
             </button>
           </div>
 
+          {/* The row grows open from 0fr (#702) instead of arriving at full
+              height in one frame. */}
           {showCustom && (
-            <div className="mt-2 flex items-center gap-2">
-              <div className="relative flex-1">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  $
-                </span>
-                <input
-                  className="w-full rounded-lg border border-white/10 bg-white/5 py-2 pl-7 pr-3 text-white placeholder:text-gray-400 focus:border-white/30 focus:outline-none disabled:opacity-50"
-                  disabled={loadingTier !== null}
-                  inputMode="numeric"
-                  max={maxAmount}
-                  min={minAmount}
-                  placeholder={`${minAmount}–${maxAmount}`}
-                  step={1}
-                  type="number"
-                  value={customAmount}
-                  onChange={(e) => onCustomAmountChange(e.target.value)}
-                />
+            <div className="t-cell-reveal">
+              <div>
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                      $
+                    </span>
+                    <input
+                      className="w-full rounded-lg border border-white/10 bg-white/5 py-2 pl-7 pr-3 text-white placeholder:text-gray-400 focus:border-white/30 focus:outline-none disabled:opacity-50"
+                      disabled={loadingTier !== null}
+                      inputMode="numeric"
+                      max={maxAmount}
+                      min={minAmount}
+                      placeholder={`${minAmount}–${maxAmount}`}
+                      step={1}
+                      type="number"
+                      value={customAmount}
+                      onChange={(e) => onCustomAmountChange(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    className="flex items-center justify-center rounded-lg bg-white/10 border border-white/20 px-4 py-2 font-medium text-white hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                    disabled={!customValid || loadingTier !== null}
+                    onClick={() => onBuy(Number(customAmount), "custom")}
+                  >
+                    {loadingTier === "custom" ? (
+                      <Spinner className="w-5 h-5 text-white" />
+                    ) : (
+                      labels.topUp
+                    )}
+                  </button>
+                </div>
               </div>
-              <button
-                className="flex items-center justify-center rounded-lg bg-white/10 border border-white/20 px-4 py-2 font-medium text-white hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                disabled={!customValid || loadingTier !== null}
-                onClick={() => onBuy(Number(customAmount), "custom")}
-              >
-                {loadingTier === "custom" ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  labels.topUp
-                )}
-              </button>
             </div>
           )}
 
           {/* #737: the whole point. A refused checkout used to leave the
               customer with a spinner that stopped and nothing else. The region
               sits UNDER the tier buttons, inside the `activeLicenseKey` guard
-              — there is no buy button to fail without a key. */}
-          {error && (
-            <div className="mt-2">
-              <span className="text-red-300 text-sm" role="alert">
-                {error}
-              </span>
-            </div>
-          )}
+              — there is no buy button to fail without a key. #2286: it
+              reveals instead of arriving in one frame; the mt-2 stays inside
+              the clip, so a closed wrapper takes no space. */}
+          <ErrorReveal>
+            {error && (
+              <div className="mt-2">
+                <span className="text-red-300 text-sm" role="alert">
+                  {error}
+                </span>
+              </div>
+            )}
+          </ErrorReveal>
         </>
       )}
     </div>

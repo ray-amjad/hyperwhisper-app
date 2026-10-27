@@ -54,14 +54,14 @@ private final class BlockingMeterReader: @unchecked Sendable {
         entered.signal()
         if blocks {
             // Only the test's `release()` should end the block (#1216).
-            _ = releaseSemaphore.wait(timeout: .now() + 60)
+            _ = releaseSemaphore.wait(timeout: .now() + 300)
         }
         state.withLock { $0.readsInProgress -= 1 }
         return level
     }
 
     /// True once a read has been entered, or false after `timeout` seconds.
-    func waitUntilEntered(timeout: Double = 30) async -> Bool {
+    func waitUntilEntered(timeout: Double = 120) async -> Bool {
         await waitOffThePool(for: entered, seconds: timeout)
     }
 
@@ -91,7 +91,7 @@ private final class RecordingStopper: @unchecked Sendable {
     var ranOnMainThread: Bool? { state.withLock { $0.ranOnMainThread } }
     var readsInProgressAtStop: Int? { state.withLock { $0.readsInProgressAtStop } }
 
-    func stop(_ recorder: AVAudioRecorder) {
+    func stop(_ recorder: any LiveAudioRecording) {
         let onMain = Thread.isMainThread
         let inProgress = reader.readsInProgress
         state.withLock { current in
@@ -103,7 +103,7 @@ private final class RecordingStopper: @unchecked Sendable {
     }
 
     /// True once a stop has run, or false after `timeout` seconds.
-    func waitUntilStopped(timeout: Double = 30) async -> Bool {
+    func waitUntilStopped(timeout: Double = 120) async -> Bool {
         await waitOffThePool(for: stopped, seconds: timeout)
     }
 }
@@ -114,6 +114,7 @@ private final class Flag {
     var isSet = false
 }
 
+@Suite(.timeLimit(.minutes(10)))
 @MainActor
 struct SimpleRecorderMeterReadTests {
 
@@ -138,7 +139,7 @@ struct SimpleRecorderMeterReadTests {
     }
 
     /// True once the pending read has come back to the main actor.
-    private static func waitUntilReadSettles(_ recorder: SimpleRecorder, seconds: Double = 30) async -> Bool {
+    private static func waitUntilReadSettles(_ recorder: SimpleRecorder, seconds: Double = 120) async -> Bool {
         let deadline = Date().addingTimeInterval(seconds)
         while recorder.meterReadInFlight {
             if Date() > deadline { return false }
@@ -154,7 +155,7 @@ struct SimpleRecorderMeterReadTests {
 
         recorder.requestMeterRead(from: try Self.makeAVRecorder())
 
-        // An inline read would have blocked here to its 60 s cap.
+        // An inline read would have blocked here to its 300 s cap.
         #expect(await reader.waitUntilEntered())
         #expect(reader.ranOnMainThread == false)
         #expect(recorder.meterReadInFlight)
@@ -285,9 +286,11 @@ struct SimpleRecorderMeterReadTests {
         #expect(recorder.audioLevel == 0)
 
         // The read is still stuck, so the stop gives up at its deadline instead
-        // of waiting for the read (the reader blocks for up to 60 s).
+        // of waiting for the read (the reader blocks for up to 300 s). The 120 s
+        // bound leaves room for a stalled runner (#2505, #2540) and still tells
+        // the two apart.
         #expect(await stop.value == .timedOut)
-        #expect(Date().timeIntervalSince(started) < 10)
+        #expect(Date().timeIntervalSince(started) < 120)
         #expect(stopper.stopCount == 0)
 
         // The stop is not abandoned: it runs as soon as the read returns, so the

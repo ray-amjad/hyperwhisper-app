@@ -26,30 +26,13 @@
  * handler the factory built. That chain is the whole of #870.
  */
 import assert from "node:assert/strict";
-import test, { beforeEach, mock } from "node:test";
+import test, { beforeEach } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import type { SignOutHandlerRequest } from "../src/lib/sign-out";
 
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrowed to the two options used here rather than bumping
- * the types in a test-only change — the same shape
- * `tests/root-layout-direction.test.ts` uses.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: {
-      namedExports?: Record<string, unknown>;
-      defaultExport?: unknown;
-    },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+import { moduleMock, moduleUrl } from "./module-mock";
 
 /** Every `createSignOutHandler` call the component made, in order. */
 const factoryCalls: SignOutHandlerRequest[] = [];
@@ -63,7 +46,7 @@ const handlerRuns: SignOutHandlerRequest[] = [];
  * own behaviour — when it navigates, when it clears the busy flag — is
  * `sign-out-seam.test.ts`.
  */
-moduleMock.module("../src/lib/sign-out", {
+moduleMock.module(moduleUrl("../src/lib/sign-out.ts"), {
   namedExports: {
     createSignOutHandler: (request: SignOutHandlerRequest) => {
       factoryCalls.push(request);
@@ -80,7 +63,7 @@ moduleMock.module("../src/lib/sign-out", {
  * `window` and for `BETTER_AUTH_URL` at import time; neither exists here, and
  * neither is part of what this file proves.
  */
-moduleMock.module("../src/lib/auth-client", {
+moduleMock.module(moduleUrl("../src/lib/auth-client.ts"), {
   namedExports: { authClient: { signOut: async () => ({ error: null }) } },
 });
 
@@ -103,7 +86,7 @@ const viewRenders: ViewProps[] = [];
  * which is exactly how the round 1 version of this file passed with the
  * button's `onClick` deleted.
  */
-moduleMock.module("../components/user/UserHeaderView.tsx", {
+moduleMock.module(moduleUrl("../components/user/UserHeaderView.tsx"), {
   defaultExport: (props: ViewProps) => {
     viewRenders.push(props);
 

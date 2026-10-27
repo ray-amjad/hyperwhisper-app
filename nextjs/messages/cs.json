@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Funkce",
-    "pricing": "Ceník",
     "faq": "FAQ",
     "support": "Podpora",
     "download": "Stáhnout",
@@ -20,7 +19,6 @@
     "githubAria": "Zobrazit HyperWhisper na GitHubu"
   },
   "hero": {
-    "openSourceBadge": "Otevřený kód · Apache-2.0",
     "logoAlt": "Logo HyperWhisper",
     "headline": "Pište, tvořte a vymýšlejte",
     "headlineAccent": "5x rychleji s AI",
@@ -28,7 +26,7 @@
     "downloadCta": "Stáhnout nyní",
     "demoCta": "Podívat se na demo",
     "availableOn": "Dostupné pro",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -98,57 +96,6 @@
     "languagesSupported": "Podporované jazyky",
     "providersSupported": "Podporovaní poskytovatelé"
   },
-  "pricing": {
-    "title": "Bez předplatného. Navždy.",
-    "subtitle": "Zaplaťte jednou, používejte navždy. Předplatné nemáme rádi stejně jako vy.",
-    "guarantee": "14denní garance vrácení peněz",
-    "guaranteeExtended": "pokud nebudete úplně spokojeni.",
-    "learnMore": "Zjistit více",
-    "free": {
-      "name": "Free",
-      "price": "$0",
-      "period": "navždy",
-      "description": "Ideální pro vyzkoušení HyperWhisper",
-      "cta": "Stáhnout zdarma",
-      "features": {
-        "transcriptionLimit": "5 minut přepisu denně",
-        "basicModes": "Základní režimy přepisu",
-        "offlineTranscription": "Offline přepis",
-        "apiTranscription": "API přepis (použijte vlastní klíče)",
-        "postProcessing": "Následné zpracování textu",
-        "providers": "9+ poskytovatelů na výběr",
-        "lifetimeUpdates": "Doživotní aktualizace",
-        "cloudLimited": "HyperWhisper Cloud (omezené použití)",
-        "customVocabulary": "Vlastní slovník",
-        "prioritySupport": "Prioritní podpora"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "doživotně",
-      "description": "Jednorázový nákup, neomezený výkon navždy",
-      "cta": "Koupit nyní - doživotní přístup",
-      "mostPopular": "Nejoblíbenější",
-      "features": {
-        "unlimitedTranscription": "Neomezený přepis",
-        "allModes": "Všechny režimy přepisu",
-        "offlineTranscription": "Offline přepis",
-        "apiTranscription": "API přepis (použijte vlastní klíče)",
-        "postProcessing": "Následné zpracování textu",
-        "providers": "9+ poskytovatelů na výběr",
-        "lifetimeUpdates": "Doživotní aktualizace",
-        "cloudCredits": "HyperWhisper Cloud ($5 v kreditech)",
-        "customVocabulary": "Vlastní slovník",
-        "prioritySupport": "Prioritní podpora"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise a individuální ceny",
-      "description": "Objemové slevy, SSO, prioritní podpora, interní hosting a vlastní integrace",
-      "cta": "Kontaktovat obchod"
-    }
-  },
   "faq": {
     "title": "Často kladené dotazy",
     "subtitle": "Vše, co potřebujete vědět o HyperWhisper",
@@ -192,7 +139,7 @@
       },
       "lifetime": {
         "question": "Existuje předplatné?",
-        "answer": "Ne — nikdy. HyperWhisper je open source aplikace, kterou vlastníte, ne předplatné, které si pronajímáte. Stáhněte si ji zdarma a používejte lokální offline přepis bez jakýchkoli nákladů navždy; bezplatná úroveň navíc zahrnuje 5 minut cloudového přepisu denně. Když budete chtít cloudový přepis bez jakéhokoli nastavení nad rámec toho, HyperWhisper Cloud jsou jednoduché kredity s platbou podle spotřeby — dobíjíte jen tehdy, když potřebujete, bez měsíčních poplatků a bez čehokoli, co byste museli rušit."
+        "answer": "Ne — nikdy. HyperWhisper je open source aplikace, kterou vlastníte, ne předplatné, které si pronajímáte. Stáhněte si ji zdarma a používejte lokální offline přepis bez jakýchkoli nákladů navždy. Když budete chtít cloudový přepis bez jakéhokoli nastavení, HyperWhisper Cloud jsou jednoduché kredity s platbou podle spotřeby — dobíjíte jen tehdy, když potřebujete, bez měsíčních poplatků a bez čehokoli, co byste museli rušit."
       },
       "deviceLimit": {
         "question": "Na kolika zařízeních mohu svůj klíč k účtu používat?",
@@ -200,7 +147,7 @@
       },
       "requirements": {
         "question": "Jaké jsou systémové požadavky?",
-        "answer": "Pro Mac: macOS 14 nebo novější, podporován Apple Silicon i Intel. Pro Windows: Windows 10/11, x64 nebo ARM64. Pro Linux v1: Ubuntu 22.04 nebo novější či Debian 12 nebo novější, na amd64. Pro optimální výkon doporučujeme 8 GB RAM."
+        "answer": "Pro Mac: macOS 14.6 nebo novější, podporován Apple Silicon i Intel. Pro Windows: Windows 10/11, x64 nebo ARM64. Pro Linux v1: Ubuntu 22.04 nebo novější či Debian 12 nebo novější, na amd64. Pro optimální výkon doporučujeme 8 GB RAM."
       },
       "madeBy": {
         "question": "Kdo to vytvořil?",
@@ -252,10 +199,7 @@
     "downloadButton": "Stáhnout HyperWhisper",
     "errorGeneric": "Něco se pokazilo. Zkuste to prosím znovu.",
     "errorEmail": "Zadejte platnou e-mailovou adresu.",
-    "errorNetwork": "Chyba sítě. Zkontrolujte připojení a zkuste to znovu.",
-    "thankYouTitle": "Děkujeme!",
     "downloadStarted": "Stahování by mělo začít automaticky.",
-    "manualDownload": "Stahování nezačalo? Klikněte sem",
     "skipAndDownloadButton": "Přeskočit a stáhnout"
   },
   "downloadPage": {
@@ -324,10 +268,10 @@
       "download": "Stáhnout",
       "roadmap": "Roadmapa",
       "helpCenter": "Centrum nápovědy",
-      "manageBilling": "Správa fakturace",
       "customerPortal": "Zákaznický portál",
       "olderVersions": "Starší verze",
       "blog": "Blog",
+      "openSource": "Otevřený zdroj",
       "about": "O nás",
       "support": "Podpora",
       "privacyPolicy": "Zásady ochrany osobních údajů",
@@ -409,6 +353,25 @@
     "custom": "Vlastní",
     "customSub": "vaše částka",
     "topUp": "Dobít"
+  },
+  "licenseKeysCard": {
+    "rotate": "Vygenerovat nový klíč",
+    "confirmTitle": "Vygenerovat nový klíč k účtu?",
+    "confirmBody": "Získáte nový klíč a tento okamžitě přestane fungovat. Každé zařízení, které používá starý klíč, bude potřebovat nový: zadejte ho do HyperWhisper na každém zařízení. Vaše kredity, tarif a historie nákupů zůstávají ve vašem účtu. V ostatních prohlížečích budete také odhlášeni z tohoto webu.",
+    "confirm": "Vygenerovat nový klíč",
+    "cancel": "Zrušit",
+    "rotating": "Generování…",
+    "rotated": "Nový klíč byl vygenerován. Zadejte ho do HyperWhisper na každém ze svých zařízení.",
+    "errorRateLimited": "Příliš mnoho změn klíče. Zkuste to prosím později.",
+    "errorStale": "Tento klíč už byl nahrazen. Aktuální klíč je zobrazen výše.",
+    "errorGeneric": "Nový klíč se nepodařilo vygenerovat. Zkuste to prosím znovu.",
+    "verifyTitle": "Potvrďte svou totožnost e-mailem",
+    "verifyBody": "Než vygenerujete nový klíč, nejprve potvrďte svou totožnost e-mailem. Pošleme přihlašovací odkaz na e-mailovou adresu vašeho účtu. Otevřete ho a pak na této stránce vygenerujte nový klíč.",
+    "sendLink": "Poslat přihlašovací odkaz e-mailem",
+    "sendingLink": "Odesílání…",
+    "linkSent": "Přihlašovací odkaz byl odeslán. Otevřete ho ve své doručené poště a pak vygenerujte nový klíč.",
+    "linkFailed": "Přihlašovací odkaz se nepodařilo odeslat. Zkuste to prosím znovu.",
+    "errorUnavailable": "Pro tento klíč už nelze vygenerovat nový. Jeho aktuální stav je zobrazen výše."
   },
   "openSource": {
     "heading": "Otevřený zdroj. Nic ke skrývání.",

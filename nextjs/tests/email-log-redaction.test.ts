@@ -10,12 +10,13 @@
  * imports). Every `console.*` line is captured while a case runs.
  */
 import assert from "node:assert/strict";
-import test, { afterEach, beforeEach, mock } from "node:test";
+import test, { afterEach, beforeEach } from "node:test";
 
 import { callTRPCProcedure, type AnyRouter } from "@trpc/server";
 
 import { emailTag } from "../lib/shared/redact";
-import { formatLogArgs, leakyDbError, leakyLines } from "./db-error-fixture";
+import { leakyDbError, leakyLines } from "./db-error-fixture";
+import { captureConsole, type ConsoleCapture, moduleMock, moduleUrl } from "./module-mock";
 
 /** As Stripe or a form hands it over: mixed case, trailing space. */
 const RAW = "Alice.Smith@Acme-Widgets.com ";
@@ -31,16 +32,6 @@ const behaviour = {
   dbError: null as unknown,
 };
 const sentEmailRows: Array<Record<string, unknown>> = [];
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
-
-/** `mock.module` is untyped under the pinned `@types/node@20`; see the harnesses. */
-interface ModuleMocker {
-  module(specifier: string, options: { namedExports: Record<string, unknown> }): void;
-}
-const moduleMock = mock as unknown as ModuleMocker;
 
 moduleMock.module(moduleUrl("../lib/clients/resend.ts"), {
   namedExports: {
@@ -71,36 +62,34 @@ moduleMock.module(moduleUrl("../src/lib/auth.ts"), {
   },
 });
 
+// The download router reads NEXT_PUBLIC_SITE_URL and SUPPORT_EMAIL from the
+// validated env (#682). Neither is set here, so it uses its own defaults.
+moduleMock.module(moduleUrl("../src/env/server.mjs"), {
+  namedExports: { env: {} },
+});
+
 // Variable specifiers, loaded after the mocks above so they bind to them.
 const EMAIL_PATH = "../lib/services/email.ts";
 const DOWNLOAD_PATH = "../server/api/routers/download.ts";
 
 let lines: string[] = [];
-const realConsole = { log: console.log, warn: console.warn, error: console.error };
+let consoleCapture: ConsoleCapture | null = null;
 const realFetch = globalThis.fetch;
 
 beforeEach(() => {
-  lines = [];
+  // Rendered as Node's console does: `util.inspect` keeps stack, params, cause.
+  consoleCapture = captureConsole(["log", "warn", "error"]);
+  lines = consoleCapture.lines;
   sentEmailRows.length = 0;
   behaviour.result = { data: { id: "msg_1" }, error: null };
   behaviour.dbError = null;
-  const capture =
-    (level: string) =>
-    (...args: unknown[]): void => {
-      // Rendered as Node's console does: `util.inspect` keeps stack, params, cause.
-      lines.push(`${level} ${formatLogArgs(args)}`);
-    };
-  console.log = capture("log");
-  console.warn = capture("warn");
-  console.error = capture("error");
   // `recordDownload` fetches the appcast; answer "not found" with no network.
   globalThis.fetch = (async () => new Response("", { status: 404 })) as typeof fetch;
 });
 
 afterEach(() => {
-  console.log = realConsole.log;
-  console.warn = realConsole.warn;
-  console.error = realConsole.error;
+  consoleCapture?.restore();
+  consoleCapture = null;
   globalThis.fetch = realFetch;
 });
 

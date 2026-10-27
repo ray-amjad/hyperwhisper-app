@@ -152,7 +152,7 @@ test("a deep localized page states its own lang, canonical and 41 hreflang links
   assert.ok(body.includes(`<link rel="canonical" href="${url}"/>`), "canonical");
   assert.ok(body.includes(`<meta property="og:url" content="${url}"/>`), "og:url");
   // The page's own title and description reach the head with its path fields.
-  assert.match(body, /<title>Refund Policy \| HyperWhisper - HyperWhisper<\/title>/);
+  assert.match(body, /<title>Refund Policy - HyperWhisper<\/title>/);
   assert.match(body, /<meta name="description" content="HyperWhisper refund policy for/);
   assert.match(body, /<meta property="og:image"/);
   // The client provider must hydrate with the same locale: Providers writes its
@@ -197,4 +197,18 @@ test("a non-locale first segment is a 404, not a 500", { skip }, async () => {
   const { status } = await get("/favicon.icox");
 
   assert.equal(status, 404);
+});
+
+test("the root icon paths browsers ask for are served, not 404", { skip }, async () => {
+  // Browsers and iOS request these whatever the <link rel=icon> tags say.
+  for (const [route, type] of [
+    ["/favicon.ico", /^image\/(x-icon|vnd\.microsoft\.icon)/],
+    ["/apple-touch-icon.png", /^image\/png/],
+    ["/apple-touch-icon-precomposed.png", /^image\/png/],
+  ] as const) {
+    const res = await fetch(base + route, { redirect: "manual" });
+
+    assert.equal(res.status, 200, route);
+    assert.match(res.headers.get("content-type") ?? "", type, route);
+  }
 });

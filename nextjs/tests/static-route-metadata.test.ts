@@ -7,32 +7,16 @@
  * and `openGraph`. Next merges metadata SHALLOWLY per top-level key, so a page
  * `openGraph` replaces the layout's whole object: this file also checks the
  * page still sends the og:image list, site name, type and locale. The same
- * holds for `twitter`, whose title the layout pins to the home title.
+ * holds for `twitter`, whose card, creator and images the layout sets.
  *
  * It calls the REAL `generateMetadata` of each page. The three content modules
  * they import read the database (and import "server-only"), so those are
  * replaced with `mock.module`; `generateMetadata` never calls them.
  */
 import assert from "node:assert/strict";
-import test, { mock } from "node:test";
+import test from "node:test";
 
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrowed to the one option used here.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports: Record<string, unknown> },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const unexpected = (name: string) => () => {
   throw new Error(`unexpected ${name} call in a metadata test`);
@@ -117,19 +101,17 @@ for (const { route, title } of ROUTES) {
     assert.equal(metadata.openGraph.siteName, "HyperWhisper");
     assert.deepEqual(
       Array.from(metadata.openGraph.images, (image) => image.url),
-      [1024, 512, 256, 128].map(
-        (size) => `https://www.hyperwhisper.com/icon/${size}.png`,
-      ),
+      ["https://www.hyperwhisper.com/og-image.png"],
     );
 
-    // The layout sets twitter.title, so without a page `twitter` object X
-    // previews the link with the home title; same shallow-merge rule applies.
+    // The page sends its whole `twitter` object, so the shallow merge keeps
+    // the card, creator and images and X previews the link with this title.
     assert.equal(metadata.twitter.title, title);
     assert.equal(metadata.twitter.description, metadata.openGraph.description);
-    assert.equal(metadata.twitter.card, "summary");
+    assert.equal(metadata.twitter.card, "summary_large_image");
     assert.equal(metadata.twitter.creator, "@theramjad");
     assert.deepEqual(metadata.twitter.images, [
-      "https://www.hyperwhisper.com/icon/256.png",
+      "https://www.hyperwhisper.com/og-image.png",
     ]);
   });
 }

@@ -15,37 +15,38 @@
  * Upstash is the local REST server in `fake-upstash-server.ts`: the REAL
  * `@upstash/redis` client and the REAL `@upstash/ratelimit` Lua run against
  * `ioredis-mock`. Every sign-in below sends an empty body, so Better Auth
- * answers 400 at validation and no case reaches the database. The one mocked
- * module is `lib/clients/resend.ts`, as in auth-catch-all-route.test.ts.
+ * answers 400 at validation and no case reaches the database. The mocked
+ * modules are `lib/clients/resend.ts`, as in auth-catch-all-route.test.ts, and
+ * `src/env/server.mjs` (#682), so a test can change a value after import.
  */
 import assert from "node:assert/strict";
 import http from "node:http";
-import { after, before, beforeEach, describe, mock, test } from "node:test";
+import { after, before, beforeEach, describe, test } from "node:test";
 
 import { Redis } from "@upstash/redis";
 
 import { listen, store, upstashRestServer } from "./fake-upstash-server";
+import { captureConsole, moduleMock, moduleUrl } from "./module-mock";
 
 import type { auth as AuthInstance } from "@/src/lib/auth";
 import type * as StorageModule from "@/src/lib/auth-rate-limit-storage";
 
-/** See credit-routes-harness.ts: @types/node@20 has no `mock.module`. */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports: Record<string, unknown> },
-  ): void;
-}
-
-(mock as unknown as ModuleMocker).module(
-  new URL("../lib/clients/resend.ts", import.meta.url).href,
-  {
-    namedExports: {
-      resend: { emails: { send: async () => ({ data: null, error: null }) } },
-      DEFAULT_FROM_EMAIL: "HyperWhisper <support@hyperwhisper.com>",
-    },
+moduleMock.module(moduleUrl("../lib/clients/resend.ts"), {
+  namedExports: {
+    resend: { emails: { send: async () => ({ data: null, error: null }) } },
+    DEFAULT_FROM_EMAIL: "HyperWhisper <support@hyperwhisper.com>",
   },
-);
+});
+
+/**
+ * The validated env every module here reads (auth.ts, the rate-limit storage,
+ * the Redis client). Mutable, and read per call by `siteRedis`.
+ */
+const fakeEnv: Record<string, string | undefined> = {};
+
+moduleMock.module(moduleUrl("../src/env/server.mjs"), {
+  namedExports: { env: fakeEnv },
+});
 
 const ORIGIN = "http://localhost:3000";
 const BASE = `${ORIGIN}/api/auth`;
@@ -65,9 +66,9 @@ const STORAGE_PATH = "../src/lib/auth-rate-limit-storage.ts";
 
 before(async () => {
   site = upstashRestServer();
-  process.env.UPSTASH_REDIS_SITE_URL = await listen(site);
-  process.env.UPSTASH_REDIS_SITE_TOKEN = "site-token-for-tests";
-  process.env.BETTER_AUTH_URL = ORIGIN;
+  fakeEnv.UPSTASH_REDIS_SITE_URL = await listen(site);
+  fakeEnv.UPSTASH_REDIS_SITE_TOKEN = "site-token-for-tests";
+  fakeEnv.BETTER_AUTH_URL = ORIGIN;
 
   POST = (await import(ROUTE_PATH)).POST;
   auth = (await import(AUTH_PATH)).auth;
@@ -98,15 +99,11 @@ function licenseSignIn(ip: string): Request {
 
 /** Swallows console.warn for one call and returns what was warned. */
 async function captureWarnings<T>(run: () => Promise<T>): Promise<{ result: T; warnings: string[] }> {
-  const warnings: string[] = [];
-  const realWarn = console.warn;
-  console.warn = (...args: unknown[]) => {
-    warnings.push(args.map(String).join(" "));
-  };
+  const capture = captureConsole(["warn"]);
   try {
-    return { result: await run(), warnings };
+    return { result: await run(), warnings: capture.lines };
   } finally {
-    console.warn = realWarn;
+    capture.restore();
   }
 }
 
@@ -264,12 +261,13 @@ describe("Upstash unavailable fails open", () => {
   });
 
   test("siteRedis is null without the site's Upstash env", async () => {
-    const saved = process.env.UPSTASH_REDIS_SITE_URL;
-    delete process.env.UPSTASH_REDIS_SITE_URL;
+    const saved = fakeEnv.UPSTASH_REDIS_SITE_URL;
+    assert.ok(await storageModule.siteRedis(), "configured: a client");
+    delete fakeEnv.UPSTASH_REDIS_SITE_URL;
     try {
       assert.equal(await storageModule.siteRedis(), null);
     } finally {
-      process.env.UPSTASH_REDIS_SITE_URL = saved;
+      fakeEnv.UPSTASH_REDIS_SITE_URL = saved;
     }
   });
 });

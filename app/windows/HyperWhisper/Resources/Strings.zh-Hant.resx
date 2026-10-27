@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>這是預設模式，因此無法變更其名稱。你可以重新命名其他任何模式。</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>已存在同名模式。</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>服務商</value>
   </data>
@@ -559,39 +562,6 @@
   <data name="settings.api.postProcessing.subtitle" xml:space="preserve">
     <value>AI 驅動的文字增強和格式化的 API 金鑰。</value>
   </data>
-  <data name="settings.api.invalidKey.title" xml:space="preserve">
-    <value>金鑰無效</value>
-  </data>
-  <data name="settings.api.invalidKey.openai" xml:space="preserve">
-    <value>API 金鑰格式無效。OpenAI 金鑰必須以「sk-」開頭。</value>
-  </data>
-  <data name="settings.api.invalidKey.groq" xml:space="preserve">
-    <value>API 金鑰格式無效。Groq 金鑰必須以「gsk_」開頭。</value>
-  </data>
-  <data name="settings.api.invalidKey.anthropic" xml:space="preserve">
-    <value>API 金鑰格式無效。Anthropic 金鑰必須以「sk-ant-」開頭。</value>
-  </data>
-  <data name="settings.api.invalidKey.gemini" xml:space="preserve">
-    <value>API 金鑰格式無效。Google API 金鑰必須以「AIza」開頭。</value>
-  </data>
-  <data name="settings.api.invalidKey.cerebras" xml:space="preserve">
-    <value>API 金鑰格式無效。Cerebras 金鑰必須以「csk-」開頭。</value>
-  </data>
-  <data name="settings.api.invalidKey.deepgram" xml:space="preserve">
-    <value>API 金鑰格式無效。Deepgram 金鑰至少須包含 32 個字元。</value>
-  </data>
-  <data name="settings.api.invalidKey.assemblyai" xml:space="preserve">
-    <value>API 金鑰格式無效。AssemblyAI 金鑰至少須包含 32 個字元。</value>
-  </data>
-  <data name="settings.api.invalidKey.elevenlabs" xml:space="preserve">
-    <value>API 金鑰格式無效。ElevenLabs 金鑰必須以「sk_」開頭。</value>
-  </data>
-  <data name="settings.api.invalidKey.mistral" xml:space="preserve">
-    <value>API 金鑰格式無效。Mistral 金鑰至少須包含 20 個字元。</value>
-  </data>
-  <data name="settings.api.invalidKey.grok" xml:space="preserve">
-    <value>API 金鑰格式無效。Grok 金鑰必須以 「xai-」 開頭，且至少包含 20 個字元。</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>顯示</value>
   </data>
@@ -798,6 +768,15 @@
   </data>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0}（已就緒）</value>
+  </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0}（未啟用）</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0}（無 API 金鑰）</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0}（金鑰無效）</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>載入失敗</value>
@@ -1513,12 +1492,6 @@
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
-  <data name="settings.api.invalidKey.soniox" xml:space="preserve">
-    <value>API 金鑰格式無效。Soniox 金鑰至少需要 10 個字元。</value>
-  </data>
-  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
-    <value>API 金鑰格式無效。Gemini 3.5 Transcribe 金鑰必須以 「AIza」 開頭，且至少包含 30 個字元。</value>
-  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>透過 Soniox 進行非同步多語言轉錄</value>
   </data>
@@ -2031,6 +2004,27 @@
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>在兩次錄音之間保持一個安靜的閒置輸入串流，以縮短啟動延遲，對 Bluetooth 麥克風特別有效。</value>
   </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>僅供 HyperWhisper 使用。重新啟動後仍會保留。</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>預設 · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0}（未連線）</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>正在使用 {0}，直到 {1} 重新連線。</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>未連接麥克風。{0} 重新連線後，HyperWhisper 將使用它。</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>測試</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>停止</value>
+  </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>平均速度</value>
   </data>
@@ -2069,12 +2063,6 @@
   </data>
   <data name="providerApiKey.secureStorage" xml:space="preserve">
     <value>安全地儲存在 Windows 認證管理員中。</value>
-  </data>
-  <data name="providerApiKey.invalid.title" xml:space="preserve">
-    <value>API 金鑰無效</value>
-  </data>
-  <data name="providerApiKey.invalid.message" xml:space="preserve">
-    <value>這看起來不是有效的 {0} API 金鑰。</value>
   </data>
   <data name="settings.nav.localApi" xml:space="preserve">
     <value>Local API</value>
@@ -2220,6 +2208,24 @@
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>模式: {0}，已新增詞彙: {1}，衝突: {2}。</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>已還原設定。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>已還原 API 金鑰。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>一個或多個 API 金鑰無法還原。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>備份中沒有 API 金鑰。</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>無法還原設定。</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>備份已匯入，但發生問題。{0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>如果詞語已經存在：</value>
   </data>
@@ -2237,9 +2243,6 @@
   </data>
   <data name="settings.api.provider.meta.description" xml:space="preserve">
     <value>Meta Muse Voice Transcribe 1.0 - 使用您自己的 Meta Model API 金鑰進行批次轉錄</value>
-  </data>
-  <data name="settings.api.invalidKey.meta" xml:space="preserve">
-    <value>Meta API 金鑰格式無效。請輸入 Meta for Developers 提供的完整金鑰。</value>
   </data>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
     <value>使用您自己的 Meta Model API 金鑰進行 Muse 批次轉錄</value>

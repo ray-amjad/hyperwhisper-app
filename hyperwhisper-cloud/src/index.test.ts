@@ -28,6 +28,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { websocket as honoBunWebsocket } from 'hono/bun';
 import * as realRedis from './lib/redis';
+import { saveEnv, stubEnv } from './test-support/env';
 
 // ---------------------------------------------------------------------------
 // Redis: the I/O edge /usage reaches before anything else. Blocked is off by
@@ -46,8 +47,7 @@ mock.module('./lib/redis', () => ({
 }));
 
 // PORT is read once, when the module is evaluated, so pin it before the import.
-const originalPort = process.env.PORT;
-delete process.env.PORT;
+const restorePort = stubEnv('PORT', undefined);
 
 const { default: server, SERVER_IDLE_TIMEOUT_SECONDS, SHUTDOWN_DRAIN_MS } = await import('./index');
 const { MAX_AUDIO_SIZE_BYTES } = await import('./lib/constants');
@@ -75,9 +75,8 @@ function openLiveSession(seconds: number): { closes: number[] } {
   const vars: Record<string, unknown> = { wsAuth: auth, wsClientIP: '203.0.113.1' };
   const context = { get: (key: string) => vars[key], req: { url: 'http://transcribe.test/ws/streaming-deepgram?account_key=x' } };
   const originalWebSocket = globalThis.WebSocket;
-  const originalKey = process.env.DEEPGRAM_API_KEY;
   globalThis.WebSocket = OpenUpstreamSocket as unknown as typeof WebSocket;
-  process.env.DEEPGRAM_API_KEY = 'not-a-real-key';
+  const restoreKey = stubEnv('DEEPGRAM_API_KEY', 'not-a-real-key');
   try {
     const events = createStreamingEvents(context as never);
     events.onOpen(new Event('open'), client);
@@ -86,20 +85,19 @@ function openLiveSession(seconds: number): { closes: number[] } {
     }
   } finally {
     globalThis.WebSocket = originalWebSocket;
-    if (originalKey === undefined) delete process.env.DEEPGRAM_API_KEY;
-    else process.env.DEEPGRAM_API_KEY = originalKey;
+    restoreKey();
   }
   return client;
 }
 
 const originalFetch = globalThis.fetch;
 const originalExit = process.exit;
-const originalEnv = {
-  FLY_REGION: process.env.FLY_REGION,
-  FLY_APP_NAME: process.env.FLY_APP_NAME,
-  HYPERWHISPER_INTERNAL_SECRET: process.env.HYPERWHISPER_INTERNAL_SECRET,
-  NEXTJS_LICENSE_API_URL: process.env.NEXTJS_LICENSE_API_URL,
-};
+const restoreEnv = [
+  saveEnv('FLY_REGION'),
+  saveEnv('FLY_APP_NAME'),
+  saveEnv('HYPERWHISPER_INTERNAL_SECRET'),
+  saveEnv('NEXTJS_LICENSE_API_URL'),
+];
 
 /** Every console.log/console.error event name the app emitted, in order. */
 let logEvents: string[] = [];
@@ -131,18 +129,14 @@ afterEach(() => {
   console.log = realLog;
   console.error = realError;
   globalThis.fetch = originalFetch;
-  for (const [key, value] of Object.entries(originalEnv)) {
-    if (value === undefined) delete process.env[key];
-    else process.env[key] = value;
-  }
+  for (const restore of restoreEnv) restore();
 });
 
 afterAll(() => {
   process.exit = originalExit;
   // The SIGTERM test latches the streaming shutdown; bun runs every file in one process.
   resetStreamingShutdownForTests();
-  if (originalPort === undefined) delete process.env.PORT;
-  else process.env.PORT = originalPort;
+  restorePort();
 });
 
 function send(path: string, init: RequestInit = {}): Promise<Response> {
@@ -332,7 +326,7 @@ describe('unhandled errors', () => {
     expect(raw).not.toContain(LEAKY);
   });
 
-  test('logs the full cause server-side under the same id the client was given', async () => {
+  test('logs the cause server-side under the same id the client was given', async () => {
     ipBlockedError = new Error(LEAKY);
 
     const body = await (await send('/usage?license_key=HW-ROUTINE-FIXTURE')).json() as { error_id: string };
@@ -340,7 +334,26 @@ describe('unhandled errors', () => {
     const logged = logPayloads.find((entry) => entry.event.startsWith('Unhandled error'));
     expect(logged).toBeDefined();
     expect(logged!.event).toContain(body.error_id);
-    expect(logged!.args[1]).toBe(ipBlockedError);
+    // One JSON line (#2163): name, redacted + capped message, stack frames.
+    const fields = JSON.parse(logged!.args[1] as string) as { errorName: string; message: string; stack: string[] };
+    expect(fields.errorName).toBe('Error');
+    expect(fields.message).toBe(`Error: ${LEAKY}`);
+    expect(fields.stack.length).toBeGreaterThan(0);
+    expect(fields.stack.every((frame) => frame.startsWith('at '))).toBe(true);
+  });
+
+  test('never logs a serialized upstream payload or more than 200 characters of message (#2163)', async () => {
+    const MARKER = 'SECRET_TRANSCRIPT_MARKER_2163';
+    ipBlockedError = new Error(`upstream said {"error":{"message":"${MARKER}"}} ${'x'.repeat(400)}`);
+
+    await send('/usage?license_key=HW-ROUTINE-FIXTURE');
+
+    const logged = logPayloads.find((entry) => entry.event.startsWith('Unhandled error'));
+    expect(logged).toBeDefined();
+    const line = JSON.stringify(logged!.args);
+    expect(line).not.toContain(MARKER);
+    const fields = JSON.parse(logged!.args[1] as string) as { message: string };
+    expect(fields.message.length).toBeLessThanOrEqual(200 + '<truncated>'.length);
   });
 
   test('gives each failure its own id so two reports are distinguishable', async () => {

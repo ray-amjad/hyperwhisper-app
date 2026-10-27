@@ -15,7 +15,7 @@
  * Every other missing grant still answers 500.
  */
 import assert from "node:assert/strict";
-import { after, afterEach, before, beforeEach, describe, mock, test } from "node:test";
+import { after, before, beforeEach, describe, mock, test } from "node:test";
 
 import { sql } from "drizzle-orm";
 import { NextRequest } from "next/server";
@@ -29,20 +29,14 @@ import {
   seedGrant,
   seedUser,
 } from "./credit-ledger-harness";
-import { formatLogArgs } from "./db-error-fixture";
-
-interface ModuleMocker {
-  module(specifier: string, options: { namedExports: Record<string, unknown> }): void;
-}
-
-const moduleUrl = (relative: string) => new URL(relative, import.meta.url).href;
+import { captureConsole, type ConsoleCapture, moduleMock, moduleUrl } from "./module-mock";
 
 /** Checkout Sessions Stripe would return, keyed by payment intent. */
 const sessionsByIntent = new Map<string, unknown>();
 /** The event the stand-in signature verifier hands the route. */
 let verifiedEvent: Record<string, unknown> | null = null;
 
-(mock as unknown as ModuleMocker).module(moduleUrl("../lib/clients/stripe.ts"), {
+moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
   namedExports: {
     stripe: {
       webhooks: {
@@ -62,10 +56,14 @@ let verifiedEvent: Record<string, unknown> | null = null;
     },
   },
 });
-(mock as unknown as ModuleMocker).module(moduleUrl("../lib/services/email.ts"), {
+// The route reads its webhook secret from the validated env (#682).
+moduleMock.module(moduleUrl("../src/env/server.mjs"), {
+  namedExports: { env: { STRIPE_WEBHOOK_SECRET: "whsec_harness_only" } },
+});
+moduleMock.module(moduleUrl("../lib/services/email.ts"), {
   namedExports: { emailService: {} },
 });
-(mock as unknown as ModuleMocker).module(moduleUrl("../lib/services/license-key.ts"), {
+moduleMock.module(moduleUrl("../lib/services/license-key.ts"), {
   namedExports: { generateLicenseKey: () => "HW-TEST-0000-0000" },
 });
 
@@ -75,8 +73,7 @@ let L: Awaited<ReturnType<typeof loadDbLayer>>;
 let POST: PostHandler;
 
 const logLines: string[] = [];
-const realConsole = { log: console.log, warn: console.warn, error: console.error };
-const realWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+let consoleCapture: ConsoleCapture | null = null;
 
 /** 2026-06-16T06:55:05.796Z, the journal `when` of 0006_fat_husk. */
 const LEDGER_STARTED_S = Math.floor(1781592905796 / 1000);
@@ -87,31 +84,17 @@ before(async () => {
   ({ POST } = (await import("@/app/api/webhooks/stripe/route")) as unknown as {
     POST: PostHandler;
   });
-  const capture =
-    (level: string) =>
-    (...args: unknown[]): void => {
-      logLines.push(`${level} ${formatLogArgs(args)}`);
-    };
-  console.log = capture("log");
-  console.warn = capture("warn");
-  console.error = capture("error");
+  consoleCapture = captureConsole(["log", "warn", "error"], logLines);
 });
 after(() => {
-  console.log = realConsole.log;
-  console.warn = realConsole.warn;
-  console.error = realConsole.error;
+  consoleCapture?.restore();
 });
 beforeEach(async () => {
   await resetDatabase();
   sessionsByIntent.clear();
   verifiedEvent = null;
   logLines.length = 0;
-  process.env.STRIPE_WEBHOOK_SECRET = "whsec_harness_only";
   await seedUser("u1");
-});
-afterEach(() => {
-  if (realWebhookSecret === undefined) delete process.env.STRIPE_WEBHOOK_SECRET;
-  else process.env.STRIPE_WEBHOOK_SECRET = realWebhookSecret;
 });
 
 /** A paid 5,000-credit pack's Checkout Session, findable by its intent. */
@@ -198,7 +181,7 @@ describe("charge.refunded with no grant: permanent cases answer 200 and log why 
     assert.equal(response.status, 200);
     assert.deepEqual(await ledgerState(), before);
     assert.equal(warnings().length, 1, logLines.join("\n"));
-    assert.match(warnings()[0], /cs_gone.*took back no credits: top-up licence HW-GONE\.\.\. does not exist/);
+    assert.match(warnings()[0], /cs_gone.*took back no credits: top-up licence HW-GONE\.\.\. not found by row id, key or Stripe customer \(deleted, or its key was rotated\)/);
   });
 
   test("(a) a top-up whose licence is revoked", async () => {

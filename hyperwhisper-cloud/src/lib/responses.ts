@@ -76,16 +76,3 @@ export function fileTooLargeResponse(actualBytes: number, maxBytes: number): Res
     }
   );
 }
-
-export function imageTooLargeResponse(actualBytes: number, maxBytes: number): Response {
-  const actualMB = actualBytes / (1024 * 1024);
-  const maxMB = maxBytes / (1024 * 1024);
-
-  return errorResponse(413, 'Image too large',
-    `Image must be ${maxMB.toFixed(0)} MB or smaller. Your image is ${actualMB.toFixed(2)} MB.`,
-    {
-      max_size_mb: Math.round(maxMB),
-      actual_size_mb: parseFloat(actualMB.toFixed(2)),
-    }
-  );
-}

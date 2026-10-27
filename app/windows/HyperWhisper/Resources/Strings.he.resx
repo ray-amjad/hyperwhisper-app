@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>זהו מצב ברירת המחדל, ולכן לא ניתן לשנות את שמו. אפשר לשנות את השם של כל מצב אחר.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>כבר קיים מצב בשם הזה.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -559,39 +562,6 @@
   <data name="settings.api.postProcessing.subtitle" xml:space="preserve">
     <value>מפתחות API לשיפור טקסט ועיצוב מופעל על ידי AI.</value>
   </data>
-  <data name="settings.api.invalidKey.title" xml:space="preserve">
-    <value>Invalid Key</value>
-  </data>
-  <data name="settings.api.invalidKey.openai" xml:space="preserve">
-    <value>Invalid API key format. OpenAI keys should start with 'sk-'.</value>
-  </data>
-  <data name="settings.api.invalidKey.groq" xml:space="preserve">
-    <value>Invalid API key format. Groq keys should start with 'gsk_'.</value>
-  </data>
-  <data name="settings.api.invalidKey.anthropic" xml:space="preserve">
-    <value>Invalid API key format. Anthropic keys should start with 'sk-ant-'.</value>
-  </data>
-  <data name="settings.api.invalidKey.gemini" xml:space="preserve">
-    <value>Invalid API key format. Google API keys should start with 'AIza'.</value>
-  </data>
-  <data name="settings.api.invalidKey.cerebras" xml:space="preserve">
-    <value>Invalid API key format. Cerebras keys should start with 'csk-'.</value>
-  </data>
-  <data name="settings.api.invalidKey.deepgram" xml:space="preserve">
-    <value>Invalid API key format. Deepgram keys should be at least 32 characters.</value>
-  </data>
-  <data name="settings.api.invalidKey.assemblyai" xml:space="preserve">
-    <value>Invalid API key format. AssemblyAI keys should be at least 32 characters.</value>
-  </data>
-  <data name="settings.api.invalidKey.elevenlabs" xml:space="preserve">
-    <value>Invalid API key format. ElevenLabs keys should start with 'sk_'.</value>
-  </data>
-  <data name="settings.api.invalidKey.mistral" xml:space="preserve">
-    <value>Invalid API key format. Mistral keys should be at least 20 characters.</value>
-  </data>
-  <data name="settings.api.invalidKey.grok" xml:space="preserve">
-    <value>פורמט מפתח API לא חוקי. מפתחות Grok חייבים להתחיל ב-"xai-" ולהכיל לפחות 20 תווים.</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>Show</value>
   </data>
@@ -798,6 +768,15 @@
   </data>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (Ready)</value>
+  </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (לא מופעל)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (אין מפתח API)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (מפתח לא חוקי)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
@@ -1514,12 +1493,6 @@ You can re-download it later.</value>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
-  <data name="settings.api.invalidKey.soniox" xml:space="preserve">
-    <value>פורמט מפתח API לא חוקי. מפתחות Soniox חייבים להכיל לפחות 10 תווים.</value>
-  </data>
-  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
-    <value>פורמט מפתח API לא חוקי. מפתחות Gemini 3.5 Transcribe חייבים להתחיל ב-"AIza" ולהכיל לפחות 30 תווים.</value>
-  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>תמלול אסינכרוני רב-לשוני דרך Soniox</value>
   </data>
@@ -2032,6 +2005,27 @@ You can re-download it later.</value>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
   </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>בשימוש HyperWhisper בלבד. נשמר גם לאחר הפעלה מחדש.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>ברירת מחדל · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (לא מחובר)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>נעשה שימוש ב-{0} עד ש-{1} יחובר מחדש.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>אין מיקרופון מחובר. HyperWhisper ישתמש ב-{0} כשיחובר מחדש.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>בדיקה</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>עצירה</value>
+  </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>
   </data>
@@ -2070,12 +2064,6 @@ You can re-download it later.</value>
   </data>
   <data name="providerApiKey.secureStorage" xml:space="preserve">
     <value>Stored securely in Windows Credential Manager.</value>
-  </data>
-  <data name="providerApiKey.invalid.title" xml:space="preserve">
-    <value>Invalid API Key</value>
-  </data>
-  <data name="providerApiKey.invalid.message" xml:space="preserve">
-    <value>That does not look like a valid {0} API key.</value>
   </data>
   <data name="settings.nav.localApi" xml:space="preserve">
     <value>Local API</value>
@@ -2221,6 +2209,24 @@ You can re-download it later.</value>
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>מצבים: {0}, מילים שנוספו: {1}, התנגשויות: {2}.</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>ההגדרות שוחזרו.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>מפתחות ה-API שוחזרו.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>לא ניתן היה לשחזר מפתח API אחד או יותר.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>הגיבוי אינו מכיל מפתחות API.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>לא ניתן היה לשחזר את ההגדרות.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>הגיבוי יובא עם בעיות. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>אם מילה כבר קיימת:</value>
   </data>
@@ -2238,9 +2244,6 @@ You can re-download it later.</value>
   </data>
   <data name="settings.api.provider.meta.description" xml:space="preserve">
     <value>Meta Muse Voice Transcribe 1.0 - batch transcription with your own Meta Model API key</value>
-  </data>
-  <data name="settings.api.invalidKey.meta" xml:space="preserve">
-    <value>Invalid Meta API key format. Enter the complete key from Meta for Developers.</value>
   </data>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
     <value>Use your own Meta Model API key for Muse batch transcription</value>

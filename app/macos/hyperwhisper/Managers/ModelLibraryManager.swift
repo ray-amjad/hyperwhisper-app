@@ -280,6 +280,7 @@ final class ModelLibraryManager: ObservableObject {
         // ElevenLabs
         "scribe_v1":                         (3, 5),
         "scribe_v2":                         (3, 5),
+        "scribe_v2_medical":                 (3, 5),
         // Mistral
         "voxtral-mini-latest":               (4, 2),
         // Soniox
@@ -587,7 +588,7 @@ final class ModelLibraryManager: ObservableObject {
         "grok-4.5":                                      (2, 5),
         "grok-4.6":                                      (2, 5),
         "mistral-small-latest":                          (2, 3),
-        "mistral-medium-3.5":                            (2, 4),
+        "mistral-medium-3-5":                            (2, 4),
         "gpt-oss-120b":                                  (5, 3),
         "qwen-3.8-27b":                                  (4, 3),
         "gemma-4-E2B-it-Q4_K_M.gguf":                    (5, 1),

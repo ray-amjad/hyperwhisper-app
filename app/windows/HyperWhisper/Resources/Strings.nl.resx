@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Dit is de standaardmodus, dus de naam kan niet worden gewijzigd. Je kunt elke andere modus hernoemen.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Er bestaat al een modus met die naam.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -559,39 +562,6 @@
   <data name="settings.api.postProcessing.subtitle" xml:space="preserve">
     <value>API-sleutels voor AI-aangedreven tekstverbetering en opmaak.</value>
   </data>
-  <data name="settings.api.invalidKey.title" xml:space="preserve">
-    <value>Ongeldige sleutel</value>
-  </data>
-  <data name="settings.api.invalidKey.openai" xml:space="preserve">
-    <value>Ongeldige indeling van de API-sleutel. Sleutels van OpenAI beginnen met "sk-".</value>
-  </data>
-  <data name="settings.api.invalidKey.groq" xml:space="preserve">
-    <value>Ongeldige indeling van de API-sleutel. Sleutels van Groq beginnen met "gsk_".</value>
-  </data>
-  <data name="settings.api.invalidKey.anthropic" xml:space="preserve">
-    <value>Ongeldige indeling van de API-sleutel. Sleutels van Anthropic beginnen met "sk-ant-".</value>
-  </data>
-  <data name="settings.api.invalidKey.gemini" xml:space="preserve">
-    <value>Ongeldige indeling van de API-sleutel. API-sleutels van Google beginnen met "AIza".</value>
-  </data>
-  <data name="settings.api.invalidKey.cerebras" xml:space="preserve">
-    <value>Ongeldige indeling van de API-sleutel. Sleutels van Cerebras beginnen met "csk-".</value>
-  </data>
-  <data name="settings.api.invalidKey.deepgram" xml:space="preserve">
-    <value>Ongeldige indeling van de API-sleutel. Sleutels van Deepgram zijn minstens 32 tekens lang.</value>
-  </data>
-  <data name="settings.api.invalidKey.assemblyai" xml:space="preserve">
-    <value>Ongeldige indeling van de API-sleutel. Sleutels van AssemblyAI zijn minstens 32 tekens lang.</value>
-  </data>
-  <data name="settings.api.invalidKey.elevenlabs" xml:space="preserve">
-    <value>Ongeldige indeling van de API-sleutel. Sleutels van ElevenLabs beginnen met "sk_".</value>
-  </data>
-  <data name="settings.api.invalidKey.mistral" xml:space="preserve">
-    <value>Ongeldige indeling van de API-sleutel. Sleutels van Mistral zijn minstens 20 tekens lang.</value>
-  </data>
-  <data name="settings.api.invalidKey.grok" xml:space="preserve">
-    <value>Ongeldig API-sleutelformaat. Grok-sleutels moeten beginnen met "xai-" en minimaal 20 tekens lang zijn.</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>Tonen</value>
   </data>
@@ -798,6 +768,15 @@ Dit kan niet ongedaan worden gemaakt.</value>
   </data>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (gereed)</value>
+  </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (niet geactiveerd)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (geen API-sleutel)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (ongeldige sleutel)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Laden mislukt</value>
@@ -1514,12 +1493,6 @@ Je kunt het later opnieuw downloaden.</value>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
-  <data name="settings.api.invalidKey.soniox" xml:space="preserve">
-    <value>Ongeldig API-sleutelformaat. Soniox-sleutels moeten minimaal 10 tekens lang zijn.</value>
-  </data>
-  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
-    <value>Ongeldig API-sleutelformaat. Gemini 3.5 Transcribe-sleutels moeten beginnen met "AIza" en minimaal 30 tekens lang zijn.</value>
-  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Asynchrone meertalige transcriptie via Soniox</value>
   </data>
@@ -2032,6 +2005,27 @@ Je kunt het later opnieuw downloaden.</value>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Houd tussen opnamen door een stille invoerstroom open, zodat het starten minder vertraging heeft, vooral bij Bluetooth-microfoons.</value>
   </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Alleen gebruikt door HyperWhisper. Blijft bewaard na een herstart.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Standaard · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (niet verbonden)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>{0} wordt gebruikt totdat {1} opnieuw is verbonden.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Er is geen microfoon verbonden. HyperWhisper gebruikt {0} zodra die opnieuw is verbonden.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Testen</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Stoppen</value>
+  </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Gemiddelde snelheid</value>
   </data>
@@ -2070,12 +2064,6 @@ Je kunt het later opnieuw downloaden.</value>
   </data>
   <data name="providerApiKey.secureStorage" xml:space="preserve">
     <value>Veilig opgeslagen in Windows Referentiebeheer.</value>
-  </data>
-  <data name="providerApiKey.invalid.title" xml:space="preserve">
-    <value>Ongeldige API-sleutel</value>
-  </data>
-  <data name="providerApiKey.invalid.message" xml:space="preserve">
-    <value>Dit lijkt geen geldige API-sleutel van {0}.</value>
   </data>
   <data name="settings.nav.localApi" xml:space="preserve">
     <value>Lokale API</value>
@@ -2221,6 +2209,24 @@ Je kunt het later opnieuw downloaden.</value>
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>Modi: {0}, woordenschat toegevoegd: {1}, conflicten: {2}.</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>Instellingen hersteld.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API-sleutels hersteld.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Een of meer API-sleutels konden niet worden hersteld.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>De back-up bevat geen API-sleutels.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Instellingen konden niet worden hersteld.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Back-up geïmporteerd met problemen. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Als een woord al bestaat:</value>
   </data>
@@ -2238,9 +2244,6 @@ Je kunt het later opnieuw downloaden.</value>
   </data>
   <data name="settings.api.provider.meta.description" xml:space="preserve">
     <value>Meta Muse Voice Transcribe 1.0 - batchtranscriptie met je eigen Meta Model API-sleutel</value>
-  </data>
-  <data name="settings.api.invalidKey.meta" xml:space="preserve">
-    <value>Ongeldige indeling van de Meta API-sleutel. Voer de volledige sleutel uit Meta for Developers in.</value>
   </data>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
     <value>Gebruik je eigen Meta Model API-sleutel voor batchtranscriptie met Muse</value>

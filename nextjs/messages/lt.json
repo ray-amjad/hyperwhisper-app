@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Funkcijos",
-    "pricing": "Kainodara",
     "faq": "DUK",
     "support": "Pagalba",
     "download": "Atsisiųsti",
@@ -20,7 +19,6 @@
     "githubAria": "Peržiūrėti HyperWhisper svetainėje GitHub"
   },
   "hero": {
-    "openSourceBadge": "Atviras kodas · Apache-2.0",
     "logoAlt": "HyperWhisper logotipas",
     "headline": "Rašykite, kurkite ir komponuokite",
     "headlineAccent": "5x greičiau su AI",
@@ -28,7 +26,7 @@
     "downloadCta": "Atsisiųsti dabar",
     "demoCta": "Žiūrėti demonstraciją",
     "availableOn": "Prieinama",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -98,57 +96,6 @@
     "languagesSupported": "Palaikomos kalbos",
     "providersSupported": "Palaikomi tiekėjai"
   },
-  "pricing": {
-    "title": "Jokių prenumeratų. Niekada.",
-    "subtitle": "Mokėkite kartą, naudokite visada. Mes taip pat nemėgstame prenumeratų.",
-    "guarantee": "14 dienų pinigų grąžinimo garantija",
-    "guaranteeExtended": "jei nebūsite visiškai patenkinti.",
-    "learnMore": "Sužinoti daugiau",
-    "free": {
-      "name": "Nemokama",
-      "price": "$0",
-      "period": "visam laikui",
-      "description": "Puikiai tinka išbandyti HyperWhisper",
-      "cta": "Atsisiųsti nemokamai",
-      "features": {
-        "transcriptionLimit": "5 minutės transkripcijos per dieną",
-        "basicModes": "Pagrindiniai transkripcijos režimai",
-        "offlineTranscription": "Transkripcija neprisijungus",
-        "apiTranscription": "API transkripcija (naudokite savo raktus)",
-        "postProcessing": "Teksto papildomas apdorojimas",
-        "providers": "9+ tiekėjų pasirinkimui",
-        "lifetimeUpdates": "Atnaujinimai visam laikui",
-        "cloudLimited": "HyperWhisper Cloud (ribotas naudojimas)",
-        "customVocabulary": "Pritaikytas žodynas",
-        "prioritySupport": "Prioritetinė pagalba"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "visam laikui",
-      "description": "Vienkartinis pirkimas, neribota galia visam laikui",
-      "cta": "Pirkti dabar - prieiga visam laikui",
-      "mostPopular": "Populiariausias",
-      "features": {
-        "unlimitedTranscription": "Neribota transkripcija",
-        "allModes": "Visi transkripcijos režimai",
-        "offlineTranscription": "Transkripcija neprisijungus",
-        "apiTranscription": "API transkripcija (naudokite savo raktus)",
-        "postProcessing": "Teksto papildomas apdorojimas",
-        "providers": "9+ tiekėjų pasirinkimui",
-        "lifetimeUpdates": "Atnaujinimai visam laikui",
-        "cloudCredits": "HyperWhisper Cloud ($5 kreditų)",
-        "customVocabulary": "Pritaikytas žodynas",
-        "prioritySupport": "Prioritetinė pagalba"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise ir individuali kainodara",
-      "description": "Kiekinės nuolaidos, SSO, prioritetinė pagalba, vidinė priegloba ir individualios integracijos",
-      "cta": "Susisiekti su pardavimais"
-    }
-  },
   "faq": {
     "title": "Dažniausiai užduodami klausimai",
     "subtitle": "Viskas, ką reikia žinoti apie HyperWhisper",
@@ -192,7 +139,7 @@
       },
       "lifetime": {
         "question": "Ar yra prenumerata?",
-        "answer": "Ne — niekada. HyperWhisper yra atvirojo kodo programėlė, kuri priklauso jums, o ne prenumerata, kurią nuomojate. Atsisiųskite ją nemokamai ir naudokite vietinę, neprisijungus veikiančią transkripciją nemokamai amžinai; nemokamas lygis taip pat apima 5 minutes debesų transkripcijos per dieną. Kai norite debesų transkripcijos be jokio konfigūravimo virš to, HyperWhisper Cloud yra paprasti kreditai, už kuriuos mokama pagal naudojimą — papildykite tik tada, kai reikia, be mėnesinių mokesčių ir be nieko, ką reikėtų atšaukti."
+        "answer": "Ne — niekada. HyperWhisper yra atvirojo kodo programėlė, kuri priklauso jums, o ne prenumerata, kurią nuomojate. Atsisiųskite ją nemokamai ir naudokite vietinę, neprisijungus veikiančią transkripciją nemokamai amžinai. Kai norite debesų transkripcijos be jokio konfigūravimo, HyperWhisper Cloud yra paprasti kreditai, už kuriuos mokama pagal naudojimą — papildykite tik tada, kai reikia, be mėnesinių mokesčių ir be nieko, ką reikėtų atšaukti."
       },
       "deviceLimit": {
         "question": "Kiek įrenginių galiu naudoti su savo paskyros raktu?",
@@ -200,7 +147,7 @@
       },
       "requirements": {
         "question": "Kokie sistemos reikalavimai?",
-        "answer": "Mac: macOS 14 arba naujesnė versija, palaikomi Apple Silicon ir Intel. Windows: Windows 10/11, x64 arba ARM64. Linux v1: Ubuntu 22.04 arba naujesnė arba Debian 12 arba naujesnė versija, amd64. Optimaliam veikimui rekomenduojama 8 GB RAM."
+        "answer": "Mac: macOS 14.6 arba naujesnė versija, palaikomi Apple Silicon ir Intel. Windows: Windows 10/11, x64 arba ARM64. Linux v1: Ubuntu 22.04 arba naujesnė arba Debian 12 arba naujesnė versija, amd64. Optimaliam veikimui rekomenduojama 8 GB RAM."
       },
       "madeBy": {
         "question": "Kas tai sukūrė?",
@@ -252,10 +199,7 @@
     "downloadButton": "Atsisiųsti HyperWhisper",
     "errorGeneric": "Kažkas nepavyko. Bandykite dar kartą.",
     "errorEmail": "Įveskite galiojantį el. pašto adresą.",
-    "errorNetwork": "Tinklo klaida. Patikrinkite ryšį ir bandykite dar kartą.",
-    "thankYouTitle": "Ačiū!",
     "downloadStarted": "Atsisiuntimas turėtų prasidėti automatiškai.",
-    "manualDownload": "Atsisiuntimas neprasidėjo? Spustelėkite čia",
     "skipAndDownloadButton": "Praleisti ir atsisiųsti"
   },
   "downloadPage": {
@@ -324,10 +268,10 @@
       "download": "Atsisiųsti",
       "roadmap": "Plėtros planas",
       "helpCenter": "Pagalbos centras",
-      "manageBilling": "Valdyti atsiskaitymą",
       "customerPortal": "Klientų portalas",
       "olderVersions": "Senesnės versijos",
       "blog": "Tinklaraštis",
+      "openSource": "Atvirasis kodas",
       "about": "Apie",
       "support": "Pagalba",
       "privacyPolicy": "Privatumo politika",
@@ -409,6 +353,25 @@
     "custom": "Pasirinktinė",
     "customSub": "jūsų suma",
     "topUp": "Papildyti"
+  },
+  "licenseKeysCard": {
+    "rotate": "Sugeneruoti naują raktą",
+    "confirmTitle": "Sugeneruoti naują paskyros raktą?",
+    "confirmBody": "Gausite naują raktą, o šis iš karto nustos veikti. Kiekvienam įrenginiui, kuriame naudojamas senasis raktas, reikės naujojo: įveskite jį HyperWhisper kiekviename įrenginyje. Jūsų kreditai, planas ir pirkimų istorija lieka jūsų paskyroje. Be to, kitose naršyklėse būsite atjungti nuo šios svetainės.",
+    "confirm": "Sugeneruoti naują raktą",
+    "cancel": "Atšaukti",
+    "rotating": "Generuojama…",
+    "rotated": "Naujas raktas sugeneruotas. Įveskite jį HyperWhisper kiekviename savo įrenginyje.",
+    "errorRateLimited": "Per daug rakto keitimų. Bandykite vėliau.",
+    "errorStale": "Šis raktas jau pakeistas. Dabartinis raktas rodomas aukščiau.",
+    "errorGeneric": "Nepavyko sugeneruoti naujo rakto. Bandykite dar kartą.",
+    "verifyTitle": "Patvirtinkite el. paštu, kad tai jūs",
+    "verifyBody": "Norėdami sugeneruoti naują raktą, pirmiausia patvirtinkite el. paštu, kad tai jūs. Išsiųsime prisijungimo nuorodą jūsų paskyros el. pašto adresu. Atidarykite ją, tada šiame puslapyje sugeneruokite naują raktą.",
+    "sendLink": "Atsiųskite man prisijungimo nuorodą",
+    "sendingLink": "Siunčiama…",
+    "linkSent": "Prisijungimo nuoroda išsiųsta. Atidarykite ją iš gautųjų laiškų aplanko, tada sugeneruokite naują raktą.",
+    "linkFailed": "Nepavyko išsiųsti prisijungimo nuorodos. Bandykite dar kartą.",
+    "errorUnavailable": "Šiam raktui nebegalima sugeneruoti naujo. Dabartinė jo būsena rodoma aukščiau."
   },
   "openSource": {
     "heading": "Atvirasis kodas. Nėra ko slėpti.",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, MapPin, Pin } from "lucide-react";
 
 import {
@@ -13,6 +13,11 @@ import {
   type LatencyModelRow,
   type LatencyVendorRow,
 } from "@/lib/latency/types";
+import {
+  prefersReducedMotion,
+  slideRows,
+  snapshotRowTops,
+} from "@/lib/flip-rows";
 import { regionCity } from "@/lib/latency/fly-regions";
 import { TEXT_LINK } from "@/components/text-link";
 import { isRecord } from "@/src/lib/type-guards";
@@ -78,6 +83,10 @@ function cellMap(cells: LatencyCell[], metric: MetricKey, minSamples: number) {
 export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   const [bucket, setBucket] = useState<DurationBucket>(defaultBucket);
   const [metric, setMetric] = useState<MetricKey>("p50");
+  // Set by the first click that changes the Metric or Clip length (#813).
+  // Until then the cell numbers do not fade, so the table does not fade in on
+  // first paint.
+  const [swapped, setSwapped] = useState(false);
   const [byModel, setByModel] = useState(false);
   const [sortRegion, setSortRegion] = useState<string | null>(null);
   const [pinnedVendor, setPinnedVendor] = useState<string | null>(null);
@@ -88,6 +97,18 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   // Once the visitor has chosen a region by hand, geolocation stops having an
   // opinion — switching clip-length bucket must not quietly move them back.
   const regionPickedByUser = useRef(false);
+  // The matrix region and its table (#702). "Break down by model" adds a dozen
+  // rows at once, and a table row cannot tween, so the region tweens to the
+  // table's measured height instead (.t-resize) and the page under it glides
+  // rather than jumping 500 px in one frame.
+  const matrixRegion = useRef<HTMLDivElement>(null);
+  const matrixTable = useRef<HTMLTableElement>(null);
+  // The re-sort FLIP (#812): where each row stood just before a re-order, and
+  // the slides in flight.
+  const tbodyRef = useRef<HTMLTableSectionElement>(null);
+  const rowRefs = useRef(new Map<string, HTMLTableRowElement>());
+  const pendingRowTops = useRef<Map<string, number> | null>(null);
+  const rowSlides = useRef(new Map<string, Animation>());
 
   const data = matrices[bucket];
   const { regions } = data;
@@ -137,6 +158,25 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
 
     return () => controller.abort();
   }, [regionsKey]);
+
+  // ResizeObserver reports after layout and before paint, so the region still
+  // holds its old height in the frame the rows change, and the transition
+  // starts from there. The first report only pins the height it already has.
+  // The region is observed too: a horizontal scrollbar that comes or goes
+  // changes its chrome (border + scrollbar) without changing the table.
+  useEffect(() => {
+    const region = matrixRegion.current;
+    const table = matrixTable.current;
+    if (!region || !table) return;
+    const observer = new ResizeObserver(() => {
+      const chrome = region.offsetHeight - region.clientHeight;
+      region.style.height = `${table.offsetHeight + chrome}px`;
+    });
+    observer.observe(table);
+    observer.observe(region);
+
+    return () => observer.disconnect();
+  }, [hasData]);
 
   // The region to actually highlight. A pick is remembered across bucket
   // switches — geolocation must not quietly undo it — but every bucket derives
@@ -244,6 +284,27 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendorRows, regions, activeSortRegion, byModel]);
 
+  // Slide the re-sorted rows to their new places (#812) instead of painting
+  // the new order in one frame, so the reader who clicked a column can follow
+  // the provider they were looking at. Only a re-order snapshots the rows: the
+  // "Break down by model" toggle changes the row SET, and #702 glides that.
+  useLayoutEffect(() => {
+    const before = pendingRowTops.current;
+
+    pendingRowTops.current = null;
+    const tbody = tbodyRef.current;
+    if (before === null || tbody === null || prefersReducedMotion()) return;
+    slideRows(tbody, rowRefs.current, before, rowSlides.current);
+  }, [rows]);
+
+  /** Call before any state change that re-orders the rows. */
+  function snapshotForSort() {
+    pendingRowTops.current = null;
+    const tbody = tbodyRef.current;
+    if (tbody === null || prefersReducedMotion()) return;
+    pendingRowTops.current = snapshotRowTops(tbody, rowRefs.current);
+  }
+
   /**
    * Colour range over the rows actually on screen. Model rows are included only
    * while the breakdown is open, so opening it cannot leave the vendor rows
@@ -301,7 +362,12 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                     : "text-gray-400 hover:text-white"
                 }`}
                 type="button"
-                onClick={() => setMetric(entry.key)}
+                onClick={() => {
+                  if (entry.key === metric) return;
+                  setSwapped(true);
+                  snapshotForSort();
+                  setMetric(entry.key);
+                }}
               >
                 {entry.label}
               </button>
@@ -331,7 +397,12 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                     : "text-gray-400 hover:text-white"
                 }`}
                 type="button"
-                onClick={() => setBucket(entry)}
+                onClick={() => {
+                  if (entry === bucket) return;
+                  setSwapped(true);
+                  snapshotForSort();
+                  setBucket(entry);
+                }}
               >
                 {BUCKET_LABELS[entry]}
               </button>
@@ -356,9 +427,9 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                 onClick={() => setByModel((open) => !open)}
               >
                 {byModel ? (
-                  <ChevronDown className="h-3.5 w-3.5" />
+                  <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} />
                 ) : (
-                  <ChevronRight className="h-3.5 w-3.5" />
+                  <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
                 )}
                 Break down by model
               </button>
@@ -371,7 +442,12 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
               <button
                 className="rounded-lg border border-gray-800 bg-gray-900/60 px-3 py-2 text-sm text-gray-300 transition hover:text-white"
                 type="button"
-                onClick={() => setSortRegion(null)}
+                onClick={() => {
+                  // Only a re-order may leave a snapshot behind: a stale one
+                  // would slide rows on the next, unrelated change.
+                  if (activeSortRegion !== null) snapshotForSort();
+                  setSortRegion(null);
+                }}
               >
                 {activeSortRegion
                   ? `Sorted by ${regionCity(activeSortRegion)} — reset`
@@ -400,60 +476,71 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
       ) : (
         <>
           {/* Region highlight */}
-          <div className="mt-6 flex flex-wrap items-center gap-3 text-sm">
-            <MapPin className="h-4 w-4 text-purple-300" />
-            {activeHomeRegion ? (
-              <span className="text-gray-300">
-                Showing{" "}
-                <span className="font-semibold text-white">
-                  {homeCity ?? regionCity(activeHomeRegion)}
+          <div className="mt-6 text-sm">
+            <div className="flex flex-wrap items-center gap-3">
+              <MapPin className="h-4 w-4 text-purple-300" strokeWidth={1.5} />
+              {activeHomeRegion ? (
+                <span className="text-gray-300">
+                  Showing{" "}
+                  <span className="font-semibold text-white">
+                    {homeCity ?? regionCity(activeHomeRegion)}
+                  </span>
                 </span>
-              </span>
-            ) : (
-              <span className="text-gray-400">Pick the region closest to you</span>
-            )}
-            <button
-              className={TEXT_LINK}
-              type="button"
-              onClick={() => setPickingRegion((open) => !open)}
-            >
-              {pickingRegion ? "close" : "change"}
-            </button>
+              ) : (
+                <span className="text-gray-400">Pick the region closest to you</span>
+              )}
+              <button
+                className={TEXT_LINK}
+                type="button"
+                onClick={() => setPickingRegion((open) => !open)}
+              >
+                {pickingRegion ? "close" : "change"}
+              </button>
+            </div>
+            {/* The chip row grows open from 0fr (#702) instead of arriving at
+                full height in one frame. It sits under the flex row rather than
+                in it, so no row gap lands before the reveal; pt-5 is the old
+                gap-3 plus pt-2. */}
             {pickingRegion ? (
-              <div className="flex w-full flex-wrap gap-2 pt-2">
-                {regions.map((region) => (
-                  <button
-                    key={region}
-                    aria-pressed={activeHomeRegion === region}
-                    className={`rounded-full border px-3 py-1 text-xs transition ${
-                      activeHomeRegion === region
-                        ? "border-purple-500 bg-purple-600/30 text-white"
-                        : "border-gray-700 text-gray-400 hover:text-white"
-                    }`}
-                    type="button"
-                    onClick={() => {
-                      regionPickedByUser.current = true;
-                      setHomeRegion(region);
-                      setHomeCity(regionCity(region));
-                      setPickingRegion(false);
-                    }}
-                  >
-                    {regionCity(region)}
-                  </button>
-                ))}
+              <div className="t-cell-reveal">
+                <div>
+                  <div className="flex flex-wrap gap-2 pt-5">
+                    {regions.map((region) => (
+                      <button
+                        key={region}
+                        aria-pressed={activeHomeRegion === region}
+                        className={`rounded-full border px-3 py-1 text-xs transition ${
+                          activeHomeRegion === region
+                            ? "border-purple-500 bg-purple-600/30 text-white"
+                            : "border-gray-700 text-gray-400 hover:text-white"
+                        }`}
+                        type="button"
+                        onClick={() => {
+                          regionPickedByUser.current = true;
+                          setHomeRegion(region);
+                          setHomeCity(regionCity(region));
+                          setPickingRegion(false);
+                        }}
+                      >
+                        {regionCity(region)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             ) : null}
           </div>
 
           {/* Matrix */}
           <div
+            ref={matrixRegion}
             aria-label="Latency matrix"
-            className="mt-6 overflow-x-auto rounded-lg border border-gray-800 bg-gray-950/80 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+            className="t-resize mt-6 overflow-x-auto overflow-y-hidden rounded-lg border border-gray-800 bg-gray-950/80 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
             role="region"
             // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
             tabIndex={0}
           >
-            <table className="w-full border-collapse text-sm">
+            <table ref={matrixTable} className="w-full border-collapse text-sm">
               <thead>
                 <tr>
                   <th className="sticky left-0 z-20 bg-gray-950 px-4 py-3 text-left text-xs uppercase tracking-widest text-gray-400">
@@ -473,9 +560,10 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                         className="whitespace-nowrap transition hover:text-white"
                         title={`Sort providers by ${regionCity(region)}`}
                         type="button"
-                        onClick={() =>
-                          setSortRegion((current) => (current === region ? null : region))
-                        }
+                        onClick={() => {
+                          snapshotForSort();
+                          setSortRegion((current) => (current === region ? null : region));
+                        }}
                       >
                         {regionCity(region)}
                         <span className="block text-[10px] uppercase tracking-wider text-gray-400">
@@ -486,12 +574,16 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                   ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody ref={tbodyRef}>
                 {rows.map((row) => {
                   const pinned = pinnedVendor === row.vendor;
                   return (
                     <tr
                       key={row.key}
+                      ref={(tr) => {
+                        if (tr === null) rowRefs.current.delete(row.key);
+                        else rowRefs.current.set(row.key, tr);
+                      }}
                       className={
                         pinned
                           ? "bg-purple-950/20"
@@ -548,7 +640,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                           return (
                             <td
                               key={region}
-                              className={`px-3 py-2 text-center text-gray-700 ${
+                              className={`t-heat-cell px-3 py-2 text-center text-gray-700 ${
                                 isHome ? "bg-purple-950/20" : ""
                               }`}
                               title={
@@ -569,7 +661,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                         return (
                           <td
                             key={region}
-                            className={`px-3 py-2 text-center font-mono tabular-nums ${
+                            className={`t-heat-cell px-3 py-2 text-center font-mono tabular-nums ${
                               isHome ? "ring-1 ring-inset ring-purple-500/40" : ""
                             }`}
                             style={cellStyle(cell.value)}
@@ -577,7 +669,14 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                             onMouseEnter={() => setHover({ vendor: row.vendor, region })}
                             onMouseLeave={() => setHover(null)}
                           >
-                            {format(cell.value)}
+                            {/* A new key per metric and clip length remounts the
+                                number, so it fades in under the colour (#813). */}
+                            <span
+                              key={`${metric}:${bucket}`}
+                              className={swapped ? "t-heat-swap" : undefined}
+                            >
+                              {format(cell.value)}
+                            </span>
                           </td>
                         );
                       })}

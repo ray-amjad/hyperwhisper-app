@@ -18,6 +18,7 @@
 import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, describe, test } from "node:test";
 
+
 import {
   accountKeyRow,
   behaviour,
@@ -41,6 +42,11 @@ const CREDITS_PATH = "/api/license/credits";
 
 /** A made-up key string. Only the fake database in the harness knows it. */
 const GRANTED_KEY = "HW-TEST-0000-0001";
+const SECOND_KEY = "HW-TEST-0000-0002";
+const OTHER_USER_KEY = "HW-TEST-0000-0003";
+/** A made-up HMAC key, set only inside the credit_pool_id tests. */
+const POOL_SECRET = "test-only-credit-pool-secret-0123456789abcdef";
+const realPoolSecret = process.env.CREDIT_POOL_ID_SECRET;
 
 type JsonBody = Record<string, unknown>;
 
@@ -79,6 +85,8 @@ beforeEach(() => {
 afterEach(() => {
   if (realSiteUrl === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
   else process.env.NEXT_PUBLIC_SITE_URL = realSiteUrl;
+  if (realPoolSecret === undefined) delete process.env.CREDIT_POOL_ID_SECRET;
+  else process.env.CREDIT_POOL_ID_SECRET = realPoolSecret;
 });
 
 describe("POST /api/checkout/credits — amount validation", () => {
@@ -326,6 +334,8 @@ describe("POST /api/checkout/credits — a licenseKey that is not a string (#208
 
     assert.equal(response.status, 200);
     assert.equal(metadata.license_key, GRANTED_KEY);
+    // The row id too, so a key rotated mid-checkout still finds its owner.
+    assert.equal(metadata.account_key_id, "key_row_1");
   });
 
   test("still mints when the key is absent", async () => {
@@ -505,39 +515,57 @@ describe("POST /api/checkout/credits — the top-up path", () => {
 });
 
 describe("POST /api/checkout/credits — Stripe faults", () => {
-  test("answers 500 with the reason when Stripe returns no checkout URL", async () => {
+  // The 500 body is the fixed error alone: the throw's own message goes to the
+  // server log only (#2311). A Stripe developer message names the customer id
+  // and the key mode, and it used to ride along in `details`.
+  const FIXED_500 = { error: "Failed to create checkout session" };
+
+  test("answers a fixed 500 when Stripe returns no checkout URL", async () => {
     behaviour.sessionUrl = null;
     const { POST } = await loadCheckoutCreditsRoute();
 
     const response = await POST(postRequest(CHECKOUT_PATH, { amount: 5 }));
-    const body = await readJson(response);
 
     assert.equal(response.status, 500);
-    assert.equal(body.error, "Failed to create checkout session");
-    assert.equal(body.details, "No checkout URL returned from Stripe");
+    assert.deepEqual(await readJson(response), FIXED_500);
   });
 
-  test("answers 500 with the Stripe message when the session call throws", async () => {
-    behaviour.sessionError = new Error("card_declined at session create");
+  test("a Stripe error naming the customer stays out of the body, and in the log", async () => {
+    logLines.length = 0;
+    storeRow(accountKeyRow({ key: GRANTED_KEY, stripeCustomerId: "cus_Q8leakedCustomer" }));
+    // Built by hand, not from the SDK: only lib/clients/stripe.ts and the
+    // webhook files may load `stripe` at runtime (stripe-client-boundary).
+    behaviour.sessionError = Object.assign(
+      new Error(
+        "No such customer: 'cus_Q8leakedCustomer'; a similar object exists in live mode, but a test mode key was used to make this request.",
+      ),
+      { type: "StripeInvalidRequestError", rawType: "invalid_request_error", statusCode: 400 },
+    );
     const { POST } = await loadCheckoutCreditsRoute();
 
-    const response = await POST(postRequest(CHECKOUT_PATH, { amount: 5 }));
-    const body = await readJson(response);
+    const response = await POST(
+      postRequest(CHECKOUT_PATH, { amount: 5, licenseKey: GRANTED_KEY }),
+    );
+    const text = await response.text();
 
     assert.equal(response.status, 500);
-    assert.equal(body.error, "Failed to create checkout session");
-    assert.equal(body.details, "card_declined at session create");
+    assert.equal(onlySessionCreate().customer, "cus_Q8leakedCustomer");
+    assert.doesNotMatch(text, /cus_|No such customer|live mode|test mode/, text);
+    assert.deepEqual(JSON.parse(text), FIXED_500);
+    assert.ok(
+      logLines.some((line) => line.includes("No such customer")),
+      logLines.join("\n"),
+    );
   });
 
-  test("reports a non-Error throw as unknown, rather than crashing the route", async () => {
+  test("a non-Error throw answers the same fixed 500, rather than crashing the route", async () => {
     behaviour.sessionError = "stripe exploded";
     const { POST } = await loadCheckoutCreditsRoute();
 
     const response = await POST(postRequest(CHECKOUT_PATH, { amount: 5 }));
-    const body = await readJson(response);
 
     assert.equal(response.status, 500);
-    assert.equal(body.details, "Unknown error");
+    assert.deepEqual(await readJson(response), FIXED_500);
   });
 });
 
@@ -556,7 +584,6 @@ describe("POST /api/checkout/credits — a DrizzleQueryError stays out of the lo
     assert.deepEqual(leakyLines([text]), [], text);
     assert.deepEqual(JSON.parse(text), {
       error: "Failed to create checkout session",
-      details: "Database error",
     });
     assert.deepEqual(leakyLines(logLines), []);
     assert.ok(logLines.some((line) => line.includes(SESSION_INDEX)), logLines.join("\n"));
@@ -587,6 +614,17 @@ describe("GET /api/license/credits", () => {
     assert.deepEqual(calls.findAccountByKey, []);
   });
 
+  test("treats a whitespace-only license_key as missing, without a lookup (#2319)", async () => {
+    const { GET } = await loadLicenseCreditsRoute();
+
+    const response = await GET(getRequest(`${CREDITS_PATH}?license_key=%20%20%20`));
+    const body = await readJson(response);
+
+    assert.equal(response.status, 400);
+    assert.equal(body.error, "license_key is required");
+    assert.deepEqual(calls.findAccountByKey, []);
+  });
+
   test("reports the balance and the Stripe customer for a granted key", async () => {
     storeRow(
       accountKeyRow({
@@ -608,6 +646,40 @@ describe("GET /api/license/credits", () => {
     assert.equal(body.stripe_customer_id, "cus_42");
     // The balance belongs to the user, not to the key.
     assert.deepEqual(calls.getCreditBalance, ["user_42"]);
+  });
+
+  test("reports one opaque credit_pool_id for every key a user owns (#2026)", async () => {
+    process.env.CREDIT_POOL_ID_SECRET = POOL_SECRET;
+    storeRow(accountKeyRow({ id: "key_a", key: GRANTED_KEY, userId: "user_42" }));
+    storeRow(accountKeyRow({ id: "key_b", key: SECOND_KEY, userId: "user_42" }));
+    storeRow(accountKeyRow({ id: "key_c", key: OTHER_USER_KEY, userId: "user_43" }));
+    const { GET } = await loadLicenseCreditsRoute();
+
+    const poolOf = async (key: string) =>
+      (await readJson(await GET(getRequest(`${CREDITS_PATH}?license_key=${key}`))))
+        .credit_pool_id;
+    const first = await poolOf(GRANTED_KEY);
+    const second = await poolOf(SECOND_KEY);
+    const other = await poolOf(OTHER_USER_KEY);
+
+    assert.match(String(first), /^[0-9a-f]{64}$/);
+    assert.equal(second, first);
+    assert.notEqual(other, first);
+    assert.ok(!String(first).includes("user_42"));
+  });
+
+  test("leaves credit_pool_id out when its secret is not set (#2026)", async () => {
+    delete process.env.CREDIT_POOL_ID_SECRET;
+    storeRow(accountKeyRow({ key: GRANTED_KEY, userId: "user_42" }));
+    const { GET } = await loadLicenseCreditsRoute();
+
+    const response = await GET(
+      getRequest(`${CREDITS_PATH}?license_key=${GRANTED_KEY}`),
+    );
+    const body = await readJson(response);
+
+    assert.equal(response.status, 200);
+    assert.ok(!("credit_pool_id" in body));
   });
 
   test("refuses a key the database does not hold", async () => {
@@ -689,6 +761,20 @@ describe("POST /api/license/credits", () => {
     assert.deepEqual(calls.findAccountByKey, []);
   });
 
+  test("treats a whitespace-only license_key as missing, without a lookup (#2319)", async () => {
+    const { POST } = await loadLicenseCreditsRoute();
+
+    const response = await POST(
+      postRequest(CREDITS_PATH, { license_key: "   ", amount: 1 }),
+    );
+    const body = await readJson(response);
+
+    assert.equal(response.status, 400);
+    assert.equal(body.error, "license_key is required");
+    assert.deepEqual(calls.findAccountByKey, []);
+    assert.deepEqual(calls.deductCreditBalance, []);
+  });
+
   test("refuses a zero or negative amount before any lookup", async () => {
     const { POST } = await loadLicenseCreditsRoute();
 
@@ -748,6 +834,41 @@ describe("POST /api/license/credits", () => {
     assert.deepEqual(calls.deductCreditBalance, [
       { userId: "user_42", amount: 109.5 },
     ]);
+  });
+
+  test("names the same credit_pool_id as GET on the deduction reply (#2026)", async () => {
+    process.env.CREDIT_POOL_ID_SECRET = POOL_SECRET;
+    storeRow(accountKeyRow({ id: "key_a", key: GRANTED_KEY, userId: "user_42" }));
+    storeRow(accountKeyRow({ id: "key_b", key: SECOND_KEY, userId: "user_42" }));
+    const { GET, POST } = await loadLicenseCreditsRoute();
+
+    const charged = await readJson(
+      await POST(postRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 1 })),
+    );
+    const sibling = await readJson(
+      await POST(postRequest(CREDITS_PATH, { license_key: SECOND_KEY, amount: 1 })),
+    );
+    const balance = await readJson(
+      await GET(getRequest(`${CREDITS_PATH}?license_key=${GRANTED_KEY}`)),
+    );
+
+    assert.match(String(charged.credit_pool_id), /^[0-9a-f]{64}$/);
+    assert.equal(sibling.credit_pool_id, charged.credit_pool_id);
+    assert.equal(balance.credit_pool_id, charged.credit_pool_id);
+  });
+
+  test("leaves credit_pool_id off the deduction reply when its secret is not set (#2026)", async () => {
+    delete process.env.CREDIT_POOL_ID_SECRET;
+    storeRow(accountKeyRow({ key: GRANTED_KEY, userId: "user_42" }));
+    const { POST } = await loadLicenseCreditsRoute();
+
+    const response = await POST(
+      postRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 1 }),
+    );
+    const body = await readJson(response);
+
+    assert.equal(response.status, 200);
+    assert.ok(!("credit_pool_id" in body));
   });
 
   test("refuses a key the database does not hold", async () => {

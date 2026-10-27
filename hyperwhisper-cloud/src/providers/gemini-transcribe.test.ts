@@ -17,10 +17,11 @@ import {
 } from './gemini-transcribe';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import { GEMINI_TRANSCRIBE_INLINE_MAX_BYTES } from '../lib/constants';
+import { captureNoSpeechEvent, captureProviderEvent } from './test-support';
+import { saveEnv, stubEnv } from '../test-support/env';
 
 const originalFetch = globalThis.fetch;
-const ENV_KEYS = ['GEMINI_API_KEY', 'GOOGLE_GEMINI_API_KEY', 'STT_PROVIDER_TIMEOUT_MS'] as const;
-const savedEnv: Record<string, string | undefined> = {};
+let restoreEnv: Array<() => void> = [];
 
 const audio = (bytes = 1_000) => new ArrayBuffer(bytes);
 
@@ -44,17 +45,16 @@ const sampleResponse = (text = SAMPLE_TRANSCRIPT) => ({
 });
 
 beforeEach(() => {
-  for (const key of ENV_KEYS) savedEnv[key] = process.env[key];
-  process.env.GEMINI_API_KEY = 'test-key';
-  delete process.env.GOOGLE_GEMINI_API_KEY;
+  restoreEnv = [
+    stubEnv('GEMINI_API_KEY', 'test-key'),
+    stubEnv('GOOGLE_GEMINI_API_KEY', undefined),
+    saveEnv('STT_PROVIDER_TIMEOUT_MS'),
+  ];
 });
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  for (const key of ENV_KEYS) {
-    if (savedEnv[key] === undefined) delete process.env[key];
-    else process.env[key] = savedEnv[key];
-  }
+  for (const restore of restoreEnv) restore();
 });
 
 interface Captured {
@@ -76,29 +76,6 @@ function captureRequest(payload: unknown = sampleResponse()): Captured {
 
 function errorResponse(status: number, text = 'upstream said no') {
   globalThis.fetch = mock(async () => new Response(text, { status })) as unknown as typeof fetch;
-}
-
-/** Capture one provider log event without adding a process-wide mock module. */
-async function captureProviderEvent(
-  eventName: string,
-  run: () => Promise<unknown>,
-): Promise<Record<string, unknown>> {
-  const logged: unknown[][] = [];
-  const originalLog = console.log;
-  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
-  try {
-    await run();
-  } finally {
-    console.log = originalLog;
-  }
-  const event = logged.find((args) => args[0] === eventName);
-  if (!event) throw new Error(`${eventName} event was not logged`);
-  return event[1] as Record<string, unknown>;
-}
-
-/** Return the details object from the adapter's no-speech event. */
-async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
-  return captureProviderEvent('provider.no_speech', run);
 }
 
 describe('buildTranscriptionConfig — TRAP 2 (the mutual exclusion)', () => {

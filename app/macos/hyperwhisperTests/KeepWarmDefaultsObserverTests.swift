@@ -58,7 +58,7 @@ private final class DidChangePostCounter: @unchecked Sendable {
     }
 }
 
-@Suite(.serialized)
+@Suite(.serialized, .timeLimit(.minutes(10)))
 @MainActor
 struct KeepWarmDefaultsObserverTests {
 
@@ -98,10 +98,13 @@ struct KeepWarmDefaultsObserverTests {
         }
     }
 
-    /// Polls for up to 5 seconds, as the #880 tests do.
+    /// Polls every millisecond for up to 120 s. The bound is a hang guard, not a
+    /// deadline: a loaded CI runner can stall the test process for 20-90 s, far
+    /// past the old 5 s (#2455, #2505). The suite's time limit is the backstop.
     private static func waitUntil(_ condition: @escaping @MainActor () -> Bool) async {
-        let deadline = Date().addingTimeInterval(5)
-        while Date() < deadline {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(120))
+        while clock.now < deadline {
             if condition() { return }
             try? await Task.sleep(nanoseconds: 1_000_000)
         }

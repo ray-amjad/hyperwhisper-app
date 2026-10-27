@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Features",
-    "pricing": "Pricing",
     "faq": "FAQ",
     "support": "Support",
     "download": "Download",
@@ -20,7 +19,6 @@
     "cloud": "Cloud"
   },
   "hero": {
-    "openSourceBadge": "Open source · Apache-2.0",
     "logoAlt": "HyperWhisper Logo",
     "headline": "Write, compose, and create",
     "headlineAccent": "5x faster with AI",
@@ -28,7 +26,7 @@
     "downloadCta": "Download now",
     "demoCta": "Watch demo",
     "availableOn": "Available on",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -125,57 +123,6 @@
     "languagesSupported": "Languages supported",
     "providersSupported": "Providers supported"
   },
-  "pricing": {
-    "title": "No subscriptions. Ever.",
-    "subtitle": "Pay once, use forever. We hate subscriptions too.",
-    "guarantee": "14-day money back guarantee",
-    "guaranteeExtended": "if you're not completely satisfied.",
-    "learnMore": "Learn more",
-    "free": {
-      "name": "Free",
-      "price": "$0",
-      "period": "forever",
-      "description": "Perfect for trying out HyperWhisper",
-      "cta": "Download Free",
-      "features": {
-        "transcriptionLimit": "5 minutes of transcription per day",
-        "basicModes": "Basic transcription modes",
-        "offlineTranscription": "Offline transcription",
-        "apiTranscription": "API transcription (bring your own keys)",
-        "postProcessing": "Text post-processing",
-        "providers": "9+ providers to choose from",
-        "lifetimeUpdates": "Lifetime updates",
-        "cloudLimited": "HyperWhisper Cloud (limited usage)",
-        "customVocabulary": "Custom vocabulary",
-        "prioritySupport": "Priority support"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "lifetime",
-      "description": "One-time purchase, unlimited power forever",
-      "cta": "Buy Now - Lifetime Access",
-      "mostPopular": "Most Popular",
-      "features": {
-        "unlimitedTranscription": "Unlimited transcription",
-        "allModes": "All transcription modes",
-        "offlineTranscription": "Offline transcription",
-        "apiTranscription": "API transcription (bring your own keys)",
-        "postProcessing": "Text post-processing",
-        "providers": "9+ providers to choose from",
-        "lifetimeUpdates": "Lifetime updates",
-        "cloudCredits": "HyperWhisper Cloud ($5 in credits)",
-        "customVocabulary": "Custom vocabulary",
-        "prioritySupport": "Priority support"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise & Custom Pricing",
-      "description": "Volume discounts, SSO, priority support, in-house hosting, and custom integrations",
-      "cta": "Contact Sales"
-    }
-  },
   "faq": {
     "title": "Frequently asked questions",
     "subtitle": "Everything you need to know about HyperWhisper",
@@ -227,7 +174,7 @@
       },
       "lifetime": {
         "question": "Is there a subscription?",
-        "answer": "No — never. HyperWhisper is an open-source app you own, not a subscription you rent. Download it free and use local, offline transcription at no cost forever; the free tier also includes 5 minutes of cloud transcription a day. When you want zero-setup cloud transcription beyond that, HyperWhisper Cloud is simple pay-as-you-go credits — top up only when you need to, with no monthly fees and nothing to cancel."
+        "answer": "No — never. HyperWhisper is an open-source app you own, not a subscription you rent. Download it free and use local, offline transcription at no cost forever. When you want zero-setup cloud transcription, HyperWhisper Cloud is simple pay-as-you-go credits — top up only when you need to, with no monthly fees and nothing to cancel."
       },
       "refund": {
         "question": "What's your refund policy?",
@@ -239,7 +186,7 @@
       },
       "requirements": {
         "question": "What are the system requirements?",
-        "answer": "Mac: macOS 14+ on Apple Silicon or Intel. Windows: Windows 10/11 on x64 or ARM64. Linux v1: Ubuntu 22.04+ or Debian 12+ on amd64. 8GB RAM recommended for optimal performance."
+        "answer": "Mac: macOS 14.6+ on Apple Silicon or Intel. Windows: Windows 10/11 on x64 or ARM64. Linux v1: Ubuntu 22.04+ or Debian 12+ on amd64. 8GB RAM recommended for optimal performance."
       },
       "madeBy": {
         "question": "Who was this made by?",
@@ -279,10 +226,7 @@
     "downloadButton": "Download HyperWhisper",
     "errorGeneric": "Something went wrong. Please try again.",
     "errorEmail": "Enter a valid email address.",
-    "errorNetwork": "Network error. Please check your connection and try again.",
-    "thankYouTitle": "Thanks!",
     "downloadStarted": "Your download should start automatically.",
-    "manualDownload": "Download hasn't started? Click here",
     "skipAndDownloadButton": "Skip and download"
   },
   "downloadPage": {
@@ -351,10 +295,10 @@
       "download": "Download",
       "roadmap": "Roadmap",
       "helpCenter": "Help Center",
-      "manageBilling": "Manage Billing",
       "customerPortal": "Customer Portal",
       "olderVersions": "Older Versions",
       "blog": "Blog",
+      "openSource": "Open Source",
       "about": "About",
       "support": "Support",
       "privacyPolicy": "Privacy Policy",
@@ -436,6 +380,25 @@
     "custom": "Custom",
     "customSub": "your amount",
     "topUp": "Top up"
+  },
+  "licenseKeysCard": {
+    "rotate": "Rotate key",
+    "confirmTitle": "Rotate this Account Key?",
+    "confirmBody": "You'll get a new key, and this one stops working right away. Every device using the old key will need the new one: enter it in HyperWhisper on each device. Your credits, plan and purchase history stay with your account. You'll also be signed out of this website in your other browsers.",
+    "confirm": "Rotate key",
+    "cancel": "Cancel",
+    "rotating": "Rotating…",
+    "rotated": "Key rotated. Enter the new key in HyperWhisper on each of your devices.",
+    "errorRateLimited": "Too many rotations. Please try again later.",
+    "errorStale": "This key was already rotated. The current key is shown above.",
+    "errorGeneric": "Couldn't rotate the key. Please try again.",
+    "verifyTitle": "Confirm it's you by email",
+    "verifyBody": "To replace your key, confirm it's you by email first. We'll email a sign-in link to your account's address. Open it, then rotate the key from this page.",
+    "sendLink": "Email me a sign-in link",
+    "sendingLink": "Sending…",
+    "linkSent": "Sign-in link sent. Open it from your inbox, then rotate the key.",
+    "linkFailed": "Couldn't send the sign-in link. Please try again.",
+    "errorUnavailable": "This key can't be rotated any more. Its current status is shown above."
   },
   "notFound": {
     "title": "Page not found",

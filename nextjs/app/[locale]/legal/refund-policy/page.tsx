@@ -9,7 +9,7 @@ import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
 export const generateMetadata = localizedPageMetadata({
   path: "/legal/refund-policy",
-  title: "Refund Policy | HyperWhisper",
+  title: "Refund Policy",
   description:
     "HyperWhisper refund policy for HyperWhisper Cloud credits, including the 14-day money back guarantee",
 });
@@ -281,16 +281,16 @@ export default function RefundPolicyPage() {
         your purchase.
       </p>
 
-      <div className="bg-green-900/20 border border-green-800 rounded-lg p-6 mt-8">
-        <h3 className="text-green-200 mt-0 mb-3">
+      <div className="bg-emerald-900/20 border border-emerald-800 rounded-lg p-6 mt-8">
+        <h3 className="text-emerald-200 mt-0 mb-3">
           <a className="hover:underline" href="/">
             Ready to try HyperWhisper?
           </a>
         </h3>
-        <p className="text-green-300 mb-0">
+        <p className="text-emerald-300 mb-0">
           With our 14-day money back guarantee on unused credits, you can{" "}
           <a
-            className="text-green-200 underline hover:no-underline"
+            className="text-emerald-200 underline hover:no-underline"
             href="/credits"
           >
             buy HyperWhisper Cloud credits

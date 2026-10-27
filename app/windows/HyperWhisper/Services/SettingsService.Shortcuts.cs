@@ -189,7 +189,36 @@ public partial class SettingsService
         if (string.Equals(_settings.PushToTalk.Modifier, "Ctrl", StringComparison.OrdinalIgnoreCase))
             _settings.PushToTalk.Modifier = "LeftAlt";
 
+        _settings.PushToTalk = ResetPushToTalkIfUnsafe(_settings.PushToTalk);
+
         _settings.Version = LatestSettingsVersion;
+    }
+
+    /// <summary>
+    /// #2139, the push-to-talk half of #2114: a stored custom key the recorder would
+    /// refuse (bare Tab, K, a single bare modifier) must not reach the hook. Push-to-talk
+    /// has no per-role default, so Ray (inbox #1811) turns it OFF: a fresh
+    /// <see cref="PushToTalkSettings"/>, as <see cref="ResetShortcutsToDefaults"/> does.
+    /// A custom key that is stored but not live (Mode is not Custom) is only cleared,
+    /// so a working Modifier push-to-talk is not switched off.
+    /// </summary>
+    private static PushToTalkSettings ResetPushToTalkIfUnsafe(PushToTalkSettings ptt)
+    {
+        if (ptt.CustomShortcut is not { } custom
+            || !ShortcutValidationService.IsUnsafeStoredActionShortcut(custom))
+            return ptt;
+
+        if (ptt.Mode != PushToTalkMode.Custom)
+        {
+            LoggingService.Warn(
+                $"SettingsService: Push-to-talk custom key from settings.json ({custom.ToDisplayString()}) would fire while the user types. Cleared it; push-to-talk mode {ptt.Mode} is unchanged.");
+            ptt.CustomShortcut = null;
+            return ptt;
+        }
+
+        LoggingService.Warn(
+            $"SettingsService: Push-to-talk custom key from settings.json ({custom.ToDisplayString()}) would fire while the user types. Push-to-talk is turned off.");
+        return new PushToTalkSettings();
     }
 
     private static KeyboardShortcut GetShortcutOrDefault(string? stored, KeyboardShortcut fallback)

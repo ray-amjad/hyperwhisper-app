@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>To jest tryb domyślny, więc jego nazwy nie można zmienić. Nazwę każdego innego trybu można zmienić.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Tryb o tej nazwie już istnieje.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Dostawca</value>
   </data>
@@ -559,39 +562,6 @@
   <data name="settings.api.postProcessing.subtitle" xml:space="preserve">
     <value>Klucze API dla wzbogacania tekstu opartego na sztucznej inteligencji i formatowania.</value>
   </data>
-  <data name="settings.api.invalidKey.title" xml:space="preserve">
-    <value>Nieprawidłowy klucz</value>
-  </data>
-  <data name="settings.api.invalidKey.openai" xml:space="preserve">
-    <value>Nieprawidłowy format klucza API. Klucze OpenAI powinny zaczynać się od „sk-”.</value>
-  </data>
-  <data name="settings.api.invalidKey.groq" xml:space="preserve">
-    <value>Nieprawidłowy format klucza API. Klucze Groq powinny zaczynać się od „gsk_”.</value>
-  </data>
-  <data name="settings.api.invalidKey.anthropic" xml:space="preserve">
-    <value>Nieprawidłowy format klucza API. Klucze Anthropic powinny zaczynać się od „sk-ant-”.</value>
-  </data>
-  <data name="settings.api.invalidKey.gemini" xml:space="preserve">
-    <value>Nieprawidłowy format klucza API. Klucze Google API powinny zaczynać się od „AIza”.</value>
-  </data>
-  <data name="settings.api.invalidKey.cerebras" xml:space="preserve">
-    <value>Nieprawidłowy format klucza API. Klucze Cerebras powinny zaczynać się od „csk-”.</value>
-  </data>
-  <data name="settings.api.invalidKey.deepgram" xml:space="preserve">
-    <value>Nieprawidłowy format klucza API. Klucze Deepgram powinny mieć co najmniej 32 znaki.</value>
-  </data>
-  <data name="settings.api.invalidKey.assemblyai" xml:space="preserve">
-    <value>Nieprawidłowy format klucza API. Klucze AssemblyAI powinny mieć co najmniej 32 znaki.</value>
-  </data>
-  <data name="settings.api.invalidKey.elevenlabs" xml:space="preserve">
-    <value>Nieprawidłowy format klucza API. Klucze ElevenLabs powinny zaczynać się od „sk_”.</value>
-  </data>
-  <data name="settings.api.invalidKey.mistral" xml:space="preserve">
-    <value>Nieprawidłowy format klucza API. Klucze Mistral powinny mieć co najmniej 20 znaków.</value>
-  </data>
-  <data name="settings.api.invalidKey.grok" xml:space="preserve">
-    <value>Nieprawidłowy format klucza API. Klucze Grok muszą zaczynać się od „xai-" i mieć co najmniej 20 znaków.</value>
-  </data>
   <data name="settings.api.show" xml:space="preserve">
     <value>Pokaż</value>
   </data>
@@ -798,6 +768,15 @@ Tej czynności nie można cofnąć.</value>
   </data>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (gotowy)</value>
+  </data>
+  <data name="status.model.notActivated" xml:space="preserve">
+    <value>{0} (nieaktywowany)</value>
+  </data>
+  <data name="status.model.noApiKey" xml:space="preserve">
+    <value>{0} (brak klucza API)</value>
+  </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (nieprawidłowy klucz)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Ładowanie nie powiodło się</value>
@@ -1514,12 +1493,6 @@ Możesz pobrać go ponownie później.</value>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
-  <data name="settings.api.invalidKey.soniox" xml:space="preserve">
-    <value>Nieprawidłowy format klucza API. Klucze Soniox muszą mieć co najmniej 10 znaków.</value>
-  </data>
-  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
-    <value>Nieprawidłowy format klucza API. Klucze Gemini 3.5 Transcribe muszą zaczynać się od „AIza" i mieć co najmniej 30 znaków.</value>
-  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Asynchroniczna wielojęzyczna transkrypcja przez Soniox</value>
   </data>
@@ -2032,6 +2005,27 @@ Możesz pobrać go ponownie później.</value>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Utrzymuj otwarty cichy strumień wejściowy między nagraniami, aby skrócić opóźnienie startu, zwłaszcza w przypadku mikrofonów Bluetooth.</value>
   </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Używany tylko przez HyperWhisper. Zapamiętywany po ponownym uruchomieniu.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Domyślny · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (niepodłączony)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Używany jest {0}, dopóki {1} nie zostanie ponownie podłączony.</value>
+  </data>
+  <data name="settings.sound.microphone.fallbackNoDevice" xml:space="preserve">
+    <value>Nie podłączono żadnego mikrofonu. HyperWhisper użyje {0}, gdy zostanie ponownie podłączony.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Testuj</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Zatrzymaj</value>
+  </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Średnia szybkość</value>
   </data>
@@ -2070,12 +2064,6 @@ Możesz pobrać go ponownie później.</value>
   </data>
   <data name="providerApiKey.secureStorage" xml:space="preserve">
     <value>Przechowywany bezpiecznie w Menedżerze poświadczeń systemu Windows.</value>
-  </data>
-  <data name="providerApiKey.invalid.title" xml:space="preserve">
-    <value>Nieprawidłowy klucz API</value>
-  </data>
-  <data name="providerApiKey.invalid.message" xml:space="preserve">
-    <value>To nie wygląda na prawidłowy klucz API {0}.</value>
   </data>
   <data name="settings.nav.localApi" xml:space="preserve">
     <value>Local API</value>
@@ -2221,6 +2209,24 @@ Możesz pobrać go ponownie później.</value>
   <data name="settings.backup.import.summary" xml:space="preserve">
     <value>Tryby: {0}, dodane słownictwo: {1}, konflikty: {2}.</value>
   </data>
+  <data name="settings.backup.import.summary.settings" xml:space="preserve">
+    <value>Przywrócono ustawienia.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>Przywrócono klucze API.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Nie udało się przywrócić co najmniej jednego klucza API.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Kopia zapasowa nie zawiera kluczy API.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Nie udało się przywrócić ustawień.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Kopia zapasowa została zaimportowana z problemami. {0}</value>
+  </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Jeśli słowo już istnieje:</value>
   </data>
@@ -2238,9 +2244,6 @@ Możesz pobrać go ponownie później.</value>
   </data>
   <data name="settings.api.provider.meta.description" xml:space="preserve">
     <value>Meta Muse Voice Transcribe 1.0 - transkrypcja wsadowa z własnym kluczem Meta Model API</value>
-  </data>
-  <data name="settings.api.invalidKey.meta" xml:space="preserve">
-    <value>Nieprawidłowy format klucza Meta API. Wprowadź pełny klucz z Meta for Developers.</value>
   </data>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
     <value>Użyj własnego klucza Meta Model API do transkrypcji wsadowej Muse</value>

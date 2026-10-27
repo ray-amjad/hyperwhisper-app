@@ -14,6 +14,7 @@
  * `license-sign-in-harness.ts`; the endpoint itself is the real one.
  */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { after, before, beforeEach, describe, test } from "node:test";
 
 import {
@@ -211,6 +212,18 @@ describe("POST /sign-in/license-key — the revocation race", () => {
     assert.deepEqual(order, ["lookup_1", "lookup_2", "sessions_minted_1"]);
     assert.deepEqual(calls.findAccountByKey, [GRANTED_KEY, GRANTED_KEY]);
   });
+
+  test("the re-read is a locking read, so it waits for a rotation or revocation to commit", async () => {
+    // Under READ COMMITTED a plain re-read sees the row as it was before an
+    // uncommitted rotation, while that rotation's session delete cannot see
+    // this new session: both would miss. FOR SHARE waits for the commit.
+    grantedAccount();
+
+    const result = await signInWithLicenseKey(GRANTED_KEY);
+
+    assert.equal(result.status, 200);
+    assert.deepEqual(calls.findAccountByKeyLocked, [false, true]);
+  });
 });
 
 describe("POST /sign-in/license-key — the redirect target", () => {
@@ -301,51 +314,177 @@ describe("POST /sign-in/license-key — the request contract", () => {
 });
 
 describe("POST /sign-in/license-key — the audit line", () => {
-  test("records the user, the key row, the client ip and the user agent", async () => {
+  const CLIENT_IP = "203.0.113.7";
+  const FORWARDED_FOR = `${CLIENT_IP}, 70.41.3.18`;
+  const USER_AGENT = "HyperWhisper/2.1 (macOS)";
+  /** `sha256Hex("203.0.113.7").slice(0, 12)`, as a literal known answer. */
+  const CLIENT_IP_HASH = createHash("sha256")
+    .update(CLIENT_IP, "utf8")
+    .digest("hex")
+    .slice(0, 12);
+
+  const HEADERS = {
+    "user-agent": USER_AGENT,
+    "x-forwarded-for": FORWARDED_FOR,
+  };
+
+  /** Splits a captured `"<level> <json>"` line into its level and its fields. */
+  function parseLine(line: string): {
+    level: string;
+    fields: Record<string, unknown>;
+  } {
+    const space = line.indexOf(" ");
+    return {
+      level: line.slice(0, space),
+      fields: JSON.parse(line.slice(space + 1)) as Record<string, unknown>,
+    };
+  }
+
+  const cases: {
+    name: string;
+    key: string;
+    arrange: () => void;
+    level: "log" | "warn" | "error";
+    expected: Record<string, unknown>;
+  }[] = [
+    {
+      name: "ok",
+      key: GRANTED_KEY,
+      arrange: grantedAccount,
+      level: "log",
+      expected: { outcome: "ok", licenseId: "key_row_1", userId: "user_1" },
+    },
+    {
+      name: "key_not_found",
+      key: "HW-ZZZZ-ZZZZ-ZZZZ-ZZZZ",
+      arrange: () => {},
+      level: "warn",
+      expected: { outcome: "rejected", reason: "key_not_found" },
+    },
+    {
+      name: "key_inactive",
+      key: GRANTED_KEY,
+      arrange: () => {
+        storeRow(accountKeyRow({ key: GRANTED_KEY, status: "revoked" }));
+      },
+      level: "warn",
+      expected: {
+        outcome: "rejected",
+        reason: "key_inactive",
+        licenseId: "key_row_1",
+      },
+    },
+    {
+      name: "key_no_user",
+      key: GRANTED_KEY,
+      arrange: () => {
+        storeRow(accountKeyRow({ key: GRANTED_KEY, userId: "" }));
+      },
+      level: "warn",
+      expected: {
+        outcome: "rejected",
+        reason: "key_no_user",
+        licenseId: "key_row_1",
+      },
+    },
+    {
+      name: "user_missing",
+      key: GRANTED_KEY,
+      arrange: () => {
+        storeRow(accountKeyRow({ key: GRANTED_KEY, userId: "user_gone" }));
+      },
+      level: "warn",
+      expected: {
+        outcome: "rejected",
+        reason: "user_missing",
+        licenseId: "key_row_1",
+        userId: "user_gone",
+      },
+    },
+    {
+      name: "session_create_failed",
+      key: GRANTED_KEY,
+      arrange: () => {
+        grantedAccount();
+        behaviour.createSessionResult = "null";
+      },
+      level: "error",
+      expected: {
+        outcome: "failed",
+        reason: "session_create_failed",
+        licenseId: "key_row_1",
+        userId: "user_1",
+      },
+    },
+    {
+      name: "revoked_mid_sign_in",
+      key: GRANTED_KEY,
+      arrange: () => {
+        grantedAccount();
+        behaviour.beforeLookup = (callNumber) => {
+          if (callNumber === 2) {
+            storeRow(accountKeyRow({ key: GRANTED_KEY, status: "revoked" }));
+          }
+        };
+      },
+      level: "warn",
+      expected: {
+        outcome: "rejected",
+        reason: "revoked_mid_sign_in",
+        licenseId: "key_row_1",
+        userId: "user_1",
+      },
+    },
+  ];
+
+  for (const c of cases) {
+    test(`${c.name}: writes exactly one \`auth.license_key_sign_in\` line at \`${c.level}\``, async () => {
+      c.arrange();
+
+      await signInWithLicenseKey(c.key, { headers: HEADERS });
+
+      assert.equal(logLines.length, 1, logLines.join("\n"));
+      const { level, fields } = parseLine(logLines[0]!);
+      assert.equal(level, c.level);
+      assert.deepEqual(fields, {
+        event: "auth.license_key_sign_in",
+        ...c.expected,
+        ipHash: CLIENT_IP_HASH,
+      });
+    });
+
+    test(`${c.name}: the line carries neither the submitted key nor the raw ip or user agent`, async () => {
+      c.arrange();
+
+      await signInWithLicenseKey(c.key, { headers: HEADERS });
+
+      const all = logLines.join("\n");
+      assert.ok(!all.includes(c.key), "the submitted key reached the log");
+      // Any 4-character group of the key, so a prefix or a slice is caught too.
+      for (const group of c.key.split("-").filter((g) => g.length >= 4)) {
+        assert.ok(!all.includes(group), `key group ${group} reached the log`);
+      }
+      assert.ok(!all.includes(CLIENT_IP), "the raw client ip reached the log");
+      assert.ok(!all.includes(USER_AGENT), "the user agent reached the log");
+    });
+  }
+
+  test("trims the client ip out of a padded forwarded-for list before hashing", async () => {
     grantedAccount();
 
     await signInWithLicenseKey(GRANTED_KEY, {
-      headers: {
-        "user-agent": "HyperWhisper/2.1 (macOS)",
-        "x-forwarded-for": "203.0.113.7, 70.41.3.18",
-      },
+      headers: { "x-forwarded-for": `   ${CLIENT_IP}   ,  70.41.3.18` },
     });
 
-    assert.equal(logLines.length, 1);
-    assert.equal(
-      logLines[0],
-      '[license-key-sign-in] user=user_1 license=key_row_1 ip=203.0.113.7 ua="HyperWhisper/2.1 (macOS)"',
-    );
+    assert.equal(parseLine(logLines[0]!).fields.ipHash, CLIENT_IP_HASH);
   });
 
-  test("trims the client ip out of a padded forwarded-for list", async () => {
-    grantedAccount();
-
-    await signInWithLicenseKey(GRANTED_KEY, {
-      headers: {
-        "user-agent": "HyperWhisper/2.1",
-        "x-forwarded-for": "   198.51.100.4   ,  70.41.3.18",
-      },
-    });
-
-    assert.match(logLines[0] ?? "", /ip=198\.51\.100\.4 /);
-  });
-
-  test("falls back to `unknown` when the proxy headers are absent", async () => {
+  test("logs a null ipHash when the proxy header is absent", async () => {
     grantedAccount();
 
     await signInWithLicenseKey(GRANTED_KEY, { headers: {} });
 
-    assert.equal(
-      logLines[0],
-      '[license-key-sign-in] user=user_1 license=key_row_1 ip=unknown ua="unknown"',
-    );
-  });
-
-  test("writes no audit line for a key that was refused", async () => {
-    await signInWithLicenseKey("HW-ZZZZ-ZZZZ-ZZZZ-ZZZZ");
-
-    assert.deepEqual(logLines, []);
+    assert.equal(parseLine(logLines[0]!).fields.ipHash, null);
   });
 });
 

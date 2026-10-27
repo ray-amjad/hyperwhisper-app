@@ -197,7 +197,7 @@
         "supported": true,
         "fieldName": "generation_config.transcription_config.custom_vocabulary",
         "maxPhrases": 100,
-        "caveats": "A real structured API field (unlike the `gemini` entry, which encodes terms in a system prompt). Verified live: with the term the model returns 'HyperWhisper', without it 'hyper whisper'. Our backend (`hyperwhisper-cloud/src/providers/gemini-transcribe.ts`) and the BYOK path (`shared-core-rs/crates/hw-net/src/providers/gemini_transcribe.rs`) both forward it, capped at 100 terms of 80 chars. Mutually exclusive with `diarization_mode` and `timestamp_granularities` — see `featuresCaveat`."
+        "caveats": "A real structured API field (unlike the `gemini` entry, which encodes terms in a system prompt). Verified live: with the term the model returns 'HyperWhisper', without it 'hyper whisper'. Our backend (`hyperwhisper-cloud/src/providers/gemini-transcribe.ts`) and the BYOK path (`shared-core-rs/crates/hw-net/src/providers/gemini_transcribe/mod.rs`) both forward it, capped at 100 terms of 80 chars. Mutually exclusive with `diarization_mode` and `timestamp_granularities` — see `featuresCaveat`."
       },
       "languages": {
         "count": "unverified",

@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Funktioner",
-    "pricing": "Priser",
     "faq": "FAQ",
     "support": "Support",
     "download": "Ladda ner",
@@ -20,7 +19,6 @@
     "githubAria": "Visa HyperWhisper på GitHub"
   },
   "hero": {
-    "openSourceBadge": "Öppen källkod · Apache-2.0",
     "logoAlt": "HyperWhisper-logotyp",
     "headline": "Skriv, skapa och komponera",
     "headlineAccent": "5x snabbare med AI",
@@ -28,7 +26,7 @@
     "downloadCta": "Ladda ner nu",
     "demoCta": "Se demo",
     "availableOn": "Finns för",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -98,57 +96,6 @@
     "languagesSupported": "Språk som stöds",
     "providersSupported": "Leverantörer som stöds"
   },
-  "pricing": {
-    "title": "Inga abonnemang. Någonsin.",
-    "subtitle": "Betala en gång, använd för alltid. Vi hatar också abonnemang.",
-    "guarantee": "14 dagars pengarna-tillbaka-garanti",
-    "guaranteeExtended": "om du inte är helt nöjd.",
-    "learnMore": "Läs mer",
-    "free": {
-      "name": "Gratis",
-      "price": "$0",
-      "period": "för alltid",
-      "description": "Perfekt för att testa HyperWhisper",
-      "cta": "Ladda ner gratis",
-      "features": {
-        "transcriptionLimit": "5 minuters transkribering per dag",
-        "basicModes": "Grundläggande transkriptionslägen",
-        "offlineTranscription": "Offline-transkribering",
-        "apiTranscription": "API-transkribering (använd egna nycklar)",
-        "postProcessing": "Text-efterbehandling",
-        "providers": "9+ leverantörer att välja mellan",
-        "lifetimeUpdates": "Livstidsuppdateringar",
-        "cloudLimited": "HyperWhisper Cloud (begränsad användning)",
-        "customVocabulary": "Anpassat ordförråd",
-        "prioritySupport": "Prioriterad support"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "livstid",
-      "description": "Engångsköp, obegränsad kraft för alltid",
-      "cta": "Köp nu - Livstidsåtkomst",
-      "mostPopular": "Mest populär",
-      "features": {
-        "unlimitedTranscription": "Obegränsad transkribering",
-        "allModes": "Alla transkriptionslägen",
-        "offlineTranscription": "Offline-transkribering",
-        "apiTranscription": "API-transkribering (använd egna nycklar)",
-        "postProcessing": "Text-efterbehandling",
-        "providers": "9+ leverantörer att välja mellan",
-        "lifetimeUpdates": "Livstidsuppdateringar",
-        "cloudCredits": "HyperWhisper Cloud ($5 i krediter)",
-        "customVocabulary": "Anpassat ordförråd",
-        "prioritySupport": "Prioriterad support"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise och anpassad prissättning",
-      "description": "Volymrabatter, SSO, prioriterad support, intern hosting och anpassade integrationer",
-      "cta": "Kontakta sälj"
-    }
-  },
   "faq": {
     "title": "Vanliga frågor",
     "subtitle": "Allt du behöver veta om HyperWhisper",
@@ -192,7 +139,7 @@
       },
       "lifetime": {
         "question": "Finns det någon prenumeration?",
-        "answer": "Nej — aldrig. HyperWhisper är en app med öppen källkod som du äger, inte en prenumeration du hyr. Ladda ner den gratis och använd lokal transkribering offline utan kostnad för alltid; gratisnivån inkluderar även 5 minuter molntranskribering per dag. När du vill ha molntranskribering utan installation utöver det är HyperWhisper Cloud enkla krediter enligt pay-as-you-go — fyll på bara när du behöver, utan månadsavgifter och utan något att säga upp."
+        "answer": "Nej — aldrig. HyperWhisper är en app med öppen källkod som du äger, inte en prenumeration du hyr. Ladda ner den gratis och använd lokal transkribering offline utan kostnad för alltid. När du vill ha molntranskribering utan installation är HyperWhisper Cloud enkla krediter enligt pay-as-you-go — fyll på bara när du behöver, utan månadsavgifter och utan något att säga upp."
       },
       "deviceLimit": {
         "question": "Hur många enheter kan jag använda min kontonyckel på?",
@@ -200,7 +147,7 @@
       },
       "requirements": {
         "question": "Vilka är systemkraven?",
-        "answer": "För Mac: macOS 14 eller senare, stöd för både Apple Silicon och Intel. För Windows: Windows 10/11, x64 eller ARM64. För Linux v1: Ubuntu 22.04 eller senare eller Debian 12 eller senare på amd64. 8GB RAM rekommenderas för bästa prestanda."
+        "answer": "För Mac: macOS 14.6 eller senare, stöd för både Apple Silicon och Intel. För Windows: Windows 10/11, x64 eller ARM64. För Linux v1: Ubuntu 22.04 eller senare eller Debian 12 eller senare på amd64. 8GB RAM rekommenderas för bästa prestanda."
       },
       "madeBy": {
         "question": "Vem har skapat detta?",
@@ -252,10 +199,7 @@
     "downloadButton": "Ladda ner HyperWhisper",
     "errorGeneric": "Något gick fel. Försök igen.",
     "errorEmail": "Ange en giltig e-postadress.",
-    "errorNetwork": "Nätverksfel. Kontrollera anslutningen och försök igen.",
-    "thankYouTitle": "Tack!",
     "downloadStarted": "Nedladdningen bör starta automatiskt.",
-    "manualDownload": "Har nedladdningen inte startat? Klicka här",
     "skipAndDownloadButton": "Hoppa över och ladda ner"
   },
   "downloadPage": {
@@ -324,10 +268,10 @@
       "download": "Ladda ner",
       "roadmap": "Roadmap",
       "helpCenter": "Hjälpcenter",
-      "manageBilling": "Hantera betalning",
       "customerPortal": "Kundportal",
       "olderVersions": "Äldre versioner",
       "blog": "Blogg",
+      "openSource": "Öppen källkod",
       "about": "Om",
       "support": "Support",
       "privacyPolicy": "Integritetspolicy",
@@ -409,6 +353,25 @@
     "custom": "Anpassat",
     "customSub": "ditt belopp",
     "topUp": "Fyll pa"
+  },
+  "licenseKeysCard": {
+    "rotate": "Byt nyckel",
+    "confirmTitle": "Byta ut den här kontonyckeln?",
+    "confirmBody": "Du får en ny nyckel, och den här slutar fungera direkt. Alla enheter som använder den gamla nyckeln behöver den nya: ange den i HyperWhisper på varje enhet. Dina krediter, din plan och din köphistorik finns kvar på ditt konto. Du loggas också ut från den här webbplatsen i dina andra webbläsare.",
+    "confirm": "Byt nyckel",
+    "cancel": "Avbryt",
+    "rotating": "Byter…",
+    "rotated": "Nyckeln har bytts. Ange den nya nyckeln i HyperWhisper på var och en av dina enheter.",
+    "errorRateLimited": "För många nyckelbyten. Försök igen senare.",
+    "errorStale": "Den här nyckeln har redan bytts. Den aktuella nyckeln visas ovan.",
+    "errorGeneric": "Det gick inte att byta nyckeln. Försök igen.",
+    "verifyTitle": "Bekräfta via e-post att det är du",
+    "verifyBody": "Om du vill byta nyckel måste du först bekräfta via e-post att det är du. Vi skickar en inloggningslänk till e-postadressen för ditt konto. Öppna den och byt sedan nyckeln från den här sidan.",
+    "sendLink": "Skicka en inloggningslänk till mig",
+    "sendingLink": "Skickar…",
+    "linkSent": "Inloggningslänken har skickats. Öppna den från din inkorg och byt sedan nyckeln.",
+    "linkFailed": "Det gick inte att skicka inloggningslänken. Försök igen.",
+    "errorUnavailable": "Den här nyckeln kan inte bytas längre. Dess aktuella status visas ovan."
   },
   "openSource": {
     "heading": "Öppen källkod. Inget att dölja.",

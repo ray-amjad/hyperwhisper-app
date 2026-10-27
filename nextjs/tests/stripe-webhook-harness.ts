@@ -13,9 +13,7 @@
  * is the only way the tests reach the source. A test file that imports the
  * webhook path itself would bind to the real collaborators, so do not.
  */
-import { mock } from "node:test";
-
-import { formatLogArgs } from "./db-error-fixture";
+import { consoleSilencer, moduleMock, moduleUrl } from "./module-mock";
 
 import type { AccountKeyInsert, AccountKeyRow } from "@/src/lib/db-layer";
 
@@ -43,6 +41,8 @@ export interface RefundArgs {
 /** Everything the webhook module did, in call order. */
 export const calls = {
   findAccountByKey: [] as string[],
+  findAccountById: [] as string[],
+  findAccountsByStripeCustomer: [] as string[],
   findAccountByStripeSession: [] as string[],
   getAccountKeysByEmail: [] as string[],
   insertAccountKey: [] as AccountKeyInsert[],
@@ -54,6 +54,8 @@ export const calls = {
   generateLicenseKey: 0,
   emails: [] as SentEmail[],
   stripeSessionQueries: [] as Array<{ payment_intent?: string; limit?: number }>,
+  stripeChargeRetrievals: [] as string[],
+  stripeDisputeQueries: [] as Array<{ charge?: string; limit?: number }>,
 };
 
 /** What the collaborators answer. Each test sets only what it cares about. */
@@ -76,6 +78,10 @@ export const behaviour = {
     removedAmount: number;
   },
   stripeSessions: [] as unknown[],
+  /** Charges `stripe.charges.retrieve` returns, by id. */
+  stripeCharges: new Map<string, unknown>(),
+  /** Disputes `stripe.disputes.list` returns for any charge. */
+  stripeDisputes: [] as unknown[],
   /** Session ids `hasProcessedStripeObject` reports as already processed. */
   processedStripeObjects: new Set<string>(),
   emailSuccess: true,
@@ -99,6 +105,8 @@ export function accountKeyRow(overrides: Partial<AccountKeyRow> = {}): AccountKe
 
 export function resetHarness(): void {
   calls.findAccountByKey.length = 0;
+  calls.findAccountById.length = 0;
+  calls.findAccountsByStripeCustomer.length = 0;
   calls.findAccountByStripeSession.length = 0;
   calls.getAccountKeysByEmail.length = 0;
   calls.insertAccountKey.length = 0;
@@ -109,6 +117,8 @@ export function resetHarness(): void {
   calls.getCreditBalance.length = 0;
   calls.emails.length = 0;
   calls.stripeSessionQueries.length = 0;
+  calls.stripeChargeRetrievals.length = 0;
+  calls.stripeDisputeQueries.length = 0;
   calls.generateLicenseKey = 0;
 
   behaviour.generatedKeys = [];
@@ -122,6 +132,8 @@ export function resetHarness(): void {
   behaviour.creditBalance = 12_345;
   behaviour.refundResult = { status: "processed", refundedAmount: 500, removedAmount: 500 };
   behaviour.stripeSessions = [];
+  behaviour.stripeCharges = new Map();
+  behaviour.stripeDisputes = [];
   behaviour.processedStripeObjects = new Set();
   behaviour.emailSuccess = true;
 }
@@ -132,47 +144,10 @@ export function resetHarness(): void {
  */
 export const logLines: string[] = [];
 
-const realConsole = {
-  log: console.log,
-  warn: console.warn,
-  error: console.error,
-};
+const webhookLogging = consoleSilencer(["log", "warn", "error"], logLines);
 
-export function silenceWebhookLogging(): void {
-  const capture =
-    (level: string) =>
-    (...args: unknown[]): void => {
-      logLines.push(`${level} ${formatLogArgs(args)}`);
-    };
-  console.log = capture("log");
-  console.warn = capture("warn");
-  console.error = capture("error");
-}
-
-export function restoreWebhookLogging(): void {
-  console.log = realConsole.log;
-  console.warn = realConsole.warn;
-  console.error = realConsole.error;
-}
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
-
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrow the tracker to the one method used here rather
- * than bumping the types in a test-only change.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports: Record<string, unknown> },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+export const silenceWebhookLogging = webhookLogging.silence;
+export const restoreWebhookLogging = webhookLogging.restore;
 
 const emailOutcome = () =>
   behaviour.emailSuccess
@@ -189,6 +164,18 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
       const hit = pooled.find((row) => row.key === key);
       if (hit) return hit;
       return null;
+    },
+    findAccountById: async (id: string): Promise<AccountKeyRow | null> => {
+      calls.findAccountById.push(id);
+      const pooled: AccountKeyRow[] = [];
+      behaviour.byEmail.forEach((rows) => pooled.push(...rows));
+      return pooled.find((row) => row.id === id) ?? null;
+    },
+    findAccountsByStripeCustomer: async (customerId: string): Promise<AccountKeyRow[]> => {
+      calls.findAccountsByStripeCustomer.push(customerId);
+      const pooled: AccountKeyRow[] = [];
+      behaviour.byEmail.forEach((rows) => pooled.push(...rows));
+      return pooled.filter((row) => row.stripeCustomerId === customerId);
     },
     findAccountByStripeSession: async (sessionId: string): Promise<AccountKeyRow | null> => {
       calls.findAccountByStripeSession.push(sessionId);
@@ -239,6 +226,20 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
 moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
   namedExports: {
     stripe: {
+      charges: {
+        retrieve: async (id: string) => {
+          calls.stripeChargeRetrievals.push(id);
+          const found = behaviour.stripeCharges.get(id);
+          if (!found) throw new Error(`No such charge: '${id}'`);
+          return found;
+        },
+      },
+      disputes: {
+        list: async (query: { charge?: string; limit?: number }) => {
+          calls.stripeDisputeQueries.push(query);
+          return { data: behaviour.stripeDisputes };
+        },
+      },
       checkout: {
         sessions: {
           list: async (query: { payment_intent?: string; limit?: number }) => {

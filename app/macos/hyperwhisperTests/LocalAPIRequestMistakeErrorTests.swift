@@ -207,7 +207,7 @@ struct LocalAPIRequestMistakeErrorTests {
 
         for engine in ["nemotron", " Nemotron ", "nemotron-asr"] {
             let rewritten = TranscribeEndpoint.mixedPathSelectionError(
-                TranscriptionError.modelNotDownloaded,
+                TranscriptionError.modelNotDownloaded(),
                 engine: engine,
                 modeModel: multilingual,
                 isInstalled: { $0 == latin }
@@ -227,7 +227,7 @@ struct LocalAPIRequestMistakeErrorTests {
 
         // A saved Latin variant kept by the mixed form is the one named.
         let latinMissing = Self.wire(TranscribeEndpoint.mixedPathSelectionError(
-            TranscriptionError.modelNotDownloaded,
+            TranscriptionError.modelNotDownloaded(),
             engine: "nemotron",
             modeModel: latin,
             isInstalled: { _ in false }
@@ -241,7 +241,7 @@ struct LocalAPIRequestMistakeErrorTests {
     /// `.modelNotDownloaded`, and any other error, pass through unchanged.
     @Test func mixedFormRewritesNothingElse() {
         let parakeet = Self.wire(TranscribeEndpoint.mixedPathSelectionError(
-            TranscriptionError.modelNotDownloaded,
+            TranscriptionError.modelNotDownloaded(),
             engine: "parakeet",
             modeModel: ParakeetModelManager.Constants.v3ModelId,
             isInstalled: { _ in false }
@@ -250,7 +250,7 @@ struct LocalAPIRequestMistakeErrorTests {
         #expect(parakeet.message == "Required model is not installed.")
 
         let noEngine = Self.wire(TranscribeEndpoint.mixedPathSelectionError(
-            TranscriptionError.modelNotDownloaded,
+            TranscriptionError.modelNotDownloaded(),
             engine: nil,
             modeModel: NemotronModelManager.Constants.multilingualModelId,
             isInstalled: { _ in false }

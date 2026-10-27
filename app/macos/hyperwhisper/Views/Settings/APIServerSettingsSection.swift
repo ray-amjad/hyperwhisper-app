@@ -77,9 +77,9 @@ struct APIServerSettingsSection: View {
                 .toggleStyle(.switch)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(enabled ? "Server enabled" : "Server disabled")
+                    Text(statusRow.title)
                         .font(.system(size: 13, weight: .semibold))
-                    Text(statusLine)
+                    Text(statusRow.detail)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -100,14 +100,47 @@ struct APIServerSettingsSection: View {
         }
     }
 
-    private var statusLine: String {
-        if !enabled { return "No network sockets bound." }
-        if server.isRunning {
-            let portText = server.listeningPort > 0 ? "127.0.0.1:\(server.listeningPort)" : "127.0.0.1"
-            let tokenSuffix = server.bearerToken.suffix(4)
-            return "\(portText) · token ••••\(tokenSuffix)"
+    private var statusRow: (title: String, detail: String) {
+        Self.statusRow(
+            enabled: enabled,
+            isRunning: server.isRunning,
+            listeningPort: server.listeningPort,
+            closingPorts: server.closingPorts,
+            tokenSuffix: String(server.bearerToken.suffix(4))
+        )
+    }
+
+    /// The two lines beside the switch.
+    ///
+    /// Switched off, the row says "Stopping…" while any old server still holds
+    /// its listening socket, and "Server disabled" only once none does (issue
+    /// #1464): it never reports the server disabled while its port is bound.
+    /// Pure and `nonisolated` so a test can hold it to that rule.
+    nonisolated static func statusRow(
+        enabled: Bool,
+        isRunning: Bool,
+        listeningPort: UInt16,
+        closingPorts: [UInt16],
+        tokenSuffix: String
+    ) -> (title: String, detail: String) {
+        if !enabled {
+            if !closingPorts.isEmpty {
+                let bound = closingPorts.filter { $0 > 0 }.sorted()
+                let detail = bound.isEmpty ? "127.0.0.1" : bound.map { "127.0.0.1:\($0)" }.joined(separator: ", ")
+                let title = NSLocalizedString(
+                    "settings.api_server.status.stopping",
+                    value: "Stopping…",
+                    comment: "Local API status while the old server still holds its port"
+                )
+                return (title, detail)
+            }
+            return ("Server disabled", "No network sockets bound.")
         }
-        return "Starting…"
+        if isRunning {
+            let portText = listeningPort > 0 ? "127.0.0.1:\(listeningPort)" : "127.0.0.1"
+            return ("Server enabled", "\(portText) · token ••••\(tokenSuffix)")
+        }
+        return ("Server enabled", "Starting…")
     }
 
     // MARK: - Tab bar (underline-style)

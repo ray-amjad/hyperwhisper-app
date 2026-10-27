@@ -37,14 +37,13 @@
 //! `<CloudProvider rawValue>` half of the documented field, which belongs to
 //! `hw-catalog`'s `CloudSttCatalog` and must not be reimplemented here.
 //!
-//! Two of the mode exports are deliberately called by **two heads, not three**:
-//! [`local_api_mode_key_classification`] and
-//! [`local_api_missing_required_mode_keys`]. macOS discards an unmapped key
-//! inside `JSONDecoder` and enforces the required seven through `ModeDTO`'s
-//! non-optional `let`s, so it conforms by construction and calling either one
-//! there would mean adding a `JSONSerialization` pass to the head this sandbox
-//! cannot build. That is not the `lib.rs:36-42` failure of exporting something
-//! no head can call — each names its real call sites in its doc comment.
+//! One of the mode exports is deliberately called by **two heads, not three**:
+//! [`local_api_mode_key_classification`]. macOS discards an unmapped key inside
+//! `JSONDecoder` and enforces the required seven through `ModeDTO`'s
+//! non-optional `let`s, so it conforms by construction and calling it there
+//! would mean adding a `JSONSerialization` pass to the head this sandbox cannot
+//! build. That is not the `lib.rs:36-42` failure of exporting something no head
+//! can call — it names its real call sites in its doc comment.
 //!
 //! # The transcription failure table (#356 item 4)
 //!
@@ -236,13 +235,6 @@ pub fn local_api_is_well_formed_token(token: String) -> bool {
 #[uniffi::export]
 pub fn local_api_authorize(authorization_header: Option<String>, expected_token: String) -> bool {
     hw_localapi::authorize(authorization_header.as_deref(), &expected_token)
-}
-
-/// The SHA-256 fingerprint of a token, hex-encoded — for a log line that has to
-/// identify a credential without carrying it.
-#[uniffi::export]
-pub fn local_api_token_fingerprint(token: String) -> String {
-    hw_localapi::token_fingerprint(&token)
 }
 
 /// The closed set of Local API error codes. Mirrors
@@ -565,6 +557,11 @@ pub fn local_api_engine_wire_label(id: HwLocalApiEngineId) -> String {
 }
 
 /// Every engine id, in the order `openapi.yaml` lists them.
+///
+/// **Call site: the macOS test target**, not a head's runtime code.
+/// `LocalEngineNeverRoutesToCloudTests` drives its "no local engine routes to
+/// Cloud" properties off this table, so an engine added here is covered there
+/// without anyone widening a list.
 #[uniffi::export]
 pub fn local_api_all_engine_ids() -> Vec<HwLocalApiEngineId> {
     hw_localapi::ALL_ENGINE_IDS
@@ -655,19 +652,6 @@ pub fn local_api_required_mode_keys() -> Vec<String> {
         .collect()
 }
 
-/// Which required keys a create body did not carry, in the documented order.
-///
-/// **Call sites: the portable head and Windows only, deliberately.** The portable
-/// head already walks `document.EnumerateObject()`. Windows needs a new
-/// `ReadJsonBodyWithKeysAsync<T>` because it cannot infer presence from
-/// `ModeDto` — `Punctuation`/`Capitalization`/`ProfanityFilter` are non-nullable
-/// `bool`, so an absent key and `false` are the same value. macOS needs neither:
-/// its decoder *is* this check.
-#[uniffi::export]
-pub fn local_api_missing_required_mode_keys(present: Vec<String>) -> Vec<String> {
-    hw_localapi::missing_required_mode_keys(&present)
-}
-
 /// The fields [`local_api_validate_mode`] bounds. Mirrors
 /// `hw_localapi::ModeValidationInput`.
 ///
@@ -741,23 +725,6 @@ impl From<HwLocalApiModeValidationInput> for hw_localapi::ModeValidationInput {
 #[uniffi::export]
 pub fn local_api_validate_mode(input: HwLocalApiModeValidationInput) -> Option<HwLocalApiFailure> {
     hw_localapi::validate_mode(&input.into()).map(HwLocalApiFailure::from)
-}
-
-/// The key a mode name is compared *by*: trim Unicode whitespace, then
-/// lowercase. `None` when nothing is left.
-///
-/// **This is the definition of "the same name"**, replacing .NET's
-/// `OrdinalIgnoreCase` and Core Data's `==[c]`. It is not a storage name — each
-/// head still writes whatever its own pre-normalisation produced.
-///
-/// **Call sites: all three heads.** On macOS it sits *behind*
-/// `ModeNamePolicy.normalized`, which keeps NFC and the Unicode general-category
-/// boundary trim. That half stays native because it needs
-/// `unicode-normalization` and a category table, and `hw-localapi` takes no
-/// dependency — it runs under `panic = "abort"` in front of a loopback socket.
-#[uniffi::export]
-pub fn local_api_mode_name_comparison_key(name: String) -> Option<String> {
-    hw_localapi::mode_name_comparison_key(&name)
 }
 
 /// Whether `candidate` collides with any of `other_names`.
@@ -1052,7 +1019,7 @@ mod tests {
                 actual: 31
             }
         ));
-        assert_eq!(local_api_token_fingerprint(String::new()).len(), 64);
+        assert_eq!(hw_localapi::token_fingerprint("").len(), 64);
     }
 
     #[test]
@@ -1353,10 +1320,12 @@ mod tests {
                 "{key}"
             );
         }
-        assert!(local_api_missing_required_mode_keys(local_api_required_mode_keys()).is_empty());
+        assert!(
+            hw_localapi::missing_required_mode_keys(&local_api_required_mode_keys()).is_empty()
+        );
         // The Windows create body that works today.
         assert_eq!(
-            local_api_missing_required_mode_keys(vec!["name".to_string()]).len(),
+            hw_localapi::missing_required_mode_keys(&["name".to_string()]).len(),
             6
         );
     }
@@ -1473,10 +1442,10 @@ mod tests {
     #[test]
     fn the_collision_rule_crosses_the_boundary() {
         assert_eq!(
-            local_api_mode_name_comparison_key("  Work Mode ".to_string()).as_deref(),
+            hw_localapi::mode_name_comparison_key("  Work Mode ").as_deref(),
             Some("work mode")
         );
-        assert_eq!(local_api_mode_name_comparison_key("   ".to_string()), None);
+        assert_eq!(hw_localapi::mode_name_comparison_key("   "), None);
 
         let existing = vec!["Work".to_string(), "  Mail  ".to_string()];
         assert!(local_api_mode_name_conflict(

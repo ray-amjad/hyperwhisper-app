@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Ominaisuudet",
-    "pricing": "Hinnoittelu",
     "faq": "UKK",
     "support": "Tuki",
     "download": "Lataa",
@@ -20,7 +19,6 @@
     "githubAria": "Katso HyperWhisper GitHubissa"
   },
   "hero": {
-    "openSourceBadge": "Avoin lähdekoodi · Apache-2.0",
     "logoAlt": "HyperWhisper-logo",
     "headline": "Kirjoita, sommittele ja luo",
     "headlineAccent": "5x nopeammin AI:n avulla",
@@ -28,7 +26,7 @@
     "downloadCta": "Lataa nyt",
     "demoCta": "Katso demo",
     "availableOn": "Saatavilla",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -98,57 +96,6 @@
     "languagesSupported": "Tuetut kielet",
     "providersSupported": "Tuetut palveluntarjoajat"
   },
-  "pricing": {
-    "title": "Ei tilauksia. Koskaan.",
-    "subtitle": "Maksa kerran, käytä ikuisesti. Me vihaamme tilauksia myös.",
-    "guarantee": "14 päivän rahat takaisin -takuu",
-    "guaranteeExtended": "jos et ole täysin tyytyväinen.",
-    "learnMore": "Lue lisää",
-    "free": {
-      "name": "Ilmainen",
-      "price": "$0",
-      "period": "ikuisesti",
-      "description": "Täydellinen HyperWhisperin kokeiluun",
-      "cta": "Lataa ilmaiseksi",
-      "features": {
-        "transcriptionLimit": "5 minuuttia litterointia päivässä",
-        "basicModes": "Peruslitterointitilat",
-        "offlineTranscription": "Offline-litterointi",
-        "apiTranscription": "API-litterointi (käytä omia avaimia)",
-        "postProcessing": "Tekstin jälkikäsittely",
-        "providers": "Yli 9 palveluntarjoajaa valittavana",
-        "lifetimeUpdates": "Elinikäiset päivitykset",
-        "cloudLimited": "HyperWhisper Cloud (rajoitettu käyttö)",
-        "customVocabulary": "Mukautettu sanasto",
-        "prioritySupport": "Prioriteettituki"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "elinikäinen",
-      "description": "Kertamaksu, rajaton teho ikuisesti",
-      "cta": "Osta nyt - Elinikäinen käyttöoikeus",
-      "mostPopular": "Suosituin",
-      "features": {
-        "unlimitedTranscription": "Rajaton litterointi",
-        "allModes": "Kaikki litterointitilat",
-        "offlineTranscription": "Offline-litterointi",
-        "apiTranscription": "API-litterointi (käytä omia avaimia)",
-        "postProcessing": "Tekstin jälkikäsittely",
-        "providers": "Yli 9 palveluntarjoajaa valittavana",
-        "lifetimeUpdates": "Elinikäiset päivitykset",
-        "cloudCredits": "HyperWhisper Cloud ($5 krediittejä)",
-        "customVocabulary": "Mukautettu sanasto",
-        "prioritySupport": "Prioriteettituki"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise ja räätälöity hinnoittelu",
-      "description": "Volyymialennukset, SSO, prioriteettituki, sisäinen isännöinti ja räätälöidyt integraatiot",
-      "cta": "Ota yhteyttä myyntiin"
-    }
-  },
   "faq": {
     "title": "Usein kysytyt kysymykset",
     "subtitle": "Kaikki mitä sinun tarvitsee tietää HyperWhisperistä",
@@ -192,7 +139,7 @@
       },
       "lifetime": {
         "question": "Onko tilausta?",
-        "answer": "Ei — ei koskaan. HyperWhisper on avoimen lähdekoodin sovellus, jonka omistat, ei tilaus, jota vuokraat. Lataa se ilmaiseksi ja käytä paikallista, offline-transkriptiota maksutta ikuisesti; ilmaiseen tasoon sisältyy myös 5 minuuttia pilvitranskriptiota päivässä. Kun haluat ilman määrityksiä toimivaa pilvitranskriptiota sen lisäksi, HyperWhisper Cloud on yksinkertaisesti käytön mukaan maksettavia krediittejä — lataa tiliä vain kun tarvitset, ilman kuukausimaksuja ja ilman mitään peruttavaa."
+        "answer": "Ei — ei koskaan. HyperWhisper on avoimen lähdekoodin sovellus, jonka omistat, ei tilaus, jota vuokraat. Lataa se ilmaiseksi ja käytä paikallista, offline-transkriptiota maksutta ikuisesti. Kun haluat ilman määrityksiä toimivaa pilvitranskriptiota, HyperWhisper Cloud on yksinkertaisesti käytön mukaan maksettavia krediittejä — lataa tiliä vain kun tarvitset, ilman kuukausimaksuja ja ilman mitään peruttavaa."
       },
       "deviceLimit": {
         "question": "Kuinka monella laitteella voin käyttää tiliavaintani?",
@@ -200,7 +147,7 @@
       },
       "requirements": {
         "question": "Mitkä ovat järjestelmävaatimukset?",
-        "answer": "Mac: macOS 14 tai uudempi, tuki sekä Apple Siliconille että Intelille. Windows: Windows 10/11, x64 tai ARM64. Linux v1: Ubuntu 22.04 tai uudempi tai Debian 12 tai uudempi, amd64. 8GB RAM suositellaan optimaaliseen suorituskykyyn."
+        "answer": "Mac: macOS 14.6 tai uudempi, tuki sekä Apple Siliconille että Intelille. Windows: Windows 10/11, x64 tai ARM64. Linux v1: Ubuntu 22.04 tai uudempi tai Debian 12 tai uudempi, amd64. 8GB RAM suositellaan optimaaliseen suorituskykyyn."
       },
       "madeBy": {
         "question": "Kuka tämän teki?",
@@ -252,10 +199,7 @@
     "downloadButton": "Lataa HyperWhisper",
     "errorGeneric": "Jotain meni pieleen. Yritä uudelleen.",
     "errorEmail": "Anna kelvollinen sähköpostiosoite.",
-    "errorNetwork": "Verkkovirhe. Tarkista yhteytesi ja yritä uudelleen.",
-    "thankYouTitle": "Kiitos!",
     "downloadStarted": "Latauksen pitäisi käynnistyä automaattisesti.",
-    "manualDownload": "Eikö lataus käynnistynyt? Klikkaa tästä",
     "skipAndDownloadButton": "Ohita ja lataa"
   },
   "downloadPage": {
@@ -324,10 +268,10 @@
       "download": "Lataa",
       "roadmap": "Roadmap",
       "helpCenter": "Ohjekeskus",
-      "manageBilling": "Hallitse laskutusta",
       "customerPortal": "Asiakasportaali",
       "olderVersions": "Vanhemmat versiot",
       "blog": "Blogi",
+      "openSource": "Avoin lähdekoodi",
       "about": "Tietoa",
       "support": "Tuki",
       "privacyPolicy": "Tietosuojakäytäntö",
@@ -409,6 +353,25 @@
     "custom": "Mukautettu",
     "customSub": "oma summasi",
     "topUp": "Lisää saldoa"
+  },
+  "licenseKeysCard": {
+    "rotate": "Vaihda avain",
+    "confirmTitle": "Vaihdetaanko tämä tiliavain?",
+    "confirmBody": "Saat uuden avaimen, ja tämä avain lakkaa toimimasta heti. Jokainen laite, joka käyttää vanhaa avainta, tarvitsee uuden: syötä se HyperWhisperiin jokaisella laitteella. Krediittisi, tilauksesi ja ostohistoriasi säilyvät tililläsi. Sinut myös kirjataan ulos tältä sivustolta muissa selaimissasi.",
+    "confirm": "Vaihda avain",
+    "cancel": "Peruuta",
+    "rotating": "Vaihdetaan…",
+    "rotated": "Avain vaihdettu. Syötä uusi avain HyperWhisperiin jokaisella laitteellasi.",
+    "errorRateLimited": "Liian monta vaihtoa. Yritä myöhemmin uudelleen.",
+    "errorStale": "Tämä avain on jo vaihdettu. Nykyinen avain näkyy yllä.",
+    "errorGeneric": "Avaimen vaihtaminen epäonnistui. Yritä uudelleen.",
+    "verifyTitle": "Vahvista henkilöllisyytesi sähköpostilla",
+    "verifyBody": "Vahvista ensin henkilöllisyytesi sähköpostilla, jotta voit vaihtaa avaimesi. Lähetämme kirjautumislinkin tilisi sähköpostiosoitteeseen. Avaa se ja vaihda sitten avain tällä sivulla.",
+    "sendLink": "Lähetä minulle kirjautumislinkki",
+    "sendingLink": "Lähetetään…",
+    "linkSent": "Kirjautumislinkki lähetetty. Avaa se saapuneista viesteistä ja vaihda sitten avain.",
+    "linkFailed": "Kirjautumislinkin lähettäminen epäonnistui. Yritä uudelleen.",
+    "errorUnavailable": "Tätä avainta ei voi enää vaihtaa. Sen nykyinen tila näkyy yllä."
   },
   "openSource": {
     "heading": "Avoin lähdekoodi. Ei mitään salattavaa.",

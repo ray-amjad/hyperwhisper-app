@@ -12,7 +12,7 @@
  * never more than the pack has left unrefunded.
  */
 import assert from "node:assert/strict";
-import { after, before, beforeEach, describe, mock, test } from "node:test";
+import { after, before, beforeEach, describe, test } from "node:test";
 
 import type Stripe from "stripe";
 
@@ -23,19 +23,30 @@ import {
   resetDatabase,
   seedUser,
 } from "./credit-ledger-harness";
-
-interface ModuleMocker {
-  module(specifier: string, options: { namedExports: Record<string, unknown> }): void;
-}
-
-const moduleUrl = (relative: string) => new URL(relative, import.meta.url).href;
+import { moduleMock, moduleUrl } from "./module-mock";
 
 /** Checkout Sessions Stripe would return, keyed by payment intent. */
 const sessionsByIntent = new Map<string, unknown>();
+/** Charges Stripe would return from charges.retrieve, keyed by id. */
+const chargesById = new Map<string, unknown>();
+/** Disputes Stripe would return from disputes.list, keyed by charge id. */
+const disputesByCharge = new Map<string, unknown[]>();
 
-(mock as unknown as ModuleMocker).module(moduleUrl("../lib/clients/stripe.ts"), {
+moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
   namedExports: {
     stripe: {
+      charges: {
+        retrieve: async (id: string) => {
+          const hit = chargesById.get(id);
+          if (!hit) throw new Error(`No such charge: '${id}'`);
+          return hit;
+        },
+      },
+      disputes: {
+        list: async (query: { charge?: string }) => ({
+          data: disputesByCharge.get(query.charge ?? "") ?? [],
+        }),
+      },
       checkout: {
         sessions: {
           list: async (query: { payment_intent?: string }) => {
@@ -47,22 +58,25 @@ const sessionsByIntent = new Map<string, unknown>();
     },
   },
 });
-(mock as unknown as ModuleMocker).module(moduleUrl("../lib/services/email.ts"), {
+moduleMock.module(moduleUrl("../lib/services/email.ts"), {
   namedExports: { emailService: {} },
 });
-(mock as unknown as ModuleMocker).module(moduleUrl("../lib/services/license-key.ts"), {
+moduleMock.module(moduleUrl("../lib/services/license-key.ts"), {
   namedExports: { generateLicenseKey: () => "HW-TEST-0000-0000" },
 });
 
 let L: Awaited<ReturnType<typeof loadDbLayer>>;
 let handleChargeRefunded: (charge: Stripe.Charge) => Promise<void>;
+let handleDisputeClosed: (dispute: Stripe.Dispute) => Promise<void>;
 
 const realLog = console.log;
 const realWarn = console.warn;
 
 before(async () => {
   L = await loadDbLayer();
-  ({ handleChargeRefunded } = await import("@/lib/services/stripe-webhook"));
+  ({ handleChargeRefunded, handleDisputeClosed } = await import(
+    "@/lib/services/stripe-webhook"
+  ));
   console.log = () => {};
   console.warn = () => {};
 });
@@ -73,6 +87,8 @@ after(() => {
 beforeEach(async () => {
   await resetDatabase();
   sessionsByIntent.clear();
+  chargesById.clear();
+  disputesByCharge.clear();
   await seedUser("u1");
 });
 
@@ -109,10 +125,12 @@ async function buyPack(p: {
 }
 
 function refund(intent: string, amount: number, amountRefunded: number): Promise<void> {
+  const chargeId = `ch_${intent}`;
   return handleChargeRefunded({
-    id: `ch_${intent}`,
+    id: chargeId,
     amount,
     amount_refunded: amountRefunded,
+    disputed: disputesByCharge.has(chargeId),
     payment_intent: intent,
   } as unknown as Stripe.Charge);
 }
@@ -182,4 +200,131 @@ describe("charge.refunded on a credit pack, against the real ledger", () => {
     assert.equal(pack?.remaining, 0);
     assert.equal(pack?.refunded, 5000);
   });
+});
+
+/**
+ * Close a dispute on the pack's charge. Stripe sends the dispute with the
+ * charge id; the charge it returns carries what was refunded before it, and
+ * disputes.list carries the charge's disputes (this one included, closed).
+ */
+function closeDispute(
+  intent: string,
+  d: {
+    id?: string;
+    status: string;
+    amount: number;
+    chargeAmount: number;
+    refundedBefore?: number;
+    listed?: boolean;
+  },
+): Promise<void> {
+  const chargeId = `ch_${intent}`;
+  const dispute = {
+    id: d.id ?? `dp_${intent}`,
+    object: "dispute",
+    charge: chargeId,
+    status: d.status,
+    amount: d.amount,
+  };
+  const listed = (disputesByCharge.get(chargeId) ?? []).filter(
+    (x) => (x as { id: string }).id !== dispute.id,
+  );
+  // `listed: false` models disputes.list not having caught up with the event.
+  disputesByCharge.set(chargeId, d.listed === false ? listed : [...listed, dispute]);
+  chargesById.set(chargeId, {
+    id: chargeId,
+    amount: d.chargeAmount,
+    amount_refunded: d.refundedBefore ?? 0,
+    disputed: true,
+    payment_intent: intent,
+  });
+  return handleDisputeClosed(dispute as unknown as Stripe.Dispute);
+}
+
+describe("charge.dispute.closed on a credit pack, against the real ledger (#2482)", () => {
+  test("a lost chargeback of the whole charge takes the unused pack back", async () => {
+    const intent = await buyPack({ session: "cs_1", credits: 5000, feeCents: 30, amountTotal: 530 });
+    await L.spendCreditGrantsByProvenance("u1", 500);
+
+    await closeDispute(intent, { status: "lost", amount: 530, chargeAmount: 530 });
+
+    const pack = (await grantsBySource("u1")).get("cs_1");
+    assert.equal(pack?.remaining, 0);
+    assert.equal(pack?.refunded, 5000);
+    assert.equal(pack?.status, "refunded");
+    assert.equal(await L.getCreditBalance("u1"), 0);
+  });
+
+  test("a re-delivered lost dispute, then a late refund event, removes nothing more", async () => {
+    const intent = await buyPack({ session: "cs_1", credits: 5000, feeCents: 30, amountTotal: 530 });
+    await buyPack({ session: "cs_B", credits: 10000, feeCents: 60, amountTotal: 1060 });
+
+    await closeDispute(intent, { status: "lost", amount: 530, chargeAmount: 530 });
+    await closeDispute(intent, { status: "lost", amount: 530, chargeAmount: 530 });
+    await refund(intent, 530, 0);
+
+    const g = await grantsBySource("u1");
+    assert.equal(g.get("cs_1")?.remaining, 0);
+    assert.equal(g.get("cs_1")?.refunded, 5000);
+    assert.equal(g.get("cs_B")?.remaining, 10000, "another pack is never touched");
+    assert.equal(await L.getCreditBalance("u1"), 10000);
+  });
+
+  test("a partial refund, then a lost dispute of the rest, takes the pack back once", async () => {
+    const intent = await buyPack({ session: "cs_1", credits: 5000, feeCents: 30, amountTotal: 530 });
+
+    await refund(intent, 530, 200);
+    await closeDispute(intent, { status: "lost", amount: 330, chargeAmount: 530, refundedBefore: 200 });
+
+    const pack = (await grantsBySource("u1")).get("cs_1");
+    assert.equal(pack?.remaining, 0);
+    assert.equal(pack?.refunded, 5000);
+  });
+
+  test("a partial lost dispute, then a refund of the undisputed rest, takes the pack back", async () => {
+    // Review round 1: the refund event must count the lost dispute too, or
+    // its smaller total reads as a duplicate and the $2.00 stays spendable.
+    const intent = await buyPack({ session: "cs_1", credits: 5000, feeCents: 30, amountTotal: 530 });
+
+    await closeDispute(intent, { status: "lost", amount: 330, chargeAmount: 530 });
+    assert.equal((await grantsBySource("u1")).get("cs_1")?.refunded, 3300);
+    await refund(intent, 530, 200);
+
+    const pack = (await grantsBySource("u1")).get("cs_1");
+    assert.equal(pack?.remaining, 0);
+    assert.equal(pack?.refunded, 5000);
+  });
+
+  test("two lost disputes on one charge add up", async () => {
+    const intent = await buyPack({ session: "cs_1", credits: 5000, feeCents: 30, amountTotal: 530 });
+
+    await closeDispute(intent, { id: "dp_a", status: "lost", amount: 200, chargeAmount: 530 });
+    await closeDispute(intent, { id: "dp_b", status: "lost", amount: 200, chargeAmount: 530 });
+
+    const pack = (await grantsBySource("u1")).get("cs_1");
+    assert.equal(pack?.refunded, 4000);
+    assert.equal(pack?.remaining, 1000);
+  });
+
+  test("the closing dispute counts even before disputes.list shows it", async () => {
+    const intent = await buyPack({ session: "cs_1", credits: 5000, feeCents: 30, amountTotal: 530 });
+
+    await closeDispute(intent, { status: "lost", amount: 530, chargeAmount: 530, listed: false });
+
+    assert.equal((await grantsBySource("u1")).get("cs_1")?.remaining, 0);
+  });
+
+  for (const status of ["won", "warning_closed"]) {
+    test(`a dispute closed as ${status} leaves the pack spendable`, async () => {
+      const intent = await buyPack({ session: "cs_1", credits: 5000, feeCents: 30, amountTotal: 530 });
+
+      await closeDispute(intent, { status, amount: 530, chargeAmount: 530 });
+      // A later refund of part of the charge counts only the refund.
+      await refund(intent, 530, 100);
+
+      const pack = (await grantsBySource("u1")).get("cs_1");
+      assert.equal(pack?.refunded, 1000);
+      assert.equal(pack?.remaining, 4000);
+    });
+  }
 });

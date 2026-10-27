@@ -239,7 +239,7 @@ struct PostProcessingModels {
             provider: .mistral
         ),
         PostProcessingModel(
-            id: "mistral-medium-3.5",
+            id: "mistral-medium-3-5",
             displayName: "Mistral Medium 3.5",
             isAvailable: true,
             description: "High quality, multilingual, balanced cost",
@@ -412,6 +412,9 @@ struct PostProcessingModels {
             // successor, but we redirect to mistral-small-latest — already in
             // this list and the HyperWhisper Cloud default for Mistral.
             "open-mistral-nemo": "mistral-small-latest",
+            // Mistral's API id is mistral-medium-3-5 (#2200); the dotted id
+            // the picker used to save is not a Mistral model id.
+            "mistral-medium-3.5": "mistral-medium-3-5",
         ]
     ]
 

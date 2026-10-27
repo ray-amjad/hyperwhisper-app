@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithAzureMai } from './azure-mai';
 import { getProviderDef } from '../lib/stt-models';
 import { AudioTooLargeError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
+import { captureNoSpeechEvent } from './test-support';
+import { saveEnv } from '../test-support/env';
 
 const originalFetch = globalThis.fetch;
 const ENV_KEYS = [
@@ -10,18 +12,15 @@ const ENV_KEYS = [
   'AZURE_SPEECH_KEY_NORTHEUROPE',
   'AZURE_SPEECH_KEY_SOUTHEASTASIA',
 ] as const;
-const savedEnv: Record<string, string | undefined> = {};
+let restoreEnv: Array<() => void> = [];
 
 beforeEach(() => {
-  for (const key of ENV_KEYS) savedEnv[key] = process.env[key];
+  restoreEnv = ENV_KEYS.map((key) => saveEnv(key));
 });
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  for (const key of ENV_KEYS) {
-    if (savedEnv[key] === undefined) delete process.env[key];
-    else process.env[key] = savedEnv[key];
-  }
+  for (const restore of restoreEnv) restore();
 });
 
 function successResponse(text = 'hello world', locale = 'en-US') {
@@ -30,25 +29,6 @@ function successResponse(text = 'hello world', locale = 'en-US') {
     durationMilliseconds: 4200,
     phrases: [{ locale }],
   });
-}
-
-/**
- * Swaps `console.log` for the duration of `run` and returns the details object of
- * the `provider.no_speech` event it logged. Same swap-the-global idiom as
- * `utils.test.ts` — no spy library is used anywhere in this suite.
- */
-async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
-  const logged: unknown[][] = [];
-  const originalLog = console.log;
-  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
-  try {
-    await run();
-  } finally {
-    console.log = originalLog;
-  }
-  const event = logged.find((args) => args[0] === 'provider.no_speech');
-  if (!event) throw new Error('no provider.no_speech event was logged');
-  return event[1] as Record<string, unknown>;
 }
 
 describe('transcribeWithAzureMai — input gates (no upstream call)', () => {
@@ -427,6 +407,10 @@ describe('transcribeWithAzureMai — upstream error mapping', () => {
     ['a truncated JSON body', '{"combinedPhrases":[{"text":"hel'],
     ['an HTML body', '<html><body>Bad Gateway</body></html>'],
     ['a JSON null', 'null'],
+    ['a bare number', '5'],
+    ['a JSON array', '[]'],
+    ['a non-string text', '{"combinedPhrases":[{"text":1}]}'],
+    ['an object text', '{"combinedPhrases":[{"text":{"a":1}}]}'],
   ] as const) {
     test(`a 200 with ${label} is ProviderUnavailableError (bad_response), not a parser error`, async () => {
       globalThis.fetch = mock(async () => new Response(body, {

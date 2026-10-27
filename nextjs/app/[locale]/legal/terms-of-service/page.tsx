@@ -2,7 +2,7 @@ import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
 export const generateMetadata = localizedPageMetadata({
   path: "/legal/terms-of-service",
-  title: "Terms of Service | HyperWhisper",
+  title: "Terms of Service",
   description: "HyperWhisper Terms of Service and User Agreement",
 });
 

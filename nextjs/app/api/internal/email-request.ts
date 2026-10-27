@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqualSecret } from "@/lib/security/timing-safe-secret";
+import { env } from "@/src/env/server.mjs";
 import { isRecord } from "@/src/lib/type-guards";
 import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
 
@@ -11,7 +12,7 @@ export async function parseInternalEmailRequest(
   request: NextRequest,
 ): Promise<InternalEmailRequestResult> {
   const secret = request.headers.get("x-internal-secret");
-  if (!timingSafeEqualSecret(secret, process.env.HYPERWHISPER_INTERNAL_SECRET)) {
+  if (!timingSafeEqualSecret(secret, env.HYPERWHISPER_INTERNAL_SECRET)) {
     return {
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     };

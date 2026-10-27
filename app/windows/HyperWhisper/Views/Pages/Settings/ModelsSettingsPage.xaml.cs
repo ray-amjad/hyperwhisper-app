@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
+using HyperWhisper.Data.Entities;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
@@ -22,6 +23,11 @@ public partial class ModelsSettingsPage : Page
     private readonly ModelLibraryManager _libraryManager;
     private readonly ObservableCollection<LibraryModelViewModel> _allRows = new();
     private MainViewModel? _mainViewModel;
+
+    // Which keyed providers have a stored key, read off the UI thread (#2385).
+    // Null until the first read lands; the rows are built then.
+    private ApiKeyPresence? _keyPresence;
+    private int _keyPresenceGeneration;
 
     private enum SortColumn { Name, Type, Rating, Location }
 
@@ -98,7 +104,7 @@ public partial class ModelsSettingsPage : Page
         ModelDownloadService.Instance.DownloadChanged += OnModelDownloadChanged;
         LocalModelHealth.Changed += OnLocalModelHealthChanged;
 
-        RebuildLibrary();
+        _ = RefreshKeyPresenceAsync();
         _ = RefreshProviderHealthAsync();
 
         // Observe the request flag from MainViewModel that fires when a credential-error
@@ -130,11 +136,15 @@ public partial class ModelsSettingsPage : Page
 
     private void RebuildLibrary()
     {
+        // The rows wait for the key snapshot, so they never flash "Connect"
+        // for a provider whose key is stored. RefreshKeyPresenceAsync builds them.
+        if (_keyPresence is null) return;
+
         var downloadingRows = ModelDownloadService.Instance.GetActiveDownloads()
             .ToDictionary(d => d.ModelId, d => d.Progress);
 
         _allRows.Clear();
-        foreach (var model in _libraryManager.Rebuild())
+        foreach (var model in _libraryManager.Rebuild(_keyPresence))
         {
             _allRows.Add(new LibraryModelViewModel(
                 downloadingRows.TryGetValue(model.Id, out var progress)
@@ -143,6 +153,28 @@ public partial class ModelsSettingsPage : Page
         }
 
         ApplyFilters();
+    }
+
+    // Each key lookup is a Credential Manager read, ~20-30 ms for the set, so
+    // it runs on the thread pool and the rows are rebuilt on the UI thread when
+    // it lands. Runs on the UI thread up to the await; a newer read wins.
+    private async Task RefreshKeyPresenceAsync()
+    {
+        var generation = ++_keyPresenceGeneration;
+        ApiKeyPresence presence;
+        try
+        {
+            presence = await Task.Run(_libraryManager.ReadKeyPresence);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"ModelsSettingsPage: API key presence read failed: {ex.Message}");
+            presence = new ApiKeyPresence([], []);
+        }
+
+        if (generation != _keyPresenceGeneration) return;
+        _keyPresence = presence;
+        RebuildLibrary();
     }
 
     private async Task RefreshProviderHealthAsync()
@@ -159,12 +191,14 @@ public partial class ModelsSettingsPage : Page
             .Distinct()
             .ToArray();
 
-        var tasks = cloudProviders.Select(p => CloudProviderHealthService.Instance.RefreshAsync(p))
-            .Concat(postProviders.Select(p => CloudProviderHealthService.Instance.RefreshAsync(p)));
-
         try
         {
-            await Task.WhenAll(tasks);
+            // On the thread pool: each RefreshAsync reads the provider's key from
+            // Credential Manager before its first await (#2385). The status
+            // events it raises are marshalled back with Dispatcher.Invoke.
+            await Task.Run(() => Task.WhenAll(
+                cloudProviders.Select(p => CloudProviderHealthService.Instance.RefreshAsync(p))
+                    .Concat(postProviders.Select(p => CloudProviderHealthService.Instance.RefreshAsync(p)))));
         }
         catch (Exception ex)
         {
@@ -460,13 +494,7 @@ public partial class ModelsSettingsPage : Page
     }
 
     private static bool MatchesSearch(LibraryModel model, string search)
-    {
-        if (string.IsNullOrWhiteSpace(search)) return true;
-        return model.DisplayName.Contains(search, StringComparison.OrdinalIgnoreCase)
-            || model.ProviderName.Contains(search, StringComparison.OrdinalIgnoreCase)
-            || (model.Detail?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
-            || (model.Tag?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false);
-    }
+        => LibraryModelSearch.Matches(model, search);
 
     private static bool MatchesProvider(LibraryModel model, string provider) => provider switch
     {
@@ -818,36 +846,17 @@ public partial class ModelsSettingsPage : Page
         return result == MessageBoxResult.Yes;
     }
 
-    private static bool IsWhisperModelInUse(string modelId, out string modeName)
-    {
-        var mode = ModeService.Instance.GetAllModes()
-            .FirstOrDefault(m => m.ProviderType != "cloud"
-                && string.Equals(m.LocalEngine, "whisper", StringComparison.OrdinalIgnoreCase)
-                && (string.Equals(m.Model, modelId, StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(m.ModelType, modelId, StringComparison.OrdinalIgnoreCase)));
-        modeName = mode?.Name ?? "";
-        return mode != null;
-    }
+    private static bool IsWhisperModelInUse(string modelId, out string modeName) =>
+        FoundMode(ModelInUse.FindModeUsingWhisperModel(ModeService.Instance.GetAllModes(), modelId), out modeName);
 
-    private static bool IsParakeetModelInUse(string modelId, out string modeName)
-    {
-        var mode = ModeService.Instance.GetAllModes()
-            .FirstOrDefault(m => m.ProviderType != "cloud"
-                && string.Equals(m.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase)
-                && string.Equals(m.LocalParakeetModel, modelId, StringComparison.OrdinalIgnoreCase));
-        modeName = mode?.Name ?? "";
-        return mode != null;
-    }
+    private static bool IsParakeetModelInUse(string modelId, out string modeName) =>
+        FoundMode(ModelInUse.FindModeUsingParakeetModel(ModeService.Instance.GetAllModes(), modelId), out modeName);
 
-    private static bool IsLocalLlmModelInUse(string modelId, out string modeName)
+    private static bool IsLocalLlmModelInUse(string modelId, out string modeName) =>
+        FoundMode(ModelInUse.FindModeUsingLocalLlm(ModeService.Instance.GetAllModes(), modelId), out modeName);
+
+    private static bool FoundMode(Mode? mode, out string modeName)
     {
-        var targetModelId = LanguageModelInfo.MigrateModelId(modelId);
-        var mode = ModeService.Instance.GetAllModes()
-            .FirstOrDefault(m => string.Equals(m.PostProcessingProvider, PostProcessingProvider.LocalLlm.ToStringValue(), StringComparison.OrdinalIgnoreCase)
-                && string.Equals(
-                    LanguageModelInfo.MigrateModelId(m.LocalPostProcessingModel ?? m.LanguageModel),
-                    targetModelId,
-                    StringComparison.OrdinalIgnoreCase));
         modeName = mode?.Name ?? "";
         return mode != null;
     }
@@ -894,14 +903,15 @@ public partial class ModelsSettingsPage : Page
             Title = Loc.S("settings.nav.apiKeys"),
             Width = 760,
             Height = 760,
-            Background = (System.Windows.Media.Brush)FindResource("ContentBackgroundBrush"),
             Owner = Window.GetWindow(this),
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Content = new ApiKeysSettingsPage
-            {
-                Background = (System.Windows.Media.Brush)FindResource("ContentBackgroundBrush")
-            }
         };
+        // A resource reference, not FindResource: the theme brushes are frozen,
+        // so a copied brush would keep this theme after a switch (issue #2386).
+        window.SetResourceReference(Window.BackgroundProperty, "ContentBackgroundBrush");
+        var apiKeysPage = new ApiKeysSettingsPage();
+        apiKeysPage.SetResourceReference(System.Windows.Controls.Page.BackgroundProperty, "ContentBackgroundBrush");
+        window.Content = apiKeysPage;
 
         // 760 DIP is taller than a 1080p work area at 175% (issue #1500).
         WindowWorkAreaFit.Attach(window);
@@ -969,7 +979,7 @@ public partial class ModelsSettingsPage : Page
 
     private void OnApiKeysChanged(object? sender, EventArgs e)
     {
-        Dispatcher.Invoke(RebuildLibrary);
+        Dispatcher.Invoke(() => { _ = RefreshKeyPresenceAsync(); });
         _ = RefreshProviderHealthAsync();
     }
 

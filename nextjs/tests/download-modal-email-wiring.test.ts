@@ -23,29 +23,15 @@
  * a browser's accessibility tree computes. That is the verify round's job.
  */
 import assert from "node:assert/strict";
-import test, { beforeEach, mock } from "node:test";
+import test, { beforeEach } from "node:test";
 import { pathToFileURL } from "node:url";
 import { createElement, type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: {
-      namedExports?: Record<string, unknown>;
-      defaultExport?: unknown;
-    },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+import { moduleMock, moduleUrl } from "./module-mock";
 
 function resolvedUrl(specifier: string): string {
   return pathToFileURL(require.resolve(specifier)).href;
-}
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
 }
 
 interface InputProps {

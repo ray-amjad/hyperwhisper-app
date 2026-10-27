@@ -22,7 +22,7 @@
  * The decision the handler makes is `tests/sign-out-seam.test.ts`.
  */
 import assert from "node:assert/strict";
-import test, { mock } from "node:test";
+import test from "node:test";
 import {
   Children,
   createElement,
@@ -32,21 +32,7 @@ import {
 } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrowed to the one method used here rather than bumping
- * the types in a test-only change — the same shape
- * `tests/root-layout-direction.test.ts` uses.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports: Record<string, unknown> },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+import { moduleMock, moduleUrl } from "./module-mock";
 
 /**
  * `next-intl`'s `createNavigation` builds a `Link` that reads the request
@@ -54,7 +40,7 @@ const moduleMock = mock as unknown as ModuleMocker;
  * provide. The stub is a plain anchor: the logo link is not what this file is
  * about, but it must render for the header to render at all.
  */
-moduleMock.module("../src/i18n/navigation", {
+moduleMock.module(moduleUrl("../src/i18n/navigation.ts"), {
   namedExports: {
     Link: ({ children, ...props }: { children?: ReactNode; href: string }) =>
       createElement("a", props, children),

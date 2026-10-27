@@ -8,16 +8,25 @@
 
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Hono } from 'hono';
+import { pcm16Wav } from '../test-support/wav';
 import { createMemoryCreditHoldStore, type MemoryCreditHoldStore } from '../lib/credit-hold-store-memory';
 import type { CreditHoldStore } from '../lib/credit-hold-store';
+import { saveEnv, stubEnv } from '../test-support/env';
 
 let cachedCredits = 1000;
+/** The `credit_pool_id` each key's cached licence carries (#2026); none by default. */
+let poolIdByKey: Record<string, string> = {};
 mock.module('../lib/redis', () => ({
   // Full export surface: a partial redis mock is process-wide in bun and breaks
   // every suite that loads after this one.
   redis: {},
   isIPBlocked: async () => false,
-  getCachedLicense: async () => ({ isValid: true, credits: cachedCredits, cachedAt: 'cached' }),
+  getCachedLicense: async (key: string) => ({
+    isValid: true,
+    credits: cachedCredits,
+    cachedAt: 'cached',
+    ...(poolIdByKey[key] ? { creditPoolId: poolIdByKey[key] } : {}),
+  }),
   cacheLicense: async () => {},
 }));
 
@@ -27,8 +36,8 @@ const { drainPendingDeductions } = await import('../middleware/credits');
 const { drainPendingHoldReleases, setCreditHoldStoreForTests } = await import('../middleware/credit-holds');
 
 const originalFetch = globalThis.fetch;
-const originalMetaKey = process.env.META_MODEL_API_KEY;
-const originalGroqKey = process.env.GROQ_API_KEY;
+let restoreMetaKey: () => void;
+const restoreGroqKey = saveEnv('GROQ_API_KEY');
 
 const ACCOUNT = 'test-license';
 // One minute of canonical Meta Muse audio reserves (and bills) exactly 3 credits.
@@ -41,24 +50,9 @@ function buildApp(): Hono {
   return app;
 }
 
-function metaMinuteRequest(): Request {
-  const seconds = 60;
-  const dataBytes = 16_000 * 2 * seconds;
-  const audio = new Uint8Array(44 + dataBytes);
-  const view = new DataView(audio.buffer);
-  for (const [offset, text] of [[0, 'RIFF'], [8, 'WAVE'], [12, 'fmt '], [36, 'data']] as const) {
-    for (let index = 0; index < text.length; index++) view.setUint8(offset + index, text.charCodeAt(index));
-  }
-  view.setUint32(4, audio.byteLength - 8, true);
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, 16_000, true);
-  view.setUint32(28, 16_000 * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  view.setUint32(40, dataBytes, true);
-  return new Request(`http://localhost/transcribe?account_key=${ACCOUNT}&language=en`, {
+function metaMinuteRequest(accountKey: string = ACCOUNT): Request {
+  const audio = new Uint8Array(pcm16Wav(60));
+  return new Request(`http://localhost/transcribe?account_key=${accountKey}&language=en`, {
     method: 'POST',
     headers: {
       'Content-Type': 'audio/wav',
@@ -93,12 +87,13 @@ async function settle(): Promise<void> {
 
 beforeEach(() => {
   cachedCredits = 1000;
+  poolIdByKey = {};
   charges = [];
   upstreamCalls = 0;
   metaUpstream = slowMetaSuccess;
   store = createMemoryCreditHoldStore();
   setCreditHoldStoreForTests(store);
-  process.env.META_MODEL_API_KEY = 'test-meta-key';
+  restoreMetaKey = stubEnv('META_MODEL_API_KEY', 'test-meta-key');
   globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url === 'https://api.meta.ai/v1/asr/transcribe') {
@@ -118,10 +113,8 @@ afterEach(async () => {
   await settle();
   setCreditHoldStoreForTests(null);
   globalThis.fetch = originalFetch;
-  if (originalMetaKey === undefined) delete process.env.META_MODEL_API_KEY;
-  else process.env.META_MODEL_API_KEY = originalMetaKey;
-  if (originalGroqKey === undefined) delete process.env.GROQ_API_KEY;
-  else process.env.GROQ_API_KEY = originalGroqKey;
+  restoreMetaKey();
+  restoreGroqKey();
 });
 
 describe('concurrent /transcribe on a balance that covers one request (#2008)', () => {
@@ -179,6 +172,63 @@ describe('concurrent /transcribe on a balance that covers one request (#2008)', 
 
     expect(charges).toHaveLength(2);
     expect(store.outstandingMilli(ACCOUNT)).toBe(0);
+  });
+});
+
+describe('concurrent /transcribe across one user\'s keys (#2026)', () => {
+  const KEY_A = 'test-license-a';
+  const KEY_B = 'test-license-b';
+  const POOL = 'a'.repeat(64);
+
+  test('two keys reporting one credit_pool_id share one balance: exactly one is served', async () => {
+    // Each key's cache reports the user's pooled balance, which covers one minute.
+    cachedCredits = 4;
+    poolIdByKey = { [KEY_A]: POOL, [KEY_B]: POOL };
+    const app = buildApp();
+
+    const responses = await Promise.all([
+      app.fetch(metaMinuteRequest(KEY_A)),
+      app.fetch(metaMinuteRequest(KEY_B)),
+      app.fetch(metaMinuteRequest(KEY_A)),
+      app.fetch(metaMinuteRequest(KEY_B)),
+    ]);
+    await settle();
+
+    expect(responses.filter((response) => response.status === 200)).toHaveLength(1);
+    expect(responses.filter((response) => response.status === 402)).toHaveLength(3);
+    expect(upstreamCalls).toBe(1);
+    expect(charges).toHaveLength(1);
+    // Every hold was taken on the pool, never on a key.
+    expect(new Set(store.calls.map((call) => call.account))).toEqual(new Set([`pool:${POOL}`]));
+    expect(store.outstandingMilli(`pool:${POOL}`)).toBe(0);
+  });
+
+  test('without a credit_pool_id each key keeps its own holds, as before', async () => {
+    cachedCredits = 4;
+    const app = buildApp();
+
+    const responses = await Promise.all([
+      app.fetch(metaMinuteRequest(KEY_A)),
+      app.fetch(metaMinuteRequest(KEY_B)),
+    ]);
+    await settle();
+
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    expect(new Set(store.calls.map((call) => call.account))).toEqual(new Set([KEY_A, KEY_B]));
+  });
+
+  test('two users on different pools do not share a balance', async () => {
+    cachedCredits = 4;
+    poolIdByKey = { [KEY_A]: POOL, [KEY_B]: 'b'.repeat(64) };
+    const app = buildApp();
+
+    const responses = await Promise.all([
+      app.fetch(metaMinuteRequest(KEY_A)),
+      app.fetch(metaMinuteRequest(KEY_B)),
+    ]);
+    await settle();
+
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
   });
 });
 

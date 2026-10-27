@@ -1,6 +1,13 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
@@ -87,6 +94,74 @@ export default function DownloadPage() {
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
 
   const currentState = downloadState[selectedPlatform];
+
+  // #767: a tab press tweens the panel below the tabs to its new height and
+  // reveals the new content, instead of swapping both in one frame. Only a
+  // press animates; the platform picked on load (query or OS) lands at once.
+  // The height is read just before the swap; the layout effect pins the panel
+  // at it, then sets the new one, and `.t-panel` tweens between the two.
+  const panel = useRef<HTMLDivElement>(null);
+  const panelHeightBeforeSwap = useRef<number | null>(null);
+  // Ends the tween in flight, so a second press mid-tween starts from where the
+  // panel is now instead of racing the first tween's observer and timer.
+  const stopPanelTween = useRef<(() => void) | null>(null);
+  const [panelEnter, setPanelEnter] = useState(false);
+
+  const choosePlatform = (platform: Platform) => {
+    if (platform === selectedPlatform) return;
+    panelHeightBeforeSwap.current = panel.current?.offsetHeight ?? null;
+    setPanelEnter(true);
+    setSelectedPlatform(platform);
+  };
+
+  useLayoutEffect(() => {
+    const box = panel.current;
+    const from = panelHeightBeforeSwap.current;
+
+    panelHeightBeforeSwap.current = null;
+    if (!box || from === null) return;
+    stopPanelTween.current?.();
+    const to = box.offsetHeight;
+
+    if (to === from) return;
+    box.dataset.resizing = "";
+    box.style.height = `${from}px`;
+    void box.offsetHeight;
+    box.style.height = `${to}px`;
+
+    const unpin = () => {
+      observer.disconnect();
+      window.clearTimeout(timer);
+      box.removeEventListener("transitionend", onEnd);
+      box.style.height = "";
+      delete box.dataset.resizing;
+      stopPanelTween.current = null;
+    };
+    // The content's own transitions bubble here too; only the panel's counts.
+    const onEnd = (event: TransitionEvent) => {
+      if (event.target === box && event.propertyName === "height") unpin();
+    };
+    // A transition that never runs (reduced motion) fires no transitionend.
+    let timer = window.setTimeout(unpin, 400);
+
+    // Content can still change size mid-tween (the Linux version arrives from
+    // /linux-latest.json); retarget the pin to it rather than snap at the end.
+    const content = box.firstElementChild;
+    const observer = new ResizeObserver(() => {
+      if (!(content instanceof HTMLElement)) return;
+      box.style.height = `${content.offsetHeight}px`;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(unpin, 400);
+    });
+
+    if (content) observer.observe(content);
+    box.addEventListener("transitionend", onEnd);
+    stopPanelTween.current = unpin;
+    // No cleanup: Strict Mode's dev-only re-run would unpin the panel before
+    // the tween ran. The next press, or leaving the page, ends it instead.
+  }, [selectedPlatform]);
+
+  useEffect(() => () => stopPanelTween.current?.(), []);
 
   // A phone or tablet cannot run the desktop app, so it gets no auto-download
   // (#1099). This ignores ?platform= on purpose: a phone opening
@@ -244,12 +319,12 @@ export default function DownloadPage() {
       </Suspense>
       <div className="mx-auto lg:max-w-2xl">
         {/* Header */}
-        <div className="text-center mb-6">
+        <div className="text-center">
           {/* App Icon */}
           <div className="w-24 h-24 mx-auto mb-8">
             <img
               alt="HyperWhisper Logo"
-              className="w-24 h-24"
+              className="w-24 h-24 rounded-[20%] outline-1 -outline-offset-1 outline-white/10"
               src="/icon/256.png"
             />
           </div>
@@ -268,7 +343,7 @@ export default function DownloadPage() {
               }`}
               size="sm"
               variant="light"
-              onPress={() => setSelectedPlatform("mac")}
+              onPress={() => choosePlatform("mac")}
             >
               macOS
             </Button>
@@ -281,7 +356,7 @@ export default function DownloadPage() {
               }`}
               size="sm"
               variant="light"
-              onPress={() => setSelectedPlatform("windows")}
+              onPress={() => choosePlatform("windows")}
             >
               Windows
             </Button>
@@ -294,212 +369,227 @@ export default function DownloadPage() {
               }`}
               size="sm"
               variant="light"
-              onPress={() => setSelectedPlatform("linux")}
+              onPress={() => choosePlatform("linux")}
             >
               Linux
             </Button>
           </div>
-
-          {/* Countdown or status message */}
-          {isMobile ? (
-            <p className="text-lg text-gray-400">{t("mobileNote")}</p>
-          ) : selectedPlatform === "windows" ? (
-            <p className="text-lg text-gray-400">{t("selectArchitecture")}</p>
-          ) : selectedPlatform === "linux" ? (
-            <p className="text-lg text-gray-400">{t("linuxSubtitle")}</p>
-          ) : currentState.started ? (
-            <div className="flex items-center justify-center gap-2 text-gray-400">
-              <CheckCircle className="w-5 h-5 text-green-500" />
-              <span>{t("downloadStarted")}</span>
-            </div>
-          ) : isMobile === false ? (
-            <p className="text-lg text-gray-400">
-              {t("countdownText", { seconds: currentState.countdown })}
-            </p>
-          ) : (
-            // Device not detected yet: hold the line's height, promise nothing
-            <p aria-hidden="true" className="text-lg text-gray-400">
-              {"\u00A0"}
-            </p>
-          )}
         </div>
 
-        {/* Download Button(s) */}
-        <div className="flex justify-center mb-10">
-          {selectedPlatform === "windows" ? (
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button
-                as="a"
-                className={GRADIENT_CTA_CLASS_NAME}
-                href="/api/download?platform=windows&arch=x64"
-                size="lg"
-                startContent={<Download className="w-5 h-5" />}
-              >
-                {t("downloadX64")}
-              </Button>
-              <Button
-                as="a"
-                className={GRADIENT_CTA_CLASS_NAME}
-                href="/api/download?platform=windows&arch=arm64"
-                size="lg"
-                startContent={<Download className="w-5 h-5" />}
-              >
-                {t("downloadArm64")}
-              </Button>
-            </div>
-          ) : selectedPlatform === "linux" ? (
-            <div className="flex flex-col items-center gap-3">
-              <Button
-                as="a"
-                className={GRADIENT_CTA_CLASS_NAME}
-                href={linuxLatest?.deb ?? LINUX_RELEASES_URL}
-                rel="noreferrer"
-                size="lg"
-                startContent={<Download className="w-5 h-5" />}
-                target="_blank"
-              >
-                {linuxLatest
-                  ? t("downloadLinuxVersion", { version: linuxLatest.version })
-                  : t("downloadLinux")}
-              </Button>
-              <a
-                className="text-sm text-gray-400 underline hover:text-gray-200"
-                href={linuxLatest?.releasePage ?? LINUX_RELEASES_URL}
-                rel="noreferrer"
-                target="_blank"
-              >
-                {t("linuxReleaseNotes")}
-              </a>
-            </div>
-          ) : (
-            <Button
-              className={GRADIENT_CTA_CLASS_NAME}
-              size="lg"
-              startContent={<Download className="w-5 h-5" />}
-              onClick={handleManualDownload}
-            >
-              {currentState.started ? t("downloadAgain") : t("downloadNow")}
-            </Button>
-          )}
-        </div>
-
-        {/* OR Divider - only show for macOS */}
-        {selectedPlatform === "mac" && (
-          <div className="flex items-center gap-4 mb-10">
-            <div className="flex-1 h-px bg-gray-700" />
-            <span className="text-gray-400 text-sm font-medium uppercase tracking-wider">
-              {t("orDivider")}
-            </span>
-            <div className="flex-1 h-px bg-gray-700" />
-          </div>
-        )}
-
-        {/* Homebrew Section - only show for macOS */}
-        {selectedPlatform === "mac" && (
-          <Card className="bg-gray-900/50 backdrop-blur-xl border border-gray-800">
-            <CardBody className="p-6">
-              {/* Section Header */}
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-br from-orange-500/20 to-yellow-500/20 border border-orange-500/30">
-                  <Terminal className="w-5 h-5 text-orange-400" />
+        {/* Everything the platform switch controls */}
+        <div ref={panel} className="t-panel">
+          <div
+            key={selectedPlatform}
+            className="t-panel-content"
+            data-enter={panelEnter ? "" : undefined}
+          >
+            <div className="text-center mb-6">
+              {/* Countdown or status message */}
+              {isMobile ? (
+                <p className="text-lg text-gray-400">{t("mobileNote")}</p>
+              ) : selectedPlatform === "windows" ? (
+                <p className="text-lg text-gray-400">
+                  {t("selectArchitecture")}
+                </p>
+              ) : selectedPlatform === "linux" ? (
+                <p className="text-lg text-gray-400">{t("linuxSubtitle")}</p>
+              ) : currentState.started ? (
+                <div className="flex items-center justify-center gap-2 text-gray-400">
+                  <CheckCircle className="w-5 h-5 text-emerald-400" />
+                  <span>{t("downloadStarted")}</span>
                 </div>
-                <h2 className="text-lg font-semibold text-white">
-                  {t("homebrewTitle")}
-                </h2>
-              </div>
+              ) : isMobile === false ? (
+                <p className="text-lg text-gray-400">
+                  {t("countdownText", { seconds: currentState.countdown })}
+                </p>
+              ) : (
+                // Device not detected yet: hold the line's height, promise nothing
+                <p aria-hidden="true" className="text-lg text-gray-400">
+                  {"\u00A0"}
+                </p>
+              )}
+            </div>
 
-              {/* Command Box */}
-              <div className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800/80 p-3">
-                <code className="flex-1 text-sm font-mono text-gray-200 overflow-x-auto">
-                  {t("homebrewCommand")}
-                </code>
+            {/* Download Button(s) */}
+            <div className="flex justify-center mb-10">
+              {selectedPlatform === "windows" ? (
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Button
+                    as="a"
+                    className={GRADIENT_CTA_CLASS_NAME}
+                    href="/api/download?platform=windows&arch=x64"
+                    size="lg"
+                    startContent={<Download className="w-5 h-5" />}
+                  >
+                    {t("downloadX64")}
+                  </Button>
+                  <Button
+                    as="a"
+                    className={GRADIENT_CTA_CLASS_NAME}
+                    href="/api/download?platform=windows&arch=arm64"
+                    size="lg"
+                    startContent={<Download className="w-5 h-5" />}
+                  >
+                    {t("downloadArm64")}
+                  </Button>
+                </div>
+              ) : selectedPlatform === "linux" ? (
+                <div className="flex flex-col items-center gap-3">
+                  <Button
+                    as="a"
+                    className={GRADIENT_CTA_CLASS_NAME}
+                    href={linuxLatest?.deb ?? LINUX_RELEASES_URL}
+                    rel="noreferrer"
+                    size="lg"
+                    startContent={<Download className="w-5 h-5" />}
+                    target="_blank"
+                  >
+                    {linuxLatest
+                      ? t("downloadLinuxVersion", {
+                          version: linuxLatest.version,
+                        })
+                      : t("downloadLinux")}
+                  </Button>
+                  <a
+                    className="text-sm text-gray-400 underline transition-colors hover:text-gray-200"
+                    href={linuxLatest?.releasePage ?? LINUX_RELEASES_URL}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    {t("linuxReleaseNotes")}
+                  </a>
+                </div>
+              ) : (
                 <Button
-                  isIconOnly
-                  className="bg-gray-700 hover:bg-gray-600 text-gray-300 min-w-[80px] w-auto px-3"
-                  size="sm"
-                  variant="flat"
-                  onClick={handleCopyCommand}
+                  className={GRADIENT_CTA_CLASS_NAME}
+                  size="lg"
+                  startContent={<Download className="w-5 h-5" />}
+                  onClick={handleManualDownload}
                 >
-                  <AnimatePresence initial={false} mode="popLayout">
-                    <m.span
-                      key={copied ? "copied" : "copy"}
-                      className="inline-flex mr-1"
-                      {...ICON_SWAP}
-                    >
-                      {copied ? (
-                        <Check className="w-4 h-4 text-green-400" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </m.span>
-                  </AnimatePresence>
-                  {copied ? (
-                    <span className="text-green-400 text-xs">
-                      {t("copied")}
-                    </span>
-                  ) : (
-                    <span className="text-xs">{t("copy")}</span>
-                  )}
+                  {currentState.started ? t("downloadAgain") : t("downloadNow")}
                 </Button>
-              </div>
-            </CardBody>
-          </Card>
-        )}
+              )}
+            </div>
 
-        {selectedPlatform === "linux" && (
-          <div className="space-y-4">
-            <Card className="bg-gray-900/50 backdrop-blur-xl border border-gray-800">
-              <CardBody className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30">
-                    <Terminal className="w-5 h-5 text-purple-300" />
+            {/* OR Divider - only show for macOS */}
+            {selectedPlatform === "mac" && (
+              <div className="flex items-center gap-4 mb-10">
+                <div className="flex-1 h-px bg-gray-700" />
+                <span className="text-gray-400 text-sm font-medium uppercase tracking-wider">
+                  {t("orDivider")}
+                </span>
+                <div className="flex-1 h-px bg-gray-700" />
+              </div>
+            )}
+
+            {/* Homebrew Section - only show for macOS */}
+            {selectedPlatform === "mac" && (
+              <Card className="bg-gray-900/50 backdrop-blur-xl border border-gray-800">
+                <CardBody className="p-6">
+                  {/* Section Header */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-br from-orange-500/20 to-yellow-500/20 border border-orange-500/30">
+                      <Terminal className="w-5 h-5 text-orange-400" />
+                    </div>
+                    <h2 className="text-lg font-semibold text-white">
+                      {t("homebrewTitle")}
+                    </h2>
                   </div>
-                  <h2 className="text-lg font-semibold text-white">
-                    {t("linuxInstallTitle")}
-                  </h2>
-                </div>
-                <p className="text-sm text-gray-400 mb-4">
-                  {t("linuxTargets")}
-                  {!linuxLatest && ` ${t("linuxReplaceVersion")}`}
-                </p>
-                <div
-                  aria-label={t("linuxInstallCommandLabel")}
-                  className="rounded-lg border border-gray-700 bg-gray-800/80 p-3 overflow-x-auto focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
-                  role="region"
-                  // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
-                  tabIndex={0}
-                >
-                  <code className="text-sm font-mono text-gray-200 whitespace-pre">
-                    {`sudo apt install ./hyperwhisper_${linuxLatest?.version ?? "VERSION"}_amd64.deb
-sudo usermod -aG hyperwhisper-input "$USER"`}
-                  </code>
-                </div>
-                <p className="text-sm text-gray-400 mt-4">
-                  {t("linuxInputGroupNote")}
-                </p>
-              </CardBody>
-            </Card>
 
-            <Card className="bg-gray-900/50 backdrop-blur-xl border border-gray-800">
-              <CardBody className="p-6">
-                <h2 className="text-lg font-semibold text-white mb-2">
-                  {t("aptTitle")}
-                </h2>
-                <p className="text-sm text-gray-400">{t("aptBody")}</p>
-                <Button
-                  as="a"
-                  className="mt-4 bg-gray-800 text-gray-200"
-                  href="https://www.hyperwhisper.com/docs/linux-installation"
-                  rel="noreferrer"
-                  target="_blank"
-                  variant="flat"
-                >
-                  {t("linuxGuideCta")}
-                </Button>
-              </CardBody>
-            </Card>
+                  {/* Command Box */}
+                  <div className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800/80 p-3">
+                    <code className="flex-1 text-sm font-mono text-gray-200 overflow-x-auto">
+                      {t("homebrewCommand")}
+                    </code>
+                    <Button
+                      isIconOnly
+                      className="bg-gray-700 hover:bg-gray-600 text-gray-300 min-w-[80px] w-auto px-3"
+                      size="sm"
+                      variant="flat"
+                      onClick={handleCopyCommand}
+                    >
+                      <AnimatePresence initial={false} mode="popLayout">
+                        <m.span
+                          key={copied ? "copied" : "copy"}
+                          className="inline-flex mr-1"
+                          {...ICON_SWAP}
+                        >
+                          {copied ? (
+                            <Check className="w-4 h-4 text-emerald-300" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </m.span>
+                      </AnimatePresence>
+                      {copied ? (
+                        <span className="text-emerald-300 text-xs">
+                          {t("copied")}
+                        </span>
+                      ) : (
+                        <span className="text-xs">{t("copy")}</span>
+                      )}
+                    </Button>
+                  </div>
+                </CardBody>
+              </Card>
+            )}
+
+            {selectedPlatform === "linux" && (
+              <div className="space-y-4">
+                <Card className="bg-gray-900/50 backdrop-blur-xl border border-gray-800">
+                  <CardBody className="p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30">
+                        <Terminal className="w-5 h-5 text-purple-300" />
+                      </div>
+                      <h2 className="text-lg font-semibold text-white">
+                        {t("linuxInstallTitle")}
+                      </h2>
+                    </div>
+                    <p className="text-sm text-gray-400 mb-4">
+                      {t("linuxTargets")}
+                      {!linuxLatest && ` ${t("linuxReplaceVersion")}`}
+                    </p>
+                    <div
+                      aria-label={t("linuxInstallCommandLabel")}
+                      className="rounded-lg border border-gray-700 bg-gray-800/80 p-3 overflow-x-auto focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                      role="region"
+                      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
+                      tabIndex={0}
+                    >
+                      <code className="text-sm font-mono text-gray-200 whitespace-pre">
+                        {`sudo apt install ./hyperwhisper_${linuxLatest?.version ?? "VERSION"}_amd64.deb
+sudo usermod -aG hyperwhisper-input "$USER"`}
+                      </code>
+                    </div>
+                    <p className="text-sm text-gray-400 mt-4">
+                      {t("linuxInputGroupNote")}
+                    </p>
+                  </CardBody>
+                </Card>
+
+                <Card className="bg-gray-900/50 backdrop-blur-xl border border-gray-800">
+                  <CardBody className="p-6">
+                    <h2 className="text-lg font-semibold text-white mb-2">
+                      {t("aptTitle")}
+                    </h2>
+                    <p className="text-sm text-gray-400">{t("aptBody")}</p>
+                    <Button
+                      as="a"
+                      className="mt-4 bg-gray-800 text-gray-200"
+                      href="https://www.hyperwhisper.com/docs/linux-installation"
+                      rel="noreferrer"
+                      target="_blank"
+                      variant="flat"
+                    >
+                      {t("linuxGuideCta")}
+                    </Button>
+                  </CardBody>
+                </Card>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

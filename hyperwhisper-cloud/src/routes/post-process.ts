@@ -16,6 +16,7 @@ import { deductCredits, logDeductionFailure, validateCredits } from '../middlewa
 import { withCreditHoldScope } from '../middleware/credit-holds';
 import { keyRateLimitResponse } from '../middleware/rate-limit';
 import { logEvent } from '../lib/logging';
+import { isRecord } from '../lib/utils';
 import { evaluateCompletionResponse } from '../lib/llm-completion';
 
 const MAX_TEXT_LENGTH = 100000;
@@ -70,7 +71,7 @@ async function handlePostProcess(c: Context) {
 
   // Size gate BEFORE parsing: `c.req.json()` buffers the whole body, and auth
   // runs only after it, so without this an anonymous caller could make the
-  // machine hold up to Bun's 128 MB default per request (same gate as /assistant).
+  // machine hold up to Bun's 128 MB default per request.
   const sizeCheck = validateContentLength(c.req.header('Content-Length'), MAX_POST_PROCESS_BODY_BYTES);
   if (!sizeCheck.ok) {
     logEvent(requestId, startTime, 'post_process.request_rejected', {
@@ -82,12 +83,18 @@ async function handlePostProcess(c: Context) {
     return sizeCheck.response;
   }
 
-  let body: PostProcessBody;
+  let parsed: unknown;
   try {
-    body = await c.req.json();
+    parsed = await c.req.json();
   } catch {
     return errorResponse(400, 'Invalid JSON', 'Request body must be valid JSON');
   }
+  // `null`, a number, a string or an array is valid JSON but not a body: reading
+  // `body.text` off `null` would throw and surface as a 500.
+  if (!isRecord(parsed) || Array.isArray(parsed)) {
+    return errorResponse(400, 'Invalid JSON', 'Request body must be a JSON object');
+  }
+  const body: PostProcessBody = parsed;
 
   const text = typeof body.text === 'string' ? body.text.trim() : '';
   if (!text) {

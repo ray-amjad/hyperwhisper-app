@@ -4,7 +4,8 @@ import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 import { computeElevenLabsTranscriptionCost, creditsForCost } from '../lib/cost-calculator';
 import { drainPendingLatencyReports } from '../lib/latency-report';
 import { estimateCreditsFromSize } from '../middleware/credits';
-import { estimateCreditsForProviderFallbacks } from './transcribe';
+import { estimateCreditsForProviderFallbacks } from './transcribe-audio';
+import { stubEnv } from '../test-support/env';
 
 /**
  * A client new enough to carry the "Share anonymous speed data" switch, which
@@ -321,6 +322,107 @@ describe('transcribeRoute provider fallback', () => {
     expect(body.message).not.toMatch(/JSON|parse/i);
   });
 
+  for (const [label, elevenBody] of [
+    ['a JSON null', 'null'],
+    ['a bare number', '42'],
+    ['a non-string text', '{"text":1,"words":[{"start":0,"end":1,"text":"a"}]}'],
+  ] as const) {
+    test(`an ElevenLabs 200 with ${label} body is served by the next provider, not a 500 (#2151)`, async () => {
+      const called: string[] = [];
+      globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('api.elevenlabs.io')) {
+          called.push('elevenlabs');
+          return new Response(elevenBody, { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        if (url.includes('api.deepgram.com')) {
+          called.push('deepgram');
+          return Response.json({
+            results: { channels: [{ alternatives: [{ transcript: 'hello from deepgram' }], detected_language: 'en' }] },
+            metadata: { duration: 1, request_id: 'dg-req-1' },
+          });
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      }) as unknown as typeof fetch;
+
+      const response = await buildApp().fetch(transcribeRequest('elevenlabs'));
+      const body = await response.json() as { text: string };
+
+      expect(response.status).toBe(200);
+      expect(called).toEqual(['elevenlabs', 'deepgram']);
+      expect(body.text).toBe('hello from deepgram');
+    });
+  }
+
+  test('an ElevenLabs 200 that breaks mid-read logs the error name, never its message (#2151)', async () => {
+    const marker = 'SOCKET_TEXT_MARKER_2151';
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.elevenlabs.io')) {
+        return new Response(new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode('{"text":"hello wor'));
+            controller.error(new TypeError(`socket closed after "${marker}"`));
+          },
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url.includes('api.deepgram.com')) {
+        return Response.json({
+          results: { channels: [{ alternatives: [{ transcript: 'hello from deepgram' }], detected_language: 'en' }] },
+          metadata: { duration: 1, request_id: 'dg-req-1' },
+        });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const logged: string[] = [];
+    const originals = { log: console.log, warn: console.warn, error: console.error, info: console.info };
+    const capture = (...args: unknown[]) => { logged.push(args.map((a) => typeof a === 'string' ? a : JSON.stringify(a)).join(' ')); };
+    console.log = console.warn = console.error = console.info = capture as typeof console.log;
+    let response: Response;
+    try {
+      response = await buildApp().fetch(transcribeRequest('elevenlabs'));
+    } finally {
+      Object.assign(console, originals);
+    }
+
+    expect(response.status).toBe(200);
+    const readLine = logged.find((line) => line.includes('body_read_error'));
+    expect(readLine).toBeDefined();
+    expect(readLine).toContain('TypeError');
+    expect(logged.join('\n')).not.toContain(marker);
+  });
+
+  for (const [label, azureBody] of [
+    ['a non-string text', '{"combinedPhrases":[{"text":1}]}'],
+    ['a JSON null', 'null'],
+    ['a JSON array', '[]'],
+  ] as const) {
+    test(`an Azure MAI 200 with ${label} body is the retryable 502, not a 500 (#2151)`, async () => {
+      const azureKeys = ['AZURE_SPEECH_KEY_EASTUS', 'AZURE_SPEECH_KEY_NORTHEUROPE', 'AZURE_SPEECH_KEY_SOUTHEASTASIA'] as const;
+      for (const key of azureKeys) process.env[key] = 'test-azure-key';
+      globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('api.cognitive.microsoft.com')) {
+          return new Response(azureBody, { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      }) as unknown as typeof fetch;
+
+      let response: Response;
+      try {
+        response = await buildApp().fetch(transcribeRequest('azure-mai'));
+      } finally {
+        for (const key of azureKeys) delete process.env[key];
+      }
+      const body = await response.json() as { error: string; message: string };
+
+      expect(response.status).toBe(502);
+      expect(body.error).toBe('azure-mai unavailable');
+      expect(body.message).not.toMatch(/TypeError|trim|JSON|parse/i);
+    });
+  }
+
   for (const [sibling, siblingAnswer] of [
     ['a 400 input rejection', () => new Response('{"detail":"bad input"}', { status: 400 })],
     ['an outage', () => new Response('boom', { status: 503 })],
@@ -404,9 +506,7 @@ function samplesOf(batch: unknown): ReportedSample[] {
 // to hold on every path — including the paths where the transcription itself
 // fails, which is where an opt-out is easiest to lose.
 describe('X-Latency-Opt-Out', () => {
-  const originalSecret = process.env.HYPERWHISPER_INTERNAL_SECRET;
-  const originalRegion = process.env.FLY_REGION;
-  const originalApp = process.env.FLY_APP_NAME;
+  let restoreEnv: Array<() => void> = [];
 
   beforeEach(() => {
     process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
@@ -418,28 +518,16 @@ describe('X-Latency-Opt-Out', () => {
     // column on the public page), and any app but production (staging shares
     // the secret and must not publish). Set all three so the opt-out is the
     // only variable.
-    process.env.HYPERWHISPER_INTERNAL_SECRET = 'test-internal-secret';
-    process.env.FLY_REGION = 'fra';
-    process.env.FLY_APP_NAME = 'hyperwhisper-transcribe';
+    restoreEnv = [
+      stubEnv('HYPERWHISPER_INTERNAL_SECRET', 'test-internal-secret'),
+      stubEnv('FLY_REGION', 'fra'),
+      stubEnv('FLY_APP_NAME', 'hyperwhisper-transcribe'),
+    ];
   });
 
   afterEach(async () => {
     globalThis.fetch = originalFetch;
-    if (originalSecret === undefined) {
-      delete process.env.HYPERWHISPER_INTERNAL_SECRET;
-    } else {
-      process.env.HYPERWHISPER_INTERNAL_SECRET = originalSecret;
-    }
-    if (originalRegion === undefined) {
-      delete process.env.FLY_REGION;
-    } else {
-      process.env.FLY_REGION = originalRegion;
-    }
-    if (originalApp === undefined) {
-      delete process.env.FLY_APP_NAME;
-    } else {
-      process.env.FLY_APP_NAME = originalApp;
-    }
+    for (const restore of restoreEnv) restore();
   });
 
   function buildApp(): Hono {
@@ -693,37 +781,23 @@ describe('X-Latency-Opt-Out', () => {
 // has to describe the audio rather than whichever estimator the provider that
 // answered happens to use.
 describe('latency clip length and model', () => {
-  const originalSecret = process.env.HYPERWHISPER_INTERNAL_SECRET;
-  const originalRegion = process.env.FLY_REGION;
-  const originalApp = process.env.FLY_APP_NAME;
+  let restoreEnv: Array<() => void> = [];
 
   beforeEach(() => {
     process.env.OPENAI_API_KEY = 'test-openai-key';
     process.env.ASSEMBLYAI_API_KEY = 'test-assemblyai-key';
-    process.env.HYPERWHISPER_INTERNAL_SECRET = 'test-internal-secret';
-    process.env.FLY_REGION = 'fra';
-    process.env.FLY_APP_NAME = 'hyperwhisper-transcribe';
+    restoreEnv = [
+      stubEnv('HYPERWHISPER_INTERNAL_SECRET', 'test-internal-secret'),
+      stubEnv('FLY_REGION', 'fra'),
+      stubEnv('FLY_APP_NAME', 'hyperwhisper-transcribe'),
+    ];
   });
 
   afterEach(async () => {
     globalThis.fetch = originalFetch;
     delete process.env.OPENAI_API_KEY;
     delete process.env.ASSEMBLYAI_API_KEY;
-    if (originalSecret === undefined) {
-      delete process.env.HYPERWHISPER_INTERNAL_SECRET;
-    } else {
-      process.env.HYPERWHISPER_INTERNAL_SECRET = originalSecret;
-    }
-    if (originalRegion === undefined) {
-      delete process.env.FLY_REGION;
-    } else {
-      process.env.FLY_REGION = originalRegion;
-    }
-    if (originalApp === undefined) {
-      delete process.env.FLY_APP_NAME;
-    } else {
-      process.env.FLY_APP_NAME = originalApp;
-    }
+    for (const restore of restoreEnv) restore();
   });
 
   function buildApp(): Hono {
@@ -974,24 +1048,20 @@ describe('what a latency row measures', () => {
  * 502 "elevenlabs unavailable" for a request ElevenLabs never even ran.
  */
 describe('self-only is a provider policy, not the length of a filtered chain', () => {
-  const originalRegion = process.env.FLY_REGION;
+  let restoreRegion: () => void;
 
   beforeEach(() => {
     process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
     process.env.GROQ_API_KEY = 'test-groq-key';
     process.env.ELEVENLABS_API_KEY = 'test-elevenlabs-key';
     // A region where ElevenLabs serves its geo-block HTML instead of JSON.
-    process.env.FLY_REGION = 'nrt';
+    restoreRegion = stubEnv('FLY_REGION', 'nrt');
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
     delete process.env.AZURE_SPEECH_KEY_SOUTHEASTASIA;
-    if (originalRegion === undefined) {
-      delete process.env.FLY_REGION;
-    } else {
-      process.env.FLY_REGION = originalRegion;
-    }
+    restoreRegion();
   });
 
   function buildApp(): Hono {
@@ -1086,20 +1156,16 @@ describe('self-only is a provider policy, not the length of a filtered chain', (
  * emit the `fly-replay` header Fly reads, and spend nothing upstream first.
  */
 describe('the route carries out the geo-routing plan it is handed', () => {
-  const originalRegion = process.env.FLY_REGION;
+  let restoreRegion: () => void;
 
   beforeEach(() => {
     process.env.ELEVENLABS_API_KEY = 'test-elevenlabs-key';
-    process.env.FLY_REGION = 'nrt';
+    restoreRegion = stubEnv('FLY_REGION', 'nrt');
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
-    if (originalRegion === undefined) {
-      delete process.env.FLY_REGION;
-    } else {
-      process.env.FLY_REGION = originalRegion;
-    }
+    restoreRegion();
   });
 
   test('a small ElevenLabs request from a blocked region is replayed, untouched', async () => {

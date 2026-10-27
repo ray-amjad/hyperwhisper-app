@@ -1,7 +1,7 @@
 // CREDIT VALIDATION + DEDUCTION
 // Handles preflight credit checks and post-usage deduction
 
-import type { AuthContext } from './auth';
+import { readCreditPoolId, type AuthContext } from './auth';
 import { CREDITS_PER_MINUTE, DEFAULT_API_BASE_URL, LICENSE_API_TIMEOUT_MS } from '../lib/constants';
 import { estimateAudioSecondsFromSize } from '../lib/audio-duration';
 import { isRecord, roundToTenth, roundUpToTenth } from '../lib/utils';
@@ -109,10 +109,10 @@ export interface DeductCreditsOptions {
 }
 
 /**
- * The `onFailure` for every charge site but `/assistant`, which keeps its own
- * event (#820). A dropped charge writes one `credits.deduction_failed` line
- * against the request: why it failed, the credits that were not recorded and
- * the caller's endpoint, never the license key, the IP or the request content.
+ * The `onFailure` for every charge site (#820). A dropped charge writes one
+ * `credits.deduction_failed` line against the request: why it failed, the
+ * credits that were not recorded and the caller's endpoint, never the license
+ * key, the IP or the request content.
  */
 export function logDeductionFailure(
   requestId: string,
@@ -130,6 +130,16 @@ export function logDeductionFailure(
   };
 }
 
+/**
+ * The license API's 400s for a key it will not charge: `License key not found`
+ * and `License is <status>` (any status but granted). Its other 400s (a bad
+ * amount, a missing field) are about the request and say nothing of the key.
+ */
+function isLicenseRefusal(status: number, error: unknown): boolean {
+  if (status !== 400 || typeof error !== 'string') return false;
+  return error === 'License key not found' || error.startsWith('License is ');
+}
+
 async function recordLicenseUsage(
   licenseKey: string,
   creditsUsed: number,
@@ -142,6 +152,11 @@ async function recordLicenseUsage(
   let accepted = false;
 
   try {
+    // Taken BEFORE the request goes out: the licence cache orders replies by
+    // when the site was asked, the pool balance (#2026, see
+    // `WRITE_POOL_BALANCE_SCRIPT`) and the key's own entry (#1899, see
+    // `WRITE_LICENSE_SCRIPT`) alike.
+    const issuedAtMs = Date.now();
     const response = await fetch(`${apiBase}/api/license/credits`, {
       method: 'POST',
       headers: {
@@ -157,11 +172,26 @@ async function recordLicenseUsage(
 
     if (!response.ok) {
       const errorData: unknown = await response.json().catch(() => ({}));
+      const errorMessage = isRecord(errorData) ? errorData.error : undefined;
       console.warn('POST /api/license/credits failed', {
         status: response.status,
-        error: (isRecord(errorData) ? errorData.error : undefined) || 'Unknown error',
+        error: errorMessage || 'Unknown error',
         creditsUsed,
       });
+      if (isLicenseRefusal(response.status, errorMessage)) {
+        // The site refused the KEY, not the write (revoked, refunded, not
+        // found): the cached "valid, N credits" entry is now wrong, and left
+        // alone it admits the key for the rest of its TTL (#1899). Cache the
+        // refusal so the next request stops at `cached_invalid`. A 5xx, 429 or
+        // network failure says nothing about the key and leaves the cache be.
+        // No pool id: only the key's own entry changes.
+        await cacheLicense(licenseKey, {
+          isValid: false,
+          credits: 0,
+          cachedAt: new Date().toISOString(),
+          issuedAtMs,
+        });
+      }
       return { kind: 'http', status: response.status };
     }
     accepted = true;
@@ -169,10 +199,18 @@ async function recordLicenseUsage(
     const data: unknown = await response.json();
     const creditsRemaining = isRecord(data) ? data.credits_remaining : undefined;
     if (typeof creditsRemaining === 'number') {
+      // The pool id comes from THIS reply, never from `auth`: the rewrite
+      // renews the TTL, so carrying the auth context's id forward would keep a
+      // missing one (a cache older than the pool) or a stale one (a rotated
+      // secret) alive for as long as the key stays busy (#2026). None in the
+      // reply: the site has no secret, so holds go per key.
+      const creditPoolId = isRecord(data) ? readCreditPoolId(data.credit_pool_id) : undefined;
       await cacheLicense(licenseKey, {
         isValid: true,
         credits: creditsRemaining,
         cachedAt: new Date().toISOString(),
+        ...(creditPoolId ? { creditPoolId } : {}),
+        issuedAtMs,
       });
     }
   } catch (error) {

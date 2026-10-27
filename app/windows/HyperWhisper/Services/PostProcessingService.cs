@@ -50,8 +50,8 @@ public class PostProcessingService : IDisposable
     private static readonly Lazy<HyperWhisperCloudService> SharedCloudService =
         new(() => new HyperWhisperCloudService(), LazyThreadSafetyMode.ExecutionAndPublication);
 
-    private readonly LocalLlmModelService _localLlmModelService = new();
-    private readonly LocalLlmService _localLlmService = new();
+    private readonly LocalLlmModelService _localLlmModelService;
+    private readonly LocalLlmService _localLlmService;
     private bool _disposed;
 
     // =========================================================================
@@ -64,11 +64,31 @@ public class PostProcessingService : IDisposable
     public event EventHandler<ErrorToastEventArgs>? WarningOccurred;
 
     public PostProcessingService()
+        : this(
+            new HttpClient { Timeout = TimeSpan.FromSeconds(30) },
+            new LocalLlmModelService(),
+            new LocalLlmService())
     {
-        _httpClient = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(30)
-        };
+    }
+
+    /// <summary>
+    /// The seam the smoke suite uses to drive the graceful-degradation routes
+    /// through a scripted <see cref="HttpMessageHandler"/> (#741).
+    /// </summary>
+    /// <remarks>
+    /// The service OWNS all three: <see cref="Dispose()"/> disposes
+    /// <paramref name="httpClient"/> and <paramref name="localLlmService"/>, as
+    /// it always has for the ones the public constructor builds. Do not pass in
+    /// an instance something else still uses.
+    /// </remarks>
+    internal PostProcessingService(
+        HttpClient httpClient,
+        LocalLlmModelService localLlmModelService,
+        LocalLlmService localLlmService)
+    {
+        _httpClient = httpClient;
+        _localLlmModelService = localLlmModelService;
+        _localLlmService = localLlmService;
     }
 
     // =========================================================================
@@ -346,22 +366,17 @@ public class PostProcessingService : IDisposable
                 }
             }
 
-            var selectedModelId = provider == PostProcessingProvider.LocalLlm
-                ? mode.LocalPostProcessingModel ?? mode.LanguageModel
-                : mode.LanguageModel;
-            var modelIdMigrated = LanguageModelInfo.MigrateModelId(selectedModelId);
-            var model = LanguageModelInfo.GetById(modelIdMigrated ?? "");
-            if (model == null || model.Provider != provider)
+            var selectedModelId = SelectedModelId(mode, provider);
+            var model = ResolveModel(provider, selectedModelId);
+            if (model == null)
             {
-                var fallback = LanguageModelInfo.GetDefaultForProvider(provider);
-                if (fallback == null)
-                {
-                    LoggingService.Warn($"PostProcessingService: Unknown model '{selectedModelId}' for {provider}");
-                    return PostProcessingResult.Skipped(text);
-                }
+                LoggingService.Warn($"PostProcessingService: Unknown model '{selectedModelId}' for {provider}");
+                return PostProcessingResult.Skipped(text);
+            }
 
-                LoggingService.Warn($"PostProcessingService: Unknown model '{selectedModelId}' for {provider}; using {fallback.Id}");
-                model = fallback;
+            if (model.Id != LanguageModelInfo.MigrateModelId(selectedModelId))
+            {
+                LoggingService.Warn($"PostProcessingService: Unknown model '{selectedModelId}' for {provider}; using {model.Id}");
             }
             resolvedModelId = model.Id;
         }
@@ -422,7 +437,7 @@ public class PostProcessingService : IDisposable
                                 MapToPortableProvider(provider), apiKey!, resolvedModelId!,
                                 systemPrompt, systemInfo, text, cancellationToken),
                             text),
-                    PostProcessingProvider.LocalLlm => HyperwhisperCoreMethods.EvaluateCompletion(text, await CallLocalLlmAsync(resolvedModelId!, systemPrompt, userMessage, cancellationToken), CompletionState.Unspecified),
+                    PostProcessingProvider.LocalLlm => EvaluateLocalCompletion(text, await CallLocalLlmAsync(resolvedModelId!, systemPrompt, userMessage, cancellationToken)),
                     _ => HyperwhisperCoreMethods.EvaluateCompletion(text, "", CompletionState.Malformed)
                 };
             }
@@ -532,11 +547,63 @@ public class PostProcessingService : IDisposable
         _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Provider has no shared LLM builder arm")
     };
 
+    /// <summary>
+    /// The model id a mode stores for this provider. A local-LLM mode keeps its
+    /// GGUF in <see cref="Mode.LocalPostProcessingModel"/>; older modes kept it in
+    /// the legacy <see cref="Mode.LanguageModel"/>.
+    /// </summary>
+    internal static string? SelectedModelId(Mode mode, PostProcessingProvider provider) =>
+        provider == PostProcessingProvider.LocalLlm
+            ? mode.LocalPostProcessingModel ?? mode.LanguageModel
+            : mode.LanguageModel;
+
+    /// <summary>
+    /// The model an AI rewrite actually runs on: the stored id after
+    /// <see cref="LanguageModelInfo.MigrateModelId"/>, or the provider's default
+    /// when that id is missing, unknown or another provider's. Null only when the
+    /// provider has no models. <see cref="ModelInUse"/> asks the same question (#2536).
+    /// </summary>
+    internal static LanguageModelInfo? ResolveModel(PostProcessingProvider provider, string? selectedModelId)
+    {
+        var model = LanguageModelInfo.GetById(LanguageModelInfo.MigrateModelId(selectedModelId));
+        return model != null && model.Provider == provider
+            ? model
+            : LanguageModelInfo.GetDefaultForProvider(provider);
+    }
+
+    /// <summary>
+    /// The shared completion policy for an in-process local model, plus one check
+    /// of its own (issue #2559): a transcript with words in it never comes back as
+    /// marker debris only. A cut-off or off-template answer can be a bare
+    /// "&lt;&lt;"; that is a failed post-process, not an answer, so the raw
+    /// transcript stays.
+    /// </summary>
+    internal static CompletionEvaluation EvaluateLocalCompletion(string transcript, LocalLlmCompletion completion)
+    {
+        var evaluation = HyperwhisperCoreMethods.EvaluateCompletion(transcript, completion.Text, completion.State);
+        if (evaluation.accepted && IsDegenerateLocalOutput(transcript, evaluation.text))
+        {
+            return new CompletionEvaluation(false, transcript, CompletionFailure.MalformedResponse);
+        }
+
+        return evaluation;
+    }
+
+    /// <summary>
+    /// Wrapper-marker debris only (<c>&lt;&lt;</c>, <c>&lt;/&gt;</c>, <c>|</c>),
+    /// from a transcript that has words. Real punctuation ("?" for "question
+    /// mark") and emoji are still answers. The Linux engine applies the same rule
+    /// in <c>LocalPostProcessingProtocol.IsDegenerateCompletion</c>.
+    /// </summary>
+    internal static bool IsDegenerateLocalOutput(string transcript, string cleaned) =>
+        transcript.Any(char.IsLetterOrDigit)
+        && cleaned.Length > 0
+        && cleaned.All(c => c is '<' or '>' or '/' or '|' || char.IsWhiteSpace(c));
 
     /// <summary>
     /// Calls the local LLamaSharp runtime for offline post-processing.
     /// </summary>
-    private async Task<string> CallLocalLlmAsync(
+    private async Task<LocalLlmCompletion> CallLocalLlmAsync(
         string modelId,
         string systemPrompt,
         string userMessage,
@@ -548,7 +615,7 @@ public class PostProcessingService : IDisposable
                 "Local LLM post-processing is not supported by this Windows architecture.");
         }
 
-        var model = LocalLlmModelInfo.GetById(modelId) ?? LocalLlmModelInfo.GetDefault();
+        var model = LocalLlmModelInfo.GetByIdOrDefault(modelId);
         if (!_localLlmModelService.IsModelDownloaded(model))
         {
             throw new FileNotFoundException(

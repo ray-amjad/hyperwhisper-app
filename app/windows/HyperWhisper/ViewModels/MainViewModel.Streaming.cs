@@ -30,6 +30,18 @@ public partial class MainViewModel : ViewModelBase
             ? _streamingFailureMessage
             : "Streaming transcription connection could not be started.";
 
+    /// <summary>
+    /// Test seam (#2242): builds the streaming client for a session. Null in the app,
+    /// which uses <see cref="StreamingTranscriptionSessionFactory.Create"/>.
+    /// </summary>
+    internal Func<IReadOnlyCollection<string>, Result<IStreamingTranscriptionClient>>? StreamingClientFactoryOverride { get; set; }
+
+    /// <summary>
+    /// Test seam (#2242): builds the microphone capture for a session. Null in the
+    /// app, which opens a <see cref="StreamingAudioCapture"/>.
+    /// </summary>
+    internal Func<IStreamingAudioSource>? StreamingAudioSourceFactoryOverride { get; set; }
+
     private async Task StartStreamingRecordingAsync()
     {
         // The second capture entry point; see StartRecordingAsync for why the
@@ -55,7 +67,8 @@ public partial class MainViewModel : ViewModelBase
         // No local trial gate — local transcription is unlimited (open source).
 
         var vocabulary = _vocabularyService.GetVocabularyWords(100);
-        var clientResult = StreamingTranscriptionSessionFactory.Create(vocabulary);
+        var clientResult = StreamingClientFactoryOverride?.Invoke(vocabulary)
+            ?? StreamingTranscriptionSessionFactory.Create(vocabulary).Map<IStreamingTranscriptionClient>(client => client);
         if (clientResult.IsFailure)
         {
             LoggingService.Warn($"StartStreamingRecordingAsync: {clientResult.Error}");
@@ -94,7 +107,7 @@ public partial class MainViewModel : ViewModelBase
             "audio.streaming",
             data: new Dictionary<string, string> { ["provider"] = providerName });
 
-        _streamingAudioCapture = new StreamingAudioCapture();
+        _streamingAudioCapture = StreamingAudioSourceFactoryOverride?.Invoke() ?? new StreamingAudioCapture();
         _streamingAudioCapture.AudioChunkAvailable += OnStreamingAudioChunkAvailable;
         _streamingAudioCapture.AudioLevelChanged += _audioLevelHandler;
 
@@ -104,6 +117,7 @@ public partial class MainViewModel : ViewModelBase
         {
             ShowStreamingOverlayRequested?.Invoke(this, providerName);
             _pasteService?.StartRecordingSession();
+            RaiseMicrophoneCaptureStarting();
             SuspendMicrophoneKeepWarm();
 
             if (SettingsService.Instance.AutoIncreaseMicVolume)
@@ -221,6 +235,9 @@ public partial class MainViewModel : ViewModelBase
         ShowTranscribingRequested?.Invoke(this, EventArgs.Empty);
 
         Transcript? transcript = null;
+        // Set once the success/copied hide is scheduled; the finally then leaves
+        // the overlay up for it instead of hiding at once (#983).
+        var overlayHideDeferred = false;
 
         try
         {
@@ -359,18 +376,9 @@ public partial class MainViewModel : ViewModelBase
                     ["durationSeconds"] = ((int)durationSeconds).ToString()
                 });
 
-            switch (pasteResult)
-            {
-                case SmartPasteResult.Pasted:
-                    ShowSuccessRequested?.Invoke(this, EventArgs.Empty);
-                    await Task.Delay(400);
-                    break;
-                case SmartPasteResult.SecureFieldSkipped:
-                case SmartPasteResult.CopiedToClipboard:
-                    ShowCopiedRequested?.Invoke(this, EventArgs.Empty);
-                    await Task.Delay(500);
-                    break;
-            }
+            // The success/copied state holds on a deferred hide, not on an await
+            // here, so the finally below unblocks the hotkey at once (#983).
+            overlayHideDeferred = ShowPasteEndState(pasteResult);
         }
         catch (Exception ex)
         {
@@ -394,7 +402,8 @@ public partial class MainViewModel : ViewModelBase
             // See tasks/windows/phils-feedback/05-processing-audio-stuck-state.md
             EnsureTranscriptTerminalStatus(transcript);
 
-            HideOverlayRequested?.Invoke(this, EventArgs.Empty);
+            if (!overlayHideDeferred)
+                HideOverlayRequested?.Invoke(this, EventArgs.Empty);
             try
             {
                 await CleanupStreamingSessionAsync();

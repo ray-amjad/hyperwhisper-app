@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
@@ -9,6 +9,8 @@ import { withoutAccountKeyParams } from "@/src/lib/account-key-redaction";
 import { sanitizeReturnTo } from "@/src/lib/license-key-redirect";
 import { isRecord } from "@/src/lib/type-guards";
 import { reportClientError } from "@/lib/shared/report-client-error";
+import { ErrorReveal, shake } from "@/components/ErrorReveal";
+import { Spinner } from "@/components/ui/Spinner";
 
 type Tab = "license-key" | "email";
 
@@ -67,6 +69,61 @@ export default function SignInClient() {
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [magicLinkErrorDismissed, setMagicLinkErrorDismissed] = useState(false);
+
+  const licenseKeyInput = useRef<HTMLInputElement>(null);
+  const emailInput = useRef<HTMLInputElement>(null);
+
+  // #752: the card tweens between the email form and the "we sent a magic
+  // link" panel instead of changing height in one frame. The height is read
+  // just before the swap; after it, the layout effect pins the card at that
+  // height, then sets the new one, and `.t-resize` tweens between the two.
+  // The pin comes off when the tween ends, so later changes (an error banner
+  // in the panel) size the card as before.
+  const card = useRef<HTMLDivElement>(null);
+  const cardHeightBeforeSwap = useRef<number | null>(null);
+
+  function rememberCardHeight() {
+    cardHeightBeforeSwap.current = card.current?.offsetHeight ?? null;
+  }
+
+  useLayoutEffect(() => {
+    const box = card.current;
+    const from = cardHeightBeforeSwap.current;
+
+    cardHeightBeforeSwap.current = null;
+    if (!box || from === null) return;
+    const to = box.offsetHeight;
+
+    if (to === from) return;
+    box.style.height = `${from}px`;
+    void box.offsetHeight;
+    box.style.height = `${to}px`;
+
+    const unpin = () => {
+      window.clearTimeout(timer);
+      box.removeEventListener("transitionend", onEnd);
+      box.style.height = "";
+    };
+    // Children's transitions bubble here too; only the card's own counts.
+    const onEnd = (event: TransitionEvent) => {
+      if (event.target === box && event.propertyName === "height") unpin();
+    };
+    // A transition that never runs (reduced motion) fires no transitionend.
+    const timer = window.setTimeout(unpin, 400);
+
+    box.addEventListener("transitionend", onEnd);
+    // No cleanup: Strict Mode's dev-only re-run would unpin the card before
+    // the tween ran. The timer bounds the pin either way.
+  }, [magicLinkSent]);
+
+  // Every failure sets a fresh message after the submit cleared the old one,
+  // so each one shakes, even when the text repeats.
+  useEffect(() => {
+    if (licenseError) shake(licenseKeyInput.current);
+  }, [licenseError]);
+  useEffect(() => {
+    if (emailError) shake(emailInput.current);
+  }, [emailError]);
 
   const magicLinkError =
     magicLinkErrorCode && !magicLinkErrorDismissed
@@ -170,6 +227,7 @@ export default function SignInClient() {
       if (authError) {
         setEmailError(authError.message ?? "Failed to send magic link. Please try again.");
       } else {
+        if (!magicLinkSent) rememberCardHeight();
         setMagicLinkSent(true);
       }
     } catch (error) {
@@ -181,8 +239,8 @@ export default function SignInClient() {
     }
   }
 
-  // ONE banner, rendered in BOTH email branches — shared as a variable the way
-  // `spinnerSvg` below already is, so there is one markup and not two.
+  // ONE banner, rendered in BOTH email branches — shared as a variable, so
+  // there is one markup and not two.
   //
   // It used to live inline in the `!magicLinkSent` form branch only, and the
   // "Resend Magic Link" button is in the other branch. So a failed resend set
@@ -225,17 +283,13 @@ export default function SignInClient() {
     </div>
   ) : null;
 
-  const spinnerSvg = (
-    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-    </svg>
-  );
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-12 px-4">
       <div className="max-w-md w-full">
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
+        <div
+          ref={card}
+          className="t-resize overflow-clip bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20"
+        >
           {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-2xl font-bold text-white mb-2">HyperWhisper</h1>
@@ -247,10 +301,7 @@ export default function SignInClient() {
           {/* Auto sign-in loading overlay */}
           {autoSigningIn ? (
             <div className="flex flex-col items-center justify-center py-8 gap-4">
-              <svg className="animate-spin h-8 w-8 text-emerald-400" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
+              <Spinner className="h-8 w-8 text-emerald-400" />
               <p className="text-gray-300 text-sm">Signing you in…</p>
             </div>
           ) : (
@@ -296,16 +347,18 @@ export default function SignInClient() {
             <form onSubmit={handleLicenseKeySignIn} className="space-y-6">
               {/* #760: announced like `emailErrorBanner`, and described-by
                   target of the `#license-key` input below. No focus move. */}
-              {licenseError && (
-                <div
-                  className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg"
-                  role="alert"
-                >
-                  <p className="text-red-300 text-sm text-center" id="license-key-error">
-                    {licenseError}
-                  </p>
-                </div>
-              )}
+              <ErrorReveal gap="pb-6">
+                {licenseError && (
+                  <div
+                    className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg"
+                    role="alert"
+                  >
+                    <p className="text-red-300 text-sm text-center" id="license-key-error">
+                      {licenseError}
+                    </p>
+                  </div>
+                )}
+              </ErrorReveal>
 
               <div>
                 <label htmlFor="license-key" className="block text-sm font-medium text-gray-300 mb-2">
@@ -314,12 +367,13 @@ export default function SignInClient() {
                 <input
                   aria-describedby={licenseError ? "license-key-error" : undefined}
                   aria-invalid={licenseError ? true : undefined}
+                  ref={licenseKeyInput}
                   id="license-key"
                   type="text"
                   required
                   value={licenseKey}
                   onChange={(e) => setLicenseKey(e.target.value)}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all font-mono tracking-wide"
+                  className="t-input w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all font-mono tracking-wide"
                   placeholder="HW-XXXX-XXXX-XXXX-XXXX"
                   /*
                     `off` is deliberate: the Account Key is a credential and we do not want a
@@ -343,7 +397,7 @@ export default function SignInClient() {
                 >
                   {licenseSubmitting ? (
                     <span className="flex items-center justify-center gap-2">
-                      {spinnerSvg}
+                      <Spinner className="h-5 w-5" />
                       Signing in...
                     </span>
                   ) : (
@@ -368,7 +422,7 @@ export default function SignInClient() {
               {!magicLinkSent ? (
                 <form onSubmit={handleSendMagicLink} className="space-y-6">
                   {magicLinkErrorBanner}
-                  {emailErrorBanner}
+                  <ErrorReveal gap="pb-6">{emailErrorBanner}</ErrorReveal>
 
                   <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
@@ -384,12 +438,13 @@ export default function SignInClient() {
                       }
                       aria-invalid={emailError ? true : undefined}
                       autoComplete="email"
+                      ref={emailInput}
                       id="email"
                       type="email"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      className="t-input w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       placeholder="your@email.com"
                     />
                     <p className="text-gray-400 text-xs mt-2">
@@ -405,7 +460,7 @@ export default function SignInClient() {
                     >
                       {emailSubmitting ? (
                         <span className="flex items-center justify-center gap-2">
-                          {spinnerSvg}
+                          <Spinner className="h-5 w-5" />
                           Sending...
                         </span>
                       ) : (
@@ -427,8 +482,12 @@ export default function SignInClient() {
                 <div className="space-y-6">
                   <div className="text-center">
                     <div className="mb-4">
-                      <svg className="mx-auto h-12 w-12 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                      {/* #752: the one success moment on the page. The icon
+                          fades and rotates up out of a blur while its stroke
+                          draws (.t-success-check); pathLength="1" lets the
+                          dash length be 1 whatever the path's real length. */}
+                      <svg className="t-success-check mx-auto h-12 w-12 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path pathLength={1} strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                       </svg>
                     </div>
                     <p className="text-gray-300 mb-1">We sent a magic link to</p>
@@ -442,7 +501,7 @@ export default function SignInClient() {
                       a magic link" text: the earlier send really did succeed,
                       and it is this resend that just failed. */}
                   <div className="space-y-3">
-                    {emailErrorBanner}
+                    <ErrorReveal gap="pb-3">{emailErrorBanner}</ErrorReveal>
 
                     <button
                       type="button"
@@ -456,6 +515,7 @@ export default function SignInClient() {
                     <button
                       type="button"
                       onClick={() => {
+                        rememberCardHeight();
                         setMagicLinkSent(false);
                         setEmailError(null);
                       }}

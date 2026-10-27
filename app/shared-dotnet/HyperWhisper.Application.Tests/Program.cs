@@ -31,9 +31,13 @@ try
     var database = new ApplicationDb(paths);
     await database.MigrateAsync();
     await RunTranscriptionWorkflowTestsAsync(root);
+    MicrophoneSelectionTests.Run();
+    await MicrophonePickerTests.RunAsync(Path.Combine(root, "microphone-picker"));
     await RunHistoryRetryTestsAsync(root);
+    await RunParakeetRetryConversionTestsAsync(root);
     await RunHistoryExperienceTestsAsync(root);
     await RunHistoryBulkLoadTestsAsync(root);
+    await RunHistoryRevisitTestsAsync(root);
     RunCanonicalPcmWaveTests(Path.Combine(root, "pcm-wave"));
     await RunCrashAudioRecoveryTestsAsync(Path.Combine(root, "crash-recovery"));
     await RunVoiceActivityTrimTestsAsync(Path.Combine(root, "vad"));
@@ -68,6 +72,7 @@ try
 
     await RunChirp3TierMigrationTestsAsync(Path.Combine(root, "chirp3-tier-migration"));
     await RunDictationModeTestsAsync(Path.Combine(root, "dictation-modes"));
+    await RunModeNameTakenTestsAsync(Path.Combine(root, "mode-name-taken"));
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
     await RunBlankCloudProviderEditorLoadTestsAsync(Path.Combine(root, "blank-cloud-provider"));
     await RunLegacyCloudProviderFoldTestsAsync(Path.Combine(root, "legacy-cloud-provider-fold"));
@@ -75,8 +80,10 @@ try
     await RunCloudPostProcessingModelLoadTestsAsync(Path.Combine(root, "cloud-pp-model-load"));
     await RunShellLanguageRoutingTestsAsync(Path.Combine(root, "shell-language"));
     await RunShellMissingLocalModelStatusTestsAsync(Path.Combine(root, "shell-missing-model"));
+    await RunShellCloudBalanceOnLaunchTestsAsync(Path.Combine(root, "shell-cloud-balance"));
     RunShellDatabaseOffUiThreadTests(Path.Combine(root, "shell-db-off-ui"));
     await RunLocalEngineVocabularyOnceTestsAsync(Path.Combine(root, "local-vocabulary-once"));
+    await RunFileTranscriptionDurationTestsAsync(Path.Combine(root, "file-duration"));
     await RunVocabularyDuplicateTestsAsync(Path.Combine(root, "vocabulary-duplicate"));
 
     var history = new HistoryRepository(database);
@@ -319,10 +326,75 @@ try
         && !exported.Contains("selectedModeId", StringComparison.Ordinal),
         "Linux backup did not map shortcut settings or exported device-local mode selection");
     Assert(!exported.Contains("apiKeys", StringComparison.Ordinal), "backup exported an API-key container without explicit opt-in");
+    // #2153: an export with plaintext API keys is owner-only (0600), new file or overwrite.
+    if (!OperatingSystem.IsWindows())
+    {
+        var keyStore = new MemoryCredentialStore();
+        keyStore.Write("HyperWhisper", "OpenAIApiKey", "sk-test-backup-mode"u8);
+        var keyBackup = new BackupViewModel(new ApplicationBackupService(database, reloadedSettings, keyStore))
+        {
+            ExportCredentials = true,
+            PlaintextCredentialExportAcknowledged = true
+        };
+        const UnixFileMode ownerOnly = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        var newBackupPath = Path.Combine(root, "keys-new.hwbackup");
+        keyBackup.Path = newBackupPath;
+        await keyBackup.ExportAsync();
+        Assert(!keyBackup.Status.HasError && File.ReadAllText(newBackupPath).Contains("sk-test-backup-mode", StringComparison.Ordinal),
+            $"API-key backup export to a new file failed: {keyBackup.Status.ErrorCode}");
+        Assert(File.GetUnixFileMode(newBackupPath) == ownerOnly,
+            $"new API-key backup was written {File.GetUnixFileMode(newBackupPath)}, not owner-only");
+        var existingBackupPath = Path.Combine(root, "keys-existing.hwbackup");
+        await File.WriteAllTextAsync(existingBackupPath, new string('x', 64 * 1024));
+        File.SetUnixFileMode(existingBackupPath, ownerOnly | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+        keyBackup.Path = existingBackupPath;
+        await keyBackup.ExportAsync();
+        Assert(File.GetUnixFileMode(existingBackupPath) == ownerOnly,
+            $"overwritten API-key backup stayed {File.GetUnixFileMode(existingBackupPath)}, not owner-only");
+        var overwritten = File.ReadAllText(existingBackupPath);
+        Assert(!overwritten.Contains("xxxx", StringComparison.Ordinal)
+            && JsonNode.Parse(overwritten)?["apiKeys"]?["openai"]?.GetValue<string>() == "sk-test-backup-mode",
+            "overwriting a longer existing backup left stale bytes behind");
+    }
     var nonIntegerVersion = JsonNode.Parse(exported)!.AsObject();
     nonIntegerVersion["schemaVersion"] = "2";
     Assert((await backupService.ImportAsync(nonIntegerVersion.ToJsonString())).Error?.Code == "backup.unsupported_version",
         "non-integer schemaVersion escaped structured validation");
+    // #2115: `2.0` is schemaVersion 2 by value (the core's `integral_i64`); `2.5` and `3.0` are not.
+    string WithRawSchemaVersion(string raw)
+    {
+        var document = JsonNode.Parse(exported)!.AsObject();
+        document["schemaVersion"] = JsonNode.Parse(raw);
+        return document.ToJsonString();
+    }
+    var wholeFloatVersion = WithRawSchemaVersion("2.0");
+    Assert(wholeFloatVersion.Contains("\"schemaVersion\":2.0", StringComparison.Ordinal),
+        "the #2115 fixture lost its 2.0 literal");
+    var wholeFloatInspect = backupService.Inspect(wholeFloatVersion);
+    Assert(wholeFloatInspect.IsSuccess && wholeFloatInspect.Value!.SchemaVersion == 2,
+        $"a backup with schemaVersion 2.0 was refused by Inspect: {wholeFloatInspect.Error?.Code} {wholeFloatInspect.Error?.Message}");
+    var wholeFloatImport = await backupService.ImportAsync(wholeFloatVersion);
+    Assert(wholeFloatImport.IsSuccess,
+        $"a backup with schemaVersion 2.0 was refused by import: {wholeFloatImport.Error?.Code} {wholeFloatImport.Error?.Message}");
+    Assert(backupService.Inspect(WithRawSchemaVersion("2.5")).Error?.Code == "backup.unsupported_version",
+        "a fractional schemaVersion 2.5 was accepted");
+    Assert(backupService.Inspect(WithRawSchemaVersion("3.0")).Error?.Code == "backup.unsupported_version",
+        "schemaVersion 3.0 was accepted");
+    // The same by-value read covers every field the schema types "integer" (sortOrder, postProcessingMode).
+    var wholeFloatFields = JsonNode.Parse(wholeFloatVersion)!.AsObject();
+    var wholeFloatMode = wholeFloatFields["modes"]!.AsArray()[0]!.AsObject();
+    wholeFloatMode["sortOrder"] = JsonNode.Parse("0.0");
+    wholeFloatMode["postProcessingMode"] = JsonNode.Parse("0.0");
+    wholeFloatFields["vocabulary"]!.AsArray()[0]!["sortOrder"] = JsonNode.Parse("1.0");
+    wholeFloatFields["settings"]!["advanced"]!["typingSpeedWPM"] = JsonNode.Parse("61.0");
+    var wholeFloatFieldsImport = await backupService.ImportAsync(wholeFloatFields.ToJsonString());
+    Assert(wholeFloatFieldsImport.IsSuccess,
+        $"a backup with whole-float sortOrder / postProcessingMode was refused: {wholeFloatFieldsImport.Error?.Code} {wholeFloatFieldsImport.Error?.Message}");
+    Assert(reloadedSettings.Get<int>("advanced.typingSpeedWPM") == 61,
+        "a whole-float typingSpeedWPM 61.0 was not stored as the integer 61");
+    var fractionalSortOrder = JsonNode.Parse(exported)!.AsObject();
+    fractionalSortOrder["vocabulary"]!.AsArray()[0]!["sortOrder"] = JsonNode.Parse("1.5");
+    Assert(backupService.Inspect(fractionalSortOrder.ToJsonString()).IsFailure, "a fractional vocabulary sortOrder 1.5 was accepted");
     var extendedBackup = JsonNode.Parse(exported)!.AsObject();
     var extensionSlices = extendedBackup["platformExtensions"]!.AsObject();
     extensionSlices["windows"] = new JsonObject { ["futureWindows"] = 17 };
@@ -833,6 +905,13 @@ try
         // model id must never be offered as a BYOK cloud model: re-selecting it saves the mode with
         // CloudTranscriptionModel=null and shows no error.
         shell.Modes.NewCommand.Execute(null);
+        // Create Mode seeds the system region's English spelling variant, as Windows and macOS do
+        // (#2382): a blank value would send no spelling instruction for every mode the user makes.
+        var regionSpelling = PortableModeDefaults.EnglishSpellingForRegion(
+            System.Globalization.RegionInfo.CurrentRegion.TwoLetterISORegionName);
+        Assert(!string.IsNullOrEmpty(shell.Modes.EnglishSpelling)
+            && shell.Modes.EnglishSpelling == regionSpelling,
+            $"Create Mode seeded EnglishSpelling '{shell.Modes.EnglishSpelling}', expected the region's '{regionSpelling}'");
         shell.Modes.IsYourProviderSource = true;
         var createModeModels = shell.Modes.CloudModels;
         Assert(!createModeModels.Contains("base", StringComparer.Ordinal)
@@ -1052,6 +1131,37 @@ try
     await credentialViewModel.SaveAsync();
     Assert(credentialViewModel.Items.Single(item => item.Account == "OpenAIApiKey").IsPresent
         && credentialViewModel.Secret.Length == 0, "credential UI did not save securely or clear its input");
+    credentialViewModel.SelectAccount("GroqApiKey");
+    credentialViewModel.Secret = "groq-test-secret-never-export";
+    await credentialViewModel.SaveAsync();
+    Assert(credentialViewModel.Selected?.Account == "GroqApiKey"
+        && credentialViewModel.Selected.IsPresent,
+        "saving a credential moved the selection off the account it saved (#2324)");
+    await credentialViewModel.DeleteAsync();
+    Assert(credentialViewModel.Selected?.Account == "GroqApiKey"
+        && !credentialViewModel.Selected.IsPresent
+        && credentialStore.HasAccount("OpenAIApiKey"),
+        "deleting a credential moved the selection off the account it deleted (#2324)");
+    await credentialViewModel.DeleteAsync();
+    Assert(credentialViewModel.Selected?.Account == "GroqApiKey"
+        && credentialStore.HasAccount("OpenAIApiKey")
+        && credentialViewModel.Items.Single(item => item.Account == "OpenAIApiKey").IsPresent,
+        "a second Delete erased another provider's stored credential (#2324)");
+    var failingCredentialViewModel = new HyperWhisper.PortableApplication.ViewModels.CredentialManagementViewModel(
+        new FailWriteCredentialStore());
+    failingCredentialViewModel.Selected = failingCredentialViewModel.Items.Single(item => item.Account == "OpenAIApiKey");
+    failingCredentialViewModel.Secret = "typed-key-must-survive-a-failed-write";
+    await failingCredentialViewModel.SaveAsync();
+    Assert(failingCredentialViewModel.Secret == "typed-key-must-survive-a-failed-write"
+        && failingCredentialViewModel.Status.ErrorCode == "credentials.write_failed",
+        "credential UI emptied the typed secret after a failed secure-storage write");
+    failingCredentialViewModel.SelectAccount("OpenAIApiKey");
+    Assert(failingCredentialViewModel.Secret == "typed-key-must-survive-a-failed-write",
+        "re-selecting the same credential emptied the typed secret");
+    failingCredentialViewModel.SelectAccount("AnthropicApiKey");
+    Assert(failingCredentialViewModel.Secret.Length == 0,
+        "a secret typed for one credential stayed in the field after selecting another");
+    credentialViewModel.SelectAccount("OpenAIApiKey");
     await credentialViewModel.DeleteAsync();
     Assert(!credentialViewModel.Items.Single(item => item.Account == "OpenAIApiKey").IsPresent,
         "credential UI did not delete the stored credential");
@@ -1326,6 +1436,24 @@ try
         && !(await new ModeRepository(database).ListAsync()).Any(item => item.Name == "Rejected custom endpoint"),
         "failed custom endpoint save left partial settings or mode persistence");
 
+    // Issue #2236: when the stored key cannot be read, the save fails and the rollback must leave
+    // that key alone. It used to take "nothing read" for "nothing stored" and delete it.
+    var storedAccount = $"CustomEndpoint_{customEndpoint.Id:D}";
+    foreach (var throws in new[] { false, true })
+    {
+        var readFailingModes = new HyperWhisper.PortableApplication.ViewModels.ModesViewModel(
+            new ModeRepository(database), reloadedSettings, new FailReadCredentialStore(credentialStore, throws));
+        await readFailingModes.RefreshAsync();
+        readFailingModes.Selected = readFailingModes.Items.Single(item => item.Name == "Custom endpoint");
+        readFailingModes.CustomEndpointApiKey = "custom-secret-replacement";
+        await readFailingModes.SaveAsync();
+        var kept = credentialStore.Read("HyperWhisper", storedAccount);
+        Assert(readFailingModes.Status.ErrorCode == "modes.save_failed"
+            && kept.IsSuccess && kept.Value is { } keptBytes
+            && Encoding.UTF8.GetString(keptBytes) == "custom-secret-never-export",
+            $"a failed credential read (throws={throws}) deleted or replaced the stored custom endpoint key");
+    }
+
     var delayedModels = new DelayedHttpHandler();
     using (var modelHttp = new HttpClient(delayedModels))
     {
@@ -1457,6 +1585,17 @@ try
         && reloadedStatisticsSettings.Get("advanced.typingSpeedWPM", 0) == 80,
         "home typing speed did not persist");
 
+    // #2546: the Linux Start Recording card marks its step complete after every successful start.
+    // A second start must leave it ticked (it used to toggle it off) and keep the saved setting.
+    statisticsHome.CompleteGettingStartedStep("recording");
+    statisticsHome.CompleteGettingStartedStep("recording");
+    var reloadedGettingStartedSettings = new PortableSettingsService(
+        statisticsFiles, Path.Combine(statisticsRoot, "settings.json"));
+    Assert(statisticsHome.IsRecordingStepComplete
+        && reloadedGettingStartedSettings.Load().IsSuccess
+        && reloadedGettingStartedSettings.Get("GettingStartedCompletedSteps", string.Empty) == "recording",
+        "completing the recording step twice un-ticked it or did not persist it as 'recording'");
+
     var diagnosticsDirectory = Path.Combine(root, "about-diagnostics");
     var about = new AboutViewModel(
         "1.2.3", "1.2.3-1",
@@ -1470,6 +1609,18 @@ try
             && archive.Entries.Select(entry => entry.FullName).Order().SequenceEqual(
                 new[] { "capabilities.json", "logs/events.jsonl", "system.json" }),
             "about diagnostics did not enforce the exact archive allowlist");
+
+    // #2391: the shell hands the head's real version (the one About shows) to backup export,
+    // so a Linux backup no longer claims the old hard-coded "1.0.0".
+    using (var versionShell = new ApplicationShellViewModel(database, reloadedSettings, about: about))
+    {
+        var versionBackupPath = Path.Combine(root, "version.hwbackup");
+        versionShell.Backup.Path = versionBackupPath;
+        await versionShell.Backup.ExportAsync();
+        Assert(!versionShell.Backup.Status.HasError
+            && JsonNode.Parse(File.ReadAllText(versionBackupPath))!["appVersion"]!.GetValue<string>() == "1.2.3",
+            $"shell backup export did not stamp the About app version: {versionShell.Backup.Status.ErrorCode}");
+    }
 
     Console.WriteLine("HyperWhisper.Application persistence tests passed.");
     return 0;
@@ -1566,6 +1717,82 @@ static async Task RunLocalEngineVocabularyOnceTestsAsync(string root)
         Assert(hint.Saved.TranscribedText == "hyper wisper",
             $"{mode.Name}: History's raw transcript held a phonetic correction");
     }
+}
+
+// #1573: a Transcribe File History row recorded a duration of 0 s whatever the
+// file's length. It must record the WAV's real length, as a recording does.
+static async Task RunFileTranscriptionDurationTestsAsync(string root)
+{
+    Directory.CreateDirectory(root);
+    var paths = new TestPaths(root);
+    var database = new ApplicationDb(paths);
+    await database.MigrateAsync();
+    var history = new HistoryRepository(database);
+
+    // 20 s of 16 kHz mono 16-bit silence: the shape the import normalizer writes.
+    var canonical = Path.Combine(root, "twenty-seconds.wav");
+    await using (var stream = File.Create(canonical))
+    {
+        PcmWaveHeader.Write(stream, 16_000, 1, 16, 20 * 16_000 * 2);
+        stream.Write(new byte[20 * 16_000 * 2]);
+    }
+
+    // ffmpeg's own WAV output puts a LIST chunk between `fmt ` and `data`.
+    var withList = Path.Combine(root, "with-list-chunk.wav");
+    await using (var stream = File.Create(withList))
+    {
+        var listPayload = "INFOISFT\u000e\0\0\0Lavf61.7.100\0\0"u8.ToArray();
+        var data = 12 * 24_000 * 2 * 2;
+        using var writer = new BinaryWriter(stream);
+        writer.Write("RIFF"u8);
+        writer.Write(4 + 24 + 8 + listPayload.Length + 8 + data);
+        writer.Write("WAVEfmt "u8);
+        writer.Write(16);
+        writer.Write((short)1);
+        writer.Write((short)2);
+        writer.Write(24_000);
+        writer.Write(24_000 * 2 * 2);
+        writer.Write((short)4);
+        writer.Write((short)16);
+        writer.Write("LIST"u8);
+        writer.Write(listPayload.Length);
+        writer.Write(listPayload);
+        writer.Write("data"u8);
+        writer.Write(data);
+        writer.Write(new byte[data]);
+    }
+
+    // A container the RIFF reader cannot measure keeps the old zero.
+    var notWave = Path.Combine(root, "clip.mp3");
+    await File.WriteAllBytesAsync(notWave, [0xFF, 0xFB, 0x90, 0x00, 1, 2, 3, 4, 5, 6, 7, 8]);
+    // A `.wav` that is not RIFF at all must not fail the transcription.
+    var brokenWave = Path.Combine(root, "broken.wav");
+    await File.WriteAllBytesAsync(brokenWave, [1, 2, 3]);
+
+    async Task<Transcript> Run(string audio)
+    {
+        var engine = new FakeTranscriber((_, _, _) => Task.FromResult(
+            PortableTranscriptionResult.Success("file text", "Test Whisper")));
+        using var recorder = new FakeRecorder(audio);
+        using var devices = new FakeDevices();
+        using var workflow = new TranscriptionWorkflow(recorder, devices, engine, history);
+        var result = await workflow.TranscribeFileAsync(audio, new TranscriptionWorkflowRequest());
+        Assert(result.IsSuccess, $"{Path.GetFileName(audio)}: the file transcription failed");
+        var saved = (await history.ListAsync()).Single(item => item.AudioFilePath == Path.GetFullPath(audio));
+        Assert(saved.Status == TranscriptStatus.Completed, $"{Path.GetFileName(audio)}: the History row did not complete");
+        return saved;
+    }
+
+    var twenty = await Run(canonical);
+    Assert(Math.Abs(twenty.Duration - 20.0) < 0.001,
+        $"a 20 s WAV wrote a History duration of {twenty.Duration} s");
+    var twelve = await Run(withList);
+    Assert(Math.Abs(twelve.Duration - 12.0) < 0.001,
+        $"a 12 s WAV with a LIST chunk wrote a History duration of {twelve.Duration} s");
+    var mp3 = await Run(notWave);
+    Assert(mp3.Duration == 0, $"an unmeasurable file wrote a History duration of {mp3.Duration} s");
+    var broken = await Run(brokenWave);
+    Assert(broken.Duration == 0, $"a truncated WAV wrote a History duration of {broken.Duration} s");
 }
 
 // #633: adding a word another row already holds (any case) was merged into that row by the
@@ -1689,6 +1916,61 @@ static async Task RunShellMissingLocalModelStatusTestsAsync(string root)
     shell.Status.Failure("test.error", "Something failed");
     shell.Modes.Selected = shell.Modes.Items.Single(item => item.Id == mode.Id);
     Assert(shell.Status.Message == "Something failed", $"a mode change overwrote an error with '{shell.Status.Message}' (was '{other}')");
+}
+
+// #2405: startup loaded only the account status, which answers from the validation cache and
+// brings no balance, so after a relaunch the balance card was empty until Refresh was clicked.
+static async Task RunShellCloudBalanceOnLaunchTestsAsync(string root)
+{
+    Directory.CreateDirectory(root);
+    var settings = new PortableSettingsService(new MemoryPrivateFileService(), Path.Combine(root, "settings.json"));
+    var store = new MemoryCredentialStore();
+    var files = new MemoryPrivateFileService();
+    var http = new CloudAccountHttpHandler();
+    PortableCloudAccountService NewService() => new(
+        store,
+        new PortableLicenseStateStore(store, files, "/license-state.json"),
+        new HttpClient(http) { Timeout = Timeout.InfiniteTimeSpan });
+
+    // No account yet: the launch fetches no balance.
+    using (var service = NewService())
+    {
+        var database = new ApplicationDb(new TestPaths(Path.Combine(root, "no-account")));
+        using var shell = new ApplicationShellViewModel(database, settings, cloudAccount: service,
+            deviceIdentity: new StaticDeviceIdentity(), openAccountUri: _ => PlatformResult.Success());
+        await shell.InitializeAsync();
+        await shell.AccountBalanceLoad!;
+        Assert(!shell.Account!.HasAccount && http.UsageCalls == 0 && shell.Account.Credits is null,
+            $"a launch with no account fetched a balance ({http.UsageCalls} /usage calls)");
+    }
+
+    // First launch: activation stores the key and the validation cache.
+    using (var service = NewService())
+    {
+        var account = new CloudAccountViewModel(service, new StaticDeviceIdentity(), "Ray Linux",
+            _ => PlatformResult.Success()) { AccountKey = "HW-0000-0000-2405" };
+        await account.ActivateAsync();
+        Assert(account.IsActiveAccount, "the test account did not activate");
+    }
+
+    // Relaunch: a new service and shell over the same stored key.
+    using (var service = NewService())
+    {
+        var usageBefore = http.UsageCalls;
+        var validateBefore = http.ValidateCalls;
+        var database = new ApplicationDb(new TestPaths(Path.Combine(root, "relaunch")));
+        using var shell = new ApplicationShellViewModel(database, settings, cloudAccount: service,
+            deviceIdentity: new StaticDeviceIdentity(), openAccountUri: _ => PlatformResult.Success());
+        await shell.InitializeAsync();
+        await shell.AccountBalanceLoad!;
+        var relaunched = shell.Account!;
+        Assert(relaunched.IsActiveAccount && http.ValidateCalls == validateBefore,
+            "the relaunch did not answer the status from the validation cache");
+        Assert(http.UsageCalls == usageBefore + 1
+            && relaunched.Credits == "42.5" && relaunched.MinutesRemaining == "7"
+            && relaunched.CostPerMinute == "~5.5" && relaunched.HasCredits,
+            $"after a relaunch the balance was not fetched (credits '{relaunched.Credits}', cost '{relaunched.CostPerMinute}', {http.UsageCalls - usageBefore} /usage calls)");
+    }
 }
 
 // #1000: EF Core's SQLite provider runs its "async" migration synchronously, so a shell that awaits
@@ -1882,6 +2164,71 @@ static async Task RunDefaultModeInvariantTestsAsync(string root)
     var afterDelete = await orphanRepository.ListAsync();
     Assert(afterDelete.Count == 1 && afterDelete.Single().IsDefault,
         "deleting the default mode left the remaining mode without the flag");
+}
+
+// Issue #2551: a save the repository refuses on a mode rule used to fall into SaveAsync's catch-all
+// and show "Could not save the mode or its secure endpoint configuration", which sent the user to
+// the keyring when the fix was a different name.
+static async Task RunModeNameTakenTestsAsync(string root)
+{
+    var db = new ApplicationDb(new TestPaths(root));
+    await db.InitializeAsync();
+    var repository = new ModeRepository(db);
+    var editor = new ModesViewModel(repository);
+    await editor.RefreshAsync();
+    var theDefault = editor.Items.Single(item => item.IsDefault);
+    Assert(theDefault.Name == "Hyper", $"the seeded default mode is '{theDefault.Name}', expected 'Hyper'");
+    var countBefore = (await repository.ListAsync()).Count;
+
+    foreach (var clash in new[] { "hyper", "  HYPER " })
+    {
+        editor.NewCommand.Execute(null);
+        editor.Name = clash;
+        await editor.SaveAsync();
+        Assert(editor.Status.ErrorCode == "modes.name_taken"
+            && editor.Status.Message == "A mode with that name already exists.",
+            $"creating '{clash}' next to 'Hyper' showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+        Assert((await repository.ListAsync()).Count == countBefore, $"creating '{clash}' next to 'Hyper' inserted a mode");
+    }
+
+    // Renaming another mode onto a taken name is refused the same way; keeping a mode's own name is not.
+    var other = new Mode { Name = "Other", SortOrder = 1 };
+    await repository.UpsertAsync(other);
+    await editor.RefreshAsync();
+    editor.Selected = editor.Items.Single(item => item.Id == other.Id);
+    editor.Name = "Hyper";
+    await editor.SaveAsync();
+    Assert(editor.Status.ErrorCode == "modes.name_taken", $"renaming 'Other' to 'Hyper' showed {editor.Status.ErrorCode}");
+    Assert((await repository.ListAsync()).Single(item => item.Id == other.Id).Name == "Other", "a refused rename was saved");
+    Assert(editor.Items.Single(item => item.Id == other.Id).Name == "Other" && editor.Name == "Hyper",
+        "a refused rename left 'Hyper' on the listed mode, or cleared what the user typed");
+    editor.Name = "other";
+    await editor.SaveAsync();
+    Assert(!editor.Status.HasError && (await repository.ListAsync()).Single(item => item.Id == other.Id).Name == "other",
+        $"re-casing a mode's own name was refused: {editor.Status.ErrorCode}");
+
+    // The repository reads the rows at save time, so a name taken after the list was loaded is
+    // refused the same way, not with the secure-endpoint error.
+    editor.NewCommand.Execute(null);
+    editor.Name = "Late arrival";
+    await repository.UpsertAsync(new Mode { Name = "Late Arrival", SortOrder = 2 });
+    var countBeforeRace = (await repository.ListAsync()).Count;
+    await editor.SaveAsync();
+    Assert(editor.Status.ErrorCode == "modes.name_taken"
+        && !editor.Status.Message.Contains("secure endpoint", StringComparison.OrdinalIgnoreCase),
+        $"a name the repository refused showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+    Assert((await repository.ListAsync()).Count == countBeforeRace, "a name the repository refused was inserted");
+
+    // The default-name rule surfaces under its own code as well. (The last-default rule cannot be
+    // reached from this editor, which never clears IsDefault.)
+    await editor.RefreshAsync();
+    editor.Selected = editor.Items.Single(item => item.IsDefault);
+    editor.Name = "Renamed default";
+    await editor.SaveAsync();
+    Assert(editor.Status.ErrorCode == "modes.default_name_fixed",
+        $"renaming the default mode showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+    Assert((await repository.ListAsync()).Single(item => item.IsDefault).Name == "Hyper"
+        && editor.Items.Single(item => item.IsDefault).Name == "Hyper", "the default mode was renamed");
 }
 
 static async Task RunDictationModeTestsAsync(string root)
@@ -3084,6 +3431,129 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
         $"deleting all rows left {viewModel.Items.Count} rows, {viewModel.GroupedItems.Count} grouped entries");
 }
 
+// The Linux History template is rebuilt on every visit, and its period combo re-selects "All"
+// while it is built. That re-ran a full-table query on the UI thread per click even when nothing
+// had changed (#2099). Each HistoryRepository call opens one context, so the database's context
+// count is the repository's query count. Revisit mirrors OnHistoryPeriodChanged.
+static async Task RunHistoryRevisitTestsAsync(string root)
+{
+    var paths = new TestPaths(Path.Combine(root, "history-revisit"));
+    var queries = 0;
+    Action? duringNextQuery = null;
+    var database = new ApplicationDb(() =>
+    {
+        Interlocked.Increment(ref queries);
+        Interlocked.Exchange(ref duringNextQuery, null)?.Invoke();
+        return new HyperWhisper.Data.HyperWhisperDbContext(paths);
+    });
+    await database.MigrateAsync();
+    // Another writer on the same file, the way the workflow, the Local API and recovery each
+    // build their own repository.
+    var writer = new HistoryRepository(new ApplicationDb(paths), paths);
+    var now = DateTime.UtcNow;
+    for (var index = 0; index < 5; index++)
+        await writer.AddAsync(new Transcript
+        {
+            Text = $"row {index}",
+            Status = TranscriptStatus.Completed,
+            // Two rows today, the rest days back, so "Today" returns a different set.
+            Date = index < 2 ? now.AddSeconds(-index) : now.AddDays(-index - 2),
+        });
+
+    using var viewModel = new HistoryViewModel(new HistoryRepository(database, paths));
+    async Task<int> Revisit(DateTimeOffset? start)
+    {
+        var before = queries;
+        if (viewModel.SelectPeriod(start)) await viewModel.SearchAsync();
+        return queries - before;
+    }
+    var today = new DateTimeOffset(DateTimeOffset.Now.Date);
+
+    // Startup loads History once (ApplicationShellViewModel.InitializeAsync).
+    await viewModel.RefreshAsync();
+    Assert(viewModel.Items.Count == 5, $"the startup load showed {viewModel.Items.Count} of 5 rows");
+
+    // Home -> History -> Home -> History: each visit selects "All" with nothing changed.
+    viewModel.UpdateSelection([viewModel.Items[3]]);
+    viewModel.Status.Failure("history.copy_unavailable", "an unrelated failure left on the status line");
+    var newest = viewModel.Items[0];
+    var searched = await Revisit(null) + await Revisit(null);
+    Assert(searched == 0, $"two unchanged History revisits ran {searched} queries, not 0");
+    Assert(viewModel.Items.Count == 5 && viewModel.Selected?.Id == newest.Id && viewModel.SelectedItems.Count == 1
+        && !viewModel.Status.HasError && viewModel.Status.Message == "5 matching transcripts"
+        && viewModel.StartDate is null && viewModel.EndDate is null && !viewModel.IsFilteredEmpty,
+        $"a skipped revisit did not leave the screen a search would: selected {viewModel.Selected?.Text}, '{viewModel.Status.Message}'");
+
+    // A real pick still queries once, and so does going back to "All" from it.
+    searched = await Revisit(today);
+    Assert(searched == 1 && viewModel.Items.Count == 2, $"choosing Today ran {searched} queries and showed {viewModel.Items.Count} rows");
+    searched = await Revisit(null);
+    Assert(searched == 1 && viewModel.Items.Count == 5, $"going back to All from Today ran {searched} queries and showed {viewModel.Items.Count} rows");
+    Assert(await Revisit(null) == 0, "a revisit after All was searched queried again");
+
+    // Search text is part of what the rows were loaded for.
+    viewModel.SearchText = "row 1";
+    Assert(await Revisit(null) == 1 && viewModel.Items.Count == 1, "a revisit with new search text did not search");
+    Assert(await Revisit(null) == 0, "a revisit with the same search text queried again");
+    viewModel.SearchText = string.Empty;
+    Assert(await Revisit(null) == 1 && viewModel.Items.Count == 5, "clearing the search text did not search");
+
+    // The search box's debounced query asks the same question. Its TextChanged also fires as the
+    // template is torn down (Text null) and rebuilt (Text ""), which must not count as a change.
+    viewModel.SearchText = null!;
+    Assert(viewModel.TryReuseLoadedRows(), "a null search text from a torn-down template did not reuse the rows");
+    viewModel.SearchText = "row 2";
+    Assert(!viewModel.TryReuseLoadedRows(), "typed search text reused rows loaded without it");
+    viewModel.SearchText = string.Empty;
+    Assert(viewModel.TryReuseLoadedRows(), "the search box's unchanged text did not reuse the rows");
+
+    // A write through any repository makes the next revisit query and show it.
+    await writer.AddAsync(new Transcript { Text = "saved elsewhere", Status = TranscriptStatus.Completed, Date = now.AddSeconds(5) });
+    Assert(await Revisit(null) == 1 && viewModel.Items[0].Text == "saved elsewhere",
+        "a revisit after another repository wrote a row did not query");
+    Assert(await Revisit(null) == 0, "the revisit after that reload queried again");
+    var changed = viewModel.Items[0];
+    changed.Text = "updated elsewhere";
+    await writer.UpdateAsync(changed);
+    Assert(await Revisit(null) == 1, "a revisit after an update did not query");
+
+    // MarkStale: storage cleanup deletes rows in its own context.
+    viewModel.MarkStale();
+    Assert(await Revisit(null) == 1, "a revisit after MarkStale did not query");
+    Assert(await Revisit(null) == 0, "the revisit after the MarkStale reload queried again");
+
+    // A write that lands while the query runs leaves the rows stale, not current.
+    duringNextQuery = () => writer.AddAsync(new Transcript
+    {
+        Text = "landed mid-query", Status = TranscriptStatus.Completed, Date = now.AddSeconds(10),
+    }).GetAwaiter().GetResult();
+    viewModel.MarkStale();
+    Assert(await Revisit(null) == 1, "the mid-query revisit did not query");
+    Assert(await Revisit(null) == 1, "a revisit after a write during the last query did not query");
+
+    // A failed or cancelled load is always retried.
+    using (var cancelled = new CancellationTokenSource())
+    {
+        cancelled.Cancel();
+        await viewModel.RefreshAsync(cancelled.Token);
+        Assert(viewModel.Items.Count == 0 && viewModel.Status.HasError, "the cancelled load did not fail");
+        Assert(await Revisit(null) == 1 && viewModel.Items.Count == 7 && !viewModel.Status.HasError,
+            "a revisit after a cancelled load did not query again");
+        viewModel.SearchText = "row";
+        await viewModel.SearchAsync(cancelled.Token);
+        viewModel.SearchText = string.Empty;
+    }
+    Assert(await Revisit(null) == 1 && viewModel.Items.Count == 7, "a revisit after a failed search did not query again");
+
+    // A refresh (retry, a save) loads every row whatever the filter fields say, so it only
+    // stands in for "All" with no search text.
+    Assert(await Revisit(today) == 1, "choosing Today did not query");
+    await viewModel.RefreshAsync();
+    Assert(await Revisit(today) == 1 && viewModel.Items.Count < 7, "a refresh's unfiltered rows were reused for Today");
+    await viewModel.RefreshAsync();
+    Assert(await Revisit(null) == 0 && viewModel.Items.Count == 7, "a refresh's rows were not reused for All");
+}
+
 static IEnumerable<Transcript> ThrowAfter(IEnumerable<Transcript> rows, int count)
 {
     foreach (var row in rows.Take(count)) yield return row;
@@ -3743,6 +4213,128 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
     }
 }
 
+/// <summary>
+/// A retry of a Failed row whose audio is not WAV, in a local Parakeet mode,
+/// reaches the transcriber as a WAV (issue #1675).
+/// </summary>
+/// <remarks>
+/// Uses the REAL ffmpeg import Linux Transcribe File and the Local API run
+/// (<see cref="DurableAudioImportService"/> over the ffmpeg normalizer). Before
+/// the fix the WAV-only Parakeet daemon got the row's stored MP3 and failed at
+/// once. The row keeps its own audio, and the converted WAV is deleted after.
+/// </remarks>
+static async Task RunParakeetRetryConversionTestsAsync(string root)
+{
+    static Mode Parakeet() => new()
+    {
+        Id = Guid.NewGuid(), Name = "Parakeet retry", Language = "en",
+        ProviderType = "local", LocalEngine = "parakeet",
+    };
+    static Mode Whisper() => new()
+    {
+        Id = Guid.NewGuid(), Name = "Whisper retry", Language = "en",
+        ProviderType = "local", LocalEngine = "whisper",
+    };
+    static bool IsWave(string path)
+    {
+        var header = File.ReadAllBytes(path).AsSpan(0, 12);
+        return header[..4].SequenceEqual("RIFF"u8) && header[8..12].SequenceEqual("WAVE"u8);
+    }
+
+    var storeRoot = Path.Combine(root, "retry-parakeet-convert");
+    Directory.CreateDirectory(storeRoot);
+    var paths = new TestPaths(storeRoot);
+    var database = new ApplicationDb(paths);
+    await database.MigrateAsync();
+    var history = new HistoryRepository(database);
+    Directory.CreateDirectory(paths.RecordingsDirectory);
+    var mp3 = Path.Combine(paths.RecordingsDirectory, $"local-api-{Guid.NewGuid():N}.mp3");
+    using (var ffmpeg = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("ffmpeg")
+    {
+        ArgumentList = { "-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-f", "lavfi",
+            "-i", "sine=frequency=440:duration=3", "-ac", "1", "-ar", "16000", "-b:a", "16k", mp3 },
+        RedirectStandardError = true,
+    })!)
+    {
+        var stderr = await ffmpeg.StandardError.ReadToEndAsync();
+        await ffmpeg.WaitForExitAsync();
+        Assert(ffmpeg.ExitCode == 0 && File.Exists(mp3), $"ffmpeg could not make the fixture MP3: {stderr}");
+    }
+    Assert(!IsWave(mp3), "the fixture MP3 is already a WAV; the test would prove nothing");
+
+    async Task<Transcript> FailedRowAsync(string audio)
+    {
+        var row = new Transcript
+        {
+            Text = "Transcription failed: The Parakeet daemon could not transcribe the audio.",
+            FailedReason = "The Parakeet daemon could not transcribe the audio.",
+            Status = TranscriptStatus.Failed,
+            AudioFilePath = audio,
+        };
+        await history.AddAsync(row);
+        return row;
+    }
+    TranscriptionWorkflow Workflow(FakeTranscriber transcriber) => new(
+        new FakeRecorder(mp3), new FakeDevices(), transcriber, history,
+        retryAudioImport: new DurableAudioImportService(new AcceptPrivateFileService(), paths));
+
+    // 1. MP3 row, Parakeet mode: the transcriber sees a WAV; the row completes,
+    //    keeps its MP3, and the converted WAV is gone afterwards.
+    string? seenPath = null;
+    var seenWave = false;
+    var converting = new FakeTranscriber((path, _, _) =>
+    {
+        seenPath = path;
+        seenWave = IsWave(path);
+        return Task.FromResult(PortableTranscriptionResult.Success("converted words", "Parakeet"));
+    });
+    var mp3Row = await FailedRowAsync(mp3);
+    using (var workflow = Workflow(converting))
+    {
+        var result = await workflow.RetryTranscriptAsync(mp3Row.Id, new TranscriptionWorkflowRequest(SelectedMode: Parakeet()));
+        var saved = await history.GetAsync(mp3Row.Id);
+        Assert(result.IsSuccess && seenWave && seenPath != mp3, "a Parakeet retry of an MP3 row did not reach the transcriber as a WAV");
+        Assert(saved is { Status: TranscriptStatus.Completed, Text: "converted words" } && saved.AudioFilePath == mp3 && File.Exists(mp3),
+            "a converted Parakeet retry did not complete the row on its own audio");
+        Assert(seenPath is not null && !File.Exists(seenPath), "the converted retry WAV was left behind");
+    }
+
+    // 2. Bytes ffmpeg cannot decode: a clear format failure at once, and the
+    //    transcriber never runs.
+    var garbage = Path.Combine(paths.RecordingsDirectory, $"local-api-{Guid.NewGuid():N}.mp3");
+    await File.WriteAllBytesAsync(garbage, Enumerable.Repeat((byte)0x5A, 4096).ToArray());
+    var garbageRow = await FailedRowAsync(garbage);
+    var never = new FakeTranscriber((_, _, _) => Task.FromResult(PortableTranscriptionResult.Success("unreachable", "Parakeet")));
+    using (var workflow = Workflow(never))
+    {
+        var result = await workflow.RetryTranscriptAsync(garbageRow.Id, new TranscriptionWorkflowRequest(SelectedMode: Parakeet()));
+        var saved = await history.GetAsync(garbageRow.Id);
+        Assert(!result.IsSuccess && result.Failure?.Code == PortableTranscriptionErrorCode.InvalidRequest
+            && result.Failure.Message.Contains("WAV", StringComparison.Ordinal) && never.CallCount == 0,
+            "an undecodable Parakeet retry did not fail with a clear format error before the transcriber");
+        Assert(saved is { Status: TranscriptStatus.Failed, RetryCount: 1 } && saved.FailedReason!.Contains("WAV", StringComparison.Ordinal)
+            && saved.AudioFilePath == garbage && File.Exists(garbage),
+            "an undecodable Parakeet retry did not leave the row Failed on its own audio with the format reason");
+        Assert(!Directory.GetFiles(paths.RecordingsDirectory).Any(file =>
+                file.EndsWith(".wav", StringComparison.Ordinal) || file.EndsWith(".partial", StringComparison.Ordinal)),
+            "a failed retry conversion left files in the recordings directory");
+    }
+
+    // 3. A Whisper mode reads any format: the MP3 passes through unconverted.
+    var whisperRow = await FailedRowAsync(mp3);
+    string? whisperPath = null;
+    var whisper = new FakeTranscriber((path, _, _) =>
+    {
+        whisperPath = path;
+        return Task.FromResult(PortableTranscriptionResult.Success("whisper words", "Whisper"));
+    });
+    using (var workflow = Workflow(whisper))
+    {
+        var result = await workflow.RetryTranscriptAsync(whisperRow.Id, new TranscriptionWorkflowRequest(SelectedMode: Whisper()));
+        Assert(result.IsSuccess && whisperPath == mp3, "a Whisper retry converted audio it did not need to");
+    }
+}
+
 static async Task RunHistoryRetryTestsAsync(string root)
 {
     static async Task<(ApplicationDb Database, HistoryRepository History)> CreateStoreAsync(string parent, string name)
@@ -4200,6 +4792,16 @@ file sealed class MemoryCredentialStore : ICredentialStore
     public bool HasAccount(string account) => _values.ContainsKey(("HyperWhisper", account));
 }
 
+/// <summary>Fails every read, as a transient keyring error would; writes and deletes reach <c>inner</c>.</summary>
+file sealed class FailReadCredentialStore(ICredentialStore inner, bool throws) : ICredentialStore
+{
+    public PlatformResult<byte[]?> Read(string resource, string account) => throws
+        ? throw new InvalidOperationException("simulated keyring exception")
+        : PlatformResult<byte[]?>.Failure("credentials.read_failed", "simulated secure store read failure");
+    public PlatformResult Write(string resource, string account, ReadOnlySpan<byte> value) => inner.Write(resource, account, value);
+    public PlatformResult Delete(string resource, string account) => inner.Delete(resource, account);
+}
+
 file sealed class FailWriteCredentialStore : ICredentialStore
 {
     public PlatformResult<byte[]?> Read(string resource, string account) => PlatformResult<byte[]?>.Success(null);
@@ -4248,6 +4850,7 @@ file sealed class CloudAccountHttpHandler : HttpMessageHandler
     public string? ValidateDeviceName { get; private set; }
     public string? ValidateLicenseKey { get; private set; }
     public int ValidateCalls { get; private set; }
+    public int UsageCalls { get; private set; }
 
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
@@ -4263,7 +4866,10 @@ file sealed class CloudAccountHttpHandler : HttpMessageHandler
             return Json("{\"valid\":true,\"customer_id\":\"customer-1\",\"customer_email\":\"ray@example.test\",\"expires_at\":\"2030-01-02T03:04:05Z\"}");
         }
         if (path == "/usage")
+        {
+            UsageCalls++;
             return Json("{\"credits_remaining\":42.5,\"minutes_remaining\":7,\"credits_per_minute\":5.5,\"is_licensed\":true,\"is_anonymous\":false}");
+        }
         if (path == "/api/license/deactivate")
             return Json("{\"success\":true}");
         return new HttpResponseMessage(System.Net.HttpStatusCode.NotFound);

@@ -8,7 +8,7 @@ import LocaleNotFound from "./[locale]/not-found";
 import { defaultLocale } from "@/src/i18n/locales";
 
 // The boundary for a notFound() thrown by the [locale] layout itself: a first
-// segment that is not a locale (/favicon.ico, /.env: the proxy skips dotted
+// segment that is not a locale (/x.png, /.env: the proxy skips dotted
 // paths, #1853). It wraps the [locale] 404 in that layout so the page gets the
 // navbar, footer, dark theme and translations (#815).
 //

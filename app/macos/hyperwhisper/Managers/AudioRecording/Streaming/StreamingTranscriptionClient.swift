@@ -262,7 +262,8 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// Number of reconnect attempts in the current session.
     /// Reset to 0 on successful startSession(), and lazily in handleUnexpectedDisconnect()
     /// when the previous connection was stable for a while (isolated network blip).
-    /// If >= 3, skip reconnect and go straight to error.
+    /// If > maxReconnectsPerCycle (3), skip reconnect and go straight to error:
+    /// the 4th rapid drop gives up. See `reconnectBudget(previousCount:connectedFor:)`.
     private var reconnectCount = 0
 
     /// When the current WebSocket connection was (re)established.
@@ -272,7 +273,31 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
     /// If a connection stayed up at least this long before dropping, the drop is
     /// treated as an isolated blip and the reconnect budget is reset.
-    private static let stableConnectionResetInterval: TimeInterval = 60
+    nonisolated static let stableConnectionResetInterval: TimeInterval = 60
+
+    /// Reconnects allowed per rapid-drop cycle. The drop after the last one gives up.
+    nonisolated static let maxReconnectsPerCycle = 3
+
+    /// The reconnect budget rule, as a pure function so tests can pin it.
+    ///
+    /// A connection that stayed up at least `stableConnectionResetInterval` before
+    /// dropping is an isolated network blip, not part of a flapping loop, so the
+    /// budget resets before this drop is counted (#246). Rapid drop cycles keep
+    /// accumulating, and the drop that takes the count past
+    /// `maxReconnectsPerCycle` is `exhausted`.
+    ///
+    /// - Returns: the new reconnect count, and whether the budget is spent.
+    nonisolated static func reconnectBudget(
+        previousCount: Int,
+        connectedFor: TimeInterval
+    ) -> (count: Int, exhausted: Bool) {
+        var count = previousCount
+        if connectedFor >= stableConnectionResetInterval {
+            count = 0
+        }
+        count += 1
+        return (count, count > maxReconnectsPerCycle)
+    }
 
     /// True while handleUnexpectedDisconnect is mid-flight.
     /// Although the class is @MainActor, handleUnexpectedDisconnect suspends
@@ -314,44 +339,16 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
     // MARK: - Session Diagnostics
     //
-    // Every streaming fault this file reports used to arrive as a provider
-    // sentence and a stack trace, with nothing about what the client had
-    // actually done by then. "Error committing input audio buffer: buffer too
-    // small. Expected at least 100ms of audio, but buffer only has 85.00ms"
-    // (HYPERWHISPER-S8/-S9) is the shape of that: it names the server's
-    // complaint and says nothing about how long the microphone had been open,
-    // whether the stop flush was already running, or whether the user had been
-    // given any transcript at all. The fields below are what answers that, and
-    // they ride on every capture in this file plus, through the Sentry scope,
-    // on the mirror the recording flow raises for the same fault.
-    //
-    // All of them are measurements, fixed slugs, or identifiers of code and of
-    // a provider request. No transcript, audio, prompt or typed text is
-    // recorded here, and nothing derived from one.
+    // The session telemetry — counters, timestamps and the Sentry payload
+    // builder — lives in `StreamingSessionDiagnostics`, a value type in its own
+    // file. It is reset at the top of `startSession()` and read back through
+    // `sessionDiagnostics()`. Only measurements, fixed slugs and identifiers of
+    // code ever enter it; no transcript, audio, prompt or typed text.
+    private var diagnostics = StreamingSessionDiagnostics()
 
-    /// When `startSession()` began, for `streaming_session_elapsed_ms`.
-    private var sessionStartedAt = Date()
-
-    /// When the microphone actually started delivering audio, or nil before
-    /// `capture.start()` returns. The elapsed time from here is how much audio
-    /// the client had sent when a provider complained about how little it had.
-    private var audioStartedAt: Date?
-
-    /// How many committed and interim transcript events the provider has
-    /// delivered this session.
-    ///
-    /// COUNTS ONLY, AND NAMED SO THEY SURVIVE. `SentryService.beforeSend`
-    /// redacts any non-Bool, non-number extra whose KEY contains `transcript`,
-    /// `text` or `prompt` without warning the call site (#684 lets a number
-    /// through); a type-blind rule is how three Windows fields shipped
-    /// `[redacted]` for months (HYPERWHISPER-PA), so keep the names clean.
-    private var finalsDelivered = 0
-    private var partialsDelivered = 0
-
-    /// How many audio-chunk sends failed this session, and whether the first
-    /// one has been reported. See `noteAudioSendFailure(generation:domain:code:)`.
-    private var audioSendFailureCount = 0
-    private var didReportAudioSendFailure = false
+    /// Kept as the name the tests reach (`StreamingTurnBoundaryTests`); the type
+    /// itself lives with the rest of the telemetry.
+    typealias ReceiveActivityCounters = StreamingSessionDiagnostics.ReceiveActivityCounters
 
     /// Which session the audio callbacks belong to.
     ///
@@ -363,70 +360,9 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// a report describing a session that never had the fault.
     private var sessionGeneration = 0
 
-    /// The stage the session has reached, as a stable slug.
-    ///
-    /// This is the breadcrumb trail this file appeared to have and did not:
-    /// `beforeSend` sets `event.breadcrumbs = nil`, so the "Reconnect attempt"
-    /// and "Reconnect success" crumbs below never leave the machine. Scope
-    /// extras do, so the path taken is published there instead.
-    private var stage = "idle"
+    /// Whether `onProviderSuccess` has fired this session. Gates the callback,
+    /// so it is session state rather than telemetry and stays on the client.
     private var didReportProviderSuccess = false
-
-    /// Session-scoped receive activity. A cancelled loop from an old session
-    /// can resume after `startSession()` resets the diagnostics, so every
-    /// mutation checks the generation that created the loop.
-    struct ReceiveActivityCounters {
-        private(set) var generation = 0
-        private(set) var active = 0
-        private(set) var pending = 0
-
-        mutating func reset(generation: Int) {
-            self.generation = generation
-            active = 0
-            pending = 0
-        }
-
-        mutating func startLoop(generation: Int) {
-            guard generation == self.generation else { return }
-            active += 1
-        }
-
-        mutating func finishLoop(generation: Int) {
-            guard generation == self.generation else { return }
-            active = max(0, active - 1)
-        }
-
-        mutating func startReceive(generation: Int) {
-            guard generation == self.generation else { return }
-            pending += 1
-        }
-
-        mutating func finishReceive(generation: Int) {
-            guard generation == self.generation else { return }
-            pending = max(0, pending - 1)
-        }
-    }
-
-    /// Transport and parser measurements collected after a stop frame send
-    /// starts. The separate success timestamp keeps a failed send distinguishable
-    /// while the earlier boundary includes a provider response that arrives
-    /// before `send` resumes.
-    private var stopFrameSendStartedAt: Date?
-    /// These fields contain only counts, byte sizes, booleans, durations and
-    /// fixed event slugs. They never retain a WebSocket frame or parsed payload.
-    private var stopFrameSentAt: Date?
-    private var receiveActivity = ReceiveActivityCounters()
-    private var receiveLoopWasActiveAtStop = false
-    private var receiveWasPendingAtStop = false
-    private var postStopReceiveAttempts = 0
-    private var postStopReceiveCompletions = 0
-    private var postStopReceiveFailures = 0
-    private var postStopStringFrameCount = 0
-    private var postStopStringByteCount = 0
-    private var postStopBinaryFrameCount = 0
-    private var postStopBinaryByteCount = 0
-    private var postStopUTF8DecodeFailures = 0
-    private var postStopParsedEventCounts: [String: Int] = [:]
 
     // MARK: - Initialization
 
@@ -493,27 +429,8 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         // can never carry a count or an elapsed time belonging to the previous
         // recording. `noteStage` republishes the whole set to the Sentry scope,
         // which is what clears the previous session's values there too.
-        sessionStartedAt = Date()
-        audioStartedAt = nil
-        finalsDelivered = 0
-        partialsDelivered = 0
-        audioSendFailureCount = 0
-        didReportAudioSendFailure = false
-        stopFrameSendStartedAt = nil
-        stopFrameSentAt = nil
-        receiveLoopWasActiveAtStop = false
-        receiveWasPendingAtStop = false
-        postStopReceiveAttempts = 0
-        postStopReceiveCompletions = 0
-        postStopReceiveFailures = 0
-        postStopStringFrameCount = 0
-        postStopStringByteCount = 0
-        postStopBinaryFrameCount = 0
-        postStopBinaryByteCount = 0
-        postStopUTF8DecodeFailures = 0
-        postStopParsedEventCounts.removeAll(keepingCapacity: true)
         sessionGeneration += 1
-        receiveActivity.reset(generation: sessionGeneration)
+        diagnostics.resetForNewSession(startedAt: Date(), generation: sessionGeneration)
         noteStage("starting")
 
         // MARK STARTUP AS PENDING BEFORE ANYTHING CAN PRODUCE AN EVENT.
@@ -690,7 +607,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         }
 
         try await capture.start()
-        audioStartedAt = Date()
+        diagnostics.audioStartedAt = Date()
 
         // DID A TERMINAL PROVIDER ERROR LAND WHILE capture.start() WAS AWAY?
         //
@@ -807,11 +724,11 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                     do {
                         let hadSocket = webSocketTask != nil
                         if hadSocket {
-                            noteStopFrameSendStarted()
+                            diagnostics.noteStopFrameSendStarted()
                         }
                         try await webSocketTask?.send(.string(text))
                         if hadSocket {
-                            noteStopFrameSent()
+                            diagnostics.noteStopFrameSent()
                         }
                         logger.debug("Sent stop sequence message")
                     } catch {
@@ -891,156 +808,36 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     }
 
     // MARK: - Diagnostics
+    //
+    // The counters and the payload builder live in `StreamingSessionDiagnostics`.
+    // What stays here is the part that needs the client: its own session state
+    // for the snapshot, the strategy for tags, and the Sentry calls.
 
-    /// Whole milliseconds between two instants, for a log field.
-    private static func elapsedMs(since start: Date, to end: Date = Date()) -> Int {
-        Int((end.timeIntervalSince(start) * 1000).rounded())
-    }
-
-    /// The shape of the current streaming session, as metadata only.
-    ///
-    /// Attached to every capture this file makes, so a provider complaint, a
-    /// disconnect and a failed flush all answer the same questions: how long had
-    /// the session been up, how long had the microphone been open, had anything
-    /// been delivered to the user yet, which connection generation is this, and
-    /// what had already gone wrong quietly.
-    ///
-    /// PRIVACY: provider label, model name and stage are constants of the code
-    /// or of the model catalog; every other value is a count, a duration in ms,
-    /// a boolean or a close code. Nothing here is derived from what the user
-    /// said, typed or pasted.
+    /// The shape of the current streaming session, as metadata only. See
+    /// `StreamingSessionDiagnostics.snapshot(now:client:)` for the keys and the
+    /// privacy rule; this only supplies the values the client owns.
     private func sessionDiagnostics() -> [String: Any] {
-        let now = Date()
-        return [
-            "streaming_provider": strategy.transcriptionProviderLabel,
-            // Double-unwrapped on purpose: `currentConfig` is optional AND its
-            // `model` is optional, so a single `??` leaves an `Optional<String>`
-            // boxed into `Any` and the field ships as null on every session that
-            // uses the provider's default model — which is most of them.
-            "streaming_model": (currentConfig?.model ?? nil) ?? "default",
-            "streaming_stage": stage,
-            "streaming_session_elapsed_ms": Self.elapsedMs(since: sessionStartedAt, to: now),
-            "streaming_connection_elapsed_ms": Self.elapsedMs(since: connectionEstablishedAt, to: now),
-            "streaming_audio_elapsed_ms": audioStartedAt.map { Self.elapsedMs(since: $0, to: now) } ?? 0,
-            "streaming_finals_delivered": finalsDelivered,
-            "streaming_partials_delivered": partialsDelivered,
-            "streaming_reconnect_count": reconnectCount,
-            "streaming_audio_send_failures": audioSendFailureCount,
-            "streaming_close_code": webSocketTask?.closeCode.rawValue ?? 0,
-            "streaming_session_complete_received": didReceiveSessionComplete,
-            "streaming_did_initiate_close": didInitiateClose,
-            "streaming_stop_frame_send_started": stopFrameSendStartedAt != nil,
-            "streaming_stop_frame_send_started_elapsed_ms": stopFrameSendStartedAt.map {
-                Self.elapsedMs(since: sessionStartedAt, to: $0)
-            } ?? 0,
-            "streaming_stop_frame_sent": stopFrameSentAt != nil,
-            "streaming_stop_frame_sent_elapsed_ms": stopFrameSentAt.map {
-                Self.elapsedMs(since: sessionStartedAt, to: $0)
-            } ?? 0,
-            "streaming_post_stop_elapsed_ms": stopFrameSendStartedAt.map {
-                Self.elapsedMs(since: $0, to: now)
-            } ?? 0,
-            "streaming_receive_loop_active": receiveActivity.active > 0,
-            "streaming_receive_pending": receiveActivity.pending > 0,
-            "streaming_receive_loop_active_at_stop": receiveLoopWasActiveAtStop,
-            "streaming_receive_pending_at_stop": receiveWasPendingAtStop,
-            "streaming_post_stop_receive_attempts": postStopReceiveAttempts,
-            "streaming_post_stop_receive_completions": postStopReceiveCompletions,
-            "streaming_post_stop_receive_failures": postStopReceiveFailures,
-            "streaming_post_stop_string_frames": postStopStringFrameCount,
-            "streaming_post_stop_string_bytes": postStopStringByteCount,
-            "streaming_post_stop_binary_frames": postStopBinaryFrameCount,
-            "streaming_post_stop_binary_bytes": postStopBinaryByteCount,
-            "streaming_post_stop_utf8_decode_failures": postStopUTF8DecodeFailures,
-            "streaming_post_stop_event_session_started": postStopParsedEventCounts["session_started"] ?? 0,
-            "streaming_post_stop_event_partial": postStopParsedEventCounts["partial"] ?? 0,
-            "streaming_post_stop_event_final": postStopParsedEventCounts["final"] ?? 0,
-            "streaming_post_stop_event_final_and_complete": postStopParsedEventCounts["final_and_complete"] ?? 0,
-            "streaming_post_stop_event_session_complete": postStopParsedEventCounts["session_complete"] ?? 0,
-            "streaming_post_stop_event_error": postStopParsedEventCounts["error"] ?? 0,
-            "streaming_post_stop_event_warning": postStopParsedEventCounts["warning"] ?? 0,
-            "streaming_post_stop_event_metadata": postStopParsedEventCounts["metadata"] ?? 0,
-            "streaming_post_stop_event_ignored": postStopParsedEventCounts["ignored"] ?? 0
-        ]
-    }
-
-    /// Mark the first stop-frame send before it yields to the transport.
-    private func noteStopFrameSendStarted() {
-        guard stopFrameSendStartedAt == nil else { return }
-        stopFrameSendStartedAt = Date()
-        receiveLoopWasActiveAtStop = receiveActivity.active > 0
-        receiveWasPendingAtStop = receiveActivity.pending > 0
-        logger.debug(
-            "Stop frame send started: receive_loop_active=\(self.receiveLoopWasActiveAtStop, privacy: .public) receive_pending=\(self.receiveWasPendingAtStop, privacy: .public)"
-        )
-    }
-
-    /// Mark the first successful stop-frame send without moving the boundary.
-    private func noteStopFrameSent() {
-        guard stopFrameSentAt == nil else { return }
-        stopFrameSentAt = Date()
-        logger.debug("Stop frame sent")
-    }
-
-    /// Record a post-stop wire frame without retaining its contents.
-    private func notePostStopWireFrame(kind: String, byteCount: Int) {
-        guard stopFrameSendStartedAt != nil else { return }
-
-        switch kind {
-        case "string":
-            postStopStringFrameCount += 1
-            postStopStringByteCount += byteCount
-        case "binary":
-            postStopBinaryFrameCount += 1
-            postStopBinaryByteCount += byteCount
-        default:
-            break
-        }
-
-        let sequence = postStopStringFrameCount + postStopBinaryFrameCount
-        logger.debug(
-            "Post-stop frame received: kind=\(kind, privacy: .public) sequence=\(sequence, privacy: .public) bytes=\(byteCount, privacy: .public)"
+        diagnostics.snapshot(
+            now: Date(),
+            client: StreamingSessionDiagnostics.ClientState(
+                providerLabel: strategy.transcriptionProviderLabel,
+                // Double-unwrapped on purpose: `currentConfig` is optional AND its
+                // `model` is optional, so a single `??` leaves an `Optional<String>`
+                // boxed into `Any` and the field ships as null on every session that
+                // uses the provider's default model — which is most of them.
+                model: (currentConfig?.model ?? nil) ?? "default",
+                connectionEstablishedAt: connectionEstablishedAt,
+                reconnectCount: reconnectCount,
+                closeCode: webSocketTask?.closeCode.rawValue ?? 0,
+                sessionCompleteReceived: didReceiveSessionComplete,
+                didInitiateClose: didInitiateClose
+            )
         )
     }
 
     /// Map one parser result to a content-free event shape.
     nonisolated static func normalizedEventSlug(for event: StreamingProviderEvent?) -> String {
-        guard let event else { return "ignored" }
-        switch event {
-        case .sessionStarted: return "session_started"
-        case .partialTranscript: return "partial"
-        case .finalTranscript: return "final"
-        case .finalTranscriptAndSessionComplete: return "final_and_complete"
-        case .sessionComplete: return "session_complete"
-        case .error: return "error"
-        case .warning: return "warning"
-        case .metadata: return "metadata"
-        }
-    }
-
-    /// Record a fixed parser-result slug after the stop boundary.
-    private func notePostStopParsedEventSlug(_ slug: String) {
-        guard stopFrameSendStartedAt != nil else { return }
-        postStopParsedEventCounts[slug, default: 0] += 1
-        let sequence = postStopParsedEventCounts.values.reduce(0, +)
-        logger.debug(
-            "Post-stop parser result: event=\(slug, privacy: .public) sequence=\(sequence, privacy: .public)"
-        )
-    }
-
-    /// Record a post-stop parser result as a fixed event slug only.
-    private func notePostStopParsedEvent(_ event: StreamingProviderEvent?) {
-        let slug = Self.normalizedEventSlug(for: event)
-        notePostStopParsedEventSlug(slug)
-    }
-
-    /// Record a binary UTF-8 failure after the stop boundary.
-    private func notePostStopUTF8DecodeFailure() {
-        guard stopFrameSendStartedAt != nil else { return }
-        postStopUTF8DecodeFailures += 1
-        logger.debug(
-            "Post-stop binary frame UTF-8 decode failed: failures=\(self.postStopUTF8DecodeFailures, privacy: .public)"
-        )
+        StreamingSessionDiagnostics.normalizedEventSlug(for: event)
     }
 
     /// Feed content-free frame measurements and a fixed event slug to the
@@ -1051,43 +848,24 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         normalizedEventSlug: String? = nil,
         utf8DecodeFailed: Bool = false
     ) {
-        if stopFrameSendStartedAt == nil {
-            noteStopFrameSendStarted()
-        }
-        if stopFrameSentAt == nil {
-            noteStopFrameSent()
-        }
-        precondition(wireKind == "string" || wireKind == "binary")
-        precondition(byteCount >= 0)
-        notePostStopWireFrame(kind: wireKind, byteCount: byteCount)
-        if let normalizedEventSlug {
-            notePostStopParsedEventSlug(normalizedEventSlug)
-        }
-        if utf8DecodeFailed {
-            precondition(wireKind == "binary")
-            notePostStopUTF8DecodeFailure()
-        }
+        diagnostics.recordPostStopDiagnosticsForTesting(
+            wireKind: wireKind,
+            byteCount: byteCount,
+            normalizedEventSlug: normalizedEventSlug,
+            utf8DecodeFailed: utf8DecodeFailed
+        )
     }
 
     /// Return only counts, byte measurements and fixed-slug event counts.
     func postStopDiagnosticSnapshotForTesting() -> [String: Int] {
-        var snapshot = [
-            "string_frames": postStopStringFrameCount,
-            "string_bytes": postStopStringByteCount,
-            "binary_frames": postStopBinaryFrameCount,
-            "binary_bytes": postStopBinaryByteCount,
-            "utf8_decode_failures": postStopUTF8DecodeFailures
-        ]
-        for (slug, count) in postStopParsedEventCounts {
-            snapshot["event_\(slug)"] = count
-        }
-        return snapshot
+        diagnostics.postStopDiagnosticSnapshotForTesting()
     }
 
     /// Record the stage the session has reached and republish the diagnostics to
     /// the Sentry scope.
     ///
-    /// Scope extras, not breadcrumbs, for the reason `stage` documents. They
+    /// Scope extras, not breadcrumbs, for the reason
+    /// `StreamingSessionDiagnostics.stage` documents. They
     /// survive `beforeSend`, so they also reach captures raised OUTSIDE this
     /// class — `RecordingTranscriptionFlow`'s own mirror of the same fault
     /// (HYPERWHISPER-S9) carries them without that file having to know about
@@ -1097,7 +875,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// `setExtras` never removes a key, so a partial write would leave an
     /// earlier session's value in place to be read as this one's.
     private func noteStage(_ newStage: String) {
-        stage = newStage
+        diagnostics.stage = newStage
         guard AppLogger.isErrorLoggingEnabled else { return }
         SentryService.setExtras(sessionDiagnostics())
     }
@@ -1175,9 +953,9 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         // event and bury the real ones.
         guard generation == sessionGeneration, !didInitiateClose, code != NSURLErrorCancelled else { return }
 
-        audioSendFailureCount += 1
-        guard !didReportAudioSendFailure else { return }
-        didReportAudioSendFailure = true
+        diagnostics.audioSendFailureCount += 1
+        guard !diagnostics.didReportAudioSendFailure else { return }
+        diagnostics.didReportAudioSendFailure = true
 
         logger.error(
             "Audio chunk send failed: domain=\(domain, privacy: .public) code=\(code, privacy: .public)"
@@ -1228,36 +1006,36 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     private func receiveLoop(generation: Int) async {
         guard let task = webSocketTask else { return }
 
-        receiveActivity.startLoop(generation: generation)
+        diagnostics.receiveActivity.startLoop(generation: generation)
         defer {
-            receiveActivity.finishLoop(generation: generation)
-            if generation == sessionGeneration, stopFrameSendStartedAt != nil {
+            diagnostics.receiveActivity.finishLoop(generation: generation)
+            if generation == sessionGeneration, diagnostics.stopFrameSendStartedAt != nil {
                 logger.debug(
-                    "Post-stop receive loop exited: active_count=\(self.receiveActivity.active, privacy: .public) pending_count=\(self.receiveActivity.pending, privacy: .public)"
+                    "Post-stop receive loop exited: active_count=\(self.diagnostics.receiveActivity.active, privacy: .public) pending_count=\(self.diagnostics.receiveActivity.pending, privacy: .public)"
                 )
             }
         }
 
         while !Task.isCancelled {
             guard generation == sessionGeneration else { break }
-            if stopFrameSendStartedAt != nil {
-                postStopReceiveAttempts += 1
+            if diagnostics.stopFrameSendStartedAt != nil {
+                diagnostics.postStopReceiveAttempts += 1
             }
-            receiveActivity.startReceive(generation: generation)
+            diagnostics.receiveActivity.startReceive(generation: generation)
             do {
                 let message = try await task.receive()
-                receiveActivity.finishReceive(generation: generation)
+                diagnostics.receiveActivity.finishReceive(generation: generation)
                 guard generation == sessionGeneration else { break }
-                if stopFrameSendStartedAt != nil {
-                    postStopReceiveCompletions += 1
+                if diagnostics.stopFrameSendStartedAt != nil {
+                    diagnostics.postStopReceiveCompletions += 1
                 }
                 await handleMessage(message)
             } catch {
-                receiveActivity.finishReceive(generation: generation)
+                diagnostics.receiveActivity.finishReceive(generation: generation)
                 guard generation == sessionGeneration else { break }
-                if stopFrameSendStartedAt != nil {
-                    postStopReceiveCompletions += 1
-                    postStopReceiveFailures += 1
+                if diagnostics.stopFrameSendStartedAt != nil {
+                    diagnostics.postStopReceiveCompletions += 1
+                    diagnostics.postStopReceiveFailures += 1
                 }
                 // REFUSED UPGRADE (HTTP 402 no credits / 401 / 403):
                 // The socket never opened, so nothing here is a disconnect and
@@ -1605,14 +1383,14 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     private func handleMessage(_ message: URLSessionWebSocketTask.Message) async {
         switch message {
         case .string(let text):
-            notePostStopWireFrame(kind: "string", byteCount: text.utf8.count)
+            diagnostics.notePostStopWireFrame(kind: "string", byteCount: text.utf8.count)
             await processServerMessage(text)
         case .data(let data):
-            notePostStopWireFrame(kind: "binary", byteCount: data.count)
+            diagnostics.notePostStopWireFrame(kind: "binary", byteCount: data.count)
             if let text = String(data: data, encoding: .utf8) {
                 await processServerMessage(text)
             } else {
-                notePostStopUTF8DecodeFailure()
+                diagnostics.notePostStopUTF8DecodeFailure()
             }
         @unknown default:
             logger.warning("Unknown WebSocket message type")
@@ -1642,7 +1420,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// reaches it without a live socket.
     func processServerMessage(_ jsonString: String) async {
         let parsedEvent = strategy.parseMessage(jsonString)
-        notePostStopParsedEvent(parsedEvent)
+        diagnostics.notePostStopParsedEvent(parsedEvent)
         guard let event = parsedEvent else {
             logger.debug("Unhandled message from provider")
             return
@@ -1664,7 +1442,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 // The COUNT of committed segments, never one of them. This is
                 // what tells a later report whether the user had been given
                 // anything at all before the session broke.
-                self.finalsDelivered += 1
+                self.diagnostics.finalsDelivered += 1
                 self.onTranscriptUpdate?(text, true)
             }
 
@@ -1692,7 +1470,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         case .finalTranscriptAndSessionComplete(let text, let duration, let credits):
             let completionEndsSession = strategy.completeEndsSessionBeforeStop || stopRequested
             await MainActor.run {
-                self.finalsDelivered += 1
+                self.diagnostics.finalsDelivered += 1
                 self.onTranscriptUpdate?(text, true)
                 guard completionEndsSession else {
                     self.logger.debug(
@@ -1707,7 +1485,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
         case .partialTranscript(let text):
             await MainActor.run {
-                self.partialsDelivered += 1
+                self.diagnostics.partialsDelivered += 1
                 self.onTranscriptUpdate?(text, false)
             }
 
@@ -2030,15 +1808,15 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         // so long sessions don't exhaust it after 3 lifetime blips (#246).
         // Rapid drop cycles (connect → drop within seconds) keep accumulating
         // and still hit the limit below.
-        if Date().timeIntervalSince(connectionEstablishedAt) >= Self.stableConnectionResetInterval {
-            reconnectCount = 0
-        }
-
-        reconnectCount += 1
+        let budget = Self.reconnectBudget(
+            previousCount: reconnectCount,
+            connectedFor: Date().timeIntervalSince(connectionEstablishedAt)
+        )
+        reconnectCount = budget.count
 
         // Guard against unbounded reconnect cycles.
         // After 3 failed reconnects, stop trying and surface the error.
-        if reconnectCount > 3 {
+        if budget.exhausted {
             logger.error("Reconnect cycle limit reached (\(self.reconnectCount) attempts) — giving up")
             noteStage("reconnect_exhausted")
             if AppLogger.isErrorLoggingEnabled {

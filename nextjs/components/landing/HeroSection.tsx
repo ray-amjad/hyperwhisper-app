@@ -36,13 +36,6 @@ export default function HeroSection() {
 
   return (
     <section className="relative min-h-[90vh] flex flex-col items-center justify-center pt-12 pb-20 overflow-hidden">
-      {/* Background gradient */}
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-700 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob" />
-        <div className="absolute top-0 -right-4 w-72 h-72 bg-cyan-700 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000" />
-        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-700 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000" />
-      </div>
-
       <m.div
         animate="visible"
         className="text-center max-w-5xl mx-auto"
@@ -53,7 +46,7 @@ export default function HeroSection() {
         <m.div className="mb-8 flex justify-center" variants={chunk}>
           <img
             alt={t("logoAlt")}
-            className="w-40 h-40 rounded-2xl shadow-2xl"
+            className="w-40 h-40 rounded-[20%] shadow-2xl outline-1 -outline-offset-1 outline-white/10"
             src="/icon/512.png"
           />
         </m.div>

@@ -27,11 +27,15 @@ private func notificationSnapshot(
     )
 }
 
+/// Holds a fake scan until the test lets it go. The cap only bounds how long a
+/// failing test runs: at 5 s a stalled runner could let a held scan finish
+/// early and undo the order a test forces (#2455). It sits above the 120 s
+/// `waitUntil` guard, so it never ends a hold a test is still waiting through.
 private final class NotificationScanGate: @unchecked Sendable {
     private let semaphore = DispatchSemaphore(value: 0)
 
     func wait() {
-        _ = semaphore.wait(timeout: .now() + 5)
+        _ = semaphore.wait(timeout: .now() + 180)
     }
 
     func release() {
@@ -75,15 +79,22 @@ private final class NotificationScanProbe: @unchecked Sendable {
 }
 
 @MainActor
-@Suite(.serialized)
+@Suite(.serialized, .timeLimit(.minutes(10)))
 struct AudioDeviceNotificationRefreshTests {
+    /// Polls every millisecond for up to 120 s. The bound is a hang guard, not a
+    /// deadline: a loaded CI runner can stall the test process for 20-90 s, far
+    /// past the old 1,000-iteration (about 1 s) cap (#2455, #2505). The suite's
+    /// time limit is the backstop for a scan that never comes.
     private static func waitUntil(
         _ condition: @escaping @Sendable () -> Bool
     ) async {
-        for _ in 0..<1_000 {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(120))
+        while clock.now < deadline {
             if condition() { return }
             try? await Task.sleep(nanoseconds: 1_000_000)
         }
+        if condition() { return }
         Issue.record("Timed out while waiting for the fake notification scan")
     }
 
@@ -279,11 +290,13 @@ struct AudioDeviceNotificationRefreshTests {
 
     @Test func scanDurationExcludesDelayBeforeMainActorCanResume() async {
         let probe = NotificationScanProbe()
+        let providerStart = OSAllocatedUnfairLock<UInt64>(initialState: 0)
         let providerGate = NotificationScanGate()
         let mainActorGate = NotificationScanGate()
         let manager = AudioDeviceManager(
             registerNotificationListeners: false,
             notificationSnapshotProvider: { _ in
+                providerStart.withLock { $0 = DispatchTime.now().uptimeNanoseconds }
                 _ = probe.beginCall()
                 providerGate.wait()
                 return notificationSnapshot(devices: [notificationFirstDevice])
@@ -296,17 +309,24 @@ struct AudioDeviceNotificationRefreshTests {
         }
         await Self.waitUntil { probe.calls == 1 }
 
-        DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(20)) {
-            providerGate.release()
-        }
+        // Let the provider return only while this test holds the main actor, so the
+        // scan cannot resume on the main actor until the hold ends. A duration that
+        // wrongly ran until the main actor resumed is then at least the time from the
+        // provider's start to the end of the hold. That bound is measured, not a fixed
+        // wall-clock limit, so a slow runner cannot fail a correct scan (#2401).
         DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(150)) {
             mainActorGate.release()
         }
+        providerGate.release()
         mainActorGate.wait()
+        let mainActorResumeNanoseconds = DispatchTime.now().uptimeNanoseconds
+        let providerStartToMainActorResumeMs = Int(
+            (mainActorResumeNanoseconds - providerStart.withLock { $0 }) / 1_000_000
+        )
         await refresh.value
 
         #expect(probe.reports.count == 1)
-        #expect(probe.reports[0].durationMs < 100)
+        #expect(probe.reports[0].durationMs < providerStartToMainActorResumeMs)
     }
 
     @Test func missingSelectedDeviceInvalidatesOnceWithoutCoreAudio() async {
@@ -397,5 +417,53 @@ struct AudioDeviceNotificationRefreshTests {
         #expect(manager.activeInputDeviceIdentifier == initialActiveIdentifier)
         #expect(manager.activeInputDeviceName == initialActiveName)
         #expect(invalidationCount == 0)
+    }
+
+    /// Spec: the choice is kept while its device is unplugged (recording uses the
+    /// default meanwhile) and is used again as soon as the device reappears.
+    @Test func chosenDeviceIsKeptWhileUnpluggedAndReusedWhenItReturns() async {
+        let secondConnected = OSAllocatedUnfairLock(initialState: true)
+        let manager = AudioDeviceManager(
+            registerNotificationListeners: false,
+            notificationSnapshotProvider: { selectedUID in
+                let devices = secondConnected.withLock { $0 }
+                    ? [notificationFirstDevice, notificationSecondDevice]
+                    : [notificationFirstDevice]
+                return notificationSnapshot(devices: devices, selectedDeviceUID: selectedUID)
+            }
+        )
+        let choice = MicrophoneChoice(uid: notificationSecondDevice.uid, name: notificationSecondDevice.name)
+        manager.restorePreferredDevice(choice)
+        defer { manager.restorePreferredDevice(nil) }
+        #expect(MicrophoneRoutingStore.shared.preferredDeviceUID == choice.uid)
+
+        // First scan: the chosen device is connected, so it becomes the selected one.
+        await manager.refreshAvailableDevicesFromNotificationForTesting(reason: .coreAudioDeviceList)
+        #expect(manager.selectedDevice == notificationSecondDevice)
+
+        // Unplugged: recording falls back to the default, the choice stays.
+        var invalidated: [AudioDevice] = []
+        manager.onSelectedDeviceInvalidated = { invalidated.append($0) }
+        secondConnected.withLock { $0 = false }
+        await manager.refreshAvailableDevicesFromNotificationForTesting(reason: .coreAudioDeviceList)
+        #expect(manager.selectedDevice == nil)
+        #expect(manager.preferredDevice == choice)
+        #expect(invalidated == [notificationSecondDevice])
+
+        // Plugged back in: used again, with no restart and no user action.
+        secondConnected.withLock { $0 = true }
+        await manager.refreshAvailableDevicesFromNotificationForTesting(reason: .coreAudioDeviceList)
+        #expect(manager.selectedDevice == notificationSecondDevice)
+        #expect(manager.preferredDevice == choice)
+    }
+
+    @Test func choosingDefaultClearsTheChoice() {
+        let manager = AudioDeviceManager(registerNotificationListeners: false)
+        manager.selectDevice(notificationFirstDevice)
+        #expect(manager.preferredDevice == MicrophoneChoice(uid: "first", name: "First"))
+        manager.selectDevice(nil)
+        #expect(manager.preferredDevice == nil)
+        #expect(manager.selectedDevice == nil)
+        #expect(MicrophoneRoutingStore.shared.preferredDeviceUID == nil)
     }
 }

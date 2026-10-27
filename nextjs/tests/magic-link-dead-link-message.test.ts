@@ -31,7 +31,7 @@
  */
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
-import test, { mock } from "node:test";
+import test from "node:test";
 
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { NextIntlClientProvider } from "next-intl";
@@ -40,21 +40,17 @@ import { createElement, type ReactElement } from "react";
 import * as realJsxRuntime from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 
-/** See credit-routes-harness.ts: @types/node@20 has no `mock.module`. */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports?: Record<string, unknown> },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const ORIGIN = "http://localhost:3000";
 const EMAIL = "dead-link-probe@example.com";
 const RETURN_TO = "/en/user/licenses";
 
 // `auth.ts` reads these once, when `betterAuth()` runs at import time.
+// BETTER_AUTH_URL arrives through `src/env/server.mjs`, which snapshots
+// process.env on its first import (#682); the other required secrets are
+// absent here, so its format check is skipped.
+process.env.SKIP_ENV_VALIDATION = "1";
 process.env.BETTER_AUTH_URL = ORIGIN;
 process.env.BETTER_AUTH_SECRET =
   "test-secret-for-2070-dead-magic-link-0123456789";
@@ -66,7 +62,7 @@ process.env.BETTER_AUTH_SECRET =
 
 const sentEmails: Array<{ text?: string }> = [];
 
-moduleMock.module(new URL("../lib/clients/resend.ts", import.meta.url).href, {
+moduleMock.module(moduleUrl("../lib/clients/resend.ts"), {
   namedExports: {
     resend: {
       emails: {
@@ -158,7 +154,7 @@ const magicLinkCalls: MagicLinkArgs[] = [];
 // Also keeps Better Auth's browser client out of the graph. The call is
 // recorded synchronously; the promise never settles, so the render stays on
 // the form.
-moduleMock.module("../src/lib/auth-client", {
+moduleMock.module(moduleUrl("../src/lib/auth-client.ts"), {
   namedExports: {
     authClient: {
       signIn: {

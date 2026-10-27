@@ -15,7 +15,7 @@ import clsx from "clsx";
 import { Link as HeroUILink } from "@heroui/link";
 import { Download, Github } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 
 import { Link as LocaleLink } from "@/src/i18n/navigation";
 import { useDownloadModal } from "@/contexts/DownloadModalContext";
@@ -41,6 +41,38 @@ export const Navbar = () => {
   */
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const closeMenu = () => setIsMenuOpen(false);
+
+  /*
+    HeroUI pins the open menu at `top: var(--navbar-height)` (64px) and sizes it
+    `100vh - var(--navbar-height)`, which is right only when the navbar is the
+    first 64px of the viewport. The "Now open source" banner sits above it in the
+    sticky header, so the navbar ends at 112px and its row covered the first menu
+    item (#1139); a navbar that wraps at a large text size ends lower still. So,
+    while the menu is open, the menu's own --navbar-height is the navbar's real
+    bottom edge. It is re-measured when the navbar or the header around it
+    resizes: a dismissed banner shrinks the header and moves the navbar up.
+  */
+  const navRef = useRef<HTMLElement>(null);
+  const [menuTop, setMenuTop] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+
+    if (!isMenuOpen || !nav) return;
+    const measure = () => setMenuTop(nav.getBoundingClientRect().bottom);
+
+    measure();
+    const observer = new ResizeObserver(measure);
+
+    observer.observe(nav);
+    if (nav.parentElement) observer.observe(nav.parentElement);
+    window.addEventListener("resize", measure);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [isMenuOpen]);
 
   /*
     The latency and model-chooser pages are English-only — they 404 on every
@@ -81,7 +113,7 @@ export const Navbar = () => {
     <>
       <img
         alt="HyperWhisper Logo"
-        className="w-8 h-8 rounded-lg"
+        className="w-8 h-8 rounded-lg outline-1 -outline-offset-1 outline-white/10"
         src="/icon/128.png"
       />
       <p className="font-bold text-white">HyperWhisper</p>
@@ -90,6 +122,11 @@ export const Navbar = () => {
 
   return (
     <HeroUINavbar
+      ref={navRef}
+      isMenuOpen={isMenuOpen}
+      maxWidth="xl"
+      position="static"
+      onMenuOpenChange={setIsMenuOpen}
       className="bg-black/50 backdrop-blur-xl border-b border-gray-800"
       /*
         HeroUI's navbar wrapper is `flex-nowrap` with a fixed `h-[var(--navbar-height)]`, so at a
@@ -104,10 +141,6 @@ export const Navbar = () => {
         // shrank it to its content and made the bar 16px shorter on every page.
         wrapper: "flex-wrap h-auto min-h-[var(--navbar-height)] gap-y-2 py-2",
       }}
-      isMenuOpen={isMenuOpen}
-      maxWidth="xl"
-      position="static"
-      onMenuOpenChange={setIsMenuOpen}
     >
       {/*
         HeroUI gives this content `flex-basis: 0`, so the word mark's box could end up narrower
@@ -152,18 +185,26 @@ export const Navbar = () => {
         {navItems.map((item) => (
           <NavbarItem key={item.href}>
             <a
-              className={clsx(
-                linkStyles({ color: "foreground" }),
-                "text-gray-300 hover:text-white transition-colors",
-                /*
+              /*
+                Passed through the recipe's `class` slot, not concatenated after it, so
+                tailwind-merge drops linkStyles()' own `transition-opacity`. Two
+                transition-property utilities on one native <a> cannot both win: the later
+                one in the stylesheet does, and the colour hover snapped (#848).
+              */
+              className={linkStyles({
+                color: "foreground",
+                class: clsx(
+                  "text-gray-300 hover:text-white transition-[color,opacity]",
+                  /*
                   linkStyles() opens with `outline-solid outline-transparent` and restores the
                   ring only through `data-[focus-visible=true]:`, an attribute the HeroUI <Link>
                   component sets and a native <a> never gets. Without these 3 utilities the link
                   has no keyboard focus ring at all. `outline-focus` is HeroUI's own token, so
                   this is the same ring the Download button and the GitHub link already draw.
                 */
-                "rounded focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2",
-              )}
+                  "rounded focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2",
+                ),
+              })}
               href={item.href}
             >
               {item.label}
@@ -183,7 +224,7 @@ export const Navbar = () => {
           <HeroUILink
             isExternal
             aria-label={t("githubAria")}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-gray-400 hover:text-white transition-[color,opacity]"
             href="https://github.com/ray-amjad/hyperwhisper-app"
           >
             <Github className="w-5 h-5" />
@@ -206,10 +247,15 @@ export const Navbar = () => {
         NavbarContent renders a <ul>, so the toggle sits in a NavbarItem (an <li>); a bare
         <button> here was a list with no items (axe `list`, #866). The li needs no classes: the
         toggle measured the same box (x, y, width, height) with the li as without it.
+
+        HeroUI's toggle is `w-6 h-full`, but the wrapper above is `h-auto`, so `h-full` resolved
+        against a list with no content of its own and the button was 24x2 px: a tap 8 px off the
+        icon missed it (#1140, WCAG 2.2 SC 2.5.8). `size-12` gives it the wrapper's whole 48 px
+        content row; `-mr-3` takes back the extra width so the icon stays where it was.
       */}
       <NavbarContent className="lg:hidden pl-4 grow-0!" justify="end">
         <NavbarItem>
-          <NavbarMenuToggle className="text-gray-400" />
+          <NavbarMenuToggle className="text-gray-400 size-12 -mr-3" />
         </NavbarItem>
       </NavbarContent>
 
@@ -220,7 +266,14 @@ export const Navbar = () => {
         menu's own `px-6 pt-2` as padding (24+16 = px-10, 8+8 = pt-4). It is not added as margin:
         the menu is a fixed, full-width `w-screen` overlay, and a margin would shift and overflow it.
       */}
-      <NavbarMenu className="bg-black/95 backdrop-blur-xl px-10 pt-4">
+      <NavbarMenu
+        className="bg-black/95 backdrop-blur-xl px-10 pt-4"
+        style={
+          menuTop === null
+            ? undefined
+            : ({ "--navbar-height": `${menuTop}px` } as CSSProperties)
+        }
+      >
         {/* Use native <a> for anchor links and already-localed hrefs, LocaleLink for page routes */}
         {navMenuItems.map((item, index) => (
           <NavbarMenuItem key={`${item}-${index}`}>

@@ -100,7 +100,21 @@ final class NemotronProvider: TranscriptionProvider {
         }
     }
 
-    let name: String = "Nemotron 3.5"
+    /// The engine name `name` returns, which a completed History row stores as
+    /// its `transcriptionProvider`. Static so a failed row can store the same
+    /// value without an instance (issue #1518).
+    static let engineName = "Nemotron 3.5"
+
+    let name: String = NemotronProvider.engineName
+
+    /// The name Model Library shows for a Nemotron variant, used to name a
+    /// missing model (issue #1518).
+    static func modelDisplayName(for variant: NemotronModelManager.Variant) -> String {
+        switch variant {
+        case .latin: return NemotronModelManager.Constants.latinDisplayName
+        case .multilingual: return NemotronModelManager.Constants.multilingualDisplayName
+        }
+    }
 
     private let runtime = Runtime()
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "NemotronProvider")
@@ -145,7 +159,7 @@ final class NemotronProvider: TranscriptionProvider {
         }
         guard isAvailable(for: modelId) else {
             logger.error("Nemotron \(variant.rawValue, privacy: .public) not downloaded")
-            throw TranscriptionError.modelNotDownloaded
+            throw TranscriptionError.modelNotDownloaded(model: Self.modelDisplayName(for: variant))
         }
         do {
             _ = try await runtime.currentShared(for: variant)
@@ -272,7 +286,7 @@ final class NemotronProvider: TranscriptionProvider {
 
         guard isAvailable(for: modelId) else {
             logger.error("Nemotron \(variant.rawValue, privacy: .public) transcription requested without model installed")
-            throw TranscriptionError.modelNotDownloaded
+            throw TranscriptionError.modelNotDownloaded(model: Self.modelDisplayName(for: variant))
         }
 
         let shared: SharedNemotronMultilingualModels

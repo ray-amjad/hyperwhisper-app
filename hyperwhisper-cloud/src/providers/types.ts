@@ -214,14 +214,36 @@ export class EmptyTranscriptError extends ProviderUnavailableError {
  * AudioTooLargeError / UnsupportedAudioFormatError, which are deterministic
  * across providers and map to a fixed client error. `status` is the upstream
  * HTTP status that triggered it.
+ *
+ * Two texts (#2163). `message` is what every route LOGS, so `reason` must be
+ * content-free — a provider error code or `HTTP <status>`, never the
+ * upstream's error body, which can quote the user's audio settings,
+ * vocabulary or transcript. `clientMessage` keeps the upstream's own wording
+ * (`clientReason`). Never log `clientMessage`, and never send it either: since
+ * #2131 the /transcribe 400 for a provider's rejection is a fixed message.
+ *
+ * `fromProvider` says who wrote the rejection. An adapter that maps an
+ * upstream reply passes `clientReason` (even a bare `HTTP <status>`), so the
+ * error is from the provider and the client gets the fixed 400. A check the
+ * server makes itself (a WebSocket-only model, a missing explicit language,
+ * audio over a cap) passes none: its `message` is our own hint, and
+ * /transcribe sends it.
  */
 export class ProviderInputError extends Error {
   readonly status: number;
+  /** The upstream's wording. May hold upstream body text: never log or send it. */
+  readonly clientMessage: string;
+  /** True when an upstream reply caused this, false for the server's own check. */
+  readonly fromProvider: boolean;
 
-  constructor(provider: string, status: number, reason: string) {
+  constructor(provider: string, status: number, reason: string, clientReason?: string) {
     super(`${provider} rejected input (${status}): ${reason}`);
     this.name = 'ProviderInputError';
     this.status = status;
+    this.fromProvider = clientReason !== undefined;
+    this.clientMessage = clientReason === undefined
+      ? this.message
+      : `${provider} rejected input (${status}): ${clientReason}`;
   }
 }
 

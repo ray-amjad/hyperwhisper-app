@@ -16,11 +16,12 @@ import { buildCorrectionRequest } from '../providers/llm-contract';
 import { LLMRequestError, LLMTimeoutError } from '../providers/llm-errors';
 import { LLM_REQUEST_TIMEOUT_MS } from '../providers/llm-fetch';
 import { refusedUrl, silentUpstream, type TestUpstream } from '../providers/test-upstreams';
+import { saveEnv } from '../test-support/env';
 
 const originalFetch = globalThis.fetch;
 const realSetTimeout = globalThis.setTimeout;
 const ENV_KEYS = ['GROQ_API_KEY', 'ANTHROPIC_API_KEY'] as const;
-const originalEnv = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]));
+const restoreEnv = ENV_KEYS.map((key) => saveEnv(key));
 
 const PAYLOAD = buildCorrectionRequest('system prompt', 'short dictation');
 const REQUEST_ID = 'req-call-with-retry';
@@ -48,10 +49,7 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
   upstream?.stop();
   upstream = null;
-  for (const key of ENV_KEYS) {
-    if (originalEnv[key] === undefined) delete process.env[key];
-    else process.env[key] = originalEnv[key];
-  }
+  for (const restore of restoreEnv) restore();
 });
 
 /** Send every fetch to `localUrl` and count the calls. */

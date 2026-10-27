@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Funkciók",
-    "pricing": "Árazás",
     "faq": "GYIK",
     "support": "Támogatás",
     "download": "Letöltés",
@@ -20,7 +19,6 @@
     "githubAria": "A HyperWhisper megtekintese a GitHubon"
   },
   "hero": {
-    "openSourceBadge": "Nyílt forráskód · Apache-2.0",
     "logoAlt": "HyperWhisper logó",
     "headline": "Írj, alkoss és hozz létre",
     "headlineAccent": "5x gyorsabban AI-val",
@@ -28,7 +26,7 @@
     "downloadCta": "Letöltés most",
     "demoCta": "Demó megtekintése",
     "availableOn": "Elérhető",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -98,57 +96,6 @@
     "languagesSupported": "Támogatott nyelvek",
     "providersSupported": "Támogatott szolgáltatók"
   },
-  "pricing": {
-    "title": "Nincs előfizetés. Soha.",
-    "subtitle": "Fizess egyszer, használd örökre. Mi is utáljuk az előfizetéseket.",
-    "guarantee": "14 napos pénzvisszafizetési garancia",
-    "guaranteeExtended": "ha nem vagy teljesen elégedett.",
-    "learnMore": "További információ",
-    "free": {
-      "name": "Ingyenes",
-      "price": "$0",
-      "period": "örökre",
-      "description": "Tökéletes a HyperWhisper kipróbálásához",
-      "cta": "Ingyenes letöltés",
-      "features": {
-        "transcriptionLimit": "Napi 5 perc átírás",
-        "basicModes": "Alap átírási módok",
-        "offlineTranscription": "Offline átírás",
-        "apiTranscription": "API átírás (saját kulcsokkal)",
-        "postProcessing": "Szöveg utófeldolgozás",
-        "providers": "9+ szolgáltató közül választhatsz",
-        "lifetimeUpdates": "Élethosszig tartó frissítések",
-        "cloudLimited": "HyperWhisper Cloud (korlátozott használat)",
-        "customVocabulary": "Egyéni szókincs",
-        "prioritySupport": "Elsőbbségi támogatás"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "élethosszig",
-      "description": "Egyszeri vásárlás, korlátlan erő örökre",
-      "cta": "Vásárlás most - Élethosszig tartó hozzáférés",
-      "mostPopular": "Legnépszerűbb",
-      "features": {
-        "unlimitedTranscription": "Korlátlan átírás",
-        "allModes": "Minden átírási mód",
-        "offlineTranscription": "Offline átírás",
-        "apiTranscription": "API átírás (saját kulcsokkal)",
-        "postProcessing": "Szöveg utófeldolgozás",
-        "providers": "9+ szolgáltató közül választhatsz",
-        "lifetimeUpdates": "Élethosszig tartó frissítések",
-        "cloudCredits": "HyperWhisper Cloud ($5 kredit)",
-        "customVocabulary": "Egyéni szókincs",
-        "prioritySupport": "Elsőbbségi támogatás"
-      }
-    },
-    "enterprise": {
-      "title": "Vállalati és egyedi árazás",
-      "description": "Mennyiségi kedvezmények, SSO, elsőbbségi támogatás, belső tárhely és egyedi integrációk",
-      "cta": "Kapcsolatfelvétel az értékesítéssel"
-    }
-  },
   "faq": {
     "title": "Gyakran ismételt kérdések",
     "subtitle": "Minden, amit a HyperWhisperről tudnod kell",
@@ -192,7 +139,7 @@
       },
       "lifetime": {
         "question": "Van elofizetes?",
-        "answer": "Nem — soha. A HyperWhisper egy nyilt forraskodu alkalmazas, amely az One, nem elofizetes, amelyet berel. Toltse le ingyen, es hasznalja a helyi, offline atirast orokre, dijmentesen; az ingyenes csomag napi 5 perc felhoalapu atirast is tartalmaz. Amikor ezen tul beallitas nelkuli felhoalapu atirast szeretne, a HyperWhisper Cloud egyszeru, hasznalat alapu kredit — csak akkor toltson fel, amikor szuksege van ra, havi dijak nelkul es lemondanivalo nelkul."
+        "answer": "Nem — soha. A HyperWhisper egy nyilt forraskodu alkalmazas, amely az One, nem elofizetes, amelyet berel. Toltse le ingyen, es hasznalja a helyi, offline atirast orokre, dijmentesen. Amikor beallitas nelkuli felhoalapu atirast szeretne, a HyperWhisper Cloud egyszeru, hasznalat alapu kredit — csak akkor toltson fel, amikor szuksege van ra, havi dijak nelkul es lemondanivalo nelkul."
       },
       "deviceLimit": {
         "question": "Hány eszközön használhatom a fiókkulcsomat?",
@@ -200,7 +147,7 @@
       },
       "requirements": {
         "question": "Mik a rendszerkövetelmények?",
-        "answer": "Machez: macOS 14 vagy újabb, Apple Silicon és Intel támogatással. Windowshoz: Windows 10/11, x64 vagy ARM64. Linux v1-hez: Ubuntu 22.04 vagy újabb, illetve Debian 12 vagy újabb, amd64-en. Az optimális teljesítményhez 8GB RAM ajánlott."
+        "answer": "Machez: macOS 14.6 vagy újabb, Apple Silicon és Intel támogatással. Windowshoz: Windows 10/11, x64 vagy ARM64. Linux v1-hez: Ubuntu 22.04 vagy újabb, illetve Debian 12 vagy újabb, amd64-en. Az optimális teljesítményhez 8GB RAM ajánlott."
       },
       "madeBy": {
         "question": "Ki készítette ezt?",
@@ -252,10 +199,7 @@
     "downloadButton": "HyperWhisper letöltése",
     "errorGeneric": "Valami hiba történt. Kérlek próbáld újra.",
     "errorEmail": "Adj meg egy érvényes email-címet.",
-    "errorNetwork": "Hálózati hiba. Ellenőrizd a kapcsolatot, majd próbáld újra.",
-    "thankYouTitle": "Köszönjük!",
     "downloadStarted": "A letöltésnek automatikusan el kell indulnia.",
-    "manualDownload": "Nem indult el a letöltés? Kattints ide",
     "skipAndDownloadButton": "Kihagyás és letöltés"
   },
   "downloadPage": {
@@ -324,10 +268,10 @@
       "download": "Letöltés",
       "roadmap": "Ütemterv",
       "helpCenter": "Súgóközpont",
-      "manageBilling": "Számlázás kezelése",
       "customerPortal": "Ügyfélportál",
       "olderVersions": "Korábbi verziók",
       "blog": "Blog",
+      "openSource": "Nyílt forráskód",
       "about": "Rólunk",
       "support": "Támogatás",
       "privacyPolicy": "Adatvédelmi szabályzat",
@@ -409,6 +353,25 @@
     "custom": "Egyéni",
     "customSub": "az Ön összege",
     "topUp": "Feltöltés"
+  },
+  "licenseKeysCard": {
+    "rotate": "Kulcs cseréje",
+    "confirmTitle": "Lecseréli ezt a fiókkulcsot?",
+    "confirmBody": "Új kulcsot kap, ez a kulcs pedig azonnal érvényét veszti. Minden eszköznek, amely a régi kulcsot használja, szüksége lesz az újra: adja meg a HyperWhisperben minden eszközön. Kreditjei, csomagja és vásárlási előzményei a fiókjában maradnak. Emellett a többi böngészőjében kijelentkeztetjük erről a webhelyről.",
+    "confirm": "Kulcs cseréje",
+    "cancel": "Mégse",
+    "rotating": "Csere folyamatban…",
+    "rotated": "A kulcs lecserélve. Adja meg az új kulcsot a HyperWhisperben minden eszközén.",
+    "errorRateLimited": "Túl sok kulcscsere. Kérjük, próbálja újra később.",
+    "errorStale": "Ezt a kulcsot már lecserélték. Az aktuális kulcs fent látható.",
+    "errorGeneric": "Nem sikerült lecserélni a kulcsot. Kérjük, próbálja újra.",
+    "verifyTitle": "Erősítse meg e-mailben, hogy Ön az",
+    "verifyBody": "A kulcs cseréjéhez először erősítse meg e-mailben, hogy Ön az. Bejelentkezési hivatkozást küldünk a fiókjához tartozó e-mail-címre. Nyissa meg, majd cserélje le a kulcsot ezen az oldalon.",
+    "sendLink": "Bejelentkezési hivatkozás küldése e-mailben",
+    "sendingLink": "Küldés…",
+    "linkSent": "Elküldtük a bejelentkezési hivatkozást. Nyissa meg a beérkező levelei között, majd cserélje le a kulcsot.",
+    "linkFailed": "Nem sikerült elküldeni a bejelentkezési hivatkozást. Kérjük, próbálja újra.",
+    "errorUnavailable": "Ez a kulcs már nem cserélhető le. Az aktuális állapota fent látható."
   },
   "openSource": {
     "heading": "Nyilt forraskod. Nincs mit rejtegetni.",

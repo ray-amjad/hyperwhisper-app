@@ -129,16 +129,121 @@ test("a top-up grants the credits against the session and emails the new balance
   assert.equal(calls.emails[0].payload.licenseKey, "HW-OWNED-0001");
 });
 
+test("a top-up started before a key rotation still lands, found by the row id", async () => {
+  // The checkout recorded the key string at the time; the owner rotated it
+  // before Stripe called back. The row id in the metadata still finds them,
+  // and the receipt names the CURRENT key, not the dead one.
+  const rowId = "5f0c6a52-6c44-4f7e-9a39-0d3c1b8a9e21";
+  behaviour.byEmail.set("owner@example.com", [
+    accountKeyRow({ id: rowId, key: "HW-NEWK-0001", email: "owner@example.com", userId: "user_9" }),
+  ]);
+
+  await handleCreditPurchase(
+    checkoutSession({
+      metadata: { license_key: "HW-OLDK-0001", account_key_id: rowId, credit_amount: "500" },
+    }),
+    "evt_rotated",
+    "checkout.session.completed",
+  );
+
+  assert.deepEqual(calls.findAccountById, [rowId]);
+  assert.equal(calls.grantCreditsForStripeEvent.length, 1);
+  assert.equal(calls.grantCreditsForStripeEvent[0].userId, "user_9");
+  assert.equal(calls.emails[0].payload.licenseKey, "HW-NEWK-0001");
+});
+
+test("a top-up whose account_key_id is not a uuid falls back to the key string", async () => {
+  behaviour.byEmail.set("owner@example.com", [
+    accountKeyRow({ key: "HW-OWNED-0001", email: "owner@example.com", userId: "user_9" }),
+  ]);
+
+  await handleCreditPurchase(
+    checkoutSession({
+      metadata: { license_key: "HW-OWNED-0001", account_key_id: "not-a-uuid", credit_amount: "500" },
+    }),
+    "evt_fallback",
+    "checkout.session.completed",
+  );
+
+  assert.deepEqual(calls.findAccountById, []);
+  assert.equal(calls.grantCreditsForStripeEvent.length, 1);
+});
+
 test("a top-up against an unknown license key is rejected", async () => {
   await assert.rejects(
     handleCreditPurchase(
       checkoutSession({ metadata: { license_key: "HW-GHOST-0001", credit_amount: "500" } }),
       "evt_1",
     ),
-    { message: "License not found: HW-GHOS..." },
+    {
+      message:
+        "top-up licence HW-GHOS... not found by row id, key or Stripe customer (deleted, or its key was rotated)",
+    },
   );
 
   assert.deepEqual(calls.grantCreditsForStripeEvent, []);
+  assert.deepEqual(calls.findAccountsByStripeCustomer, ["cus_1"]);
+});
+
+test("a pre-deploy top-up (key string only) still lands after a rotation, found by its Stripe customer", async () => {
+  // Opened before account_key_id was written: only the old key string, which
+  // the rotation killed. The checkout ran under the row's cached customer.
+  behaviour.byEmail.set("owner@example.com", [
+    accountKeyRow({ id: "row_old", key: "HW-OLDREV-01", status: "revoked", userId: "user_9", stripeCustomerId: "cus_9", createdAt: new Date("2026-01-01T00:00:00Z") }),
+    accountKeyRow({ id: "row_live", key: "HW-NEWK-0002", userId: "user_9", stripeCustomerId: "cus_9", createdAt: new Date("2026-02-01T00:00:00Z") }),
+  ]);
+
+  await handleCreditPurchase(
+    checkoutSession({
+      customer: "cus_9",
+      metadata: { license_key: "HW-ROTATED-01", credit_amount: "500" },
+    }),
+    "evt_pre_deploy",
+  );
+
+  assert.deepEqual(calls.findAccountByKey, ["HW-ROTATED-01"]);
+  assert.deepEqual(calls.findAccountsByStripeCustomer, ["cus_9"]);
+  assert.equal(calls.grantCreditsForStripeEvent.length, 1);
+  assert.equal(calls.grantCreditsForStripeEvent[0].userId, "user_9");
+  // The granted row, and the receipt names its current key.
+  assert.equal(calls.emails[0].payload.licenseKey, "HW-NEWK-0002");
+});
+
+test("a top-up whose Stripe customer is billed to two users is not resolved by customer", async () => {
+  behaviour.byEmail.set("a@example.com", [
+    accountKeyRow({ id: "row_a", key: "HW-A-0001", userId: "user_a", stripeCustomerId: "cus_shared" }),
+  ]);
+  behaviour.byEmail.set("b@example.com", [
+    accountKeyRow({ id: "row_b", key: "HW-B-0001", userId: "user_b", stripeCustomerId: "cus_shared" }),
+  ]);
+
+  await assert.rejects(
+    handleCreditPurchase(
+      checkoutSession({
+        customer: "cus_shared",
+        metadata: { license_key: "HW-ROTATED-02", credit_amount: "500" },
+      }),
+      "evt_ambiguous",
+    ),
+    /not found by row id, key or Stripe customer/,
+  );
+  assert.deepEqual(calls.grantCreditsForStripeEvent, []);
+});
+
+test("an account_key_id that is not an RFC uuid is never looked up", async () => {
+  behaviour.byEmail.set("owner@example.com", [
+    accountKeyRow({ key: "HW-OWNED-0003", email: "owner@example.com", userId: "user_9" }),
+  ]);
+
+  await handleCreditPurchase(
+    checkoutSession({
+      metadata: { license_key: "HW-OWNED-0003", account_key_id: "5f0c6a52-6c44-4f7e-9a39-0d3c1b8a9e2", credit_amount: "500" },
+    }),
+    "evt_short_uuid",
+  );
+
+  assert.deepEqual(calls.findAccountById, []);
+  assert.equal(calls.grantCreditsForStripeEvent.length, 1);
 });
 
 test("a top-up against a revoked license key is refused, not silently granted", async () => {
@@ -206,6 +311,26 @@ test("a guest credit purchase mints a key, grants the credits and sends the mint
   // Threaded through as the session gave it (RFC 5321 local parts are case-sensitive).
   assert.deepEqual(calls.getOrCreateUser.map((call) => call.email), ["Buyer@Example.com "]);
   assert.equal(calls.emails[0].payload.customerEmail, "Buyer@Example.com ");
+});
+
+test("a 100%-off credit checkout (no_payment_required) mints a key and grants the credits (#2055)", async () => {
+  behaviour.generatedKeys = ["HW-FREE-0001"];
+
+  await handleCreditPurchase(
+    checkoutSession({
+      id: "cs_free",
+      payment_status: "no_payment_required",
+      metadata: { credit_amount: "5000" },
+    }),
+    "evt_free",
+  );
+
+  assert.equal(calls.grantCreditsForStripeEvent.length, 1);
+  assert.equal(calls.grantCreditsForStripeEvent[0].creditAmount, 5_000);
+  assert.equal(calls.grantCreditsForStripeEvent[0].sourceId, "cs_free");
+  assert.equal(calls.emails.length, 1);
+  assert.equal(calls.emails[0].kind, "mint");
+  assert.equal(calls.emails[0].payload.licenseKey, "HW-FREE-0001");
 });
 
 test("a guest credit purchase pools into the buyer's existing granted key", async () => {
@@ -740,4 +865,114 @@ test("no webhook log line carries a drizzle error's bound email or licence key",
   assert.equal(errors.length, 1, errors.join("\n"));
   assert.deepEqual(leakyLines(logLines.slice(from)), []);
   assert.ok(errors.every((line) => line.includes("22P02")), "the SQLSTATE survives");
+});
+
+// ---------------------------------------------------------------------------
+// handleDisputeClosed (#2482)
+// ---------------------------------------------------------------------------
+
+const handleDisputeClosed: Webhook["handleDisputeClosed"] = (...args) =>
+  webhook.handleDisputeClosed(...args);
+
+function dispute(overrides: Record<string, unknown> = {}): Stripe.Dispute {
+  return {
+    id: "dp_1",
+    object: "dispute",
+    charge: "ch_1",
+    status: "lost",
+    amount: 530,
+    ...overrides,
+  } as unknown as Stripe.Dispute;
+}
+
+test("a dispute that is not lost never queries Stripe or the ledger", async () => {
+  for (const status of ["won", "warning_closed", "needs_response", "under_review"]) {
+    await handleDisputeClosed(dispute({ status }));
+  }
+
+  assert.deepEqual(calls.stripeChargeRetrievals, []);
+  assert.deepEqual(calls.stripeSessionQueries, []);
+  assert.deepEqual(calls.refundCreditGrant, []);
+});
+
+test("a lost dispute fetches its charge and reverses the disputed pack", async () => {
+  behaviour.stripeCharges.set("ch_1", charge({ amount: 530, amount_refunded: 0 }));
+  behaviour.stripeSessions = [creditSession({ credits: 5000, feeCents: 30, amountTotal: 530 })];
+
+  await handleDisputeClosed(dispute({ amount: 530 }));
+
+  assert.deepEqual(calls.stripeChargeRetrievals, ["ch_1"]);
+  assert.deepEqual(calls.stripeSessionQueries, [{ payment_intent: "pi_1", limit: 1 }]);
+  assert.deepEqual(calls.refundCreditGrant, [
+    { sourceType: "stripe_credit_pack", sourceId: "cs_1", refundedCreditsTotal: 5000 },
+  ]);
+});
+
+test("a lost dispute adds to what was refunded before it, capped at the charge", async () => {
+  behaviour.stripeSessions = [creditSession({ credits: 5000, feeCents: 30, amountTotal: 530 })];
+
+  // $2.00 refunded, then the remaining $3.30 lost: the whole pack.
+  await handleDisputeClosed(
+    dispute({ amount: 330, charge: charge({ amount: 530, amount_refunded: 200 }) }),
+  );
+  // A dispute that overlaps a refund never counts more than the charge.
+  await handleDisputeClosed(
+    dispute({ amount: 530, charge: charge({ amount: 530, amount_refunded: 200 }) }),
+  );
+  // A partial lost dispute of $2.00 on an unrefunded charge.
+  await handleDisputeClosed(
+    dispute({ amount: 200, charge: charge({ amount: 530, amount_refunded: 0 }) }),
+  );
+
+  assert.deepEqual(calls.stripeChargeRetrievals, [], "an expanded charge is used as is");
+  assert.deepEqual(refundedTotals(), [5000, 5000, 2000]);
+});
+
+test("a refund on a disputed charge counts the charge's lost disputes, not its open or won ones", async () => {
+  behaviour.stripeSessions = [creditSession({ credits: 5000, feeCents: 30, amountTotal: 530 })];
+  behaviour.stripeDisputes = [
+    { id: "dp_lost", status: "lost", amount: 300 },
+    { id: "dp_won", status: "won", amount: 100 },
+    { id: "dp_open", status: "needs_response", amount: 100 },
+  ];
+
+  await handleChargeRefunded(charge({ id: "ch_d", amount: 530, amount_refunded: 100, disputed: true }));
+
+  assert.deepEqual(calls.stripeDisputeQueries, [{ charge: "ch_d", limit: 100 }]);
+  assert.deepEqual(refundedTotals(), [4000]);
+});
+
+test("a refund on an undisputed charge never lists disputes", async () => {
+  behaviour.stripeSessions = [creditSession({ credits: 5000, feeCents: 30, amountTotal: 530 })];
+
+  await handleChargeRefunded(charge({ amount: 530, amount_refunded: 450, disputed: false }));
+
+  assert.deepEqual(calls.stripeDisputeQueries, []);
+  assert.deepEqual(refundedTotals(), [4500]);
+});
+
+test("a lost dispute does not count itself twice when the list already shows it", async () => {
+  behaviour.stripeSessions = [creditSession({ credits: 5000, feeCents: 30, amountTotal: 530 })];
+  behaviour.stripeDisputes = [
+    { id: "dp_other", status: "lost", amount: 100 },
+    { id: "dp_1", status: "lost", amount: 200 },
+  ];
+
+  await handleDisputeClosed(
+    dispute({ id: "dp_1", amount: 200, charge: charge({ amount: 530, amount_refunded: 0, disputed: true }) }),
+  );
+
+  assert.deepEqual(refundedTotals(), [3000]);
+});
+
+test("a lost dispute whose grant is not minted yet rejects so Stripe retries it", async () => {
+  behaviour.stripeSessions = [creditSession({ credits: 5000, feeCents: 0, amountTotal: 500 })];
+  behaviour.refundResult = { status: "not_found", refundedAmount: 0, removedAmount: 0 };
+
+  await assert.rejects(
+    handleDisputeClosed(
+      dispute({ amount: 500, charge: charge({ id: "ch_early", amount: 500, amount_refunded: 0 }) }),
+    ),
+    (err: Error) => err.message.includes("ch_early"),
+  );
 });

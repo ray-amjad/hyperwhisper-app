@@ -2,9 +2,9 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, ProviderUnavailableKind, TranscriptionResult } from './types';
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
+import { readUpstreamError, upstreamErrorLogFields, upstreamErrorReason, type UpstreamErrorRead } from './upstream-error';
 
 const DEFAULT_PROVIDER_TIMEOUT_MS = 15_000;
-const ERROR_BODY_PREVIEW_LIMIT = 500;
 
 // Audio-upload timeout budget, scaled with payload size. The default 15s is fine
 // for the small create/poll/transcript calls, but an upload that re-sends the
@@ -389,6 +389,66 @@ export async function readPollJson<T>(
   }
 }
 
+/**
+ * Read a 200 body that must be a JSON object, or throw the retryable
+ * `ProviderUnavailableError` (`kind: 'bad_response'`) so the route fails over
+ * instead of answering a 500. A speech vendor's 200 body IS the transcript, so
+ * like `readPollJson` this never logs body content or a read error's message
+ * (#1069): a read failure logs only the error's name; an empty, non-JSON or
+ * non-object body logs only its length and shape. (#2064, #2151)
+ *
+ * `null`, a bare number or string, and an array all parse as JSON and then
+ * fail on the first field read, so they are refused here too.
+ */
+export async function readJson200<T extends object>(
+  provider: string,
+  label: string,
+  response: Response,
+  startTime: number,
+  context: ProviderRequestContext = {},
+): Promise<Partial<T>> {
+  const elapsedMs = () => Math.round(performance.now() - startTime);
+  const shape = {
+    contentType: response.headers.get('content-type') ?? 'unknown',
+    contentEncoding: response.headers.get('content-encoding') ?? 'none',
+  };
+  const badResponse = (event: string, details: Record<string, unknown>) => {
+    logProviderEvent(provider, event, { elapsedMs: elapsedMs(), ...shape, ...details }, context);
+    return new ProviderUnavailableError(label, 'malformed 200 response body', {
+      kind: 'bad_response',
+      status: response.status,
+      elapsedMs: elapsedMs(),
+    });
+  };
+
+  let raw: string;
+  try {
+    raw = await response.text();
+  } catch (readError) {
+    // A reset connection or a cut chunked transfer. Only the name: the
+    // message can quote what was read so far.
+    throw badResponse('body_read_error', {
+      errorName: readError instanceof Error ? readError.name : typeof readError,
+    });
+  }
+  if (!raw) {
+    throw badResponse('empty_body', {});
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw badResponse('parse_error', { bodyLength: raw.length, bodyKind: unparsedBodyKind(raw) });
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw badResponse('parse_error', {
+      bodyLength: raw.length,
+      bodyKind: Array.isArray(parsed) ? 'json_array' : parsed === null ? 'json_null' : `json_${typeof parsed}`,
+    });
+  }
+  return parsed as Partial<T>;
+}
+
 export async function fetchWithTimeout(
   provider: string,
   url: string,
@@ -462,19 +522,45 @@ export function sleep(ms: number): Promise<void> {
  * 5xx failover errors, and the "other 4xx → ProviderInputError so a sibling
  * provider can try the same input" fallthrough.
  */
-export interface ProviderHttpErrorPolicy {
+export type ProviderHttpErrorPolicy = ProviderHttpErrorPolicyBase & (
+  | {
+    /**
+     * Statuses that mean OUR credentials are wrong. These throw a
+     * `ProviderAuthError`: a sibling has its own key, so the route tries it when
+     * the chain has one, and fails the request when it does not.
+     * Defaults to `[401]`; adapters whose upstream also returns 403 for a bad or
+     * unauthorized key pass `[401, 403]`.
+     */
+    authStatuses?: readonly number[];
+    /** Message for the `authStatuses` failure. */
+    authMessage: string;
+  }
+  | {
+    /**
+     * `[]`: no status raises a `ProviderAuthError`. For the adapters whose
+     * bad-key statuses end the request instead, through
+     * {@link ProviderHttpErrorPolicyBase.terminalStatuses}.
+     */
+    authStatuses: readonly [];
+    authMessage?: undefined;
+  }
+);
+
+interface ProviderHttpErrorPolicyBase {
   /** Name used in the thrown error messages ('OpenAI', 'Grok', 'Deepgram', …). */
   label: string;
   /**
-   * Statuses that mean OUR credentials are wrong. These throw a
-   * `ProviderAuthError`: a sibling has its own key, so the route tries it when
-   * the chain has one, and fails the request when it does not.
-   * Defaults to `[401]`; adapters whose upstream also returns 403 for a bad or
-   * unauthorized key pass `[401, 403]`.
+   * Statuses that END the request with a plain `Error(message)`: no failover,
+   * no sibling, and the client gets the generic 500 text. Checked FIRST, before
+   * the out-of-credits test and every other branch, so a status listed here
+   * always gives exactly this error.
    */
-  authStatuses?: readonly number[];
-  /** Message for the {@link ProviderHttpErrorPolicy.authStatuses} failure. */
-  authMessage: string;
+  terminalStatuses?: Readonly<Partial<Record<number, string>>>;
+  /**
+   * The error for a 4xx no other branch claimed. Unset (default): a
+   * `ProviderInputError`, so the chain tries a sibling with the same input.
+   */
+  otherStatusError?: (status: number) => Error;
   /**
    * When true, 402 fails over as `insufficient funds` — billing exhaustion on
    * THIS provider only, siblings may still have budget. When false (default)
@@ -548,9 +634,25 @@ export async function providerHttpError(
   context: ProviderRequestContext,
   policy: ProviderHttpErrorPolicy,
 ): Promise<Error> {
+  return classifyProviderHttpError(provider, await readUpstreamError(response), startedAt, context, policy);
+}
+
+/**
+ * {@link providerHttpError} for a caller that has already read the error body
+ * (a Response body reads once), e.g. Chirp's adaptation-retry test.
+ */
+export function classifyProviderHttpError(
+  provider: string,
+  upstreamError: UpstreamErrorRead,
+  startedAt: number,
+  context: ProviderRequestContext,
+  policy: ProviderHttpErrorPolicy,
+): Error {
   const { label } = policy;
-  const status = response.status;
-  const errorText = await readErrorBodyPreview(response);
+  // `classifierText` is for the quota test only. The body can quote the
+  // user's input, so the log line carries content-free fields (#2163).
+  const { fields, classifierText: errorText } = upstreamError;
+  const { status } = fields;
   const elapsedMs = Math.round(performance.now() - startedAt);
   const kind = status >= 500 ? 'upstream_5xx' : status === 429 ? 'rate_limit' : 'http_error';
   const quotaReason = quotaExhaustedReason(status, errorText);
@@ -558,10 +660,9 @@ export async function providerHttpError(
   logProviderEvent(provider, 'http_error', {
     ...policy.logDetails,
     elapsedMs,
-    status,
+    ...upstreamErrorLogFields(fields),
     kind,
     ...(quotaReason ? { quotaExhausted: quotaReason } : {}),
-    bodyPreview: errorText,
   }, context);
 
   // Only the failover branches below carry details, and each knows its own
@@ -569,6 +670,10 @@ export async function providerHttpError(
   const details = (unavailableKind: ProviderUnavailableKind) =>
     policy.attachUnavailableDetails ? { kind: unavailableKind, status, elapsedMs } : undefined;
 
+  const terminalMessage = policy.terminalStatuses?.[status];
+  if (terminalMessage !== undefined) {
+    return new Error(terminalMessage);
+  }
   // Checked BEFORE the auth branch: an out-of-credits account is billing
   // exhaustion on THIS provider's account, like a 402 — a sibling with its own
   // account can still serve the request — even when the upstream sends it as a
@@ -576,7 +681,7 @@ export async function providerHttpError(
   if (quotaReason) {
     return new ProviderUnavailableError(label, `insufficient funds (${quotaReason})`, details(status === 429 ? 'rate_limit' : 'unknown'));
   }
-  if ((policy.authStatuses ?? [401]).includes(status)) {
+  if (policy.authMessage !== undefined && (policy.authStatuses ?? [401]).includes(status)) {
     return new ProviderAuthError(policy.authMessage, status);
   }
   if (status === 429) {
@@ -590,8 +695,13 @@ export async function providerHttpError(
   }
 
   // Other 4xx (e.g. 400 on an unaccepted language code/format) — a sibling
-  // provider may accept this input, so let the chain fall through.
-  return new ProviderInputError(label, status, errorText || `HTTP ${status}`);
+  // provider may accept this input, so let the chain fall through. The
+  // message (logged) names only the code; the body preview is kept in
+  // clientMessage, which no route sends (#2131): the client's 400 is fixed.
+  if (policy.otherStatusError) {
+    return policy.otherStatusError(status);
+  }
+  return new ProviderInputError(label, status, upstreamErrorReason(fields), errorText || `HTTP ${status}`);
 }
 
 /**
@@ -709,19 +819,6 @@ export function emptyTranscriptOutcome(
     });
   }
   return opts.noSpeechResult;
-}
-
-export async function readErrorBodyPreview(response: Response): Promise<string> {
-  try {
-    const body = await response.text();
-    if (body.length <= ERROR_BODY_PREVIEW_LIMIT) {
-      return body;
-    }
-
-    return `${body.slice(0, ERROR_BODY_PREVIEW_LIMIT)}...`;
-  } catch {
-    return '<unreadable>';
-  }
 }
 
 /**

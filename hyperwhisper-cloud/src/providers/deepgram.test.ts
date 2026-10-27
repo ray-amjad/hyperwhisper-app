@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithDeepgram } from './deepgram';
 import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
+import { captureNoSpeechEvent } from './test-support';
+import { stubEnv } from '../test-support/env';
 
 const originalFetch = globalThis.fetch;
 
@@ -32,25 +34,6 @@ function mockFetchOnce(handler: (url: string, init?: RequestInit) => Response | 
     init: () => capturedInit,
     params: () => new URL(capturedUrl).searchParams,
   };
-}
-
-/**
- * Swaps `console.log` for the duration of `run` and returns the details object of
- * the `provider.no_speech` event it logged. Same swap-the-global idiom as
- * `utils.test.ts` — no spy library is used anywhere in this suite.
- */
-async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
-  const logged: unknown[][] = [];
-  const originalLog = console.log;
-  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
-  try {
-    await run();
-  } finally {
-    console.log = originalLog;
-  }
-  const event = logged.find((args) => args[0] === 'provider.no_speech');
-  if (!event) throw new Error('no provider.no_speech event was logged');
-  return event[1] as Record<string, unknown>;
 }
 
 describe('transcribeWithDeepgram — configuration', () => {
@@ -263,8 +246,7 @@ describe('transcribeWithDeepgram — upstream error mapping', () => {
   });
 
   test('a transport-level failure (e.g. timeout via fetchWithTimeout) surfaces as ProviderUnavailableError', async () => {
-    const originalTimeoutEnv = process.env.STT_PROVIDER_TIMEOUT_MS;
-    process.env.STT_PROVIDER_TIMEOUT_MS = '20';
+    const restoreTimeoutEnv = stubEnv('STT_PROVIDER_TIMEOUT_MS', '20');
     globalThis.fetch = mock(async (_url: string, init?: RequestInit) => new Promise((_resolve, reject) => {
       init?.signal?.addEventListener('abort', () => reject(new DOMException('The operation was aborted', 'AbortError')));
     })) as unknown as typeof fetch;
@@ -276,8 +258,7 @@ describe('transcribeWithDeepgram — upstream error mapping', () => {
       expect(error).toBeInstanceOf(ProviderUnavailableError);
       expect((error as ProviderUnavailableError).kind).toBe('timeout');
     } finally {
-      if (originalTimeoutEnv === undefined) delete process.env.STT_PROVIDER_TIMEOUT_MS;
-      else process.env.STT_PROVIDER_TIMEOUT_MS = originalTimeoutEnv;
+      restoreTimeoutEnv();
     }
   });
 });

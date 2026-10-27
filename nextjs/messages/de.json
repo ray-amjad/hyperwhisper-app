@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Funktionen",
-    "pricing": "Preise",
     "faq": "FAQ",
     "support": "Support",
     "download": "Download",
@@ -20,7 +19,6 @@
     "githubAria": "HyperWhisper auf GitHub ansehen"
   },
   "hero": {
-    "openSourceBadge": "Open Source · Apache-2.0",
     "logoAlt": "HyperWhisper Logo",
     "headline": "Schreiben, formulieren und erstellen",
     "headlineAccent": "5x schneller mit KI",
@@ -28,7 +26,7 @@
     "downloadCta": "Jetzt herunterladen",
     "demoCta": "Demo ansehen",
     "availableOn": "Verfügbar für",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -98,57 +96,6 @@
     "languagesSupported": "Unterstützte Sprachen",
     "providersSupported": "Unterstützte Anbieter"
   },
-  "pricing": {
-    "title": "Keine Abonnements. Immer.",
-    "subtitle": "Einmal bezahlen, für immer nutzen. Wir hassen auch Abonnements.",
-    "guarantee": "14-tägige Geld-zurück-Garantie",
-    "guaranteeExtended": "wenn Sie nicht ganz zufrieden sind.",
-    "learnMore": "Erfahren Sie mehr",
-    "free": {
-      "name": "Kostenlos",
-      "price": "$0",
-      "period": "für immer",
-      "description": "Perfekt zum Ausprobieren von HyperWhisper",
-      "cta": "Kostenlos herunterladen",
-      "features": {
-        "transcriptionLimit": "5 Minuten Transkription pro Tag",
-        "basicModes": "Grundlegende Transkriptionsmodi",
-        "offlineTranscription": "Offline-Transkription",
-        "apiTranscription": "API-Transkription (bringen Sie Ihre eigenen Schlüssel mit)",
-        "postProcessing": "Textnachbearbeitung",
-        "providers": "Über 9 Anbieter zur Auswahl",
-        "lifetimeUpdates": "Lebenslange Updates",
-        "cloudLimited": "HyperWhisper Cloud (begrenzte Nutzung)",
-        "customVocabulary": "Benutzerdefinierter Wortschatz",
-        "prioritySupport": "Vorrangiger Support"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "Lebenslang",
-      "description": "Einmaliger Kauf, unbegrenzte Leistung für immer",
-      "cta": "Jetzt kaufen – lebenslanger Zugriff",
-      "mostPopular": "Am beliebtesten",
-      "features": {
-        "unlimitedTranscription": "Unbegrenzte Transkription",
-        "allModes": "Alle Transkriptionsmodi",
-        "offlineTranscription": "Offline-Transkription",
-        "apiTranscription": "API-Transkription (bringen Sie Ihre eigenen Schlüssel mit)",
-        "postProcessing": "Textnachbearbeitung",
-        "providers": "Über 9 Anbieter zur Auswahl",
-        "lifetimeUpdates": "Lebenslange Updates",
-        "cloudCredits": "HyperWhisper Cloud (5 $ in Credits)",
-        "customVocabulary": "Benutzerdefinierter Wortschatz",
-        "prioritySupport": "Vorrangiger Support"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise und individuelle Preise",
-      "description": "Mengenrabatte, SSO, priorisierter Support, internes Hosting und individuelle Integrationen",
-      "cta": "Kontaktieren Sie den Vertrieb"
-    }
-  },
   "faq": {
     "title": "Häufig gestellte Fragen",
     "subtitle": "Alles, was Sie über HyperWhisper wissen müssen",
@@ -192,7 +139,7 @@
       },
       "lifetime": {
         "question": "Gibt es ein Abonnement?",
-        "answer": "Nein — niemals. HyperWhisper ist eine Open-Source-App, die Ihnen gehört, kein Abonnement, das Sie mieten. Laden Sie sie kostenlos herunter und nutzen Sie die lokale, Offline-Transkription für immer gratis; die kostenlose Stufe umfasst außerdem 5 Minuten Cloud-Transkription pro Tag. Wenn Sie darüber hinaus Cloud-Transkription ohne Einrichtung wünschen, sind HyperWhisper Cloud einfach nutzungsabhängige Credits — laden Sie nur dann auf, wenn Sie es brauchen, ohne monatliche Gebühren und ohne etwas zu kündigen."
+        "answer": "Nein — niemals. HyperWhisper ist eine Open-Source-App, die Ihnen gehört, kein Abonnement, das Sie mieten. Laden Sie sie kostenlos herunter und nutzen Sie die lokale, Offline-Transkription für immer gratis. Wenn Sie Cloud-Transkription ohne Einrichtung wünschen, sind HyperWhisper Cloud einfach nutzungsabhängige Credits — laden Sie nur dann auf, wenn Sie es brauchen, ohne monatliche Gebühren und ohne etwas zu kündigen."
       },
       "deviceLimit": {
         "question": "Auf wie vielen Geräten kann ich meinen Kontoschlüssel nutzen?",
@@ -200,7 +147,7 @@
       },
       "requirements": {
         "question": "Was sind die Systemvoraussetzungen?",
-        "answer": "Für Mac: macOS 14 oder neuer, sowohl Apple Silicon als auch Intel werden unterstützt. Für Windows: Windows 10/11, x64 oder ARM64. Für Linux v1: Ubuntu 22.04 oder neuer bzw. Debian 12 oder neuer, auf amd64. Für optimale Leistung werden 8 GB RAM empfohlen."
+        "answer": "Für Mac: macOS 14.6 oder neuer, sowohl Apple Silicon als auch Intel werden unterstützt. Für Windows: Windows 10/11, x64 oder ARM64. Für Linux v1: Ubuntu 22.04 oder neuer bzw. Debian 12 oder neuer, auf amd64. Für optimale Leistung werden 8 GB RAM empfohlen."
       },
       "madeBy": {
         "question": "Wer hat HyperWhisper entwickelt?",
@@ -252,10 +199,7 @@
     "downloadButton": "HyperWhisper herunterladen",
     "errorGeneric": "Etwas ist schief gelaufen. Bitte versuchen Sie es erneut.",
     "errorEmail": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
-    "errorNetwork": "Netzwerkfehler. Bitte überprüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
-    "thankYouTitle": "Danke!",
     "downloadStarted": "Ihr Download sollte automatisch starten.",
-    "manualDownload": "Der Download wurde nicht gestartet? Klicken Sie hier",
     "skipAndDownloadButton": "Überspringen und herunterladen"
   },
   "downloadPage": {
@@ -324,10 +268,10 @@
       "download": "Herunterladen",
       "roadmap": "Roadmap",
       "helpCenter": "Hilfecenter",
-      "manageBilling": "Abrechnung verwalten",
       "customerPortal": "Kundenportal",
       "olderVersions": "Ältere Versionen",
       "blog": "Blog",
+      "openSource": "Open Source",
       "about": "Über uns",
       "support": "Support",
       "privacyPolicy": "Datenschutzrichtlinie",
@@ -409,6 +353,25 @@
     "custom": "Individuell",
     "customSub": "dein Betrag",
     "topUp": "Aufladen"
+  },
+  "licenseKeysCard": {
+    "rotate": "Schlüssel erneuern",
+    "confirmTitle": "Diesen Kontoschlüssel erneuern?",
+    "confirmBody": "Sie erhalten einen neuen Schlüssel, und dieser hier funktioniert ab sofort nicht mehr. Jedes Gerät, das den alten Schlüssel verwendet, benötigt den neuen: Geben Sie ihn auf jedem Gerät in HyperWhisper ein. Ihre Credits, Ihr Tarif und Ihr Kaufverlauf bleiben in Ihrem Konto erhalten. Außerdem werden Sie in Ihren anderen Browsern von dieser Website abgemeldet.",
+    "confirm": "Schlüssel erneuern",
+    "cancel": "Abbrechen",
+    "rotating": "Wird erneuert…",
+    "rotated": "Schlüssel erneuert. Geben Sie den neuen Schlüssel auf jedem Ihrer Geräte in HyperWhisper ein.",
+    "errorRateLimited": "Zu viele Erneuerungen. Bitte versuchen Sie es später erneut.",
+    "errorStale": "Dieser Schlüssel wurde bereits erneuert. Der aktuelle Schlüssel wird oben angezeigt.",
+    "errorGeneric": "Der Schlüssel konnte nicht erneuert werden. Bitte versuchen Sie es erneut.",
+    "verifyTitle": "Bestätigen Sie per E-Mail, dass Sie es sind",
+    "verifyBody": "Um Ihren Schlüssel zu erneuern, bestätigen Sie zuerst per E-Mail, dass Sie es sind. Wir senden einen Anmeldelink an die E-Mail-Adresse Ihres Kontos. Öffnen Sie ihn und erneuern Sie dann den Schlüssel auf dieser Seite.",
+    "sendLink": "Anmeldelink per E-Mail senden",
+    "sendingLink": "Wird gesendet…",
+    "linkSent": "Anmeldelink gesendet. Öffnen Sie ihn in Ihrem Posteingang und erneuern Sie dann den Schlüssel.",
+    "linkFailed": "Der Anmeldelink konnte nicht gesendet werden. Bitte versuchen Sie es erneut.",
+    "errorUnavailable": "Dieser Schlüssel kann nicht mehr erneuert werden. Sein aktueller Status wird oben angezeigt."
   },
   "openSource": {
     "heading": "Open Source. Nichts zu verbergen.",

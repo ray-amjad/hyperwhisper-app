@@ -2,12 +2,13 @@
 //
 // The route suites mock `../lib/redis` and run no Redis, so they install this
 // store through `setCreditHoldStoreForTests`. It implements the same contract
-// as `RESERVE_HOLD_SCRIPT` line for line, and each call completes without an
-// `await` in between its read and its write, which is the atomicity the Lua
-// script gets from Redis. `credit-hold-store.test.ts` runs the real script
+// as `RESERVE_HOLD_SCRIPT` line for line, including which cache entries it caps
+// the balance by (the asking key's and the pool's, through `holdKeys`), and
+// each call completes without an `await` in between its read and its write,
+// which is the atomicity the Lua script gets from Redis. `credit-hold-store.test.ts` runs the real script
 // against a local redis-server to keep the two honest.
 
-import type { CreditHoldStore, ReserveHoldRequest, ReserveHoldResult } from './credit-hold-store';
+import { holdKeys, type CreditHoldStore, type ReserveHoldRequest, type ReserveHoldResult } from './credit-hold-store';
 
 interface MemoryHold {
   milli: number;
@@ -23,7 +24,14 @@ export interface MemoryCreditHoldStore extends CreditHoldStore {
 }
 
 export function createMemoryCreditHoldStore(
-  options: { cachedBalanceMilli?: (account: string) => number | undefined } = {},
+  options: {
+    /**
+     * The cached balance, in credits, stored under one Redis key, as the script
+     * reads it: `license:<key>` and `credit_pool_balance:<pool>` (see
+     * `holdKeys`). Undefined is an absent or unparseable entry.
+     */
+    cachedCredits?: (redisKey: string) => number | undefined;
+  } = {},
 ): MemoryCreditHoldStore {
   const accounts = new Map<string, Map<string, MemoryHold>>();
   const calls: MemoryCreditHoldStore['calls'] = [];
@@ -46,9 +54,16 @@ export function createMemoryCreditHoldStore(
         if (hold.expiresAtMs <= request.nowMs) holds.delete(id);
       }
 
+      // The script's KEYS[3..4]: the asking key's cached balance, then the
+      // pool's (the key's again on an unpooled hold). The lowest wins.
       let balance = request.balanceMilli;
-      const cached = options.cachedBalanceMilli?.(request.account);
-      if (cached !== undefined && cached < balance) balance = cached;
+      const keys = holdKeys(request.account, request.licenseKey);
+      for (const key of [keys.license, keys.poolBalance]) {
+        const credits = options.cachedCredits?.(key);
+        if (credits === undefined || !Number.isFinite(credits)) continue;
+        const cached = Math.floor(credits * 1000 + 0.5);
+        if (cached < balance) balance = cached;
+      }
 
       let own = 0;
       let others = 0;

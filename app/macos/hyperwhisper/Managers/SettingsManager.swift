@@ -342,6 +342,11 @@ class SettingsManager: ObservableObject {
         set { audio.selectedMicrophoneId = newValue }
     }
 
+    var selectedMicrophoneName: String {
+        get { audio.selectedMicrophoneName }
+        set { audio.selectedMicrophoneName = newValue }
+    }
+
     var autoIncreaseMicVolume: Bool {
         get { audio.autoIncreaseMicVolume }
         set { audio.autoIncreaseMicVolume = newValue }
@@ -448,12 +453,12 @@ class SettingsManager: ObservableObject {
         storage.fallbackToBestAvailableLocation()
     }
 
-    func offerManualFolderSelection() -> Bool {
-        storage.offerManualFolderSelection()
+    func offerManualFolderSelection() async -> Bool {
+        await storage.offerManualFolderSelection()
     }
 
-    func presentStorageRecoveryPrompt() -> Bool {
-        storage.presentStorageRecoveryPrompt()
+    func presentStorageRecoveryPrompt() async -> Bool {
+        await storage.presentStorageRecoveryPrompt()
     }
 
     // MARK: - Forwarding Properties - API Keys

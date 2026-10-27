@@ -5,6 +5,8 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { api } from "@/lib/trpc/client";
 import { formatDate, formatDateTime } from "@/lib/format-date";
 import { useRevealAfterLoad } from "@/lib/use-reveal-after-load";
+import { ErrorReveal } from "@/components/ErrorReveal";
+import { Spinner } from "@/components/ui/Spinner";
 
 const TIME_RANGES = [
   { label: "7 days", value: 7 },
@@ -111,33 +113,40 @@ export default function DevicesClient() {
           </div>
           <button
             onClick={() => refetch()}
-            disabled={loading}
+            disabled={isFetching}
             className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
           >
-            <svg
-              className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
+            {isFetching ? (
+              <Spinner className="w-4 h-4" />
+            ) : (
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            )}
             Refresh
           </button>
         </div>
       </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg" role="alert">
-          <p className="text-red-300">{error}</p>
-        </div>
-      )}
+      {/* Error Message. It reveals (#2286) instead of arriving at full height
+          in one frame; the space-y-6 gap rides inside the clip as pb-6. */}
+      <ErrorReveal gap="pb-6">
+        {error && (
+          <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg" role="alert">
+            <p className="text-red-300">{error}</p>
+          </div>
+        )}
+      </ErrorReveal>
 
       {/* Devices Table */}
       <div
@@ -352,101 +361,112 @@ export function DeviceRow({
       </tr>
       {expanded && (
         <tr id={panelId}>
-          <td colSpan={3} className="px-6 py-4 bg-white/[0.02]">
-            <div className="mb-3">
-              <input
-                aria-label="Search this key's devices by name or id"
-                className="w-full max-w-sm px-3 py-1.5 text-sm bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
-                placeholder="Search devices by name or id..."
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            {isLoading ? (
-              <div className="space-y-2">
-                {Array.from({ length: 2 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-4 bg-white/10 rounded w-64 animate-pulse"
-                  />
-                ))}
-              </div>
-            ) : loadedDevices.length === 0 ? (
-              <p className="text-gray-400 text-sm">
-                {debouncedSearch
-                  ? "No devices match that search."
-                  : "No devices found."}
-              </p>
-            ) : (
-              <div
-                aria-busy={isFetching}
-                className={`space-y-2 transition-opacity ${
-                  dimmed ? "opacity-50" : "opacity-100"
-                }`}
-              >
-                {loadedDevices.map((device) => (
-                  <div
-                    key={device.deviceId}
-                    className="flex items-center justify-between py-2 px-3 bg-white/5 rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <svg
-                        className="w-4 h-4 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+          {/* The panel still mounts on open (its query only runs while it
+              is open), and .t-cell-reveal grows its one grid row from 0fr
+              (#702), as the #914 inline editor does: a table row cannot tween
+              its own height. The padding moved inside the clip, or it would
+              arrive in one frame. */}
+          <td colSpan={3} className="p-0 bg-white/[0.02]">
+            <div className="t-cell-reveal">
+              <div>
+                <div className="px-6 py-4">
+                  <div className="mb-3">
+                    <input
+                      aria-label="Search this key's devices by name or id"
+                      className="w-full max-w-sm px-3 py-1.5 text-sm bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
+                      placeholder="Search devices by name or id..."
+                      type="search"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
+                  </div>
+                  {isLoading ? (
+                    <div className="space-y-2">
+                      {Array.from({ length: 2 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="h-4 bg-white/10 rounded w-64 animate-pulse"
                         />
-                      </svg>
-                      {/* <bdi> isolates a user-typed name, so an Arabic name or a
-                          bracket never reorders the id beside it on an RTL page (#1659).
-                          The gap sits on the parent: a margin on the <bdi> follows the
-                          id's own LTR direction and lands on the wrong side in RTL. */}
-                      <div className="flex flex-wrap items-baseline gap-x-2">
-                        <bdi className="text-white text-sm">
-                          {device.deviceName || device.deviceId}
-                        </bdi>
-                        {device.deviceName && (
-                          <bdi className="text-gray-400 text-xs">
-                            {device.deviceId}
-                          </bdi>
+                      ))}
+                    </div>
+                  ) : loadedDevices.length === 0 ? (
+                    <p className="text-gray-400 text-sm">
+                      {debouncedSearch
+                        ? "No devices match that search."
+                        : "No devices found."}
+                    </p>
+                  ) : (
+                    <div
+                      aria-busy={isFetching}
+                      className={`space-y-2 transition-opacity ${
+                        dimmed ? "opacity-50" : "opacity-100"
+                      }`}
+                    >
+                      {loadedDevices.map((device) => (
+                        <div
+                          key={device.deviceId}
+                          className="flex items-center justify-between py-2 px-3 bg-white/5 rounded-lg"
+                        >
+                          <div className="flex items-center gap-3">
+                            <svg
+                              className="w-4 h-4 text-gray-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1.5}
+                                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                              />
+                            </svg>
+                            {/* <bdi> isolates a user-typed name, so an Arabic name or a
+                                bracket never reorders the id beside it on an RTL page (#1659).
+                                The gap sits on the parent: a margin on the <bdi> follows the
+                                id's own LTR direction and lands on the wrong side in RTL. */}
+                            <div className="flex flex-wrap items-baseline gap-x-2">
+                              <bdi className="text-white text-sm">
+                                {device.deviceName || device.deviceId}
+                              </bdi>
+                              {device.deviceName && (
+                                <bdi className="text-gray-400 text-xs">
+                                  {device.deviceId}
+                                </bdi>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right text-xs text-gray-400">
+                            <div>First seen: {formatDate(device.createdAt, "en-US")}</div>
+                            <div>
+                              Last active: {formatDateTime(device.lastValidatedAt, "en-US")}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                        <p className="text-gray-400 text-xs">
+                          Showing {formatCount(loadedDevices.length)} of{" "}
+                          {formatCount(total)} device{total !== 1 ? "s" : ""}
+                        </p>
+                        {hasNextPage && (
+                          <button
+                            className="px-3 py-1.5 text-sm text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-colors disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                            disabled={isFetchingNextPage}
+                            type="button"
+                            onClick={() => fetchNextPage()}
+                          >
+                            {isFetchingNextPage
+                              ? "Loading..."
+                              : `Show ${formatCount(nextCount)} more`}
+                          </button>
                         )}
                       </div>
                     </div>
-                    <div className="text-right text-xs text-gray-400">
-                      <div>First seen: {formatDate(device.createdAt, "en-US")}</div>
-                      <div>
-                        Last active: {formatDateTime(device.lastValidatedAt, "en-US")}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                  <p className="text-gray-400 text-xs">
-                    Showing {formatCount(loadedDevices.length)} of{" "}
-                    {formatCount(total)} device{total !== 1 ? "s" : ""}
-                  </p>
-                  {hasNextPage && (
-                    <button
-                      className="px-3 py-1.5 text-sm text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-colors disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
-                      disabled={isFetchingNextPage}
-                      type="button"
-                      onClick={() => fetchNextPage()}
-                    >
-                      {isFetchingNextPage
-                        ? "Loading..."
-                        : `Show ${formatCount(nextCount)} more`}
-                    </button>
                   )}
                 </div>
               </div>
-            )}
+            </div>
           </td>
         </tr>
       )}

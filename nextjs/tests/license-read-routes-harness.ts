@@ -7,9 +7,11 @@
  * - `app/api/internal/licenses-for-email` — read-only key + credit list for one email
  * - `app/api/customer/profile`            — the same list for the signed-in customer
  *
- * Each route reaches two collaborators at import time: the database layer
- * (`src/lib/db-layer.ts`) and, for the profile route, Better Auth
- * (`src/lib/auth.ts`). Both are replaced here with `mock.module`, so the tests
+ * Each route reaches its collaborators at import time: the database layer
+ * (`src/lib/db-layer.ts`), for the profile route Better Auth
+ * (`src/lib/auth.ts`), and for the internal routes the validated server env
+ * (`src/env/server.mjs`, which holds the `x-internal-secret`, #682). All are
+ * replaced here with `mock.module`, so the tests
  * run the REAL route modules — the `x-internal-secret` gate, the session gate,
  * the granted/revoked filter, the pooled-credit arithmetic and the reply
  * shapes — with no database, no Redis and no network.
@@ -24,11 +26,9 @@
  * helpers are the only way the tests reach the routes. A test file that
  * imports a route path itself would bind to the real collaborators, so do not.
  */
-import { mock } from "node:test";
-
 import { NextRequest } from "next/server";
 
-import { formatLogArgs } from "./db-error-fixture";
+import { consoleSilencer, moduleMock, moduleUrl } from "./module-mock";
 
 import type { AccountKeyRow } from "@/src/lib/db-layer";
 
@@ -103,36 +103,10 @@ export function resetHarness(): void {
  */
 export const logLines: string[] = [];
 
-const realConsole = { error: console.error };
+const routeLogging = consoleSilencer(["error"], logLines);
 
-export function silenceRouteLogging(): void {
-  console.error = (...args: unknown[]): void => {
-    logLines.push(formatLogArgs(args));
-  };
-}
-
-export function restoreRouteLogging(): void {
-  console.error = realConsole.error;
-}
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
-
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrow the tracker to the one method used here rather
- * than bumping the types in a test-only change.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports: Record<string, unknown> },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+export const silenceRouteLogging = routeLogging.silence;
+export const restoreRouteLogging = routeLogging.restore;
 
 moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
   namedExports: {
@@ -182,8 +156,12 @@ moduleMock.module(moduleUrl("../src/lib/auth.ts"), {
   },
 });
 
-/** The secret the tests install in `HYPERWHISPER_INTERNAL_SECRET`. */
+/** The secret the fake env holds as `HYPERWHISPER_INTERNAL_SECRET`. */
 export const INTERNAL_SECRET = "harness-internal-secret";
+
+moduleMock.module(moduleUrl("../src/env/server.mjs"), {
+  namedExports: { env: { HYPERWHISPER_INTERNAL_SECRET: INTERNAL_SECRET } },
+});
 
 /** Builds a POST request the way the ACS admin backfill sends one. */
 export function internalPost(

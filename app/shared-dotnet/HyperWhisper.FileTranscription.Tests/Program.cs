@@ -11,6 +11,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("cloud credentials and models fail before metadata", CloudReadinessPrecedesMetadata),
     ("HyperWhisper guest device readiness and model fallback match routing", HyperWhisperGuestReadiness),
     ("Azure MAI file transcription accepts both models", AzureMaiAcceptsBothModels),
+    ("ElevenLabs file transcription accepts Scribe v2 Medical", ElevenLabsAcceptsScribeV2Medical),
     ("a retired BYOK model id resolves through the alias table before the check", RetiredModelAliasesBeforeCheck),
     ("AssemblyAI Dictation accepts only short PCM16 WAV on BYOK and Cloud", AssemblyAiDictationFiles),
     ("Meta Muse accepts canonical WAV without conversion", MetaMuseCanonicalWave),
@@ -120,6 +121,18 @@ static async Task AzureMaiAcceptsBothModels()
         "recording.wav",
         new(FileTranscriptionRoute.Cloud, "mai-transcribe-3", CloudProvider: CloudTranscriptionProvider.AzureMai)),
         "file_preflight.model_unsupported");
+}
+
+// #2201: Scribe v2 Medical runs on the same batch endpoint and 3 GB cap as Scribe v2.
+static async Task ElevenLabsAcceptsScribeV2Medical()
+{
+    var metadata = new FakeMetadata { Value = new(1024, TimeSpan.FromSeconds(1)) };
+    var result = await Service(metadata).ValidateAsync(
+        "recording.wav",
+        new(FileTranscriptionRoute.Cloud, "scribe_v2_medical", CloudProvider: CloudTranscriptionProvider.ElevenLabs));
+    Assert(result.IsSuccess && result.ResolvedModel == "scribe_v2_medical"
+        && result.Constraints?.MaximumBytes == 3L * ByteSizes.GiB,
+        "ElevenLabs file transcription rejected scribe_v2_medical");
 }
 
 // A Linux mode saved before the 2026-10 retirement carries cloudProvider=gemini and

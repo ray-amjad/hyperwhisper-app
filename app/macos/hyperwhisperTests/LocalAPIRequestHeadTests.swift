@@ -90,10 +90,14 @@ struct LocalAPIRequestHeadTests {
     }
 
     /// A head that arrives in pieces, each well inside the deadline, is served.
+    /// The deadline is far longer than the 0.3 s gap and than any stall a loaded
+    /// runner adds between the two writes: at 2 s it raced the parallel suite
+    /// on a hosted runner and failed there (issue #2398). What this test proves
+    /// is that the pieces are joined, not how long the deadline is.
     @Test func aHeadDeliveredInPiecesWithinTheDeadlineIsServed() async throws {
-        try await withProbe(headReadDeadline: 2) { port in
+        try await withProbe(headReadDeadline: 30) { port in
             let reply = try await offPool {
-                let connection = try RawConnection(port: port)
+                let connection = try RawConnection(port: port, timeout: 60)
                 defer { connection.close() }
                 let request = RawRequest.get(port: port)
                 let half = request.count / 2
@@ -108,14 +112,18 @@ struct LocalAPIRequestHeadTests {
 
     // MARK: - The line limit
 
-    /// A header line of exactly 8,192 bytes (CRLF not counted) is accepted.
-    /// It is also the 8 KB case the issue measured at 2.5 s: here it must be
-    /// answered at once.
+    /// A header line of exactly 8,192 bytes (CRLF not counted) is accepted,
+    /// with a 200 rather than a close at the read deadline. The bound is the
+    /// deadline, not a wall-clock budget: a 1 s budget failed on a loaded
+    /// hosted runner with no code at fault (issue #2221). The trade: a reader
+    /// that went back to O(n²) still fails the 64 KB head test below at the
+    /// issue's ~2.5 s a line (8 lines, past the deadline), but a much faster
+    /// machine could read it in time. No test here bounds speed tighter.
     @Test func aHeaderLineAtTheLimitIsAccepted() async throws {
         try await withProbe { port in
             let line = RawRequest.headerLine(name: "X-Pad", length: LocalAPIRequestHeadLimit.maxLineBytes)
             let (reply, elapsed) = try await offPool {
-                let connection = try RawConnection(port: port)
+                let connection = try RawConnection(port: port, timeout: slowRunnerTimeout)
                 defer { connection.close() }
                 let start = Date()
                 try connection.write(RawRequest.get(port: port, extraLines: [line]))
@@ -123,7 +131,10 @@ struct LocalAPIRequestHeadTests {
                 return (reply, Date().timeIntervalSince(start))
             }
             #expect(reply?.status == 200)
-            #expect(elapsed < 1.0, "an 8 KB header line took \(elapsed) s")
+            #expect(
+                elapsed < LocalAPIRequestHeadLimit.readDeadline,
+                "an 8 KB header line took \(elapsed) s, past the head deadline"
+            )
         }
     }
 
@@ -154,8 +165,9 @@ struct LocalAPIRequestHeadTests {
     // MARK: - The head limit
 
     /// Exactly 65,536 bytes of head (every line under the line limit, CRLFs and
-    /// the final blank line counted) is served, and quickly: 8 lines of about
-    /// 8 KB each. One byte more is refused.
+    /// the final blank line counted) is served inside the head deadline: 8
+    /// lines of about 8 KB each. One byte more is refused. The deadline, not
+    /// 1 s, is the bound, for the reason on the 8 KB test above (#2221).
     @Test func aHeadAtTheLimitIsServedAndOneByteMoreGets431() async throws {
         try await withProbe { port in
             let atLimit = RawRequest.getWithHead(port: port, totalBytes: LocalAPIRequestHeadLimit.maxHeadBytes)
@@ -164,7 +176,7 @@ struct LocalAPIRequestHeadTests {
             #expect(overLimit.count == 65_537)
 
             let (accepted, elapsed) = try await offPool {
-                let connection = try RawConnection(port: port)
+                let connection = try RawConnection(port: port, timeout: slowRunnerTimeout)
                 defer { connection.close() }
                 let start = Date()
                 try connection.write(atLimit)
@@ -172,7 +184,10 @@ struct LocalAPIRequestHeadTests {
                 return (reply, Date().timeIntervalSince(start))
             }
             #expect(accepted?.status == 200)
-            #expect(elapsed < 1.0, "a 64 KB head took \(elapsed) s to read")
+            #expect(
+                elapsed < LocalAPIRequestHeadLimit.readDeadline,
+                "a 64 KB head took \(elapsed) s to read, past the head deadline"
+            )
 
             let refused = try await offPool { try RawConnection.sendAndReadToClose(port: port, overLimit) }
             #expect(refused.reply?.status == 431)
@@ -180,20 +195,23 @@ struct LocalAPIRequestHeadTests {
         }
     }
 
-    /// The issue's shape: one 100 KB header line. Refused at once, not after
-    /// minutes of CPU.
-    @Test func aHundredKilobyteHeaderIsRefusedInWellUnderASecond() async throws {
+    /// The issue's shape: one 100 KB header line. Refused with a 431 inside the
+    /// head deadline, not after minutes of CPU (bound: #2221).
+    @Test func aHundredKilobyteHeaderIsRefusedBeforeTheDeadline() async throws {
         try await withProbe { port in
             let line = RawRequest.headerLine(name: "X-Junk", length: 100 * 1024)
             let request = RawRequest.get(port: port, extraLines: [line])
             let (outcome, elapsed) = try await offPool {
                 let start = Date()
-                let outcome = try RawConnection.sendAndReadToClose(port: port, request)
+                let outcome = try RawConnection.sendAndReadToClose(port: port, request, timeout: slowRunnerTimeout)
                 return (outcome, Date().timeIntervalSince(start))
             }
             #expect(outcome.reply?.status == 431)
             #expect(outcome.closedAfterReply)
-            #expect(elapsed < 1.0, "a 100 KB head took \(elapsed) s to refuse")
+            #expect(
+                elapsed < LocalAPIRequestHeadLimit.readDeadline,
+                "a 100 KB head took \(elapsed) s to refuse, past the head deadline"
+            )
         }
     }
 
@@ -222,10 +240,14 @@ struct LocalAPIRequestHeadTests {
     /// A client that sends part of a head and then goes quiet loses the
     /// connection at the deadline, with no answer, and does not hold its server
     /// task. The deadline is injected (0.5 s) so the test does not wait 10 s.
+    /// The upper bound is the production deadline, not a few seconds: a 3 s
+    /// bound failed once in 20 full-bundle runs on a loaded runner (#2221).
+    /// Closing before 10 s still proves the injected deadline closed it, and
+    /// `readToClose` throws `timedOut` if the server never closes at all.
     @Test func aHeadThatStallsIsDroppedAtTheDeadline() async throws {
         try await withProbe(headReadDeadline: 0.5) { port in
             let (rest, elapsed) = try await offPool {
-                let connection = try RawConnection(port: port, timeout: 5)
+                let connection = try RawConnection(port: port, timeout: slowRunnerTimeout)
                 defer { connection.close() }
                 let start = Date()
                 try connection.write(Data("GET /health HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\n".utf8))
@@ -234,26 +256,38 @@ struct LocalAPIRequestHeadTests {
             }
             #expect(rest.isEmpty, "a stalled head gets no response, only a close")
             #expect(elapsed >= 0.4, "closed after \(elapsed) s, before the deadline")
-            #expect(elapsed < 3.0, "closed after \(elapsed) s, long after the 0.5 s deadline")
+            #expect(
+                elapsed < LocalAPIRequestHeadLimit.readDeadline,
+                "closed after \(elapsed) s, not by the injected 0.5 s deadline"
+            )
         }
     }
 
     /// A connection that never sends a byte is closed at the deadline too.
+    /// Bounded the same way as the stalled head above.
     @Test func aSilentConnectionIsDroppedAtTheDeadline() async throws {
         try await withProbe(headReadDeadline: 0.5) { port in
             let elapsed = try await offPool {
-                let connection = try RawConnection(port: port, timeout: 5)
+                let connection = try RawConnection(port: port, timeout: slowRunnerTimeout)
                 defer { connection.close() }
                 let start = Date()
                 _ = try connection.readToClose()
                 return Date().timeIntervalSince(start)
             }
-            #expect(elapsed < 3.0, "a silent connection stayed open \(elapsed) s")
+            #expect(
+                elapsed < LocalAPIRequestHeadLimit.readDeadline,
+                "a silent connection stayed open \(elapsed) s, past the injected 0.5 s deadline"
+            )
         }
     }
 }
 
 // MARK: - Fixtures
+
+/// The client's socket timeout in the tests that bound a reply by the head
+/// deadline: past the deadline, so a slow runner fails on the deadline
+/// `#expect` with its elapsed time rather than on a client-side recv timeout.
+private let slowRunnerTimeout: TimeInterval = 2 * LocalAPIRequestHeadLimit.readDeadline
 
 private func withProbe(
     headReadDeadline: TimeInterval = LocalAPIRequestHeadLimit.readDeadline,
@@ -463,8 +497,12 @@ private final class RawConnection {
 
     /// Connect, send `request`, read one response, then read on until the
     /// server closes.
-    static func sendAndReadToClose(port: UInt16, _ request: Data) throws -> RawOutcome {
-        let connection = try RawConnection(port: port)
+    static func sendAndReadToClose(
+        port: UInt16,
+        _ request: Data,
+        timeout: TimeInterval = 5
+    ) throws -> RawOutcome {
+        let connection = try RawConnection(port: port, timeout: timeout)
         defer { connection.close() }
         try connection.write(request)
         let reply = try connection.readResponse()

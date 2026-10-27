@@ -8,6 +8,9 @@ import { errorSentence } from "@/lib/trpc/input-error";
 import { formatDate } from "@/lib/format-date";
 import { ICON_SWAP } from "@/lib/icon-swap";
 import { CREDITS_PER_MINUTE } from "@/lib/credits-per-minute";
+import { AnimatedDialog } from "@/components/AnimatedDialog";
+import { ErrorReveal } from "@/components/ErrorReveal";
+import { Spinner } from "@/components/ui/Spinner";
 
 /**
  * Windowed list of page numbers to render in the pager: always page 1,
@@ -276,28 +279,32 @@ export default function CustomersClient() {
             className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors flex items-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
             </svg>
             Grant Account Key
           </button>
           <button
             onClick={() => refetch()}
-            disabled={loading}
+            disabled={isFetching}
             className="px-4 py-2 bg-white/10 hover:bg-white/15 text-gray-300 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
           >
-            <svg
-              className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
+            {isFetching ? (
+              <Spinner className="w-4 h-4" />
+            ) : (
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            )}
             Refresh
           </button>
         </div>
@@ -314,56 +321,76 @@ export default function CustomersClient() {
         />
       </div>
 
-      {/* Grant License Form */}
+      {/* Grant License Form. It grows open from 0fr (#2285, as #702 did for
+          the other disclosure panels) instead of arriving at full height in
+          one frame, so the rows under it slide down. The parent's space-y-6
+          gap is dropped from the wrapper (mb-0) and carried as padding inside
+          the clip, so the gap grows with the tween instead of landing in the
+          first frame. */}
       {showGrant && (
-        <div className="p-4 bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 space-y-3">
-          <h3 className="text-white font-medium">Grant Account Key by Email</h3>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (grantEmail.trim()) {
-                setGrantResult(null);
-                grantMutation.mutate({ email: grantEmail.trim() });
-              }
-            }}
-            className="flex items-center gap-3"
-          >
-            <input
-              type="email"
-              value={grantEmail}
-              onChange={(e) => setGrantEmail(e.target.value)}
-              placeholder="user@example.com"
-              required
-              className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
-            />
-            <button
-              type="submit"
-              disabled={grantMutation.isPending}
-              className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors disabled:opacity-50"
-            >
-              {grantMutation.isPending ? "Granting..." : "Grant"}
-            </button>
-          </form>
-          {grantMutation.error && (
-            <p className="text-red-300 text-sm" role="alert">
-              {errorSentence(grantMutation.error, INVALID_EMAIL)}
-            </p>
-          )}
-          {grantResult && (
-            <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg space-y-1">
-              <p className="text-emerald-300 text-sm">Account Key granted to <span className="font-medium">{grantResult.email}</span></p>
-              <p className="text-white font-mono text-sm select-all">{grantResult.licenseKey}</p>
+        <div className="t-cell-reveal mb-0">
+          <div>
+            <div className="pb-6">
+              <div className="p-4 bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 space-y-3">
+                <h3 className="text-white font-medium">Grant Account Key by Email</h3>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (grantEmail.trim()) {
+                      setGrantResult(null);
+                      grantMutation.mutate({ email: grantEmail.trim() });
+                    }
+                  }}
+                  className="flex items-center gap-3"
+                >
+                  <input
+                    type="email"
+                    value={grantEmail}
+                    onChange={(e) => setGrantEmail(e.target.value)}
+                    placeholder="user@example.com"
+                    required
+                    className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
+                  />
+                  <button
+                    type="submit"
+                    disabled={grantMutation.isPending}
+                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {grantMutation.isPending ? "Granting..." : "Grant"}
+                  </button>
+                </form>
+                {/* #2286: the error reveals. The wrapper is always mounted, so
+                    the form above is never the card's last child and keeps
+                    its space-y-3 margin: -mt-3 cancels that while closed, and
+                    pt-3 inside the clip carries the gap when open. */}
+                <ErrorReveal className="-mt-3" gap="pt-3">
+                  {grantMutation.error && (
+                    <p className="text-red-300 text-sm" role="alert">
+                      {errorSentence(grantMutation.error, INVALID_EMAIL)}
+                    </p>
+                  )}
+                </ErrorReveal>
+                {grantResult && (
+                  <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg space-y-1">
+                    <p className="text-emerald-300 text-sm">Account Key granted to <span className="font-medium">{grantResult.email}</span></p>
+                    <p className="text-white font-mono text-sm select-all">{grantResult.licenseKey}</p>
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+          </div>
         </div>
       )}
 
-      {/* Error Message */}
-      {error && (
-        <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg" role="alert">
-          <p className="text-red-300">{error}</p>
-        </div>
-      )}
+      {/* Error Message. It reveals (#2286) instead of arriving at full height
+          in one frame; the space-y-6 gap rides inside the clip as pb-6. */}
+      <ErrorReveal gap="pb-6">
+        {error && (
+          <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg" role="alert">
+            <p className="text-red-300">{error}</p>
+          </div>
+        )}
+      </ErrorReveal>
 
       {/* Customers Table */}
       <div
@@ -477,14 +504,19 @@ export default function CustomersClient() {
                                 {" "}
                                 to the new address.
                               </p>
-                              {updateEmailMutation.error && (
-                                <p
-                                  className="text-red-300 text-xs"
-                                  role="alert"
-                                >
-                                  {errorSentence(updateEmailMutation.error, INVALID_EMAIL)}
-                                </p>
-                              )}
+                              {/* #2286: the error reveals. A closed wrapper
+                                  still takes the form's gap-2, so -mt-2 cancels
+                                  it and pt-2 inside the clip carries it open. */}
+                              <ErrorReveal className="-mt-2" gap="pt-2">
+                                {updateEmailMutation.error && (
+                                  <p
+                                    className="text-red-300 text-xs"
+                                    role="alert"
+                                  >
+                                    {errorSentence(updateEmailMutation.error, INVALID_EMAIL)}
+                                  </p>
+                                )}
+                              </ErrorReveal>
                             </form>
                           </div>
                         ) : (
@@ -510,7 +542,7 @@ export default function CustomersClient() {
                                     className="h-3.5 w-3.5"
                                     fill="none"
                                     viewBox="0 0 24 24"
-                                    strokeWidth={1.8}
+                                    strokeWidth={1.5}
                                     stroke="currentColor"
                                   >
                                     <path
@@ -580,7 +612,7 @@ export default function CustomersClient() {
                                         className="h-3.5 w-3.5 text-emerald-400"
                                         fill="none"
                                         viewBox="0 0 24 24"
-                                        strokeWidth={2.5}
+                                        strokeWidth={1.5}
                                         stroke="currentColor"
                                       >
                                         <path
@@ -594,7 +626,7 @@ export default function CustomersClient() {
                                         className="h-3.5 w-3.5 text-gray-400 transition-colors group-hover:text-blue-300"
                                         fill="none"
                                         viewBox="0 0 24 24"
-                                        strokeWidth={1.8}
+                                        strokeWidth={1.5}
                                         stroke="currentColor"
                                       >
                                         <path
@@ -740,26 +772,7 @@ export default function CustomersClient() {
               {data.totalCustomers} customer{data.totalCustomers !== 1 ? "s" : ""}
             </span>
             {isTransitioning && (
-              <svg
-                className="w-3.5 h-3.5 animate-spin text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                aria-label="Loading"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
-              </svg>
+              <Spinner className="w-3.5 h-3.5 text-gray-400" label="Loading" />
             )}
           </p>
 
@@ -808,13 +821,12 @@ export default function CustomersClient() {
       )}
 
       {/* Refund Modal */}
-      {refundTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => { if (!refundMutation.isPending) { setRefundTarget(null); refundMutation.reset(); } }}
-          />
-          <div className="relative bg-slate-800 border border-white/10 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-5">
+      <AnimatePresence>
+        {refundTarget && (
+          <AnimatedDialog
+            key="refund-modal"
+            onBackdropClick={() => { if (!refundMutation.isPending) { setRefundTarget(null); refundMutation.reset(); } }}
+          >
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">Refund Account Key</h2>
               <button
@@ -840,14 +852,18 @@ export default function CustomersClient() {
               </div>
             ) : (
               <>
-                {refundMutation.error && (
-                  <div
-                    className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg"
-                    role="alert"
-                  >
-                    <p className="text-red-300 text-sm">{errorSentence(refundMutation.error, INVALID_INPUT)}</p>
-                  </div>
-                )}
+                {/* #2286: the error reveals; the space-y-5 gap rides inside
+                    the clip as pb-5. */}
+                <ErrorReveal gap="pb-5">
+                  {refundMutation.error && (
+                    <div
+                      className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg"
+                      role="alert"
+                    >
+                      <p className="text-red-300 text-sm">{errorSentence(refundMutation.error, INVALID_INPUT)}</p>
+                    </div>
+                  )}
+                </ErrorReveal>
                 <div className="flex gap-3 pt-2">
                   <button
                     onClick={() =>
@@ -876,21 +892,17 @@ export default function CustomersClient() {
                 </div>
               </>
             )}
-          </div>
-        </div>
-      )}
+          </AnimatedDialog>
+        )}
+      </AnimatePresence>
 
       {/* Add Credits Modal (targets a single license key directly) */}
-      {creditTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => { if (!addCreditsMutation.isPending) { setCreditTarget(null); addCreditsMutation.reset(); } }}
-          />
-
-          {/* Modal */}
-          <div className="relative bg-slate-800 border border-white/10 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-5">
+      <AnimatePresence>
+        {creditTarget && (
+          <AnimatedDialog
+            key="credit-modal"
+            onBackdropClick={() => { if (!addCreditsMutation.isPending) { setCreditTarget(null); addCreditsMutation.reset(); } }}
+          >
             {/* Header */}
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">Add Credits</h2>
@@ -951,12 +963,15 @@ export default function CustomersClient() {
                 ))}
               </div>
 
-              {/* Error */}
-              {addCreditsMutation.error && (
-                <p className="text-red-300 text-sm" role="alert">
-                  {errorSentence(addCreditsMutation.error, INVALID_AMOUNT)}
-                </p>
-              )}
+              {/* Error. It reveals (#2286); the space-y-4 gap rides inside
+                  the clip as pb-4. */}
+              <ErrorReveal gap="pb-4">
+                {addCreditsMutation.error && (
+                  <p className="text-red-300 text-sm" role="alert">
+                    {errorSentence(addCreditsMutation.error, INVALID_AMOUNT)}
+                  </p>
+                )}
+              </ErrorReveal>
 
               {/* Actions */}
               <div className="flex gap-3 pt-2">
@@ -976,9 +991,9 @@ export default function CustomersClient() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </AnimatedDialog>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Özellikler",
-    "pricing": "Fiyatlandırma",
     "faq": "SSS",
     "support": "Destek",
     "download": "İndir",
@@ -20,7 +19,6 @@
     "githubAria": "HyperWhisper'ı GitHub'da görüntüleyin"
   },
   "hero": {
-    "openSourceBadge": "Açık kaynak · Apache-2.0",
     "logoAlt": "HyperWhisper Logosu",
     "headline": "Yazın, üretin ve oluşturun",
     "headlineAccent": "Yapay zeka ile 5x daha hızlı",
@@ -28,7 +26,7 @@
     "downloadCta": "Şimdi indir",
     "demoCta": "Demoyu izle",
     "availableOn": "Kullanılabildiği platformlar",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -98,57 +96,6 @@
     "languagesSupported": "Desteklenen diller",
     "providersSupported": "Desteklenen sağlayıcılar"
   },
-  "pricing": {
-    "title": "Abonelik yok. Asla.",
-    "subtitle": "Bir kez ödeyin, sonsuza dek kullanın. Biz de abonelikten hoşlanmıyoruz.",
-    "guarantee": "14 günlük para iade garantisi",
-    "guaranteeExtended": "tam memnun kalmazsanız.",
-    "learnMore": "Daha fazla bilgi",
-    "free": {
-      "name": "Free",
-      "price": "$0",
-      "period": "sonsuza dek",
-      "description": "HyperWhisper'ı denemek için ideal",
-      "cta": "Ücretsiz indir",
-      "features": {
-        "transcriptionLimit": "Günde 5 dakika transkripsiyon",
-        "basicModes": "Temel transkripsiyon modları",
-        "offlineTranscription": "Çevrimdışı transkripsiyon",
-        "apiTranscription": "API transkripsiyonu (kendi anahtarlarınızı getirin)",
-        "postProcessing": "Metin son işleme",
-        "providers": "Seçebileceğiniz 9+ sağlayıcı",
-        "lifetimeUpdates": "Ömür boyu güncellemeler",
-        "cloudLimited": "HyperWhisper Cloud (sınırlı kullanım)",
-        "customVocabulary": "Özel sözlük",
-        "prioritySupport": "Öncelikli destek"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "ömür boyu",
-      "description": "Tek seferlik satın alma, sonsuza dek sınırsız güç",
-      "cta": "Şimdi Satın Al - Ömür Boyu Erişim",
-      "mostPopular": "En Popüler",
-      "features": {
-        "unlimitedTranscription": "Sınırsız transkripsiyon",
-        "allModes": "Tüm transkripsiyon modları",
-        "offlineTranscription": "Çevrimdışı transkripsiyon",
-        "apiTranscription": "API transkripsiyonu (kendi anahtarlarınızı getirin)",
-        "postProcessing": "Metin son işleme",
-        "providers": "Seçebileceğiniz 9+ sağlayıcı",
-        "lifetimeUpdates": "Ömür boyu güncellemeler",
-        "cloudCredits": "HyperWhisper Cloud ($5 kredi)",
-        "customVocabulary": "Özel sözlük",
-        "prioritySupport": "Öncelikli destek"
-      }
-    },
-    "enterprise": {
-      "title": "Kurumsal ve Özel Fiyatlandırma",
-      "description": "Hacim indirimleri, SSO, öncelikli destek, kurum içi barındırma ve özel entegrasyonlar",
-      "cta": "Satışla İletişime Geç"
-    }
-  },
   "faq": {
     "title": "Sık sorulan sorular",
     "subtitle": "HyperWhisper hakkında bilmeniz gereken her şey",
@@ -192,7 +139,7 @@
       },
       "lifetime": {
         "question": "Abonelik var mı?",
-        "answer": "Hayır — asla. HyperWhisper, kiraladığınız bir abonelik değil, sahip olduğunuz açık kaynaklı bir uygulamadır. Ücretsiz indirin ve yerel, çevrimdışı transkripsiyonu sonsuza dek ücretsiz kullanın; ücretsiz katman ayrıca günde 5 dakika bulut transkripsiyonu içerir. Bunun ötesinde kurulum gerektirmeyen bulut transkripsiyonu istediğinizde, HyperWhisper Cloud basit, kullandıkça öde kredilerdir — yalnızca ihtiyaç duyduğunuzda yükleme yaparsınız, aylık ücret yok ve iptal edilecek bir şey yok."
+        "answer": "Hayır — asla. HyperWhisper, kiraladığınız bir abonelik değil, sahip olduğunuz açık kaynaklı bir uygulamadır. Ücretsiz indirin ve yerel, çevrimdışı transkripsiyonu sonsuza dek ücretsiz kullanın. Kurulum gerektirmeyen bulut transkripsiyonu istediğinizde, HyperWhisper Cloud basit, kullandıkça öde kredilerdir — yalnızca ihtiyaç duyduğunuzda yükleme yaparsınız, aylık ücret yok ve iptal edilecek bir şey yok."
       },
       "deviceLimit": {
         "question": "Hesap Anahtarımı kaç cihazda kullanabilirim?",
@@ -200,7 +147,7 @@
       },
       "requirements": {
         "question": "Sistem gereksinimleri nelerdir?",
-        "answer": "Mac için: macOS 14 veya üzeri, Apple Silicon ve Intel desteklenir. Windows için: Windows 10/11, x64 veya ARM64. Linux v1 için: amd64 üzerinde Ubuntu 22.04 veya üzeri ya da Debian 12 veya üzeri. En iyi performans için 8 GB RAM önerilir."
+        "answer": "Mac için: macOS 14.6 veya üzeri, Apple Silicon ve Intel desteklenir. Windows için: Windows 10/11, x64 veya ARM64. Linux v1 için: amd64 üzerinde Ubuntu 22.04 veya üzeri ya da Debian 12 veya üzeri. En iyi performans için 8 GB RAM önerilir."
       },
       "madeBy": {
         "question": "Bunu kim yaptı?",
@@ -252,10 +199,7 @@
     "downloadButton": "HyperWhisper'ı İndir",
     "errorGeneric": "Bir şeyler ters gitti. Lütfen tekrar deneyin.",
     "errorEmail": "Lütfen geçerli bir e-posta adresi girin.",
-    "errorNetwork": "Ağ hatası. Lütfen bağlantınızı kontrol edip tekrar deneyin.",
-    "thankYouTitle": "Teşekkürler!",
     "downloadStarted": "İndirmeniz otomatik olarak başlamalı.",
-    "manualDownload": "İndirme başlamadı mı? Buraya tıklayın",
     "skipAndDownloadButton": "Atla ve indir"
   },
   "downloadPage": {
@@ -324,10 +268,10 @@
       "download": "İndir",
       "roadmap": "Yol haritası",
       "helpCenter": "Yardım Merkezi",
-      "manageBilling": "Faturalandırmayı Yönet",
       "customerPortal": "Müşteri Portalı",
       "olderVersions": "Eski Sürümler",
       "blog": "Blog",
+      "openSource": "Açık kaynak",
       "about": "Hakkımızda",
       "support": "Destek",
       "privacyPolicy": "Gizlilik Politikası",
@@ -409,6 +353,25 @@
     "custom": "Ozel",
     "customSub": "kendi tutariniz",
     "topUp": "Yukle"
+  },
+  "licenseKeysCard": {
+    "rotate": "Anahtarı yenile",
+    "confirmTitle": "Bu Hesap Anahtarı yenilensin mi?",
+    "confirmBody": "Yeni bir anahtar alacaksınız ve bu anahtar hemen çalışmayı durduracak. Eski anahtarı kullanan her cihazın yeni anahtara ihtiyacı olacak: Yeni anahtarı her cihazda HyperWhisper'a girin. Kredileriniz, planınız ve satın alma geçmişiniz hesabınızda kalır. Ayrıca diğer tarayıcılarınızda bu web sitesindeki oturumunuz kapatılacak.",
+    "confirm": "Anahtarı yenile",
+    "cancel": "İptal",
+    "rotating": "Yenileniyor…",
+    "rotated": "Anahtar yenilendi. Yeni anahtarı cihazlarınızın her birinde HyperWhisper'a girin.",
+    "errorRateLimited": "Çok fazla yenileme yapıldı. Lütfen daha sonra tekrar deneyin.",
+    "errorStale": "Bu anahtar zaten yenilendi. Geçerli anahtar yukarıda gösteriliyor.",
+    "errorGeneric": "Anahtar yenilenemedi. Lütfen tekrar deneyin.",
+    "verifyTitle": "Kimliğinizi e-postayla doğrulayın",
+    "verifyBody": "Anahtarınızı yenilemek için önce kimliğinizi e-postayla doğrulayın. Hesabınızın e-posta adresine bir giriş bağlantısı göndereceğiz. Bağlantıyı açın, ardından anahtarı bu sayfadan yenileyin.",
+    "sendLink": "Bana giriş bağlantısı gönder",
+    "sendingLink": "Gönderiliyor…",
+    "linkSent": "Giriş bağlantısı gönderildi. Gelen kutunuzdan açın, ardından anahtarı yenileyin.",
+    "linkFailed": "Giriş bağlantısı gönderilemedi. Lütfen tekrar deneyin.",
+    "errorUnavailable": "Bu anahtar artık yenilenemez. Geçerli durumu yukarıda gösteriliyor."
   },
   "openSource": {
     "heading": "Açık kaynak. Saklayacak hiçbir şey yok.",

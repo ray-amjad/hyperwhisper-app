@@ -29,6 +29,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("stale model falls back deterministically", TestModelFallback),
     ("applied routes report the model that ran", TestResolvedModelIsReported),
     ("redirect does not replay credentials", TestRedirectFailure),
+    ("saved dotted Mistral Medium 3.5 sends Mistral's API id", TestMistralMediumSendsApiId),
 };
 
 var failed = 0;
@@ -574,6 +575,24 @@ static string OpenAiResponse(string content, string reason = "stop") =>
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException(message);
+}
+
+// #2200: a mode saved on the old dotted id sends Mistral's own API id on the wire.
+static async Task TestMistralMediumSendsApiId()
+{
+    RequestSnapshot? sent = null;
+    using var service = Service(
+        new StubHandler(async request =>
+        {
+            sent = await RequestSnapshot.FromAsync(request);
+            return Json(HttpStatusCode.OK, OpenAiResponse("<<CLEANED>>ok<<END>>"));
+        }),
+        ApiKey(CloudPostProcessingProvider.Mistral, "mistral-test"));
+    var result = await service.ProcessAsync(Request(CloudPostProcessingProvider.Mistral, "mistral-medium-3.5"));
+    Assert(sent is not null, "no Mistral request was sent");
+    Assert(sent!.Uri.StartsWith("https://api.mistral.ai/", StringComparison.Ordinal), $"Mistral request went to {sent.Uri}");
+    Assert(sent.Body.Contains("\"model\":\"mistral-medium-3-5\"", StringComparison.Ordinal), $"Mistral body did not carry mistral-medium-3-5: {sent.Body}");
+    Assert(result.Model == "mistral-medium-3-5", $"Mistral route reported {result.Model}");
 }
 
 sealed class StubHandler : HttpMessageHandler

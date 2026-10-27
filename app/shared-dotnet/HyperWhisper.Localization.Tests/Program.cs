@@ -154,7 +154,28 @@ static void AllCatalogsLoad()
     // recorder refuses a bare typing key such as Tab or a letter, as Linux has since #628).
     // 865 -> 867 (#1589): `history.savedLater.databaseLocked` and `.writeFailed` are new
     // (Windows toast when the History insert is refused and the row is saved later).
-    Equal(867, PortableLocalizer.BaseKeyCount, "base key count");
+    // 867 -> 873: the Windows Settings -> Sound microphone picker adds
+    // `settings.sound.microphone.subtitle`, `.default`, `.notConnected`, `.fallback`,
+    // `.test` and `.stop` (its title reuses `menu.microphone`).
+    // 873 -> 874: `settings.sound.microphone.fallbackNoDevice` is new (the Windows picker's
+    // amber line when the saved microphone is unplugged and no other input is connected).
+    // 874 -> 876 (#2219, #2294): `status.model.notActivated` and `status.model.noApiKey` are
+    // new (the Windows status bar with no licence or no API key instead of Ready).
+    // 876 -> 860: the thirteen per-provider `settings.api.invalidKey.<provider>` keys, their
+    // `settings.api.invalidKey.title`, and `providerApiKey.invalid.title`/`.message` are
+    // retired. The Windows and Linux key checks refuse only a blank key now, which closes
+    // the dialog instead (Google's newer Gemini keys do not start with "AIza", and a
+    // "should start with" rule refused them), so no invalid-key dialog is left.
+    // 860 -> 861 (#1415): `settings.backup.import.summary.settings` is new (the Windows
+    // backup import says "Settings restored." instead of zero mode/vocabulary counts).
+    // 861 -> 862 (#2547): `status.model.keyInvalid` is new (the Windows status bar when the
+    // provider rejected the saved BYOK key, instead of Ready).
+    // 862 -> 863 (#2478): `mode.editor.field.name.taken` is new (the Windows mode editor
+    // refuses a name another mode already uses, as macOS and the Local API do).
+    // 863 -> 868 (#2377): `settings.backup.import.summary.apiKeys`, `.apiKeysFailed`,
+    // `.apiKeysNone`, `.settingsFailed` and `settings.backup.import.partial` are new (the Windows backup
+    // import says whether the API keys landed, and a failed section is not a plain success).
+    Equal(868,PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

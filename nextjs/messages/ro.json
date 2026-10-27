@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Funcții",
-    "pricing": "Prețuri",
     "faq": "Întrebări frecvente",
     "support": "Suport",
     "download": "Descarcă",
@@ -20,7 +19,6 @@
     "githubAria": "Vezi HyperWhisper pe GitHub"
   },
   "hero": {
-    "openSourceBadge": "Sursă deschisă · Apache-2.0",
     "logoAlt": "Logo HyperWhisper",
     "headline": "Scrie, compune și creează",
     "headlineAccent": "de 5x mai rapid cu AI",
@@ -28,7 +26,7 @@
     "downloadCta": "Descarcă acum",
     "demoCta": "Vezi demo",
     "availableOn": "Disponibil pe",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -98,57 +96,6 @@
     "languagesSupported": "Limbi suportate",
     "providersSupported": "Furnizori suportați"
   },
-  "pricing": {
-    "title": "Fără abonamente. Niciodată.",
-    "subtitle": "Plătești o dată, folosești pentru totdeauna. Și noi urâm abonamentele.",
-    "guarantee": "Garanție de rambursare 14 zile",
-    "guaranteeExtended": "dacă nu ești complet mulțumit.",
-    "learnMore": "Află mai multe",
-    "free": {
-      "name": "Gratuit",
-      "price": "$0",
-      "period": "pe viață",
-      "description": "Perfect pentru a încerca HyperWhisper",
-      "cta": "Descarcă gratuit",
-      "features": {
-        "transcriptionLimit": "5 minute de transcriere pe zi",
-        "basicModes": "Moduri de transcriere de bază",
-        "offlineTranscription": "Transcriere offline",
-        "apiTranscription": "Transcriere API (cu cheile tale)",
-        "postProcessing": "Post-procesare text",
-        "providers": "9+ furnizori din care poți alege",
-        "lifetimeUpdates": "Actualizări pe viață",
-        "cloudLimited": "HyperWhisper Cloud (utilizare limitată)",
-        "customVocabulary": "Vocabular personalizat",
-        "prioritySupport": "Suport prioritar"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "pe viață",
-      "description": "Achiziție unică, putere nelimitată pentru totdeauna",
-      "cta": "Cumpără acum - Acces pe viață",
-      "mostPopular": "Cel mai popular",
-      "features": {
-        "unlimitedTranscription": "Transcriere nelimitată",
-        "allModes": "Toate modurile de transcriere",
-        "offlineTranscription": "Transcriere offline",
-        "apiTranscription": "Transcriere API (cu cheile tale)",
-        "postProcessing": "Post-procesare text",
-        "providers": "9+ furnizori din care poți alege",
-        "lifetimeUpdates": "Actualizări pe viață",
-        "cloudCredits": "HyperWhisper Cloud ($5 în credite)",
-        "customVocabulary": "Vocabular personalizat",
-        "prioritySupport": "Suport prioritar"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise și prețuri personalizate",
-      "description": "Reduceri de volum, SSO, suport prioritar, găzduire internă și integrări personalizate",
-      "cta": "Contactează vânzările"
-    }
-  },
   "faq": {
     "title": "Întrebări frecvente",
     "subtitle": "Tot ce trebuie să știi despre HyperWhisper",
@@ -192,7 +139,7 @@
       },
       "lifetime": {
         "question": "Există vreun abonament?",
-        "answer": "Nu — niciodată. HyperWhisper este o aplicație open-source pe care o deții, nu un abonament pe care îl închiriezi. Descarc-o gratuit și folosește transcrierea locală, offline, fără niciun cost, pentru totdeauna; planul gratuit include și 5 minute de transcriere în cloud pe zi. Când vrei transcriere în cloud fără configurare dincolo de atât, HyperWhisper Cloud înseamnă credite simple, pay-as-you-go — adaugi fonduri doar când ai nevoie, fără taxe lunare și fără nimic de anulat."
+        "answer": "Nu — niciodată. HyperWhisper este o aplicație open-source pe care o deții, nu un abonament pe care îl închiriezi. Descarc-o gratuit și folosește transcrierea locală, offline, fără niciun cost, pentru totdeauna. Când vrei transcriere în cloud fără configurare, HyperWhisper Cloud înseamnă credite simple, pay-as-you-go — adaugi fonduri doar când ai nevoie, fără taxe lunare și fără nimic de anulat."
       },
       "deviceLimit": {
         "question": "Pe câte dispozitive îmi pot folosi cheia de cont?",
@@ -200,7 +147,7 @@
       },
       "requirements": {
         "question": "Care sunt cerințele de sistem?",
-        "answer": "Pentru Mac: macOS 14 sau mai nou, cu suport pentru Apple Silicon și Intel. Pentru Windows: Windows 10/11, x64 sau ARM64. Pentru Linux v1: Ubuntu 22.04 sau mai nou ori Debian 12 sau mai nou, pe amd64. Pentru performanță optimă se recomandă 8GB RAM."
+        "answer": "Pentru Mac: macOS 14.6 sau mai nou, cu suport pentru Apple Silicon și Intel. Pentru Windows: Windows 10/11, x64 sau ARM64. Pentru Linux v1: Ubuntu 22.04 sau mai nou ori Debian 12 sau mai nou, pe amd64. Pentru performanță optimă se recomandă 8GB RAM."
       },
       "madeBy": {
         "question": "Cine a creat asta?",
@@ -252,10 +199,7 @@
     "downloadButton": "Descarcă HyperWhisper",
     "errorGeneric": "Ceva nu a mers bine. Te rugăm să încerci din nou.",
     "errorEmail": "Introdu o adresă de email validă.",
-    "errorNetwork": "Eroare de rețea. Verifică conexiunea și încearcă din nou.",
-    "thankYouTitle": "Mulțumim!",
     "downloadStarted": "Descărcarea ar trebui să înceapă automat.",
-    "manualDownload": "Descărcarea nu a început? Click aici",
     "skipAndDownloadButton": "Omite și descarcă"
   },
   "downloadPage": {
@@ -324,10 +268,10 @@
       "download": "Descarcă",
       "roadmap": "Roadmap",
       "helpCenter": "Centru de ajutor",
-      "manageBilling": "Gestionează facturarea",
       "customerPortal": "Portal clienți",
       "olderVersions": "Versiuni mai vechi",
       "blog": "Blog",
+      "openSource": "Sursă deschisă",
       "about": "Despre",
       "support": "Suport",
       "privacyPolicy": "Politica de confidențialitate",
@@ -409,6 +353,25 @@
     "custom": "Personalizat",
     "customSub": "suma ta",
     "topUp": "Reîncarcă"
+  },
+  "licenseKeysCard": {
+    "rotate": "Regenerează cheia",
+    "confirmTitle": "Regenerezi această cheie de cont?",
+    "confirmBody": "Vei primi o cheie nouă, iar aceasta va înceta imediat să funcționeze. Fiecare dispozitiv care folosește cheia veche va avea nevoie de cea nouă: introdu-o în HyperWhisper pe fiecare dispozitiv. Creditele, planul și istoricul achizițiilor rămân în contul tău. De asemenea, vei fi deconectat de pe acest site în celelalte browsere.",
+    "confirm": "Regenerează cheia",
+    "cancel": "Anulează",
+    "rotating": "Se regenerează…",
+    "rotated": "Cheia a fost regenerată. Introdu cheia nouă în HyperWhisper pe fiecare dintre dispozitivele tale.",
+    "errorRateLimited": "Prea multe regenerări. Încearcă din nou mai târziu.",
+    "errorStale": "Această cheie a fost deja regenerată. Cheia actuală este afișată mai sus.",
+    "errorGeneric": "Cheia nu a putut fi regenerată. Încearcă din nou.",
+    "verifyTitle": "Confirmă prin e-mail că ești tu",
+    "verifyBody": "Pentru a regenera cheia, confirmă mai întâi prin e-mail că ești tu. Îți vom trimite un link de conectare la adresa de e-mail a contului tău. Deschide-l, apoi regenerează cheia de pe această pagină.",
+    "sendLink": "Trimite-mi un link de conectare",
+    "sendingLink": "Se trimite…",
+    "linkSent": "Linkul de conectare a fost trimis. Deschide-l din căsuța de e-mail, apoi regenerează cheia.",
+    "linkFailed": "Linkul de conectare nu a putut fi trimis. Încearcă din nou.",
+    "errorUnavailable": "Această cheie nu mai poate fi regenerată. Starea ei actuală este afișată mai sus."
   },
   "openSource": {
     "heading": "Sursă deschisă. Nimic de ascuns.",

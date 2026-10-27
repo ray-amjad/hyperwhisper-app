@@ -386,7 +386,7 @@ public sealed class PortableFileTranscriptionPreflight
                 ["nova-3-general", "nova-3-medical", "nova-2-general", "nova-2-medical"]),
             [CloudTranscriptionProvider.AssemblyAi] = Cloud(5L * 1024 * 1024 * 1024, "universal-3-5-pro",
                 ["universal-2", "universal-3-5-pro", "universal-2-medical", "universal-3-5-pro-medical", "dictation"]),
-            [CloudTranscriptionProvider.ElevenLabs] = Cloud(3L * 1024 * 1024 * 1024, "scribe_v2", ["scribe_v2"]),
+            [CloudTranscriptionProvider.ElevenLabs] = Cloud(3L * 1024 * 1024 * 1024, "scribe_v2", ["scribe_v2", "scribe_v2_medical"]),
             [CloudTranscriptionProvider.Mistral] = Cloud(100L * 1024 * 1024, "voxtral-mini-latest", ["voxtral-mini-latest"]),
             [CloudTranscriptionProvider.Soniox] = Cloud(1L * 1024 * 1024 * 1024, "stt-async-v5", ["stt-async-v5"]),
             [CloudTranscriptionProvider.Gemini] = Cloud(2L * 1024 * 1024 * 1024, "gemini-3.8-flash",

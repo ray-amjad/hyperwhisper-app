@@ -1,11 +1,18 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Hono } from 'hono';
-import type { Context } from 'hono';
-import type { WSMessageReceive } from 'hono/ws';
 import { computeGeminiTranscribeLiveCost, creditsForCost, usdForCredits } from '../lib/cost-calculator';
 import { drainPendingDeductions } from '../middleware/credits';
 import type { AuthContext } from '../middleware/auth';
 import { captureRejectionLogs, captureStreamingLogs } from './ws-streaming-test-logs';
+import {
+  FakeClientSocket,
+  FakeStreamingTimers,
+  FakeUpstreamSocketBase,
+  binaryMessage,
+  fakeContext,
+  textMessage,
+} from './ws-streaming-test-support';
+import { stubEnv } from '../test-support/env';
 
 type CachedLicense = { isValid: boolean; credits: number; cachedAt: string };
 
@@ -35,12 +42,17 @@ const {
   parseGeminiLiveFrame,
   wsStreamingGeminiTranscribePreflight,
 } = await import('./ws-streaming-gemini-transcribe');
-const { endActiveStreamingSessions, resetStreamingShutdownForTests, routePathFor } = await import('./ws-streaming-shared');
+const {
+  createStreamingEventsFor,
+  endActiveStreamingSessions,
+  resetStreamingShutdownForTests,
+  routePathFor,
+} = await import('./ws-streaming-shared');
 
 const originalFetch = globalThis.fetch;
 const originalWebSocket = globalThis.WebSocket;
-const originalApiKey = process.env.GEMINI_API_KEY;
-const originalAltApiKey = process.env.GOOGLE_GEMINI_API_KEY;
+let restoreApiKey: () => void;
+let restoreAltApiKey: () => void;
 
 const BYTES_PER_SECOND = 16000 * 1 * 2;
 
@@ -306,61 +318,18 @@ describe('preflight', () => {
 // Socket lifecycle
 // ---------------------------------------------------------------------------
 
-interface CloseCall {
-  code?: number;
-  reason?: string;
-}
-
 const upstreamSockets: FakeUpstreamSocket[] = [];
 
-class FakeUpstreamSocket {
-  static readonly CONNECTING = 0;
-  static readonly OPEN = 1;
-  static readonly CLOSING = 2;
-  static readonly CLOSED = 3;
-
-  readyState = 0;
-  bufferedAmount = 0;
-  readonly sent: Array<string | ArrayBuffer> = [];
-  readonly closes: CloseCall[] = [];
-  private readonly listeners = new Map<string, Array<(evt: unknown) => void>>();
-
-  constructor(readonly url: string, readonly protocols?: string | string[]) {
+/** `handshake()` is Google accepting the WebSocket handshake (NOT the setup frame). */
+class FakeUpstreamSocket extends FakeUpstreamSocketBase {
+  constructor(url: string, protocols?: string | string[]) {
+    super(url, protocols);
     upstreamSockets.push(this);
-  }
-
-  addEventListener(type: string, handler: (evt: unknown) => void): void {
-    const existing = this.listeners.get(type) ?? [];
-    existing.push(handler);
-    this.listeners.set(type, existing);
-  }
-
-  send(data: string | ArrayBuffer): void {
-    this.sent.push(data);
-  }
-
-  close(code?: number, reason?: string): void {
-    this.readyState = FakeUpstreamSocket.CLOSED;
-    this.closes.push({ code, reason });
-  }
-
-  emit(type: string, evt: unknown): void {
-    for (const handler of this.listeners.get(type) ?? []) handler(evt);
-  }
-
-  /** Simulate Google accepting the WebSocket handshake (NOT the setup frame). */
-  handshake(): void {
-    this.readyState = FakeUpstreamSocket.OPEN;
-    this.emit('open', {});
   }
 
   /** Simulate `{"setupComplete":{}}` — the frame that actually opens the stream. */
   setupComplete(): void {
     this.deliver({ setupComplete: {} });
-  }
-
-  deliver(payload: unknown): void {
-    this.emit('message', { data: typeof payload === 'string' ? payload : JSON.stringify(payload) });
   }
 
   get jsonFrames(): Array<Record<string, unknown>> {
@@ -377,34 +346,6 @@ class FakeUpstreamSocket {
   }
 }
 
-class FakeClientSocket {
-  readyState = 1;
-  readonly sent: string[] = [];
-  readonly closes: CloseCall[] = [];
-
-  send(data: string | ArrayBuffer | Uint8Array): void {
-    this.sent.push(typeof data === 'string' ? data : '<binary>');
-  }
-
-  close(code?: number, reason?: string): void {
-    this.readyState = 3;
-    this.closes.push({ code, reason });
-  }
-
-  messages(): Array<Record<string, unknown>> {
-    return this.sent.map((raw) => JSON.parse(raw) as Record<string, unknown>);
-  }
-
-  messagesOfType(type: string): Array<Record<string, unknown>> {
-    return this.messages().filter((message) => message.type === type);
-  }
-}
-
-function fakeContext(auth: AuthContext, url: string): Context {
-  const vars: Record<string, unknown> = { wsAuth: auth, wsClientIP: '203.0.113.7' };
-  return { get: (key: string) => vars[key], req: { url } } as unknown as Context;
-}
-
 /** Classify one client→server frame, so a test can assert the WIRE ORDER. */
 function frameKind(frame: Record<string, unknown>): string {
   if (frame.setup !== undefined) return 'setup';
@@ -418,14 +359,6 @@ function audioFrame(seconds: number): ArrayBuffer {
   return new ArrayBuffer(Math.round(seconds * BYTES_PER_SECOND));
 }
 
-function binaryMessage(data: ArrayBuffer): MessageEvent<WSMessageReceive> {
-  return { data } as MessageEvent<WSMessageReceive>;
-}
-
-function textMessage(data: string): MessageEvent<WSMessageReceive> {
-  return { data } as MessageEvent<WSMessageReceive>;
-}
-
 interface Harness {
   events: ReturnType<typeof createGeminiTranscribeStreamingEvents>;
   client: FakeClientSocket;
@@ -434,14 +367,18 @@ interface Harness {
 }
 
 /** Open a session and (unless told otherwise) complete the setup handshake. */
-function openSession(options: { credits?: number; query?: string; skipSetup?: boolean } = {}): Harness {
+function openSession(
+  options: { credits?: number; query?: string; skipSetup?: boolean; timers?: FakeStreamingTimers } = {},
+): Harness {
   const auth: AuthContext = {
     identifier: 'key-1234-abcd',
     licenseKey: 'key-1234-abcd',
     credits: options.credits ?? 1000,
   };
   const url = `https://transcribe.example/ws/streaming-gemini-transcribe?account_key=key-1234-abcd${options.query ?? ''}`;
-  const events = createGeminiTranscribeStreamingEvents(fakeContext(auth, url));
+  const events = options.timers
+    ? createStreamingEventsFor(GEMINI_TRANSCRIBE_VENDOR, fakeContext(auth, url), options.timers.timers)
+    : createGeminiTranscribeStreamingEvents(fakeContext(auth, url));
   const client = new FakeClientSocket();
 
   events.onOpen(new Event('open'), client);
@@ -473,8 +410,8 @@ describe('gemini live socket lifecycle', () => {
   beforeEach(() => {
     licenseCharges.length = 0;
     upstreamSockets.length = 0;
-    process.env.GEMINI_API_KEY = 'test-gemini-key';
-    delete process.env.GOOGLE_GEMINI_API_KEY;
+    restoreApiKey = stubEnv('GEMINI_API_KEY', 'test-gemini-key');
+    restoreAltApiKey = stubEnv('GOOGLE_GEMINI_API_KEY', undefined);
     globalThis.WebSocket = FakeUpstreamSocket as unknown as typeof WebSocket;
     globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
       const target = typeof input === 'string' ? input : input.toString();
@@ -489,10 +426,8 @@ describe('gemini live socket lifecycle', () => {
   afterEach(() => {
     globalThis.fetch = originalFetch;
     globalThis.WebSocket = originalWebSocket;
-    if (originalApiKey === undefined) delete process.env.GEMINI_API_KEY;
-    else process.env.GEMINI_API_KEY = originalApiKey;
-    if (originalAltApiKey === undefined) delete process.env.GOOGLE_GEMINI_API_KEY;
-    else process.env.GOOGLE_GEMINI_API_KEY = originalAltApiKey;
+    restoreApiKey();
+    restoreAltApiKey();
   });
 
   test('closes the session when no Gemini key is configured, without dialling upstream', () => {
@@ -775,6 +710,24 @@ describe('gemini live socket lifecycle', () => {
       await harness.endSession();
     }, 10_000);
 
+    test('pings the client every 30 s only while its socket is open (#801)', async () => {
+      const clock = new FakeStreamingTimers();
+      const harness = openSession({ timers: clock });
+      expect(clock.intervals.map((timer) => timer.ms)).toEqual([30_000]);
+      const before = harness.client.sent.length;
+
+      clock.tickInterval();
+      expect(harness.client.sent.slice(before)).toEqual(['{"type":"ping"}']);
+      harness.client.readyState = 2;
+      clock.tickInterval();
+      expect(harness.client.messagesOfType('ping')).toHaveLength(1);
+      expect(harness.upstream.jsonFrames).toHaveLength(1); // the ping never goes upstream
+
+      harness.client.readyState = 1;
+      await harness.endSession();
+      expect(clock.intervals[0]!.cleared).toBe(true);
+    });
+
     test('ignores a pong and any non-JSON text frame', async () => {
       const harness = openSession();
 
@@ -896,6 +849,63 @@ describe('gemini live socket lifecycle', () => {
       expect(sessionEnds[0]!.details).toMatchObject({ creditsUsed: 0, upstreamReached: false });
     });
 
+    /** A session whose upstream socket was dialled but never opened. */
+    function openUnhandshakedSession(): { client: FakeClientSocket; upstream: FakeUpstreamSocket } {
+      const account = 'key-1234-abcd';
+      const auth: AuthContext = { identifier: account, licenseKey: account, credits: 100 };
+      const events = createGeminiTranscribeStreamingEvents(
+        fakeContext(auth, `https://transcribe.example/ws/streaming-gemini-transcribe?account_key=${auth.licenseKey}`),
+      );
+      const client = new FakeClientSocket();
+      events.onOpen(new Event('open'), client);
+      return { client, upstream: upstreamSockets[upstreamSockets.length - 1]! };
+    }
+
+    // #1410: the client was told twice (the socket `error` listener, then the
+    // close mapping) and then closed 1000, which reads as a clean end.
+    test('a refused upgrade sends exactly one error frame and closes the client 1011 (#1410)', async () => {
+      const { client, upstream } = openUnhandshakedSession();
+
+      // What Bun fires when Google answers the upgrade with an HTTP 400 or 503.
+      upstream.emit('error', {});
+      upstream.emit('close', { code: 1002, reason: 'Expected 101 status code' });
+      await drainPendingDeductions(2000);
+
+      expect(client.messagesOfType('error')).toEqual([
+        { type: 'error', message: 'Transcription service error' },
+      ]);
+      expect(client.messages().map((message) => message.type)).toEqual(['error', 'session_complete']);
+      expect(client.closes).toEqual([{ code: 1011, reason: 'Upstream error' }]);
+      expect(licenseCharges).toEqual([]);
+    });
+
+    test('a handshake error whose close maps to no error still tells the client once', async () => {
+      const { client, upstream } = openUnhandshakedSession();
+
+      upstream.emit('error', {});
+      expect(client.messagesOfType('error')).toHaveLength(0);
+      upstream.emit('close', { code: 1005, reason: '' });
+      await drainPendingDeductions(2000);
+
+      expect(client.messagesOfType('error')).toEqual([
+        { type: 'error', message: 'Transcription service error' },
+      ]);
+      expect(client.closes).toEqual([{ code: 1000, reason: 'Session ended' }]);
+    });
+
+    test('a handshake error followed by a transient close is reported once and stays transient', async () => {
+      const { client, upstream } = openUnhandshakedSession();
+
+      upstream.emit('error', {});
+      upstream.emit('close', { code: 1006, reason: '' });
+      await drainPendingDeductions(2000);
+
+      expect(client.messagesOfType('error')).toEqual([
+        { type: 'error', message: 'Transcription service error' },
+      ]);
+      expect(client.closes).toEqual([{ code: 1000, reason: 'Session ended' }]);
+    });
+
     test('no Gemini key: the session deducts 0 credits (#1191)', async () => {
       delete process.env.GEMINI_API_KEY;
       const account = 'key-1234-abcd';
@@ -939,6 +949,12 @@ describe('gemini live socket lifecycle', () => {
     test('an unexpected close code stays transient so the client may reconnect', () => {
       expect(parseGeminiLiveClose(1006, '')).toEqual([
         { kind: 'error', message: 'Transcription service error', terminal: false },
+      ]);
+    });
+
+    test('a 1002 close (a refused upgrade, any HTTP status) is terminal (#1410)', () => {
+      expect(parseGeminiLiveClose(1002, 'Expected 101 status code')).toEqual([
+        { kind: 'error', message: 'Transcription service error', terminal: true },
       ]);
     });
 

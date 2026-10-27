@@ -263,7 +263,13 @@ struct MenuBarIconView: View {
 }
 
     // MARK: - Scene Configuration
-    
+
+    /// The main window's localized title, by license. The Window menu's
+    /// reopen item reads the same string (#1526).
+    private var mainWindowTitle: String {
+        licenseManager.licenseStatus == .active ? "app.title.pro".localized : "app.title".localized
+    }
+
     /// The body property defines all the scenes (windows) our app can display
     /// A Scene in SwiftUI represents a window or group of windows
     var body: some Scene {
@@ -271,7 +277,7 @@ struct MenuBarIconView: View {
         // MARK: Main Window
         /// WindowGroup creates the main application window
         /// It automatically handles window management (closing, minimizing, etc.)
-        WindowGroup(licenseManager.licenseStatus == .active ? "app.title.pro".localized : "app.title".localized, id: "mainWindow") {  // Dynamic localized window title based on license
+        WindowGroup(mainWindowTitle, id: "mainWindow") {  // Dynamic localized window title based on license
 
             // This is the root view of our main window
             MainAppView()
@@ -424,8 +430,12 @@ struct MenuBarIconView: View {
             // Remove "Edit" menu items
             CommandGroup(replacing: .undoRedo) { }
 
-            // Remove "Window" menu items (Show All Tabs)
-            CommandGroup(replacing: .windowList) { }
+            // Settings… (cmd+,) in the app menu, and the Window menu's window
+            // list replaced by one item that reopens the main window (#1526)
+            MainWindowCommands(
+                appState: appState,
+                windowTitle: mainWindowTitle
+            )
 
             // Clean up View menu
             // Remove "Show Tab Bar" / Toolbar items
@@ -762,7 +772,10 @@ struct MenuBarIconView: View {
                     mode.postProcessingMode = 0  // PostProcessingMode.off
                     AppLogger.ui.info("🔄 Disabled post-processing on mode · modeId=\(mode.id?.uuidString ?? "nil", privacy: .public) · preset=\(PresetType.reportingValue(for: mode), privacy: .public) (was using Gemma)")
                 }
-                try? persistenceController.container.viewContext.save()
+                let saved = !hasGemmaMode || LaunchMigrationSave.save(
+                    persistenceController.container.viewContext,
+                    site: "launch_migration_gemma3"
+                )
 
                 // Silently clean up leftover Gemma model files
                 if hasGemmaFiles {
@@ -770,7 +783,11 @@ struct MenuBarIconView: View {
                     AppLogger.ui.info("🗑️ Cleaned up Gemma model files at \(gemmaDir.path, privacy: .public)")
                 }
 
-                didShowGemmaMigrationAlert = true
+                // A failed save leaves the flag unset, so the next launch
+                // retries: the loop above only touches Modes still on Gemma 3.
+                if saved {
+                    didShowGemmaMigrationAlert = true
+                }
             } else {
                 // No Gemma usage found — mark as done silently
                 didShowGemmaMigrationAlert = true
@@ -801,9 +818,7 @@ struct MenuBarIconView: View {
                 if !transcripts.isEmpty { didChange = true }
             }
 
-            if didChange {
-                try? context.save()
-            }
+            let saved = !didChange || LaunchMigrationSave.save(context, site: "launch_migration_qwen_to_local_llm")
 
             // Clean up old Qwen model directory
             let oldQwenDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -813,7 +828,10 @@ struct MenuBarIconView: View {
                 AppLogger.ui.info("Cleaned up old Qwen model directory at \(oldQwenDir.path, privacy: .public)")
             }
 
-            didMigrateQwenToLocalLLM = true
+            // Only after the save: a re-run is safe, it matches only `local_qwen` rows.
+            if saved {
+                didMigrateQwenToLocalLLM = true
+            }
         }
 
         // GEMMA 4 12B ID CASING MIGRATION: rewrite stored uppercase model id to lowercase
@@ -833,11 +851,10 @@ struct MenuBarIconView: View {
                 didChange = true
             }
 
-            if didChange {
-                try? context.save()
+            // Only after the save: a re-run is safe, it matches only the old id.
+            if !didChange || LaunchMigrationSave.save(context, site: "launch_migration_gemma4_12b_id") {
+                didMigrateGemma12bIdCasing = true
             }
-
-            didMigrateGemma12bIdCasing = true
         }
 
         // AUTO-DELETE CLEANUP SERVICE:
@@ -1334,7 +1351,7 @@ struct MenuBarIconView: View {
             alert.messageText = "alerts.export.failed.title".localized
             alert.informativeText = "alerts.export.logs.failed.message".localized
             alert.alertStyle = .warning
-            alert.runModal()
+            ModelessAlert.show(alert)
             return
         }
         
@@ -1358,14 +1375,14 @@ struct MenuBarIconView: View {
                     successAlert.messageText = "alerts.export.logs.success.title".localized
                     successAlert.informativeText = "alerts.export.logs.success.message".localized
                     successAlert.alertStyle = .informational
-                    successAlert.runModal()
+                    ModelessAlert.show(successAlert)
                 } catch {
                     // Show error alert
                     let alert = NSAlert()
                     alert.messageText = "alerts.export.failed.title".localized
                     alert.informativeText = "alerts.export.logs.saveFailed.message".localized(arguments: error.localizedDescription)
                     alert.alertStyle = .warning
-                    alert.runModal()
+                    ModelessAlert.show(alert)
                 }
             }
         }
@@ -1380,7 +1397,7 @@ struct MenuBarIconView: View {
                 alert.messageText = "alerts.export.failed.title".localized
                 alert.informativeText = "alerts.export.diagnostics.failed.message".localized
                 alert.alertStyle = .warning
-                alert.runModal()
+                ModelessAlert.show(alert)
                 return
             }
             
@@ -1415,20 +1432,111 @@ struct MenuBarIconView: View {
                             successAlert.informativeText = "alerts.export.diagnostics.noSystemLogs.message".localized(arguments: reason)
                             successAlert.alertStyle = .warning
                         }
-                        successAlert.runModal()
+                        ModelessAlert.show(successAlert)
                     } catch {
                         // Show error alert
                         let alert = NSAlert()
                         alert.messageText = "alerts.export.failed.title".localized
                         alert.informativeText = "alerts.export.diagnostics.saveFailed.message".localized(arguments: error.localizedDescription)
                         alert.alertStyle = .warning
-                        alert.runModal()
+                        ModelessAlert.show(alert)
                     }
                 } else {
                     // Clean up temporary file if user cancelled
                     try? FileManager.default.removeItem(at: exportURL)
                 }
             }
+        }
+    }
+}
+
+// MARK: - Main Window Commands
+
+/// The menu-bar-menu way back to the main window after cmd+W (issue #1526).
+///
+/// Ray's decisions (inbox ask #333): the app menu gets Settings… with cmd+,
+/// that opens the main window on its Settings page (no SwiftUI `Settings`
+/// scene), and the Window menu's system window list stays replaced, now by one
+/// item that reopens the main window (cmd+0) instead of nothing.
+struct MainWindowCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+
+    let appState: AppState
+    /// The main window's own title, so the Window menu item reads as it.
+    let windowTitle: String
+
+    var body: some Commands {
+        CommandGroup(replacing: .appSettings) {
+            Button {
+                Self.openSettings(appState: appState, showMainWindow: showMainWindow)
+            } label: {
+                // An icon like the other app-menu items on macOS 26 (#2213)
+                Label("menu.settings".localized, systemImage: "gearshape")
+            }
+            .keyboardShortcut(",", modifiers: .command)
+        }
+
+        CommandGroup(replacing: .windowList) {
+            Button(windowTitle) {
+                showMainWindow()
+            }
+            .keyboardShortcut("0", modifiers: .command)
+        }
+    }
+
+    /// Settings… is a user-chosen jump, as the menu bar's Settings… is: an
+    /// open mode editor with unsaved changes asks first (issue #1525).
+    @MainActor
+    static func openSettings(appState: AppState, showMainWindow: () -> Void) {
+        showMainWindow()
+        appState.requestNavigation(to: .settings, trigger: .userChosen)
+    }
+
+    /// Brings the main window forward, or opens it when it was closed: the
+    /// same steps as the menu bar's `MainAppView.openMainWindow()`.
+    @MainActor
+    private func showMainWindow() {
+        // The user asked for this window, so `launchMinimized` must not hide it.
+        HyperWhisperApp.suppressLaunchMinimizedHide()
+        NSApp.activate(ignoringOtherApps: true)
+
+        if let mainWindow = MainWindowStore.window
+            ?? NSApp.windows.first(where: { $0.identifier == .hyperwhisperMainWindow }) {
+            mainWindow.makeKeyAndOrderFront(nil)
+            return
+        }
+        openWindow(id: "mainWindow")
+    }
+}
+
+/// Save step for the one-time Mode migrations in `hyperwhisperApp.init` (#1063).
+///
+/// Those migrations used `try? save()` and set their `@AppStorage` done-flag
+/// whatever happened, so a save that failed was never retried and never
+/// logged. This reports the failure the way `PersistenceController.save()`
+/// does (site tag, context shape, the `viewContext` failure streak) and tells
+/// the caller whether to set its flag. No `rollback()` here: what the shared
+/// `viewContext` does with a rejected row is a wider decision.
+@MainActor
+enum LaunchMigrationSave {
+
+    /// Saves `context`. `true` means the migration's edits are on disk.
+    static func save(
+        _ context: NSManagedObjectContext,
+        site: String,
+        contextKey: String = CoreDataSaveDiagnostics.viewContextKey
+    ) -> Bool {
+        do {
+            try context.save()
+            AppLogger.logCoreData(.save(site: site, contextKey: contextKey))
+            return true
+        } catch {
+            AppLogger.logCoreData(
+                .save(site: site, contextKey: contextKey),
+                error: error as NSError,
+                metadata: CoreDataSaveDiagnostics.contextShape(context)
+            )
+            return false
         }
     }
 }

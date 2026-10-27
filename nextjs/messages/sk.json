@@ -5,7 +5,6 @@
   },
   "navbar": {
     "features": "Funkcie",
-    "pricing": "Cenník",
     "faq": "FAQ",
     "support": "Podpora",
     "download": "Stiahnuť",
@@ -20,7 +19,6 @@
     "githubAria": "Zobraziť HyperWhisper na GitHub"
   },
   "hero": {
-    "openSourceBadge": "Otvorený kód · Apache-2.0",
     "logoAlt": "Logo HyperWhisper",
     "headline": "Píšte, tvorte a vytvárajte",
     "headlineAccent": "5x rýchlejšie s AI",
@@ -28,7 +26,7 @@
     "downloadCta": "Stiahnuť teraz",
     "demoCta": "Pozrieť demo",
     "availableOn": "Dostupné na",
-    "macos": "macOS 14+",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
     "linux": "Linux (amd64)"
   },
@@ -98,57 +96,6 @@
     "languagesSupported": "Podporované jazyky",
     "providersSupported": "Podporovaní poskytovatelia"
   },
-  "pricing": {
-    "title": "Bez predplatného. Navždy.",
-    "subtitle": "Zaplaťte raz, používajte navždy. Predplatné nemáme radi rovnako ako vy.",
-    "guarantee": "14-dňová garancia vrátenia peňazí",
-    "guaranteeExtended": "ak nebudete úplne spokojní.",
-    "learnMore": "Zistiť viac",
-    "free": {
-      "name": "Free",
-      "price": "$0",
-      "period": "navždy",
-      "description": "Ideálne na vyskúšanie HyperWhisper",
-      "cta": "Stiahnuť zadarmo",
-      "features": {
-        "transcriptionLimit": "5 minút prepisu denne",
-        "basicModes": "Základné režimy prepisu",
-        "offlineTranscription": "Offline prepis",
-        "apiTranscription": "API prepis (použite vlastné kľúče)",
-        "postProcessing": "Následné spracovanie textu",
-        "providers": "9+ poskytovateľov na výber",
-        "lifetimeUpdates": "Doživotné aktualizácie",
-        "cloudLimited": "HyperWhisper Cloud (obmedzené použitie)",
-        "customVocabulary": "Vlastný slovník",
-        "prioritySupport": "Prioritná podpora"
-      }
-    },
-    "pro": {
-      "name": "Pro",
-      "price": "$39",
-      "period": "doživotne",
-      "description": "Jednorazový nákup, neobmedzený výkon navždy",
-      "cta": "Kúpiť teraz - Doživotný prístup",
-      "mostPopular": "Najobľúbenejšie",
-      "features": {
-        "unlimitedTranscription": "Neobmedzený prepis",
-        "allModes": "Všetky režimy prepisu",
-        "offlineTranscription": "Offline prepis",
-        "apiTranscription": "API prepis (použite vlastné kľúče)",
-        "postProcessing": "Následné spracovanie textu",
-        "providers": "9+ poskytovateľov na výber",
-        "lifetimeUpdates": "Doživotné aktualizácie",
-        "cloudCredits": "HyperWhisper Cloud ($5 v kreditoch)",
-        "customVocabulary": "Vlastný slovník",
-        "prioritySupport": "Prioritná podpora"
-      }
-    },
-    "enterprise": {
-      "title": "Enterprise a vlastné ceny",
-      "description": "Množstevné zľavy, SSO, prioritná podpora, interný hosting a vlastné integrácie",
-      "cta": "Kontaktovať predaj"
-    }
-  },
   "faq": {
     "title": "Často kladené otázky",
     "subtitle": "Všetko, čo potrebujete vedieť o HyperWhisper",
@@ -192,7 +139,7 @@
       },
       "lifetime": {
         "question": "Existuje predplatné?",
-        "answer": "Nie — nikdy. HyperWhisper je open-source aplikácia, ktorú vlastníte, nie predplatné, ktoré si prenajímate. Stiahnite si ju zadarmo a používajte lokálnu, offline transkripciu bez akýchkoľvek nákladov navždy; bezplatná úroveň zahŕňa aj 5 minút cloudovej transkripcie denne. Keď budete chcieť cloudovú transkripciu bez nastavovania nad rámec toho, HyperWhisper Cloud sú jednoduché kredity platené podľa spotreby — dobíjate len vtedy, keď to potrebujete, bez mesačných poplatkov a bez čohokoľvek, čo by ste museli rušiť."
+        "answer": "Nie — nikdy. HyperWhisper je open-source aplikácia, ktorú vlastníte, nie predplatné, ktoré si prenajímate. Stiahnite si ju zadarmo a používajte lokálnu, offline transkripciu bez akýchkoľvek nákladov navždy. Keď budete chcieť cloudovú transkripciu bez nastavovania, HyperWhisper Cloud sú jednoduché kredity platené podľa spotreby — dobíjate len vtedy, keď to potrebujete, bez mesačných poplatkov a bez čohokoľvek, čo by ste museli rušiť."
       },
       "deviceLimit": {
         "question": "Na koľkých zariadeniach môžem používať svoj kľúč k účtu?",
@@ -200,7 +147,7 @@
       },
       "requirements": {
         "question": "Aké sú systémové požiadavky?",
-        "answer": "Pre Mac: macOS 14 alebo novší, podpora Apple Silicon aj Intel. Pre Windows: Windows 10/11, x64 alebo ARM64. Pre Linux v1: Ubuntu 22.04 alebo novší či Debian 12 alebo novší, na amd64. Pre optimálny výkon odporúčame 8 GB RAM."
+        "answer": "Pre Mac: macOS 14.6 alebo novší, podpora Apple Silicon aj Intel. Pre Windows: Windows 10/11, x64 alebo ARM64. Pre Linux v1: Ubuntu 22.04 alebo novší či Debian 12 alebo novší, na amd64. Pre optimálny výkon odporúčame 8 GB RAM."
       },
       "madeBy": {
         "question": "Kto to vytvoril?",
@@ -252,10 +199,7 @@
     "downloadButton": "Stiahnuť HyperWhisper",
     "errorGeneric": "Niečo sa pokazilo. Skúste to prosím znova.",
     "errorEmail": "Zadajte platnú e-mailovú adresu.",
-    "errorNetwork": "Chyba siete. Skontrolujte pripojenie a skúste to znova.",
-    "thankYouTitle": "Ďakujeme!",
     "downloadStarted": "Sťahovanie by sa malo spustiť automaticky.",
-    "manualDownload": "Sťahovanie sa nespustilo? Kliknite sem",
     "skipAndDownloadButton": "Preskočiť a stiahnuť"
   },
   "downloadPage": {
@@ -324,10 +268,10 @@
       "download": "Stiahnuť",
       "roadmap": "Roadmapa",
       "helpCenter": "Centrum pomoci",
-      "manageBilling": "Správa fakturácie",
       "customerPortal": "Zákaznícky portál",
       "olderVersions": "Staršie verzie",
       "blog": "Blog",
+      "openSource": "Otvorený kód",
       "about": "O nás",
       "support": "Podpora",
       "privacyPolicy": "Zásady ochrany súkromia",
@@ -409,6 +353,25 @@
     "custom": "Vlastná",
     "customSub": "vaša suma",
     "topUp": "Dobiť"
+  },
+  "licenseKeysCard": {
+    "rotate": "Vygenerovať nový kľúč",
+    "confirmTitle": "Vygenerovať nový kľúč k účtu?",
+    "confirmBody": "Dostanete nový kľúč a tento okamžite prestane fungovať. Každé zariadenie, ktoré používa starý kľúč, bude potrebovať nový: zadajte ho do HyperWhisper na každom zariadení. Vaše kredity, plán a história nákupov zostávajú vo vašom účte. V ostatných prehliadačoch budete tiež odhlásení z tejto webovej stránky.",
+    "confirm": "Vygenerovať nový kľúč",
+    "cancel": "Zrušiť",
+    "rotating": "Generuje sa…",
+    "rotated": "Nový kľúč bol vygenerovaný. Zadajte ho do HyperWhisper na každom zo svojich zariadení.",
+    "errorRateLimited": "Príliš veľa zmien kľúča. Skúste to neskôr.",
+    "errorStale": "Tento kľúč už bol nahradený. Aktuálny kľúč je zobrazený vyššie.",
+    "errorGeneric": "Nový kľúč sa nepodarilo vygenerovať. Skúste to znova.",
+    "verifyTitle": "Potvrďte svoju totožnosť e-mailom",
+    "verifyBody": "Pred vygenerovaním nového kľúča najprv potvrďte svoju totožnosť e-mailom. Pošleme prihlasovací odkaz na e-mailovú adresu vášho účtu. Otvorte ho a potom na tejto stránke vygenerujte nový kľúč.",
+    "sendLink": "Poslať prihlasovací odkaz e-mailom",
+    "sendingLink": "Odosiela sa…",
+    "linkSent": "Prihlasovací odkaz bol odoslaný. Otvorte ho vo svojej doručenej pošte a potom vygenerujte nový kľúč.",
+    "linkFailed": "Prihlasovací odkaz sa nepodarilo odoslať. Skúste to znova.",
+    "errorUnavailable": "Pre tento kľúč už nemožno vygenerovať nový. Jeho aktuálny stav je zobrazený vyššie."
   },
   "openSource": {
     "heading": "Otvorený kód. Nič na skrývanie.",

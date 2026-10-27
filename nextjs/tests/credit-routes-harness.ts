@@ -22,11 +22,9 @@
  * helpers are the only way the tests reach the routes. A test file that
  * imports a route path itself would bind to the real collaborators, so do not.
  */
-import { mock } from "node:test";
-
 import { NextRequest } from "next/server";
 
-import { formatLogArgs } from "./db-error-fixture";
+import { consoleSilencer, moduleMock, moduleUrl } from "./module-mock";
 
 import type { AccountKeyRow } from "@/src/lib/db-layer";
 
@@ -53,6 +51,7 @@ export const calls = {
   deductCreditBalance: [] as DeductCall[],
   customerList: [] as CustomerListQuery[],
   customerCreate: [] as Record<string, unknown>[],
+  customerRetrieve: [] as string[],
   sessionCreate: [] as Record<string, unknown>[],
   /** Every rate-limit check, in order: which limiter, keyed by what. */
   rateLimit: [] as RateLimitCall[],
@@ -81,6 +80,13 @@ export const behaviour = {
   existingCustomers: [] as Array<{ id: string }>,
   /** Id `stripe.customers.create` hands back. */
   createdCustomerId: "cus_created",
+  /**
+   * Email `stripe.customers.retrieve` reports per customer id. An id absent
+   * here reads as the email of the stored row that caches it, so a cached
+   * customer belongs to its key unless a test says otherwise; `null` models a
+   * deleted customer.
+   */
+  customerEmails: {} as Record<string, string | null>,
   /** Thrown by `stripe.checkout.sessions.create` when set. */
   sessionError: null as unknown,
   /** URL the created session carries. `null` models Stripe returning none. */
@@ -127,6 +133,7 @@ export function resetHarness(): void {
   calls.deductCreditBalance.length = 0;
   calls.customerList.length = 0;
   calls.customerCreate.length = 0;
+  calls.customerRetrieve.length = 0;
   calls.sessionCreate.length = 0;
   calls.rateLimit.length = 0;
   rateLimitCounts.clear();
@@ -139,6 +146,7 @@ export function resetHarness(): void {
   behaviour.balanceAfterDeduct = 3_200;
   behaviour.existingCustomers = [];
   behaviour.createdCustomerId = "cus_created";
+  behaviour.customerEmails = {};
   behaviour.sessionError = null;
   behaviour.sessionUrl = "https://checkout.stripe.test/c/pay/cs_test_1";
   behaviour.rateLimitMax = Number.POSITIVE_INFINITY;
@@ -160,47 +168,10 @@ export function storeRow(row: AccountKeyRow): AccountKeyRow {
  */
 export const logLines: string[] = [];
 
-const realConsole = {
-  error: console.error,
-  log: console.log,
-  warn: console.warn,
-};
+const routeLogging = consoleSilencer(["error", "log", "warn"], logLines);
 
-export function silenceRouteLogging(): void {
-  const capture =
-    (level: string) =>
-    (...args: unknown[]): void => {
-      logLines.push(`${level} ${formatLogArgs(args)}`);
-    };
-  console.error = capture("error");
-  console.log = capture("log");
-  console.warn = capture("warn");
-}
-
-export function restoreRouteLogging(): void {
-  console.error = realConsole.error;
-  console.log = realConsole.log;
-  console.warn = realConsole.warn;
-}
-
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
-}
-
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrow the tracker to the one method used here rather
- * than bumping the types in a test-only change.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports: Record<string, unknown> },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+export const silenceRouteLogging = routeLogging.silence;
+export const restoreRouteLogging = routeLogging.restore;
 
 moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
   namedExports: {
@@ -242,6 +213,16 @@ moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
         create: async (params: Record<string, unknown>) => {
           calls.customerCreate.push(params);
           return { id: behaviour.createdCustomerId };
+        },
+        retrieve: async (id: string) => {
+          calls.customerRetrieve.push(id);
+          const email =
+            id in behaviour.customerEmails
+              ? behaviour.customerEmails[id]
+              : Array.from(behaviour.rows.values()).find(
+                  (row) => row.stripeCustomerId === id,
+                )?.email;
+          return email === null ? { id, deleted: true } : { id, email };
         },
       },
       checkout: {

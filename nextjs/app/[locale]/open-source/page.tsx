@@ -22,7 +22,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     ...metadata,
-    title: t("metaTitle"),
+    // metaTitle already ends in "| HyperWhisper" in all 40 catalogues, so it
+    // skips the layout's "%s - HyperWhisper" template, which would brand it
+    // twice (#707).
+    title: { absolute: t("metaTitle") },
     description: t("metaDescription"),
   };
 }

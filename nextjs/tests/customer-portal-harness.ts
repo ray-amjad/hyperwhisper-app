@@ -8,9 +8,10 @@
  * procedure at all; `customer.ts` turns pooled credit grants into the balance
  * and the minutes a customer reads.
  *
- * Three collaborators are replaced here with `mock.module`: Better Auth
- * (`src/lib/auth.ts`), the database layer (`src/lib/db-layer.ts`) and the
- * Stripe client (`lib/clients/stripe.ts`). The tests then run the REAL
+ * Four collaborators are replaced here with `mock.module`: Better Auth
+ * (`src/lib/auth.ts`), the database layer (`src/lib/db-layer.ts`), the
+ * Stripe client (`lib/clients/stripe.ts`) and the validated server env
+ * (`src/env/server.mjs`, for `NEXT_PUBLIC_SITE_URL`, #682). The tests then run the REAL
  * middleware chain and the REAL router — no session server, no database and
  * no Stripe account.
  *
@@ -25,11 +26,11 @@
  * imports `server/api/trpc.ts` itself would bind to the real collaborators,
  * so do not.
  */
-import { mock } from "node:test";
-
 import { callTRPCProcedure, type AnyRouter } from "@trpc/server";
 
 import type { AccountKeyRow } from "@/src/lib/db-layer";
+
+import { moduleMock, moduleUrl } from "./module-mock";
 
 /** A paid credit grant as `getPaidCreditGrantsForUsers` returns it. */
 export interface GrantRow {
@@ -54,6 +55,7 @@ export const calls = {
   getCreditBalancesForUsers: [] as string[][],
   getPaidCreditGrantsForUsers: [] as string[][],
   portalSessionCreate: [] as PortalSessionCall[],
+  customerRetrieve: [] as string[],
 };
 
 /** What the collaborators answer. Each test sets only what it cares about. */
@@ -68,6 +70,12 @@ export const behaviour = {
   grants: [] as GrantRow[],
   /** URL `stripe.billingPortal.sessions.create` hands back. */
   portalUrl: "https://billing.stripe.test/session/bps_1",
+  /**
+   * Email `stripe.customers.retrieve` reports per customer id. An id absent
+   * here reads as the email of the account key that caches it; `null` models
+   * a deleted customer.
+   */
+  customerEmails: {} as Record<string, string | null>,
 };
 
 export function accountKeyRow(
@@ -107,32 +115,23 @@ export function resetHarness(): void {
   calls.getCreditBalancesForUsers.length = 0;
   calls.getPaidCreditGrantsForUsers.length = 0;
   calls.portalSessionCreate.length = 0;
+  calls.customerRetrieve.length = 0;
 
   behaviour.session = null;
   behaviour.accountKeys = [];
   behaviour.balances = new Map();
   behaviour.grants = [];
   behaviour.portalUrl = "https://billing.stripe.test/session/bps_1";
-}
+  behaviour.customerEmails = {};
 
-function moduleUrl(relative: string): string {
-  return new URL(relative, import.meta.url).href;
+  for (const key of Object.keys(fakeEnv)) delete fakeEnv[key];
 }
 
 /**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrow the tracker to the one method used here rather
- * than bumping the types in a test-only change.
+ * The fake validated env the router reads `NEXT_PUBLIC_SITE_URL` from. It is
+ * read per call, so a test may set it before calling a procedure.
  */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports: Record<string, unknown> },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+export const fakeEnv: Record<string, string | undefined> = {};
 
 moduleMock.module(moduleUrl("../src/lib/auth.ts"), {
   namedExports: {
@@ -174,9 +173,24 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
   },
 });
 
+moduleMock.module(moduleUrl("../src/env/server.mjs"), {
+  namedExports: { env: fakeEnv },
+});
+
 moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
   namedExports: {
     stripe: {
+      customers: {
+        retrieve: async (id: string) => {
+          calls.customerRetrieve.push(id);
+          const email =
+            id in behaviour.customerEmails
+              ? behaviour.customerEmails[id]
+              : behaviour.accountKeys.find((k) => k.stripeCustomerId === id)
+                  ?.email;
+          return email === null ? { id, deleted: true } : { id, email };
+        },
+      },
       billingPortal: {
         sessions: {
           create: async (params: PortalSessionCall) => {

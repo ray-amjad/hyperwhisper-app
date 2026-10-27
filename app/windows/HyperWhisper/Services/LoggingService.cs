@@ -123,11 +123,13 @@ public static class LoggingService
     }
 
     /// <summary>
-    /// Logs a WARN level message with exception details.
+    /// Logs a WARN level message with exception details. The exception message and
+    /// stack trace go through <see cref="SentryService.RedactUserIdentifiers(string?)"/>:
+    /// a .NET IO exception names the full path, which sits under the user's profile.
     /// </summary>
     public static void Warn(string message, Exception ex)
     {
-        WriteLog("WARN", $"{message}\n  Exception: {ex.GetType().Name}: {ex.Message}\n  StackTrace: {ex.StackTrace}");
+        WriteLog("WARN", $"{message}\n  Exception: {ex.GetType().Name}: {SentryService.RedactUserIdentifiers(ex.Message)}\n  StackTrace: {SentryService.RedactUserIdentifiers(ex.StackTrace)}");
     }
 
     /// <summary>
@@ -140,15 +142,16 @@ public static class LoggingService
 
     /// <summary>
     /// Logs an ERROR level message with full exception details.
-    /// Includes inner exceptions for complete debugging information.
+    /// Includes inner exceptions for complete debugging information. Each message and
+    /// stack trace is redacted the way <see cref="Warn(string, Exception)"/> does it.
     /// </summary>
     public static void Error(string message, Exception ex)
     {
         var sb = new StringBuilder();
         sb.AppendLine(message);
         sb.AppendLine($"  Exception Type: {ex.GetType().FullName}");
-        sb.AppendLine($"  Message: {ex.Message}");
-        sb.AppendLine($"  StackTrace: {ex.StackTrace}");
+        sb.AppendLine($"  Message: {SentryService.RedactUserIdentifiers(ex.Message)}");
+        sb.AppendLine($"  StackTrace: {SentryService.RedactUserIdentifiers(ex.StackTrace)}");
 
         // Log inner exceptions for complete picture
         var inner = ex.InnerException;
@@ -156,8 +159,8 @@ public static class LoggingService
         while (inner != null)
         {
             sb.AppendLine($"  Inner Exception [{depth}]: {inner.GetType().FullName}");
-            sb.AppendLine($"    Message: {inner.Message}");
-            sb.AppendLine($"    StackTrace: {inner.StackTrace}");
+            sb.AppendLine($"    Message: {SentryService.RedactUserIdentifiers(inner.Message)}");
+            sb.AppendLine($"    StackTrace: {SentryService.RedactUserIdentifiers(inner.StackTrace)}");
             inner = inner.InnerException;
             depth++;
         }
@@ -191,9 +194,9 @@ public static class LoggingService
         sb.AppendLine($"  64-bit Process: {Environment.Is64BitProcess}");
         sb.AppendLine($"  Machine Name: {Environment.MachineName}");
         sb.AppendLine($"  Processor Count: {Environment.ProcessorCount}");
-        sb.AppendLine($"  Working Directory: {Environment.CurrentDirectory}");
-        sb.AppendLine($"  Executable Path: {Environment.ProcessPath}");
-        sb.AppendLine($"  AppDomain Base Directory: {AppDomain.CurrentDomain.BaseDirectory}");
+        sb.AppendLine($"  Working Directory: {SentryService.RedactUserIdentifiers(Environment.CurrentDirectory)}");
+        sb.AppendLine($"  Executable Path: {SentryService.RedactUserIdentifiers(Environment.ProcessPath)}");
+        sb.AppendLine($"  AppDomain Base Directory: {SentryService.RedactUserIdentifiers(AppDomain.CurrentDomain.BaseDirectory)}");
         sb.AppendLine("=========================================");
 
         Info(sb.ToString());
@@ -223,8 +226,8 @@ public static class LoggingService
         var baseDir = AppDomain.CurrentDomain.BaseDirectory;
         var runtimesDir = Path.Combine(baseDir, "runtimes");
 
-        sb.AppendLine($"  Base Directory: {baseDir}");
-        sb.AppendLine($"  Runtimes Directory: {runtimesDir}");
+        sb.AppendLine($"  Base Directory: {SentryService.RedactUserIdentifiers(baseDir)}");
+        sb.AppendLine($"  Runtimes Directory: {SentryService.RedactUserIdentifiers(runtimesDir)}");
         sb.AppendLine($"  Runtimes Exists: {Directory.Exists(runtimesDir)}");
 
         if (Directory.Exists(runtimesDir))
@@ -527,7 +530,7 @@ public static class LoggingService
             }
 
             ZipFile.CreateFromDirectory(tempRoot, destinationPath, CompressionLevel.Optimal, includeBaseDirectory: false);
-            Info($"LoggingService: Exported diagnostics to {destinationPath}");
+            Info($"LoggingService: Exported diagnostics to {SentryService.RedactUserIdentifiers(destinationPath)}");
             return destinationPath;
         }
         finally
@@ -563,7 +566,7 @@ public static class LoggingService
             Machine Name: {Environment.MachineName}
             Processor Count: {Environment.ProcessorCount}
             Working Set MB: {process.WorkingSet64 / 1024 / 1024}
-            Log Directory: {LogDirectory}
+            Log Directory: {SentryService.RedactUserIdentifiers(LogDirectory)}
 
             Included Files:
             - logs/hyperwhisper-*.log
