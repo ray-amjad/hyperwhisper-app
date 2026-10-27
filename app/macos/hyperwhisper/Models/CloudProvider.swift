@@ -263,6 +263,22 @@ enum CloudProvider: String, CaseIterable, Identifiable {
         }
     }
 
+    /// The size cap on the imported file, checked before it is copied.
+    ///
+    /// HyperWhisper Cloud's 128 MB cap applies to the upload, and the upload
+    /// can be much smaller than the source: a video's extracted audio track,
+    /// or VAD's M4A of a long WAV. So the source only gets the old 2 GB copy
+    /// guard here, and `FileTranscriptionFlow.validateUploadSize` checks
+    /// `maxFileSizeBytes` on the file that is uploaded (#2030).
+    var maxSourceFileSizeBytes: Int64 {
+        switch self {
+        case .hyperwhisper:
+            return 2 * 1024 * 1024 * 1024  // 2 GB
+        default:
+            return maxFileSizeBytes
+        }
+    }
+
     /// Audio file extensions supported by this provider for file transcription
     ///
     /// **Purpose:**
