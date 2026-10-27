@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
+using HyperWhisper.Localization;
 using HyperWhisper.Services.Transcription;
 using HyperWhisper.Utilities;
 using HyperWhisper.WhisperWorker;
@@ -785,6 +786,11 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
             // no in-app way out (#1598). Mark it broken: it then counts as not
             // installed, and Model Library offers it for download again.
             MarkBrokenIfModelFileFault(ex, modelPath);
+            if (BlockedWorkerStart(ex, ApplicationControlDiagnostics.SendBlockReport) is { } blocked)
+            {
+                throw blocked;
+            }
+
             throw;
         }
         }
@@ -868,6 +874,29 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
             LoggingService.Error($"  Worker code: {((WhisperWorkerException)ex).Code}");
             LocalModelHealth.MarkBroken(modelPath, "Whisper model failed to load");
         }
+    }
+
+    /// <summary>
+    /// The error for a worker that Application Control would not let start (#2381):
+    /// the same notice and the same one Sentry report as a blocked Parakeet engine
+    /// (#2379) or a blocked DLL (#933), naming the file only. The code stays
+    /// <c>start_failed</c>, so every caller sorts it as before. Null for any other
+    /// failure, which keeps the worker's own message.
+    /// </summary>
+    internal static WhisperWorkerException? BlockedWorkerStart(
+        Exception ex,
+        Action<ApplicationControlDiagnostics.BlockReport> send)
+    {
+        if (ex is not WhisperWorkerException { Code: WhisperWorkerErrorCodes.StartFailed } worker
+            || !ApplicationControlDiagnostics.TryReportBlock(worker.InnerException, "whisper_worker_start", send))
+        {
+            return null;
+        }
+
+        var (_, notice) = ApplicationControlDiagnostics.BuildBlockedNotice(
+            ApplicationControlDiagnostics.DescribeBlockedAssembly(worker.InnerException!),
+            static key => Loc.S(key));
+        return new WhisperWorkerException(WhisperWorkerErrorCodes.StartFailed, notice, worker);
     }
 
     private static string DescribeWorkerFailure(Exception ex) => ex is WhisperWorkerException worker
