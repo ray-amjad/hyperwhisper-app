@@ -392,6 +392,17 @@ try
         $"a backup with whole-float sortOrder / postProcessingMode was refused: {wholeFloatFieldsImport.Error?.Code} {wholeFloatFieldsImport.Error?.Message}");
     Assert(reloadedSettings.Get<int>("advanced.typingSpeedWPM") == 61,
         "a whole-float typingSpeedWPM 61.0 was not stored as the integer 61");
+    // #2616: a schema-valid integer no Int32 read accepts is dropped, so the live value stays readable.
+    foreach (var outOfRange in new[] { "3000000000", "-3000000000" })
+    {
+        var outOfRangeSettings = JsonNode.Parse(wholeFloatFields.ToJsonString())!.AsObject();
+        outOfRangeSettings["settings"]!["advanced"]!["typingSpeedWPM"] = JsonNode.Parse(outOfRange);
+        var outOfRangeImport = await backupService.ImportAsync(outOfRangeSettings.ToJsonString());
+        Assert(outOfRangeImport.IsSuccess,
+            $"a backup with typingSpeedWPM {outOfRange} was refused: {outOfRangeImport.Error?.Code} {outOfRangeImport.Error?.Message}");
+        Assert(reloadedSettings.Get<int>("advanced.typingSpeedWPM") == 61,
+            $"typingSpeedWPM {outOfRange} replaced the live value 61 instead of being dropped");
+    }
     var fractionalSortOrder = JsonNode.Parse(exported)!.AsObject();
     fractionalSortOrder["vocabulary"]!.AsArray()[0]!["sortOrder"] = JsonNode.Parse("1.5");
     Assert(backupService.Inspect(fractionalSortOrder.ToJsonString()).IsFailure, "a fractional vocabulary sortOrder 1.5 was accepted");
