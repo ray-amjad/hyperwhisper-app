@@ -158,14 +158,17 @@ function buttonFor(html: string, href: string): string {
 const windows = parseAppcast("appcast-windows.xml");
 const mac = parseAppcast("appcast.xml");
 
-test("fixture: every Windows version has an ARM64 and an x64 file of different sizes", () => {
-  assert.ok(windows.length > 0);
-  for (const v of windows) {
-    const arches = v.downloads.map((d) => d.arch).sort();
+// `scripts/validate-windows-appcast.js` (prebuild) already requires an x64
+// and an ARM64 item for every version; this only keeps the checks below from
+// passing on a feed where the two sizes could not be told apart.
+test("fixture: the Windows feed has multi-arch cards whose two sizes differ", () => {
+  const multi = windows.filter((v) => v.downloads.length > 1);
 
-    assert.deepEqual(arches, ["ARM64", "x64"], `v${v.version}`);
-    assert.notEqual(v.downloads[0].fileSize, v.downloads[1].fileSize, `v${v.version}`);
-  }
+  assert.ok(multi.length > 0, "no Windows version with two downloads");
+  assert.ok(
+    multi.some((v) => v.downloads[0].fileSize !== v.downloads[1].fileSize),
+    "every multi-arch version has two equal sizes",
+  );
 });
 
 test("each Windows download button states its own file's size", async () => {
@@ -175,10 +178,14 @@ test("each Windows download button states its own file's size", async () => {
     for (const dl of v.downloads) {
       const button = buttonFor(html, dl.downloadUrl);
 
-      assert.ok(button.includes(dl.arch), `v${v.version} ${dl.arch} label`);
-      assert.ok(
-        button.includes(mb(dl.fileSize)),
-        `v${v.version} ${dl.arch} button must state ${mb(dl.fileSize)}: ${button}`,
+      // The link's text (and so its accessible name) is "ARM64 172.02 MB":
+      // the arch and the size must not run together.
+      const text = button.replace(/<[^>]*>/g, "");
+
+      assert.equal(
+        text,
+        `${dl.arch} ${mb(dl.fileSize)}`,
+        `v${v.version} ${dl.arch} button must read "${dl.arch} ${mb(dl.fileSize)}"`,
       );
     }
   }

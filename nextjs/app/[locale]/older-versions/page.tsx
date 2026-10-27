@@ -431,10 +431,16 @@ export default function DownloadsPage() {
                           }
                         >
                           {dl.arch ? `${dl.arch}` : downloadLabel}
+                          {/* The space keeps the link's text and accessible
+                              name "ARM64 172.02 MB", not "ARM64172.02 MB"; the
+                              flex gap alone is only visual. */}
                           {version.downloads.length > 1 && (
-                            <span className="text-xs font-normal opacity-80">
-                              {formatFileSize(dl.fileSize)}
-                            </span>
+                            <>
+                              {" "}
+                              <span className="text-xs font-normal opacity-80">
+                                {formatFileSize(dl.fileSize)}
+                              </span>
+                            </>
                           )}
                         </Button>
                       ))}
