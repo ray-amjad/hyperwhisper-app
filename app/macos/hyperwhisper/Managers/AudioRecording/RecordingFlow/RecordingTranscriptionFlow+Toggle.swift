@@ -72,13 +72,18 @@ extension RecordingTranscriptionFlow {
 
         // A toggle that starts or stops a session is a newer flow: an in-flight
         // pending-file retry must not write its outcome over it (#1276).
+        var takeOverGeneration: UInt64?
         if Self.toggleTakesOverSession(
             stopOnly: stopOnly,
             isRecording: recordingLifecycle.isRecording,
             isStreamingActive: isStreamingActive
         ) {
-            appState?.beginTranscriptionSession()
+            takeOverGeneration = appState?.beginTranscriptionSession()
         }
+        // Only a START can end having started nothing; a stop's own flow owns
+        // the state it leaves.
+        let startsASession = !stopOnly && !recordingLifecycle.isRecording && !isStreamingActive
+        let ownedGeneration = startsASession ? takeOverGeneration : nil
 
         // Create a new task for this toggle operation
         // The task will check for cancellation at key points
@@ -87,6 +92,7 @@ extension RecordingTranscriptionFlow {
             // exit immediately to avoid conflicting operations
             guard !Task.isCancelled else {
                 AppLogger.audio.debug("Toggle task cancelled before execution")
+                releaseStateNoSessionTookOver(ownedGeneration)
                 return
             }
 
@@ -106,11 +112,56 @@ extension RecordingTranscriptionFlow {
                 // Check again for cancellation before starting
                 guard !Task.isCancelled else {
                     AppLogger.audio.debug("Toggle task cancelled before start operation")
+                    releaseStateNoSessionTookOver(ownedGeneration)
                     return
                 }
                 await handleStartRecording(mode: modeToUse)
+                // A start that returned early (microphone permission denied,
+                // a newer toggle) recorded nothing, yet its bump above
+                // superseded an in-flight retry, which now writes nothing.
+                releaseStateNoSessionTookOver(ownedGeneration)
             }
         }
+    }
+
+    /// Sets `recordingState` back to idle when this toggle began a session
+    /// (`generation`), nothing newer began since, nothing records, and the
+    /// state still reads `.transcribing` / `.postProcessing` (#1394).
+    ///
+    /// That state belongs to the flow this toggle superseded: a pending-file
+    /// retry that now writes nothing, or a file import whose release no longer
+    /// resets it. Without this, a start that returns early leaves the dialog
+    /// and the menu bar on "transcribing" for good. A start that records sets
+    /// `.recording` and is left alone; one that failed already set `.idle`.
+    private func releaseStateNoSessionTookOver(_ generation: UInt64?) {
+        guard let appState else { return }
+        guard Self.shouldReleaseStateAfterToggle(
+            takeOverGeneration: generation,
+            currentSessionGeneration: appState.transcriptionSessionGeneration,
+            isRecording: recordingLifecycle.isRecording,
+            isStreamingActive: isStreamingActive,
+            recordingState: appState.recordingState
+        ) else { return }
+        AppLogger.audio.info("Toggle took the session over but started nothing; releasing the superseded flow's transcribing state")
+        // Same order as the cancel shortcut: an empty text first, so the
+        // dialog's idle handler closes it instead of showing a stale error.
+        appState.lastTranscription = ""
+        appState.recordingState = .idle
+        appState.showRecordingDialog = false
+    }
+
+    /// The decision behind `releaseStateNoSessionTookOver(_:)`. Pure, so it is
+    /// tested by calling it.
+    nonisolated static func shouldReleaseStateAfterToggle(
+        takeOverGeneration: UInt64?,
+        currentSessionGeneration: UInt64,
+        isRecording: Bool,
+        isStreamingActive: Bool,
+        recordingState: RecordingState
+    ) -> Bool {
+        guard let takeOverGeneration, takeOverGeneration == currentSessionGeneration else { return false }
+        guard !isRecording, !isStreamingActive else { return false }
+        return recordingState == .transcribing || recordingState == .postProcessing
     }
 
     /// Whether a toggle starts or stops a session, and so supersedes an
