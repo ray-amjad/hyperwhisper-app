@@ -2744,7 +2744,14 @@ static async Task TestDictationUnpatchedWaveAsync()
         })
         {
             File.WriteAllBytes(path, input);
-            var handler = new RecordingHandler((_, _) => Json("{\"text\":\"unpatched ok\"}"));
+            var handler = new RecordingHandler((_, _) =>
+            {
+                // While the upload runs, the copy sits in an owner-only folder (Unix temp is shared).
+                if (!OperatingSystem.IsWindows())
+                    foreach (var directory in Directory.GetDirectories(Path.GetTempPath(), "hyperwhisper-assemblyai-*"))
+                        Assert.True(File.GetUnixFileMode(directory) == (UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute), $"{label}: copy folder is owner-only");
+                return Json("{\"text\":\"unpatched ok\"}");
+            });
             using (var client = new HttpClient(handler))
             {
                 var parameters = new uniffi.hyperwhisper_core.TranscribeParams("test-api-key", "dictation", "en", [], null, null,
@@ -2770,6 +2777,19 @@ static async Task TestDictationUnpatchedWaveAsync()
             Assert.False(result.IsSuccess);
             Assert.True(failing.LastRequest is not null, "failed upload was attempted");
             Assert.True(RepairedDirectories() == directoriesBefore, "temp copy deleted after a failed upload");
+        }
+        // A temp folder that cannot be written is reported as such, not as an invalid recording.
+        if (!OperatingSystem.IsWindows())
+        {
+            var tmpdir = Environment.GetEnvironmentVariable("TMPDIR");
+            var handler = new RecordingHandler((HttpRequestMessage _, CancellationToken _) => Task.FromException<HttpResponseMessage>(new Exception("Upload without a copy")));
+            using var service = new CloudTranscriptionService(handler, new StaticCredentials(), Sharing);
+            Environment.SetEnvironmentVariable("TMPDIR", "/dev/null/no-temp/");
+            CloudTranscriptionResult result;
+            try { result = await service.TranscribeAsync(new(CloudTranscriptionProvider.AssemblyAi, path, "dictation", Language: "en")); }
+            finally { Environment.SetEnvironmentVariable("TMPDIR", tmpdir); }
+            Assert.True(result.Failure!.Message.Contains("could not prepare"), $"temp failure message: {result.Failure.Message}");
+            Assert.True(handler.LastRequest is null, "no upload without a copy");
         }
         // Still refused before any request: an unpatched header with no audio, one over 120 s,
         // and a PATCHED header (RIFF matches the file) that declares data 0 or past the end.

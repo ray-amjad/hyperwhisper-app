@@ -59,11 +59,12 @@ internal static class AssemblyAiDictation
     // upload names the audio part after it.
     private static string WriteRepairedCopy(string path, UnpatchedData data)
     {
-        const string invalid = "AssemblyAI Dictation requires a valid PCM16 WAV. Convert this recording to WAV or select another model.";
         var directory = Path.Combine(Path.GetTempPath(), $"hyperwhisper-assemblyai-{Guid.NewGuid():N}");
         try
         {
-            Directory.CreateDirectory(directory);
+            // The copy is the user's audio: owner-only on Unix, where the temp folder is shared.
+            if (OperatingSystem.IsWindows()) Directory.CreateDirectory(directory);
+            else Directory.CreateDirectory(directory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
             using (var source = File.OpenRead(path))
             using (var target = new FileStream(Path.Combine(directory, Path.GetFileName(path)), FileMode.CreateNew, FileAccess.Write))
             {
@@ -72,7 +73,7 @@ internal static class AssemblyAiDictation
                 while (target.Position < end)
                 {
                     var read = source.Read(buffer, 0, (int)Math.Min(buffer.Length, end - target.Position));
-                    if (read == 0) throw new InvalidDataException(invalid);
+                    if (read == 0) throw new EndOfStreamException();
                     target.Write(buffer, 0, read);
                 }
                 Span<byte> length = stackalloc byte[4];
@@ -89,12 +90,13 @@ internal static class AssemblyAiDictation
         {
             try { Directory.Delete(directory, recursive: true); }
             catch (Exception cleanup) when (cleanup is IOException or UnauthorizedAccessException) { }
-            if (error is IOException or UnauthorizedAccessException) throw new InvalidDataException(invalid, error);
+            // The recording passed validation, so a failure here is the temp folder (full, read-only)
+            // or the file changing under us: say so, rather than calling the recording invalid.
+            if (error is IOException or UnauthorizedAccessException)
+                throw new InvalidDataException("AssemblyAI Dictation could not prepare this recording for upload. Check there is free disk space and try again.", error);
             throw;
         }
     }
-
-    internal static double ValidateWave(string path) => ValidateWave(path, out _);
 
     // Read actual RIFF chunks, not MIME labels, caller duration hints or file-size estimates.
     // Both desktop recorders already emit PCM16 WAV. Unsupported imports fail explicitly.
