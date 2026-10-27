@@ -10,6 +10,7 @@ import {
   jsonResponse,
   licenseRequiredResponse,
   missingContentLengthResponse,
+  sizeLimitWords,
 } from './responses';
 import {
   CREDITS_PER_MINUTE,
@@ -193,6 +194,37 @@ describe('size refusals', () => {
 
       expect((body['max_size_mb'] as number) * MB).toBeLessThanOrEqual(maxBytes);
     }
+  });
+});
+
+// #2607: the bug hunt's repro, adapted. It asked for `max_size_mb: 9.5`, but
+// both native clients parse that field as an integer (see the whole-number
+// test above), so the wire field stays a whole number and the fix is the
+// message: it states the real 9.5 MB cap and the file in the same unit.
+describe('the Google Chirp 413 states the real 9.5 MB cap (#2607)', () => {
+  test('Chirp pre-buffer 413 states the real 9.5 MB cap', async () => {
+    const response = fileTooLargeResponse(9_600_000, GOOGLE_CHIRP_INLINE_MAX_BYTES);
+    const body = await bodyOf(response);
+
+    expect(response.status).toBe(413);
+    expect(body['message']).toBe('Audio file must be 9.5 MB or smaller. Your file is 9.60 MB.');
+    // The wire fields the clients read are unchanged: a whole-number MiB limit
+    // no larger than the enforced one, and the file in MiB.
+    expect(body['max_size_mb']).toBe(9);
+    expect(body['actual_size_mb']).toBe(9.16);
+  });
+
+  test('a whole-MiB cap still reads as before', async () => {
+    const body = await bodyOf(fileTooLargeResponse(OPENAI_INLINE_MAX_BYTES + MB, OPENAI_INLINE_MAX_BYTES));
+
+    expect(body['message']).toBe('Audio file must be 25 MB or smaller. Your file is 26.00 MB.');
+    expect(body['max_size_mb']).toBe(25);
+  });
+
+  test('sizeLimitWords speaks a decimal cap in decimal MB and a MiB cap in MiB', () => {
+    expect(sizeLimitWords(9_600_000, 9_500_000)).toEqual({ max: '9.5 MB', actual: '9.60 MB' });
+    expect(sizeLimitWords(15_000_000, 14_400_000)).toEqual({ max: '14.4 MB', actual: '15.00 MB' });
+    expect(sizeLimitWords(129 * MB, MAX_AUDIO_SIZE_BYTES)).toEqual({ max: '128 MB', actual: '129.00 MB' });
   });
 });
 

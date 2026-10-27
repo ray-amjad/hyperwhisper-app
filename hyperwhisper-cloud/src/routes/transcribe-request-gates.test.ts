@@ -171,6 +171,49 @@ describe('transcribeRoute request gates', () => {
     expect(providerCalls).toEqual([]);
   });
 
+  test('a Chirp upload over the 9.5 MB inline cap 413s naming 9.5 MB (#2607)', async () => {
+    const savedBucket = process.env.GOOGLE_SPEECH_GCS_BUCKET;
+    delete process.env.GOOGLE_SPEECH_GCS_BUCKET;
+    try {
+      const { status, body } = await send(gateRequest({
+        headers: { 'X-STT-Provider': 'google-chirp' },
+        bodyBytes: 1024,
+        declaredLength: '9600000',
+      }));
+
+      expect(status).toBe(413);
+      expect(body.error).toBe('File too large');
+      expect(body.message).toBe('Audio file must be 9.5 MB or smaller. Your file is 9.60 MB.');
+      expect(body.max_size_mb).toBe(9);
+      expect(providerCalls).toEqual([]);
+    } finally {
+      if (savedBucket === undefined) delete process.env.GOOGLE_SPEECH_GCS_BUCKET;
+      else process.env.GOOGLE_SPEECH_GCS_BUCKET = savedBucket;
+    }
+  });
+
+  test('a provider-side 413 (Soniox, 14.4 MB cap) names its cap in the same unit as the file (#2607)', async () => {
+    const savedKey = process.env.SONIOX_API_KEY;
+    process.env.SONIOX_API_KEY = 'test-soniox-key';
+    try {
+      const { status, body } = await send(gateRequest({
+        headers: { 'X-STT-Provider': 'soniox' },
+        bodyBytes: 15_000_000,
+      }));
+
+      expect(status).toBe(413);
+      expect(body.error).toBe('Audio too large for provider');
+      expect(body.message).toBe('soniox accepts at most 14.4 MB inline. Your audio is 15.00 MB.');
+      // Wire fields unchanged: whole-number MiB limit, file in MiB.
+      expect(body.max_size_mb).toBe(14);
+      expect(body.actual_size_mb).toBe(14.31);
+      expect(providerCalls.filter((url) => url.includes('soniox'))).toEqual([]);
+    } finally {
+      if (savedKey === undefined) delete process.env.SONIOX_API_KEY;
+      else process.env.SONIOX_API_KEY = savedKey;
+    }
+  });
+
   test('a request with no account key is refused with 401 and never reaches a provider', async () => {
     const { status, body } = await send(gateRequest({ query: '?language=en-US' }));
 
