@@ -19,12 +19,33 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * A device field as the database can store it: a string with no NUL byte, or
- * undefined. A NUL makes Postgres refuse the device write (#2688), so such a
- * field counts as not sent, the same as a non-string one.
+ * The device fields as the database can store them. Postgres refuses a NUL
+ * byte in a text parameter (#2688), which failed the whole device write:
+ * - a `device_id` with NUL is malformed, so the device is not tracked (a
+ *   warning says so; stripping could merge two ids into one row);
+ * - a `device_name` with NUL loses the NUL. Dropping the name instead would
+ *   make the upsert overwrite a stored name with null.
  */
-function deviceField(value: unknown): string | undefined {
-  return typeof value === "string" && isStorableText(value) ? value : undefined;
+function deviceFields(payload: Record<string, unknown>): {
+  deviceId?: string;
+  deviceName?: string;
+} {
+  let deviceId =
+    typeof payload.device_id === "string" ? payload.device_id : undefined;
+
+  if (deviceId !== undefined && !isStorableText(deviceId)) {
+    console.warn(
+      "License validate: device_id contains NUL, device not tracked",
+    );
+    deviceId = undefined;
+  }
+
+  const deviceName =
+    typeof payload.device_name === "string"
+      ? payload.device_name.replaceAll("\0", "")
+      : undefined;
+
+  return { deviceId, deviceName };
 }
 
 /**
@@ -134,8 +155,8 @@ export async function POST(req: NextRequest) {
       ? payload.license_key.trim()
       : undefined;
   const include_credits = payload.include_credits === true;
-  const device_id = deviceField(payload.device_id);
-  const device_name = deviceField(payload.device_name);
+  const { deviceId: device_id, deviceName: device_name } =
+    deviceFields(payload);
   const probe_only = payload.probe_only === true;
 
   if (!license_key) {

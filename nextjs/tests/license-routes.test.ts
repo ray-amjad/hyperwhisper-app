@@ -1032,6 +1032,7 @@ describe("a NUL byte in a device field never reaches the device write (#2688)", 
     storeRow(accountKeyRow({ key: GRANTED_KEY }));
     const { POST } = await loadValidateRoute();
     logLines.length = 0;
+    warnLines.length = 0;
 
     const response = await POST(
       postRequest(VALIDATE_PATH, {
@@ -1048,9 +1049,13 @@ describe("a NUL byte in a device field never reaches the device write (#2688)", 
       logLines.filter((line) => line.includes("Device tracking error")),
       [],
     );
+    assert.ok(
+      warnLines.some((line) => line.includes("device_id contains NUL")),
+      warnLines.join("\n"),
+    );
   });
 
-  test("validate: a NUL device_name records the device with no name", async () => {
+  test("validate: a NUL device_name records the device with the NUL removed", async () => {
     storeRow(accountKeyRow({ key: GRANTED_KEY, id: "key_row_9" }));
     const { POST } = await loadValidateRoute();
 
@@ -1064,7 +1069,7 @@ describe("a NUL byte in a device field never reaches the device write (#2688)", 
 
     assert.equal(response.status, 200);
     assert.deepEqual(calls.upsertDeviceValidation, [
-      { licenseKeyId: "key_row_9", deviceId: "device-abc", deviceName: undefined },
+      { licenseKeyId: "key_row_9", deviceId: "device-abc", deviceName: "StudioMac" },
     ]);
   });
 });
