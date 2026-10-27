@@ -61,7 +61,10 @@ struct InlineErrorToastLayoutTests {
     /// without and with the Open Settings button.
     private static let messageColumnWidths: (plain: CGFloat, withSettings: CGFloat) = {
         let icon = fittingSize(InlineErrorToast.warningIcon).width
-        let button = fittingSize(InlineErrorToast.settingsButtonLabel).width
+        // The English label, like the English messages below, so a test Mac in
+        // another language does not measure a German button beside English copy.
+        let title = (try? englishTable())?["common.open.settings"] ?? "Open Settings"
+        let button = fittingSize(InlineErrorToast.settingsButtonLabel(title)).width
         let plain = InlineErrorToast.toastWidth
             - 2 * InlineErrorToast.horizontalPadding
             - icon

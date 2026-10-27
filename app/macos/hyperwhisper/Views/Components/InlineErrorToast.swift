@@ -90,9 +90,6 @@ struct InlineErrorToast: View {
     static let messageLineLimit = 2
     static let messageFont: Font = .system(size: 11, weight: .medium)
 
-    private var toastWidth: CGFloat { Self.toastWidth }
-    private var toastHeight: CGFloat { Self.toastHeight }
-
     // MARK: - Body
 
     var body: some View {
@@ -121,22 +118,22 @@ struct InlineErrorToast: View {
                     stopTimer()
                     onOpenSettings()
                 } label: {
-                    Self.settingsButtonLabel
+                    Self.settingsButtonLabel()
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, Self.horizontalPadding)
         .padding(.vertical, Self.verticalPadding)
-        .frame(width: toastWidth, height: toastHeight)
+        .frame(width: Self.toastWidth, height: Self.toastHeight)
         .background(
             // BACKGROUND: Same style as RecordingDialog
-            RoundedRectangle(cornerRadius: toastHeight / 2)
+            RoundedRectangle(cornerRadius: Self.toastHeight / 2)
                 .fill(Color.black.opacity(0.85))
         )
         .overlay(
             // BORDER: Same subtle white border as RecordingDialog
-            RoundedRectangle(cornerRadius: toastHeight / 2)
+            RoundedRectangle(cornerRadius: Self.toastHeight / 2)
                 .stroke(Color.white.opacity(0.1), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.3), radius: 10, y: 4)
@@ -166,8 +163,10 @@ struct InlineErrorToast: View {
             .foregroundColor(.orange)
     }
 
-    static var settingsButtonLabel: some View {
-        Text("common.open.settings".localized)
+    /// `title` is a parameter only so the layout test can measure the English
+    /// label whatever language the test machine runs in.
+    static func settingsButtonLabel(_ title: String = "common.open.settings".localized) -> some View {
+        Text(title)
             .font(.system(size: 9, weight: .semibold))
             .foregroundColor(.white)
             .padding(.horizontal, 8)
