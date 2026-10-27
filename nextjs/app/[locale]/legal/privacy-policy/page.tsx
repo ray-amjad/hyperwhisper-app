@@ -300,8 +300,7 @@ export default function PrivacyPolicyPage() {
       <p>
         HyperWhisper supports both local (on-device) and cloud-based
         transcription. When using local models, no audio data ever leaves your
-        device. When you download a local model in the app, the app downloads
-        it directly from{" "}
+        device. The app downloads local models directly from{" "}
         <a
           className="text-blue-400 hover:underline"
           href="https://huggingface.co/privacy"
@@ -310,9 +309,12 @@ export default function PrivacyPolicyPage() {
         >
           Hugging Face
         </a>{" "}
-        (huggingface.co). Hugging Face receives your IP address and basic
-        request details, such as the app&apos;s HTTP client, and does not
-        receive your audio, transcripts, vocabulary, or account information.
+        (huggingface.co), when you download a model and whenever a
+        model&apos;s files need to be fetched again, for example after they
+        were deleted from your device. Hugging Face receives your IP address
+        and basic request details, such as the app&apos;s HTTP client and which
+        model files are requested, and does not receive your audio,
+        transcripts, vocabulary, or account information.
         Apple Speech on macOS is the exception: macOS downloads its speech
         models from Apple.
       </p>
@@ -872,11 +874,14 @@ export default function PrivacyPolicyPage() {
         correct and format it. This post-processing request carries no audio.
         Grok and Mistral store request data for approximately 30 days for
         abuse monitoring, and do not use it to train their models. A request
-        goes to the fallback named above in only three cases: the provider still
-        returns a server error after any automatic retries, the provider
-        rejects the request because of its rate limit (then the request goes
-        to the fallback at once, with no retry on the first provider), or its
-        reply repeats our instructions instead of your corrected text. So one
+        goes to the fallback named above in only four cases: the request to
+        the provider still fails with a server error after any automatic
+        retries (this includes a reply we cannot read and a fault on our side,
+        such as a missing provider key), the provider does not answer within
+        our time limit, the provider rejects the request because of its rate
+        limit (in these last two cases the request goes to the fallback at
+        once, with no retry on the first provider), or its reply repeats our
+        instructions instead of your corrected text. So one
         request can reach at most three providers in this list — for example
         Grok, then Anthropic after a server error, then Cerebras if
         Anthropic&apos;s reply repeats the instructions.
@@ -1079,12 +1084,14 @@ export default function PrivacyPolicyPage() {
         for analytics to understand how our website is used and to improve the
         experience. PostHog may set its own cookies. We do not use this data for
         advertising purposes. Our website also sends PostHog an error report
-        when a page hits an error, for example a failed sign-in, checkout or
-        download, so we can find and fix it. A report holds the error type and
-        message, the stack trace, the page address, and your browser and
-        device details. We do not add your email address, your Account Key or a
-        sign-in link to a report, and an Account Key anywhere in a report is
-        removed before it is sent.
+        when a page hits an unexpected error, for example while you sign in,
+        buy credits, or load a download page, so we can find and fix it. A
+        report holds the error type and message, the stack trace, the name of
+        the step that failed (and, for a failed request, its status code), the
+        page address, and your browser and device details, and PostHog links
+        it to the same visitor record as our analytics. We do not add your
+        email address, your Account Key or a sign-in link to a report, and an
+        Account Key that appears in a report is removed before it is sent.
       </p>
       <p>
         The demo video on our home page is hosted by{" "}
@@ -1286,8 +1293,8 @@ export default function PrivacyPolicyPage() {
         documentation as described above, may process the docs page views it
         records and the docs search queries it receives in the United States.
         Hugging Face, which serves local model downloads as described under
-        Transcription Processing, may process those download requests in the
-        United States and other countries.
+        Transcription Processing, may process those requests in the United
+        States and other countries.
         Fly.io runs HyperWhisper Cloud&apos;s edge servers in regions around
         the world, so a Cloud request can be handled outside the United
         Kingdom and the European Economic Area, and Axiom may process the
