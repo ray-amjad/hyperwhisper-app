@@ -1401,9 +1401,11 @@ public partial class MainWindow : Window
     internal static LinuxErrorToastAction ClassifyErrorToastAction(string code)
     {
         var value = code.ToLowerInvariant();
-        // The browser could not open (or refused) an account page. The Cloud settings page is where
-        // the user clicked Get Credits or Manage account, and nothing there fixes a missing browser,
-        // so the toast offers no button; its message carries the URL to copy (#2632).
+        // An account page did not open (#2632). The Cloud settings page is where the user clicked Get
+        // Credits or Manage account, and nothing there fixes either case, so the toast offers no button.
+        // link_failed: the browser could not open the page; its message ends with the URL to copy.
+        // link_rejected: the URL was not one of the two known account pages, so OpenAccountUri never
+        // opened it and its message carries no URL.
         if (value is "account.link_failed" or "account.link_rejected")
             return LinuxErrorToastAction.None;
         if (value.Contains("credential", StringComparison.Ordinal)
