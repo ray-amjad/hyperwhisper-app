@@ -354,6 +354,25 @@
     "customSub": "số tiền của bạn",
     "topUp": "Nạp thêm"
   },
+  "licenseKeysCard": {
+    "rotate": "Tạo lại khóa",
+    "confirmTitle": "Tạo lại khóa tài khoản này?",
+    "confirmBody": "Bạn sẽ nhận được khóa mới và khóa này sẽ ngừng hoạt động ngay lập tức. Mọi thiết bị đang dùng khóa cũ đều cần khóa mới: hãy nhập khóa mới vào HyperWhisper trên từng thiết bị. Tín dụng, gói và lịch sử mua hàng của bạn vẫn được giữ trong tài khoản. Bạn cũng sẽ bị đăng xuất khỏi trang web này trên các trình duyệt khác.",
+    "confirm": "Tạo lại khóa",
+    "cancel": "Hủy",
+    "rotating": "Đang tạo lại…",
+    "rotated": "Đã tạo lại khóa. Hãy nhập khóa mới vào HyperWhisper trên từng thiết bị của bạn.",
+    "errorRateLimited": "Bạn đã tạo lại khóa quá nhiều lần. Vui lòng thử lại sau.",
+    "errorStale": "Khóa này đã được tạo lại. Khóa hiện tại được hiển thị ở trên.",
+    "errorGeneric": "Không thể tạo lại khóa. Vui lòng thử lại.",
+    "verifyTitle": "Xác nhận qua email rằng đó là bạn",
+    "verifyBody": "Để tạo lại khóa, trước tiên hãy xác nhận qua email rằng đó là bạn. Chúng tôi sẽ gửi liên kết đăng nhập đến địa chỉ email của tài khoản bạn. Hãy mở liên kết, rồi tạo lại khóa từ trang này.",
+    "sendLink": "Gửi cho tôi liên kết đăng nhập",
+    "sendingLink": "Đang gửi…",
+    "linkSent": "Đã gửi liên kết đăng nhập. Hãy mở liên kết từ hộp thư đến, rồi tạo lại khóa.",
+    "linkFailed": "Không thể gửi liên kết đăng nhập. Vui lòng thử lại.",
+    "errorUnavailable": "Khóa này không thể tạo lại được nữa. Trạng thái hiện tại của khóa được hiển thị ở trên."
+  },
   "openSource": {
     "heading": "Mã nguồn mở. Không có gì để giấu.",
     "body": "HyperWhisper hoàn toàn mã nguồn mở theo giấy phép Apache-2.0 — cả ứng dụng máy tính lẫn backend Cloud. Một ứng dụng lắng nghe micro của bạn nên là thứ bạn có thể kiểm chứng, chứ không chỉ tin tưởng: hãy đọc từng dòng, kiểm tra chính xác âm thanh của bạn đi đâu, và biết rằng bạn sẽ không bao giờ bị khóa chân — mã nguồn là của bạn để fork và tự lưu trữ mãi mãi. Được xây dựng công khai bởi nhà phát triển độc lập Ray Amjad.",

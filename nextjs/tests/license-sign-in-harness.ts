@@ -47,6 +47,8 @@ export interface SetSessionCookieCall {
 /** Everything the endpoint asked its collaborators to do, in call order. */
 export const calls = {
   findAccountByKey: [] as string[],
+  /** Whether each `findAccountByKey` call asked for a locking read. */
+  findAccountByKeyLocked: [] as boolean[],
   selectUserById: [] as string[],
   createSession: [] as string[],
   deleteSession: [] as string[],
@@ -115,6 +117,7 @@ export function storeUser(row: UserRow): UserRow {
 
 export function resetHarness(): void {
   calls.findAccountByKey.length = 0;
+  calls.findAccountByKeyLocked.length = 0;
   calls.selectUserById.length = 0;
   calls.createSession.length = 0;
   calls.deleteSession.length = 0;
@@ -142,8 +145,13 @@ export const restoreEndpointLogging = endpointLogging.restore;
 
 moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
   namedExports: {
-    findAccountByKey: async (key: string): Promise<AccountKeyRow | null> => {
+    findAccountByKey: async (
+      key: string,
+      _executor?: unknown,
+      options?: { lockForShare?: boolean },
+    ): Promise<AccountKeyRow | null> => {
       calls.findAccountByKey.push(key);
+      calls.findAccountByKeyLocked.push(options?.lockForShare === true);
       behaviour.beforeLookup?.(calls.findAccountByKey.length);
       return behaviour.rows.get(key) ?? null;
     },

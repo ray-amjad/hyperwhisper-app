@@ -354,6 +354,25 @@
     "customSub": "jumlah Anda",
     "topUp": "Isi ulang"
   },
+  "licenseKeysCard": {
+    "rotate": "Buat ulang kunci",
+    "confirmTitle": "Buat ulang kunci akun ini?",
+    "confirmBody": "Anda akan mendapatkan kunci baru, dan kunci ini langsung tidak berlaku. Setiap perangkat yang memakai kunci lama memerlukan kunci baru: masukkan kunci tersebut di HyperWhisper pada setiap perangkat. Kredit, paket, dan riwayat pembelian Anda tetap tersimpan di akun Anda. Anda juga akan dikeluarkan dari situs web ini di browser Anda yang lain.",
+    "confirm": "Buat ulang kunci",
+    "cancel": "Batal",
+    "rotating": "Membuat ulang…",
+    "rotated": "Kunci telah dibuat ulang. Masukkan kunci baru di HyperWhisper pada setiap perangkat Anda.",
+    "errorRateLimited": "Terlalu sering membuat ulang kunci. Silakan coba lagi nanti.",
+    "errorStale": "Kunci ini sudah dibuat ulang. Kunci saat ini ditampilkan di atas.",
+    "errorGeneric": "Tidak dapat membuat ulang kunci. Silakan coba lagi.",
+    "verifyTitle": "Konfirmasi bahwa ini Anda melalui email",
+    "verifyBody": "Untuk membuat ulang kunci Anda, konfirmasi terlebih dahulu bahwa ini Anda melalui email. Kami akan mengirim tautan masuk ke alamat email akun Anda. Buka tautan tersebut, lalu buat ulang kunci dari halaman ini.",
+    "sendLink": "Kirimi saya tautan masuk",
+    "sendingLink": "Mengirim…",
+    "linkSent": "Tautan masuk terkirim. Buka dari kotak masuk Anda, lalu buat ulang kunci.",
+    "linkFailed": "Tidak dapat mengirim tautan masuk. Silakan coba lagi.",
+    "errorUnavailable": "Kunci ini tidak dapat dibuat ulang lagi. Statusnya saat ini ditampilkan di atas."
+  },
   "openSource": {
     "heading": "Sumber terbuka. Tidak ada yang disembunyikan.",
     "body": "HyperWhisper sepenuhnya open-source di bawah Apache-2.0 — baik aplikasi desktop maupun backend Cloud. Aplikasi yang mendengarkan mikrofon Anda seharusnya bisa Anda verifikasi, bukan sekadar dipercaya: baca setiap baris, audit ke mana persis audio Anda pergi, dan ketahui bahwa Anda tidak akan pernah terkunci — kode ini milik Anda untuk di-fork dan di-host sendiri selamanya. Dibangun secara terbuka oleh indie maker Ray Amjad.",

@@ -354,6 +354,25 @@
     "customSub": "seu valor",
     "topUp": "Recarregar"
   },
+  "licenseKeysCard": {
+    "rotate": "Regenerar chave",
+    "confirmTitle": "Regenerar esta chave da conta?",
+    "confirmBody": "Você receberá uma nova chave, e esta deixará de funcionar imediatamente. Todos os dispositivos que usam a chave antiga precisarão da nova: digite-a no HyperWhisper em cada dispositivo. Seus créditos, plano e histórico de compras continuam na sua conta. Você também será desconectado deste site nos seus outros navegadores.",
+    "confirm": "Regenerar chave",
+    "cancel": "Cancelar",
+    "rotating": "Regenerando…",
+    "rotated": "Chave regenerada. Digite a nova chave no HyperWhisper em cada um dos seus dispositivos.",
+    "errorRateLimited": "Muitas regenerações. Tente novamente mais tarde.",
+    "errorStale": "Esta chave já foi regenerada. A chave atual é exibida acima.",
+    "errorGeneric": "Não foi possível regenerar a chave. Tente novamente.",
+    "verifyTitle": "Confirme por e-mail que é você",
+    "verifyBody": "Para regenerar sua chave, primeiro confirme por e-mail que é você. Enviaremos um link de acesso para o endereço de e-mail da sua conta. Abra-o e, em seguida, regenere a chave nesta página.",
+    "sendLink": "Enviar link de acesso por e-mail",
+    "sendingLink": "Enviando…",
+    "linkSent": "Link de acesso enviado. Abra-o na sua caixa de entrada e, em seguida, regenere a chave.",
+    "linkFailed": "Não foi possível enviar o link de acesso. Tente novamente.",
+    "errorUnavailable": "Esta chave não pode mais ser regenerada. O status atual dela é exibido acima."
+  },
   "openSource": {
     "heading": "Código aberto. Nada a esconder.",
     "body": "O HyperWhisper é totalmente de código aberto sob Apache-2.0 — tanto os aplicativos de desktop quanto o backend do Cloud. Um aplicativo que escuta o seu microfone deveria ser algo que você pode verificar, e não apenas algo em que confiar: leia cada linha, audite exatamente para onde vai o seu áudio e tenha certeza de que nunca ficará preso a um fornecedor — o código é seu para fazer fork e hospedar você mesmo para sempre. Construído de forma aberta pelo criador independente Ray Amjad.",

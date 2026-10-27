@@ -354,6 +354,25 @@
     "customSub": "oma summasi",
     "topUp": "Lisää saldoa"
   },
+  "licenseKeysCard": {
+    "rotate": "Vaihda avain",
+    "confirmTitle": "Vaihdetaanko tämä tiliavain?",
+    "confirmBody": "Saat uuden avaimen, ja tämä avain lakkaa toimimasta heti. Jokainen laite, joka käyttää vanhaa avainta, tarvitsee uuden: syötä se HyperWhisperiin jokaisella laitteella. Krediittisi, tilauksesi ja ostohistoriasi säilyvät tililläsi. Sinut myös kirjataan ulos tältä sivustolta muissa selaimissasi.",
+    "confirm": "Vaihda avain",
+    "cancel": "Peruuta",
+    "rotating": "Vaihdetaan…",
+    "rotated": "Avain vaihdettu. Syötä uusi avain HyperWhisperiin jokaisella laitteellasi.",
+    "errorRateLimited": "Liian monta vaihtoa. Yritä myöhemmin uudelleen.",
+    "errorStale": "Tämä avain on jo vaihdettu. Nykyinen avain näkyy yllä.",
+    "errorGeneric": "Avaimen vaihtaminen epäonnistui. Yritä uudelleen.",
+    "verifyTitle": "Vahvista henkilöllisyytesi sähköpostilla",
+    "verifyBody": "Vahvista ensin henkilöllisyytesi sähköpostilla, jotta voit vaihtaa avaimesi. Lähetämme kirjautumislinkin tilisi sähköpostiosoitteeseen. Avaa se ja vaihda sitten avain tällä sivulla.",
+    "sendLink": "Lähetä minulle kirjautumislinkki",
+    "sendingLink": "Lähetetään…",
+    "linkSent": "Kirjautumislinkki lähetetty. Avaa se saapuneista viesteistä ja vaihda sitten avain.",
+    "linkFailed": "Kirjautumislinkin lähettäminen epäonnistui. Yritä uudelleen.",
+    "errorUnavailable": "Tätä avainta ei voi enää vaihtaa. Sen nykyinen tila näkyy yllä."
+  },
   "openSource": {
     "heading": "Avoin lähdekoodi. Ei mitään salattavaa.",
     "body": "HyperWhisper on täysin avointa lähdekoodia Apache-2.0-lisenssillä — niin työpöytäsovellukset kuin Cloud-taustajärjestelmäkin. Sovelluksen, joka kuuntelee mikrofoniasi, pitäisi olla jotain, jonka voit varmistaa, ei vain luottaa siihen: lue jokainen rivi, tarkista tarkalleen, minne äänesi menee, ja tiedä, ettet jää koskaan lukkoon — koodi on sinun forkattavaksesi ja itse isännöitäväksesi ikuisesti. Rakennettu avoimesti indie-tekijä Ray Amjadin toimesta.",

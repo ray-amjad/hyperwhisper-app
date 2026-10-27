@@ -354,6 +354,25 @@
     "customSub": "dit beløb",
     "topUp": "Fyld op"
   },
+  "licenseKeysCard": {
+    "rotate": "Udskift nøgle",
+    "confirmTitle": "Udskift denne kontonøgle?",
+    "confirmBody": "Du får en ny nøgle, og denne holder op med at virke med det samme. Alle enheder, der bruger den gamle nøgle, skal have den nye: indtast den i HyperWhisper på hver enhed. Dine kreditter, dit abonnement og din købshistorik forbliver på din konto. Du bliver også logget ud af dette websted i dine andre browsere.",
+    "confirm": "Udskift nøgle",
+    "cancel": "Annuller",
+    "rotating": "Udskifter…",
+    "rotated": "Nøglen er udskiftet. Indtast den nye nøgle i HyperWhisper på hver af dine enheder.",
+    "errorRateLimited": "For mange udskiftninger. Prøv igen senere.",
+    "errorStale": "Denne nøgle er allerede udskiftet. Den aktuelle nøgle vises ovenfor.",
+    "errorGeneric": "Nøglen kunne ikke udskiftes. Prøv igen.",
+    "verifyTitle": "Bekræft, at det er dig, via e-mail",
+    "verifyBody": "For at udskifte din nøgle skal du først bekræfte, at det er dig, via e-mail. Vi sender et login-link til din kontos e-mailadresse. Åbn det, og udskift derefter nøglen fra denne side.",
+    "sendLink": "Send mig et login-link",
+    "sendingLink": "Sender…",
+    "linkSent": "Login-linket er sendt. Åbn det fra din indbakke, og udskift derefter nøglen.",
+    "linkFailed": "Login-linket kunne ikke sendes. Prøv igen.",
+    "errorUnavailable": "Denne nøgle kan ikke længere udskiftes. Dens aktuelle status vises ovenfor."
+  },
   "openSource": {
     "heading": "Åben kildekode. Intet at skjule.",
     "body": "HyperWhisper er fuldt open source under Apache-2.0 — både desktop-apps og Cloud-backend. En app, der lytter til din mikrofon, bør være noget, du kan verificere, ikke bare stole på: læs hver linje, kontrollér præcis, hvor din lyd havner, og vid, at du aldrig bliver låst inde — koden er din at forke og selv-hoste for altid. Bygget i det åbne af den uafhængige udvikler Ray Amjad.",

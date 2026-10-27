@@ -354,6 +354,25 @@
     "customSub": "az Ön összege",
     "topUp": "Feltöltés"
   },
+  "licenseKeysCard": {
+    "rotate": "Kulcs cseréje",
+    "confirmTitle": "Lecseréli ezt a fiókkulcsot?",
+    "confirmBody": "Új kulcsot kap, ez a kulcs pedig azonnal érvényét veszti. Minden eszköznek, amely a régi kulcsot használja, szüksége lesz az újra: adja meg a HyperWhisperben minden eszközön. Kreditjei, csomagja és vásárlási előzményei a fiókjában maradnak. Emellett a többi böngészőjében kijelentkeztetjük erről a webhelyről.",
+    "confirm": "Kulcs cseréje",
+    "cancel": "Mégse",
+    "rotating": "Csere folyamatban…",
+    "rotated": "A kulcs lecserélve. Adja meg az új kulcsot a HyperWhisperben minden eszközén.",
+    "errorRateLimited": "Túl sok kulcscsere. Kérjük, próbálja újra később.",
+    "errorStale": "Ezt a kulcsot már lecserélték. Az aktuális kulcs fent látható.",
+    "errorGeneric": "Nem sikerült lecserélni a kulcsot. Kérjük, próbálja újra.",
+    "verifyTitle": "Erősítse meg e-mailben, hogy Ön az",
+    "verifyBody": "A kulcs cseréjéhez először erősítse meg e-mailben, hogy Ön az. Bejelentkezési hivatkozást küldünk a fiókjához tartozó e-mail-címre. Nyissa meg, majd cserélje le a kulcsot ezen az oldalon.",
+    "sendLink": "Bejelentkezési hivatkozás küldése e-mailben",
+    "sendingLink": "Küldés…",
+    "linkSent": "Elküldtük a bejelentkezési hivatkozást. Nyissa meg a beérkező levelei között, majd cserélje le a kulcsot.",
+    "linkFailed": "Nem sikerült elküldeni a bejelentkezési hivatkozást. Kérjük, próbálja újra.",
+    "errorUnavailable": "Ez a kulcs már nem cserélhető le. Az aktuális állapota fent látható."
+  },
   "openSource": {
     "heading": "Nyilt forraskod. Nincs mit rejtegetni.",
     "body": "A HyperWhisper teljesen nyilt forraskodu az Apache-2.0 alatt — az asztali alkalmazasok es a Cloud hatter egyarant. Egy alkalmazas, amely a mikrofonjat hallgatja, olyan legyen, amelyet ellenorizni tud, nem csupan megbizni benne: olvasson el minden sort, ellenorizze pontosan, hova kerul a hangja, es tudja, hogy soha nem lesz bezarva — a kod az One, hogy orokre forkolja es sajat maga uzemeltesse. Nyiltan keszitette a fuggetlen fejleszto, Ray Amjad.",

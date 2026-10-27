@@ -354,6 +354,25 @@
     "customSub": "vas znesek",
     "topUp": "Doplacaj"
   },
+  "licenseKeysCard": {
+    "rotate": "Ustvari nov ključ",
+    "confirmTitle": "Želite ustvariti nov ključ računa?",
+    "confirmBody": "Prejeli boste nov ključ, ta pa bo takoj prenehal delovati. Vsaka naprava, ki uporablja stari ključ, bo potrebovala novega: vnesite ga v HyperWhisper v vsaki napravi. Vaši krediti, paket in zgodovina nakupov ostanejo v vašem računu. Poleg tega boste v drugih brskalnikih odjavljeni s tega spletnega mesta.",
+    "confirm": "Ustvari nov ključ",
+    "cancel": "Prekliči",
+    "rotating": "Ustvarjanje…",
+    "rotated": "Nov ključ je ustvarjen. Vnesite ga v HyperWhisper v vsaki svoji napravi.",
+    "errorRateLimited": "Preveč zamenjav ključa. Poskusite znova pozneje.",
+    "errorStale": "Ta ključ je že bil zamenjan. Trenutni ključ je prikazan zgoraj.",
+    "errorGeneric": "Novega ključa ni bilo mogoče ustvariti. Poskusite znova.",
+    "verifyTitle": "Po e-pošti potrdite, da ste to vi",
+    "verifyBody": "Če želite ustvariti nov ključ, najprej po e-pošti potrdite, da ste to vi. Na e-poštni naslov vašega računa bomo poslali povezavo za prijavo. Odprite jo in nato na tej strani ustvarite nov ključ.",
+    "sendLink": "Pošlji mi povezavo za prijavo",
+    "sendingLink": "Pošiljanje…",
+    "linkSent": "Povezava za prijavo je poslana. Odprite jo v nabiralniku in nato ustvarite nov ključ.",
+    "linkFailed": "Povezave za prijavo ni bilo mogoče poslati. Poskusite znova.",
+    "errorUnavailable": "Za ta ključ ni več mogoče ustvariti novega. Njegovo trenutno stanje je prikazano zgoraj."
+  },
   "openSource": {
     "heading": "Odprta koda. Nicesar za skrivati.",
     "body": "HyperWhisper je popolnoma odprtokoden pod Apache-2.0 — tako namizne aplikacije kot Cloud zaledje. Aplikacija, ki poslusa vas mikrofon, naj bo nekaj, kar lahko preverite, ne le zaupate: preberite vsako vrstico, preverite, kam tocno gre vas zvok, in vedite, da ne boste nikoli vezani — koda je vasa, da jo za vedno razvejite in gostite sami. Zgradil jo je v odprtem neodvisni ustvarjalec Ray Amjad.",

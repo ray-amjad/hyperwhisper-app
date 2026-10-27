@@ -354,6 +354,25 @@
     "customSub": "ditt beløp",
     "topUp": "Fyll på"
   },
+  "licenseKeysCard": {
+    "rotate": "Bytt nøkkel",
+    "confirmTitle": "Bytte ut denne kontonøkkelen?",
+    "confirmBody": "Du får en ny nøkkel, og denne slutter å virke med en gang. Alle enheter som bruker den gamle nøkkelen, trenger den nye: skriv den inn i HyperWhisper på hver enhet. Kredittene, abonnementet og kjøpshistorikken din blir værende på kontoen din. Du blir også logget ut av dette nettstedet i de andre nettleserne dine.",
+    "confirm": "Bytt nøkkel",
+    "cancel": "Avbryt",
+    "rotating": "Bytter…",
+    "rotated": "Nøkkelen er byttet. Skriv inn den nye nøkkelen i HyperWhisper på hver av enhetene dine.",
+    "errorRateLimited": "For mange nøkkelbytter. Prøv igjen senere.",
+    "errorStale": "Denne nøkkelen er allerede byttet. Den gjeldende nøkkelen vises ovenfor.",
+    "errorGeneric": "Kunne ikke bytte nøkkelen. Prøv igjen.",
+    "verifyTitle": "Bekreft at det er deg, via e-post",
+    "verifyBody": "For å bytte nøkkelen må du først bekrefte via e-post at det er deg. Vi sender en innloggingslenke til e-postadressen til kontoen din. Åpne den, og bytt deretter nøkkelen fra denne siden.",
+    "sendLink": "Send meg en innloggingslenke",
+    "sendingLink": "Sender…",
+    "linkSent": "Innloggingslenken er sendt. Åpne den fra innboksen din, og bytt deretter nøkkelen.",
+    "linkFailed": "Kunne ikke sende innloggingslenken. Prøv igjen.",
+    "errorUnavailable": "Denne nøkkelen kan ikke byttes lenger. Den nåværende statusen vises ovenfor."
+  },
   "openSource": {
     "heading": "Åpen kildekode. Ingenting å skjule.",
     "body": "HyperWhisper er helt åpen kildekode under Apache-2.0 — både skrivebordsappene og Cloud-backenden. En app som lytter til mikrofonen din, bør være noe du kan verifisere, ikke bare stole på: les hver linje, kontroller nøyaktig hvor lyden din havner, og vit at du aldri blir låst inne — koden er din til å forke og kjøre selv for alltid. Bygget i åpenhet av indie-utvikleren Ray Amjad.",

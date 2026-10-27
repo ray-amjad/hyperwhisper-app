@@ -354,6 +354,25 @@
     "customSub": "ditt belopp",
     "topUp": "Fyll pa"
   },
+  "licenseKeysCard": {
+    "rotate": "Byt nyckel",
+    "confirmTitle": "Byta ut den här kontonyckeln?",
+    "confirmBody": "Du får en ny nyckel, och den här slutar fungera direkt. Alla enheter som använder den gamla nyckeln behöver den nya: ange den i HyperWhisper på varje enhet. Dina krediter, din plan och din köphistorik finns kvar på ditt konto. Du loggas också ut från den här webbplatsen i dina andra webbläsare.",
+    "confirm": "Byt nyckel",
+    "cancel": "Avbryt",
+    "rotating": "Byter…",
+    "rotated": "Nyckeln har bytts. Ange den nya nyckeln i HyperWhisper på var och en av dina enheter.",
+    "errorRateLimited": "För många nyckelbyten. Försök igen senare.",
+    "errorStale": "Den här nyckeln har redan bytts. Den aktuella nyckeln visas ovan.",
+    "errorGeneric": "Det gick inte att byta nyckeln. Försök igen.",
+    "verifyTitle": "Bekräfta via e-post att det är du",
+    "verifyBody": "Om du vill byta nyckel måste du först bekräfta via e-post att det är du. Vi skickar en inloggningslänk till e-postadressen för ditt konto. Öppna den och byt sedan nyckeln från den här sidan.",
+    "sendLink": "Skicka en inloggningslänk till mig",
+    "sendingLink": "Skickar…",
+    "linkSent": "Inloggningslänken har skickats. Öppna den från din inkorg och byt sedan nyckeln.",
+    "linkFailed": "Det gick inte att skicka inloggningslänken. Försök igen.",
+    "errorUnavailable": "Den här nyckeln kan inte bytas längre. Dess aktuella status visas ovan."
+  },
   "openSource": {
     "heading": "Öppen källkod. Inget att dölja.",
     "body": "HyperWhisper är helt öppen källkod under Apache-2.0 — både skrivbordsapparna och Cloud-backenden. En app som lyssnar på din mikrofon bör vara något du kan verifiera, inte bara lita på: läs varje rad, granska exakt vart ditt ljud tar vägen och vet att du aldrig blir inlåst — koden är din att forka och köra i egen regi för alltid. Byggd i det öppna av den oberoende skaparen Ray Amjad.",

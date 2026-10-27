@@ -4,7 +4,7 @@
  * All database operations go through Drizzle ORM (Neon/PlanetScale).
  */
 
-import { eq, and, or, asc, desc, gte, inArray, count, countDistinct, sql, ilike } from "drizzle-orm";
+import { eq, ne, and, or, asc, desc, gte, inArray, count, countDistinct, sql, ilike } from "drizzle-orm";
 import { generateLicenseKey } from "@/lib/services/license-key";
 import { db } from "@/src/db";
 import {
@@ -165,6 +165,13 @@ export interface RevokeWebAccessOptions {
    */
   actingUserId?: string;
   /**
+   * One session row to leave standing: the browser the user is acting from
+   * right now. Used by `rotateAccountKey()`, where the holder of the account
+   * is the one asking, so their own tab stays signed in while every other
+   * session (including one a leaked key minted) is swept.
+   */
+  keepSessionId?: string;
+  /**
    * Join an existing transaction. Pass this whenever the caller is already
    * writing the row that made the access invalid, so the two cannot diverge.
    */
@@ -178,6 +185,7 @@ export interface RevokeWebAccessOptions {
  * second mechanism; extend this one. Today's callers:
  *   - `revokeAccountKey()`     — a license key was revoked
  *   - `updateCustomerEmail()`  — the account moved to a different address
+ *   - `rotateAccountKey()`     — the owner replaced a key (keeps their own tab)
  *
  * Why session rows have to go at all: web sessions last 90 days and roll
  * forward on use, and a session minted by `/sign-in/license-key` outlives the
@@ -218,7 +226,109 @@ export async function revokeWebAccess(
 
   const runner = options.tx ?? db;
 
-  await runner.delete(session).where(eq(session.userId, userId));
+  await runner
+    .delete(session)
+    .where(
+      options.keepSessionId
+        ? and(eq(session.userId, userId), ne(session.id, options.keepSessionId))
+        : eq(session.userId, userId),
+    );
+}
+
+/** Why `rotateAccountKey()` refused, or what it rotated. */
+export type RotateAccountKeyResult =
+  | {
+      status: "rotated";
+      license: AccountKeyRow;
+      /** The key the row held before. Only for invalidating caches keyed by it. */
+      previousKey: string;
+      /** Device rows removed with the old key. */
+      devicesCleared: number;
+    }
+  /** No such row, or it is not the caller's. The two are not told apart. */
+  | { status: "not_found" }
+  /** The row is revoked / refunded / disabled: only a granted key rotates. */
+  | { status: "not_granted" }
+  /**
+   * The row no longer holds the key the caller saw: another rotation got there
+   * first. The caller reloads and sees the current key.
+   */
+  | { status: "stale" };
+
+/**
+ * Replace an Account Key's value with a fresh one, in place.
+ *
+ * The row keeps its id, so everything that hangs off the id stays with the
+ * owner: credits (pooled per user), credit grants, the Stripe customer and
+ * session, the Polar ids, purchase history. Only the string changes, so the
+ * old key stops matching `findAccountByKey` — and with it `/api/license/*`,
+ * `/api/account/*` and the license-key sign-in — on the next request.
+ *
+ * In ONE transaction, under a row lock:
+ *   1. ownership: the row's user AND email are the caller's (the dashboard
+ *      lists keys by email; both move together in `updateCustomerEmail`);
+ *   2. status: only a `granted` key rotates — a revoked or refunded key is
+ *      already dead, and rotating it would hand out a fresh string for it;
+ *   3. `expectedKey`: the caller names the key it is replacing. Two rotations
+ *      at once serialise on the lock; the second finds the string changed and
+ *      gets `stale`, so neither caller is left showing a key that no longer
+ *      works;
+ *   4. the device rows of the old key are cleared (a leaked key's machines
+ *      drop off the admin's device list; a real device re-registers on its
+ *      next validation with the new key);
+ *   5. every web session of the user except `keepSessionId` is deleted
+ *      (`revokeWebAccess`): a session minted by the old key through
+ *      `/sign-in/license-key` must not outlive it, and would otherwise show
+ *      its holder the NEW key on this very dashboard.
+ *
+ * Never logs a key.
+ */
+export async function rotateAccountKey(input: {
+  id: string;
+  userId: string;
+  email: string;
+  expectedKey: string;
+  keepSessionId?: string;
+}): Promise<RotateAccountKeyResult> {
+  const email = input.email.toLowerCase().trim();
+
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .select()
+      .from(accountKeys)
+      .where(eq(accountKeys.id, input.id))
+      .for("update");
+
+    if (!row || row.userId !== input.userId || row.email !== email) {
+      return { status: "not_found" } as const;
+    }
+    if (row.status !== "granted") return { status: "not_granted" } as const;
+    if (row.key !== input.expectedKey.trim()) return { status: "stale" } as const;
+
+    // The same generator and collision check as a mint; `idx_account_keys_key`
+    // backs it. The row still holds the old key, so a repeat is a collision.
+    const key = await generateUnusedAccountKey(tx);
+
+    const [updated] = await tx
+      .update(accountKeys)
+      .set({ key })
+      .where(eq(accountKeys.id, row.id))
+      .returning();
+
+    const cleared = await tx
+      .delete(deviceValidations)
+      .where(eq(deviceValidations.licenseKeyId, row.id))
+      .returning({ id: deviceValidations.id });
+
+    await revokeWebAccess(row.userId, { tx, keepSessionId: input.keepSessionId });
+
+    return {
+      status: "rotated",
+      license: drizzleAccountKeyToRow(updated),
+      previousKey: row.key,
+      devicesCleared: cleared.length,
+    } as const;
+  });
 }
 
 /**
@@ -249,14 +359,67 @@ export async function revokeAccountKey(
   });
 }
 
+/**
+ * The key row holding this exact key string, or null.
+ *
+ * `lockForShare` makes it `SELECT … FOR SHARE`. That read waits for any
+ * transaction holding the row's lock (a rotation's `FOR UPDATE`, a
+ * revocation's `UPDATE`) to commit, then re-checks the row as committed: after
+ * a rotation the old string matches nothing, and after a revocation the status
+ * shows it. The license-key sign-in needs that after `createSession` (see
+ * `auth-license-key-plugin.ts`); a plain read under READ COMMITTED would see
+ * the row as it was before the uncommitted change.
+ */
 export async function findAccountByKey(
   key: string,
-  executor: DbExecutor = db
+  executor: DbExecutor = db,
+  options: { lockForShare?: boolean } = {},
 ): Promise<AccountKeyRow | null> {
+  if (options.lockForShare) {
+    const [locked] = await executor
+      .select()
+      .from(accountKeys)
+      .where(eq(accountKeys.key, key.trim()))
+      .limit(1)
+      .for("share");
+    return locked ? drizzleAccountKeyToRow(locked) : null;
+  }
   const row = await executor.query.accountKeys.findFirst({
     where: eq(accountKeys.key, key.trim()),
   });
   return row ? drizzleAccountKeyToRow(row) : null;
+}
+
+/**
+ * A fresh key string that no row holds yet: the generator plus a collision
+ * check, five tries. `idx_account_keys_key` is the real guarantee; this keeps a
+ * collision from failing the insert. Used by every mint and the rotation that
+ * run in `db-layer` (the webhook's and the admin grant's loops are their own,
+ * tested through their mocks).
+ */
+export async function generateUnusedAccountKey(
+  executor: DbExecutor = db,
+): Promise<string> {
+  for (let i = 0; i < 5; i++) {
+    const key = generateLicenseKey();
+    if (!(await findAccountByKey(key, executor))) return key;
+  }
+  throw new Error("Failed to generate unique license key");
+}
+
+/**
+ * Every key row billed to this Stripe customer, newest first. A top-up
+ * checkout always runs under the key row's cached customer, so this finds the
+ * row again when the key string it recorded has since been rotated.
+ */
+export async function findAccountsByStripeCustomer(
+  stripeCustomerId: string,
+): Promise<AccountKeyRow[]> {
+  const rows = await db.query.accountKeys.findMany({
+    where: eq(accountKeys.stripeCustomerId, stripeCustomerId),
+    orderBy: [desc(accountKeys.createdAt)],
+  });
+  return rows.map(drizzleAccountKeyToRow);
 }
 
 export async function findAccountById(id: string): Promise<AccountKeyRow | null> {
@@ -349,16 +512,7 @@ export async function provisionAccountKeyForEmail(email: string): Promise<Accoun
     );
     if (granted) return granted;
 
-    // Generate a unique license key with collision check
-    let key = "";
-    for (let i = 0; i < 5; i++) {
-      key = generateLicenseKey();
-      const collision = await findAccountByKey(key, tx);
-      if (!collision) break;
-      if (i === 4) {
-        throw new Error("Failed to generate unique license key");
-      }
-    }
+    const key = await generateUnusedAccountKey(tx);
 
     const name = normalizedEmail.split("@")[0];
     const userResult = await getOrCreateUser(normalizedEmail, { name }, tx);

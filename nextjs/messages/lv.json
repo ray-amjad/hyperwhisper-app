@@ -354,6 +354,25 @@
     "customSub": "jūsu summa",
     "topUp": "Papildināt"
   },
+  "licenseKeysCard": {
+    "rotate": "Ģenerēt jaunu atslēgu",
+    "confirmTitle": "Ģenerēt jaunu konta atslēgu?",
+    "confirmBody": "Jūs saņemsiet jaunu atslēgu, un šī uzreiz pārstās darboties. Katrai ierīcei, kas izmanto veco atslēgu, būs nepieciešama jaunā: ievadiet to HyperWhisper katrā ierīcē. Jūsu kredīti, plāns un pirkumu vēsture paliek jūsu kontā. Turklāt citās pārlūkprogrammās jūs tiksiet izrakstīts no šīs vietnes.",
+    "confirm": "Ģenerēt jaunu atslēgu",
+    "cancel": "Atcelt",
+    "rotating": "Ģenerē…",
+    "rotated": "Jaunā atslēga ir ģenerēta. Ievadiet to HyperWhisper katrā savā ierīcē.",
+    "errorRateLimited": "Pārāk daudz atslēgas maiņu. Lūdzu, mēģiniet vēlāk.",
+    "errorStale": "Šī atslēga jau ir nomainīta. Pašreizējā atslēga ir redzama augstāk.",
+    "errorGeneric": "Neizdevās ģenerēt jaunu atslēgu. Lūdzu, mēģiniet vēlreiz.",
+    "verifyTitle": "Apstipriniet e-pastā, ka tas esat jūs",
+    "verifyBody": "Lai ģenerētu jaunu atslēgu, vispirms apstipriniet e-pastā, ka tas esat jūs. Mēs nosūtīsim pierakstīšanās saiti uz jūsu konta e-pasta adresi. Atveriet to un pēc tam šajā lapā ģenerējiet jaunu atslēgu.",
+    "sendLink": "Nosūtīt man pierakstīšanās saiti",
+    "sendingLink": "Sūta…",
+    "linkSent": "Pierakstīšanās saite nosūtīta. Atveriet to no iesūtnes un pēc tam ģenerējiet jaunu atslēgu.",
+    "linkFailed": "Neizdevās nosūtīt pierakstīšanās saiti. Lūdzu, mēģiniet vēlreiz.",
+    "errorUnavailable": "Šai atslēgai vairs nevar ģenerēt jaunu. Tās pašreizējais statuss ir redzams augstāk."
+  },
   "openSource": {
     "heading": "Atvērtais kods. Nav ko slēpt.",
     "body": "HyperWhisper ir pilnībā atvērtā koda risinājums saskaņā ar Apache-2.0 — gan darbvirsmas lietotnes, gan Cloud aizmugursistēma. Lietotnei, kas klausās jūsu mikrofonu, vajadzētu būt kaut kam, ko varat pārbaudīt, nevis tikai uzticēties: izlasiet katru rindu, pārbaudiet tieši to, kurp nonāk jūsu audio, un esiet drošs, ka nekad netiksiet piesaistīts — kods pieder jums, lai to dakšotu un mitinātu pašam mūžīgi. Veidots atklāti, to radījis indie izstrādātājs Ray Amjad.",

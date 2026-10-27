@@ -129,16 +129,121 @@ test("a top-up grants the credits against the session and emails the new balance
   assert.equal(calls.emails[0].payload.licenseKey, "HW-OWNED-0001");
 });
 
+test("a top-up started before a key rotation still lands, found by the row id", async () => {
+  // The checkout recorded the key string at the time; the owner rotated it
+  // before Stripe called back. The row id in the metadata still finds them,
+  // and the receipt names the CURRENT key, not the dead one.
+  const rowId = "5f0c6a52-6c44-4f7e-9a39-0d3c1b8a9e21";
+  behaviour.byEmail.set("owner@example.com", [
+    accountKeyRow({ id: rowId, key: "HW-NEWK-0001", email: "owner@example.com", userId: "user_9" }),
+  ]);
+
+  await handleCreditPurchase(
+    checkoutSession({
+      metadata: { license_key: "HW-OLDK-0001", account_key_id: rowId, credit_amount: "500" },
+    }),
+    "evt_rotated",
+    "checkout.session.completed",
+  );
+
+  assert.deepEqual(calls.findAccountById, [rowId]);
+  assert.equal(calls.grantCreditsForStripeEvent.length, 1);
+  assert.equal(calls.grantCreditsForStripeEvent[0].userId, "user_9");
+  assert.equal(calls.emails[0].payload.licenseKey, "HW-NEWK-0001");
+});
+
+test("a top-up whose account_key_id is not a uuid falls back to the key string", async () => {
+  behaviour.byEmail.set("owner@example.com", [
+    accountKeyRow({ key: "HW-OWNED-0001", email: "owner@example.com", userId: "user_9" }),
+  ]);
+
+  await handleCreditPurchase(
+    checkoutSession({
+      metadata: { license_key: "HW-OWNED-0001", account_key_id: "not-a-uuid", credit_amount: "500" },
+    }),
+    "evt_fallback",
+    "checkout.session.completed",
+  );
+
+  assert.deepEqual(calls.findAccountById, []);
+  assert.equal(calls.grantCreditsForStripeEvent.length, 1);
+});
+
 test("a top-up against an unknown license key is rejected", async () => {
   await assert.rejects(
     handleCreditPurchase(
       checkoutSession({ metadata: { license_key: "HW-GHOST-0001", credit_amount: "500" } }),
       "evt_1",
     ),
-    { message: "License not found: HW-GHOS..." },
+    {
+      message:
+        "top-up licence HW-GHOS... not found by row id, key or Stripe customer (deleted, or its key was rotated)",
+    },
   );
 
   assert.deepEqual(calls.grantCreditsForStripeEvent, []);
+  assert.deepEqual(calls.findAccountsByStripeCustomer, ["cus_1"]);
+});
+
+test("a pre-deploy top-up (key string only) still lands after a rotation, found by its Stripe customer", async () => {
+  // Opened before account_key_id was written: only the old key string, which
+  // the rotation killed. The checkout ran under the row's cached customer.
+  behaviour.byEmail.set("owner@example.com", [
+    accountKeyRow({ id: "row_old", key: "HW-OLDREV-01", status: "revoked", userId: "user_9", stripeCustomerId: "cus_9", createdAt: new Date("2026-01-01T00:00:00Z") }),
+    accountKeyRow({ id: "row_live", key: "HW-NEWK-0002", userId: "user_9", stripeCustomerId: "cus_9", createdAt: new Date("2026-02-01T00:00:00Z") }),
+  ]);
+
+  await handleCreditPurchase(
+    checkoutSession({
+      customer: "cus_9",
+      metadata: { license_key: "HW-ROTATED-01", credit_amount: "500" },
+    }),
+    "evt_pre_deploy",
+  );
+
+  assert.deepEqual(calls.findAccountByKey, ["HW-ROTATED-01"]);
+  assert.deepEqual(calls.findAccountsByStripeCustomer, ["cus_9"]);
+  assert.equal(calls.grantCreditsForStripeEvent.length, 1);
+  assert.equal(calls.grantCreditsForStripeEvent[0].userId, "user_9");
+  // The granted row, and the receipt names its current key.
+  assert.equal(calls.emails[0].payload.licenseKey, "HW-NEWK-0002");
+});
+
+test("a top-up whose Stripe customer is billed to two users is not resolved by customer", async () => {
+  behaviour.byEmail.set("a@example.com", [
+    accountKeyRow({ id: "row_a", key: "HW-A-0001", userId: "user_a", stripeCustomerId: "cus_shared" }),
+  ]);
+  behaviour.byEmail.set("b@example.com", [
+    accountKeyRow({ id: "row_b", key: "HW-B-0001", userId: "user_b", stripeCustomerId: "cus_shared" }),
+  ]);
+
+  await assert.rejects(
+    handleCreditPurchase(
+      checkoutSession({
+        customer: "cus_shared",
+        metadata: { license_key: "HW-ROTATED-02", credit_amount: "500" },
+      }),
+      "evt_ambiguous",
+    ),
+    /not found by row id, key or Stripe customer/,
+  );
+  assert.deepEqual(calls.grantCreditsForStripeEvent, []);
+});
+
+test("an account_key_id that is not an RFC uuid is never looked up", async () => {
+  behaviour.byEmail.set("owner@example.com", [
+    accountKeyRow({ key: "HW-OWNED-0003", email: "owner@example.com", userId: "user_9" }),
+  ]);
+
+  await handleCreditPurchase(
+    checkoutSession({
+      metadata: { license_key: "HW-OWNED-0003", account_key_id: "5f0c6a52-6c44-4f7e-9a39-0d3c1b8a9e2", credit_amount: "500" },
+    }),
+    "evt_short_uuid",
+  );
+
+  assert.deepEqual(calls.findAccountById, []);
+  assert.equal(calls.grantCreditsForStripeEvent.length, 1);
 });
 
 test("a top-up against a revoked license key is refused, not silently granted", async () => {

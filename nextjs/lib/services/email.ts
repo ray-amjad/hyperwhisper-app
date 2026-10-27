@@ -21,6 +21,11 @@ import {
   creditTopUpEmailText,
   type CreditTopUpEmailData,
 } from "@/lib/templates/credit-topup-email";
+import {
+  keyRotatedEmailHtml,
+  keyRotatedEmailText,
+  type KeyRotatedEmailData,
+} from "@/lib/templates/key-rotated-email";
 import { logSentEmail } from "@/src/lib/db-layer";
 
 interface EmailResult {
@@ -203,6 +208,23 @@ export class EmailService {
   }
 
   /**
+   * Send the notice that an Account Key was rotated from the dashboard. It
+   * carries only a short prefix of the new key, never the full key.
+   */
+  async sendKeyRotated(data: KeyRotatedEmailData): Promise<EmailResult> {
+    const subject = "Your HyperWhisper Account Key was replaced";
+    return this.sendWithRetry("key-rotated", data.customerEmail, subject, () =>
+      this.deps.send({
+        from: DEFAULT_FROM_EMAIL,
+        to: data.customerEmail,
+        subject,
+        html: keyRotatedEmailHtml(data),
+        text: keyRotatedEmailText(data),
+      }),
+    );
+  }
+
+  /**
    * Shared send-with-retry loop.
    *
    * Treats a resolved `{ error }` object from the Resend SDK as a failure (the
@@ -212,7 +234,7 @@ export class EmailService {
    * caller's request thread is not blocked on backoff sleeps.
    */
   private async sendWithRetry(
-    kind: "license" | "welcome" | "credit-mint" | "credit-topup",
+    kind: "license" | "welcome" | "credit-mint" | "credit-topup" | "key-rotated",
     customerEmail: string,
     subject: string,
     send: () => Promise<{ data: unknown; error: unknown }>,

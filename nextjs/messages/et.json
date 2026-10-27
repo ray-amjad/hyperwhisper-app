@@ -354,6 +354,25 @@
     "customSub": "sinu summa",
     "topUp": "Täienda"
   },
+  "licenseKeysCard": {
+    "rotate": "Loo uus võti",
+    "confirmTitle": "Kas luua uus kontovõti?",
+    "confirmBody": "Saad uue võtme ja see võti lakkab kohe töötamast. Iga seade, mis kasutab vana võtit, vajab uut: sisesta see igas seadmes HyperWhisperisse. Sinu krediidid, pakett ja ostuajalugu jäävad sinu kontole. Samuti logitakse sind teistes brauserites sellelt veebisaidilt välja.",
+    "confirm": "Loo uus võti",
+    "cancel": "Tühista",
+    "rotating": "Loomine…",
+    "rotated": "Uus võti on loodud. Sisesta see HyperWhisperisse igas oma seadmes.",
+    "errorRateLimited": "Liiga palju võtmevahetusi. Proovi hiljem uuesti.",
+    "errorStale": "See võti on juba välja vahetatud. Praegune võti on näidatud ülal.",
+    "errorGeneric": "Uue võtme loomine ebaõnnestus. Proovi uuesti.",
+    "verifyTitle": "Kinnita e-posti teel, et see oled sina",
+    "verifyBody": "Uue võtme loomiseks kinnita esmalt e-posti teel, et see oled sina. Saadame sisselogimislingi sinu konto e-posti aadressile. Ava see ja loo siis sellel lehel uus võti.",
+    "sendLink": "Saada mulle sisselogimislink",
+    "sendingLink": "Saatmine…",
+    "linkSent": "Sisselogimislink on saadetud. Ava see oma postkastist ja loo siis uus võti.",
+    "linkFailed": "Sisselogimislingi saatmine ebaõnnestus. Proovi uuesti.",
+    "errorUnavailable": "Selle võtme asemele ei saa enam uut luua. Selle praegune olek on näidatud ülal."
+  },
   "openSource": {
     "heading": "Avatud lähtekood. Midagi pole varjata.",
     "body": "HyperWhisper on täielikult avatud lähtekoodiga Apache-2.0 litsentsi all — nii töölauarakendused kui ka Cloudi backend. Rakendus, mis kuulab sinu mikrofoni, peaks olema midagi, mida saad kontrollida, mitte lihtsalt usaldada: loe iga rida, auditeeri täpselt, kuhu su heli läheb, ja tea, et sind ei lukustata kunagi sisse — kood on sinu oma, et seda igavesti forkida ja ise majutada. Ehitatud avatult indie-tegija Ray Amjadi poolt.",

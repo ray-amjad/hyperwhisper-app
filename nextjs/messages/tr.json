@@ -354,6 +354,25 @@
     "customSub": "kendi tutariniz",
     "topUp": "Yukle"
   },
+  "licenseKeysCard": {
+    "rotate": "Anahtarı yenile",
+    "confirmTitle": "Bu Hesap Anahtarı yenilensin mi?",
+    "confirmBody": "Yeni bir anahtar alacaksınız ve bu anahtar hemen çalışmayı durduracak. Eski anahtarı kullanan her cihazın yeni anahtara ihtiyacı olacak: Yeni anahtarı her cihazda HyperWhisper'a girin. Kredileriniz, planınız ve satın alma geçmişiniz hesabınızda kalır. Ayrıca diğer tarayıcılarınızda bu web sitesindeki oturumunuz kapatılacak.",
+    "confirm": "Anahtarı yenile",
+    "cancel": "İptal",
+    "rotating": "Yenileniyor…",
+    "rotated": "Anahtar yenilendi. Yeni anahtarı cihazlarınızın her birinde HyperWhisper'a girin.",
+    "errorRateLimited": "Çok fazla yenileme yapıldı. Lütfen daha sonra tekrar deneyin.",
+    "errorStale": "Bu anahtar zaten yenilendi. Geçerli anahtar yukarıda gösteriliyor.",
+    "errorGeneric": "Anahtar yenilenemedi. Lütfen tekrar deneyin.",
+    "verifyTitle": "Kimliğinizi e-postayla doğrulayın",
+    "verifyBody": "Anahtarınızı yenilemek için önce kimliğinizi e-postayla doğrulayın. Hesabınızın e-posta adresine bir giriş bağlantısı göndereceğiz. Bağlantıyı açın, ardından anahtarı bu sayfadan yenileyin.",
+    "sendLink": "Bana giriş bağlantısı gönder",
+    "sendingLink": "Gönderiliyor…",
+    "linkSent": "Giriş bağlantısı gönderildi. Gelen kutunuzdan açın, ardından anahtarı yenileyin.",
+    "linkFailed": "Giriş bağlantısı gönderilemedi. Lütfen tekrar deneyin.",
+    "errorUnavailable": "Bu anahtar artık yenilenemez. Geçerli durumu yukarıda gösteriliyor."
+  },
   "openSource": {
     "heading": "Açık kaynak. Saklayacak hiçbir şey yok.",
     "body": "HyperWhisper, Apache-2.0 altında tamamen açık kaynaktır — hem masaüstü uygulamaları hem de Cloud arka ucu. Mikrofonunuzu dinleyen bir uygulama, yalnızca güveneceğiniz değil, doğrulayabileceğiniz bir şey olmalıdır: her satırı okuyun, sesinizin tam olarak nereye gittiğini denetleyin ve asla kilitlenmeyeceğinizi bilin — kod sizindir, sonsuza dek fork edip kendiniz barındırabilirsiniz. Bağımsız geliştirici Ray Amjad tarafından açıkta inşa edildi.",

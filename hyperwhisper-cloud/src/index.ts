@@ -8,6 +8,7 @@ import { websocket } from 'hono/bun';
 import { transcribeRoute } from './routes/transcribe';
 import { postProcessRoute } from './routes/post-process';
 import { usageRoute } from './routes/usage';
+import { licenseCacheInvalidateRoute } from './routes/internal-license-cache';
 import { wsStreamingPreflight, wsStreamingRoute } from './routes/ws-streaming-deepgram';
 import {
   wsStreamingGeminiTranscribePreflight,
@@ -87,6 +88,11 @@ app.get(
   wsStreamingGeminiTranscribePreflight,
   wsStreamingGeminiTranscribeRoute,
 );
+
+// Site -> cloud: the site rotated an Account Key, so drop the old key's cached
+// "valid" verdict now instead of when its hour runs out. Gated by the shared
+// internal secret inside the route; the per-IP limit still runs first.
+app.post('/internal/license-cache/invalidate', ipRateLimit, licenseCacheInvalidateRoute);
 
 // Fallback - match Cloudflare (405, plain text)
 app.notFound((c) => {

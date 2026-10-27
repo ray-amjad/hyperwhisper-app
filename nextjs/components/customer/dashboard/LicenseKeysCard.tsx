@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, m } from "framer-motion";
 
 import { ICON_SWAP } from "@/lib/icon-swap";
@@ -14,6 +14,14 @@ interface License {
 
 interface LicenseKeysCardProps {
   licenses: License[];
+  /**
+   * Per-key controls under the key's row (the dashboard passes the rotate
+   * control). A render slot, not a hook here: this card holds only useState,
+   * useRef and useEffect, so a test can call it as a plain function and
+   * render it without any provider. `reveal` shows that key unmasked (used
+   * after a rotation, so the new key is on screen to copy).
+   */
+  renderActions?: (license: License, reveal: () => void) => ReactNode;
 }
 
 /**
@@ -21,7 +29,7 @@ interface LicenseKeysCardProps {
  *
  * Displays all license keys in a single card with show/hide and copy functionality.
  */
-export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
+export default function LicenseKeysCard({ licenses, renderActions }: LicenseKeysCardProps) {
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   // The row whose last copy was refused (#872). Cleared by the next copy click.
@@ -162,6 +170,11 @@ export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
                     : null}
                 </p>
               </ErrorReveal>
+              {renderActions
+                ? renderActions(license, () =>
+                    setShowKeys((prev) => ({ ...prev, [license.id]: true })),
+                  )
+                : null}
             </div>
           );
         })}

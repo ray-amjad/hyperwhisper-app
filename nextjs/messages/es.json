@@ -354,6 +354,25 @@
     "customSub": "tu importe",
     "topUp": "Recargar"
   },
+  "licenseKeysCard": {
+    "rotate": "Regenerar clave",
+    "confirmTitle": "¿Regenerar esta clave de cuenta?",
+    "confirmBody": "Recibirás una clave nueva y esta dejará de funcionar de inmediato. Todos los dispositivos que usen la clave anterior necesitarán la nueva: introdúcela en HyperWhisper en cada dispositivo. Tus créditos, tu plan y tu historial de compras se mantienen en tu cuenta. También se cerrará tu sesión en este sitio web en tus otros navegadores.",
+    "confirm": "Regenerar clave",
+    "cancel": "Cancelar",
+    "rotating": "Regenerando…",
+    "rotated": "Clave regenerada. Introduce la nueva clave en HyperWhisper en cada uno de tus dispositivos.",
+    "errorRateLimited": "Demasiadas regeneraciones. Inténtalo de nuevo más tarde.",
+    "errorStale": "Esta clave ya se regeneró. La clave actual se muestra arriba.",
+    "errorGeneric": "No se pudo regenerar la clave. Inténtalo de nuevo.",
+    "verifyTitle": "Confirma que eres tú por correo",
+    "verifyBody": "Para regenerar tu clave, primero confirma que eres tú por correo. Te enviaremos un enlace de inicio de sesión a la dirección de correo de tu cuenta. Ábrelo y luego regenera la clave desde esta página.",
+    "sendLink": "Envíame un enlace de inicio de sesión",
+    "sendingLink": "Enviando…",
+    "linkSent": "Enlace de inicio de sesión enviado. Ábrelo desde tu bandeja de entrada y luego regenera la clave.",
+    "linkFailed": "No se pudo enviar el enlace de inicio de sesión. Inténtalo de nuevo.",
+    "errorUnavailable": "Esta clave ya no se puede regenerar. Su estado actual se muestra arriba."
+  },
   "openSource": {
     "heading": "Código abierto. Nada que ocultar.",
     "body": "HyperWhisper es totalmente de código abierto bajo Apache-2.0 — tanto las aplicaciones de escritorio como el backend de Cloud. Una aplicación que escucha tu micrófono debería ser algo que puedas verificar, no solo algo en lo que confiar: lee cada línea, audita exactamente adónde va tu audio y ten la certeza de que nunca quedarás atrapado — el código es tuyo para hacer un fork y alojarlo tú mismo para siempre. Creado de forma abierta por el creador independiente Ray Amjad.",

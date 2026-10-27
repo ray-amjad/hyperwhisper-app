@@ -85,3 +85,22 @@ export const checkoutRateLimiter = new Ratelimit({
   prefix: "ratelimit:checkout",
   analytics: true,
 });
+
+/**
+ * Rate limiter for rotating an Account Key from the dashboard
+ * (`customer.rotateAccountKey`).
+ *
+ * Keyed by the signed-in USER id, not the IP: the caller is authenticated, so
+ * the account is the identity, and a shared office NAT must not lock out a
+ * neighbour. A rotation signs the user's other browsers out, clears the key's
+ * device list and sends an email, so a loop (a stuck button, a script holding a
+ * stolen session) is bounded hard. A real owner rotates once and is done.
+ *
+ * Limits: 5 rotations per user per hour using sliding window algorithm.
+ */
+export const accountKeyRotateRateLimiter = new Ratelimit({
+  redis: redis,
+  limiter: Ratelimit.slidingWindow(5, "1 h"),
+  prefix: "ratelimit:account-key-rotate",
+  analytics: true,
+});

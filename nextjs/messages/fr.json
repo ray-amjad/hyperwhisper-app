@@ -354,6 +354,25 @@
     "customSub": "votre montant",
     "topUp": "Recharger"
   },
+  "licenseKeysCard": {
+    "rotate": "Régénérer la clé",
+    "confirmTitle": "Régénérer cette clé de compte ?",
+    "confirmBody": "Vous recevrez une nouvelle clé, et celle-ci cessera immédiatement de fonctionner. Chaque appareil qui utilise l'ancienne clé aura besoin de la nouvelle : saisissez-la dans HyperWhisper sur chaque appareil. Vos crédits, votre forfait et votre historique d'achats restent associés à votre compte. Vous serez également déconnecté de ce site dans vos autres navigateurs.",
+    "confirm": "Régénérer la clé",
+    "cancel": "Annuler",
+    "rotating": "Régénération…",
+    "rotated": "Clé régénérée. Saisissez la nouvelle clé dans HyperWhisper sur chacun de vos appareils.",
+    "errorRateLimited": "Trop de régénérations. Veuillez réessayer plus tard.",
+    "errorStale": "Cette clé a déjà été régénérée. La clé actuelle est affichée ci-dessus.",
+    "errorGeneric": "Impossible de régénérer la clé. Veuillez réessayer.",
+    "verifyTitle": "Confirmez votre identité par e-mail",
+    "verifyBody": "Pour régénérer votre clé, confirmez d'abord votre identité par e-mail. Nous allons envoyer un lien de connexion à l'adresse e-mail de votre compte. Ouvrez-le, puis régénérez la clé depuis cette page.",
+    "sendLink": "M'envoyer un lien de connexion",
+    "sendingLink": "Envoi…",
+    "linkSent": "Lien de connexion envoyé. Ouvrez-le depuis votre boîte de réception, puis régénérez la clé.",
+    "linkFailed": "Impossible d'envoyer le lien de connexion. Veuillez réessayer.",
+    "errorUnavailable": "Cette clé ne peut plus être régénérée. Son état actuel est affiché ci-dessus."
+  },
   "openSource": {
     "heading": "Open source. Rien à cacher.",
     "body": "HyperWhisper est entièrement open source sous licence Apache-2.0 — applications de bureau comme backend Cloud. Une application qui écoute votre microphone devrait être quelque chose que vous pouvez vérifier, pas seulement croire sur parole : lisez chaque ligne, auditez exactement où va votre audio, et sachez que vous ne serez jamais verrouillé — le code vous appartient, à forker et auto-héberger pour toujours. Conçu en toute transparence par le créateur indépendant Ray Amjad.",
