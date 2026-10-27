@@ -111,10 +111,22 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     }
 
     /// <summary>Something <see cref="HomeRecordingState"/> or <see cref="IsRecordingOrFinishing"/> reads
-    /// changed: live capture began or ended, the stream's connection failed, its worker ended while the
-    /// stream is still held, or a stop finished. Raised on any thread; a UI subscriber marshals (#2038, #2599).</summary>
+    /// changed: a live start began or ended, live capture began or ended, the stream's connection failed,
+    /// its worker ended while the stream is still held, or a stop finished. Raised on any thread; a UI
+    /// subscriber marshals (#2038, #2599).</summary>
     public event EventHandler? ActivityChanged;
     private bool _liveConnectionFailed;
+    /// <summary>A live start has shown the streaming overlay and has not returned yet: the connect phase
+    /// before live capture is on. StartAsync's finally always clears it, so a refused, failed or thrown
+    /// start never leaves Home on Recording (#2038).</summary>
+    private bool _liveStarting;
+
+    private void SetLiveStarting(bool value)
+    {
+        if (Volatile.Read(ref _liveStarting) == value) return;
+        Volatile.Write(ref _liveStarting, value);
+        RaiseActivityChanged();
+    }
 
     private void RaiseActivityChanged()
     {
@@ -124,9 +136,15 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     /// <summary>The state name Home's "State: {0}" caption shows (#2038). A live stream never drives the
     /// batch workflow, so its caption read Idle for the whole stream and through a held failure. While
     /// live capture is on, the caption reads Recording, or Failed once the connection is in its error
-    /// state or the worker is gone (the stream held until Stop, #1246); otherwise the workflow's own state.</summary>
-    public string? HomeRecordingState(string? workflowState) =>
-        MapHomeRecordingState(workflowState, IsLiveCaptureActive, IsActive, Volatile.Read(ref _liveConnectionFailed));
+    /// state or the worker is gone (the stream held until Stop, #1246); otherwise the workflow's own state.
+    /// The start's connect phase counts as live from the moment the overlay appears: Recording, or Failed
+    /// once the overlay turns red; the worker is not running yet, which is not a failure there.</summary>
+    public string? HomeRecordingState(string? workflowState)
+    {
+        var starting = Volatile.Read(ref _liveStarting);
+        return MapHomeRecordingState(workflowState, IsLiveCaptureActive || starting, IsActive || starting,
+            Volatile.Read(ref _liveConnectionFailed));
+    }
 
     /// <summary>The raw workflow state names are reused on purpose: the caption already shows them untranslated.</summary>
     internal static string? MapHomeRecordingState(string? workflowState, bool liveCaptureActive, bool liveRunning, bool liveConnectionFailed)
@@ -160,6 +178,9 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             _overlay.Failed(LinuxRecordingOverlayError.RecordingFailed);
             throw;
         }
+        // The start returned: live capture is on, or the start failed and Home goes back to the
+        // workflow's state (#2038).
+        finally { SetLiveStarting(false); }
     }
 
     private async ValueTask<PlatformResult> StartCoreAsync(
@@ -207,7 +228,12 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             BeginLiveDelivery();
             _services.LivePreview.Begin();
         }
-        if (_streaming) _overlay.StreamingStarted(LinuxOverlayModeLabel.Create(_mode.Name));
+        if (_streaming)
+        {
+            // The overlay shows the stream from here, connecting; Home reads Recording with it (#2038).
+            SetLiveStarting(true);
+            _overlay.StreamingStarted(LinuxOverlayModeLabel.Create(_mode.Name));
+        }
         else _overlay.RecordingStarted(LinuxOverlayModeLabel.Create(_mode.Name));
         // The gate above proved this is a real, enumerated, user-selectable source, so no `"default"`
         // sentinel reaches PrepareAudio, parec, or `@DEFAULT_SOURCE@` from here.
@@ -227,7 +253,12 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         if (started.IsFailure)
         {
             if (_streaming)
+            {
+                // The overlay turns red: Home reads Failed with it until the start returns (#2038).
+                Volatile.Write(ref _liveConnectionFailed, true);
+                RaiseActivityChanged();
                 _overlay.StreamingConnectionChanged(LinuxStreamingOverlayConnectionState.Error);
+            }
             await ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Failed);
             await RestoreAudioAsync();
             ClearSession();
