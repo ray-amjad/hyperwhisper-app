@@ -1927,7 +1927,8 @@ static async Task PortableTranscriptionFailuresReachTheWire()
 // to the DB `IsDefault` row, so a user who had picked another mode in the app
 // got the default one from the Local API while the in-app button used theirs.
 // The selected mode now wins; a selection that names no saved mode, or none at
-// all, still falls back to `IsDefault`.
+// all, still falls back to `IsDefault`. A `/transcribe` upload with no mode id
+// is not a recording and keeps `IsDefault`.
 static async Task ApplicationBackendToggleUsesSelectedMode()
 {
     using var paths = new TempPaths();
@@ -1976,6 +1977,12 @@ static async Task ApplicationBackendToggleUsesSelectedMode()
     Assert(await ToggleTwiceAsync() == defaultMode.Id, "a selection naming a deleted mode did not fall back to IsDefault");
     selection = null;
     Assert(await ToggleTwiceAsync() == defaultMode.Id, "no selection did not fall back to IsDefault");
+
+    // A /transcribe upload with no mode_id is not a recording: it keeps the
+    // IsDefault rule whatever is selected in the app.
+    selection = selectedMode.Id;
+    _ = await backend.TranscribeAsync(new AudioUpload("upload.wav", "audio/wav", new byte[] { 2 }, null, null, null, null), CancellationToken.None);
+    Assert(transcriber.Request?.ModeId == defaultMode.Id, "a /transcribe upload with no mode_id used the selected mode, not IsDefault");
 
     // A backend composed without a selection source keeps the old rule.
     var unselected = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0");

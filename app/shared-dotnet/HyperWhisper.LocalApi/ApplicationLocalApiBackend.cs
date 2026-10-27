@@ -116,10 +116,10 @@ public sealed partial class ApplicationLocalApiBackend : ILocalApiBackend
         // Transcribe File already runs, reused for a non-WAV upload to a local
         // Parakeet mode (issue #1572). Null keeps /transcribe as it was.
         _audioImport = audioImport;
-        // The mode the user picked in the app (Linux `selectedModeId`). With
-        // no mode id in the request, /recording/toggle records with it, as the
-        // in-app button and the hotkey do, not with the DB `IsDefault` row
-        // (issue #2406). Null keeps the IsDefault fallback.
+        // The mode the user picked in the app (Linux `selectedModeId`).
+        // /recording/toggle records with it, as the in-app button and the
+        // hotkey do, not with the DB `IsDefault` row (issue #2406). Null keeps
+        // the IsDefault fallback.
         _selectedModeId = selectedModeId;
     }
 
