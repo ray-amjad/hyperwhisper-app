@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { AnimatePresence, m } from "framer-motion";
 import { keepPreviousData } from "@tanstack/react-query";
 import { api } from "@/lib/trpc/client";
@@ -71,6 +78,116 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
 
 function formatCurrency(cents: number) {
   return currencyFormatter.format(cents / 100);
+}
+
+// The height tween below: --motion-ease-smooth-out over 300 ms, the
+// `01-card-resize` timing the other resizing boxes use (.t-resize).
+const HEIGHT_TWEEN_MS = 300;
+const HEIGHT_TRANSITION = `height ${HEIGHT_TWEEN_MS}ms var(--motion-ease-smooth-out)`;
+
+/**
+ * #916: a box whose content changes height in one commit (a search narrows
+ * 100 rows to 2, or clearing it brings them back) tweens to the new height
+ * instead of stepping. A ResizeObserver keeps the box's last settled height;
+ * when `trigger` changes, the layout effect pins the box at that height, then
+ * sets the new one, and the height transition tweens between the two. The pin
+ * comes off when the tween ends, so at rest the box is `height: auto` and an
+ * inline editor or an error reveal inside it sizes it at once, as before. The
+ * same pin-then-release as SignInClient (#752) and the /download panel (#767).
+ * Under reduced motion the global guard in globals.css ends the transition at
+ * once, and the timer unpins it either way.
+ *
+ * `transition` is any other transition the box keeps (the table's in-flight
+ * dim); it is listed beside height, never as `all` (#668).
+ */
+function HeightTween({
+  trigger,
+  className,
+  transition,
+  children,
+}: {
+  trigger: unknown;
+  className?: string;
+  transition?: string;
+  children: ReactNode;
+}) {
+  const box = useRef<HTMLDivElement>(null);
+  const settledHeight = useRef<number | null>(null);
+  // Ends the tween in flight, so a second change mid-tween starts from where
+  // the box is now.
+  const stopTween = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    const element = box.current;
+
+    if (!element) return;
+
+    // Reports after layout and before paint, so it always holds the height
+    // the last painted frame showed. A pinned height mid-tween is not settled.
+    const observer = new ResizeObserver(() => {
+      if (!stopTween.current) settledHeight.current = element.offsetHeight;
+    });
+
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, []);
+
+  useLayoutEffect(() => {
+    const element = box.current;
+
+    if (!element) return;
+
+    let from = settledHeight.current;
+
+    if (stopTween.current) {
+      // The computed height mid-transition is where the box is drawn now
+      // (offsetHeight would read the pinned target).
+      from = parseFloat(getComputedStyle(element).height);
+      stopTween.current();
+    }
+    const to = element.offsetHeight;
+
+    if (from === null || Math.abs(from - to) < 1) return;
+
+    element.style.height = `${from}px`;
+    // The new content must not spill out while the box is still shorter.
+    element.style.overflow = "clip";
+    void element.offsetHeight;
+    element.style.height = `${to}px`;
+
+    const unpin = () => {
+      window.clearTimeout(timer);
+      element.removeEventListener("transitionend", onEnd);
+      element.style.height = "";
+      element.style.overflow = "";
+      stopTween.current = null;
+      settledHeight.current = element.offsetHeight;
+    };
+    // Children's transitions bubble here too; only the box's own counts.
+    const onEnd = (event: TransitionEvent) => {
+      if (event.target === element && event.propertyName === "height") unpin();
+    };
+    // A transition that never runs fires no transitionend.
+    const timer = window.setTimeout(unpin, HEIGHT_TWEEN_MS + 100);
+
+    element.addEventListener("transitionend", onEnd);
+    stopTween.current = unpin;
+    // No cleanup: Strict Mode's dev-only re-run would unpin the box before
+    // the tween ran. The timer bounds the pin either way.
+  }, [trigger]);
+
+  const style: CSSProperties = {
+    transition: transition
+      ? `${transition}, ${HEIGHT_TRANSITION}`
+      : HEIGHT_TRANSITION,
+  };
+
+  return (
+    <div ref={box} className={className} style={style}>
+      {children}
+    </div>
+  );
 }
 
 export default function CustomersClient() {
@@ -392,11 +509,17 @@ export default function CustomersClient() {
         )}
       </ErrorReveal>
 
-      {/* Customers Table */}
-      <div
-        className={`bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 overflow-hidden transition-opacity ${
+      {/* Customers Table. A search that narrows 100 rows to 2, or clearing
+          it, tweens the card's height (#916) instead of stepping ~5,800 px in
+          one frame; the clearing path comes from the query cache, so the dim
+          below never fires there and the tween is its only feedback. */}
+      <HeightTween
+        className={`bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 overflow-hidden ${
           isTransitioning ? "opacity-50" : "opacity-100"
         }`}
+        // Tailwind's transition-opacity, kept beside the height tween.
+        transition="opacity 150ms cubic-bezier(0.4, 0, 0.2, 1)"
+        trigger={data}
       >
         <div className="overflow-x-auto">
           {/* min-w (#1330): the email wraps anywhere, so without a floor a
@@ -759,7 +882,7 @@ export default function CustomersClient() {
             </tbody>
           </table>
         </div>
-      </div>
+      </HeightTween>
 
       {/* Customer Count + Pagination */}
       {data && data.totalCustomers > 0 && (
