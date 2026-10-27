@@ -212,6 +212,18 @@ describe("POST /sign-in/license-key — the revocation race", () => {
     assert.deepEqual(order, ["lookup_1", "lookup_2", "sessions_minted_1"]);
     assert.deepEqual(calls.findAccountByKey, [GRANTED_KEY, GRANTED_KEY]);
   });
+
+  test("the re-read is a locking read, so it waits for a rotation or revocation to commit", async () => {
+    // Under READ COMMITTED a plain re-read sees the row as it was before an
+    // uncommitted rotation, while that rotation's session delete cannot see
+    // this new session: both would miss. FOR SHARE waits for the commit.
+    grantedAccount();
+
+    const result = await signInWithLicenseKey(GRANTED_KEY);
+
+    assert.equal(result.status, 200);
+    assert.deepEqual(calls.findAccountByKeyLocked, [false, true]);
+  });
 });
 
 describe("POST /sign-in/license-key — the redirect target", () => {

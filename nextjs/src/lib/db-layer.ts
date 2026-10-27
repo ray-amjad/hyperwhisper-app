@@ -305,14 +305,9 @@ export async function rotateAccountKey(input: {
     if (row.status !== "granted") return { status: "not_granted" } as const;
     if (row.key !== input.expectedKey.trim()) return { status: "stale" } as const;
 
-    // Same generator and the same collision loop as every mint
-    // (`provisionAccountKeyForEmail`); `idx_account_keys_key` backs it.
-    let key = "";
-    for (let i = 0; i < 5; i++) {
-      key = generateLicenseKey();
-      if (key !== row.key && !(await findAccountByKey(key, tx))) break;
-      if (i === 4) throw new Error("Failed to generate unique license key");
-    }
+    // The same generator and collision check as a mint; `idx_account_keys_key`
+    // backs it. The row still holds the old key, so a repeat is a collision.
+    const key = await generateUnusedAccountKey(tx);
 
     const [updated] = await tx
       .update(accountKeys)
@@ -364,14 +359,52 @@ export async function revokeAccountKey(
   });
 }
 
+/**
+ * The key row holding this exact key string, or null.
+ *
+ * `lockForShare` makes it `SELECT … FOR SHARE`. That read waits for any
+ * transaction holding the row's lock (a rotation's `FOR UPDATE`, a
+ * revocation's `UPDATE`) to commit, then re-checks the row as committed: after
+ * a rotation the old string matches nothing, and after a revocation the status
+ * shows it. The license-key sign-in needs that after `createSession` (see
+ * `auth-license-key-plugin.ts`); a plain read under READ COMMITTED would see
+ * the row as it was before the uncommitted change.
+ */
 export async function findAccountByKey(
   key: string,
-  executor: DbExecutor = db
+  executor: DbExecutor = db,
+  options: { lockForShare?: boolean } = {},
 ): Promise<AccountKeyRow | null> {
+  if (options.lockForShare) {
+    const [locked] = await executor
+      .select()
+      .from(accountKeys)
+      .where(eq(accountKeys.key, key.trim()))
+      .limit(1)
+      .for("share");
+    return locked ? drizzleAccountKeyToRow(locked) : null;
+  }
   const row = await executor.query.accountKeys.findFirst({
     where: eq(accountKeys.key, key.trim()),
   });
   return row ? drizzleAccountKeyToRow(row) : null;
+}
+
+/**
+ * A fresh key string that no row holds yet: the generator plus a collision
+ * check, five tries. `idx_account_keys_key` is the real guarantee; this keeps a
+ * collision from failing the insert. Used by every mint and the rotation that
+ * run in `db-layer` (the webhook's and the admin grant's loops are their own,
+ * tested through their mocks).
+ */
+export async function generateUnusedAccountKey(
+  executor: DbExecutor = db,
+): Promise<string> {
+  for (let i = 0; i < 5; i++) {
+    const key = generateLicenseKey();
+    if (!(await findAccountByKey(key, executor))) return key;
+  }
+  throw new Error("Failed to generate unique license key");
 }
 
 /**
@@ -479,16 +512,7 @@ export async function provisionAccountKeyForEmail(email: string): Promise<Accoun
     );
     if (granted) return granted;
 
-    // Generate a unique license key with collision check
-    let key = "";
-    for (let i = 0; i < 5; i++) {
-      key = generateLicenseKey();
-      const collision = await findAccountByKey(key, tx);
-      if (!collision) break;
-      if (i === 4) {
-        throw new Error("Failed to generate unique license key");
-      }
-    }
+    const key = await generateUnusedAccountKey(tx);
 
     const name = normalizedEmail.split("@")[0];
     const userResult = await getOrCreateUser(normalizedEmail, { name }, tx);
