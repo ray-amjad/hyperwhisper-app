@@ -364,7 +364,14 @@
     "rotated": "Schlüssel erneuert. Geben Sie den neuen Schlüssel auf jedem Ihrer Geräte in HyperWhisper ein.",
     "errorRateLimited": "Zu viele Erneuerungen. Bitte versuchen Sie es später erneut.",
     "errorStale": "Dieser Schlüssel wurde bereits erneuert. Der aktuelle Schlüssel wird oben angezeigt.",
-    "errorGeneric": "Der Schlüssel konnte nicht erneuert werden. Bitte versuchen Sie es erneut."
+    "errorGeneric": "Der Schlüssel konnte nicht erneuert werden. Bitte versuchen Sie es erneut.",
+    "verifyTitle": "Bestätigen Sie per E-Mail, dass Sie es sind",
+    "verifyBody": "Sie haben sich mit Ihrem Kontoschlüssel angemeldet, und eine Anmeldung per Schlüssel kann diesen Schlüssel nicht ersetzen: Sonst könnte das jeder, der den Schlüssel hat. Wir senden einen Anmeldelink an die E-Mail-Adresse Ihres Kontos. Öffnen Sie ihn und erneuern Sie dann den Schlüssel auf dieser Seite.",
+    "sendLink": "Anmeldelink per E-Mail senden",
+    "sendingLink": "Wird gesendet…",
+    "linkSent": "Anmeldelink gesendet. Öffnen Sie ihn in Ihrem Posteingang und erneuern Sie dann den Schlüssel.",
+    "linkFailed": "Der Anmeldelink konnte nicht gesendet werden. Bitte versuchen Sie es erneut.",
+    "errorUnavailable": "Dieser Schlüssel kann nicht mehr erneuert werden. Sein aktueller Status wird oben angezeigt."
   },
   "openSource": {
     "heading": "Open Source. Nichts zu verbergen.",

@@ -364,7 +364,14 @@
     "rotated": "Nový kľúč bol vygenerovaný. Zadajte ho do HyperWhisper na každom zo svojich zariadení.",
     "errorRateLimited": "Príliš veľa zmien kľúča. Skúste to neskôr.",
     "errorStale": "Tento kľúč už bol nahradený. Aktuálny kľúč je zobrazený vyššie.",
-    "errorGeneric": "Nový kľúč sa nepodarilo vygenerovať. Skúste to znova."
+    "errorGeneric": "Nový kľúč sa nepodarilo vygenerovať. Skúste to znova.",
+    "verifyTitle": "Potvrďte svoju totožnosť e-mailom",
+    "verifyBody": "Prihlásili ste sa kľúčom k účtu a prihlásenie kľúčom nemôže tento kľúč nahradiť: to by mohol ktokoľvek, kto má kľúč. Pošleme prihlasovací odkaz na e-mailovú adresu vášho účtu. Otvorte ho a potom na tejto stránke vygenerujte nový kľúč.",
+    "sendLink": "Poslať prihlasovací odkaz e-mailom",
+    "sendingLink": "Odosiela sa…",
+    "linkSent": "Prihlasovací odkaz bol odoslaný. Otvorte ho vo svojej doručenej pošte a potom vygenerujte nový kľúč.",
+    "linkFailed": "Prihlasovací odkaz sa nepodarilo odoslať. Skúste to znova.",
+    "errorUnavailable": "Pre tento kľúč už nemožno vygenerovať nový. Jeho aktuálny stav je zobrazený vyššie."
   },
   "openSource": {
     "heading": "Otvorený kód. Nič na skrývanie.",

@@ -364,7 +364,14 @@
     "rotated": "Novi ključ je generisan. Unesite ga u HyperWhisper na svakom svom uređaju.",
     "errorRateLimited": "Previše zamena ključa. Pokušajte ponovo kasnije.",
     "errorStale": "Ovaj ključ je već zamenjen. Trenutni ključ je prikazan iznad.",
-    "errorGeneric": "Generisanje novog ključa nije uspelo. Pokušajte ponovo."
+    "errorGeneric": "Generisanje novog ključa nije uspelo. Pokušajte ponovo.",
+    "verifyTitle": "Potvrdite putem e-pošte da ste to vi",
+    "verifyBody": "Prijavili ste se ključem naloga, a prijava ključem ne može da zameni taj ključ: inače bi to mogao svako ko ima ključ. Poslaćemo link za prijavu na adresu e-pošte vašeg naloga. Otvorite ga, a zatim na ovoj stranici generišite novi ključ.",
+    "sendLink": "Pošalji mi link za prijavu",
+    "sendingLink": "Slanje…",
+    "linkSent": "Link za prijavu je poslat. Otvorite ga iz prijemnog sandučeta, a zatim generišite novi ključ.",
+    "linkFailed": "Slanje linka za prijavu nije uspelo. Pokušajte ponovo.",
+    "errorUnavailable": "Za ovaj ključ više nije moguće generisati novi. Njegov trenutni status je prikazan iznad."
   },
   "openSource": {
     "heading": "Otvoreni kod. Nema sta da se krije.",

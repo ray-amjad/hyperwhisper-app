@@ -364,7 +364,14 @@
     "rotated": "Naujas raktas sugeneruotas. Įveskite jį HyperWhisper kiekviename savo įrenginyje.",
     "errorRateLimited": "Per daug rakto keitimų. Bandykite vėliau.",
     "errorStale": "Šis raktas jau pakeistas. Dabartinis raktas rodomas aukščiau.",
-    "errorGeneric": "Nepavyko sugeneruoti naujo rakto. Bandykite dar kartą."
+    "errorGeneric": "Nepavyko sugeneruoti naujo rakto. Bandykite dar kartą.",
+    "verifyTitle": "Patvirtinkite el. paštu, kad tai jūs",
+    "verifyBody": "Prisijungėte su paskyros raktu, o prisijungimas raktu negali pakeisti šio rakto: kitaip tai galėtų padaryti bet kas, turintis raktą. Išsiųsime prisijungimo nuorodą jūsų paskyros el. pašto adresu. Atidarykite ją, tada šiame puslapyje sugeneruokite naują raktą.",
+    "sendLink": "Atsiųskite man prisijungimo nuorodą",
+    "sendingLink": "Siunčiama…",
+    "linkSent": "Prisijungimo nuoroda išsiųsta. Atidarykite ją iš gautųjų laiškų aplanko, tada sugeneruokite naują raktą.",
+    "linkFailed": "Nepavyko išsiųsti prisijungimo nuorodos. Bandykite dar kartą.",
+    "errorUnavailable": "Šiam raktui nebegalima sugeneruoti naujo. Dabartinė jo būsena rodoma aukščiau."
   },
   "openSource": {
     "heading": "Atvirasis kodas. Nėra ko slėpti.",

@@ -364,7 +364,14 @@
     "rotated": "Uus võti on loodud. Sisesta see HyperWhisperisse igas oma seadmes.",
     "errorRateLimited": "Liiga palju võtmevahetusi. Proovi hiljem uuesti.",
     "errorStale": "See võti on juba välja vahetatud. Praegune võti on näidatud ülal.",
-    "errorGeneric": "Uue võtme loomine ebaõnnestus. Proovi uuesti."
+    "errorGeneric": "Uue võtme loomine ebaõnnestus. Proovi uuesti.",
+    "verifyTitle": "Kinnita e-posti teel, et see oled sina",
+    "verifyBody": "Logisid sisse oma kontovõtmega ja võtmega sisselogimine ei saa seda võtit asendada: muidu saaks seda teha igaüks, kellel võti on. Saadame sisselogimislingi sinu konto e-posti aadressile. Ava see ja loo siis sellel lehel uus võti.",
+    "sendLink": "Saada mulle sisselogimislink",
+    "sendingLink": "Saatmine…",
+    "linkSent": "Sisselogimislink on saadetud. Ava see oma postkastist ja loo siis uus võti.",
+    "linkFailed": "Sisselogimislingi saatmine ebaõnnestus. Proovi uuesti.",
+    "errorUnavailable": "Selle võtme asemele ei saa enam uut luua. Selle praegune olek on näidatud ülal."
   },
   "openSource": {
     "heading": "Avatud lähtekood. Midagi pole varjata.",

@@ -364,7 +364,14 @@
     "rotated": "密钥已重新生成。请在你每台设备的 HyperWhisper 中输入新密钥。",
     "errorRateLimited": "重新生成次数过多，请稍后再试。",
     "errorStale": "此密钥已被重新生成。当前密钥显示在上方。",
-    "errorGeneric": "无法重新生成密钥，请重试。"
+    "errorGeneric": "无法重新生成密钥，请重试。",
+    "verifyTitle": "通过邮箱确认是你本人",
+    "verifyBody": "你是使用账户密钥登录的，而通过密钥登录无法替换该密钥：否则任何持有密钥的人都能这样做。我们会将登录链接发送到你账户的邮箱地址。请打开链接，然后在此页面重新生成密钥。",
+    "sendLink": "给我发送登录链接",
+    "sendingLink": "正在发送…",
+    "linkSent": "登录链接已发送。请从收件箱打开链接，然后重新生成密钥。",
+    "linkFailed": "无法发送登录链接，请重试。",
+    "errorUnavailable": "此密钥已无法再重新生成。其当前状态显示在上方。"
   },
   "openSource": {
     "heading": "开源，无所隐藏。",

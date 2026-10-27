@@ -364,7 +364,14 @@
     "rotated": "A kulcs lecserélve. Adja meg az új kulcsot a HyperWhisperben minden eszközén.",
     "errorRateLimited": "Túl sok kulcscsere. Kérjük, próbálja újra később.",
     "errorStale": "Ezt a kulcsot már lecserélték. Az aktuális kulcs fent látható.",
-    "errorGeneric": "Nem sikerült lecserélni a kulcsot. Kérjük, próbálja újra."
+    "errorGeneric": "Nem sikerült lecserélni a kulcsot. Kérjük, próbálja újra.",
+    "verifyTitle": "Erősítse meg e-mailben, hogy Ön az",
+    "verifyBody": "Fiókkulcsával jelentkezett be, a kulccsal történő bejelentkezés pedig nem cserélheti le ezt a kulcsot: különben bárki megtehetné, akinél a kulcs van. Bejelentkezési hivatkozást küldünk a fiókjához tartozó e-mail-címre. Nyissa meg, majd cserélje le a kulcsot ezen az oldalon.",
+    "sendLink": "Bejelentkezési hivatkozás küldése e-mailben",
+    "sendingLink": "Küldés…",
+    "linkSent": "Elküldtük a bejelentkezési hivatkozást. Nyissa meg a beérkező levelei között, majd cserélje le a kulcsot.",
+    "linkFailed": "Nem sikerült elküldeni a bejelentkezési hivatkozást. Kérjük, próbálja újra.",
+    "errorUnavailable": "Ez a kulcs már nem cserélhető le. Az aktuális állapota fent látható."
   },
   "openSource": {
     "heading": "Nyilt forraskod. Nincs mit rejtegetni.",

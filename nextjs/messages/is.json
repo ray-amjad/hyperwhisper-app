@@ -364,7 +364,14 @@
     "rotated": "Nýr lykill hefur verið búinn til. Sláðu hann inn í HyperWhisper á hverju tækjanna þinna.",
     "errorRateLimited": "Of margar lyklaskiptingar. Reyndu aftur síðar.",
     "errorStale": "Þessum lykli hefur þegar verið skipt út. Núverandi lykill er sýndur hér að ofan.",
-    "errorGeneric": "Ekki tókst að búa til nýjan lykil. Reyndu aftur."
+    "errorGeneric": "Ekki tókst að búa til nýjan lykil. Reyndu aftur.",
+    "verifyTitle": "Staðfestu með tölvupósti að þetta sért þú",
+    "verifyBody": "Þú skráðir þig inn með aðgangslyklinum og innskráning með lykli getur ekki skipt þeim lykli út: annars gæti hver sem er með lykilinn gert það. Við sendum innskráningartengil á netfang aðgangsins þíns. Opnaðu hann og búðu svo til nýjan lykil á þessari síðu.",
+    "sendLink": "Senda mér innskráningartengil",
+    "sendingLink": "Sendir…",
+    "linkSent": "Innskráningartengill sendur. Opnaðu hann úr pósthólfinu og búðu svo til nýjan lykil.",
+    "linkFailed": "Ekki tókst að senda innskráningartengilinn. Reyndu aftur.",
+    "errorUnavailable": "Ekki er lengur hægt að búa til nýjan lykil í stað þessa. Núverandi staða hans er sýnd hér að ofan."
   },
   "openSource": {
     "heading": "Opinn hugbúnaður. Ekkert að fela.",

@@ -43,6 +43,10 @@ const LABELS = {
   confirm: "Rotate key",
   cancel: "Cancel",
   rotating: "Rotating…",
+  verifyTitle: "Confirm by email",
+  verifyBody: "A key sign-in cannot replace that key.",
+  sendLink: "Email me a sign-in link",
+  sendingLink: "Sending…",
 };
 
 function props(
@@ -57,6 +61,7 @@ function props(
     error: null,
     onStart: () => clicks.push("start"),
     onConfirm: () => clicks.push("confirm"),
+    onSendLink: () => clicks.push("sendLink"),
     onCancel: () => clicks.push("cancel"),
     ...overrides,
   };
@@ -117,6 +122,27 @@ describe("RotateAccountKeyView", () => {
     assert.ok(text(confirm.props.children).includes(LABELS.rotating));
   });
 
+  test("verify: the email step-up panel, its button sends the link, no rotate offered", async () => {
+    const View = await loadView();
+    const clicks: string[] = [];
+    const tree = View(props({ phase: "verify" }, clicks));
+    const html = renderToStaticMarkup(tree);
+    assert.ok(html.includes(LABELS.verifyTitle));
+    assert.ok(!html.includes(LABELS.confirmBody), "no rotation confirmation for a key session");
+    const [send, cancel] = buttons(tree);
+    assert.ok(text(send.props.children).includes(LABELS.sendLink));
+    send.props.onClick?.();
+    cancel.props.onClick?.();
+    assert.deepEqual(clicks, ["sendLink", "cancel"]);
+  });
+
+  test("closed: no button at all, only the reason", async () => {
+    const View = await loadView();
+    const tree = View(props({ phase: "closed", error: "This key can't be rotated any more." }));
+    assert.equal(buttons(tree).length, 0);
+    assert.match(renderToStaticMarkup(tree), /role="alert"[^>]*>This key can/);
+  });
+
   test("the notice and the error render in their live regions", async () => {
     const View = await loadView();
     const html = renderToStaticMarkup(
@@ -124,6 +150,68 @@ describe("RotateAccountKeyView", () => {
     );
     assert.match(html, /role="status"[^>]*>Key rotated\./);
     assert.match(html, /role="alert"[^>]*>Too many rotations\./);
+  });
+});
+
+describe("rotateRefusal: what a refused rotation leaves on screen", () => {
+  async function load() {
+    return ((await import(VIEW_PATH)) as {
+      rotateRefusal: (code: string | undefined) => {
+        phase: string;
+        message: string | null;
+        refetch: boolean;
+      };
+    }).rotateRefusal;
+  }
+
+  test("CONFLICT closes the panel and refetches, so a second Confirm cannot rotate the new key", async () => {
+    const rotateRefusal = await load();
+    assert.deepEqual(rotateRefusal("CONFLICT"), {
+      phase: "idle",
+      message: "errorStale",
+      refetch: true,
+    });
+  });
+
+  test("NOT_FOUND and PRECONDITION_FAILED are terminal: closed, no retry", async () => {
+    const rotateRefusal = await load();
+    for (const code of ["NOT_FOUND", "PRECONDITION_FAILED"]) {
+      assert.deepEqual(rotateRefusal(code), {
+        phase: "closed",
+        message: "errorUnavailable",
+        refetch: true,
+      });
+    }
+  });
+
+  test("FORBIDDEN opens the email step-up; a rate limit closes; other faults keep the retry", async () => {
+    const rotateRefusal = await load();
+    assert.equal(rotateRefusal("FORBIDDEN").phase, "verify");
+    assert.equal(rotateRefusal("TOO_MANY_REQUESTS").phase, "idle");
+    assert.equal(rotateRefusal("TOO_MANY_REQUESTS").message, "errorRateLimited");
+    assert.equal(rotateRefusal("INTERNAL_SERVER_ERROR").phase, "confirming");
+    assert.equal(rotateRefusal(undefined).message, "errorGeneric");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// session sign-in method
+// ---------------------------------------------------------------------------
+
+describe("session sign-in method", () => {
+  test("only the magic-link verify path makes an email session", async () => {
+    const { signInMethodForPath, canRotateAccountKeys } = await import(
+      "../src/lib/session-sign-in-method"
+    );
+    assert.equal(signInMethodForPath("/magic-link/verify"), "email");
+    assert.equal(signInMethodForPath("/sign-in/license-key"), "account_key");
+    assert.equal(signInMethodForPath("/sign-in/magic-link"), null);
+    assert.equal(signInMethodForPath(undefined), null);
+    assert.equal(canRotateAccountKeys("email"), true);
+    // A key session, and every session older than the column, cannot rotate.
+    assert.equal(canRotateAccountKeys("account_key"), false);
+    assert.equal(canRotateAccountKeys(null), false);
+    assert.equal(canRotateAccountKeys(undefined), false);
   });
 });
 

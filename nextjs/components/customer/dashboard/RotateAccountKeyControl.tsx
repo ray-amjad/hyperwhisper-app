@@ -3,28 +3,43 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 
-import RotateAccountKeyView, { type RotatePhase } from "./RotateAccountKeyView";
+import RotateAccountKeyView, {
+  rotateRefusal,
+  type RotatePhase,
+} from "./RotateAccountKeyView";
 
+import { authClient } from "@/src/lib/auth-client";
 import { api } from "@/lib/trpc/client";
 
 interface RotateAccountKeyControlProps {
   license: { id: string; key: string };
+  /**
+   * Whether this browser's session was proven by email (magic link). A session
+   * opened with the key itself cannot rotate it, so the control offers an
+   * emailed sign-in link instead of the confirmation.
+   */
+  emailProven: boolean;
+  /** The account's address, where that link is sent. */
+  email: string;
   /** Called after a rotation lands, so the card can show the new key. */
   onRotated: () => void;
 }
 
 /**
  * The stateful half of the rotate control: the confirmation step, the
- * `customer.rotateAccountKey` mutation, and the translated copy. The markup
- * is `RotateAccountKeyView`, which holds no hooks.
+ * `customer.rotateAccountKey` mutation, the email step-up, and the translated
+ * copy. The markup is `RotateAccountKeyView`, which holds no hooks.
  *
  * After a rotation the dashboard's `licensesWithCredits` cache is patched with
  * the new key at once (so the card shows it with no flash of the dead one) and
- * then refetched. A CONFLICT means another rotation got there first: the
- * refetch brings the current key.
+ * then refetched.
+ *
+ * What each refusal leaves on screen is `rotateRefusal` in the view.
  */
 export default function RotateAccountKeyControl({
   license,
+  emailProven,
+  email,
   onRotated,
 }: RotateAccountKeyControlProps) {
   const t = useTranslations("licenseKeysCard");
@@ -51,20 +66,33 @@ export default function RotateAccountKeyControl({
       onRotated();
     },
     onError: (err) => {
-      const code = err.data?.code;
+      const refusal = rotateRefusal(err.data?.code);
 
-      if (code === "CONFLICT")
-        void utils.customer.licensesWithCredits.invalidate();
-      setPhase("confirming");
-      setError(
-        code === "TOO_MANY_REQUESTS"
-          ? t("errorRateLimited")
-          : code === "CONFLICT"
-            ? t("errorStale")
-            : t("errorGeneric"),
-      );
+      if (refusal.refetch) void utils.customer.licensesWithCredits.invalidate();
+      setPhase(refusal.phase);
+      setError(refusal.message ? t(refusal.message) : null);
     },
   });
+
+  async function sendLink() {
+    setError(null);
+    setPhase("sending");
+    // Back to this page once the link is followed, with an email session.
+    const { error: linkError } = await authClient.signIn.magicLink({
+      email,
+      callbackURL: window.location.pathname,
+    });
+
+    if (linkError) {
+      setPhase("verify");
+      setError(t("linkFailed"));
+
+      return;
+    }
+
+    setPhase("idle");
+    setNotice(t("linkSent"));
+  }
 
   return (
     <RotateAccountKeyView
@@ -76,6 +104,10 @@ export default function RotateAccountKeyControl({
         confirm: t("confirm"),
         cancel: t("cancel"),
         rotating: t("rotating"),
+        verifyTitle: t("verifyTitle"),
+        verifyBody: t("verifyBody"),
+        sendLink: t("sendLink"),
+        sendingLink: t("sendingLink"),
       }}
       licenseId={license.id}
       notice={notice}
@@ -88,12 +120,17 @@ export default function RotateAccountKeyControl({
         if (rotate.isPending) return;
         setError(null);
         setPhase("rotating");
+        // The key the user is looking at: if it changed meanwhile, the server
+        // answers CONFLICT instead of rotating a key they never saw.
         rotate.mutate({ id: license.id, currentKey: license.key });
+      }}
+      onSendLink={() => {
+        void sendLink();
       }}
       onStart={() => {
         setNotice(null);
         setError(null);
-        setPhase("confirming");
+        setPhase(emailProven ? "confirming" : "verify");
       }}
     />
   );

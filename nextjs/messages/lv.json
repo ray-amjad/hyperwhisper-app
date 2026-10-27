@@ -364,7 +364,14 @@
     "rotated": "Jaunā atslēga ir ģenerēta. Ievadiet to HyperWhisper katrā savā ierīcē.",
     "errorRateLimited": "Pārāk daudz atslēgas maiņu. Lūdzu, mēģiniet vēlāk.",
     "errorStale": "Šī atslēga jau ir nomainīta. Pašreizējā atslēga ir redzama augstāk.",
-    "errorGeneric": "Neizdevās ģenerēt jaunu atslēgu. Lūdzu, mēģiniet vēlreiz."
+    "errorGeneric": "Neizdevās ģenerēt jaunu atslēgu. Lūdzu, mēģiniet vēlreiz.",
+    "verifyTitle": "Apstipriniet e-pastā, ka tas esat jūs",
+    "verifyBody": "Jūs pierakstījāties ar konta atslēgu, un pierakstīšanās ar atslēgu nevar aizstāt šo atslēgu: citādi to varētu izdarīt ikviens, kam ir šī atslēga. Mēs nosūtīsim pierakstīšanās saiti uz jūsu konta e-pasta adresi. Atveriet to un pēc tam šajā lapā ģenerējiet jaunu atslēgu.",
+    "sendLink": "Nosūtīt man pierakstīšanās saiti",
+    "sendingLink": "Sūta…",
+    "linkSent": "Pierakstīšanās saite nosūtīta. Atveriet to no iesūtnes un pēc tam ģenerējiet jaunu atslēgu.",
+    "linkFailed": "Neizdevās nosūtīt pierakstīšanās saiti. Lūdzu, mēģiniet vēlreiz.",
+    "errorUnavailable": "Šai atslēgai vairs nevar ģenerēt jaunu. Tās pašreizējais statuss ir redzams augstāk."
   },
   "openSource": {
     "heading": "Atvērtais kods. Nav ko slēpt.",

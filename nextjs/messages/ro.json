@@ -364,7 +364,14 @@
     "rotated": "Cheia a fost regenerată. Introdu cheia nouă în HyperWhisper pe fiecare dintre dispozitivele tale.",
     "errorRateLimited": "Prea multe regenerări. Încearcă din nou mai târziu.",
     "errorStale": "Această cheie a fost deja regenerată. Cheia actuală este afișată mai sus.",
-    "errorGeneric": "Cheia nu a putut fi regenerată. Încearcă din nou."
+    "errorGeneric": "Cheia nu a putut fi regenerată. Încearcă din nou.",
+    "verifyTitle": "Confirmă prin e-mail că ești tu",
+    "verifyBody": "Te-ai conectat cu cheia de cont, iar o conectare cu cheia nu poate înlocui acea cheie: altfel, oricine are cheia ar putea face asta. Îți vom trimite un link de conectare la adresa de e-mail a contului tău. Deschide-l, apoi regenerează cheia de pe această pagină.",
+    "sendLink": "Trimite-mi un link de conectare",
+    "sendingLink": "Se trimite…",
+    "linkSent": "Linkul de conectare a fost trimis. Deschide-l din căsuța de e-mail, apoi regenerează cheia.",
+    "linkFailed": "Linkul de conectare nu a putut fi trimis. Încearcă din nou.",
+    "errorUnavailable": "Această cheie nu mai poate fi regenerată. Starea ei actuală este afișată mai sus."
   },
   "openSource": {
     "heading": "Sursă deschisă. Nimic de ascuns.",

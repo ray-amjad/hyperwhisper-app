@@ -364,7 +364,14 @@
     "rotated": "Nový klíč byl vygenerován. Zadejte ho do HyperWhisper na každém ze svých zařízení.",
     "errorRateLimited": "Příliš mnoho změn klíče. Zkuste to prosím později.",
     "errorStale": "Tento klíč už byl nahrazen. Aktuální klíč je zobrazen výše.",
-    "errorGeneric": "Nový klíč se nepodařilo vygenerovat. Zkuste to prosím znovu."
+    "errorGeneric": "Nový klíč se nepodařilo vygenerovat. Zkuste to prosím znovu.",
+    "verifyTitle": "Potvrďte svou totožnost e-mailem",
+    "verifyBody": "Přihlásili jste se klíčem k účtu a přihlášení klíčem nemůže tento klíč nahradit: to by mohl kdokoli, kdo klíč má. Pošleme přihlašovací odkaz na e-mailovou adresu vašeho účtu. Otevřete ho a pak na této stránce vygenerujte nový klíč.",
+    "sendLink": "Poslat přihlašovací odkaz e-mailem",
+    "sendingLink": "Odesílání…",
+    "linkSent": "Přihlašovací odkaz byl odeslán. Otevřete ho ve své doručené poště a pak vygenerujte nový klíč.",
+    "linkFailed": "Přihlašovací odkaz se nepodařilo odeslat. Zkuste to prosím znovu.",
+    "errorUnavailable": "Pro tento klíč už nelze vygenerovat nový. Jeho aktuální stav je zobrazen výše."
   },
   "openSource": {
     "heading": "Otevřený zdroj. Nic ke skrývání.",

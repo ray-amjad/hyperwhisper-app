@@ -364,7 +364,14 @@
     "rotated": "Anahtar yenilendi. Yeni anahtarı cihazlarınızın her birinde HyperWhisper'a girin.",
     "errorRateLimited": "Çok fazla yenileme yapıldı. Lütfen daha sonra tekrar deneyin.",
     "errorStale": "Bu anahtar zaten yenilendi. Geçerli anahtar yukarıda gösteriliyor.",
-    "errorGeneric": "Anahtar yenilenemedi. Lütfen tekrar deneyin."
+    "errorGeneric": "Anahtar yenilenemedi. Lütfen tekrar deneyin.",
+    "verifyTitle": "Kimliğinizi e-postayla doğrulayın",
+    "verifyBody": "Hesap Anahtarınızla giriş yaptınız ve anahtarla yapılan bir giriş bu anahtarı değiştiremez: aksi halde anahtara sahip olan herkes bunu yapabilirdi. Hesabınızın e-posta adresine bir giriş bağlantısı göndereceğiz. Bağlantıyı açın, ardından anahtarı bu sayfadan yenileyin.",
+    "sendLink": "Bana giriş bağlantısı gönder",
+    "sendingLink": "Gönderiliyor…",
+    "linkSent": "Giriş bağlantısı gönderildi. Gelen kutunuzdan açın, ardından anahtarı yenileyin.",
+    "linkFailed": "Giriş bağlantısı gönderilemedi. Lütfen tekrar deneyin.",
+    "errorUnavailable": "Bu anahtar artık yenilenemez. Geçerli durumu yukarıda gösteriliyor."
   },
   "openSource": {
     "heading": "Açık kaynak. Saklayacak hiçbir şey yok.",

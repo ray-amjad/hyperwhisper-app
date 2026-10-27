@@ -364,7 +364,14 @@
     "rotated": "Nøkkelen er byttet. Skriv inn den nye nøkkelen i HyperWhisper på hver av enhetene dine.",
     "errorRateLimited": "For mange nøkkelbytter. Prøv igjen senere.",
     "errorStale": "Denne nøkkelen er allerede byttet. Den gjeldende nøkkelen vises ovenfor.",
-    "errorGeneric": "Kunne ikke bytte nøkkelen. Prøv igjen."
+    "errorGeneric": "Kunne ikke bytte nøkkelen. Prøv igjen.",
+    "verifyTitle": "Bekreft at det er deg, via e-post",
+    "verifyBody": "Du logget inn med kontonøkkelen, og en innlogging med nøkkelen kan ikke bytte ut den nøkkelen: da kunne alle som har nøkkelen, gjort det. Vi sender en innloggingslenke til e-postadressen til kontoen din. Åpne den, og bytt deretter nøkkelen fra denne siden.",
+    "sendLink": "Send meg en innloggingslenke",
+    "sendingLink": "Sender…",
+    "linkSent": "Innloggingslenken er sendt. Åpne den fra innboksen din, og bytt deretter nøkkelen.",
+    "linkFailed": "Kunne ikke sende innloggingslenken. Prøv igjen.",
+    "errorUnavailable": "Denne nøkkelen kan ikke byttes lenger. Den nåværende statusen vises ovenfor."
   },
   "openSource": {
     "heading": "Åpen kildekode. Ingenting å skjule.",

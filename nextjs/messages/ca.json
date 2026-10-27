@@ -364,7 +364,14 @@
     "rotated": "S'ha regenerat la clau. Introdueix la clau nova a HyperWhisper a cadascun dels teus dispositius.",
     "errorRateLimited": "Massa regeneracions. Torna-ho a provar més tard.",
     "errorStale": "Aquesta clau ja s'ha regenerat. La clau actual es mostra a dalt.",
-    "errorGeneric": "No s'ha pogut regenerar la clau. Torna-ho a provar."
+    "errorGeneric": "No s'ha pogut regenerar la clau. Torna-ho a provar.",
+    "verifyTitle": "Confirma que ets tu per correu",
+    "verifyBody": "Has iniciat la sessió amb la clau del compte, i un inici de sessió amb clau no pot substituir aquesta clau: qualsevol persona que tingués la clau podria fer-ho. T'enviarem un enllaç d'inici de sessió a l'adreça de correu del teu compte. Obre'l i després regenera la clau des d'aquesta pàgina.",
+    "sendLink": "Envia'm un enllaç d'inici de sessió",
+    "sendingLink": "S'està enviant…",
+    "linkSent": "S'ha enviat l'enllaç d'inici de sessió. Obre'l des de la safata d'entrada i després regenera la clau.",
+    "linkFailed": "No s'ha pogut enviar l'enllaç d'inici de sessió. Torna-ho a provar.",
+    "errorUnavailable": "Aquesta clau ja no es pot regenerar. El seu estat actual es mostra a dalt."
   },
   "openSource": {
     "heading": "Codi obert. Res a amagar.",

@@ -364,7 +364,14 @@
     "rotated": "Đã tạo lại khóa. Hãy nhập khóa mới vào HyperWhisper trên từng thiết bị của bạn.",
     "errorRateLimited": "Bạn đã tạo lại khóa quá nhiều lần. Vui lòng thử lại sau.",
     "errorStale": "Khóa này đã được tạo lại. Khóa hiện tại được hiển thị ở trên.",
-    "errorGeneric": "Không thể tạo lại khóa. Vui lòng thử lại."
+    "errorGeneric": "Không thể tạo lại khóa. Vui lòng thử lại.",
+    "verifyTitle": "Xác nhận qua email rằng đó là bạn",
+    "verifyBody": "Bạn đã đăng nhập bằng khóa tài khoản, và phiên đăng nhập bằng khóa không thể thay thế khóa đó: nếu không, bất kỳ ai có khóa cũng làm được. Chúng tôi sẽ gửi liên kết đăng nhập đến địa chỉ email của tài khoản bạn. Hãy mở liên kết, rồi tạo lại khóa từ trang này.",
+    "sendLink": "Gửi cho tôi liên kết đăng nhập",
+    "sendingLink": "Đang gửi…",
+    "linkSent": "Đã gửi liên kết đăng nhập. Hãy mở liên kết từ hộp thư đến, rồi tạo lại khóa.",
+    "linkFailed": "Không thể gửi liên kết đăng nhập. Vui lòng thử lại.",
+    "errorUnavailable": "Khóa này không thể tạo lại được nữa. Trạng thái hiện tại của khóa được hiển thị ở trên."
   },
   "openSource": {
     "heading": "Mã nguồn mở. Không có gì để giấu.",

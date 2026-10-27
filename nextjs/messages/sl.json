@@ -364,7 +364,14 @@
     "rotated": "Nov ključ je ustvarjen. Vnesite ga v HyperWhisper v vsaki svoji napravi.",
     "errorRateLimited": "Preveč zamenjav ključa. Poskusite znova pozneje.",
     "errorStale": "Ta ključ je že bil zamenjan. Trenutni ključ je prikazan zgoraj.",
-    "errorGeneric": "Novega ključa ni bilo mogoče ustvariti. Poskusite znova."
+    "errorGeneric": "Novega ključa ni bilo mogoče ustvariti. Poskusite znova.",
+    "verifyTitle": "Po e-pošti potrdite, da ste to vi",
+    "verifyBody": "Prijavili ste se s ključem računa, prijava s ključem pa tega ključa ne more zamenjati: sicer bi to lahko storil vsak, ki ima ključ. Na e-poštni naslov vašega računa bomo poslali povezavo za prijavo. Odprite jo in nato na tej strani ustvarite nov ključ.",
+    "sendLink": "Pošlji mi povezavo za prijavo",
+    "sendingLink": "Pošiljanje…",
+    "linkSent": "Povezava za prijavo je poslana. Odprite jo v nabiralniku in nato ustvarite nov ključ.",
+    "linkFailed": "Povezave za prijavo ni bilo mogoče poslati. Poskusite znova.",
+    "errorUnavailable": "Za ta ključ ni več mogoče ustvariti novega. Njegovo trenutno stanje je prikazano zgoraj."
   },
   "openSource": {
     "heading": "Odprta koda. Nicesar za skrivati.",

@@ -364,7 +364,14 @@
     "rotated": "Kunci telah dijana semula. Masukkan kunci baharu dalam HyperWhisper pada setiap peranti anda.",
     "errorRateLimited": "Terlalu banyak penjanaan semula. Sila cuba lagi nanti.",
     "errorStale": "Kunci ini sudah dijana semula. Kunci semasa dipaparkan di atas.",
-    "errorGeneric": "Tidak dapat menjana semula kunci. Sila cuba lagi."
+    "errorGeneric": "Tidak dapat menjana semula kunci. Sila cuba lagi.",
+    "verifyTitle": "Sahkan identiti anda melalui e-mel",
+    "verifyBody": "Anda log masuk dengan kunci akaun anda, dan log masuk dengan kunci tidak boleh menggantikan kunci itu: jika boleh, sesiapa sahaja yang memiliki kunci itu boleh melakukannya. Kami akan menghantar pautan log masuk ke alamat e-mel akaun anda. Bukanya, kemudian jana semula kunci dari halaman ini.",
+    "sendLink": "E-melkan saya pautan log masuk",
+    "sendingLink": "Menghantar…",
+    "linkSent": "Pautan log masuk telah dihantar. Bukanya dari peti masuk anda, kemudian jana semula kunci.",
+    "linkFailed": "Tidak dapat menghantar pautan log masuk. Sila cuba lagi.",
+    "errorUnavailable": "Kunci ini tidak boleh dijana semula lagi. Status semasanya dipaparkan di atas."
   },
   "openSource": {
     "heading": "Sumber terbuka. Tiada apa-apa untuk disembunyikan.",

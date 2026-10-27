@@ -12,6 +12,8 @@ interface UserDashboardClientProps {
     id: string;
   };
   isAdmin: boolean;
+  /** This session was proven by email, so it may rotate an Account Key. */
+  canRotateKeys: boolean;
 }
 
 /**
@@ -22,6 +24,7 @@ interface UserDashboardClientProps {
 export default function UserDashboardClient({
   user,
   isAdmin,
+  canRotateKeys,
 }: UserDashboardClientProps) {
   // Always fetch customer data (licenses, credits)
   const {
@@ -76,7 +79,12 @@ export default function UserDashboardClient({
             // dead); the server enforces the same rule.
             renderActions={(license, reveal) =>
               license.status === "granted" ? (
-                <RotateAccountKeyControl license={license} onRotated={reveal} />
+                <RotateAccountKeyControl
+                  email={user.email}
+                  emailProven={canRotateKeys}
+                  license={license}
+                  onRotated={reveal}
+                />
               ) : null
             }
           />

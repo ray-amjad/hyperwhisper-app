@@ -364,7 +364,14 @@
     "rotated": "Avain vaihdettu. Syötä uusi avain HyperWhisperiin jokaisella laitteellasi.",
     "errorRateLimited": "Liian monta vaihtoa. Yritä myöhemmin uudelleen.",
     "errorStale": "Tämä avain on jo vaihdettu. Nykyinen avain näkyy yllä.",
-    "errorGeneric": "Avaimen vaihtaminen epäonnistui. Yritä uudelleen."
+    "errorGeneric": "Avaimen vaihtaminen epäonnistui. Yritä uudelleen.",
+    "verifyTitle": "Vahvista henkilöllisyytesi sähköpostilla",
+    "verifyBody": "Kirjauduit sisään tiliavaimellasi, eikä avaimella kirjautuminen voi vaihtaa tätä avainta: muuten kuka tahansa avaimen haltija voisi tehdä sen. Lähetämme kirjautumislinkin tilisi sähköpostiosoitteeseen. Avaa se ja vaihda sitten avain tällä sivulla.",
+    "sendLink": "Lähetä minulle kirjautumislinkki",
+    "sendingLink": "Lähetetään…",
+    "linkSent": "Kirjautumislinkki lähetetty. Avaa se saapuneista viesteistä ja vaihda sitten avain.",
+    "linkFailed": "Kirjautumislinkin lähettäminen epäonnistui. Yritä uudelleen.",
+    "errorUnavailable": "Tätä avainta ei voi enää vaihtaa. Sen nykyinen tila näkyy yllä."
   },
   "openSource": {
     "heading": "Avoin lähdekoodi. Ei mitään salattavaa.",

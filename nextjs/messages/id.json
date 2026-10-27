@@ -364,7 +364,14 @@
     "rotated": "Kunci telah dibuat ulang. Masukkan kunci baru di HyperWhisper pada setiap perangkat Anda.",
     "errorRateLimited": "Terlalu sering membuat ulang kunci. Silakan coba lagi nanti.",
     "errorStale": "Kunci ini sudah dibuat ulang. Kunci saat ini ditampilkan di atas.",
-    "errorGeneric": "Tidak dapat membuat ulang kunci. Silakan coba lagi."
+    "errorGeneric": "Tidak dapat membuat ulang kunci. Silakan coba lagi.",
+    "verifyTitle": "Konfirmasi bahwa ini Anda melalui email",
+    "verifyBody": "Anda masuk dengan kunci akun, dan masuk dengan kunci tidak dapat mengganti kunci tersebut: jika bisa, siapa pun yang memiliki kunci itu dapat melakukannya. Kami akan mengirim tautan masuk ke alamat email akun Anda. Buka tautan tersebut, lalu buat ulang kunci dari halaman ini.",
+    "sendLink": "Kirimi saya tautan masuk",
+    "sendingLink": "Mengirim…",
+    "linkSent": "Tautan masuk terkirim. Buka dari kotak masuk Anda, lalu buat ulang kunci.",
+    "linkFailed": "Tidak dapat mengirim tautan masuk. Silakan coba lagi.",
+    "errorUnavailable": "Kunci ini tidak dapat dibuat ulang lagi. Statusnya saat ini ditampilkan di atas."
   },
   "openSource": {
     "heading": "Sumber terbuka. Tidak ada yang disembunyikan.",
