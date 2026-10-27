@@ -263,7 +263,7 @@ describe('uploadTranscriptionAudio — failure classification', () => {
       expect(error).toBeInstanceOf(ProviderUnavailableError);
       expect((error as Error).message).toContain(`upload ${status}`);
       // The status only: no part of the GCS body reaches the message (#2176).
-      expect((error as Error).message).toContain(`(HTTP ${status})`);
+      expect((error as Error).message).toMatch(new RegExp(`^GCS upload unavailable: upload ${status} after \\d+ms: HTTP ${status}$`));
       expect((error as Error).message).not.toContain('slow down');
     },
   );
@@ -287,7 +287,13 @@ describe('uploadTranscriptionAudio — failure classification', () => {
     async (status) => {
       const marker = 'zebracanary-iam-principal';
       handler = () => new Response(
-        JSON.stringify({ error: { code: status, message: `${marker} does not have storage.objects.create access` } }),
+        JSON.stringify({
+          error: {
+            code: status,
+            message: `${marker} does not have storage.objects.create access`,
+            errors: [{ message: `${marker} denied`, domain: 'global', reason: 'forbidden' }],
+          },
+        }),
         { status, headers: { 'Content-Type': 'application/json' } },
       );
 
@@ -297,8 +303,10 @@ describe('uploadTranscriptionAudio — failure classification', () => {
       const message = (error as Error).message;
       expect(message).not.toContain(marker);
       expect(message).not.toContain('storage.objects.create');
-      // Google's `error.code` is the one token kept.
-      expect(message.endsWith(status >= 500 ? `(${status})` : `: ${status}`)).toBe(true);
+      // GCS's own `errors[0].reason` token is the one thing kept from the body.
+      expect(message).toMatch(status >= 500
+        ? new RegExp(`^GCS upload unavailable: upload ${status} after \\d+ms: forbidden$`)
+        : new RegExp(`^GCS upload failed \\(status=${status}, elapsedMs=\\d+\\): forbidden$`));
     },
   );
 
@@ -312,7 +320,7 @@ describe('uploadTranscriptionAudio — failure classification', () => {
       .then(() => null, (e: unknown) => e);
 
     expect(error).toBeInstanceOf(ProviderUnavailableError);
-    expect((error as Error).message).toMatch(/^GCS upload unavailable: upload 500 after \d+ms \(HTTP 500\)$/);
+    expect((error as Error).message).toMatch(/^GCS upload unavailable: upload 500 after \d+ms: HTTP 500$/);
   });
 
   test('turns an aborted upload into ProviderUnavailableError naming the budget it blew', async () => {
@@ -431,7 +439,13 @@ describe('deleteTranscriptionAudio', () => {
   test('logs no part of a GCS delete error body, only content-free fields (#2176)', async () => {
     const marker = 'zebracanary-iam-principal';
     handler = () => new Response(
-      JSON.stringify({ error: { code: 403, message: `${marker} does not have storage.objects.delete access` } }),
+      JSON.stringify({
+        error: {
+          code: 403,
+          message: `${marker} does not have storage.objects.delete access`,
+          errors: [{ message: `${marker} denied`, domain: 'global', reason: 'forbidden' }],
+        },
+      }),
       { status: 403, headers: { 'Content-Type': 'application/json' } },
     );
     const warned: unknown[][] = [];
@@ -446,7 +460,7 @@ describe('deleteTranscriptionAudio', () => {
     expect(warned).toHaveLength(1);
     expect(warned[0]![0]).toBe('gcs.delete_failed');
     expect(JSON.stringify(warned)).not.toContain(marker);
-    expect(warned[0]![1]).toMatchObject({ status: 403, errorCode: '403', bucket: BUCKET, objectName: ref.objectName });
+    expect(warned[0]![1]).toMatchObject({ status: 403, errorCode: '403', gcsReason: 'forbidden', bucket: BUCKET, objectName: ref.objectName });
     expect(warned[0]![1]).not.toHaveProperty('bodyPreview');
   });
 
