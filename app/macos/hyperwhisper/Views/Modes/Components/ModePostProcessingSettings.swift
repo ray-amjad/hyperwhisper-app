@@ -10,6 +10,57 @@ import SwiftUI
 import AppKit
 #endif
 
+// MARK: - Local Post-Processing Check
+
+/// Whether an on-device (`.local`) post-processing selection can't actually run.
+/// The editor's `onAppear` turns such a selection Off, and the Mode editor's
+/// Save/Create button refuses it (issue #1858), so Save never writes a state
+/// the next open silently undoes. Same policy as
+/// `PersistenceController.repairBrokenLocalModes`.
+enum LocalPostProcessingCheck {
+
+    static func isBroken(
+        mode: PostProcessingMode,
+        languageModel: String,
+        downloadedIds: Set<String>,
+        downloadingIds: Set<String>,
+        checksumInvalidIds: Set<String>,
+        isAppleSilicon: Bool
+    ) -> Bool {
+        guard mode == .local else { return false }
+        if !isAppleSilicon { return true } // Intel
+        let id = languageModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !id.isEmpty else { return true }
+        if downloadingIds.contains(id) { return false } // mid-download — keep intent
+        guard downloadedIds.contains(id) else { return true }
+        return checksumInvalidIds.contains(id)
+    }
+
+    /// The live inputs: the Local LLM manager's state and this Mac's hardware.
+    /// Rosetta (Apple-Silicon hardware) is NOT treated as broken — a native
+    /// relaunch fixes it and the Model Library shows that nudge.
+    @MainActor
+    static func isBroken(
+        mode: PostProcessingMode,
+        languageModel: String,
+        localModelManager: LocalModelManager
+    ) -> Bool {
+        guard mode == .local else { return false }
+        let checksumInvalidIds = Set(localModelManager.checksumStates.compactMap { id, state -> String? in
+            if case .invalid = state { return id }
+            return nil
+        })
+        return isBroken(
+            mode: mode,
+            languageModel: languageModel,
+            downloadedIds: Set(localModelManager.downloadedModels.map(\.id)),
+            downloadingIds: localModelManager.downloadingModels,
+            checksumInvalidIds: checksumInvalidIds,
+            isAppleSilicon: SystemCapability.current.isAppleSiliconHardware
+        )
+    }
+}
+
 // MARK: - Language Processing Settings View
 
 /// Combined language processing and text output settings
@@ -125,14 +176,11 @@ struct LanguageProcessingSettingsView: View {
     /// behave identically. Rosetta (Apple-Silicon hardware) is NOT treated as broken —
     /// a native relaunch fixes it and the Model Library shows that nudge.
     private var localPostProcessingIsBroken: Bool {
-        guard postProcessingMode == .local else { return false }
-        if !SystemCapability.current.isAppleSiliconHardware { return true } // Intel
-        let id = languageModel.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !id.isEmpty else { return true }
-        if localModelManager.downloadingModels.contains(id) { return false } // mid-download — keep intent
-        guard localModelManager.downloadedModels.contains(where: { $0.id == id }) else { return true }
-        if case .invalid = localModelManager.checksumStates[id] { return true }
-        return false
+        LocalPostProcessingCheck.isBroken(
+            mode: postProcessingMode,
+            languageModel: languageModel,
+            localModelManager: localModelManager
+        )
     }
 
     private var shouldShowPostProcessingPrivacyNotice: Bool {
