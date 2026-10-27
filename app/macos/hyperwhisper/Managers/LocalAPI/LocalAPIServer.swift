@@ -806,6 +806,11 @@ final class LocalAPIServer: ObservableObject {
             runTask = nil
             listenWaitTask?.cancel()
             listenWaitTask = nil
+            // A discovery file left by an earlier run names the refused port,
+            // which another process now holds: withdraw it until the
+            // ephemeral bind publishes its own, so no client sends the token
+            // there in between (the error path below does the same).
+            deletePortFile()
             bindAndRun()
             return
         }
