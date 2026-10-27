@@ -4,17 +4,10 @@
  * The shape of what the account query reveals for one Account Key: the
  * Account Keys card over the Cloud Credits card, at their real heights, so the
  * swap to the real cards moves nothing below them. Same pulsing bars as
- * `PortalSkeleton`; `pulsing` stops them once the skeleton is fading out, so
- * a hidden skeleton runs no endless animation.
+ * `PortalSkeleton`.
  */
-export default function DashboardCardsSkeleton({
-  pulsing,
-}: {
-  pulsing: boolean;
-}) {
-  const bar = `bg-white/10 rounded${
-    pulsing ? " animate-pulse motion-reduce:animate-none" : ""
-  }`;
+export default function DashboardCardsSkeleton() {
+  const bar = "bg-white/10 rounded animate-pulse motion-reduce:animate-none";
   const card = "bg-white/5 rounded-xl border border-white/10 p-5";
 
   return (

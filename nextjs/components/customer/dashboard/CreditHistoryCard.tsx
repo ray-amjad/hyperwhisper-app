@@ -13,8 +13,9 @@ import { formatDate } from "@/lib/format-date";
  *
  * Its query settles after the dashboard's own, so the card grows its slot open
  * (`.t-cell-reveal`, #865) instead of pushing the cards below it down in one
- * frame, unless its data was already cached. `gap` is the space it has above it: it sits inside the clip, so it
- * grows with the tween and a hidden card takes no space.
+ * frame, unless its data was already cached. `gap` is the space it has above
+ * it: it sits inside the clip, so it grows with the tween and a hidden card
+ * takes no space.
  */
 export default function CreditHistoryCard({ gap }: { gap?: string }) {
   const { data, isLoading, error } = api.customer.creditHistory.useQuery();

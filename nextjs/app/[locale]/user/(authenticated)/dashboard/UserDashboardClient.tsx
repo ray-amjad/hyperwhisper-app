@@ -41,6 +41,7 @@ export default function UserDashboardClient({
   // Whether the first render had to wait for the query, so the skeleton was
   // on screen and the cards should fade in over it (#865).
   const [revealCards] = useState(isLoading);
+  const [skeletonGone, setSkeletonGone] = useState(!isLoading);
 
   // Credits are pooled per account, so use the query's account-level totals
   // rather than summing per license (which double-counts a multi-key account's
@@ -86,18 +87,32 @@ export default function UserDashboardClient({
           !isLoading && error ? " mb-0" : ""
         }`}
       >
-        <div
-          aria-hidden
-          className={`[grid-area:1/1] self-start grid pointer-events-none transition-[grid-template-rows,opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
-            isLoading
-              ? "grid-rows-[1fr] opacity-100 blur-[0px]"
-              : "grid-rows-[0fr] opacity-0 blur-[2px]"
-          }`}
-        >
-          <div className="min-h-0 overflow-hidden">
-            <DashboardCardsSkeleton pulsing={isLoading} />
+        {/* It unmounts when its fade ends, so no hidden layer or pulse is
+            left behind. Under reduced motion there is no transition and no
+            pulse, and the collapsed skeleton just stays. */}
+        {skeletonGone ? null : (
+          <div
+            aria-hidden
+            className={`[grid-area:1/1] self-start grid pointer-events-none transition-[grid-template-rows,opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
+              isLoading
+                ? "grid-rows-[1fr] opacity-100 blur-[0px]"
+                : "grid-rows-[0fr] opacity-0 blur-[2px]"
+            }`}
+            onTransitionEnd={(event) => {
+              if (
+                !isLoading &&
+                event.target === event.currentTarget &&
+                event.propertyName === "opacity"
+              ) {
+                setSkeletonGone(true);
+              }
+            }}
+          >
+            <div className="min-h-0 overflow-hidden">
+              <DashboardCardsSkeleton />
+            </div>
           </div>
-        </div>
+        )}
         {/* The skeleton is aria-hidden, so this status says what it shows. */}
         <p className="sr-only" role="status">
           {isLoading ? "Loading Account Keys..." : ""}
