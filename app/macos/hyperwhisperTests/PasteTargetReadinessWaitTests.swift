@@ -16,7 +16,7 @@ struct PasteTargetReadinessWaitTests {
 
     @Test func readyTargetDoesNotWait() async {
         var probes = 0
-        let wait = await AccessibilityHelper.waitForPasteTargetReady(upperBoundMs: 250) {
+        let wait = await AccessibilityHelper.waitForPasteTargetReady(upperBoundMs: 250) { _ in
             probes += 1
             return true
         }
@@ -28,7 +28,7 @@ struct PasteTargetReadinessWaitTests {
     @Test func returnsOnTheFirstReadyPoll() async {
         var probes = 0
         let wait = await AccessibilityHelper.waitForPasteTargetReady(upperBoundMs: 5_000,
-                                                                      pollIntervalMs: 10) {
+                                                                      pollIntervalMs: 10) { _ in
             probes += 1
             return probes == 3
         }
@@ -42,8 +42,10 @@ struct PasteTargetReadinessWaitTests {
         var probes = 0
         let start = ContinuousClock.now
         let wait = await AccessibilityHelper.waitForPasteTargetReady(upperBoundMs: 100,
-                                                                      pollIntervalMs: 15) {
+                                                                      pollIntervalMs: 15) { remaining in
             probes += 1
+            #expect(remaining > .zero)
+            #expect(remaining <= .milliseconds(100))
             return false
         }
         let elapsed = start.duration(to: .now)
@@ -53,10 +55,10 @@ struct PasteTargetReadinessWaitTests {
         #expect(wait.waitedMs >= 100)
     }
 
-    @Test func cancelledTaskStopsWaiting() async {
+    @Test func cancelBeforeTheFirstPollStopsWaiting() async {
         let task = Task { @MainActor in
             await AccessibilityHelper.waitForPasteTargetReady(upperBoundMs: 60_000,
-                                                              pollIntervalMs: 15) { false }
+                                                              pollIntervalMs: 15) { _ in false }
         }
         task.cancel()
         let start = ContinuousClock.now
@@ -64,4 +66,30 @@ struct PasteTargetReadinessWaitTests {
         #expect(!wait.ready)
         #expect(start.duration(to: .now) < .seconds(10))
     }
+
+    /// Cancels while the wait is inside its sleep between polls, so the
+    /// swallowed `CancellationError` must still end the loop.
+    @Test func cancelDuringTheSleepStopsWaiting() async {
+        let probes = ProbeCount()
+        let task = Task { @MainActor in
+            await AccessibilityHelper.waitForPasteTargetReady(upperBoundMs: 60_000,
+                                                              pollIntervalMs: 1_000) { _ in
+                probes.value += 1
+                return false
+            }
+        }
+        while probes.value == 0 { await Task.yield() }
+        let start = ContinuousClock.now
+        task.cancel()
+        let wait = await task.value
+        #expect(!wait.ready)
+        #expect(probes.value == 1)
+        #expect(start.duration(to: .now) < .seconds(10))
+    }
+}
+
+/// A main-actor counter the cancelled task and the test can both read.
+@MainActor
+private final class ProbeCount {
+    var value = 0
 }

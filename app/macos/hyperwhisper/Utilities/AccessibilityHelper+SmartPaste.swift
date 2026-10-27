@@ -153,8 +153,11 @@ extension AccessibilityHelper {
                 }
 
                 let targetPID = app.processIdentifier
-                let wait = await Self.waitForPasteTargetReady(upperBoundMs: delayMs) {
-                    self.isPasteTargetReady(pid: targetPID)
+                let targetElement = AXUIElementCreateApplication(targetPID)
+                let wait = await Self.waitForPasteTargetReady(upperBoundMs: delayMs) { remaining in
+                    MainActorHangTrace.shared.withActive(flow: .autoPaste, step: .inspectFocusedElement) {
+                        self.isPasteTargetReady(pid: targetPID, element: targetElement, timeout: remaining)
+                    }
                 }
                 logger.info("⏱️ Paste target settle: \(wait.waitedMs, privacy: .public) ms of \(delayMs, privacy: .public) ms bound, ready=\(wait.ready, privacy: .public)")
 
@@ -388,12 +391,13 @@ extension AccessibilityHelper {
     }
 
     /// Polls `isReady` every `pollIntervalMs` until it returns true or
-    /// `upperBoundMs` has passed, whichever comes first. A cancelled task stops
-    /// waiting at once; the caller checks `Task.isCancelled` after this returns.
+    /// `upperBoundMs` has passed, whichever comes first. `isReady` gets the time
+    /// left before the bound, so a slow probe cannot run past it. A cancelled task
+    /// stops waiting at once; the caller checks `Task.isCancelled` after this returns.
     @MainActor
     static func waitForPasteTargetReady(upperBoundMs: UInt64,
                                         pollIntervalMs: UInt64 = 15,
-                                        isReady: () -> Bool) async -> PasteTargetWait {
+                                        isReady: (_ remaining: Duration) -> Bool) async -> PasteTargetWait {
         let clock = ContinuousClock()
         let start = clock.now
         let deadline = start.advanced(by: .milliseconds(Int64(upperBoundMs)))
@@ -402,29 +406,34 @@ extension AccessibilityHelper {
             return Int(elapsed.seconds * 1_000 + elapsed.attoseconds / 1_000_000_000_000_000)
         }
         while true {
-            if isReady() {
-                return PasteTargetWait(ready: true, waitedMs: elapsedMs())
-            }
-            let now = clock.now
-            if now >= deadline || Task.isCancelled {
+            let remaining = clock.now.duration(to: deadline)
+            if remaining <= .zero || Task.isCancelled {
                 return PasteTargetWait(ready: false, waitedMs: elapsedMs())
             }
-            let step = min(Duration.milliseconds(Int64(pollIntervalMs)), now.duration(to: deadline))
-            try? await Task.sleep(for: step)
+            if isReady(remaining) {
+                return PasteTargetWait(ready: true, waitedMs: elapsedMs())
+            }
+            let left = clock.now.duration(to: deadline)
+            if left <= .zero || Task.isCancelled {
+                return PasteTargetWait(ready: false, waitedMs: elapsedMs())
+            }
+            try? await Task.sleep(for: min(.milliseconds(Int64(pollIntervalMs)), left))
         }
     }
 
     /// True when the app with `pid` is frontmost and Accessibility reports a
-    /// focused element inside it. The AX read uses a short messaging timeout,
-    /// so a hung target costs one poll, not the system default of seconds.
-    func isPasteTargetReady(pid: pid_t) -> Bool {
+    /// focused element inside it. The AX read times out after at most 50 ms, and
+    /// never after `timeout`, so a hung target cannot stretch the settle past
+    /// its old fixed value.
+    func isPasteTargetReady(pid: pid_t, element: AXUIElement, timeout: Duration) -> Bool {
         guard NSWorkspace.shared.frontmostApplication?.processIdentifier == pid else {
             return false
         }
-        let appElement = AXUIElementCreateApplication(pid)
-        AXUIElementSetMessagingTimeout(appElement, 0.05)
+        let parts = min(timeout, .milliseconds(50)).components
+        let seconds = Double(parts.seconds) + Double(parts.attoseconds) / 1e18
+        AXUIElementSetMessagingTimeout(element, Float(seconds))
         var focused: CFTypeRef?
-        let result = AXUIElementCopyAttributeValue(appElement,
+        let result = AXUIElementCopyAttributeValue(element,
                                                    kAXFocusedUIElementAttribute as CFString,
                                                    &focused)
         return result == .success && AXCast.element(focused) != nil
