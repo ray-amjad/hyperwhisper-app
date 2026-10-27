@@ -11,7 +11,9 @@
  *
  * It calls the REAL `generateMetadata` of each page. The three content modules
  * they import read the database (and import "server-only"), so those are
- * replaced with `mock.module`; `generateMetadata` never calls them.
+ * replaced with `mock.module`. The 3 index routes' `generateMetadata` never
+ * calls them; a blog post's reads its post through the mocked `getBlogPost`
+ * (#1316).
  */
 import assert from "node:assert/strict";
 import test from "node:test";
