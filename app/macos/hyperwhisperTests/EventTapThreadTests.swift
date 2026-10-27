@@ -220,7 +220,7 @@ struct EventTapThreadTests {
     /// return. Here the "enable" blocks until released: the caller of stop()
     /// — the main actor in production — must not wait for it.
     @MainActor
-    @Test func stopReturnsAtOnceWhileTheTapThreadIsBlockedInAnEnable() async throws {
+    @Test func stopReturnsWithoutWaitingWhileTheTapThreadIsBlockedInAnEnable() async throws {
         let entered = DispatchSemaphore(value: 0)
         let release = DispatchSemaphore(value: 0)
         let recorder = EnableRecorder()
