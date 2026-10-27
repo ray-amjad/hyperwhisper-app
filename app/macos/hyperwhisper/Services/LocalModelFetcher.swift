@@ -92,7 +92,7 @@ class LocalModelFetcher {
         baseURL: String = "http://localhost:1234/v1",
         session: URLSession = .shared
     ) async throws -> [String] {
-        try await fetchModels(baseURL: baseURL, path: "/models", session: session, as: LMStudioModelsResponse.self) {
+        try await fetchModels(baseURL: baseURL, path: "/v1/models", session: session, as: LMStudioModelsResponse.self) {
             $0.data.map(\.id)
         }
     }
@@ -106,7 +106,7 @@ class LocalModelFetcher {
         names: (R) -> [String]
     ) async throws -> [String] {
         // Normalize URL - remove trailing slash if present
-        let normalizedBase = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let normalizedBase = baseURL
         let endpoint = "\(normalizedBase)\(path)"
 
         guard let url = URL(string: endpoint) else {
@@ -124,7 +124,7 @@ class LocalModelFetcher {
                 throw FetchError.serverNotRunning
             }
 
-            guard httpResponse.statusCode == 200 else {
+            guard httpResponse.statusCode < 500 else {
                 throw FetchError.invalidResponse(statusCode: httpResponse.statusCode)
             }
 
@@ -132,13 +132,13 @@ class LocalModelFetcher {
                 let decoded = try JSONDecoder().decode(responseType, from: data)
                 return names(decoded)
             } catch {
-                throw FetchError.decodingFailed
+                throw FetchError.networkError(error.localizedDescription)
             }
 
         } catch let error as FetchError {
             throw error
         } catch let error as URLError {
-            if error.code == .cannotConnectToHost || error.code == .timedOut {
+            if error.code == .cannotConnectToHost {
                 throw FetchError.serverNotRunning
             }
             throw FetchError.networkError(error.localizedDescription)
