@@ -96,7 +96,7 @@ function PurchaseSuccessContent() {
 
         <m.div
           animate={{ opacity: 1, y: 0 }}
-          className="text-left bg-zinc-800/40 rounded-2xl p-7 mt-10"
+          className="text-start bg-zinc-800/40 rounded-2xl p-7 mt-10"
           initial={{ opacity: 0, y: 20 }}
           transition={{ duration: 0.5, delay: 0.5 }}
         >
