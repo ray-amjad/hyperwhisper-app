@@ -2847,7 +2847,7 @@ public partial class MainWindow : Window
     /// <summary>A recording or live stream is running or still finishing (the #1190 predicate), a failed live
     /// stream is held until Stop (#1246), or the Home recorder is stopping, transcribing or importing (#2599).</summary>
     internal static bool IsRecordingInFlight(LinuxInteractionRecordingSession? session, TranscriptionWorkflowViewModel? recording) =>
-        session is { IsRecordingOrFinishing: true } or { HasOpenSession: true }
+        session is { IsRecordingOrFinishing: true } or { HasOpenSession: true } or { IsLiveStarting: true }
         || recording is { CanCancel: true } or { IsImporting: true };
 
     private void OnShellStatusChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

@@ -94,6 +94,9 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     /// it, so a failed start, a cancel or an error never leaves this true (#1190).</summary>
     public bool IsRecordingOrFinishing => IsActive || Volatile.Read(ref _finishing);
     private bool _finishing;
+    /// <summary>A live start has shown the streaming overlay and is still connecting: in flight, though
+    /// neither IsActive nor IsLiveCaptureActive is true yet. Flips raise ActivityChanged (#2038, #2599).</summary>
+    public bool IsLiveStarting => Volatile.Read(ref _liveStarting);
     /// <summary>A live stream started and no stop or cancel has begun; Home's record row follows it (#1187).
     /// Narrower than IsStreaming, which stays true through finalization and after a failed start.</summary>
     public bool IsLiveCaptureActive => Volatile.Read(ref _liveCaptureActive);
