@@ -95,7 +95,7 @@ public sealed class WhisperWorkerProcessLauncher : IWhisperWorkerLauncher
         {
             throw new WhisperWorkerException(
                 WhisperWorkerErrorCodes.StartFailed,
-                DescribeStartFailure(exception),
+                DescribeStartFailure(exception, Path.GetFileName(_exePath)),
                 exception);
         }
 
@@ -107,9 +107,10 @@ public sealed class WhisperWorkerProcessLauncher : IWhisperWorkerLauncher
     /// and History show it, so it carries no path: a Win32Exception's own message names
     /// the full exe path and working directory, which hold the Windows account name
     /// (#2381). The OS reason for the error code alone ("Access is denied.") has no
-    /// path, so it stays, with the code. The exception itself stays the inner exception.
+    /// path, so it stays, with the code; its <c>%1</c> insert ("This version of %1 is not
+    /// compatible...") gets the exe's file name. The exception itself stays the inner exception.
     /// </summary>
-    internal static string DescribeStartFailure(Exception exception)
+    internal static string DescribeStartFailure(Exception exception, string fileName)
     {
         if (exception is not System.ComponentModel.Win32Exception win32)
         {
@@ -117,7 +118,8 @@ public sealed class WhisperWorkerProcessLauncher : IWhisperWorkerLauncher
         }
 
         var code = win32.NativeErrorCode.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        var reason = new System.ComponentModel.Win32Exception(win32.NativeErrorCode).Message.Trim();
+        var reason = new System.ComponentModel.Win32Exception(win32.NativeErrorCode).Message.Trim()
+            .Replace("%1", fileName, StringComparison.Ordinal);
         return $"The Whisper worker could not be started: {reason} (Win32 error {code}).";
     }
 
