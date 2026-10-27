@@ -823,4 +823,64 @@ mod tests {
         };
         assert_eq!(parse_transcribe_response(&resp).unwrap().text, "x");
     }
+
+    // ---- issue #2144: status parity with common::classify_http -------------
+
+    fn status_resp(status: u16, body: &str) -> HttpResponse {
+        HttpResponse {
+            status,
+            headers: vec![],
+            body: body.as_bytes().to_vec(),
+        }
+    }
+
+    const OUT_OF_CREDITS_BODY: &str =
+        r#"{"error":"Your team has used all available credits. Add more to continue."}"#;
+
+    #[test]
+    fn soniox_402_is_quota_exceeded() {
+        let err = parse_transcript_response(&status_resp(402, "")).unwrap_err();
+        assert_eq!(err, TranscriptionError::QuotaExceeded);
+        assert_eq!(err, crate::retry::classify_error(402, ""));
+    }
+
+    #[test]
+    fn soniox_408_is_provider_unavailable() {
+        let err = parse_status_response(&status_resp(408, "")).unwrap_err();
+        assert_eq!(err, TranscriptionError::ProviderUnavailable { status: 408 });
+        assert_eq!(err, crate::retry::classify_error(408, ""));
+    }
+
+    #[test]
+    fn soniox_401_403_out_of_credits_body_is_quota_exceeded() {
+        for status in [401, 403] {
+            let resp = status_resp(status, OUT_OF_CREDITS_BODY);
+            let err = parse_create_response(&resp).unwrap_err();
+            assert_eq!(err, TranscriptionError::QuotaExceeded, "status {status}");
+            assert_eq!(
+                err,
+                crate::retry::classify_error(status, OUT_OF_CREDITS_BODY)
+            );
+        }
+    }
+
+    #[test]
+    fn soniox_401_403_bad_key_stays_unauthorized() {
+        let body = r#"{"message":"Invalid API key."}"#;
+        for status in [401, 403] {
+            let err = parse_upload_response(&status_resp(status, body)).unwrap_err();
+            assert_eq!(err, TranscriptionError::Unauthorized, "status {status}");
+        }
+    }
+
+    #[test]
+    fn soniox_429_stays_rate_limited_even_with_a_quota_body() {
+        let body = r#"{"error":{"code":"insufficient_quota"}}"#;
+        assert_eq!(
+            parse_transcribe_response(&status_resp(429, body)).unwrap_err(),
+            TranscriptionError::RateLimited {
+                retry_after_secs: None
+            }
+        );
+    }
 }

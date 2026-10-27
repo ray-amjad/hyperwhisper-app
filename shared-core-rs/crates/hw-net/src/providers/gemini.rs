@@ -881,4 +881,53 @@ mod tests {
             "https://gem.staging.test/v1beta/files/x?key=gem-key"
         );
     }
+
+    // ---- issue #2144: status parity with common::classify_http -------------
+
+    fn status_resp(status: u16, body: &str) -> HttpResponse {
+        HttpResponse {
+            status,
+            headers: vec![],
+            body: body.as_bytes().to_vec(),
+        }
+    }
+
+    const OUT_OF_CREDITS_BODY: &str =
+        r#"{"error":"Your team has used all available credits. Add more to continue."}"#;
+
+    #[test]
+    fn gemini_402_is_quota_exceeded() {
+        let err = parse_generate_response(&status_resp(402, "")).unwrap_err();
+        assert_eq!(err, TranscriptionError::QuotaExceeded);
+        assert_eq!(err, crate::retry::classify_error(402, ""));
+    }
+
+    #[test]
+    fn gemini_408_is_provider_unavailable() {
+        let err = parse_poll_response(&status_resp(408, "")).unwrap_err();
+        assert_eq!(err, TranscriptionError::ProviderUnavailable { status: 408 });
+        assert_eq!(err, crate::retry::classify_error(408, ""));
+    }
+
+    #[test]
+    fn gemini_401_403_out_of_credits_body_is_quota_exceeded() {
+        for status in [401, 403] {
+            let resp = status_resp(status, OUT_OF_CREDITS_BODY);
+            let err = parse_upload_bytes_response(&resp).unwrap_err();
+            assert_eq!(err, TranscriptionError::QuotaExceeded, "status {status}");
+            assert_eq!(
+                err,
+                crate::retry::classify_error(status, OUT_OF_CREDITS_BODY)
+            );
+        }
+    }
+
+    #[test]
+    fn gemini_bad_key_stays_unauthorized() {
+        let body = r#"{"error":{"message":"API key not valid. Please pass a valid API key."}}"#;
+        for status in [400, 401, 403] {
+            let err = parse_generate_response(&status_resp(status, body)).unwrap_err();
+            assert_eq!(err, TranscriptionError::Unauthorized, "status {status}");
+        }
+    }
 }

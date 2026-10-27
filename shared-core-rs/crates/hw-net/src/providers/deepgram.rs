@@ -812,4 +812,26 @@ mod tests {
         );
         assert_eq!(err, crate::retry::classify_error(408, ""));
     }
+
+    // Issue #2144: the out-of-credits body check `classify_http` applies to
+    // 401/403 (issue #2073) applies here too, so this parser and
+    // `retry::classify_error` agree.
+    #[test]
+    fn deepgram_401_403_out_of_credits_body_is_quota_exceeded() {
+        let body = r#"{"err_code":"FORBIDDEN","err_msg":"Your project doesn't have any credits."}"#;
+        for status in [401, 403] {
+            let err = parse_transcribe_response(&err_resp(status, body)).unwrap_err();
+            assert_eq!(err, TranscriptionError::QuotaExceeded, "status {status}");
+            assert_eq!(err, crate::retry::classify_error(status, body));
+        }
+    }
+
+    #[test]
+    fn deepgram_401_bad_key_stays_unauthorized() {
+        let body = r#"{"err_code":"INVALID_AUTH","err_msg":"Invalid credentials."}"#;
+        assert_eq!(
+            parse_transcribe_response(&err_resp(401, body)).unwrap_err(),
+            TranscriptionError::Unauthorized
+        );
+    }
 }

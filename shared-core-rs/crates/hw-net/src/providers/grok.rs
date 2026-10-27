@@ -412,4 +412,36 @@ mod tests {
             TranscriptionError::NoSpeech
         );
     }
+
+    // Issue #2144 (Ray, 2026-10-20): xAI answers a wrong key with 400; that
+    // reads as a bad key, any other 400 stays a bad request.
+    #[test]
+    fn incorrect_api_key_400_is_unauthorized() {
+        let body = r#"{"error":"Incorrect API key provided. You can obtain an API key from https://console.x.ai."}"#;
+        let resp = HttpResponse {
+            status: 400,
+            headers: vec![],
+            body: body.as_bytes().to_vec(),
+        };
+        assert_eq!(
+            parse_transcribe_response(&resp).unwrap_err(),
+            TranscriptionError::Unauthorized
+        );
+    }
+
+    #[test]
+    fn other_400_stays_bad_request() {
+        let resp = HttpResponse {
+            status: 400,
+            headers: vec![],
+            body: br#"{"error":"Unsupported audio format"}"#.to_vec(),
+        };
+        assert_eq!(
+            parse_transcribe_response(&resp).unwrap_err(),
+            TranscriptionError::BadRequest {
+                status: 400,
+                message: "Unsupported audio format".to_string()
+            }
+        );
+    }
 }

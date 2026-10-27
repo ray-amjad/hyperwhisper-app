@@ -575,4 +575,34 @@ mod tests {
             "https://staging.assemblyai.test/v2/transcript/tid"
         );
     }
+
+    // Issue #2144: an out-of-credits 401/403 on the poll reads as quota, the
+    // same as on upload/create (`classify_http`) and `retry::classify_error`.
+    #[test]
+    fn poll_401_403_out_of_credits_body_is_quota_exceeded() {
+        let body = r#"{"error":"Your account doesn't have any credits."}"#;
+        for status in [401, 403] {
+            let resp = HttpResponse {
+                status,
+                headers: vec![],
+                body: body.as_bytes().to_vec(),
+            };
+            let err = parse_poll_response(&resp).unwrap_err();
+            assert_eq!(err, TranscriptionError::QuotaExceeded, "status {status}");
+            assert_eq!(err, crate::retry::classify_error(status, body));
+        }
+    }
+
+    #[test]
+    fn poll_403_bad_key_is_terminal_unauthorized() {
+        let resp = HttpResponse {
+            status: 403,
+            headers: vec![],
+            body: br#"{"error":"Invalid API key"}"#.to_vec(),
+        };
+        assert_eq!(
+            parse_poll_response(&resp).unwrap_err(),
+            TranscriptionError::Unauthorized
+        );
+    }
 }
