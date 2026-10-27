@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   LicenseKeysCard,
   CloudCreditsCard,
@@ -37,6 +38,9 @@ export default function UserDashboardClient({
     isLoading,
     error,
   } = api.customer.licensesWithCredits.useQuery();
+  // Whether the first render had to wait for the query, so the skeleton was
+  // on screen and the cards should fade in over it (#865).
+  const [revealCards] = useState(isLoading);
 
   // Credits are pooled per account, so use the query's account-level totals
   // rather than summing per license (which double-counts a multi-key account's
@@ -68,33 +72,49 @@ export default function UserDashboardClient({
         ) : null}
       </ErrorReveal>
 
-      {/* Account cards (#865). The skeleton holds the cards' slot while the
-          query runs, then fades out under them as they fade in, so the page
-          does not swap a placeholder for the whole account in one frame. Once
-          revealed it leaves the flow (absolute, clipped to the cards' height)
-          and turns invisible when its fade ends. An error renders no cards,
-          and the ErrorReveal above already carries the gap, so mb-0 drops
-          this wrapper's space-y margin. */}
-      <div className={`relative${!isLoading && error ? " mb-0" : ""}`}>
+      {/* Account cards (#865). The skeleton and the cards share one grid
+          cell. When the query settles the skeleton fades out while its row
+          collapses 1fr -> 0fr, and the cards fade in over it, so the cell's
+          height goes from the skeleton's to the cards' through real
+          intermediate heights, whichever is taller (no keys, an error and a
+          zero balance are all shorter). An error renders no cards and the
+          ErrorReveal above carries the gap, so mb-0 drops this wrapper's
+          space-y margin, tweened with the rest. */}
+      <div
+        className={`grid transition-[margin] duration-[400ms] ease-in-out motion-reduce:transition-none${
+          !isLoading && error ? " mb-0" : ""
+        }`}
+      >
         <div
           aria-hidden
-          className={`pointer-events-none transition-[opacity,filter,visibility] duration-[400ms] ease-in-out motion-reduce:transition-none ${
+          className={`[grid-area:1/1] self-start grid pointer-events-none transition-[grid-template-rows,opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
             isLoading
-              ? "opacity-100 blur-[0px]"
-              : "invisible absolute inset-0 overflow-hidden opacity-0 blur-[2px]"
+              ? "grid-rows-[1fr] opacity-100 blur-[0px]"
+              : "grid-rows-[0fr] opacity-0 blur-[2px]"
           }`}
         >
-          <DashboardCardsSkeleton />
+          <div className="min-h-0 overflow-hidden">
+            <DashboardCardsSkeleton pulsing={isLoading} />
+          </div>
         </div>
         {/* The skeleton is aria-hidden, so this status says what it shows. */}
         <p className="sr-only" role="status">
           {isLoading ? "Loading Account Keys..." : ""}
         </p>
-        {/* Fill mode backwards, not both: a filter left on after the fade
-            would make this box the containing block of any position: fixed
-            dialog inside the cards. */}
+        {/* Later in the tree and positioned, so the cards paint over the
+            fading skeleton. They fade in only when a skeleton was on screen:
+            a remount with cached data shows them at once. Fill mode
+            backwards, not both: a filter left on after the fade would make
+            this box the containing block of any position: fixed dialog
+            inside the cards. */}
         {isLoading || error ? null : (
-          <div className="t-skel-content animate-[skel-reveal_400ms_ease-in-out_backwards] motion-reduce:animate-none">
+          <div
+            className={`t-skel-content [grid-area:1/1] self-start relative${
+              revealCards
+                ? " animate-[skel-reveal_400ms_ease-in-out_backwards] motion-reduce:animate-none"
+                : ""
+            }`}
+          >
             {data?.licenses && data.licenses.length > 0 ? (
               <>
                 <LicenseKeysCard

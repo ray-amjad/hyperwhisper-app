@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { api } from "@/lib/trpc/client";
 import { formatDate } from "@/lib/format-date";
 
@@ -12,18 +13,21 @@ import { formatDate } from "@/lib/format-date";
  *
  * Its query settles after the dashboard's own, so the card grows its slot open
  * (`.t-cell-reveal`, #865) instead of pushing the cards below it down in one
- * frame. `gap` is the space it has above it: it sits inside the clip, so it
+ * frame, unless its data was already cached. `gap` is the space it has above it: it sits inside the clip, so it
  * grows with the tween and a hidden card takes no space.
  */
 export default function CreditHistoryCard({ gap }: { gap?: string }) {
   const { data, isLoading, error } = api.customer.creditHistory.useQuery();
+  // Grow open only when the card arrives after a wait; a remount with cached
+  // data shows it at once.
+  const [revealOnArrival] = useState(isLoading);
 
   // Hide the card entirely when there's nothing to show (no purchases yet).
   if (isLoading || error) return null;
   if (!data || data.grants.length === 0) return null;
 
   return (
-    <div className="t-cell-reveal">
+    <div className={revealOnArrival ? "t-cell-reveal" : undefined}>
       <div>
         <div className={gap}>
           <div className="bg-white/5 rounded-xl border border-white/10 p-5">
