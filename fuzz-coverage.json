@@ -920,6 +920,22 @@
       ],
       "licensed": false,
       "note": "unlicensed. Codex 0 on core-settings + modes; licence toast Open Settings no-op filed #2632. Keep-mic-warm on then theme change no longer freezes (#1186 fix holds). Modes: empty name disables Save, duplicate name rejected, delete of selected mode falls back to Hyper. Every Linux settings toggle has a reader (dead-toggle grep clean)."
+    },
+    {
+      "at": "2026-10-27T16:19:08Z",
+      "platform": "linux",
+      "commit": "c3bd3f8c",
+      "routes": [
+        "history-and-backup",
+        "local-api",
+        "onboarding"
+      ],
+      "status": "1-commented",
+      "issues": [
+        2507
+      ],
+      "licensed": false,
+      "note": "Unlicensed. Codex 0 real defects (its History 'no Retry' = seed rows have no AudioFilePath; CanRetry needs one). Mine: backup export AND import both silent on success (#2507 comment). Local API: port 22/80 fall back truthfully, /recordings/{id} MODE_NOT_FOUND is deliberate (closed code set). Onboarding Skip on Test page => onboarding.skipped=true, wizard not shown again."
     }
   ]
 }
