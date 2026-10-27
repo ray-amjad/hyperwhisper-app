@@ -58,7 +58,7 @@ function formatCredits(credits: number) {
 
 /**
  * #966: a customer's pooled balance pops in, one character at a time, when it
- * changes (Add credits, a grant or a refund refetching the row), the way the
+ * changes (Add credits, or any refetch that changes it), the way the
  * /credits summary values do (#768, `PopValue` in CreditsPurchase.tsx). The
  * first render is the plain text, so the first load, a page change or a search
  * animates nothing: a row is keyed by its customer, so only the row whose
