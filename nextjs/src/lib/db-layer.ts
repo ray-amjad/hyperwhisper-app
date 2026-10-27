@@ -374,6 +374,21 @@ export async function findAccountByKey(
   return row ? drizzleAccountKeyToRow(row) : null;
 }
 
+/**
+ * Every key row billed to this Stripe customer, newest first. A top-up
+ * checkout always runs under the key row's cached customer, so this finds the
+ * row again when the key string it recorded has since been rotated.
+ */
+export async function findAccountsByStripeCustomer(
+  stripeCustomerId: string,
+): Promise<AccountKeyRow[]> {
+  const rows = await db.query.accountKeys.findMany({
+    where: eq(accountKeys.stripeCustomerId, stripeCustomerId),
+    orderBy: [desc(accountKeys.createdAt)],
+  });
+  return rows.map(drizzleAccountKeyToRow);
+}
+
 export async function findAccountById(id: string): Promise<AccountKeyRow | null> {
   const row = await db.query.accountKeys.findFirst({
     where: eq(accountKeys.id, id),

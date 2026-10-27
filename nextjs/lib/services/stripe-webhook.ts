@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { z } from "zod";
 import { stripe } from "@/lib/clients/stripe";
 import { emailService } from "@/lib/services/email";
 import { generateLicenseKey } from "@/lib/services/license-key";
@@ -14,6 +15,7 @@ import {
 import {
   findAccountByKey,
   findAccountById,
+  findAccountsByStripeCustomer,
   getAccountKeysByEmail,
   findAccountByStripeSession,
   insertAccountKey,
@@ -24,28 +26,57 @@ import {
   getCreditBalance,
 } from "@/src/lib/db-layer";
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** The same id check `customer.rotateAccountKey` applies to its input. */
+const accountKeyId = z.string().uuid();
 
 /**
- * The Account Key a top-up checkout was opened for.
+ * The Account Key a top-up checkout was opened for, or null.
  *
- * By ROW ID first (`metadata.account_key_id`), because the key string can
- * change under an open checkout: the owner may rotate the key between opening
- * the Stripe page and paying, and a lookup by the old string would then miss
- * and the paid credits would never land. The id never changes. Sessions
- * created before the id was written carry only `license_key`, so the string
- * is the fallback.
+ * The key string can change under an open checkout: the owner may rotate the
+ * key between opening the Stripe page and paying. So, in order:
+ * 1. by ROW ID (`metadata.account_key_id`), which never changes;
+ * 2. by the key string (`metadata.license_key`), which still works when no
+ *    rotation happened;
+ * 3. by the session's Stripe customer. Checkouts opened before the id was
+ *    written carry only the string, which a rotation kills, but every top-up
+ *    checkout runs under the customer cached on its key row
+ *    (`app/api/checkout/credits/route.ts`), and a rotation keeps that. Used
+ *    only when every row billed to that customer belongs to one user, since
+ *    credits are the user's; the newest granted row wins.
  */
 async function findTopUpAccount(
-  metadata: Stripe.Metadata | null | undefined,
+  session: Pick<Stripe.Checkout.Session, "metadata" | "customer">,
 ): Promise<AccountKeyRow | null> {
-  const id = metadata?.account_key_id;
-  if (id && UUID_PATTERN.test(id)) {
+  const id = session.metadata?.account_key_id;
+
+  if (id && accountKeyId.safeParse(id).success) {
     const byId = await findAccountById(id);
+
     if (byId) return byId;
   }
-  const key = metadata?.license_key;
-  return key ? findAccountByKey(key) : null;
+
+  const key = session.metadata?.license_key;
+  const byKey = key ? await findAccountByKey(key) : null;
+
+  if (byKey) return byKey;
+
+  const customerId = getStripeCustomerId(session.customer);
+
+  if (!customerId) return null;
+
+  const rows = await findAccountsByStripeCustomer(customerId);
+
+  if (rows.length === 0) return null;
+  // Ambiguous: the credits could land on the wrong user. Left unresolved, so
+  // the webhook answers 500 and the event surfaces for manual review.
+  if (new Set(rows.map((r) => r.userId)).size > 1) return null;
+
+  return rows.find((r) => r.status === "granted") ?? rows[0];
+}
+
+/** Why a top-up's key row could not be found, for logs (never the full key). */
+function missingTopUpAccount(licenseKey: string): string {
+  return `top-up licence ${licenseKey.substring(0, 7)}... not found by row id, key or Stripe customer (deleted, or its key was rotated)`;
 }
 
 function getStripeCustomerId(
@@ -141,10 +172,10 @@ async function handleCreditTopUp(
     `Processing credit top-up: ${creditAmount} credits for license ${licenseKey.substring(0, 7)}...`
   );
 
-  const license = await findTopUpAccount(session.metadata);
+  const license = await findTopUpAccount(session);
 
   if (!license) {
-    throw new Error(`License not found: ${licenseKey.substring(0, 7)}...`);
+    throw new Error(missingTopUpAccount(licenseKey));
   }
 
   // Refuse to credit a non-granted (e.g. revoked) license: those credits would be
@@ -538,10 +569,8 @@ async function permanentMissingGrantReason(
 
   const licenseKey = checkoutSession.metadata?.license_key;
   if (licenseKey) {
-    const license = await findTopUpAccount(checkoutSession.metadata);
-    if (!license) {
-      return `top-up licence ${licenseKey.substring(0, 7)}... does not exist`;
-    }
+    const license = await findTopUpAccount(checkoutSession);
+    if (!license) return missingTopUpAccount(licenseKey);
     if (license.status !== "granted") {
       return `top-up licence ${licenseKey.substring(0, 7)}... is ${license.status}`;
     }

@@ -181,7 +181,7 @@ describe("charge.refunded with no grant: permanent cases answer 200 and log why 
     assert.equal(response.status, 200);
     assert.deepEqual(await ledgerState(), before);
     assert.equal(warnings().length, 1, logLines.join("\n"));
-    assert.match(warnings()[0], /cs_gone.*took back no credits: top-up licence HW-GONE\.\.\. does not exist/);
+    assert.match(warnings()[0], /cs_gone.*took back no credits: top-up licence HW-GONE\.\.\. not found by row id, key or Stripe customer \(deleted, or its key was rotated\)/);
   });
 
   test("(a) a top-up whose licence is revoked", async () => {

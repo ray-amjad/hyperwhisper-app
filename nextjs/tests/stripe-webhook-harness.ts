@@ -42,6 +42,7 @@ export interface RefundArgs {
 export const calls = {
   findAccountByKey: [] as string[],
   findAccountById: [] as string[],
+  findAccountsByStripeCustomer: [] as string[],
   findAccountByStripeSession: [] as string[],
   getAccountKeysByEmail: [] as string[],
   insertAccountKey: [] as AccountKeyInsert[],
@@ -105,6 +106,7 @@ export function accountKeyRow(overrides: Partial<AccountKeyRow> = {}): AccountKe
 export function resetHarness(): void {
   calls.findAccountByKey.length = 0;
   calls.findAccountById.length = 0;
+  calls.findAccountsByStripeCustomer.length = 0;
   calls.findAccountByStripeSession.length = 0;
   calls.getAccountKeysByEmail.length = 0;
   calls.insertAccountKey.length = 0;
@@ -168,6 +170,12 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
       const pooled: AccountKeyRow[] = [];
       behaviour.byEmail.forEach((rows) => pooled.push(...rows));
       return pooled.find((row) => row.id === id) ?? null;
+    },
+    findAccountsByStripeCustomer: async (customerId: string): Promise<AccountKeyRow[]> => {
+      calls.findAccountsByStripeCustomer.push(customerId);
+      const pooled: AccountKeyRow[] = [];
+      behaviour.byEmail.forEach((rows) => pooled.push(...rows));
+      return pooled.filter((row) => row.stripeCustomerId === customerId);
     },
     findAccountByStripeSession: async (sessionId: string): Promise<AccountKeyRow | null> => {
       calls.findAccountByStripeSession.push(sessionId);
