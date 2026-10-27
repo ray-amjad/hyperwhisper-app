@@ -723,10 +723,17 @@ describe("POST /api/license/deactivate", () => {
     });
   });
 
-  test("rejects an absent, empty or non-string license_key", async () => {
+  test("rejects an absent, empty, whitespace-only or non-string license_key", async () => {
     const { POST } = await loadDeactivateRoute();
 
-    for (const body of [{}, { license_key: "" }, { license_key: 5 }, []]) {
+    for (const body of [
+      {},
+      { license_key: "" },
+      { license_key: "   " },
+      { license_key: " \t\n" },
+      { license_key: 5 },
+      [],
+    ]) {
       const response = await POST(postRequest(DEACTIVATE_PATH, body));
 
       assert.equal(response.status, 400, JSON.stringify(body));
