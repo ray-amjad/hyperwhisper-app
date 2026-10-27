@@ -300,7 +300,21 @@ export default function PrivacyPolicyPage() {
       <p>
         HyperWhisper supports both local (on-device) and cloud-based
         transcription. When using local models, no audio data ever leaves your
-        device.
+        device. When you download a local model in the app, the app downloads
+        it directly from{" "}
+        <a
+          className="text-blue-400 hover:underline"
+          href="https://huggingface.co/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Hugging Face
+        </a>{" "}
+        (huggingface.co). Hugging Face receives your IP address and basic
+        request details, such as the app&apos;s HTTP client, and does not
+        receive your audio, transcripts, vocabulary, or account information.
+        Apple Speech on macOS is the exception: macOS downloads its speech
+        models from Apple.
       </p>
       <p>
         When using cloud transcription, your audio is sent directly from your
@@ -1271,6 +1285,9 @@ export default function PrivacyPolicyPage() {
         served from the United States. Mintlify, which hosts our
         documentation as described above, may process the docs page views it
         records and the docs search queries it receives in the United States.
+        Hugging Face, which serves local model downloads as described under
+        Transcription Processing, may process those download requests in the
+        United States and other countries.
         Fly.io runs HyperWhisper Cloud&apos;s edge servers in regions around
         the world, so a Cloud request can be handled outside the United
         Kingdom and the European Economic Area, and Axiom may process the
