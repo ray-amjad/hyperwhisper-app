@@ -502,3 +502,30 @@ describe("the license-key rate-limit rule", () => {
     assert.equal(rule.pathMatcher("/x/sign-in/license-key"), false);
   });
 });
+
+describe("POST /sign-in/license-key — a key containing a NUL byte (#2079)", () => {
+  test("gets the usual invalid-key refusal, not an empty 500", async () => {
+    // What Postgres does with 0x00 in a text parameter (SQLSTATE 22021).
+    behaviour.beforeLookup = () => {
+      throw Object.assign(
+        new Error('invalid byte sequence for encoding "UTF8": 0x00'),
+        { code: "22021" },
+      );
+    };
+
+    const result = await signInWithLicenseKey("HW-NXAU-\0");
+
+    assert.equal(result.status, 400);
+    assert.equal(result.body.error, INVALID_MESSAGE);
+    assert.deepEqual(calls.findAccountByKey, []);
+    assert.deepEqual(calls.createSession, []);
+    assert.equal(logLines.length, 1, logLines.join("\n"));
+    // "<level> <json>", one line per attempt.
+    const line = logLines[0]!;
+    const space = line.indexOf(" ");
+    assert.equal(line.slice(0, space), "warn");
+    const fields = JSON.parse(line.slice(space + 1)) as Record<string, unknown>;
+    assert.equal(fields.outcome, "rejected");
+    assert.equal(fields.reason, "key_malformed");
+  });
+});
