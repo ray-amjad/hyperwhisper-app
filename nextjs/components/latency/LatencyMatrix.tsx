@@ -566,7 +566,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                         }}
                       >
                         {regionCity(region)}
-                        <span className="block text-[10px] uppercase tracking-wider text-gray-400">
+                        <span className="block text-xs uppercase tracking-wider text-gray-400">
                           {region}
                         </span>
                       </button>
@@ -610,7 +610,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                             />
                             {row.label}
                             {row.isDefaultModel ? (
-                              <span className="rounded-full border border-purple-500/40 px-1.5 text-[10px] uppercase tracking-wider text-purple-300">
+                              <span className="rounded-full border border-purple-500/40 px-1.5 text-xs uppercase tracking-wider text-purple-300">
                                 default
                               </span>
                             ) : null}
