@@ -1628,7 +1628,9 @@ public partial class MainWindow : Window
                 // A non-WAV upload to a Parakeet mode is converted to WAV with
                 // the same ffmpeg import Transcribe File uses, so the daemon can
                 // read it and its reply wait scales with the length (#1572).
-                audioImport: new DurableAudioImportService(_platformServices.PrivateFiles, _platformServices.Paths));
+                audioImport: new DurableAudioImportService(_platformServices.PrivateFiles, _platformServices.Paths),
+                // /recording/toggle records with the mode picked in the app (#2406).
+                selectedModeId: () => _viewModel.Modes.Selected?.Id);
             _localApiHost = new PortableLocalApiHost(
                 _platformServices.PrivateFiles, _platformServices.Paths, backend, AppVersion,
                 _viewModel.Settings.LocalApiPort);
