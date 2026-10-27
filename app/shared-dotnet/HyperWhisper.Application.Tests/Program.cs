@@ -1988,9 +1988,6 @@ static async Task RunShellCloudBalanceOnLaunchTestsAsync(string root)
     }
 }
 
-// #1000: EF Core's SQLite provider runs its "async" migration synchronously, so a shell that awaits
-// it on the UI thread froze the window that had just opened. The first database context is held
-// until a callback posted to the UI thread runs; that only happens if the UI thread is free.
 // Issue #2656: the server floors minutes_remaining (credits / 1.67), so a balance under one minute
 // arrives as 0 minutes with credits still above 0. IsCreditsLow wanted minutes > 0 and
 // IsCreditsExhausted wants credits <= 0, so neither banner showed in the most urgent case. The rule
@@ -2031,6 +2028,9 @@ static async Task RunCloudLowCreditTestsAsync()
     }
 }
 
+// #1000: EF Core's SQLite provider runs its "async" migration synchronously, so a shell that awaits
+// it on the UI thread froze the window that had just opened. The first database context is held
+// until a callback posted to the UI thread runs; that only happens if the UI thread is free.
 static void RunShellDatabaseOffUiThreadTests(string root)
 {
     Directory.CreateDirectory(root);
