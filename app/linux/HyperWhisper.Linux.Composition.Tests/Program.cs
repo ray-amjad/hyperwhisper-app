@@ -69,6 +69,10 @@ if (args is [RadioButtonLightThemeRenderTests.ProbeArgument])
 {
     Environment.Exit(RadioButtonLightThemeRenderTests.RunProbe());
 }
+if (args is [HomeLiveStateRenderTests.ProbeArgument])
+{
+    Environment.Exit(HomeLiveStateRenderTests.RunProbe());
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -150,6 +154,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a Gemini key that does not start with AIza saves from the provider-key modal with no Invalid API Key notice", ProviderApiKeyNonAizaGeminiRenderTests.RunAsync),
     ("a RadioButton's disc reaches 3:1 on the light card and keeps Windows' #FFFFFF / #212121 in dark (#2514)", RadioButtonLightThemeRenderTests.RunAsync),
     ("a live stream that fails after delivering text keeps that text in History, the error only in FailedReason (#2282)", LiveFailureHistoryTests.KeepsDeliveredText),
+    ("Home's state follows a live stream: Recording while it runs, Failed once it fails and is held (#2038)", HomeLiveStateRenderTests.MappingFollowsTheLiveStream),
+    ("the real Home caption reads Failed for a held live stream and Idle again after Stop (#2038)", HomeLiveStateRenderTests.RunAsync),
 };
 
 foreach (var test in tests)

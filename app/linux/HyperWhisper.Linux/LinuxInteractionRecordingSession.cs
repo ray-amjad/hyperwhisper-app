@@ -107,6 +107,34 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         if (Volatile.Read(ref _liveCaptureActive) == value) return;
         Volatile.Write(ref _liveCaptureActive, value);
         LiveCaptureChanged?.Invoke(this, EventArgs.Empty);
+        RaiseActivityChanged();
+    }
+
+    /// <summary>Something <see cref="HomeRecordingState"/> reads changed: live capture began or ended, the
+    /// stream's connection failed, or its worker ended while the stream is still held. Raised on any
+    /// thread; a UI subscriber marshals (#2038).</summary>
+    public event EventHandler? ActivityChanged;
+    private bool _liveConnectionFailed;
+
+    private void RaiseActivityChanged()
+    {
+        try { ActivityChanged?.Invoke(this, EventArgs.Empty); } catch { }
+    }
+
+    /// <summary>The state name Home's "State: {0}" caption shows (#2038). A live stream never drives the
+    /// batch workflow, so its caption read Idle for the whole stream and through a held failure. While
+    /// live capture is on, the caption reads Recording, or Failed once the connection is in its error
+    /// state or the worker is gone (the stream held until Stop, #1246); otherwise the workflow's own state.</summary>
+    public string? HomeRecordingState(string? workflowState) =>
+        MapHomeRecordingState(workflowState, IsLiveCaptureActive, IsActive, Volatile.Read(ref _liveConnectionFailed));
+
+    /// <summary>The raw workflow state names are reused on purpose: the caption already shows them untranslated.</summary>
+    internal static string? MapHomeRecordingState(string? workflowState, bool liveCaptureActive, bool liveRunning, bool liveConnectionFailed)
+    {
+        if (!liveCaptureActive) return workflowState;
+        return liveConnectionFailed || !liveRunning
+            ? nameof(TranscriptionWorkflowState.Failed)
+            : nameof(TranscriptionWorkflowState.Recording);
     }
     /// <summary>PrepareAudio ran and no restore has taken it yet, true even before IsActive (#1038); or a restore that was
     /// taken is still waiting out its delay, which the quit must not outlive.</summary>
@@ -232,6 +260,8 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
                 // is the worker ending on its own, and only for the session that is still current.
                 if (!session.IsLiveCaptureActive
                     || !ReferenceEquals(session._services.LiveStreaming.Completion, ended)) return;
+                // The stream is held now (IsActive went false): Home reads Failed until Stop (#2038).
+                session.RaiseActivityChanged();
                 try { session.LiveSessionEnded?.Invoke(session, EventArgs.Empty); } catch { }
             },
             this, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
@@ -473,14 +503,23 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
 
     private void OnAudioLevelChanged(object? sender, float level) => _overlay.AudioLevelChanged(level);
 
-    private void OnStreamingConnectionStateChanged(object? sender, LiveStreamingConnectionState state) =>
-        _overlay.StreamingConnectionChanged(state switch
+    private void OnStreamingConnectionStateChanged(object? sender, LiveStreamingConnectionState state)
+    {
+        var overlayState = state switch
         {
             LiveStreamingConnectionState.Connecting => LinuxStreamingOverlayConnectionState.Connecting,
             LiveStreamingConnectionState.Connected => LinuxStreamingOverlayConnectionState.Connected,
             LiveStreamingConnectionState.Reconnecting => LinuxStreamingOverlayConnectionState.Reconnecting,
             _ => LinuxStreamingOverlayConnectionState.Error,
-        });
+        };
+        _overlay.StreamingConnectionChanged(overlayState);
+        // The overlay turned red: Home follows it (#2038). Only a new stream clears it (BeginLiveDelivery).
+        if (overlayState == LinuxStreamingOverlayConnectionState.Error && !Volatile.Read(ref _liveConnectionFailed))
+        {
+            Volatile.Write(ref _liveConnectionFailed, true);
+            RaiseActivityChanged();
+        }
+    }
 
     private void OnLiveTranscriptReceived(object? sender, LiveTranscriptUpdate update)
     {
@@ -545,6 +584,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             _liveDeliveryTail = Task.CompletedTask;
             _liveFinalText.Clear();
             _liveStreamingLanguage = _viewModel.Settings.StreamingLanguage;
+            Volatile.Write(ref _liveConnectionFailed, false);
         }
     }
 
