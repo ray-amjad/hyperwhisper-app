@@ -96,7 +96,7 @@ macOS sends the first file through the normal HyperWhisper Cloud path. If Meta r
     If the file is too large for the provider of the selected mode, HyperWhisper shows an error. The error gives the file size, the limit of the provider, and the name of the provider. To transcribe larger files, change the mode to a provider with a larger limit, or to a local model.
 
     <Warning>
-      The HyperWhisper Cloud server accepts a file of 128 MB or smaller. The macOS app checks this limit on the audio it is about to upload, after it extracts the audio from a video and, when VAD is on, trims silence. A larger file gets the "File too large" error with the file size and does not upload. A large video whose audio track is under 128 MB still transcribes. Four Cloud engines have a smaller limit on the server:
+      The HyperWhisper Cloud server accepts a file of 128 MB or smaller. When you transcribe a file, the macOS app checks this limit on the audio it is about to upload, after it extracts the audio from a video and, when VAD is on, trims silence. If that audio is larger, the app shows the "File too large" error with the size of the audio and does not upload it. A large video whose audio track is under 128 MB still transcribes. Four Cloud engines have a smaller limit on the server:
 
       | Cloud engine | Server limit |
       | --- | --- |
