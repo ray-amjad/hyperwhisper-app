@@ -214,14 +214,34 @@ describe("purgeCloudLicenseCache", () => {
     for (const line of lines) assert.ok(!line.includes(KEY));
   });
 
-  test("cloudPurgeUrls: defaults, override, and empty turns it off", async () => {
+  test("cloudPurgeUrls: the prod+staging default only on the production deployment", async () => {
     const { cloudPurgeUrls, DEFAULT_CLOUD_URLS } = await loadPurge();
-    assert.deepEqual(cloudPurgeUrls(undefined), [...DEFAULT_CLOUD_URLS]);
-    assert.deepEqual(cloudPurgeUrls(" https://a.test/ , https://b.test//,"), [
+    assert.deepEqual(cloudPurgeUrls(undefined, "production"), [...DEFAULT_CLOUD_URLS]);
+    // A preview or local site must never tell the production cloud anything.
+    assert.deepEqual(cloudPurgeUrls(undefined, "preview"), []);
+    assert.deepEqual(cloudPurgeUrls(undefined, "development"), []);
+    assert.deepEqual(cloudPurgeUrls(undefined, undefined), []);
+    // Configured: used as given, on any deployment.
+    assert.deepEqual(cloudPurgeUrls(" https://a.test/ , https://b.test//,", "preview"), [
       "https://a.test",
       "https://b.test",
     ]);
-    assert.deepEqual(cloudPurgeUrls(""), []);
+    assert.deepEqual(cloudPurgeUrls("", "production"), []);
+  });
+
+  test("no cloud app configured: nothing is sent, quietly", async () => {
+    const { purgeCloudLicenseCache } = await loadPurge();
+    let called = false;
+    const outcome = await purgeCloudLicenseCache(KEY, {
+      secret: "s3cret",
+      urls: [],
+      fetch: (async () => {
+        called = true;
+        return new Response();
+      }) as unknown as typeof fetch,
+    });
+    assert.deepEqual(outcome, { purged: 0, failed: 0, skipped: true });
+    assert.equal(called, false);
   });
 });
 

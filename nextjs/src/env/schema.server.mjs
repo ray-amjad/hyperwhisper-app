@@ -46,7 +46,8 @@ export const serverSchema = z.object({
   // Comma-separated base URLs of the HyperWhisper Cloud apps whose licence
   // cache an Account Key rotation purges (lib/services/cloud-license-cache.ts,
   // sent with HYPERWHISPER_INTERNAL_SECRET). Not a secret. Unset: production
-  // and staging. Empty: no purge (the old key's cached verdict then expires
+  // and staging on the production deployment (VERCEL_ENV=production), none
+  // anywhere else. Empty: no purge (the old key's cached verdict then expires
   // on its own within the cloud's 1-hour TTL).
   HYPERWHISPER_CLOUD_URLS: z.string().optional(),
 

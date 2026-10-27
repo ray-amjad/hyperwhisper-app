@@ -18,10 +18,15 @@
 import { env } from "@/src/env/server.mjs";
 
 /**
- * Every cloud app that validates keys against THIS site. Staging is listed
- * with production because it calls the production licence API too, so it
- * caches production keys. `HYPERWHISPER_CLOUD_URLS` (comma-separated base
- * URLs) overrides the list; an empty value turns the purge off.
+ * The cloud apps that validate keys against the PRODUCTION site. Staging is
+ * listed with production because it calls the production licence API too, so
+ * it caches production keys.
+ *
+ * They are the default ONLY on the production deployment (`VERCEL_ENV` =
+ * `production`). A preview or local site holds its own keys, and must never
+ * tell the production cloud to refuse a string. Anywhere else nothing is
+ * purged unless `HYPERWHISPER_CLOUD_URLS` (comma-separated base URLs) names
+ * the cloud apps; an empty value turns the purge off everywhere.
  */
 export const DEFAULT_CLOUD_URLS = [
   "https://transcribe-prod-v2.hyperwhisper.com",
@@ -33,8 +38,13 @@ export const CLOUD_PURGE_PATH = "/internal/license-cache/invalidate";
 /** Per cloud app. The dashboard waits on this, so it is short. */
 export const CLOUD_PURGE_TIMEOUT_MS = 3_000;
 
-export function cloudPurgeUrls(raw: string | undefined): string[] {
-  if (raw === undefined) return [...DEFAULT_CLOUD_URLS];
+export function cloudPurgeUrls(
+  raw: string | undefined,
+  vercelEnv: string | undefined,
+): string[] {
+  if (raw === undefined) {
+    return vercelEnv === "production" ? [...DEFAULT_CLOUD_URLS] : [];
+  }
 
   return raw
     .split(",")
@@ -53,14 +63,16 @@ export interface CloudPurgeOutcome {
   purged: number;
   /** Cloud apps that did not; their cached verdict expires on its own. */
   failed: number;
-  /** True when no secret is configured, so nothing was sent. */
+  /** True when no secret or no cloud app is configured, so nothing was sent. */
   skipped: boolean;
 }
 
 const defaultDeps = (): CloudPurgeDeps => ({
   fetch: (input, init) => fetch(input, init),
   secret: env.HYPERWHISPER_INTERNAL_SECRET,
-  urls: cloudPurgeUrls(env.HYPERWHISPER_CLOUD_URLS),
+  // A Vercel system variable, not part of the validated env (the Sentry
+  // config reads it the same way).
+  urls: cloudPurgeUrls(env.HYPERWHISPER_CLOUD_URLS, process.env.VERCEL_ENV),
 });
 
 function hostOf(url: string): string {
@@ -75,6 +87,11 @@ export async function purgeCloudLicenseCache(
   previousKey: string,
   deps: CloudPurgeDeps = defaultDeps(),
 ): Promise<CloudPurgeOutcome> {
+  // No cloud app to tell: a preview or local site, or the purge turned off.
+  if (deps.urls.length === 0) {
+    return { purged: 0, failed: 0, skipped: true };
+  }
+
   if (!deps.secret) {
     console.warn(
       "Cloud licence cache purge skipped: HYPERWHISPER_INTERNAL_SECRET is unset",

@@ -104,19 +104,21 @@ export async function rotateKeyForCaller(
     `Account Key rotated: license ${license.id}, ${devicesCleared} device row(s) cleared`,
   );
 
-  // Committed: from here a failure cannot bring the old key back. Both steps
-  // are bounded and never throw.
-  await purgeCloudLicenseCache(previousKey);
+  // Committed: from here a failure cannot bring the old key back. The cloud
+  // purge and the notice are independent, each bounded and non-throwing, so
+  // they run together and the caller waits for the slower one only.
+  const [, notice] = await Promise.allSettled([
+    purgeCloudLicenseCache(previousKey),
+    emailService.sendKeyRotated({
+      customerName: ctx.user.name?.trim() || "there",
+      customerEmail: license.email,
+      newLicenseKey: license.key,
+      rotatedAt: new Date(),
+      supportEmail: "hi@support.hyperwhisper.com",
+    }),
+  ]);
 
-  const sent = await emailService.sendKeyRotated({
-    customerName: ctx.user.name?.trim() || "there",
-    customerEmail: license.email,
-    newLicenseKey: license.key,
-    rotatedAt: new Date(),
-    supportEmail: "hi@support.hyperwhisper.com",
-  });
-
-  if (!sent.success) {
+  if (notice.status === "rejected" || !notice.value.success) {
     console.error(`Key-rotated notice not sent for license ${license.id}`);
   }
 
