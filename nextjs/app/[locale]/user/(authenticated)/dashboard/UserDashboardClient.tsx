@@ -73,13 +73,14 @@ export default function UserDashboardClient({
       </ErrorReveal>
 
       {/* Account cards (#865). The skeleton and the cards share one grid
-          cell. When the query settles the skeleton fades out while its row
-          collapses 1fr -> 0fr, and the cards fade in over it, so the cell's
-          height goes from the skeleton's to the cards' through real
-          intermediate heights, whichever is taller (no keys, an error and a
-          zero balance are all shorter). An error renders no cards and the
-          ErrorReveal above carries the gap, so mb-0 drops this wrapper's
-          space-y margin, tweened with the rest. */}
+          cell, so it is as tall as the taller of the two. When the query
+          settles the skeleton fades out while its row collapses 1fr -> 0fr,
+          and the cards fade in over it. Cards shorter than the skeleton (no
+          keys, an error, a zero balance) shrink the cell through real
+          intermediate heights; cards taller than it (several keys) take
+          their height in the first frame of the cross-fade. An error renders
+          no cards and the ErrorReveal above carries the gap, so mb-0 drops
+          this wrapper's space-y margin, tweened with the rest. */}
       <div
         className={`grid transition-[margin] duration-[400ms] ease-in-out motion-reduce:transition-none${
           !isLoading && error ? " mb-0" : ""
