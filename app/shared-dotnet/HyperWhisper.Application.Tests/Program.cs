@@ -2380,6 +2380,25 @@ static async Task RunModeDeleteStaleCardTestsAsync(string root)
         $"after deleting a mode already gone the Modes page lists [{string.Join(", ", editor.Items.Select(item => item.Name))}]");
     Assert(editor.Selected is { } fallback && editor.Items.Contains(fallback) && fallback.Id == hyper.Id,
         "deleting a mode already gone left Selected on it");
+
+    // The reload copies the stored values onto the selected mode, the default flag among them. When
+    // the outside writer removed the default, the repository moved the flag onto the selected mode,
+    // and the editor's name lock and default warning (IsDefaultModeSelected) must follow it.
+    var promoted = new Mode { Name = "D", SortOrder = 3 };
+    await repository.UpsertAsync(promoted);
+    await editor.RefreshAsync();
+    editor.Selected = editor.Items.Single(item => item.Id == promoted.Id);
+    Assert(!editor.IsDefaultModeSelected, "D was the default before the outside delete");
+    Assert(await outsideWriter.DeleteSafelyAsync(hyper.Id), "the outside writer could not delete the default");
+    var raised = new List<string?>();
+    editor.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+    await editor.DeleteAsync();
+    Assert(editor.Status.ErrorCode == "modes.last_mode", $"deleting the promoted last mode showed {editor.Status.ErrorCode}");
+    Assert(editor.Selected is { IsDefault: true } && editor.Selected.Id == promoted.Id,
+        "the refused delete did not bring the moved default flag onto the selected mode");
+    Assert(editor.IsDefaultModeSelected && raised.Contains(nameof(ModesViewModel.IsDefaultModeSelected)),
+        $"after the refused delete IsDefaultModeSelected was {editor.IsDefaultModeSelected} and " +
+        $"{(raised.Contains(nameof(ModesViewModel.IsDefaultModeSelected)) ? "was" : "was not")} notified, so the editor left the default's name unlocked");
 }
 
 static async Task RunDictationModeTestsAsync(string root)

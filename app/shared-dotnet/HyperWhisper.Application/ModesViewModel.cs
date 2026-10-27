@@ -416,6 +416,11 @@ public sealed partial class ModesViewModel : ViewModelBase
             // Backing field, not the setter: the setter would reload every editor field from disk
             // and discard what the open editor still shows.
             if (!ReferenceEquals(_selected, current)) { _selected = current; Notify(nameof(Selected)); }
+            // The stored values just copied onto it can differ from the ones it held: another
+            // writer that removed the default moved the flag here. IsDefaultModeSelected is the one
+            // property derived from them (the editor locks the name field on it), and skipping the
+            // setter skipped its notification.
+            Notify(nameof(IsDefaultModeSelected));
         }
         else Selected = FallbackSelection();
     }
