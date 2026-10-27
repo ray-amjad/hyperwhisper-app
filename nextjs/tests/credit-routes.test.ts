@@ -614,6 +614,17 @@ describe("GET /api/license/credits", () => {
     assert.deepEqual(calls.findAccountByKey, []);
   });
 
+  test("treats a whitespace-only license_key as missing, without a lookup (#2319)", async () => {
+    const { GET } = await loadLicenseCreditsRoute();
+
+    const response = await GET(getRequest(`${CREDITS_PATH}?license_key=%20%20%20`));
+    const body = await readJson(response);
+
+    assert.equal(response.status, 400);
+    assert.equal(body.error, "license_key is required");
+    assert.deepEqual(calls.findAccountByKey, []);
+  });
+
   test("reports the balance and the Stripe customer for a granted key", async () => {
     storeRow(
       accountKeyRow({
@@ -748,6 +759,20 @@ describe("POST /api/license/credits", () => {
     assert.equal(response.status, 400);
     assert.equal(body.error, "license_key is required");
     assert.deepEqual(calls.findAccountByKey, []);
+  });
+
+  test("treats a whitespace-only license_key as missing, without a lookup (#2319)", async () => {
+    const { POST } = await loadLicenseCreditsRoute();
+
+    const response = await POST(
+      postRequest(CREDITS_PATH, { license_key: "   ", amount: 1 }),
+    );
+    const body = await readJson(response);
+
+    assert.equal(response.status, 400);
+    assert.equal(body.error, "license_key is required");
+    assert.deepEqual(calls.findAccountByKey, []);
+    assert.deepEqual(calls.deductCreditBalance, []);
   });
 
   test("refuses a zero or negative amount before any lookup", async () => {
