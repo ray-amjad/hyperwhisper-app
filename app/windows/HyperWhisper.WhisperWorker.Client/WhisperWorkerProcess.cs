@@ -95,11 +95,26 @@ public sealed class WhisperWorkerProcessLauncher : IWhisperWorkerLauncher
         {
             throw new WhisperWorkerException(
                 WhisperWorkerErrorCodes.StartFailed,
-                $"The Whisper worker could not be started: {exception.Message}",
+                DescribeStartFailure(exception),
                 exception);
         }
 
         return new RealProcess(process, _stderr);
+    }
+
+    /// <summary>
+    /// The message of a failed <see cref="Process.Start(ProcessStartInfo)"/>. The status bar
+    /// shows it, so it carries no path: a Win32Exception names the full exe path and
+    /// working directory, which hold the Windows account name (#2381). The exception
+    /// type and the Win32 error code say what went wrong; the exception itself stays
+    /// the inner exception.
+    /// </summary>
+    internal static string DescribeStartFailure(Exception exception)
+    {
+        var detail = exception is System.ComponentModel.Win32Exception win32
+            ? $"{exception.GetType().Name}, error {win32.NativeErrorCode.ToString(System.Globalization.CultureInfo.InvariantCulture)}"
+            : exception.GetType().Name;
+        return $"The Whisper worker could not be started ({detail}).";
     }
 
     private sealed class RealProcess : IWhisperWorkerProcess
