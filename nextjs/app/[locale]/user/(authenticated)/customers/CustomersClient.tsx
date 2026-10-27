@@ -541,17 +541,24 @@ export default function CustomersClient() {
                     </p>
                   )}
                 </ErrorReveal>
-                {/* #965: the granted key fades in while its row grows open,
-                    so the panel grows to it instead of stepping ~80 px in one
-                    frame. Same reveal and margins as the error above. */}
-                <ErrorReveal className="-mt-3" gap="pt-3">
+                {/* #965: the granted key rises out of a small blur
+                    (.t-panel-content) while the box grows to it
+                    (HeightTween), so the panel grows instead of stepping
+                    ~80 px in one frame. A closed box takes no space: -mt-3
+                    cancels the space-y-3 gap and pt-3 carries it inside. */}
+                <HeightTween className="-mt-3" trigger={grantResult}>
                   {grantResult && (
-                    <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg space-y-1">
-                      <p className="text-emerald-300 text-sm">Account Key granted to <span className="font-medium">{grantResult.email}</span></p>
-                      <p className="text-white font-mono text-sm select-all">{grantResult.licenseKey}</p>
+                    <div className="pt-3">
+                      <div
+                        className="t-panel-content p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg space-y-1"
+                        data-enter=""
+                      >
+                        <p className="text-emerald-300 text-sm">Account Key granted to <span className="font-medium">{grantResult.email}</span></p>
+                        <p className="text-white font-mono text-sm select-all">{grantResult.licenseKey}</p>
+                      </div>
                     </div>
                   )}
-                </ErrorReveal>
+                </HeightTween>
               </div>
             </div>
           </div>
