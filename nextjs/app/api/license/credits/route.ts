@@ -7,6 +7,7 @@ import {
   findAccountByKey,
   getCreditBalance,
 } from "@/src/lib/db-layer";
+import { isLookupableLicenseKey } from "@/src/lib/license-key-input";
 import { isRecord } from "@/src/lib/type-guards";
 import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
 import { creditPoolIdFor } from "@/src/lib/credit-pool-id";
@@ -55,6 +56,14 @@ export async function GET(req: NextRequest) {
   if (!licenseKey) {
     return NextResponse.json(
       { error: "license_key is required" },
+      { status: 400 }
+    );
+  }
+
+  // A NUL byte would make Postgres throw and land in the 500 below (#2079).
+  if (!isLookupableLicenseKey(licenseKey)) {
+    return NextResponse.json(
+      { error: "Invalid license key" },
       { status: 400 }
     );
   }
@@ -145,6 +154,14 @@ export async function POST(req: NextRequest) {
     if (typeof amount !== "number") {
       return NextResponse.json(
         { error: "amount must be a finite positive number" },
+        { status: 400 }
+      );
+    }
+
+    // A NUL byte would make Postgres throw and land in the 500 below (#2079).
+    if (!isLookupableLicenseKey(license_key)) {
+      return NextResponse.json(
+        { error: "Invalid license key" },
         { status: 400 }
       );
     }
