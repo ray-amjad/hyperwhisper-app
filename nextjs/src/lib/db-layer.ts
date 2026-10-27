@@ -739,17 +739,6 @@ export async function hasProcessedStripeObject(stripeObjectId: string): Promise<
  * `refunded_amount` so the running total stays right. The caller sees the gap
  * as `refundedAmount - removedAmount` and logs it.
  */
-/**
- * True (in SQL) when `remaining` is stored as 0.00 or less. A spend subtracts
- * in floating point, so a charge spanning two grants can leave a residue like
- * 2.78e-17 that the numeric(20,2) column stores as 0.00. Deciding the status
- * on the stored value means a grant that holds 0.00 is never left 'active'
- * (#2620).
- */
-function storesAsZero(remaining: number): SQL {
-  return sql`${remaining.toString()}::numeric(20,2) <= 0`;
-}
-
 export async function refundCreditGrant(
   data: CreditGrantRefund
 ): Promise<CreditGrantRefundResult> {
@@ -819,6 +808,17 @@ export async function refundCreditGrant(
       removedAmount,
     };
   });
+}
+
+/**
+ * True (in SQL) when `remaining` is stored as 0.00 or less. A spend subtracts
+ * in floating point, so a charge spanning two grants can leave a residue like
+ * 2.78e-17 that the numeric(20,2) column stores as 0.00. Deciding the status
+ * on the stored value means a grant that holds 0.00 is never left 'active'
+ * (#2620).
+ */
+function storesAsZero(remaining: number): SQL {
+  return sql`${remaining.toString()}::numeric(20,2) <= 0`;
 }
 
 export async function spendCreditGrantsByProvenance(
