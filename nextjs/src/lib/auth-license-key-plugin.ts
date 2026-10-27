@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { findAccountByKey } from "./db-layer";
+import { isLookupableLicenseKey } from "./license-key-input";
 import { sanitizeLicenseKeyRedirect } from "./license-key-redirect";
 
 import { sha256Hex } from "@/lib/shared/sha256";
@@ -13,6 +14,7 @@ import { user } from "@/src/db/schema/auth";
 type SignInOutcome = "ok" | "rejected" | "failed";
 
 type SignInReason =
+  | "key_malformed"
   | "key_not_found"
   | "key_inactive"
   | "key_no_user"
@@ -79,6 +81,20 @@ export const licenseKeyPlugin = () => ({
       },
       async (ctx) => {
         const { licenseKey, callbackURL } = ctx.body;
+
+        // A NUL byte makes Postgres throw, which Better Auth answers as an
+        // empty 500 (#2079). No real key has one: give the usual refusal.
+        if (!isLookupableLicenseKey(licenseKey)) {
+          logSignIn("rejected", {
+            reason: "key_malformed",
+            headers: ctx.headers,
+          });
+
+          return ctx.json(
+            { error: "Invalid or inactive license key." },
+            { status: 400 },
+          );
+        }
 
         const license = await findAccountByKey(licenseKey);
 
