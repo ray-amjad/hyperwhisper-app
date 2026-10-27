@@ -20,6 +20,13 @@ import { drainPendingDeductions } from './middleware/credits';
 import { drainPendingHoldReleases } from './middleware/credit-holds';
 import { drainPendingLatencyReports } from './lib/latency-report';
 import { ipRateLimit } from './middleware/rate-limit';
+import {
+  beginRequestShutdown,
+  IN_FLIGHT_REQUEST_WAIT_MS,
+  inFlightRequestCount,
+  trackInFlightRequests,
+  waitForInFlightRequests,
+} from './middleware/in-flight-requests';
 import { MAX_AUDIO_SIZE_BYTES } from './lib/constants';
 import { toRedactedLogLine } from './lib/log-redaction';
 import { captureServerError, flushErrorTracking, initErrorTracking } from './lib/error-tracking';
@@ -68,12 +75,16 @@ app.get('/warmup', (c) => {
 // Every key-accepting route runs the per-IP rate limit (`ipRateLimit`, 120/min)
 // first, before it parses a body or looks up a key. The per-key limits run
 // inside each route, after auth (middleware/rate-limit.ts, #2010).
+//
+// `/transcribe` and `/post-process` are counted by `trackInFlightRequests`
+// first of all, so a deploy's SIGTERM waits for them (and refuses new ones)
+// instead of exiting under them (#2031).
 
 // Main transcription endpoint
-app.post('/transcribe', ipRateLimit, transcribeRoute);
+app.post('/transcribe', trackInFlightRequests, ipRateLimit, transcribeRoute);
 
 // Standalone post-processing endpoint
-app.post('/post-process', ipRateLimit, postProcessRoute);
+app.post('/post-process', trackInFlightRequests, ipRateLimit, postProcessRoute);
 
 // Usage endpoint
 app.get('/usage', ipRateLimit, usageRoute);
@@ -131,22 +142,30 @@ app.onError((err, c) => {
 
 // Graceful shutdown: Fly sends SIGINT/SIGTERM on deploy/scale-down with a grace
 // period before SIGKILL (`kill_timeout = '120s'` in fly.prod.toml and
-// fly.staging.toml, #2011). Credit deductions are fired without awaiting after
-// the response is flushed, so drain any that are still in flight before
-// exiting — otherwise the user keeps the transcript but the charge is silently
-// dropped. The drain budget sits just under kill_timeout; each drain returns as
-// soon as its writes settle, so a quiet machine still exits at once.
+// fly.staging.toml, #2011). In order (Ray, #2031):
+//   1. end live streaming sessions at once, so they are billed;
+//   2. stop taking new `/transcribe` and `/post-process` requests and wait for
+//      the in-flight ones, up to IN_FLIGHT_REQUEST_WAIT_MS (100 s) after the
+//      signal — otherwise a transcription still waiting on its provider is cut;
+//   3. drain the credit deductions, latency reports and hold releases those
+//      left behind, until SHUTDOWN_DRAIN_MS (115 s) after the signal. Credit
+//      deductions are fired without awaiting after the response is built, so
+//      exiting without draining hands the user a transcript it never paid for.
+// Every wait returns as soon as its work settles, so a quiet machine still
+// exits at once.
 export const SHUTDOWN_DRAIN_MS = 115_000;
 let shuttingDown = false;
 
 async function gracefulShutdown(signal: string): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
+  const startedAt = Date.now();
+  beginRequestShutdown();
 
   console.log('machine.shutdown', {
     signal,
     machineId: process.env.FLY_MACHINE_ID || 'local',
-    shutdownAt: new Date().toISOString(),
+    shutdownAt: new Date(startedAt).toISOString(),
   });
 
   // A live streaming session is billed only when it ends, and Bun runs no
@@ -157,15 +176,25 @@ async function gracefulShutdown(signal: string): Promise<void> {
     console.log('machine.shutdown_ended_streaming_sessions', { count: endedSessions });
   }
 
+  const waitedRequests = await waitForInFlightRequests(startedAt + IN_FLIGHT_REQUEST_WAIT_MS - Date.now());
+  if (waitedRequests > 0) {
+    console.log('machine.shutdown_waited_requests', {
+      count: waitedRequests,
+      stillInFlight: inFlightRequestCount(),
+      waitedMs: Date.now() - startedAt,
+    });
+  }
+
+  const drainBudgetMs = Math.max(0, startedAt + SHUTDOWN_DRAIN_MS - Date.now());
   // Both drains are fire-and-forget writes made after the response is flushed,
   // so they race the same SIGKILL. Run them together rather than in series —
   // the grace period is one budget, not two.
   // Credit-hold releases too: one left behind narrows the user's balance until
   // its TTL frees it (#2008).
   const [drained, drainedReports, drainedHoldReleases] = await Promise.all([
-    drainPendingDeductions(SHUTDOWN_DRAIN_MS),
-    drainPendingLatencyReports(SHUTDOWN_DRAIN_MS),
-    drainPendingHoldReleases(SHUTDOWN_DRAIN_MS),
+    drainPendingDeductions(drainBudgetMs),
+    drainPendingLatencyReports(drainBudgetMs),
+    drainPendingHoldReleases(drainBudgetMs),
     // Error events still queued for Sentry; a no-op with no DSN.
     flushErrorTracking(2_000),
   ]);
