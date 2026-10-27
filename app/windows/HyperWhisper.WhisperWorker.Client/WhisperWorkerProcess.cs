@@ -104,17 +104,21 @@ public sealed class WhisperWorkerProcessLauncher : IWhisperWorkerLauncher
 
     /// <summary>
     /// The message of a failed <see cref="Process.Start(ProcessStartInfo)"/>. The status bar
-    /// shows it, so it carries no path: a Win32Exception names the full exe path and
-    /// working directory, which hold the Windows account name (#2381). The exception
-    /// type and the Win32 error code say what went wrong; the exception itself stays
-    /// the inner exception.
+    /// and History show it, so it carries no path: a Win32Exception's own message names
+    /// the full exe path and working directory, which hold the Windows account name
+    /// (#2381). The OS reason for the error code alone ("Access is denied.") has no
+    /// path, so it stays, with the code. The exception itself stays the inner exception.
     /// </summary>
     internal static string DescribeStartFailure(Exception exception)
     {
-        var detail = exception is System.ComponentModel.Win32Exception win32
-            ? $"{exception.GetType().Name}, error {win32.NativeErrorCode.ToString(System.Globalization.CultureInfo.InvariantCulture)}"
-            : exception.GetType().Name;
-        return $"The Whisper worker could not be started ({detail}).";
+        if (exception is not System.ComponentModel.Win32Exception win32)
+        {
+            return $"The Whisper worker could not be started ({exception.GetType().Name}).";
+        }
+
+        var code = win32.NativeErrorCode.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var reason = new System.ComponentModel.Win32Exception(win32.NativeErrorCode).Message.Trim();
+        return $"The Whisper worker could not be started: {reason} (Win32 error {code}).";
     }
 
     private sealed class RealProcess : IWhisperWorkerProcess

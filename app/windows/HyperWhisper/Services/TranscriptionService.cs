@@ -888,13 +888,13 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
         Action<ApplicationControlDiagnostics.BlockReport> send)
     {
         if (ex is not WhisperWorkerException { Code: WhisperWorkerErrorCodes.StartFailed } worker
-            || !ApplicationControlDiagnostics.TryReportBlock(worker.InnerException, "whisper_worker_start", send))
+            || !ApplicationControlDiagnostics.TryReportBlock(worker, "whisper_worker_start", send))
         {
             return null;
         }
 
         var (_, notice) = ApplicationControlDiagnostics.BuildBlockedNotice(
-            ApplicationControlDiagnostics.DescribeBlockedAssembly(worker.InnerException!),
+            ApplicationControlDiagnostics.DescribeBlockedAssembly(worker),
             static key => Loc.S(key));
         return new WhisperWorkerException(WhisperWorkerErrorCodes.StartFailed, notice, worker);
     }

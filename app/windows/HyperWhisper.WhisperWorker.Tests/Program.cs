@@ -628,7 +628,9 @@ await CheckAsync("launcher: a worker exe that will not start fails with no path 
         Assert(win32!.Message.Contains("JaneDoe", StringComparison.Ordinal), $"the OS message no longer names the path, so this check proves nothing: {win32.Message}");
         Assert(!error.Message.Contains("JaneDoe", StringComparison.Ordinal), error.Message);
         Assert(!error.Message.Contains(Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase), error.Message);
-        var expected = $"The Whisper worker could not be started (Win32Exception, error {win32.NativeErrorCode}).";
+        var reason = new System.ComponentModel.Win32Exception(win32.NativeErrorCode).Message.Trim();
+        Assert(!reason.Contains("JaneDoe", StringComparison.Ordinal), reason);
+        var expected = $"The Whisper worker could not be started: {reason} (Win32 error {win32.NativeErrorCode}).";
         Assert(error.Message == expected, error.Message);
     }
     finally
@@ -637,13 +639,15 @@ await CheckAsync("launcher: a worker exe that will not start fails with no path 
     }
 });
 
-await CheckAsync("launcher: an Application Control block keeps its Win32 error code in the message (#2381)", () =>
+await CheckAsync("launcher: an Application Control block keeps its Win32 error code and OS reason, not the path (#2381)", () =>
 {
     // ERROR_SYSTEM_INTEGRITY_POLICY_VIOLATION, as Process.Start raises it (#2379).
     var block = new System.ComponentModel.Win32Exception(
         0x11C7, @"An error occurred trying to start process 'C:\Users\JaneDoe\AppData\Local\HyperWhisper\HyperWhisper.WhisperWorker.exe'.");
     var message = WhisperWorkerProcessLauncher.DescribeStartFailure(block);
-    Assert(message == "The Whisper worker could not be started (Win32Exception, error 4551).", message);
+    Assert(message.StartsWith("The Whisper worker could not be started: ", StringComparison.Ordinal), message);
+    Assert(message.EndsWith(" (Win32 error 4551).", StringComparison.Ordinal), message);
+    Assert(!message.Contains("JaneDoe", StringComparison.Ordinal) && !message.Contains("start process", StringComparison.Ordinal), message);
     message = WhisperWorkerProcessLauncher.DescribeStartFailure(new InvalidOperationException(@"C:\Users\JaneDoe"));
     Assert(message == "The Whisper worker could not be started (InvalidOperationException).", message);
     return Task.CompletedTask;
