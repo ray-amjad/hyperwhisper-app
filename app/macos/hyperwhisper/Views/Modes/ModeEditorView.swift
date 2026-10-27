@@ -714,7 +714,8 @@ struct ModeEditorView: View {
 
             // Save/Create button
             Button {
-                guard hasValidDictationLanguage, !nameIsTaken, !localPostProcessingIsBroken else { return }
+                guard hasValidDictationLanguage, !nameIsTaken else { return }
+                guard !localPostProcessingIsBroken else { return }
                 hasSubmitted = true
                 let chosenModel = ModeEditorDefaults.savedModel(
                     provider: provider,
