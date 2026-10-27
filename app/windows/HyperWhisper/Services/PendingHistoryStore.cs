@@ -328,11 +328,17 @@ internal sealed class PendingHistoryStore
         var asidePath = _filePath + ".unreadable";
         try
         {
-            if (!File.Exists(_filePath)) return true;
+            // No File.Exists guard on the source: it answers false for a file the process
+            // cannot read the attributes of, which would let the next save overwrite it.
+            // Only the move itself proves the file is gone.
             if (File.Exists(asidePath))
                 asidePath = $"{asidePath}.{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}";
             File.Move(_filePath, asidePath, overwrite: false);
             LoggingService.Warn($"PendingHistoryStore: Moved the unreadable pending History file aside to {asidePath}");
+            return true;
+        }
+        catch (FileNotFoundException)
+        {
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
