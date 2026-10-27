@@ -54,34 +54,68 @@ static class RecordingStatusAfterStopTests
     });
 
     // Issue #2599: the status bar appended "Press Ctrl+Alt to record" to every line, so a recording read
-    // "Recording… - Press Ctrl+Alt to record" while Ctrl+Alt would stop it. The hint is now only on the
-    // resting line (Windows' status.ready.withHotkey). This composes the line the way UpdateShortcutHint
-    // does, from the real session and the real Home recorder of a real batch dictation.
-    public static Task StatusHintOnlyOnRestingLine() => RunAsync(new FakeTextInjection(), async (shell, session, _) =>
+    // "Recording… - Press Ctrl+Alt to record" while Ctrl+Alt would stop it. The rule now (the issue's
+    // Proposed fix): no hint while anything is in flight or on an error line; every other line keeps it.
+    // The line is composed by MainWindow.StatusBarLine from the real session and the real Home recorder
+    // of a real batch dictation, and re-composed through MainWindow.WatchStatusBarInputs, the same watch
+    // the window uses, so the line read here is the one the window would show after each change.
+    public static Task StatusHintDroppedWhileInFlightOrOnError() => RunAsync(new FakeTextInjection(), async (shell, session, _) =>
     {
-        const string hint = "Press {0} to record";
-        string Line() => MainWindow.ComposeStatusLine(shell.Status.Message, shell.Status.HasError, shell.Status.ErrorCode,
-            "Ctrl+Alt", hint, MainWindow.IsRecordingInFlight(session, shell.Recording));
+        var line = "";
+        using var watch = WatchLine(shell, session, value => line = value);
 
         shell.ShowReadyStatus();
-        Check(Line() == "Ready - Press Ctrl+Alt to record", $"at rest the status bar read '{Line()}'");
+        Check(line == "Ready - Press Ctrl+Alt to record", $"at rest the status bar read '{line}'");
 
         Check((await session.StartAsync(InteractionRecordingKind.Batch)).IsSuccess, "the batch recording did not start");
-        Check(Line() == "Recording…", $"while recording the status bar read '{Line()}', not 'Recording…' (#2599)");
+        Check(line == "Recording…", $"while recording the status bar read '{line}', not 'Recording…' (#2599)");
 
         var stopped = await session.StopAsync();
         Check(stopped.Result.IsSuccess, $"the batch stop failed: {stopped.Result.Error?.Code} {stopped.Result.Error?.Message}");
-        Check(Line() == "Ready - Press Ctrl+Alt to record", $"after the recording ended the status bar read '{Line()}'");
+        Check(line == "Ready - Press Ctrl+Alt to record", $"after the recording ended the status bar read '{line}'");
+
+        // A shell Busy line is in flight too: "Importing universal backup…" must not invite a recording.
+        shell.Status.Busy("Importing universal backup…");
+        Check(line == "Importing universal backup…", $"a Busy line read '{line}' (#2599)");
+        shell.Status.Success("Backup imported");
+        Check(line == "Backup imported - Press Ctrl+Alt to record", $"after the Busy line ended the status bar read '{line}'");
 
         // Windows' status.failed carries no hint.
         shell.Status.Failure("provider.credential_rejected", "The provider rejected the supplied credential.");
-        Check(Line() == "The provider rejected the supplied credential.", $"after a failure the status bar read '{Line()}' (#2599)");
+        Check(line == "The provider rejected the supplied credential.", $"after a failure the status bar read '{line}' (#2599)");
         // A failure with no message still names its code, and still no hint.
-        Check(MainWindow.ComposeStatusLine(null, true, "workflow.start_failed", "Ctrl+Alt", hint, false) == "workflow.start_failed",
-            "an error with no message lost its code or gained the hint");
-        // No shortcut set: the resting line is the message alone.
-        Check(MainWindow.ComposeStatusLine("Ready", false, null, "", hint, false) == "Ready", "an empty shortcut still added a hint");
+        Check(MainWindow.ComposeStatusLine(null, true, "workflow.start_failed", "Ctrl+Alt", Hint, withHint: false) == "workflow.start_failed",
+            "an error with no message lost its code");
+        // No shortcut set: the line is the message alone.
+        Check(MainWindow.ComposeStatusLine("Ready", false, null, "", Hint, withHint: true) == "Ready", "an empty shortcut still added a hint");
     });
+
+    // #2599: a stop that writes its own line while it is still finishing ("Transcription saved, but text
+    // injection failed", or a live stream's "… pasted and saved") changes nothing after it, so only the
+    // session's ActivityChanged at the end of StopAsync brings the hint back with that resting line.
+    public static Task HintReturnsAfterAStopThatWroteItsOwnLine() => RunAsync(new FailingTextInjection(), async (shell, session, _) =>
+    {
+        var line = "";
+        var lines = new List<string>();
+        using var watch = WatchLine(shell, session, value => { line = value; lines.Add(value); });
+
+        Check((await session.StartAsync(InteractionRecordingKind.Batch)).IsSuccess, "the batch recording did not start");
+        var stopped = await session.StopAsync();
+        Check(stopped.Result.IsSuccess, $"the batch stop failed: {stopped.Result.Error?.Code} {stopped.Result.Error?.Message}");
+        var expected = $"{LinuxInteractionRecordingSession.BatchInjectionFailedStatus} - Press Ctrl+Alt to record";
+        Check(lines.Contains(LinuxInteractionRecordingSession.BatchInjectionFailedStatus),
+            $"the stop's own line was never shown without the hint while it finished: {string.Join(" | ", lines)}");
+        Check(line == expected, $"after the stop finished the status bar read '{line}', not '{expected}' (#2599)");
+    });
+
+    private const string Hint = "Press {0} to record";
+
+    private static IDisposable WatchLine(ApplicationShellViewModel shell, LinuxInteractionRecordingSession session, Action<string> show)
+    {
+        void Compose() => show(MainWindow.StatusBarLine(shell.Status, "Ctrl+Alt", Hint, session, shell.Recording));
+        Compose();
+        return MainWindow.WatchStatusBarInputs(shell.Status, shell.Recording, session, Compose);
+    }
 
     private static async Task RunAsync(ITextInjectionService textInjection,
         Func<ApplicationShellViewModel, LinuxInteractionRecordingSession, StatusTestOverlay, Task> body)
