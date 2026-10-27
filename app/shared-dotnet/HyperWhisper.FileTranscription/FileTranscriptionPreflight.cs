@@ -439,7 +439,7 @@ public sealed class StreamingFileAudioMetadataSource : IFileAudioMetadataSource
             return new(length, null);
 
         uint? bytesPerSecond = null;
-        uint? dataBytes = null;
+        long? dataBytes = null;
         ushort? waveEncoding = null;
         ushort? channels = null;
         uint? sampleRate = null;
@@ -450,8 +450,21 @@ public sealed class StreamingFileAudioMetadataSource : IFileAudioMetadataSource
             if (!await TryReadExactlyAsync(stream, chunkHeader, cancellationToken).ConfigureAwait(false)) break;
             var size = BinaryPrimitives.ReadUInt32LittleEndian(chunkHeader.AsSpan(4));
             var remaining = length - stream.Position;
-            if (size > remaining) break;
-            if (chunkHeader.AsSpan(0, 4).SequenceEqual("fmt "u8) && size >= 16)
+            if (chunkHeader.AsSpan(0, 4).SequenceEqual("data"u8))
+            {
+                // A zero or past-EOF length (a crash-interrupted recorder, a piped
+                // ffmpeg/sox WAV) means "to the end of the file", as PcmWaveHeader
+                // and WaveFileDuration read it.
+                if (size == 0 || size > remaining)
+                {
+                    dataBytes = remaining;
+                    break;
+                }
+                dataBytes = size;
+                stream.Seek(size, SeekOrigin.Current);
+            }
+            else if (size > remaining) break;
+            else if (chunkHeader.AsSpan(0, 4).SequenceEqual("fmt "u8) && size >= 16)
             {
                 var format = new byte[16];
                 if (!await TryReadExactlyAsync(stream, format, cancellationToken).ConfigureAwait(false)) break;
@@ -461,11 +474,6 @@ public sealed class StreamingFileAudioMetadataSource : IFileAudioMetadataSource
                 sampleRate = BinaryPrimitives.ReadUInt32LittleEndian(format.AsSpan(4));
                 bitsPerSample = BinaryPrimitives.ReadUInt16LittleEndian(format.AsSpan(14));
                 stream.Seek(size - 16, SeekOrigin.Current);
-            }
-            else if (chunkHeader.AsSpan(0, 4).SequenceEqual("data"u8))
-            {
-                dataBytes = size;
-                stream.Seek(size, SeekOrigin.Current);
             }
             else stream.Seek(size, SeekOrigin.Current);
             if ((size & 1) != 0 && stream.Position < length) stream.Seek(1, SeekOrigin.Current);
