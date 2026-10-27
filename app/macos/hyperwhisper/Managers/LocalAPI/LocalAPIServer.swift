@@ -396,18 +396,22 @@ final class LocalAPIServer: ObservableObject {
         // file. Only a stuck start runs this wait out; a taken port is the run
         // task's own error, below (issue #2452).
         let listenWaitTask = Task { [weak self] in
-            do {
-                try await httpServer.waitUntilListening(timeout: Self.listenWait)
-            } catch {
-                // Cancelled: the run task ended or stop() let this server go,
-                // and whichever it was has already said what happened.
-                if error is CancellationError || Task.isCancelled { return }
-                // A server stop() or the fallback has let go of: its timeout is
-                // not the current server's error.
-                guard let self, self.server === httpServer else { return }
-                self.lastError = error.localizedDescription
-                AppLogger.network.error("LocalAPI server failed to start · \(error.localizedDescription, privacy: .public)")
-                return
+            // A timeout reports a stuck start and keeps waiting: a run task
+            // starved past `listenWait` can still bind, and when it does it must
+            // still publish itself (clearing the error below). Only the run task
+            // ending, or stop(), ends this wait, by cancelling it.
+            while true {
+                do {
+                    try await httpServer.waitUntilListening(timeout: Self.listenWait)
+                    break
+                } catch {
+                    if error is CancellationError || Task.isCancelled { return }
+                    // A server stop() or the fallback has let go of: its timeout
+                    // is not the current server's error.
+                    guard let self, self.server === httpServer else { return }
+                    self.lastError = error.localizedDescription
+                    AppLogger.network.error("LocalAPI server has not started listening · \(error.localizedDescription, privacy: .public)")
+                }
             }
             let port = await Self.extractPort(from: httpServer)
             // A server stop() let go of while it was still coming up must not
@@ -779,10 +783,12 @@ final class LocalAPIServer: ObservableObject {
 
     /// What a bind's run task failing does, for the server that ran it.
     ///
-    /// A run that failed with EADDRINUSE on the persisted port clears the
-    /// preference and binds an ephemeral port at once: the port is taken, and
-    /// FlyingFox said so (issue #2452). Any other failure, or a taken ephemeral
-    /// port, shows its error and lets the server go.
+    /// A run whose bind to the persisted port was refused clears the
+    /// preference and binds an ephemeral port at once: typically EADDRINUSE,
+    /// the port is taken and FlyingFox said so (issue #2452). Any other bind
+    /// errno on that port (EACCES on a port written by hand) falls back too, as
+    /// the old timeout-driven fallback did. Any other failure, or a refused
+    /// ephemeral bind, shows its error and lets the server go.
     ///
     /// Only for the current server. A run task whose server stop() or an
     /// earlier fallback has already let go of fails into nothing: without the
@@ -790,9 +796,9 @@ final class LocalAPIServer: ObservableObject {
     /// discovery file.
     private func handleRunFailure(_ error: Error, of httpServer: HTTPServer, preferredPort: UInt16) {
         guard server === httpServer else { return }
-        if preferredPort != 0, Self.isAddressInUse(error) {
+        if preferredPort != 0, Self.isBindFailure(error) {
             defaults.removeObject(forKey: LocalAPIServerPersistedPortKey)
-            AppLogger.network.info("LocalAPI server: persisted port \(preferredPort, privacy: .public) is in use; clearing preference and retrying with ephemeral port")
+            AppLogger.network.info("LocalAPI server: persisted port \(preferredPort, privacy: .public) refused (\(error.localizedDescription, privacy: .public)); clearing preference and retrying with ephemeral port")
             // Re-enter the bind step so the next bind uses port 0. Deliberately
             // NOT start(): the token is already in hand, so a second Keychain
             // read would be wasted, and that read is the one issue #655 is about.
@@ -819,11 +825,13 @@ final class LocalAPIServer: ObservableObject {
         AppLogger.network.error("LocalAPI server stopped with error · \(error.localizedDescription, privacy: .public)")
     }
 
-    /// Whether a run task's error is a bind refused because the port is taken.
-    /// Pure and `static`, so the fallback's trigger can be tested by calling it.
-    nonisolated static func isAddressInUse(_ error: Error) -> Bool {
-        if case let SocketError.failed(_, code, _) = error {
-            return code == EADDRINUSE
+    /// Whether a run task's error is the kernel refusing the bind to the asked
+    /// port (EADDRINUSE when it is taken). FlyingFox names the failing call in
+    /// `type`: "Bind" for `bind(2)`. Pure and `static`, so the fallback's
+    /// trigger can be tested by calling it.
+    nonisolated static func isBindFailure(_ error: Error) -> Bool {
+        if case let SocketError.failed(type, _, _) = error {
+            return type == "Bind"
         }
         return false
     }
@@ -1137,10 +1145,6 @@ final class LocalAPISwitchProbe {
     private(set) var port: UInt16 = 0
     private var server: HTTPServer?
     private var runTask: Task<Void, Never>?
-    /// The current bind's wait for FlyingFox to report it is listening.
-    /// Cancelled when its run task ends and by `stop()`, so a failed or stopped
-    /// bind does not hold `self` and its dead `HTTPServer` for `listenWait`.
-    private var listenWaitTask: Task<Void, Never>?
 
     init(headReadDeadline: TimeInterval = LocalAPIRequestHeadLimit.readDeadline) {
         self.headReadDeadline = headReadDeadline

@@ -81,11 +81,13 @@ struct LocalAPIServerPortPreferenceTests {
         await fixture.stop()
     }
 
-    @Test func onlyEADDRINUSEIsATakenPort() {
-        #expect(LocalAPIServer.isAddressInUse(SocketError.failed(type: "Bind", errno: EADDRINUSE, message: "Address already in use")))
-        #expect(!LocalAPIServer.isAddressInUse(SocketError.failed(type: "Bind", errno: EACCES, message: "Permission denied")))
-        #expect(!LocalAPIServer.isAddressInUse(SocketError.timeout(message: "5 s")))
-        #expect(!LocalAPIServer.isAddressInUse(CancellationError()))
+    @Test func onlyARefusedBindSendsTheServerToTheFallback() {
+        #expect(LocalAPIServer.isBindFailure(SocketError.failed(type: "Bind", errno: EADDRINUSE, message: "Address already in use")))
+        #expect(LocalAPIServer.isBindFailure(SocketError.failed(type: "Bind", errno: EACCES, message: "Permission denied")))
+        #expect(!LocalAPIServer.isBindFailure(SocketError.failed(type: "Listen", errno: EADDRINUSE, message: "Address already in use")))
+        #expect(!LocalAPIServer.isBindFailure(SocketError.failed(type: "CreateSocket", errno: EMFILE, message: "Too many open files")))
+        #expect(!LocalAPIServer.isBindFailure(SocketError.timeout(message: "30 s")))
+        #expect(!LocalAPIServer.isBindFailure(CancellationError()))
     }
 
     @Test func aStopDuringATakenPortStartLeavesTheServerOff() async throws {
@@ -101,12 +103,16 @@ struct LocalAPIServerPortPreferenceTests {
             guard ContinuousClock.now < deadline else { throw FixtureError.timedOut("the start has its token") }
             try await Task.sleep(for: .milliseconds(20))
         }
-        // Past the bind, inside what used to be the 5 s fallback window.
+        // Inside what used to be the 5 s fallback window. Which of the two
+        // orderings this lands in is up to the scheduler: usually the fallback
+        // has already bound an ephemeral port and stop() stops that; on a
+        // starved host stop() can land before the failed bind reports. This pins
+        // the outcome of both, not the stale-failure guard on its own.
         try await Task.sleep(for: .milliseconds(200))
         await fixture.stop()
 
-        // Past that old window: a bind that failed for a server stop() had let
-        // go of must not rebind on its own (issue #2452).
+        // Past that old window, where the old timeout fallback rebound a server
+        // the user had switched off (issue #2452): it must stay off.
         try await Task.sleep(for: LocalAPIServer.releaseWait + .seconds(5))
         #expect(!fixture.server.isRunning, "a stopped server came back up on an ephemeral port")
         #expect(fixture.server.listeningPort == 0)
