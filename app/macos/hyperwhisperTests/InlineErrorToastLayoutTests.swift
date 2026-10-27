@@ -33,9 +33,13 @@ struct InlineErrorToastLayoutTests {
         return try #require(NSDictionary(contentsOf: url) as? [String: String], "Base Localizable.strings must parse")
     }
 
+    /// One hosting view, reused for every measurement: a fresh `NSHostingView`
+    /// per string made the suite hold the main actor for ~30 s on CI.
+    private static let host = NSHostingView(rootView: AnyView(EmptyView()))
+
     /// The SwiftUI fitting size of a view.
     private static func fittingSize<V: View>(_ view: V) -> CGSize {
-        let host = NSHostingView(rootView: view)
+        host.rootView = AnyView(view)
         host.layout()
         return host.fittingSize
     }
@@ -53,19 +57,32 @@ struct InlineErrorToastLayoutTests {
         ).height
     }
 
-    /// Width the message column keeps once the row's fixed parts are laid out.
-    private static func messageColumnWidth(showSettingsButton: Bool) -> CGFloat {
+    /// Width the message column keeps once the row's fixed parts are laid out,
+    /// without and with the Open Settings button.
+    private static let messageColumnWidths: (plain: CGFloat, withSettings: CGFloat) = {
         let icon = fittingSize(InlineErrorToast.warningIcon).width
-        let gaps = InlineErrorToast.itemSpacing * (showSettingsButton ? 3 : 2)
-        var width = InlineErrorToast.toastWidth
+        let button = fittingSize(InlineErrorToast.settingsButtonLabel).width
+        let plain = InlineErrorToast.toastWidth
             - 2 * InlineErrorToast.horizontalPadding
             - icon
             - InlineErrorToast.countdownWidth
-            - gaps
-        if showSettingsButton {
-            width -= fittingSize(InlineErrorToast.settingsButtonLabel).width
-        }
-        return width
+            - 2 * InlineErrorToast.itemSpacing
+        return (plain, plain - button - InlineErrorToast.itemSpacing)
+    }()
+
+    private static func messageColumnWidth(showSettingsButton: Bool) -> CGFloat {
+        showSettingsButton ? messageColumnWidths.withSettings : messageColumnWidths.plain
+    }
+
+    /// Height of one line of the message font.
+    private static let oneLineHeight = messageHeight("Ag", width: 1000)
+
+    /// The providers whose pre-flight can fail with the provider-naming toast.
+    /// `TranscriptionProviderRouter.checkPostProcessingProviderHealth` skips the
+    /// check for HyperWhisper Cloud and for providers that need none, and sends
+    /// Local LLM to `.localRuntimeUnavailable` (its own toast, checked below).
+    private static let preflightToastProviders = PostProcessingProvider.allCases.filter {
+        $0 != .hyperwhisper && $0 != .localLLM && $0.requiresHealthCheck
     }
 
     /// Every "raw transcript was kept" toast, with whether it shows Open Settings.
@@ -83,7 +100,7 @@ struct InlineErrorToastLayoutTests {
             .modelNotDownloaded(),
             .providerNotAvailable(provider: "provider", reason: "Provider health check failed"),
         ]
-        for provider in PostProcessingProvider.allCases {
+        for provider in preflightToastProviders {
             for error in preflightErrors {
                 let message = try #require(TranscriptionPipeline.postProcessingPreflightToastMessage(
                     for: error,
@@ -102,7 +119,7 @@ struct InlineErrorToastLayoutTests {
     /// Settings button, a short provider name) may fit one line; that is fine.
     @Test func theIssuesToastNeedsMoreThanOneLine() throws {
         let toasts = try Self.keptTranscriptToasts()
-        #expect(toasts.count == 1 + 4 * PostProcessingProvider.allCases.count)
+        #expect(toasts.count == 1 + 4 * Self.preflightToastProviders.count)
         for toast in toasts {
             #expect(toast.message.contains("your raw transcript was kept"), "\(toast.message)")
         }
@@ -110,7 +127,7 @@ struct InlineErrorToastLayoutTests {
             $0.message == "OpenAI rejected your API key — your raw transcript was kept."
         })
         #expect(issueToast.showSettingsButton)
-        let oneLine = Self.messageHeight("Ag", width: 1000)
+        let oneLine = Self.oneLineHeight
         let width = Self.messageColumnWidth(showSettingsButton: true)
         #expect(Self.messageHeight(issueToast.message, width: width) > oneLine * 1.5)
     }
@@ -119,7 +136,7 @@ struct InlineErrorToastLayoutTests {
     /// in at most two lines that fit the 40 pt panel.
     @Test func everyKeptTranscriptToastFitsTwoLinesInsideTheToast() throws {
         #expect(InlineErrorToast.messageLineLimit == 2)
-        let oneLine = Self.messageHeight("Ag", width: 1000)
+        let oneLine = Self.oneLineHeight
         let allowedLines = CGFloat(InlineErrorToast.messageLineLimit)
         let innerHeight = InlineErrorToast.toastHeight - 2 * InlineErrorToast.verticalPadding
         #expect(oneLine * allowedLines <= innerHeight,
