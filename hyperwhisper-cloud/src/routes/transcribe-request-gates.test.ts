@@ -18,7 +18,7 @@
 // `mock.module` is process-wide, so a factory that omits one deletes it for
 // every LATER file in a `bun test src` run.
 
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 import { Hono } from 'hono';
 import { MAX_AUDIO_SIZE_BYTES } from '../lib/constants';
 
@@ -230,5 +230,35 @@ describe('transcribeRoute request gates', () => {
 
     expect(status).toBe(200);
     expect(providerCalls.some((url) => url.includes('api.deepgram.com'))).toBe(true);
+  });
+
+  // #1095: Dictation with the language on Auto 400s. Support must be able to
+  // see it happened, so it writes the same rejection event as every other gate.
+  test('a Dictation request with no explicit language logs one invalid_dictation_options rejection', async () => {
+    const logSpy = spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const { status, body } = await send(gateRequest({
+        query: '?account_key=test-account-key&language=auto',
+        headers: { 'X-STT-Provider': 'assemblyai', 'X-STT-Model': 'dictation' },
+      }));
+
+      expect(status).toBe(400);
+      expect(body.error).toBe('Invalid Dictation options');
+      expect(providerCalls).toEqual([]);
+
+      const rejections = logSpy.mock.calls
+        .map((call) => String(call[0]))
+        .filter((raw) => raw.startsWith('{') && raw.includes('"event":"transcribe.request_rejected"'))
+        .map((raw) => JSON.parse(raw) as Record<string, unknown>);
+      expect(rejections).toHaveLength(1);
+      expect(rejections[0]).toMatchObject({
+        reason: 'invalid_dictation_options',
+        language: 'auto',
+        hasDomain: false,
+      });
+      expect(JSON.stringify(rejections[0])).not.toContain('test-account-key');
+    } finally {
+      logSpy.mockRestore();
+    }
   });
 });
