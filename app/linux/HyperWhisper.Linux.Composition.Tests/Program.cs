@@ -156,6 +156,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a live stream that fails after delivering text keeps that text in History, the error only in FailedReason (#2282)", LiveFailureHistoryTests.KeepsDeliveredText),
     ("Home's state follows a live stream: Recording while it runs, Failed once it fails and is held (#2038)", HomeLiveStateRenderTests.MappingFollowsTheLiveStream),
     ("the real Home caption reads Failed for a held live stream and Idle again after Stop (#2038)", HomeLiveStateRenderTests.RunAsync),
+    ("Home reads Recording from the moment a live start shows the overlay, Failed once it turns red, and the workflow state after a failed start (#2038)", HomeLiveStartTests.StartWindowFollowsTheOverlay),
 };
 
 foreach (var test in tests)
