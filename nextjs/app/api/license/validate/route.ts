@@ -25,8 +25,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  *   warning says so; stripping could merge two ids into one row);
  * - a `device_name` with NUL has each NUL replaced by a space (then trimmed),
  *   so the name is kept (dropping it would make the upsert overwrite a stored
- *   name with null) and "Studio\0Mac" stays two words. A name that is only NULs and spaces
- *   ends up empty and is handled like an empty name today.
+ *   name with null) and "Studio\0Mac" stays two words. A name that is only
+ *   NULs and spaces ends up empty and is handled like an empty name today.
  * Called only once the key is valid, so a rejected key logs no warning.
  */
 function deviceFields(payload: Record<string, unknown>): {
