@@ -3,6 +3,7 @@ import { transcribeWithElevenLabs } from './elevenlabs';
 import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
 import { captureNoSpeechEvent } from './test-support';
 import { stubEnv } from '../test-support/env';
+import { computeElevenLabsTranscriptionCost, creditsForCost } from '../lib/cost-calculator';
 
 const originalFetch = globalThis.fetch;
 
@@ -176,11 +177,70 @@ describe('transcribeWithElevenLabs — successful response handling', () => {
     expect(JSON.parse(JSON.stringify(details))).toHaveProperty('upstreamDurationSeconds', null);
   });
 
-  test('a response with no words array defaults duration to 0', async () => {
+  test('a response with no words array is billed for the audio length, never 0', async () => {
     mockFetchOnce(() => jsonResponse({ text: 'hi' }));
     const result = await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US');
-    expect(result.durationSeconds).toBe(0);
-    expect(result.costUsd).toBe(0);
+    // 1,000 B of 16 kHz/16-bit WAV at 32,000 B/s.
+    expect(result.durationSeconds).toBeCloseTo(1_000 / 32_000, 6);
+    expect(result.costUsd).toBeGreaterThan(0);
+  });
+});
+
+// Issue #2601: ElevenLabs bills the whole file, so we bill the audio length,
+// not the last word's end time. The first two tests are the issue's repro.
+describe('transcribeWithElevenLabs — billed duration is the audio length (#2601)', () => {
+  // 16 kHz / 16-bit mono PCM WAV — what the desktop apps upload.
+  function wav(seconds: number): ArrayBuffer {
+    const dataBytes = seconds * 16_000 * 2;
+    const buf = new ArrayBuffer(44 + dataBytes);
+    const v = new DataView(buf);
+    const s = (o: number, t: string) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+    s(0, 'RIFF'); v.setUint32(4, 36 + dataBytes, true); s(8, 'WAVE');
+    s(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, 16_000, true); v.setUint32(28, 32_000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    s(36, 'data'); v.setUint32(40, dataBytes, true);
+    return buf;
+  }
+
+  test('a 60 s clip with speech only in its first 1.2 s is billed for 60 s of audio', async () => {
+    mockFetchOnce(() => jsonResponse({ text: 'Hello there.', language_code: 'en', language_probability: 1,
+      words: [{ text: 'Hello', start: 0.2, end: 0.6, type: 'word' }, { text: 'there.', start: 0.7, end: 1.2, type: 'word' }] }));
+    const r = await transcribeWithElevenLabs(wav(60), 'audio/wav', 'en');
+    expect(r.durationSeconds).toBeGreaterThanOrEqual(59);
+    expect(r.costUsd).toBeCloseTo(computeElevenLabsTranscriptionCost(r.durationSeconds), 9);
+    expect(creditsForCost(r.costUsd)).toBe(creditsForCost(computeElevenLabsTranscriptionCost(60)));
+  });
+
+  test('a transcript with no word timings is not billed as zero seconds', async () => {
+    mockFetchOnce(() => jsonResponse({ text: 'Hello there, this is a whole minute of dictation.', language_code: 'en', language_probability: 1 }));
+    const r = await transcribeWithElevenLabs(wav(60), 'audio/wav', 'en');
+    expect(r.durationSeconds).toBeGreaterThanOrEqual(59);
+    expect(r.costUsd).toBeGreaterThan(0);
+  });
+
+  test('the route\'s measured length wins over the adapter\'s own byte estimate', async () => {
+    mockFetchOnce(() => jsonResponse({ text: 'hi', words: [{ start: 0, end: 1, text: 'hi' }] }));
+    const r = await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en', undefined, { requestAudioSeconds: 42 });
+    expect(r.durationSeconds).toBe(42);
+  });
+
+  test('an upstream audio_duration_secs wins when ElevenLabs sends one', async () => {
+    mockFetchOnce(() => jsonResponse({ text: 'hi', audio_duration_secs: 30, words: [{ start: 0, end: 1, text: 'hi' }] }));
+    const r = await transcribeWithElevenLabs(wav(60), 'audio/wav', 'en', undefined, { requestAudioSeconds: 60 });
+    expect(r.durationSeconds).toBe(30);
+  });
+
+  test('the last word\'s end is a floor: a low estimate never bills less than the speech', async () => {
+    mockFetchOnce(() => jsonResponse({ text: 'hi', audio_duration_secs: 'n/a', words: [{ start: 0, end: 75, text: 'hi' }] }));
+    const r = await transcribeWithElevenLabs(wav(60), 'audio/wav', 'en', undefined, { requestAudioSeconds: 60 });
+    expect(r.durationSeconds).toBe(75);
+  });
+
+  test('an empty transcript stays a zero-cost no_speech result', async () => {
+    mockFetchOnce(() => jsonResponse({ text: '', language_code: 'en' }));
+    const r = await transcribeWithElevenLabs(wav(60), 'audio/wav', 'en', undefined, { requestAudioSeconds: 60 });
+    expect(r.source).toBe('no_speech');
+    expect(r.costUsd).toBe(0);
   });
 });
 

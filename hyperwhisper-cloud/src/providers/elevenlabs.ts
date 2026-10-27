@@ -11,6 +11,7 @@ import {
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  estimateAudioSeconds,
   readJson200,
   splitVocabularyTerms,
 } from './utils';
@@ -25,6 +26,28 @@ const ELEVENLABS_AUDIO_EXTENSIONS = ['wav', 'm4a', 'webm', 'ogg', 'flac'] as con
 const MAX_KEYTERMS = 100;
 const MAX_KEYTERM_CHARS = 50;
 const MAX_KEYTERM_WORDS = 5;
+
+function positiveSeconds(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/**
+ * The seconds a successful ElevenLabs request is billed for: the upstream's
+ * reported audio length if it sent one, else the request's measured length,
+ * never less than the last word's end time.
+ */
+function elevenLabsBilledSeconds(
+  upstreamAudioSeconds: unknown,
+  lastWordEndSeconds: number,
+  audio: ArrayBuffer,
+  contentType: string,
+  context: ProviderRequestContext,
+): number {
+  const audioSeconds = positiveSeconds(upstreamAudioSeconds)
+    ?? positiveSeconds(context.requestAudioSeconds)
+    ?? estimateAudioSeconds(audio.byteLength, contentType);
+  return Math.max(audioSeconds, lastWordEndSeconds);
+}
 
 /**
  * Split an initial prompt into ElevenLabs Scribe `keyterms` (scribe_v2 only).
@@ -146,6 +169,7 @@ export async function transcribeWithElevenLabs(
     language_code: string;
     language_probability: number;
     words: unknown;
+    audio_duration_secs?: unknown;
   }>(provider, 'ElevenLabs', response, startTime, context);
 
   // A `text` that is present but not a string is a broken body too: `.trim()`
@@ -205,18 +229,27 @@ export async function transcribeWithElevenLabs(
     });
   }
 
+  // Bill the audio ElevenLabs processed (and bills us for), not the speech in
+  // it: the last word's end time leaves out trailing silence, and a reply with
+  // no `words` would bill 0 s. Prefer the upstream's own `audio_duration_secs`
+  // when it sends one; otherwise the request's measured length (the route sets
+  // it; the same estimate from the bytes when called directly). The last word's
+  // end is only a lower bound. (issue ray-amjad/hyperwhisper-app#2601)
+  const billedSeconds = elevenLabsBilledSeconds(data.audio_duration_secs, duration, audio, contentType, context);
+
   logProviderEvent(provider, 'success', {
     elapsedMs: Math.round(performance.now() - startTime),
     transcriptChars: transcript.length,
-    durationSeconds: duration,
+    durationSeconds: billedSeconds,
+    lastWordEndSeconds: duration,
     language: data.language_code,
   }, context);
 
   return {
     text: transcript,
     language: data.language_code,
-    durationSeconds: duration,
-    costUsd: computeElevenLabsTranscriptionCost(duration, keyterms.length > 0),
+    durationSeconds: billedSeconds,
+    costUsd: computeElevenLabsTranscriptionCost(billedSeconds, keyterms.length > 0),
     source: 'elevenlabs',
   };
 }
