@@ -253,6 +253,10 @@ describe("addCredits", () => {
     ["zero", 0],
     ["a negative amount", -50],
     ["more than 1,000,000", 1_000_001],
+    // numeric(20,2) would store these as 0.00, 0.00 and 1.01 (#2624).
+    ["a sub-cent amount (0.004)", 0.004],
+    ["a sub-cent amount (0.001)", 0.001],
+    ["an amount with three decimals (1.005)", 1.005],
   ] as const) {
     test(`rejects ${label} before it reads the license`, async () => {
       await rejects(
@@ -261,6 +265,24 @@ describe("addCredits", () => {
       );
       assert.equal(calls.findAccountById.length, 0);
       assert.equal(calls.grantCreditLot.length, 0);
+    });
+  }
+
+  for (const amount of [0.01, 0.29, 19.99, 999_999.99]) {
+    test(`accepts the whole-cent amount ${amount} and grants it unchanged`, async () => {
+      await callCustomers("addCredits", "mutation", { licenseKeyId: LICENSE_ID, amount });
+      assert.equal(calls.grantCreditLot[0].amount, amount);
+    });
+  }
+
+  for (const [label, amount, stored] of [
+    ["0.1 + 0.2", 0.1 + 0.2, 0.3],
+    ["999999.9900000001", 999999.9900000001, 999999.99],
+  ] as const) {
+    test(`grants and reports ${label} as the whole cent the ledger stores`, async () => {
+      const res = await callCustomers("addCredits", "mutation", { licenseKeyId: LICENSE_ID, amount });
+      assert.equal(calls.grantCreditLot[0].amount, stored);
+      assert.equal((res as { addedAmount: number }).addedAmount, stored);
     });
   }
 

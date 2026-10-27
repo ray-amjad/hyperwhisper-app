@@ -7,6 +7,7 @@ import {
   findAccountByKey,
   getCreditBalance,
 } from "@/src/lib/db-layer";
+import { isLookupableLicenseKey } from "@/src/lib/license-key-input";
 import { isRecord } from "@/src/lib/type-guards";
 import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
 import { creditPoolIdFor } from "@/src/lib/credit-pool-id";
@@ -49,7 +50,8 @@ export async function GET(req: NextRequest) {
   if (limited) return limited;
 
   const { searchParams } = new URL(req.url);
-  const licenseKey = searchParams.get("license_key");
+  // Trimmed before the required check, so a blank key is never looked up (#2319).
+  const licenseKey = searchParams.get("license_key")?.trim();
 
   if (!licenseKey) {
     return NextResponse.json(
@@ -58,8 +60,18 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  // A NUL byte would make Postgres throw and land in the 500 below (#2079).
+  // No stored key has one, so it is answered exactly as an unknown key: the
+  // cloud's `isLicenseRefusal` reads this text as "a key we will not charge".
+  if (!isLookupableLicenseKey(licenseKey)) {
+    return NextResponse.json(
+      { error: "License key not found" },
+      { status: 400 }
+    );
+  }
+
   try {
-    const license = await findAccountByKey(licenseKey.trim());
+    const license = await findAccountByKey(licenseKey);
 
     if (!license) {
       return NextResponse.json(
@@ -117,9 +129,16 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { license_key, amount, metadata } = isRecord(body) ? body : {};
+    const {
+      license_key: rawLicenseKey,
+      amount,
+      metadata,
+    } = isRecord(body) ? body : {};
+    // Trimmed before the required check, so a blank key is never looked up (#2319).
+    const license_key =
+      typeof rawLicenseKey === "string" ? rawLicenseKey.trim() : undefined;
 
-    if (!license_key || typeof license_key !== "string") {
+    if (!license_key) {
       return NextResponse.json(
         { error: "license_key is required" },
         { status: 400 }
@@ -141,7 +160,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const license = await findAccountByKey(license_key.trim());
+    // A NUL byte would make Postgres throw and land in the 500 below (#2079).
+    // Answered as an unknown key, as the GET above explains.
+    if (!isLookupableLicenseKey(license_key)) {
+      return NextResponse.json(
+        { error: "License key not found" },
+        { status: 400 }
+      );
+    }
+
+    const license = await findAccountByKey(license_key);
 
     if (!license) {
       return NextResponse.json(

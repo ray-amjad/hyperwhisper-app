@@ -373,7 +373,9 @@ describe('transcribeWithGemini — result and billing', () => {
     expect(withThinking - withoutThinking).toBeCloseTo(400 * 2.5e-6, 9);
   });
 
-  test('an empty transcript is reported as no_speech and is not billed', async () => {
+  // #2634: the endpoint is token-billed, so silent audio is charged what Google
+  // billed (2000 prompt tokens + 5 output), never $0.
+  test('an empty transcript is reported as no_speech and billed for its tokens', async () => {
     globalThis.fetch = mock(async () => Response.json(generateContentResponse('   ', {
       promptTokenCount: 2000,
       promptTokensDetails: [{ modality: 'AUDIO', tokenCount: 1920 }],
@@ -383,8 +385,9 @@ describe('transcribeWithGemini — result and billing', () => {
     const result = await transcribeWithGemini(audio(), 'audio/wav', 'en-US');
     expect(result.source).toBe('no_speech');
     expect(result.text).toBe('');
-    expect(result.costUsd).toBe(0);
-    expect(result.durationSeconds).toBe(0);
+    expect(result.costUsd).toBeGreaterThan(0);
+    // 1920 audio tokens at 32 tok/s.
+    expect(result.durationSeconds).toBeCloseTo(60, 6);
   });
 
   test('the no_speech log event records the token-derived duration, and null when usage is absent', async () => {

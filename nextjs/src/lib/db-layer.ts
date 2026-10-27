@@ -4,7 +4,7 @@
  * All database operations go through Drizzle ORM (Neon/PlanetScale).
  */
 
-import { eq, ne, and, or, asc, desc, gte, inArray, count, countDistinct, sql, ilike } from "drizzle-orm";
+import { eq, ne, and, or, asc, desc, gte, inArray, count, countDistinct, sql, ilike, type SQL } from "drizzle-orm";
 import { generateLicenseKey } from "@/lib/services/license-key";
 import { db } from "@/src/db";
 import {
@@ -810,6 +810,17 @@ export async function refundCreditGrant(
   });
 }
 
+/**
+ * True (in SQL) when `remaining` is stored as 0.00 or less. A spend subtracts
+ * in floating point, so a charge spanning two grants can leave a residue like
+ * 2.78e-17 that the numeric(20,2) column stores as 0.00. Deciding the status
+ * on the stored value means a grant that holds 0.00 is never left 'active'
+ * (#2620).
+ */
+function storesAsZero(remaining: number): SQL {
+  return sql`${remaining.toString()}::numeric(20,2) <= 0`;
+}
+
 export async function spendCreditGrantsByProvenance(
   userId: string,
   amount: number
@@ -853,7 +864,7 @@ export async function spendCreditGrantsByProvenance(
         .update(creditGrants)
         .set({
           remainingAmount: newRemaining.toString(),
-          status: newRemaining === 0 ? "spent" : "active",
+          status: sql`CASE WHEN ${storesAsZero(newRemaining)} THEN 'spent' ELSE 'active' END`,
           updatedAt: new Date(),
         })
         .where(eq(creditGrants.id, grant.id));
