@@ -53,6 +53,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("failed-start cleanup survives shutdown failure", FailedStartCleanup)
     ,("host options validate eagerly", HostOptionsValidation)
     ,("application backend resolves modes and vocabulary", ApplicationBackendModeRouting)
+    ,("recording toggle records with the selected mode", ApplicationBackendToggleUsesSelectedMode)
     ,("application backend validates mode catalogs", ApplicationBackendModeValidation)
     ,("mode wire contract matches the shared core", ApplicationBackendModeContract)
     ,("/transcribe runs the deterministic text passes", ApplicationBackendTextPasses)
@@ -1920,6 +1921,67 @@ static async Task PortableTranscriptionFailuresReachTheWire()
         LocalApiErrorCodes.TranscriptionFailed,
         "unavailable",
         "recording start failure");
+}
+
+// Issue #2406. `/recording/toggle` sends no mode id, and the backend fell back
+// to the DB `IsDefault` row, so a user who had picked another mode in the app
+// got the default one from the Local API while the in-app button used theirs.
+// The selected mode now wins; a selection that names no saved mode, or none at
+// all, still falls back to `IsDefault`.
+static async Task ApplicationBackendToggleUsesSelectedMode()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var history = new HistoryRepository(database);
+    var modes = new ModeRepository(database);
+    var defaultMode = new HyperWhisper.Data.Entities.Mode
+    {
+        Name = "Hyper", IsDefault = true, SortOrder = 1, ProviderType = "cloud",
+        CloudProvider = "elevenlabs", Language = "auto",
+    };
+    var selectedMode = new HyperWhisper.Data.Entities.Mode
+    {
+        Name = "Smoke Upper", SortOrder = 2, ProviderType = "cloud",
+        CloudProvider = "deepgram", Language = "auto",
+    };
+    await modes.UpsertAsync(defaultMode);
+    await modes.UpsertAsync(selectedMode);
+
+    var transcriber = new CapturingTranscriber();
+    using var workflow = new TranscriptionWorkflow(new TestRecorder(paths), new TestDevices(), transcriber, history);
+    workflow.RefreshDevices();
+    Guid? selection = selectedMode.Id;
+    var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0",
+        selectedModeId: () => selection);
+
+    async Task<Guid?> ToggleTwiceAsync()
+    {
+        var started = await backend.ToggleRecordingAsync(CancellationToken.None);
+        Assert(started.IsRecording, "the first toggle did not start a recording");
+        _ = await backend.ToggleRecordingAsync(CancellationToken.None);
+        return transcriber.Request?.ModeId;
+    }
+
+    Assert(await ToggleTwiceAsync() == selectedMode.Id, "the toggle recorded with the IsDefault mode, not the selected one");
+
+    // The selection is read at START, like the in-app button: changing it
+    // mid-recording does not move the recording to another mode.
+    _ = await backend.ToggleRecordingAsync(CancellationToken.None);
+    selection = defaultMode.Id;
+    _ = await backend.ToggleRecordingAsync(CancellationToken.None);
+    Assert(transcriber.Request?.ModeId == selectedMode.Id, "a selection change mid-recording moved the recording to another mode");
+
+    selection = Guid.NewGuid();
+    Assert(await ToggleTwiceAsync() == defaultMode.Id, "a selection naming a deleted mode did not fall back to IsDefault");
+    selection = null;
+    Assert(await ToggleTwiceAsync() == defaultMode.Id, "no selection did not fall back to IsDefault");
+
+    // A backend composed without a selection source keeps the old rule.
+    var unselected = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0");
+    _ = await unselected.ToggleRecordingAsync(CancellationToken.None);
+    _ = await unselected.ToggleRecordingAsync(CancellationToken.None);
+    Assert(transcriber.Request?.ModeId == defaultMode.Id, "a backend with no selection source did not use IsDefault");
 }
 
 static async Task ApplicationBackendModeRouting()

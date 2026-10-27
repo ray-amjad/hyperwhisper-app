@@ -275,7 +275,11 @@ public sealed partial class ApplicationLocalApiBackend
         }
         else if (string.IsNullOrWhiteSpace(engineOverride))
         {
-            mode = modes.SingleOrDefault(item => item.IsDefault);
+            // The selected mode first, then the IsDefault row when nothing is
+            // selected or the selection names a mode that is gone (#2406).
+            var selectedId = _selectedModeId?.Invoke();
+            mode = (selectedId is { } id ? modes.FirstOrDefault(item => item.Id == id) : null)
+                ?? modes.SingleOrDefault(item => item.IsDefault);
             if (mode is null && modes.Count != 0)
                 throw new InvalidOperationException("No default transcription mode is configured.");
         }
