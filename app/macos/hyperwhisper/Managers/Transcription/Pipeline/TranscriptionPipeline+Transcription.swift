@@ -43,10 +43,20 @@ extension TranscriptionPipeline {
         lastFailedAttemptDiagnostics = nil
 
         // The session this request belongs to, read before the first
-        // suspension. Every caller that takes `recordingState` over bumps the
-        // generation BEFORE it calls here, so a newer flow (a new recording, a
-        // newer retry, a file import) moves it past this value. This run then
-        // leaves `recordingState` to that flow (#1394).
+        // suspension. A newer flow that takes `recordingState` over (a record
+        // toggle, a pending-file retry, a file import starting from `.idle`)
+        // bumps the generation past this value, and this run then leaves
+        // `recordingState` to it (#1394). Those flows bump BEFORE they call
+        // here, so their own run reads its own generation. Two callers come in
+        // without a bump of their own, and are still safe:
+        // - an auto-stop or lost-capture stop's dictation reads the
+        //   generation its start's toggle began. Nothing bumps during that
+        //   stop: every toggle is ignored while `isStopInProgress`, the start
+        //   cleared the pending-file Retry, and a file import bumps only
+        //   from `.idle`.
+        // - both History retries are `.fileJob` runs: they keep the #1425
+        //   rule (only their own `.transcribing`, never over a dictation), and
+        //   a file import that starts after them moves the generation on.
         let sessionGenerationAtStart = appState?.transcriptionSessionGeneration
 
         // If a run of the SAME kind is in flight, cancel it so the latest
