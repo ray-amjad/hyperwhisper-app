@@ -145,6 +145,22 @@ struct NativeInitDiagnosticsTests {
         #expect(snapshot.contains("flashAttention: params.flash_attn"))
     }
 
+    /// The Silero VAD load reaches the same `whisper_backend_init` throw, so
+    /// it is bracketed the same way.
+    @Test func vadLoadIsBracketed() throws {
+        let body = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Managers/AudioRecording/Processing/VoiceActivityDetector.swift",
+            from: "func loadModel() async throws {",
+            to: "var isReady: Bool {"
+        )
+        let begin = try #require(body.range(of: "SentryService.beginNativeInit("))
+        let call = try #require(body.range(of: "whisper_vad_init_from_file_with_params(modelPath, contextParams)"))
+        let end = try #require(body.range(of: "SentryService.endNativeInit(.whisperVAD, succeeded: ctx != nil)"))
+        #expect(begin.upperBound <= call.lowerBound)
+        #expect(call.upperBound <= end.lowerBound)
+        #expect(String(body[begin.lowerBound..<call.lowerBound]).contains("engine: .whisperVAD"))
+    }
+
     /// The provider passes the catalog name, never the path, as the model.
     @Test func providerPassesTheCatalogName() throws {
         let code = try ProductionSource.code(
