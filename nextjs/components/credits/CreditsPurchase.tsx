@@ -217,7 +217,7 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
           <p className="text-lg text-gray-400">{t("subtitle")}</p>
         </div>
 
-        <Card className="bg-gradient-to-b from-purple-900/20 to-blue-900/20 border-purple-700 backdrop-blur-xl">
+        <Card className="bg-gradient-to-b from-purple-900/20 to-blue-900/20 border border-purple-700 backdrop-blur-xl">
           <CardBody className="p-6 md:p-8">
             {/* Email */}
             <label
