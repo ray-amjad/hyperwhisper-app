@@ -29455,6 +29455,10 @@ internal static class Program
     private static async Task AssertProviderErrorThenDropStaysFailed()
     {
         var providerError = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        // The error waits for StartAsync to reach Streaming: sent at once, the receive loop
+        // could move to Error before StartAsync's Connecting -> Streaming step, and StartAsync
+        // would return false on a slow runner.
+        var streaming = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var states = new List<StreamingConnectionState>();
         var errors = new List<string>();
 
@@ -29462,6 +29466,7 @@ internal static class Program
         {
             if (index == 0)
             {
+                await streaming.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
                 await ServerSendText(ws, "{\"t\":\"error\",\"text\":\"Credits exhausted.\"}", ct);
                 await providerError.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
                 socket.Shutdown(System.Net.Sockets.SocketShutdown.Both);
@@ -29475,7 +29480,12 @@ internal static class Program
 
         var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
         await using var client = new StreamingTranscriptionClient(new LoopbackScriptedStrategy(server.Uri), config);
-        client.StateChanged += state => { lock (states) states.Add(state); };
+        client.StateChanged += state =>
+        {
+            lock (states) states.Add(state);
+            if (state == StreamingConnectionState.Streaming)
+                streaming.TrySetResult();
+        };
         client.ErrorReceived += m =>
         {
             lock (errors) errors.Add(m);
