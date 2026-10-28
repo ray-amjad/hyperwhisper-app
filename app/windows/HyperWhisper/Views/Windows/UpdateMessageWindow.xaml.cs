@@ -25,23 +25,22 @@ public partial class UpdateMessageWindow : Window
     public UpdateMessageWindow(string title, string message, MessageIcon icon)
     {
         InitializeComponent();
+        SetMessage(title, message, icon);
+    }
 
+    /// <summary>
+    /// Sets the title, message and icon. HyperWhisperUIFactory calls this again on an
+    /// open dialog instead of stacking a second one (#2594).
+    /// </summary>
+    public void SetMessage(string title, string message, MessageIcon icon)
+    {
         TitleText.Text = title;
         MessageText.Text = message;
 
         // Show appropriate icon
-        switch (icon)
-        {
-            case MessageIcon.Success:
-                SuccessIcon.Visibility = Visibility.Visible;
-                break;
-            case MessageIcon.Error:
-                ErrorIcon.Visibility = Visibility.Visible;
-                break;
-            case MessageIcon.Info:
-                InfoIcon.Visibility = Visibility.Visible;
-                break;
-        }
+        SuccessIcon.Visibility = icon == MessageIcon.Success ? Visibility.Visible : Visibility.Collapsed;
+        ErrorIcon.Visibility = icon == MessageIcon.Error ? Visibility.Visible : Visibility.Collapsed;
+        InfoIcon.Visibility = icon == MessageIcon.Info ? Visibility.Visible : Visibility.Collapsed;
 
         LoggingService.Debug($"UpdateMessageWindow: Showing '{title}' - {icon}");
     }
