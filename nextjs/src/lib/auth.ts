@@ -2,6 +2,7 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { betterAuth, APIError } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/src/db";
@@ -72,6 +73,127 @@ function resendErrorFieldsOf(error: unknown): {
   }
 
   return fields;
+}
+
+const MAGIC_LINK_VERIFY_PATH = "/magic-link/verify";
+
+/**
+ * The per-request auth contexts in which the magic-link verify created the
+ * user (#2638). `databaseHooks.user.create.after` below adds to it, and the
+ * verify log line reads it as `newUser`.
+ *
+ * Why a marker, not a heuristic: better-auth's verify handler keeps its own
+ * `isNewUser` local. Its only outward trace is the redirect to
+ * `newUserCallbackURL`, which falls back to `callbackURL` and which
+ * `SignInClient.tsx` never sends, so the Location cannot tell. Comparing
+ * `user.createdAt` with the request time is a clock guess: measured on the
+ * memory adapter, a new user's row was 6 ms older than its session and a
+ * returning user's (signed in moments before) only 42 ms older. The
+ * create hook and the after hook run against the SAME `ctx.context` object
+ * (dispatch builds one per request, and the adapter's hooks read it from the
+ * endpoint's async context), so membership is exact. A WeakSet, so a request
+ * that dies before the after hook (a thrown non-`APIError`) leaks nothing.
+ */
+const verifyContextsThatCreatedAUser = new WeakSet<object>();
+
+type MagicLinkVerifyOutcome = "ok" | "rejected" | "error";
+
+/**
+ * Classify a finished `/magic-link/verify` request from what better-auth left
+ * on its context. Every failure in the handler is `throw ctx.redirect(...)` to
+ * the error callback with `?error=<code>`, which `dispatch.mjs` catches into
+ * `ctx.context.returned` as an `APIError` carrying a `location` header, so the
+ * code is read from there (it is also what `SignInClient.tsx` reads).
+ *
+ * - `INVALID_TOKEN` (used, expired or unknown link) is the user's link, not
+ *   the server, so it is `rejected`.
+ * - Any other `?error=` code (`failed_to_create_user`,
+ *   `failed_to_create_session`, `user_not_found`, a `createUser` APIError
+ *   code) is `error`.
+ * - An `APIError` with no redirect is a refusal before the handler ran (the
+ *   query schema, the callback-URL origin checks): `rejected` when 4xx,
+ *   `error` otherwise, with the error's code as `reason`.
+ * - No session and nothing recognisable: `error` / `unexpected`.
+ */
+function classifyMagicLinkVerify(
+  returned: unknown,
+  signedIn: boolean,
+): { outcome: MagicLinkVerifyOutcome; reason?: string } {
+  if (signedIn) return { outcome: "ok" };
+  if (!isAPIError(returned)) return { outcome: "error", reason: "unexpected" };
+
+  const location = new Headers(returned.headers).get("location");
+
+  if (location) {
+    // Only the `error` parameter is read. The Location itself is never logged:
+    // it carries the caller's callback URL.
+    const code = new URL(location, "http://localhost").searchParams.get(
+      "error",
+    );
+
+    if (code === "INVALID_TOKEN") return { outcome: "rejected", reason: code };
+
+    return { outcome: "error", reason: code ?? "unexpected" };
+  }
+
+  const code =
+    typeof returned.body?.code === "string"
+      ? returned.body.code
+      : `http_${returned.statusCode}`;
+
+  return {
+    outcome: returned.statusCode < 500 ? "rejected" : "error",
+    reason: code,
+  };
+}
+
+/**
+ * ONE structured line per `GET /api/auth/magic-link/verify` (#2638), in the
+ * shape `logSignIn` (`./auth-license-key-plugin.ts`) writes for the Account
+ * Key path, so either sign-in method answers "who signed in" and "why did my
+ * link not work" from the logs. Every verify failure is a 302, not a thrown
+ * error, so nothing else (Sentry, `onRequestError`) sees one.
+ *
+ * Logged: opaque ids, a reason code, and the client IP as a 12-character
+ * SHA-256 prefix. NEVER the email address, the token, the verify URL, the
+ * callback URL or the session token.
+ */
+function logMagicLinkVerify(ctx: {
+  headers?: Headers;
+  context: object & {
+    newSession: { user: { id: string } } | null;
+    returned?: unknown;
+  };
+}): void {
+  const { newSession, returned } = ctx.context;
+  const { outcome, reason } = classifyMagicLinkVerify(
+    returned,
+    newSession !== null,
+  );
+  const ip = ctx.headers?.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const line = JSON.stringify({
+    event: "auth.magic_link_verify",
+    outcome,
+    ...(reason ? { reason } : {}),
+    ...(newSession
+      ? {
+          userId: newSession.user.id,
+          newUser: verifyContextsThatCreatedAUser.has(ctx.context),
+        }
+      : {}),
+    ipHash: ip ? sha256Hex(ip).slice(0, 12) : null,
+  });
+
+  // The website's console output is its server log (Vercel).
+  /* eslint-disable no-console */
+  if (outcome === "ok") {
+    console.log(line);
+  } else if (outcome === "rejected") {
+    console.warn(line);
+  } else {
+    console.error(line);
+  }
+  /* eslint-enable no-console */
 }
 
 export const auth = betterAuth({
@@ -149,6 +271,37 @@ export const auth = betterAuth({
         }),
       },
     },
+    user: {
+      create: {
+        // Marks the request, for `newUser` on the verify log line below. See
+        // `verifyContextsThatCreatedAUser`.
+        after: async (_user, ctx) => {
+          if (ctx?.path === MAGIC_LINK_VERIFY_PATH) {
+            verifyContextsThatCreatedAUser.add(ctx.context);
+          }
+        },
+      },
+    },
+  },
+  hooks: {
+    // One log line per magic-link verify (#2638). Logging only: it returns
+    // nothing, so the response (redirect, cookies, error code) is untouched.
+    //
+    // The try/catch is load-bearing. `runAfterHooks` in better-auth's
+    // `dispatch.mjs` turns an `APIError` thrown here INTO the response and
+    // rethrows anything else as a 500, so a fault in the log line would undo a
+    // sign-in that already succeeded. Nothing from `ctx` goes into the fallback.
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== MAGIC_LINK_VERIFY_PATH) return;
+      try {
+        logMagicLinkVerify(ctx);
+      } catch {
+        // eslint-disable-next-line no-console
+        console.error(
+          JSON.stringify({ event: "auth.magic_link_verify_log_failed" }),
+        );
+      }
+    }),
   },
   // Better Auth's own rate-limit rules, counted in the site's Upstash so every
   // Vercel instance shares one budget (#2010). `customStorage`, deliberately
@@ -191,6 +344,7 @@ export const auth = betterAuth({
         // address as given, because an email local-part is case-sensitive per
         // RFC 5321 and rewriting the envelope is not this fix's business.
         const normalisedRecipient = email.trim().toLowerCase();
+        const recipientHash = sha256Hex(normalisedRecipient).slice(0, 12);
 
         const result = await resend.emails.send({
           from: DEFAULT_FROM_EMAIL,
@@ -247,9 +401,7 @@ export const auth = betterAuth({
           // which owns plaintext addresses in logs across every call site.
           console.error(
             redactAddresses(
-              `sendMagicLink failed: resend error name=${name} statusCode=${statusCode} recipientHash=${sha256Hex(
-                normalisedRecipient,
-              ).slice(0, 12)} message=${message}`,
+              `sendMagicLink failed: resend error name=${name} statusCode=${statusCode} recipientHash=${recipientHash} message=${message}`,
               normalisedRecipient.split("@")[1] ?? "",
             ),
           );
@@ -284,6 +436,18 @@ export const auth = betterAuth({
             message: "Failed to send the magic-link email. Please try again.",
           });
         }
+
+        // The success twin of the failure line above (#2638), so a "no email
+        // arrived" report can be matched to an accepted send. Same 12-character
+        // hash of the normalised address, never the address or the link.
+        // eslint-disable-next-line no-console
+        console.log(
+          JSON.stringify({
+            event: "auth.magic_link_send",
+            outcome: "ok",
+            recipientHash,
+          }),
+        );
       },
     }),
     licenseKeyPlugin(),

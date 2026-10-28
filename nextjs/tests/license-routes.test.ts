@@ -973,3 +973,139 @@ describe("the licence routes fail open when the rate limiter is down (#2058)", (
     });
   }
 });
+
+describe("a key containing a NUL byte is a bad request, not a server fault (#2079)", () => {
+  /** What Postgres does with 0x00 in a text parameter (SQLSTATE 22021). */
+  function postgresRefusesNul(): Error {
+    return Object.assign(
+      new Error('invalid byte sequence for encoding "UTF8": 0x00'),
+      { code: "22021" },
+    );
+  }
+
+  const cases = [
+    { name: "validate", path: VALIDATE_PATH, load: loadValidateRoute, extra: {} },
+    {
+      name: "validate probe_only",
+      path: VALIDATE_PATH,
+      load: loadValidateRoute,
+      extra: { probe_only: true },
+    },
+    { name: "activate", path: ACTIVATE_PATH, load: loadActivateRoute, extra: {} },
+  ];
+
+  for (const { name, path, load, extra } of cases) {
+    test(`${name}: answers 400 bad_request and never queries the database`, async () => {
+      behaviour.lookupError = postgresRefusesNul();
+      const { POST } = await load();
+
+      const response = await POST(
+        postRequest(path, { license_key: "HW-AAAA-BBBB-CCCC-DD\0D", ...extra }),
+      );
+      const body = await readJson(response);
+
+      assert.equal(response.status, 400);
+      assert.deepEqual(body, {
+        valid: false,
+        error: "Invalid license key",
+        reason: "bad_request",
+      });
+      assert.deepEqual(calls.findAccountByKey, []);
+    });
+  }
+
+  test("a real database fault is still a 500 lookup_failed", async () => {
+    behaviour.lookupError = postgresRefusesNul();
+    const { POST } = await loadValidateRoute();
+
+    const response = await POST(
+      postRequest(VALIDATE_PATH, { license_key: GRANTED_KEY }),
+    );
+
+    assert.equal(response.status, 500);
+    assert.equal((await readJson(response)).reason, "lookup_failed");
+  });
+});
+
+describe("a NUL byte in a device field never reaches the device write (#2688)", () => {
+  test("validate: a NUL device_id skips tracking and still answers 200", async () => {
+    storeRow(accountKeyRow({ key: GRANTED_KEY }));
+    const { POST } = await loadValidateRoute();
+    logLines.length = 0;
+    warnLines.length = 0;
+
+    const response = await POST(
+      postRequest(VALIDATE_PATH, {
+        license_key: GRANTED_KEY,
+        device_id: "device-abc\0",
+        device_name: "Studio Mac",
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await readJson(response), { valid: true });
+    assert.deepEqual(calls.upsertDeviceValidation, []);
+    assert.deepEqual(
+      logLines.filter((line) => line.includes("Device tracking error")),
+      [],
+    );
+    assert.ok(
+      warnLines.some((line) => line.includes("device_id contains NUL")),
+      warnLines.join("\n"),
+    );
+  });
+
+  test("validate: a NUL device_name records the device with the NUL as a space", async () => {
+    storeRow(accountKeyRow({ key: GRANTED_KEY, id: "key_row_9" }));
+    const { POST } = await loadValidateRoute();
+
+    const response = await POST(
+      postRequest(VALIDATE_PATH, {
+        license_key: GRANTED_KEY,
+        device_id: "device-abc",
+        device_name: "Studio\0Mac",
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(calls.upsertDeviceValidation, [
+      { licenseKeyId: "key_row_9", deviceId: "device-abc", deviceName: "Studio Mac" },
+    ]);
+  });
+
+  test("validate: a device_name of only NULs records the device with an empty name", async () => {
+    storeRow(accountKeyRow({ key: GRANTED_KEY, id: "key_row_9" }));
+    const { POST } = await loadValidateRoute();
+
+    const response = await POST(
+      postRequest(VALIDATE_PATH, {
+        license_key: GRANTED_KEY,
+        device_id: "device-abc",
+        device_name: "\0\0",
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(calls.upsertDeviceValidation, [
+      { licenseKeyId: "key_row_9", deviceId: "device-abc", deviceName: "" },
+    ]);
+  });
+
+  test("validate: a rejected key with a NUL device_id logs no device warning", async () => {
+    const { POST } = await loadValidateRoute();
+    warnLines.length = 0;
+
+    const response = await POST(
+      postRequest(VALIDATE_PATH, {
+        license_key: "HW-NOPE-NOPE-NOPE-NOPE",
+        device_id: "device-abc\0",
+      }),
+    );
+
+    assert.notEqual(response.status, 200);
+    assert.deepEqual(
+      warnLines.filter((line) => line.includes("device_id contains NUL")),
+      [],
+    );
+  });
+});

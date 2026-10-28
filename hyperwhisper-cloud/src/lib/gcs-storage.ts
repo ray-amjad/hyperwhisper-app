@@ -24,6 +24,11 @@ import { getConfiguredBucket } from './gcs-config';
 import { getGoogleAccessToken } from './google-auth';
 import { ProviderUnavailableError } from '../providers/types';
 import { markProviderNetworkCall } from '../providers/utils';
+import {
+  safeErrorToken,
+  summarizeUpstreamError,
+  upstreamErrorLogFields,
+} from '../providers/upstream-error';
 
 const GCS_API_BASE = 'https://storage.googleapis.com';
 const UPLOAD_TIMEOUT_FLOOR_MS = 30_000;
@@ -144,7 +149,10 @@ export async function uploadTranscriptionAudio(
   const elapsedMs = Math.round(performance.now() - start);
 
   if (!response.ok) {
-    const preview = await response.text().catch(() => '<unreadable>');
+    // Content-free fields only (#2176): the route logs these messages, and
+    // the README promises no upstream error body is logged. A GCS body names
+    // buckets and IAM principals, not audio, but the rule has no exceptions.
+    const { reason } = await readGcsError(response);
     // Route transient GCS failures (429 throttling, 5xx outages) through
     // ProviderUnavailableError so transcribe.ts surfaces them as 502 via the
     // chain-fail path. Non-transient codes (403 bad IAM, 404 missing bucket,
@@ -153,11 +161,11 @@ export async function uploadTranscriptionAudio(
     if (response.status === 429 || response.status >= 500) {
       throw new ProviderUnavailableError(
         'GCS upload',
-        `upload ${response.status} after ${elapsedMs}ms: ${preview.slice(0, 200)}`,
+        `upload ${response.status} after ${elapsedMs}ms: ${reason}`,
       );
     }
     throw new Error(
-      `GCS upload failed (status=${response.status}, elapsedMs=${elapsedMs}): ${preview.slice(0, 400)}`,
+      `GCS upload failed (status=${response.status}, elapsedMs=${elapsedMs}): ${reason}`,
     );
   }
 
@@ -173,6 +181,44 @@ export async function uploadTranscriptionAudio(
     objectName,
     gcsUri: `gs://${bucket}/${objectName}`,
   };
+}
+
+/**
+ * Read a failed GCS response once and keep only content-free facts (#2176).
+ * The body's prose (`error.message`, `errors[].message`) names buckets and
+ * IAM principals and never reaches a message or a log line. What is kept:
+ * the shared upstream fields (status, body length, request id) and GCS's own
+ * reason token from `error.errors[0].reason` (`forbidden`, `notFound`,
+ * `rateLimitExceeded`, ...), which tells a missing IAM grant from a missing
+ * bucket. `reason` is that token, else `HTTP <status>`.
+ */
+async function readGcsError(
+  response: Response,
+): Promise<{ reason: string; logFields: Record<string, string | number> }> {
+  let body: string | undefined;
+  try {
+    body = await response.text();
+  } catch {
+    body = undefined;
+  }
+  const logFields = upstreamErrorLogFields(summarizeUpstreamError(response.status, response.headers, body));
+  const gcsReason = gcsErrorReasonToken(body);
+  if (gcsReason !== undefined) logFields.gcsReason = gcsReason;
+  return { reason: gcsReason ?? `HTTP ${response.status}`, logFields };
+}
+
+function gcsErrorReasonToken(body: string | undefined): string | undefined {
+  if (!body) return undefined;
+  let json: unknown;
+  try {
+    json = JSON.parse(body);
+  } catch {
+    return undefined;
+  }
+  const error = (json as { error?: unknown } | null)?.error;
+  const errors = (error as { errors?: unknown } | null | undefined)?.errors;
+  if (!Array.isArray(errors)) return undefined;
+  return safeErrorToken((errors[0] as { reason?: unknown } | null | undefined)?.reason);
 }
 
 /**
@@ -196,13 +242,12 @@ export async function deleteTranscriptionAudio(ref: TranscriptionAudioRef): Prom
 
     // 404 is fine — already gone (re-entrant cleanup or lifecycle race).
     if (!response.ok && response.status !== 404) {
-      const preview = await response.text().catch(() => '<unreadable>');
+      const { logFields } = await readGcsError(response);
       console.warn('gcs.delete_failed', {
         bucket: ref.bucket,
         objectName: ref.objectName,
-        status: response.status,
+        ...logFields,
         elapsedMs,
-        bodyPreview: preview.slice(0, 200),
       });
       return;
     }
