@@ -104,7 +104,7 @@ actor WhisperContext {
     
     // MARK: - Initialization
     
-    /// Use `createContext(path:)` to get a loaded context. Internal, not
+    /// Use `createContext(path:model:)` to get a loaded context. Internal, not
     /// private, so a test can hold an unloaded one (#2048).
     init() {}
     
@@ -134,19 +134,24 @@ actor WhisperContext {
     // MARK: - Factory Method
     
     /// Create a new WhisperContext by loading a model from disk
-    /// - Parameter path: Path to the .bin model file
+    /// - Parameters:
+    ///   - path: Path to the .bin model file
+    ///   - model: The model's catalog id, for the crash diagnostics (#2678).
+    ///            Never the path: a path carries the user's name.
     /// - Returns: Initialized WhisperContext ready for transcription
-    static func createContext(path: String) async throws -> WhisperContext {
+    static func createContext(path: String, model: String) async throws -> WhisperContext {
         let whisperContext = WhisperContext()
-        try await whisperContext.initializeModel(path: path)
+        try await whisperContext.initializeModel(path: path, model: model)
         return whisperContext
     }
     
     // MARK: - Model Loading
     
     /// Initialize the Whisper model from a file path
-    /// - Parameter path: Path to the .bin model file
-    private func initializeModel(path: String) throws {
+    /// - Parameters:
+    ///   - path: Path to the .bin model file
+    ///   - model: The model's catalog id, for the crash diagnostics
+    private func initializeModel(path: String, model: String) throws {
         // Configure context parameters
         var params = whisper_context_default_params()
         
@@ -161,8 +166,19 @@ actor WhisperContext {
         logger.info("Metal acceleration enabled")
         #endif
         
-        // Load the model from file
+        // Load the model from file.
+        // This call can throw a C++ exception ("failed to initialize CPU
+        // backend", HYPERWHISPER-11R), which Swift cannot catch: the app ends
+        // inside it. Put what the machine looked like on the Sentry scope
+        // first, so the crash report says which init died and in what state.
+        SentryService.beginNativeInit(SentryService.nativeInitSnapshot(
+            engine: .whisper,
+            model: model,
+            useGPU: params.use_gpu,
+            flashAttention: params.flash_attn
+        ))
         let context = whisper_init_from_file_with_params(path, params)
+        SentryService.endNativeInit(.whisper, succeeded: context != nil)
         
         if let context = context {
             self.context = context

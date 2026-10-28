@@ -51,7 +51,7 @@ Local models work on Intel Macs, but they use the CPU only. There is no GPU or N
 Local transcription on Windows uses Vulkan (Whisper) and DirectML (Parakeet) for GPU acceleration. Vulkan works with all vendors. Any recent NVIDIA, AMD, or Intel GPU with Vulkan drivers is sufficient. If the app finds no compatible GPU, the model changes to the CPU automatically. The model still works, but it is slower.
 
 <Note>
-  On ARM64 and Snapdragon Windows devices, **Whisper requires Windows 11 or Windows Server 2022 or newer**. Whisper is not available on ARM64 devices that still run Windows 10. On these devices, the local options are **Parakeet V2** (English) and **Parakeet V3** (25 European languages). Both use DirectML acceleration.
+  On ARM64 and Snapdragon Windows devices, **Whisper requires Windows 11 or Windows Server 2022 or newer**. Whisper is not available on ARM64 devices that still run Windows 10. On these devices, the local options are **Parakeet V2** (English) and **Parakeet V3** (25 European languages). Both run on the CPU, because GPU acceleration is x64 only.
 </Note>
 
 ### Whisper size ladder

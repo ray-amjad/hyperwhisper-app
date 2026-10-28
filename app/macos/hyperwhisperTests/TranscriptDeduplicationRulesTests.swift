@@ -146,6 +146,37 @@ struct TranscriptDeduplicationRulesTests {
         #expect(Set(left.map(\.id)) == [ids[0], createdID])
     }
 
+    /// Both writers build the new row through `makeProcessingTranscript`
+    /// (#2292), so its fields match, and the path is stored as given.
+    @MainActor
+    @Test(arguments: Writer.allCases)
+    func aNewProcessingRowHasTheSameFieldsFromEitherWriter(_ writer: Writer) async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let path = "  /tmp/hw-2292-new-\(writer).wav\n"
+        let before = Date()
+
+        let createdID = try #require(try await createProcessing(writer, path: path, duration: 4, in: persistence))
+        let after = Date()
+
+        let context = persistence.container.newBackgroundContext()
+        let fields = await context.perform { () -> [String?]? in
+            let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
+            request.predicate = NSPredicate(format: "id == %@", createdID as CVarArg)
+            guard let row = (try? context.fetch(request))?.first else { return nil }
+            return [
+                row.text,
+                row.mode,
+                row.audioFilePath,
+                row.value(forKey: "status") as? String,
+                String(row.duration),
+                row.date.map { $0 >= before && $0 <= after ? "now" : "not now" },
+            ]
+        }
+        #expect(fields == ["Processing transcription...", "Dedup", path, "processing", "4.0", "now"])
+        let left = await rows(for: path, in: persistence)
+        #expect(left.map(\.id) == [createdID], "exactly one row is inserted")
+    }
+
     // MARK: - Transient-twin collapse
 
     /// Seeds an anchor processing row plus `twin`, completes the anchor through
