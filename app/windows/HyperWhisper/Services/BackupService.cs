@@ -293,12 +293,12 @@ public class BackupService
                     (modesImported, vocabImported) = MergeDatabaseEntities(modes, vocabulary);
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 // The transaction rolled the modes and vocabulary back, so the
                 // backup's settings must not stay applied on their own (issue #1614).
-                RestoreSettingsAfterFailedImport(settings, settingsBefore, "import");
-                throw;
+                var settingsRestored = RestoreSettingsAfterFailedImport(settings, settingsBefore, "import");
+                throw new ImportDatabaseStepException(ex, settingsRestored);
             }
 
             // A backup carries whatever `isDefault` its own machine held, so a
@@ -337,6 +337,11 @@ public class BackupService
         {
             LoggingService.Error("BackupService: Invalid JSON in backup", ex);
             return Result<string>.Failure(InvalidBackupFieldMessage(ex));
+        }
+        catch (ImportDatabaseStepException ex)
+        {
+            LoggingService.Error("BackupService: Import failed in the database step", ex.InnerException);
+            return Result<string>.Failure(ex.UserMessage);
         }
         catch (Exception ex)
         {
@@ -442,10 +447,11 @@ public class BackupService
                     summary.VocabularyAdded = added;
                     summary.VocabularyConflicts = conflicts;
                 }
-                catch
+                catch (Exception ex)
                 {
-                    RestoreSettingsAfterFailedImport(SettingsService.Instance, settingsBefore, "selective import");
-                    throw;
+                    var settingsRestored = RestoreSettingsAfterFailedImport(
+                        SettingsService.Instance, settingsBefore, "selective import");
+                    throw new ImportDatabaseStepException(ex, settingsRestored);
                 }
             }
 
@@ -502,6 +508,11 @@ public class BackupService
         {
             LoggingService.Error("BackupService: Invalid JSON in backup (selective)", ex);
             return Result<ImportSummary>.Failure(InvalidBackupFieldMessage(ex));
+        }
+        catch (ImportDatabaseStepException ex)
+        {
+            LoggingService.Error("BackupService: Selective import failed in the database step", ex.InnerException);
+            return Result<ImportSummary>.Failure(ex.UserMessage);
         }
         catch (Exception ex)
         {
@@ -727,27 +738,48 @@ public class BackupService
     /// Puts settings.json back to <paramref name="before"/> after an import's database
     /// step failed (issue #1614). Never throws: the caller is already failing with the
     /// database error, and that is the message the user must see, so a restore that
-    /// itself fails is only logged.
+    /// itself fails is only logged. Returns false only when that restore threw, so the
+    /// backup's settings may still be applied.
     /// </summary>
-    private static void RestoreSettingsAfterFailedImport(
+    private static bool RestoreSettingsAfterFailedImport(
         SettingsService settings,
         SettingsService.ImportSnapshot? before,
         string operation)
     {
         // Step 1 never ran (settings not selected, or the batch was refused).
         if (before == null)
-            return;
+            return true;
 
         try
         {
             if (settings.RestoreImportSnapshot(before))
                 LoggingService.Info($"BackupService: the {operation} failed in the database step; restored the settings it had applied");
+            return true;
         }
         catch (Exception ex)
         {
             LoggingService.Error(
                 $"BackupService: the {operation} failed in the database step and the settings it applied could not be restored", ex);
+            return false;
         }
+    }
+
+    /// <summary>
+    /// An import's database step failed and its transaction rolled back (issue #1695).
+    /// Carries the plain sentence the user sees; the EF Core / SQLite exception it wraps
+    /// ("See the inner exception for details") goes to the log only.
+    /// </summary>
+    private sealed class ImportDatabaseStepException : Exception
+    {
+        public ImportDatabaseStepException(Exception inner, bool settingsRestored)
+            : base("The import's database step failed", inner)
+        {
+            UserMessage = settingsRestored
+                ? "Import failed: the database refused the change. Nothing was imported."
+                : "Import failed: the database refused the change. Your modes and vocabulary were not changed.";
+        }
+
+        public string UserMessage { get; }
     }
 
     // =========================================================================
