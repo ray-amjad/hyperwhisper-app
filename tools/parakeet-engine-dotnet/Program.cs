@@ -370,14 +370,20 @@ internal sealed class MonoFoldSampleProvider : ISampleProvider
         if (count <= 0) return 0;
 
         var required = count * _channels;
-        if (_sourceBuffer.Length < required) Array.Resize(ref _sourceBuffer, required);
+        // One frame of headroom: a request is rounded up to whole frames (below).
+        if (_sourceBuffer.Length < required + _channels) Array.Resize(ref _sourceBuffer, required + _channels);
 
         // A 0 reads as end-of-stream downstream, so keep pulling until a whole frame exists
         // or the source is really exhausted.
         var available = _pending;
         while (available < _channels)
         {
-            var read = _source.Read(_sourceBuffer, available, required - available);
+            // Ask in whole frames: WaveFileReader throws "Must read complete blocks" on any
+            // other count, and after a carried partial frame (a data chunk that ends
+            // mid-frame) required - available is not one. Fewer than (count + 1) frames are
+            // ever available, so at most `count` whole frames come out.
+            var want = (required - available + _channels - 1) / _channels * _channels;
+            var read = _source.Read(_sourceBuffer, available, want);
             if (read <= 0) break;
             available += read;
         }

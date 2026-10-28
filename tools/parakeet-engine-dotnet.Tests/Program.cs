@@ -26,6 +26,7 @@ internal static class DaemonTests
             ("an Extensible float WAV decodes like a plain one", ExtensibleFloatWav),
             ("plain mono and stereo WAVs decode as before", PlainMonoAndStereoWav),
             ("the fold carries a partial frame across reads", MonoFoldCarriesPartialFrame),
+            ("a WAV whose data ends mid-frame decodes its whole frames", WavEndingMidFrame),
         };
 
         var failures = 0;
@@ -234,6 +235,39 @@ internal static class DaemonTests
         int read;
         while ((read = fold.Read(buffer, 0, buffer.Length)) > 0) output.AddRange(buffer.Take(read));
         Equal("2,5,8", string.Join(",", output));
+    }
+
+    private static void WavEndingMidFrame()
+    {
+        // A recorder killed mid-write leaves a data chunk that is not a whole number of
+        // frames. NAudio's WaveFileReader refuses a read that is not whole blocks, so the
+        // fold must never ask for one after it carries the partial frame.
+        foreach (var (channels, extensible) in new[] { (2, false), (6, true) })
+        {
+            var path = WriteWav(16000, channels, 16, extensible, float32: false, frames: 1600, (_, _) => 0.25);
+            try
+            {
+                AppendPartialFrame(path);
+                var audio = Program.ReadAudio(path);
+                Equal(1600, audio.Samples.Length);
+                True(Math.Abs(audio.Samples[1599] - 0.25f) < 0.001f, $"{channels} ch: expected 0.25, got {audio.Samples[1599]}");
+            }
+            finally { File.Delete(path); }
+        }
+    }
+
+    /// <summary>Appends one 16-bit sample (half a stereo frame) and grows both sizes to match.</summary>
+    private static void AppendPartialFrame(string path)
+    {
+        var bytes = File.ReadAllBytes(path).ToList();
+        bytes.AddRange(new byte[] { 0x00, 0x20 });
+        var file = bytes.ToArray();
+        BitConverter.GetBytes(file.Length - 8).CopyTo(file, 4);
+        var data = file.Length - 4;
+        for (var i = 12; i < file.Length - 8; i++)
+            if (file[i] == 'd' && file[i + 1] == 'a' && file[i + 2] == 't' && file[i + 3] == 'a') { data = i; break; }
+        BitConverter.GetBytes(file.Length - data - 8).CopyTo(file, data + 4);
+        File.WriteAllBytes(path, file);
     }
 
     private sealed class TrickleProvider(float[] samples, int channels, int perRead) : ISampleProvider
