@@ -1,6 +1,4 @@
-use super::{
-    HwProvider, HwProviderHealth, HwTranscriptionError, HttpRequest, HttpResponse, RetryDecision,
-};
+use super::{HwProvider, HwProviderHealth, HttpRequest, HttpResponse, RetryDecision};
 
 // ===========================================================================
 // vocabulary
@@ -38,12 +36,6 @@ pub fn retry_default_budget_ms() -> u64 {
 #[uniffi::export]
 pub fn retry_max_retry_after_secs() -> u64 {
     hw_net::retry::MAX_RETRY_AFTER_SECS
-}
-
-/// Map an HTTP status + response body to a `HwTranscriptionError`.
-#[uniffi::export]
-pub fn classify_error(status: u16, body: String) -> HwTranscriptionError {
-    hw_net::retry::classify_error(status, &body).into()
 }
 
 /// Whether a classified error should be retried.
@@ -92,27 +84,10 @@ pub fn next_retry_within_budget(
 // health
 // ===========================================================================
 
-/// Default HyperWhisper Cloud health URL for routed providers.
-#[uniffi::export]
-pub fn hw_cloud_health_default() -> String {
-    hw_net::health::HW_CLOUD_HEALTH_DEFAULT.to_string()
-}
-
 /// Build a lightweight health-check request for `provider`.
 #[uniffi::export]
 pub fn build_health_request(provider: HwProvider, api_key: String) -> HttpRequest {
     hw_net::health::build_health_request(provider.into(), &api_key).into()
-}
-
-/// Like `build_health_request` but with an explicit HW Cloud base URL.
-#[uniffi::export]
-pub fn build_health_request_with_base(
-    provider: HwProvider,
-    api_key: String,
-    base_url: Option<String>,
-) -> HttpRequest {
-    hw_net::health::build_health_request_with_base(provider.into(), &api_key, base_url.as_deref())
-        .into()
 }
 
 /// Parse a health-check response into a verdict.
