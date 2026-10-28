@@ -86,6 +86,7 @@ export default function HeroSection() {
             as={Link}
             className="border-gray-600 text-gray-300 font-semibold px-8 py-6 text-lg hover:bg-gray-800"
             href="#demo"
+            role="link"
             size="lg"
             startContent={<Play className="w-5 h-5" />}
             variant="bordered"
