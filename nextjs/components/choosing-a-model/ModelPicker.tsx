@@ -133,14 +133,14 @@ const MEASURED_HINT =
 function PlacementBadge({ model }: { model: Model }) {
   if (isDevice(model)) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
+      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-emerald-300">
         <Laptop className="h-3 w-3" aria-hidden="true" />
         On device
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/40 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sky-300">
+    <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/40 bg-sky-500/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-sky-300">
       <Cloud className="h-3 w-3" aria-hidden="true" />
       Cloud
     </span>
@@ -159,7 +159,7 @@ function AccuracyNote({ model }: { model: Model }) {
 
   if (label === null) return null;
   return (
-    <span className="rounded-full border border-gray-700 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-gray-400">
+    <span className="rounded-full border border-gray-700 px-1.5 py-0.5 text-xs uppercase tracking-wider text-gray-400">
       {label}
     </span>
   );
@@ -597,9 +597,9 @@ export default function ModelPicker({ measured, regions }: Props) {
                   : `${best.model.vendorLabel} · runs on HyperWhisper Cloud`}
               </p>
 
-              <dl ref={statsRef} className="mt-6 grid gap-3 sm:grid-cols-4">
+              <dl ref={statsRef} className="mt-6 grid gap-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2.5">
-                  <dt className="text-[10px] uppercase tracking-wider text-gray-400">
+                  <dt className="text-xs uppercase tracking-wider text-gray-400">
                     Word errors
                   </dt>
                   <dd className="t-number-pop mt-1 font-mono text-lg tabular-nums text-white">
@@ -607,7 +607,7 @@ export default function ModelPicker({ measured, regions }: Props) {
                   </dd>
                 </div>
                 <div className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2.5">
-                  <dt className="text-[10px] uppercase tracking-wider text-gray-400">
+                  <dt className="text-xs uppercase tracking-wider text-gray-400">
                     Cost
                   </dt>
                   <dd className="t-number-pop mt-1 font-mono text-lg tabular-nums text-white">
@@ -616,12 +616,12 @@ export default function ModelPicker({ measured, regions }: Props) {
                   {/* A second <dd>, not a <p> in the first one: a <dl> wrapper may hold
                       only <dt>/<dd> (#890), and inside the first <dd> the note would
                       inherit its font-mono text-lg line box. */}
-                  <dd className="t-number-pop mt-0.5 text-[10px] text-gray-400">
+                  <dd className="t-number-pop mt-0.5 text-xs text-gray-400">
                     {formatDollars(best.model) ?? "no per-minute cost"}
                   </dd>
                 </div>
                 <div className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2.5">
-                  <dt className="text-[10px] uppercase tracking-wider text-gray-400">
+                  <dt className="text-xs uppercase tracking-wider text-gray-400">
                     Per audio minute
                   </dt>
                   <dd className="t-number-pop mt-1 font-mono text-lg tabular-nums text-white">
@@ -629,7 +629,7 @@ export default function ModelPicker({ measured, regions }: Props) {
                   </dd>
                 </div>
                 <div className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2.5">
-                  <dt className="text-[10px] uppercase tracking-wider text-gray-400">
+                  <dt className="text-xs uppercase tracking-wider text-gray-400">
                     Match
                   </dt>
                   <dd className="t-number-pop mt-1 font-mono text-lg tabular-nums text-white">

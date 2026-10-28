@@ -1,14 +1,18 @@
 "use client";
 
-import { m } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 import { useTranslations } from "next-intl";
 
 export default function VideoDemo() {
   const t = useTranslations("demo");
+  // Settle the reveal offset at mount under Reduce motion, so the blocks
+  // fade in place instead of snapping up on reveal (#1180, see FeaturesGrid).
+  const settle = useReducedMotion() ? { y: 0 } : undefined;
 
   return (
     <section className="py-20" id="demo">
       <m.div
+        animate={settle}
         className="max-w-6xl mx-auto"
         initial={{ opacity: 0, y: 20 }}
         transition={{ duration: 0.5 }}
@@ -36,6 +40,7 @@ export default function VideoDemo() {
         {/* Feature highlights below video */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-12">
           <m.div
+            animate={settle}
             className="text-center"
             initial={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.5, delay: 0.1 }}
@@ -46,6 +51,7 @@ export default function VideoDemo() {
             <div className="text-gray-400">{t("fasterThanTyping")}</div>
           </m.div>
           <m.div
+            animate={settle}
             className="text-center"
             initial={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.5, delay: 0.2 }}
@@ -56,6 +62,7 @@ export default function VideoDemo() {
             <div className="text-gray-400">{t("accuracyRate")}</div>
           </m.div>
           <m.div
+            animate={settle}
             className="text-center"
             initial={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.5, delay: 0.3 }}
@@ -66,6 +73,7 @@ export default function VideoDemo() {
             <div className="text-gray-400">{t("languagesSupported")}</div>
           </m.div>
           <m.div
+            animate={settle}
             className="text-center"
             initial={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.5, delay: 0.4 }}
