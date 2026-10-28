@@ -33,7 +33,7 @@ const MUTANTS = [
   { name: "grant: wrong grant source type", from: 'sourceType: "admin_license_bundle"', to: 'sourceType: "admin_manual"' },
   { name: "grant: grant keyed on the user id, not the key id", from: "        sourceId: license.id,", to: "        sourceId: license.userId," },
   { name: "grant: carry on when the user is not created", from: "      if (!user) {", to: "      if (false) {" },
-  { name: "grant: carry on when the key insert fails", from: "        if (!license) {\n          throw new TRPCError({ code: \"INTERNAL_SERVER_ERROR\", message: \"Failed to insert", to: "        if (false) {\n          throw new TRPCError({ code: \"INTERNAL_SERVER_ERROR\", message: \"Failed to insert" },
+  { name: "grant: carry on when the key insert fails", from: "          status: \"granted\",\n        });\n        if (!license) {", to: "          status: \"granted\",\n        }) ?? { id: \"lic_fallback\", userId: user.id };\n        if (false) {" },
   { name: "grant: mail a different key than the one stored", from: "        licenseKey: key,", to: "        licenseKey: generateLicenseKey()," },
   // --- addCredits -----------------------------------------------------------
   { name: "addCredits: lift the 1,000,000 cap", from: ".max(MAX_ADMIN_CREDIT_GRANT)", to: "" },
