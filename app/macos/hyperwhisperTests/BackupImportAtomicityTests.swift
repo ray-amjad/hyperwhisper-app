@@ -33,101 +33,10 @@ struct BackupImportAtomicityTests {
 
     // MARK: - Fixtures
 
-    /// Blanks the required `name` of the poison row each time a save is about
-    /// to write it, so that save fails validation. Removed by the caller.
-    @MainActor
-    private final class SavePoison {
-        private(set) var fired = false
-        private var token: NSObjectProtocol?
-
-        init(context: NSManagedObjectContext, poisonName: String) {
-            token = NotificationCenter.default.addObserver(
-                forName: NSManagedObjectContext.willSaveObjectsNotification,
-                object: context,
-                queue: nil
-            ) { [weak self] _ in
-                MainActor.assumeIsolated {
-                    for case let mode as Mode in context.insertedObjects where mode.name == poisonName {
-                        mode.name = nil
-                        self?.fired = true
-                    }
-                }
-            }
-        }
-
-        func remove() {
-            if let token {
-                NotificationCenter.default.removeObserver(token)
-            }
-            token = nil
-        }
-    }
-
-    /// Makes the save that writes the vocabulary word `poisonWord` fail
-    /// validation: when such a row is about to be saved, a Mode with no name
-    /// (a required attribute) is inserted into the same save. The rollback
-    /// discards it with the vocabulary. Removed by the caller.
-    @MainActor
-    private final class VocabularySavePoison {
-        private(set) var fired = false
-        private var token: NSObjectProtocol?
-
-        init(context: NSManagedObjectContext, poisonWord: String) {
-            token = NotificationCenter.default.addObserver(
-                forName: NSManagedObjectContext.willSaveObjectsNotification,
-                object: context,
-                queue: nil
-            ) { [weak self] _ in
-                MainActor.assumeIsolated {
-                    let poisoned = context.insertedObjects.contains { ($0 as? Vocabulary)?.word == poisonWord }
-                    if poisoned {
-                        _ = Mode(context: context)
-                        self?.fired = true
-                    }
-                }
-            }
-        }
-
-        func remove() {
-            if let token {
-                NotificationCenter.default.removeObserver(token)
-            }
-            token = nil
-        }
-    }
-
-    private static func backupMode(id: UUID = UUID(), name: String, isDefault: Bool = false) -> BackupMode {
-        BackupMode(
-            id: id,
-            name: name,
-            preset: "hyper",
-            language: "en",
-            model: "base",
-            punctuation: true,
-            capitalization: true,
-            profanityFilter: false,
-            customInstructions: nil,
-            languageModel: nil,
-            cloudProvider: nil,
-            cloudTranscriptionModel: nil,
-            postProcessingMode: 0,
-            postProcessingProvider: nil,
-            englishSpelling: nil,
-            userSystemPrompt: nil,
-            isDefault: isDefault,
-            sortOrder: 0,
-            cloudAccuracyTier: nil,
-            removeTrailingPeriod: nil,
-            geminiCustomPrompt: nil,
-            cloudPostProcessingModel: nil,
-            cloudTranscriptionDomain: nil
-        )
-    }
-
     /// `total` modes; the row at `poisonIndex` carries the poison name.
     private static func largeBackup() -> [BackupMode] {
         (0..<Self.total).map { index in
-            Self.backupMode(name: index == Self.poisonIndex ? Self.poisonName : String(format: "\(Self.prefix)%03ld", index))
+            BackupTestFixtures.backupMode(name: index == Self.poisonIndex ? Self.poisonName : String(format: "\(Self.prefix)%03ld", index))
         }
     }
 
@@ -161,24 +70,6 @@ struct BackupImportAtomicityTests {
         return (try #require(alpha.id), try #require(beta.id))
     }
 
-    /// Rows in the STORE, read on a fresh background context: unsaved changes
-    /// on `viewContext` do not count.
-    @MainActor
-    private func storedCount(_ entityName: String, in persistence: PersistenceController) throws -> Int {
-        let context = persistence.container.newBackgroundContext()
-        var count = 0
-        var failure: Error?
-        context.performAndWait {
-            do {
-                count = try context.count(for: NSFetchRequest<NSFetchRequestResult>(entityName: entityName))
-            } catch {
-                failure = error
-            }
-        }
-        if let failure { throw failure }
-        return count
-    }
-
     @MainActor
     private func storedPrefixedModeCount(in persistence: PersistenceController) throws -> Int {
         let context = persistence.container.newBackgroundContext()
@@ -203,10 +94,10 @@ struct BackupImportAtomicityTests {
     @Test func aSaveThatFailsPartWayLeavesTheModesAsTheyWere() throws {
         let persistence = PersistenceController(inMemory: true)
         try seedLocalStore(persistence)
-        let before = try storedCount("Mode", in: persistence)
+        let before = try BackupTestFixtures.storedCount("Mode", in: persistence)
         #expect(before == 3)
 
-        let poison = SavePoison(context: persistence.container.viewContext, poisonName: Self.poisonName)
+        let poison = ModeSavePoison(context: persistence.container.viewContext, poisonName: Self.poisonName)
         defer { poison.remove() }
 
         _ = persistence.importModes(Self.largeBackup(), resolution: .replace)
@@ -214,7 +105,7 @@ struct BackupImportAtomicityTests {
         // Without this the case proves nothing.
         #expect(poison.fired, "the poison row was never saved")
 
-        let after = try storedCount("Mode", in: persistence)
+        let after = try BackupTestFixtures.storedCount("Mode", in: persistence)
         #expect(after == before, "the failed import left \(after - before) of its \(Self.total) modes in the store")
         #expect(try storedPrefixedModeCount(in: persistence) == 0)
 
@@ -231,10 +122,10 @@ struct BackupImportAtomicityTests {
     @Test func aFailedModesSaveThrowsAndLeavesModesAndVocabularyAsTheyWere() throws {
         let persistence = PersistenceController(inMemory: true)
         try seedLocalStore(persistence)
-        let modesBefore = try storedCount("Mode", in: persistence)
-        let vocabularyBefore = try storedCount("Vocabulary", in: persistence)
+        let modesBefore = try BackupTestFixtures.storedCount("Mode", in: persistence)
+        let vocabularyBefore = try BackupTestFixtures.storedCount("Vocabulary", in: persistence)
 
-        let poison = SavePoison(context: persistence.container.viewContext, poisonName: Self.poisonName)
+        let poison = ModeSavePoison(context: persistence.container.viewContext, poisonName: Self.poisonName)
         defer { poison.remove() }
 
         var failure: PersistenceController.BackupStoreImportError?
@@ -257,8 +148,8 @@ struct BackupImportAtomicityTests {
         #expect(thrown.failedSection == .modes)
         #expect(thrown.committed.modesImported == 0)
         #expect(thrown.committed.modeIdRemap.isEmpty)
-        #expect(try storedCount("Mode", in: persistence) == modesBefore)
-        #expect(try storedCount("Vocabulary", in: persistence) == vocabularyBefore)
+        #expect(try BackupTestFixtures.storedCount("Mode", in: persistence) == modesBefore)
+        #expect(try BackupTestFixtures.storedCount("Vocabulary", in: persistence) == vocabularyBefore)
         #expect(persistence.container.viewContext.hasChanges == false)
 
         // The vocabulary was never written.
@@ -272,7 +163,7 @@ struct BackupImportAtomicityTests {
             id: UUID(), name: "After", preset: "hyper", language: "en", model: "base",
             punctuation: true, capitalization: true, profanityFilter: false
         )
-        #expect(try storedCount("Mode", in: persistence) == modesBefore + 1)
+        #expect(try BackupTestFixtures.storedCount("Mode", in: persistence) == modesBefore + 1)
     }
 
     /// Modes and vocabulary live in different stores, so each is its own save.
@@ -310,12 +201,12 @@ struct BackupImportAtomicityTests {
         #expect(thrown.committed.vocabularyImported == 0)
 
         // The modes committed: Beta replaced, 301 imported, one default.
-        #expect(try storedCount("Mode", in: persistence) == 3 - 1 + 301)
+        #expect(try BackupTestFixtures.storedCount("Mode", in: persistence) == 3 - 1 + 301)
         #expect(try storedPrefixedModeCount(in: persistence) == 300)
         #expect(persistence.fetchAllModes().filter(\.isDefault).map(\.id) == [Self.conflictingBetaId])
 
         // The vocabulary is as it was.
-        #expect(try storedCount("Vocabulary", in: persistence) == 2)
+        #expect(try BackupTestFixtures.storedCount("Vocabulary", in: persistence) == 2)
         let vocabulary = persistence.fetchAllVocabularyItems()
         #expect(vocabulary.first { $0.word?.lowercased() == "teh" }?.replacement == "the")
         #expect(vocabulary.contains { $0.word == poisonWord } == false)
@@ -329,8 +220,8 @@ struct BackupImportAtomicityTests {
     /// 300 new modes, a "beta" that conflicts with the local Beta and claims
     /// the default, and vocabulary that exercises every branch.
     private static func successBackup() -> (modes: [BackupMode], vocabulary: [BackupVocabularyItem]) {
-        var modes = (0..<300).map { Self.backupMode(name: String(format: "\(Self.prefix)%03ld", $0)) }
-        modes.append(Self.backupMode(id: Self.conflictingBetaId, name: "beta", isDefault: true))
+        var modes = (0..<300).map { BackupTestFixtures.backupMode(name: String(format: "\(Self.prefix)%03ld", $0)) }
+        modes.append(BackupTestFixtures.backupMode(id: Self.conflictingBetaId, name: "beta", isDefault: true))
         let vocabulary = [
             Self.vocabularyItem("TEH", "The"),     // conflicts with the stored "teh"
             Self.vocabularyItem("new-one", "N1"),
@@ -360,9 +251,9 @@ struct BackupImportAtomicityTests {
         #expect(result.vocabularySkipped == 1)
 
         #expect(persistence.container.viewContext.hasChanges == false)
-        #expect(try storedCount("Mode", in: persistence) == 3 - 1 + 301)
+        #expect(try BackupTestFixtures.storedCount("Mode", in: persistence) == 3 - 1 + 301)
         #expect(try storedPrefixedModeCount(in: persistence) == 300)
-        #expect(try storedCount("Vocabulary", in: persistence) == 2 + 2)
+        #expect(try BackupTestFixtures.storedCount("Vocabulary", in: persistence) == 2 + 2)
 
         let modes = persistence.fetchAllModes()
         #expect(modes.contains { $0.id == local.beta } == false)
@@ -397,8 +288,8 @@ struct BackupImportAtomicityTests {
         #expect(result.modesImported == 301)
         #expect(result.modesSkipped == 0)
         let newBetaId = try #require(result.modeIdRemap[Self.conflictingBetaId])
-        #expect(try storedCount("Mode", in: persistence) == 3 + 301)
-        #expect(try storedCount("Vocabulary", in: persistence) == 2)
+        #expect(try BackupTestFixtures.storedCount("Mode", in: persistence) == 3 + 301)
+        #expect(try BackupTestFixtures.storedCount("Vocabulary", in: persistence) == 2)
 
         let modes = persistence.fetchAllModes()
         #expect(modes.contains { $0.id == local.beta && $0.name == "Beta" })
@@ -424,8 +315,8 @@ struct BackupImportAtomicityTests {
         #expect(result.vocabularyImported == 2)
         #expect(result.vocabularySkipped == 3)
 
-        #expect(try storedCount("Mode", in: persistence) == 3 + 300)
-        #expect(try storedCount("Vocabulary", in: persistence) == 2 + 2)
+        #expect(try BackupTestFixtures.storedCount("Mode", in: persistence) == 3 + 300)
+        #expect(try BackupTestFixtures.storedCount("Vocabulary", in: persistence) == 2 + 2)
 
         let modes = persistence.fetchAllModes()
         #expect(modes.contains { $0.id == local.beta })
@@ -441,13 +332,13 @@ struct BackupImportAtomicityTests {
     @Test func aBackupWithNoDefaultStillLeavesExactlyOne() throws {
         // Issue #536's repair now runs inside the transaction, without its own save.
         let persistence = PersistenceController(inMemory: true)
-        let backup = (0..<5).map { Self.backupMode(name: "\(Self.prefix)\($0)") }
+        let backup = (0..<5).map { BackupTestFixtures.backupMode(name: "\(Self.prefix)\($0)") }
 
         let result = persistence.importModes(backup, resolution: .replace)
 
         #expect(result.imported == 5)
         #expect(persistence.container.viewContext.hasChanges == false)
-        #expect(try storedCount("Mode", in: persistence) == 5)
+        #expect(try BackupTestFixtures.storedCount("Mode", in: persistence) == 5)
         #expect(persistence.fetchAllModes().filter(\.isDefault).count == 1)
     }
 
