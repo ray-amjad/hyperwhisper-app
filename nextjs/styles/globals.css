@@ -268,6 +268,22 @@ body {
   }
 }
 
+/* The dashboard's account cards arriving over their skeleton (#865): the
+   cards mount with this animation while the skeleton under them fades out in
+   the same slot, so the two cross-fade instead of swapping in one frame. The
+   element carries motion-reduce:animate-none, so reduced motion lands it at
+   once. */
+@keyframes skel-reveal {
+  from {
+    opacity: 0;
+    filter: blur(var(--motion-blur-small));
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
 /* A form error (#749). The wrapper stays mounted and the message reveals in
    it: its one grid row tweens 0fr -> 1fr while it fades in, so the form below
    moves down over 280 ms instead of in one frame. The alert itself still

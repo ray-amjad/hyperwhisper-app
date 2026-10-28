@@ -280,7 +280,9 @@
       "dataTraining": "資料隱私"
     },
     "copyright": "© 2026 HyperWhisper. 保留所有權利。",
-    "linkedinAria": "LinkedIn"
+    "linkedinAria": "LinkedIn",
+    "xAria": "在 X（Twitter）上追蹤 HyperWhisper",
+    "githubAria": "HyperWhisper 的 GitHub"
   },
   "cloudSection": {
     "eyebrow": "雲端",

@@ -125,7 +125,7 @@ export default function FeaturesGrid() {
           viewport={{ once: true }}
           whileInView={{ opacity: 1, y: 0 }}
         >
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+          <h2 className="-mx-2 px-2 text-3xl sm:text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
             {t("title")}
           </h2>
           <p className="text-lg text-gray-400 max-w-2xl mx-auto">

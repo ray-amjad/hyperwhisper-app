@@ -44,7 +44,7 @@ public sealed class ModeRepository(ApplicationDb database)
         var modes = await context.Modes.OrderBy(item => item.SortOrder).ToListAsync(cancellationToken);
         var target = modes.SingleOrDefault(item => item.Id == id);
         if (target is null) return false;
-        if (modes.Count == 1) throw new InvalidOperationException("Cannot delete the last remaining mode.");
+        if (modes.Count == 1) throw new ModeRuleViolationException("modes.last_mode", "Cannot delete the last remaining mode.");
         context.Modes.Remove(target);
         // Deleting the default moves the flag rather than leaving none. Which
         // mode it moves to is the shared core's decision (issue #536), so a
@@ -90,8 +90,9 @@ public sealed class ModeRepository(ApplicationDb database)
 }
 
 /// <summary>
-/// A save <see cref="ModeRepository.UpsertSafelyAsync"/> refused on a mode rule, not on a storage
-/// fault. <see cref="Code"/> is the status code the editor shows it under (issue #2551).
+/// A save <see cref="ModeRepository.UpsertSafelyAsync"/> or a delete
+/// <see cref="ModeRepository.DeleteSafelyAsync"/> refused on a mode rule, not on a storage fault.
+/// <see cref="Code"/> is the status code the editor shows it under (issues #2551, #2561).
 /// </summary>
 public sealed class ModeRuleViolationException(string code, string message) : InvalidOperationException(message)
 {

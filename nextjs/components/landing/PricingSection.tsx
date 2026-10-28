@@ -152,7 +152,8 @@ export default function PricingSection() {
                 <Button
                   as={Link}
                   href="/credits"
-                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white mt-auto"
+                  role="link"
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold mt-auto"
                   size="lg"
                 >
                   {t("credits.cta")}
