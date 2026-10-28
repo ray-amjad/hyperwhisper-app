@@ -280,7 +280,9 @@
       "dataTraining": "Απόρρητο δεδομένων"
     },
     "copyright": "© 2026 HyperWhisper. Με επιφύλαξη παντός δικαιώματος.",
-    "linkedinAria": "LinkedIn"
+    "linkedinAria": "LinkedIn",
+    "xAria": "Ακολουθήστε το HyperWhisper στο X (Twitter)",
+    "githubAria": "Το HyperWhisper στο GitHub"
   },
   "cloudSection": {
     "eyebrow": "Cloud",

@@ -280,7 +280,9 @@
       "dataTraining": "Gagnafriðhelgi"
     },
     "copyright": "© 2026 HyperWhisper. Öll réttindi áskilin.",
-    "linkedinAria": "LinkedIn"
+    "linkedinAria": "LinkedIn",
+    "xAria": "Fylgdu HyperWhisper á X (Twitter)",
+    "githubAria": "HyperWhisper á GitHub"
   },
   "cloudSection": {
     "eyebrow": "Cloud",

@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardBody } from "@heroui/card";
-import { m, type Variants } from "framer-motion";
+import { m, useReducedMotion, type Variants } from "framer-motion";
 import {
   Mic,
   Globe,
@@ -34,6 +34,12 @@ const cardVariants: Variants = {
 
 export default function FeaturesGrid() {
   const t = useTranslations("features");
+  // Under Reduce motion, MotionConfig skips the y animation, so each block
+  // sat at its server-rendered 12 px offset until it revealed, then snapped up
+  // (#1180). Settling y to 0 at mount, while the block is still invisible,
+  // leaves the reveal a pure fade. `initial` stays the same, so the server and
+  // hydration renders still match.
+  const settle = useReducedMotion() ? { y: 0 } : undefined;
 
   const features = [
     {
@@ -120,12 +126,13 @@ export default function FeaturesGrid() {
       <div className="max-w-6xl mx-auto">
         <m.div
           className="text-center mb-16"
+          animate={settle}
           initial={{ opacity: 0, y: 12 }}
           transition={{ duration: 0.4 }}
           viewport={{ once: true }}
           whileInView={{ opacity: 1, y: 0 }}
         >
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+          <h2 className="-mx-2 px-2 text-3xl sm:text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
             {t("title")}
           </h2>
           <p className="text-lg text-gray-400 max-w-2xl mx-auto">
@@ -144,6 +151,7 @@ export default function FeaturesGrid() {
           {features.map((feature, index) => (
             <m.div
               key={feature.titleKey}
+              animate={settle}
               className="w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]"
               custom={index}
               variants={cardVariants}
@@ -173,6 +181,7 @@ export default function FeaturesGrid() {
         {/* Additional feature highlight */}
         <m.div
           className="mt-16"
+          animate={settle}
           initial={{ opacity: 0, y: 12 }}
           transition={{ duration: 0.4, delay: 0.3 }}
           viewport={{ once: true }}
