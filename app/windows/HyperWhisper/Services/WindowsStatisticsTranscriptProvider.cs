@@ -39,7 +39,7 @@ public sealed class WindowsStatisticsTranscriptProvider : IStatisticsTranscriptP
 
     /// <summary>The database rows of one read, and the pending ids it was paired with.</summary>
     private sealed record CachedRows(
-        IReadOnlyList<(Guid Id, StatisticsTranscript Row)> Rows,
+        IReadOnlyList<StatisticsTranscript> Rows,
         HashSet<Guid> Ids,
         HashSet<Guid> PendingIds);
 
@@ -59,7 +59,7 @@ public sealed class WindowsStatisticsTranscriptProvider : IStatisticsTranscriptP
             cached = await ReadDatabaseAsync(pendingIds, cancellationToken).ConfigureAwait(false);
         }
 
-        return cached.Rows.Select(r => r.Row)
+        return cached.Rows
             .Concat(pending.Where(t => !cached.Ids.Contains(t.Id))
                 .Select(t => ToStatistics(t.Date, t.Text, t.Duration, t.Status)))
             .ToList();
@@ -79,7 +79,7 @@ public sealed class WindowsStatisticsTranscriptProvider : IStatisticsTranscriptP
             .ToListAsync(cancellationToken);
 
         var read = new CachedRows(
-            rows.Select(r => (r.Id, ToStatistics(r.Date, r.Text, r.Duration, r.Status))).ToList(),
+            rows.Select(r => ToStatistics(r.Date, r.Text, r.Duration, r.Status)).ToList(),
             rows.Select(r => r.Id).ToHashSet(),
             pendingIds);
 
