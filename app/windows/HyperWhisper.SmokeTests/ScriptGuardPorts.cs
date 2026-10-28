@@ -250,6 +250,52 @@ internal static class ScriptGuardPorts
             }
         });
 
+        run("history: a one-row update and startup recovery wait for a reader on another connection, not fail at once (#2430)", () =>
+        {
+            // The database is in rollback-journal mode, and EF ran a one-row SaveChanges
+            // in autocommit, committing at the statement reset where the provider's busy
+            // retry does not run. A reader mid-read on another connection (the Home stats
+            // bar after every History event) then failed the write with "database is
+            // locked" in a few milliseconds. The write must wait for the reader instead.
+            DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+            var history = HistoryService.Instance;
+            var row = history.CreateProcessingTranscript(1.0, "g2430-update", audioFilePath: null);
+            var orphan = history.CreateProcessingTranscript(1.0, "g2430-orphan", audioFilePath: null);
+            try
+            {
+                var pending = history.GetPendingTranscriptsSnapshot();
+                Assert(!pending.Any(t => t.Id == row.Id || t.Id == orphan.Id),
+                    "a fixture row went to the pending store, so the database write is never tested");
+
+                row.Status = TranscriptStatus.Completed;
+                row.Text = "g2430 waited";
+                var update = WriteWhileAReaderHolds(() => history.UpdateTranscript(row));
+                Assert(update.Failure == null, $"the update failed while a reader held the database: {DescribeCause(update.Failure)}");
+                Assert(update.WaitedForReader, "the update finished while the reader still held the database");
+
+                // The recovery check above left nothing else Processing, and the update
+                // finished this check's own row, so recovery is a one-row UPDATE too.
+                var recovered = 0;
+                var recovery = WriteWhileAReaderHolds(() => recovered = history.RecoverOrphanedProcessingTranscripts());
+                Assert(recovery.Failure == null, $"recovery threw: {DescribeCause(recovery.Failure)}");
+                Assert(recovered >= 1, $"recovery under a reader reported {recovered} rows; {RecoveryZeroCause(history, orphan.Id)}");
+                Assert(recovery.WaitedForReader, "recovery finished while the reader still held the database");
+
+                using var check = new HyperWhisperDbContext();
+                var savedRow = check.Transcripts.AsNoTracking().FirstOrDefault(t => t.Id == row.Id);
+                Assert(savedRow?.Status == TranscriptStatus.Completed && savedRow.Text == "g2430 waited",
+                    $"the update did not persist: {savedRow?.Status.ToString() ?? "missing"}");
+                var savedOrphan = check.Transcripts.AsNoTracking().FirstOrDefault(t => t.Id == orphan.Id);
+                Assert(savedOrphan?.Status == TranscriptStatus.Failed && savedOrphan.FailedReason == HistoryService.InterruptedReason,
+                    $"recovery did not persist: the orphan is {savedOrphan?.Status.ToString() ?? "missing"}");
+            }
+            finally
+            {
+                history.DeleteTranscript(row.Id);
+                history.DeleteTranscript(orphan.Id);
+            }
+        });
+
         run("models: deleting a Whisper or Parakeet model whose file is in use fails as a Result and keeps it (#830)", () =>
         {
             // A model file held open (a running transcription, antivirus) made
@@ -1309,6 +1355,54 @@ internal static class ScriptGuardPorts
     private static void SetField(object target, string name, object? value) =>
         (target.GetType().GetField(name, InstanceField) ?? throw new MissingFieldException(target.GetType().Name, name))
             .SetValue(target, value);
+
+    /// <summary>
+    /// Runs <paramref name="write"/> on a worker while a second connection holds a reader
+    /// paused mid-read on the scratch database, and lets the reader go after a second
+    /// (#2430). WaitedForReader: the write was still running when the reader let go.
+    /// Every wait is bounded and the reader is released in finally, so a regression
+    /// fails the check instead of hanging windows-ci.
+    /// </summary>
+    private static (Exception? Failure, bool WaitedForReader) WriteWhileAReaderHolds(Action write)
+    {
+        string databasePath;
+        using (var context = new HyperWhisperDbContext())
+            databasePath = context.Database.GetDbConnection().DataSource;
+
+        using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={databasePath};Pooling=False");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT Id FROM Transcripts";
+        Microsoft.Data.Sqlite.SqliteDataReader? reader = command.ExecuteReader();
+        Task? worker = null;
+        var waited = false;
+        try
+        {
+            Assert(reader.Read(), "the reader found no row to pause on");
+            // The worker must not capture the smoke suite's WPF context (#2366).
+            var previousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+            try
+            {
+                worker = Task.Run(write);
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(previousContext);
+            }
+            // Task.Wait would rethrow a fault here; the fault is read once below.
+            waited = !((IAsyncResult)worker).AsyncWaitHandle.WaitOne(TimeSpan.FromSeconds(1));
+        }
+        finally
+        {
+            reader.Dispose();
+            reader = null;
+        }
+
+        if (!((IAsyncResult)worker!).AsyncWaitHandle.WaitOne(TimeSpan.FromSeconds(45)))
+            return (new TimeoutException("the write did not finish within 45 s of the reader letting go"), waited);
+        return (worker.Exception?.GetBaseException(), waited);
+    }
 
     /// <summary>
     /// Why recovery returned 0 (#2430). It logs and swallows a refused write, and it also
