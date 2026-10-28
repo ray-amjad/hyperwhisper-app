@@ -111,11 +111,13 @@ public static class PortableLocalApi
         app.MapGet("/modes/{id}", async (string id, ILocalApiBackend b, CancellationToken ct) => await b.GetModeAsync(id, ct) is { } mode ? Results.Ok(new { ok = true, mode }) : Failure(200, LocalApiErrorCodes.ModeNotFound, "Mode not found."));
         app.MapPost("/modes", async (HttpContext context, ILocalApiBackend b, CancellationToken ct) =>
         {
+            if (NonJsonContentType(context) is { } notJson) return notJson;
             var body = await ReadJsonObject(context, ct);
             return body is null ? Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body is invalid JSON.") : Results.Ok(new { ok = true, mode = await b.CreateModeAsync(body.Value, ct) });
         });
         app.MapPatch("/modes/{id}", async (string id, HttpContext context, ILocalApiBackend b, CancellationToken ct) =>
         {
+            if (NonJsonContentType(context) is { } notJson) return notJson;
             var body = await ReadJsonObject(context, ct);
             if (body is null) return Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body is invalid JSON.");
             return await b.PatchModeAsync(id, body.Value, ct) is { } mode ? Results.Ok(new { ok = true, mode }) : Failure(200, LocalApiErrorCodes.ModeNotFound, "Mode not found.");
@@ -125,6 +127,7 @@ public static class PortableLocalApi
         app.MapPost("/recording/cancel", async (ILocalApiBackend b, CancellationToken ct) => Results.Ok(new { ok = true, recording = await b.CancelRecordingAsync(ct) }));
         app.MapPost("/post-process", async (HttpContext context, ILocalApiBackend b, CancellationToken ct) =>
         {
+            if (NonJsonContentType(context) is { } notJson) return notJson;
             PostProcessRequest? request;
             try { request = await context.Request.ReadFromJsonAsync<PostProcessRequest>(cancellationToken: ct); }
             catch (JsonException) { return Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body is invalid JSON."); }
@@ -257,6 +260,13 @@ public static class PortableLocalApi
             return Results.Ok(new { ok = true, total = page.Total, returned = page.Recordings.Count, recordings = page.Recordings });
         }
     }
+
+    // `ReadFromJsonAsync` throws `InvalidOperationException` on a body that is
+    // not JSON by its Content-Type, and the error envelope maps that type to
+    // ENGINE_UNAVAILABLE. A malformed request is INVALID_REQUEST (issue #2014).
+    private static IResult? NonJsonContentType(HttpContext context) =>
+        context.Request.HasJsonContentType() ? null
+            : Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body must be application/json.");
 
     private static async Task<JsonElement?> ReadJsonObject(HttpContext context, CancellationToken ct)
     {
