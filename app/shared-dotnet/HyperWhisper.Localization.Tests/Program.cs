@@ -175,7 +175,8 @@ static void AllCatalogsLoad()
     // 863 -> 868 (#2377): `settings.backup.import.summary.apiKeys`, `.apiKeysFailed`,
     // `.apiKeysNone`, `.settingsFailed` and `settings.backup.import.partial` are new (the Windows backup
     // import says whether the API keys landed, and a failed section is not a plain success).
-    // 868 -> 865 (#2001): the unread `mode.editor.warning.vocabularyUnsupported.elevenlabs`, `.deepgramBase` and `.deepgramWhisper` are gone.
+    // 868 -> 865 (#2001): `mode.editor.warning.vocabularyUnsupported.elevenlabs`, `.deepgramBase`
+    // and `.deepgramWhisper` are gone, read by nothing since #1998 moved the warning to the models catalog.
     Equal(865,PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
