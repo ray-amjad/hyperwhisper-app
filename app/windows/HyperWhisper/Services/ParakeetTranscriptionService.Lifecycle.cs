@@ -363,6 +363,11 @@ public partial class ParakeetTranscriptionService
             _pendingRequests++;
             var cts = new CancellationTokenSource();
             _idleReloadTeardownCts = cts;
+            // Not ready from here, not only once the reload's teardown starts: a GUI job
+            // that counts itself in (ReserveForJob) and then asks NeedsReload must not take
+            // the old model as warm and run on the one this reload loads (#1618 review). It
+            // reloads instead, and its InitializeAsync cancels this reload.
+            _isReady = false;
             return cts;
         }
     }
