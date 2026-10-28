@@ -5,8 +5,9 @@
  * it from the links list. A caller's `role="link"` is merged last and wins.
  *
  * The first test pins that contract with the REAL `@heroui/button`. The second
- * walks every `<Button as={…}>` under `app/` and `components/` and fails when
- * one has no `role="link"`.
+ * walks every `<Button as={…} href=…>` under `app/`, `components/` and `src/`
+ * and fails when one has no `role="link"`. A `Button as={…}` with no `href`
+ * does not navigate, so it keeps its button role.
  */
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
@@ -44,6 +45,13 @@ function tsxFiles(dir: string): string[] {
     .map((f) => join(dir, f));
 }
 
+function isLinkRole(init: ts.JsxAttributeValue | undefined): boolean {
+  const value =
+    init && ts.isJsxExpression(init) ? init.expression : (init as ts.Node);
+
+  return !!value && ts.isStringLiteralLike(value) && value.text === "link";
+}
+
 function attr(node: ts.JsxAttributes, name: string) {
   return node.properties.find(
     (p): p is ts.JsxAttribute =>
@@ -51,13 +59,14 @@ function attr(node: ts.JsxAttributes, name: string) {
   );
 }
 
-test('every <Button as={…}> under app/ and components/ passes role="link"', () => {
+test('every navigating <Button as={…}> passes role="link"', () => {
   const missing: string[] = [];
   let checked = 0;
 
   for (const file of [
     ...tsxFiles(join(root, "app")),
     ...tsxFiles(join(root, "components")),
+    ...tsxFiles(join(root, "src")),
   ]) {
     const source = ts.createSourceFile(
       file,
@@ -73,11 +82,14 @@ test('every <Button as={…}> under app/ and components/ passes role="link"', ()
       ) {
         const as = attr(node.attributes, "as");
 
-        if (as?.initializer && ts.isJsxExpression(as.initializer)) {
+        if (
+          as?.initializer &&
+          ts.isJsxExpression(as.initializer) &&
+          attr(node.attributes, "href")
+        ) {
           checked++;
-          const role = attr(node.attributes, "role")?.initializer;
 
-          if (!role || !ts.isStringLiteral(role) || role.text !== "link") {
+          if (!isLinkRole(attr(node.attributes, "role")?.initializer)) {
             const { line } = source.getLineAndCharacterOfPosition(
               node.getStart(),
             );
