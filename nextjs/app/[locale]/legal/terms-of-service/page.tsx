@@ -1,3 +1,4 @@
+import { TEXT_LINK } from "@/components/text-link";
 import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
 export const generateMetadata = localizedPageMetadata({
@@ -15,7 +16,7 @@ export default function TermsOfServicePage() {
       <h1>Terms of Service</h1>
 
       <p>
-        These Terms are between you and Ray Amjad LTD (<a className="text-blue-400 hover:underline" href="https://find-and-update.company-information.service.gov.uk/company/14506459" target="_blank" rel="noopener noreferrer">Company Number 14506459</a>,
+        These Terms are between you and Ray Amjad LTD (<a className={TEXT_LINK} href="https://find-and-update.company-information.service.gov.uk/company/14506459" target="_blank" rel="noopener noreferrer">Company Number 14506459</a>,
         incorporated in the United Kingdom). By installing or using
         HyperWhisper, you agree to these Terms. If you do not agree, do not use
         the app.
@@ -43,7 +44,7 @@ export default function TermsOfServicePage() {
         <li>
           <strong>Payments</strong>: Purchases are handled by{" "}
           <a
-            className="text-blue-400 hover:underline"
+            className={TEXT_LINK}
             href="https://stripe.com"
             target="_blank"
             rel="noopener noreferrer"
@@ -53,7 +54,7 @@ export default function TermsOfServicePage() {
           . Taxes may apply. Purchases made before December 2025 were processed
           by{" "}
           <a
-            className="text-blue-400 hover:underline"
+            className={TEXT_LINK}
             href="https://polar.sh"
             target="_blank"
             rel="noopener noreferrer"
@@ -65,10 +66,7 @@ export default function TermsOfServicePage() {
         <li>
           <strong>Refunds</strong>: Our 14-day money-back guarantee applies as
           described in our{" "}
-          <a
-            className="text-blue-400 hover:underline"
-            href="/legal/refund-policy"
-          >
+          <a className={TEXT_LINK} href="/legal/refund-policy">
             Refund Policy
           </a>
           .
@@ -104,10 +102,7 @@ export default function TermsOfServicePage() {
         </li>
         <li>
           See our{" "}
-          <a
-            className="text-blue-400 hover:underline"
-            href="/legal/privacy-policy"
-          >
+          <a className={TEXT_LINK} href="/legal/privacy-policy">
             Privacy Policy
           </a>{" "}
           for a full list of providers and links to their privacy policies.
@@ -143,10 +138,7 @@ export default function TermsOfServicePage() {
           <strong>Refunds</strong>: Consumed and expired credits are
           non-refundable, and the processing fee is non-refundable. Only unused,
           unexpired purchased credits may be refunded as described in our{" "}
-          <a
-            className="text-blue-400 hover:underline"
-            href="/legal/refund-policy"
-          >
+          <a className={TEXT_LINK} href="/legal/refund-policy">
             Refund Policy
           </a>
           . A credit refund reverses the credit value only.
@@ -212,7 +204,7 @@ export default function TermsOfServicePage() {
       <p>
         <strong>Transcription providers</strong> (bring your own API key):{" "}
         <a
-          className="text-blue-400 hover:underline"
+          className={TEXT_LINK}
           href="https://openai.com"
           target="_blank"
           rel="noopener noreferrer"
@@ -221,7 +213,7 @@ export default function TermsOfServicePage() {
         </a>
         ,{" "}
         <a
-          className="text-blue-400 hover:underline"
+          className={TEXT_LINK}
           href="https://deepgram.com"
           target="_blank"
           rel="noopener noreferrer"
@@ -230,7 +222,7 @@ export default function TermsOfServicePage() {
         </a>
         ,{" "}
         <a
-          className="text-blue-400 hover:underline"
+          className={TEXT_LINK}
           href="https://elevenlabs.io"
           target="_blank"
           rel="noopener noreferrer"
@@ -239,7 +231,7 @@ export default function TermsOfServicePage() {
         </a>
         ,{" "}
         <a
-          className="text-blue-400 hover:underline"
+          className={TEXT_LINK}
           href="https://groq.com"
           target="_blank"
           rel="noopener noreferrer"
@@ -248,7 +240,7 @@ export default function TermsOfServicePage() {
         </a>
         ,{" "}
         <a
-          className="text-blue-400 hover:underline"
+          className={TEXT_LINK}
           href="https://www.assemblyai.com"
           target="_blank"
           rel="noopener noreferrer"
@@ -257,7 +249,7 @@ export default function TermsOfServicePage() {
         </a>
         ,{" "}
         <a
-          className="text-blue-400 hover:underline"
+          className={TEXT_LINK}
           href="https://mistral.ai"
           target="_blank"
           rel="noopener noreferrer"
@@ -266,7 +258,7 @@ export default function TermsOfServicePage() {
         </a>
         ,{" "}
         <a
-          className="text-blue-400 hover:underline"
+          className={TEXT_LINK}
           href="https://dev.meta.ai/docs/speech-to-text/"
           target="_blank"
           rel="noopener noreferrer"
@@ -277,7 +269,7 @@ export default function TermsOfServicePage() {
       <p>
         <strong>Post-processing providers</strong> (bring your own API key):{" "}
         <a
-          className="text-blue-400 hover:underline"
+          className={TEXT_LINK}
           href="https://openai.com"
           target="_blank"
           rel="noopener noreferrer"
@@ -286,7 +278,7 @@ export default function TermsOfServicePage() {
         </a>
         ,{" "}
         <a
-          className="text-blue-400 hover:underline"
+          className={TEXT_LINK}
           href="https://www.anthropic.com"
           target="_blank"
           rel="noopener noreferrer"
@@ -295,7 +287,7 @@ export default function TermsOfServicePage() {
         </a>
         ,{" "}
         <a
-          className="text-blue-400 hover:underline"
+          className={TEXT_LINK}
           href="https://ai.google"
           target="_blank"
           rel="noopener noreferrer"
@@ -304,7 +296,7 @@ export default function TermsOfServicePage() {
         </a>
         ,{" "}
         <a
-          className="text-blue-400 hover:underline"
+          className={TEXT_LINK}
           href="https://groq.com"
           target="_blank"
           rel="noopener noreferrer"
@@ -313,7 +305,7 @@ export default function TermsOfServicePage() {
         </a>
         ,{" "}
         <a
-          className="text-blue-400 hover:underline"
+          className={TEXT_LINK}
           href="https://cerebras.ai"
           target="_blank"
           rel="noopener noreferrer"
@@ -324,7 +316,7 @@ export default function TermsOfServicePage() {
       <p>
         <strong>Billing</strong>:{" "}
         <a
-          className="text-blue-400 hover:underline"
+          className={TEXT_LINK}
           href="https://stripe.com"
           target="_blank"
           rel="noopener noreferrer"
@@ -334,7 +326,7 @@ export default function TermsOfServicePage() {
         {" · "}
         <strong>Analytics</strong>:{" "}
         <a
-          className="text-blue-400 hover:underline"
+          className={TEXT_LINK}
           href="https://posthog.com"
           target="_blank"
           rel="noopener noreferrer"
@@ -345,10 +337,7 @@ export default function TermsOfServicePage() {
       <ul>
         <li>
           See our{" "}
-          <a
-            className="text-blue-400 hover:underline"
-            href="/legal/privacy-policy"
-          >
+          <a className={TEXT_LINK} href="/legal/privacy-policy">
             Privacy Policy
           </a>{" "}
           for links to each provider&apos;s privacy policy.
@@ -408,12 +397,9 @@ export default function TermsOfServicePage() {
 
       <h2>Contact</h2>
       <p>
-        Ray Amjad LTD (<a className="text-blue-400 hover:underline" href="https://find-and-update.company-information.service.gov.uk/company/14506459" target="_blank" rel="noopener noreferrer">Company Number 14506459</a>, United Kingdom). Questions about
+        Ray Amjad LTD (<a className={TEXT_LINK} href="https://find-and-update.company-information.service.gov.uk/company/14506459" target="_blank" rel="noopener noreferrer">Company Number 14506459</a>, United Kingdom). Questions about
         these Terms:{" "}
-        <a
-          className="text-blue-400 hover:underline"
-          href="mailto:hi@support.hyperwhisper.com"
-        >
+        <a className={TEXT_LINK} href="mailto:hi@support.hyperwhisper.com">
           hi@support.hyperwhisper.com
         </a>
       </p>
