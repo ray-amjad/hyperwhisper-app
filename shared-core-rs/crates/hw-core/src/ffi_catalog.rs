@@ -609,14 +609,6 @@ pub fn cloud_stt_supports_custom_vocabulary(id: String) -> bool {
     cloud_stt().supports_custom_vocabulary(&id)
 }
 
-/// The provider's custom-vocabulary request field name (if any).
-#[uniffi::export]
-pub fn cloud_stt_custom_vocabulary_field_name(id: String) -> Option<String> {
-    cloud_stt()
-        .custom_vocabulary_field_name(&id)
-        .map(str::to_string)
-}
-
 /// Credits per minute for the provider's default model.
 #[uniffi::export]
 pub fn cloud_stt_credits_per_minute(id: String) -> f64 {
@@ -776,12 +768,6 @@ pub fn cloud_pp_is_enabled(id: String) -> bool {
     cloud_pp().is_enabled(&id)
 }
 
-/// The provider's LLM-provider key, if any.
-#[uniffi::export]
-pub fn cloud_pp_llm_provider(id: String) -> Option<String> {
-    cloud_pp().llm_provider(&id).map(str::to_string)
-}
-
 /// The LLM model header for a specific model, if any.
 #[uniffi::export]
 pub fn cloud_pp_llm_model_header(id: String, model_id: String) -> Option<String> {
@@ -790,46 +776,19 @@ pub fn cloud_pp_llm_model_header(id: String, model_id: String) -> Option<String>
         .map(str::to_string)
 }
 
-/// The provider's default post-processing model, if any.
-#[uniffi::export]
-pub fn cloud_pp_default_model(id: String) -> Option<PpModel> {
-    cloud_pp().default_model(&id).map(PpModel::from)
-}
-
 /// A specific post-processing model, if present.
 #[uniffi::export]
 pub fn cloud_pp_model(id: String, model_id: String) -> Option<PpModel> {
     cloud_pp().model(&id, &model_id).map(PpModel::from)
 }
 
-/// All (visible) models for the post-processing provider.
-#[uniffi::export]
-pub fn cloud_pp_models(id: String) -> Vec<PpModel> {
-    cloud_pp()
-        .models(&id)
-        .into_iter()
-        .map(PpModel::from)
-        .collect()
-}
-
 /// Every post-processing engine, in catalog order — INCLUDING the ones the
-/// rollout gate hides. Read `enabled` before surfacing a row; use
-/// `cloud_pp_picker_providers` for the dropdown.
+/// rollout gate hides. Read `enabled` before surfacing a row.
 #[uniffi::export]
 pub fn cloud_pp_providers() -> Vec<PpProvider> {
     cloud_pp()
         .providers()
         .iter()
-        .map(PpProvider::from)
-        .collect()
-}
-
-/// The Engine dropdown's rows: post-processing engines with `enabled != false`,
-/// in catalog order, each carrying only its visible models.
-#[uniffi::export]
-pub fn cloud_pp_picker_providers() -> Vec<PpProvider> {
-    cloud_pp()
-        .picker_providers()
         .map(PpProvider::from)
         .collect()
 }
@@ -1418,7 +1377,7 @@ mod tests {
             Some("azure-mai")
         );
         assert_eq!(
-            cloud_stt_custom_vocabulary_field_name("azureMaiTranscribe".to_string()).as_deref(),
+            cloud_stt().custom_vocabulary_field_name("azureMaiTranscribe"),
             Some("definition.phraseList.phrases")
         );
         assert_eq!(
@@ -1426,12 +1385,12 @@ mod tests {
             Some("deepgram")
         );
         assert_eq!(
-            cloud_stt_custom_vocabulary_field_name("deepgramNova3".to_string()).as_deref(),
+            cloud_stt().custom_vocabulary_field_name("deepgramNova3"),
             Some("keyterm")
         );
         assert_eq!(cloud_stt_provider("noSuchProvider".to_string()), None);
         assert_eq!(
-            cloud_stt_custom_vocabulary_field_name("noSuchProvider".to_string()),
+            cloud_stt().custom_vocabulary_field_name("noSuchProvider"),
             None
         );
         assert!(cloud_stt_supports_custom_vocabulary(
@@ -1578,19 +1537,47 @@ mod tests {
             None
         );
         assert_eq!(
-            cloud_pp_llm_provider("anthropic".to_string()).as_deref(),
+            pp_provider("anthropic").map(|p| p.llm_provider).as_deref(),
             Some("anthropic")
         );
-        assert_eq!(cloud_pp_llm_provider("noSuchEngine".to_string()), None);
+        assert!(pp_provider("noSuchEngine").is_none());
+    }
+
+    /// The engine's row as the heads read it: off the live `cloud_pp_providers`.
+    fn pp_provider(id: &str) -> Option<PpProvider> {
+        cloud_pp_providers().into_iter().find(|p| p.id == id)
+    }
+
+    /// The heads apply the rollout gate themselves (`if (!provider.@enabled)
+    /// continue;` in `CloudPostProcessingCatalog.cs` and `UnifiedModelCatalog.cs`).
+    /// Filtering `cloud_pp_providers` on `enabled` must give exactly the
+    /// catalog's own picker rows, in the same order, with the same models.
+    #[test]
+    fn cloud_pp_providers_filtered_on_enabled_are_the_picker_rows() {
+        let head_side: Vec<(String, Vec<String>)> = cloud_pp_providers()
+            .into_iter()
+            .filter(|p| p.enabled)
+            .map(|p| (p.id, p.models.into_iter().map(|m| m.id).collect()))
+            .collect();
+        let core_side: Vec<(String, Vec<String>)> = cloud_pp()
+            .picker_providers()
+            .map(PpProvider::from)
+            .map(|p| (p.id, p.models.into_iter().map(|m| m.id).collect()))
+            .collect();
+        assert!(!core_side.is_empty());
+        assert_eq!(head_side, core_side);
     }
 
     /// Pins every field of the owned `PpModel` mirror. Input and output prices
     /// differ, and so do accuracy and speed, so a swapped pair fails.
     #[test]
-    fn cloud_pp_default_model_mirrors_every_field() {
+    fn pp_model_mirrors_every_field_of_the_default_model() {
         // gemini, not openai: gpt-5.6-luna has accuracy == speed (4, 4), so it
         // could not catch a swapped pair.
-        let m = cloud_pp_default_model("gemini".to_string()).expect("gemini has a default model");
+        let m = cloud_pp()
+            .default_model("gemini")
+            .map(PpModel::from)
+            .expect("gemini has a default model");
         assert_eq!(m.id, "gemini-3.8-flash");
         assert_eq!(m.display_name, "Gemini 3.8 Flash");
         assert_eq!(m.llm_model_header.as_deref(), Some("gemini-3.8-flash"));
@@ -1603,7 +1590,10 @@ mod tests {
         assert_eq!(m.preview_status, Some(false));
         assert_eq!(m.enabled, Some(true));
 
-        let luna = cloud_pp_default_model("openai".to_string()).expect("openai has a default model");
+        let luna = cloud_pp()
+            .default_model("openai")
+            .map(PpModel::from)
+            .expect("openai has a default model");
         assert_eq!(luna.id, "gpt-5.6-luna");
         assert_eq!(luna.display_name, "GPT-5.6 Luna");
         assert_eq!(luna.llm_model_header.as_deref(), Some("gpt-5.6-luna"));
@@ -1616,7 +1606,7 @@ mod tests {
         assert_eq!(luna.preview_status, Some(false));
         assert_eq!(luna.enabled, Some(true));
 
-        assert!(cloud_pp_default_model("noSuchEngine".to_string()).is_none());
+        assert!(cloud_pp().default_model("noSuchEngine").is_none());
     }
 
     /// A non-default model is reachable by id, and carries its own flags.
@@ -1641,8 +1631,10 @@ mod tests {
 
     /// The engine's models come back in catalog order, default first here.
     #[test]
-    fn cloud_pp_models_list_the_engines_visible_models_in_catalog_order() {
-        let ids: Vec<String> = cloud_pp_models("gemini".to_string())
+    fn cloud_pp_providers_list_the_engines_visible_models_in_catalog_order() {
+        let ids: Vec<String> = pp_provider("gemini")
+            .expect("gemini is catalogued")
+            .models
             .into_iter()
             .map(|m| m.id)
             .collect();
@@ -1654,12 +1646,13 @@ mod tests {
                 "gemini-2.5-flash-lite".to_string()
             ]
         );
-        let openai: Vec<String> = cloud_pp_models("openai".to_string())
+        let openai: Vec<String> = pp_provider("openai")
+            .expect("openai is catalogued")
+            .models
             .into_iter()
             .map(|m| m.id)
             .collect();
         assert_eq!(openai, vec!["gpt-5.6-luna".to_string()]);
-        assert!(cloud_pp_models("noSuchEngine".to_string()).is_empty());
     }
 }
 
