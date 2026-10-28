@@ -82,6 +82,7 @@ internal static class Program
     [STAThread]
     private static int Main()
     {
+        LoggingServiceFlushChecks.RunCrashChildIfRequested(); // #985 crash child; returns at once otherwise
         // Child mode for the settings-load checks (issue #2096). SettingsService is
         // a singleton whose paths are fixed at type init, so a load from a profile
         // the check seeded has to happen in a fresh process. This runs before the
@@ -27063,6 +27064,7 @@ internal static class Program
             SynchronizationContext.SetSynchronizationContext(assemblyAiPreviousContext);
             ScriptGuardPorts.RunAll(Run);
             OutputMuteOwnershipChecks.RunAll(Run);
+            LoggingServiceFlushChecks.RunAll(Run);
             CloudCreditsWarningChecks.RunAll(Run);
             PendingHistoryUnreadableChecks.RunAll(Run);
 
@@ -29256,6 +29258,9 @@ internal static class Program
     /// </summary>
     private static Dictionary<string, long> SnapshotLogOffsets()
     {
+        // The log writer is buffered (#985): write out queued lines first, so
+        // they count as before the act step and not inside its window.
+        LoggingService.Flush();
         var offsets = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         var directory = LoggingService.LogDirectory;
         if (!Directory.Exists(directory))
@@ -29281,6 +29286,9 @@ internal static class Program
     /// </summary>
     private static string ReadLogSince(Dictionary<string, long> offsets)
     {
+        // The log writer is buffered (#985): write out the act step's queued
+        // lines before reading them back.
+        LoggingService.Flush();
         var directory = LoggingService.LogDirectory;
         if (!Directory.Exists(directory))
         {
