@@ -848,14 +848,6 @@ public sealed class LiveOnboardingSourceCommitter : IOnboardingSourceCommitter
     }
 
     /// <summary>
-    /// The flagged default row, or null. Deliberately NOT ModeService.GetDefaultMode(),
-    /// which falls back to the lowest-SortOrder Mode when nothing is flagged: that
-    /// fallback would make onboarding silently overwrite one of the user's own
-    /// Modes. macOS's findDefaultMode is strictly isDefault == YES, and so is this.
-    /// </summary>
-    private Mode? FindDefaultMode() => _modes.GetAllModes().FirstOrDefault(m => m.IsDefault);
-
-    /// <summary>
     /// The row <see cref="Apply"/> will write and <see cref="Restore"/> will put
     /// back. The flagged default, or - when nothing is flagged - whatever
     /// already sits on the well-known seed id.
