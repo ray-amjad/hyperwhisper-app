@@ -303,7 +303,7 @@ export default function DownloadsPage() {
               {Array.from({ length: 6 }).map((_, i) => (
                 <Card
                   key={i}
-                  className="bg-gray-900/50 backdrop-blur-xl border-gray-800 h-full"
+                  className="bg-gray-900/50 backdrop-blur-xl border border-gray-800 h-full"
                 >
                   <CardBody className="p-6 space-y-4">
                     {["w-32", "w-40", "w-24", "w-28"].map((w) => (
@@ -331,7 +331,7 @@ export default function DownloadsPage() {
               {versions.map((version, index) => (
                 <Card
                   key={version.buildNumber}
-                  className={`bg-gray-900/50 backdrop-blur-xl border-gray-800 hover:border-purple-700/50 transition-[border-color] duration-150 h-full ${
+                  className={`bg-gray-900/50 backdrop-blur-xl border border-gray-800 hover:border-purple-700/50 transition-[border-color] duration-150 h-full ${
                     isLatestVersion(index)
                       ? "ring-2 ring-purple-500/50 shadow-lg shadow-purple-500/20"
                       : ""
