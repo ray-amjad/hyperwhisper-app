@@ -923,12 +923,6 @@ public class HistoryService
     }
 
     /// <summary>
-    /// The database said no: SaveChanges failed (<see cref="DbUpdateException"/>), or
-    /// the lookup before it hit a locked or broken database
-    /// (<see cref="Microsoft.Data.Sqlite.SqliteException"/>). Both are expected
-    /// runtime failures, so they become a failed Result rather than a throw.
-    /// </summary>
-    /// <summary>
     /// A context for a write that may touch one existing row (an UPDATE or a DELETE).
     /// EF Core runs such a single-statement SaveChanges with no transaction, as
     /// <c>UPDATE ... RETURNING 1</c>. The database is in rollback-journal mode (it is
@@ -962,6 +956,12 @@ public class HistoryService
         return transaction;
     }
 
+    /// <summary>
+    /// The database said no: SaveChanges failed (<see cref="DbUpdateException"/>), or
+    /// the lookup before it hit a locked or broken database
+    /// (<see cref="Microsoft.Data.Sqlite.SqliteException"/>). Both are expected
+    /// runtime failures, so they become a failed Result rather than a throw.
+    /// </summary>
     private static bool IsRefusedWrite(Exception ex) =>
         ex is DbUpdateException or Microsoft.Data.Sqlite.SqliteException;
 
