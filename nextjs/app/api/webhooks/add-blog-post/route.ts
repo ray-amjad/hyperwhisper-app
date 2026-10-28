@@ -322,7 +322,13 @@ function normalizeTags(tags: unknown): string[] {
     .slice(0, 12);
 }
 
-export async function POST(req: NextRequest) {
+/**
+ * Size-check, authenticate and buffer the delivery. Returns the raw body, or
+ * the 413 / 401 / 400 reply to send instead.
+ */
+async function readAuthorizedBody(
+  req: NextRequest,
+): Promise<{ rawBody: string } | NextResponse> {
   const contentLength = Number(req.headers.get("content-length"));
   if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
     return NextResponse.json({ error: "Payload too large" }, { status: 413 });
@@ -378,6 +384,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  return { rawBody };
+}
+
+/**
+ * Parse the body and read the `publish_articles` envelope. Returns the raw
+ * article array, or the 400 / 413 reply to send instead.
+ */
+function readArticlesEnvelope(
+  req: NextRequest,
+  rawBody: string,
+): { rawArticles: unknown[] } | NextResponse {
   let parsed: unknown;
   try {
     parsed = JSON.parse(rawBody);
@@ -426,6 +443,128 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  return { rawArticles };
+}
+
+/** One validated article, ready for upsertArticle. */
+type PreparedArticle = {
+  externalId: string;
+  baseSlug: string;
+  title: string;
+  description: string | null;
+  markdown: string;
+  html: string;
+  imageUrl: string | null;
+  imageAlt: string;
+  tags: string[];
+  publishedAt?: Date;
+};
+
+/**
+ * Read and validate one untrusted array element. Returns the prepared row, or
+ * the permanent skip reason for that index.
+ */
+function prepareArticle(
+  raw: unknown,
+): { row: PreparedArticle; reason?: undefined } | { reason: string } {
+  const read = readArticle(raw);
+
+  if (read.reason !== undefined) return { reason: read.reason };
+
+  const { article } = read;
+  const markdown = article.content_markdown?.trim() ?? "";
+  // Outrank's HTML is third-party content rendered raw on the main origin,
+  // so only the allow-listed article markup is stored (#2009). HTML that
+  // sanitises to nothing falls back to the markdown, as empty HTML did.
+  const html =
+    sanitizeBlogHtml(article.content_html?.trim() ?? "").trim() ||
+    sanitizeBlogHtml(markdownToHtml(markdown));
+  const description = article.meta_description ?? article.description;
+
+  if (!article.id || !article.title?.trim() || (!markdown && !html)) {
+    return { reason: "missing id/title/content" };
+  }
+
+  const title = article.title.trim();
+  const slugSource = article.slug?.trim() || title;
+  const baseSlug = slugify(slugSource);
+
+  if (!baseSlug) return { reason: "slug resolved to empty string" };
+
+  // Validate published_at/created_at before either reaches the driver: an Invalid Date
+  // makes node-postgres throw RangeError on serialization, which would
+  // otherwise be swallowed as a silent skip.
+  const { publishedAt, error: publishedAtError } = parsePublishedAt(article);
+
+  if (publishedAtError) return { reason: publishedAtError };
+
+  return {
+    row: {
+      externalId: article.id,
+      baseSlug,
+      title,
+      description: description?.trim() || null,
+      markdown,
+      html,
+      imageUrl: article.image_url ?? null,
+      imageAlt: article.image_alt ?? title,
+      tags: article.tags,
+      publishedAt,
+    },
+  };
+}
+
+/** Insert the article, or update the row that already holds its external id. */
+async function upsertArticle(
+  row: PreparedArticle,
+): Promise<{ id: string; slug: string }> {
+  // Avoid a (locale, slug) unique violation when a different article has
+  // already claimed this slug.
+  const slug = await resolveUniqueSlug(row.baseSlug, row.externalId);
+  // The columns the insert and the update both write.
+  const columns = {
+    slug,
+    title: row.title,
+    description: row.description,
+    contentMarkdown: row.markdown,
+    contentHtml: row.html,
+    imageUrl: row.imageUrl,
+    imageAlt: row.imageAlt,
+    tags: row.tags,
+    // On first insert an absent date falls back to the column default
+    // (now()). On update, publishedAt is only overwritten when the payload
+    // supplied a date, so a re-publish without created_at does not reset
+    // ordering state.
+    ...(row.publishedAt ? { publishedAt: row.publishedAt } : {}),
+  };
+
+  const [inserted] = await db
+    .insert(blogPosts)
+    .values({
+      externalId: row.externalId,
+      source: "outrank",
+      locale: LOCALE,
+      ...columns,
+    })
+    .onConflictDoUpdate({
+      target: blogPosts.externalId,
+      set: { ...columns, updatedAt: new Date() },
+    })
+    .returning({ id: blogPosts.id, slug: blogPosts.slug });
+
+  return inserted;
+}
+
+export async function POST(req: NextRequest) {
+  const body = await readAuthorizedBody(req);
+
+  if (body instanceof NextResponse) return body;
+
+  const envelope = readArticlesEnvelope(req, body.rawBody);
+
+  if (envelope instanceof NextResponse) return envelope;
+
+  const { rawArticles } = envelope;
   const processed: Array<{ id: string; slug: string }> = [];
   const skipped: Array<{ index: number; reason: string }> = [];
   // Track whether any skip was a TRANSIENT failure (e.g. a DB upsert error)
@@ -435,100 +574,24 @@ export async function POST(req: NextRequest) {
   let hadTransientFailure = false;
 
   for (let i = 0; i < rawArticles.length; i++) {
-    const read = readArticle(rawArticles[i]);
+    const prepared = prepareArticle(rawArticles[i]);
 
-    if (read.reason !== undefined) {
-      skipped.push({ index: i, reason: read.reason });
+    if (prepared.reason !== undefined) {
+      skipped.push({ index: i, reason: prepared.reason });
       continue;
     }
 
-    const { article } = read;
-    const markdown = article.content_markdown?.trim() ?? "";
-    // Outrank's HTML is third-party content rendered raw on the main origin,
-    // so only the allow-listed article markup is stored (#2009). HTML that
-    // sanitises to nothing falls back to the markdown, as empty HTML did.
-    const html =
-      sanitizeBlogHtml(article.content_html?.trim() ?? "").trim() ||
-      sanitizeBlogHtml(markdownToHtml(markdown));
-    const description = article.meta_description ?? article.description;
-
-    if (!article.id || !article.title?.trim() || (!markdown && !html)) {
-      skipped.push({
-        index: i,
-        reason: "missing id/title/content",
-      });
-      continue;
-    }
-
-    const title = article.title.trim();
-    const slugSource = article.slug?.trim() || title;
-    const baseSlug = slugify(slugSource);
-    if (!baseSlug) {
-      skipped.push({ index: i, reason: "slug resolved to empty string" });
-      continue;
-    }
-
-    // Validate published_at/created_at before either reaches the driver: an Invalid Date
-    // makes node-postgres throw RangeError on serialization, which would
-    // otherwise be swallowed as a silent skip.
-    const { publishedAt, error: publishedAtError } = parsePublishedAt(article);
-    if (publishedAtError) {
-      skipped.push({
-        index: i,
-        reason: publishedAtError,
-      });
-      continue;
-    }
-
-    const { tags } = article;
+    const { row: article } = prepared;
 
     try {
-      // Avoid a (locale, slug) unique violation when a different article has
-      // already claimed this slug.
-      const slug = await resolveUniqueSlug(baseSlug, article.id);
-
-      const [row] = await db
-        .insert(blogPosts)
-        .values({
-          externalId: article.id,
-          source: "outrank",
-          locale: LOCALE,
-          slug,
-          title,
-          description: description?.trim() || null,
-          contentMarkdown: markdown,
-          contentHtml: html,
-          imageUrl: article.image_url ?? null,
-          imageAlt: article.image_alt ?? title,
-          tags,
-          // Falls back to the column default (now()) on first insert.
-          ...(publishedAt ? { publishedAt } : {}),
-        })
-        .onConflictDoUpdate({
-          target: blogPosts.externalId,
-          set: {
-            slug,
-            title,
-            description: description?.trim() || null,
-            contentMarkdown: markdown,
-            contentHtml: html,
-            imageUrl: article.image_url ?? null,
-            imageAlt: article.image_alt ?? title,
-            tags,
-            // Only overwrite publishedAt when the payload supplied a date, so
-            // a re-publish without created_at does not reset ordering state.
-            ...(publishedAt ? { publishedAt } : {}),
-            updatedAt: new Date(),
-          },
-        })
-        .returning({ id: blogPosts.id, slug: blogPosts.slug });
+      const row = await upsertArticle(article);
 
       processed.push({ id: row.id, slug: row.slug });
 
       revalidatePath(`/en/blog/${row.slug}`);
     } catch (err) {
       console.error("[add-blog-post] upsert failed", {
-        externalId: article.id,
+        externalId: article.externalId,
         err,
       });
       // A thrown upsert is treated as transient (DB outage, constraint, etc.)
