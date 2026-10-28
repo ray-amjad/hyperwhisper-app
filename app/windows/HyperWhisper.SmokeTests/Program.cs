@@ -27065,6 +27065,7 @@ internal static class Program
             OutputMuteOwnershipChecks.RunAll(Run);
             CloudCreditsWarningChecks.RunAll(Run);
             PendingHistoryUnreadableChecks.RunAll(Run);
+            UpdateMessageWindowChecks.RunAll(Run);
 
             // Issue #738: LicenseNetworkService over a scripted HttpClient (its internal
             // seam), so the rules that ACT on a server reply run without the backend.
