@@ -163,6 +163,14 @@ export async function POST(req: NextRequest) {
   const probe_only = payload.probe_only === true;
 
   if (!license_key) {
+    // Same wire-format event as activate (#1299): pathname and type only.
+    console.warn("License validate: license key missing", {
+      path: req.nextUrl.pathname,
+      licenseKeyType: isRecord(body)
+        ? typeof body.license_key
+        : "no-body-object",
+    });
+
     return invalidLicenseResponse({
       valid: false,
       error: "License key is required",
