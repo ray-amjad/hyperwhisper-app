@@ -69,6 +69,14 @@ if (args is [RadioButtonLightThemeRenderTests.ProbeArgument])
 {
     Environment.Exit(RadioButtonLightThemeRenderTests.RunProbe());
 }
+if (args is [HomeLiveStateRenderTests.ProbeArgument])
+{
+    Environment.Exit(HomeLiveStateRenderTests.RunProbe());
+}
+if (args is [OverlayMeterRenderTests.ProbeArgument])
+{
+    Environment.Exit(OverlayMeterRenderTests.RunProbe());
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -150,6 +158,11 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a Gemini key that does not start with AIza saves from the provider-key modal with no Invalid API Key notice", ProviderApiKeyNonAizaGeminiRenderTests.RunAsync),
     ("a RadioButton's disc reaches 3:1 on the light card and keeps Windows' #FFFFFF / #212121 in dark (#2514)", RadioButtonLightThemeRenderTests.RunAsync),
     ("a live stream that fails after delivering text keeps that text in History, the error only in FailedReason (#2282)", LiveFailureHistoryTests.KeepsDeliveredText),
+    ("Home's state follows a live stream: Recording while it runs, Failed once it fails and is held (#2038)", HomeLiveStateRenderTests.MappingFollowsTheLiveStream),
+    ("the real Home caption reads Failed for a held live stream and Idle again after Stop (#2038)", HomeLiveStateRenderTests.RunAsync),
+    ("the overlay's macOS-style waveform keeps its 25 2 px bars inside the pill, peaks in the middle, grows with the level and animates only while shown (#2711)", OverlayMeterRenderTests.RunAsync),
+    ("Home reads Recording from the moment a live start shows the overlay, Failed once it turns red, and the workflow state after a failed start (#2038)", HomeLiveStartTests.StartWindowFollowsTheOverlay),
+    ("Home keeps Failed through the stop of a live stream whose connection failed, then reads the workflow state (#2038)", HomeLiveStartTests.StopOfAFailedStreamKeepsFailed),
 };
 
 foreach (var test in tests)
