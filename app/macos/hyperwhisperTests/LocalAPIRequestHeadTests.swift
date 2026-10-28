@@ -274,10 +274,11 @@ struct LocalAPIRequestHeadTests {
 
 // MARK: - Fixtures
 
-/// The client's socket timeout in the tests that wait out a head deadline:
-/// well past the deadline and the 40 s and more a loaded runner has stalled a
-/// test for (#2526), so the server's answer or close comes first. It guards
-/// against a hang; it is not a speed bound.
+/// Every client socket's timeout here: well past the head deadline and the
+/// 40 s and more a loaded runner has stalled a test for (#2526), so the
+/// server's answer or close comes first. It guards against a hang; it is not
+/// a speed bound. A 5 s default timed out `aRequestLineOverTheLimitGets431`
+/// once in a 30× full-bundle loop of main (#2526).
 private let slowRunnerTimeout: TimeInterval = 6 * LocalAPIRequestHeadLimit.readDeadline
 
 private func withProbe(
@@ -367,7 +368,7 @@ private final class RawConnection {
     private let fd: Int32
     private var buffer = Data()
 
-    init(port: UInt16, timeout: TimeInterval = 5) throws {
+    init(port: UInt16, timeout: TimeInterval = slowRunnerTimeout) throws {
         let fd = Darwin.socket(AF_INET, SOCK_STREAM, 0)
         guard fd >= 0 else { throw RawSocketError.syscall("socket", errno) }
 
@@ -491,7 +492,7 @@ private final class RawConnection {
     static func sendAndReadToClose(
         port: UInt16,
         _ request: Data,
-        timeout: TimeInterval = 5
+        timeout: TimeInterval = slowRunnerTimeout
     ) throws -> RawOutcome {
         let connection = try RawConnection(port: port, timeout: timeout)
         defer { connection.close() }
