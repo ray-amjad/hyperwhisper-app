@@ -280,7 +280,9 @@
       "dataTraining": "Quyền riêng tư dữ liệu"
     },
     "copyright": "© 2026 HyperWhisper. Đã đăng ký mọi quyền.",
-    "linkedinAria": "LinkedIn"
+    "linkedinAria": "LinkedIn",
+    "xAria": "Theo dõi HyperWhisper trên X (Twitter)",
+    "githubAria": "HyperWhisper trên GitHub"
   },
   "cloudSection": {
     "eyebrow": "Cloud",

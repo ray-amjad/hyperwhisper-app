@@ -280,7 +280,9 @@
       "dataTraining": "Confidențialitatea datelor"
     },
     "copyright": "© 2026 HyperWhisper. Toate drepturile rezervate.",
-    "linkedinAria": "LinkedIn"
+    "linkedinAria": "LinkedIn",
+    "xAria": "Urmărește HyperWhisper pe X (Twitter)",
+    "githubAria": "HyperWhisper pe GitHub"
   },
   "cloudSection": {
     "eyebrow": "Cloud",
