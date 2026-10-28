@@ -159,7 +159,7 @@ internal static class MonoFoldMidFrameChecks
             }
         }
 
-        // Half of one more frame's first sample: the data chunk ends mid-frame.
+        // The first sample of one more frame, and nothing after it: the data chunk ends mid-frame.
         writer.Write((short)0x2000);
         return path;
     }
@@ -170,7 +170,7 @@ internal static class MonoFoldMidFrameChecks
         {
             File.Delete(path);
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Best effort: a leftover temp file must not fail the suite.
         }
