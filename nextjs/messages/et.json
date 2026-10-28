@@ -16,7 +16,8 @@
       "switchTo": "Vaheta keelt"
     },
     "cloud": "Cloud",
-    "githubAria": "Vaata HyperWhisperit GitHubis"
+    "githubAria": "Vaata HyperWhisperit GitHubis",
+    "linux": "Linux"
   },
   "hero": {
     "logoAlt": "HyperWhisperi logo",
@@ -225,10 +226,11 @@
     "linuxTargets": "Linux v1 on mõeldud Ubuntu 22.04+ ja Debian 12+ süsteemidele amd64 arhitektuuril.",
     "linuxReplaceVersion": "Asenda VERSION allalaaditud versiooniga.",
     "linuxInstallCommandLabel": "Debiani paigalduskäsk",
-    "linuxInputGroupNote": "Pärast input-grupiga liitumist logi välja ja uuesti sisse. Liikmesus on valikuline, kuid globaalsed kiirklahvid ja automaatne kleepimine vajavad seda.",
+    "linuxInputGroupNote": "X11-s töötavad globaalsed kiirklahvid ka ilma selleta. GNOME ja KDE Plasma Waylandi seanssides vajavad globaalsed kiirklahvid input-gruppi ning automaatne kleepimine vajab seda igas töölauakeskkonnas. Pärast grupiga liitumist logi välja ja uuesti sisse.",
     "aptTitle": "Majuta oma APT-hoidla",
     "aptBody": "Linuxi väljalasked sisaldavad ka staatilist APT-hoidla arhiivi. HyperWhisper ei halda praegu avalikku APT-lõpp-punkti; allkirjastatud ja ise majutatud seadistuse, töölauaintegratsiooni, privaatsusteabe ja eemaldamise kohta vaata Linuxi paigaldusjuhendit.",
-    "linuxGuideCta": "Loe Linuxi paigaldusjuhendit"
+    "linuxGuideCta": "Loe Linuxi paigaldusjuhendit",
+    "learnMoreLinux": "Lisateave HyperWhisperi kohta Linuxis"
   },
   "olderVersions": {
     "title": "Vanemad versioonid",
@@ -277,7 +279,8 @@
       "privacyPolicy": "Privaatsuspoliitika",
       "termsOfService": "Teenusetingimused",
       "refundPolicy": "Tagasimaksepoliitika",
-      "dataTraining": "Andmete privaatsus"
+      "dataTraining": "Andmete privaatsus",
+      "linux": "HyperWhisper Linuxile"
     },
     "copyright": "© 2026 HyperWhisper. Kõik õigused kaitstud.",
     "linkedinAria": "LinkedIn",
@@ -395,6 +398,53 @@
     "licenseOlder": "<strong>Ostetud rohkem kui 30 päeva tagasi:</strong> muudame makstud summa HyperWhisper Cloudi krediitideks — kogu ostuhinna, millest on maha arvatud sinu kontole juba lisatud $5 väärtuses krediite. <credits>Kirjuta meile</credits> ja kanname jäägi sinu kontole.",
     "contributeHeading": "Soovid kaasa aidata?",
     "contributeBody": "Veateated, funktsiooniideed ja pull requestid on kõik teretulnud. Ava probleem või alusta arutelu <github>GitHubis</github>."
+  },
+  "linuxPage": {
+    "metaTitle": "HyperWhisper: Wispr Flow alternatiiv Linuxile",
+    "metaDescription": "Wispr Flow'l pole natiivset Linuxi rakendust. HyperWhisperil on: tehisintellektiga häälkirjutus Ubuntule ja Debianile koos kohalike võrguühenduseta mudelite, oma API-võtmete ja globaalsete kiirklahvidega.",
+    "eyebrow": "HyperWhisper Linuxile",
+    "heading": "HyperWhisper: Wispr Flow alternatiiv Linuxile",
+    "lead": "Wispr Flow'l pole natiivset Linuxi rakendust. HyperWhisperil on. Räägi loomulikult ja saa puhas tekst, mis transkribeeritakse võrguühenduseta sinu enda arvutis või pilves sinu enda API-võtmega.",
+    "downloadCta": "Laadi alla .deb (v{version})",
+    "releaseNotes": "Väljalaskemärkmed ja kontrollsummad",
+    "requirementsShort": "x86_64 · Ubuntu 22.04+ / Debian 12+",
+    "installHeading": "Paigalda ühe käsuga",
+    "installBody": "Laadi pakett alla ja käivita see käsk kaustas, kus pakett asub. apt paigaldab rakenduse koos selle sõltuvustega.",
+    "installCommandLabel": "Debiani paigalduskäsk",
+    "requirementsHeading": "Nõuded",
+    "requirementArch": "x86_64 (amd64) arvuti",
+    "requirementDistro": "Ubuntu 22.04 või uuem või Debian 12 või uuem",
+    "requirementDesktop": "GNOME või KDE Plasma kontrollitud töölauakogemuse jaoks",
+    "cudaHeading": "NVIDIA GPU? Lisa CUDA",
+    "cudaBody": "Paigalda samast väljalaskest valikuline pakett hyperwhisper-cuda, rakendusega sama versioon, et käitada kohalikku Whisperit ja kohalikku Gemma järeltöötlust CUDA peal.",
+    "featuresHeading": "Loodud sinu Linuxi töölauale",
+    "localHeading": "Võrguühenduseta mudelid sinu seadmes",
+    "localBody": "Vali kohalik mudel ja transkribeerimine toimub täielikult sinu arvutis, ilma internetiühenduseta. Whisper töötab protsessoril või sinu GPU-l Vulkani või CUDA kaudu. Parakeet, Qwen3 ASR ja Nemotron töötavad protsessoril. Kohalikud Gemma mudelid saavad sinu teksti ka võrguühenduseta viimistleda.",
+    "byokHeading": "Kasuta oma API-võtit",
+    "byokBody": "Eelistad pilve? Kasuta oma API-võtit pilvetranskriptsiooniks, näiteks Deepgrami või ElevenLabsiga, ja tehisintellektiga järeltöötluseks, näiteks OpenAI, Anthropicu, Groqi või Geminiga. Või jäta võtmed vahele ja kasuta HyperWhisper Cloudi, makstes kasutuse järgi.",
+    "languagesHeading": "Liides 40 keeles",
+    "languagesBody": "Rakenduse liides on saadaval 40 keeles ja Whisperi mudelid transkribeerivad üle 100 keele.",
+    "openSourceHeading": "Avatud lähtekood",
+    "openSourceBody": "HyperWhisper on avatud lähtekoodiga Apache-2.0 litsentsi all, sealhulgas Linuxi rakendus. Loe iga rida GitHubis.",
+    "hotkeysHeading": "Globaalsed kiirklahvid X11-s ja Waylandis",
+    "hotkeysBody": "Globaalsed kiirklahvid töötavad X11-s kohe. GNOME ja KDE Plasma Waylandi seanssides töötavad need pärast seda, kui oled liitunud grupiga hyperwhisper-input ning välja ja uuesti sisse loginud. Waylandis loeb HyperWhisper klaviatuuri evdevi kaudu, mitte töölauaportaali kaudu.",
+    "hotkeysCommandLabel": "Liitu sisendgrupiga",
+    "hotkeysFallback": "Ilma grupita töötab transkribeerimine ikkagi ja tulemus jääb lõikelauale. Automaatne kleepimine vajab samuti gruppi.",
+    "hotkeysDefault": "Salvestamise alustamiseks ja peatamiseks vajuta Ctrl+Alt. Iga kiirklahvi saad muuta seadetes.",
+    "compareHeading": "HyperWhisper või Wispr Flow Linuxis?",
+    "compareBody": "Wispr Flow'l pole natiivset Linuxi rakendust. HyperWhisperil on juba täna natiivne Linuxi rakendus .deb-paketina Ubuntule ja Debianile, lisaks rakendustele macOS-ile ja Windowsile.",
+    "faqHeading": "Korduma kippuvad küsimused",
+    "faqWisprQuestion": "Kas Wispr Flow'l on Linuxi rakendus?",
+    "faqWisprAnswer": "Ei. Wispr Flow'l pole natiivset Linuxi rakendust. HyperWhisper töötab natiivselt Linuxis, samuti macOS-is ja Windowsis.",
+    "faqDistroQuestion": "Milliseid Linuxi distributsioone toetatakse?",
+    "faqDistroAnswer": "Ubuntu 22.04 või uuemat ja Debian 12 või uuemat, x86_64 (amd64) arhitektuuril. HyperWhisper tarnitakse .deb-paketina. Muud Debianil põhinevad distributsioonid võivad töötada, kuid need ei kuulu kontrollitud väljalaskemaatriksisse.",
+    "faqOfflineQuestion": "Kas see töötab võrguühenduseta?",
+    "faqOfflineAnswer": "Jah. Kohaliku mudeliga toimub transkribeerimine täielikult sinu arvutis ega vaja internetiühendust.",
+    "faqWaylandQuestion": "Kas globaalsed kiirklahvid töötavad Waylandis?",
+    "faqWaylandAnswer": "GNOME ja KDE Plasma Waylandi seanssides jah, pärast seda, kui oled liitunud grupiga hyperwhisper-input ning välja ja uuesti sisse loginud. X11-s töötavad need kohe.",
+    "docsHeading": "Vajad üksikasju?",
+    "docsBody": "Linuxi paigaldusjuhend käsitleb CUDA-t, sisendiõigusi, valikulisi GNOME ja KDE kaasrakendusi ning eemaldamist.",
+    "docsCta": "Loe Linuxi paigaldusjuhendit"
   },
   "openSourceBanner": {
     "text": "HyperWhisper on nüüd täielikult avatud lähtekoodiga",

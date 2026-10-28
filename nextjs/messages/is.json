@@ -16,7 +16,8 @@
       "switchTo": "Skipta um tungumál"
     },
     "cloud": "Cloud",
-    "githubAria": "Skoða HyperWhisper á GitHub"
+    "githubAria": "Skoða HyperWhisper á GitHub",
+    "linux": "Linux"
   },
   "hero": {
     "logoAlt": "HyperWhisper merki",
@@ -225,10 +226,11 @@
     "linuxTargets": "Linux v1 styður Ubuntu 22.04+ og Debian 12+ á amd64.",
     "linuxReplaceVersion": "Skiptu VERSION út fyrir útgáfuna sem þú sóttir.",
     "linuxInstallCommandLabel": "Uppsetningarskipun fyrir Debian",
-    "linuxInputGroupNote": "Skráðu þig út og aftur inn eftir að þú gengur í input-hópinn. Aðild er valfrjáls, en altækar flýtileiðir og sjálfvirk innsetning þurfa hana.",
+    "linuxInputGroupNote": "Á X11 virka altækar flýtileiðir án hans. Á GNOME og KDE Plasma með Wayland þurfa altækar flýtileiðir input-hópinn, og sjálfvirk innsetning þarf hann á öllum skjáborðum. Skráðu þig út og aftur inn eftir að þú gengur í hann.",
     "aptTitle": "Hýstu þína eigin APT-geymslu",
     "aptBody": "Linux-útgáfur innihalda einnig kyrrstætt APT-geymslusafn. HyperWhisper rekur sem stendur engan opinberan APT-endapunkt; sjáðu uppsetningarleiðbeiningarnar fyrir Linux varðandi undirritaða, sjálfhýsta uppsetningu, skjáborðssamþættingu, persónuverndarupplýsingar og fjarlægingu.",
-    "linuxGuideCta": "Lesa uppsetningarleiðbeiningar fyrir Linux"
+    "linuxGuideCta": "Lesa uppsetningarleiðbeiningar fyrir Linux",
+    "learnMoreLinux": "Nánar um HyperWhisper á Linux"
   },
   "olderVersions": {
     "title": "Eldri útgáfur",
@@ -277,7 +279,8 @@
       "privacyPolicy": "Persónuverndarstefna",
       "termsOfService": "Þjónustuskilmálar",
       "refundPolicy": "Endurgreiðslustefna",
-      "dataTraining": "Gagnafriðhelgi"
+      "dataTraining": "Gagnafriðhelgi",
+      "linux": "HyperWhisper fyrir Linux"
     },
     "copyright": "© 2026 HyperWhisper. Öll réttindi áskilin.",
     "linkedinAria": "LinkedIn",
@@ -395,6 +398,53 @@
     "licenseOlder": "<strong>Keypt fyrir meira en 30 dögum:</strong> við breytum því sem þú greiddir í HyperWhisper Cloud-inneign — fullu kaupverði, að frádregnum þeim $5 í inneign sem þegar hafa verið lagðir inn á reikninginn þinn. <credits>Sendu okkur póst</credits> og við færum eftirstöðvarnar inn.",
     "contributeHeading": "Viltu leggja þitt af mörkum?",
     "contributeBody": "Villutilkynningar, hugmyndir að eiginleikum og pull requests eru öll velkomin. Stofnaðu mál eða hefðu umræðu <github>á GitHub</github>."
+  },
+  "linuxPage": {
+    "metaTitle": "HyperWhisper: valkosturinn við Wispr Flow fyrir Linux",
+    "metaDescription": "Wispr Flow er ekki með innbyggt Linux-forrit. HyperWhisper er með það: gervigreindarupplestur fyrir Ubuntu og Debian með staðbundnum líkönum án nettengingar, þínum eigin API-lyklum og altækum flýtilyklum.",
+    "eyebrow": "HyperWhisper fyrir Linux",
+    "heading": "HyperWhisper: valkosturinn við Wispr Flow fyrir Linux",
+    "lead": "Wispr Flow er ekki með innbyggt Linux-forrit. HyperWhisper er með það. Talaðu eðlilega og fáðu hreinan texta, umritaðan án nettengingar á þinni eigin tölvu eða í skýinu með þínum eigin API-lykli.",
+    "downloadCta": "Sækja .deb (v{version})",
+    "releaseNotes": "Útgáfuupplýsingar og gátsummur",
+    "requirementsShort": "x86_64 · Ubuntu 22.04+ / Debian 12+",
+    "installHeading": "Settu upp með einni skipun",
+    "installBody": "Sæktu pakkann og keyrðu svo þessa skipun úr möppunni sem geymir hann. apt setur upp forritið og það sem það þarfnast í einu.",
+    "installCommandLabel": "Uppsetningarskipun fyrir Debian",
+    "requirementsHeading": "Kröfur",
+    "requirementArch": "x86_64 (amd64) tölva",
+    "requirementDistro": "Ubuntu 22.04 eða nýrra, eða Debian 12 eða nýrra",
+    "requirementDesktop": "GNOME eða KDE Plasma fyrir staðfesta skjáborðsupplifun",
+    "cudaHeading": "Ertu með NVIDIA GPU? Bættu við CUDA",
+    "cudaBody": "Settu upp valfrjálsa pakkann hyperwhisper-cuda úr sömu útgáfu, í sömu útgáfu og forritið, til að keyra staðbundið Whisper og staðbundna Gemma-eftirvinnslu á CUDA.",
+    "featuresHeading": "Smíðað fyrir Linux-skjáborðið þitt",
+    "localHeading": "Líkön án nettengingar, á tækinu",
+    "localBody": "Veldu staðbundið líkan og umritunin keyrir alfarið á tölvunni þinni, án nettengingar. Whisper keyrir á örgjörvanum eða á skjákortinu þínu í gegnum Vulkan eða CUDA. Parakeet, Qwen3 ASR og Nemotron keyra á örgjörvanum. Staðbundin Gemma-líkön geta líka hreinsað textann þinn án nettengingar.",
+    "byokHeading": "Notaðu þinn eigin API-lykil",
+    "byokBody": "Kýstu skýið? Notaðu þinn eigin API-lykil fyrir umritun í skýinu, til dæmis Deepgram eða ElevenLabs, og fyrir eftirvinnslu með gervigreind, til dæmis OpenAI, Anthropic, Groq eða Gemini. Eða slepptu lyklunum og notaðu HyperWhisper Cloud, þar sem þú greiðir eftir notkun.",
+    "languagesHeading": "Viðmót á 40 tungumálum",
+    "languagesBody": "Viðmót forritsins er fáanlegt á 40 tungumálum og Whisper-líkön umrita meira en 100 tungumál.",
+    "openSourceHeading": "Opinn hugbúnaður",
+    "openSourceBody": "HyperWhisper er opinn hugbúnaður með Apache-2.0 leyfi, Linux-forritið meðtalið. Lestu hverja línu á GitHub.",
+    "hotkeysHeading": "Altækir flýtilyklar á X11 og Wayland",
+    "hotkeysBody": "Altækir flýtilyklar virka strax á X11. Á GNOME og KDE Plasma Wayland virka þeir eftir að þú gengur í hópinn hyperwhisper-input og skráir þig út og inn aftur. Á Wayland les HyperWhisper lyklaborðið í gegnum evdev, ekki í gegnum skjáborðsgátt.",
+    "hotkeysCommandLabel": "Ganga í inntakshópinn",
+    "hotkeysFallback": "Án hópsins virkar umritunin samt og niðurstaðan er geymd á klippiborðinu. Sjálfvirk innlíming þarf líka hópinn.",
+    "hotkeysDefault": "Ýttu á Ctrl+Alt til að hefja og stöðva upptöku. Þú getur breytt öllum flýtilyklum í Stillingum.",
+    "compareHeading": "HyperWhisper eða Wispr Flow á Linux?",
+    "compareBody": "Wispr Flow er ekki með innbyggt Linux-forrit. HyperWhisper býður nú þegar innbyggt Linux-forrit, sem .deb-pakka fyrir Ubuntu og Debian, ásamt forritum sínum fyrir macOS og Windows.",
+    "faqHeading": "Algengar spurningar",
+    "faqWisprQuestion": "Er til Wispr Flow forrit fyrir Linux?",
+    "faqWisprAnswer": "Nei. Wispr Flow er ekki með innbyggt Linux-forrit. HyperWhisper keyrir innbyggt á Linux, auk macOS og Windows.",
+    "faqDistroQuestion": "Hvaða Linux-dreifingar eru studdar?",
+    "faqDistroAnswer": "Ubuntu 22.04 eða nýrra og Debian 12 eða nýrra, á x86_64 (amd64). HyperWhisper kemur sem .deb-pakki. Aðrar Debian-byggðar dreifingar gætu virkað, en þær eru ekki hluti af staðfestu útgáfuprófununum.",
+    "faqOfflineQuestion": "Virkar það án nettengingar?",
+    "faqOfflineAnswer": "Já. Með staðbundnu líkani keyrir umritunin alfarið á tölvunni þinni og þarf enga nettengingu.",
+    "faqWaylandQuestion": "Virka altækir flýtilyklar á Wayland?",
+    "faqWaylandAnswer": "Á GNOME og KDE Plasma Wayland, já, eftir að þú gengur í hópinn hyperwhisper-input og skráir þig út og inn aftur. Á X11 virka þeir strax.",
+    "docsHeading": "Viltu nánari upplýsingar?",
+    "docsBody": "Uppsetningarleiðbeiningarnar fyrir Linux fjalla um CUDA, inntaksheimildir, valfrjálsu GNOME- og KDE-viðbæturnar og fjarlægingu.",
+    "docsCta": "Lesa uppsetningarleiðbeiningar fyrir Linux"
   },
   "openSourceBanner": {
     "text": "HyperWhisper er nú algjörlega opinn hugbúnaður",

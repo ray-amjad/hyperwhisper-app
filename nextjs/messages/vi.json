@@ -16,7 +16,8 @@
       "switchTo": "Đổi ngôn ngữ"
     },
     "cloud": "Cloud",
-    "githubAria": "Xem HyperWhisper trên GitHub"
+    "githubAria": "Xem HyperWhisper trên GitHub",
+    "linux": "Linux"
   },
   "hero": {
     "logoAlt": "Logo HyperWhisper",
@@ -225,10 +226,11 @@
     "linuxTargets": "Linux v1 hỗ trợ Ubuntu 22.04+ và Debian 12+ trên amd64.",
     "linuxReplaceVersion": "Thay VERSION bằng phiên bản bạn đã tải xuống.",
     "linuxInstallCommandLabel": "Lệnh cài đặt Debian",
-    "linuxInputGroupNote": "Đăng xuất rồi đăng nhập lại sau khi tham gia nhóm input. Việc tham gia là tùy chọn, nhưng phím tắt toàn cục và tự động dán cần đến nó.",
+    "linuxInputGroupNote": "Trên X11, phím tắt toàn cục hoạt động mà không cần nhóm này. Trên GNOME và KDE Plasma Wayland, phím tắt toàn cục cần nhóm input, và tự động dán cần nhóm này trên mọi môi trường desktop. Đăng xuất rồi đăng nhập lại sau khi tham gia nhóm.",
     "aptTitle": "Tự lưu trữ kho APT",
     "aptBody": "Các bản phát hành Linux cũng kèm theo một tệp lưu trữ kho APT tĩnh. HyperWhisper hiện không vận hành endpoint APT công khai; hãy xem hướng dẫn cài đặt Linux để biết cách thiết lập tự lưu trữ có ký số, các thành phần đi kèm cho máy tính, chi tiết quyền riêng tư và cách gỡ cài đặt.",
-    "linuxGuideCta": "Đọc hướng dẫn cài đặt Linux"
+    "linuxGuideCta": "Đọc hướng dẫn cài đặt Linux",
+    "learnMoreLinux": "Tìm hiểu thêm về HyperWhisper trên Linux"
   },
   "olderVersions": {
     "title": "Phiên bản cũ",
@@ -277,7 +279,8 @@
       "privacyPolicy": "Chính sách Quyền riêng tư",
       "termsOfService": "Điều khoản Dịch vụ",
       "refundPolicy": "Chính sách Hoàn tiền",
-      "dataTraining": "Quyền riêng tư dữ liệu"
+      "dataTraining": "Quyền riêng tư dữ liệu",
+      "linux": "HyperWhisper cho Linux"
     },
     "copyright": "© 2026 HyperWhisper. Đã đăng ký mọi quyền.",
     "linkedinAria": "LinkedIn",
@@ -395,6 +398,53 @@
     "licenseOlder": "<strong>Mua cách đây hơn 30 ngày:</strong> chúng tôi sẽ chuyển số tiền bạn đã trả thành tín dụng HyperWhisper Cloud — toàn bộ giá mua, trừ đi $5 tín dụng đã được thêm vào tài khoản của bạn. <credits>Gửi email cho chúng tôi</credits> và chúng tôi sẽ cộng số dư cho bạn.",
     "contributeHeading": "Bạn muốn đóng góp?",
     "contributeBody": "Chúng tôi luôn hoan nghênh báo cáo lỗi, ý tưởng tính năng và pull request. Hãy mở một issue hoặc bắt đầu thảo luận <github>trên GitHub</github>."
+  },
+  "linuxPage": {
+    "metaTitle": "HyperWhisper: giải pháp thay thế Wispr Flow cho Linux",
+    "metaDescription": "Wispr Flow không có ứng dụng gốc cho Linux. HyperWhisper thì có: nhập liệu bằng giọng nói với AI cho Ubuntu và Debian, có mô hình cục bộ chạy ngoại tuyến, khóa API của riêng bạn và phím tắt toàn cục.",
+    "eyebrow": "HyperWhisper cho Linux",
+    "heading": "HyperWhisper: giải pháp thay thế Wispr Flow cho Linux",
+    "lead": "Wispr Flow không có ứng dụng gốc cho Linux. HyperWhisper thì có. Hãy nói tự nhiên và nhận văn bản gọn gàng, được chuyển thành văn bản ngoại tuyến ngay trên máy tính của bạn hoặc trên đám mây bằng khóa API của riêng bạn.",
+    "downloadCta": "Tải xuống .deb (v{version})",
+    "releaseNotes": "Ghi chú phát hành và mã kiểm tra",
+    "requirementsShort": "x86_64 · Ubuntu 22.04+ / Debian 12+",
+    "installHeading": "Cài đặt bằng một lệnh",
+    "installBody": "Tải gói xuống, rồi chạy lệnh này trong thư mục chứa gói đó. apt sẽ cài đặt ứng dụng cùng các gói phụ thuộc của nó.",
+    "installCommandLabel": "Lệnh cài đặt gói Debian",
+    "requirementsHeading": "Yêu cầu",
+    "requirementArch": "Máy tính x86_64 (amd64)",
+    "requirementDistro": "Ubuntu 22.04 trở lên, hoặc Debian 12 trở lên",
+    "requirementDesktop": "GNOME hoặc KDE Plasma để có trải nghiệm máy tính để bàn đã được kiểm chứng",
+    "cudaHeading": "Có GPU NVIDIA? Thêm CUDA",
+    "cudaBody": "Cài đặt gói tùy chọn hyperwhisper-cuda từ cùng bản phát hành, cùng phiên bản với ứng dụng, để chạy Whisper cục bộ và hậu xử lý bằng Gemma cục bộ trên CUDA.",
+    "featuresHeading": "Được xây dựng cho máy tính Linux của bạn",
+    "localHeading": "Mô hình ngoại tuyến, ngay trên thiết bị",
+    "localBody": "Chọn một mô hình cục bộ và quá trình chuyển giọng nói thành văn bản sẽ chạy hoàn toàn trên máy tính của bạn, không cần kết nối internet. Whisper chạy trên CPU hoặc trên GPU thông qua Vulkan hay CUDA. Parakeet, Qwen3 ASR và Nemotron chạy trên CPU. Các mô hình Gemma cục bộ cũng có thể chỉnh sửa văn bản của bạn khi ngoại tuyến.",
+    "byokHeading": "Dùng khóa API của riêng bạn",
+    "byokBody": "Bạn thích dùng đám mây hơn? Hãy dùng khóa API của riêng bạn cho chuyển giọng nói thành văn bản trên đám mây, ví dụ Deepgram hoặc ElevenLabs, và cho hậu xử lý bằng AI, ví dụ OpenAI, Anthropic, Groq hoặc Gemini. Hoặc bỏ qua khóa và dùng HyperWhisper Cloud, trả tiền theo mức sử dụng.",
+    "languagesHeading": "Giao diện 40 ngôn ngữ",
+    "languagesBody": "Giao diện ứng dụng có sẵn bằng 40 ngôn ngữ, và các mô hình Whisper chuyển thành văn bản hơn 100 ngôn ngữ.",
+    "openSourceHeading": "Mã nguồn mở",
+    "openSourceBody": "HyperWhisper là mã nguồn mở theo giấy phép Apache-2.0, bao gồm cả ứng dụng Linux. Hãy đọc từng dòng mã trên GitHub.",
+    "hotkeysHeading": "Phím tắt toàn cục trên X11 và Wayland",
+    "hotkeysBody": "Phím tắt toàn cục hoạt động ngay trên X11. Trên GNOME và KDE Plasma Wayland, chúng hoạt động sau khi bạn tham gia nhóm hyperwhisper-input, rồi đăng xuất và đăng nhập lại. Trên Wayland, HyperWhisper đọc bàn phím qua evdev, không qua cổng desktop portal.",
+    "hotkeysCommandLabel": "Tham gia nhóm nhập liệu",
+    "hotkeysFallback": "Không có nhóm, tính năng chuyển giọng nói thành văn bản vẫn hoạt động và kết quả được giữ trong bảng nhớ tạm. Tự động dán cũng cần nhóm này.",
+    "hotkeysDefault": "Nhấn Ctrl+Alt để bắt đầu và dừng ghi âm. Bạn có thể đổi mọi phím tắt trong phần Cài đặt.",
+    "compareHeading": "HyperWhisper hay Wispr Flow trên Linux?",
+    "compareBody": "Wispr Flow không có ứng dụng gốc cho Linux. HyperWhisper đã có ứng dụng Linux gốc ngay hôm nay, dưới dạng gói .deb cho Ubuntu và Debian, bên cạnh các ứng dụng cho macOS và Windows.",
+    "faqHeading": "Câu hỏi thường gặp",
+    "faqWisprQuestion": "Có ứng dụng Wispr Flow cho Linux không?",
+    "faqWisprAnswer": "Không. Wispr Flow không có ứng dụng gốc cho Linux. HyperWhisper chạy gốc trên Linux, cũng như trên macOS và Windows.",
+    "faqDistroQuestion": "Những bản phân phối Linux nào được hỗ trợ?",
+    "faqDistroAnswer": "Ubuntu 22.04 trở lên và Debian 12 trở lên, trên x86_64 (amd64). HyperWhisper được phát hành dưới dạng gói .deb. Các bản phân phối khác dựa trên Debian có thể hoạt động, nhưng chúng không nằm trong ma trận phát hành đã được kiểm chứng.",
+    "faqOfflineQuestion": "Ứng dụng có hoạt động ngoại tuyến không?",
+    "faqOfflineAnswer": "Có. Với mô hình cục bộ, quá trình chuyển giọng nói thành văn bản chạy hoàn toàn trên máy tính của bạn và không cần kết nối internet.",
+    "faqWaylandQuestion": "Phím tắt toàn cục có hoạt động trên Wayland không?",
+    "faqWaylandAnswer": "Trên GNOME và KDE Plasma Wayland thì có, sau khi bạn tham gia nhóm hyperwhisper-input, rồi đăng xuất và đăng nhập lại. Trên X11, chúng hoạt động ngay.",
+    "docsHeading": "Cần thêm chi tiết?",
+    "docsBody": "Hướng dẫn cài đặt Linux trình bày về CUDA, quyền nhập liệu, các thành phần đồng hành tùy chọn cho GNOME và KDE, và cách gỡ cài đặt.",
+    "docsCta": "Đọc hướng dẫn cài đặt Linux"
   },
   "openSourceBanner": {
     "text": "HyperWhisper giờ đã hoàn toàn mã nguồn mở",

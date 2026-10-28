@@ -16,7 +16,8 @@
       "switchTo": "Schimbă limba"
     },
     "cloud": "Cloud",
-    "githubAria": "Vezi HyperWhisper pe GitHub"
+    "githubAria": "Vezi HyperWhisper pe GitHub",
+    "linux": "Linux"
   },
   "hero": {
     "logoAlt": "Logo HyperWhisper",
@@ -225,10 +226,11 @@
     "linuxTargets": "Linux v1 suportă Ubuntu 22.04+ și Debian 12+ pe amd64.",
     "linuxReplaceVersion": "Înlocuiește VERSION cu versiunea pe care ai descărcat-o.",
     "linuxInstallCommandLabel": "Comanda de instalare Debian",
-    "linuxInputGroupNote": "Deconectează-te și reconectează-te după ce te alături grupului input. Calitatea de membru este opțională, dar scurtăturile globale și lipirea automată au nevoie de ea.",
+    "linuxInputGroupNote": "Pe X11, scurtăturile globale funcționează fără el. Pe GNOME și KDE Plasma cu Wayland, scurtăturile globale au nevoie de grupul input, iar lipirea automată are nevoie de el pe orice desktop. Deconectează-te și reconectează-te după ce te alături grupului.",
     "aptTitle": "Găzduiește singur un repository APT",
     "aptBody": "Versiunile Linux includ și o arhivă statică de repository APT. În prezent, HyperWhisper nu operează un endpoint APT public; consultă ghidul de instalare Linux pentru configurarea semnată și auto-găzduită, componentele desktop complementare, detaliile de confidențialitate și dezinstalare.",
-    "linuxGuideCta": "Citește ghidul de instalare Linux"
+    "linuxGuideCta": "Citește ghidul de instalare Linux",
+    "learnMoreLinux": "Află mai multe despre HyperWhisper pe Linux"
   },
   "olderVersions": {
     "title": "Versiuni mai vechi",
@@ -277,7 +279,8 @@
       "privacyPolicy": "Politica de confidențialitate",
       "termsOfService": "Termeni și condiții",
       "refundPolicy": "Politica de rambursare",
-      "dataTraining": "Confidențialitatea datelor"
+      "dataTraining": "Confidențialitatea datelor",
+      "linux": "HyperWhisper pentru Linux"
     },
     "copyright": "© 2026 HyperWhisper. Toate drepturile rezervate.",
     "linkedinAria": "LinkedIn",
@@ -395,6 +398,53 @@
     "licenseOlder": "<strong>Cumpărată acum mai mult de 30 de zile:</strong> vom converti suma plătită în credite HyperWhisper Cloud — prețul integral de achiziție, minus creditele de $5 deja adăugate în contul tău. <credits>Scrie-ne un e-mail</credits> și vom aplica soldul.",
     "contributeHeading": "Vrei să contribui?",
     "contributeBody": "Rapoartele de erori, ideile de funcționalități și pull request-urile sunt binevenite. Deschide un issue sau începe o discuție <github>pe GitHub</github>."
+  },
+  "linuxPage": {
+    "metaTitle": "HyperWhisper: alternativa la Wispr Flow pentru Linux",
+    "metaDescription": "Wispr Flow nu are o aplicație nativă pentru Linux. HyperWhisper are: dictare vocală cu AI pentru Ubuntu și Debian, cu modele locale offline, propriile chei API și comenzi rapide globale.",
+    "eyebrow": "HyperWhisper pentru Linux",
+    "heading": "HyperWhisper: alternativa la Wispr Flow pentru Linux",
+    "lead": "Wispr Flow nu are o aplicație nativă pentru Linux. HyperWhisper are. Vorbește natural și obține text curat, transcris offline pe propriul computer sau în cloud cu propria cheie API.",
+    "downloadCta": "Descarcă .deb (v{version})",
+    "releaseNotes": "Note de lansare și sume de control",
+    "requirementsShort": "x86_64 · Ubuntu 22.04+ / Debian 12+",
+    "installHeading": "Instalează cu o singură comandă",
+    "installBody": "Descarcă pachetul, apoi rulează această comandă din folderul în care se află. apt instalează aplicația și dependențele ei împreună.",
+    "installCommandLabel": "Comanda de instalare Debian",
+    "requirementsHeading": "Cerințe",
+    "requirementArch": "Un computer x86_64 (amd64)",
+    "requirementDistro": "Ubuntu 22.04 sau mai nou, ori Debian 12 sau mai nou",
+    "requirementDesktop": "GNOME sau KDE Plasma pentru experiența desktop verificată",
+    "cudaHeading": "Ai un GPU NVIDIA? Adaugă CUDA",
+    "cudaBody": "Instalează pachetul opțional hyperwhisper-cuda din aceeași lansare, cu aceeași versiune ca aplicația, pentru a rula Whisper local și post-procesarea locală Gemma pe CUDA.",
+    "featuresHeading": "Creat pentru desktopul tău Linux",
+    "localHeading": "Modele offline, pe dispozitiv",
+    "localBody": "Alege un model local și transcrierea rulează în întregime pe computerul tău, fără conexiune la internet. Whisper rulează pe CPU sau pe GPU-ul tău prin Vulkan sau CUDA. Parakeet, Qwen3 ASR și Nemotron rulează pe CPU. Modelele Gemma locale îți pot curăța și ele textul offline.",
+    "byokHeading": "Folosește propria cheie API",
+    "byokBody": "Preferi cloudul? Folosește propria cheie API pentru transcrierea în cloud, de exemplu Deepgram sau ElevenLabs, și pentru post-procesarea cu AI, de exemplu OpenAI, Anthropic, Groq sau Gemini. Sau renunță la chei și folosește HyperWhisper Cloud, cu plata în funcție de utilizare.",
+    "languagesHeading": "40 de limbi pentru interfață",
+    "languagesBody": "Interfața aplicației este disponibilă în 40 de limbi, iar modelele Whisper transcriu peste 100.",
+    "openSourceHeading": "Open source",
+    "openSourceBody": "HyperWhisper este open source sub licența Apache-2.0, inclusiv aplicația pentru Linux. Citește fiecare linie pe GitHub.",
+    "hotkeysHeading": "Comenzi rapide globale pe X11 și Wayland",
+    "hotkeysBody": "Comenzile rapide globale funcționează direct pe X11. Pe GNOME și KDE Plasma cu Wayland, ele funcționează după ce te alături grupului hyperwhisper-input și te deconectezi și te reconectezi. Pe Wayland, HyperWhisper citește tastatura prin evdev, nu printr-un portal de desktop.",
+    "hotkeysCommandLabel": "Alătură-te grupului de intrare",
+    "hotkeysFallback": "Fără grup, transcrierea funcționează în continuare, iar rezultatul rămâne în clipboard. Lipirea automată are și ea nevoie de grup.",
+    "hotkeysDefault": "Apasă Ctrl+Alt pentru a porni și a opri înregistrarea. Poți schimba orice comandă rapidă din Setări.",
+    "compareHeading": "HyperWhisper sau Wispr Flow pe Linux?",
+    "compareBody": "Wispr Flow nu are o aplicație nativă pentru Linux. HyperWhisper oferă deja o aplicație nativă pentru Linux, ca pachet .deb pentru Ubuntu și Debian, alături de aplicațiile sale pentru macOS și Windows.",
+    "faqHeading": "Întrebări frecvente",
+    "faqWisprQuestion": "Există o aplicație Wispr Flow pentru Linux?",
+    "faqWisprAnswer": "Nu. Wispr Flow nu are o aplicație nativă pentru Linux. HyperWhisper rulează nativ pe Linux, precum și pe macOS și Windows.",
+    "faqDistroQuestion": "Ce distribuții Linux sunt acceptate?",
+    "faqDistroAnswer": "Ubuntu 22.04 sau mai nou și Debian 12 sau mai nou, pe x86_64 (amd64). HyperWhisper este livrat ca pachet .deb. Alte distribuții bazate pe Debian pot funcționa, dar nu fac parte din matricea de lansări verificate.",
+    "faqOfflineQuestion": "Funcționează offline?",
+    "faqOfflineAnswer": "Da. Cu un model local, transcrierea rulează în întregime pe computerul tău și nu are nevoie de conexiune la internet.",
+    "faqWaylandQuestion": "Funcționează comenzile rapide globale pe Wayland?",
+    "faqWaylandAnswer": "Pe GNOME și KDE Plasma cu Wayland, da, după ce te alături grupului hyperwhisper-input și te deconectezi și te reconectezi. Pe X11 funcționează direct.",
+    "docsHeading": "Ai nevoie de detalii?",
+    "docsBody": "Ghidul de instalare pentru Linux acoperă CUDA, permisiunile de intrare, extensiile opționale pentru GNOME și KDE și dezinstalarea.",
+    "docsCta": "Citește ghidul de instalare pentru Linux"
   },
   "openSourceBanner": {
     "text": "HyperWhisper este acum complet open-source",

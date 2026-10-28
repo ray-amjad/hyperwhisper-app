@@ -16,7 +16,8 @@
       "switchTo": "החלפת שפה"
     },
     "cloud": "Cloud",
-    "githubAria": "צפו ב-HyperWhisper ב-GitHub"
+    "githubAria": "צפו ב-HyperWhisper ב-GitHub",
+    "linux": "Linux"
   },
   "hero": {
     "logoAlt": "הלוגו של HyperWhisper",
@@ -225,10 +226,11 @@
     "linuxTargets": "Linux v1 מיועדת ל-Ubuntu 22.04+ ול-Debian 12+ על amd64.",
     "linuxReplaceVersion": "החליפו את VERSION בגרסה שהורדתם.",
     "linuxInstallCommandLabel": "פקודת ההתקנה ל-Debian",
-    "linuxInputGroupNote": "אחרי ההצטרפות לקבוצה input, התנתקו והתחברו מחדש. החברות בקבוצה אינה חובה, אבל קיצורי מקלדת גלובליים והדבקה אוטומטית דורשים אותה.",
+    "linuxInputGroupNote": "ב-X11 קיצורי מקלדת גלובליים פועלים גם בלעדיה. ב-GNOME וב-KDE Plasma עם Wayland, קיצורי מקלדת גלובליים דורשים את הקבוצה input, והדבקה אוטומטית דורשת אותה בכל סביבת שולחן עבודה. אחרי ההצטרפות אליה, התנתקו והתחברו מחדש.",
     "aptTitle": "אירוח עצמי של מאגר APT",
     "aptBody": "גרסאות Linux כוללות גם ארכיון של מאגר APT סטטי. HyperWhisper לא מפעיל כרגע נקודת קצה ציבורית של APT; עיינו במדריך ההתקנה של Linux להגדרה חתומה באירוח עצמי, לרכיבים נלווים לשולחן העבודה, לפרטי פרטיות ולהסרה.",
-    "linuxGuideCta": "קראו את מדריך ההתקנה של Linux"
+    "linuxGuideCta": "קראו את מדריך ההתקנה של Linux",
+    "learnMoreLinux": "מידע נוסף על HyperWhisper ב-Linux"
   },
   "olderVersions": {
     "title": "גרסאות ישנות",
@@ -277,7 +279,8 @@
       "privacyPolicy": "מדיניות פרטיות",
       "termsOfService": "תנאי שימוש",
       "refundPolicy": "מדיניות החזר כספי",
-      "dataTraining": "פרטיות נתונים"
+      "dataTraining": "פרטיות נתונים",
+      "linux": "HyperWhisper עבור Linux"
     },
     "copyright": "© 2026 HyperWhisper. כל הזכויות שמורות.",
     "linkedinAria": "LinkedIn",
@@ -395,6 +398,53 @@
     "licenseOlder": "<strong>קניתם לפני יותר מ-30 יום:</strong> נמיר את מה ששילמתם לקרדיטים של HyperWhisper Cloud — מלוא מחיר הרכישה, בניכוי $5 בקרדיטים שכבר נוספו לחשבון שלכם. <credits>כתבו לנו</credits> ונזכה אתכם ביתרה.",
     "contributeHeading": "רוצים לתרום?",
     "contributeBody": "דיווחי באגים, רעיונות לפיצ'רים ו-pull requests — כולם מתקבלים בברכה. פתחו issue או התחילו דיון <github>ב-GitHub</github>."
+  },
+  "linuxPage": {
+    "metaTitle": "HyperWhisper: החלופה ל-Wispr Flow עבור Linux",
+    "metaDescription": "ל-Wispr Flow אין אפליקציה מקורית ל-Linux. ל-HyperWhisper יש: הכתבה קולית מבוססת AI עבור Ubuntu ו-Debian, עם מודלים מקומיים שעובדים ללא חיבור, מפתחות API משלכם וקיצורי מקשים גלובליים.",
+    "eyebrow": "HyperWhisper עבור Linux",
+    "heading": "HyperWhisper: החלופה ל-Wispr Flow עבור Linux",
+    "lead": "ל-Wispr Flow אין אפליקציה מקורית ל-Linux. ל-HyperWhisper יש. דברו באופן טבעי וקבלו טקסט נקי, שמתומלל ללא חיבור על המחשב שלכם או בענן עם מפתח API משלכם.",
+    "downloadCta": "הורדת קובץ .deb (v{version})",
+    "releaseNotes": "הערות גרסה ו-checksums",
+    "requirementsShort": "x86_64 · Ubuntu 22.04+ / Debian 12+",
+    "installHeading": "התקנה בפקודה אחת",
+    "installBody": "הורידו את החבילה, ואז הריצו את הפקודה הזו מהתיקייה שבה היא נמצאת. apt מתקין את האפליקציה ואת התלויות שלה יחד.",
+    "installCommandLabel": "פקודת התקנה ל-Debian",
+    "requirementsHeading": "דרישות",
+    "requirementArch": "מחשב x86_64 (amd64)",
+    "requirementDistro": "Ubuntu 22.04 ומעלה, או Debian 12 ומעלה",
+    "requirementDesktop": "GNOME או KDE Plasma לחוויית שולחן העבודה המאומתת",
+    "cudaHeading": "יש לכם GPU של NVIDIA? הוסיפו CUDA",
+    "cudaBody": "התקינו את החבילה האופציונלית hyperwhisper-cuda מאותה מהדורה, באותה גרסה כמו האפליקציה, כדי להריץ Whisper מקומי ועיבוד-המשך מקומי עם Gemma על CUDA.",
+    "featuresHeading": "נבנה עבור שולחן העבודה של Linux",
+    "localHeading": "מודלים מקומיים שעובדים ללא חיבור",
+    "localBody": "בחרו מודל מקומי והתמלול ירוץ כולו על המחשב שלכם, ללא חיבור לאינטרנט. Whisper רץ על המעבד (CPU) או על ה-GPU דרך Vulkan או CUDA. Parakeet, Qwen3 ASR ו-Nemotron רצים על המעבד (CPU). מודלי Gemma מקומיים יכולים גם לנקות את הטקסט שלכם ללא חיבור.",
+    "byokHeading": "השתמשו במפתח API משלכם",
+    "byokBody": "מעדיפים את הענן? השתמשו במפתח API משלכם לתמלול בענן, למשל Deepgram או ElevenLabs, ולעיבוד-המשך מבוסס AI, למשל OpenAI, Anthropic, Groq או Gemini. או וותרו על המפתחות והשתמשו ב-HyperWhisper Cloud, בתשלום לפי שימוש.",
+    "languagesHeading": "ממשק ב-40 שפות",
+    "languagesBody": "ממשק האפליקציה זמין ב-40 שפות, ומודלי Whisper מתמללים יותר מ-100 שפות.",
+    "openSourceHeading": "קוד פתוח",
+    "openSourceBody": "HyperWhisper הוא קוד פתוח ברישיון Apache-2.0, כולל אפליקציית Linux. קראו כל שורה ב-GitHub.",
+    "hotkeysHeading": "קיצורי מקשים גלובליים ב-X11 וב-Wayland",
+    "hotkeysBody": "קיצורי מקשים גלובליים עובדים מיד ב-X11. ב-GNOME וב-KDE Plasma תחת Wayland הם עובדים אחרי שאתם מצטרפים לקבוצה hyperwhisper-input ומתנתקים ומתחברים מחדש. ב-Wayland, HyperWhisper קורא את המקלדת דרך evdev, ולא דרך פורטל של שולחן העבודה.",
+    "hotkeysCommandLabel": "הצטרפות לקבוצת הקלט",
+    "hotkeysFallback": "בלי הקבוצה, התמלול עדיין עובד והתוצאה נשמרת בלוח הגזירים. גם הדבקה אוטומטית דורשת את הקבוצה.",
+    "hotkeysDefault": "הקישו Ctrl+Alt כדי להתחיל ולעצור הקלטה. אפשר לשנות כל קיצור מקשים בהגדרות.",
+    "compareHeading": "HyperWhisper או Wispr Flow ב-Linux?",
+    "compareBody": "ל-Wispr Flow אין אפליקציה מקורית ל-Linux. HyperWhisper מציע כבר היום אפליקציית Linux מקורית, כחבילת .deb עבור Ubuntu ו-Debian, לצד האפליקציות שלו ל-macOS ול-Windows.",
+    "faqHeading": "שאלות נפוצות",
+    "faqWisprQuestion": "האם יש אפליקציית Wispr Flow ל-Linux?",
+    "faqWisprAnswer": "לא. ל-Wispr Flow אין אפליקציה מקורית ל-Linux. HyperWhisper רץ באופן מקורי על Linux, וגם על macOS ו-Windows.",
+    "faqDistroQuestion": "באילו הפצות Linux יש תמיכה?",
+    "faqDistroAnswer": "Ubuntu 22.04 ומעלה ו-Debian 12 ומעלה, על x86_64 (amd64). HyperWhisper מופץ כחבילת .deb. הפצות אחרות המבוססות על Debian עשויות לעבוד, אבל הן אינן חלק ממטריצת הגרסאות המאומתת.",
+    "faqOfflineQuestion": "האם זה עובד ללא חיבור לאינטרנט?",
+    "faqOfflineAnswer": "כן. עם מודל מקומי, התמלול רץ כולו על המחשב שלכם ואינו דורש חיבור לאינטרנט.",
+    "faqWaylandQuestion": "האם קיצורי מקשים גלובליים עובדים ב-Wayland?",
+    "faqWaylandAnswer": "ב-GNOME וב-KDE Plasma תחת Wayland, כן, אחרי שאתם מצטרפים לקבוצה hyperwhisper-input ומתנתקים ומתחברים מחדש. ב-X11 הם עובדים מיד.",
+    "docsHeading": "צריכים את הפרטים?",
+    "docsBody": "מדריך ההתקנה ל-Linux מכסה את CUDA, הרשאות קלט, רכיבי העזר האופציונליים ל-GNOME ול-KDE, והסרה.",
+    "docsCta": "קראו את מדריך ההתקנה של Linux"
   },
   "openSourceBanner": {
     "text": "HyperWhisper הוא עכשיו קוד פתוח לחלוטין",

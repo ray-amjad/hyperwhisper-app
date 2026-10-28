@@ -16,7 +16,8 @@
       "switchTo": "Cambiar idioma"
     },
     "cloud": "Cloud",
-    "githubAria": "Ver HyperWhisper en GitHub"
+    "githubAria": "Ver HyperWhisper en GitHub",
+    "linux": "Linux"
   },
   "hero": {
     "logoAlt": "Logo de HyperWhisper",
@@ -225,10 +226,11 @@
     "linuxTargets": "Linux v1 es compatible con Ubuntu 22.04+ y Debian 12+ en amd64.",
     "linuxReplaceVersion": "Sustituye VERSION por la versión que descargaste.",
     "linuxInstallCommandLabel": "Comando de instalación de Debian",
-    "linuxInputGroupNote": "Cierra sesión y vuelve a iniciarla después de unirte al grupo input. Ser miembro es opcional, pero los atajos globales y el pegado automático lo necesitan.",
+    "linuxInputGroupNote": "En X11, los atajos globales funcionan sin él. En GNOME y KDE Plasma con Wayland, los atajos globales necesitan el grupo input, y el pegado automático lo necesita en todos los escritorios. Cierra sesión y vuelve a iniciarla después de unirte a él.",
     "aptTitle": "Aloja tu propio repositorio APT",
     "aptBody": "Las versiones de Linux también incluyen un archivo de repositorio APT estático. Actualmente HyperWhisper no ofrece un endpoint APT público; consulta la guía de instalación de Linux para la configuración firmada y autoalojada, los complementos de escritorio, los detalles de privacidad y la desinstalación.",
-    "linuxGuideCta": "Leer la guía de instalación de Linux"
+    "linuxGuideCta": "Leer la guía de instalación de Linux",
+    "learnMoreLinux": "Más información sobre HyperWhisper en Linux"
   },
   "olderVersions": {
     "title": "Versiones anteriores",
@@ -277,7 +279,8 @@
       "privacyPolicy": "Política de privacidad",
       "termsOfService": "Términos de servicio",
       "refundPolicy": "Política de reembolso",
-      "dataTraining": "Privacidad de datos"
+      "dataTraining": "Privacidad de datos",
+      "linux": "HyperWhisper para Linux"
     },
     "copyright": "© 2026 HyperWhisper. Todos los derechos reservados.",
     "linkedinAria": "LinkedIn",
@@ -395,6 +398,53 @@
     "licenseOlder": "<strong>Comprada hace más de 30 días:</strong> convertiremos lo que pagaste en créditos de HyperWhisper Cloud — el precio de compra completo, menos los $5 en créditos ya añadidos a tu cuenta. <credits>Escríbenos</credits> y aplicaremos el saldo.",
     "contributeHeading": "¿Quieres contribuir?",
     "contributeBody": "Los informes de errores, las ideas de funciones y las pull requests son bienvenidos. Abre un issue o inicia un debate <github>en GitHub</github>."
+  },
+  "linuxPage": {
+    "metaTitle": "HyperWhisper: la alternativa a Wispr Flow para Linux",
+    "metaDescription": "Wispr Flow no tiene una app nativa para Linux. HyperWhisper sí: dictado por voz con IA para Ubuntu y Debian, con modelos locales sin conexión, tus propias claves de API y atajos globales.",
+    "eyebrow": "HyperWhisper para Linux",
+    "heading": "HyperWhisper: la alternativa a Wispr Flow para Linux",
+    "lead": "Wispr Flow no tiene una app nativa para Linux. HyperWhisper sí. Habla con naturalidad y obtén un texto limpio, transcrito sin conexión en tu propio ordenador o en la nube con tu propia clave de API.",
+    "downloadCta": "Descargar .deb (v{version})",
+    "releaseNotes": "Notas de la versión y sumas de verificación",
+    "requirementsShort": "x86_64 · Ubuntu 22.04+ / Debian 12+",
+    "installHeading": "Instálalo con un solo comando",
+    "installBody": "Descarga el paquete y ejecuta este comando desde la carpeta que lo contiene. apt instala la app y sus dependencias a la vez.",
+    "installCommandLabel": "Comando de instalación para Debian",
+    "requirementsHeading": "Requisitos",
+    "requirementArch": "Un ordenador x86_64 (amd64)",
+    "requirementDistro": "Ubuntu 22.04 o posterior, o Debian 12 o posterior",
+    "requirementDesktop": "GNOME o KDE Plasma para la experiencia de escritorio verificada",
+    "cudaHeading": "¿GPU NVIDIA? Añade CUDA",
+    "cudaBody": "Instala el paquete opcional hyperwhisper-cuda de la misma versión publicada, con la misma versión que la app, para ejecutar Whisper local y el posprocesamiento local con Gemma en CUDA.",
+    "featuresHeading": "Hecho para tu escritorio Linux",
+    "localHeading": "Modelos sin conexión, en tu dispositivo",
+    "localBody": "Elige un modelo local y la transcripción se ejecuta por completo en tu ordenador, sin conexión a internet. Whisper se ejecuta en la CPU o en tu GPU mediante Vulkan o CUDA. Parakeet, Qwen3 ASR y Nemotron se ejecutan en la CPU. Los modelos locales de Gemma también pueden pulir tu texto sin conexión.",
+    "byokHeading": "Usa tu propia clave de API",
+    "byokBody": "¿Prefieres la nube? Usa tu propia clave de API para la transcripción en la nube, por ejemplo Deepgram o ElevenLabs, y para el posprocesamiento con IA, por ejemplo OpenAI, Anthropic, Groq o Gemini. O prescinde de las claves y usa HyperWhisper Cloud, pagando solo por lo que uses.",
+    "languagesHeading": "40 idiomas de interfaz",
+    "languagesBody": "La interfaz de la app está disponible en 40 idiomas, y los modelos Whisper transcriben más de 100.",
+    "openSourceHeading": "Código abierto",
+    "openSourceBody": "HyperWhisper es de código abierto bajo Apache-2.0, incluida la app para Linux. Lee cada línea en GitHub.",
+    "hotkeysHeading": "Atajos globales en X11 y Wayland",
+    "hotkeysBody": "Los atajos globales funcionan desde el primer momento en X11. En GNOME y KDE Plasma con Wayland funcionan después de unirte al grupo hyperwhisper-input y cerrar sesión y volver a iniciarla. En Wayland, HyperWhisper lee el teclado mediante evdev, no mediante un portal de escritorio.",
+    "hotkeysCommandLabel": "Unirse al grupo de entrada",
+    "hotkeysFallback": "Sin el grupo, la transcripción sigue funcionando y el resultado se conserva en el portapapeles. El pegado automático también necesita el grupo.",
+    "hotkeysDefault": "Pulsa Ctrl+Alt para iniciar y detener la grabación. Puedes cambiar cualquier atajo en Ajustes.",
+    "compareHeading": "¿HyperWhisper o Wispr Flow en Linux?",
+    "compareBody": "Wispr Flow no tiene una app nativa para Linux. HyperWhisper ya ofrece hoy una app nativa para Linux, como paquete .deb para Ubuntu y Debian, junto a sus apps para macOS y Windows.",
+    "faqHeading": "Preguntas frecuentes",
+    "faqWisprQuestion": "¿Existe una app de Wispr Flow para Linux?",
+    "faqWisprAnswer": "No. Wispr Flow no tiene una app nativa para Linux. HyperWhisper funciona de forma nativa en Linux, así como en macOS y Windows.",
+    "faqDistroQuestion": "¿Qué distribuciones de Linux son compatibles?",
+    "faqDistroAnswer": "Ubuntu 22.04 o posterior y Debian 12 o posterior, en x86_64 (amd64). HyperWhisper se distribuye como paquete .deb. Otras distribuciones basadas en Debian pueden funcionar, pero no forman parte de la matriz de versiones verificada.",
+    "faqOfflineQuestion": "¿Funciona sin conexión?",
+    "faqOfflineAnswer": "Sí. Con un modelo local, la transcripción se ejecuta por completo en tu ordenador y no necesita conexión a internet.",
+    "faqWaylandQuestion": "¿Funcionan los atajos globales en Wayland?",
+    "faqWaylandAnswer": "En GNOME y KDE Plasma con Wayland, sí, después de unirte al grupo hyperwhisper-input y cerrar sesión y volver a iniciarla. En X11 funcionan desde el primer momento.",
+    "docsHeading": "¿Necesitas más detalles?",
+    "docsBody": "La guía de instalación para Linux explica CUDA, los permisos de entrada, los complementos opcionales para GNOME y KDE, y la desinstalación.",
+    "docsCta": "Leer la guía de instalación para Linux"
   },
   "openSourceBanner": {
     "text": "HyperWhisper ya es totalmente de código abierto",
