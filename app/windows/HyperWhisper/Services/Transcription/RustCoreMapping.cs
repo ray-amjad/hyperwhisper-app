@@ -271,15 +271,20 @@ internal static class RustCoreMapping
     /// <summary>
     /// The 402's exception message, which History stores as the FailedReason.
     /// Shows the required credits only when the body sent them, so a missing
-    /// field never reads as "required: 0" (#2807).
+    /// field never reads as "required: 0" (#2807). One decimal, the balance
+    /// rounded down and the cost rounded up, so a short balance never prints
+    /// as enough (0.96 of 1.0 reads 0.9 of 1) and a small cost never prints 0.
     /// </summary>
     internal static string InsufficientCreditsMessage(double remaining, double required)
     {
-        var have = remaining.ToString("0.#", CultureInfo.InvariantCulture);
+        var have = OneDecimal(Math.Floor(Math.Max(0, remaining) * 10) / 10);
         return required > 0
-            ? $"Insufficient credits (remaining: {have}, required: {required.ToString("0.#", CultureInfo.InvariantCulture)})"
+            ? $"Insufficient credits (remaining: {have}, required: {OneDecimal(Math.Ceiling(required * 10) / 10)})"
             : $"Insufficient credits (remaining: {have})";
     }
+
+    private static string OneDecimal(double value) =>
+        double.IsFinite(value) ? value.ToString("0.#", CultureInfo.InvariantCulture) : "0";
 
     /// <summary>
     /// Read the HW-Cloud / routed 413 size context (<c>actual_size_mb</c> /
