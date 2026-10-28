@@ -2,7 +2,6 @@
 
 import { useEffect, useId, useState } from "react";
 import { keepPreviousData } from "@tanstack/react-query";
-import { useReducedMotion } from "framer-motion";
 import { api } from "@/lib/trpc/client";
 import { formatDate, formatDateTime } from "@/lib/format-date";
 import { useRevealAfterLoad } from "@/lib/use-reveal-after-load";
@@ -89,17 +88,16 @@ export default function DevicesClient() {
   // The first load's rows paint at opacity 0, then fade in.
   const revealed = useRevealAfterLoad(loading);
 
-  // #1242: the first load's skeleton fades out while the rows fade in, then
-  // unmounts when its fade ends. A mount with the rows already cached shows
-  // no skeleton, as before. Reset during render, so a new first load (a
-  // retry after a failed one) brings it back in the same commit.
-  const [skeletonGone, setSkeletonGone] = useState(!loading);
-
-  if (loading && skeletonGone) setSkeletonGone(false);
-  // Under reduced motion there is no fade, so no transitionend: the
-  // skeleton goes in the same frame the rows appear.
-  const reduceMotion = useReducedMotion();
-  const skeletonShown = !skeletonGone && !(revealed && reduceMotion);
+  // #1242: only a mount that starts on the first load draws the skeleton; a
+  // mount with the rows already cached shows none, as before. Fixed at
+  // mount: isLoading is true only for a key's first fetch, so nothing later
+  // (a range switch, or a retry after a failed first load, where react-query
+  // v5 keeps isLoading false) brings the skeleton back, as before.
+  const [hasSkeleton] = useState(loading);
+  // Paused, not removed: a bar frozen mid-pulse does not jump while it fades.
+  const pulse = `animate-pulse motion-reduce:animate-none${
+    revealed ? " [animation-play-state:paused]" : ""
+  }`;
 
   const devices = data?.devices ?? [];
   const error = queryError?.message ?? null;
@@ -202,12 +200,12 @@ export default function DevicesClient() {
         <div
           aria-busy={loading || isTransitioning}
           aria-label="Device activations table"
-          className="t-skel relative grid overflow-x-auto rounded-xl focus-visible:outline-2 focus-visible:outline-focus focus-visible:-outline-offset-2"
+          className="t-skel grid overflow-x-auto overflow-y-hidden rounded-xl focus-visible:outline-2 focus-visible:outline-focus focus-visible:-outline-offset-2"
           role="region"
           // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
           tabIndex={0}
         >
-          <table className="[grid-area:1/1] w-full">
+          <table className="[grid-area:1/1] self-start w-full">
             <DevicesTableHead />
             <tbody
               className={`t-skel-content divide-y divide-white/5 transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
@@ -246,28 +244,20 @@ export default function DevicesClient() {
           {/* First load only: the skeleton rows, in the same grid slot as the
               table, under an invisible copy of its header (#1242, the #1236
               cross-fade on /older-versions). A <tbody> cannot share a slot,
-              so the skeleton is its own table. While loading it sizes the
-              box; once the rows land it lifts out of the flow (absolute,
-              clipped to the box), so the table alone sets the height and a
-              short result never waits on the fade. A range switch keeps the
-              previous rows mounted (above) and shows no skeleton. */}
-          {skeletonShown && (
+              so the skeleton is its own table. It stays mounted, as #1236's
+              does: once the rows land it fades out on the same signal that
+              fades them in (at once under reduced motion), its pulse pauses
+              where it is, and it stops taking height (h-0), so the table
+              alone sets the box's height and a short result never waits on
+              the fade. Still in the grid column, it keeps the table's width
+              on a phone; overflow-y-hidden clips what hangs below a short
+              table. A range switch keeps the previous rows mounted (above). */}
+          {hasSkeleton && (
             <div
               aria-hidden
-              className={`t-skel-skeleton pointer-events-none transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
-                loading
-                  ? "[grid-area:1/1] self-start"
-                  : "absolute inset-0 overflow-hidden"
+              className={`t-skel-skeleton [grid-area:1/1] self-start pointer-events-none transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
+                loading ? "" : "h-0"
               } ${revealed ? "opacity-0 blur-[2px]" : "opacity-100 blur-[0px]"}`}
-              onTransitionEnd={(event) => {
-                if (
-                  revealed &&
-                  event.target === event.currentTarget &&
-                  event.propertyName === "opacity"
-                ) {
-                  setSkeletonGone(true);
-                }
-              }}
             >
               <table className="w-full">
                 <DevicesTableHead invisible />
@@ -275,13 +265,19 @@ export default function DevicesClient() {
                   {Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i}>
                       <td className="px-6 py-4">
-                        <div className="h-4 bg-white/10 rounded w-48 animate-pulse motion-reduce:animate-none" />
+                        <div
+                          className={`h-4 bg-white/10 rounded w-48 ${pulse}`}
+                        />
                       </td>
                       <td className="px-6 py-4">
-                        <div className="h-4 bg-white/10 rounded w-28 animate-pulse motion-reduce:animate-none" />
+                        <div
+                          className={`h-4 bg-white/10 rounded w-28 ${pulse}`}
+                        />
                       </td>
                       <td className="px-6 py-4">
-                        <div className="h-4 bg-white/10 rounded w-12 animate-pulse motion-reduce:animate-none" />
+                        <div
+                          className={`h-4 bg-white/10 rounded w-12 ${pulse}`}
+                        />
                       </td>
                     </tr>
                   ))}

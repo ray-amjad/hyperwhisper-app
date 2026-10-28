@@ -101,7 +101,8 @@ test("mid-first-load: the skeleton shares the table's grid slot and fades, under
   const box = classOf(html, /\bt-skel\b(?!-)/);
 
   assert.match(box, /\bgrid\b/);
-  assert.match(box, /\brelative\b/);
+  // Clips the skeleton hanging below a short table after the load.
+  assert.match(box, /\boverflow-y-hidden\b/);
 
   const skeleton = classOf(html, /\bt-skel-skeleton\b/);
 
@@ -114,9 +115,16 @@ test("mid-first-load: the skeleton shares the table's grid slot and fades, under
     /<div aria-hidden="true" class="t-skel-skeleton [^"]*"><table class="w-full"><thead class="invisible"><tr[^>]*><th[^>]*>Email<\/th><th[^>]*>Account Key<\/th><th[^>]*>Devices<\/th>/,
   );
   assert.equal(html.match(/animate-pulse/g)?.length, 15, "5 skeleton rows");
+  assert.doesNotMatch(html, /animation-play-state/, "pulsing while loading");
+  assert.doesNotMatch(skeleton, /\bh-0\b/, "it sizes the box while loading");
 
-  // The real table is in the same slot, its rows hidden until revealed.
-  assert.match(html, /<table class="\[grid-area:1\/1\] w-full"><thead>/);
+  // The real table is in the same slot, its rows hidden until revealed. It
+  // starts at the top of the slot: a stretched header-only table would grow
+  // its header row to the skeleton's height.
+  assert.match(
+    html,
+    /<table class="\[grid-area:1\/1\] self-start w-full"><thead>/,
+  );
   const rows = classOf(html, /\bt-skel-content\b/);
 
   assert.match(rows, /\bopacity-0\b/);
@@ -132,29 +140,28 @@ test("a mount with the rows already cached shows no skeleton", async () => {
   assert.match(html, /a@example\.com/);
 });
 
-test("after the load the skeleton stays to fade out, out of the flow, and goes when its fade ends", () => {
+test("after the load the skeleton stays mounted, faded, paused and out of the height", () => {
   const source = readFileSync(new URL(COMPONENT_PATH, import.meta.url), "utf8");
 
-  // Mounted past the load, until its own fade ends (or at once under
-  // reduced motion, which runs no transition).
-  assert.match(source, /useState\(!loading\)/);
+  // Fixed at mount: no unmount state machine, no transitionend to miss.
+  assert.match(source, /const \[hasSkeleton\] = useState\(loading\);/);
+  assert.match(source, /\{hasSkeleton && \(\s*<div\s+aria-hidden/);
+  assert.doesNotMatch(source, /onTransitionEnd|useReducedMotion/);
+  // In the grid column (the table's width on a phone), taking no height once
+  // the rows land, so the table alone sets the box's height.
   assert.match(
     source,
-    /const skeletonShown = !skeletonGone && !\(revealed && reduceMotion\);/,
-  );
-  assert.match(source, /\{skeletonShown && \(\s*<div\s+aria-hidden/);
-  // Out of the flow once the rows land, so the table alone sets the height.
-  assert.match(
-    source,
-    /loading\s*\?\s*"\[grid-area:1\/1\] self-start"\s*:\s*"absolute inset-0 overflow-hidden"/,
+    /className=\{`t-skel-skeleton \[grid-area:1\/1\] self-start pointer-events-none [^`]*\$\{\s*loading \? "" : "h-0"\s*\}/,
   );
   // Fades on the same signal that fades the rows in.
   assert.match(
     source,
     /\$\{revealed \? "opacity-0 blur-\[2px\]" : "opacity-100 blur-\[0px\]"\}/,
   );
+  // Its pulse pauses where it is once revealed: nothing animates unseen.
   assert.match(
     source,
-    /revealed &&\s*event\.target === event\.currentTarget &&\s*event\.propertyName === "opacity"\s*\)\s*\{\s*setSkeletonGone\(true\);/,
+    /const pulse = `animate-pulse motion-reduce:animate-none\$\{\s*revealed \? " \[animation-play-state:paused\]" : ""\s*\}`;/,
   );
+  assert.equal(source.match(/rounded w-(48|28|12) \$\{pulse\}/g)?.length, 3);
 });
