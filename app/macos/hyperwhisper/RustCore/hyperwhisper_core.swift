@@ -16086,18 +16086,6 @@ public func buildHealthRequest(provider: HwProvider, apiKey: String) -> HttpRequ
 })
 }
 /**
- * Like `build_health_request` but with an explicit HW Cloud base URL.
- */
-public func buildHealthRequestWithBase(provider: HwProvider, apiKey: String, baseUrl: String?) -> HttpRequest {
-    return try!  FfiConverterTypeHttpRequest.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_build_health_request_with_base(
-        FfiConverterTypeHwProvider.lower(provider),
-        FfiConverterString.lower(apiKey),
-        FfiConverterOptionString.lower(baseUrl),$0
-    )
-})
-}
-/**
  * Build the DYNAMIC system-info block (prepended to the user message).
  */
 public func buildSystemInfo(ctx: PromptContext) -> String {
@@ -16114,17 +16102,6 @@ public func buildSystemPrompt(ctx: PromptContext) -> String {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_build_system_prompt(
         FfiConverterTypePromptContext.lower(ctx),$0
-    )
-})
-}
-/**
- * Map an HTTP status + response body to a `HwTranscriptionError`.
- */
-public func classifyError(status: UInt16, body: String) -> HwTranscriptionError {
-    return try!  FfiConverterTypeHwTranscriptionError.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_classify_error(
-        FfiConverterUInt16.lower(status),
-        FfiConverterString.lower(body),$0
     )
 })
 }
@@ -16634,15 +16611,6 @@ public func groqParseTranscribeResponse(resp: HttpResponse)throws  -> HwTranscri
     return try  FfiConverterTypeHwTranscript.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
     uniffi_hyperwhisper_core_fn_func_groq_parse_transcribe_response(
         FfiConverterTypeHttpResponse.lower(resp),$0
-    )
-})
-}
-/**
- * Default HyperWhisper Cloud health URL for routed providers.
- */
-public func hwCloudHealthDefault() -> String {
-    return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_hw_cloud_health_default($0
     )
 })
 }
@@ -18605,16 +18573,10 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_build_health_request() != 52092) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_build_health_request_with_base() != 19402) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_build_system_info() != 24795) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_build_system_prompt() != 19711) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_classify_error() != 31917) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_is_enabled() != 62116) {
@@ -18774,9 +18736,6 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_groq_parse_transcribe_response() != 63704) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_hw_cloud_health_default() != 4042) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_hyperwhisper_cloud_build_transcribe_request() != 49953) {

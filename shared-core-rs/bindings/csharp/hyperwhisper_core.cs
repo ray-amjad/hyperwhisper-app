@@ -1276,12 +1276,6 @@ static class _UniFFILib {
     
     
     
-    
-    
-    
-    
-    
-    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1535,19 +1529,11 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_build_health_request_with_base(RustBuffer @provider,RustBuffer @apiKey,RustBuffer @baseUrl,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_build_system_info(RustBuffer @ctx,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_build_system_prompt(RustBuffer @ctx,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_classify_error(ushort @status,RustBuffer @body,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1760,10 +1746,6 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_groq_parse_transcribe_response(RustBuffer @resp,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_hw_cloud_health_default(ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2711,19 +2693,11 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_build_health_request_with_base(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_build_system_info(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_build_system_prompt(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_classify_error(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2936,10 +2910,6 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_groq_parse_transcribe_response(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_hw_cloud_health_default(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3819,12 +3789,6 @@ static class _UniFFILib {
             }
         }
         {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_build_health_request_with_base();
-            if (checksum != 19402) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_build_health_request_with_base` checksum `19402`, library returned `{checksum}`");
-            }
-        }
-        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_build_system_info();
             if (checksum != 24795) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_build_system_info` checksum `24795`, library returned `{checksum}`");
@@ -3834,12 +3798,6 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_build_system_prompt();
             if (checksum != 19711) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_build_system_prompt` checksum `19711`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_classify_error();
-            if (checksum != 31917) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_classify_error` checksum `31917`, library returned `{checksum}`");
             }
         }
         {
@@ -4158,12 +4116,6 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_groq_parse_transcribe_response();
             if (checksum != 63704) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_groq_parse_transcribe_response` checksum `63704`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_hw_cloud_health_default();
-            if (checksum != 4042) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_hw_cloud_health_default` checksum `4042`, library returned `{checksum}`");
             }
         }
         {
@@ -16551,17 +16503,6 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
-    /// Like `build_health_request` but with an explicit HW Cloud base URL.
-    /// </summary>
-    public static HttpRequest BuildHealthRequestWithBase(HwProvider @provider, string @apiKey, string? @baseUrl) {
-        return FfiConverterTypeHttpRequest.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_build_health_request_with_base(FfiConverterTypeHwProvider.INSTANCE.Lower(@provider), FfiConverterString.INSTANCE.Lower(@apiKey), FfiConverterOptionalString.INSTANCE.Lower(@baseUrl), ref _status)
-));
-    }
-
-
-    /// <summary>
     /// Build the DYNAMIC system-info block (prepended to the user message).
     /// </summary>
     public static string BuildSystemInfo(PromptContext @ctx) {
@@ -16579,17 +16520,6 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterString.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_build_system_prompt(FfiConverterTypePromptContext.INSTANCE.Lower(@ctx), ref _status)
-));
-    }
-
-
-    /// <summary>
-    /// Map an HTTP status + response body to a `HwTranscriptionError`.
-    /// </summary>
-    public static HwTranscriptionException ClassifyError(ushort @status, string @body) {
-        return FfiConverterTypeHwTranscriptionError.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_classify_error(FfiConverterUInt16.INSTANCE.Lower(@status), FfiConverterString.INSTANCE.Lower(@body), ref _status)
 ));
     }
 
@@ -17166,17 +17096,6 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterTypeHwTranscript.INSTANCE.Lift(
     _UniffiHelpers.RustCallWithError(FfiConverterTypeHwTranscriptionError.INSTANCE, (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_groq_parse_transcribe_response(FfiConverterTypeHttpResponse.INSTANCE.Lower(@resp), ref _status)
-));
-    }
-
-
-    /// <summary>
-    /// Default HyperWhisper Cloud health URL for routed providers.
-    /// </summary>
-    public static string HwCloudHealthDefault() {
-        return FfiConverterString.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_hw_cloud_health_default( ref _status)
 ));
     }
 
