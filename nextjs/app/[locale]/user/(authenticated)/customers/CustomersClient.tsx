@@ -56,6 +56,49 @@ function formatCredits(credits: number) {
   });
 }
 
+/**
+ * #966: a customer's pooled balance pops in, one character at a time, when it
+ * changes (Add credits, or any refetch that changes it), the way the
+ * /credits summary values do (#768, `PopValue` in CreditsPurchase.tsx). The
+ * first render is the plain text, so the first load, a page change or a search
+ * animates nothing: a row is keyed by its customer, so only the row whose
+ * value changed pops. Each later change remounts the characters (the key),
+ * which replays their `.t-number-pop-char` animation; under reduced motion
+ * that rule shows them at once. A screen reader reads the whole value from the
+ * `sr-only` copy; the split characters are hidden from it.
+ */
+function PopCredits({ text }: { text: string }) {
+  const [shown, setShown] = useState(text);
+  const [changes, setChanges] = useState(0);
+
+  // The "adjust state while rendering" pattern from the React docs: no effect,
+  // so the new value never paints once without its animation.
+  if (text !== shown) {
+    setShown(text);
+    setChanges(changes + 1);
+  }
+
+  if (changes === 0) return text;
+
+  // nowrap: the split characters are inline-blocks, and the line may not
+  // break between them where the plain text could not break.
+  return (
+    <span key={changes} className="whitespace-nowrap">
+      <span className="sr-only">{text}</span>
+      {Array.from(text).map((char, index) => (
+        <span
+          key={index}
+          aria-hidden="true"
+          className="t-number-pop-char"
+          style={{ animationDelay: `${index * 40}ms` }}
+        >
+          {char}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 // #1663: account_keys.status is "granted" or "revoked"; show a word, not the enum.
 function licenseStatusLabel(status: string) {
   if (status === "granted") return "Active";
@@ -678,7 +721,9 @@ export default function CustomersClient() {
                       <td className="px-6 py-4">
                         <div className="flex flex-col items-start gap-1.5">
                           <span className="inline-flex flex-wrap items-baseline gap-x-1 text-blue-300 text-sm font-medium">
-                            {formatCredits(customer.totalCredits)}
+                            <PopCredits
+                              text={formatCredits(customer.totalCredits)}
+                            />
                             <span className="text-gray-400 text-xs">
                               ({Math.floor(customer.totalCredits / CREDITS_PER_MINUTE)} min)
                             </span>
