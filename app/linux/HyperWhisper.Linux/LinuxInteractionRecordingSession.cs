@@ -120,6 +120,19 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     /// start never leaves Home on Recording (#2038).</summary>
     private bool _liveStarting;
 
+    /// <summary>A Stop (often the coordinator's auto-stop, #2278) began on a live stream that had already
+    /// failed: its connection was in the error state or its worker was gone. Home keeps Failed through
+    /// that stop's finalization, while the overlay is still red, instead of dropping to the workflow's Idle
+    /// the moment the stop clears live capture. StopAsync's finally always clears it (#2038).</summary>
+    private bool _stoppingFailedLive;
+
+    private void SetStoppingFailedLive(bool value)
+    {
+        if (Volatile.Read(ref _stoppingFailedLive) == value) return;
+        Volatile.Write(ref _stoppingFailedLive, value);
+        RaiseActivityChanged();
+    }
+
     private void SetLiveStarting(bool value)
     {
         if (Volatile.Read(ref _liveStarting) == value) return;
@@ -140,6 +153,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     /// once the overlay turns red; the worker is not running yet, which is not a failure there.</summary>
     public string? HomeRecordingState(string? workflowState)
     {
+        if (Volatile.Read(ref _stoppingFailedLive)) return nameof(TranscriptionWorkflowState.Failed);
         var starting = Volatile.Read(ref _liveStarting);
         return MapHomeRecordingState(workflowState, IsLiveCaptureActive || starting, IsActive || starting,
             Volatile.Read(ref _liveConnectionFailed));
@@ -350,13 +364,19 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     public async ValueTask<InteractionStopOutcome> StopAsync(CancellationToken cancellationToken = default)
     {
         var open = HasOpenSession;
+        // Set before capture clears, so Home never reads Idle between the two (#2038).
+        if (IsLiveCaptureActive && (Volatile.Read(ref _liveConnectionFailed) || !IsActive)) SetStoppingFailedLive(true);
         SetLiveCapture(false);
-        if (!open) return new(PlatformResult.Failure("interaction.not_recording", "No transcription is active."), false);
-        await ReportAsync(DiagnosticComponent.Transcription, DiagnosticOutcome.Started);
-        _overlay.Transcribing();
+        if (!open)
+        {
+            SetStoppingFailedLive(false);
+            return new(PlatformResult.Failure("interaction.not_recording", "No transcription is active."), false);
+        }
         try
         {
             Volatile.Write(ref _finishing, true);
+            await ReportAsync(DiagnosticComponent.Transcription, DiagnosticOutcome.Started);
+            _overlay.Transcribing();
             if (_viewModel.Settings.EnableSoundEffects) _ = _services.SoundEffects.Play(SoundEffect.RecordingStopped);
             InteractionStopOutcome outcome;
             if (_streaming) outcome = await StopStreamingAsync(cancellationToken);
@@ -411,6 +431,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             finally
             {
                 Volatile.Write(ref _finishing, false);
+                SetStoppingFailedLive(false);
                 ReleaseRecordingStatus();
             }
         }

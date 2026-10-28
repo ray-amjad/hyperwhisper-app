@@ -1,3 +1,4 @@
+using System.Reflection;
 using HyperWhisper.Linux;
 using HyperWhisper.Linux.Overlay;
 using HyperWhisper.Linux.Platform.Desktop;
@@ -73,6 +74,73 @@ static class HomeLiveStartTests
         }
     }
 
+    // The refused-connection run (#2038 verify): the overlay turned red, the coordinator's auto-stop
+    // (#2278) ran StopAsync, and its first line cleared live capture, so Home read Idle beside the red
+    // overlay until the stop finished and Failed never showed. A held stream whose connection failed is
+    // stopped here: Home must read Failed through the whole stop and the workflow state once it ends.
+    public static async Task StopOfAFailedStreamKeepsFailed()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"hw-2038-stop-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var saved = new Dictionary<string, string?>();
+        foreach (var name in new[] { "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME" })
+        {
+            saved[name] = Environment.GetEnvironmentVariable(name);
+            Environment.SetEnvironmentVariable(name, Path.Combine(root, name));
+        }
+        try
+        {
+            var paths = new StaticPaths(root);
+            var database = new ApplicationDb(paths);
+            var history = new HistoryRepository(database, paths);
+            using var recorder = new StatusTestRecorder(root);
+            using var devices = new StatusTestDevices();
+            using var workflow = new TranscriptionWorkflow(
+                recorder, devices, new StatusTestTranscriber(), history, textInjection: new FakeTextInjection());
+            var settings = new PortableSettingsService(new MissingPrivateFiles(), Path.Combine(root, "settings.json"));
+            using var shell = new ApplicationShellViewModel(database, settings, workflow, paths: paths);
+            await shell.InitializeAsync();
+            shell.Settings.EnableSoundEffects = false;
+            using var services = new LinuxDesktopServices();
+            var overlay = new StopOverlay();
+            var session = new LinuxInteractionRecordingSession(
+                shell, workflow, services,
+                new LinuxContextCaptureCoordinator(new FakeContextProvider(), new FakeOcr()),
+                new CapturingPostProcessor(), history, overlay);
+            overlay.Read = () => session.HomeRecordingState(Workflow);
+            var seen = new List<string?>();
+            session.ActivityChanged += (_, _) => seen.Add(session.HomeRecordingState(Workflow));
+
+            // A held stream: live capture on, its connection in the error state, the worker gone.
+            var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            typeof(LinuxInteractionRecordingSession).GetField("_streaming", flags)!.SetValue(session, true);
+            typeof(LinuxInteractionRecordingSession).GetField("_liveConnectionFailed", flags)!.SetValue(session, true);
+            typeof(LinuxInteractionRecordingSession).GetMethod("SetLiveCapture", flags)!.Invoke(session, [true]);
+            Check(session.HomeRecordingState(Workflow) == nameof(TranscriptionWorkflowState.Failed),
+                $"Home read '{session.HomeRecordingState(Workflow)}' for a held failed stream, not Failed");
+            seen.Clear();
+
+            try { await session.StopAsync(); } catch { }
+            Console.WriteLine($"  [en] Home at the stop's Transcribing \"{overlay.AtTranscribing}\", at its end "
+                + $"\"{overlay.AtEnd}\", after \"{session.HomeRecordingState(Workflow)}\"; ActivityChanged saw [{string.Join(", ", seen)}]");
+            Check(overlay.AtTranscribing == nameof(TranscriptionWorkflowState.Failed),
+                $"Home read '{overlay.AtTranscribing}' while the stop of a failed stream began, not Failed (#2038)");
+            Check(overlay.AtEnd == nameof(TranscriptionWorkflowState.Failed),
+                $"Home read '{overlay.AtEnd}' when the stop of a failed stream showed its result, not Failed (#2038)");
+            var idleBeforeEnd = seen.Take(Math.Max(0, seen.Count - 1)).Where(s => s != nameof(TranscriptionWorkflowState.Failed)).ToList();
+            Check(idleBeforeEnd.Count == 0,
+                $"an ActivityChanged during the stop read [{string.Join(", ", idleBeforeEnd)}], so Home left Failed early (#2038)");
+            Check(session.HomeRecordingState(Workflow) == Workflow && seen.Count > 0 && seen[^1] == Workflow,
+                $"Home read '{session.HomeRecordingState(Workflow)}' after the stop (last ActivityChanged "
+                + $"'{(seen.Count > 0 ? seen[^1] : "nothing")}'), not the workflow state");
+        }
+        finally
+        {
+            foreach (var (name, value) in saved) Environment.SetEnvironmentVariable(name, value);
+            try { Directory.Delete(root, recursive: true); } catch { }
+        }
+    }
+
     private static void Check(bool condition, string message)
     {
         if (!condition) throw new InvalidOperationException(message);
@@ -96,6 +164,25 @@ static class HomeLiveStartTests
         public void CancelConfirmationDismissed() { }
         public void Cancelled() { }
         public void Failed(LinuxRecordingOverlayError error) { }
+        public void ModeChanged(LinuxOverlayModeLabel mode) { }
+        public void Dispose() { }
+    }
+
+    private sealed class StopOverlay : ILinuxRecordingOverlayFeedback
+    {
+        public Func<string?> Read { get; set; } = () => null;
+        public string? AtTranscribing { get; private set; }
+        public string? AtEnd { get; private set; }
+        public void RecordingStarted(LinuxOverlayModeLabel mode) { }
+        public void StreamingStarted(LinuxOverlayModeLabel mode) { }
+        public void StreamingConnectionChanged(LinuxStreamingOverlayConnectionState state) { }
+        public void AudioLevelChanged(float level) { }
+        public void Transcribing() => AtTranscribing = Read();
+        public void Completed(LinuxRecordingOverlayCompletion completion) => AtEnd = Read();
+        public void CancelConfirmationRequested() { }
+        public void CancelConfirmationDismissed() { }
+        public void Cancelled() => AtEnd = Read();
+        public void Failed(LinuxRecordingOverlayError error) => AtEnd = Read();
         public void ModeChanged(LinuxOverlayModeLabel mode) { }
         public void Dispose() { }
     }
