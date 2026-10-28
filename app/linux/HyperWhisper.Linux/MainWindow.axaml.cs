@@ -66,6 +66,11 @@ public partial class MainWindow : Window
     public static readonly StyledProperty<bool> IsHomeRecordingActiveProperty =
         AvaloniaProperty.Register<MainWindow, bool>(nameof(IsHomeRecordingActive));
     public bool IsHomeRecordingActive { get => GetValue(IsHomeRecordingActiveProperty); private set => SetValue(IsHomeRecordingActiveProperty, value); }
+    /// <summary>Home's "State: {0}" caption: the workflow state, or a live stream's own Recording / Failed,
+    /// which the batch workflow never sees (#2038).</summary>
+    public static readonly StyledProperty<string?> HomeRecordingStateProperty =
+        AvaloniaProperty.Register<MainWindow, string?>(nameof(HomeRecordingState));
+    public string? HomeRecordingState { get => GetValue(HomeRecordingStateProperty); private set => SetValue(HomeRecordingStateProperty, value); }
     private readonly LinuxInteractionCoordinator _interaction;
     private readonly LinuxTrayActionHandler _trayActions;
     private readonly LazyLinuxRecordingOverlayFeedback _overlay;
@@ -247,6 +252,7 @@ public partial class MainWindow : Window
         _viewModel.Status.PropertyChanged += OnShellStatusChanged;
         _interaction.OperationFailed += OnInteractionFailed;
         _recordingSession.LiveCaptureChanged += OnLiveCaptureChanged;
+        _recordingSession.ActivityChanged += OnRecordingActivityChanged;
         _interaction.ChangeModeRequested += OnChangeModeRequested;
         _platformServices.Tray.ActionRequested += OnTrayActionRequested;
         _platformServices.Tray.Unavailable += OnTrayUnavailable;
@@ -257,6 +263,7 @@ public partial class MainWindow : Window
             _viewModel.Recording.TranscriptionSaved += OnOnboardingTranscriptionSaved;
             _viewModel.Recording.PropertyChanged += OnRecordingStatusChanged;
         }
+        UpdateHomeRecordingState();
     }
 
     private async void OnOpened(object? sender, EventArgs e)
@@ -398,6 +405,7 @@ public partial class MainWindow : Window
         _viewModel.Settings.StorageSettingsChanged -= OnStorageSettingsChanged;
         _interaction.OperationFailed -= OnInteractionFailed;
         _recordingSession.LiveCaptureChanged -= OnLiveCaptureChanged;
+        _recordingSession.ActivityChanged -= OnRecordingActivityChanged;
         _interaction.ChangeModeRequested -= OnChangeModeRequested;
         _platformServices.Tray.ActionRequested -= OnTrayActionRequested;
         _platformServices.Tray.Unavailable -= OnTrayUnavailable;
@@ -2798,6 +2806,7 @@ public partial class MainWindow : Window
         if (e.PropertyName is nameof(recording.IsImporting) or nameof(recording.ImportProgress))
             UpdateFileTranscriptionProgressWindow();
         if (e.PropertyName is nameof(recording.CanStop)) Dispatcher.UIThread.Post(UpdateHomeRecordingActive);
+        if (e.PropertyName is nameof(recording.State)) Dispatcher.UIThread.Post(UpdateHomeRecordingState);
     }
 
     private LinuxFileTranscriptionProgressWindow? _fileProgress;
@@ -3056,6 +3065,18 @@ public partial class MainWindow : Window
 
     private void UpdateHomeRecordingActive() =>
         IsHomeRecordingActive = _recordingSession.IsLiveCaptureActive || _viewModel.Recording?.CanStop == true;
+
+    // Raised from the live worker's thread as well as the UI thread (#2038).
+    /// <summary>On the UI thread the caption updates at once: a live start shows its overlay inline in the
+    /// same pass, and a posted update let one frame render the pill beside a stale Idle (#2038).</summary>
+    private void OnRecordingActivityChanged(object? sender, EventArgs e)
+    {
+        if (Dispatcher.UIThread.CheckAccess()) UpdateHomeRecordingState();
+        else Dispatcher.UIThread.Post(UpdateHomeRecordingState);
+    }
+
+    private void UpdateHomeRecordingState() =>
+        HomeRecordingState = _recordingSession.HomeRecordingState(_viewModel.Recording?.State);
 
     private async void OnStopRecording(object? sender, RoutedEventArgs e) => await _interaction.StopRecordingAsync();
     private async void OnCancelRecording(object? sender, RoutedEventArgs e) => await _interaction.CancelRecordingAsync();
