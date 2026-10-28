@@ -968,6 +968,22 @@
       ],
       "licensed": false,
       "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY). Codex 0 on updates+streaming; its 1 home defect (status bar Ready while pill Recording) is a 700ms shot lag, status reads Recording… at 3s = open #2599. Streaming re-hit open #1348 (Nova 3 Medical + Spanish). New #2681 single-instance guard verified: 2nd launch same profile, same AND different XDG_RUNTIME_DIR, exits 0 and restores the minimized window. Start Recording card is start-only by design (OnStartRecording); stop is the inline Stop button."
+    },
+    {
+      "at": "2026-10-28T16:14:46Z",
+      "platform": "linux",
+      "commit": "fb995f12",
+      "routes": [
+        "vocabulary",
+        "provider-settings",
+        "modes"
+      ],
+      "status": "1-filed",
+      "issues": [
+        2853
+      ],
+      "licensed": false,
+      "note": "unlicensed; Codex 1 real cosmetic (vocab 3-line clip no ellipsis/tooltip, #2853); provider-settings clean, no credential files left; modes create+long name+Gemini/fr clean, Codex ran out of steps before rename/delete"
     }
   ]
 }
