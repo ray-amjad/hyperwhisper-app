@@ -952,6 +952,22 @@
       ],
       "licensed": false,
       "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY). modes: create/rename/120-char name (ellipsis = fine)/delete active/delete last (refused w/ dialog) clean; duplicate names are code-guarded by ModeNameRules. core-settings: shortcut conflict + no-modifier rules show inline errors, persistence clean. licence: unlicensed Cloud page has only Activate+Get Credits; Get Credits opens the browser on Ray's PC (logged once on dblclick). Licence + core-settings are now mined on win; core artifact from c7d3c9c7 (empty shared-core-rs diff)."
+    },
+    {
+      "at": "2026-10-28T04:15:12Z",
+      "platform": "linux",
+      "commit": "f76206ba",
+      "routes": [
+        "updates",
+        "streaming",
+        "home-and-tray"
+      ],
+      "status": "nothing-found",
+      "issues": [
+        0
+      ],
+      "licensed": false,
+      "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY). Codex 0 on updates+streaming; its 1 home defect (status bar Ready while pill Recording) is a 700ms shot lag, status reads Recording… at 3s = open #2599. Streaming re-hit open #1348 (Nova 3 Medical + Spanish). New #2681 single-instance guard verified: 2nd launch same profile, same AND different XDG_RUNTIME_DIR, exits 0 and restores the minimized window. Start Recording card is start-only by design (OnStartRecording); stop is the inline Stop button."
     }
   ]
 }
