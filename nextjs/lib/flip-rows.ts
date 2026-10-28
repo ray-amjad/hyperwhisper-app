@@ -10,8 +10,9 @@
 
 /**
  * How far a re-ranked row may visibly travel. A row that moves further starts
- * this far from its new place and fades in, instead of flying across the
- * whole table.
+ * this far from its new place, instead of flying across the whole table. It
+ * slides opaque like any other: a fade would print it through the rows it
+ * crosses (#2458).
  */
 export const FLIP_MAX_DISTANCE = 400;
 
@@ -56,7 +57,11 @@ function colorAlpha(color: string): number {
 function backdropColors(el: HTMLElement): string[] {
   const colors: string[] = [];
 
-  for (let node: Element | null = el; node !== null; node = node.parentElement) {
+  for (
+    let node: Element | null = el;
+    node !== null;
+    node = node.parentElement
+  ) {
     const color = window.getComputedStyle(node).backgroundColor;
     const alpha = colorAlpha(color);
 
@@ -95,11 +100,14 @@ function opaqueFill(row: HTMLElement, backdrop: string[]): Keyframe {
 /**
  * Where a sliding row sits in the paint order while it slides (#2458): a row
  * moving up, the one the reader most likely clicked to follow, over a row
- * moving down, and both over a far row, which fades in and so is never fully
- * opaque. Still rows keep their place under all three. `position` is only
- * there so `zIndex` applies; the keyframes set both for the slide alone.
+ * moving down, and both over a far row; of two far rows, which cross only
+ * when they move opposite ways, the one moving up again on top. Every layer
+ * is above the matrix's sticky name cells (`z-10`), which a still row would
+ * otherwise draw over a sliding row's name. Still rows keep their place under
+ * all of them. `position` is only there so `zIndex` applies; the keyframes set
+ * both for the slide alone.
  */
-export const FLIP_LAYER = { far: 1, down: 2, up: 3 } as const;
+export const FLIP_LAYER = { farDown: 11, farUp: 12, down: 13, up: 14 } as const;
 
 /**
  * Each row's top relative to `tbody`, keyed by row id. The visual top, a slide
@@ -185,7 +193,13 @@ export function slideRows(
     const layer: Keyframe = {
       ...fill,
       position: "relative",
-      zIndex: far ? FLIP_LAYER.far : delta > 0 ? FLIP_LAYER.up : FLIP_LAYER.down,
+      zIndex: far
+        ? delta > 0
+          ? FLIP_LAYER.farUp
+          : FLIP_LAYER.farDown
+        : delta > 0
+          ? FLIP_LAYER.up
+          : FLIP_LAYER.down,
     };
     // A row whose whole slide is off screen is not animated: nobody sees it,
     // and each running slide costs a style pass every frame.
@@ -198,15 +212,10 @@ export function slideRows(
     slides.set(
       id,
       row.animate(
-        far
-          ? [
-              { transform: `translateY(${shown}px)`, opacity: 0, ...layer },
-              { transform: "none", opacity: 1, ...layer },
-            ]
-          : [
-              { transform: `translateY(${shown}px)`, ...layer },
-              { transform: "none", ...layer },
-            ],
+        [
+          { transform: `translateY(${shown}px)`, ...layer },
+          { transform: "none", ...layer },
+        ],
         { duration: FLIP_DURATION_MS, easing: FLIP_EASING },
       ),
     );

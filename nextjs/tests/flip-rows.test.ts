@@ -22,7 +22,7 @@ import type { LatencyMatrixData } from "@/lib/latency/types";
 /** #2458: the paint layer each kind of slide gets. */
 const UP = { position: "relative", zIndex: FLIP_LAYER.up };
 const DOWN = { position: "relative", zIndex: FLIP_LAYER.down };
-const FAR = { position: "relative", zIndex: FLIP_LAYER.far };
+const FAR_UP = { position: "relative", zIndex: FLIP_LAYER.farUp };
 
 type Call = { keyframes: Keyframe[]; options: KeyframeAnimationOptions };
 
@@ -108,7 +108,7 @@ test("a row new to the table just appears", () => {
   assert.equal(fresh.length, 0);
 });
 
-test("a far move is capped and fades in; an off-screen slide is skipped", () => {
+test("a far move is capped and slides opaque, with no fade; an off-screen slide is skipped", () => {
   fakeWindow();
   const far: Call[] = [];
   const hidden: Call[] = [];
@@ -124,8 +124,8 @@ test("a far move is capped and fades in; an off-screen slide is skipped", () => 
   slideRows(fakeTbody(), rows, before, new Map());
 
   assert.deepEqual(far[0].keyframes, [
-    { transform: `translateY(${FLIP_MAX_DISTANCE}px)`, opacity: 0, ...FAR },
-    { transform: "none", opacity: 1, ...FAR },
+    { transform: `translateY(${FLIP_MAX_DISTANCE}px)`, ...FAR_UP },
+    { transform: "none", ...FAR_UP },
   ]);
   assert.equal(hidden.length, 0);
 });
@@ -176,8 +176,12 @@ test("#2458: a sliding row is painted opaque, its own tint over the table's", ()
     { transform: "none", ...plainFill, ...DOWN },
   ]);
   assert.deepEqual(far[0].keyframes, [
-    { transform: `translateY(${FLIP_MAX_DISTANCE}px)`, opacity: 0, ...plainFill, ...FAR },
-    { transform: "none", opacity: 1, ...plainFill, ...FAR },
+    {
+      transform: `translateY(${FLIP_MAX_DISTANCE}px)`,
+      ...plainFill,
+      ...FAR_UP,
+    },
+    { transform: "none", ...plainFill, ...FAR_UP },
   ]);
 });
 
@@ -210,9 +214,30 @@ test("#2458: an opaque table needs no layers; no opaque colour, no fill", () => 
   ]);
 });
 
-test("#2458: a row moving up is drawn over one moving down, both over a far row", () => {
+test("#2458: up over down over far rows, far up over far down, all over the sticky name cells", () => {
   assert.ok(FLIP_LAYER.up > FLIP_LAYER.down);
-  assert.ok(FLIP_LAYER.down > FLIP_LAYER.far);
+  assert.ok(FLIP_LAYER.down > FLIP_LAYER.farUp);
+  assert.ok(FLIP_LAYER.farUp > FLIP_LAYER.farDown);
+  // LatencyMatrix's sticky provider cells are `z-10`; its sticky header `z-20`.
+  assert.ok(FLIP_LAYER.farDown > 10);
+  assert.ok(FLIP_LAYER.up < 20);
+});
+
+test("#2458: a far row moving down sits under one moving up", () => {
+  fakeWindow();
+  const down: Call[] = [];
+  slideRows(
+    fakeTbody(),
+    new Map([["d", fakeRow(828, down)]]),
+    new Map([["d", 0]]),
+    new Map(),
+  );
+  assert.equal(down[0].keyframes[0].zIndex, FLIP_LAYER.farDown);
+  assert.equal(
+    down[0].keyframes[0].transform,
+    `translateY(-${FLIP_MAX_DISTANCE}px)`,
+  );
+  assert.equal(down[0].keyframes[0].opacity, undefined);
 });
 
 test("#2458: slides in flight are cancelled before the rows are read", () => {
