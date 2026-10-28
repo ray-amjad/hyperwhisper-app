@@ -116,9 +116,10 @@ struct LocalAPIRequestHeadTests {
     /// with a 200 rather than a close at the read deadline. The server reads
     /// the whole head under its own deadline and answers a head that misses it
     /// with nothing but a close, so the 200 itself proves the head was read in
-    /// time. The test keeps no wall-clock bound of its own: a 1 s budget
-    /// failed on a loaded hosted runner (#2221), and a runner that stalls the
-    /// test process for longer than the deadline (#2526) would fail any other.
+    /// time. The test keeps no wall-clock bound of its own on top: a 1 s
+    /// budget failed on a loaded hosted runner (#2221), and #2526 saw this
+    /// runner stall a test for 40 s and more. The server's 10 s deadline is
+    /// the one bound left, and it is the behaviour under test.
     /// The trade: a reader that went back to O(n²) still fails the 64 KB head
     /// test below at the issue's ~2.5 s a line (8 lines, past the deadline),
     /// but a much faster machine could read it in time. No test here bounds
@@ -189,8 +190,9 @@ struct LocalAPIRequestHeadTests {
 
     /// The issue's shape: one 100 KB header line. Refused with a 431 inside the
     /// head deadline, not after minutes of CPU. A head that missed the
-    /// deadline would get a bare close, so the 431 is the deadline check; no
-    /// wall-clock bound of the test's own (#2221, #2526).
+    /// deadline would get a bare close, so the 431 itself shows the refusal
+    /// came in time; it is not a speed guard for the reader. No wall-clock
+    /// bound of the test's own (#2221, #2526).
     @Test func aHundredKilobyteHeaderIsRefusedBeforeTheDeadline() async throws {
         try await withProbe { port in
             let line = RawRequest.headerLine(name: "X-Junk", length: 100 * 1024)
@@ -273,9 +275,10 @@ struct LocalAPIRequestHeadTests {
 // MARK: - Fixtures
 
 /// The client's socket timeout in the tests that wait out a head deadline:
-/// past the deadline, so the server's answer or close always comes first on a
-/// slow runner. It guards against a hang; it is not a speed bound.
-private let slowRunnerTimeout: TimeInterval = 2 * LocalAPIRequestHeadLimit.readDeadline
+/// well past the deadline and the 40 s and more a loaded runner has stalled a
+/// test for (#2526), so the server's answer or close comes first. It guards
+/// against a hang; it is not a speed bound.
+private let slowRunnerTimeout: TimeInterval = 6 * LocalAPIRequestHeadLimit.readDeadline
 
 private func withProbe(
     headReadDeadline: TimeInterval = LocalAPIRequestHeadLimit.readDeadline,
