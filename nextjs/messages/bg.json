@@ -280,7 +280,9 @@
       "dataTraining": "Поверителност на данните"
     },
     "copyright": "© 2026 HyperWhisper. Всички права запазени.",
-    "linkedinAria": "LinkedIn"
+    "linkedinAria": "LinkedIn",
+    "xAria": "Последвайте HyperWhisper в X (Twitter)",
+    "githubAria": "HyperWhisper в GitHub"
   },
   "cloudSection": {
     "eyebrow": "Облак",
