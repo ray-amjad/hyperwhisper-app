@@ -268,8 +268,52 @@ test("Devices and Customers both use the shared HeightTween, keyed on the query 
       `${name}: the table card tweens on data and keeps its dim`,
     );
   }
-  // The per-key device search list (DeviceRow) tweens on its own query data.
-  assert.match(DEVICES, /<HeightTween trigger=\{data\}>\s*\{isLoading \?/);
+  // The per-key device search list (DeviceRow) tweens on its first page, so
+  // a search swap tweens and a "Show more" append does not (below).
+  assert.match(DEVICES, /const firstPage = data\?\.pages\[0\];/);
+  assert.match(DEVICES, /<HeightTween trigger=\{firstPage\}>\s*\{isLoading \?/);
+});
+
+test("react-query keeps the first page's identity on an append and changes it on a new search", async () => {
+  const { QueryClient, InfiniteQueryObserver } = await import(
+    "@tanstack/react-query"
+  );
+  // The app's defaults (lib/trpc/query-client): structural sharing is on.
+  const client = new QueryClient();
+  type Page = { devices: string[]; nextCursor: number | null };
+  const observe = (search: string) =>
+    new InfiniteQueryObserver<Page>(client, {
+      queryKey: ["forLicense", search],
+      queryFn: ({ pageParam }) =>
+        Promise.resolve({
+          devices: [`${search}-${String(pageParam)}`],
+          nextCursor: (pageParam as number) < 2 ? (pageParam as number) + 1 : null,
+        }),
+      initialPageParam: 0,
+      getNextPageParam: (last) => last.nextCursor ?? undefined,
+    });
+
+  const all = observe("");
+  const unsubscribe = all.subscribe(() => undefined);
+  const first = (await all.refetch()).data?.pages[0];
+  const appended = await all.fetchNextPage();
+
+  assert.equal(appended.data?.pages.length, 2);
+  assert.equal(appended.data?.pages[0], first, "Show more keeps the first page");
+  // A refetch that brings the same rows keeps it too.
+  assert.equal((await all.refetch()).data?.pages[0], first);
+
+  const narrowed = observe("mac");
+  const unsubscribeNarrowed = narrowed.subscribe(() => undefined);
+
+  assert.notEqual(
+    (await narrowed.refetch()).data?.pages[0],
+    first,
+    "a new search is a new first page",
+  );
+  unsubscribe();
+  unsubscribeNarrowed();
+  client.clear();
 });
 
 test("the Devices card renders with the opacity dim and the height tween, never `all`", async () => {
