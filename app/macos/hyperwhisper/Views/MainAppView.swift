@@ -764,25 +764,20 @@ struct MenuBarItems: View {
                     systemDefaultUID: audioManager.systemDefaultDeviceUID
                 )
 
-                Button(action: {
-                    audioManager.selectDevice(nil)
-                }) {
-                    HStack {
-                        Text(verbatim: MicrophonePickerLabels.defaultOption(defaultDeviceName: defaultName))
-                        if preferred == nil {
-                            Spacer()
-                            Image(systemName: "checkmark")
-                        }
-                    }
+                // Each row is a Toggle, not a Button with a checkmark Image: the
+                // `.menu` MenuBarExtra bridges a Toggle to the NSMenuItem's
+                // check state, but drops an Image inside a Button's HStack, so
+                // no row ever showed as chosen.
+                Toggle(isOn: Binding(
+                    get: { preferred == nil },
+                    set: { _ in audioManager.selectDevice(nil) }
+                )) {
+                    Text(verbatim: MicrophonePickerLabels.defaultOption(defaultDeviceName: defaultName))
                 }
 
                 if let missingChoice {
-                    Button(action: {}) {
-                        HStack {
-                            Text(verbatim: MicrophonePickerLabels.notConnected(missingChoice))
-                            Spacer()
-                            Image(systemName: "checkmark")
-                        }
+                    Toggle(isOn: .constant(true)) {
+                        Text(verbatim: MicrophonePickerLabels.notConnected(missingChoice))
                     }
                     .disabled(true)
                 }
@@ -790,17 +785,14 @@ struct MenuBarItems: View {
                 Divider()
 
                 ForEach(devices, id: \.self) { device in
-                    Button(action: {
-                        audioManager.selectDevice(device)
-                        selectedMicrophone = device.name
-                    }) {
-                        HStack {
-                            Text(verbatim: device.name)
-                            if preferred?.uid == device.uid {
-                                Spacer()
-                                Image(systemName: "checkmark")
-                            }
+                    Toggle(isOn: Binding(
+                        get: { preferred?.uid == device.uid },
+                        set: { _ in
+                            audioManager.selectDevice(device)
+                            selectedMicrophone = device.name
                         }
+                    )) {
+                        Text(verbatim: device.name)
                     }
                 }
             } label: {
@@ -818,20 +810,16 @@ struct MenuBarItems: View {
             Menu {
                 let allModes = appState.cachedSortedModeSnapshots
                 ForEach(allModes, id: \.id) { mode in
-                    Button(action: {
-                        // Update app state and settings
-                        appState.selectMode(mode, persist: true)
-                    }) {
-                        HStack {
-                            // An NSMenu grows to its widest item, so bound the
-                            // free-text name (#1436). Only the label is cut.
-                            Text(MenuItemText.bounded(mode.name))
-                                .fixedSize() // Prevent text truncation in menu
-                            if appState.selectedModeId == mode.id.uuidString {
-                                Spacer()
-                                Image(systemName: "checkmark")
-                            }
-                        }
+                    // A Toggle, so the active mode shows the native menu
+                    // checkmark (see the Microphone submenu above).
+                    Toggle(isOn: Binding(
+                        get: { appState.selectedModeId == mode.id.uuidString },
+                        set: { _ in appState.selectMode(mode, persist: true) }
+                    )) {
+                        // An NSMenu grows to its widest item, so bound the
+                        // free-text name (#1436). Only the label is cut.
+                        Text(MenuItemText.bounded(mode.name))
+                            .fixedSize() // Prevent text truncation in menu
                     }
                 }
             } label: {
