@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
@@ -25,8 +26,21 @@ namespace HyperWhisper.Services;
 /// - WARN: Warning conditions that might need attention
 /// - ERROR: Error conditions that prevented an operation
 ///
-/// Thread Safety:
-/// Uses lock-based synchronization to ensure thread-safe file writing.
+/// Thread Safety and Buffering (#985):
+/// A log call formats its line and picks its file on the calling thread, then
+/// queues the pair; one background thread appends the queue to a single open
+/// file and flushes it each time the queue runs dry, so a line is on disk within
+/// milliseconds without the caller paying for a file open and close per line.
+/// Every level is still written, Debug included, in every build.
+/// Writes happen only under one lock, so lines never interleave.
+///
+/// Durability: an Error line, <see cref="Flush"/>, process exit and an unhandled
+/// exception drain the queue on the CALLING thread, never waiting on the
+/// background one, so the last lines before a crash reach the file. After exit
+/// or a terminating exception every line is written that way.
+/// The file is opened shared (read, write, delete) so the user, a test or log
+/// cleanup can read or remove it while the app runs, and it is closed after a
+/// few idle seconds.
 ///
 /// Usage:
 /// LoggingService.Info("Application started");
@@ -56,6 +70,43 @@ public static class LoggingService
 
     // Thread synchronization lock for file writes
     private static readonly object _writeLock = new();
+
+    // =========================================================================
+    // BUFFERED WRITER STATE (#985)
+    // =========================================================================
+
+    /// <summary>
+    /// One formatted line and the file it belongs to. The path is fixed when the
+    /// line is logged, so a line logged just before midnight, or before a
+    /// harness moves <see cref="AppPaths"/>, still lands in the file it would
+    /// have gone to when every line was written at once.
+    /// </summary>
+    private readonly record struct PendingLine(string Path, string Text);
+
+    private static readonly ConcurrentQueue<PendingLine> _pending = new();
+    private static readonly AutoResetEvent _wake = new(initialState: false);
+
+    // 1 while a wake is already signalled and not yet taken by the writer, so a
+    // burst of lines sets the event once instead of once per line.
+    private static int _wakePending;
+    private static int _writerStarted;
+
+    // Set by process exit, a terminating exception, or a writer thread that
+    // could not start: the background thread may never run again, so each line
+    // is written by its caller.
+    private static volatile bool _writeThrough;
+
+    // Guarded by _writeLock. File.AppendAllText wrote UTF-8 without a BOM.
+    private static StreamWriter? _writer;
+    private static string? _writerPath;
+    private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+
+    /// <summary>
+    /// How long the file stays open with nothing to write. A dictation logs in
+    /// bursts, so the handle is reused inside one, and an idle app holds no
+    /// handle on its log.
+    /// </summary>
+    private static readonly TimeSpan IdleCloseDelay = TimeSpan.FromSeconds(2);
 
     /// <summary>
     /// Describes a file for a log line without naming it.
@@ -134,16 +185,18 @@ public static class LoggingService
 
     /// <summary>
     /// Logs an ERROR level message. Use for error conditions.
+    /// Written to disk before this returns, with every line logged before it.
     /// </summary>
     public static void Error(string message)
     {
-        WriteLog("ERROR", message);
+        WriteLog("ERROR", message, flushNow: true);
     }
 
     /// <summary>
     /// Logs an ERROR level message with full exception details.
     /// Includes inner exceptions for complete debugging information. Each message and
     /// stack trace is redacted the way <see cref="Warn(string, Exception)"/> does it.
+    /// Written to disk before this returns, like <see cref="Error(string)"/>.
     /// </summary>
     public static void Error(string message, Exception ex)
     {
@@ -165,7 +218,7 @@ public static class LoggingService
             depth++;
         }
 
-        WriteLog("ERROR", sb.ToString());
+        WriteLog("ERROR", sb.ToString(), flushNow: true);
     }
 
     // =========================================================================
@@ -438,31 +491,240 @@ public static class LoggingService
     // =========================================================================
 
     /// <summary>
-    /// Writes a formatted log entry to the log file.
+    /// Formats a log entry and queues it for the background writer.
     ///
     /// Format: [YYYY-MM-DD HH:mm:ss.fff] [LEVEL] [ThreadId] Message
     ///
-    /// Thread-safe via lock to prevent file corruption from concurrent writes.
+    /// The timestamp, thread id and target file are taken here, on the caller's
+    /// thread, so they are what they were when every line was written at once.
+    /// <paramref name="flushNow"/> (Error lines) writes the queue out before
+    /// returning.
     /// </summary>
-    private static void WriteLog(string level, string message)
+    private static void WriteLog(string level, string message, bool flushNow = false)
     {
         try
         {
-            EnsureLogDirectory();
-
             var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
             var threadId = Environment.CurrentManagedThreadId;
             var logLine = $"[{timestamp}] [{level,-5}] [T{threadId:D4}] {message}{Environment.NewLine}";
 
-            lock (_writeLock)
+            _pending.Enqueue(new PendingLine(CurrentLogPath, logLine));
+            EnsureWriterStarted();
+
+            if (flushNow || _writeThrough)
             {
-                File.AppendAllText(CurrentLogPath, logLine);
+                Flush();
+                return;
+            }
+
+            if (Interlocked.Exchange(ref _wakePending, 1) == 0)
+            {
+                _wake.Set();
             }
         }
         catch
         {
             // Silently fail if logging itself fails - don't crash the app
             // In production, we might want to fall back to EventLog
+        }
+    }
+
+    /// <summary>
+    /// Writes every queued line to disk on the calling thread and returns when
+    /// they are there (in the OS file cache, as File.AppendAllText left them).
+    ///
+    /// It takes the write lock and drains the queue itself instead of waiting
+    /// for the background thread, so it is safe from a crash or exit handler
+    /// where that thread may never run again. Never throws.
+    /// </summary>
+    public static void Flush()
+    {
+        try
+        {
+            lock (_writeLock)
+            {
+                DrainLocked();
+            }
+        }
+        catch
+        {
+            // Logging never crashes the app.
+        }
+    }
+
+    /// <summary>
+    /// Starts the writer thread and hooks process exit and unhandled exceptions,
+    /// once, on the first line logged.
+    /// </summary>
+    private static void EnsureWriterStarted()
+    {
+        if (Volatile.Read(ref _writerStarted) == 1 || Interlocked.CompareExchange(ref _writerStarted, 1, 0) != 0)
+        {
+            return;
+        }
+
+        try
+        {
+            AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+            AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+
+            var thread = new Thread(WriterLoop)
+            {
+                IsBackground = true,
+                Name = "HyperWhisper.LogWriter"
+            };
+            thread.Start();
+        }
+        catch
+        {
+            // No writer thread: every caller writes its own line, as before #985.
+            _writeThrough = true;
+        }
+    }
+
+    /// <summary>
+    /// The process is ending: write what is queued, and write each later line
+    /// (OnExit's last lines, other exit handlers) at once, since the background
+    /// thread may not be scheduled again.
+    /// </summary>
+    private static void OnProcessExit(object? sender, EventArgs e)
+    {
+        _writeThrough = true;
+        Flush();
+    }
+
+    /// <summary>
+    /// An unhandled exception: write what is queued now. When it terminates the
+    /// process (.NET raises no ProcessExit then), every later line - App's own
+    /// handler logs after this one - is written by its caller.
+    /// </summary>
+    private static void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
+    {
+        if (e.IsTerminating)
+        {
+            _writeThrough = true;
+        }
+
+        Flush();
+    }
+
+    /// <summary>
+    /// The background writer: waits for lines, writes the whole queue, and
+    /// flushes the file when it runs dry. With nothing to write for
+    /// <see cref="IdleCloseDelay"/> it closes the file.
+    /// </summary>
+    private static void WriterLoop()
+    {
+        while (true)
+        {
+            try
+            {
+                // Racy read on purpose: a stale answer costs one extra wake-up or
+                // keeps an idle file open until the next line.
+                var timeout = Volatile.Read(ref _writer) is null ? Timeout.InfiniteTimeSpan : IdleCloseDelay;
+                var woken = _wake.WaitOne(timeout);
+
+                // Cleared BEFORE draining: a line queued after this point sets the
+                // event again, and one queued before it is drained below.
+                Interlocked.Exchange(ref _wakePending, 0);
+
+                lock (_writeLock)
+                {
+                    DrainLocked();
+                    if (!woken && _pending.IsEmpty)
+                    {
+                        CloseWriterLocked();
+                    }
+                }
+            }
+            catch
+            {
+                // Logging never crashes the app; the next wake-up tries again.
+            }
+        }
+    }
+
+    /// <summary>
+    /// Writes the whole queue, then flushes the file. Caller holds _writeLock.
+    /// A line whose write fails is dropped, as a failed File.AppendAllText was,
+    /// and the file is closed so the next line opens it afresh.
+    /// </summary>
+    private static void DrainLocked()
+    {
+        while (_pending.TryDequeue(out var line))
+        {
+            try
+            {
+                if (_writer is null || !string.Equals(_writerPath, line.Path, StringComparison.OrdinalIgnoreCase))
+                {
+                    CloseWriterLocked();
+                    OpenWriterLocked(line.Path);
+                }
+
+                _writer!.Write(line.Text);
+            }
+            catch
+            {
+                CloseWriterLocked();
+            }
+        }
+
+        try
+        {
+            _writer?.Flush();
+        }
+        catch
+        {
+            CloseWriterLocked();
+        }
+    }
+
+    /// <summary>
+    /// Opens <paramref name="path"/> for append, creating its directory. Shared
+    /// read, write and delete: a reader of the live file, a test, or
+    /// <see cref="CleanupOldLogs"/> must not be refused while it is open.
+    /// Caller holds _writeLock.
+    /// </summary>
+    private static void OpenWriterLocked(string path)
+    {
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        // bufferSize 1 turns off FileStream's own buffer: the StreamWriter is the
+        // one buffer, and its Flush goes straight to the OS.
+        var stream = new FileStream(path, FileMode.Append, FileAccess.Write,
+            FileShare.ReadWrite | FileShare.Delete, bufferSize: 1);
+        try
+        {
+            _writer = new StreamWriter(stream, Utf8NoBom, bufferSize: 16 * 1024);
+            _writerPath = path;
+        }
+        catch
+        {
+            stream.Dispose();
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Flushes and closes the open file, if any. Never throws. Caller holds _writeLock.
+    /// </summary>
+    private static void CloseWriterLocked()
+    {
+        var writer = _writer;
+        _writer = null;
+        _writerPath = null;
+
+        try
+        {
+            writer?.Dispose();
+        }
+        catch
+        {
+            // The stream is closed by Dispose even when its flush fails.
         }
     }
 
@@ -498,6 +760,10 @@ public static class LoggingService
     {
         EnsureLogDirectory();
 
+        // Queued lines reach their files first, including a file other than
+        // today's when the export runs just after midnight.
+        Flush();
+
         var tempRoot = Path.Combine(Path.GetTempPath(), $"hyperwhisper-diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}");
         var logsRoot = Path.Combine(tempRoot, "logs");
 
@@ -510,14 +776,17 @@ public static class LoggingService
                 var destination = Path.Combine(logsRoot, Path.GetFileName(logPath));
                 if (string.Equals(logPath, CurrentLogPath, StringComparison.OrdinalIgnoreCase))
                 {
+                    // Under the lock, with the queue drained: the copy ends on a
+                    // whole line and holds every line logged before the export.
                     lock (_writeLock)
                     {
-                        File.Copy(logPath, destination, overwrite: true);
+                        DrainLocked();
+                        CopyLogFile(logPath, destination);
                     }
                 }
                 else
                 {
-                    File.Copy(logPath, destination, overwrite: true);
+                    CopyLogFile(logPath, destination);
                 }
             }
 
@@ -547,6 +816,23 @@ public static class LoggingService
                 Warn($"LoggingService: Failed to clean diagnostics temp directory: {ex.Message}");
             }
         }
+    }
+
+    /// <summary>
+    /// Copies a log file that the writer may hold open. Not File.Copy: the
+    /// source is opened sharing read, write and delete, so a handle open for
+    /// writing on it cannot make the copy fail with a sharing violation.
+    /// </summary>
+    private static void CopyLogFile(string source, string destination)
+    {
+        using var input = new FileStream(source, FileMode.Open, FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete);
+        using var output = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None);
+        input.CopyTo(output);
+        output.Dispose();
+
+        // File.Copy kept the source's time, which the zip entry carries.
+        File.SetLastWriteTime(destination, File.GetLastWriteTime(source));
     }
 
     private static string BuildSystemInfo()
