@@ -2189,7 +2189,7 @@ Je kunt het later opnieuw downloaden.</value>
     <value>Selecteer ten minste één sectie om te importeren.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>{0} nieuwe woorden toevoegen, {1} conflicten met bestaande woorden. Doorgaan?</value>
+    <value>Nieuwe woorden: {0}. Conflicten met bestaande woorden: {1}. Doorgaan?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Woordenschat importeren?</value>

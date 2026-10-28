@@ -2193,7 +2193,7 @@
     <value>インポートするセクションを少なくとも1つ選択してください。</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>{0}個の新しい単語を追加、{1}個が既存の単語と競合します。続けますか？</value>
+    <value>新しい単語：{0} 個。既存の単語との競合：{1} 個。続けますか？</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>ボキャブラリーをインポートしますか？</value>

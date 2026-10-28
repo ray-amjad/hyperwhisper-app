@@ -2189,7 +2189,7 @@ You can re-download it later.</value>
     <value>בחר לפחות מקטע אחד לייבוא.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>הוסף {0} מילים חדשות, {1} התנגשויות עם מילים קיימות. להמשיך?</value>
+    <value>מילים חדשות: {0}. התנגשויות עם מילים קיימות: {1}. להמשיך?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>ייבוא אוצר מילים?</value>

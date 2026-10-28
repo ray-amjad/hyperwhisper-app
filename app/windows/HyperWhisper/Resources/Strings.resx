@@ -2209,7 +2209,7 @@ You can re-download it later.</value>
     <value>Select at least one section to import.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>Add {0} new words, {1} conflicts with existing words. Continue?</value>
+    <value>New words: {0}. Conflicts with existing words: {1}. Continue?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Import Vocabulary?</value>

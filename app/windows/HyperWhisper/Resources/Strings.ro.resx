@@ -2189,7 +2189,7 @@ You can re-download it later.</value>
     <value>Selectați cel puțin o secțiune de importat.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>Adăugați {0} cuvinte noi, {1} conflicte cu cuvintele existente. Continuați?</value>
+    <value>Cuvinte noi: {0}. Conflicte cu cuvintele existente: {1}. Continuați?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Importați vocabularul?</value>

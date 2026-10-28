@@ -2188,7 +2188,7 @@ You can re-download it later.</value>
     <value>Chọn ít nhất một phần để nhập.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>Thêm {0} từ mới, {1} xung đột với các từ hiện có. Tiếp tục?</value>
+    <value>Từ mới: {0}. Xung đột với các từ hiện có: {1}. Tiếp tục?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Nhập từ vựng?</value>
