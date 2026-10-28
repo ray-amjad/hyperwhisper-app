@@ -51,6 +51,9 @@ public class TranscriptionRetryHandler : IDisposable
     private readonly Action<Transcript> _saveTranscript;
     private bool _disposed;
 
+    /// <summary>PROBE ONLY (#1037 mutation matrix): which mutant is live; 0 = none.</summary>
+    internal static int Mutant;
+
     // =========================================================================
     // CONSTRUCTOR
     // =========================================================================
@@ -105,9 +108,9 @@ public class TranscriptionRetryHandler : IDisposable
     public bool CanRetry(TranscriptViewModel? transcript)
     {
         if (transcript == null) return false;
-        if (transcript.Status != TranscriptStatus.Failed) return false;
+        if (Mutant != 8 && transcript.Status != TranscriptStatus.Failed) return false;
         if (string.IsNullOrEmpty(transcript.AudioFilePath)) return false;
-        if (!File.Exists(transcript.AudioFilePath)) return false;
+        if (Mutant != 7 && !File.Exists(transcript.AudioFilePath)) return false;
         return true;
     }
 
@@ -175,6 +178,7 @@ public class TranscriptionRetryHandler : IDisposable
 
             // Update transcript entity with success
             UpdateTranscriptSuccess(transcript, mode, result);
+            if (Mutant == 5) transcript.IsRetrying = false;
 
             LoggingService.Info($"TranscriptionRetryHandler: Retry successful for transcript {transcript.Id}");
 
@@ -186,11 +190,12 @@ public class TranscriptionRetryHandler : IDisposable
             UpdateTranscriptFailure(transcript, ex);
 
             LoggingService.Error($"TranscriptionRetryHandler: Retry failed for transcript {transcript.Id}: {ex.Message}");
+            if (Mutant == 6) return null!;
             throw;
         }
         finally
         {
-            transcript.IsRetrying = false;
+            if (Mutant != 5) transcript.IsRetrying = false;
         }
     }
 
@@ -261,10 +266,10 @@ public class TranscriptionRetryHandler : IDisposable
         entity.TranscribedText = result.RawText;
         entity.PostProcessedText = result.PostProcessedText;
         entity.Status = TranscriptStatus.Completed;
-        entity.FailedReason = null;
+        if (Mutant != 4) entity.FailedReason = null;
         entity.TranscriptionProvider = result.TranscriptionProvider;
         entity.PostProcessingProvider = result.PostProcessingProvider;
-        entity.RetryCount++;
+        if (Mutant != 1) entity.RetryCount++;
         entity.LastRetryDate = DateTime.UtcNow;
         entity.Mode = mode.Name;
 
@@ -285,7 +290,7 @@ public class TranscriptionRetryHandler : IDisposable
 
     private void UpdateTranscriptFailure(TranscriptViewModel transcript, Exception ex)
     {
-        var failureMessage = ex is TranscriptionException txEx
+        var failureMessage = Mutant != 3 && ex is TranscriptionException txEx
             ? txEx.GetUserMessage()
             : ex.Message;
 
@@ -293,7 +298,7 @@ public class TranscriptionRetryHandler : IDisposable
         entity.Status = TranscriptStatus.Failed;
         entity.FailedReason = failureMessage;
         entity.Text = $"Transcription failed: {failureMessage}";
-        entity.RetryCount++;
+        if (Mutant != 2) entity.RetryCount++;
         entity.LastRetryDate = DateTime.UtcNow;
 
         _saveTranscript(entity);

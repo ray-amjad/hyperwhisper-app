@@ -166,6 +166,32 @@ internal static class TranscriptionRetryHandlerChecks
             }));
     }
 
+    /// <summary>PROBE ONLY: runs the 5 checks under each mutant and prints the matrix.</summary>
+    public static void Matrix()
+    {
+        string[] names =
+        {
+            "none", "success entity.RetryCount++ deleted", "failure entity.RetryCount++ deleted",
+            "ex.Message instead of GetUserMessage()", "entity.FailedReason = null dropped",
+            "IsRetrying = false moved out of finally", "throw; removed",
+            "CanRetry File.Exists check dropped", "CanRetry Failed-status check dropped",
+        };
+        for (var m = 0; m < names.Length; m++)
+        {
+            TranscriptionRetryHandler.Mutant = m;
+            var k = 0;
+            RunAll((name, check) =>
+            {
+                k++;
+                string verdict;
+                try { check(); verdict = "green"; }
+                catch (Exception ex) { verdict = "RED   " + ex.Message.Split('\n')[0]; }
+                Console.WriteLine($"  MATRIX mutant={m} ({names[m]}) check={k}: {verdict}");
+            });
+        }
+        TranscriptionRetryHandler.Mutant = 0;
+    }
+
     // =========================================================================
     // RIG
     // =========================================================================

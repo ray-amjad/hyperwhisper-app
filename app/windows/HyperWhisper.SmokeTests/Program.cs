@@ -27067,6 +27067,7 @@ internal static class Program
             InsufficientCreditsMessageChecks.RunAll(Run);
             PendingHistoryUnreadableChecks.RunAll(Run);
             TranscriptionRetryHandlerChecks.RunAll(Run);
+            TranscriptionRetryHandlerChecks.Matrix();
 
             // Issue #738: LicenseNetworkService over a scripted HttpClient (its internal
             // seam), so the rules that ACT on a server reply run without the backend.
