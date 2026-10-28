@@ -111,6 +111,7 @@ public sealed class LinuxSoundEffectsService : ISoundEffectsService
         // it runs off that thread and Play returns once it is started; a chime that fails is lost.
         var arguments = PlaybackArguments(_player, path, _volume);
         var player = _player;
+        // ast-grep-ignore: no-discarded-task-run -- the caller is the UI thread and paplay runs until the chime drains; the body catches every exception.
         _ = Task.Run(async () =>
         {
             try { _ = await _runner.RunAsync(player, arguments, null, CancellationToken.None, TimeSpan.FromSeconds(5)).ConfigureAwait(false); }
