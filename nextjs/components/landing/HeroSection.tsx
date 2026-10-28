@@ -101,15 +101,19 @@ export default function HeroSection() {
           variants={chunk}
         >
           <span className="text-sm text-gray-400">{t("availableOn")}</span>
+          {/* Each badge is a Latin label ending in a neutral ("macOS 14.6+",
+              "Linux (amd64)"). <bdi> isolates it, so on an RTL page (/ar, /he)
+              the "+" and the ")" stay after the version instead of moving to
+              the visual start (#1916). */}
           <div className="flex gap-3 flex-wrap justify-center">
             <div className="px-3 py-1 bg-gray-800 rounded-lg border border-gray-700">
-              <span className="text-sm text-gray-300">{t("macos")}</span>
+              <bdi className="text-sm text-gray-300">{t("macos")}</bdi>
             </div>
             <div className="px-3 py-1 bg-gray-800 rounded-lg border border-gray-700 flex items-center gap-2">
-              <span className="text-sm text-gray-300">{t("windows")}</span>
+              <bdi className="text-sm text-gray-300">{t("windows")}</bdi>
             </div>
             <div className="px-3 py-1 bg-gray-800 rounded-lg border border-gray-700 flex items-center gap-2">
-              <span className="text-sm text-gray-300">{t("linux")}</span>
+              <bdi className="text-sm text-gray-300">{t("linux")}</bdi>
             </div>
           </div>
         </m.div>
