@@ -53,6 +53,14 @@ jobs:
   build-and-test:
     name: Build & Test (macOS, unsigned)
     runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: after
+            iterations: 30
+          - variant: before
+            iterations: 30
     # The outer backstop for a wedged test. Without it the only limit is
     # GitHub's 360-minute default, so a deadlocked async test — the residency
     # suites block real tasks on real handshakes — burns six hours of runner
@@ -62,13 +70,22 @@ jobs:
     # Recent green runs finish in 5-8 minutes (Rust core rebuild + full Debug
     # build + unit tests), so 60 leaves generous headroom for a cold runner
     # while still turning a wedged test into a fast, obvious failure.
-    timeout-minutes: 60
+    timeout-minutes: 300
     steps:
       # ----------------------------------------------------------------
       # 1. Checkout
       # ----------------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: "TMP #2526: use main's two test files for the before variant"
+        if: matrix.variant == 'before'
+        run: |
+          git fetch --depth=1 origin main
+          for f in LocalAPIStopRestartTests.swift LocalAPIRequestHeadTests.swift; do
+            git show FETCH_HEAD:app/macos/hyperwhisperTests/$f > app/macos/hyperwhisperTests/$f
+          done
+          git diff --stat
 
       # ----------------------------------------------------------------
       # 2. Select Xcode version
@@ -182,10 +199,23 @@ jobs:
             -configuration Debug \
             -destination "platform=macOS" \
             -only-testing:hyperwhisperTests \
+            -test-iterations ${{ matrix.iterations }} \
+            -resultBundlePath "$RUNNER_TEMP/r.xcresult" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            CODE_SIGN_ENTITLEMENTS=""
+            CODE_SIGN_ENTITLEMENTS="" 2>&1 | tee "$RUNNER_TEMP/test.log" | grep -E "Test (case|Suite) .*(failed|passed)|Executed|LocalAPIStopRestart|LocalAPIRequestHead" | grep -v "passed on" || true
+          echo "===== variant ${{ matrix.variant }}, ${{ matrix.iterations }} iterations ====="
+          for s in LocalAPIStopRestartTests LocalAPIRequestHeadTests; do
+            echo "$s passes: $(grep -cE "Test case '$s/.*passed" "$RUNNER_TEMP/test.log")"
+            echo "$s failures:"; grep -E "Test case '$s/.*failed" "$RUNNER_TEMP/test.log" | sed -E 's/ on .*\(/ (/' | sort | uniq -c || true
+          done
+          echo "All failing cases:"; grep -E "Test case .* failed" "$RUNNER_TEMP/test.log" | sed -E 's/ on .*//; s/\([0-9.]+ seconds\)//' | sort | uniq -c || true
+          xcrun xcresulttool get test-results tests --path "$RUNNER_TEMP/r.xcresult" > "$RUNNER_TEMP/r.json" || true
+          echo "Issue text in the two files:"
+          grep -oE '"name" *: *"[^"]*(LocalAPIStopRestartTests|LocalAPIRequestHeadTests)\.swift:[0-9]+[^"]*"' "$RUNNER_TEMP/r.json" | sort | uniq -c | head -60 || true
+          grep -B3 -A3 -E "(LocalAPIStopRestartTests|LocalAPIRequestHeadTests)\.swift:[0-9]+" "$RUNNER_TEMP/r.json" | head -150 || true
+          if grep -qE "Test case '(LocalAPIStopRestartTests|LocalAPIRequestHeadTests)/.*failed" "$RUNNER_TEMP/test.log"; then exit 1; fi
 
       # A macOS unit test runs INSIDE the app. When the app aborts, XCTest
       # reports the test that happened to be running as a bare failure in
