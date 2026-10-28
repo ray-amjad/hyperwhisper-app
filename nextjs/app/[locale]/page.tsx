@@ -11,12 +11,12 @@ export const generateMetadata = localizedPageMetadata({
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-black">
+    <div className="min-h-screen bg-black">
       <HeroSection />
       <VideoDemo />
       <FeaturesGrid />
       <PricingSection />
       <FAQSection />
-    </main>
+    </div>
   );
 }
