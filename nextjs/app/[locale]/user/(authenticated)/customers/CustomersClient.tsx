@@ -460,7 +460,18 @@ export default function CustomersClient() {
         transition="opacity 150ms cubic-bezier(0.4, 0, 0.2, 1)"
         trigger={data}
       >
-        <div className="overflow-x-auto">
+        {/* The table scrolls sideways on a phone, so its box is a named
+            region with a tab stop (#1148, as #1145 did on /download): a
+            keyboard user can scroll it.
+            The ring is inset (-outline-offset-2), and rounded like the card:
+            the card clips its overflow, so an outset ring would be hidden. */}
+        <div
+          aria-label="Customers table"
+          className="overflow-x-auto rounded-xl focus-visible:outline-2 focus-visible:outline-focus focus-visible:-outline-offset-2"
+          role="region"
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
+          tabIndex={0}
+        >
           {/* min-w (#1330): the email wraps anywhere, so without a floor a
               phone-width column squeezes it to a letter or two per line. This
               keeps the columns readable and lets the wrapper scroll instead. */}
