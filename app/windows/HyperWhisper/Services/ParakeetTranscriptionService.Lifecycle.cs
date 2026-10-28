@@ -159,6 +159,25 @@ public partial class ParakeetTranscriptionService
     }
 
     /// <summary>
+    /// Counts a GUI job in from before its model load until its transcription has ended,
+    /// whatever model the daemon holds (#1618). A Transcribe File job loads the model,
+    /// then converts the file for seconds before it calls <see cref="TranscribeAsync"/>;
+    /// without this an idle reload sees nobody counted in that gap and swaps the model the
+    /// job is about to use. Like any lease it never stops a teardown: the user's own
+    /// <see cref="DisposeModel"/> / <see cref="InitializeAsync"/> still cancels what is in
+    /// flight, and a housekeeping unload waits for it to be disposed.
+    /// </summary>
+    public ModelLease ReserveForJob()
+    {
+        lock (_drainSync)
+        {
+            _pendingRequests++;
+        }
+
+        return new ModelLease(this, reloaded: false);
+    }
+
+    /// <summary>
     /// A lease without the lock when the warm daemon fits and no idle reload is running.
     /// Checked and counted in one step under <see cref="_drainSync"/>, where an idle reload
     /// registers itself, so a lease is never handed out on a model being replaced.
