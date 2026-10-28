@@ -67,6 +67,13 @@ public sealed partial class StreamingTranscriptionClient
                 if (State is StreamingConnectionState.Disconnecting or StreamingConnectionState.Idle)
                     return;
 
+                // Same stop rule as the close-frame path above: a session the provider has
+                // already failed (an in-band error moved State to Error, or a terminal close
+                // was recorded) is over - an abrupt drop after that must not reconnect it.
+                // Both of those already raised ErrorReceived, so end silently.
+                if (State is StreamingConnectionState.Error || _receivedTerminalClose)
+                    return;
+
                 LoggingService.Warn($"StreamingTranscriptionClient: receive loop failed, attempting reconnect - {ex.Message}");
 
                 if (!await TryReconnectAsync(cancellationToken))

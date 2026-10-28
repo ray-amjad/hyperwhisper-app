@@ -29432,6 +29432,73 @@ internal static class Program
                 }
             });
         }
+
+        RunAsync("StreamingTranscriptionClient does not reconnect after an in-band provider error then a TCP drop (#2296)", async () =>
+        {
+            var previousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+            try
+            {
+                await AssertProviderErrorThenDropStaysFailed();
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(previousContext);
+            }
+        });
+    }
+
+    // The close-frame path ends the session once the provider has failed it (State Error).
+    // The exception path must too: an in-band error (e.g. credits exhausted) followed by a
+    // TCP drop with no close frame must not reconnect and resume a session the provider
+    // refused. The wait covers the first reconnect attempt's 500 ms backoff several times.
+    private static async Task AssertProviderErrorThenDropStaysFailed()
+    {
+        var providerError = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var states = new List<StreamingConnectionState>();
+        var errors = new List<string>();
+
+        await using var server = new ScriptedLoopbackWebSocketServer(async (index, ws, socket, ct) =>
+        {
+            if (index == 0)
+            {
+                await ServerSendText(ws, "{\"t\":\"error\",\"text\":\"Credits exhausted.\"}", ct);
+                await providerError.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
+                socket.Shutdown(System.Net.Sockets.SocketShutdown.Both);
+                socket.Close();
+                return;
+            }
+
+            await ServerSendText(ws, "{\"t\":\"final\",\"text\":\"After reconnect.\"}", ct);
+            await ServerDrainUntilGone(ws, ct);
+        });
+
+        var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
+        await using var client = new StreamingTranscriptionClient(new LoopbackScriptedStrategy(server.Uri), config);
+        client.StateChanged += state => { lock (states) states.Add(state); };
+        client.ErrorReceived += m =>
+        {
+            lock (errors) errors.Add(m);
+            if (m.Contains("Credits exhausted.", StringComparison.Ordinal))
+                providerError.TrySetResult();
+        };
+
+        Assert(await client.StartAsync(), $"StartAsync did not start the session (State {client.State})");
+        Assert(await Task.WhenAny(providerError.Task, Task.Delay(TimeSpan.FromSeconds(10))) == providerError.Task,
+            "the in-band provider error never reached ErrorReceived");
+
+        await Task.Delay(TimeSpan.FromSeconds(3));
+        var stateAfter = client.State;
+        var connections = server.ConnectionCount;
+        string[] seen;
+        lock (states)
+            seen = states.Select(s => s.ToString()).ToArray();
+        await client.StopAsync(new CancellationTokenSource(TimeSpan.FromSeconds(10)).Token);
+
+        Assert(connections == 1, $"a failed session reconnected after the TCP drop: {connections} connections (states {string.Join(",", seen)})");
+        Assert(!seen.Contains(nameof(StreamingConnectionState.Reconnecting)), $"a failed session moved to Reconnecting (states {string.Join(",", seen)})");
+        Assert(stateAfter == StreamingConnectionState.Error, $"expected State to stay Error after the drop, got {stateAfter} (states {string.Join(",", seen)})");
+        Assert(!client.FinalText.Contains("After reconnect.", StringComparison.Ordinal), "a failed session read a reconnected socket");
     }
 
     private enum ReconnectDrop { TcpFin, TcpReset, ParseThrows }
@@ -29619,7 +29686,8 @@ internal static class Program
 
     /// <summary>
     /// Speaks a tiny JSON protocol: <c>{"t":"final","text":...}</c> is a final
-    /// transcript and <c>{"t":"boom"}</c> makes ParseMessage throw. The session starts
+    /// transcript, <c>{"t":"error","text":...}</c> is an in-band provider error and
+    /// <c>{"t":"boom"}</c> makes ParseMessage throw. The session starts
     /// on open with no start messages, and stop is a plain close.
     /// </summary>
     private sealed class LoopbackScriptedStrategy(Uri uri) : IStreamingProviderStrategy
@@ -29640,6 +29708,7 @@ internal static class Program
             {
                 "final" => new StreamingProviderEvent.FinalTranscript(node["text"]!.GetValue<string>()),
                 "boom" => throw new InvalidOperationException("scripted ParseMessage failure"),
+                "error" => new StreamingProviderEvent.Error(node["text"]!.GetValue<string>()),
                 _ => null
             };
         }
