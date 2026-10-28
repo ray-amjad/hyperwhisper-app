@@ -147,7 +147,7 @@ public class HyperWhisperUIFactory : IUIFactory
 
         var window = new UpdateMessageWindow(title, message, icon);
 
-        var mainWindow = Application.Current?.MainWindow;
+        var mainWindow = System.Windows.Application.Current?.MainWindow;
         if (mainWindow != null && !ReferenceEquals(mainWindow, window) && mainWindow.IsVisible)
         {
             window.Owner = mainWindow;
