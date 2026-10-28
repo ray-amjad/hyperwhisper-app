@@ -351,17 +351,49 @@ describe('transcribeWithOpenAI — transcript, duration and billing', () => {
     expect(mini.costUsd).toBeLessThan(full.costUsd);
   });
 
-  test('an empty or whitespace-only transcript returns no_speech at zero duration and zero cost', async () => {
+  test('a per-minute model: an empty or whitespace-only transcript returns no_speech at zero duration and zero cost', async () => {
     for (const text of ['', '   \n ']) {
       captureRequest({ text, language: 'en', duration: 42 });
 
-      const result = await transcribeWithOpenAI(audio(BYTES_FOR_120_SECONDS), 'audio/wav');
+      // gpt-transcribe: the route's default, billed per audio minute.
+      const result = await transcribeWithOpenAI(audio(BYTES_FOR_120_SECONDS), 'audio/wav', undefined, undefined, { model: 'gpt-transcribe' });
       expect(result.source).toBe('no_speech');
       expect(result.text).toBe('');
       expect(result.durationSeconds).toBe(0);
       expect(result.costUsd).toBe(0);
       expect(result.language).toBe('en');
     }
+  });
+
+  test('whisper-1 no_speech stays free too: a per-minute model keeps the goodwill $0', async () => {
+    captureRequest({ text: '', language: 'en', duration: 42 });
+    const result = await transcribeWithOpenAI(audio(BYTES_FOR_120_SECONDS), 'audio/wav', undefined, undefined, { model: 'whisper-1' });
+    expect(result.source).toBe('no_speech');
+    expect(result.costUsd).toBe(0);
+  });
+
+  // Issue #2634: OpenAI bills a token-billed model's input tokens whether or not
+  // a word comes back, so a no_speech result charges them, never $0.
+  test('a token-billed gpt-4o*-transcribe no_speech bills the tokens OpenAI reported', async () => {
+    for (const model of ['gpt-4o-transcribe', 'gpt-4o-mini-transcribe', 'gpt-4o-mini-transcribe-2025-12-15']) {
+      const usage = { input_tokens: 600_000, output_tokens: 0 };
+      captureRequest({ text: '', language: 'en', usage });
+      const silent = await transcribeWithOpenAI(audio(BYTES_FOR_120_SECONDS), 'audio/wav', undefined, undefined, { model });
+      captureRequest({ text: 'hello', language: 'en', usage });
+      const spoken = await transcribeWithOpenAI(audio(BYTES_FOR_120_SECONDS), 'audio/wav', undefined, undefined, { model });
+      expect(silent.source).toBe('no_speech');
+      expect(silent.text).toBe('');
+      expect(silent.costUsd).toBeGreaterThan(0);
+      expect(silent.costUsd).toBe(spoken.costUsd);
+    }
+  });
+
+  test('a token-billed no_speech with no usage block falls back to the byte-estimate floor, never $0', async () => {
+    captureRequest({ text: '  ', language: 'en' });
+    const result = await transcribeWithOpenAI(audio(BYTES_FOR_120_SECONDS), 'audio/wav', undefined, undefined, { model: 'gpt-4o-transcribe' });
+    expect(result.source).toBe('no_speech');
+    expect(result.costUsd).toBeGreaterThan(0);
+    expect(result.durationSeconds).toBeCloseTo(120, 6);
   });
 
   test('the no_speech log event never records the gpt-4o byte estimate as the upstream duration', async () => {

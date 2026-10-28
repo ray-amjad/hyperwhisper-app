@@ -310,22 +310,33 @@ export async function transcribeWithGemini(
   const outputTokens = (usage?.candidatesTokenCount ?? 0) + (usage?.thoughtsTokenCount ?? 0);
   const durationSeconds = audioInputTokens / AUDIO_TOKENS_PER_SECOND;
 
-  if (!transcript || transcript.length === 0) {
-    logProviderEvent(provider, 'no_speech', {
-      model, elapsedMs: Math.round(performance.now() - startedAt),
-      upstreamDurationSeconds: upstreamAudioTokens !== null && upstreamAudioTokens > 0
-        ? upstreamAudioTokens / AUDIO_TOKENS_PER_SECOND
-        : null,
-    }, context);
-    return { text: '', language, durationSeconds: 0, costUsd: 0, source: 'no_speech' };
-  }
-
   const costUsd = computeGeminiTranscriptionCost(model, {
     audioInputTokens,
     textInputTokens,
     outputTokens,
     fallbackDurationSeconds: (audio.byteLength / BYTES_PER_MINUTE_ESTIMATE) * 60,
   });
+
+  if (!transcript || transcript.length === 0) {
+    // NOT the zero-cost no_speech the duration-billed siblings return. This
+    // endpoint is TOKEN-billed: Google charges the audio input, the prompt text
+    // and any thinking tokens whether or not a word comes back. Reporting $0
+    // makes silent audio a free channel to paid upstream requests (one balance
+    // funds unlimited calls), so the same bill as a transcript is charged —
+    // `resolveAudioInputTokens` falls back to a byte estimate when usage is
+    // missing, so it is never 0. Same stance as gemini-transcribe.ts.
+    // (issue ray-amjad/hyperwhisper-app#2634)
+    logProviderEvent(provider, 'no_speech', {
+      model, elapsedMs: Math.round(performance.now() - startedAt),
+      upstreamDurationSeconds: upstreamAudioTokens !== null && upstreamAudioTokens > 0
+        ? upstreamAudioTokens / AUDIO_TOKENS_PER_SECOND
+        : null,
+      audioInputTokens,
+      outputTokens,
+      costUsd,
+    }, context);
+    return { text: '', language, durationSeconds, costUsd, source: 'no_speech' };
+  }
 
   logProviderEvent(provider, 'success', {
     model,

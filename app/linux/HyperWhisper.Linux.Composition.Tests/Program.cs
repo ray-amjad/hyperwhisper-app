@@ -149,6 +149,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a failed provider-key save leaves no typed key in the shared credentials view model (#1388)", ProviderApiKeySaveFailureRenderTests.RunAsync),
     ("a Gemini key that does not start with AIza saves from the provider-key modal with no Invalid API Key notice", ProviderApiKeyNonAizaGeminiRenderTests.RunAsync),
     ("a RadioButton's disc reaches 3:1 on the light card and keeps Windows' #FFFFFF / #212121 in dark (#2514)", RadioButtonLightThemeRenderTests.RunAsync),
+    ("a live stream that fails after delivering text keeps that text in History, the error only in FailedReason (#2282)", LiveFailureHistoryTests.KeepsDeliveredText),
 };
 
 foreach (var test in tests)
@@ -2840,4 +2841,63 @@ static class ProcessUmask
     private static extern uint NativeUmask(uint mask);
 
     public static uint Set(uint mask) => NativeUmask(mask);
+}
+
+// #2282: a live stream whose provider closed the socket (1011) after one final had been pasted or copied
+// saved the error as the History row's Text, so the user's words were only on the clipboard. The row
+// goes through the real HistoryRepository and is read back from SQLite.
+static class LiveFailureHistoryTests
+{
+    public static async Task KeepsDeliveredText()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"hw-2282-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var paths = new StaticPaths(root);
+            var database = new ApplicationDb(paths);
+            await database.InitializeAsync();
+            var history = new HistoryRepository(database, paths);
+            const string failure = "The streaming provider closed the session unexpectedly.";
+
+            async Task<Transcript> SaveAsync(string? received)
+            {
+                var row = new Transcript
+                {
+                    Status = TranscriptStatus.Processing,
+                    Text = "Live transcription in progress",
+                    Date = DateTime.UtcNow,
+                    Mode = "Live",
+                };
+                await history.AddAsync(row);
+                LinuxInteractionRecordingSession.RecordLiveFailure(row, received, failure, 1.4);
+                _ = await history.UpdateAsync(row);
+                return await history.GetAsync(row.Id) ?? throw new InvalidOperationException("the live row was not saved");
+            }
+
+            var delivered = await SaveAsync("the quick brown fox");
+            Check(delivered.Status == TranscriptStatus.Failed, $"a failed stream saved as {delivered.Status}, not Failed");
+            Check(delivered.Text == "the quick brown fox" && delivered.TranscribedText == "the quick brown fox",
+                $"the delivered text was not kept in History: Text='{delivered.Text}', TranscribedText='{delivered.TranscribedText}'");
+            Check(delivered.FailedReason == failure, $"the failure reason was lost: '{delivered.FailedReason}'");
+            Check(Math.Abs(delivered.Duration - 1.4) < 0.001, $"duration was {delivered.Duration}");
+
+            foreach (var nothing in new[] { null, "", "  " })
+            {
+                var empty = await SaveAsync(nothing);
+                Check(empty.Status == TranscriptStatus.Failed && empty.Text == failure && empty.FailedReason == failure
+                        && string.IsNullOrEmpty(empty.TranscribedText),
+                    $"a stream that delivered nothing must still save the error as its text: Text='{empty.Text}'");
+            }
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch { }
+        }
+    }
+
+    private static void Check(bool condition, string message)
+    {
+        if (!condition) throw new InvalidOperationException(message);
+    }
 }
