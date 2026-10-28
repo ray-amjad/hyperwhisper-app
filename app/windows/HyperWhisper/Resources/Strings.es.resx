@@ -1040,15 +1040,6 @@
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Los modelos Parakeet no admiten vocabulario personalizado.</value>
   </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>ElevenLabs Scribe V1 no admite vocabulario personalizado.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Los modelos Base de Deepgram no admiten vocabulario personalizado.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Los modelos Whisper de Deepgram no admiten vocabulario personalizado.</value>
-  </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>El vocabulario personalizado está deshabilitado cuando se usa detección automática con modelos Nova. Establezca un idioma específico para habilitar el refuerzo de vocabulario.</value>
   </data>
