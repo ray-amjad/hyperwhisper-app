@@ -91,12 +91,16 @@ export default function DevicesClient() {
   // The first load's rows paint at opacity 0, then fade in.
   const revealed = useRevealAfterLoad(loading);
 
-  // #1242: only a mount that starts on the first load draws the skeleton; a
-  // mount with the rows already cached shows none, as before. Fixed at
-  // mount: isLoading is true only for a key's first fetch, so nothing later
-  // (a range switch, or a retry after a failed first load, where react-query
-  // v5 keeps isLoading false) brings the skeleton back, as before.
-  const [hasSkeleton] = useState(loading);
+  // #1242: the skeleton layer is drawn from the first load on; a mount with
+  // the rows already cached shows none, as before. isLoading is true whenever
+  // a fetch starts on a range with no data: the first load, but also a
+  // Refresh or a new range after a failed fetch left no rows to keep
+  // (react-query v5 puts a query with no data back to "pending"). So any
+  // load draws it, set during render so it shows in the same commit, as the
+  // skeleton rows did before. Once drawn it stays mounted and fades.
+  const [hasSkeleton, setHasSkeleton] = useState(loading);
+
+  if (loading && !hasSkeleton) setHasSkeleton(true);
   // Paused, not removed: a bar frozen mid-pulse does not jump while it fades.
   const pulse = `animate-pulse motion-reduce:animate-none${
     revealed ? " [animation-play-state:paused]" : ""
@@ -260,7 +264,7 @@ export default function DevicesClient() {
               )}
             </tbody>
           </table>
-          {/* First load only: the skeleton rows, in the same grid slot as the
+          {/* While loading: the skeleton rows, in the same grid slot as the
               table, under its own copy of the header (#1242, the #1236
               cross-fade on /older-versions). A <tbody> cannot share a slot,
               so the skeleton is its own table. It stays mounted, as #1236's
@@ -268,14 +272,16 @@ export default function DevicesClient() {
               fades them in (at once under reduced motion), its pulse pauses
               where it is, and it stops taking height (h-0), so the table
               alone sets the box's height and a short result never waits on
-              the fade. Still in the grid column, it keeps the table's width
-              on a phone; overflow-y-hidden clips what hangs below a short
+              the fade. Nor does it set the column's width (min-w-0, its
+              overflow clipped sideways), so the settled table is as wide as
+              before; still in the column, it fades over the table at the
+              table's width. overflow-y-hidden clips what hangs below a short
               table. A range switch keeps the previous rows mounted (above). */}
           {hasSkeleton && (
             <div
               aria-hidden
               className={`t-skel-skeleton [grid-area:1/1] self-start pointer-events-none transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
-                loading ? "" : "h-0"
+                loading ? "" : "h-0 min-w-0 overflow-x-clip"
               } ${revealed ? "opacity-0 blur-[2px]" : "opacity-100 blur-[0px]"}`}
             >
               <table className="w-full">

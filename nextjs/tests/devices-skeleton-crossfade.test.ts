@@ -119,6 +119,7 @@ test("mid-first-load: the skeleton shares the table's grid slot and fades, under
   assert.equal(html.match(/animate-pulse/g)?.length, 15, "5 skeleton rows");
   assert.doesNotMatch(html, /animation-play-state/, "pulsing while loading");
   assert.doesNotMatch(skeleton, /\bh-0\b/, "it sizes the box while loading");
+  assert.doesNotMatch(skeleton, /\bmin-w-0\b/, "and its width");
 
   // The real table is in the same slot, its rows hidden until revealed. It
   // starts at the top of the slot: a stretched header-only table would grow
@@ -160,15 +161,24 @@ test("a mount with the rows already cached shows no skeleton", async () => {
 test("after the load the skeleton stays mounted, faded, paused and out of the height", () => {
   const source = readFileSync(new URL(COMPONENT_PATH, import.meta.url), "utf8");
 
-  // Fixed at mount: no unmount state machine, no transitionend to miss.
-  assert.match(source, /const \[hasSkeleton\] = useState\(loading\);/);
-  assert.match(source, /\{hasSkeleton && \(\s*<div\s+aria-hidden/);
-  assert.doesNotMatch(source, /onTransitionEnd|useReducedMotion/);
-  // In the grid column (the table's width on a phone), taking no height once
-  // the rows land, so the table alone sets the box's height.
+  // Drawn by any load, not only one at mount: react-query v5 puts a range
+  // with no data back to "pending" on a later fetch (a Refresh after a failed
+  // one), and that load shows the skeleton as main did. Set during render,
+  // never cleared: no unmount state machine, no transitionend to miss.
   assert.match(
     source,
-    /className=\{`t-skel-skeleton \[grid-area:1\/1\] self-start pointer-events-none [^`]*\$\{\s*loading \? "" : "h-0"\s*\}/,
+    /const \[hasSkeleton, setHasSkeleton\] = useState\(loading\);\s*if \(loading && !hasSkeleton\) setHasSkeleton\(true\);/,
+  );
+  assert.doesNotMatch(source, /setHasSkeleton\(false\)/);
+  assert.match(source, /\{hasSkeleton && \(\s*<div\s+aria-hidden/);
+  assert.doesNotMatch(source, /onTransitionEnd|useReducedMotion/);
+  // In the grid column (it fades over the table at the table's width), but
+  // once the rows land it takes no height and no minimum width (its own
+  // overflow clipped sideways), so the table alone sets the box's size: the
+  // settled table is as wide as on main, even on a phone.
+  assert.match(
+    source,
+    /className=\{`t-skel-skeleton \[grid-area:1\/1\] self-start pointer-events-none [^`]*\$\{\s*loading \? "" : "h-0 min-w-0 overflow-x-clip"\s*\}/,
   );
   // Fades on the same signal that fades the rows in.
   assert.match(
