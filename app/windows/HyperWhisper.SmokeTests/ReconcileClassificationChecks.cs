@@ -32,6 +32,12 @@ internal static class ReconcileClassificationChecks
                 category: "Web Browser",
                 textFormat: "text");
 
+            var classifierAlone = AppTypeClassifier.Classify(new AppClassificationRequest(
+                ProcessName: "chrome",
+                Title: WebmailTab + " " + WebmailTab + " - Google Chrome",
+                FocusedPieces: ["Edit"]));
+            Assert(classifierAlone.AppType == AppType.Other && AppTypeClassifier.IsWebmail(WebmailTab),
+                $"the classifier alone now answers {classifierAlone.AppType} for this tab; pick another");
             Assert(classification.AppType == AppType.Email, $"app type {classification.AppType}, want Email");
             Assert(classification.Confidence == "weak", $"confidence '{classification.Confidence}', want weak");
             Assert(classification.Source == "webmailTitleFallback", $"source '{classification.Source}', want webmailTitleFallback");
@@ -67,7 +73,7 @@ internal static class ReconcileClassificationChecks
             var (category, textFormat, classification) = ApplicationContextService.ReconcileClassification(
                 processName: "SomeUnknownTool",
                 windowTitle: WebmailTab,
-                browserTabTitle: null,
+                browserTabTitle: WebmailTab,
                 browserHost: null,
                 focusedElementType: null,
                 focusedContent: null,
@@ -78,6 +84,24 @@ internal static class ReconcileClassificationChecks
             Assert(classification.Source != "webmailTitleFallback", "the webmail fallback fired outside a browser");
             Assert(category == "Code Editor", $"category '{category}', want Code Editor");
             Assert(textFormat == "code", $"text format '{textFormat}', want the InferTextFormat value code");
+        });
+
+        run("app context: ReconcileClassification passes the focused element to the classifier (#887)", () =>
+        {
+            var (category, textFormat, classification) = ApplicationContextService.ReconcileClassification(
+                processName: "SomeUnknownTool",
+                windowTitle: "Untitled",
+                browserTabTitle: null,
+                browserHost: null,
+                focusedElementType: "Edit",
+                focusedContent: "Subject: Q3 numbers",
+                category: "",
+                textFormat: "text");
+
+            Assert(classification.AppType == AppType.Email, $"app type {classification.AppType}, want Email");
+            Assert(classification.Source == "focusedElement", $"source '{classification.Source}', want focusedElement");
+            Assert(category == "Email Client", $"category '{category}', want Email Client");
+            Assert(textFormat == "email", $"text format '{textFormat}', want email");
         });
     }
 
