@@ -174,8 +174,21 @@ pub fn build_transcribe_request(
 }
 
 /// Parse the Grok STT response (`{ "text": "..." }`).
+///
+/// xAI answers a wrong API key with **400** `{"error":"Incorrect API key
+/// provided. …"}`, not 401, so that 400 maps to `Unauthorized` (issue #2144,
+/// Ray 2026-10-20), matching `health.rs` `rejects_bad_key_with_400`. Any other
+/// 400 stays `BadRequest` through `common::classify_http`.
 pub fn parse_transcribe_response(resp: &HttpResponse) -> Result<Transcript, TranscriptionError> {
+    if resp.status == 400 && is_bad_key_body(&resp.text()) {
+        return Err(TranscriptionError::Unauthorized);
+    }
     common::parse_text_response(resp)
+}
+
+/// True when an xAI 400 body is the wrong-key reply ("Incorrect API key").
+fn is_bad_key_body(raw: &str) -> bool {
+    raw.to_ascii_lowercase().contains("incorrect api key")
 }
 
 #[cfg(test)]
@@ -397,6 +410,38 @@ mod tests {
         assert_eq!(
             parse_transcribe_response(&resp).unwrap_err(),
             TranscriptionError::NoSpeech
+        );
+    }
+
+    // Issue #2144 (Ray, 2026-10-20): xAI answers a wrong key with 400; that
+    // reads as a bad key, any other 400 stays a bad request.
+    #[test]
+    fn incorrect_api_key_400_is_unauthorized() {
+        let body = r#"{"error":"Incorrect API key provided. You can obtain an API key from https://console.x.ai."}"#;
+        let resp = HttpResponse {
+            status: 400,
+            headers: vec![],
+            body: body.as_bytes().to_vec(),
+        };
+        assert_eq!(
+            parse_transcribe_response(&resp).unwrap_err(),
+            TranscriptionError::Unauthorized
+        );
+    }
+
+    #[test]
+    fn other_400_stays_bad_request() {
+        let resp = HttpResponse {
+            status: 400,
+            headers: vec![],
+            body: br#"{"error":"Unsupported audio format"}"#.to_vec(),
+        };
+        assert_eq!(
+            parse_transcribe_response(&resp).unwrap_err(),
+            TranscriptionError::BadRequest {
+                status: 400,
+                message: "Unsupported audio format".to_string()
+            }
         );
     }
 }

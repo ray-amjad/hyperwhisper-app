@@ -404,7 +404,9 @@ const OUT_OF_CREDITS_PHRASES: &[&str] = &[
 /// True when an error body says the provider account is out of credits
 /// ([`OUT_OF_CREDITS_CODES`], [`OUT_OF_CREDITS_PHRASES`]). Matched on the raw
 /// text, not parsed, like the Cloud check.
-fn is_out_of_credits_body(raw: &str) -> bool {
+/// pub(crate): the per-provider classifiers (Deepgram, Soniox, Gemini, the
+/// AssemblyAI poll) apply the same 401/403 check (issue #2144).
+pub(crate) fn is_out_of_credits_body(raw: &str) -> bool {
     let is_word = |c: char| c.is_ascii_alphanumeric() || c == '_';
     let has_word = |needle: &str| {
         raw.match_indices(needle).any(|(i, _)| {
