@@ -340,7 +340,7 @@ public class BackupService
         }
         catch (ImportDatabaseStepException ex)
         {
-            LoggingService.Error("BackupService: Import failed in the database step", ex.InnerException);
+            LoggingService.Error("BackupService: Import failed in the database step", ex.InnerException ?? ex);
             return Result<string>.Failure(ex.UserMessage);
         }
         catch (Exception ex)
@@ -511,7 +511,7 @@ public class BackupService
         }
         catch (ImportDatabaseStepException ex)
         {
-            LoggingService.Error("BackupService: Selective import failed in the database step", ex.InnerException);
+            LoggingService.Error("BackupService: Selective import failed in the database step", ex.InnerException ?? ex);
             return Result<ImportSummary>.Failure(ex.UserMessage);
         }
         catch (Exception ex)
