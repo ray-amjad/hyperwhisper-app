@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, MapPin, Pin } from "lucide-react";
+import { ChevronRight, MapPin, Pin } from "lucide-react";
 
 import {
   BUCKET_LABELS,
@@ -426,11 +426,15 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                 type="button"
                 onClick={() => setByModel((open) => !open)}
               >
-                {byModel ? (
-                  <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} />
-                ) : (
-                  <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
-                )}
+                {/* One chevron that turns (#988), the way the FAQ and Devices
+                    disclosures do, not a second glyph swapped in. */}
+                <ChevronRight
+                  aria-hidden="true"
+                  className={`h-3.5 w-3.5 transition-transform duration-150 ease-[cubic-bezier(0.2,0,0,1)] ${
+                    byModel ? "rotate-90" : ""
+                  }`}
+                  strokeWidth={1.5}
+                />
                 Break down by model
               </button>
             </div>
