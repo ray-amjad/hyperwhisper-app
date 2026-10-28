@@ -1,0 +1,88 @@
+/**
+ * Display label for a blog tag chip (#1065).
+ *
+ * Tags are SEO keywords: Outrank sends them lowercase ("ai transcription",
+ * "hyperwhisper"), sometimes as URL slugs ("wispr-flow"), and the code posts
+ * set theirs by hand in Title Case ("Comparison", "Spokenly"). The chips are
+ * lowercase keywords by design, so a label is lowercase except for the proper
+ * nouns below. The raw tag stays the React key and stays in the database.
+ *
+ * - A slug-shaped tag (no space, has a "-") reads with spaces.
+ * - A word with a capital past its first letter ("AI", "macOS", "FluidVoice")
+ *   was cased on purpose and is kept as is.
+ * - Any other word is lowercased, then a proper noun gets its own casing.
+ *
+ * Not CSS `capitalize`: it draws "Ai" and "Iphone". Not a word that is also a
+ * common word ("word", "teams"): it would capitalise the keyword too.
+ */
+
+const PROPER_NOUNS: Record<string, string> = {
+  ai: "AI",
+  android: "Android",
+  asr: "ASR",
+  dragon: "Dragon",
+  ehr: "EHR",
+  english: "English",
+  fluidvoice: "FluidVoice",
+  gmail: "Gmail",
+  handy: "Handy",
+  hipaa: "HIPAA",
+  hyperwhisper: "HyperWhisper",
+  imessage: "iMessage",
+  ios: "iOS",
+  iphone: "iPhone",
+  mac: "Mac",
+  macos: "macOS",
+  macwhisper: "MacWhisper",
+  openai: "OpenAI",
+  pc: "PC",
+  phi: "PHI",
+  python: "Python",
+  siri: "Siri",
+  spanish: "Spanish",
+  speechify: "Speechify",
+  spokenly: "Spokenly",
+  superwhisper: "Superwhisper",
+  voiceink: "VoiceInk",
+  whisper: "Whisper",
+  windows: "Windows",
+  wispr: "Wispr",
+  wpm: "WPM",
+  zoom: "Zoom",
+};
+
+/**
+ * Two-word product names whose words are common words on their own: "flow",
+ * "aqua", "voice" and "willow" change only inside these pairs.
+ */
+const PROPER_PAIRS: Record<string, string> = {
+  "aqua voice": "Aqua Voice",
+  "willow voice": "Willow Voice",
+  "wispr flow": "Wispr Flow",
+};
+
+function isDeliberatelyCased(word: string): boolean {
+  return /[A-Z]/.test(word.slice(1));
+}
+
+export function formatTagLabel(tag: string): string {
+  const trimmed = tag.trim();
+  const spaced =
+    !/\s/.test(trimmed) && trimmed.includes("-")
+      ? trimmed.replaceAll("-", " ")
+      : trimmed;
+  const words = spaced.split(/\s+/).map((word) => {
+    if (isDeliberatelyCased(word)) return word;
+    const lower = word.toLowerCase();
+
+    return PROPER_NOUNS[lower] ?? lower;
+  });
+
+  for (let i = 0; i < words.length - 1; i++) {
+    const pair = PROPER_PAIRS[`${words[i]} ${words[i + 1]}`.toLowerCase()];
+
+    if (pair) [words[i], words[i + 1]] = pair.split(" ");
+  }
+
+  return words.join(" ");
+}
