@@ -16086,18 +16086,6 @@ public func buildHealthRequest(provider: HwProvider, apiKey: String) -> HttpRequ
 })
 }
 /**
- * Like `build_health_request` but with an explicit HW Cloud base URL.
- */
-public func buildHealthRequestWithBase(provider: HwProvider, apiKey: String, baseUrl: String?) -> HttpRequest {
-    return try!  FfiConverterTypeHttpRequest.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_build_health_request_with_base(
-        FfiConverterTypeHwProvider.lower(provider),
-        FfiConverterString.lower(apiKey),
-        FfiConverterOptionString.lower(baseUrl),$0
-    )
-})
-}
-/**
  * Build the DYNAMIC system-info block (prepended to the user message).
  */
 public func buildSystemInfo(ctx: PromptContext) -> String {
@@ -16114,27 +16102,6 @@ public func buildSystemPrompt(ctx: PromptContext) -> String {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_build_system_prompt(
         FfiConverterTypePromptContext.lower(ctx),$0
-    )
-})
-}
-/**
- * Map an HTTP status + response body to a `HwTranscriptionError`.
- */
-public func classifyError(status: UInt16, body: String) -> HwTranscriptionError {
-    return try!  FfiConverterTypeHwTranscriptionError.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_classify_error(
-        FfiConverterUInt16.lower(status),
-        FfiConverterString.lower(body),$0
-    )
-})
-}
-/**
- * The provider's default post-processing model, if any.
- */
-public func cloudPpDefaultModel(id: String) -> PpModel? {
-    return try!  FfiConverterOptionTypePpModel.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_cloud_pp_default_model(
-        FfiConverterString.lower(id),$0
     )
 })
 }
@@ -16160,16 +16127,6 @@ public func cloudPpLlmModelHeader(id: String, modelId: String) -> String? {
 })
 }
 /**
- * The provider's LLM-provider key, if any.
- */
-public func cloudPpLlmProvider(id: String) -> String? {
-    return try!  FfiConverterOptionString.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_cloud_pp_llm_provider(
-        FfiConverterString.lower(id),$0
-    )
-})
-}
-/**
  * A specific post-processing model, if present.
  */
 public func cloudPpModel(id: String, modelId: String) -> PpModel? {
@@ -16181,29 +16138,8 @@ public func cloudPpModel(id: String, modelId: String) -> PpModel? {
 })
 }
 /**
- * All (visible) models for the post-processing provider.
- */
-public func cloudPpModels(id: String) -> [PpModel] {
-    return try!  FfiConverterSequenceTypePpModel.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_cloud_pp_models(
-        FfiConverterString.lower(id),$0
-    )
-})
-}
-/**
- * The Engine dropdown's rows: post-processing engines with `enabled != false`,
- * in catalog order, each carrying only its visible models.
- */
-public func cloudPpPickerProviders() -> [PpProvider] {
-    return try!  FfiConverterSequenceTypePpProvider.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_cloud_pp_picker_providers($0
-    )
-})
-}
-/**
  * Every post-processing engine, in catalog order — INCLUDING the ones the
- * rollout gate hides. Read `enabled` before surfacing a row; use
- * `cloud_pp_picker_providers` for the dropdown.
+ * rollout gate hides. Read `enabled` before surfacing a row.
  */
 public func cloudPpProviders() -> [PpProvider] {
     return try!  FfiConverterSequenceTypePpProvider.lift(try! rustCall() {
@@ -16239,16 +16175,6 @@ public func cloudSttCreditsPerMinuteForModel(id: String, modelId: String) -> Dou
     uniffi_hyperwhisper_core_fn_func_cloud_stt_credits_per_minute_for_model(
         FfiConverterString.lower(id),
         FfiConverterString.lower(modelId),$0
-    )
-})
-}
-/**
- * The provider's custom-vocabulary request field name (if any).
- */
-public func cloudSttCustomVocabularyFieldName(id: String) -> String? {
-    return try!  FfiConverterOptionString.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_cloud_stt_custom_vocabulary_field_name(
-        FfiConverterString.lower(id),$0
     )
 })
 }
@@ -16685,15 +16611,6 @@ public func groqParseTranscribeResponse(resp: HttpResponse)throws  -> HwTranscri
     return try  FfiConverterTypeHwTranscript.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
     uniffi_hyperwhisper_core_fn_func_groq_parse_transcribe_response(
         FfiConverterTypeHttpResponse.lower(resp),$0
-    )
-})
-}
-/**
- * Default HyperWhisper Cloud health URL for routed providers.
- */
-public func hwCloudHealthDefault() -> String {
-    return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_hw_cloud_health_default($0
     )
 })
 }
@@ -17137,26 +17054,6 @@ public func llmBuildRequest(params: HwLlmParams)throws  -> HttpRequest {
 })
 }
 /**
- * Port the embedded llama-server listens on.
- */
-public func llmDefaultLocalLlamaPort() -> UInt16 {
-    return try!  FfiConverterUInt16.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_llm_default_local_llama_port($0
-    )
-})
-}
-/**
- * The URL a request would go to, without building the body. For logging and
- * for the health checker.
- */
-public func llmEndpointFor(params: HwLlmParams)throws  -> String {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeHwLlmError.lift) {
-    uniffi_hyperwhisper_core_fn_func_llm_endpoint_for(
-        FfiConverterTypeHwLlmParams.lower(params),$0
-    )
-})
-}
-/**
  * Output-token cap sent to Groq (lower than [`llm_max_output_tokens`] — see the
  * leaf crate for why).
  */
@@ -17194,24 +17091,6 @@ public func llmIsCustomProviderString(providerString: String) -> Bool {
     return try!  FfiConverterBool.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_llm_is_custom_provider_string(
         FfiConverterString.lower(providerString),$0
-    )
-})
-}
-/**
- * Max custom endpoint model-name length, for a UI character counter.
- */
-public func llmMaxCustomEndpointModelChars() -> UInt32 {
-    return try!  FfiConverterUInt32.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_model_chars($0
-    )
-})
-}
-/**
- * Max custom endpoint URL length, for a UI character counter.
- */
-public func llmMaxCustomEndpointUrlChars() -> UInt32 {
-    return try!  FfiConverterUInt32.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_url_chars($0
     )
 })
 }
@@ -18694,19 +18573,10 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_build_health_request() != 52092) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_build_health_request_with_base() != 19402) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_build_system_info() != 24795) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_build_system_prompt() != 19711) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_classify_error() != 31917) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_default_model() != 1662) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_is_enabled() != 62116) {
@@ -18715,19 +18585,10 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_llm_model_header() != 64764) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_llm_provider() != 25505) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_model() != 31504) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_models() != 43724) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_picker_providers() != 53262) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_providers() != 17064) {
+    if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_providers() != 60544) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_cloud_tier_vendor_groups() != 36207) {
@@ -18737,9 +18598,6 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_credits_per_minute_for_model() != 58252) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_custom_vocabulary_field_name() != 15580) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_default_model_id() != 30462) {
@@ -18880,9 +18738,6 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_groq_parse_transcribe_response() != 63704) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_hw_cloud_health_default() != 4042) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_hyperwhisper_cloud_build_transcribe_request() != 49953) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -19000,12 +18855,6 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_llm_build_request() != 57763) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_llm_default_local_llama_port() != 14194) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_llm_endpoint_for() != 36443) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_llm_groq_max_completion_tokens() != 51471) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -19016,12 +18865,6 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_llm_is_custom_provider_string() != 5642) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_model_chars() != 49114) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_url_chars() != 61579) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_llm_max_output_tokens() != 41429) {
