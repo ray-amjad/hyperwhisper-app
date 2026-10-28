@@ -232,7 +232,7 @@ internal static class ScriptGuardPorts
                 history.UpdateTranscript(done);
 
                 var recovered = history.RecoverOrphanedProcessingTranscripts();
-                Assert(recovered >= 1, $"recovery reported {recovered} rows");
+                Assert(recovered >= 1, $"recovery reported {recovered} rows; {RecoveryZeroCause(history, orphan.Id)}");
                 using var check = new HyperWhisperDbContext();
                 var savedOrphan = check.Transcripts.AsNoTracking().FirstOrDefault(t => t.Id == orphan.Id);
                 Assert(savedOrphan?.Status == TranscriptStatus.Failed && savedOrphan.FailedReason == HistoryService.InterruptedReason,
@@ -1307,6 +1307,27 @@ internal static class ScriptGuardPorts
     private static void SetField(object target, string name, object? value) =>
         (target.GetType().GetField(name, InstanceField) ?? throw new MissingFieldException(target.GetType().Name, name))
             .SetValue(target, value);
+
+    /// <summary>
+    /// Why recovery returned 0 (#2430). It logs and swallows a refused write, and it also
+    /// returns 0 when no row is Processing in the database, which happens when the orphan
+    /// was kept in the pending store instead (#1589). The two read the same to the check.
+    /// </summary>
+    private static string RecoveryZeroCause(HistoryService history, Guid orphanId)
+    {
+        var failure = history.LastRecoveryFailure;
+        var cause = failure == null ? "it threw nothing" : $"it failed with {DescribeCause(failure)}";
+        var pending = history.GetPendingTranscriptsSnapshot();
+        var orphanPending = pending.Any(t => t.Id == orphanId) ? "is" : "is not";
+        return $"{cause}; {pending.Count} pending row(s), and the orphan {orphanPending} one of them";
+    }
+
+    /// <summary>The exception and the innermost one, e.g. "DbUpdateException: SqliteException: ... locked".</summary>
+    private static string DescribeCause(Exception? ex) => ex == null
+        ? "none recorded"
+        : ex.GetBaseException() == ex
+            ? $"{ex.GetType().Name}: {ex.Message}"
+            : $"{ex.GetType().Name}: {ex.GetBaseException().GetType().Name}: {ex.GetBaseException().Message}";
 
     private static void TryDeleteFile(string path)
     {
