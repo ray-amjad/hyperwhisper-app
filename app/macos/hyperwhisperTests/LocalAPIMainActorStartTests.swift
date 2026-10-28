@@ -617,7 +617,8 @@ struct LocalAPIMainActorStartTests {
 
     /// A bind that succeeds retires the error the previous one failed with.
     ///
-    /// The EADDRINUSE fallback re-enters `bindAndRun()` rather than `start()`,
+    /// The EADDRINUSE fallback (in `handleRunFailure()` since issue #2452)
+    /// re-enters `bindAndRun()` rather than `start()`,
     /// so it never passes the `lastError = nil` that `start()` performs. The
     /// clear belongs on the listening path and not at the top of
     /// `bindAndRun()`: `handleRunFailure()` sets `lastError` from the run task
@@ -654,10 +655,6 @@ struct LocalAPIMainActorStartTests {
             Issue.record("the discovery-file write was renamed — update this anchor rather than deleting the check")
             return
         }
-        guard let retry = bindStep.range(of: "self.bindAndRun()") else {
-            Issue.record("the EADDRINUSE retry must re-enter bindAndRun() — update this anchor if it was renamed")
-            return
-        }
         #expect(
             listening.lowerBound < cleared.lowerBound,
             """
@@ -675,9 +672,29 @@ struct LocalAPIMainActorStartTests {
             failed bind would quietly retire its own error message.
             """
         )
+
+        // The fallback lives in handleRunFailure() since issue #2452: the run
+        // task's refused bind re-enters bindAndRun() from there.
+        let failure = try ProductionSource.slice(
+            of: Self.serverPath,
+            from: "private func handleRunFailure",
+            to: "nonisolated static func isBindFailure"
+        )
+        guard let retry = failure.range(of: "bindAndRun()") else {
+            Issue.record("the EADDRINUSE fallback must re-enter bindAndRun() — update this anchor if it was renamed")
+            return
+        }
+        guard let failureError = failure.range(of: "lastError = error.localizedDescription") else {
+            Issue.record("handleRunFailure()'s error path was renamed — update this anchor rather than deleting the check")
+            return
+        }
         #expect(
-            cleared.lowerBound < retry.lowerBound,
-            "lastError must be cleared on the listening path, which precedes the retry path in this function"
+            retry.lowerBound < failureError.lowerBound,
+            """
+            the fallback must re-enter bindAndRun() before, and instead of, the error path: a refused \
+            persisted-port bind that also set lastError would leave "Address already in use" for the \
+            listening branch to clear, and on screen until it does.
+            """
         )
     }
 

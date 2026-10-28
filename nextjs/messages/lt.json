@@ -280,7 +280,9 @@
       "dataTraining": "Duomenų privatumas"
     },
     "copyright": "© 2026 HyperWhisper. Visos teisės saugomos.",
-    "linkedinAria": "LinkedIn"
+    "linkedinAria": "LinkedIn",
+    "xAria": "Sekite HyperWhisper platformoje X (Twitter)",
+    "githubAria": "HyperWhisper platformoje GitHub"
   },
   "cloudSection": {
     "eyebrow": "Cloud",

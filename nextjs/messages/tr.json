@@ -280,7 +280,9 @@
       "dataTraining": "Veri Gizliliği"
     },
     "copyright": "© 2026 HyperWhisper. Tüm hakları saklıdır.",
-    "linkedinAria": "LinkedIn"
+    "linkedinAria": "LinkedIn",
+    "xAria": "HyperWhisper'ı X'te (Twitter) takip edin",
+    "githubAria": "GitHub'da HyperWhisper"
   },
   "cloudSection": {
     "eyebrow": "Bulut",
