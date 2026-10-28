@@ -280,7 +280,9 @@
       "dataTraining": "Ochrana údajov"
     },
     "copyright": "© 2026 HyperWhisper. Všetky práva vyhradené.",
-    "linkedinAria": "LinkedIn"
+    "linkedinAria": "LinkedIn",
+    "xAria": "Sledujte HyperWhisper na X (Twitter)",
+    "githubAria": "HyperWhisper na GitHube"
   },
   "cloudSection": {
     "eyebrow": "Cloud",

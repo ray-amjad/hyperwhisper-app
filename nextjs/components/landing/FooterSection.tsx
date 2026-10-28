@@ -141,7 +141,7 @@ export default function FooterSection() {
             </HeroUILink>
             <HeroUILink
               isExternal
-              aria-label="Follow HyperWhisper on X (Twitter)"
+              aria-label={t("xAria")}
               className="text-gray-400 hover:text-white transition-[color,opacity]"
               href="https://x.com/HyperWhisperApp"
             >
@@ -149,7 +149,7 @@ export default function FooterSection() {
             </HeroUILink>
             <HeroUILink
               isExternal
-              aria-label="HyperWhisper on GitHub"
+              aria-label={t("githubAria")}
               className="text-gray-400 hover:text-white transition-[color,opacity]"
               href="https://github.com/ray-amjad/hyperwhisper-app"
             >

@@ -57,6 +57,7 @@ const { deductCredits, drainPendingDeductions } = await import('./middleware/cre
 const { reportLatencySamples } = await import('./lib/latency-report');
 const { createStreamingEvents } = await import('./routes/ws-streaming-deepgram');
 const { endActiveStreamingSessions, resetStreamingShutdownForTests } = await import('./routes/ws-streaming-shared');
+const { resetInFlightRequestsForTests } = await import('./middleware/in-flight-requests');
 
 /** Just enough upstream socket for a Deepgram session that is already open. */
 class OpenUpstreamSocket {
@@ -134,8 +135,10 @@ afterEach(() => {
 
 afterAll(() => {
   process.exit = originalExit;
-  // The SIGTERM test latches the streaming shutdown; bun runs every file in one process.
+  // The SIGTERM test latches the streaming shutdown and the request refusal;
+  // bun runs every file in one process.
   resetStreamingShutdownForTests();
+  resetInFlightRequestsForTests();
   restorePort();
 });
 
@@ -449,25 +452,39 @@ describe('the exported Bun server', () => {
 // and must be the last in the file.
 // ---------------------------------------------------------------------------
 describe('graceful shutdown', () => {
-  test('waits for an in-flight deduction and latency report before it exits', async () => {
+  test('waits for an in-flight request, deduction and latency report before it exits', async () => {
     process.env.FLY_REGION = 'lhr';
     // reportLatencySamples publishes only from the production Fly app.
     process.env.FLY_APP_NAME = 'hyperwhisper-transcribe';
     process.env.HYPERWHISPER_INTERNAL_SECRET = 'not-a-real-secret';
     process.env.NEXTJS_LICENSE_API_URL = 'https://licence.test';
 
-    // Both writes take 40 ms. An exit that does not drain fires in the same
-    // tick as the signal, so both flags are still false when it lands.
+    // Both writes take 1 s. An exit that does not drain fires long before
+    // that, so both flags are still false when it lands. They outlast the
+    // in-flight request below (150 ms + the 500 ms flush grace), so the drains
+    // still find them pending after the request wait.
     let deductionReachedApi = false;
+    let lateChargeReachedApi = false;
     let reportReachedApi = false;
+    // An in-flight /post-process whose licence check takes 150 ms. Nothing it
+    // has started is pending for a drain yet, so an exit that waits only for
+    // the drains cuts it (#2031).
+    let inFlightValidateDone = false;
     const liveChargeSeconds: unknown[] = [];
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      await delay(40);
+      if (url.includes('/api/license/validate')) {
+        await delay(150);
+        inFlightValidateDone = true;
+        return jsonOk({ valid: false });
+      }
+      await delay(1_000);
       if (url.includes('/api/license/credits')) {
         const body = JSON.parse(String(init?.body)) as { metadata: Record<string, unknown> };
         if (body.metadata.endpoint === '/ws/streaming-deepgram') {
           liveChargeSeconds.push(body.metadata.audio_duration_seconds);
+        } else if (body.metadata.requestId === 'late-charge') {
+          lateChargeReachedApi = true;
         } else {
           deductionReachedApi = true;
         }
@@ -484,11 +501,11 @@ describe('graceful shutdown', () => {
     // first so the counts below are this test's alone.
     await endActiveStreamingSessions();
     resetStreamingShutdownForTests();
-    await drainPendingDeductions(2000);
+    await drainPendingDeductions(3_000);
     deductionReachedApi = false;
     liveChargeSeconds.length = 0;
     // A live session is billed only when it ends (#1235). Its charge must be in
-    // flight BEFORE the drain starts, or the 40 ms write loses to the exit.
+    // flight BEFORE the drain starts, or the 1 s write loses to the exit.
     const liveClient = openLiveSession(60);
 
     void deductCredits(
@@ -501,13 +518,49 @@ describe('graceful shutdown', () => {
       { provider: 'deepgram', model: 'nova-3', latencyMs: 900, ok: true, attempt: 1, audioSeconds: 5 },
     ]);
 
+    let inFlightAnsweredBeforeExit = false;
+    const inFlightBody = JSON.stringify({ account_key: 'HW-SHUTDOWN-INFLIGHT', text: 'hello', prompt: 'fix it' });
+    const inFlightRequest = send('/post-process', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'content-length': String(inFlightBody.length) },
+      body: inFlightBody,
+    });
+    await delay(5);
+
+    let exitedAt = 0;
     const exited = new Promise<number>((resolve) => {
-      process.exit = ((code?: number) => { resolve(code ?? 0); }) as never;
+      process.exit = ((code?: number) => { exitedAt = Date.now(); resolve(code ?? 0); }) as never;
     });
     process.emit('SIGTERM' as never);
+    // A request still running after the wait fires its charge while the first
+    // drain pass (the 1 s writes above) is under way. That pass snapshotted its
+    // pending set before this charge existed, so only a second pass awaits it.
+    setTimeout(() => {
+      void deductCredits(
+        { identifier: 'HW-ROUTINE-FIXTURE', credits: 10, licenseKey: 'HW-ROUTINE-FIXTURE' },
+        0.05,
+        { requestId: 'late-charge' },
+        '203.0.113.1',
+      );
+    }, 700);
+    const inFlightAnswered = inFlightRequest.then((res) => {
+      inFlightAnsweredBeforeExit = exitedAt === 0;
+      return res;
+    });
+
+    // The signal stops new work on the tracked routes; the request already in
+    // flight is still answered, before the process exits.
+    const refused = await send('/transcribe', { method: 'POST', body: 'audio' });
+    expect(refused.status).toBe(503);
+    expect(refused.headers.get('Retry-After')).toBe('1');
+
     const code = await exited;
+    expect(inFlightValidateDone).toBe(true);
+    expect(inFlightAnsweredBeforeExit).toBe(true);
+    expect((await inFlightAnswered).status).toBe(401);
 
     expect(deductionReachedApi).toBe(true);
+    expect(lateChargeReachedApi).toBe(true);
     expect(reportReachedApi).toBe(true);
     expect(liveChargeSeconds).toEqual([60]);
     expect(liveClient.closes).toEqual([1012]);
@@ -518,10 +571,14 @@ describe('graceful shutdown', () => {
       .toMatchObject({ signal: 'SIGTERM' });
     expect(logPayloads.find((entry) => entry.event === 'machine.shutdown_ended_streaming_sessions')!.args[1])
       .toEqual({ count: 1 });
+    expect(logPayloads.find((entry) => entry.event === 'machine.shutdown_waited_requests')!.args[1])
+      .toMatchObject({ count: 1, stillInFlight: 0 });
+    expect(logEvents.indexOf('machine.shutdown_waited_requests'))
+      .toBeLessThan(logEvents.indexOf('machine.shutdown_drained_deductions'));
     expect(logEvents.indexOf('machine.shutdown_ended_streaming_sessions'))
       .toBeLessThan(logEvents.indexOf('machine.shutdown_drained_deductions'));
     expect(logPayloads.find((entry) => entry.event === 'machine.shutdown_drained_deductions')!.args[1])
-      .toEqual({ count: 2 });
+      .toEqual({ count: 3 });
     expect(logPayloads.find((entry) => entry.event === 'machine.shutdown_drained_latency_reports')!.args[1])
       .toEqual({ count: 1 });
   });
