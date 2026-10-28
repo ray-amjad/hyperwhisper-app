@@ -29,7 +29,7 @@ export default function SupportPage() {
             {/* Header section */}
             <div className="flex flex-col items-center mb-8">
               {/* Icon */}
-              <div className="w-16 h-16 mb-4 flex items-center justify-center rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30">
+              <div className="w-16 h-16 mb-4 flex items-center justify-center rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30">
                 <Mail className="w-8 h-8 text-purple-400" />
               </div>
 
@@ -55,7 +55,7 @@ export default function SupportPage() {
 
               {/* Default email client */}
               <a
-                className="relative isolate flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-3 text-base font-semibold text-white transition-shadow hover:shadow-lg before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-purple-500 before:to-pink-500 before:opacity-0 before:transition-opacity hover:before:opacity-100"
+                className="relative isolate flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 px-6 py-3 text-base font-semibold text-white transition-shadow hover:shadow-lg before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-purple-500 before:to-blue-500 before:opacity-0 before:transition-opacity hover:before:opacity-100"
                 href={mailtoLink}
               >
                 <Mail className="h-4 w-4" />
