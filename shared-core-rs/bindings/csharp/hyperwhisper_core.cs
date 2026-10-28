@@ -1282,14 +1282,6 @@ static class _UniFFILib {
     
     
     
-    
-    
-    
-    
-    
-    
-    
-    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1931,14 +1923,6 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_fn_func_llm_default_local_llama_port(ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_llm_endpoint_for(RustBuffer @params,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern uint uniffi_hyperwhisper_core_fn_func_llm_groq_max_completion_tokens(ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -1952,14 +1936,6 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern sbyte uniffi_hyperwhisper_core_fn_func_llm_is_custom_provider_string(RustBuffer @providerString,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern uint uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_model_chars(ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern uint uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_url_chars(ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3123,14 +3099,6 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_default_local_llama_port(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_endpoint_for(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_groq_max_completion_tokens(
     );
 
@@ -3144,14 +3112,6 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_is_custom_provider_string(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_model_chars(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_url_chars(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -4441,18 +4401,6 @@ static class _UniFFILib {
             }
         }
         {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_default_local_llama_port();
-            if (checksum != 14194) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_default_local_llama_port` checksum `14194`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_endpoint_for();
-            if (checksum != 36443) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_endpoint_for` checksum `36443`, library returned `{checksum}`");
-            }
-        }
-        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_groq_max_completion_tokens();
             if (checksum != 51471) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_groq_max_completion_tokens` checksum `51471`, library returned `{checksum}`");
@@ -4474,18 +4422,6 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_is_custom_provider_string();
             if (checksum != 5642) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_is_custom_provider_string` checksum `5642`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_model_chars();
-            if (checksum != 49114) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_model_chars` checksum `49114`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_url_chars();
-            if (checksum != 61579) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_url_chars` checksum `61579`, library returned `{checksum}`");
             }
         }
         {
@@ -17721,30 +17657,6 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
-    /// Port the embedded llama-server listens on.
-    /// </summary>
-    public static ushort LlmDefaultLocalLlamaPort() {
-        return FfiConverterUInt16.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_default_local_llama_port( ref _status)
-));
-    }
-
-
-    /// <summary>
-    /// The URL a request would go to, without building the body. For logging and
-    /// for the health checker.
-    /// </summary>
-    /// <exception cref="HwLlmException"></exception>
-    public static string LlmEndpointFor(HwLlmParams @params) {
-        return FfiConverterString.INSTANCE.Lift(
-    _UniffiHelpers.RustCallWithError(FfiConverterTypeHwLlmError.INSTANCE, (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_endpoint_for(FfiConverterTypeHwLlmParams.INSTANCE.Lower(@params), ref _status)
-));
-    }
-
-
-    /// <summary>
     /// Output-token cap sent to Groq (lower than [`llm_max_output_tokens`] — see the
     /// leaf crate for why).
     /// </summary>
@@ -17788,28 +17700,6 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterBoolean.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_is_custom_provider_string(FfiConverterString.INSTANCE.Lower(@providerString), ref _status)
-));
-    }
-
-
-    /// <summary>
-    /// Max custom endpoint model-name length, for a UI character counter.
-    /// </summary>
-    public static uint LlmMaxCustomEndpointModelChars() {
-        return FfiConverterUInt32.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_model_chars( ref _status)
-));
-    }
-
-
-    /// <summary>
-    /// Max custom endpoint URL length, for a UI character counter.
-    /// </summary>
-    public static uint LlmMaxCustomEndpointUrlChars() {
-        return FfiConverterUInt32.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_url_chars( ref _status)
 ));
     }
 
