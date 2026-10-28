@@ -536,14 +536,25 @@ public static class LoggingService
     /// It takes the write lock and drains the queue itself instead of waiting
     /// for the background thread, so it is safe from a crash or exit handler
     /// where that thread may never run again. Never throws.
+    ///
+    /// If it leaves the file open, it wakes the background thread: that thread
+    /// may be parked with no timeout because it last saw no file open, and only
+    /// it closes an idle file.
     /// </summary>
     public static void Flush()
     {
         try
         {
+            bool leftOpen;
             lock (_writeLock)
             {
                 DrainLocked();
+                leftOpen = _writer is not null;
+            }
+
+            if (leftOpen && Interlocked.Exchange(ref _wakePending, 1) == 0)
+            {
+                _wake.Set();
             }
         }
         catch
@@ -648,9 +659,19 @@ public static class LoggingService
     /// Writes the whole queue, then flushes the file. Caller holds _writeLock.
     /// A line whose write fails is dropped, as a failed File.AppendAllText was,
     /// and the file is closed so the next line opens it afresh.
+    ///
+    /// Once per batch it checks that the open file still has its name. If it
+    /// was deleted or renamed (a user, a support script), the batch goes to a
+    /// new file at that path, as the old open-append-close per line did,
+    /// instead of an orphaned one.
     /// </summary>
     private static void DrainLocked()
     {
+        if (_writer is not null && !_pending.IsEmpty && !File.Exists(_writerPath))
+        {
+            CloseWriterLocked();
+        }
+
         while (_pending.TryDequeue(out var line))
         {
             try
