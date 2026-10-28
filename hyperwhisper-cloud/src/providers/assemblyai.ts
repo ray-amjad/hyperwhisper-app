@@ -234,11 +234,16 @@ function authHeaders(apiKey: string): Record<string, string> {
   return { authorization: apiKey };
 }
 
+/** The keyterm phrases both paths send: split, drop phrases over
+ * `MAX_KEYTERM_WORDS` words, THEN cap at `MAX_KEYTERMS` — the Rust core's
+ * order (`async_flow.rs`: `filter_keyterm_words(...).take(max_terms)`), so a
+ * long phrase never uses up a slot a shorter term could fill. */
 function toKeyterms(initialPrompt: string): string[] {
-  return splitVocabularyTerms(initialPrompt, {
-    maxTerms: MAX_KEYTERMS,
+  const terms = splitVocabularyTerms(initialPrompt, {
+    maxTerms: Number.POSITIVE_INFINITY,
     maxTermChars: MAX_KEYTERM_CHARS,
   });
+  return filterKeytermsByWordCount(terms).slice(0, MAX_KEYTERMS);
 }
 
 /** Drop keyterm phrases over `MAX_KEYTERM_WORDS` words — mirrors the Rust
@@ -299,7 +304,7 @@ async function transcribeWithAssemblyAISync(
     }
   }
   const keyterms = initialPrompt
-    ? capKeytermsByTotalChars(filterKeytermsByWordCount(toKeyterms(initialPrompt)), SYNC_MAX_KEYTERMS_PROMPT_CHARS)
+    ? capKeytermsByTotalChars(toKeyterms(initialPrompt), SYNC_MAX_KEYTERMS_PROMPT_CHARS)
     : [];
   if (keyterms.length) {
     config.keyterms_prompt = keyterms;
@@ -559,8 +564,10 @@ export function buildTranscriptJob(
   // synthesize unsupported region codes (es_es, fr_fr), so — like the OpenAI
   // and Soniox adapters — we strip the region to the always-valid primary
   // subtag. This self-only provider has no sibling to recover a bad code.
-  const languageCode = explicitLanguageSubtag(language);
-  if (languageCode !== undefined) {
+  // Trimmed first, like sync (`" en-US "` → "en", not " en"), and an empty
+  // subtag (`"-en"`) is no explicit language: auto-detect, never `""`.
+  const languageCode = explicitLanguageSubtag(trimExplicitLanguage(language));
+  if (languageCode) {
     createBody.language_code = languageCode;
   } else {
     createBody.language_detection = true;
