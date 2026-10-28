@@ -47,6 +47,10 @@ You can select any audio input device on your system in **Settings → Sound →
   </Tab>
 </Tabs>
 
+<Note>
+  If the system default input is a virtual device, for example BlackHole, Loopback, VB-Cable, or VoiceMeeter, and a physical microphone is connected, the **Default** option does not record from the virtual device. It uses the first physical microphone instead, because a virtual device carries app audio and not your voice. The same rule applies when your selected microphone is disconnected. If only virtual inputs are connected, HyperWhisper records from the system default. A device that you select by hand is always used.
+</Note>
+
 ## Real-time device discovery
 
 You do not need to restart HyperWhisper after you connect new hardware.

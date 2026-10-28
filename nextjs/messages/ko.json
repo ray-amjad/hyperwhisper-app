@@ -280,7 +280,9 @@
       "dataTraining": "데이터 개인정보 보호"
     },
     "copyright": "© 2026 HyperWhisper. All rights reserved.",
-    "linkedinAria": "LinkedIn"
+    "linkedinAria": "LinkedIn",
+    "xAria": "X(Twitter)에서 HyperWhisper 팔로우하기",
+    "githubAria": "GitHub의 HyperWhisper"
   },
   "cloudSection": {
     "eyebrow": "클라우드",
