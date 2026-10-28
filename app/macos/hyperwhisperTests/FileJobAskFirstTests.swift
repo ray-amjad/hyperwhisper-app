@@ -150,31 +150,7 @@ private enum Rig {
 
     /// A short mono tone in its own temporary folder.
     static func toneWAV(_ name: String, seconds: Double = 1.5) throws -> URL {
-        let folder = FileManager.default.temporaryDirectory
-            .appendingPathComponent("hw-1425-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let url = folder.appendingPathComponent(name)
-        let sampleRate = 16_000.0
-        let frames = AVAudioFrameCount(seconds * sampleRate)
-        let settings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatLinearPCM,
-            AVSampleRateKey: sampleRate,
-            AVNumberOfChannelsKey: 1,
-            AVLinearPCMBitDepthKey: 16,
-            AVLinearPCMIsFloatKey: false,
-            AVLinearPCMIsBigEndianKey: false,
-        ]
-        try autoreleasepool {
-            let file = try AVAudioFile(forWriting: url, settings: settings)
-            let buffer = try #require(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: frames))
-            let channel = try #require(buffer.floatChannelData?[0])
-            buffer.frameLength = frames
-            for index in 0..<Int(frames) {
-                channel[index] = 0.25 * sinf(2 * Float.pi * 440 * Float(index) / Float(sampleRate))
-            }
-            try file.write(from: buffer)
-        }
-        return url
+        try ToneWAVFixture.write(named: name, inFolderPrefixed: "hw-1425", seconds: seconds)
     }
 
     static func rows(_ persistence: PersistenceController) -> [Transcript] {
