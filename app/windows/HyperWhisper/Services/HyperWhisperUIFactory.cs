@@ -124,8 +124,8 @@ public class HyperWhisperUIFactory : IUIFactory
     /// Shows an update message in ONE non-modal dialog (#2594). A manual check
     /// finishes in a fraction of a second, so a second press used to stack a second
     /// dialog that then hid behind the main window. Now an open dialog takes the new
-    /// text and comes to the front instead. Owned by the main window while that is
-    /// visible, so it cannot fall behind it. Never ShowDialog(): NetSparkle calls
+    /// text and comes to the front instead. Owned by the main window while that is on
+    /// screen, so it cannot fall behind it. Never ShowDialog(): NetSparkle calls
     /// these from its own flows and a modal there can hang (see UpdateService).
     /// </summary>
     internal static UpdateMessageWindow ShowMessageWindow(
@@ -133,24 +133,33 @@ public class HyperWhisperUIFactory : IUIFactory
         string message,
         UpdateMessageWindow.MessageIcon icon)
     {
+        var owner = GetMessageOwner();
+
         if (_openMessageWindow is { } open)
         {
-            LoggingService.Debug("HyperWhisperUIFactory: Reusing the open update message dialog");
-            open.SetMessage(title, message, icon);
-            if (open.WindowState == WindowState.Minimized)
+            // Same owner: refocus it. A changed owner (the main window was shown,
+            // hidden or minimised since) means the open dialog may sit hidden under a
+            // minimised owner or behind a now-visible main window, so replace it.
+            if (ReferenceEquals(open.Owner, owner))
             {
-                open.WindowState = WindowState.Normal;
+                LoggingService.Debug("HyperWhisperUIFactory: Reusing the open update message dialog");
+                open.SetMessage(title, message, icon);
+                if (open.WindowState == WindowState.Minimized)
+                {
+                    open.WindowState = WindowState.Normal;
+                }
+                open.Activate();
+                return open;
             }
-            open.Activate();
-            return open;
+
+            LoggingService.Debug("HyperWhisperUIFactory: Replacing the open update message dialog, its owner changed");
+            open.Close();
         }
 
         var window = new UpdateMessageWindow(title, message, icon);
-
-        var mainWindow = System.Windows.Application.Current?.MainWindow;
-        if (mainWindow != null && !ReferenceEquals(mainWindow, window) && mainWindow.IsVisible)
+        if (owner != null)
         {
-            window.Owner = mainWindow;
+            window.Owner = owner;
             window.WindowStartupLocation = WindowStartupLocation.CenterOwner;
         }
 
@@ -164,6 +173,23 @@ public class HyperWhisperUIFactory : IUIFactory
         _openMessageWindow = window;
         window.Show();
         return window;
+    }
+
+    /// <summary>
+    /// The main window when it is on screen. Hidden in the tray or minimised, it
+    /// would hide an owned dialog with it, so the dialog then has no owner.
+    /// </summary>
+    private static Window? GetMessageOwner()
+    {
+        var mainWindow = System.Windows.Application.Current?.MainWindow;
+        if (mainWindow is UpdateMessageWindow)
+        {
+            return null;
+        }
+
+        return mainWindow is { IsVisible: true } && mainWindow.WindowState != WindowState.Minimized
+            ? mainWindow
+            : null;
     }
 
     // =========================================================================
