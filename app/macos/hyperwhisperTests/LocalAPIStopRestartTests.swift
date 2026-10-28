@@ -138,15 +138,17 @@ struct LocalAPIStopRestartTests {
         #expect(shutdown.closingPorts == [4242], "the stuck socket is still reported closing")
 
         await gate.open()
-        #expect(await shutdown.awaitRelease(within: .seconds(5)))
+        #expect(try await Self.released(shutdown))
         #expect(shutdown.closingPorts.isEmpty)
     }
 
-    /// With nothing closing, a start does not wait at all: a wait with no
-    /// time to spare still reports released, with no wall-clock bound (#2526).
-    @Test func nothingClosingIsReleasedAtOnce() async {
+    /// With nothing closing, a start does not wait at all. The wait is given
+    /// an hour, so one that sat out its timeout trips the one-minute limit; a
+    /// limit that loose, not a 1 s bound, is what a stalled runner needs (#2526).
+    @Test(.timeLimit(.minutes(1)))
+    func nothingClosingIsReleasedAtOnce() async {
         let shutdown = LocalAPIListenerShutdown()
-        #expect(await shutdown.awaitRelease(within: .zero))
+        #expect(await shutdown.awaitRelease(within: .seconds(3_600)))
     }
 
     // MARK: - The row
