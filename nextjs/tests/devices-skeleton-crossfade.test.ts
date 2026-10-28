@@ -4,7 +4,9 @@
  * grid slot as the table (the #1236 /older-versions cross-fade) and fades out
  * over 400 ms while the rows fade in; under reduced motion both swap at once.
  * A `<tbody>` cannot share a grid slot, so the skeleton is its own table under
- * an invisible copy of the header.
+ * its own copy of the header. While it shows, that copy is the visible header
+ * (laid out over the skeleton's bars); the real header cross-fades in with the
+ * rows, so the labels sit over their columns while loading.
  *
  * HOW. Renders the REAL `DevicesClient` through `renderToStaticMarkup` with
  * the tRPC client mocked (see `devices-range-aria-pressed.test.ts`), once
@@ -86,16 +88,16 @@ const FADE = [
 ];
 
 function classOf(html: string, marker: RegExp): string {
-  const tag = new RegExp(`<[a-z]+\\b[^>]*class="([^"]*${marker.source}[^"]*)"`).exec(
-    html,
-  );
+  const tag = new RegExp(
+    `<[a-z]+\\b[^>]*class="([^"]*${marker.source}[^"]*)"`,
+  ).exec(html);
 
   assert.ok(tag, `no element with ${marker}`);
 
   return tag[1];
 }
 
-test("mid-first-load: the skeleton shares the table's grid slot and fades, under an invisible header", async () => {
+test("mid-first-load: the skeleton shares the table's grid slot and fades, under its own visible header", async () => {
   loading = true;
   const html = await render();
   const box = classOf(html, /\bt-skel\b(?!-)/);
@@ -112,7 +114,7 @@ test("mid-first-load: the skeleton shares the table's grid slot and fades, under
   for (const c of FADE) assert.ok(skeleton.split(" ").includes(c), c);
   assert.match(
     html,
-    /<div aria-hidden="true" class="t-skel-skeleton [^"]*"><table class="w-full"><thead class="invisible"><tr[^>]*><th[^>]*>Email<\/th><th[^>]*>Account Key<\/th><th[^>]*>Devices<\/th>/,
+    /<div aria-hidden="true" class="t-skel-skeleton [^"]*"><table class="w-full"><thead><tr[^>]*><th[^>]*>Email<\/th><th[^>]*>Account Key<\/th><th[^>]*>Devices<\/th>/,
   );
   assert.equal(html.match(/animate-pulse/g)?.length, 15, "5 skeleton rows");
   assert.doesNotMatch(html, /animation-play-state/, "pulsing while loading");
@@ -123,8 +125,18 @@ test("mid-first-load: the skeleton shares the table's grid slot and fades, under
   // its header row to the skeleton's height.
   assert.match(
     html,
-    /<table class="\[grid-area:1\/1\] self-start w-full"><thead>/,
+    /<table class="\[grid-area:1\/1\] self-start w-full"><thead class="[^"]*">/,
   );
+  // Its header is hidden while the skeleton's shows, and fades in with the
+  // rows (at once under reduced motion).
+  const head =
+    /<table class="\[grid-area:1\/1\] self-start w-full"><thead class="([^"]*)">/.exec(
+      html,
+    );
+
+  assert.ok(head);
+  assert.match(head[1], /\bopacity-0\b/);
+  for (const c of FADE) assert.ok(head[1].split(" ").includes(c), c);
   const rows = classOf(html, /\bt-skel-content\b/);
 
   assert.match(rows, /\bopacity-0\b/);
@@ -137,6 +149,11 @@ test("a mount with the rows already cached shows no skeleton", async () => {
 
   assert.doesNotMatch(html, /t-skel-skeleton/);
   assert.doesNotMatch(html, /animate-pulse/);
+  // No skeleton header to cross-fade from: the real one shows at once.
+  assert.match(
+    html,
+    /<thead><tr class="border-b border-white\/10"><th[^>]*>Email/,
+  );
   assert.match(html, /a@example\.com/);
 });
 

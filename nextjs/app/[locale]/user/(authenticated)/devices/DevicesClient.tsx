@@ -11,10 +11,13 @@ import { Spinner } from "@/components/ui/Spinner";
 
 const COLUMNS = ["Email", "Account Key", "Devices"] as const;
 
-/** The table's header row; the skeleton repeats it, invisible, to line up. */
-function DevicesTableHead({ invisible = false }: { invisible?: boolean }) {
+/**
+ * The table's header row. The first-load skeleton draws its own copy, laid
+ * out over the skeleton's columns (#1242).
+ */
+function DevicesTableHead({ className }: { className?: string }) {
   return (
-    <thead className={invisible ? "invisible" : undefined}>
+    <thead className={className}>
       <tr className="border-b border-white/10">
         {COLUMNS.map((column) => (
           <th
@@ -206,7 +209,23 @@ export default function DevicesClient() {
           tabIndex={0}
         >
           <table className="[grid-area:1/1] self-start w-full">
-            <DevicesTableHead />
+            {/* While the skeleton shows, its own header is the visible one,
+                laid out over its bars; this one is laid out over the empty
+                table's header text alone, so its labels sit elsewhere. It
+                cross-fades in with the rows, as the skeleton's header fades
+                out, so the labels move only by the rows' own column widths,
+                as they did when the skeleton shared this table. */}
+            <DevicesTableHead
+              className={
+                hasSkeleton
+                  ? `transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
+                      revealed
+                        ? "opacity-100 blur-[0px]"
+                        : "opacity-0 blur-[2px]"
+                    }`
+                  : undefined
+              }
+            />
             <tbody
               className={`t-skel-content divide-y divide-white/5 transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
                 revealed ? "opacity-100 blur-[0px]" : "opacity-0 blur-[2px]"
@@ -242,7 +261,7 @@ export default function DevicesClient() {
             </tbody>
           </table>
           {/* First load only: the skeleton rows, in the same grid slot as the
-              table, under an invisible copy of its header (#1242, the #1236
+              table, under its own copy of the header (#1242, the #1236
               cross-fade on /older-versions). A <tbody> cannot share a slot,
               so the skeleton is its own table. It stays mounted, as #1236's
               does: once the rows land it fades out on the same signal that
@@ -260,7 +279,7 @@ export default function DevicesClient() {
               } ${revealed ? "opacity-0 blur-[2px]" : "opacity-100 blur-[0px]"}`}
             >
               <table className="w-full">
-                <DevicesTableHead invisible />
+                <DevicesTableHead />
                 <tbody className="divide-y divide-white/5">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i}>
