@@ -45,6 +45,21 @@ public partial class UpdateMessageWindow : Window
         LoggingService.Debug($"UpdateMessageWindow: Showing '{title}' - {icon}");
     }
 
+    /// <summary>
+    /// Hands focus back to the owner before closing. Windows may otherwise give it
+    /// to another app when an owned window closes, and the main window drops behind
+    /// it (#2594). Only when this dialog has focus, and never to a minimised owner.
+    /// </summary>
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        base.OnClosing(e);
+        if (!e.Cancel && IsActive && Owner is { IsVisible: true } owner
+            && owner.WindowState != WindowState.Minimized)
+        {
+            owner.Activate();
+        }
+    }
+
     private void OkButton_Click(object sender, RoutedEventArgs e)
     {
         Close();
