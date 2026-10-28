@@ -97,7 +97,9 @@ internal static class ScriptGuardPorts
                 row.Text = "g830";
                 history.UpdateTranscript(row);
                 var deleted = history.DeleteTranscript(row.Id);
-                Assert(deleted.IsSuccess && deleted.Value, $"the row was not deleted: {deleted.Error}");
+                // The Error is the localized toast copy; the Exception is the cause (#2403).
+                Assert(deleted.IsSuccess && deleted.Value,
+                    $"the row was not deleted: {deleted.Error} (cause: {DescribeCause(deleted.Exception)})");
                 row = null;
                 Assert(!File.Exists(trimmed), "deleting the row left its trusted trimmed audio behind");
                 Assert(File.Exists(untrusted[0]), "deleting the row removed audio outside the recording roots");

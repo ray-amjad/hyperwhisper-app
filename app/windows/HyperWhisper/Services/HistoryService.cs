@@ -797,7 +797,7 @@ public class HistoryService
             {
                 try
                 {
-                    using var context = new HyperWhisperDbContext();
+                    using var context = NewRowWriteContext();
 
                     transcript = context.Transcripts.Find(id);
                     if (transcript == null)
