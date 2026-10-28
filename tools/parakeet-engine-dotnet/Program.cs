@@ -218,15 +218,11 @@ internal static class Program
     {
         if (!File.Exists(path)) throw new FileNotFoundException("Audio file not found", path);
 
-        using var reader = new AudioFileReader(path);
-        ISampleProvider provider = reader;
-        if (reader.WaveFormat.Channels > 1)
+        using var reader = OpenAudio(path);
+        ISampleProvider provider = reader as ISampleProvider ?? reader.ToSampleProvider();
+        if (provider.WaveFormat.Channels > 1)
         {
-            provider = new StereoToMonoSampleProvider(provider)
-            {
-                LeftVolume = 0.5f,
-                RightVolume = 0.5f
-            };
+            provider = new MonoFoldSampleProvider(provider);
         }
 
         if (provider.WaveFormat.SampleRate != TargetSampleRate)
@@ -243,6 +239,161 @@ internal static class Program
         }
 
         return new AudioData(samples.ToArray(), TargetSampleRate);
+    }
+
+    // KSDATAFORMAT_SUBTYPE_PCM and KSDATAFORMAT_SUBTYPE_IEEE_FLOAT (ksmedia.h).
+    private static readonly Guid PcmSubFormat = new("00000001-0000-0010-8000-00aa00389b71");
+    private static readonly Guid IeeeFloatSubFormat = new("00000003-0000-0010-8000-00aa00389b71");
+
+    /// <summary>
+    /// Opens <paramref name="path"/> the way <see cref="AudioFileReader"/> does, except that a
+    /// WAVE_FORMAT_EXTENSIBLE WAV whose SubFormat is PCM or IEEE float is read directly
+    /// (#1541). The same fix as the app's <c>AudioFileDecoder</c> (#1450, PR #1533), which
+    /// this separate daemon cannot reference.
+    /// </summary>
+    /// <remarks>
+    /// NAudio 2.2.1's <see cref="AudioFileReader"/> sends every .wav whose tag is not exactly
+    /// Pcm or IeeeFloat through ACM, and no ACM driver takes 0xFFFE: the file fails with
+    /// "NoDriver calling acmFormatSuggest". ffmpeg writes every WAV with more than two
+    /// channels that way. The samples are plain interleaved PCM or float, so relabelling the
+    /// stream with the plain tag lets NAudio's own converters read it. Anything else (a
+    /// compressed WAV, another SubFormat, another file type) keeps the old path.
+    /// </remarks>
+    internal static WaveStream OpenAudio(string path)
+    {
+        if (string.Equals(Path.GetExtension(path), ".wav", StringComparison.OrdinalIgnoreCase))
+        {
+            WaveFileReader? wave = new WaveFileReader(path);
+            try
+            {
+                var plain = TryGetPlainFormat(wave.WaveFormat);
+                if (plain != null)
+                {
+                    var stream = new RelabelledWaveStream(wave, plain);
+                    wave = null;
+                    return stream;
+                }
+            }
+            finally
+            {
+                wave?.Dispose();
+            }
+        }
+
+        return new AudioFileReader(path);
+    }
+
+    /// <summary>
+    /// The plain Pcm or IeeeFloat format that describes the same bytes as an Extensible
+    /// PCM or float <paramref name="format"/>, or null for any other format.
+    /// </summary>
+    internal static WaveFormat? TryGetPlainFormat(WaveFormat format)
+    {
+        if (format.Encoding != WaveFormatEncoding.Extensible) return null;
+
+        Guid? subFormat = format switch
+        {
+            WaveFormatExtensible extensible => extensible.SubFormat,
+            // WaveFileReader parses the fmt chunk into a WaveFormatExtraData; its extra bytes
+            // are the WAVEFORMATEXTENSIBLE tail (valid bits 2, channel mask 4, SubFormat 16).
+            WaveFormatExtraData extra when format.ExtraSize >= 22 && extra.ExtraData.Length >= 22
+                => new Guid(extra.ExtraData.AsSpan(6, 16)),
+            _ => null
+        };
+
+        WaveFormatEncoding encoding;
+        if (subFormat == PcmSubFormat) encoding = WaveFormatEncoding.Pcm;
+        else if (subFormat == IeeeFloatSubFormat) encoding = WaveFormatEncoding.IeeeFloat;
+        else return null;
+
+        var bits = format.BitsPerSample;
+        var supported = encoding == WaveFormatEncoding.Pcm ? bits is 8 or 16 or 24 or 32 : bits is 32 or 64;
+        // wBitsPerSample is the container size, so a frame is channels * bits / 8 bytes. A
+        // header that disagrees cannot be read sample by sample, so leave it alone.
+        var blockAlign = format.Channels * (bits / 8);
+        if (!supported || format.Channels < 1 || format.SampleRate < 1 || format.BlockAlign != blockAlign)
+            return null;
+
+        return WaveFormat.CreateCustomFormat(
+            encoding, format.SampleRate, format.Channels, format.SampleRate * blockAlign, blockAlign, bits);
+    }
+
+    /// <summary>The same bytes as the source stream, described by an equivalent format.</summary>
+    private sealed class RelabelledWaveStream(WaveStream source, WaveFormat format) : WaveStream
+    {
+        public override WaveFormat WaveFormat => format;
+        public override long Length => source.Length;
+
+        public override long Position
+        {
+            get => source.Position;
+            set => source.Position = value;
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) => source.Read(buffer, offset, count);
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) source.Dispose();
+            base.Dispose(disposing);
+        }
+    }
+}
+
+/// <summary>
+/// Folds any channel count to mono by averaging every channel (#1541). NAudio's
+/// <see cref="StereoToMonoSampleProvider"/> throws "Source must be stereo" on more than two;
+/// for two channels the average is the same 0.5/0.5 mix it gave. The same fold as the app's
+/// <c>MonoFoldSampleProvider</c> (#1450).
+/// </summary>
+internal sealed class MonoFoldSampleProvider : ISampleProvider
+{
+    private readonly ISampleProvider _source;
+    private readonly int _channels;
+    private float[] _sourceBuffer = [];
+
+    // Samples of an incomplete frame held over from the previous Read, at the start of
+    // _sourceBuffer. Dropping them would rotate every later frame across the channels.
+    private int _pending;
+
+    internal MonoFoldSampleProvider(ISampleProvider source)
+    {
+        _source = source;
+        _channels = source.WaveFormat.Channels;
+        WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(source.WaveFormat.SampleRate, 1);
+    }
+
+    public WaveFormat WaveFormat { get; }
+
+    public int Read(float[] buffer, int offset, int count)
+    {
+        if (count <= 0) return 0;
+
+        var required = count * _channels;
+        if (_sourceBuffer.Length < required) Array.Resize(ref _sourceBuffer, required);
+
+        // A 0 reads as end-of-stream downstream, so keep pulling until a whole frame exists
+        // or the source is really exhausted.
+        var available = _pending;
+        while (available < _channels)
+        {
+            var read = _source.Read(_sourceBuffer, available, required - available);
+            if (read <= 0) break;
+            available += read;
+        }
+
+        var frames = available / _channels;
+        for (var frame = 0; frame < frames; frame++)
+        {
+            double sum = 0;
+            var start = frame * _channels;
+            for (var channel = 0; channel < _channels; channel++) sum += _sourceBuffer[start + channel];
+            buffer[offset + frame] = (float)(sum / _channels);
+        }
+
+        _pending = available - (frames * _channels);
+        if (_pending > 0) Array.Copy(_sourceBuffer, frames * _channels, _sourceBuffer, 0, _pending);
+        return frames;
     }
 }
 
