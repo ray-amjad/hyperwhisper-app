@@ -14,7 +14,7 @@ static class AudioContextChecks
     {
         yield return ("audio_ctx covers a short clip plus its margin, and a long or unknown one keeps the full window (issue #1006)", () =>
         {
-            Check(LocalWhisperService.AudioContextFor(null) == 0, "an unknown length must keep the full window");
+            Check(LocalWhisperService.AudioContextFor((long?)null) == 0, "an unknown length must keep the full window");
             Check(LocalWhisperService.AudioContextFor(0) == 0, "an empty clip must keep the full window");
             Check(LocalWhisperService.AudioContextFor(-5) == 0, "a negative length must keep the full window");
             // 50 frames a second: 2.4 s is 120 frames, + 256 = 376, rounded up to 384.
@@ -38,6 +38,29 @@ static class AudioContextChecks
                 Check(context >= previous, $"{samples} samples got a smaller window than a shorter clip");
                 previous = context;
             }
+        });
+        yield return ("digital silence keeps the full window, and a quiet clip with signal is shortened (issue #1006)", () =>
+        {
+            // A muted mic: a shortened window made tiny.en hear "you" in zeros.
+            Check(LocalWhisperService.AudioContextFor(new float[Samples(3)]) == 0, "3 s of zeros got a shortened window");
+            Check(LocalWhisperService.AudioContextFor(new float[1]) == 0, "one zero sample got a shortened window");
+            Check(LocalWhisperService.AudioContextFor((float[]?)null) == 0, "unread audio got a shortened window");
+            Check(LocalWhisperService.AudioContextFor(Array.Empty<float>()) == 0, "an empty clip got a shortened window");
+            // 3 LSB of 16-bit dither, both signs, is still silence.
+            var dither = new float[Samples(3)];
+            for (var i = 0; i < dither.Length; i++) dither[i] = (i % 7 - 3) / 32768f;
+            Check(LocalWhisperService.IsDigitalSilence(dither) && LocalWhisperService.AudioContextFor(dither) == 0,
+                "3 LSB of dither got a shortened window");
+            // The quietest noise fixture peaks at -64 dBFS; one such sample is signal.
+            var quiet = new float[Samples(2.4)];
+            quiet[^1] = -6.1e-4f;
+            Check(LocalWhisperService.AudioContextFor(quiet) == LocalWhisperService.AudioContextFor((long)quiet.Length),
+                "a -64 dBFS clip kept the full window");
+            Check(!LocalWhisperService.IsDigitalSilence([LocalWhisperService.DigitalSilencePeak]), "a sample at the threshold read as silence");
+            Check(LocalWhisperService.IsDigitalSilence([LocalWhisperService.DigitalSilencePeak * 0.99f]), "a sample under the threshold read as signal");
+            // The threshold sits between 3 LSB of dither and the -64 dBFS noise fixture.
+            Check(LocalWhisperService.IsDigitalSilence([3 / 32768f, -3 / 32768f]), "3 LSB read as signal");
+            Check(!LocalWhisperService.IsDigitalSilence([2e-4f]), "-74 dBFS read as silence");
         });
         yield return ("a shortened window's repetition loop is caught, and speech-rate text is not (issue #1006)", () =>
         {

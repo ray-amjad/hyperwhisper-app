@@ -188,7 +188,7 @@ public sealed class LocalWhisperService : ILocalWhisperService
                 {
                     readFault = ExceptionDispatchInfo.Capture(exception);
                 }
-                var audioContext = AudioContextFor(samples?.Length);
+                var audioContext = AudioContextFor(samples);
                 var processor = await ProcessorForAsync(key with { AudioContext = audioContext }).ConfigureAwait(false);
                 readFault?.Throw();
                 var sink = await RunAsync(processor, samples!, request.IncludeWordTimestamps, cancellationToken).ConfigureAwait(false);
@@ -296,6 +296,30 @@ public sealed class LocalWhisperService : ILocalWhisperService
         var frames = (samples.Value + samplesPerFrame - 1) / samplesPerFrame;
         var context = (frames + AudioContextMargin + AudioContextBucket - 1) / AudioContextBucket * AudioContextBucket;
         return context >= FullAudioContext ? 0 : (int)context;
+    }
+
+    /// <summary>
+    /// The window for these decoded samples: digital silence (a muted mic) keeps
+    /// the full window, because a shortened one made tiny.en hear "you" in
+    /// zeros where the full window hears nothing (issue #1006).
+    /// </summary>
+    internal static int AudioContextFor(float[]? samples) =>
+        samples is null || IsDigitalSilence(samples) ? 0 : AudioContextFor(samples.LongLength);
+
+    /// <summary>
+    /// -80 dBFS. Zeros and 1-3 LSB of 16-bit dither sit under it; the quietest
+    /// noise fixture (pink noise at -60 dB RMS) peaks at -64 dBFS (issue #1006).
+    /// </summary>
+    internal const float DigitalSilencePeak = 1e-4f;
+
+    /// <summary>Whether no sample reaches <see cref="DigitalSilencePeak"/>.</summary>
+    internal static bool IsDigitalSilence(ReadOnlySpan<float> samples)
+    {
+        foreach (var sample in samples)
+        {
+            if (Math.Abs(sample) >= DigitalSilencePeak) return false;
+        }
+        return true;
     }
 
     /// <summary>
