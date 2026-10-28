@@ -130,10 +130,11 @@ struct LocalAPIStopRestartTests {
             ) == ("Stopping…", "127.0.0.1:4242")
         )
 
-        let started = ContinuousClock.now
+        // The close cannot end before `gate.open()` below, so this returning
+        // at all proves the wait ended at its deadline, not with the close.
+        // No wall-clock bound on top (#2526).
         let released = await shutdown.awaitRelease(within: .milliseconds(300))
         #expect(!released, "a close that has not finished must not count as released")
-        #expect(ContinuousClock.now - started < .seconds(10), "the wait must end at its deadline, not with the close")
         #expect(shutdown.closingPorts == [4242], "the stuck socket is still reported closing")
 
         await gate.open()
@@ -141,12 +142,11 @@ struct LocalAPIStopRestartTests {
         #expect(shutdown.closingPorts.isEmpty)
     }
 
-    /// With nothing closing, a start does not wait at all.
+    /// With nothing closing, a start does not wait at all: a wait with no
+    /// time to spare still reports released, with no wall-clock bound (#2526).
     @Test func nothingClosingIsReleasedAtOnce() async {
         let shutdown = LocalAPIListenerShutdown()
-        let started = ContinuousClock.now
-        #expect(await shutdown.awaitRelease(within: .seconds(2)))
-        #expect(ContinuousClock.now - started < .seconds(1))
+        #expect(await shutdown.awaitRelease(within: .zero))
     }
 
     // MARK: - The row
