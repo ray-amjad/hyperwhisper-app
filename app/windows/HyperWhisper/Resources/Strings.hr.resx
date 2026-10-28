@@ -2189,7 +2189,7 @@ You can re-download it later.</value>
     <value>Odaberite barem jedan odjeljak za uvoz.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>Dodaj {0} novih riječi, {1} sukoba s postojećim riječima. Nastaviti?</value>
+    <value>Nove riječi: {0}. Sukobi s postojećim riječima: {1}. Nastaviti?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Uvesti rječnik?</value>

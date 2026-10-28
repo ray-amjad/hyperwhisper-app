@@ -2188,7 +2188,7 @@ You can re-download it later.</value>
     <value>Виберіть щонайменше один розділ для імпорту.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>Додати {0} нових слів, {1} конфліктів з наявними словами. Продовжити?</value>
+    <value>Нові слова: {0}. Конфлікти з наявними словами: {1}. Продовжити?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Імпортувати словник?</value>

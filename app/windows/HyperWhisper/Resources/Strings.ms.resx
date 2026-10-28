@@ -2189,7 +2189,7 @@ You can re-download it later.</value>
     <value>Pilih sekurang-kurangnya satu bahagian untuk diimport.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>Tambah {0} perkataan baharu, {1} konflik dengan perkataan sedia ada. Teruskan?</value>
+    <value>Perkataan baharu: {0}. Konflik dengan perkataan sedia ada: {1}. Teruskan?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Import Perbendaharaan Kata?</value>

@@ -2189,7 +2189,7 @@
     <value>가져올 섹션을 하나 이상 선택하세요.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>{0}개의 새 단어 추가, {1}개의 기존 단어와 충돌합니다. 계속하시겠습니까?</value>
+    <value>새 단어: {0}개. 기존 단어와 충돌: {1}개. 계속하시겠습니까?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>어휘를 가져올까요?</value>

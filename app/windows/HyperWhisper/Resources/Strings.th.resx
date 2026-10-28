@@ -2189,7 +2189,7 @@ You can re-download it later.</value>
     <value>เลือกอย่างน้อยหนึ่งส่วนที่ต้องการนำเข้า</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>เพิ่ม {0} คำใหม่, {1} รายการขัดแย้งกับคำที่มีอยู่ ดำเนินการต่อ?</value>
+    <value>คำใหม่: {0} รายการ ขัดแย้งกับคำที่มีอยู่: {1} รายการ ดำเนินการต่อ?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>นำเข้าคำศัพท์?</value>

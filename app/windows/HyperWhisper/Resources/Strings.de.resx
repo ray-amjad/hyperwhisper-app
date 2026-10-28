@@ -2189,7 +2189,7 @@ Sie können es später erneut herunterladen.</value>
     <value>Bitte mindestens einen Bereich zum Importieren auswählen.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>{0} neue Wörter hinzufügen, {1} Konflikte mit bestehenden Wörtern. Fortfahren?</value>
+    <value>Neue Wörter: {0}. Konflikte mit bestehenden Wörtern: {1}. Fortfahren?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Vokabular importieren?</value>

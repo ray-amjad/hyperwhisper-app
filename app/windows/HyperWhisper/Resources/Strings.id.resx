@@ -2189,7 +2189,7 @@ Anda dapat mengunduhnya lagi nanti.</value>
     <value>Pilih setidaknya satu bagian untuk diimpor.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>Tambahkan {0} kata baru, {1} konflik dengan kata yang ada. Lanjutkan?</value>
+    <value>Kata baru: {0}. Konflik dengan kata yang ada: {1}. Lanjutkan?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Impor Kosakata?</value>

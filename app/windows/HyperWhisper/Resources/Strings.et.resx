@@ -2189,7 +2189,7 @@ You can re-download it later.</value>
     <value>Valige importimiseks vähemalt üks jaotis.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>Lisa {0} uut sõna, {1} konflikti olemasolevate sõnadega. Jätka?</value>
+    <value>Uued sõnad: {0}. Konfliktid olemasolevate sõnadega: {1}. Jätka?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Importida sõnavara?</value>
