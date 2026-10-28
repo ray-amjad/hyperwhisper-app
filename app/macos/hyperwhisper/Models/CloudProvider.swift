@@ -226,7 +226,9 @@ enum CloudProvider: String, CaseIterable, Identifiable {
     var maxFileSizeBytes: Int64 {
         switch self {
         case .hyperwhisper:
-            return 2 * 1024 * 1024 * 1024  // 2 GB (uses Deepgram backend)
+            // The server's body cap (hyperwhisper-cloud MAX_AUDIO_SIZE_BYTES).
+            // A larger upload gets Bun's bare 413, which has no size message.
+            return 128 * 1024 * 1024  // 128 MB
         case .openai:
             return 25 * 1024 * 1024  // 25 MB
         case .groq:
@@ -258,6 +260,22 @@ enum CloudProvider: String, CaseIterable, Identifiable {
             return 14 * 1024 * 1024  // 14 MB
         case .meta:
             return 32 * 1024 * 1024
+        }
+    }
+
+    /// The size cap on the imported file, checked before it is copied.
+    ///
+    /// HyperWhisper Cloud's 128 MB cap applies to the upload, and the upload
+    /// can be much smaller than the source: a video's extracted audio track,
+    /// or VAD's M4A of a long WAV. So the source only gets the old 2 GB copy
+    /// guard here, and `FileTranscriptionFlow.validateUploadSize` checks
+    /// `maxFileSizeBytes` on the file that is uploaded (#2030).
+    var maxSourceFileSizeBytes: Int64 {
+        switch self {
+        case .hyperwhisper:
+            return 2 * 1024 * 1024 * 1024  // 2 GB
+        default:
+            return maxFileSizeBytes
         }
     }
 

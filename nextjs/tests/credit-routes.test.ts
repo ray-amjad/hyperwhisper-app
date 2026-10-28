@@ -1107,3 +1107,52 @@ describe("an unparseable credits request is logged without its contents (#1207)"
     });
   }
 });
+
+describe("a licence key containing a NUL byte is a 400, not a 500 (#2079)", () => {
+  /** What Postgres does with 0x00 in a text parameter (SQLSTATE 22021). */
+  function postgresRefusesNul(): Error {
+    return Object.assign(
+      new Error('invalid byte sequence for encoding "UTF8": 0x00'),
+      { code: "22021" },
+    );
+  }
+
+  test("GET /api/license/credits", async () => {
+    behaviour.lookupError = postgresRefusesNul();
+    const { GET } = await loadLicenseCreditsRoute();
+
+    const response = await GET(getRequest(`${CREDITS_PATH}?license_key=hw-%00abc`));
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await readJson(response), { error: "License key not found" });
+    assert.deepEqual(calls.findAccountByKey, []);
+  });
+
+  test("POST /api/license/credits deducts nothing", async () => {
+    behaviour.lookupError = postgresRefusesNul();
+    const { POST } = await loadLicenseCreditsRoute();
+
+    const response = await POST(
+      postRequest(CREDITS_PATH, { license_key: "hw-\0abc", amount: 1 }),
+    );
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await readJson(response), { error: "License key not found" });
+    assert.deepEqual(calls.findAccountByKey, []);
+    assert.deepEqual(calls.deductCreditBalance, []);
+  });
+
+  test("POST /api/checkout/credits opens no checkout session", async () => {
+    behaviour.lookupError = postgresRefusesNul();
+    const { POST } = await loadCheckoutCreditsRoute();
+
+    const response = await POST(
+      postRequest(CHECKOUT_PATH, { amount: 5, licenseKey: "HW-AAAA\0" }),
+    );
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await readJson(response), { error: "Invalid license key" });
+    assert.deepEqual(calls.findAccountByKey, []);
+    assert.deepEqual(calls.sessionCreate, []);
+  });
+});
