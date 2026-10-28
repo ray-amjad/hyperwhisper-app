@@ -3,10 +3,10 @@
  *
  * Each entry below does ONE exact string replace in `src/lib/credit-ledger.ts`
  * (or the mutant's own `file`; the provisioning mutants live in
- * `src/lib/db-layer.ts`), runs the one test file, then puts the source back. A mutant that still
- * PASSES means the tests are hollow there. A mutant whose string is not
- * found exactly once is SKIPPED, and a skip fails the run like a survivor: a
- * stale string must not shrink the proof silently.
+ * `src/lib/db-layer.ts`), runs the one test file, then puts the source back.
+ * A mutant that still PASSES means the tests are hollow there. A mutant whose
+ * string is not found exactly once is SKIPPED, and a skip fails the run like
+ * a survivor: a stale string must not shrink the proof silently.
  *
  * This file is a tool, not a test. `npm test` globs `tests/*.test.ts`, so it
  * is never picked up by the suite.
