@@ -411,6 +411,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Liên kết đăng nhập này đã hết hạn hoặc đã được sử dụng. Nhập email của bạn để nhận liên kết mới.",
-    "magicLinkFailed": "Chúng tôi không thể đăng nhập cho bạn bằng liên kết đó. Nhập email của bạn để nhận liên kết mới."
+    "magicLinkFailed": "Chúng tôi không thể đăng nhập cho bạn bằng liên kết đó. Nhập email của bạn để nhận liên kết mới.",
+    "tooManyAttempts": "Quá nhiều lần thử đăng nhập. Vui lòng đợi {seconds, plural, other {# giây}} rồi thử lại.",
+    "tooManyAttemptsLater": "Quá nhiều lần thử đăng nhập. Vui lòng đợi một phút rồi thử lại."
   }
 }

@@ -411,6 +411,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Ce lien de connexion a expiré ou a déjà été utilisé. Saisissez votre e-mail pour en recevoir un nouveau.",
-    "magicLinkFailed": "Nous n'avons pas pu vous connecter avec ce lien. Saisissez votre e-mail pour en recevoir un nouveau."
+    "magicLinkFailed": "Nous n'avons pas pu vous connecter avec ce lien. Saisissez votre e-mail pour en recevoir un nouveau.",
+    "tooManyAttempts": "Trop de tentatives de connexion. Veuillez patienter {seconds, plural, one {# seconde} other {# secondes}} avant de réessayer.",
+    "tooManyAttemptsLater": "Trop de tentatives de connexion. Veuillez patienter une minute avant de réessayer."
   }
 }

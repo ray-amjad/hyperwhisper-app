@@ -411,6 +411,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Este link de acesso expirou ou já foi usado. Digite seu e-mail para receber um novo.",
-    "magicLinkFailed": "Não foi possível fazer seu login com esse link. Digite seu e-mail para receber um novo."
+    "magicLinkFailed": "Não foi possível fazer seu login com esse link. Digite seu e-mail para receber um novo.",
+    "tooManyAttempts": "Muitas tentativas de login. Aguarde {seconds, plural, one {# segundo} other {# segundos}} e tente novamente.",
+    "tooManyAttemptsLater": "Muitas tentativas de login. Aguarde um minuto e tente novamente."
   }
 }

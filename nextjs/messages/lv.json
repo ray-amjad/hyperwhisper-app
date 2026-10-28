@@ -411,6 +411,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Šīs pierakstīšanās saites derīguma termiņš ir beidzies vai tā jau ir izmantota. Ievadiet savu e-pastu, lai saņemtu jaunu.",
-    "magicLinkFailed": "Ar šo saiti mēs nevarējām jūs pierakstīt. Ievadiet savu e-pastu, lai saņemtu jaunu."
+    "magicLinkFailed": "Ar šo saiti mēs nevarējām jūs pierakstīt. Ievadiet savu e-pastu, lai saņemtu jaunu.",
+    "tooManyAttempts": "Pārāk daudz pieteikšanās mēģinājumu. Lūdzu, uzgaidiet {seconds, plural, zero {# sekundes} one {# sekundi} other {# sekundes}} un mēģiniet vēlreiz.",
+    "tooManyAttemptsLater": "Pārāk daudz pieteikšanās mēģinājumu. Lūdzu, uzgaidiet minūti un mēģiniet vēlreiz."
   }
 }

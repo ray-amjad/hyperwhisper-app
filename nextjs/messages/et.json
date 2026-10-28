@@ -411,6 +411,8 @@
   },
   "signIn": {
     "magicLinkExpired": "See sisselogimislink on aegunud või juba kasutatud. Sisesta oma e-posti aadress, et saada uus.",
-    "magicLinkFailed": "Selle lingiga ei õnnestunud sind sisse logida. Sisesta oma e-posti aadress, et saada uus."
+    "magicLinkFailed": "Selle lingiga ei õnnestunud sind sisse logida. Sisesta oma e-posti aadress, et saada uus.",
+    "tooManyAttempts": "Liiga palju sisselogimiskatseid. Oodake {seconds, plural, one {# sekund} other {# sekundit}} ja proovige uuesti.",
+    "tooManyAttemptsLater": "Liiga palju sisselogimiskatseid. Oodake üks minut ja proovige uuesti."
   }
 }

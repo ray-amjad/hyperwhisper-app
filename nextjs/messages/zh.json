@@ -411,6 +411,8 @@
   },
   "signIn": {
     "magicLinkExpired": "此登录链接已过期或已被使用。请输入你的邮箱以获取新的链接。",
-    "magicLinkFailed": "无法使用该链接为你登录。请输入你的邮箱以获取新的链接。"
+    "magicLinkFailed": "无法使用该链接为你登录。请输入你的邮箱以获取新的链接。",
+    "tooManyAttempts": "登录尝试次数过多。请等待 {seconds, plural, other {# 秒}}后重试。",
+    "tooManyAttemptsLater": "登录尝试次数过多。请等待一分钟后重试。"
   }
 }

@@ -411,6 +411,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Ta povezava za prijavo je potekla ali je bila že uporabljena. Vnesite svoj e-poštni naslov, da prejmete novo.",
-    "magicLinkFailed": "S to povezavo vas nismo mogli prijaviti. Vnesite svoj e-poštni naslov, da prejmete novo."
+    "magicLinkFailed": "S to povezavo vas nismo mogli prijaviti. Vnesite svoj e-poštni naslov, da prejmete novo.",
+    "tooManyAttempts": "Preveč poskusov prijave. Počakajte {seconds, plural, one {# sekundo} two {# sekundi} few {# sekunde} other {# sekund}} in poskusite znova.",
+    "tooManyAttemptsLater": "Preveč poskusov prijave. Počakajte minuto in poskusite znova."
   }
 }

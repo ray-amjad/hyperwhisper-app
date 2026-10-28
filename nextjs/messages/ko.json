@@ -411,6 +411,8 @@
   },
   "signIn": {
     "magicLinkExpired": "이 로그인 링크는 만료되었거나 이미 사용되었습니다. 새 링크를 받으려면 이메일을 입력하세요.",
-    "magicLinkFailed": "해당 링크로 로그인하지 못했습니다. 새 링크를 받으려면 이메일을 입력하세요."
+    "magicLinkFailed": "해당 링크로 로그인하지 못했습니다. 새 링크를 받으려면 이메일을 입력하세요.",
+    "tooManyAttempts": "로그인 시도 횟수가 너무 많습니다. {seconds, plural, other {#초}} 후에 다시 시도해 주세요.",
+    "tooManyAttemptsLater": "로그인 시도 횟수가 너무 많습니다. 1분 후에 다시 시도해 주세요."
   }
 }

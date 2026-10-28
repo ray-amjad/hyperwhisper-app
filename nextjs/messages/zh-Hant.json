@@ -411,6 +411,8 @@
   },
   "signIn": {
     "magicLinkExpired": "此登入連結已過期或已被使用。請輸入你的電子郵件以取得新的連結。",
-    "magicLinkFailed": "無法使用該連結為你登入。請輸入你的電子郵件以取得新的連結。"
+    "magicLinkFailed": "無法使用該連結為你登入。請輸入你的電子郵件以取得新的連結。",
+    "tooManyAttempts": "登入嘗試次數過多。請等待 {seconds, plural, other {# 秒}}後再試一次。",
+    "tooManyAttemptsLater": "登入嘗試次數過多。請等待一分鐘後再試一次。"
   }
 }

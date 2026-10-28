@@ -411,6 +411,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Dieser Anmeldelink ist abgelaufen oder wurde bereits verwendet. Geben Sie Ihre E-Mail-Adresse ein, um einen neuen zu erhalten.",
-    "magicLinkFailed": "Wir konnten Sie mit diesem Link nicht anmelden. Geben Sie Ihre E-Mail-Adresse ein, um einen neuen zu erhalten."
+    "magicLinkFailed": "Wir konnten Sie mit diesem Link nicht anmelden. Geben Sie Ihre E-Mail-Adresse ein, um einen neuen zu erhalten.",
+    "tooManyAttempts": "Zu viele Anmeldeversuche. Bitte warten Sie {seconds, plural, one {# Sekunde} other {# Sekunden}} und versuchen Sie es erneut.",
+    "tooManyAttemptsLater": "Zu viele Anmeldeversuche. Bitte warten Sie eine Minute und versuchen Sie es erneut."
   }
 }

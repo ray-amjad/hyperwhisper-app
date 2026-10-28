@@ -411,6 +411,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Este enlace de inicio de sesión ha caducado o ya se ha usado. Introduce tu correo para recibir uno nuevo.",
-    "magicLinkFailed": "No hemos podido iniciar tu sesión con ese enlace. Introduce tu correo para recibir uno nuevo."
+    "magicLinkFailed": "No hemos podido iniciar tu sesión con ese enlace. Introduce tu correo para recibir uno nuevo.",
+    "tooManyAttempts": "Demasiados intentos de inicio de sesión. Espera {seconds, plural, one {# segundo} other {# segundos}} y vuelve a intentarlo.",
+    "tooManyAttemptsLater": "Demasiados intentos de inicio de sesión. Espera un minuto y vuelve a intentarlo."
   }
 }

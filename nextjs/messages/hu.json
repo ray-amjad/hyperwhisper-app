@@ -411,6 +411,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Ez a bejelentkezési hivatkozás lejárt, vagy már felhasználták. Adja meg e-mail-címét, és küldünk egy újat.",
-    "magicLinkFailed": "Ezzel a hivatkozással nem tudtuk bejelentkeztetni. Adja meg e-mail-címét, és küldünk egy újat."
+    "magicLinkFailed": "Ezzel a hivatkozással nem tudtuk bejelentkeztetni. Adja meg e-mail-címét, és küldünk egy újat.",
+    "tooManyAttempts": "Túl sok bejelentkezési kísérlet. Várjon {seconds, plural, one {# másodpercet} other {# másodpercet}}, majd próbálja újra.",
+    "tooManyAttemptsLater": "Túl sok bejelentkezési kísérlet. Várjon egy percet, majd próbálja újra."
   }
 }

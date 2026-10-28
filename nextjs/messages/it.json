@@ -411,6 +411,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Questo link di accesso è scaduto o è già stato usato. Inserisci la tua email per riceverne uno nuovo.",
-    "magicLinkFailed": "Non è stato possibile farti accedere con quel link. Inserisci la tua email per riceverne uno nuovo."
+    "magicLinkFailed": "Non è stato possibile farti accedere con quel link. Inserisci la tua email per riceverne uno nuovo.",
+    "tooManyAttempts": "Troppi tentativi di accesso. Attendi {seconds, plural, one {# secondo} other {# secondi}} e riprova.",
+    "tooManyAttemptsLater": "Troppi tentativi di accesso. Attendi un minuto e riprova."
   }
 }

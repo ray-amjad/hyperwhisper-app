@@ -411,6 +411,8 @@
   },
   "signIn": {
     "magicLinkExpired": "Dette login-link er udløbet eller allerede brugt. Indtast din e-mail for at få et nyt.",
-    "magicLinkFailed": "Vi kunne ikke logge dig ind med det link. Indtast din e-mail for at få et nyt."
+    "magicLinkFailed": "Vi kunne ikke logge dig ind med det link. Indtast din e-mail for at få et nyt.",
+    "tooManyAttempts": "For mange loginforsøg. Vent {seconds, plural, one {# sekund} other {# sekunder}}, og prøv igen.",
+    "tooManyAttemptsLater": "For mange loginforsøg. Vent et minut, og prøv igen."
   }
 }
