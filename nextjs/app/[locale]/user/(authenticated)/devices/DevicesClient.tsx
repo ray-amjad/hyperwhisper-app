@@ -305,6 +305,8 @@ export function DeviceRow({
     (device) => !seenIds.has(device.deviceId) && seenIds.add(device.deviceId),
   );
   const total = data?.pages[data.pages.length - 1]?.total ?? 0;
+  // The search result's identity: the device list tweens when it changes.
+  const firstPage = data?.pages[0];
   const nextCount = Math.min(DEVICE_PAGE_SIZE, total - loadedDevices.length);
   // A search refetch dims the rows it will replace; "Show more" does not.
   const dimmed = isFetching && !isFetchingNextPage;
@@ -388,10 +390,14 @@ export function DeviceRow({
                     />
                   </div>
                   {/* A search swaps this list for one of another length, so
-                      it tweens its height too (#2757). It sits inside the
-                      .t-cell-reveal clip, which only animates the open; the
-                      first page after the open lands at once. */}
-                  <HeightTween trigger={data}>
+                      it tweens its height too (#2757). It keys on the first
+                      page, not `data`: "Show more" appends a page, and
+                      structural sharing keeps the first page the same object,
+                      so an append grows the list at once instead of pinning
+                      it. A new search is a new query, so a new first page. It
+                      sits inside the .t-cell-reveal clip, which only animates
+                      the open; the first page after the open lands at once. */}
+                  <HeightTween trigger={firstPage}>
                     {isLoading ? (
                       <div className="space-y-2">
                         {Array.from({ length: 2 }).map((_, i) => (
