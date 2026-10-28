@@ -22,6 +22,8 @@ internal static class UpdateMessageWindowChecks
             var app = EnsureApplication();
             var shutdownMode = app.ShutdownMode;
             app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            // WPF makes the first window MainWindow when none is set: restore it after.
+            var previousMain = app.MainWindow;
             var factory = new HyperWhisperUIFactory();
             try
             {
@@ -55,6 +57,7 @@ internal static class UpdateMessageWindowChecks
             finally
             {
                 CloseDialogs(app);
+                app.MainWindow = previousMain;
                 app.ShutdownMode = shutdownMode;
             }
         });
