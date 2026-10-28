@@ -23,7 +23,9 @@ public sealed class MicrophoneKeepWarmService : IDisposable
     /// <summary>
     /// Test seam (#2244): HyperWhisper.SmokeTests (InternalsVisibleTo, see
     /// HyperWhisper.csproj) passes a fake capture so it can drive the state
-    /// machine below without a microphone. The app uses <see cref="Instance"/>.
+    /// machine below without a microphone. HyperWhisper.KeepWarm.Tests also
+    /// compiles this file directly (#2501), so keep the constructor in step
+    /// with both. The app uses <see cref="Instance"/>.
     /// </summary>
     internal MicrophoneKeepWarmService(Func<int, IWaveIn> captureFactory)
     {
