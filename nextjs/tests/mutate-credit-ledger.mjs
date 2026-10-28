@@ -1,9 +1,12 @@
 /**
  * Mutation proof for tests/credit-ledger.test.ts.
  *
- * Each entry below does ONE exact string replace in `src/lib/db-layer.ts`,
- * runs the one test file, then puts the source back. A mutant that still
- * PASSES means the tests are hollow there.
+ * Each entry below does ONE exact string replace in `src/lib/credit-ledger.ts`
+ * (or the mutant's own `file`; the provisioning mutants live in
+ * `src/lib/db-layer.ts`), runs the one test file, then puts the source back. A mutant that still
+ * PASSES means the tests are hollow there. A mutant whose string is not
+ * found exactly once is SKIPPED, and a skip fails the run like a survivor: a
+ * stale string must not shrink the proof silently.
  *
  * This file is a tool, not a test. `npm test` globs `tests/*.test.ts`, so it
  * is never picked up by the suite.
@@ -14,7 +17,8 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 
 const TEST = "tests/credit-ledger.test.ts";
-const FILE = "src/lib/db-layer.ts";
+const FILE = "src/lib/credit-ledger.ts";
+const DB_LAYER = "src/lib/db-layer.ts";
 
 const MUTANTS = [
   {
@@ -94,8 +98,8 @@ const MUTANTS = [
   },
   {
     name: "leave a drained grant active",
-    from: "          status: newRemaining === 0 ? \"spent\" : \"active\",\n          updatedAt: new Date(),\n        })\n        .where(eq(creditGrants.id, grant.id));\n\n      remainingToDeduct",
-    to: "          status: \"active\",\n          updatedAt: new Date(),\n        })\n        .where(eq(creditGrants.id, grant.id));\n\n      remainingToDeduct",
+    from: "          status: sql`CASE WHEN ${storesAsZero(newRemaining)} THEN 'spent' ELSE 'active' END`,",
+    to: "          status: \"active\",",
   },
   {
     name: "spend returns the stale cache, not the reconciled total",
@@ -199,30 +203,35 @@ const MUTANTS = [
   },
   {
     name: "provision grants 500 credits instead of 5000",
+    file: DB_LAYER,
     from: "const INTERNAL_BUNDLE_CREDITS = 5000;",
     to: "const INTERNAL_BUNDLE_CREDITS = 500;",
   },
   {
     name: "provision keys the bundle by user, not by key",
-    from: "    sourceType: \"internal_bundle\",\n    sourceId: license.id,",
-    to: "    sourceType: \"internal_bundle\",\n    sourceId: license.userId,",
+    file: DB_LAYER,
+    from: "      sourceType: \"internal_bundle\",\n      sourceId: license.id,",
+    to: "      sourceType: \"internal_bundle\",\n      sourceId: license.userId,",
   },
   {
     name: "provision without normalising the email",
+    file: DB_LAYER,
     from: "  const normalizedEmail = email.toLowerCase().trim();",
     to: "  const normalizedEmail = email;",
   },
   {
     name: "provision a key as pending, not granted",
-    from: "    userId: userResult.id,\n    status: \"granted\",",
-    to: "    userId: userResult.id,\n    status: \"pending\",",
+    file: DB_LAYER,
+    from: "        userId: userResult.id,\n        status: \"granted\",",
+    to: "        userId: userResult.id,\n        status: \"pending\",",
   },
 ];
 
 const results = [];
 
 for (const mutant of MUTANTS) {
-  const original = readFileSync(FILE, "utf8");
+  const file = mutant.file ?? FILE;
+  const original = readFileSync(file, "utf8");
   const occurrences = original.split(mutant.from).length - 1;
   if (occurrences !== 1) {
     results.push({ ...mutant, verdict: `SKIPPED (${occurrences} matches)` });
@@ -230,7 +239,7 @@ for (const mutant of MUTANTS) {
     continue;
   }
 
-  writeFileSync(FILE, original.replace(mutant.from, mutant.to));
+  writeFileSync(file, original.replace(mutant.from, mutant.to));
 
   let killed = false;
   try {
@@ -242,7 +251,7 @@ for (const mutant of MUTANTS) {
   } catch {
     killed = true;
   } finally {
-    writeFileSync(FILE, original);
+    writeFileSync(file, original);
   }
 
   const verdict = killed
