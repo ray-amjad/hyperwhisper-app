@@ -19,14 +19,14 @@
 //
 //  The server's own run task starts on the main actor, which another suite in
 //  the test host can hold for seconds, so every wait has a generous deadline.
-//  That includes the server's own wait for FlyingFox to report it is listening:
-//  at the app's 5 s a starved run task reads as a taken port, and the server
-//  gives the persisted port up for an ephemeral one (issue #2398). Only the
-//  taken-port test keeps the app's 5 s, because that wait is its fallback.
+//  The server needs none of its own: a taken port is the run task's EADDRINUSE,
+//  not a silence, so a starved run task no longer reads as a taken port and
+//  nothing here injects a listen timeout (issues #2398, #2452).
 //
 
 import Darwin
 import Foundation
+import FlyingSocks
 import Testing
 @testable import HyperWhisper
 
@@ -55,19 +55,22 @@ struct LocalAPIServerPortPreferenceTests {
     // MARK: - 2. A taken persisted port falls back to an ephemeral one
 
     @Test func aTakenPersistedPortIsGivenUpForAnEphemeralOneThatIsThenPersisted() async throws {
-        // The app's listen wait: a bind refused with EADDRINUSE reports nothing,
-        // so this wait running out is what sends the server to an ephemeral port.
-        // The ephemeral retry then waits `ephemeralListenWait`, as in the app.
-        let fixture = try Fixture(listenTimeout: LocalAPIServer.listenWait)
+        let fixture = try Fixture()
         defer { fixture.removeFiles() }
         let holder = try PortHolder()
         defer { holder.close() }
         fixture.defaults.set(Int(holder.port), forKey: LocalAPIServerPersistedPortKey)
 
+        let started = ContinuousClock.now
         fixture.server.start()
         try await until("the server listens on a port other than the taken one") {
             fixture.server.isRunning && fixture.server.listeningPort != holder.port
         }
+        // The bind's EADDRINUSE sends it to an ephemeral port, not the listen
+        // wait running out (issue #2452). A loose bound: well under that wait,
+        // so it holds on a loaded runner and fails only on a timeout fallback.
+        #expect(ContinuousClock.now - started < .seconds(LocalAPIServer.listenWait),
+                "the fallback waited out the listen wait instead of acting on EADDRINUSE")
 
         let bound = fixture.server.listeningPort
         #expect(bound != 0)
@@ -75,6 +78,45 @@ struct LocalAPIServerPortPreferenceTests {
         #expect(fixture.persistedPort == bound, "the ephemeral port must replace the taken one in the preference")
         #expect(try fixture.portFilePort() == bound)
         #expect(fixture.server.lastError == nil, "a retry that bound must not leave the failed bind's error showing")
+        await fixture.stop()
+    }
+
+    @Test func onlyARefusedBindSendsTheServerToTheFallback() {
+        #expect(LocalAPIServer.isBindFailure(SocketError.failed(type: "Bind", errno: EADDRINUSE, message: "Address already in use")))
+        #expect(LocalAPIServer.isBindFailure(SocketError.failed(type: "Bind", errno: EACCES, message: "Permission denied")))
+        #expect(!LocalAPIServer.isBindFailure(SocketError.failed(type: "Listen", errno: EADDRINUSE, message: "Address already in use")))
+        #expect(!LocalAPIServer.isBindFailure(SocketError.failed(type: "CreateSocket", errno: EMFILE, message: "Too many open files")))
+        #expect(!LocalAPIServer.isBindFailure(SocketError.timeout(message: "30 s")))
+        #expect(!LocalAPIServer.isBindFailure(CancellationError()))
+    }
+
+    @Test func aStopDuringATakenPortStartLeavesTheServerOff() async throws {
+        let fixture = try Fixture()
+        defer { fixture.removeFiles() }
+        let holder = try PortHolder()
+        defer { holder.close() }
+        fixture.defaults.set(Int(holder.port), forKey: LocalAPIServerPersistedPortKey)
+
+        fixture.server.start()
+        let deadline = ContinuousClock.now + .seconds(120)
+        while await fixture.tokenCalls.count == 0 {
+            guard ContinuousClock.now < deadline else { throw FixtureError.timedOut("the start has its token") }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        // Inside what used to be the 5 s fallback window. Which of the two
+        // orderings this lands in is up to the scheduler: usually the fallback
+        // has already bound an ephemeral port and stop() stops that; on a
+        // starved host stop() can land before the failed bind reports. This pins
+        // the outcome of both, not the stale-failure guard on its own.
+        try await Task.sleep(for: .milliseconds(200))
+        await fixture.stop()
+
+        // Past that old window, where the old timeout fallback rebound a server
+        // the user had switched off (issue #2452): it must stay off.
+        try await Task.sleep(for: LocalAPIServer.releaseWait + .seconds(5))
+        #expect(!fixture.server.isRunning, "a stopped server came back up on an ephemeral port")
+        #expect(fixture.server.listeningPort == 0)
+        #expect(!FileManager.default.fileExists(atPath: fixture.portFile.path))
         await fixture.stop()
     }
 
@@ -138,11 +180,7 @@ private struct Fixture {
     let tokenCalls = TokenCalls()
     let server: LocalAPIServer
 
-    /// Far past anything a loaded runner takes to start listening, so a server
-    /// that was asked for a free port is never sent to the fallback.
-    static let patientListenTimeout: TimeInterval = 60
-
-    init(listenTimeout: TimeInterval = Fixture.patientListenTimeout) throws {
+    init() throws {
         guard let defaults = UserDefaults(suiteName: suiteName) else {
             throw FixtureError.noDefaults
         }
@@ -158,8 +196,7 @@ private struct Fixture {
             tokenLoader: {
                 await calls.hit()
                 return "test-token"
-            },
-            listenTimeout: listenTimeout
+            }
         )
     }
 

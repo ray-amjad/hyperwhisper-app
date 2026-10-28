@@ -74,9 +74,16 @@ public static class AppPaths
     ///
     /// Callers must only append this when <see cref="IsAppDataRootOverridden"/>
     /// is true, so the production names stay byte-identical.
+    ///
+    /// Hashes the root's canonical spelling (#1334). NTFS paths are case-insensitive and
+    /// GetFullPath keeps a trailing separator, so <c>C:\Profile</c>, <c>c:\profile\</c> and
+    /// <c>C:/Profile/</c> are one database and must be one mutex.
     /// </summary>
     internal static string AppDataRootHash =>
-        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(AppDataRoot))).ToLowerInvariant()[..16];
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(CanonicalRoot(AppDataRoot)))).ToLowerInvariant()[..16];
+
+    internal static string CanonicalRoot(string fullPath) =>
+        Path.TrimEndingDirectorySeparator(fullPath).ToUpperInvariant();
 
     public static string Combine(params string[] segments)
     {

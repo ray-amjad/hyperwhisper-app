@@ -377,7 +377,8 @@ public sealed partial class ModesViewModel : ViewModelBase
         if (Selected == null) { Status.Failure("modes.no_selection", "Select a mode to delete."); return; }
         var selected = Selected;
         try { if (await _repository.DeleteSafelyAsync(selected.Id, cancellationToken)) { Items.Remove(selected); Selected = FallbackSelection(); Status.Success("Mode deleted"); } else Status.Failure("modes.not_found", "The mode no longer exists."); }
-        catch (InvalidOperationException exception) { Status.Failure("modes.last_mode", exception.Message); }
+        // Only the repository's own rule says "last mode"; an EF or storage fault is a failed delete (issue #2561).
+        catch (ModeRuleViolationException rule) { Status.Failure(rule.Code, rule.Message); }
         catch (Exception) { Status.Failure("modes.delete_failed", "Could not delete the mode."); }
     }
 }

@@ -5565,6 +5565,147 @@ internal static class Program
                     "backend match should be case-insensitive");
             });
 
+            // Issue #2597: the crash-pin store's rules, played across launches. One
+            // store instance stands for one launch; every instance in a check reads
+            // and writes the same temp file, as successive launches would.
+            Run("Crash pin: a launch's unfinished GPU load pins the next 9 launches, the 10th re-probes (#2597)", () =>
+            {
+                using var rig = new GpuCrashStoreRig();
+                var crashed = rig.Launch();
+                crashed.WriteSentinel(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+
+                for (var launchesAfter = 1; launchesAfter <= 9; launchesAfter++)
+                {
+                    var launch = rig.Launch();
+                    Assert(launch.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                        $"launch {launchesAfter} after the crash should still be pinned");
+                    // A second load in the same launch must not age the pin a second time.
+                    Assert(launch.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                        $"a second check in launch {launchesAfter} should still be pinned");
+                }
+
+                Assert(!rig.Launch().CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                    "the 10th launch after the crash should re-probe the GPU");
+                Assert(rig.EntryCount() == 0, $"the expired pin should be dropped, found {rig.EntryCount()} entries");
+            });
+
+            Run("Crash pin: one launch bumps the stored launch ordinal exactly once (#2597)", () =>
+            {
+                using var rig = new GpuCrashStoreRig();
+                var first = rig.Launch();
+                first.WriteSentinel(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+                first.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.VulkanBackendId);
+                first.WriteSentinel(rig.Model, rig.Gpu, LocalLlmGpuHelper.VulkanBackendId);
+                Assert(rig.StoredLaunchOrdinal() == 1, $"after one launch the ordinal should be 1, was {rig.StoredLaunchOrdinal()}");
+
+                var second = rig.Launch();
+                second.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+                second.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+                Assert(rig.StoredLaunchOrdinal() == 2, $"after two launches the ordinal should be 2, was {rig.StoredLaunchOrdinal()}");
+            });
+
+            Run("Crash pin: a clean quit clears only its own launch's loads and keeps a prior crash pin (#563/#770, #2597)", () =>
+            {
+                using var rig = new GpuCrashStoreRig();
+                const string otherModel = @"C:\models\other.gguf";
+                rig.Launch().WriteSentinel(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+
+                var recovery = rig.Launch();
+                Assert(recovery.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                    "the launch after the crash should be pinned");
+                recovery.WriteSentinel(otherModel, rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+                recovery.WriteSentinel(rig.Model, rig.Gpu, LocalLlmGpuHelper.VulkanBackendId);
+                recovery.ClearInFlightLoads();
+
+                Assert(rig.EntryCount() == 1, $"only the prior launch's crash entry should remain, found {rig.EntryCount()}");
+                var next = rig.Launch();
+                Assert(next.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                    "the prior launch's CUDA crash pin must survive a clean quit");
+                Assert(!next.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.VulkanBackendId),
+                    "the quitting launch's own Vulkan load must not pin");
+                Assert(!next.CrashedPreviously(otherModel, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                    "the quitting launch's own load of another model must not pin");
+            });
+
+            Run("Crash pin: a load that starts after the clean-exit clear writes nothing (#2597)", () =>
+            {
+                using var rig = new GpuCrashStoreRig();
+                var quitting = rig.Launch();
+                quitting.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+                quitting.ClearInFlightLoads();
+                quitting.WriteSentinel(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+
+                Assert(rig.EntryCount() == 0, $"a write during shutdown should add no entry, found {rig.EntryCount()}");
+                Assert(!rig.Launch().CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                    "a load started during shutdown must not pin the next launch");
+            });
+
+            Run("Crash pin: explicit InFlight=false is dropped, a #563 entry with no InFlight still pins (#2597)", () =>
+            {
+                using var rig = new GpuCrashStoreRig();
+                rig.WriteStoreJson($$"""
+                    {
+                      "LaunchOrdinal": 1,
+                      "Entries": [
+                        { "ModelPath": {{JsonSerializer.Serialize(rig.Model)}}, "GpuIdentity": {{JsonSerializer.Serialize(rig.Gpu)}}, "LaunchOrdinal": 1, "Backend": "cuda", "InFlight": false },
+                        { "ModelPath": "C:\\models\\legacy.gguf", "GpuIdentity": {{JsonSerializer.Serialize(rig.Gpu)}}, "LaunchOrdinal": 1 }
+                      ]
+                    }
+                    """);
+
+                var launch = rig.Launch();
+                Assert(!launch.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                    "an entry a clean exit marked InFlight=false must not pin");
+                Assert(launch.CrashedPreviously(@"C:\models\legacy.gguf", rig.Gpu, LocalLlmGpuHelper.VulkanBackendId),
+                    "a shipped #563 entry (no InFlight, no Backend) must still pin, on every backend");
+                Assert(rig.EntryCount() == 1, $"only the cleared entry should be dropped, found {rig.EntryCount()}");
+            });
+
+            Run("Crash pin: a changed GPU identity drops the pin and re-probes (#2597)", () =>
+            {
+                using var rig = new GpuCrashStoreRig();
+                rig.Launch().WriteSentinel(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+
+                Assert(!rig.Launch().CrashedPreviously(rig.Model, "NVIDIA GeForce RTX 5090", LocalLlmGpuHelper.CudaBackendId),
+                    "a crash recorded on another GPU must not pin");
+                Assert(rig.EntryCount() == 0, $"the stale pin should be dropped, found {rig.EntryCount()}");
+                Assert(!rig.Launch().CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                    "a dropped pin stays dropped when the old GPU comes back");
+            });
+
+            Run("Crash pin: a write replaces the same model+backend entry and keeps other backends (#2597)", () =>
+            {
+                using var rig = new GpuCrashStoreRig();
+                var launch = rig.Launch();
+                launch.WriteSentinel(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+                launch.WriteSentinel(rig.Model.ToUpperInvariant(), rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+                Assert(rig.EntryCount() == 1, $"a second CUDA write for the model should replace the first, found {rig.EntryCount()}");
+                launch.WriteSentinel(rig.Model, rig.Gpu, LocalLlmGpuHelper.VulkanBackendId);
+                Assert(rig.EntryCount() == 2, $"a Vulkan write should sit beside the CUDA one, found {rig.EntryCount()}");
+
+                launch.ClearSentinel(rig.Model, LocalLlmGpuHelper.CudaBackendId);
+                var next = rig.Launch();
+                Assert(!next.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                    "a cleared CUDA load must not pin CUDA");
+                Assert(next.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.VulkanBackendId),
+                    "clearing CUDA must keep the Vulkan crash pin");
+            });
+
+            Run("Crash pin: the legacy single-path sentinel migrates to a pin on every backend and is deleted (#2597)", () =>
+            {
+                using var rig = new GpuCrashStoreRig();
+                File.WriteAllText(rig.LegacyPath, rig.Model + Environment.NewLine);
+
+                var launch = rig.Launch();
+                Assert(launch.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.VulkanBackendId),
+                    "a leftover legacy sentinel should pin the model it names");
+                Assert(!File.Exists(rig.LegacyPath), "the legacy sentinel should be deleted after migration");
+                Assert(launch.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                    "the migrated pin should cover every backend");
+                Assert(!launch.CrashedPreviously(rig.Model, "Some Other GPU", LocalLlmGpuHelper.CudaBackendId),
+                    "the migrated pin carries the GPU identity at migration time");
+            });
+
             // Issue #1036: the Cloud connection-recovery rules, on a fake clock and a
             // stub handler (CloudConnectionRig). Each check fails when its rule is removed.
             RunAsync("Cloud warmup debounce: a 2nd prewarm inside 60s sends nothing, one at 60s sends (#1036)", async () =>
@@ -27315,6 +27456,38 @@ internal static class Program
         // A full-length sine has RMS = peak / sqrt(2); silence or a short burst would not.
         Assert(rms > expectedPeak * 0.6,
             $"expected a non-silent signal throughout (RMS > {expectedPeak * 0.6:F3}), got {rms:F3}");
+    }
+
+    /// <summary>
+    /// A temp crash-pin store file for #2597's checks. Each <see cref="Launch"/>
+    /// is a new store instance over the same file: one app launch.
+    /// </summary>
+    private sealed class GpuCrashStoreRig : IDisposable
+    {
+        private readonly string _directory = Path.Combine(
+            Path.GetTempPath(), "HyperWhisper.SmokeTests", "gpu-crash-store-" + Guid.NewGuid().ToString("N"));
+
+        public GpuCrashStoreRig() => Directory.CreateDirectory(_directory);
+
+        public string Model => @"C:\models\qwen.gguf";
+        public string Gpu => "NVIDIA GeForce RTX 4060";
+        public string StorePath => Path.Combine(_directory, "local-llm-gpu-load-crashes.json");
+        public string LegacyPath => Path.Combine(_directory, "local-llm-gpu-load.sentinel");
+
+        public LocalLlmGpuLoadCrashStore Launch() => new(StorePath, LegacyPath, () => Gpu);
+
+        public void WriteStoreJson(string json) => File.WriteAllText(StorePath, json);
+
+        private JsonNode? ReadStore() => File.Exists(StorePath) ? JsonNode.Parse(File.ReadAllText(StorePath)) : null;
+
+        public int EntryCount() => ReadStore()?["Entries"]?.AsArray().Count ?? 0;
+
+        public long StoredLaunchOrdinal() => ReadStore()?["LaunchOrdinal"]?.GetValue<long>() ?? 0;
+
+        public void Dispose()
+        {
+            try { Directory.Delete(_directory, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
     }
 
     private static void Run(string name, Action check)

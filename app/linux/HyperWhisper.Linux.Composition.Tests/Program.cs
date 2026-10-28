@@ -77,6 +77,10 @@ if (args is [StatusHintRenderTests.ProbeArgument])
 {
     Environment.Exit(StatusHintRenderTests.RunProbe());
 }
+if (args is [OverlayMeterRenderTests.ProbeArgument])
+{
+    Environment.Exit(OverlayMeterRenderTests.RunProbe());
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -160,7 +164,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a live stream that fails after delivering text keeps that text in History, the error only in FailedReason (#2282)", LiveFailureHistoryTests.KeepsDeliveredText),
     ("Home's state follows a live stream: Recording while it runs, Failed once it fails and is held (#2038)", HomeLiveStateRenderTests.MappingFollowsTheLiveStream),
     ("the real Home caption reads Failed for a held live stream and Idle again after Stop (#2038)", HomeLiveStateRenderTests.RunAsync),
+    ("the overlay's macOS-style waveform keeps its 25 2 px bars inside the pill, peaks in the middle, grows with the level and animates only while shown (#2711)", OverlayMeterRenderTests.RunAsync),
     ("Home reads Recording from the moment a live start shows the overlay, Failed once it turns red, and the workflow state after a failed start (#2038)", HomeLiveStartTests.StartWindowFollowsTheOverlay),
+    ("Home keeps Failed through the stop of a live stream whose connection failed, then reads the workflow state (#2038)", HomeLiveStartTests.StopOfAFailedStreamKeepsFailed),
     ("the status bar drops the record hint while anything is in flight (recording, finishing, Busy) and on an error line (#2599)", RecordingStatusAfterStopTests.StatusHintDroppedWhileInFlightOrOnError),
     ("the record hint comes back after a stop that wrote its own line while still finishing (#2599)", RecordingStatusAfterStopTests.HintReturnsAfterAStopThatWroteItsOwnLine),
     ("the status bar drops the record hint while a live start is still connecting and brings it back after (#2599)", RecordingStatusAfterStopTests.HintDroppedWhileALiveStartConnects),
