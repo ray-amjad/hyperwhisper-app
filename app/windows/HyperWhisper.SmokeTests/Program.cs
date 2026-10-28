@@ -9992,6 +9992,9 @@ internal static class Program
                 Assert(client.State == StreamingConnectionState.Error, $"expected State to remain Error, got {client.State}");
             });
 
+            // Issue #2296: frames after an exception-path reconnect are read (loopback WebSocket).
+            StreamingReconnectReceiveChecks();
+
             // THE FIVE LIVE PROTOCOLS, from the shared Rust core (issue #281).
             //
             // Windows no longer implements any of them. These run through the real
@@ -29401,6 +29404,255 @@ internal static class Program
             Func<byte[], WebSocketMessageType, CancellationToken, Task> webSocketSendAsync,
             CancellationToken cancellationToken) => throw new NotSupportedException();
     }
+
+    // ---- BEGIN #2296 streaming reconnect receive checks ----
+    // STREAMING: FRAMES AFTER AN EXCEPTION-PATH RECONNECT ARE READ (issue #2296)
+    //
+    // The real StreamingTranscriptionClient against a scripted loopback WebSocket
+    // server. Connection #1 ends by an EXCEPTION in the receive loop (a TCP FIN
+    // with no close frame, a TCP RST, or a strategy ParseMessage throw), the client
+    // reconnects, and connection #2 sends a final transcript. Before the fix the
+    // catch path reconnected and then returned, so nothing read connection #2 and
+    // "After reconnect." was lost. A close-frame drop always looped and read on.
+    private static void StreamingReconnectReceiveChecks()
+    {
+        foreach (var drop in new[] { ReconnectDrop.TcpFin, ReconnectDrop.TcpReset, ReconnectDrop.ParseThrows })
+        {
+            RunAsync($"StreamingTranscriptionClient reads the new socket after an exception-path reconnect ({drop}, #2296)", async () =>
+            {
+                var previousContext = SynchronizationContext.Current;
+                SynchronizationContext.SetSynchronizationContext(null);
+                try
+                {
+                    await AssertReconnectKeepsReading(drop);
+                }
+                finally
+                {
+                    SynchronizationContext.SetSynchronizationContext(previousContext);
+                }
+            });
+        }
+    }
+
+    private enum ReconnectDrop { TcpFin, TcpReset, ParseThrows }
+
+    private static async Task AssertReconnectKeepsReading(ReconnectDrop drop)
+    {
+        var wait = TimeSpan.FromSeconds(10);
+        var firstFinal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var afterReconnect = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var errors = new List<string>();
+
+        await using var server = new ScriptedLoopbackWebSocketServer(async (index, ws, socket, ct) =>
+        {
+            if (index == 0)
+            {
+                if (drop == ReconnectDrop.ParseThrows)
+                {
+                    // The strategy throws on this frame: the exception path, with the
+                    // TCP connection itself still healthy.
+                    await ServerSendText(ws, "{\"t\":\"boom\"}", ct);
+                    await ServerDrainUntilGone(ws, ct);
+                    return;
+                }
+
+                await ServerSendText(ws, "{\"t\":\"final\",\"text\":\"Before drop.\"}", ct);
+                await firstFinal.Task.WaitAsync(wait, ct);
+                if (drop == ReconnectDrop.TcpReset)
+                    socket.LingerState = new System.Net.Sockets.LingerOption(true, 0);
+                else
+                    socket.Shutdown(System.Net.Sockets.SocketShutdown.Both);
+                socket.Close();
+                return;
+            }
+
+            await ServerSendText(ws, "{\"t\":\"final\",\"text\":\"After reconnect.\"}", ct);
+            await ServerDrainUntilGone(ws, ct);
+        });
+
+        var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
+        await using var client = new StreamingTranscriptionClient(new LoopbackScriptedStrategy(server.Uri), config);
+        client.ErrorReceived += m => { lock (errors) errors.Add(m); };
+        client.FinalTranscriptSegmentReceived += segment =>
+        {
+            if (segment.Contains("Before drop.", StringComparison.Ordinal))
+                firstFinal.TrySetResult();
+            if (segment.Contains("After reconnect.", StringComparison.Ordinal))
+                afterReconnect.TrySetResult();
+        };
+
+        Assert(await client.StartAsync(), $"{drop}: StartAsync did not start the session (State {client.State})");
+
+        var arrived = await Task.WhenAny(afterReconnect.Task, Task.Delay(wait)) == afterReconnect.Task;
+        var stateAfter = client.State;
+        var finalBeforeStop = client.FinalText;
+        var stopped = await client.StopAsync(new CancellationTokenSource(wait).Token);
+
+        Assert(server.ConnectionCount == 2,
+            $"{drop}: expected exactly one reconnect (2 connections), saw {server.ConnectionCount}");
+        Assert(arrived,
+            $"{drop}: the final sent on the reconnected socket never reached the client " +
+            $"(State {stateAfter}, FinalText '{finalBeforeStop}', errors [{string.Join(" | ", errors)}])");
+        Assert(stateAfter == StreamingConnectionState.Streaming, $"{drop}: expected Streaming after the reconnect, got {stateAfter}");
+        Assert(stopped.Contains("After reconnect.", StringComparison.Ordinal),
+            $"{drop}: StopAsync returned '{stopped}' without the post-reconnect final");
+        if (drop != ReconnectDrop.ParseThrows)
+            Assert(stopped.Contains("Before drop.", StringComparison.Ordinal), $"{drop}: StopAsync lost the pre-drop final: '{stopped}'");
+        lock (errors)
+            Assert(errors.Count == 0, $"{drop}: a successful reconnect raised ErrorReceived: [{string.Join(" | ", errors)}]");
+    }
+
+    private static Task ServerSendText(WebSocket ws, string text, CancellationToken ct) =>
+        ws.SendAsync(new ArraySegment<byte>(System.Text.Encoding.UTF8.GetBytes(text)), WebSocketMessageType.Text, true, ct);
+
+    // Reads until the client closes or the connection goes away, answering a close frame.
+    private static async Task ServerDrainUntilGone(WebSocket ws, CancellationToken ct)
+    {
+        var buffer = new byte[8192];
+        try
+        {
+            while (ws.State is WebSocketState.Open)
+            {
+                var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
+                if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    await ws.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "bye", ct);
+                    return;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is WebSocketException or OperationCanceledException or IOException or ObjectDisposedException)
+        {
+        }
+    }
+
+    /// <summary>
+    /// A raw TCP WebSocket server on 127.0.0.1 (no HttpListener, so a script can drop
+    /// the TCP connection itself without a close frame). Each accepted connection runs
+    /// the script with its zero-based index.
+    /// </summary>
+    private sealed class ScriptedLoopbackWebSocketServer : IAsyncDisposable
+    {
+        private readonly System.Net.Sockets.TcpListener _listener = new(IPAddress.Loopback, 0);
+        private readonly Func<int, WebSocket, System.Net.Sockets.Socket, CancellationToken, Task> _script;
+        private readonly CancellationTokenSource _cts = new();
+        private readonly List<Task> _connections = new();
+        private readonly Task _acceptLoop;
+        private int _connectionCount;
+
+        public ScriptedLoopbackWebSocketServer(Func<int, WebSocket, System.Net.Sockets.Socket, CancellationToken, Task> script)
+        {
+            _script = script;
+            _listener.Start();
+            Uri = new Uri($"ws://127.0.0.1:{((IPEndPoint)_listener.LocalEndpoint).Port}/live");
+            _acceptLoop = AcceptLoopAsync();
+        }
+
+        public Uri Uri { get; }
+
+        public int ConnectionCount => Volatile.Read(ref _connectionCount);
+
+        private async Task AcceptLoopAsync()
+        {
+            try
+            {
+                while (!_cts.IsCancellationRequested)
+                {
+                    var socket = await _listener.AcceptSocketAsync(_cts.Token);
+                    var index = Interlocked.Increment(ref _connectionCount) - 1;
+                    lock (_connections)
+                        _connections.Add(Task.Run(() => ServeAsync(index, socket)));
+                }
+            }
+            catch (Exception ex) when (ex is OperationCanceledException or System.Net.Sockets.SocketException or ObjectDisposedException)
+            {
+            }
+        }
+
+        private async Task ServeAsync(int index, System.Net.Sockets.Socket socket)
+        {
+            try
+            {
+                var stream = new System.Net.Sockets.NetworkStream(socket, ownsSocket: false);
+                var request = new System.Text.StringBuilder();
+                var one = new byte[1];
+                while (!request.ToString().EndsWith("\r\n\r\n", StringComparison.Ordinal))
+                {
+                    if (await stream.ReadAsync(one, _cts.Token) == 0)
+                        return;
+                    request.Append((char)one[0]);
+                }
+
+                var key = request.ToString().Split("\r\n")
+                    .First(line => line.StartsWith("Sec-WebSocket-Key:", StringComparison.OrdinalIgnoreCase))
+                    .Substring("Sec-WebSocket-Key:".Length).Trim();
+                var accept = Convert.ToBase64String(System.Security.Cryptography.SHA1.HashData(
+                    System.Text.Encoding.ASCII.GetBytes(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")));
+                await stream.WriteAsync(System.Text.Encoding.ASCII.GetBytes(
+                    "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n" +
+                    $"Sec-WebSocket-Accept: {accept}\r\n\r\n"), _cts.Token);
+
+                using var ws = WebSocket.CreateFromStream(stream, new WebSocketCreationOptions { IsServer = true });
+                await _script(index, ws, socket, _cts.Token);
+            }
+            catch (Exception ex) when (ex is OperationCanceledException or IOException or WebSocketException
+                                           or System.Net.Sockets.SocketException or ObjectDisposedException or TimeoutException)
+            {
+            }
+            finally
+            {
+                socket.Dispose();
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            _cts.Cancel();
+            _listener.Stop();
+            Task[] pending;
+            lock (_connections)
+                pending = _connections.Append(_acceptLoop).ToArray();
+            await Task.WhenAny(Task.WhenAll(pending), Task.Delay(TimeSpan.FromSeconds(5)));
+            _cts.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Speaks a tiny JSON protocol: <c>{"t":"final","text":...}</c> is a final
+    /// transcript and <c>{"t":"boom"}</c> makes ParseMessage throw. The session starts
+    /// on open with no start messages, and stop is a plain close.
+    /// </summary>
+    private sealed class LoopbackScriptedStrategy(Uri uri) : IStreamingProviderStrategy
+    {
+        public string TranscriptionProviderLabel => "loopback";
+        public bool SupportsVocabulary => false;
+        public bool SessionStartsOnWebSocketOpen => true;
+        public int AudioSampleRate => 16000;
+
+        public Uri? BuildWebSocketUri(StreamingSessionConfig config) => uri;
+        public void ConfigureWebSocket(ClientWebSocket webSocket, StreamingSessionConfig config) { }
+        public (byte[] Data, WebSocketMessageType Type) EncodeAudioChunk(byte[] pcmData) => (pcmData, WebSocketMessageType.Binary);
+
+        public StreamingProviderEvent? ParseMessage(string text)
+        {
+            var node = JsonNode.Parse(text);
+            return node?["t"]?.GetValue<string>() switch
+            {
+                "final" => new StreamingProviderEvent.FinalTranscript(node["text"]!.GetValue<string>()),
+                "boom" => throw new InvalidOperationException("scripted ParseMessage failure"),
+                _ => null
+            };
+        }
+
+        public IReadOnlyList<StreamingStopStep> GetStopSequence() => new[] { new StreamingStopStep(StreamingStopAction.Close) };
+        public IReadOnlyList<(byte[] Data, WebSocketMessageType Type)> GetStartMessages(StreamingSessionConfig config) =>
+            Array.Empty<(byte[] Data, WebSocketMessageType Type)>();
+        public Task OnAudioSendOpportunityAsync(
+            Func<byte[], WebSocketMessageType, CancellationToken, Task> webSocketSendAsync,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+        public bool IsTerminalCloseCode(int closeCode) => false;
+    }
+    // ---- END #2296 streaming reconnect receive checks ----
 
     /// <summary>
     /// An <c>ISampleProvider</c> that hands out a scripted, deliberately awkward number of
