@@ -280,7 +280,9 @@
       "dataTraining": "Tietosuoja"
     },
     "copyright": "© 2026 HyperWhisper. Kaikki oikeudet pidätetään.",
-    "linkedinAria": "LinkedIn"
+    "linkedinAria": "LinkedIn",
+    "xAria": "Seuraa HyperWhisperiä X:ssä (Twitter)",
+    "githubAria": "HyperWhisper GitHubissa"
   },
   "cloudSection": {
     "eyebrow": "Cloud",

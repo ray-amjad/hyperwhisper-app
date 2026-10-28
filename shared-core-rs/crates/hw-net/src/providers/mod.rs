@@ -21,3 +21,5 @@ pub mod mistral;
 pub mod meta;
 pub mod openai;
 pub mod soniox;
+#[cfg(test)]
+mod test_support;
