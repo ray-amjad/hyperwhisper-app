@@ -49,12 +49,12 @@ const sites = ["app", "components"]
   .flatMap((path) => {
     const file = relative(root, path);
     const source = readFileSync(path, "utf8");
-    return [...source.matchAll(/<Card\b([^>]*?)>/g)].flatMap((m) => {
+    return Array.from(source.matchAll(/<Card\b([^>]*?)>/g)).flatMap((m) => {
       const attr = m[1].match(/className=(?:"([^"]*)"|\{`([^`]*)`\})/);
       if (!attr) return [];
       const classes = (attr[1] ?? attr[2]).split(/\s+/).filter(Boolean);
       const colours = classes.filter(
-        (c) => !c.includes(":") && BORDER_COLOUR.test(c),
+        (c: string) => !c.includes(":") && BORDER_COLOUR.test(c),
       );
       if (colours.length === 0) return [];
       if (EXCLUDED.some((e) => e.file === file && colours.includes(e.colour))) {
