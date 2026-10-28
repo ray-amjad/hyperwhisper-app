@@ -119,7 +119,7 @@
       },
       "offlineModels": {
         "question": "Millised offline mudelid on saadaval?",
-        "answer": "Offline transkriptsiooniks pakume Whisper-mudeli mitut suurust (loodud OpenAI poolt, toetab 99+ keelt). Pakume ka NVidia Parakeet mudeleid (toetavad 25+ keelt).\n      \n      Offline järeltöötluseks pakume Gemma 3 mudeli mitut suurust (loodud Google'i poolt)."
+        "answer": "Offline transkriptsiooniks pakume Whisper-mudeli mitut suurust (loodud OpenAI poolt, toetab 99+ keelt). Pakume ka NVidia Parakeet mudeleid (toetavad 25+ keelt).\n      \n      Offline järeltöötluseks pakume Gemma 4 mudeli mitut suurust (loodud Google'i poolt)."
       },
       "compatibility": {
         "question": "Kas see töötab kõigi minu rakendustega?",

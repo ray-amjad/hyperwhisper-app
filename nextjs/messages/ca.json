@@ -119,7 +119,7 @@
       },
       "offlineModels": {
         "question": "Quins models fora de línia hi ha disponibles?",
-        "answer": "Per a transcripció fora de línia, oferim diverses mides del model Whisper (creat per OpenAI, amb suport per a 99+ idiomes). També oferim els models Parakeet de NVidia (amb suport per a 25+ idiomes).\n      \n      Per a postprocessament fora de línia, oferim diverses mides del model Gemma 3 (creat per Google)."
+        "answer": "Per a transcripció fora de línia, oferim diverses mides del model Whisper (creat per OpenAI, amb suport per a 99+ idiomes). També oferim els models Parakeet de NVidia (amb suport per a 25+ idiomes).\n      \n      Per a postprocessament fora de línia, oferim diverses mides del model Gemma 4 (creat per Google)."
       },
       "compatibility": {
         "question": "Funciona amb totes les meves aplicacions?",

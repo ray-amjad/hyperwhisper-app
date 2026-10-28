@@ -119,7 +119,7 @@
       },
       "offlineModels": {
         "question": "Kādi bezsaistes modeļi ir pieejami?",
-        "answer": "Bezsaistes transkripcijai piedāvājam vairākus Whisper modeļa izmērus (izstrādājis OpenAI, atbalsta 99+ valodas). Piedāvājam arī NVidia Parakeet modeļus (atbalsta 25+ valodas).\n      \n      Bezsaistes pēcapstrādei piedāvājam vairākus Gemma 3 modeļa izmērus (izstrādājis Google)."
+        "answer": "Bezsaistes transkripcijai piedāvājam vairākus Whisper modeļa izmērus (izstrādājis OpenAI, atbalsta 99+ valodas). Piedāvājam arī NVidia Parakeet modeļus (atbalsta 25+ valodas).\n      \n      Bezsaistes pēcapstrādei piedāvājam vairākus Gemma 4 modeļa izmērus (izstrādājis Google)."
       },
       "compatibility": {
         "question": "Vai tas darbojas ar visām manām lietotnēm?",

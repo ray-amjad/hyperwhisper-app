@@ -119,7 +119,7 @@
       },
       "offlineModels": {
         "question": "Có những mô hình offline nào?",
-        "answer": "Cho chuyển giọng nói offline, chúng tôi cung cấp nhiều kích cỡ mô hình Whisper (do OpenAI phát triển, hỗ trợ 99+ ngôn ngữ). Chúng tôi cũng cung cấp các mô hình Parakeet của NVidia (hỗ trợ 25+ ngôn ngữ).\n      \n      Cho hậu xử lý offline, chúng tôi cung cấp nhiều kích cỡ mô hình Gemma 3 (do Google phát triển)."
+        "answer": "Cho chuyển giọng nói offline, chúng tôi cung cấp nhiều kích cỡ mô hình Whisper (do OpenAI phát triển, hỗ trợ 99+ ngôn ngữ). Chúng tôi cũng cung cấp các mô hình Parakeet của NVidia (hỗ trợ 25+ ngôn ngữ).\n      \n      Cho hậu xử lý offline, chúng tôi cung cấp nhiều kích cỡ mô hình Gemma 4 (do Google phát triển)."
       },
       "compatibility": {
         "question": "Có hoạt động với mọi ứng dụng của tôi không?",

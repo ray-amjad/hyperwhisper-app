@@ -119,7 +119,7 @@
       },
       "offlineModels": {
         "question": "Milyen offline modellek érhetők el?",
-        "answer": "Offline átíráshoz a Whisper modell több méretét kínáljuk (OpenAI fejlesztés, 99+ nyelv támogatása). Emellett az NVidia Parakeet modelljeit is kínáljuk (25+ nyelv támogatása).\n      \n      Offline utófeldolgozáshoz a Gemma 3 modell több méretét kínáljuk (Google fejlesztés)."
+        "answer": "Offline átíráshoz a Whisper modell több méretét kínáljuk (OpenAI fejlesztés, 99+ nyelv támogatása). Emellett az NVidia Parakeet modelljeit is kínáljuk (25+ nyelv támogatása).\n      \n      Offline utófeldolgozáshoz a Gemma 4 modell több méretét kínáljuk (Google fejlesztés)."
       },
       "compatibility": {
         "question": "Minden alkalmazásommal működik?",

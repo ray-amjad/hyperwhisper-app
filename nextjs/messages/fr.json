@@ -119,7 +119,7 @@
       },
       "offlineModels": {
         "question": "Quels modèles hors ligne sont disponibles ?",
-        "answer": "Pour la transcription hors ligne, nous proposons plusieurs tailles du modèle Whisper (créé par OpenAI, prenant en charge 99+ langues). Nous proposons aussi les modèles Parakeet de NVidia (prenant en charge 25+ langues).\n      \n      Pour le post-traitement hors ligne, nous proposons plusieurs tailles du modèle Gemma 3 (créé par Google)."
+        "answer": "Pour la transcription hors ligne, nous proposons plusieurs tailles du modèle Whisper (créé par OpenAI, prenant en charge 99+ langues). Nous proposons aussi les modèles Parakeet de NVidia (prenant en charge 25+ langues).\n      \n      Pour le post-traitement hors ligne, nous proposons plusieurs tailles du modèle Gemma 4 (créé par Google)."
       },
       "compatibility": {
         "question": "Fonctionne-t-il avec toutes mes apps ?",

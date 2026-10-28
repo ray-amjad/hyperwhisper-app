@@ -119,7 +119,7 @@
       },
       "offlineModels": {
         "question": "Mitä offline-malleja on saatavilla?",
-        "answer": "Offline-litterointiin tarjoamme useita kokoja Whisper-mallista (OpenAI:n tekemä, tukee 99+ kieltä). Tarjoamme myös NVidia's Parakeet -malleja (tukee 25+ kieltä).\n      \n      Offline-jälkikäsittelyyn tarjoamme useita kokoja Gemma 3 -mallista (Googlen tekemä)."
+        "answer": "Offline-litterointiin tarjoamme useita kokoja Whisper-mallista (OpenAI:n tekemä, tukee 99+ kieltä). Tarjoamme myös NVidia's Parakeet -malleja (tukee 25+ kieltä).\n      \n      Offline-jälkikäsittelyyn tarjoamme useita kokoja Gemma 4 -mallista (Googlen tekemä)."
       },
       "compatibility": {
         "question": "Toimiiko se kaikissa sovelluksissani?",

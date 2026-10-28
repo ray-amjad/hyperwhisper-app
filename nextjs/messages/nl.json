@@ -119,7 +119,7 @@
       },
       "offlineModels": {
         "question": "Welke offline modellen zijn beschikbaar?",
-        "answer": "Voor offline transcriptie bieden we meerdere groottes van het Whisper-model (gemaakt door OpenAI, met ondersteuning voor 99+ talen). We bieden ook NVidia's Parakeet-modellen (met ondersteuning voor 25+ talen).\n      \n      Voor offline nabewerking bieden we meerdere groottes van het Gemma 3-model (gemaakt door Google)."
+        "answer": "Voor offline transcriptie bieden we meerdere groottes van het Whisper-model (gemaakt door OpenAI, met ondersteuning voor 99+ talen). We bieden ook NVidia's Parakeet-modellen (met ondersteuning voor 25+ talen).\n      \n      Voor offline nabewerking bieden we meerdere groottes van het Gemma 4-model (gemaakt door Google)."
       },
       "compatibility": {
         "question": "Werkt het met al mijn apps?",

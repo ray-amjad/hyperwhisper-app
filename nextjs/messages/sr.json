@@ -119,7 +119,7 @@
       },
       "offlineModels": {
         "question": "Koji offline modeli su dostupni?",
-        "answer": "Za offline transkripciju nudimo više veličina Whisper modela (napravljen od OpenAI, podržava 99+ jezika). Nudimo i NVidia Parakeet modele (podržavaju 25+ jezika).\n      \n      Za offline naknadnu obradu nudimo više veličina Gemma 3 modela (napravljen od Google)."
+        "answer": "Za offline transkripciju nudimo više veličina Whisper modela (napravljen od OpenAI, podržava 99+ jezika). Nudimo i NVidia Parakeet modele (podržavaju 25+ jezika).\n      \n      Za offline naknadnu obradu nudimo više veličina Gemma 4 modela (napravljen od Google)."
       },
       "compatibility": {
         "question": "Da li radi sa svim mojim aplikacijama?",

@@ -119,7 +119,7 @@
       },
       "offlineModels": {
         "question": "오프라인 모델은 무엇이 있나요?",
-        "answer": "오프라인 전사용으로 Whisper 모델의 다양한 크기(제작: OpenAI, 99+ 언어 지원)를 제공합니다. 또한 NVIDIA의 Parakeet 모델(25+ 언어 지원)도 제공합니다.\n      \n      오프라인 후처리용으로는 Gemma 3 모델의 다양한 크기(제작: Google)를 제공합니다."
+        "answer": "오프라인 전사용으로 Whisper 모델의 다양한 크기(제작: OpenAI, 99+ 언어 지원)를 제공합니다. 또한 NVIDIA의 Parakeet 모델(25+ 언어 지원)도 제공합니다.\n      \n      오프라인 후처리용으로는 Gemma 4 모델의 다양한 크기(제작: Google)를 제공합니다."
       },
       "compatibility": {
         "question": "제가 쓰는 모든 앱에서 동작하나요?",

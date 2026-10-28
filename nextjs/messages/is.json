@@ -119,7 +119,7 @@
       },
       "offlineModels": {
         "question": "Hvaða offline líkön eru í boði?",
-        "answer": "Fyrir offline umritun bjóðum við upp á margar stærðir af Whisper líkaninu (frá OpenAI, styður 99+ tungumál). Við bjóðum einnig Parakeet líkön frá NVidia (styðja 25+ tungumál).\n      \n      Fyrir offline eftirvinnslu bjóðum við upp á margar stærðir af Gemma 3 líkaninu (frá Google)."
+        "answer": "Fyrir offline umritun bjóðum við upp á margar stærðir af Whisper líkaninu (frá OpenAI, styður 99+ tungumál). Við bjóðum einnig Parakeet líkön frá NVidia (styðja 25+ tungumál).\n      \n      Fyrir offline eftirvinnslu bjóðum við upp á margar stærðir af Gemma 4 líkaninu (frá Google)."
       },
       "compatibility": {
         "question": "Virkar þetta með öllum öppunum mínum?",

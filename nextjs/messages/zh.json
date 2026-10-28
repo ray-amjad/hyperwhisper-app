@@ -119,7 +119,7 @@
       },
       "offlineModels": {
         "question": "有哪些离线模型可用？",
-        "answer": "离线转写提供多种大小的 Whisper 模型（OpenAI 出品，支持 99+ 语言），也提供 NVIDIA 的 Parakeet 模型（支持 25+ 语言）。\n      \n      离线后处理提供多种大小的 Gemma 3 模型（Google 出品）。"
+        "answer": "离线转写提供多种大小的 Whisper 模型（OpenAI 出品，支持 99+ 语言），也提供 NVIDIA 的 Parakeet 模型（支持 25+ 语言）。\n      \n      离线后处理提供多种大小的 Gemma 4 模型（Google 出品）。"
       },
       "compatibility": {
         "question": "能在我所有的应用中使用吗？",
