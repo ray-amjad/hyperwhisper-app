@@ -266,7 +266,12 @@ public static class PortableLocalApi
             return (default, Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body must be application/json."));
         try { return (await context.Request.ReadFromJsonAsync<T>(cancellationToken: ct), null); }
         catch (JsonException) { return (default, Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body is invalid JSON.")); }
-        catch (InvalidOperationException) { return (default, Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body's charset is not supported.")); }
+        // Only the unknown-charset throw wraps an ArgumentException from
+        // Encoding.GetEncoding; any other InvalidOperationException is ours.
+        catch (InvalidOperationException ex) when (ex.InnerException is ArgumentException)
+        {
+            return (default, Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body's charset is not supported."));
+        }
     }
 
     private static async Task<(JsonElement Value, IResult? Error)> ReadJsonObject(HttpContext context, CancellationToken ct)

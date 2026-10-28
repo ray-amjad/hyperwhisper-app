@@ -49,6 +49,12 @@ static class JsonContentTypeTests
                 Check(!json.RootElement.GetProperty("ok").GetBoolean(), $"{label} answered ok:true");
                 var code = json.RootElement.GetProperty("error").GetProperty("code").GetString();
                 Check(code == LocalApiErrorCodes.InvalidRequest, $"{label} answered {code}, not {LocalApiErrorCodes.InvalidRequest}");
+                // /transcribe keeps its own Content-Type check and form path.
+                if (path == "/transcribe") continue;
+                var expected = contentType is not null && contentType.Contains("charset=bogus", StringComparison.Ordinal)
+                    ? "The request body's charset is not supported." : "The request body must be application/json.";
+                var message = json.RootElement.GetProperty("error").GetProperty("message").GetString();
+                Check(message == expected, $"{label} answered \"{message}\", not \"{expected}\"");
             }
         }
 
