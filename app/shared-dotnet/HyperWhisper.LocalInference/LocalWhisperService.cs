@@ -1,4 +1,3 @@
-using System.Runtime.ExceptionServices;
 using System.Text;
 using Whisper.net;
 using Whisper.net.LibraryLoader;
@@ -172,34 +171,53 @@ public sealed class LocalWhisperService : ILocalWhisperService
                 // Once the ARM64 rule's thread exists it holds the only factory, so
                 // every request goes through it (x64 and Linux never start it).
                 OnFactoryThread: _requestFactoryThread is not null || request.CreateFactoryOnRequestThread);
+            // Set while a native run on the kept processor is in flight: only a
+            // cancel or failure that may have interrupted one costs it (issue #1006).
+            var keptRunning = false;
             try
             {
                 // The clip's length picks the encoder window, so the audio is read
-                // before the processor is chosen. A file that cannot be read still
-                // fails after the processor is made, as before, so a broken model
-                // reports as the model's (the old code built the processor first).
-                float[]? samples = null;
-                ExceptionDispatchInfo? readFault = null;
+                // before the processor is chosen.
+                float[] samples;
                 try
                 {
                     samples = await ReadSamplesAsync(request.AudioPath, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception exception) when (exception is not OperationCanceledException)
                 {
-                    readFault = ExceptionDispatchInfo.Capture(exception);
+                    // The file's fault, so the kept processor stays. With none kept, one
+                    // is still built first, as the old code did, so a broken model
+                    // reports as the model's and not as a bad file.
+                    if (_processor is null)
+                    {
+                        await ProcessorForAsync(key).ConfigureAwait(false);
+                    }
+                    return LocalWhisperResult.Failed(
+                        LocalWhisperErrorCode.TranscriptionFailed,
+                        "Local Whisper transcription failed.",
+                        _runtime);
                 }
                 var audioContext = AudioContextFor(samples);
                 var processor = await ProcessorForAsync(key with { AudioContext = audioContext }).ConfigureAwait(false);
-                readFault?.Throw();
-                var sink = await RunAsync(processor, samples!, request.IncludeWordTimestamps, cancellationToken).ConfigureAwait(false);
+                keptRunning = true;
+                var sink = await RunAsync(processor, samples, request.IncludeWordTimestamps, cancellationToken).ConfigureAwait(false);
+                keptRunning = false;
                 // A shortened window can loop on one phrase (a known whisper.cpp
                 // failure); text far denser than speech is redone on the full
-                // 30 s window, the old behaviour (issue #1006).
-                if (audioContext > 0 && LooksRunaway(sink.Text.Length, samples!.Length))
+                // 30 s window, the old behaviour. That run gets its own processor,
+                // so the kept short one serves the next clip (issue #1006).
+                if (audioContext > 0 && IsRunaway(sink.Text.Length, samples.Length))
                 {
                     Interlocked.Increment(ref _fullWindowRetries);
-                    processor = await ProcessorForAsync(key).ConfigureAwait(false);
-                    sink = await RunAsync(processor, samples, request.IncludeWordTimestamps, cancellationToken).ConfigureAwait(false);
+                    var fullWindow = await BuildAsync(key).ConfigureAwait(false);
+                    try
+                    {
+                        sink = await RunAsync(fullWindow, samples, request.IncludeWordTimestamps, cancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        await DisposeQuietlyAsync(fullWindow).ConfigureAwait(false);
+                    }
                 }
                 // Whisper writes its own non-speech markers (a blank-audio tag and kin)
                 // as segment text. A silent file or mic must come back empty, so
@@ -219,8 +237,12 @@ public sealed class LocalWhisperService : ILocalWhisperService
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                // Not proven safe to reuse after a native abort, so it goes.
-                await DropProcessorAsync().ConfigureAwait(false);
+                // Not proven safe to reuse after a native abort, so it goes. A cancel
+                // while reading the file, or in a one-off full-window run, leaves it.
+                if (keptRunning)
+                {
+                    await DropProcessorAsync().ConfigureAwait(false);
+                }
                 return LocalWhisperResult.Failed(
                     LocalWhisperErrorCode.Cancelled,
                     "Transcription was cancelled.",
@@ -303,8 +325,12 @@ public sealed class LocalWhisperService : ILocalWhisperService
     /// the full window, because a shortened one made tiny.en hear "you" in
     /// zeros where the full window hears nothing (issue #1006).
     /// </summary>
-    internal static int AudioContextFor(float[]? samples) =>
-        samples is null || IsDigitalSilence(samples) ? 0 : AudioContextFor(samples.LongLength);
+    internal static int AudioContextFor(float[]? samples)
+    {
+        // Length first: a clip that gets the full window anyway is never scanned.
+        var context = AudioContextFor(samples?.LongLength);
+        return context > 0 && IsDigitalSilence(samples!) ? 0 : context;
+    }
 
     /// <summary>
     /// -80 dBFS. Zeros and 1-3 LSB of 16-bit dither sit under it; the quietest
@@ -363,6 +389,18 @@ public sealed class LocalWhisperService : ILocalWhisperService
         // Dropped before the ARM64 thread can take over (and dispose) the
         // load's factory, which this processor was made from.
         await DropProcessorAsync().ConfigureAwait(false);
+        var processor = await BuildAsync(key).ConfigureAwait(false);
+        _processor = (processor, key);
+        return processor;
+    }
+
+    /// <summary>
+    /// A new processor for <paramref name="key"/>, not kept. On the ARM64 rule's
+    /// path it is built on the factory thread, like the factory and its builder,
+    /// and like a kept one it must be disposed before that thread is.
+    /// </summary>
+    private async Task<WhisperProcessor> BuildAsync(ProcessorKey key)
+    {
         var processor = key.OnFactoryThread
             ? await RequestFactoryThread().RunAsync(factory =>
                 {
@@ -378,7 +416,6 @@ public sealed class LocalWhisperService : ILocalWhisperService
                     return Configure(builder, key);
                 }).ConfigureAwait(false)
             : Configure(_factory!.CreateBuilder(), key);
-        _processor = (processor, key);
         Interlocked.Increment(ref _processorsBuilt);
         return processor;
     }
@@ -443,10 +480,15 @@ public sealed class LocalWhisperService : ILocalWhisperService
     {
         if (_processor is not { } kept) return;
         _processor = null;
+        await DisposeQuietlyAsync(kept.Processor).ConfigureAwait(false);
+    }
+
+    private static async Task DisposeQuietlyAsync(WhisperProcessor processor)
+    {
         try
         {
             // Waits for a native run still unwinding from a cancel.
-            await kept.Processor.DisposeAsync().ConfigureAwait(false);
+            await processor.DisposeAsync().ConfigureAwait(false);
         }
         catch
         {
@@ -462,6 +504,9 @@ public sealed class LocalWhisperService : ILocalWhisperService
 
     /// <summary>Test seam: how many shortened-window runs were redone on the full window.</summary>
     internal int FullWindowRetries => Volatile.Read(ref _fullWindowRetries);
+
+    /// <summary>Test seam: the repetition-loop rule, <see cref="LooksRunaway"/> unless a test forces a retry.</summary>
+    internal Func<int, long, bool> IsRunaway { get; set; } = LooksRunaway;
 
     /// <summary>Every option a processor fixes at Build; a kept one is reused only on an exact match.</summary>
     private readonly record struct ProcessorKey(

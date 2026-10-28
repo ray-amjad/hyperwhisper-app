@@ -123,12 +123,15 @@ static class AudioContextChecks
                     .All(word => word.End <= clipEnd + 0.5),
                 $"a word ends past the {clipEnd:F1} s clip: {string.Join(", ", timed.Timestamps.Words.Select(w => $"{w.Word}@{w.End:F2}"))}");
 
-            var failed = await service.TranscribeAsync(new LocalWhisperRequest(broken, "en"));
+            // An unreadable file is the file's fault: no build, and the kept processor stays.
+            var beforeBroken = service.ProcessorsBuilt;
+            var failed = await service.TranscribeAsync(new LocalWhisperRequest(broken, "en", IncludeWordTimestamps: true));
             Check(failed.Failure?.Code == LocalWhisperErrorCode.TranscriptionFailed, $"a broken file gave {failed.Failure?.Code.ToString() ?? "success"}");
-            Check(service.KeptAudioContext is null, "a failed file kept its processor");
-            var beforeRetry = service.ProcessorsBuilt;
-            Check((await service.TranscribeAsync(new LocalWhisperRequest(shortClip, "en"))).IsSuccess, "the call after a failure failed");
-            Check(service.ProcessorsBuilt == beforeRetry + 1, "the call after a failure reused a processor");
+            Check(service.ProcessorsBuilt == beforeBroken && service.KeptAudioContext == shortContext,
+                $"a broken file built {service.ProcessorsBuilt - beforeBroken} processors and kept window {service.KeptAudioContext}");
+            var timedAgain = await service.TranscribeAsync(new LocalWhisperRequest(shortClip, "en", IncludeWordTimestamps: true));
+            Check(timedAgain.Text == timed.Text && service.ProcessorsBuilt == beforeBroken, "the call after a broken file did not reuse the kept processor");
+            Check((await service.TranscribeAsync(new LocalWhisperRequest(shortClip, "en"))).Text == first, "the plain call after a broken file heard otherwise");
 
             using (var cancel = new CancellationTokenSource())
             {
@@ -139,6 +142,18 @@ static class AudioContextChecks
                 Check(service.KeptAudioContext is null, "a cancelled call kept its processor");
             }
             Check((await service.TranscribeAsync(new LocalWhisperRequest(shortClip, "en"))).Text == first, "the call after a cancel heard otherwise");
+
+            // A loop redone on the full window runs on a one-off processor; the kept short one stays.
+            var beforeLoop = service.ProcessorsBuilt;
+            service.IsRunaway = (_, _) => true;
+            var redone = await service.TranscribeAsync(new LocalWhisperRequest(shortClip, "en"));
+            service.IsRunaway = LocalWhisperService.LooksRunaway;
+            Check(redone.IsSuccess && !string.IsNullOrWhiteSpace(redone.Text), redone.Failure?.Message ?? "the full-window redo was empty");
+            Check(service.FullWindowRetries == 1, $"{service.FullWindowRetries} redos, expected 1");
+            Check(service.ProcessorsBuilt == beforeLoop + 1 && service.KeptAudioContext == shortContext,
+                $"a redo built {service.ProcessorsBuilt - beforeLoop} processors and kept window {service.KeptAudioContext}, expected 1 and {shortContext}");
+            Check((await service.TranscribeAsync(new LocalWhisperRequest(shortClip, "en"))).Text == first && service.ProcessorsBuilt == beforeLoop + 1,
+                "the call after a redo did not reuse the kept short processor");
 
             Check((await service.LoadAsync(options)).IsSuccess, "reload failed");
             Check(service.KeptAudioContext is null, "a reload kept the old model's processor");
@@ -154,12 +169,21 @@ static class AudioContextChecks
             Check(service.RequestFactoriesBuilt == 1 && service.FactoriesHeld == 1,
                 $"ARM64: built {service.RequestFactoriesBuilt} factories, holding {service.FactoriesHeld}, expected 1 and 1");
             var afterFailure = await service.TranscribeAsync(new LocalWhisperRequest(broken, "en", CreateFactoryOnRequestThread: true));
-            Check(afterFailure.Failure?.Code == LocalWhisperErrorCode.TranscriptionFailed && service.KeptAudioContext is null,
-                "an ARM64 failure kept its processor");
-            Check((await service.TranscribeAsync(new LocalWhisperRequest(shortClip, "en", CreateFactoryOnRequestThread: true))).Text == first,
-                "the ARM64 call after a failure heard otherwise");
-            Check(service.RequestFactoriesBuilt == 2, $"an ARM64 failure did not reset the factory ({service.RequestFactoriesBuilt} built)");
-            Check(service.FullWindowRetries == 0, $"{service.FullWindowRetries} shortened runs were redone on the full window");
+            Check(afterFailure.Failure?.Code == LocalWhisperErrorCode.TranscriptionFailed && service.KeptAudioContext == shortContext
+                    && service.ProcessorsBuilt == built + 1 && service.RequestFactoriesBuilt == 1,
+                "an ARM64 broken file cost the kept processor, a build or the factory");
+            // The one-off full-window processor is made on the factory thread too.
+            service.IsRunaway = (_, _) => true;
+            var armRedo = await service.TranscribeAsync(new LocalWhisperRequest(shortClip, "en", CreateFactoryOnRequestThread: true));
+            service.IsRunaway = LocalWhisperService.LooksRunaway;
+            Check(armRedo.IsSuccess && service.ProcessorsBuilt == built + 2 && service.KeptAudioContext == shortContext
+                    && service.RequestFactoriesBuilt == 1 && service.FactoriesHeld == 1,
+                $"ARM64 redo: built {service.ProcessorsBuilt - built}, kept {service.KeptAudioContext}, factories {service.RequestFactoriesBuilt}/{service.FactoriesHeld}");
+            Check((await service.TranscribeAsync(new LocalWhisperRequest(shortClip, "en", CreateFactoryOnRequestThread: true))).Text == first
+                    && service.ProcessorsBuilt == built + 2,
+                "the ARM64 call after a redo did not reuse the kept processor");
+            // Only the two forced redos: no real clip looped.
+            Check(service.FullWindowRetries == 2, $"{service.FullWindowRetries} redos, expected only the 2 forced ones");
         }
         finally
         {
