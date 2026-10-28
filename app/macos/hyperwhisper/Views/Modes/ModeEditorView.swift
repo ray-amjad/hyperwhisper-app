@@ -31,6 +31,7 @@ struct ModeEditorView: View {
     @EnvironmentObject var whisperModelManager: WhisperModelManager
     @EnvironmentObject var parakeetModelManager: ParakeetModelManager
     @EnvironmentObject var cloudHealth: CloudProviderHealthManager
+    @EnvironmentObject var localModelManager: LocalModelManager
 
     // MARK: - State Properties
 
@@ -77,6 +78,17 @@ struct ModeEditorView: View {
             name,
             editing: configuration.mode.map { ModeNameEntry(id: $0.id, name: $0.name) },
             existingModes: existingModes
+        )
+    }
+
+    /// True when Post Processing is Local but no usable on-device LLM backs it
+    /// (issue #1858): Save is disabled, and the Local section's orange note says
+    /// why. Saving it anyway wrote a row the next open silently turned Off.
+    private var localPostProcessingIsBroken: Bool {
+        LocalPostProcessingCheck.isBroken(
+            mode: postProcessingMode,
+            languageModel: languageModel,
+            localModelManager: localModelManager
         )
     }
 
@@ -703,6 +715,7 @@ struct ModeEditorView: View {
             // Save/Create button
             Button {
                 guard hasValidDictationLanguage, !nameIsTaken else { return }
+                guard !localPostProcessingIsBroken else { return }
                 hasSubmitted = true
                 let chosenModel = ModeEditorDefaults.savedModel(
                     provider: provider,
@@ -750,7 +763,7 @@ struct ModeEditorView: View {
             .keyboardShortcut(.defaultAction)
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(normalizedName == nil || nameIsTaken || !hasValidDictationLanguage || (provider == .local && localPickerModelIds().isEmpty))
+            .disabled(normalizedName == nil || nameIsTaken || !hasValidDictationLanguage || (provider == .local && localPickerModelIds().isEmpty) || localPostProcessingIsBroken)
         }
         .padding(20)
         .background(Color(NSColor.controlBackgroundColor))
