@@ -18,7 +18,7 @@ namespace HyperWhisper.SmokeTests;
 
 internal static class TranscriptionRetryHandlerChecks
 {
-    private const string OldReason = "percy1037 old reason";
+    private const string OldReason = "test1037 old reason";
 
     public static void RunAll(Action<string, Action> run)
     {
@@ -60,7 +60,7 @@ internal static class TranscriptionRetryHandlerChecks
         run("history retry: a TranscriptionException saves Failed with its user message, and the caller still sees it (#1037)", () =>
             WithAudio(audio =>
             {
-                var failure = new TranscriptionException(TranscriptionErrorCode.Unauthorized, "percy1037 raw provider body", "Provider 1037");
+                var failure = new TranscriptionException(TranscriptionErrorCode.Unauthorized, "test1037 raw provider body", "Provider 1037");
                 var rig = new Rig((_, _, _, _, _, _) => Task.FromException<TranscriptionResult>(failure));
                 var vm = FailedTranscript(audio);
 
@@ -78,7 +78,7 @@ internal static class TranscriptionRetryHandlerChecks
                 }
 
                 // Any other exception stores its own message.
-                var plain = new InvalidOperationException("percy1037 plain failure");
+                var plain = new InvalidOperationException("test1037 plain failure");
                 var plainRig = new Rig((_, _, _, _, _, _) => Task.FromException<TranscriptionResult>(plain));
                 var plainVm = FailedTranscript(audio);
                 Assert(ReferenceEquals(Catch(() => plainRig.Handler.RetryTranscriptionAsync(plainVm, CloudMode())), plain),
@@ -91,11 +91,11 @@ internal static class TranscriptionRetryHandlerChecks
         run("history retry: RetryCount goes 2 to 3 and LastRetryDate is now, on the row and the view model, both arms (#1037)", () =>
             WithAudio(audio =>
             {
-                var arms = new (string Arm, Rig.Transcribe Transcribe)[]
+                var arms = new (string Arm, TranscriptionRetryHandler.TranscribeAudio Transcribe)[]
                 {
                     ("success", (_, _, _, _, _, _) => Task.FromResult(new TranscriptionResult("raw", "final", "Provider 1037"))),
                     ("failure", (_, _, _, _, _, _) => Task.FromException<TranscriptionResult>(
-                        new TranscriptionException(TranscriptionErrorCode.NetworkError, "percy1037 offline"))),
+                        new TranscriptionException(TranscriptionErrorCode.NetworkError, "test1037 offline"))),
                 };
                 foreach (var (arm, transcribe) in arms)
                 {
@@ -127,7 +127,7 @@ internal static class TranscriptionRetryHandlerChecks
                     {
                         duringCall = vm!.IsRetrying;
                         return fail
-                            ? Task.FromException<TranscriptionResult>(new TranscriptionException(TranscriptionErrorCode.Unknown, "percy1037"))
+                            ? Task.FromException<TranscriptionResult>(new TranscriptionException(TranscriptionErrorCode.Unknown, "test1037"))
                             : Task.FromResult(new TranscriptionResult("raw", "final", "Provider 1037"));
                     });
                     vm = FailedTranscript(audio);
@@ -172,15 +172,11 @@ internal static class TranscriptionRetryHandlerChecks
 
     private sealed class Rig
     {
-        public delegate Task<TranscriptionResult> Transcribe(
-            string audioPath, Mode mode, IReadOnlyList<string>? vocabulary,
-            ITranscriptionProvider? localProvider, ApplicationContext? applicationContext, CancellationToken token);
-
         public List<Call> Calls { get; } = new();
         public List<Row> Saved { get; } = new();
         public TranscriptionRetryHandler Handler { get; }
 
-        public Rig(Transcribe transcribe)
+        public Rig(TranscriptionRetryHandler.TranscribeAudio transcribe)
         {
             Handler = new TranscriptionRetryHandler(
                 (audioPath, mode, vocabulary, localProvider, applicationContext, token) =>
@@ -241,7 +237,7 @@ internal static class TranscriptionRetryHandlerChecks
         finally
         {
             SynchronizationContext.SetSynchronizationContext(previous);
-            try { Directory.Delete(folder, recursive: true); } catch (IOException) { }
+            try { Directory.Delete(folder, recursive: true); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
     }
 
