@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, MapPin, Pin } from "lucide-react";
+import { ChevronRight, MapPin, Pin } from "lucide-react";
 
 import {
   BUCKET_LABELS,
@@ -426,11 +426,15 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                 type="button"
                 onClick={() => setByModel((open) => !open)}
               >
-                {byModel ? (
-                  <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} />
-                ) : (
-                  <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
-                )}
+                {/* One chevron that turns (#988), the way the FAQ and Devices
+                    disclosures do, not a second glyph swapped in. */}
+                <ChevronRight
+                  aria-hidden="true"
+                  className={`h-3.5 w-3.5 transition-transform duration-150 ease-[cubic-bezier(0.2,0,0,1)] ${
+                    byModel ? "rotate-90" : ""
+                  }`}
+                  strokeWidth={1.5}
+                />
                 Break down by model
               </button>
             </div>
@@ -626,7 +630,21 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                               )
                             }
                           >
-                            {pinned ? <Pin className="h-3 w-3" /> : null}
+                            {/* The pin keeps its 12px slot in both states and
+                                cross-fades in it (#931), so pinning never moves
+                                the name; the row's purple stays the main cue. */}
+                            <span
+                              aria-hidden="true"
+                              className="inline-flex h-3 w-3 shrink-0 items-center justify-center"
+                            >
+                              <Pin
+                                className={`h-3 w-3 transition-[opacity,filter,scale] duration-300 ease-[cubic-bezier(0.2,0,0,1)] ${
+                                  pinned
+                                    ? "scale-100 opacity-100"
+                                    : "scale-[0.25] opacity-0 blur-[4px]"
+                                }`}
+                              />
+                            </span>
                             {row.label}
                           </button>
                         )}
