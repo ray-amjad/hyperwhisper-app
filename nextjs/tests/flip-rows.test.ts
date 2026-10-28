@@ -13,10 +13,16 @@ import LatencyMatrix from "@/components/latency/LatencyMatrix";
 import {
   FLIP_DURATION_MS,
   FLIP_EASING,
+  FLIP_LAYER,
   FLIP_MAX_DISTANCE,
   slideRows,
 } from "@/lib/flip-rows";
 import type { LatencyMatrixData } from "@/lib/latency/types";
+
+/** #2458: the paint layer each kind of slide gets. */
+const UP = { position: "relative", zIndex: FLIP_LAYER.up };
+const DOWN = { position: "relative", zIndex: FLIP_LAYER.down };
+const FAR = { position: "relative", zIndex: FLIP_LAYER.far };
 
 type Call = { keyframes: Keyframe[]; options: KeyframeAnimationOptions };
 
@@ -75,12 +81,12 @@ test("a moved row slides from its old top; a still or new row does not", () => {
   slideRows(fakeTbody(), rows, before, new Map());
 
   assert.deepEqual(a[0].keyframes, [
-    { transform: "translateY(36px)" },
-    { transform: "none" },
+    { transform: "translateY(36px)", ...UP },
+    { transform: "none", ...UP },
   ]);
   assert.deepEqual(b[0].keyframes, [
-    { transform: "translateY(-36px)" },
-    { transform: "none" },
+    { transform: "translateY(-36px)", ...DOWN },
+    { transform: "none", ...DOWN },
   ]);
   assert.deepEqual(a[0].options, {
     duration: FLIP_DURATION_MS,
@@ -118,8 +124,8 @@ test("a far move is capped and fades in; an off-screen slide is skipped", () => 
   slideRows(fakeTbody(), rows, before, new Map());
 
   assert.deepEqual(far[0].keyframes, [
-    { transform: `translateY(${FLIP_MAX_DISTANCE}px)`, opacity: 0 },
-    { transform: "none", opacity: 1 },
+    { transform: `translateY(${FLIP_MAX_DISTANCE}px)`, opacity: 0, ...FAR },
+    { transform: "none", opacity: 1, ...FAR },
   ]);
   assert.equal(hidden.length, 0);
 });
@@ -162,16 +168,16 @@ test("#2458: a sliding row is painted opaque, its own tint over the table's", ()
   };
 
   assert.deepEqual(tinted[0].keyframes, [
-    { transform: "translateY(36px)", ...tintedFill },
-    { transform: "none", ...tintedFill },
+    { transform: "translateY(36px)", ...tintedFill, ...UP },
+    { transform: "none", ...tintedFill, ...UP },
   ]);
   assert.deepEqual(plain[0].keyframes, [
-    { transform: "translateY(-36px)", ...plainFill },
-    { transform: "none", ...plainFill },
+    { transform: "translateY(-36px)", ...plainFill, ...DOWN },
+    { transform: "none", ...plainFill, ...DOWN },
   ]);
   assert.deepEqual(far[0].keyframes, [
-    { transform: `translateY(${FLIP_MAX_DISTANCE}px)`, opacity: 0, ...plainFill },
-    { transform: "none", opacity: 1, ...plainFill },
+    { transform: `translateY(${FLIP_MAX_DISTANCE}px)`, opacity: 0, ...plainFill, ...FAR },
+    { transform: "none", opacity: 1, ...plainFill, ...FAR },
   ]);
 });
 
@@ -195,13 +201,18 @@ test("#2458: an opaque table needs no layers; no opaque colour, no fill", () => 
   );
 
   assert.deepEqual(onOpaque[0].keyframes, [
-    { transform: "translateY(36px)", backgroundColor: "rgb(3, 7, 18)" },
-    { transform: "none", backgroundColor: "rgb(3, 7, 18)" },
+    { transform: "translateY(36px)", backgroundColor: "rgb(3, 7, 18)", ...UP },
+    { transform: "none", backgroundColor: "rgb(3, 7, 18)", ...UP },
   ]);
   assert.deepEqual(onNothing[0].keyframes, [
-    { transform: "translateY(36px)" },
-    { transform: "none" },
+    { transform: "translateY(36px)", ...UP },
+    { transform: "none", ...UP },
   ]);
+});
+
+test("#2458: a row moving up is drawn over one moving down, both over a far row", () => {
+  assert.ok(FLIP_LAYER.up > FLIP_LAYER.down);
+  assert.ok(FLIP_LAYER.down > FLIP_LAYER.far);
 });
 
 test("#2458: slides in flight are cancelled before the rows are read", () => {

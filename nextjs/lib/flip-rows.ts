@@ -93,6 +93,15 @@ function opaqueFill(row: HTMLElement, backdrop: string[]): Keyframe {
 }
 
 /**
+ * Where a sliding row sits in the paint order while it slides (#2458): a row
+ * moving up, the one the reader most likely clicked to follow, over a row
+ * moving down, and both over a far row, which fades in and so is never fully
+ * opaque. Still rows keep their place under all three. `position` is only
+ * there so `zIndex` applies; the keyframes set both for the slide alone.
+ */
+export const FLIP_LAYER = { far: 1, down: 2, up: 3 } as const;
+
+/**
  * Each row's top relative to `tbody`, keyed by row id. The visual top, a slide
  * in flight included, so a re-rank that lands before the last slide ends
  * carries on from where the row is drawn.
@@ -115,8 +124,8 @@ export function snapshotRowTops(
  * Slide every row in `rows` that `before` also holds from its old top to its
  * new one. A row `before` does not hold just appears. `slides` keeps each
  * row's running animation, so a new re-rank cancels the old slide first.
- * A sliding row is opaque for the slide (`opaqueFill`), so rows that cross
- * never print through each other.
+ * A sliding row is opaque for the slide (`opaqueFill`) and layered by
+ * `FLIP_LAYER`, so where two rows cross one is drawn whole on top.
  *
  * The slides in flight are cancelled together first, then one read pass, then
  * writes that dirty nothing: the cancels cost one style flush at the first
@@ -133,8 +142,9 @@ export function slideRows(
 ): void {
   if (typeof tbody.animate !== "function") return;
   // A slide in flight paints the row with its slide fill, so its own colour
-  // reads true only once the slide is gone. Every row in flight moves again
-  // (its drawn top is not its new top), so none is let go early by this.
+  // reads true only once the slide is gone. A row in flight is slid again
+  // below from where it is drawn; one already within 1px of its new top, or
+  // whose whole path is off screen, lands there with no visible jump.
   slides.forEach((slide) => slide.cancel());
   slides.clear();
   const base = tbody.offsetTop;
@@ -171,6 +181,12 @@ export function slideRows(
   for (const { id, row, delta, top, height, fill } of moved) {
     const far = Math.abs(delta) > FLIP_MAX_DISTANCE;
     const shown = far ? Math.sign(delta) * FLIP_MAX_DISTANCE : delta;
+    // delta > 0: the row was further down, so it is moving up.
+    const layer: Keyframe = {
+      ...fill,
+      position: "relative",
+      zIndex: far ? FLIP_LAYER.far : delta > 0 ? FLIP_LAYER.up : FLIP_LAYER.down,
+    };
     // A row whose whole slide is off screen is not animated: nobody sees it,
     // and each running slide costs a style pass every frame.
     const from = viewTop + top + Math.min(0, shown);
@@ -184,12 +200,12 @@ export function slideRows(
       row.animate(
         far
           ? [
-              { transform: `translateY(${shown}px)`, opacity: 0, ...fill },
-              { transform: "none", opacity: 1, ...fill },
+              { transform: `translateY(${shown}px)`, opacity: 0, ...layer },
+              { transform: "none", opacity: 1, ...layer },
             ]
           : [
-              { transform: `translateY(${shown}px)`, ...fill },
-              { transform: "none", ...fill },
+              { transform: `translateY(${shown}px)`, ...layer },
+              { transform: "none", ...layer },
             ],
         { duration: FLIP_DURATION_MS, easing: FLIP_EASING },
       ),
