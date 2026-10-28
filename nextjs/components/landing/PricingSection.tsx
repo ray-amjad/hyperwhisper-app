@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
-import { m } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 import { Check, X, Sparkles, Building2, Cloud, KeyRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -23,6 +23,9 @@ import { useDownloadModal } from "@/contexts/DownloadModalContext";
 export default function PricingSection() {
   const { openModal } = useDownloadModal();
   const t = useTranslations("cloudSection");
+  // Settle the reveal offset at mount under Reduce motion, so the blocks
+  // fade in place instead of snapping up on reveal (#1180, see FeaturesGrid).
+  const settle = useReducedMotion() ? { y: 0 } : undefined;
   const [showEnterpriseModal, setShowEnterpriseModal] = useState(false);
 
   const byoFeatures = [
@@ -44,6 +47,7 @@ export default function PricingSection() {
   return (
     <section className="py-20" id="cloud">
       <m.div
+        animate={settle}
         className="max-w-6xl mx-auto"
         initial={{ opacity: 0, y: 20 }}
         transition={{ duration: 0.5 }}
@@ -65,6 +69,7 @@ export default function PricingSection() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {/* Bring your own keys */}
           <m.div
+            animate={settle}
             initial={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.5 }}
             viewport={{ once: true }}
@@ -118,6 +123,7 @@ export default function PricingSection() {
 
           {/* HyperWhisper Cloud Credits */}
           <m.div
+            animate={settle}
             className="relative"
             initial={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.5, delay: 0.1 }}
@@ -165,6 +171,7 @@ export default function PricingSection() {
 
         {/* Enterprise */}
         <m.div
+          animate={settle}
           className="max-w-4xl mx-auto mt-12"
           initial={{ opacity: 0, y: 20 }}
           transition={{ duration: 0.5, delay: 0.2 }}
