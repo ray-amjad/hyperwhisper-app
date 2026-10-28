@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 
 import { Link } from "@/src/i18n/navigation";
 import { getBlogPosts } from "@/src/content/blog";
+import { formatTagLabel } from "@/src/content/blog-tags";
 import { formatLongUTCDate } from "@/lib/format-date";
 import { englishStaticPageMetadata } from "@/lib/site-metadata";
 
@@ -145,7 +146,7 @@ export default async function BlogPage({ params }: Props) {
                       key={tag}
                       className="rounded-full border border-gray-700 px-3 py-1 text-xs text-gray-300"
                     >
-                      {tag}
+                      {formatTagLabel(tag)}
                     </span>
                   ))}
                 </div>
