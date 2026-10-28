@@ -151,11 +151,13 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
                 return;
             _scheduledTranscript = null;
             // #2269: the clipboard was empty before the last transcript, and its restore delay has
-            // not ended, so there is still nothing of the user's to restore.
+            // not ended, so there is still nothing of the user's to restore. The mark stands until
+            // this session's own scheduled write replaces it, as with no write the chain mark does.
             if (emptyClipboardTranscript is not null && TickCountMs() < _emptyClipboardRestoreEndsAt
                 && result is { IsSuccess: true } && HoldsOnlyTranscript(result.Value, emptyClipboardTranscript))
             {
                 _snapshot = null;
+                _emptyClipboardTranscript = emptyClipboardTranscript;
                 return;
             }
             _snapshot = result is { IsSuccess: true } ? result.Value : null;
@@ -182,7 +184,7 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
             if (_snapshot is null)
             {
                 // #2269: nothing to restore, so the transcript stays; it counts as the app's own
-                // text until the delay would have ended.
+                // text until the delay would have ended. With no write this session, the earlier mark stands.
                 if (_unscheduledTranscript is not null)
                 {
                     _emptyClipboardTranscript = _unscheduledTranscript;
