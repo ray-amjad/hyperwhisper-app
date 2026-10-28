@@ -280,7 +280,9 @@
       "dataTraining": "Конфіденційність даних"
     },
     "copyright": "© 2026 HyperWhisper. Усі права захищено.",
-    "linkedinAria": "LinkedIn"
+    "linkedinAria": "LinkedIn",
+    "xAria": "Стежте за HyperWhisper в X (Twitter)",
+    "githubAria": "HyperWhisper на GitHub"
   },
   "cloudSection": {
     "eyebrow": "Хмара",
