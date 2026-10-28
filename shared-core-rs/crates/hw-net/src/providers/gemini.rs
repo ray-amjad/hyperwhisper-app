@@ -431,11 +431,12 @@ pub fn build_delete_request(
 /// `ProviderUnavailable` (transient, same as 5xx); 413 → `FileTooLarge`; 429 →
 /// `RateLimited`; 5xx → `ProviderUnavailable`; other 4xx → `BadRequest`.
 ///
-/// Two gaps from `common::classify_status` are left open on purpose (#2731):
-/// no 429 body is read as `QuotaExceeded`, because Gemini answers
-/// `429 RESOURCE_EXHAUSTED` for a per-minute limit and for spent quota alike,
-/// and no captured reply tells the two apart; and no 400 body is read as out of
-/// credits, because no such Gemini reply is on record.
+/// Two cases are left as they are on purpose (#2731). A 429 is always
+/// `RateLimited`, even with a quota body that `common::classify_status` reads as
+/// `QuotaExceeded`: Gemini answers `429 RESOURCE_EXHAUSTED` for a per-minute
+/// limit and for spent quota alike, and no captured reply tells the two apart.
+/// A 400 stays `Unauthorized` whatever its body, because no Gemini 400 that
+/// means "out of credits" is on record.
 fn classify_gemini(resp: &HttpResponse) -> TranscriptionError {
     let raw = resp.text();
     let msg = gemini_error_message(&raw);
