@@ -36,6 +36,62 @@ export function prefersReducedMotion(): boolean {
   );
 }
 
+/** The alpha of a computed colour: `rgba(…, a)`, `oklch(… / a)`, `color(… / a)`. */
+function colorAlpha(color: string): number {
+  const match =
+    /\/\s*([\d.]+)(%?)\s*\)$/.exec(color) ??
+    /^rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)(%?)\s*\)$/.exec(color);
+
+  if (match === null) return color === "transparent" ? 0 : 1;
+  const alpha = Number(match[1]);
+
+  return match[2] === "%" ? alpha / 100 : alpha;
+}
+
+/**
+ * The colours drawn behind `el`'s rows, nearest first, down to the first
+ * opaque one: every see-through background from `el` up to an opaque
+ * ancestor. Empty when nothing above `el` is opaque.
+ */
+function backdropColors(el: HTMLElement): string[] {
+  const colors: string[] = [];
+
+  for (let node: Element | null = el; node !== null; node = node.parentElement) {
+    const color = window.getComputedStyle(node).backgroundColor;
+    const alpha = colorAlpha(color);
+
+    if (alpha > 0) colors.push(color);
+    if (alpha >= 1) return colors;
+  }
+
+  return [];
+}
+
+/**
+ * The keyframe fields that make a sliding row opaque (#2458). Two rows that
+ * cross mid-slide sit at one y for a frame or two; with see-through cells the
+ * numbers of both print over each other. The row is painted with its own
+ * colour over every colour behind the table, so the one drawn on top hides
+ * the other and the reader sees the same colours as when it is still. Empty
+ * when no opaque colour is behind the table.
+ */
+function opaqueFill(row: HTMLElement, backdrop: string[]): Keyframe {
+  if (backdrop.length === 0) return {};
+  const own = window.getComputedStyle(row).backgroundColor;
+  const layers = [...(colorAlpha(own) > 0 ? [own] : []), ...backdrop];
+  const base = layers[layers.length - 1];
+  const tints = layers.slice(0, -1);
+
+  return tints.length === 0
+    ? { backgroundColor: base }
+    : {
+        backgroundColor: base,
+        backgroundImage: tints
+          .map((color) => `linear-gradient(${color}, ${color})`)
+          .join(", "),
+      };
+}
+
 /**
  * Each row's top relative to `tbody`, keyed by row id. The visual top, a slide
  * in flight included, so a re-rank that lands before the last slide ends
@@ -59,10 +115,13 @@ export function snapshotRowTops(
  * Slide every row in `rows` that `before` also holds from its old top to its
  * new one. A row `before` does not hold just appears. `slides` keeps each
  * row's running animation, so a new re-rank cancels the old slide first.
+ * A sliding row is opaque for the slide (`opaqueFill`), so rows that cross
+ * never print through each other.
  *
- * One read pass, then writes that dirty nothing: offsetTop ignores the
- * transform a slide in flight draws, so no slide has to be cancelled before
- * the read, and a Web Animation needs no inline style and no reflow to start.
+ * The slides in flight are cancelled together first, then one read pass, then
+ * writes that dirty nothing: the cancels cost one style flush at the first
+ * read, not one per row, and a Web Animation needs no inline style and no
+ * reflow to start.
  * Writing inline styles row by row and reading the next row forced a style +
  * layout flush per row, about 50 per slider input, which made a drag stutter.
  */
@@ -73,6 +132,11 @@ export function slideRows(
   slides: Map<string, Animation>,
 ): void {
   if (typeof tbody.animate !== "function") return;
+  // A slide in flight paints the row with its slide fill, so its own colour
+  // reads true only once the slide is gone. Every row in flight moves again
+  // (its drawn top is not its new top), so none is let go early by this.
+  slides.forEach((slide) => slide.cancel());
+  slides.clear();
   const base = tbody.offsetTop;
   const viewTop = tbody.getBoundingClientRect().top;
   const viewHeight = window.innerHeight;
@@ -82,7 +146,9 @@ export function slideRows(
     delta: number;
     top: number;
     height: number;
+    fill: Keyframe;
   }[] = [];
+  const backdrop = backdropColors(tbody);
 
   rows.forEach((row, id) => {
     const old = before.get(id);
@@ -92,10 +158,17 @@ export function slideRows(
     const delta = old - top;
 
     if (Math.abs(delta) >= 1) {
-      moved.push({ id, row, delta, top, height: row.offsetHeight });
+      moved.push({
+        id,
+        row,
+        delta,
+        top,
+        height: row.offsetHeight,
+        fill: opaqueFill(row, backdrop),
+      });
     }
   });
-  for (const { id, row, delta, top, height } of moved) {
+  for (const { id, row, delta, top, height, fill } of moved) {
     const far = Math.abs(delta) > FLIP_MAX_DISTANCE;
     const shown = far ? Math.sign(delta) * FLIP_MAX_DISTANCE : delta;
     // A row whose whole slide is off screen is not animated: nobody sees it,
@@ -103,9 +176,7 @@ export function slideRows(
     const from = viewTop + top + Math.min(0, shown);
     const to = viewTop + top + Math.max(0, shown) + height;
 
-    slides.get(id)?.cancel();
     if (to <= 0 || from >= viewHeight) {
-      slides.delete(id);
       continue;
     }
     slides.set(
@@ -113,10 +184,13 @@ export function slideRows(
       row.animate(
         far
           ? [
-              { transform: `translateY(${shown}px)`, opacity: 0 },
-              { transform: "none", opacity: 1 },
+              { transform: `translateY(${shown}px)`, opacity: 0, ...fill },
+              { transform: "none", opacity: 1, ...fill },
             ]
-          : [{ transform: `translateY(${shown}px)` }, { transform: "none" }],
+          : [
+              { transform: `translateY(${shown}px)`, ...fill },
+              { transform: "none", ...fill },
+            ],
         { duration: FLIP_DURATION_MS, easing: FLIP_EASING },
       ),
     );

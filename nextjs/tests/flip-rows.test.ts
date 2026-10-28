@@ -20,8 +20,22 @@ import type { LatencyMatrixData } from "@/lib/latency/types";
 
 type Call = { keyframes: Keyframe[]; options: KeyframeAnimationOptions };
 
-function fakeRow(top: number, calls: Call[], height = 36) {
+/** A node whose computed background is `bg` ("" reads as transparent). */
+type Painted = { bg?: string; parentElement?: unknown };
+
+/** A window with `innerHeight` and a getComputedStyle that reads `bg`. */
+function fakeWindow() {
+  (globalThis as { window?: unknown }).window = {
+    innerHeight: 1200,
+    getComputedStyle: (node: Painted) => ({
+      backgroundColor: node.bg ?? "rgba(0, 0, 0, 0)",
+    }),
+  };
+}
+
+function fakeRow(top: number, calls: Call[], height = 36, bg?: string) {
   return {
+    bg,
     offsetTop: top,
     offsetHeight: height,
     animate(keyframes: Keyframe[], options: KeyframeAnimationOptions) {
@@ -31,8 +45,9 @@ function fakeRow(top: number, calls: Call[], height = 36) {
   } as unknown as HTMLElement;
 }
 
-function fakeTbody() {
+function fakeTbody(parentElement: Painted | null = null) {
   return {
+    parentElement,
     offsetTop: 0,
     getBoundingClientRect: () => ({ top: 0 }),
     animate() {},
@@ -40,7 +55,7 @@ function fakeTbody() {
 }
 
 test("a moved row slides from its old top; a still or new row does not", () => {
-  (globalThis as { window?: unknown }).window = { innerHeight: 1200 };
+  fakeWindow();
   const a: Call[] = [];
   const b: Call[] = [];
   const c: Call[] = [];
@@ -75,7 +90,7 @@ test("a moved row slides from its old top; a still or new row does not", () => {
 });
 
 test("a row new to the table just appears", () => {
-  (globalThis as { window?: unknown }).window = { innerHeight: 1200 };
+  fakeWindow();
   const fresh: Call[] = [];
 
   slideRows(
@@ -88,7 +103,7 @@ test("a row new to the table just appears", () => {
 });
 
 test("a far move is capped and fades in; an off-screen slide is skipped", () => {
-  (globalThis as { window?: unknown }).window = { innerHeight: 1200 };
+  fakeWindow();
   const far: Call[] = [];
   const hidden: Call[] = [];
   const rows = new Map([
@@ -107,6 +122,102 @@ test("a far move is capped and fades in; an off-screen slide is skipped", () => 
     { transform: "none", opacity: 1 },
   ]);
   assert.equal(hidden.length, 0);
+});
+
+test("#2458: a sliding row is painted opaque, its own tint over the table's", () => {
+  fakeWindow();
+  const region = "oklch(0.13 0.028 261.692 / 0.8)";
+  const pinned = "oklab(0.29 0.06 -0.1 / 0.2)";
+  const page: Painted = { bg: "rgb(0, 0, 0)", parentElement: null };
+  // tbody -> table (transparent) -> scroll region (80% gray) -> page (black).
+  const tbody = fakeTbody({
+    parentElement: { bg: region, parentElement: page },
+  });
+  const tinted: Call[] = [];
+  const plain: Call[] = [];
+  const far: Call[] = [];
+
+  slideRows(
+    tbody,
+    new Map([
+      ["tinted", fakeRow(0, tinted, 36, pinned)],
+      ["plain", fakeRow(36, plain)],
+      ["far", fakeRow(72, far)],
+    ]),
+    new Map([
+      ["tinted", 36],
+      ["plain", 0],
+      ["far", 900],
+    ]),
+    new Map(),
+  );
+
+  const tintedFill = {
+    backgroundColor: "rgb(0, 0, 0)",
+    backgroundImage: `linear-gradient(${pinned}, ${pinned}), linear-gradient(${region}, ${region})`,
+  };
+  const plainFill = {
+    backgroundColor: "rgb(0, 0, 0)",
+    backgroundImage: `linear-gradient(${region}, ${region})`,
+  };
+
+  assert.deepEqual(tinted[0].keyframes, [
+    { transform: "translateY(36px)", ...tintedFill },
+    { transform: "none", ...tintedFill },
+  ]);
+  assert.deepEqual(plain[0].keyframes, [
+    { transform: "translateY(-36px)", ...plainFill },
+    { transform: "none", ...plainFill },
+  ]);
+  assert.deepEqual(far[0].keyframes, [
+    { transform: `translateY(${FLIP_MAX_DISTANCE}px)`, opacity: 0, ...plainFill },
+    { transform: "none", opacity: 1, ...plainFill },
+  ]);
+});
+
+test("#2458: an opaque table needs no layers; no opaque colour, no fill", () => {
+  fakeWindow();
+  const onOpaque: Call[] = [];
+  const onNothing: Call[] = [];
+  const before = new Map([["a", 36]]);
+
+  slideRows(
+    fakeTbody({ bg: "rgb(3, 7, 18)", parentElement: null }),
+    new Map([["a", fakeRow(0, onOpaque)]]),
+    before,
+    new Map(),
+  );
+  slideRows(
+    fakeTbody({ bg: "rgba(3, 7, 18, 0.5)", parentElement: null }),
+    new Map([["a", fakeRow(0, onNothing)]]),
+    before,
+    new Map(),
+  );
+
+  assert.deepEqual(onOpaque[0].keyframes, [
+    { transform: "translateY(36px)", backgroundColor: "rgb(3, 7, 18)" },
+    { transform: "none", backgroundColor: "rgb(3, 7, 18)" },
+  ]);
+  assert.deepEqual(onNothing[0].keyframes, [
+    { transform: "translateY(36px)" },
+    { transform: "none" },
+  ]);
+});
+
+test("#2458: slides in flight are cancelled before the rows are read", () => {
+  fakeWindow();
+  let cancelled = 0;
+  const inFlight = { cancel: () => (cancelled += 1) } as unknown as Animation;
+  const slides = new Map([
+    ["a", inFlight],
+    ["b", inFlight],
+  ]);
+  const rows = new Map([["a", fakeRow(0, [])]]);
+
+  slideRows(fakeTbody(), rows, new Map([["a", 36]]), slides);
+
+  assert.equal(cancelled, 2);
+  assert.deepEqual(Array.from(slides.keys()), ["a"]);
 });
 
 test("the latency matrix's server markup holds no one-frame motion state", () => {
