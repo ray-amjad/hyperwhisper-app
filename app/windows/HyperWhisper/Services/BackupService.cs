@@ -198,7 +198,7 @@ public class BackupService
         catch (JsonException ex)
         {
             LoggingService.Error("BackupService: Invalid JSON while inspecting backup", ex);
-            return Result<BackupContents>.Failure("Invalid backup file: not valid JSON");
+            return Result<BackupContents>.Failure(InvalidBackupFieldMessage(ex));
         }
         catch (Exception ex)
         {
@@ -336,7 +336,7 @@ public class BackupService
         catch (JsonException ex)
         {
             LoggingService.Error("BackupService: Invalid JSON in backup", ex);
-            return Result<string>.Failure("Invalid backup file: not valid JSON");
+            return Result<string>.Failure(InvalidBackupFieldMessage(ex));
         }
         catch (Exception ex)
         {
@@ -501,7 +501,7 @@ public class BackupService
         catch (JsonException ex)
         {
             LoggingService.Error("BackupService: Invalid JSON in backup (selective)", ex);
-            return Result<ImportSummary>.Failure("Invalid backup file: not valid JSON");
+            return Result<ImportSummary>.Failure(InvalidBackupFieldMessage(ex));
         }
         catch (Exception ex)
         {
@@ -571,7 +571,7 @@ public class BackupService
         catch (JsonException ex)
         {
             LoggingService.Error("BackupService: Invalid JSON while previewing vocab merge", ex);
-            return Result<VocabularyMergePreview>.Failure("Invalid backup file: not valid JSON");
+            return Result<VocabularyMergePreview>.Failure(InvalidBackupFieldMessage(ex));
         }
         catch (Exception ex)
         {
@@ -774,7 +774,24 @@ public class BackupService
     /// </summary>
     private static (UniversalBackup? Backup, string? Error) LoadValidatedBackup(string json)
     {
-        var backup = JsonSerializer.Deserialize<UniversalBackup>(json, UniversalJsonOptions);
+        UniversalBackup? backup;
+        try
+        {
+            backup = JsonSerializer.Deserialize<UniversalBackup>(json, UniversalJsonOptions);
+        }
+        catch (JsonException ex)
+        {
+            // The serializer throws the same exception for text that is not JSON and
+            // for a well-formed document with one wrong-typed field (issue #2095).
+            // Only the first is "not valid JSON". For the second, the shared core
+            // validator reads the raw text and names the field in its own words
+            // ("vocabulary[0].sortOrder: must be an integer"); a value only the
+            // serializer refuses (a malformed UUID or date) is named from the exception.
+            LoggingService.Error("BackupService: Backup JSON did not deserialize", ex);
+            if (!IsWellFormedJson(json))
+                return (null, NotValidJsonMessage);
+            return (null, ValidateBackupJsonText(json) ?? InvalidBackupFieldMessage(ex));
+        }
         if (backup == null)
             return (null, "Invalid backup file: could not parse JSON");
 
@@ -785,11 +802,99 @@ public class BackupService
         return structureError != null ? (null, structureError) : (backup, null);
     }
 
+    private const string NotValidJsonMessage = "Invalid backup file: not valid JSON";
+
+    private static bool IsWellFormedJson(string json)
+    {
+        try
+        {
+            using var _ = JsonDocument.Parse(json);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// The user-facing message for a well-formed JSON document the serializer refused
+    /// and the shared core validator did not (issue #2095), in the core's shape and
+    /// words ("&lt;path&gt;: must be ..."), e.g. "Invalid backup file: id: must be a UUID".
+    /// The serializer's own text names a .NET type, so it stays in the log only.
+    /// </summary>
+    private static string InvalidBackupFieldMessage(JsonException ex)
+    {
+        var path = ex.Path;
+        if (string.IsNullOrEmpty(path) || path == "$")
+            path = "$";
+        else if (path.StartsWith("$.", StringComparison.Ordinal))
+            path = path[2..];
+        else if (path.StartsWith('$'))
+            path = path[1..];
+
+        return $"Invalid backup file: {path}: {ExpectedTypeFromMessage(ex.Message)}";
+    }
+
+    private static string ExpectedTypeFromMessage(string message)
+    {
+        // IntegralInt32JsonConverter's own messages ("Expected a whole number ...").
+        if (message.StartsWith("Expected a whole number that fits", StringComparison.Ordinal))
+            return "must be an integer from -2147483648 to 2147483647";
+        if (message.StartsWith("Expected a whole number", StringComparison.Ordinal))
+            return "must be an integer";
+
+        // The default converters: "The JSON value could not be converted to <type>. Path: ...".
+        const string marker = "could not be converted to ";
+        var at = message.IndexOf(marker, StringComparison.Ordinal);
+        if (at < 0)
+            return "could not be read";
+
+        var type = message[(at + marker.Length)..];
+        var end = type.IndexOf(". Path:", StringComparison.Ordinal);
+        if (end >= 0)
+            type = type[..end];
+        type = type.TrimEnd('.');
+
+        // Nullable`1[System.Int32] reads as its inner type.
+        const string nullable = "System.Nullable`1[";
+        if (type.StartsWith(nullable, StringComparison.Ordinal) && type.EndsWith(']'))
+            type = type[nullable.Length..^1];
+
+        if (type.EndsWith("[]", StringComparison.Ordinal)
+            || type.StartsWith("System.Collections.Generic.List`1", StringComparison.Ordinal)
+            || type.StartsWith("System.Collections.Generic.IList`1", StringComparison.Ordinal))
+            return "must be an array";
+
+        return type switch
+        {
+            "System.Int16" or "System.Int32" or "System.Int64"
+                or "System.UInt16" or "System.UInt32" or "System.UInt64"
+                or "System.Byte" or "System.SByte" => "must be an integer",
+            "System.Double" or "System.Single" or "System.Decimal" => "must be a number",
+            "System.Boolean" => "must be a boolean",
+            "System.String" => "must be a string",
+            "System.DateTime" or "System.DateTimeOffset" => "must be a date",
+            "System.Guid" => "must be a UUID",
+            _ when type.StartsWith("HyperWhisper.", StringComparison.Ordinal)
+                || type.StartsWith("System.Collections.Generic.Dictionary`2", StringComparison.Ordinal)
+                => "must be an object",
+            _ => "could not be read"
+        };
+    }
+
     private static string? ValidateBackupStructure(UniversalBackup backup)
     {
         // Re-serialize the typed model so the core validates the exact shape we parsed.
-        string json = JsonSerializer.Serialize(backup, UniversalJsonOptions);
+        return ValidateBackupJsonText(JsonSerializer.Serialize(backup, UniversalJsonOptions));
+    }
 
+    /// <summary>
+    /// The shared core's structural validation of a backup JSON text: null when it is
+    /// valid, else "Invalid backup file: &lt;path&gt;: &lt;message&gt;" for the first error.
+    /// </summary>
+    private static string? ValidateBackupJsonText(string json)
+    {
         List<HwValidationError> errors = HyperwhisperCoreMethods.ValidateBackupJson(json);
         if (errors.Count == 0)
             return null; // structurally valid
