@@ -187,10 +187,11 @@ public sealed class LocalWhisperService : ILocalWhisperService
                 {
                     // The file's fault, so the kept processor stays. With none kept, one
                     // is still built first, as the old code did, so a broken model
-                    // reports as the model's and not as a bad file.
+                    // reports as the model's and not as a bad file. It is not kept:
+                    // its full window would not serve the next short clip.
                     if (_processor is null)
                     {
-                        await ProcessorForAsync(key).ConfigureAwait(false);
+                        await DisposeQuietlyAsync(await BuildAsync(key).ConfigureAwait(false)).ConfigureAwait(false);
                     }
                     return LocalWhisperResult.Failed(
                         LocalWhisperErrorCode.TranscriptionFailed,

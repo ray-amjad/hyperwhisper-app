@@ -95,6 +95,15 @@ static class AudioContextChecks
             var shortContext = LocalWhisperService.AudioContextFor(Math.Min(samples.Length, Samples(2.4)));
             Check(shortContext is > 0 and < LocalWhisperService.FullAudioContext, $"the short clip got window {shortContext}");
 
+            // A broken file before any processor is kept still builds one, so a broken
+            // model reports as the model's, but keeps none: its full window would be
+            // dropped by the next short clip.
+            var brokenFirst = await service.TranscribeAsync(new LocalWhisperRequest(broken, "en"));
+            Check(brokenFirst.Failure?.Code == LocalWhisperErrorCode.TranscriptionFailed
+                    && service.ProcessorsBuilt == 1 && service.KeptAudioContext is null,
+                $"a first broken file built {service.ProcessorsBuilt} processors and kept window {service.KeptAudioContext}, expected 1 and none");
+            var builtBefore = service.ProcessorsBuilt;
+
             string? first = null;
             for (var call = 0; call < 3; call++)
             {
@@ -103,19 +112,19 @@ static class AudioContextChecks
                 first ??= result.Text;
                 Check(result.Text == first, $"call {call} heard '{result.Text}', the first heard '{first}'");
             }
-            Check(service.ProcessorsBuilt == 1, $"3 same calls built {service.ProcessorsBuilt} processors, expected 1");
+            Check(service.ProcessorsBuilt == builtBefore + 1, $"3 same calls built {service.ProcessorsBuilt - builtBefore} processors, expected 1");
             Check(service.KeptAudioContext == shortContext, $"kept window {service.KeptAudioContext}, expected {shortContext}");
 
             var full = await service.TranscribeAsync(new LocalWhisperRequest(longClip, "en"));
             Check(full.IsSuccess && !string.IsNullOrWhiteSpace(full.Text), full.Failure?.Message ?? "the 35 s clip was empty");
             Check(service.KeptAudioContext == 0, $"a 35 s clip kept window {service.KeptAudioContext}, expected the full one");
-            Check(service.ProcessorsBuilt == 2, $"a new window built {service.ProcessorsBuilt} processors in all, expected 2");
+            Check(service.ProcessorsBuilt == builtBefore + 2, $"a new window built {service.ProcessorsBuilt - builtBefore} processors in all, expected 2");
 
             // Word timestamps are fixed at Build, so they get their own processor,
             // and a shortened window must not stamp words past the clip.
             var timed = await service.TranscribeAsync(new LocalWhisperRequest(shortClip, "en", IncludeWordTimestamps: true));
             Check(timed.IsSuccess && timed.Timestamps is { Words.Count: > 0 }, timed.Failure?.Message ?? "no word timestamps");
-            Check(service.ProcessorsBuilt == 3, $"word timestamps built {service.ProcessorsBuilt} processors in all, expected 3");
+            Check(service.ProcessorsBuilt == builtBefore + 3, $"word timestamps built {service.ProcessorsBuilt - builtBefore} processors in all, expected 3");
             var clipEnd = Math.Min(samples.Length, Samples(2.4)) / (double)Rate;
             // Whisper's own [_BEG_] and [_TT_n] tokens pass the word filter on main
             // too, stamped at the 30 s window's end, so only spoken words count here.
