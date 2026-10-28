@@ -46,6 +46,10 @@ The **Show recordings folder** row opens the current folder in your file manager
 </Note>
 
 <Note>
+  On macOS, if HyperWhisper cannot create or write to your recordings folder, it moves new recordings to the first folder that works: `~/Library/Application Support/HyperWhisper/recordings`, then `~/Downloads/HyperWhisper Recordings`, then a temporary folder that macOS clears when you restart. If none of these works, an alert with the title "Can't access the recordings folder" asks you to click **Choose Folder…** and select another folder.
+</Note>
+
+<Note>
   On Windows, HyperWhisper tests that the folder is writable at each start. If your folder is not writable — for example, an external disk that is not connected — the app moves to the first folder in this list that works: your Documents folder, the folder of an earlier build, your Downloads folder, then a temporary folder. The app writes the reason in the log.
 </Note>
 
