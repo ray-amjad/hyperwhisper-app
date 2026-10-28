@@ -50,10 +50,14 @@ struct LocalAPIStopRestartTests {
         // that waited on the held connection would take 120 s. `switchOff()`
         // is synchronous and the close it starts runs on this actor's next
         // turn, so the first sample below, taken before this test yields,
-        // seeing the old socket still bound is the proof that it returned
-        // without waiting. No wall-clock bound: on a loaded runner this test
-        // has taken 41-49 s with no code at fault (#2526).
+        // seeing the old socket still bound proves it did not wait for the
+        // close. The bound catches a switch that blocks on the connection's
+        // 120 s head deadline instead. It is 60 s, not 1 s: on a loaded runner
+        // this test has taken 41-49 s with no code at fault (#2526).
+        let offStarted = ContinuousClock.now
         probe.switchOff()
+        let offTook = ContinuousClock.now - offStarted
+        #expect(offTook < .seconds(60), "switching off waited on the held connection (\(offTook))")
 
         // Until the old socket is gone, the row never says disabled while the
         // port is still bound. The wait is counted in samples, not seconds,
@@ -86,7 +90,7 @@ struct LocalAPIStopRestartTests {
 
         held.close()
         probe.switchOff()
-        #expect(try await Self.released(probe.shutdown))
+        #expect(await probe.shutdown.awaitRelease(within: Self.generousRelease))
     }
 
     /// Off then straight back On, with one connection held mid-request, as
@@ -110,13 +114,14 @@ struct LocalAPIStopRestartTests {
 
         held.close()
         probe.switchOff()
-        #expect(try await Self.released(probe.shutdown))
+        #expect(await probe.shutdown.awaitRelease(within: Self.generousRelease))
     }
 
     /// A close that never finishes must not keep a switch On from listening:
     /// the wait gives up at the deadline, and the row keeps saying "Stopping…"
     /// for the socket that is still bound.
-    @Test func aStuckCloseLetsTheWaiterGoAtTheDeadline() async throws {
+    @Test(.timeLimit(.minutes(2)))
+    func aStuckCloseLetsTheWaiterGoAtTheDeadline() async throws {
         let shutdown = LocalAPIListenerShutdown()
         let gate = Gate()
         let stuck = Task<Void, Never> { await gate.wait() }
@@ -131,24 +136,26 @@ struct LocalAPIStopRestartTests {
         )
 
         // The close cannot end before `gate.open()` below, so this returning
-        // at all proves the wait ended at its deadline, not with the close.
-        // No wall-clock bound on top (#2526).
+        // at all proves the wait ended at its deadline, not with the close; a
+        // wait that followed the close instead trips the time limit. No tight
+        // wall-clock bound on top (#2526).
         let released = await shutdown.awaitRelease(within: .milliseconds(300))
         #expect(!released, "a close that has not finished must not count as released")
         #expect(shutdown.closingPorts == [4242], "the stuck socket is still reported closing")
 
         await gate.open()
-        #expect(try await Self.released(shutdown))
+        #expect(await shutdown.awaitRelease(within: Self.generousRelease))
         #expect(shutdown.closingPorts.isEmpty)
     }
 
     /// With nothing closing, a start does not wait at all. The wait is given
-    /// an hour, so one that sat out its timeout trips the one-minute limit; a
-    /// limit that loose, not a 1 s bound, is what a stalled runner needs (#2526).
+    /// five minutes, so one that sat out its timeout trips the one-minute
+    /// limit; a limit that loose, not a 1 s bound, is what a stalled runner
+    /// needs (#2526).
     @Test(.timeLimit(.minutes(1)))
     func nothingClosingIsReleasedAtOnce() async {
         let shutdown = LocalAPIListenerShutdown()
-        #expect(await shutdown.awaitRelease(within: .seconds(3_600)))
+        #expect(await shutdown.awaitRelease(within: .seconds(300)))
     }
 
     // MARK: - The row
@@ -178,15 +185,9 @@ struct LocalAPIStopRestartTests {
     /// test for longer still gives the close its samples (#2526).
     private static let releaseSamples = 3_000
 
-    /// True once every close `shutdown` has begun has released its port,
-    /// within `releaseSamples` samples.
-    private static func released(_ shutdown: LocalAPIListenerShutdown) async throws -> Bool {
-        for _ in 0..<releaseSamples {
-            if shutdown.closingPorts.isEmpty { return true }
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        return shutdown.closingPorts.isEmpty
-    }
+    /// What the production `awaitRelease` gets once a close can finish: past
+    /// the 41-49 s a loaded runner has spent on one of these tests (#2526).
+    private static let generousRelease: Duration = .seconds(60)
 
     /// One connection, half-way through its request head, given time to be
     /// accepted. A head deadline longer than the test keeps it mid-request.
