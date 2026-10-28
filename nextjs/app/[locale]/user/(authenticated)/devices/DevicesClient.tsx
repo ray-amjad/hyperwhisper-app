@@ -93,11 +93,13 @@ export default function DevicesClient() {
 
   // #1242: the skeleton layer is drawn from the first load on; a mount with
   // the rows already cached shows none, as before. isLoading is true whenever
-  // a fetch starts on a range with no data: the first load, but also a
-  // Refresh or a new range after a failed fetch left no rows to keep
-  // (react-query v5 puts a query with no data back to "pending"). So any
-  // load draws it, set during render so it shows in the same commit, as the
-  // skeleton rows did before. Once drawn it stays mounted and fades.
+  // a fetch starts with no rows on screen: the first load, and a Refresh
+  // after a failed first load (react-query v5 puts a query with no data back
+  // to "pending"). When keepPreviousData still has rows to show (a range
+  // switch, or a Refresh after a failed one), isLoading stays false and the
+  // dimmed rows stay instead, as on main. So any load draws it, set during
+  // render so it shows in the same commit, as the skeleton rows did before.
+  // Once drawn it stays mounted and fades.
   const [hasSkeleton, setHasSkeleton] = useState(loading);
 
   if (loading && !hasSkeleton) setHasSkeleton(true);
