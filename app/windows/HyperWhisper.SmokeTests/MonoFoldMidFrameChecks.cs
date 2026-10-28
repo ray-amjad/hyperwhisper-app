@@ -62,7 +62,7 @@ internal static class MonoFoldMidFrameChecks
                 string? converted = null;
                 try
                 {
-                    var result = FileTranscriptionService.ConvertToWhisperFormatAsync(path).GetAwaiter().GetResult();
+                    var result = ConvertDetached(path);
                     Assert(result.IsSuccess, $"{channels} ch: conversion failed: {result.Error}");
                     converted = result.Value!;
                     using (var reader = new NAudio.Wave.WaveFileReader(converted))
@@ -89,6 +89,23 @@ internal static class MonoFoldMidFrameChecks
                 }
             }
         });
+    }
+
+    // ConvertToWhisperFormatAsync awaits Task.Run without ConfigureAwait(false), and an
+    // earlier case leaves a DispatcherSynchronizationContext on this thread that nothing
+    // pumps, so blocking on it there would hang the suite. Detach for the call.
+    private static HyperWhisper.Models.Result<string> ConvertDetached(string path)
+    {
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(null);
+        try
+        {
+            return FileTranscriptionService.ConvertToWhisperFormatAsync(path).GetAwaiter().GetResult();
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
     }
 
     // Channel c carries a constant (c + 1) / 10, so the average is (channels + 1) / 20 and a
