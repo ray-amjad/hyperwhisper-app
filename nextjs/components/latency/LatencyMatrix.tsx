@@ -626,7 +626,21 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                               )
                             }
                           >
-                            {pinned ? <Pin className="h-3 w-3" /> : null}
+                            {/* The pin keeps its 12px slot in both states and
+                                cross-fades in it (#931), so pinning never moves
+                                the name; the row's purple stays the main cue. */}
+                            <span
+                              aria-hidden="true"
+                              className="inline-flex h-3 w-3 shrink-0 items-center justify-center"
+                            >
+                              <Pin
+                                className={`h-3 w-3 transition-[opacity,filter,scale] duration-300 ease-[cubic-bezier(0.2,0,0,1)] ${
+                                  pinned
+                                    ? "scale-100 opacity-100"
+                                    : "scale-[0.25] opacity-0 blur-[4px]"
+                                }`}
+                              />
+                            </span>
                             {row.label}
                           </button>
                         )}
