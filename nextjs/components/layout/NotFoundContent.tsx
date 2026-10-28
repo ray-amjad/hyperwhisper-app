@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@heroui/button";
 import NextLink from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -39,18 +40,26 @@ export default function NotFoundContent({
       <h1 className="text-3xl font-bold text-white">{t.heading}</h1>
       <p className="max-w-md text-base text-gray-400">{t.description}</p>
       <div className="flex flex-wrap items-center justify-center gap-4">
-        <NextLink
-          className="rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 px-6 py-3 font-semibold text-white"
+        {/* HeroUI's Button gives a non-"a" `as` role="button"; these navigate. */}
+        <Button
+          as={NextLink}
+          className="bg-gradient-to-r from-purple-600 to-blue-600 px-6 font-semibold text-white"
           href={`/${locale}`}
+          role="link"
+          size="lg"
         >
           {t.home}
-        </NextLink>
-        <NextLink
-          className="rounded-xl border border-white/20 px-6 py-3 font-semibold text-white"
+        </Button>
+        <Button
+          as={NextLink}
+          className="border-white/20 px-6 font-semibold text-white"
           href={`/${locale}/download`}
+          role="link"
+          size="lg"
+          variant="bordered"
         >
           {t.download}
-        </NextLink>
+        </Button>
       </div>
     </section>
   );
