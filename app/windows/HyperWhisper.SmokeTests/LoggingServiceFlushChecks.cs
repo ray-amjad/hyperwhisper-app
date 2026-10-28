@@ -13,6 +13,10 @@
 // before the runtime kills the process. Only LoggingService's own
 // unhandled-exception flush, which waits for that lock, can get the line to
 // disk. Without it the line is lost, so that case fails.
+//
+// The "append" child is a second process logging to the same file while this
+// one holds it open, as a duplicate launch does when it logs its exit. Both
+// processes' lines must survive: neither may write over the other's.
 
 using System.Diagnostics;
 using System.IO;
@@ -31,6 +35,10 @@ internal static class LoggingServiceFlushChecks
     // How long the writer-held child keeps the write lock. Far longer than the
     // runtime takes to report an unhandled exception and end the process.
     private static readonly TimeSpan WriterHeldFor = TimeSpan.FromSeconds(2);
+
+    private const string AppendTokenPrefix = "percy985append";
+    private const int AppendChildLines = 200;
+    private const int AppendParentLines = 200;
 
     // Child exit codes that mean the child went wrong, not that it crashed.
     private const int ChildSetupFailed = 3;
@@ -88,6 +96,11 @@ internal static class LoggingServiceFlushChecks
             }
         });
 
+        run("logging: two processes logging to one file both keep every line, none overwritten (#985)", () =>
+        {
+            AssertTwoProcessesKeepEveryLine();
+        });
+
         run("logging: a crash by unhandled exception still leaves its last log line on disk (#985)", () =>
         {
             AssertCrashChildLeavesLastLine("plain");
@@ -101,7 +114,8 @@ internal static class LoggingServiceFlushChecks
 
     /// <summary>
     /// Main's first call. Returns at once unless this process was started as a
-    /// crash child; a crash child never returns.
+    /// child of these checks (a crash child, or the "append" child); a child
+    /// never returns.
     /// </summary>
     internal static void RunCrashChildIfRequested()
     {
@@ -121,6 +135,19 @@ internal static class LoggingServiceFlushChecks
 
             var marker = Environment.GetEnvironmentVariable(CrashChildMarkerEnvironmentVariable)
                 ?? throw new InvalidOperationException("no marker given");
+
+            if (mode == "append")
+            {
+                // A second process on the parent's log: a burst of lines, then a
+                // normal exit, which writes whatever is still queued.
+                for (var i = 0; i < AppendChildLines; i++)
+                {
+                    LoggingService.Info(AppendToken(marker, 'C', i));
+                }
+                Console.Out.WriteLine("append child: done");
+                Console.Out.Flush();
+                Environment.Exit(0);
+            }
 
             // The first line starts the writer thread and hooks the crash handler.
             LoggingService.Info("crash child: started");
@@ -215,6 +242,123 @@ internal static class LoggingServiceFlushChecks
         }
         finally
         {
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
+    }
+
+    private static string AppendToken(string marker, char side, int index) =>
+        $"{AppendTokenPrefix} {marker} {side}{index:D4} end";
+
+    /// <summary>
+    /// This process holds the log open (a ticker keeps it from going idle)
+    /// while the "append" child logs to the same file and exits, then this
+    /// process logs more. Every line of both must be in the file once, whole.
+    /// </summary>
+    private static void AssertTwoProcessesKeepEveryLine()
+    {
+        var previousRoot = Environment.GetEnvironmentVariable(AppPaths.AppDataRootOverrideEnvironmentVariable);
+        var root = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests", $"log-append-{Guid.NewGuid():N}");
+        var marker = Guid.NewGuid().ToString("N");
+        var expected = new List<string>();
+        try
+        {
+            Environment.SetEnvironmentVariable(AppPaths.AppDataRootOverrideEnvironmentVariable, root);
+            var log = LoggingService.CurrentLogPath;
+
+            // Opens this process's handle on the scratch log.
+            LoggingService.Info(AppendToken(marker, 'P', 0));
+            LoggingService.Flush();
+            expected.Add(AppendToken(marker, 'P', 0));
+
+            // The writer closes an idle file after 2 s; a line every 50 ms keeps
+            // this process's handle open the whole time the child writes.
+            using var stopTicker = new ManualResetEventSlim();
+            var tickerTokens = new List<string>();
+            var ticker = new Thread(() =>
+            {
+                for (var i = 0; !stopTicker.Wait(50); i++)
+                {
+                    var token = AppendToken(marker, 'T', i);
+                    tickerTokens.Add(token);
+                    LoggingService.Info(token);
+                }
+            })
+            { IsBackground = true };
+            ticker.Start();
+
+            int exitCode;
+            string childErrors;
+            try
+            {
+                var startInfo = new ProcessStartInfo(Environment.ProcessPath!)
+                {
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                };
+                startInfo.Environment[AppPaths.AppDataRootOverrideEnvironmentVariable] = root;
+                startInfo.Environment[CrashChildEnvironmentVariable] = "append";
+                startInfo.Environment[CrashChildMarkerEnvironmentVariable] = marker;
+
+                using var child = Process.Start(startInfo)
+                    ?? throw new InvalidOperationException("the append child did not start");
+                var stdout = child.StandardOutput.ReadToEndAsync();
+                var stderr = child.StandardError.ReadToEndAsync();
+                if (!child.WaitForExit(60_000))
+                {
+                    child.Kill(entireProcessTree: true);
+                    throw new InvalidOperationException("the append child did not exit within 60 s");
+                }
+                child.WaitForExit();
+                exitCode = child.ExitCode;
+                childErrors = stderr.GetAwaiter().GetResult();
+                Assert(stdout.GetAwaiter().GetResult().Contains("append child: done"),
+                    $"the append child did not finish its lines (exit {exitCode}): {childErrors}");
+            }
+            finally
+            {
+                stopTicker.Set();
+                ticker.Join();
+            }
+            Assert(exitCode == 0, $"the append child exited {exitCode}: {childErrors}");
+
+            for (var i = 1; i <= AppendParentLines; i++)
+            {
+                LoggingService.Info(AppendToken(marker, 'P', i));
+                expected.Add(AppendToken(marker, 'P', i));
+            }
+            LoggingService.Flush();
+
+            expected.AddRange(tickerTokens);
+            for (var i = 0; i < AppendChildLines; i++)
+            {
+                expected.Add(AppendToken(marker, 'C', i));
+            }
+
+            var lines = ReadShared(log).Split('\n').Select(l => l.TrimEnd('\r')).Where(l => l.Length > 0).ToList();
+            var torn = lines.Where(l => !System.Text.RegularExpressions.Regex.IsMatch(
+                l, @"^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}\] \[[A-Z ]{5}\] \[T\d{4,}\] ")
+                || (l.Contains(AppendTokenPrefix) && !l.EndsWith(" end", StringComparison.Ordinal))).ToList();
+            Assert(torn.Count == 0, $"{torn.Count} torn or overwritten line(s), e.g. '{torn.FirstOrDefault()}'");
+
+            var counts = lines.Where(l => l.Contains(AppendTokenPrefix))
+                .GroupBy(l => l[(l.IndexOf(AppendTokenPrefix, StringComparison.Ordinal))..])
+                .ToDictionary(g => g.Key, g => g.Count());
+            var missing = expected.Where(t => !counts.ContainsKey(t)).ToList();
+            var doubled = counts.Where(kv => kv.Value != 1).Select(kv => kv.Key).ToList();
+            Assert(missing.Count == 0,
+                $"{missing.Count} of {expected.Count} line(s) missing (e.g. '{missing.FirstOrDefault()}'): overwritten by the other process");
+            Assert(doubled.Count == 0, $"{doubled.Count} line(s) written more than once, e.g. '{doubled.FirstOrDefault()}'");
+            Assert(counts.Count == expected.Count, $"{counts.Count} token lines on disk, {expected.Count} expected");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(AppPaths.AppDataRootOverrideEnvironmentVariable, previousRoot);
+            // Moves the writer's open file back to the suite's own log, so the
+            // scratch root can be deleted.
+            LoggingService.Info($"{AppendTokenPrefix} {marker} restored");
+            LoggingService.Flush();
             try { Directory.Delete(root, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
     }

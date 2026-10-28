@@ -97,9 +97,18 @@ public static class LoggingService
     private static volatile bool _writeThrough;
 
     // Guarded by _writeLock. File.AppendAllText wrote UTF-8 without a BOM.
-    private static StreamWriter? _writer;
+    private static FileStream? _writer;
     private static string? _writerPath;
     private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+
+    // Guarded by _writeLock: the lines of one batch, written with one write.
+    private static readonly StringBuilder _batch = new();
+
+    /// <summary>
+    /// A batch is written once it holds this many characters, so one burst never
+    /// builds a buffer of unbounded size. Each write seeks to the end first.
+    /// </summary>
+    private const int MaxBatchChars = 64 * 1024;
 
     /// <summary>
     /// How long the file stays open with nothing to write. A dictation logs in
@@ -656,9 +665,10 @@ public static class LoggingService
     }
 
     /// <summary>
-    /// Writes the whole queue, then flushes the file. Caller holds _writeLock.
-    /// A line whose write fails is dropped, as a failed File.AppendAllText was,
-    /// and the file is closed so the next line opens it afresh.
+    /// Writes the whole queue. Caller holds _writeLock. Lines go out in batches,
+    /// one batch per file and at most <see cref="MaxBatchChars"/> long. A batch
+    /// whose write fails is dropped, as a failed File.AppendAllText dropped its
+    /// line, and the file is closed so the next batch opens it afresh.
     ///
     /// Once per batch it checks that the open file still has its name. If it
     /// was deleted or renamed (a user, a support script), the batch goes to a
@@ -672,31 +682,59 @@ public static class LoggingService
             CloseWriterLocked();
         }
 
+        string? batchPath = null;
+        _batch.Clear();
         while (_pending.TryDequeue(out var line))
         {
-            try
+            if (batchPath is not null
+                && (_batch.Length >= MaxBatchChars || !string.Equals(batchPath, line.Path, StringComparison.OrdinalIgnoreCase)))
             {
-                if (_writer is null || !string.Equals(_writerPath, line.Path, StringComparison.OrdinalIgnoreCase))
-                {
-                    CloseWriterLocked();
-                    OpenWriterLocked(line.Path);
-                }
+                WriteBatchLocked(batchPath);
+            }
 
-                _writer!.Write(line.Text);
-            }
-            catch
-            {
-                CloseWriterLocked();
-            }
+            batchPath = line.Path;
+            _batch.Append(line.Text);
         }
 
+        if (batchPath is not null)
+        {
+            WriteBatchLocked(batchPath);
+        }
+    }
+
+    /// <summary>
+    /// Appends <see cref="_batch"/> to <paramref name="path"/> and clears it.
+    /// Caller holds _writeLock.
+    ///
+    /// The handle is shared for writing: a second HyperWhisper process on the
+    /// same profile (a duplicate launch logging its exit) appends to the same
+    /// file. FileStream writes at its own cached offset, not at the end, so the
+    /// batch seeks to the end just before its one write. Without that seek it
+    /// would overwrite the other process's lines. As with File.AppendAllText,
+    /// which this replaced, the only gap left is the moment between the seek
+    /// and the write.
+    /// </summary>
+    private static void WriteBatchLocked(string path)
+    {
         try
         {
-            _writer?.Flush();
+            if (_writer is null || !string.Equals(_writerPath, path, StringComparison.OrdinalIgnoreCase))
+            {
+                CloseWriterLocked();
+                OpenWriterLocked(path);
+            }
+
+            var bytes = Utf8NoBom.GetBytes(_batch.ToString());
+            _writer!.Seek(0, SeekOrigin.End);
+            _writer.Write(bytes, 0, bytes.Length);
         }
         catch
         {
             CloseWriterLocked();
+        }
+        finally
+        {
+            _batch.Clear();
         }
     }
 
@@ -714,24 +752,17 @@ public static class LoggingService
             Directory.CreateDirectory(directory);
         }
 
-        // bufferSize 1 turns off FileStream's own buffer: the StreamWriter is the
-        // one buffer, and its Flush goes straight to the OS.
-        var stream = new FileStream(path, FileMode.Append, FileAccess.Write,
+        // OpenOrCreate, not Append: every batch seeks to the end itself, and an
+        // Append stream refuses that seek once another process has truncated
+        // the file. bufferSize 1 turns off FileStream's buffer, so each batch
+        // is one write straight to the OS.
+        _writer = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write,
             FileShare.ReadWrite | FileShare.Delete, bufferSize: 1);
-        try
-        {
-            _writer = new StreamWriter(stream, Utf8NoBom, bufferSize: 16 * 1024);
-            _writerPath = path;
-        }
-        catch
-        {
-            stream.Dispose();
-            throw;
-        }
+        _writerPath = path;
     }
 
     /// <summary>
-    /// Flushes and closes the open file, if any. Never throws. Caller holds _writeLock.
+    /// Closes the open file, if any. Never throws. Caller holds _writeLock.
     /// </summary>
     private static void CloseWriterLocked()
     {
@@ -745,7 +776,7 @@ public static class LoggingService
         }
         catch
         {
-            // The stream is closed by Dispose even when its flush fails.
+            // Nothing is buffered, so there is nothing to lose here.
         }
     }
 
