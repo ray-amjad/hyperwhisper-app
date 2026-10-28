@@ -94,6 +94,9 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     /// it, so a failed start, a cancel or an error never leaves this true (#1190).</summary>
     public bool IsRecordingOrFinishing => IsActive || Volatile.Read(ref _finishing);
     private bool _finishing;
+    /// <summary>A live start has shown the streaming overlay and is still connecting: in flight, though
+    /// neither IsActive nor IsLiveCaptureActive is true yet. Flips raise ActivityChanged (#2038, #2599).</summary>
+    public bool IsLiveStarting => Volatile.Read(ref _liveStarting);
     /// <summary>A live stream started and no stop or cancel has begun; Home's record row follows it (#1187).
     /// Narrower than IsStreaming, which stays true through finalization and after a failed start.</summary>
     public bool IsLiveCaptureActive => Volatile.Read(ref _liveCaptureActive);
@@ -110,9 +113,10 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         RaiseActivityChanged();
     }
 
-    /// <summary>Something <see cref="HomeRecordingState"/> reads changed: a live start began or ended, live
-    /// capture began or ended, the stream's connection failed, or its worker ended while the stream is
-    /// still held. Raised on any thread; a UI subscriber marshals (#2038).</summary>
+    /// <summary>Something <see cref="HomeRecordingState"/> or <see cref="IsRecordingOrFinishing"/> reads
+    /// changed: a live start began or ended, live capture began or ended, the stream's connection failed,
+    /// its worker ended while the stream is still held, or a stop finished. Raised on any thread; a UI
+    /// subscriber marshals (#2038, #2599).</summary>
     public event EventHandler? ActivityChanged;
     private bool _liveConnectionFailed;
     /// <summary>A live start has shown the streaming overlay and has not returned yet: the connect phase
@@ -368,6 +372,8 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         // HasOpenSession includes live capture, so a closed session has no capture to clear.
         if (!HasOpenSession) return new(PlatformResult.Failure("interaction.not_recording", "No transcription is active."), false);
         // The stop is under way before live capture clears, and the finally below clears it whatever throws.
+        // For a held stream (IsActive already false) the ActivityChanged that SetLiveCapture raises must not
+        // see an idle session and put the record hint back for the whole finalization (#2599).
         Volatile.Write(ref _finishing, true);
         Thread.MemoryBarrier();
         try
@@ -433,8 +439,11 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             finally
             {
                 Volatile.Write(ref _finishing, false);
-                SetStoppingFailedLive(false);
+                // Cleared without its own event: the one ActivityChanged below covers both the latch (#2038)
+                // and IsRecordingOrFinishing going false, so the status bar's record hint may come back (#2599).
+                Volatile.Write(ref _stoppingFailedLive, false);
                 ReleaseRecordingStatus();
+                RaiseActivityChanged();
             }
         }
     }

@@ -73,6 +73,10 @@ if (args is [HomeLiveStateRenderTests.ProbeArgument])
 {
     Environment.Exit(HomeLiveStateRenderTests.RunProbe());
 }
+if (args is [StatusHintRenderTests.ProbeArgument])
+{
+    Environment.Exit(StatusHintRenderTests.RunProbe());
+}
 if (args is [OverlayMeterRenderTests.ProbeArgument])
 {
     Environment.Exit(OverlayMeterRenderTests.RunProbe());
@@ -163,6 +167,11 @@ var tests = new (string Name, Func<Task> Run)[]
     ("the overlay's macOS-style waveform keeps its 25 2 px bars inside the pill, peaks in the middle, grows with the level and animates only while shown (#2711)", OverlayMeterRenderTests.RunAsync),
     ("Home reads Recording from the moment a live start shows the overlay, Failed once it turns red, and the workflow state after a failed start (#2038)", HomeLiveStartTests.StartWindowFollowsTheOverlay),
     ("Home keeps Failed through the stop of a live stream whose connection failed, then reads the workflow state (#2038)", HomeLiveStartTests.StopOfAFailedStreamKeepsFailed),
+    ("the status bar drops the record hint while anything is in flight (recording, finishing, Busy) and on an error line (#2599)", RecordingStatusAfterStopTests.StatusHintDroppedWhileInFlightOrOnError),
+    ("the record hint comes back after a stop that wrote its own line while still finishing (#2599)", RecordingStatusAfterStopTests.HintReturnsAfterAStopThatWroteItsOwnLine),
+    ("the status bar drops the record hint while a live start is still connecting and brings it back after (#2599)", RecordingStatusAfterStopTests.HintDroppedWhileALiveStartConnects),
+    ("a held live stream's stop keeps the record hint off while it finishes, and brings it back after (#2599)", RecordingStatusAfterStopTests.HeldStreamStopKeepsTheHintOffWhileFinishing),
+    ("the real status bar drops the record hint while a stream is open, on a Busy line or an error line, and keeps History's hotkey line (#2599)", StatusHintRenderTests.RunAsync),
 };
 
 foreach (var test in tests)
