@@ -280,7 +280,9 @@
       "dataTraining": "Privacidad de datos"
     },
     "copyright": "© 2026 HyperWhisper. Todos los derechos reservados.",
-    "linkedinAria": "LinkedIn"
+    "linkedinAria": "LinkedIn",
+    "xAria": "Sigue a HyperWhisper en X (Twitter)",
+    "githubAria": "HyperWhisper en GitHub"
   },
   "cloudSection": {
     "eyebrow": "Cloud",

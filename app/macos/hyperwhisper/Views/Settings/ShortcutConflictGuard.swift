@@ -253,7 +253,8 @@ final class ShortcutConflictGuard {
             return noErr
         }
 
-        // Not from inside the Carbon callback: the alert runs a modal loop.
+        // Not from inside the Carbon callback: AppKit work waits for the next
+        // main-queue turn.
         DispatchQueue.main.async {
             Self.showConflictAlert(owner: owner, recorder: recorder)
         }
@@ -289,15 +290,16 @@ final class ShortcutConflictGuard {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = "settings.shortcuts.conflict.alert".localized(arguments: displayName(for: owner))
+        // Issue #2397: no nested modal run loop. `runModal` held the main actor
+        // until OK, and the Local API (`@MainActor`) answered nothing, `/health`
+        // included. The sheet and `ModelessAlert` both return at once; the
+        // recorder goes back into recording mode when the alert is dismissed.
         if let window {
-            alert.beginSheetModal(for: window) { response in
-                NSApp.stopModal(withCode: response)
+            alert.beginSheetModal(for: window) { _ in
+                window.makeFirstResponder(recorder)
             }
-            NSApp.runModal(for: window)
         } else {
-            alert.runModal()
+            ModelessAlert.show(alert)
         }
-
-        window?.makeFirstResponder(recorder)
     }
 }
