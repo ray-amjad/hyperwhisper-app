@@ -2,12 +2,33 @@
 
 import { useEffect, useId, useState } from "react";
 import { keepPreviousData } from "@tanstack/react-query";
+import { useReducedMotion } from "framer-motion";
 import { api } from "@/lib/trpc/client";
 import { formatDate, formatDateTime } from "@/lib/format-date";
 import { useRevealAfterLoad } from "@/lib/use-reveal-after-load";
 import { ErrorReveal } from "@/components/ErrorReveal";
 import { HeightTween } from "@/components/ui/HeightTween";
 import { Spinner } from "@/components/ui/Spinner";
+
+const COLUMNS = ["Email", "Account Key", "Devices"] as const;
+
+/** The table's header row; the skeleton repeats it, invisible, to line up. */
+function DevicesTableHead({ invisible = false }: { invisible?: boolean }) {
+  return (
+    <thead className={invisible ? "invisible" : undefined}>
+      <tr className="border-b border-white/10">
+        {COLUMNS.map((column) => (
+          <th
+            key={column}
+            className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider"
+          >
+            {column}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
 
 const TIME_RANGES = [
   { label: "7 days", value: 7 },
@@ -67,6 +88,18 @@ export default function DevicesClient() {
 
   // The first load's rows paint at opacity 0, then fade in.
   const revealed = useRevealAfterLoad(loading);
+
+  // #1242: the first load's skeleton fades out while the rows fade in, then
+  // unmounts when its fade ends. A mount with the rows already cached shows
+  // no skeleton, as before. Reset during render, so a new first load (a
+  // retry after a failed one) brings it back in the same commit.
+  const [skeletonGone, setSkeletonGone] = useState(!loading);
+
+  if (loading && skeletonGone) setSkeletonGone(false);
+  // Under reduced motion there is no fade, so no transitionend: the
+  // skeleton goes in the same frame the rows appear.
+  const reduceMotion = useReducedMotion();
+  const skeletonShown = !skeletonGone && !(revealed && reduceMotion);
 
   const devices = data?.devices ?? [];
   const error = queryError?.message ?? null;
@@ -169,44 +202,13 @@ export default function DevicesClient() {
         <div
           aria-busy={loading || isTransitioning}
           aria-label="Device activations table"
-          className="overflow-x-auto rounded-xl focus-visible:outline-2 focus-visible:outline-focus focus-visible:-outline-offset-2"
+          className="t-skel relative grid overflow-x-auto rounded-xl focus-visible:outline-2 focus-visible:outline-focus focus-visible:-outline-offset-2"
           role="region"
           // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
           tabIndex={0}
         >
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-white/10">
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Email
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Account Key
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Devices
-                </th>
-              </tr>
-            </thead>
-            {/* First load only: skeleton rows, then the real rows fade in.
-                A range switch keeps the previous rows mounted (above). */}
-            {loading && (
-              <tbody aria-hidden className="divide-y divide-white/5">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i}>
-                    <td className="px-6 py-4">
-                      <div className="h-4 bg-white/10 rounded w-48 animate-pulse motion-reduce:animate-none" />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="h-4 bg-white/10 rounded w-28 animate-pulse motion-reduce:animate-none" />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="h-4 bg-white/10 rounded w-12 animate-pulse motion-reduce:animate-none" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            )}
+          <table className="[grid-area:1/1] w-full">
+            <DevicesTableHead />
             <tbody
               className={`t-skel-content divide-y divide-white/5 transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
                 revealed ? "opacity-100 blur-[0px]" : "opacity-0 blur-[2px]"
@@ -241,6 +243,52 @@ export default function DevicesClient() {
               )}
             </tbody>
           </table>
+          {/* First load only: the skeleton rows, in the same grid slot as the
+              table, under an invisible copy of its header (#1242, the #1236
+              cross-fade on /older-versions). A <tbody> cannot share a slot,
+              so the skeleton is its own table. While loading it sizes the
+              box; once the rows land it lifts out of the flow (absolute,
+              clipped to the box), so the table alone sets the height and a
+              short result never waits on the fade. A range switch keeps the
+              previous rows mounted (above) and shows no skeleton. */}
+          {skeletonShown && (
+            <div
+              aria-hidden
+              className={`t-skel-skeleton pointer-events-none transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
+                loading
+                  ? "[grid-area:1/1] self-start"
+                  : "absolute inset-0 overflow-hidden"
+              } ${revealed ? "opacity-0 blur-[2px]" : "opacity-100 blur-[0px]"}`}
+              onTransitionEnd={(event) => {
+                if (
+                  revealed &&
+                  event.target === event.currentTarget &&
+                  event.propertyName === "opacity"
+                ) {
+                  setSkeletonGone(true);
+                }
+              }}
+            >
+              <table className="w-full">
+                <DevicesTableHead invisible />
+                <tbody className="divide-y divide-white/5">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i}>
+                      <td className="px-6 py-4">
+                        <div className="h-4 bg-white/10 rounded w-48 animate-pulse motion-reduce:animate-none" />
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="h-4 bg-white/10 rounded w-28 animate-pulse motion-reduce:animate-none" />
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="h-4 bg-white/10 rounded w-12 animate-pulse motion-reduce:animate-none" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </HeightTween>
 
