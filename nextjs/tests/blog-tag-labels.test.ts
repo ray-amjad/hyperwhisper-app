@@ -25,7 +25,11 @@ describe("formatTagLabel", () => {
     // Slug chips from the live census.
     ["aqua-voice", "Aqua Voice"],
     ["willow-voice", "Willow Voice"],
-    ["real-time-transcription", "real time transcription"],
+    ["real-time-transcription", "real-time transcription"],
+    // A slug keeps its standard compounds; a spaced tag is left as written.
+    ["speech-to-text", "speech-to-text"],
+    ["text-to-speech-ai", "text-to-speech AI"],
+    ["voice to text app", "voice to text app"],
     // Lowercased names from the live census.
     ["ios transcription", "iOS transcription"],
     ["macos voice typing", "macOS voice typing"],

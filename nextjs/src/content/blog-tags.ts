@@ -7,7 +7,8 @@
  * lowercase keywords by design, so a label is lowercase except for the proper
  * nouns below. The raw tag stays the React key and stays in the database.
  *
- * - A slug-shaped tag (no space, has a "-") reads with spaces.
+ * - A slug-shaped tag (no space, has a "-") reads with spaces, except in a
+ *   standard compound ("speech-to-text", "real-time").
  * - A word with a capital past its first letter ("AI", "macOS", "FluidVoice")
  *   was cased on purpose and is kept as is.
  * - Any other word is lowercased, then a proper noun gets its own casing.
@@ -66,6 +67,21 @@ const PROPER_PAIRS = new Map<string, string>(
   }),
 );
 
+/**
+ * Compounds a slug tag keeps hyphenated once its other dashes are spaces:
+ * "speech-to-text" stays, "real-time-transcription" reads
+ * "real-time transcription".
+ */
+const HYPHENATED: [RegExp, string][] = [
+  "speech-to-text",
+  "text-to-speech",
+  "voice-to-text",
+  "real-time",
+].map((compound) => [
+  new RegExp(`\\b${compound.replaceAll("-", " ")}\\b`, "gi"),
+  compound,
+]);
+
 function isDeliberatelyCased(word: string): boolean {
   return /[A-Z]/.test(word.slice(1));
 }
@@ -82,7 +98,10 @@ export function formatTagLabel(tag: string): string {
   const trimmed = tag.trim();
   const spaced =
     !/\s/.test(trimmed) && trimmed.includes("-")
-      ? trimmed.replaceAll("-", " ")
+      ? HYPHENATED.reduce(
+          (text, [loose, compound]) => text.replace(loose, compound),
+          trimmed.replaceAll("-", " "),
+        )
       : trimmed;
   const words = spaced
     .split(/\s+/)
