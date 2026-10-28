@@ -153,7 +153,9 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     /// once the overlay turns red; the worker is not running yet, which is not a failure there.</summary>
     public string? HomeRecordingState(string? workflowState)
     {
-        if (Volatile.Read(ref _stoppingFailedLive)) return nameof(TranscriptionWorkflowState.Failed);
+        // Read with _finishing, so a late error that lands after the stop's finally can never stick.
+        if (Volatile.Read(ref _stoppingFailedLive) && Volatile.Read(ref _finishing))
+            return nameof(TranscriptionWorkflowState.Failed);
         var starting = Volatile.Read(ref _liveStarting);
         return MapHomeRecordingState(workflowState, IsLiveCaptureActive || starting, IsActive || starting,
             Volatile.Read(ref _liveConnectionFailed));
@@ -363,18 +365,18 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
 
     public async ValueTask<InteractionStopOutcome> StopAsync(CancellationToken cancellationToken = default)
     {
-        var open = HasOpenSession;
-        // Set before capture clears, so Home never reads Idle between the two (#2038).
-        if (IsLiveCaptureActive && (Volatile.Read(ref _liveConnectionFailed) || !IsActive)) SetStoppingFailedLive(true);
-        SetLiveCapture(false);
-        if (!open)
-        {
-            SetStoppingFailedLive(false);
-            return new(PlatformResult.Failure("interaction.not_recording", "No transcription is active."), false);
-        }
+        // HasOpenSession includes live capture, so a closed session has no capture to clear.
+        if (!HasOpenSession) return new(PlatformResult.Failure("interaction.not_recording", "No transcription is active."), false);
+        // The stop is under way before live capture clears, and the finally below clears it whatever throws.
+        Volatile.Write(ref _finishing, true);
+        Thread.MemoryBarrier();
         try
         {
-            Volatile.Write(ref _finishing, true);
+            // A stream that already failed (its connection in the error state, or its worker gone) keeps Home
+            // on Failed through this stop: set before capture clears, so Home never reads Idle between the two.
+            // An error that lands after this check sees _finishing and sets it from its handler (#2038).
+            if (IsLiveCaptureActive && (Volatile.Read(ref _liveConnectionFailed) || !IsActive)) SetStoppingFailedLive(true);
+            SetLiveCapture(false);
             await ReportAsync(DiagnosticComponent.Transcription, DiagnosticOutcome.Started);
             _overlay.Transcribing();
             if (_viewModel.Settings.EnableSoundEffects) _ = _services.SoundEffects.Play(SoundEffect.RecordingStopped);
@@ -568,6 +570,9 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         if (overlayState == LinuxStreamingOverlayConnectionState.Error && !Volatile.Read(ref _liveConnectionFailed))
         {
             Volatile.Write(ref _liveConnectionFailed, true);
+            Thread.MemoryBarrier();
+            // A stop already under way has cleared live capture: Home keeps Failed through it.
+            if (_streaming && Volatile.Read(ref _finishing)) SetStoppingFailedLive(true);
             RaiseActivityChanged();
         }
     }
