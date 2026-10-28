@@ -298,7 +298,12 @@ public class BackupService
                 // The transaction rolled the modes and vocabulary back, so the
                 // backup's settings must not stay applied on their own (issue #1614).
                 var settingsRestored = RestoreSettingsAfterFailedImport(settings, settingsBefore, "import");
-                throw new ImportDatabaseStepException(ex, settingsRestored);
+                if (DatabaseRefusedMessage(ex, settingsRestored) is { } refused)
+                {
+                    LoggingService.Error($"BackupService: Import failed in the database step (settings restored: {settingsRestored})", ex);
+                    return Result<string>.Failure(refused);
+                }
+                throw;
             }
 
             // A backup carries whatever `isDefault` its own machine held, so a
@@ -337,11 +342,6 @@ public class BackupService
         {
             LoggingService.Error("BackupService: Invalid JSON in backup", ex);
             return Result<string>.Failure(InvalidBackupFieldMessage(ex));
-        }
-        catch (ImportDatabaseStepException ex)
-        {
-            LoggingService.Error("BackupService: Import failed in the database step", ex.InnerException ?? ex);
-            return Result<string>.Failure(ex.UserMessage);
         }
         catch (Exception ex)
         {
@@ -451,7 +451,12 @@ public class BackupService
                 {
                     var settingsRestored = RestoreSettingsAfterFailedImport(
                         SettingsService.Instance, settingsBefore, "selective import");
-                    throw new ImportDatabaseStepException(ex, settingsRestored);
+                    if (DatabaseRefusedMessage(ex, settingsRestored) is { } refused)
+                    {
+                        LoggingService.Error($"BackupService: Selective import failed in the database step (settings restored: {settingsRestored})", ex);
+                        return Result<ImportSummary>.Failure(refused);
+                    }
+                    throw;
                 }
             }
 
@@ -508,11 +513,6 @@ public class BackupService
         {
             LoggingService.Error("BackupService: Invalid JSON in backup (selective)", ex);
             return Result<ImportSummary>.Failure(InvalidBackupFieldMessage(ex));
-        }
-        catch (ImportDatabaseStepException ex)
-        {
-            LoggingService.Error("BackupService: Selective import failed in the database step", ex.InnerException ?? ex);
-            return Result<ImportSummary>.Failure(ex.UserMessage);
         }
         catch (Exception ex)
         {
@@ -765,21 +765,19 @@ public class BackupService
     }
 
     /// <summary>
-    /// An import's database step failed and its transaction rolled back (issue #1695).
-    /// Carries the plain sentence the user sees; the EF Core / SQLite exception it wraps
-    /// ("See the inner exception for details") goes to the log only.
+    /// The plain sentence the user sees when an import's database step failed because
+    /// the database refused it, and the transaction rolled back (issue #1695). The EF
+    /// Core / SQLite text ("See the inner exception for details") goes to the log only.
+    /// Null for any other exception (a cancel, a mapping fault): its own message stands.
     /// </summary>
-    private sealed class ImportDatabaseStepException : Exception
+    private static string? DatabaseRefusedMessage(Exception ex, bool settingsRestored)
     {
-        public ImportDatabaseStepException(Exception inner, bool settingsRestored)
-            : base("The import's database step failed", inner)
-        {
-            UserMessage = settingsRestored
-                ? "Import failed: the database refused the change. Nothing was imported."
-                : "Import failed: the database refused the change. Your modes and vocabulary were not changed.";
-        }
+        if (ex is not (DbUpdateException or System.Data.Common.DbException))
+            return null;
 
-        public string UserMessage { get; }
+        return settingsRestored
+            ? "Import failed: the database refused the change. Nothing was imported."
+            : "Import failed: the database refused the change. Your modes and vocabulary were not changed, but some settings from the backup may still be applied.";
     }
 
     // =========================================================================
