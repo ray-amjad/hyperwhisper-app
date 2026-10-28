@@ -17086,26 +17086,6 @@ public func llmBuildRequest(params: HwLlmParams)throws  -> HttpRequest {
 })
 }
 /**
- * Port the embedded llama-server listens on.
- */
-public func llmDefaultLocalLlamaPort() -> UInt16 {
-    return try!  FfiConverterUInt16.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_llm_default_local_llama_port($0
-    )
-})
-}
-/**
- * The URL a request would go to, without building the body. For logging and
- * for the health checker.
- */
-public func llmEndpointFor(params: HwLlmParams)throws  -> String {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeHwLlmError.lift) {
-    uniffi_hyperwhisper_core_fn_func_llm_endpoint_for(
-        FfiConverterTypeHwLlmParams.lower(params),$0
-    )
-})
-}
-/**
  * Output-token cap sent to Groq (lower than [`llm_max_output_tokens`] — see the
  * leaf crate for why).
  */
@@ -17143,24 +17123,6 @@ public func llmIsCustomProviderString(providerString: String) -> Bool {
     return try!  FfiConverterBool.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_llm_is_custom_provider_string(
         FfiConverterString.lower(providerString),$0
-    )
-})
-}
-/**
- * Max custom endpoint model-name length, for a UI character counter.
- */
-public func llmMaxCustomEndpointModelChars() -> UInt32 {
-    return try!  FfiConverterUInt32.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_model_chars($0
-    )
-})
-}
-/**
- * Max custom endpoint URL length, for a UI character counter.
- */
-public func llmMaxCustomEndpointUrlChars() -> UInt32 {
-    return try!  FfiConverterUInt32.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_url_chars($0
     )
 })
 }
@@ -18934,12 +18896,6 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_llm_build_request() != 57763) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_llm_default_local_llama_port() != 14194) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_llm_endpoint_for() != 36443) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_llm_groq_max_completion_tokens() != 51471) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -18950,12 +18906,6 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_llm_is_custom_provider_string() != 5642) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_model_chars() != 49114) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_url_chars() != 61579) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_llm_max_output_tokens() != 41429) {
