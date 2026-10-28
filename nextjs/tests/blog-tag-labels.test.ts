@@ -57,6 +57,15 @@ describe("formatTagLabel", () => {
     // Not a word match inside a longer word.
     ["aim for accuracy", "aim for accuracy"],
     ["  hyperwhisper  ", "HyperWhisper"],
+    // A name next to punctuation or a hyphen inside a multi-word tag.
+    ["ai-powered dictation", "AI-powered dictation"],
+    ["hyperwhisper's features", "HyperWhisper's features"],
+    ["dictation on mac, fast", "dictation on Mac, fast"],
+    ["whisper.cpp setup", "Whisper.cpp setup"],
+    // An inherited Object property is not a name.
+    ["constructor", "constructor"],
+    ["tostring hasownproperty", "tostring hasownproperty"],
+    ["__proto__", "__proto__"],
   ];
 
   for (const [tag, label] of cases) {
