@@ -56,7 +56,9 @@ export default async function LatencyPage({ params }: Props) {
   return (
     <div className="w-full py-16 md:py-24">
       <header className="mx-auto max-w-3xl text-center">
-        <h1 className="text-4xl font-bold text-white md:text-5xl">{TITLE}</h1>
+        <h1 className="bg-gradient-to-r from-white to-gray-400 bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
+          {TITLE}
+        </h1>
         <p className="mx-auto mt-6 text-lg text-gray-400">
           Every transcription we run times the provider that answered it. These
           are those timings — {totalSamples.toLocaleString()} provider attempts
