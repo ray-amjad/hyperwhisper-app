@@ -296,6 +296,36 @@ internal static class ScriptGuardPorts
             }
         });
 
+        run("history: a one-row delete waits for a reader on another connection, not fail at once (#2403)", () =>
+        {
+            // The same autocommit-at-reset race as #2430, for DELETE ... RETURNING 1: a
+            // reader mid-read made DeleteTranscript return "Nothing was deleted" at once.
+            DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+            var history = HistoryService.Instance;
+            var row = history.CreateProcessingTranscript(1.0, "g2403-delete", audioFilePath: null);
+            var deletedRow = false;
+            try
+            {
+                Assert(!history.GetPendingTranscriptsSnapshot().Any(t => t.Id == row.Id),
+                    "the fixture row went to the pending store, so the database delete is never tested");
+
+                Result<bool>? deleted = null;
+                var delete = WriteWhileAReaderHolds(() => deleted = history.DeleteTranscript(row.Id));
+                Assert(delete.Failure == null, $"the delete threw: {DescribeCause(delete.Failure)}");
+                Assert(deleted is { IsSuccess: true, Value: true },
+                    $"the delete failed while a reader held the database: {deleted?.Error} (cause: {DescribeCause(deleted?.Exception)})");
+                deletedRow = true;
+                Assert(delete.WaitedForReader, "the delete finished while the reader still held the database");
+
+                using var check = new HyperWhisperDbContext();
+                Assert(!check.Transcripts.AsNoTracking().Any(t => t.Id == row.Id), "the deleted row is still in the database");
+            }
+            finally
+            {
+                if (!deletedRow) history.DeleteTranscript(row.Id);
+            }
+        });
+
         run("models: deleting a Whisper or Parakeet model whose file is in use fails as a Result and keeps it (#830)", () =>
         {
             // A model file held open (a running transcription, antivirus) made
