@@ -113,28 +113,26 @@ struct LocalAPIRequestHeadTests {
     // MARK: - The line limit
 
     /// A header line of exactly 8,192 bytes (CRLF not counted) is accepted,
-    /// with a 200 rather than a close at the read deadline. The bound is the
-    /// deadline, not a wall-clock budget: a 1 s budget failed on a loaded
-    /// hosted runner with no code at fault (issue #2221). The trade: a reader
-    /// that went back to O(n²) still fails the 64 KB head test below at the
-    /// issue's ~2.5 s a line (8 lines, past the deadline), but a much faster
-    /// machine could read it in time. No test here bounds speed tighter.
+    /// with a 200 rather than a close at the read deadline. The server reads
+    /// the whole head under its own deadline and answers a head that misses it
+    /// with nothing but a close, so the 200 itself proves the head was read in
+    /// time. The test keeps no wall-clock bound of its own: a 1 s budget
+    /// failed on a loaded hosted runner (#2221), and a runner that stalls the
+    /// test process for longer than the deadline (#2526) would fail any other.
+    /// The trade: a reader that went back to O(n²) still fails the 64 KB head
+    /// test below at the issue's ~2.5 s a line (8 lines, past the deadline),
+    /// but a much faster machine could read it in time. No test here bounds
+    /// speed tighter.
     @Test func aHeaderLineAtTheLimitIsAccepted() async throws {
         try await withProbe { port in
             let line = RawRequest.headerLine(name: "X-Pad", length: LocalAPIRequestHeadLimit.maxLineBytes)
-            let (reply, elapsed) = try await offPool {
+            let reply = try await offPool {
                 let connection = try RawConnection(port: port, timeout: slowRunnerTimeout)
                 defer { connection.close() }
-                let start = Date()
                 try connection.write(RawRequest.get(port: port, extraLines: [line]))
-                let reply = try connection.readResponse()
-                return (reply, Date().timeIntervalSince(start))
+                return try connection.readResponse()
             }
             #expect(reply?.status == 200)
-            #expect(
-                elapsed < LocalAPIRequestHeadLimit.readDeadline,
-                "an 8 KB header line took \(elapsed) s, past the head deadline"
-            )
         }
     }
 
@@ -166,8 +164,8 @@ struct LocalAPIRequestHeadTests {
 
     /// Exactly 65,536 bytes of head (every line under the line limit, CRLFs and
     /// the final blank line counted) is served inside the head deadline: 8
-    /// lines of about 8 KB each. One byte more is refused. The deadline, not
-    /// 1 s, is the bound, for the reason on the 8 KB test above (#2221).
+    /// lines of about 8 KB each. One byte more is refused. The 200 is the
+    /// deadline check, for the reason on the 8 KB test above (#2221, #2526).
     @Test func aHeadAtTheLimitIsServedAndOneByteMoreGets431() async throws {
         try await withProbe { port in
             let atLimit = RawRequest.getWithHead(port: port, totalBytes: LocalAPIRequestHeadLimit.maxHeadBytes)
@@ -175,19 +173,13 @@ struct LocalAPIRequestHeadTests {
             #expect(atLimit.count == 65_536)
             #expect(overLimit.count == 65_537)
 
-            let (accepted, elapsed) = try await offPool {
+            let accepted = try await offPool {
                 let connection = try RawConnection(port: port, timeout: slowRunnerTimeout)
                 defer { connection.close() }
-                let start = Date()
                 try connection.write(atLimit)
-                let reply = try connection.readResponse()
-                return (reply, Date().timeIntervalSince(start))
+                return try connection.readResponse()
             }
             #expect(accepted?.status == 200)
-            #expect(
-                elapsed < LocalAPIRequestHeadLimit.readDeadline,
-                "a 64 KB head took \(elapsed) s to read, past the head deadline"
-            )
 
             let refused = try await offPool { try RawConnection.sendAndReadToClose(port: port, overLimit) }
             #expect(refused.reply?.status == 431)
@@ -196,22 +188,18 @@ struct LocalAPIRequestHeadTests {
     }
 
     /// The issue's shape: one 100 KB header line. Refused with a 431 inside the
-    /// head deadline, not after minutes of CPU (bound: #2221).
+    /// head deadline, not after minutes of CPU. A head that missed the
+    /// deadline would get a bare close, so the 431 is the deadline check; no
+    /// wall-clock bound of the test's own (#2221, #2526).
     @Test func aHundredKilobyteHeaderIsRefusedBeforeTheDeadline() async throws {
         try await withProbe { port in
             let line = RawRequest.headerLine(name: "X-Junk", length: 100 * 1024)
             let request = RawRequest.get(port: port, extraLines: [line])
-            let (outcome, elapsed) = try await offPool {
-                let start = Date()
-                let outcome = try RawConnection.sendAndReadToClose(port: port, request, timeout: slowRunnerTimeout)
-                return (outcome, Date().timeIntervalSince(start))
+            let outcome = try await offPool {
+                try RawConnection.sendAndReadToClose(port: port, request, timeout: slowRunnerTimeout)
             }
             #expect(outcome.reply?.status == 431)
             #expect(outcome.closedAfterReply)
-            #expect(
-                elapsed < LocalAPIRequestHeadLimit.readDeadline,
-                "a 100 KB head took \(elapsed) s to refuse, past the head deadline"
-            )
         }
     }
 
@@ -284,9 +272,9 @@ struct LocalAPIRequestHeadTests {
 
 // MARK: - Fixtures
 
-/// The client's socket timeout in the tests that bound a reply by the head
-/// deadline: past the deadline, so a slow runner fails on the deadline
-/// `#expect` with its elapsed time rather than on a client-side recv timeout.
+/// The client's socket timeout in the tests that wait out a head deadline:
+/// past the deadline, so the server's answer or close always comes first on a
+/// slow runner. It guards against a hang; it is not a speed bound.
 private let slowRunnerTimeout: TimeInterval = 2 * LocalAPIRequestHeadLimit.readDeadline
 
 private func withProbe(

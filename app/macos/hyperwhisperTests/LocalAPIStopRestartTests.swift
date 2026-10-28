@@ -47,18 +47,19 @@ struct LocalAPIStopRestartTests {
         defer { held.close() }
 
         // Off. Like stop(), it returns at once: quit calls it, and a close
-        // that waited on the held connection would take 120 s. The bound is
-        // loose because the test host runs other suites in parallel.
-        let offStarted = ContinuousClock.now
+        // that waited on the held connection would take 120 s. `switchOff()`
+        // is synchronous and the close it starts runs on this actor's next
+        // turn, so the first sample below, taken before this test yields,
+        // seeing the old socket still bound is the proof that it returned
+        // without waiting. No wall-clock bound: on a loaded runner this test
+        // has taken 41-49 s with no code at fault (#2526).
         probe.switchOff()
-        let offTook = ContinuousClock.now - offStarted
-        #expect(offTook < .seconds(1), "switching off waited on the held connection (\(offTook))")
 
         // Until the old socket is gone, the row never says disabled while the
-        // port is still bound. The first sample is taken before this test
-        // yields, when the close cannot have run yet.
+        // port is still bound. The wait is counted in samples, not seconds,
+        // so a runner that stalls this test spends one sample, not the budget.
         var sawBoundWhileStopping = false
-        let releaseDeadline = ContinuousClock.now + .seconds(30)
+        var samples = 0
         while true {
             let bound = PortCheck.isListening(oldPort)
             let row = Self.row(enabled: false, probe: probe)
@@ -67,13 +68,14 @@ struct LocalAPIStopRestartTests {
                 sawBoundWhileStopping = true
             }
             if !bound && probe.shutdown.closingPorts.isEmpty { break }
-            guard ContinuousClock.now < releaseDeadline else {
-                Issue.record("the old server still \(bound ? "listens" : "reports closing") 30 s after the switch went off")
+            guard samples < Self.releaseSamples else {
+                Issue.record("the old server still \(bound ? "listens" : "reports closing") after \(samples) samples since the switch went off")
                 return
             }
+            samples += 1
             try await Task.sleep(for: .milliseconds(10))
         }
-        #expect(sawBoundWhileStopping, "the first sample, before any yield, must still see the old socket bound")
+        #expect(sawBoundWhileStopping, "switching off waited on the close: the first sample, before any yield, must still see the old socket bound")
         #expect(Self.row(enabled: false, probe: probe) == ("Server disabled", "No network sockets bound."))
 
         // On again, asking for the same port, as start() does with the
@@ -84,7 +86,7 @@ struct LocalAPIStopRestartTests {
 
         held.close()
         probe.switchOff()
-        #expect(await probe.shutdown.awaitRelease(within: .seconds(30)))
+        #expect(try await Self.released(probe.shutdown))
     }
 
     /// Off then straight back On, with one connection held mid-request, as
@@ -108,7 +110,7 @@ struct LocalAPIStopRestartTests {
 
         held.close()
         probe.switchOff()
-        #expect(await probe.shutdown.awaitRelease(within: .seconds(30)))
+        #expect(try await Self.released(probe.shutdown))
     }
 
     /// A close that never finishes must not keep a switch On from listening:
@@ -168,6 +170,21 @@ struct LocalAPIStopRestartTests {
     }
 
     // MARK: - Helpers
+
+    /// How many 10 ms samples a close gets to release its port: 30 s on an
+    /// idle machine. Counted rather than timed, so a runner that stalls this
+    /// test for longer still gives the close its samples (#2526).
+    private static let releaseSamples = 3_000
+
+    /// True once every close `shutdown` has begun has released its port,
+    /// within `releaseSamples` samples.
+    private static func released(_ shutdown: LocalAPIListenerShutdown) async throws -> Bool {
+        for _ in 0..<releaseSamples {
+            if shutdown.closingPorts.isEmpty { return true }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        return shutdown.closingPorts.isEmpty
+    }
 
     /// One connection, half-way through its request head, given time to be
     /// accepted. A head deadline longer than the test keeps it mid-request.
