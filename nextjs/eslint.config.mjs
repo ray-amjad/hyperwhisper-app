@@ -74,6 +74,10 @@ export default defineConfig([globalIgnores([
             ecmaFeatures: {
                 jsx: true,
             },
+
+            // Type information for the type-aware @typescript-eslint rules below.
+            projectService: true,
+            tsconfigRootDir: __dirname,
         },
     },
 
@@ -122,6 +126,14 @@ export default defineConfig([globalIgnores([
             ignoreRestSiblings: false,
             argsIgnorePattern: "^_.*?$",
         }],
+
+        // Type-aware: they catch an untyped JSON.parse / .json() read or an
+        // unawaited promise, which neither a grep nor tsc --noEmit sees.
+        "@typescript-eslint/no-unsafe-argument": "error",
+        "@typescript-eslint/no-unsafe-member-access": "error",
+        "@typescript-eslint/no-unsafe-assignment": "error",
+        "@typescript-eslint/no-unsafe-call": "error",
+        "@typescript-eslint/no-floating-promises": "error",
 
         "import/order": ["warn", {
             groups: [
