@@ -22,8 +22,11 @@ namespace HyperWhisper.ViewModels;
 ///   - a transcript row with a non-finite or negative duration contributes zero
 ///     seconds instead of poisoning the totals.
 ///
-/// The totals are cached for the life of the process (#986): every Home visit
-/// used to re-read the full text of every transcript. A visit reuses them while
+/// The Home page's totals are cached for the life of the process (#986): every
+/// Home visit used to re-read the full text of every transcript. Only a view
+/// model built with <c>cacheTotals: true</c> (HomePage) reads or fills the
+/// cache, so one built over another provider never sees the Home page's
+/// totals. A visit reuses them while
 /// the typing speed, the time zone and the local day are the ones they were
 /// worked out for (the shared core reads nothing else from "now"), and every
 /// HistoryService TranscriptAdded, TranscriptUpdated and TranscriptDeleted drops
@@ -61,15 +64,22 @@ public partial class HomeStatsBarViewModel : ObservableObject
         string TimeZoneId,
         DateOnly LocalDay);
 
-    public HomeStatsBarViewModel(HomeStatisticsService statisticsService, SettingsService settingsService)
+    private readonly bool _cacheTotals;
+
+    public HomeStatsBarViewModel(
+        HomeStatisticsService statisticsService,
+        SettingsService settingsService,
+        bool cacheTotals = false)
     {
         _statisticsService = statisticsService;
         _settingsService = settingsService;
         _typingSpeedWpm = _settingsService.TypingSpeedWPM;
+        _cacheTotals = cacheTotals;
 
         // Before this instance's own handlers, so a save drops the cache before the
         // debounced recompute it schedules reads it.
-        EnsureCachedTotalsSubscribed();
+        if (_cacheTotals)
+            EnsureCachedTotalsSubscribed();
 
         HistoryService.Instance.TranscriptAdded += OnTranscriptsChanged;
         HistoryService.Instance.TranscriptUpdated += OnTranscriptsChanged;
@@ -159,7 +169,7 @@ public partial class HomeStatsBarViewModel : ObservableObject
             var zone = TimeZoneInfo.Local;
             var localDay = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, zone).DateTime);
 
-            snapshot = TryGetCachedTotals(typingSpeedWpm, zone.Id, localDay);
+            snapshot = _cacheTotals ? TryGetCachedTotals(typingSpeedWpm, zone.Id, localDay) : null;
             if (snapshot == null)
             {
                 // Taken before the read: a save whose event lands while the read runs
@@ -169,7 +179,8 @@ public partial class HomeStatsBarViewModel : ObservableObject
                         .GetAsync(typingSpeedWpm, now, zone)
                         .AsTask())
                     .ConfigureAwait(false);
-                StoreCachedTotals(version, new CachedTotals(snapshot, typingSpeedWpm, zone.Id, localDay));
+                if (_cacheTotals)
+                    StoreCachedTotals(version, new CachedTotals(snapshot, typingSpeedWpm, zone.Id, localDay));
             }
         }
         catch (Exception ex)
