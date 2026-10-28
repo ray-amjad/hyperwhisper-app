@@ -355,6 +355,10 @@ static bool read_file_utf8_path(const std::string& path, std::vector<char>& byte
 // users. The managed ARM64/Linux daemon does the same in ReadAudio.
 
 static constexpr int32_t kTargetSampleRate = 16000;
+// The rate comes from the caller's header. Outside this range the resampler's
+// tables (a huge rate) or its output (a tiny one) can need gigabytes.
+static constexpr uint32_t kMinSampleRate = 4000;
+static constexpr uint32_t kMaxSampleRate = 768000;
 
 static uint16_t le16(const unsigned char* p) { return static_cast<uint16_t>(p[0] | (p[1] << 8)); }
 static uint32_t le32(const unsigned char* p) {
@@ -442,6 +446,10 @@ static bool decode_wav_mono16k(const std::vector<char>& file, std::vector<float>
     const uint32_t bytes_per_sample = bits / 8u;
     if (channels == 0 || rate == 0 || block_align != channels * bytes_per_sample) {
         reason = "inconsistent fmt header";
+        return false;
+    }
+    if (rate < kMinSampleRate || rate > kMaxSampleRate) {
+        reason = "unsupported sample rate " + std::to_string(rate) + " Hz";
         return false;
     }
 

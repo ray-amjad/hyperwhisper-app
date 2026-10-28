@@ -12,6 +12,12 @@ internal static class Program
 {
     public const int TargetSampleRate = 16000;
 
+    // The rate comes from the caller's header. Outside this range resampling can need
+    // gigabytes (a 1 Hz header asks for 16000 samples per source sample). Same bounds as
+    // the C++ daemon.
+    internal const int MinSampleRate = 4000;
+    internal const int MaxSampleRate = 768000;
+
     public static int Main(string[] args)
     {
         Console.InputEncoding = Encoding.UTF8;
@@ -225,7 +231,13 @@ internal static class Program
             provider = new MonoFoldSampleProvider(provider);
         }
 
-        if (provider.WaveFormat.SampleRate != TargetSampleRate)
+        var rate = provider.WaveFormat.SampleRate;
+        if (rate < MinSampleRate || rate > MaxSampleRate)
+        {
+            throw new InvalidDataException($"Unsupported sample rate {rate} Hz");
+        }
+
+        if (rate != TargetSampleRate)
         {
             provider = new WdlResamplingSampleProvider(provider, TargetSampleRate);
         }

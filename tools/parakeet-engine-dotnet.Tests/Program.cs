@@ -27,6 +27,7 @@ internal static class DaemonTests
             ("plain mono and stereo WAVs decode as before", PlainMonoAndStereoWav),
             ("the fold carries a partial frame across reads", MonoFoldCarriesPartialFrame),
             ("a WAV whose data ends mid-frame decodes its whole frames", WavEndingMidFrame),
+            ("a header rate outside 4-768 kHz is refused before resampling", OutOfRangeRateRefused),
         };
 
         var failures = 0;
@@ -254,6 +255,26 @@ internal static class DaemonTests
             }
             finally { File.Delete(path); }
         }
+    }
+
+    private static void OutOfRangeRateRefused()
+    {
+        foreach (var rate in new[] { 1, 1_000_000 })
+        {
+            var path = WriteWav(rate, 6, 16, extensible: true, float32: false, frames: 100, (_, _) => 0.25);
+            try
+            {
+                var refused = false;
+                try { Program.ReadAudio(path); }
+                catch (InvalidDataException) { refused = true; }
+                True(refused, $"{rate} Hz was not refused");
+            }
+            finally { File.Delete(path); }
+        }
+
+        var ok = WriteWav(8000, 1, 16, extensible: false, float32: false, frames: 800, (_, _) => 0.25);
+        try { Equal(1600, Program.ReadAudio(ok).Samples.Length); }
+        finally { File.Delete(ok); }
     }
 
     /// <summary>Appends one 16-bit sample (half a stereo frame) and grows both sizes to match.</summary>
