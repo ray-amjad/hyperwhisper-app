@@ -3140,7 +3140,13 @@ public partial class MainWindow : Window
         IsHomeRecordingActive = _recordingSession.IsLiveCaptureActive || _viewModel.Recording?.CanStop == true;
 
     // Raised from the live worker's thread as well as the UI thread (#2038).
-    private void OnRecordingActivityChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(UpdateHomeRecordingState);
+    /// <summary>On the UI thread the caption updates at once: a live start shows its overlay inline in the
+    /// same pass, and a posted update let one frame render the pill beside a stale Idle (#2038).</summary>
+    private void OnRecordingActivityChanged(object? sender, EventArgs e)
+    {
+        if (Dispatcher.UIThread.CheckAccess()) UpdateHomeRecordingState();
+        else Dispatcher.UIThread.Post(UpdateHomeRecordingState);
+    }
 
     private void UpdateHomeRecordingState() =>
         HomeRecordingState = _recordingSession.HomeRecordingState(_viewModel.Recording?.State);

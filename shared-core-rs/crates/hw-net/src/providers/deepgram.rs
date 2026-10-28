@@ -49,7 +49,7 @@ use crate::contract::{
     TranscriptionError,
 };
 use crate::helpers::resolve_mime;
-use crate::providers::common::retry_after;
+use crate::providers::common::{is_out_of_credits_body, retry_after};
 use crate::providers::hyperwhisper_cloud::encode_query;
 
 /// Deepgram transcription endpoint.
@@ -307,7 +307,8 @@ pub fn parse_transcribe_response(resp: &HttpResponse) -> Result<Transcript, Tran
 /// Map a non-2xx Deepgram response to a [`TranscriptionError`].
 ///
 /// PARITY (macOS `DeepgramProvider.swift` switch + Windows `HandleErrorResponseAsync`):
-/// - 401 / 403 → `Unauthorized`
+/// - 401 / 403 → `QuotaExceeded` for an out-of-credits body
+///   (`common::is_out_of_credits_body`), else `Unauthorized`
 /// - 402 → `QuotaExceeded` (`ASR_PAYMENT_REQUIRED`: the project is out of
 ///   credits; same as `common::classify_http` and `retry::classify_error`)
 /// - 408 → `ProviderUnavailable` (request timeout is transient, same as 5xx)
@@ -320,6 +321,7 @@ fn classify_deepgram_http(resp: &HttpResponse, raw: &str) -> TranscriptionError 
     let json: Option<serde_json::Value> = serde_json::from_str(raw).ok();
 
     match status {
+        401 | 403 if is_out_of_credits_body(raw) => TranscriptionError::QuotaExceeded,
         401 | 403 => TranscriptionError::Unauthorized,
         402 => TranscriptionError::QuotaExceeded,
         408 => TranscriptionError::ProviderUnavailable { status },
@@ -809,5 +811,27 @@ mod tests {
             "deepgram 408 classified as {err:?}"
         );
         assert_eq!(err, crate::retry::classify_error(408, ""));
+    }
+
+    // Issue #2144: the out-of-credits body check `classify_http` applies to
+    // 401/403 (issue #2073) applies here too, so this parser and
+    // `retry::classify_error` agree.
+    #[test]
+    fn deepgram_401_403_out_of_credits_body_is_quota_exceeded() {
+        let body = r#"{"err_code":"FORBIDDEN","err_msg":"Your project doesn't have any credits."}"#;
+        for status in [401, 403] {
+            let err = parse_transcribe_response(&err_resp(status, body)).unwrap_err();
+            assert_eq!(err, TranscriptionError::QuotaExceeded, "status {status}");
+            assert_eq!(err, crate::retry::classify_error(status, body));
+        }
+    }
+
+    #[test]
+    fn deepgram_401_bad_key_stays_unauthorized() {
+        let body = r#"{"err_code":"INVALID_AUTH","err_msg":"Invalid credentials."}"#;
+        assert_eq!(
+            parse_transcribe_response(&err_resp(401, body)).unwrap_err(),
+            TranscriptionError::Unauthorized
+        );
     }
 }

@@ -103,11 +103,28 @@ public sealed class LinuxRecordingOverlayController : IDisposable
         lock (_gate)
         {
             if (_disposed || _recordingStarted is null) return;
-            _audioLevel = Math.Clamp(double.IsFinite(level) ? level * 3.25 : 0, 0, 1);
+            _audioLevel = WaveformLevel(level);
             // A level tick repaints only the live pill, never a cancel confirmation or a mode toast (#1245).
             if (_face == RecordingFace.Live) ApplyLocked(RecordingSnapshotLocked());
         }
     }
+
+    /// <summary>The waveform's 0-1 level for a capture level (the chunk's mean |sample| over full scale).</summary>
+    /// <remarks>
+    /// macOS maps the mic's average power in dBFS linearly from -60 dB (0) to 0 dB (1) (SimpleRecorder's
+    /// minDb/maxDb, StreamingAudioCapture's minMeterDb/maxMeterDb). This does the same, so the same voice
+    /// gives the same wave: normal speech near -22 dBFS reads about 0.6, a mid-to-tall wave, where the old
+    /// linear gain (level x 3.25) gave about 0.2, a flat one. The mean |sample| runs about 1-2 dB under
+    /// the RMS for speech, which is small against the 60 dB span.
+    /// </remarks>
+    internal static double WaveformLevel(float level)
+    {
+        if (!float.IsFinite(level) || level <= 0) return 0;
+        var decibels = 20 * Math.Log10(level);
+        return Math.Clamp((decibels - MinimumDecibels) / -MinimumDecibels, 0, 1);
+    }
+
+    private const double MinimumDecibels = -60;
 
     public void ShowTranscribing()
     {
