@@ -36,9 +36,15 @@ public sealed partial class StreamingTranscriptionClient
     {
         var currentWebSocket = webSocket;
 
-        try
+        // The try/catch sits inside the loop so that BOTH ways a socket can end - a close
+        // frame (ReceiveLoopAsync returns) and an exception (a TCP drop with no close frame,
+        // a WebSocketException, a strategy ParseMessage throw) - go on to read the socket a
+        // successful reconnect adopted. Issue #2296: with the catch outside the loop, the
+        // exception path reconnected and then returned, so nothing ever read the new socket.
+        // TryReconnectAsync only adopts the socket into _webSocket; this loop is its only reader.
+        while (!cancellationToken.IsCancellationRequested)
         {
-            while (!cancellationToken.IsCancellationRequested)
+            try
             {
                 await ReceiveLoopAsync(currentWebSocket, cancellationToken);
 
@@ -51,32 +57,34 @@ public sealed partial class StreamingTranscriptionClient
 
                 if (!await TryReconnectAsync(cancellationToken))
                     return;
-
-                currentWebSocket = _webSocket!;
             }
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-        }
-        catch (Exception ex)
-        {
-            if (State is StreamingConnectionState.Disconnecting or StreamingConnectionState.Idle)
-                return;
-
-            LoggingService.Warn($"StreamingTranscriptionClient: receive loop failed, attempting reconnect - {ex.Message}");
-
-            if (!await TryReconnectAsync(cancellationToken))
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                LoggingService.Error("StreamingTranscriptionClient: receive loop failed", ex);
-                Raise(ErrorReceived, ex.Message);
-
-                // TryReconnectAsync's own await chain gives StopAsync a window to move to
-                // Disconnecting/Idle concurrently - don't clobber that back to Error.
-                TryChangeStateUnless(
-                    StreamingConnectionState.Error,
-                    StreamingConnectionState.Disconnecting,
-                    StreamingConnectionState.Idle);
+                return;
             }
+            catch (Exception ex)
+            {
+                if (State is StreamingConnectionState.Disconnecting or StreamingConnectionState.Idle)
+                    return;
+
+                LoggingService.Warn($"StreamingTranscriptionClient: receive loop failed, attempting reconnect - {ex.Message}");
+
+                if (!await TryReconnectAsync(cancellationToken))
+                {
+                    LoggingService.Error("StreamingTranscriptionClient: receive loop failed", ex);
+                    Raise(ErrorReceived, ex.Message);
+
+                    // TryReconnectAsync's own await chain gives StopAsync a window to move to
+                    // Disconnecting/Idle concurrently - don't clobber that back to Error.
+                    TryChangeStateUnless(
+                        StreamingConnectionState.Error,
+                        StreamingConnectionState.Disconnecting,
+                        StreamingConnectionState.Idle);
+                    return;
+                }
+            }
+
+            currentWebSocket = _webSocket!;
         }
     }
 
