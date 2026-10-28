@@ -29,15 +29,19 @@
           <TextBlock Text="{Binding ModeText}" Foreground="#A6FFFFFF"
                      FontSize="10" TextTrimming="CharacterEllipsis" MaxWidth="155" />
         </StackPanel>
+        <!-- Fluent's ProgressBar theme gives a vertical bar MinWidth 4 and MinHeight 200 (and a horizontal
+             one MinWidth 200) from a :vertical trigger, which outranks a plain style setter, and a min
+             size beats an explicit Width or Height. Without the local MinWidth/MinHeight 0 every meter
+             bar laid out 4x200 and ran through the 52 px pill. -->
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" Height="26"
                     VerticalAlignment="Center" Margin="8,0">
-          <ProgressBar Width="3" Height="10" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
-          <ProgressBar Width="3" Height="16" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
-          <ProgressBar Width="3" Height="22" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
-          <ProgressBar Width="3" Height="26" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
-          <ProgressBar Width="3" Height="22" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
-          <ProgressBar Width="3" Height="16" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
-          <ProgressBar Width="3" Height="10" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar MinWidth="0" MinHeight="0" Width="3" Height="10" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar MinWidth="0" MinHeight="0" Width="3" Height="16" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar MinWidth="0" MinHeight="0" Width="3" Height="22" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar MinWidth="0" MinHeight="0" Width="3" Height="26" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar MinWidth="0" MinHeight="0" Width="3" Height="22" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar MinWidth="0" MinHeight="0" Width="3" Height="16" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar MinWidth="0" MinHeight="0" Width="3" Height="10" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
         </StackPanel>
         <TextBlock Grid.Column="3" Text="{Binding DurationText}" Foreground="#CCFFFFFF"
                    FontSize="12" FontFamily="monospace" VerticalAlignment="Center" />
@@ -54,11 +58,11 @@
         </StackPanel>
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" Height="24"
                     VerticalAlignment="Center" Margin="7,0">
-          <ProgressBar Width="3" Height="10" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
-          <ProgressBar Width="3" Height="18" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
-          <ProgressBar Width="3" Height="24" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
-          <ProgressBar Width="3" Height="18" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
-          <ProgressBar Width="3" Height="10" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar MinWidth="0" MinHeight="0" Width="3" Height="10" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar MinWidth="0" MinHeight="0" Width="3" Height="18" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar MinWidth="0" MinHeight="0" Width="3" Height="24" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar MinWidth="0" MinHeight="0" Width="3" Height="18" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar MinWidth="0" MinHeight="0" Width="3" Height="10" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
         </StackPanel>
         <TextBlock Grid.Column="3" Text="{Binding DurationText}" Foreground="#CCFFFFFF"
                    FontSize="11" FontFamily="monospace" VerticalAlignment="Center"/>
@@ -66,7 +70,7 @@
 
       <StackPanel IsVisible="{Binding IsTranscribing}" Orientation="Horizontal"
                   HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
-        <ProgressBar Width="28" Height="4" IsIndeterminate="True" />
+        <ProgressBar MinWidth="0" MinHeight="0" Width="28" Height="4" IsIndeterminate="True" />
         <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF"
                    FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
       </StackPanel>

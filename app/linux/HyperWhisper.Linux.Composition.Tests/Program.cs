@@ -73,6 +73,10 @@ if (args is [HomeLiveStateRenderTests.ProbeArgument])
 {
     Environment.Exit(HomeLiveStateRenderTests.RunProbe());
 }
+if (args is [OverlayMeterRenderTests.ProbeArgument])
+{
+    Environment.Exit(OverlayMeterRenderTests.RunProbe());
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -156,6 +160,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a live stream that fails after delivering text keeps that text in History, the error only in FailedReason (#2282)", LiveFailureHistoryTests.KeepsDeliveredText),
     ("Home's state follows a live stream: Recording while it runs, Failed once it fails and is held (#2038)", HomeLiveStateRenderTests.MappingFollowsTheLiveStream),
     ("the real Home caption reads Failed for a held live stream and Idle again after Stop (#2038)", HomeLiveStateRenderTests.RunAsync),
+    ("the overlay's audio meter bars keep their 10-26 px heights inside the pill and fill with the level (#2711)", OverlayMeterRenderTests.RunAsync),
     ("Home reads Recording from the moment a live start shows the overlay, Failed once it turns red, and the workflow state after a failed start (#2038)", HomeLiveStartTests.StartWindowFollowsTheOverlay),
     ("Home keeps Failed through the stop of a live stream whose connection failed, then reads the workflow state (#2038)", HomeLiveStartTests.StopOfAFailedStreamKeepsFailed),
 };
