@@ -428,8 +428,14 @@ pub fn build_delete_request(
 /// surface it as such — we map 400/401/403 → `Unauthorized` for parity with
 /// Windows and macOS's dominant path.) A 401/403 out-of-credits body
 /// (`common::is_out_of_credits_body`) and a 402 → `QuotaExceeded`; 408 →
-/// `ProviderUnavailable` (transient, same as 5xx); 429 → `RateLimited`; 5xx →
-/// `ProviderUnavailable`; other 4xx → `BadRequest`.
+/// `ProviderUnavailable` (transient, same as 5xx); 413 → `FileTooLarge`; 429 →
+/// `RateLimited`; 5xx → `ProviderUnavailable`; other 4xx → `BadRequest`.
+///
+/// Two gaps from `common::classify_status` are left open on purpose (#2731):
+/// no 429 body is read as `QuotaExceeded`, because Gemini answers
+/// `429 RESOURCE_EXHAUSTED` for a per-minute limit and for spent quota alike,
+/// and no captured reply tells the two apart; and no 400 body is read as out of
+/// credits, because no such Gemini reply is on record.
 fn classify_gemini(resp: &HttpResponse) -> TranscriptionError {
     let raw = resp.text();
     let msg = gemini_error_message(&raw);
@@ -440,6 +446,7 @@ fn classify_gemini(resp: &HttpResponse) -> TranscriptionError {
         408 => TranscriptionError::ProviderUnavailable {
             status: resp.status,
         },
+        413 => TranscriptionError::FileTooLarge,
         429 => TranscriptionError::RateLimited {
             retry_after_secs: retry_after(resp),
         },
@@ -928,6 +935,20 @@ mod tests {
         for status in [400, 401, 403] {
             let err = parse_generate_response(&status_resp(status, body)).unwrap_err();
             assert_eq!(err, TranscriptionError::Unauthorized, "status {status}");
+        }
+    }
+
+    #[test]
+    fn gemini_413_is_file_too_large() {
+        let resp = status_resp(413, "");
+        for err in [
+            parse_upload_start_response(&resp).unwrap_err(),
+            parse_upload_bytes_response(&resp).unwrap_err(),
+            parse_poll_response(&resp).unwrap_err(),
+            parse_generate_response(&resp).unwrap_err(),
+        ] {
+            assert_eq!(err, TranscriptionError::FileTooLarge);
+            assert_eq!(err, crate::retry::classify_error(413, ""));
         }
     }
 }
