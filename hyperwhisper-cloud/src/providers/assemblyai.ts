@@ -235,24 +235,16 @@ function authHeaders(apiKey: string): Record<string, string> {
 }
 
 /** The keyterm phrases both paths send: split, drop phrases over
- * `MAX_KEYTERM_WORDS` words, THEN cap at `MAX_KEYTERMS` — the Rust core's
- * order (`async_flow.rs`: `filter_keyterm_words(...).take(max_terms)`), so a
- * long phrase never uses up a slot a shorter term could fill. */
+ * `MAX_KEYTERM_WORDS` words, and cap at `MAX_KEYTERMS` kept terms. The word
+ * filter runs before the cap, as in the Rust core (`async_flow.rs`:
+ * `filter_keyterm_words(...).take(max_terms)`), so a dropped long phrase never
+ * uses up a slot a shorter term could fill. */
 function toKeyterms(initialPrompt: string): string[] {
-  const terms = splitVocabularyTerms(initialPrompt, {
-    maxTerms: Number.POSITIVE_INFINITY,
+  return splitVocabularyTerms(initialPrompt, {
+    maxTerms: MAX_KEYTERMS,
     maxTermChars: MAX_KEYTERM_CHARS,
+    maxTermWords: MAX_KEYTERM_WORDS,
   });
-  return filterKeytermsByWordCount(terms).slice(0, MAX_KEYTERMS);
-}
-
-/** Drop keyterm phrases over `MAX_KEYTERM_WORDS` words — mirrors the Rust
- * core's sync/async filter (`w.split_whitespace().count() <= MAX_KEYTERM_WORDS`)
- * so the sync fast path's `keyterms_prompt` drops the same over-long phrases
- * the Rust-routed (native) sync path drops, instead of only capping by total
- * characters. */
-function filterKeytermsByWordCount(terms: string[]): string[] {
-  return terms.filter((t) => t.split(/\s+/).filter(Boolean).length <= MAX_KEYTERM_WORDS);
 }
 
 /**
