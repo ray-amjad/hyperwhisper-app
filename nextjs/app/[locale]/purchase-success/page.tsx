@@ -96,7 +96,7 @@ function PurchaseSuccessContent() {
 
         <m.div
           animate={{ opacity: 1, y: 0 }}
-          className="text-left bg-zinc-800/40 rounded-2xl p-7 mt-10"
+          className="text-start bg-zinc-800/40 rounded-2xl p-7 mt-10"
           initial={{ opacity: 0, y: 20 }}
           transition={{ duration: 0.5, delay: 0.5 }}
         >
@@ -132,10 +132,11 @@ function PurchaseSuccessContent() {
             as={Link}
             className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold"
             href="/user/dashboard"
+            role="link"
             size="lg"
           >
             {t("manageButton")}
-            <ArrowRight className="w-[18px] h-[18px] ml-2" />
+            <ArrowRight className="w-[18px] h-[18px] ms-2 rtl:-scale-x-100" />
           </Button>
         </m.div>
       </m.div>

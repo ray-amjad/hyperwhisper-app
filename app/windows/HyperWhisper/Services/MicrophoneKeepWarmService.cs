@@ -23,7 +23,9 @@ public sealed class MicrophoneKeepWarmService : IDisposable
     /// <summary>
     /// Test seam (#2244): HyperWhisper.SmokeTests (InternalsVisibleTo, see
     /// HyperWhisper.csproj) passes a fake capture so it can drive the state
-    /// machine below without a microphone. The app uses <see cref="Instance"/>.
+    /// machine below without a microphone. HyperWhisper.KeepWarm.Tests also
+    /// compiles this file directly (#2501), so keep the constructor in step
+    /// with both. The app uses <see cref="Instance"/>.
     /// </summary>
     internal MicrophoneKeepWarmService(Func<int, IWaveIn> captureFactory)
     {
@@ -42,18 +44,7 @@ public sealed class MicrophoneKeepWarmService : IDisposable
         lock (_lock)
         {
             _enabled = enabled;
-
-            if (!enabled || _suspended || !deviceNumber.HasValue)
-            {
-                StopLocked(enabled ? "unavailable-or-suspended" : "disabled");
-                return;
-            }
-
-            if (_waveIn != null && _activeDeviceNumber == deviceNumber.Value)
-                return;
-
-            StopLocked("device-changed");
-            StartLocked(deviceNumber.Value);
+            ApplyLocked(deviceNumber);
         }
     }
 
@@ -68,12 +59,29 @@ public sealed class MicrophoneKeepWarmService : IDisposable
 
     public void ResumeAfterRecording(int? deviceNumber)
     {
+        // One lock for both steps (#2501): reading _enabled after the lock was
+        // released let a concurrent Configure(false, ...) be overwritten by the
+        // stale value, reopening the mic the user had just turned off.
         lock (_lock)
         {
             _suspended = false;
+            ApplyLocked(deviceNumber);
+        }
+    }
+
+    private void ApplyLocked(int? deviceNumber)
+    {
+        if (!_enabled || _suspended || !deviceNumber.HasValue)
+        {
+            StopLocked(_enabled ? "unavailable-or-suspended" : "disabled");
+            return;
         }
 
-        Configure(_enabled, deviceNumber);
+        if (_waveIn != null && _activeDeviceNumber == deviceNumber.Value)
+            return;
+
+        StopLocked("device-changed");
+        StartLocked(deviceNumber.Value);
     }
 
     private void StartLocked(int deviceNumber)
