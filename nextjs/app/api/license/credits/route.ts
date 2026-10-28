@@ -7,6 +7,7 @@ import {
   findAccountByKey,
   getCreditBalance,
 } from "@/src/lib/db-layer";
+import { isLookupableLicenseKey } from "@/src/lib/license-key-input";
 import { isRecord } from "@/src/lib/type-guards";
 import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
 import { creditPoolIdFor } from "@/src/lib/credit-pool-id";
@@ -53,8 +54,24 @@ export async function GET(req: NextRequest) {
   const licenseKey = searchParams.get("license_key")?.trim();
 
   if (!licenseKey) {
+    // Same wire-format event as activate (#1299): pathname and type only.
+    console.warn("Credits balance: license_key missing", {
+      path: req.nextUrl.pathname,
+      licenseKeyType: searchParams.has("license_key") ? "string" : "undefined",
+    });
+
     return NextResponse.json(
       { error: "license_key is required" },
+      { status: 400 }
+    );
+  }
+
+  // A NUL byte would make Postgres throw and land in the 500 below (#2079).
+  // No stored key has one, so it is answered exactly as an unknown key: the
+  // cloud's `isLicenseRefusal` reads this text as "a key we will not charge".
+  if (!isLookupableLicenseKey(licenseKey)) {
+    return NextResponse.json(
+      { error: "License key not found" },
       { status: 400 }
     );
   }
@@ -128,6 +145,14 @@ export async function POST(req: NextRequest) {
       typeof rawLicenseKey === "string" ? rawLicenseKey.trim() : undefined;
 
     if (!license_key) {
+      // Same wire-format event as activate (#1299): pathname and type only.
+      console.warn("Credits deduction: license_key missing", {
+        path: req.nextUrl.pathname,
+        licenseKeyType: isRecord(body)
+          ? typeof rawLicenseKey
+          : "no-body-object",
+      });
+
       return NextResponse.json(
         { error: "license_key is required" },
         { status: 400 }
@@ -145,6 +170,15 @@ export async function POST(req: NextRequest) {
     if (typeof amount !== "number") {
       return NextResponse.json(
         { error: "amount must be a finite positive number" },
+        { status: 400 }
+      );
+    }
+
+    // A NUL byte would make Postgres throw and land in the 500 below (#2079).
+    // Answered as an unknown key, as the GET above explains.
+    if (!isLookupableLicenseKey(license_key)) {
+      return NextResponse.json(
+        { error: "License key not found" },
         { status: 400 }
       );
     }

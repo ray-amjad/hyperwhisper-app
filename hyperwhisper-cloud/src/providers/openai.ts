@@ -190,14 +190,35 @@ export async function transcribeWithOpenAI(
     : estimateSecondsFromBytes(audio.byteLength);
 
   if (!transcript || transcript.trim().length === 0) {
+    // A per-minute model (whisper-1, gpt-transcribe) keeps the goodwill $0 its
+    // duration-billed siblings return. A TOKEN-billed gpt-4o*-transcribe model
+    // is charged its input tokens by OpenAI whether or not a word comes back,
+    // and $0 there makes silent audio a free channel to paid upstream requests,
+    // so it bills what OpenAI billed — or, with no `usage`, the byte-estimate
+    // floor `computeOpenAITranscriptionCost` already falls back to.
+    // (issue ray-amjad/hyperwhisper-app#2634)
+    const noSpeechCostUsd = DURATION_BILLED_MODELS.has(model)
+      ? 0
+      : computeOpenAITranscriptionCost(model, {
+        durationSeconds,
+        inputTokens: data.usage?.input_tokens,
+        outputTokens: data.usage?.output_tokens,
+      });
     logProviderEvent(provider, 'no_speech', {
       model, elapsedMs: Math.round(performance.now() - startedAt), language: data.language,
       // NOT `durationSeconds`: on the gpt-4o branch that is already our own
       // byte estimate, computed above this check. Only the raw upstream field
       // may be logged as the upstream's number.
       upstreamDurationSeconds: rawWhisperDuration > 0 ? rawWhisperDuration : null,
+      ...(noSpeechCostUsd > 0 ? { costUsd: noSpeechCostUsd } : {}),
     }, context);
-    return { text: '', language: data.language, durationSeconds: 0, costUsd: 0, source: 'no_speech' };
+    return {
+      text: '',
+      language: data.language,
+      durationSeconds: noSpeechCostUsd > 0 ? durationSeconds : 0,
+      costUsd: noSpeechCostUsd,
+      source: 'no_speech',
+    };
   }
 
   // Fail-closed: a duration-billed model's successful transcript with a

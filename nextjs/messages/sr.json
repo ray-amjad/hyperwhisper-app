@@ -280,7 +280,9 @@
       "dataTraining": "Приватност података"
     },
     "copyright": "© 2026 HyperWhisper. Sva prava zadržana.",
-    "linkedinAria": "LinkedIn"
+    "linkedinAria": "LinkedIn",
+    "xAria": "Pratite HyperWhisper na X-u (Twitter)",
+    "githubAria": "HyperWhisper na GitHub-u"
   },
   "cloudSection": {
     "eyebrow": "Cloud",
