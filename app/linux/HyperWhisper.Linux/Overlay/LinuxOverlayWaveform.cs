@@ -29,6 +29,7 @@ internal sealed class LinuxOverlayWaveform : LinuxOverlayAnimatedControl
 
     private static readonly double[] Envelope = BuildEnvelope();
     private static readonly double[][] Waves = BuildWaves();
+    private readonly Rect[] _rects = new Rect[BarCount];
     private double _time;
     private double _smoothedLevel;
 
@@ -55,26 +56,41 @@ internal sealed class LinuxOverlayWaveform : LinuxOverlayAnimatedControl
         _smoothedLevel = _smoothedLevel * keep + target * (1 - keep);
     }
 
-    /// <summary>Each bar's rectangle in this control's coordinates, as Render draws them now.</summary>
-    internal Rect[] BarRects()
+    /// <summary>
+    /// Fills the bars' rectangles, in this control's coordinates, as Render draws them now, and returns
+    /// them (a reused buffer: no allocation per frame). The row is centered at its 2 px bars on a 4 px
+    /// pitch; when the pill leaves it less than <see cref="RowWidth"/> (an hour-long timer beside a long
+    /// label) the whole row narrows evenly about its center instead of clipping its edge bars.
+    /// </summary>
+    internal ReadOnlySpan<Rect> BarRects()
     {
         var bounds = Bounds;
-        var rects = new Rect[BarCount];
-        var startX = Math.Round((bounds.Width - RowWidth) / 2); // whole pixels keep the 2 px bars crisp
+        var fit = bounds.Width >= RowWidth ? 1 : Math.Max(bounds.Width, 0) / RowWidth;
+        var barWidth = BarWidth * fit;
+        var pitch = (BarWidth + BarSpacing) * fit;
+        // Whole pixels keep the 2 px bars crisp; never left of the control.
+        var startX = fit < 1 ? 0 : Math.Round((bounds.Width - RowWidth) / 2);
         var rowScale = 0.25 + 0.75 * Math.Clamp(_smoothedLevel, 0, 1);
         for (var index = 0; index < BarCount; index++)
         {
             var height = bounds.Height * rowScale * BarScale(index, _time);
-            rects[index] = new Rect(startX + index * (BarWidth + BarSpacing), (bounds.Height - height) / 2, BarWidth, height);
+            _rects[index] = new Rect(startX + index * pitch, (bounds.Height - height) / 2, barWidth, height);
         }
-        return rects;
+        return _rects;
     }
 
     public override void Render(DrawingContext context)
     {
         foreach (var rect in BarRects())
-            context.DrawRectangle(BarBrush, null, rect, BarWidth / 2, BarWidth / 2);
+            context.DrawRectangle(BarBrush, null, rect, rect.Width / 2, rect.Width / 2);
         base.Render(context);
+    }
+
+    /// <summary>A new recording starts from silence at the start of the wave, as macOS's new view does.</summary>
+    protected override void OnAnimationStarted()
+    {
+        _smoothedLevel = 0;
+        _time = 0;
     }
 
     /// <summary>A bar's height as a fraction of the row, looping its keyframes linearly.</summary>

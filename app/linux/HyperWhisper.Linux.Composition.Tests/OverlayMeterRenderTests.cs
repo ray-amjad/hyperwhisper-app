@@ -14,7 +14,9 @@ using HyperWhisper.Linux.Overlay;
 // the pill at their 2 px width, they are drawn (25 lit columns in a render of the window), they are
 // taller at level 1 than at silence, the middle bar outgrows the edge bars, and the real timer moves
 // them. Then it checks the timer stops once the waveform is hidden (Transcribing) and the
-// Transcribing spinner's stops once the pill is hidden.
+// Transcribing spinner's stops once the pill is hidden; that a face or pill shown again animates again
+// from silence; that an hour-long timer narrows the row evenly instead of clipping it; and that normal
+// speech (-22 dBFS) through the controller's macOS-style dB mapping gives a mid-to-tall wave.
 // Set HW_OVERLAY_SHOTS_DIR to also write the pill's states as PNGs.
 static class OverlayMeterRenderTests
 {
@@ -78,6 +80,9 @@ static class OverlayMeterRenderTests
             if (spinner.IsFrameTimerRunning) failures.Add("the spinner's frame timer still runs after the pill was hidden");
             if (spinner.FrameCount != spinnerFrames) failures.Add($"the spinner ran {spinner.FrameCount - spinnerFrames} frames while the pill was hidden");
 
+            CheckReshow(window, viewModel, waveforms[0], failures);
+            CheckNormalSpeech(window, viewModel, waveforms[0], failures);
+
             if (shots is not null)
             {
                 viewModel.Apply(new(LinuxRecordingOverlayState.Error, true, "Transcription failed", string.Empty, "00:03"));
@@ -91,6 +96,9 @@ static class OverlayMeterRenderTests
                     ("streaming-error", new(LinuxRecordingOverlayState.Streaming, true, "Live transcription connection lost", "Default", "01:12", 0, LinuxStreamingOverlayConnectionState.Error)),
                     ("recording-long-mode", new(LinuxRecordingOverlayState.Recording, true, "Recording", "A very long custom mode name", "12:34", 0.9)),
                     ("recording-silence", new(LinuxRecordingOverlayState.Recording, true, "Recording", "Default", "00:01")),
+                    ("recording-normal-speech", new(LinuxRecordingOverlayState.Recording, true, "Recording", "Default", "00:07", LinuxRecordingOverlayController.WaveformLevel(NormalSpeech))),
+                    ("recording-hour", new(LinuxRecordingOverlayState.Recording, true, "Recording", new string('W', 64), "01:00:00", LinuxRecordingOverlayController.WaveformLevel(NormalSpeech))),
+                    ("streaming-hour", new(LinuxRecordingOverlayState.Streaming, true, "Live transcription connection lost", "Default", "01:00:00", 0.6, LinuxStreamingOverlayConnectionState.Error)),
                 })
                 {
                     viewModel.Apply(snapshot);
@@ -124,7 +132,7 @@ static class OverlayMeterRenderTests
         Apply(viewModel, state, 1);
         Pump(window);
         var loud = Settle(waveform, 2);
-        var bars = waveform.BarRects();
+        var bars = waveform.BarRects().ToArray();
         if (bars.Length != 25) failures.Add($"{state}: the waveform has {bars.Length} bars, not 25");
         for (var index = 0; index < bars.Length; index++)
         {
@@ -156,10 +164,10 @@ static class OverlayMeterRenderTests
         // The real ~30 fps timer moves the bars while the waveform is shown. The first loop lets the
         // window's first frames render, which is what starts the timer.
         RunLoop(TimeSpan.FromMilliseconds(300));
-        var before = waveform.BarRects();
+        var before = waveform.BarRects().ToArray();
         var framesBefore = waveform.FrameCount;
         RunLoop(TimeSpan.FromMilliseconds(300));
-        var after = waveform.BarRects();
+        var after = waveform.BarRects().ToArray();
         Console.WriteLine($"{state}: {waveform.FrameCount - framesBefore} timer frames in 300 ms");
         if (waveform.FrameCount - framesBefore < 3) failures.Add($"{state}: only {waveform.FrameCount - framesBefore} timer frames ran in 300 ms");
         if (!waveform.IsFrameTimerRunning) failures.Add($"{state}: the waveform's frame timer is not running while it is shown");
@@ -168,14 +176,21 @@ static class OverlayMeterRenderTests
         return waveform;
     }
 
-    /// <summary>A long mode name or connection caption trims or wraps; it never squeezes the waveform's 25 bars.</summary>
+    /// <summary>
+    /// A long mode name or connection caption trims or wraps; it never squeezes the waveform's 25 bars.
+    /// An hour-long timer ("01:00:00") beside them leaves less than the row's 98 px: the row then narrows
+    /// evenly inside the waveform, every bar still drawn, none left of it or past its right edge.
+    /// </summary>
     private static void CheckRoom(Window window, LinuxRecordingOverlayViewModel viewModel, List<string> failures)
     {
+        var longMode = new string('W', 64);
         foreach (var snapshot in new LinuxRecordingOverlaySnapshot[]
         {
-            new(LinuxRecordingOverlayState.Recording, true, "Recording", new string('W', 64), "59:59", 0.5),
+            new(LinuxRecordingOverlayState.Recording, true, "Recording", longMode, "59:59", 0.5),
             new(LinuxRecordingOverlayState.Streaming, true, "Live transcription connection lost", "Default", "59:59", 0.5, LinuxStreamingOverlayConnectionState.Error),
             new(LinuxRecordingOverlayState.Streaming, true, "Live transcription reconnecting…", "Default", "59:59", 0.5, LinuxStreamingOverlayConnectionState.Reconnecting),
+            new(LinuxRecordingOverlayState.Recording, true, "Recording", longMode, "99:59:59", 0.5),
+            new(LinuxRecordingOverlayState.Streaming, true, "Live transcription connection lost", "Default", "01:00:00", 0.5, LinuxStreamingOverlayConnectionState.Error),
         })
         {
             viewModel.Apply(snapshot);
@@ -183,13 +198,99 @@ static class OverlayMeterRenderTests
             var waveform = window.GetVisualDescendants().OfType<LinuxOverlayWaveform>().Single(candidate => candidate.IsEffectivelyVisible);
             var pill = Pill(window);
             var box = Box(waveform, pill);
-            Console.WriteLine($"{snapshot.State} \"{snapshot.StatusText}\" / \"{snapshot.ModeText}\": waveform {Format(box)}");
-            if (box.Width < LinuxOverlayWaveform.RowWidth - 0.5)
-                failures.Add($"{snapshot.State} with \"{snapshot.StatusText}\" / \"{snapshot.ModeText}\": the waveform has {box.Width:F1} px, less than its {LinuxOverlayWaveform.RowWidth} px of bars");
+            var label = $"{snapshot.State} {snapshot.DurationText} \"{snapshot.StatusText}\" / \"{snapshot.ModeText}\"";
+            var hours = snapshot.DurationText.Length > 5;
+            var bars = waveform.BarRects().ToArray();
+            Console.WriteLine($"{label}: waveform {Format(box)}, bars {bars[0].X:F1}..{bars[^1].Right:F1} at {bars[0].Width:F2} px");
+            if (!hours && box.Width < LinuxOverlayWaveform.RowWidth - 0.5)
+                failures.Add($"{label}: the waveform has {box.Width:F1} px, less than its {LinuxOverlayWaveform.RowWidth} px of bars");
+            if (bars.Length != LinuxOverlayWaveform.BarCount) failures.Add($"{label}: {bars.Length} bars");
+            if (bars[0].X < -0.01 || bars[^1].Right > waveform.Bounds.Width + 0.01)
+                failures.Add($"{label}: the bars run {bars[0].X:F1}..{bars[^1].Right:F1}, outside the waveform's 0..{waveform.Bounds.Width:F1}");
+            if (Math.Abs(bars[0].X - (waveform.Bounds.Width - bars[^1].Right)) > 1.01)
+                failures.Add($"{label}: the bars are not centered ({bars[0].X:F1} px left, {waveform.Bounds.Width - bars[^1].Right:F1} px right)");
+            if (bars.Any(bar => bar.Width < 1.5)) failures.Add($"{label}: the bars narrowed under 1.5 px");
+            if (!Contains(Inner(pill), box)) failures.Add($"{label}: the waveform {Format(box)} leaves the pill");
             foreach (var text in pill.GetVisualDescendants().OfType<TextBlock>().Where(candidate => candidate.IsEffectivelyVisible))
-                if (!Contains(Inner(pill), Box(text, pill))) failures.Add($"{snapshot.State}: \"{text.Text}\" {Format(Box(text, pill))} leaves the pill");
+                if (!Contains(Inner(pill), Box(text, pill))) failures.Add($"{label}: \"{text.Text}\" {Format(Box(text, pill))} leaves the pill");
         }
     }
+
+    /// <summary>
+    /// Show, hide, show again: the second showing of the face (and of the pill) must animate again, and
+    /// start from silence rather than the last recording's level.
+    /// </summary>
+    private static void CheckReshow(LinuxRecordingOverlayWindow window, LinuxRecordingOverlayViewModel viewModel,
+        LinuxOverlayWaveform waveform, List<string> failures)
+    {
+        void ExpectMoving(string label)
+        {
+            var before = waveform.BarRects().ToArray();
+            var frames = waveform.FrameCount;
+            RunLoop(TimeSpan.FromMilliseconds(300));
+            var after = waveform.BarRects().ToArray();
+            Console.WriteLine($"{label}: {waveform.FrameCount - frames} frames in 300 ms, timer {waveform.IsFrameTimerRunning}");
+            if (!waveform.IsFrameTimerRunning || waveform.FrameCount - frames < 3)
+                failures.Add($"{label}: the waveform's timer ran {waveform.FrameCount - frames} frames in 300 ms");
+            if (before.Zip(after).All(pair => Math.Abs(pair.First.Height - pair.Second.Height) < 0.01))
+                failures.Add($"{label}: the bars did not move");
+        }
+        void ExpectStopped(string label)
+        {
+            RunLoop(TimeSpan.FromMilliseconds(150));
+            var frames = waveform.FrameCount;
+            RunLoop(TimeSpan.FromMilliseconds(200));
+            if (waveform.IsFrameTimerRunning || waveform.FrameCount != frames)
+                failures.Add($"{label}: the waveform's timer still runs ({waveform.FrameCount - frames} frames)");
+        }
+
+        // First recording, loud.
+        Apply(viewModel, LinuxRecordingOverlayState.Recording, 1);
+        window.ShowBestEffort();
+        Pump(window);
+        RunLoop(TimeSpan.FromMilliseconds(600));
+        var loudLevel = waveform.SmoothedLevel;
+        ExpectMoving("first showing");
+
+        // Another face covers it (the pill stays up), then the recording face comes back.
+        viewModel.Apply(new(LinuxRecordingOverlayState.Transcribing, true, "Transcribing", "Default", "00:03"));
+        Pump(window);
+        ExpectStopped("face hidden");
+        Apply(viewModel, LinuxRecordingOverlayState.Recording, 0);
+        Pump(window);
+        Console.WriteLine($"face shown again: smoothed level {waveform.SmoothedLevel:F2} (was {loudLevel:F2})");
+        if (!(loudLevel > 0.3 && waveform.SmoothedLevel < 0.05))
+            failures.Add($"face shown again: the waveform began at level {waveform.SmoothedLevel:F2}, the last recording's {loudLevel:F2}, not silence");
+        Apply(viewModel, LinuxRecordingOverlayState.Recording, 1);
+        ExpectMoving("face shown again");
+
+        // The pill hides between recordings, then the next recording shows it again.
+        window.HideBestEffort();
+        ExpectStopped("pill hidden");
+        Apply(viewModel, LinuxRecordingOverlayState.Recording, 0.6);
+        window.ShowBestEffort();
+        Pump(window);
+        ExpectMoving("pill shown again");
+    }
+
+    /// <summary>
+    /// Normal speech, about -22 dBFS RMS, through the controller's level mapping, must give a lively wave
+    /// like macOS's (whose -60..0 dB mapping reads it as about 0.63), not a flat one.
+    /// </summary>
+    private static void CheckNormalSpeech(LinuxRecordingOverlayWindow window, LinuxRecordingOverlayViewModel viewModel,
+        LinuxOverlayWaveform waveform, List<string> failures)
+    {
+        var level = LinuxRecordingOverlayController.WaveformLevel(NormalSpeech);
+        Apply(viewModel, LinuxRecordingOverlayState.Recording, level);
+        Pump(window);
+        var heights = Settle(waveform, 2);
+        var tallest = waveform.BarRects().ToArray().Max(bar => bar.Height);
+        Console.WriteLine($"normal speech (-22 dBFS): level {level:F2}, middle bar mean {heights[12]:F1} px, tallest now {tallest:F1} px of 24");
+        if (!(heights[12] >= 10)) failures.Add($"normal speech: the middle bar averages {heights[12]:F1} px of 24, a flat wave");
+    }
+
+    /// <summary>A capture level (mean |sample|) for speech at about -22 dBFS.</summary>
+    internal const float NormalSpeech = 0.0794f;
 
     /// <summary>Advances <paramref name="seconds"/> of 30 fps frames and returns each bar's mean height over the last second.</summary>
     private static double[] Settle(LinuxOverlayWaveform waveform, double seconds)
@@ -201,7 +302,7 @@ static class OverlayMeterRenderTests
         {
             waveform.Advance(TimeSpan.FromSeconds(Frame));
             if (frame < total - sampled) continue;
-            var bars = waveform.BarRects();
+            var bars = waveform.BarRects().ToArray();
             for (var index = 0; index < bars.Length && index < sums.Length; index++) sums[index] += bars[index].Height;
         }
         return sums.Select(sum => sum / sampled).ToArray();
