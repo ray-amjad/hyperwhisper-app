@@ -383,15 +383,22 @@ export default function DownloadsPage() {
                           {formatDate(version.pubDate)}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-gray-400">
-                        <HardDrive
-                          className="w-4 h-4 text-purple-400"
-                          strokeWidth={1.5}
-                        />
-                        <span className="text-sm">
-                          {formatFileSize(version.downloads[0]?.fileSize ?? 0)}
-                        </span>
-                      </div>
+                      {/* One size per card only when there is one file; a
+                          multi-arch card puts each file's size on its own
+                          button (#2086). */}
+                      {version.downloads.length === 1 && (
+                        <div className="flex items-center gap-2 text-gray-400">
+                          <HardDrive
+                            className="w-4 h-4 text-purple-400"
+                            strokeWidth={1.5}
+                          />
+                          <span className="text-sm">
+                            {formatFileSize(
+                              version.downloads[0]?.fileSize ?? 0,
+                            )}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex items-center gap-2 text-gray-400">
                         <Monitor
                           className="w-4 h-4 text-purple-400"
@@ -418,12 +425,27 @@ export default function DownloadsPage() {
                           size="lg"
                           startContent={
                             <Download
-                              className="w-4 h-4"
+                              className="w-4 h-4 shrink-0"
                               strokeWidth={isLatestVersion(index) ? 2 : 1.5}
                             />
                           }
                         >
-                          {dl.arch ? `${dl.arch}` : downloadLabel}
+                          {version.downloads.length > 1 ? (
+                            // Two buttons share a ~350px row: the size goes on
+                            // a second line, so the label, size and icon fit.
+                            // The space keeps the link's text and accessible
+                            // name "ARM64 172.02 MB", not "ARM64172.02 MB".
+                            <span className="flex flex-col items-start leading-tight">
+                              <span>{dl.arch}</span>{" "}
+                              <span className="text-xs font-normal opacity-80">
+                                {formatFileSize(dl.fileSize)}
+                              </span>
+                            </span>
+                          ) : dl.arch ? (
+                            `${dl.arch}`
+                          ) : (
+                            downloadLabel
+                          )}
                         </Button>
                       ))}
                     </div>
