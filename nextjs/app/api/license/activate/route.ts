@@ -84,6 +84,16 @@ export async function POST(req: NextRequest) {
       : undefined;
 
   if (!license_key) {
+    // A client and this route disagree about the wire format (#1299). The
+    // body may still carry the key under another name, so log only the
+    // pathname and the TYPE of `license_key`, never a body value.
+    console.warn("License activate: license key missing", {
+      path: req.nextUrl.pathname,
+      licenseKeyType: isRecord(body)
+        ? typeof body.license_key
+        : "no-body-object",
+    });
+
     return invalidLicenseResponse({
       valid: false,
       error: "License key is required",
