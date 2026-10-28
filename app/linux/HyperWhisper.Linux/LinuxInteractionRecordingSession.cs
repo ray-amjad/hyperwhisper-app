@@ -94,6 +94,9 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     /// it, so a failed start, a cancel or an error never leaves this true (#1190).</summary>
     public bool IsRecordingOrFinishing => IsActive || Volatile.Read(ref _finishing);
     private bool _finishing;
+    /// <summary>A live start has shown the streaming overlay and is still connecting: in flight, though
+    /// neither IsActive nor IsLiveCaptureActive is true yet. Flips raise ActivityChanged (#2038, #2599).</summary>
+    public bool IsLiveStarting => Volatile.Read(ref _liveStarting);
     /// <summary>A live stream started and no stop or cancel has begun; Home's record row follows it (#1187).
     /// Narrower than IsStreaming, which stays true through finalization and after a failed start.</summary>
     public bool IsLiveCaptureActive => Volatile.Read(ref _liveCaptureActive);
@@ -107,6 +110,68 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         if (Volatile.Read(ref _liveCaptureActive) == value) return;
         Volatile.Write(ref _liveCaptureActive, value);
         LiveCaptureChanged?.Invoke(this, EventArgs.Empty);
+        RaiseActivityChanged();
+    }
+
+    /// <summary>Something <see cref="HomeRecordingState"/> or <see cref="IsRecordingOrFinishing"/> reads
+    /// changed: a live start began or ended, live capture began or ended, the stream's connection failed,
+    /// its worker ended while the stream is still held, or a stop finished. Raised on any thread; a UI
+    /// subscriber marshals (#2038, #2599).</summary>
+    public event EventHandler? ActivityChanged;
+    private bool _liveConnectionFailed;
+    /// <summary>A live start has shown the streaming overlay and has not returned yet: the connect phase
+    /// before live capture is on. StartAsync's finally always clears it, so a refused, failed or thrown
+    /// start never leaves Home on Recording (#2038).</summary>
+    private bool _liveStarting;
+
+    /// <summary>A Stop (often the coordinator's auto-stop, #2278) began on a live stream that had already
+    /// failed: its connection was in the error state or its worker was gone. Home keeps Failed through
+    /// that stop's finalization, while the overlay is still red, instead of dropping to the workflow's Idle
+    /// the moment the stop clears live capture. StopAsync's finally always clears it (#2038).</summary>
+    private bool _stoppingFailedLive;
+
+    private void SetStoppingFailedLive(bool value)
+    {
+        if (Volatile.Read(ref _stoppingFailedLive) == value) return;
+        Volatile.Write(ref _stoppingFailedLive, value);
+        RaiseActivityChanged();
+    }
+
+    private void SetLiveStarting(bool value)
+    {
+        if (Volatile.Read(ref _liveStarting) == value) return;
+        Volatile.Write(ref _liveStarting, value);
+        RaiseActivityChanged();
+    }
+
+    private void RaiseActivityChanged()
+    {
+        try { ActivityChanged?.Invoke(this, EventArgs.Empty); } catch { }
+    }
+
+    /// <summary>The state name Home's "State: {0}" caption shows (#2038). A live stream never drives the
+    /// batch workflow, so its caption read Idle for the whole stream and through a held failure. While
+    /// live capture is on, the caption reads Recording, or Failed once the connection is in its error
+    /// state or the worker is gone (the stream held until Stop, #1246); otherwise the workflow's own state.
+    /// The start's connect phase counts as live from the moment the overlay appears: Recording, or Failed
+    /// once the overlay turns red; the worker is not running yet, which is not a failure there.</summary>
+    public string? HomeRecordingState(string? workflowState)
+    {
+        // Read with _finishing, so a late error that lands after the stop's finally can never stick.
+        if (Volatile.Read(ref _stoppingFailedLive) && Volatile.Read(ref _finishing))
+            return nameof(TranscriptionWorkflowState.Failed);
+        var starting = Volatile.Read(ref _liveStarting);
+        return MapHomeRecordingState(workflowState, IsLiveCaptureActive || starting, IsActive || starting,
+            Volatile.Read(ref _liveConnectionFailed));
+    }
+
+    /// <summary>The raw workflow state names are reused on purpose: the caption already shows them untranslated.</summary>
+    internal static string? MapHomeRecordingState(string? workflowState, bool liveCaptureActive, bool liveRunning, bool liveConnectionFailed)
+    {
+        if (!liveCaptureActive) return workflowState;
+        return liveConnectionFailed || !liveRunning
+            ? nameof(TranscriptionWorkflowState.Failed)
+            : nameof(TranscriptionWorkflowState.Recording);
     }
     /// <summary>PrepareAudio ran and no restore has taken it yet, true even before IsActive (#1038); or a restore that was
     /// taken is still waiting out its delay, which the quit must not outlive.</summary>
@@ -132,6 +197,9 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             _overlay.Failed(LinuxRecordingOverlayError.RecordingFailed);
             throw;
         }
+        // The start returned: live capture is on, or the start failed and Home goes back to the
+        // workflow's state (#2038).
+        finally { SetLiveStarting(false); }
     }
 
     private async ValueTask<PlatformResult> StartCoreAsync(
@@ -179,7 +247,12 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             BeginLiveDelivery();
             _services.LivePreview.Begin();
         }
-        if (_streaming) _overlay.StreamingStarted(LinuxOverlayModeLabel.Create(_mode.Name));
+        if (_streaming)
+        {
+            // The overlay shows the stream from here, connecting; Home reads Recording with it (#2038).
+            SetLiveStarting(true);
+            _overlay.StreamingStarted(LinuxOverlayModeLabel.Create(_mode.Name));
+        }
         else _overlay.RecordingStarted(LinuxOverlayModeLabel.Create(_mode.Name));
         // The gate above proved this is a real, enumerated, user-selectable source, so no `"default"`
         // sentinel reaches PrepareAudio, parec, or `@DEFAULT_SOURCE@` from here.
@@ -199,7 +272,12 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         if (started.IsFailure)
         {
             if (_streaming)
+            {
+                // The overlay turns red: Home reads Failed with it until the start returns (#2038).
+                Volatile.Write(ref _liveConnectionFailed, true);
+                RaiseActivityChanged();
                 _overlay.StreamingConnectionChanged(LinuxStreamingOverlayConnectionState.Error);
+            }
             await ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Failed);
             await RestoreAudioAsync();
             ClearSession();
@@ -232,6 +310,8 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
                 // is the worker ending on its own, and only for the session that is still current.
                 if (!session.IsLiveCaptureActive
                     || !ReferenceEquals(session._services.LiveStreaming.Completion, ended)) return;
+                // The stream is held now (IsActive went false): Home reads Failed until Stop (#2038).
+                session.RaiseActivityChanged();
                 try { session.LiveSessionEnded?.Invoke(session, EventArgs.Empty); } catch { }
             },
             this, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
@@ -289,14 +369,22 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
 
     public async ValueTask<InteractionStopOutcome> StopAsync(CancellationToken cancellationToken = default)
     {
-        var open = HasOpenSession;
-        SetLiveCapture(false);
-        if (!open) return new(PlatformResult.Failure("interaction.not_recording", "No transcription is active."), false);
-        await ReportAsync(DiagnosticComponent.Transcription, DiagnosticOutcome.Started);
-        _overlay.Transcribing();
+        // HasOpenSession includes live capture, so a closed session has no capture to clear.
+        if (!HasOpenSession) return new(PlatformResult.Failure("interaction.not_recording", "No transcription is active."), false);
+        // The stop is under way before live capture clears, and the finally below clears it whatever throws.
+        // For a held stream (IsActive already false) the ActivityChanged that SetLiveCapture raises must not
+        // see an idle session and put the record hint back for the whole finalization (#2599).
+        Volatile.Write(ref _finishing, true);
+        Thread.MemoryBarrier();
         try
         {
-            Volatile.Write(ref _finishing, true);
+            // A stream that already failed (its connection in the error state, or its worker gone) keeps Home
+            // on Failed through this stop: set before capture clears, so Home never reads Idle between the two.
+            // An error that lands after this check sees _finishing and sets it from its handler (#2038).
+            if (IsLiveCaptureActive && (Volatile.Read(ref _liveConnectionFailed) || !IsActive)) SetStoppingFailedLive(true);
+            SetLiveCapture(false);
+            await ReportAsync(DiagnosticComponent.Transcription, DiagnosticOutcome.Started);
+            _overlay.Transcribing();
             if (_viewModel.Settings.EnableSoundEffects) _ = _services.SoundEffects.Play(SoundEffect.RecordingStopped);
             InteractionStopOutcome outcome;
             if (_streaming) outcome = await StopStreamingAsync(cancellationToken);
@@ -351,7 +439,11 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             finally
             {
                 Volatile.Write(ref _finishing, false);
+                // Cleared without its own event: the one ActivityChanged below covers both the latch (#2038)
+                // and IsRecordingOrFinishing going false, so the status bar's record hint may come back (#2599).
+                Volatile.Write(ref _stoppingFailedLive, false);
                 ReleaseRecordingStatus();
+                RaiseActivityChanged();
             }
         }
     }
@@ -369,10 +461,9 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         {
             if (transcript is not null)
             {
-                transcript.Status = TranscriptStatus.Failed;
-                transcript.Text = outcome.CaptureFailure?.Message ?? outcome.Transcription.Failure?.Message ?? "Live transcription failed";
-                transcript.FailedReason = transcript.Text;
-                transcript.Duration = outcome.CaptureDuration.TotalSeconds;
+                RecordLiveFailure(transcript, rawTranscript,
+                    outcome.CaptureFailure?.Message ?? outcome.Transcription.Failure?.Message ?? "Live transcription failed",
+                    outcome.CaptureDuration.TotalSeconds);
                 _ = await _history.UpdateAsync(transcript, cancellationToken);
             }
             await RefreshHistoryAsync(cancellationToken);
@@ -474,14 +565,26 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
 
     private void OnAudioLevelChanged(object? sender, float level) => _overlay.AudioLevelChanged(level);
 
-    private void OnStreamingConnectionStateChanged(object? sender, LiveStreamingConnectionState state) =>
-        _overlay.StreamingConnectionChanged(state switch
+    private void OnStreamingConnectionStateChanged(object? sender, LiveStreamingConnectionState state)
+    {
+        var overlayState = state switch
         {
             LiveStreamingConnectionState.Connecting => LinuxStreamingOverlayConnectionState.Connecting,
             LiveStreamingConnectionState.Connected => LinuxStreamingOverlayConnectionState.Connected,
             LiveStreamingConnectionState.Reconnecting => LinuxStreamingOverlayConnectionState.Reconnecting,
             _ => LinuxStreamingOverlayConnectionState.Error,
-        });
+        };
+        _overlay.StreamingConnectionChanged(overlayState);
+        // The overlay turned red: Home follows it (#2038). Only a new stream clears it (BeginLiveDelivery).
+        if (overlayState == LinuxStreamingOverlayConnectionState.Error && !Volatile.Read(ref _liveConnectionFailed))
+        {
+            Volatile.Write(ref _liveConnectionFailed, true);
+            Thread.MemoryBarrier();
+            // A stop already under way has cleared live capture: Home keeps Failed through it.
+            if (_streaming && Volatile.Read(ref _finishing)) SetStoppingFailedLive(true);
+            RaiseActivityChanged();
+        }
+    }
 
     private void OnLiveTranscriptReceived(object? sender, LiveTranscriptUpdate update)
     {
@@ -546,6 +649,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             _liveDeliveryTail = Task.CompletedTask;
             _liveFinalText.Clear();
             _liveStreamingLanguage = _viewModel.Settings.StreamingLanguage;
+            Volatile.Write(ref _liveConnectionFailed, false);
         }
     }
 
@@ -559,6 +663,22 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private string ReadDeliveredTranscript()
     {
         lock (_liveDeliveryGate) return _liveFinalText.ToString();
+    }
+
+    /// <summary>A stream that failed after final segments arrived (already pasted or copied) keeps that
+    /// text in History, with the error in FailedReason only, as Windows does (#2282). Before, both
+    /// fields held the error and the user's text existed only on the clipboard.</summary>
+    internal static void RecordLiveFailure(Transcript transcript, string? receivedText, string failure, double durationSeconds)
+    {
+        transcript.Status = TranscriptStatus.Failed;
+        transcript.FailedReason = failure;
+        if (string.IsNullOrWhiteSpace(receivedText)) transcript.Text = failure;
+        else
+        {
+            transcript.Text = receivedText;
+            transcript.TranscribedText = receivedText;
+        }
+        transcript.Duration = durationSeconds;
     }
 
     // A failed write must not read as "Copied!" while the diagnostics log says Clipboard Failed (#1703).
