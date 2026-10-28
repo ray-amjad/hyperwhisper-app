@@ -223,6 +223,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("microphone keep-warm stuck teardown never touches the replacement source", MicrophoneKeepWarmStuckTeardownSparesReplacement),
     ("Linux child process terminate and dispose return on a blocked UI context", ChildProcessTeardownOnBlockedContext),
     ("sound effects expose unsupported and safe success", SoundEffectsPaths),
+    ("a sound effect does not block the caller while the player runs", SoundEffectDoesNotBlockCaller),
     ("audio environment mute restores exact prior state", AudioEnvironmentMuteRestore),
     ("audio environment unchanged requires no backend", AudioEnvironmentUnchanged),
     ("audio environment duck restores channel volumes", AudioEnvironmentDuckRestore),
@@ -4346,6 +4347,8 @@ static Task SoundEffectsPaths() => WithTemporaryDirectory(directory =>
     using var supported = new LinuxSoundEffectsService(runner, "/usr/bin/pw-play", directory);
     Assert.True(supported.ConfigureVolume(0.375).IsSuccess);
     Assert.Success(supported.Play(SoundEffect.RecordingStarted));
+    var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+    while (runner.CallCount == 0 && DateTime.UtcNow < deadline) Thread.Sleep(10);
     Assert.Equal("--volume=0.375", runner.Calls[0].Arguments[0]);
     Assert.Equal(Path.Combine(directory, "start1.wav"), runner.Calls[0].Arguments[1]);
     Assert.True(supported.ConfigureVolume(double.NaN).IsFailure);
@@ -4353,6 +4356,25 @@ static Task SoundEffectsPaths() => WithTemporaryDirectory(directory =>
     supported.Dispose(); Assert.True(supported.Play(SoundEffect.RecordingStarted).IsFailure);
     Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory, "Assets", "Sounds", "start1.wav")));
     Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory, "Assets", "Sounds", "stop1.wav")));
+});
+
+// #2453: paplay exits only once the chime has drained on the sink, and Play is called on the UI
+// thread. A player that never finishes must not hold the caller.
+static Task SoundEffectDoesNotBlockCaller() => WithTemporaryDirectory(directory =>
+{
+    File.WriteAllBytes(Path.Combine(directory, "stop1.wav"), [1]);
+    var runner = new BlockingDesktopCommandRunner();
+    using var service = new LinuxSoundEffectsService(runner, "/usr/bin/paplay", directory);
+    var play = Task.Run(() => service.Play(SoundEffect.RecordingStopped));
+    try
+    {
+        Assert.True(play.Wait(TimeSpan.FromSeconds(1)), "Play blocked while the player was still running.");
+        Assert.Success(play.Result);
+        Assert.True(runner.Started.Wait(TimeSpan.FromSeconds(5)), "The player was never started.");
+        Assert.Equal("/usr/bin/paplay", runner.Executable);
+        Assert.Equal(Path.Combine(directory, "stop1.wav"), runner.Arguments![1]);
+    }
+    finally { runner.Finish(); }
 });
 
 static async Task PackageUpdateProbe()
@@ -4849,15 +4871,37 @@ sealed class FakeNativeClipboardOwner : INativeClipboardOwner
 
 sealed record DesktopCommandCall(string Executable, IReadOnlyList<string> Arguments, byte[]? Input, TimeSpan Timeout);
 
+/// <summary>A player that runs until Finish, as paplay does until the sound drains (#2453).</summary>
+sealed class BlockingDesktopCommandRunner : IDesktopCommandRunner
+{
+    private readonly TaskCompletionSource<ExternalProcessResult> _exit = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public ManualResetEventSlim Started { get; } = new();
+    public string? Executable { get; private set; }
+    public IReadOnlyList<string>? Arguments { get; private set; }
+    public Task<ExternalProcessResult> RunAsync(string executable, IReadOnlyList<string> arguments,
+        byte[]? input, CancellationToken cancellationToken, TimeSpan timeout)
+    {
+        Executable = executable;
+        Arguments = arguments.ToArray();
+        Started.Set();
+        return _exit.Task;
+    }
+    public void Finish() => _exit.TrySetResult(new ExternalProcessResult(0, []));
+}
+
 sealed class FakeDesktopCommandRunner(params object[] outcomes) : IDesktopCommandRunner
 {
     private readonly Queue<object> _outcomes = new(outcomes);
     public List<DesktopCommandCall> Calls { get; } = [];
+    // Read from another thread when the call runs off the caller's (#2453): bumped after Calls.Add.
+    public int CallCount => Volatile.Read(ref _callCount);
+    private int _callCount;
     public Task<ExternalProcessResult> RunAsync(string executable, IReadOnlyList<string> arguments,
         byte[]? input, CancellationToken cancellationToken, TimeSpan timeout)
     {
         cancellationToken.ThrowIfCancellationRequested();
         Calls.Add(new DesktopCommandCall(executable, arguments.ToArray(), input?.ToArray(), timeout));
+        Interlocked.Increment(ref _callCount);
         if (!_outcomes.TryDequeue(out var outcome)) throw new InvalidOperationException("No fake command result was configured.");
         if (outcome is Exception exception) return Task.FromException<ExternalProcessResult>(exception);
         return Task.FromResult((ExternalProcessResult)outcome);

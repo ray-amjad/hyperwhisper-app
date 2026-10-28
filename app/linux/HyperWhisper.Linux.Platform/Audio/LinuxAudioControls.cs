@@ -106,9 +106,17 @@ public sealed class LinuxSoundEffectsService : ISoundEffectsService
         if (_disposed) return PlatformResult.Failure("sound_effects.disposed", "Sound effects are disposed.");
         var path = Path.Combine(_assets, effect == SoundEffect.RecordingStarted ? "start1.wav" : "stop1.wav");
         if (_player is null || !File.Exists(path)) return PlatformResult.Failure("sound_effects.unsupported", "A packaged sound effect or supported player is unavailable.");
-        try { var result = _runner.RunAsync(_player, PlaybackArguments(_player, path, _volume), null, CancellationToken.None, TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
-            return result.ExitCode == 0 ? PlatformResult.Success() : PlatformResult.Failure("sound_effects.play_failed", "The sound effect could not be played."); }
-        catch { return PlatformResult.Failure("sound_effects.play_failed", "The sound effect could not be played."); }
+        // #2453: the player exits only once the sound has drained on the sink (about 2 s on a slow or
+        // suspended one), and the caller is the UI thread, before the recorder starts or stops. So
+        // it runs off that thread and Play returns once it is started; a chime that fails is lost.
+        var arguments = PlaybackArguments(_player, path, _volume);
+        var player = _player;
+        _ = Task.Run(async () =>
+        {
+            try { _ = await _runner.RunAsync(player, arguments, null, CancellationToken.None, TimeSpan.FromSeconds(5)).ConfigureAwait(false); }
+            catch { }
+        });
+        return PlatformResult.Success();
     }
     public PlatformResult ConfigureVolume(double volume)
     {
