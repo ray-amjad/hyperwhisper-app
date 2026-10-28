@@ -432,7 +432,7 @@ function readArticlesEnvelope(
   }
 
   // Only the array itself is proven above. Each element is read through
-  // readArticle inside the loop, so a malformed article becomes a permanent
+  // prepareArticle in POST's loop, so a malformed article becomes a permanent
   // skip for that index and later articles in the delivery still run.
   if (rawArticles.length > MAX_ARTICLES) {
     return NextResponse.json(
@@ -581,17 +581,17 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
-    const { row: article } = prepared;
+    const { row } = prepared;
 
     try {
-      const row = await upsertArticle(article);
+      const saved = await upsertArticle(row);
 
-      processed.push({ id: row.id, slug: row.slug });
+      processed.push({ id: saved.id, slug: saved.slug });
 
-      revalidatePath(`/en/blog/${row.slug}`);
+      revalidatePath(`/en/blog/${saved.slug}`);
     } catch (err) {
       console.error("[add-blog-post] upsert failed", {
-        externalId: article.externalId,
+        externalId: row.externalId,
         err,
       });
       // A thrown upsert is treated as transient (DB outage, constraint, etc.)
