@@ -54,8 +54,12 @@
              a taller message grows downward instead, over the very recording overlay it is meant
              to float above, while the user is dictating into another application. ~6 lines is the
              bound on how much of the screen one error may take. TextTrimming stays for the one
-             message that outgrows even those. -->
-        <TextBlock x:Name="ToastMessage" Grid.Column="1"
+             message that outgrows even those.
+
+             Selectable, so a URL the message carries can be selected and copied (#2632): when the
+             browser cannot open the account page, the toast names the page's URL "so the user can
+             copy it" (#1188), and a plain TextBlock could not be selected at all. -->
+        <SelectableTextBlock x:Name="ToastMessage" Grid.Column="1"
                    Foreground="#E6FFFFFF" FontSize="11" FontWeight="Medium"
                    VerticalAlignment="Center" TextWrapping="Wrap" MaxHeight="90"
                    TextTrimming="CharacterEllipsis"/>

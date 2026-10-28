@@ -81,6 +81,10 @@ if (args is [OverlayMeterRenderTests.ProbeArgument])
 {
     Environment.Exit(OverlayMeterRenderTests.RunProbe());
 }
+if (args is [AccountLinkToastRenderTests.ProbeArgument])
+{
+    Environment.Exit(AccountLinkToastRenderTests.RunProbe());
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -172,6 +176,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("the status bar drops the record hint while a live start is still connecting and brings it back after (#2599)", RecordingStatusAfterStopTests.HintDroppedWhileALiveStartConnects),
     ("a held live stream's stop keeps the record hint off while it finishes, and brings it back after (#2599)", RecordingStatusAfterStopTests.HeldStreamStopKeepsTheHintOffWhileFinishing),
     ("the real status bar drops the record hint while a stream is open, on a Busy line or an error line, and keeps History's hotkey line (#2599)", StatusHintRenderTests.RunAsync),
+    ("an account page the browser could not open gets no Open Settings button; other account codes keep it (#2632)", AccountLinkToastRenderTests.ClassifierDropsTheButtonForAccountLinks),
+    ("the real error toast shows the account-link failure with no button and a selectable URL (#2632)", AccountLinkToastRenderTests.RunAsync),
 };
 
 foreach (var test in tests)
