@@ -936,6 +936,22 @@
       ],
       "licensed": false,
       "note": "Unlicensed. Codex 0 real defects (its History 'no Retry' = seed rows have no AudioFilePath; CanRetry needs one). Mine: backup export AND import both silent on success (#2507 comment). Local API: port 22/80 fall back truthfully, /recordings/{id} MODE_NOT_FOUND is deliberate (closed code set). Onboarding Skip on Test page => onboarding.skipped=true, wizard not shown again."
+    },
+    {
+      "at": "2026-10-28T02:09:32Z",
+      "platform": "win",
+      "commit": "c31b5506",
+      "routes": [
+        "core-settings",
+        "licence",
+        "modes"
+      ],
+      "status": "nothing-found",
+      "issues": [
+        0
+      ],
+      "licensed": false,
+      "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY). modes: create/rename/120-char name (ellipsis = fine)/delete active/delete last (refused w/ dialog) clean; duplicate names are code-guarded by ModeNameRules. core-settings: shortcut conflict + no-modifier rules show inline errors, persistence clean. licence: unlicensed Cloud page has only Activate+Get Credits; Get Credits opens the browser on Ray's PC (logged once on dblclick). Licence + core-settings are now mined on win; core artifact from c7d3c9c7 (empty shared-core-rs diff)."
     }
   ]
 }
