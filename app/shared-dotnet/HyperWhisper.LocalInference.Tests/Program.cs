@@ -298,6 +298,10 @@ foreach (var (name, run) in WaveResamplerChecks.All())
 {
     await CheckAsync(name, () => { run(); return Task.CompletedTask; });
 }
+foreach (var (name, run) in AudioContextChecks.All())
+{
+    await CheckAsync(name, () => { run(); return Task.CompletedTask; });
+}
 
 if (args.Length is 2 or 3)
 {
@@ -369,6 +373,8 @@ if (args.Length is 2 or 3)
         Assert(after.IsSuccess && service.RequestFactoriesBuilt == 2, "a reload did not drop the kept factory");
         Assert(service.FactoriesHeld == 1, "the first ARM64 request kept the load's factory");
     });
+    await CheckAsync("real model: one processor is kept past a bad file or a full-window redo, and dropped on a reload or cancel (issue #1006)",
+        () => AudioContextChecks.KeepsOneProcessorAsync(args[0], args[1]));
     await CheckAsync("real model: the ARM64 load holds one verified copy for every chunk (PR #1927)", async () =>
     {
         await using var service = new LocalWhisperService();
