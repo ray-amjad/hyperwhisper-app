@@ -5,6 +5,7 @@ import {
   MIN_CREDIT_DOLLARS,
   computeCreditPurchase,
 } from "@/app/api/checkout/credits/validation";
+import { TEXT_LINK } from "@/components/text-link";
 import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
 export const generateMetadata = localizedPageMetadata({
@@ -118,10 +119,7 @@ export default function RefundPolicyPage() {
       <ol>
         <li>
           <strong>Contact our support team</strong> via email at{" "}
-          <a
-            className="text-blue-400 hover:underline"
-            href="mailto:hi@support.hyperwhisper.com"
-          >
+          <a className={TEXT_LINK} href="mailto:hi@support.hyperwhisper.com">
             hi@support.hyperwhisper.com
           </a>
         </li>
@@ -241,7 +239,7 @@ export default function RefundPolicyPage() {
         <p className="mb-2">
           <strong>Provider:</strong> Ray Amjad LTD (
           <a
-            className="text-blue-400 hover:underline"
+            className={TEXT_LINK}
             href="https://find-and-update.company-information.service.gov.uk/company/14506459"
             rel="noopener noreferrer"
             target="_blank"
@@ -252,10 +250,7 @@ export default function RefundPolicyPage() {
         </p>
         <p className="mb-2">
           <strong>Email:</strong>{" "}
-          <a
-            className="text-blue-400 hover:underline"
-            href="mailto:hi@support.hyperwhisper.com"
-          >
+          <a className={TEXT_LINK} href="mailto:hi@support.hyperwhisper.com">
             hi@support.hyperwhisper.com
           </a>
         </p>
