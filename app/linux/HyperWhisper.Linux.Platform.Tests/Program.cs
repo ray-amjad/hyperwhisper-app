@@ -100,6 +100,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("an empty-clipboard transcript left with no restore is snapshotted", InjectionEmptyClipboardRestoreOffIsSnapshotted),
     ("a no-write dictation inside the empty-clipboard window keeps it", InjectionEmptyClipboardNoWriteSessionKeepsWindow),
     ("a cancelled dictation inside the empty-clipboard window keeps it", InjectionEmptyClipboardCancelledSessionKeepsWindow),
+    ("a restore-off write inside the empty-clipboard window ends it", InjectionEmptyClipboardRestoreOffWriteEndsWindow),
     ("a cancelled chained dictation restores the user clipboard at once", InjectionCancelledChainedDictationRestoresAtOnce),
     ("a chained dictation that writes nothing keeps the user clipboard", InjectionNoWriteChainedDictationKeepsUserClipboard),
     ("own-transcript match reads every target a transcript write publishes", InjectionOwnTranscriptMatchByTargets),
@@ -1808,6 +1809,24 @@ static Task InjectionEmptyClipboardCancelledSessionKeepsWindow() =>
         service.EndSession();
         Assert.Success(await service.RestoreClipboardImmediatelyAsync());
     });
+
+// Review round 2: a dictation inside A's window that writes the same text with restore off leaves
+// it on purpose, so the next one snapshots it and puts it back, as after any restore-off write.
+static async Task InjectionEmptyClipboardRestoreOffWriteEndsWindow()
+{
+    var (clipboard, service, advance) = NewEmptyClipboardInjection();
+    using var _ = service;
+    await DictateAsync(service, "same text");
+    service.ScheduleClipboardRestore(EmptyClipboardRestoreDelay());
+    advance(500);
+    await DictateAsync(service, "same text");
+    advance(500);
+    await DictateAsync(service, "transcript C");
+    Assert.True(service.HoldsSnapshot);
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("same text", clipboard.Text);
+}
 
 // A session inside A's window that writes nothing (silence, a cancel) keeps the mark, as the
 // non-empty chain does, so a third dictation still inside A's delay leaves its own transcript.

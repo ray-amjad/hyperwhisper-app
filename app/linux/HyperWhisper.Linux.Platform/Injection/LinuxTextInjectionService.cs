@@ -56,7 +56,7 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
     // transcript as left on the clipboard on purpose (restore off) and snapshots it afresh.
     private byte[]? _unscheduledTranscript;
     // #2269 (the Linux twin of #1584): the transcript written over an EMPTY clipboard (no
-    // snapshot) that had a restore scheduled, and when that restore delay ends, in TickCountMs
+    // snapshot; a failed capture leaves none either) that had a restore scheduled, and when that restore delay ends, in TickCountMs
     // ms. With nothing to restore the transcript stays on the clipboard, but until the delay ends
     // it is still the app's own text: a session started in that window keeps "nothing to
     // restore" instead of snapshotting it. After the delay it is the clipboard's content. Guarded by _gate.
@@ -298,7 +298,7 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
     }
     /// <summary>
     /// Records that the clipboard now holds a transcript this service wrote. It drops the armed
-    /// mark: only a restore scheduled for this write (ScheduleClipboardRestore) arms it again, so
+    /// marks (#2269: the empty-clipboard one too): only a restore scheduled for this write (ScheduleClipboardRestore) arms one again, so
     /// a transcript left with no restore (restore off) is the clipboard's content next session.
     /// </summary>
     private void MarkTranscriptWritten(string text)
@@ -307,6 +307,7 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
         lock (_gate)
         {
             _scheduledTranscript = null;
+            _emptyClipboardTranscript = null;
             _unscheduledTranscript = bytes;
         }
     }
