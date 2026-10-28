@@ -117,15 +117,11 @@ struct ModeEditorNameTakenTests {
     }
 
     @Test func everyLocaleHasTheMessage() throws {
-        let root = ProductionSource.url("app/macos/hyperwhisper/Localizations")
-        let locales = try FileManager.default.contentsOfDirectory(atPath: root.path)
-            .filter { $0.hasSuffix(".lproj") }
-        #expect(!locales.isEmpty)
+        let locales = try ProductionSource.localeDirectories()
+        #expect(locales.count == 40)
         for locale in locales {
-            let strings = try ProductionSource.text(
-                of: root.appendingPathComponent(locale).appendingPathComponent("Localizable.strings")
-            )
-            #expect(strings.contains("\"modes.field.name.taken\" = \""), "missing in \(locale)")
+            let lines = try ProductionSource.localizableLines(of: locale)
+            _ = ProductionSource.onlyLine(forKey: "modes.field.name.taken", in: lines, locale: locale)
         }
     }
 }
