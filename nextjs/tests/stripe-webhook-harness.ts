@@ -13,6 +13,7 @@
  * is the only way the tests reach the source. A test file that imports the
  * webhook path itself would bind to the real collaborators, so do not.
  */
+import { accountKeyRowWithDefaults } from "./account-key-fixture";
 import { consoleSilencer, moduleMock, moduleUrl } from "./module-mock";
 
 import type { AccountKeyInsert, AccountKeyRow } from "@/src/lib/db-layer";
@@ -87,21 +88,9 @@ export const behaviour = {
   emailSuccess: true,
 };
 
-export function accountKeyRow(overrides: Partial<AccountKeyRow> = {}): AccountKeyRow {
-  return {
-    id: "key_row_1",
-    key: "HW-AAAA-BBBB-CCCC",
-    email: "buyer@example.com",
-    userId: "user_1",
-    status: "granted",
-    polarLicenseKeyId: null,
-    polarCustomerId: null,
-    stripeCustomerId: "cus_1",
-    stripeSessionId: "cs_1",
-    createdAt: new Date("2026-01-01T00:00:00Z"),
-    ...overrides,
-  };
-}
+export const accountKeyRow = accountKeyRowWithDefaults({
+  key: "HW-AAAA-BBBB-CCCC",
+});
 
 export function resetHarness(): void {
   calls.findAccountByKey.length = 0;

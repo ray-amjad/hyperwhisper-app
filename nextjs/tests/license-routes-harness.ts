@@ -55,23 +55,7 @@ export const behaviour = {
   creditBalance: 4_200,
 };
 
-export function accountKeyRow(
-  overrides: Partial<AccountKeyRow> = {},
-): AccountKeyRow {
-  return {
-    id: "key_row_1",
-    key: "HW-TEST-0000-0001",
-    email: "buyer@example.com",
-    userId: "user_1",
-    status: "granted",
-    polarLicenseKeyId: null,
-    polarCustomerId: null,
-    stripeCustomerId: "cus_1",
-    stripeSessionId: "cs_1",
-    createdAt: new Date("2026-01-01T00:00:00Z"),
-    ...overrides,
-  };
-}
+export { accountKeyRow } from "./account-key-fixture";
 
 export function resetHarness(): void {
   calls.rateLimit.length = 0;
