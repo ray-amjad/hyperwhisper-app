@@ -90,10 +90,15 @@ export function sizeLimitWords(actualBytes: number, maxBytes: number): { max: st
   };
 }
 
-/** The wire fields the native clients read; see `sizeLimitWords`. */
+/**
+ * The wire fields the native clients read; see `sizeLimitWords`. The clients
+ * turn `max_size_mb` back into bytes (`× 1_048_576`), so it is rounded DOWN:
+ * rounding Soniox's 14,400,000-byte cap gave 14, i.e. 14,680,064 bytes, a
+ * limit larger than the one enforced (#2704).
+ */
 export function sizeLimitFields(actualBytes: number, maxBytes: number): { max_size_mb: number; actual_size_mb: number } {
   return {
-    max_size_mb: Math.round(maxBytes / MIB),
+    max_size_mb: Math.floor(maxBytes / MIB),
     actual_size_mb: parseFloat((actualBytes / MIB).toFixed(2)),
   };
 }
