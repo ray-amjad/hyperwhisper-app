@@ -984,6 +984,22 @@
       ],
       "licensed": false,
       "note": "unlicensed; Codex 1 real cosmetic (vocab 3-line clip no ellipsis/tooltip, #2853); provider-settings clean, no credential files left; modes create+long name+Gemini/fr clean, Codex ran out of steps before rename/delete"
+    },
+    {
+      "at": "2026-10-29T01:49:03Z",
+      "platform": "mac",
+      "commit": "5f00cdcf",
+      "routes": [
+        "vocabulary",
+        "history-and-backup",
+        "modes"
+      ],
+      "status": "nothing-found",
+      "issues": [
+        0
+      ],
+      "licensed": false,
+      "note": "unlicensed (no account key in box). 68 Codex steps, 0 defects; vocab persistence + mode delete verified with sqlite3 -readonly. Codex toggled Storage auto-deletion ON (30 days) during history route — turned back OFF; watch for that, it would purge the seeded History. Mode cards for Cloud modes show 'HyperWhisper' not the chosen provider/model (by design?)."
     }
   ]
 }
