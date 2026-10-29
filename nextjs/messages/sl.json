@@ -212,7 +212,10 @@
     "emailTemplate": {
       "subject": "Zahteva za podporo HyperWhisper",
       "body": "Živjo,\n\nRazličica: \n[to lahko preverite v Nastavitve > O aplikaciji]\n\nTežava: \n[Opišite svojo težavo]\n\nPodrobnosti: \n[Navedite pomembne podrobnosti, kaj ste počeli pred sesutjem]\n\n[Vaše sporočilo tukaj]\n\nLep pozdrav,"
-    }
+    },
+    "helpCenterHint": "Nastavitev, bližnjice in modeli.",
+    "chooseModelHint": "Razvrstite modele glede na to, kako delate.",
+    "accountHint": "Prijavite se s ključem računa."
   },
   "downloadModal": {
     "logoAlt": "Logotip HyperWhisper",
@@ -251,7 +254,12 @@
     "linuxInputGroupNote": "Ko se pridružite skupini input, se odjavite in znova prijavite. Članstvo ni obvezno, vendar ga potrebujejo globalne bližnjice in samodejno lepljenje.",
     "aptTitle": "Lastno skladišče APT",
     "aptBody": "Izdaje za Linux vključujejo tudi arhiv statičnega skladišča APT. HyperWhisper trenutno ne upravlja javne končne točke APT; za podpisano lastno namestitev, namizne dodatke, podrobnosti o zasebnosti in odstranitev glejte vodnik za namestitev na Linuxu.",
-    "linuxGuideCta": "Preberite vodnik za namestitev na Linuxu"
+    "linuxGuideCta": "Preberite vodnik za namestitev na Linuxu",
+    "heroLead": "Brezplačno in odprtokodno. Izberite svojo platformo.",
+    "releaseNotes": "Opombe ob izdaji",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon in Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 in ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Starejše različice",

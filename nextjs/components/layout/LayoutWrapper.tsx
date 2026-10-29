@@ -18,7 +18,7 @@ function isHomePath(pathname: string): boolean {
 
 /**
  * The sub-pages restyled in the Dusk design. Each lays its own full-bleed sky
- * band under the navbar and centres its sections itself, so their <main> drops
+ * band under the navbar and centres its sections itself, so their main region drops
  * the container.
  */
 const DUSK_PAGES = [

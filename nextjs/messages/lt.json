@@ -212,7 +212,10 @@
     "emailTemplate": {
       "subject": "HyperWhisper pagalbos užklausa",
       "body": "Sveiki,\n\nVersija: \n[galite patikrinti Nustatymai > Apie]\n\nProblema: \n[Aprašykite savo problemą]\n\nDetalės: \n[Pateikite svarbias detales, ką darėte prieš programos strigtį]\n\n[Jūsų žinutė čia]\n\nPagarbiai,"
-    }
+    },
+    "helpCenterHint": "Sąranka, spartieji klavišai ir modeliai.",
+    "chooseModelHint": "Surikiuokite modelius pagal tai, kaip dirbate.",
+    "accountHint": "Prisijunkite su paskyros raktu."
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper logotipas",
@@ -251,7 +254,12 @@
     "linuxInputGroupNote": "Prisijungę prie input grupės, atsijunkite ir vėl prisijunkite. Narystė neprivaloma, tačiau jos reikia visuotiniams spartiesiems klavišams ir automatiniam įklijavimui.",
     "aptTitle": "Talpinkite savo APT saugyklą",
     "aptBody": "Linux leidimuose taip pat yra statinis APT saugyklos archyvas. HyperWhisper šiuo metu neteikia viešo APT galinio taško; informacijos apie pasirašytą, savarankiškai talpinamą sąranką, darbalaukio integraciją, privatumą ir pašalinimą rasite Linux diegimo vadove.",
-    "linuxGuideCta": "Skaityti Linux diegimo vadovą"
+    "linuxGuideCta": "Skaityti Linux diegimo vadovą",
+    "heroLead": "Nemokama ir atvirojo kodo. Pasirinkite savo platformą.",
+    "releaseNotes": "Leidimo pastabos",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon ir Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 ir ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Senesnės versijos",

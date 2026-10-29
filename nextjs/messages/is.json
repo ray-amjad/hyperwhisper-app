@@ -212,7 +212,10 @@
     "emailTemplate": {
       "subject": "HyperWhisper aðstoðarbeiðni",
       "body": "Hæ,\n\nÚtgáfa: \n[þú getur séð þetta í Settings > About]\n\nVandamál: \n[Lýstu vandamálinu]\n\nNánar: \n[Gefðu viðeigandi upplýsingar, hvað þú varst að gera fyrir hrun]\n\n[Skilaboðin þín hér]\n\nKveðja,"
-    }
+    },
+    "helpCenterHint": "Uppsetning, flýtilyklar og líkön.",
+    "chooseModelHint": "Raðaðu líkönunum eftir því hvernig þú vinnur.",
+    "accountHint": "Skráðu þig inn með aðgangslyklinum þínum."
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper merki",
@@ -251,7 +254,12 @@
     "linuxInputGroupNote": "Skráðu þig út og aftur inn eftir að þú gengur í input-hópinn. Aðild er valfrjáls, en altækar flýtileiðir og sjálfvirk innsetning þurfa hana.",
     "aptTitle": "Hýstu þína eigin APT-geymslu",
     "aptBody": "Linux-útgáfur innihalda einnig kyrrstætt APT-geymslusafn. HyperWhisper rekur sem stendur engan opinberan APT-endapunkt; sjáðu uppsetningarleiðbeiningarnar fyrir Linux varðandi undirritaða, sjálfhýsta uppsetningu, skjáborðssamþættingu, persónuverndarupplýsingar og fjarlægingu.",
-    "linuxGuideCta": "Lesa uppsetningarleiðbeiningar fyrir Linux"
+    "linuxGuideCta": "Lesa uppsetningarleiðbeiningar fyrir Linux",
+    "heroLead": "Ókeypis og opinn hugbúnaður. Veldu þitt stýrikerfi.",
+    "releaseNotes": "Útgáfuupplýsingar",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon og Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 og ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Eldri útgáfur",

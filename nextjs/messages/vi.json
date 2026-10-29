@@ -212,7 +212,10 @@
     "emailTemplate": {
       "subject": "Yêu cầu Hỗ trợ HyperWhisper",
       "body": "Xin chào,\n\nPhiên bản: \n[bạn có thể kiểm tra trong Settings > About]\n\nVấn đề: \n[Mô tả vấn đề của bạn]\n\nChi tiết: \n[Cung cấp chi tiết liên quan, bạn đã làm gì trước khi bị crash]\n\n[Tin nhắn của bạn ở đây]\n\nTrân trọng,"
-    }
+    },
+    "helpCenterHint": "Cài đặt, phím tắt và mô hình.",
+    "chooseModelHint": "Xếp hạng các mô hình theo cách bạn làm việc.",
+    "accountHint": "Đăng nhập bằng khóa tài khoản của bạn."
   },
   "downloadModal": {
     "logoAlt": "Logo HyperWhisper",
@@ -251,7 +254,12 @@
     "linuxInputGroupNote": "Đăng xuất rồi đăng nhập lại sau khi tham gia nhóm input. Việc tham gia là tùy chọn, nhưng phím tắt toàn cục và tự động dán cần đến nó.",
     "aptTitle": "Tự lưu trữ kho APT",
     "aptBody": "Các bản phát hành Linux cũng kèm theo một tệp lưu trữ kho APT tĩnh. HyperWhisper hiện không vận hành endpoint APT công khai; hãy xem hướng dẫn cài đặt Linux để biết cách thiết lập tự lưu trữ có ký số, các thành phần đi kèm cho máy tính, chi tiết quyền riêng tư và cách gỡ cài đặt.",
-    "linuxGuideCta": "Đọc hướng dẫn cài đặt Linux"
+    "linuxGuideCta": "Đọc hướng dẫn cài đặt Linux",
+    "heroLead": "Miễn phí và mã nguồn mở. Chọn nền tảng của bạn.",
+    "releaseNotes": "Ghi chú phát hành",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon và Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 và ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Phiên bản cũ",

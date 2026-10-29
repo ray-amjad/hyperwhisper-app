@@ -20,11 +20,17 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
+/*
+  The support, /credits and /older-versions titles now render in the shared
+  sky band (`PageHero` in components/landing/DuskPage.tsx), whose h1 takes the
+  `PAGE_H1` class string from components/landing/dusk-pages.ts. It is solid
+  white, not a clipped gradient, so the sizes and the overflow-wrap are pinned
+  on that one constant instead of on three literals.
+*/
 const sites = [
-  { file: "app/[locale]/support/page.tsx", tag: "h1", bleed: false },
-  // #2714: the siblings PR #2710 left out.
-  { file: "components/credits/CreditsPurchase.tsx", tag: "h1", bleed: false },
-  { file: "app/[locale]/older-versions/page.tsx", tag: "h1", bleed: false },
+  "app/[locale]/support/page.tsx",
+  "components/credits/CreditsPurchase.tsx",
+  "app/[locale]/older-versions/page.tsx",
 ];
 
 const read = (file: string) =>
@@ -62,24 +68,31 @@ for (const file of [
   });
 }
 
-for (const { file, tag, bleed } of sites) {
-  test(`${file} <${tag}> is text-3xl below sm, text-4xl from sm, text-5xl from md`, () => {
-    const source = readFileSync(
-      fileURLToPath(new URL(`../${file}`, import.meta.url)),
-      "utf8",
-    );
-    const match = source.match(
-      new RegExp(`<${tag} className="([^"]*bg-clip-text[^"]*)"`),
-    );
-    assert.ok(match, `no gradient <${tag}> found in ${file}`);
-    const classes = match[1].split(/\s+/);
+test("PAGE_H1 is text-3xl below sm, text-4xl from sm, text-5xl from md", () => {
+  const match = read("components/landing/dusk-pages.ts").match(
+    /export const PAGE_H1 =\s*"([^"]*)"/,
+  );
 
-    const sizes = classes.filter((c) =>
-      /^(\w+:)?text-(xs|sm|base|lg|\d?xl)$/.test(c),
-    );
-    assert.deepEqual(sizes, ["text-3xl", "sm:text-4xl", "md:text-5xl"]);
-    if (bleed) {
-      assert.ok(classes.includes("-mx-2") && classes.includes("px-2"));
-    }
+  assert.ok(match, "no PAGE_H1 constant in components/landing/dusk-pages.ts");
+  const classes = match[1].split(/\s+/);
+
+  assert.deepEqual(
+    classes.filter((c) => /^(\w+:)?text-(xs|sm|base|lg|\d?xl)$/.test(c)),
+    ["text-3xl", "sm:text-4xl", "md:text-5xl"],
+  );
+  assert.ok(classes.includes("[overflow-wrap:anywhere]"));
+  assert.ok(!classes.includes("bg-clip-text"));
+});
+
+test("PageHero's h1 uses PAGE_H1", () => {
+  assert.match(
+    read("components/landing/DuskPage.tsx"),
+    /<h1\s+className=\{`[^`]*\$\{PAGE_H1\}[^`]*`\}/,
+  );
+});
+
+for (const file of sites) {
+  test(`${file} renders its title in PageHero`, () => {
+    assert.match(read(file), /<PageHero[^>]*\btitle=\{t\("title"\)\}/);
   });
 }

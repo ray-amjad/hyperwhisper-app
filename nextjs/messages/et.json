@@ -212,7 +212,10 @@
     "emailTemplate": {
       "subject": "HyperWhisperi toe päring",
       "body": "Tere,\n\nVersioon: \n[seda saad kontrollida menüüst Settings > About]\n\nProbleem: \n[Kirjelda oma probleemi]\n\nDetailid: \n[Lisa olulised detailid, mida tegid enne krahhi]\n\n[Sinu sõnum siia]\n\nParimate soovidega,"
-    }
+    },
+    "helpCenterHint": "Seadistamine, otseteed ja mudelid.",
+    "chooseModelHint": "Järjesta mudelid oma töötavade järgi.",
+    "accountHint": "Logi sisse oma kontovõtmega."
   },
   "downloadModal": {
     "logoAlt": "HyperWhisperi logo",
@@ -251,7 +254,12 @@
     "linuxInputGroupNote": "Pärast input-grupiga liitumist logi välja ja uuesti sisse. Liikmesus on valikuline, kuid globaalsed kiirklahvid ja automaatne kleepimine vajavad seda.",
     "aptTitle": "Majuta oma APT-hoidla",
     "aptBody": "Linuxi väljalasked sisaldavad ka staatilist APT-hoidla arhiivi. HyperWhisper ei halda praegu avalikku APT-lõpp-punkti; allkirjastatud ja ise majutatud seadistuse, töölauaintegratsiooni, privaatsusteabe ja eemaldamise kohta vaata Linuxi paigaldusjuhendit.",
-    "linuxGuideCta": "Loe Linuxi paigaldusjuhendit"
+    "linuxGuideCta": "Loe Linuxi paigaldusjuhendit",
+    "heroLead": "Tasuta ja avatud lähtekoodiga. Vali oma platvorm.",
+    "releaseNotes": "Väljalaskemärkmed",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon ja Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 ja ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Vanemad versioonid",

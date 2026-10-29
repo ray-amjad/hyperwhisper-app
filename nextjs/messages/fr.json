@@ -212,7 +212,10 @@
     "emailTemplate": {
       "subject": "Demande de support HyperWhisper",
       "body": "Bonjour,\n\nVersion : \n[vous pouvez la vérifier dans Réglages > À propos]\n\nProblème : \n[Décrivez votre problème]\n\nDétails : \n[Fournissez tout détail pertinent, ce que vous faisiez avant le crash]\n\n[Votre message ici]\n\nCordialement,"
-    }
+    },
+    "helpCenterHint": "Installation, raccourcis et modèles.",
+    "chooseModelHint": "Classez les modèles selon votre façon de travailler.",
+    "accountHint": "Connectez-vous avec votre clé de compte."
   },
   "downloadModal": {
     "logoAlt": "Logo HyperWhisper",
@@ -251,7 +254,12 @@
     "linuxInputGroupNote": "Déconnectez-vous puis reconnectez-vous après avoir rejoint le groupe input. L'adhésion est facultative, mais elle est nécessaire pour les raccourcis globaux et le collage automatique.",
     "aptTitle": "Auto-héberger un dépôt APT",
     "aptBody": "Les versions Linux incluent aussi une archive de dépôt APT statique. HyperWhisper n'exploite actuellement aucun point de terminaison APT public ; consultez le guide d'installation Linux pour une configuration signée et auto-hébergée, les composants de bureau complémentaires, les informations de confidentialité et la désinstallation.",
-    "linuxGuideCta": "Lire le guide d'installation Linux"
+    "linuxGuideCta": "Lire le guide d'installation Linux",
+    "heroLead": "Gratuit et open source. Choisissez votre plateforme.",
+    "releaseNotes": "Notes de version",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon et Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 et ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Anciennes versions",

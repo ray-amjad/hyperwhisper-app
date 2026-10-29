@@ -212,7 +212,10 @@
     "emailTemplate": {
       "subject": "HyperWhisper atbalsta pieprasījums",
       "body": "Sveiki,\n\nVersija: \n[varat pārbaudīt sadaļā Iestatījumi > Par]\n\nProblēma: \n[Aprakstiet savu problēmu]\n\nDetaļas: \n[Norādiet svarīgas detaļas, ko darījāt pirms avārijas]\n\n[Jūsu ziņa šeit]\n\nAr cieņu,"
-    }
+    },
+    "helpCenterHint": "Iestatīšana, īsinājumtaustiņi un modeļi.",
+    "chooseModelHint": "Sakārtojiet modeļus atbilstoši savam darba stilam.",
+    "accountHint": "Pierakstieties ar savu konta atslēgu."
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper logotips",
@@ -251,7 +254,12 @@
     "linuxInputGroupNote": "Pēc pievienošanās input grupai izrakstieties un pierakstieties vēlreiz. Dalība nav obligāta, taču tā nepieciešama globālajiem īsinājumtaustiņiem un automātiskai ielīmēšanai.",
     "aptTitle": "Mitiniet savu APT repozitoriju",
     "aptBody": "Linux laidienos ir iekļauts arī statisks APT repozitorija arhīvs. HyperWhisper pašlaik neuztur publisku APT galapunktu; informāciju par parakstītu, pašmitinātu iestatīšanu, darbvirsmas integrāciju, privātumu un noņemšanu skatiet Linux instalēšanas rokasgrāmatā.",
-    "linuxGuideCta": "Lasīt Linux instalēšanas rokasgrāmatu"
+    "linuxGuideCta": "Lasīt Linux instalēšanas rokasgrāmatu",
+    "heroLead": "Bezmaksas un atvērtā koda. Izvēlieties savu platformu.",
+    "releaseNotes": "Laidiena piezīmes",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon un Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 un ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Vecākas versijas",

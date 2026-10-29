@@ -212,7 +212,10 @@
     "emailTemplate": {
       "subject": "HyperWhisper supportanmodning",
       "body": "Hej,\n\nVersion: \n[du kan tjekke i Indstillinger > Om]\n\nProblem: \n[Beskriv dit problem]\n\nDetaljer: \n[Angiv relevante detaljer, hvad lavede du før nedbruddet]\n\n[Din besked her]\n\nVenlig hilsen,"
-    }
+    },
+    "helpCenterHint": "Opsætning, genveje og modeller.",
+    "chooseModelHint": "Ranger modellerne efter, hvordan du arbejder.",
+    "accountHint": "Log ind med din kontonøgle."
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper-logo",
@@ -251,7 +254,12 @@
     "linuxInputGroupNote": "Log ud og ind igen, når du er blevet medlem af gruppen input. Medlemskab er valgfrit, men globale genveje og automatisk indsættelse kræver det.",
     "aptTitle": "Host dit eget APT-repository",
     "aptBody": "Linux-udgivelser indeholder også et statisk APT-repository-arkiv. HyperWhisper driver i øjeblikket ikke et offentligt APT-endpoint; se installationsvejledningen til Linux for signeret, selv-hostet opsætning, skrivebordsintegration, oplysninger om privatliv og afinstallation.",
-    "linuxGuideCta": "Læs installationsvejledningen til Linux"
+    "linuxGuideCta": "Læs installationsvejledningen til Linux",
+    "heroLead": "Gratis og open source. Vælg din platform.",
+    "releaseNotes": "Udgivelsesnoter",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon og Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 og ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Ældre versioner",

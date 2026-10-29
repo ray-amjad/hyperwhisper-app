@@ -212,7 +212,10 @@
     "emailTemplate": {
       "subject": "Prośba o wsparcie HyperWhisper",
       "body": "Cześć,\n\nWersja: \n[możesz sprawdzić w Ustawienia > O programie]\n\nProblem: \n[Opisz swój problem]\n\nSzczegóły: \n[Podaj istotne szczegóły, co robiłeś przed awarią]\n\n[Twoja wiadomość tutaj]\n\nPozdrawiam,"
-    }
+    },
+    "helpCenterHint": "Konfiguracja, skróty i modele.",
+    "chooseModelHint": "Uszereguj modele według swojego sposobu pracy.",
+    "accountHint": "Zaloguj się kluczem konta."
   },
   "downloadModal": {
     "logoAlt": "Logo HyperWhisper",
@@ -251,7 +254,12 @@
     "linuxInputGroupNote": "Po dołączeniu do grupy input wyloguj się i zaloguj ponownie. Członkostwo jest opcjonalne, ale wymagają go globalne skróty i automatyczne wklejanie.",
     "aptTitle": "Własne repozytorium APT",
     "aptBody": "Wydania dla Linuxa zawierają też archiwum statycznego repozytorium APT. HyperWhisper nie prowadzi obecnie publicznego serwera APT; informacje o konfiguracji podpisanego, własnego repozytorium, komponentach desktopowych, prywatności i odinstalowaniu znajdziesz w przewodniku instalacji dla Linuxa.",
-    "linuxGuideCta": "Przeczytaj przewodnik instalacji dla Linuxa"
+    "linuxGuideCta": "Przeczytaj przewodnik instalacji dla Linuxa",
+    "heroLead": "Darmowy i open source. Wybierz swoją platformę.",
+    "releaseNotes": "Informacje o wydaniu",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon i Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 i ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Starsze wersje",

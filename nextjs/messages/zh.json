@@ -212,7 +212,10 @@
     "emailTemplate": {
       "subject": "HyperWhisper 支持请求",
       "body": "你好，\n\n版本：\n[可在 设置 > 关于 中查看]\n\n问题：\n[描述你的问题]\n\n详情：\n[提供相关细节，崩溃前你在做什么]\n\n[你的消息]\n\n此致,"
-    }
+    },
+    "helpCenterHint": "设置、快捷键与模型。",
+    "chooseModelHint": "按你的工作方式为模型排序。",
+    "accountHint": "使用账户密钥登录。"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper 标志",
@@ -251,7 +254,12 @@
     "linuxInputGroupNote": "加入 input 组后，请注销并重新登录。加入该组是可选的，但全局快捷键和自动粘贴需要它。",
     "aptTitle": "自行托管 APT 仓库",
     "aptBody": "Linux 版本还附带一个静态 APT 仓库归档。HyperWhisper 目前不运营公共 APT 端点；有关签名的自托管设置、桌面配套组件、隐私详情和卸载方法，请参阅 Linux 安装指南。",
-    "linuxGuideCta": "阅读 Linux 安装指南"
+    "linuxGuideCta": "阅读 Linux 安装指南",
+    "heroLead": "免费且开源。选择你的平台。",
+    "releaseNotes": "版本说明",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon 与 Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 与 ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "旧版本",
