@@ -1112,10 +1112,10 @@ public partial class MainWindow : Window
                 cleanup.TranscriptsDeleted, cleanup.AudioFilesDeleted);
         // Windows reports no disk usage on this page, so the inventory line has no home here any
         // more; what it fed was the Linux-only card. The last-cleanup line stays, because Windows
-        // draws that one too (LastCleanupInfoPanel). It goes through the view model: the Storage
-        // page is a template that exists only while shown, so a sweep before the first visit, or
-        // a revisit, found no control to write into (#1371).
-        _viewModel.Settings.StorageLastCleanupText = cleanupText;
+        // draws that one too (LastCleanupInfoPanel). It goes through the page's view model: the
+        // Storage page is a template that exists only while shown, so a sweep before the first
+        // visit, or a revisit, found no control to write into (#1371).
+        _viewModel.Storage.LastCleanupText = cleanupText;
     }
 
     /// <summary>
@@ -1199,13 +1199,6 @@ public partial class MainWindow : Window
                 .FirstOrDefault(candidate => candidate.Name == "StorageErrorText") is not { } error) return;
         error.Text = text;
         error.IsVisible = true;
-    }
-
-    private void SetStorageText(string name, string text)
-    {
-        var control = this.GetLogicalDescendants().OfType<TextBlock>()
-            .FirstOrDefault(candidate => candidate.Name == name);
-        if (control is not null) control.Text = text;
     }
 
     private void ApplyTelemetrySettings()

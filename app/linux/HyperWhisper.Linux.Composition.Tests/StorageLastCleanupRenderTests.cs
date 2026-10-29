@@ -73,6 +73,12 @@ static class StorageLastCleanupRenderTests
 
     private static async Task Run(MainWindow window, ApplicationShellViewModel shell, ApplicationDb database, List<string> failures)
     {
+        // Nobody edits a setting here, so nothing may save one. A cleanup that saved settings would
+        // raise StorageSettingsChanged, which runs another cleanup: the line looped save -> sweep in
+        // review round 1, and the second sweep's 0 replaced the start-up sweep's count.
+        var storageChanges = 0;
+        shell.Settings.StorageSettingsChanged += (_, _) => storageChanges++;
+
         // The start-up cleanup runs later in the Opened handler, on Home. Wait until it has removed
         // the row, then for the status update it posts after the inventory read.
         var deadline = DateTime.UtcNow.AddSeconds(25);
@@ -93,6 +99,10 @@ static class StorageLastCleanupRenderTests
         shell.Navigate("storage");
         await Settle();
         Expect("Storage, after leaving Settings and coming back", Line(window), failures);
+
+        Console.WriteLine($"storage-settings changes with no edit: {storageChanges}");
+        if (storageChanges != 0)
+            failures.Add($"{storageChanges} settings save(s) with no edit, each running another cleanup");
     }
 
     private static async Task<int> Remaining(ApplicationDb database)
@@ -104,10 +114,10 @@ static class StorageLastCleanupRenderTests
     private static void Expect(string label, string? actual, List<string> failures)
     {
         Console.WriteLine($"{label}: \"{actual}\"");
-        // The line names the newest sweep, as Windows' does; the settings saves right after launch
-        // each run one more, so the count can already be 0 here. What must never show is no line.
-        if (actual is null || !actual.StartsWith("Last cleanup:", StringComparison.Ordinal))
-            failures.Add($"{label} reads \"{actual}\", expected a \"Last cleanup: …\" line");
+        // The start-up sweep removed the one seeded transcript; no later sweep may have replaced it.
+        if (actual is null || !actual.StartsWith("Last cleanup:", StringComparison.Ordinal)
+            || !actual.Contains("; 1 transcripts and 0 audio files removed.", StringComparison.Ordinal))
+            failures.Add($"{label} reads \"{actual}\", expected the start-up sweep's \"Last cleanup: …; 1 transcripts and 0 audio files removed.\"");
     }
 
     private static string? Line(Window window) =>

@@ -55,7 +55,6 @@ public sealed class SettingsViewModel : ViewModelBase
     private string _recordingsDirectory = string.Empty;
     private bool _autoDeleteEnabled;
     private int _autoDeleteDaysOld = 30;
-    private string _storageLastCleanupText = string.Empty;
     private string _audioEnvironmentPolicy = "unchanged";
     private string _desktopContextStatus = "Desktop context capability not checked";
     private string _clipboardHistoryPrivacyStatus = "Clipboard-history privacy capability not checked";
@@ -284,10 +283,6 @@ public sealed class SettingsViewModel : ViewModelBase
     }
     public bool AutoDeleteEnabled { get => _autoDeleteEnabled; set => Set(ref _autoDeleteEnabled, value); }
     public int AutoDeleteDaysOld { get => _autoDeleteDaysOld; set => Set(ref _autoDeleteDaysOld, Math.Clamp(value, 1, 365)); }
-    /// <summary>The Storage page's "Last cleanup" line. A shell writes it after each sweep; it lives here,
-    /// not on the page's control, because a section page is a template that is built only while it is
-    /// shown and rebuilt on every visit (#1371). Display only: never persisted.</summary>
-    public string StorageLastCleanupText { get => _storageLastCleanupText; set => Set(ref _storageLastCleanupText, value ?? string.Empty); }
     public string AudioEnvironmentPolicy { get => _audioEnvironmentPolicy; set => Set(ref _audioEnvironmentPolicy, NormalizeAudioPolicy(value)); }
     public string DesktopContextStatus { get => _desktopContextStatus; set => Set(ref _desktopContextStatus, value ?? string.Empty); }
     public string ClipboardHistoryPrivacyStatus { get => _clipboardHistoryPrivacyStatus; set => Set(ref _clipboardHistoryPrivacyStatus, value ?? string.Empty); }
