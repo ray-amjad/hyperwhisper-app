@@ -75,7 +75,9 @@ internal sealed class LinuxPostProcessingRouter : ITranscriptionPostProcessor, I
         // (issue #314); pass it through untouched rather than re-reading
         // `mode.LanguageModel`, which is what was configured, not what ran.
         return result.WasApplied && !string.IsNullOrWhiteSpace(result.Provider)
-            ? PortablePostProcessingResult.Applied(result.Text, result.Provider, result.Model)
+            // `ProviderId` is the stored spelling (`openai`, `custom:<uuid>`), the
+            // label stays in `Provider` for UI (issue #1158).
+            ? PortablePostProcessingResult.Applied(result.Text, result.Provider, result.Model, result.ProviderId)
             : PortablePostProcessingResult.Skipped(
                 transcript,
                 // A missing credential on HyperWhisper Cloud is the account

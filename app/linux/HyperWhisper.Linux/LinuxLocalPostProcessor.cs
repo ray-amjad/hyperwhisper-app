@@ -106,8 +106,12 @@ internal sealed class LinuxLocalPostProcessor : ITranscriptionPostProcessor, IDi
         return PortablePostProcessingResult.Applied(
             result.Text,
             $"Local LLM · {fileName} · {result.Runtime}",
-            fileName);
+            fileName,
+            // The id the Mode stores and the other heads emit (issue #1158).
+            LocalLlmProviderId);
     }
+
+    internal const string LocalLlmProviderId = "local_llm";
 
     public Task<PortablePostProcessingResult> ProcessAsync(
         string transcript,
