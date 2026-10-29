@@ -449,7 +449,13 @@ describe('transcribeWithGoogleChirp — successful response decoding boundaries'
     } finally {
       console.log = originalLog;
     }
-    expect(thrown).toBeInstanceOf(Error);
+    // A truncated 200 is a retryable `bad_response` (the route answers 502),
+    // the same as ElevenLabs, not the plain Error that gave a 500. The
+    // behaviour came with readJson200 (#2176); #1106 asked for it pinned here.
+    expect(thrown).toBeInstanceOf(ProviderUnavailableError);
+    expect((thrown as ProviderUnavailableError).kind).toBe('bad_response');
+    expect((thrown as ProviderUnavailableError).status).toBe(200);
+    expect((thrown as Error).message).toBe('Google Chirp sync_recognize unavailable: malformed 200 response body');
     expect((thrown as Error).message).not.toContain(marker);
     const event = logged.find((args) => args[0] === 'provider.parse_error');
     if (!event) throw new Error('no provider.parse_error event was logged');
