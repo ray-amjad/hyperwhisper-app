@@ -2393,73 +2393,79 @@ static async Task RunModeDeleteRaceTestsAsync(string root)
 
 // Issue #2748: a mode save read the rows, checked them and wrote with nothing around the three, so
 // a delete or another save that committed in between broke a mode rule: no default, a deleted mode
-// written back, or two modes with one name. Both save paths now run in one transaction. The Local
-// API backend is not referenced from this harness, so its create and patch are driven through the
-// repository method they call (SaveAtomicallyAsync), with callbacks shaped like theirs. The
-// interceptor makes the two operations' reads overlap on every run, as in the delete race above.
+// written back, a renamed default, or two modes with one name. Both save paths now run in one
+// transaction. The Local API backend is not referenced from this harness, so its create and patch
+// are driven through the repository method they call (SaveAtomicallyAsync), with callbacks shaped
+// like theirs. Each race runs in BOTH orders: the first operation is started, and the second only
+// once the first's read is held, so the reads overlap whenever nothing serialises them. Serialised,
+// the second waits for the first's commit, and each order must answer exactly as if the two had run
+// one after the other in that order.
 static async Task RunModeSaveRaceTestsAsync(string root)
 {
     foreach (var path in new[] { "page", "api" })
     {
-        // (a) Renaming B while A, the default, is deleted. The Local API's patch used to write all of
-        //     B's stale row, IsDefault false included, over the delete's promotion of B.
+        var refusal = path == "page" ? "modes.name_taken" : "refused";
+        foreach (var saveFirst in new[] { true, false })
         {
-            var (repository, overlap, a, b) = await NewModeSaveRaceStoreAsync(Path.Combine(root, $"rename-vs-delete-default-{path}"));
-            var live = (await repository.ListAsync()).Single(item => item.Id == b.Id);
-            overlap.Armed = true;
-            var outcomes = await RunOverlappedModeOperationsAsync(
-                path == "page"
+            var order = saveFirst ? "save first" : "delete first";
+
+            // (a) Renaming B while A, the default, is deleted. Save first: the rename lands, then the
+            //     delete moves the flag to B2. Delete first: B is the default by the time the save
+            //     reads, and the default's name is fixed (issue #536), so the rename is refused. The
+            //     Local API's patch used to write all of B's stale row, IsDefault false included, over
+            //     the delete's promotion; the page used to rename the new default.
+            {
+                var (repository, overlap, a, b) = await NewModeSaveRaceStoreAsync(Path.Combine(root, $"rename-vs-delete-default-{path}-{(saveFirst ? "save" : "delete")}-first"));
+                var live = (await repository.ListAsync()).Single(item => item.Id == b.Id);
+                Func<Task<string>> save = path == "page"
                     ? () => ModeSavePageUpdateAsync(repository, Renamed(live, "B2"))
-                    : () => ModeSaveApiPatchNameAsync(repository, b.Id, "B2"),
-                async () => await repository.DeleteSafelyAsync(a.Id) ? "deleted" : "not found");
-            overlap.Armed = false;
-            var left = await repository.ListAsync();
-            Assert(left.Count == 1 && left.Single().Id == b.Id && left.Single().IsDefault,
-                $"{path}: a rename of B overlapping the delete of default A answered [{string.Join(", ", outcomes)}] and left " +
-                $"{left.Count} modes, {left.Count(item => item.IsDefault)} of them default; expected B alone, as the default");
-            // The page's copy of B still says "not default"; if the delete commits first, keeping that
-            // flag would clear the only default, so the rule refuses it. The patch never sent the flag.
-            var acceptedSave = path == "page" ? new[] { "saved", "modes.last_default" } : new[] { "saved" };
-            Assert(acceptedSave.Contains(outcomes[0]) && outcomes[1] == "deleted",
-                $"{path}: a rename of B overlapping the delete of default A answered [{string.Join(", ", outcomes)}]");
+                    : () => ModeSaveApiPatchNameAsync(repository, b.Id, "B2");
+                Func<Task<string>> delete = async () => await repository.DeleteSafelyAsync(a.Id) ? "deleted" : "not found";
+                var (saved, deleted) = await RunModeOperationsInOrderAsync(overlap, save, delete, saveFirst);
+                var left = await repository.ListAsync();
+                var expectedSave = saveFirst ? "saved" : path == "page" ? "modes.default_name_fixed" : "refused";
+                var expectedName = saveFirst ? "B2" : "B";
+                Assert(saved == expectedSave && deleted == "deleted",
+                    $"{path}, {order}: a rename of B and the delete of default A answered [{saved}, {deleted}]; expected [{expectedSave}, deleted]");
+                Assert(left.Count == 1 && left.Single().Id == b.Id && left.Single().IsDefault && left.Single().Name == expectedName,
+                    $"{path}, {order}: a rename of B and the delete of default A left " +
+                    $"[{string.Join(", ", left.Select(item => $"{item.Name}{(item.IsDefault ? "*" : "")}"))}]; expected [{expectedName}*]");
+            }
+
+            // (b) Saving B while B itself is deleted. Save first: it lands, then the delete removes
+            //     it. Delete first: the save answers not found and writes nothing back.
+            {
+                var (repository, overlap, a, b) = await NewModeSaveRaceStoreAsync(Path.Combine(root, $"save-vs-own-delete-{path}-{(saveFirst ? "save" : "delete")}-first"));
+                var live = (await repository.ListAsync()).Single(item => item.Id == b.Id);
+                Func<Task<string>> save = path == "page"
+                    ? () => ModeSavePageUpdateAsync(repository, Renamed(live, "B2"))
+                    : () => ModeSaveApiPatchNameAsync(repository, b.Id, "B2");
+                Func<Task<string>> delete = async () => await repository.DeleteSafelyAsync(b.Id) ? "deleted" : "not found";
+                var (saved, deleted) = await RunModeOperationsInOrderAsync(overlap, save, delete, saveFirst);
+                var left = await repository.ListAsync();
+                var expectedSave = saveFirst ? "saved" : path == "page" ? "modes.not_found" : "not found";
+                Assert(saved == expectedSave && deleted == "deleted",
+                    $"{path}, {order}: a save of B and B's own delete answered [{saved}, {deleted}]; expected [{expectedSave}, deleted]");
+                Assert(left.Count == 1 && left.Single().Id == a.Id && left.Single().IsDefault,
+                    $"{path}, {order}: a save of B and B's own delete left [{string.Join(", ", left.Select(item => item.Name))}]; expected A alone, as the default");
+            }
         }
 
-        // (b) Saving B while B itself is deleted. Either order is fine; writing B back is not.
+        // (c) Two creates of one name (case-insensitive), each order: the first lands, the second is
+        //     refused, and the stored spelling is the first's.
+        foreach (var (firstName, secondName) in new[] { ("Meeting", "meeting"), ("meeting", "Meeting") })
         {
-            var (repository, overlap, a, b) = await NewModeSaveRaceStoreAsync(Path.Combine(root, $"save-vs-own-delete-{path}"));
-            var live = (await repository.ListAsync()).Single(item => item.Id == b.Id);
-            overlap.Armed = true;
-            var outcomes = await RunOverlappedModeOperationsAsync(
-                path == "page"
-                    ? () => ModeSavePageUpdateAsync(repository, Renamed(live, "B2"))
-                    : () => ModeSaveApiPatchNameAsync(repository, b.Id, "B2"),
-                async () => await repository.DeleteSafelyAsync(b.Id) ? "deleted" : "not found");
-            overlap.Armed = false;
+            var (repository, overlap, _, _) = await NewModeSaveRaceStoreAsync(Path.Combine(root, $"duplicate-create-{path}-{firstName}-first"));
+            var (first, second) = await RunModeOperationsInOrderAsync(overlap,
+                () => ModeSaveCreateAsync(repository, path, firstName, 2),
+                () => ModeSaveCreateAsync(repository, path, secondName, 3),
+                firstGoesFirst: true);
             var left = await repository.ListAsync();
-            Assert(left.Count == 1 && left.Single().Id == a.Id && left.Single().IsDefault,
-                $"{path}: a save of B overlapping B's own delete answered [{string.Join(", ", outcomes)}] and left " +
-                $"[{string.Join(", ", left.Select(item => item.Name))}]; expected A alone, as the default");
-            var notFound = path == "page" ? "modes.not_found" : "not found";
-            Assert((outcomes[0] == "saved" || outcomes[0] == notFound) && outcomes[1] == "deleted",
-                $"{path}: a save of B overlapping B's own delete answered [{string.Join(", ", outcomes)}]; " +
-                $"expected the save to land first or answer {notFound}");
-        }
-
-        // (c) Two creates of one name (case-insensitive) at once: one lands, the other is refused.
-        {
-            var (repository, overlap, _, _) = await NewModeSaveRaceStoreAsync(Path.Combine(root, $"duplicate-create-{path}"));
-            overlap.Armed = true;
-            var outcomes = await RunOverlappedModeOperationsAsync(
-                () => ModeSaveCreateAsync(repository, path, "Meeting", 2),
-                () => ModeSaveCreateAsync(repository, path, "meeting", 3));
-            overlap.Armed = false;
-            var left = await repository.ListAsync();
-            var refusal = path == "page" ? "modes.name_taken" : "refused";
-            Assert(outcomes.Count(item => item == "saved") == 1 && outcomes.Count(item => item == refusal) == 1,
-                $"{path}: two overlapping creates of 'Meeting' answered [{string.Join(", ", outcomes)}]; expected one save and one {refusal}");
-            Assert(left.Count(item => string.Equals(item.Name, "meeting", StringComparison.OrdinalIgnoreCase)) == 1
-                && left.Count(item => item.IsDefault) == 1,
-                $"{path}: two overlapping creates of 'Meeting' left [{string.Join(", ", left.Select(item => item.Name))}]");
+            Assert(first == "saved" && second == refusal,
+                $"{path}: creating '{firstName}' then '{secondName}' answered [{first}, {second}]; expected [saved, {refusal}]");
+            var meetings = left.Where(item => string.Equals(item.Name, "meeting", StringComparison.OrdinalIgnoreCase)).ToList();
+            Assert(meetings.Count == 1 && meetings.Single().Name == firstName && left.Count == 3 && left.Count(item => item.IsDefault) == 1,
+                $"{path}: creating '{firstName}' then '{secondName}' left [{string.Join(", ", left.Select(item => item.Name))}]");
         }
     }
 
@@ -2558,14 +2564,29 @@ static async Task<(ModeRepository Repository, ModeReadOverlapInterceptor Overlap
 
 static Mode Renamed(Mode mode, string name) { mode.Name = name; return mode; }
 
-static async Task<string[]> RunOverlappedModeOperationsAsync(params Func<Task<string>>[] operations) =>
-    await Task.WhenAll(operations.Select(operation => Task.Run(async () =>
+// Starts one operation, waits until the interceptor holds its read of the modes, then starts the
+// other. Answers in argument order, whichever ran first.
+static async Task<(string First, string Second)> RunModeOperationsInOrderAsync(
+    ModeReadOverlapInterceptor overlap, Func<Task<string>> first, Func<Task<string>> second, bool firstGoesFirst)
+{
+    static Task<string> Start(Func<Task<string>> operation) => Task.Run(async () =>
     {
         try { return await operation(); }
         catch (ModeRuleViolationException rule) { return rule.Code; }
         catch (ArgumentException) { return "refused"; }
         catch (Exception exception) { return exception.GetType().Name; }
-    }))).WaitAsync(TimeSpan.FromSeconds(60));
+    });
+    overlap.Armed = true;
+    try
+    {
+        var leader = Start(firstGoesFirst ? first : second);
+        await overlap.FirstReadHeld.WaitAsync(TimeSpan.FromSeconds(30));
+        var follower = Start(firstGoesFirst ? second : first);
+        var answers = await Task.WhenAll(leader, follower).WaitAsync(TimeSpan.FromSeconds(60));
+        return firstGoesFirst ? (answers[0], answers[1]) : (answers[1], answers[0]);
+    }
+    finally { overlap.Armed = false; }
+}
 
 // The Local API's patch of a name only (ApplicationLocalApiBackend.PatchModeAsync): the flag is the
 // stored row's, as for a body that never mentions isDefault.
@@ -2573,9 +2594,13 @@ static async Task<string> ModeSaveApiPatchNameAsync(ModeRepository repository, G
     await ModeSaveApiAsync(repository, id, (existing, stored) =>
     {
         var mode = stored!;
+        var wasDefault = mode.IsDefault;
+        var storedName = mode.Name;
         mode.Name = name;
         mode.ModifiedDate = DateTime.UtcNow;
         ModeSaveApiEnsureUniqueName(mode, existing);
+        if (SharedCoreBridge.CheckModeNameChange(wasDefault, storedName, mode.Name) == PortableModeNameChange.RejectedDefaultIsFixed)
+            throw new ArgumentException("The default mode's name cannot be changed.");
         return mode;
     }) is null ? "not found" : "saved";
 
@@ -5135,7 +5160,10 @@ file sealed class SingleThreadUiContext : SynchronizationContext
 file sealed class ModeReadOverlapInterceptor(TimeSpan hold) : Microsoft.EntityFrameworkCore.Diagnostics.DbCommandInterceptor
 {
     private readonly TaskCompletionSource _secondRead = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource _firstReadHeld = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int _reads;
+    /// <summary>Completes when the first armed read is being held (issue #2748: lets a test choose which operation goes first).</summary>
+    public Task FirstReadHeld => _firstReadHeld.Task;
     public volatile bool Armed;
     public int Reads => Volatile.Read(ref _reads);
 
@@ -5150,7 +5178,10 @@ file sealed class ModeReadOverlapInterceptor(TimeSpan hold) : Microsoft.EntityFr
         if (Armed && text.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase) && text.Contains("FROM \"Modes\"", StringComparison.Ordinal))
         {
             if (Interlocked.Increment(ref _reads) == 1)
+            {
+                _firstReadHeld.TrySetResult();
                 _secondRead.Task.Wait(hold);
+            }
             else
                 _secondRead.TrySetResult();
         }
