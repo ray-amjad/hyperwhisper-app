@@ -25,47 +25,51 @@ public sealed partial class ApplicationLocalApiBackend
 
     public async ValueTask<JsonElement> CreateModeAsync(JsonElement document, CancellationToken cancellationToken)
     {
-        var existing = await _modes.ListAsync(cancellationToken).ConfigureAwait(false);
-        var mode = new Mode { Id = Guid.NewGuid(), IsDefault = existing.Count == 0, CreatedDate = DateTime.UtcNow, ModifiedDate = DateTime.UtcNow };
-        var facts = ApplyModeDocument(mode, document, allowIdentity: false);
-        if (existing.Count == 0) mode.IsDefault = true;
-        ApplyInferredAccuracyTier(mode, facts, HwLocalApiModeOperation.Create);
-        NormalizeMode(mode);
-        ValidateMode(mode, facts, HwLocalApiModeOperation.Create);
-        EnsureUniqueName(mode, existing, HwLocalApiModeOperation.Create);
-        // The clear-others pass this branch hand-rolled is one of the four
-        // separate answers issue #536 replaced with a single owner. Keep the
-        // shared one.
-        await ApplyDefaultModeInvariantAsync(existing, mode, cancellationToken).ConfigureAwait(false);
-        await _modes.UpsertAsync(mode, cancellationToken).ConfigureAwait(false);
-        return ToModeJson(mode);
+        // Read, check and write are one transaction (issue #2748): two overlapping creates cannot both
+        // pass the name check, and the default flag is decided on the rows the write lands on.
+        var saved = await _modes.SaveAtomicallyAsync(null, (existing, _) =>
+        {
+            var mode = new Mode { Id = Guid.NewGuid(), IsDefault = existing.Count == 0, CreatedDate = DateTime.UtcNow, ModifiedDate = DateTime.UtcNow };
+            var facts = ApplyModeDocument(mode, document, allowIdentity: false);
+            if (existing.Count == 0) mode.IsDefault = true;
+            ApplyInferredAccuracyTier(mode, facts, HwLocalApiModeOperation.Create);
+            NormalizeMode(mode);
+            ValidateMode(mode, facts, HwLocalApiModeOperation.Create);
+            EnsureUniqueName(mode, existing, HwLocalApiModeOperation.Create);
+            // The repository applies the shared default-mode invariant (issue #536) and writes the
+            // rows it moved with this one.
+            return mode;
+        }, cancellationToken).ConfigureAwait(false);
+        return ToModeJson(saved!);
     }
 
     public async ValueTask<JsonElement?> PatchModeAsync(string id, JsonElement patch, CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(id, out var modeId)) return null;
-        var mode = (await _modes.ListAsync(cancellationToken).ConfigureAwait(false)).SingleOrDefault(item => item.Id == modeId);
-        if (mode is null) return null;
-        var existing = await _modes.ListAsync(cancellationToken).ConfigureAwait(false);
-        // Both halves of the invariant are read off the mode as it stands BEFORE
-        // the patch is applied (issue #536).
-        var wasDefault = mode.IsDefault;
-        var storedName = mode.Name;
-        var facts = ApplyModeDocument(mode, patch, allowIdentity: false);
-        ApplyInferredAccuracyTier(mode, facts, HwLocalApiModeOperation.Patch);
-        NormalizeMode(mode);
-        mode.ModifiedDate = DateTime.UtcNow;
-        ValidateMode(mode, facts, HwLocalApiModeOperation.Patch);
-        EnsureUniqueName(mode, existing, HwLocalApiModeOperation.Patch);
-        if (SharedCoreBridge.CheckModeNameChange(wasDefault, storedName, mode.Name)
-            == PortableModeNameChange.RejectedDefaultIsFixed)
-            throw new ArgumentException("The default mode's name cannot be changed.");
-        if (DefaultModePolicy.CheckDefaultFlag(existing, mode.Id, mode.IsDefault)
-            == PortableDefaultFlagChange.RejectedLastDefault)
-            throw new ArgumentException("At least one mode must remain the default.");
-        await ApplyDefaultModeInvariantAsync(existing, mode, cancellationToken).ConfigureAwait(false);
-        await _modes.UpsertAsync(mode, cancellationToken).ConfigureAwait(false);
-        return ToModeJson(mode);
+        // One transaction from read to write (issue #2748). A mode deleted before it reads answers
+        // null (404), as before, and is never written back.
+        var saved = await _modes.SaveAtomicallyAsync(modeId, (existing, stored) =>
+        {
+            var mode = stored!;
+            // Both halves of the invariant are read off the mode as it stands BEFORE
+            // the patch is applied (issue #536).
+            var wasDefault = mode.IsDefault;
+            var storedName = mode.Name;
+            var facts = ApplyModeDocument(mode, patch, allowIdentity: false);
+            ApplyInferredAccuracyTier(mode, facts, HwLocalApiModeOperation.Patch);
+            NormalizeMode(mode);
+            mode.ModifiedDate = DateTime.UtcNow;
+            ValidateMode(mode, facts, HwLocalApiModeOperation.Patch);
+            EnsureUniqueName(mode, existing, HwLocalApiModeOperation.Patch);
+            if (SharedCoreBridge.CheckModeNameChange(wasDefault, storedName, mode.Name)
+                == PortableModeNameChange.RejectedDefaultIsFixed)
+                throw new ArgumentException("The default mode's name cannot be changed.");
+            if (DefaultModePolicy.CheckDefaultFlag(existing, mode.Id, mode.IsDefault)
+                == PortableDefaultFlagChange.RejectedLastDefault)
+                throw new ArgumentException("At least one mode must remain the default.");
+            return mode;
+        }, cancellationToken).ConfigureAwait(false);
+        return saved is null ? null : ToModeJson(saved);
     }
 
     public async ValueTask<bool> DeleteModeAsync(string id, CancellationToken cancellationToken)
@@ -85,51 +89,10 @@ public sealed partial class ApplicationLocalApiBackend
         }
     }
 
-    /// <summary>
-    /// Make exactly one mode the default across <paramref name="existing"/> plus
-    /// the row about to be written, and persist every OTHER row the decision
-    /// changed. The caller upserts <paramref name="pending"/> itself, so its own
-    /// flag lands with the rest of its fields in one write.
-    /// </summary>
-    /// <remarks>
-    /// The decision — including which mode is promoted when a restore left none
-    /// flagged — comes from the shared core (issue #536), so this head, the
-    /// Windows head and macOS all choose the same one.
-    /// </remarks>
-    private async Task ApplyDefaultModeInvariantAsync(
-        IReadOnlyList<Mode> existing,
-        Mode pending,
-        CancellationToken cancellationToken)
-    {
-        var all = existing.Where(item => item.Id != pending.Id).Append(pending).ToList();
-        await SaveDefaultModeRepairAsync(
-            all,
-            pending.IsDefault ? pending.Id : null,
-            pending.Id,
-            cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task SaveDefaultModeRepairAsync(
-        IReadOnlyList<Mode> all,
-        Guid? preferred,
-        Guid? skipUpsert,
-        CancellationToken cancellationToken)
-    {
-        var ordered = all.OrderBy(item => item.SortOrder).ToList();
-        var moved = DefaultModePolicy.ApplyAndReport(ordered, preferred);
-        if (moved.Count == 0) return;
-        foreach (var row in ordered)
-        {
-            if (row.Id == skipUpsert || !moved.Contains(row.Id)) continue;
-            row.ModifiedDate = DateTime.UtcNow;
-            await _modes.UpsertAsync(row, cancellationToken).ConfigureAwait(false);
-        }
-    }
-
     private static void EnsureUniqueName(Mode mode, IReadOnlyList<Mode> existing, HwLocalApiModeOperation operation)
     {
         // ONLY WHEN THE NAME IS ACTUALLY CHANGING (issue #356, review round 1).
-        // `existing` is a separate `ListAsync` materialisation, so its copy of
+        // `existing` is a separate materialisation from `mode`, so its copy of
         // this record still carries the STORED name; `mode` has already been
         // patched. macOS has always had this guard (`newName != mode.name`) and
         // Windows has it again — this head never did, and #356 widened the

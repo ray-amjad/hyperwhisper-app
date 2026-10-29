@@ -191,7 +191,8 @@ public sealed partial class ModesViewModel : ViewModelBase
             : (Guid?)null;
         // A create dialog must insert even though Selected still points at the mode the user had
         // active — Windows keeps that selection while the create window is open.
-        var mode = (_isCreating ? null : Selected) ?? new Mode { SortOrder = Items.Count };
+        var updating = !_isCreating && Selected is not null;
+        var mode = (updating ? Selected : null) ?? new Mode { SortOrder = Items.Count };
         // ApplyEditorTo writes onto the live Mode that Items and Selected hold. Keep its stored
         // values, so a refused or failed save does not leave a name that never saved in the list.
         var storedValues = Items.Contains(mode) ? CopyModeValues(mode, new Mode()) : null;
@@ -216,7 +217,10 @@ public sealed partial class ModesViewModel : ViewModelBase
                 }
                 PersistCustomEndpoint(id);
             }
-            await _repository.UpsertSafelyAsync(mode, cancellationToken);
+            // An update never re-inserts a mode another writer deleted; the repository refuses it as
+            // modes.not_found (issue #2748).
+            if (updating) await _repository.UpdateSafelyAsync(mode, cancellationToken);
+            else await _repository.CreateSafelyAsync(mode, cancellationToken);
             CommitSavedMode(mode, customEndpointId);
         }
         catch (Exception exception)
