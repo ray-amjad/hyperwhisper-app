@@ -6,8 +6,8 @@
  * `credit-ledger-harness.ts`). The licence verdicts afterwards come from the
  * real `/api/license/validate` and `/api/account/validate` routes.
  *
- * Mocked are only the edges a test cannot reach: the email provider (Resend),
- * Stripe's client, and the Upstash limiters (replaced by counting stubs, so the
+ * Mocked are only the edges a test cannot reach: the email provider (Cloudflare),
+ * Stripe's client, and the rate limiters (replaced by counting stubs, so the
  * rotate limit can be driven). The cloud purge is the real client; `fetch` is
  * stubbed for the cloud hosts only, so the request it sends is asserted.
  *
@@ -48,15 +48,11 @@ interface SentEmail {
 }
 const sentEmails: SentEmail[] = [];
 
-moduleMock.module(moduleUrl("../lib/clients/resend.ts"), {
+moduleMock.module(moduleUrl("../lib/clients/email.ts"), {
   namedExports: {
-    resend: {
-      emails: {
-        send: async (payload: SentEmail) => {
-          sentEmails.push(payload);
-          return { data: { id: "email_1" }, error: null };
-        },
-      },
+    sendEmail: async (payload: SentEmail) => {
+      sentEmails.push(payload);
+      return { data: { id: "email_1" }, error: null };
     },
     DEFAULT_FROM_EMAIL: "HyperWhisper <support@hyperwhisper.com>",
   },

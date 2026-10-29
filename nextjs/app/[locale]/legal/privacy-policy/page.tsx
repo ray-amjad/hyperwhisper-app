@@ -79,30 +79,19 @@ export default function PrivacyPolicyPage() {
           troubleshooting. We do not store the message body. When you request
           the download link from our website, we record the email address you
           submit so we can send it. We use the IP address of that request only
-          to rate limit the form (10 requests per IP address per hour) and we
+          to rate limit the form (2 requests per IP address per minute) and we
           do not store the IP address, browser user agent, or country with the
-          email record. The rate limit does write the IP address to our
-          rate-limit store, hosted by{" "}
+          email record. The rate limit counts requests per IP address in
+          Cloudflare&apos;s rate limiting service; those counters expire
+          within about a minute and hold no email address, browser user agent,
+          or country. Our transactional emails are delivered by{" "}
           <a
             className="text-blue-400 hover:underline"
-            href="https://upstash.com"
+            href="https://www.cloudflare.com/privacypolicy/"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Upstash
-          </a>
-          , in two forms: request counters, which expire within about two
-          hours, and an hourly summary of requests per IP address and whether
-          each one was allowed, which has no automatic deletion period today.
-          Neither holds your email address, browser user agent, or country.
-          Our transactional emails are delivered by{" "}
-          <a
-            className="text-blue-400 hover:underline"
-            href="https://resend.com/legal/privacy-policy"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Resend
+            Cloudflare
           </a>
           , which receives the recipient address and the message content in
           order to deliver them. For license key, Account Key, and sign-in
@@ -213,10 +202,8 @@ export default function PrivacyPolicyPage() {
           usage policy. No audio or transcripts are transmitted. The licensing
           service also sees the IP address of each activation and validation
           request. We use it only to rate limit those endpoints (30 requests per
-          IP address per minute). It goes into the same Upstash rate-limit
-          store: its request counters expire within a few minutes, and the
-          hourly summary of requests per IP address and whether each one was
-          allowed has no automatic deletion period today.
+          IP address per minute), counted in Cloudflare&apos;s rate limiting
+          service, where the counters expire within about a minute.
         </li>
         <li>
           <strong>Website sign-in</strong>: When you sign in to the website, we
@@ -1274,10 +1261,10 @@ export default function PrivacyPolicyPage() {
 
       <h2>International Transfers</h2>
       <p>
-        Our payment and licensing providers, Upstash, Resend, Cloudflare, and PlanetScale may process limited
+        Our payment and licensing providers, Upstash, Cloudflare, and PlanetScale may process limited
         personal information in multiple countries, including the United
         Kingdom, the European Economic Area, and the United States. Upstash
-        hosts our rate-limit store. It also holds a one-hour cache, keyed by
+        hosts HyperWhisper Cloud&apos;s rate-limit store. It also holds a one-hour cache, keyed by
         your Account Key, of whether the key is valid and its remaining credit
         balance. HyperWhisper Cloud checks request IP addresses against a block
         list held there. See the{" "}

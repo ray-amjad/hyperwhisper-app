@@ -65,6 +65,26 @@
       "new_sqlite_classes": ["DOQueueHandler", "DOShardedTagCache"]
     }
   ],
+  // Rate limits (lib/rate-limit.ts, src/lib/auth-rate-limit-storage.ts).
+  // Approximate and per Cloudflare location; a period is 10 or 60 seconds.
+  // namespace_id is unique per limiter across the Cloudflare account (the
+  // school's playback Worker uses 1001-1003). tests/rate-limit.test.ts pins
+  // these numbers.
+  "ratelimits": [
+    { "name": "RATE_LIMIT_DOWNLOAD_EMAIL", "namespace_id": "4101", "simple": { "limit": 2, "period": 60 } },
+    { "name": "RATE_LIMIT_LICENSE_VALIDATE", "namespace_id": "4102", "simple": { "limit": 30, "period": 60 } },
+    { "name": "RATE_LIMIT_LICENSE_CREDITS", "namespace_id": "4103", "simple": { "limit": 300, "period": 60 } },
+    { "name": "RATE_LIMIT_LATENCY_INGEST", "namespace_id": "4104", "simple": { "limit": 6000, "period": 60 } },
+    { "name": "RATE_LIMIT_CHECKOUT", "namespace_id": "4105", "simple": { "limit": 10, "period": 60 } },
+    { "name": "RATE_LIMIT_ACCOUNT_KEY_ROTATE", "namespace_id": "4106", "simple": { "limit": 1, "period": 60 } },
+    { "name": "RATE_LIMIT_AUTH_10S_100", "namespace_id": "4111", "simple": { "limit": 100, "period": 10 } },
+    { "name": "RATE_LIMIT_AUTH_10S_3", "namespace_id": "4112", "simple": { "limit": 3, "period": 10 } },
+    { "name": "RATE_LIMIT_AUTH_60S_3", "namespace_id": "4113", "simple": { "limit": 3, "period": 60 } },
+    { "name": "RATE_LIMIT_AUTH_60S_5", "namespace_id": "4114", "simple": { "limit": 5, "period": 60 } }
+  ],
+  // Cloudflare Email Service (lib/clients/email.ts). hyperwhisper.com is
+  // onboarded for Email Sending in the dashboard.
+  "send_email": [{ "name": "EMAIL" }],
   "services": [
     { "binding": "WORKER_SELF_REFERENCE", "service": "hyperwhisper-web" }
   ],

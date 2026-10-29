@@ -308,7 +308,7 @@ describe("POST /api/internal/latency — what is stored", () => {
   });
 
   test("stores the samples when the limiter is unreachable, and logs the fault class (#2136)", async () => {
-    behaviour.rateLimitError = new TypeError("fetch failed: upstash 203.0.113.9");
+    behaviour.rateLimitError = new TypeError("fetch failed: limiter 203.0.113.9");
     const { POST } = await loadLatencyIngestRoute();
     const res = await POST(postRequest(INGEST_PATH, { samples: [sample()] }, authed()));
 

@@ -102,9 +102,11 @@ this Worker is about 4.5 MiB gzipped).
    `GOOGLE_SERVICE_ACCOUNT_JSON`, ...) that exceed the 5 KB per-secret limit.
    - Required (validated at runtime by `src/env/server.mjs`):
      `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, `STRIPE_SECRET_KEY`,
-     `STRIPE_WEBHOOK_SECRET`, `UPSTASH_REDIS_SITE_URL`,
-     `UPSTASH_REDIS_SITE_TOKEN`, `RESEND_API_KEY`, `CRON_SECRET`,
-     `OUTRANK_WEBHOOK_TOKEN`.
+     `STRIPE_WEBHOOK_SECRET`, `CRON_SECRET`, `OUTRANK_WEBHOOK_TOKEN`.
+   - Not secrets: email goes through the `EMAIL` (`send_email`) binding and
+     rate limits through the `RATE_LIMIT_*` (`ratelimits`) bindings in
+     `wrangler.jsonc`. Email Sending needs hyperwhisper.com onboarded under
+     Compute > Email Service > Email Sending.
    - Optional: `HYPERWHISPER_INTERNAL_SECRET`, `CREDIT_POOL_ID_SECRET`,
      `OUTRANK_WEBHOOK_SIGNING_SECRET`, `SUPPORT_EMAIL`,
      `HYPERWHISPER_CLOUD_URLS`, `SENTRY_DSN`, `SENTRY_ENVIRONMENT`,

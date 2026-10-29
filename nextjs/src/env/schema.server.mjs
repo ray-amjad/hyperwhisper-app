@@ -33,13 +33,6 @@ export const serverSchema = z.object({
   STRIPE_SECRET_KEY: z.string().startsWith("sk_"),
   STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_"),
 
-  // Upstash Redis
-  UPSTASH_REDIS_SITE_URL: z.string().url(),
-  UPSTASH_REDIS_SITE_TOKEN: z.string(),
-
-  // Resend Email
-  RESEND_API_KEY: z.string(),
-
   // Shared secret for internal license endpoints (Agentic Coding School calls
   // /api/internal/grant-license and /api/internal/licenses-for-email with it)
   HYPERWHISPER_INTERNAL_SECRET: z.string().optional(),
@@ -112,13 +105,6 @@ export const serverEnv = {
   // Stripe
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
-
-  // Upstash Redis
-  UPSTASH_REDIS_SITE_URL: process.env.UPSTASH_REDIS_SITE_URL,
-  UPSTASH_REDIS_SITE_TOKEN: process.env.UPSTASH_REDIS_SITE_TOKEN,
-
-  // Resend Email
-  RESEND_API_KEY: process.env.RESEND_API_KEY,
 
   // Shared secret for internal license endpoints (Agentic Coding School calls
   // /api/internal/grant-license and /api/internal/licenses-for-email with it)
