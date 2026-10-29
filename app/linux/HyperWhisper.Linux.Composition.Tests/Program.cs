@@ -179,6 +179,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("the real status bar drops the record hint while a stream is open, on a Busy line or an error line, and keeps History's hotkey line (#2599)", StatusHintRenderTests.RunAsync),
     ("an account page the browser could not open gets no Open Settings button; other account codes keep it (#2632)", AccountLinkToastRenderTests.ClassifierDropsTheButtonForAccountLinks),
     ("the real error toast shows the account-link failure with no button and a selectable URL (#2632)", AccountLinkToastRenderTests.RunAsync),
+    ("post-processing stores and emits the provider id (openai, local_llm), and the History badge maps it to a label (#1158)", PostProcessProviderIdTests.RunAsync),
 };
 
 foreach (var test in tests)

@@ -368,6 +368,18 @@ public sealed class CloudPostProcessingService : IDisposable
         return null;
     }
 
+    /// <summary>
+    /// The provider half of a run's display label, for a UI that holds only the
+    /// stored provider id (issue #1158: the Linux History badge). The BYOK names
+    /// are the ones the run label itself starts with.
+    /// </summary>
+    public static string ProviderDisplayName(CloudPostProcessingProvider provider) => provider switch
+    {
+        CloudPostProcessingProvider.HyperWhisperCloud => "HyperWhisper Cloud",
+        CloudPostProcessingProvider.Custom => "Custom endpoint",
+        _ => DisplayName(provider),
+    };
+
     private static string DisplayName(CloudPostProcessingProvider provider) => provider switch
     {
         CloudPostProcessingProvider.OpenAi => "OpenAI",

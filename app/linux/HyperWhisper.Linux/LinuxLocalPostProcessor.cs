@@ -20,12 +20,22 @@ internal sealed class LinuxLocalPostProcessor : ITranscriptionPostProcessor, IDi
         string modelsDirectory,
         PortableSettingsService settings,
         ApplicationDb database)
+        : this(modelsDirectory, settings, database, new LLamaSharpLocalLlmEngine())
+    {
+    }
+
+    /// <summary>The engine seam: a composition test runs the real path with a fake engine (#1158).</summary>
+    internal LinuxLocalPostProcessor(
+        string modelsDirectory,
+        PortableSettingsService settings,
+        ApplicationDb database,
+        ILocalLlmEngine engine)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelsDirectory);
         _modelsDirectory = Path.GetFullPath(Path.Combine(modelsDirectory, "LLM"));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _vocabulary = new VocabularyRepository(database ?? throw new ArgumentNullException(nameof(database)));
-        _service = new LocalPostProcessingService(new LLamaSharpLocalLlmEngine());
+        _service = new LocalPostProcessingService(engine ?? throw new ArgumentNullException(nameof(engine)));
     }
 
     // Read once: LLamaSharp pins its native backend for the whole process, so a
