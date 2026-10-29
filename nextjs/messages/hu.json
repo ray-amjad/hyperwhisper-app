@@ -280,7 +280,9 @@
       "dataTraining": "Adatvédelem"
     },
     "copyright": "© 2026 HyperWhisper. Minden jog fenntartva.",
-    "linkedinAria": "LinkedIn"
+    "linkedinAria": "LinkedIn",
+    "xAria": "Kövesd a HyperWhispert az X-en (Twitter)",
+    "githubAria": "A HyperWhisper a GitHubon"
   },
   "cloudSection": {
     "eyebrow": "Cloud",

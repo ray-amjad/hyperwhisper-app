@@ -280,7 +280,9 @@
       "dataTraining": "Privasi Data"
     },
     "copyright": "© 2026 HyperWhisper. Semua hak dilindungi.",
-    "linkedinAria": "LinkedIn"
+    "linkedinAria": "LinkedIn",
+    "xAria": "Ikuti HyperWhisper di X (Twitter)",
+    "githubAria": "HyperWhisper di GitHub"
   },
   "cloudSection": {
     "eyebrow": "Cloud",

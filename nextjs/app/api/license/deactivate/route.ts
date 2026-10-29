@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { isRecord } from "@/src/lib/type-guards";
 import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
 
 /**
@@ -38,6 +39,12 @@ export async function POST(req: NextRequest) {
 
   // Trimmed before the required check, as activate and validate do (#2319).
   if (typeof license_key !== "string" || !license_key.trim()) {
+    // Same wire-format event as activate (#1299): pathname and type only.
+    console.warn("License deactivate: license key missing", {
+      path: req.nextUrl.pathname,
+      licenseKeyType: isRecord(body) ? typeof license_key : "no-body-object",
+    });
+
     return NextResponse.json(
       { success: false, error: "License key is required" },
       { status: 400 }

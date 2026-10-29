@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { AnimatePresence, m } from "framer-motion";
 import { keepPreviousData } from "@tanstack/react-query";
 import { api } from "@/lib/trpc/client";
@@ -56,6 +63,49 @@ function formatCredits(credits: number) {
   });
 }
 
+/**
+ * #966: a customer's pooled balance pops in, one character at a time, when it
+ * changes (Add credits, or any refetch that changes it), the way the
+ * /credits summary values do (#768, `PopValue` in CreditsPurchase.tsx). The
+ * first render is the plain text, so the first load, a page change or a search
+ * animates nothing: a row is keyed by its customer, so only the row whose
+ * value changed pops. Each later change remounts the characters (the key),
+ * which replays their `.t-number-pop-char` animation; under reduced motion
+ * that rule shows them at once. A screen reader reads the whole value from the
+ * `sr-only` copy; the split characters are hidden from it.
+ */
+function PopCredits({ text }: { text: string }) {
+  const [shown, setShown] = useState(text);
+  const [changes, setChanges] = useState(0);
+
+  // The "adjust state while rendering" pattern from the React docs: no effect,
+  // so the new value never paints once without its animation.
+  if (text !== shown) {
+    setShown(text);
+    setChanges(changes + 1);
+  }
+
+  if (changes === 0) return text;
+
+  // nowrap: the split characters are inline-blocks, and the line may not
+  // break between them where the plain text could not break.
+  return (
+    <span key={changes} className="whitespace-nowrap">
+      <span className="sr-only">{text}</span>
+      {Array.from(text).map((char, index) => (
+        <span
+          key={index}
+          aria-hidden="true"
+          className="t-number-pop-char"
+          style={{ animationDelay: `${index * 40}ms` }}
+        >
+          {char}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 // #1663: account_keys.status is "granted" or "revoked"; show a word, not the enum.
 function licenseStatusLabel(status: string) {
   if (status === "granted") return "Active";
@@ -71,6 +121,175 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
 
 function formatCurrency(cents: number) {
   return currencyFormatter.format(cents / 100);
+}
+
+// The height tween: 300 ms on --motion-ease-smooth-out, the `01-card-resize`
+// timing #916 asked for.
+const HEIGHT_TWEEN_MS = 300;
+const HEIGHT_TRANSITION = `height ${HEIGHT_TWEEN_MS}ms var(--motion-ease-smooth-out)`;
+
+/**
+ * #916: a box whose content changes height in one commit (a search narrows
+ * 100 rows to 2, or clearing it brings them back) tweens to the new height
+ * instead of stepping. A ResizeObserver keeps the box's last settled height;
+ * when `trigger` changes, the layout effect pins the box at that height, then
+ * sets the new one, and the height transition tweens between the two. The pin
+ * comes off when the tween ends, so at rest the box is `height: auto` and an
+ * inline editor or an error reveal inside it sizes it at once, as before. The
+ * same pin-then-release as SignInClient (#752) and the /download panel (#767).
+ * Under reduced motion nothing is pinned: the box takes its new height in the
+ * same frame as the new content, as before.
+ *
+ * Only a change from one value of `trigger` to another tweens: the first
+ * value after `undefined` (the first load's rows replacing the skeleton)
+ * lands at once, as before.
+ *
+ * `transition` is any other transition the box keeps (the table's in-flight
+ * dim); it is listed beside height, never as `all` (#668).
+ */
+function HeightTween({
+  trigger,
+  className,
+  transition,
+  children,
+}: {
+  trigger: unknown;
+  className?: string;
+  transition?: string;
+  children: ReactNode;
+}) {
+  const box = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const settledHeight = useRef<number | null>(null);
+  const previousTrigger = useRef(trigger);
+  // The tween in flight: `stop` ends it (a second change mid-tween starts
+  // from where the box is now), `retarget` moves its end height.
+  const tween = useRef<{ stop: () => void; retarget: () => void } | null>(null);
+
+  useEffect(() => {
+    const element = box.current;
+    const inner = content.current;
+
+    if (!element || !inner) return;
+
+    // Reports after layout and before paint, so it always holds the height
+    // the last painted frame showed. Mid-tween the box is pinned, so a change
+    // of the content's own size (an editor opening) moves the pin instead:
+    // nothing is clipped, and nothing jumps when the pin comes off.
+    const observer = new ResizeObserver(() => {
+      if (tween.current) tween.current.retarget();
+      else settledHeight.current = element.offsetHeight;
+    });
+
+    observer.observe(element);
+    observer.observe(inner);
+
+    return () => {
+      observer.disconnect();
+      tween.current?.stop();
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    const element = box.current;
+    const inner = content.current;
+    const previous = previousTrigger.current;
+
+    previousTrigger.current = trigger;
+    if (!element || !inner || previous === undefined) return;
+
+    let from = settledHeight.current;
+
+    if (tween.current) {
+      // The computed height mid-transition is where the box is drawn now
+      // (offsetHeight would read the pinned target).
+      from = parseFloat(getComputedStyle(element).height);
+      tween.current.stop();
+    }
+
+    // The two-frame start below would hold the old height for those frames,
+    // and the global guard would then end the transition at once: a late step
+    // instead of an on-time one.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const to = element.offsetHeight;
+
+    if (from === null || Math.abs(from - to) < 1) return;
+
+    // Pin the box where it was drawn; the new content must not spill out of
+    // it while it is still shorter.
+    element.style.height = `${from}px`;
+    element.style.overflow = "clip";
+
+    const target = () =>
+      inner.offsetHeight + element.offsetHeight - element.clientHeight;
+    let started = false;
+    let timer = 0;
+    let frame = 0;
+
+    const unpin = () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+      element.removeEventListener("transitionend", onEnd);
+      element.style.height = "";
+      element.style.overflow = "";
+      tween.current = null;
+      settledHeight.current = element.offsetHeight;
+    };
+    // Children's transitions bubble here too; only the box's own counts.
+    const onEnd = (event: TransitionEvent) => {
+      if (event.target === element && event.propertyName === "height") unpin();
+    };
+    // A transition that never runs fires no transitionend.
+    const bound = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(unpin, HEIGHT_TWEEN_MS + 400);
+    };
+
+    // The tween starts two frames later, after the frame that draws the new
+    // content: a 100-row page takes one frame of ~250 ms to lay out and
+    // paint, and a transition started inside it is ~99% done by the first
+    // frame anyone sees (verify on #916). The first callback runs before that
+    // frame is drawn, the second in the frame after it.
+    frame = window.requestAnimationFrame(() => {
+      frame = window.requestAnimationFrame(() => {
+        started = true;
+        element.style.height = `${target()}px`;
+        bound();
+      });
+    });
+
+    element.addEventListener("transitionend", onEnd);
+    tween.current = {
+      stop: unpin,
+      retarget: () => {
+        // Before the start the box stays pinned: the content is still being
+        // drawn, and the start reads its height then.
+        if (!started) return;
+        const height = target();
+
+        // Its own frames report too; a pixel of rounding is not a change.
+        if (Math.abs(parseFloat(element.style.height) - height) < 2) return;
+        element.style.height = `${height}px`;
+        bound();
+      },
+    };
+  }, [trigger]);
+
+  const style: CSSProperties = {
+    transition: transition
+      ? `${transition}, ${HEIGHT_TRANSITION}`
+      : HEIGHT_TRANSITION,
+  };
+
+  // flow-root: the content's own margins count in its measured height.
+  return (
+    <div ref={box} className={className} style={style}>
+      <div ref={content} className="flow-root">
+        {children}
+      </div>
+    </div>
+  );
 }
 
 export default function CustomersClient() {
@@ -370,12 +589,24 @@ export default function CustomersClient() {
                     </p>
                   )}
                 </ErrorReveal>
-                {grantResult && (
-                  <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg space-y-1">
-                    <p className="text-emerald-300 text-sm">Account Key granted to <span className="font-medium">{grantResult.email}</span></p>
-                    <p className="text-white font-mono text-sm select-all">{grantResult.licenseKey}</p>
-                  </div>
-                )}
+                {/* #965: the granted key rises out of a small blur
+                    (.t-panel-content) while the box grows to it
+                    (HeightTween), so the panel grows instead of stepping
+                    ~80 px in one frame. A closed box takes no space: -mt-3
+                    cancels the space-y-3 gap and pt-3 carries it inside. */}
+                <HeightTween className="-mt-3" trigger={grantResult}>
+                  {grantResult && (
+                    <div className="pt-3">
+                      <div
+                        className="t-panel-content p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg space-y-1"
+                        data-enter=""
+                      >
+                        <p className="text-emerald-300 text-sm">Account Key granted to <span className="font-medium">{grantResult.email}</span></p>
+                        <p className="text-white font-mono text-sm select-all">{grantResult.licenseKey}</p>
+                      </div>
+                    </div>
+                  )}
+                </HeightTween>
               </div>
             </div>
           </div>
@@ -392,11 +623,17 @@ export default function CustomersClient() {
         )}
       </ErrorReveal>
 
-      {/* Customers Table */}
-      <div
-        className={`bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 overflow-hidden transition-opacity ${
+      {/* Customers Table. A search that narrows 100 rows to 2, or clearing
+          it, tweens the card's height (#916) instead of stepping ~5,800 px in
+          one frame; the clearing path comes from the query cache, so the dim
+          below never fires there and the tween is its only feedback. */}
+      <HeightTween
+        className={`bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 overflow-hidden ${
           isTransitioning ? "opacity-50" : "opacity-100"
         }`}
+        // Tailwind's transition-opacity, kept beside the height tween.
+        transition="opacity 150ms cubic-bezier(0.4, 0, 0.2, 1)"
+        trigger={data}
       >
         <div className="overflow-x-auto">
           {/* min-w (#1330): the email wraps anywhere, so without a floor a
@@ -678,7 +915,9 @@ export default function CustomersClient() {
                       <td className="px-6 py-4">
                         <div className="flex flex-col items-start gap-1.5">
                           <span className="inline-flex flex-wrap items-baseline gap-x-1 text-blue-300 text-sm font-medium">
-                            {formatCredits(customer.totalCredits)}
+                            <PopCredits
+                              text={formatCredits(customer.totalCredits)}
+                            />
                             <span className="text-gray-400 text-xs">
                               ({Math.floor(customer.totalCredits / CREDITS_PER_MINUTE)} min)
                             </span>
@@ -759,7 +998,7 @@ export default function CustomersClient() {
             </tbody>
           </table>
         </div>
-      </div>
+      </HeightTween>
 
       {/* Customer Count + Pagination */}
       {data && data.totalCustomers > 0 && (
@@ -844,54 +1083,64 @@ export default function CustomersClient() {
               <p className="text-gray-400">Key: <code className="text-white font-mono text-xs">{refundTarget.key}</code></p>
             </div>
 
-            {refundMutation.isSuccess ? (
-              <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg">
-                <p className="text-emerald-300 text-sm">
-                  Refund processed successfully{refundMutation.data?.revoked ? " and Account Key revoked" : ""}.
-                </p>
-              </div>
-            ) : (
-              <>
-                {/* #2286: the error reveals; the space-y-5 gap rides inside
-                    the clip as pb-5. */}
-                <ErrorReveal gap="pb-5">
-                  {refundMutation.error && (
-                    <div
-                      className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg"
-                      role="alert"
-                    >
-                      <p className="text-red-300 text-sm">{errorSentence(refundMutation.error, INVALID_INPUT)}</p>
-                    </div>
-                  )}
-                </ErrorReveal>
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={() =>
-                      refundMutation.mutate({
-                        licenseKeyId: refundTarget.id,
-                        revokeLicense: true,
-                      })
-                    }
-                    disabled={refundMutation.isPending}
-                    className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50 text-sm font-medium"
-                  >
-                    {refundMutation.isPending ? "Processing..." : "Refund & Revoke"}
-                  </button>
-                  <button
-                    onClick={() =>
-                      refundMutation.mutate({
-                        licenseKeyId: refundTarget.id,
-                        revokeLicense: false,
-                      })
-                    }
-                    disabled={refundMutation.isPending}
-                    className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/15 text-gray-300 rounded-lg transition-colors disabled:opacity-50 text-sm font-medium border border-white/10"
-                  >
-                    {refundMutation.isPending ? "Processing..." : "Refund Only"}
-                  </button>
+            {/* #965: the success banner replaces the two buttons. The box
+                tweens between their heights (HeightTween) and the banner
+                rises out of a small blur (.t-panel-content), instead of both
+                landing in one frame. No spin: it is a text box, not an icon. */}
+            <HeightTween trigger={refundMutation.isSuccess}>
+              {refundMutation.isSuccess ? (
+                <div
+                  className="t-panel-content p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg"
+                  data-enter=""
+                >
+                  <p className="text-emerald-300 text-sm">
+                    Refund processed successfully{refundMutation.data?.revoked ? " and Account Key revoked" : ""}.
+                  </p>
                 </div>
-              </>
-            )}
+              ) : (
+                <>
+                  {/* #2286: the error reveals; its pb-5 is the gap to the
+                      buttons (the dialog's space-y-5 stops at the HeightTween
+                      box, one level up). */}
+                  <ErrorReveal gap="pb-5">
+                    {refundMutation.error && (
+                      <div
+                        className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg"
+                        role="alert"
+                      >
+                        <p className="text-red-300 text-sm">{errorSentence(refundMutation.error, INVALID_INPUT)}</p>
+                      </div>
+                    )}
+                  </ErrorReveal>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() =>
+                        refundMutation.mutate({
+                          licenseKeyId: refundTarget.id,
+                          revokeLicense: true,
+                        })
+                      }
+                      disabled={refundMutation.isPending}
+                      className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50 text-sm font-medium"
+                    >
+                      {refundMutation.isPending ? "Processing..." : "Refund & Revoke"}
+                    </button>
+                    <button
+                      onClick={() =>
+                        refundMutation.mutate({
+                          licenseKeyId: refundTarget.id,
+                          revokeLicense: false,
+                        })
+                      }
+                      disabled={refundMutation.isPending}
+                      className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/15 text-gray-300 rounded-lg transition-colors disabled:opacity-50 text-sm font-medium border border-white/10"
+                    >
+                      {refundMutation.isPending ? "Processing..." : "Refund Only"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </HeightTween>
           </AnimatedDialog>
         )}
       </AnimatePresence>
