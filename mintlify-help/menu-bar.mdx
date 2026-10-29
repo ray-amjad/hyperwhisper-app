@@ -82,7 +82,7 @@ HyperWhisper stays in your menu bar (macOS) or system tray (Windows). You can st
     |---|---|
     | **Start recording** / **Stop recording** | Starts or stops a batch recording. |
     | **Microphone** | Selects the default input device, or steps to the previous or the next device in the list. |
-    | **Change mode** | Selects the next of your modes. |
+    | **Select Mode** | Submenu with your transcription modes. A checkmark shows the active mode. Click a mode to switch to it. |
     | **Transcribe file** | Opens a file picker, then transcribes the file that you select. |
     | **History** | Opens the main window to the transcript history. |
     | **Settings** | Opens the main window to Settings. |
@@ -92,6 +92,7 @@ HyperWhisper stays in your menu bar (macOS) or system tray (Windows). You can st
 
     ## Behavior
 
+    - The **Select Mode** submenu lists your first 50 modes, like Windows. If you have more, it ends with **More...**, which opens the **Modes** page. While first-run setup is open, the modes are shown but cannot be selected.
     - The tray menu has no microphone submenu with device names. It steps through the list instead, because the helper accepts a closed set of commands and never carries a device name.
     - **Hide minimized or closed windows in the tray** — On by default (Settings → Application settings). The main window goes to the tray when you close it.
     - **Launch with the window hidden when the tray is available** — Off by default. HyperWhisper starts hidden only when a tray watcher is present.
