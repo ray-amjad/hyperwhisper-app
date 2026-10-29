@@ -284,7 +284,7 @@ export default function SignInClient() {
   ) : null;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-12 px-4">
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-12 px-4">
       <div className="max-w-md w-full">
         <div
           ref={card}
@@ -533,6 +533,6 @@ export default function SignInClient() {
           )}
         </div>
       </div>
-    </div>
+    </main>
   );
 }

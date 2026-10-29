@@ -271,7 +271,20 @@ try
     reloadedSettings.Set("selectedModeId", Guid.NewGuid().ToString("D"));
     Assert(reloadedSettings.Save().IsSuccess, "stale selected-mode test setting did not save");
     var modeSelection = new ModesViewModel(modes, reloadedSettings);
+    // The Linux tray skips publishing while IsRefreshing, so every list change a reload makes
+    // (the Clear and each Add) must happen with it raised, and its drop must be announced.
+    var refreshingAtEachChange = new List<bool>();
+    var refreshingNotices = new List<bool>();
+    modeSelection.Items.CollectionChanged += (_, _) => refreshingAtEachChange.Add(modeSelection.IsRefreshing);
+    modeSelection.PropertyChanged += (_, e) =>
+    {
+        if (e.PropertyName == nameof(ModesViewModel.IsRefreshing)) refreshingNotices.Add(modeSelection.IsRefreshing);
+    };
     await modeSelection.RefreshAsync();
+    Assert(refreshingAtEachChange.Count > 1 && refreshingAtEachChange.All(value => value),
+        "a mode reload changed the list while IsRefreshing was false");
+    Assert(refreshingNotices.SequenceEqual(new[] { true, false }) && !modeSelection.IsRefreshing,
+        "a mode reload did not announce IsRefreshing rising and then dropping");
     Assert(modeSelection.CloudProviders.Contains("meta", StringComparer.Ordinal),
         "the portable mode editor does not offer the enabled Meta BYOK provider");
     Assert(modeSelection.Selected?.Id == mode.Id,

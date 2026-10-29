@@ -204,8 +204,8 @@ fn hardened_replacement() {
     assert_eq!(apply_hardened_replacement("The price is $5", "price", "$5 value"), "The $5 value is $5");
     // only whole word, trailing punctuation preserved
     assert_eq!(apply_hardened_replacement("I like cats and a cat.", "cat", "feline"), "I like cats and a feline.");
-    // \b fails after "++" (both platforms) -> no replacement
-    assert_eq!(apply_hardened_replacement("Use C++ or C#", "C++", "C Plus Plus"), "Use C++ or C#");
+    // a word ending in a symbol matches too (#2612; `\bC\+\+\b` never did)
+    assert_eq!(apply_hardened_replacement("Use C++ or C#", "C++", "C Plus Plus"), "Use C Plus Plus or C#");
     // empties are no-ops
     assert_eq!(apply_hardened_replacement("test text", "  ", "replace"), "test text");
     assert_eq!(apply_hardened_replacement("test text", "test", "  "), "test text");

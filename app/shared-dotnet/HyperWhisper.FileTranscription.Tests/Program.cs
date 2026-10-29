@@ -58,7 +58,7 @@ static async Task CloudByteLimits()
         new ProviderLimit(CloudTranscriptionProvider.AzureMai, "mai-transcribe-2", 300L * ByteSizes.MiB, true),
         new ProviderLimit(CloudTranscriptionProvider.GoogleChirp, "chirp_3", 9_500_000L, true),
         new ProviderLimit(CloudTranscriptionProvider.GeminiTranscribe, "gemini-3.5-transcribe", 14L * ByteSizes.MiB, false),
-        new ProviderLimit(CloudTranscriptionProvider.HyperWhisperCloud, "nova-3-general", 2L * ByteSizes.GiB, true, "deepgramNova3"),
+        new ProviderLimit(CloudTranscriptionProvider.HyperWhisperCloud, "nova-3-general", 128L * ByteSizes.MiB, true, "deepgramNova3"),
         new ProviderLimit(CloudTranscriptionProvider.Meta, "muse-voice-transcribe-1.0", 32L * ByteSizes.MiB, false),
     };
     foreach (var item in cases)
@@ -306,7 +306,7 @@ static async Task NonMuseCloudTierLimits()
         new(FileTranscriptionRoute.Cloud, "", CloudProvider: CloudTranscriptionProvider.HyperWhisperCloud,
             CloudCatalogTier: "gemini"));
     Assert(result.IsSuccess && result.Constraints is
-        { MaximumBytes: 2L * ByteSizes.GiB, MaximumDuration: null, RequiresMuseWave: false },
+        { MaximumBytes: 128L * ByteSizes.MiB, MaximumDuration: null, RequiresMuseWave: false },
         "a non-Muse cloud tier inherited catalog file limits");
 }
 

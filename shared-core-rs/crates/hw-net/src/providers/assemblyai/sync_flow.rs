@@ -366,6 +366,7 @@ pub fn parse_sync_response(resp: &HttpResponse) -> Result<Transcript, Transcript
 mod tests {
     use super::*;
     use crate::providers::assemblyai::test_support::params;
+    use crate::providers::test_support::field;
 
     /// [`SYNC_DEFAULT_MODEL`] is deliberately NOT the catalog's default model
     /// for `assemblyAI` — it is the sync endpoint's only supported model, a
@@ -402,12 +403,9 @@ mod tests {
 
     fn sync_config(req: &HttpRequest) -> Option<serde_json::Value> {
         match &req.body {
-            Body::Multipart { parts, .. } => parts.iter().find_map(|p| match p {
-                Part::Field { name, value } if name == "config" => {
-                    Some(serde_json::from_str(value).unwrap())
-                }
-                _ => None,
-            }),
+            Body::Multipart { parts, .. } => {
+                field(parts, "config").map(|v| serde_json::from_str(v).unwrap())
+            }
             other => panic!("expected Multipart body, got {other:?}"),
         }
     }

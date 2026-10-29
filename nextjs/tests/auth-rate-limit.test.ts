@@ -21,7 +21,15 @@
  */
 import assert from "node:assert/strict";
 import http from "node:http";
-import { after, before, beforeEach, describe, test } from "node:test";
+import {
+  after,
+  afterEach,
+  before,
+  beforeEach,
+  describe,
+  mock,
+  test,
+} from "node:test";
 
 import { Redis } from "@upstash/redis";
 
@@ -50,6 +58,26 @@ moduleMock.module(moduleUrl("../src/env/server.mjs"), {
 
 const ORIGIN = "http://localhost:3000";
 const BASE = `${ORIGIN}/api/auth`;
+
+/**
+ * A fixed instant for the tests that count to a limit. `@upstash/ratelimit`'s
+ * sliding window reads `Date.now()` and floors the previous window's share,
+ * so on the real clock six calls that straddle a 60 s boundary count as fewer
+ * than five and the 6th gets 400, not 429 (#2735). Mid-window here, as in
+ * rate-limit.test.ts (#2123).
+ */
+const PINNED_NOW = Date.UTC(2026, 9, 27, 12, 0, 30);
+
+/**
+ * Fixes `Date.now()` until the test ends; the limiter and the store both read
+ * it. Node 22 reads `{ apis, now }`; the installed @types/node still types the
+ * array form, so the options are cast, as in rate-limit.test.ts.
+ */
+function pinClock(now: number) {
+  mock.timers.enable({ apis: ["Date"], now } as unknown as Parameters<
+    typeof mock.timers.enable
+  >[0]);
+}
 
 type Handler = (request: Request) => Promise<Response>;
 
@@ -84,6 +112,8 @@ after(() => {
 beforeEach(async () => {
   await store.flushall();
 });
+
+afterEach(() => mock.timers.reset());
 
 function licenseSignIn(ip: string): Request {
   return new Request(`${BASE}/sign-in/license-key`, {
@@ -126,6 +156,7 @@ describe("the real auth config", () => {
 
 describe("Better Auth sign-in limits count in Upstash", () => {
   test("the 6th license-key sign-in from one IP in a minute gets 429", async () => {
+    pinClock(PINNED_NOW);
     const ip = "203.0.113.50";
     for (let i = 0; i < 5; i += 1) {
       const response = await POST(licenseSignIn(ip));
@@ -150,6 +181,7 @@ describe("Better Auth sign-in limits count in Upstash", () => {
   });
 
   test("a second Better Auth instance with the same options shares the budget", async () => {
+    pinClock(PINNED_NOW);
     const { betterAuth } = await import("better-auth");
     const { licenseKeyPlugin } = await import("@/src/lib/auth-license-key-plugin");
     // What a second Vercel instance is: its own process, its own storage
