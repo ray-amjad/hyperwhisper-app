@@ -140,8 +140,27 @@ public sealed partial class ModesViewModel : ViewModelBase
     public ICommand NewCommand { get; }
     public ICommand DeleteCommand { get; }
 
+    /// <summary>
+    /// True while <see cref="RefreshAsync"/> runs. The list is cleared before the
+    /// repository is awaited, so an observer that mirrors <see cref="Items"/> elsewhere
+    /// (the Linux tray's Select Mode menu) waits for this to drop instead of
+    /// publishing the transient empty list.
+    /// </summary>
+    public bool IsRefreshing
+    {
+        get => _isRefreshing;
+        private set
+        {
+            if (_isRefreshing == value) return;
+            _isRefreshing = value;
+            Notify(nameof(IsRefreshing));
+        }
+    }
+    private bool _isRefreshing;
+
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
+        IsRefreshing = true;
         try
         {
             Items.Clear();
@@ -153,6 +172,7 @@ public sealed partial class ModesViewModel : ViewModelBase
             Status.Success(Plural.Count(Items.Count, "mode", "modes"));
         }
         catch (Exception) { Status.Failure("modes.load_failed", "Could not load modes."); }
+        finally { IsRefreshing = false; }
     }
     private Mode? FallbackSelection() => Items.FirstOrDefault(item => item.IsDefault)
         ?? Items.OrderBy(item => item.SortOrder).FirstOrDefault();

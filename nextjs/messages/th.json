@@ -280,7 +280,9 @@
       "dataTraining": "ความเป็นส่วนตัวของข้อมูล"
     },
     "copyright": "© 2026 HyperWhisper. สงวนลิขสิทธิ์",
-    "linkedinAria": "LinkedIn"
+    "linkedinAria": "LinkedIn",
+    "xAria": "ติดตาม HyperWhisper บน X (Twitter)",
+    "githubAria": "HyperWhisper บน GitHub"
   },
   "cloudSection": {
     "eyebrow": "คลาวด์",

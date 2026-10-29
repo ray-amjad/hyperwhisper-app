@@ -280,7 +280,9 @@
       "dataTraining": "Andmete privaatsus"
     },
     "copyright": "© 2026 HyperWhisper. Kõik õigused kaitstud.",
-    "linkedinAria": "LinkedIn"
+    "linkedinAria": "LinkedIn",
+    "xAria": "Jälgi HyperWhisperit X-is (Twitter)",
+    "githubAria": "HyperWhisper GitHubis"
   },
   "cloudSection": {
     "eyebrow": "Cloud",
