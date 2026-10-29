@@ -75,7 +75,7 @@ export default function PricingSection() {
             viewport={{ once: true }}
             whileInView={{ opacity: 1, y: 0 }}
           >
-            <Card className="h-full bg-gray-900/50 border-gray-800 backdrop-blur-xl">
+            <Card className="h-full bg-gray-900/50 border border-gray-800 backdrop-blur-xl">
               {/* text-start overrides the physical `text-left` baked into
                   HeroUI's CardBody slot, which would otherwise leave the
                   heading and body copy flush left under dir="rtl". */}
@@ -136,7 +136,7 @@ export default function PricingSection() {
                 {t("credits.badge")}
               </div>
             </div>
-            <Card className="h-full bg-gradient-to-b from-purple-900/20 to-blue-900/20 border-purple-700 backdrop-blur-xl">
+            <Card className="h-full bg-gradient-to-b from-purple-900/20 to-blue-900/20 border border-purple-700 backdrop-blur-xl">
               <CardBody className="p-8 flex flex-col text-start">
                 <div className="flex items-center gap-2 mb-1">
                   <Cloud className="w-5 h-5 text-purple-300" strokeWidth={2.5} />
@@ -178,7 +178,7 @@ export default function PricingSection() {
           viewport={{ once: true }}
           whileInView={{ opacity: 1, y: 0 }}
         >
-          <Card className="bg-gradient-to-r from-orange-900/20 to-amber-900/20 border-orange-700/50 backdrop-blur-xl">
+          <Card className="bg-gradient-to-r from-orange-900/20 to-amber-900/20 border border-orange-700/50 backdrop-blur-xl">
             <CardBody className="p-6 text-start">
               <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
