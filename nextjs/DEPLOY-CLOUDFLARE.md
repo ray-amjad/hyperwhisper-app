@@ -189,8 +189,10 @@ A failed run throws, so it shows as an error in Workers Logs. Test locally with
    **307 or 308, not 301**: clients POST to `/api/license/validate`.
 4. Enable HSTS for the zone (SSL/TLS -> Edge Certificates); Vercel sent
    `max-age=63072000`.
-5. Optional: a Cache Rule for `/models` and `/api/internal/models` so their
-   `s-maxage` is honoured (Worker responses are not edge-cached by default).
+5. No Cache Rule for `/models` and `/api/internal/models`: the Worker runs in
+   front of the edge cache, so a zone Cache Rule never caches its responses
+   (tried 2026-10-29, no `cf-cache-status`). Their in-memory cache bounds the
+   provider calls.
    Optional: the "Add visitor location headers" managed transform is not
    needed; `/api/geo/nearest-region` reads `request.cf`.
 6. Verify on the real domain:
