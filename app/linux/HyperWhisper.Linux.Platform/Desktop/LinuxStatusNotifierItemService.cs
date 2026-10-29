@@ -297,10 +297,12 @@ public sealed class LinuxStatusNotifierItemService : IDisposable
     }
 
     /// <summary>
-    /// Publishes the tray's Select Mode list. Every call is a new generation; a click
+    /// Publishes the tray's Select Mode list. A changed list is a new generation; a click
     /// the helper reports for an older generation, or for an index this snapshot does
-    /// not have, is dropped. Safe to call before <see cref="StartAsync"/> and from any
-    /// thread: the latest snapshot is kept and re-sent whenever the helper (re)starts.
+    /// not have, is dropped. A list equal to the last one is not sent at all, so an
+    /// unrelated republish never re-ids the rows of a menu the user has open. Safe to
+    /// call before <see cref="StartAsync"/> and from any thread: the latest snapshot is
+    /// kept and re-sent whenever the helper (re)starts.
     /// </summary>
     public void PublishModeMenu(TrayModeMenu menu)
     {
@@ -308,6 +310,7 @@ public sealed class LinuxStatusNotifierItemService : IDisposable
         lock (_modeGate)
         {
             if (_disposed) return;
+            if (_modeMenu is { } last && last.HasSameContent(menu)) return;
             _modeMenu = menu;
         }
         QueueModeMenu(advanceGeneration: true);

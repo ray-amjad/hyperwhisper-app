@@ -1504,7 +1504,9 @@ public partial class MainWindow : Window
 
     private void OnModesChangedForTray(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(ModesViewModel.Selected)) ScheduleTrayModeMenu();
+        // IsRefreshing dropping is the end of a reload: the one publish it was holding back.
+        if (e.PropertyName is nameof(ModesViewModel.Selected) or nameof(ModesViewModel.IsRefreshing))
+            ScheduleTrayModeMenu();
     }
 
     // Add, delete, reload, and a saved rename (Save replaces the row) all land here.
@@ -1537,6 +1539,10 @@ public partial class MainWindow : Window
         try
         {
             var modes = _viewModel.Modes;
+            // A reload clears the list before it awaits the database; publishing then would
+            // flash "No modes available" and drop a click on the open menu. The reload's end
+            // (IsRefreshing -> false) schedules the publish instead.
+            if (modes.IsRefreshing) return;
             _platformServices.Tray.PublishModeMenu(TrayModeMenu.Create(
                 modes.Items.Select(mode => new TrayModeEntry(mode.Id, mode.Name)).ToList(),
                 modes.Selected?.Id,

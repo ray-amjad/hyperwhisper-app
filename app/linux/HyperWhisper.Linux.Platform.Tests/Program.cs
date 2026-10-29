@@ -66,6 +66,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("tray mode clicks resolve only against the published snapshot", TrayModeClicksResolveAgainstSnapshot),
     ("StatusNotifierItem helper serves Select Mode over a private bus", StatusNotifierHelperServesSelectMode),
     ("StatusNotifierItem service resolves a real Select Mode click", StatusNotifierServiceResolvesModeClick),
+    ("StatusNotifierItem helper refreshes Select Mode for a KDE-style host", StatusNotifierHelperRefreshesSubmenuForKde),
+    ("StatusNotifierItem helper outlives a stdin that is not the app's pipe", StatusNotifierHelperIgnoresNonPipeStdinEnd),
     ("event dispatch isolates failing subscribers", IsolatesSubscribers),
     ("Pulse recorder writes private canonical WAV", PulseRecorderWritesWave),
     ("Pulse recorder reports unavailable capability", PulseRecorderUnavailable),
@@ -1115,6 +1117,11 @@ static Task TrayModeLabelsAreBounded()
     Assert.Equal("A|B\"}{", TrayModeMenu.BoundLabel("A|B\"}\n{").Replace(" ", ""));
     Assert.Equal("\u0645\u200C\u0645 \U0001F468\u200D\U0001F469", TrayModeMenu.BoundLabel("\u0645\u200C\u0645 \U0001F468\u200D\U0001F469"));
     Assert.Equal("x", TrayModeMenu.BoundLabel("\uD800x\uDC00"));
+    // A name of joiners, variation selectors and fillers alone draws nothing: it is blank,
+    // so the helper shows "Unnamed" rather than an empty row.
+    Assert.Equal("", TrayModeMenu.BoundLabel("\u200D\u200C"));
+    Assert.Equal("", TrayModeMenu.BoundLabel("\u200D \uFE0F\u3164\u034F\u202E"));
+    Assert.Equal("a\u200D", TrayModeMenu.BoundLabel("a\u200D"));
     var longName = TrayModeMenu.BoundLabel(new string('x', 500));
     Assert.Equal(new string('x', TrayModeMenu.MaximumLabelLength) + TrayModeMenu.Ellipsis, longName);
     // A surrogate pair that does not fit whole is dropped, never split.
@@ -1173,6 +1180,22 @@ static Task TrayModeClicksResolveAgainstSnapshot()
     // Onboarding disables the rows; a click that slips through still resolves to nothing.
     service.PublishModeMenu(TrayModeMenu.Create(replacement.Select(id => new TrayModeEntry(id, "n")), null, enabled: false));
     Assert.True(!service.TryResolveModeSelection($"ACTION|mode-select|{service.ModeGeneration}|0", out _), "disabled menu resolved");
+
+    // A republish with nothing changed (a reload, an unrelated property) keeps the generation,
+    // so a click on the menu the user has open still resolves.
+    service.PublishModeMenu(TrayModeMenu.Create(replacement.Select(id => new TrayModeEntry(id, "n")), null, enabled: true));
+    var steady = service.ModeGeneration;
+    service.PublishModeMenu(TrayModeMenu.Create(replacement.Select(id => new TrayModeEntry(id, "n")), null, enabled: true));
+    Assert.Equal(steady, service.ModeGeneration);
+    Assert.True(service.TryResolveModeSelection($"ACTION|mode-select|{steady}|0", out resolved));
+    Assert.Equal(replacement[0], resolved);
+    // A rename, a moved check or a different id behind the same label is a change.
+    service.PublishModeMenu(TrayModeMenu.Create(replacement.Select(id => new TrayModeEntry(id, "renamed")), null, enabled: true));
+    Assert.Equal(steady + 1, service.ModeGeneration);
+    service.PublishModeMenu(TrayModeMenu.Create(replacement.Select(id => new TrayModeEntry(id, "renamed")), replacement[0], enabled: true));
+    Assert.Equal(steady + 2, service.ModeGeneration);
+    service.PublishModeMenu(TrayModeMenu.Create([new TrayModeEntry(Guid.NewGuid(), "renamed")], null, enabled: true));
+    Assert.Equal(steady + 3, service.ModeGeneration);
     return Task.CompletedTask;
 }
 
@@ -1236,6 +1259,9 @@ static async Task StatusNotifierHelperServesSelectMode()
         Assert.Equal("0,0,1", string.Join(",", ModeRows(moved).States));
         Assert.Equal(3, moved.GetProperty("revision").GetInt32());
         Assert.True(moved.GetProperty("signals").EnumerateArray().Any(signal => signal[0].GetInt32() == 3));
+        // Every LayoutUpdated names the Select Mode submenu, the only subtree that changes.
+        Assert.True(moved.GetProperty("signals").EnumerateArray().All(signal => signal[1].GetInt32() == 12),
+            "LayoutUpdated did not name the Select Mode submenu");
         var current = ModeRows(moved).Ids;
         var subtree = await probe.SendAsync("layout-of 12");
         Assert.Equal(string.Join(",", current), string.Join(",", subtree.GetProperty("children").EnumerateArray().Select(id => id.GetInt32())));
@@ -1254,7 +1280,7 @@ static async Task StatusNotifierHelperServesSelectMode()
         string[] hostile =
         [
             "Evil\nACTION|quit", "\u0007\u001b[31mred\r\n{\"v\":1,\"generation\":99,\"active\":0,\"enabled\":true,\"more\":false,\"modes\":[\"x\"]}",
-            "A|B\"}\n{\"", "\u202Eevil", new string('x', 500), "", "tab\tname\u2028end"
+            "A|B\"}\n{\"", "\u202Eevil", new string('x', 500), "", "tab\tname\u2028end", "\u200D\u200C\uFE0F"
         ];
         var hostileIds = hostile.Select(_ => Guid.NewGuid()).ToArray();
         await Send(LinuxStatusNotifierItemService.SerializeModeMenu(
@@ -1274,6 +1300,7 @@ static async Task StatusNotifierHelperServesSelectMode()
         Assert.Equal(new string('x', 60) + "\u2026", hostileRows.Labels[4]);
         Assert.Equal("Unnamed", hostileRows.Labels[5]);
         Assert.Equal("tab name end", hostileRows.Labels[6]);
+        Assert.Equal("Unnamed", hostileRows.Labels[7]);
         Assert.Equal(4, attacked.GetProperty("revision").GetInt32());
         for (var index = 0; index < hostileRows.Ids.Length; index++)
         {
@@ -1320,10 +1347,122 @@ static async Task StatusNotifierHelperServesSelectMode()
         await probe.SendAsync("click 5");
         Assert.Equal("ACTION|history", await HelperLine());
 
-        // The app closing its end of the pipe leaves the helper serving the last menu.
+        // The app's end of the pipe closing (a crash, a kill) ends the helper, so no orphaned
+        // icon stays behind driving nothing.
         helper.StandardInput.Close();
+        await helper.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(0, helper.ExitCode);
+    }
+    finally
+    {
+        if (!helper.HasExited)
+            try { helper.Kill(entireProcessTree: true); await helper.WaitForExitAsync(); } catch { }
+    }
+}
+
+// libdbusmenu-qt (KDE) fetches the root at depth 1, builds each submenu on AboutToShow, and
+// afterwards refreshes a built submenu only on a LayoutUpdated naming it or an AboutToShow
+// answering true. libdbusmenu-glib fetches everything at depth -1 and ignores the parent.
+static async Task StatusNotifierHelperRefreshesSubmenuForKde()
+{
+    await using var probe = await ModeProbe.StartAsync();
+    if (probe is null)
+    {
+        Console.WriteLine("SKIP StatusNotifierItem helper refreshes Select Mode for a KDE-style host: needs python3-gi and dbus-daemon");
+        return;
+    }
+    using var helper = Process.Start(new ProcessStartInfo(ModeProbe.Python, ModeProbe.Helper)
+    { UseShellExecute = false, RedirectStandardInput = true, RedirectStandardOutput = true })
+        ?? throw new InvalidOperationException("helper failed to start");
+    try
+    {
+        async Task Send(string line) { await helper.StandardInput.WriteAsync(line + "\n"); await helper.StandardInput.FlushAsync(); }
+        async Task<bool> Needs(int id)
+        {
+            var about = await probe.SendAsync($"about {id}");
+            var group = about.GetProperty("group").EnumerateArray().Select(value => value.GetInt32()).ToArray();
+            Assert.Equal(about.GetProperty("need").GetBoolean(), group.Contains(id));
+            return about.GetProperty("need").GetBoolean();
+        }
+        static int[] Children(System.Text.Json.JsonElement layout) =>
+            layout.GetProperty("children").EnumerateArray().Select(value => value.GetInt32()).ToArray();
+        Assert.Equal("CAPABILITY|available", await helper.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal("registered", (await probe.NextAsync()).GetProperty("event").GetString());
+
+        // Depth 1 is honoured: the root comes without the submenus' rows, so the root is
+        // current and Select Mode is not.
+        var root = await probe.SendAsync("layout-of 0 1");
+        Assert.Equal(0, root.GetProperty("grandchildren").GetProperty("12").GetInt32());
+        Assert.True(!await Needs(0), "the root asked for a refresh it does not need");
+        Assert.True(await Needs(12), "an unfetched Select Mode did not ask for its rows");
+        Assert.Equal("16", string.Join(",", Children(await probe.SendAsync("layout-of 12 1"))));
+        Assert.True(!await Needs(12), "a just-fetched Select Mode asked again");
+
+        // A mode list arrives: the signal names 12, and the built submenu is stale until fetched.
+        var ids = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        await Send(LinuxStatusNotifierItemService.SerializeModeMenu(
+            TrayModeMenu.Create(ids.Select(id => new TrayModeEntry(id, "m")), ids[0], true), 1));
+        var signal = await probe.SendAsync("wait 1 nofetch");
+        var last = signal.GetProperty("signals").EnumerateArray().Last();
+        Assert.Equal(2, last[0].GetInt32());
+        Assert.Equal(12, last[1].GetInt32());
+        Assert.True(!await Needs(0), "a mode change dirtied the root");
+        Assert.True(await Needs(12), "a changed Select Mode answered no update");
+        var first = Children(await probe.SendAsync("layout-of 12 1"));
+        Assert.Equal(2, first.Length);
+        Assert.True(!await Needs(12), "a just-refreshed Select Mode asked again");
+
+        // The next change: stale again; a libdbusmenu-glib style full fetch also settles it.
+        await Send(LinuxStatusNotifierItemService.SerializeModeMenu(
+            TrayModeMenu.Create(ids.Select(id => new TrayModeEntry(id, "m")), ids[1], true), 2));
+        await probe.SendAsync("wait 2 nofetch");
+        Assert.True(await Needs(12), "a second change answered no update");
+        var full = await probe.SendAsync("layout");
+        Assert.Equal("0,1", string.Join(",", ModeRows(full).States));
+        Assert.True(!await Needs(12), "a full fetch left Select Mode stale");
+
+        // A row id from an older layout is an error, never the whole menu; -1 is the root.
+        var stale = await probe.SendAsync($"layout-of {first[0]}");
+        Assert.Equal("org.freedesktop.DBus.Error.InvalidArgs", stale.GetProperty("error").GetString());
+        Assert.Equal("org.freedesktop.DBus.Error.InvalidArgs",
+            (await probe.SendAsync("layout-of 999999")).GetProperty("error").GetString());
+        var whole = await probe.SendAsync("layout-of -1");
+        Assert.Equal(0, whole.GetProperty("root").GetInt32());
+        Assert.True(Children(whole).Contains(12), "GetLayout(-1) is not the root");
+        Assert.True(!await Needs(999999), "an unknown id asked for a refresh");
+    }
+    finally
+    {
+        if (!helper.HasExited)
+            try { helper.Kill(entireProcessTree: true); await helper.WaitForExitAsync(); } catch { }
+    }
+}
+
+// Run by hand (stdin a TTY, /dev/null or a file), the helper's stdin ending means nothing:
+// it keeps serving the "no modes" menu. Only the app's pipe ending stops it.
+static async Task StatusNotifierHelperIgnoresNonPipeStdinEnd()
+{
+    await using var probe = await ModeProbe.StartAsync();
+    var shell = CommandClipboardBackend.FindExecutable("sh");
+    if (probe is null || shell is null)
+    {
+        Console.WriteLine("SKIP StatusNotifierItem helper outlives a stdin that is not the app's pipe: needs python3-gi, dbus-daemon and sh");
+        return;
+    }
+    var start = new ProcessStartInfo(shell) { UseShellExecute = false, RedirectStandardOutput = true };
+    start.ArgumentList.Add("-c");
+    start.ArgumentList.Add("exec \"$0\" \"$1\" </dev/null");
+    start.ArgumentList.Add(ModeProbe.Python);
+    start.ArgumentList.Add(ModeProbe.Helper);
+    using var helper = Process.Start(start) ?? throw new InvalidOperationException("helper failed to start");
+    try
+    {
+        Assert.Equal("CAPABILITY|available", await helper.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal("registered", (await probe.NextAsync()).GetProperty("event").GetString());
+        Assert.Equal("No modes available", string.Join("|", ModeRows(await probe.SendAsync("layout")).Labels));
         await probe.SendAsync("click 5");
-        Assert.Equal("ACTION|history", await HelperLine());
+        Assert.Equal("ACTION|history", await helper.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.True(!helper.HasExited, "the helper exited on the end of /dev/null");
     }
     finally
     {

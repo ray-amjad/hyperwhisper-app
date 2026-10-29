@@ -3,6 +3,7 @@
 
 import json
 import os
+import stat
 import sys
 import unicodedata
 
@@ -153,9 +154,26 @@ def node(item_id, label=None, children=None, separator=False, enabled=True, togg
     return (item_id, properties(label, separator, bool(children), enabled, toggle), children or [])
 
 
-def layout_value(item):
+def layout_value(item, depth=-1):
+    """The (ia{sv}av) for one item, down to the recursionDepth the host asked for:
+    -1 is everything, 0 the item alone (KDE asks for 1 and fetches each submenu itself)."""
     item_id, props, children = item
-    return (item_id, props, [GLib.Variant("(ia{sv}av)", layout_value(child)) for child in children])
+    if depth == 0:
+        return (item_id, props, [])
+    below = depth - 1 if depth > 0 else -1
+    return (item_id, props, [GLib.Variant("(ia{sv}av)", layout_value(child, below)) for child in children])
+
+
+def served_submenus(item, depth=-1):
+    """Ids whose children a GetLayout of this depth put in front of the host."""
+    item_id, _props, children = item
+    if depth == 0 or not children:
+        return []
+    below = depth - 1 if depth > 0 else -1
+    ids = [item_id]
+    for child in children:
+        ids += served_submenus(child, below)
+    return ids
 
 
 def item_properties(item):
@@ -189,6 +207,9 @@ MAXIMUM_LABEL_LENGTH = 60     # MenuItemText.MaxLength on Windows
 MAXIMUM_GENERATION = 2 ** 31 - 1
 ELLIPSIS = "…"
 KEPT_FORMAT_CHARACTERS = {"‌", "‍"}  # ZWNJ/ZWJ: Persian words and emoji sequences
+HANGUL_FILLERS = {"\u115f", "\u1160", "\u3164", "\uffa0"}  # default-ignorable letters that draw nothing
+INVISIBLE_CHARACTERS = KEPT_FORMAT_CHARACTERS | {" ", "\u034f"} | {chr(c) for c in range(0xFE00, 0xFE10)}
+SELECT_MODE_ID = 12
 MODE_ROW_FIRST_ID = 1000
 MODE_ROW_LAST_ID = 2 ** 31 - 1
 
@@ -202,15 +223,17 @@ def mode_label(name):
         category = unicodedata.category(character)
         if character.isspace() or category in ("Cc", "Zl", "Zp"):
             kept.append(" ")
-        elif category in ("Cf", "Cs", "Co", "Cn") and character not in KEPT_FORMAT_CHARACTERS:
+        elif (category in ("Cf", "Cs", "Co", "Cn") and character not in KEPT_FORMAT_CHARACTERS
+              or character in HANGUL_FILLERS):
             continue
         else:
             kept.append(character)
     text = " ".join("".join(kept).split())
+    # Joiners and variation selectors alone draw nothing: an empty row is "Unnamed".
+    if all(character in INVISIBLE_CHARACTERS for character in text):
+        return label("menu.mode.unnamed")
     if len(text) > MAXIMUM_LABEL_LENGTH:
         text = text[:MAXIMUM_LABEL_LENGTH].rstrip() + ELLIPSIS
-    if not text:
-        return label("menu.mode.unnamed")
     return text.replace("_", "__")
 
 
@@ -295,7 +318,7 @@ def menu_layout():
         node(6, label("sidebar.settings")),
         node(7, separator=True),
         microphone,
-        node(12, label("menu.select.mode"), MODES.children()),
+        node(SELECT_MODE_ID, label("menu.select.mode"), MODES.children()),
         node(14, label("menu.transcribe.file")),
         node(15, separator=True),
         node(17, label("settings.resources.help.center")),
@@ -316,12 +339,30 @@ class Menu:
 
     def __init__(self):
         self.revision = 0
+        self.served = {}   # submenu id -> the revision whose children a host last fetched
+        self.changed = {}  # submenu id -> the revision its children last changed (default 1)
         self.rebuild()
 
     def rebuild(self):
         self.revision += 1
         self.root = menu_layout()
         self.items = item_properties(self.root)
+        # Every rebuild is a new mode list; nothing else in the menu ever changes.
+        self.changed[SELECT_MODE_ID] = self.revision
+
+    def mark_served(self, item, depth):
+        for item_id in served_submenus(item, depth):
+            self.served[item_id] = self.revision
+
+    def needs_update(self, item_id):
+        """AboutToShow's answer: True for a submenu whose children changed since a host
+        last fetched them. KDE (libdbusmenu-qt) re-fetches a submenu it already built
+        only on LayoutUpdated naming it or on this answer; libdbusmenu-glib and the
+        GNOME AppIndicator extension re-fetch the whole layout either way."""
+        item = find_item(self.root, item_id)
+        if item is None or not item[2]:
+            return False
+        return self.served.get(item_id, 0) < self.changed.get(item_id, 1)
 
 
 MENU = Menu()
@@ -335,8 +376,11 @@ def update_modes(line):
     MODES.apply(parsed)
     MENU.rebuild()
     if BUS is not None:
+        # Only the Select Mode submenu's children change. KDE refreshes exactly the
+        # subtree the signal names (parent 0 would leave a built submenu stale);
+        # libdbusmenu-glib and the GNOME extension ignore the parent and re-fetch all.
         BUS.emit_signal(None, "/Menu", "com.canonical.dbusmenu", "LayoutUpdated",
-                        GLib.Variant("(ui)", (MENU.revision, 0)))
+                        GLib.Variant("(ui)", (MENU.revision, SELECT_MODE_ID)))
     return True
 
 
@@ -369,23 +413,44 @@ class InputReader:
                     pass
 
 
-def watch_stdin():
+def stdin_is_app_pipe(fd):
+    """The app starts the helper with stdin redirected to a pipe it holds open for the
+    helper's whole life. A TTY, /dev/null or a file (a person running the script by
+    hand) is not that pipe, and its end means nothing."""
+    try:
+        mode = os.fstat(fd).st_mode
+    except OSError:
+        return False
+    return stat.S_ISFIFO(mode) or stat.S_ISSOCK(mode)
+
+
+def watch_stdin(loop):
     reader = InputReader(update_modes)
+    try:
+        fd = sys.stdin.fileno()
+    except (OSError, ValueError, AttributeError):
+        return
+    exit_on_end = stdin_is_app_pipe(fd)
 
     def readable(fd, condition):
         try:
             data = os.read(fd, 65536)
         except OSError:
-            return False
-        if not data:
-            return False  # the app sends nothing more; keep serving the last menu
-        reader.feed(data)
-        return True
+            data = b""
+        if data:
+            reader.feed(data)
+            return True
+        # End of the app's pipe: the app exited or crashed without stopping us. Quit,
+        # which drops the bus name, so the watcher removes the icon instead of leaving
+        # a tray that drives nothing.
+        if exit_on_end:
+            loop.quit()
+        return False
 
     try:
-        GLib.io_add_watch(sys.stdin.fileno(), GLib.PRIORITY_DEFAULT,
+        GLib.io_add_watch(fd, GLib.PRIORITY_DEFAULT,
                           GLib.IOCondition.IN | GLib.IOCondition.HUP | GLib.IOCondition.ERR, readable)
-    except (OSError, ValueError, AttributeError):
+    except (OSError, ValueError):
         pass
 
 
@@ -414,20 +479,30 @@ def menu_call(_conn, _sender, _path, _iface, method, params, invocation):
             menu_event(item_id, event_id)
         invocation.return_value(GLib.Variant("(ai)", ([e[0] for e in events if e[0] not in items],)))
     elif method == "GetLayout":
-        # The subtree a host asks for; an id it does not know (some ask for -1) gets the
-        # whole menu, as every request did before the menu had dynamic rows.
-        item = find_item(MENU.root, params.unpack()[0]) or MENU.root
-        invocation.return_value(GLib.Variant("(u(ia{sv}av))", (MENU.revision, layout_value(item))))
+        parent, depth, _names = params.unpack()
+        # A negative parent is the root: some watchers ask for -1, and the root is what
+        # every request got before the menu had rows that come and go. A positive id
+        # that is not in this layout (a mode row from an older revision) is an error,
+        # as libdbusmenu-glib's own server answers, never the whole menu under it.
+        item = MENU.root if parent < 0 else find_item(MENU.root, parent)
+        if item is None:
+            invocation.return_dbus_error("org.freedesktop.DBus.Error.InvalidArgs",
+                                         "No menu item with that id")
+            return
+        depth = depth if depth >= 0 else -1
+        MENU.mark_served(item, depth)
+        invocation.return_value(GLib.Variant("(u(ia{sv}av))", (MENU.revision, layout_value(item, depth))))
     elif method == "GetGroupProperties":
         ids, names = params.unpack()
         result = [(i, {k: v for k, v in items[i].items() if not names or k in names})
                   for i in (ids or sorted(items)) if i in items]
         invocation.return_value(GLib.Variant("(a(ia{sv}))", (result,)))
     elif method == "AboutToShow":
-        invocation.return_value(GLib.Variant("(b)", (False,)))
+        invocation.return_value(GLib.Variant("(b)", (MENU.needs_update(params.unpack()[0]),)))
     elif method == "AboutToShowGroup":
         ids = params.unpack()[0]
-        invocation.return_value(GLib.Variant("(aiai)", ([], [i for i in ids if i not in items])))
+        invocation.return_value(GLib.Variant("(aiai)", ([i for i in ids if i in items and MENU.needs_update(i)],
+                                                        [i for i in ids if i not in items])))
     else:
         invocation.return_dbus_error("org.freedesktop.DBus.Error.UnknownMethod", "Unknown method")
 
@@ -448,7 +523,8 @@ if not os.environ.get("DBUS_SESSION_BUS_ADDRESS"):
 try:
     bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
     BUS = bus
-    watch_stdin()
+    loop = GLib.MainLoop()
+    watch_stdin(loop)
     item_info = Gio.DBusNodeInfo.new_for_xml(ITEM_XML).interfaces[0]
     menu_info = Gio.DBusNodeInfo.new_for_xml(MENU_XML).interfaces[0]
     bus.register_object("/StatusNotifierItem", item_info, item_call, item_property, None)
@@ -467,7 +543,7 @@ try:
         None,
     )
     print("CAPABILITY|available", flush=True)
-    GLib.MainLoop().run()
+    loop.run()
 except Exception:
     print("CAPABILITY|unsupported", flush=True)
     raise SystemExit(3)

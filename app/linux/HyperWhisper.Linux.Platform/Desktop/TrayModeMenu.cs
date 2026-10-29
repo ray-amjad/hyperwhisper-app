@@ -47,6 +47,15 @@ public sealed class TrayModeMenu
     /// <summary>True when the list was cut at <see cref="MaximumRows"/>.</summary>
     public bool HasMore { get; }
 
+    /// <summary>True when both menus would put the same rows, check and state in front of
+    /// the user and resolve every index to the same mode id.</summary>
+    public bool HasSameContent(TrayModeMenu other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        return ActiveIndex == other.ActiveIndex && Enabled == other.Enabled && HasMore == other.HasMore
+            && Rows.SequenceEqual(other.Rows);
+    }
+
     public static TrayModeMenu Create(IEnumerable<TrayModeEntry> modes, Guid? activeId, bool enabled)
     {
         ArgumentNullException.ThrowIfNull(modes);
@@ -96,7 +105,8 @@ public sealed class TrayModeMenu
             }
             var pair = char.IsHighSurrogate(character) && index + 1 < name.Length && char.IsLowSurrogate(name[index + 1]);
             if (!pair && (char.IsSurrogate(character) || category is UnicodeCategory.PrivateUse or UnicodeCategory.OtherNotAssigned
-                || category == UnicodeCategory.Format && character is not ('\u200C' or '\u200D')))
+                || category == UnicodeCategory.Format && character is not ('\u200C' or '\u200D')
+                || IsHangulFiller(character)))
                 continue;
             var width = (pendingSpace ? 1 : 0) + (pair ? 2 : 1);
             if (length + width > MaximumLabelLength)
@@ -110,6 +120,17 @@ public sealed class TrayModeMenu
             if (pair) builder.Append(name[++index]);
             length += width;
         }
-        return truncated ? builder.ToString().TrimEnd() + Ellipsis : builder.ToString();
+        var label = builder.ToString();
+        // Joiners and variation selectors alone draw nothing: such a name is blank, and the
+        // helper shows its localized "Unnamed" instead of an empty row.
+        if (!label.Any(IsVisible)) return string.Empty;
+        return truncated ? label.TrimEnd() + Ellipsis : label;
     }
+
+    // Default-ignorable letters (Lo, not Cf) that render as nothing.
+    private static bool IsHangulFiller(char character) =>
+        character is '\u115F' or '\u1160' or '\u3164' or '\uFFA0';
+
+    private static bool IsVisible(char character) =>
+        character is not (' ' or '\u200C' or '\u200D' or '\u034F') && character is not (>= '\uFE00' and <= '\uFE0F');
 }

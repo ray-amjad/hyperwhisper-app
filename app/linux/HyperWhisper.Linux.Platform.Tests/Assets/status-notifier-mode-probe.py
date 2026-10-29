@@ -7,8 +7,11 @@ LayoutUpdated, and answers each command with one JSON line on stdout:
 
   layout              -> {"event":"layout","revision":r,"signals":[...],"menu":{...},"rows":[...]}
   wait <revision>     -> the layout, once a LayoutUpdated with a revision above <revision> arrived
+  wait <revision> nofetch -> {"event":"signal","signals":[...]} at the same moment, without a GetLayout
   click <id>          -> {"event":"clicked","id":id}   (EventGroup, as libdbusmenu-glib sends it)
-  layout-of <id>      -> GetLayout with that parent id (error reported, not raised)
+  layout-of <id> [d]  -> GetLayout with that parent id and recursionDepth d (default -1); a D-Bus
+                         error comes back as {"event":"layout-of","error":...}, not raised
+  about <id>          -> {"event":"about","need":AboutToShow(id),"group":AboutToShowGroup([id]) updates}
 """
 import json
 import os
@@ -62,13 +65,25 @@ def run(command):
         if parts[0] == "layout":
             say(layout())
         elif parts[0] == "layout-of":
-            revision, root = menu_call("GetLayout", "(iias)", (int(parts[1]), -1, []))
-            say({"event": "layout-of", "revision": revision, "root": root[0],
-                 "children": [child[0] for child in root[2]]})
+            depth = int(parts[2]) if len(parts) > 2 else -1
+            try:
+                revision, root = menu_call("GetLayout", "(iias)", (int(parts[1]), depth, []))
+            except GLib.Error as error:
+                say({"event": "layout-of", "error": Gio.dbus_error_get_remote_error(error) or error.message})
+            else:
+                say({"event": "layout-of", "revision": revision, "root": root[0],
+                     "children": [child[0] for child in root[2]],
+                     "grandchildren": {str(child[0]): len(child[2]) for child in root[2]}})
+        elif parts[0] == "about":
+            item = int(parts[1])
+            need, = menu_call("AboutToShow", "(i)", (item,))
+            updates, _errors = menu_call("AboutToShowGroup", "(ai)", ([item],))
+            say({"event": "about", "need": need, "group": list(updates)})
         elif parts[0] == "wait":
             threshold = int(parts[1])
+            state["fetch"] = len(parts) < 3 or parts[2] != "nofetch"
             if any(revision > threshold for revision, _parent in state["signals"]):
-                say(layout())
+                say(settled())
             else:
                 state["waiting"] = threshold
                 GLib.timeout_add(5000, timed_out, threshold)
@@ -102,8 +117,12 @@ def layout_updated(_conn, _sender, _path, _iface, _signal, params):
     state["signals"].append([revision, parent])
     if state["waiting"] is not None and revision > state["waiting"]:
         state["waiting"] = None
-        say(layout())
+        say(settled())
         next_command()
+
+
+def settled():
+    return layout() if state.get("fetch", True) else {"event": "signal", "signals": list(state["signals"])}
 
 
 def registered(_conn, _sender, _path, _iface, _method, params, invocation):
