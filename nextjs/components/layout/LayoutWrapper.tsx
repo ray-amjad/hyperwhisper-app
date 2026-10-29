@@ -17,6 +17,34 @@ function isHomePath(pathname: string): boolean {
 }
 
 /**
+ * The sub-pages restyled in the Dusk design. Each lays its own full-bleed sky
+ * band under the navbar and centres its sections itself, so their <main> drops
+ * the container.
+ */
+const DUSK_PAGES = [
+  "download",
+  "older-versions",
+  "choosing-a-model",
+  "latency",
+  "credits",
+  "open-source",
+  "blog",
+  "support",
+  "legal",
+];
+
+/** `/en/download`, `/ja/legal/privacy-policy`, `/en/blog/some-post`, … */
+function isDuskPagePath(pathname: string): boolean {
+  const parts = pathname.split("/").filter(Boolean);
+
+  return (
+    parts.length >= 2 &&
+    isSupportedLocale(parts[0]) &&
+    DUSK_PAGES.includes(parts[1])
+  );
+}
+
+/**
  * Client-side layout wrapper that conditionally renders navbar/footer
  * based on the current pathname.
  *
@@ -56,6 +84,7 @@ export default function LayoutWrapper({
   // The homepage lays a transparent navbar over its full-height hero, with no
   // banner (the hero's own pill links to /open-source) and a full-bleed main.
   const isHome = isHomePath(pathname);
+  const isDuskPage = isDuskPagePath(pathname);
 
   // Publishes the sticky header's live height as `--site-header-offset`, which
   // globals.css uses as `scroll-padding-top` so focused controls and #anchor
@@ -137,7 +166,9 @@ export default function LayoutWrapper({
       </div>
       <main
         className={
-          isHome ? "flex-grow" : "container mx-auto max-w-7xl px-6 flex-grow"
+          isHome || isDuskPage
+            ? "flex-grow"
+            : "container mx-auto max-w-7xl px-6 flex-grow"
         }
       >
         {children}
