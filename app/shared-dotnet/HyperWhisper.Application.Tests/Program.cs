@@ -75,6 +75,7 @@ try
     await RunModeNameTakenTestsAsync(Path.Combine(root, "mode-name-taken"));
     await RunModeDeleteFailureCodeTestsAsync(Path.Combine(root, "mode-delete-failure-code"));
     await RunModeDeleteRaceTestsAsync(Path.Combine(root, "mode-delete-race"));
+    await RunModeSaveRaceTestsAsync(Path.Combine(root, "mode-save-race"));
     await RunModeDeleteStaleCardTestsAsync(Path.Combine(root, "mode-delete-stale-card"));
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
     await RunBlankCloudProviderEditorLoadTestsAsync(Path.Combine(root, "blank-cloud-provider"));
@@ -2196,7 +2197,7 @@ static async Task RunDefaultModeInvariantTestsAsync(string root)
     var theDefault = promoted.Single(item => item.IsDefault);
     theDefault.Name = "Zebra";
     var renameRefused = false;
-    try { await orphanRepository.UpsertSafelyAsync(theDefault); }
+    try { await orphanRepository.UpdateSafelyAsync(theDefault); }
     catch (InvalidOperationException) { renameRefused = true; }
     Assert(renameRefused, "the default mode was renamed, which makes the editor's own caption a lie");
     Assert((await orphanRepository.ListAsync()).Any(item => item.Name == "Early"),
@@ -2206,14 +2207,14 @@ static async Task RunDefaultModeInvariantTestsAsync(string root)
     //    wrong as no lock.
     var ordinary = (await orphanRepository.ListAsync()).Single(item => !item.IsDefault);
     ordinary.Name = "Renamed";
-    await orphanRepository.UpsertSafelyAsync(ordinary);
+    await orphanRepository.UpdateSafelyAsync(ordinary);
     Assert((await orphanRepository.ListAsync()).Any(item => item.Name == "Renamed"),
         "an ordinary mode could not be renamed");
 
     // 5. Making another mode the default moves the flag rather than adding one.
     ordinary = (await orphanRepository.ListAsync()).Single(item => item.Name == "Renamed");
     ordinary.IsDefault = true;
-    await orphanRepository.UpsertSafelyAsync(ordinary);
+    await orphanRepository.UpdateSafelyAsync(ordinary);
     var moved = await orphanRepository.ListAsync();
     Assert(moved.Count(item => item.IsDefault) == 1 && moved.Single(item => item.IsDefault).Id == ordinary.Id,
         "setting the flag on a second mode did not clear it on the first");
@@ -2222,7 +2223,7 @@ static async Task RunDefaultModeInvariantTestsAsync(string root)
     //    mode it wants instead, and that clears this one.
     ordinary.IsDefault = false;
     var clearRefused = false;
-    try { await orphanRepository.UpsertSafelyAsync(ordinary); }
+    try { await orphanRepository.UpdateSafelyAsync(ordinary); }
     catch (InvalidOperationException) { clearRefused = true; }
     Assert(clearRefused, "the last default flag was cleared, leaving the app with no default mode");
 
@@ -2389,6 +2390,255 @@ static async Task RunModeDeleteRaceTestsAsync(string root)
             $"{store}: two overlapping deletes left {left.Count} modes, {left.Count(item => item.IsDefault)} of them default");
     }
 }
+
+// Issue #2748: a mode save read the rows, checked them and wrote with nothing around the three, so
+// a delete or another save that committed in between broke a mode rule: no default, a deleted mode
+// written back, a renamed default, or two modes with one name. Both save paths now run in one
+// transaction. The Local API backend is not referenced from this harness, so its create and patch
+// are driven through the repository method they call (SaveAtomicallyAsync), with callbacks shaped
+// like theirs. Each race runs in BOTH orders: the first operation is started, and the second only
+// once the first's read is held, so the reads overlap whenever nothing serialises them. Serialised,
+// the second waits for the first's commit, and each order must answer exactly as if the two had run
+// one after the other in that order.
+static async Task RunModeSaveRaceTestsAsync(string root)
+{
+    foreach (var path in new[] { "page", "api" })
+    {
+        var refusal = path == "page" ? "modes.name_taken" : "refused";
+        foreach (var saveFirst in new[] { true, false })
+        {
+            var order = saveFirst ? "save first" : "delete first";
+
+            // (a) Renaming B while A, the default, is deleted. Save first: the rename lands, then the
+            //     delete moves the flag to B2. Delete first: B is the default by the time the save
+            //     reads, and the default's name is fixed (issue #536), so the rename is refused. The
+            //     Local API's patch used to write all of B's stale row, IsDefault false included, over
+            //     the delete's promotion; the page used to rename the new default.
+            {
+                var (repository, overlap, a, b) = await NewModeSaveRaceStoreAsync(Path.Combine(root, $"rename-vs-delete-default-{path}-{(saveFirst ? "save" : "delete")}-first"));
+                var live = (await repository.ListAsync()).Single(item => item.Id == b.Id);
+                Func<Task<string>> save = path == "page"
+                    ? () => ModeSavePageUpdateAsync(repository, Renamed(live, "B2"))
+                    : () => ModeSaveApiPatchNameAsync(repository, b.Id, "B2");
+                Func<Task<string>> delete = async () => await repository.DeleteSafelyAsync(a.Id) ? "deleted" : "not found";
+                var (saved, deleted) = await RunModeOperationsInOrderAsync(overlap, save, delete, saveFirst);
+                var left = await repository.ListAsync();
+                var expectedSave = saveFirst ? "saved" : path == "page" ? "modes.default_name_fixed" : "refused";
+                var expectedName = saveFirst ? "B2" : "B";
+                Assert(saved == expectedSave && deleted == "deleted",
+                    $"{path}, {order}: a rename of B and the delete of default A answered [{saved}, {deleted}]; expected [{expectedSave}, deleted]");
+                Assert(left.Count == 1 && left.Single().Id == b.Id && left.Single().IsDefault && left.Single().Name == expectedName,
+                    $"{path}, {order}: a rename of B and the delete of default A left " +
+                    $"[{string.Join(", ", left.Select(item => $"{item.Name}{(item.IsDefault ? "*" : "")}"))}]; expected [{expectedName}*]");
+            }
+
+            // (b) Saving B while B itself is deleted. Save first: it lands, then the delete removes
+            //     it. Delete first: the save answers not found and writes nothing back.
+            {
+                var (repository, overlap, a, b) = await NewModeSaveRaceStoreAsync(Path.Combine(root, $"save-vs-own-delete-{path}-{(saveFirst ? "save" : "delete")}-first"));
+                var live = (await repository.ListAsync()).Single(item => item.Id == b.Id);
+                Func<Task<string>> save = path == "page"
+                    ? () => ModeSavePageUpdateAsync(repository, Renamed(live, "B2"))
+                    : () => ModeSaveApiPatchNameAsync(repository, b.Id, "B2");
+                Func<Task<string>> delete = async () => await repository.DeleteSafelyAsync(b.Id) ? "deleted" : "not found";
+                var (saved, deleted) = await RunModeOperationsInOrderAsync(overlap, save, delete, saveFirst);
+                var left = await repository.ListAsync();
+                var expectedSave = saveFirst ? "saved" : path == "page" ? "modes.not_found" : "not found";
+                Assert(saved == expectedSave && deleted == "deleted",
+                    $"{path}, {order}: a save of B and B's own delete answered [{saved}, {deleted}]; expected [{expectedSave}, deleted]");
+                Assert(left.Count == 1 && left.Single().Id == a.Id && left.Single().IsDefault,
+                    $"{path}, {order}: a save of B and B's own delete left [{string.Join(", ", left.Select(item => item.Name))}]; expected A alone, as the default");
+            }
+        }
+
+        // (c) Two creates of one name (case-insensitive), each order: the first lands, the second is
+        //     refused, and the stored spelling is the first's.
+        foreach (var (firstName, secondName) in new[] { ("Meeting", "meeting"), ("meeting", "Meeting") })
+        {
+            var (repository, overlap, _, _) = await NewModeSaveRaceStoreAsync(Path.Combine(root, $"duplicate-create-{path}-{firstName}-first"));
+            var (first, second) = await RunModeOperationsInOrderAsync(overlap,
+                () => ModeSaveCreateAsync(repository, path, firstName, 2),
+                () => ModeSaveCreateAsync(repository, path, secondName, 3),
+                firstGoesFirst: true);
+            var left = await repository.ListAsync();
+            Assert(first == "saved" && second == refusal,
+                $"{path}: creating '{firstName}' then '{secondName}' answered [{first}, {second}]; expected [saved, {refusal}]");
+            var meetings = left.Where(item => string.Equals(item.Name, "meeting", StringComparison.OrdinalIgnoreCase)).ToList();
+            Assert(meetings.Count == 1 && meetings.Single().Name == firstName && left.Count == 3 && left.Count(item => item.IsDefault) == 1,
+                $"{path}: creating '{firstName}' then '{secondName}' left [{string.Join(", ", left.Select(item => item.Name))}]");
+        }
+    }
+
+    // The Modes page itself, without a race: an editor still showing a mode another writer deleted
+    // saves it as an update, which is refused rather than inserting the mode again.
+    {
+        var db = new ApplicationDb(new TestPaths(Path.Combine(root, "stale-editor")));
+        await db.InitializeAsync();
+        var repository = new ModeRepository(db);
+        var other = new Mode { Name = "B", SortOrder = 1 };
+        await repository.UpsertAsync(other);
+        var settings = new PortableSettingsService(new MemoryPrivateFileService(), Path.Combine(root, "stale-editor-settings.json"));
+        var editor = new ModesViewModel(repository, settings);
+        await editor.RefreshAsync();
+        editor.Selected = editor.Items.Single(item => item.Id == other.Id);
+        // What the Linux mode editor captures as it opens, and puts back on Cancel or the window's X.
+        var opened = editor.CaptureEditorState();
+        editor.Name = "B renamed";
+        Assert(await new ModeRepository(db).DeleteSafelyAsync(other.Id), "the outside writer could not delete B");
+        await editor.SaveAsync();
+        Assert(editor.Status.ErrorCode == "modes.not_found" && editor.Status.Message == "The mode no longer exists.",
+            $"saving a mode another writer deleted showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+        Assert((await repository.ListAsync()).All(item => item.Id != other.Id), "saving a deleted mode wrote it back");
+        // The refused save drops the deleted mode's card, as a refused delete does (#2667); a card
+        // left listed and selected would fail every later Save the same way.
+        Assert(editor.Items.All(item => item.Id != other.Id) && editor.Selected?.Id != other.Id,
+            $"after a save refused as modes.not_found the page still lists the deleted mode ({editor.Items.Count} cards) " +
+            $"or has it selected ({editor.Selected?.Name})");
+        Assert(editor.Selected is not null && editor.Items.Contains(editor.Selected),
+            "after a save refused as modes.not_found nothing listed is selected");
+
+        // Cancel after that refusal must not put the deleted mode back as the selection: the page
+        // would highlight no card and the bottom bar would read "Mode: None" while settings name the
+        // fallback. It falls back as after a delete, with the fallback's own values in the editor.
+        editor.RestoreEditorState(opened);
+        AssertRestoreFellBack(editor, settings, other.Id, "a Cancel after a save refused as modes.not_found");
+
+        // The same for a delete refused as not_found from the editor (#2667).
+        var third = new Mode { Name = "C", SortOrder = 2 };
+        await repository.UpsertAsync(third);
+        await editor.RefreshAsync();
+        editor.Selected = editor.Items.Single(item => item.Id == third.Id);
+        opened = editor.CaptureEditorState();
+        Assert(await new ModeRepository(db).DeleteSafelyAsync(third.Id), "the outside writer could not delete C");
+        await editor.DeleteAsync();
+        Assert(editor.Status.ErrorCode == "modes.not_found", $"deleting a mode already gone showed {editor.Status.ErrorCode}");
+        editor.RestoreEditorState(opened);
+        AssertRestoreFellBack(editor, settings, third.Id, "a Cancel after a delete refused as modes.not_found");
+
+        // An ordinary Cancel still restores exactly what it captured, selection included.
+        var hyper = editor.Items.Single(item => item.IsDefault);
+        editor.Selected = hyper;
+        opened = editor.CaptureEditorState();
+        editor.Language = "fr";
+        editor.Name = "Abandoned";
+        editor.RestoreEditorState(opened);
+        Assert(ReferenceEquals(editor.Selected, hyper) && editor.Name == opened.Name && editor.Language == opened.Language,
+            $"an ordinary Cancel restored {editor.Selected?.Name}/{editor.Name}/{editor.Language}");
+
+        // A create from the same page still inserts.
+        editor.NewCommand.Execute(null);
+        editor.Name = "Fresh";
+        await editor.SaveAsync();
+        Assert(!editor.Status.HasError && (await repository.ListAsync()).Any(item => item.Name == "Fresh"),
+            $"a create from the Modes page failed: {editor.Status.ErrorCode}: {editor.Status.Message}");
+    }
+}
+
+static void AssertRestoreFellBack(ModesViewModel editor, PortableSettingsService settings, Guid gone, string what)
+{
+    Assert(editor.Selected is { } selected && selected.Id != gone && editor.Items.Contains(selected),
+        $"{what} selected {editor.Selected?.Name ?? "nothing"} ({(editor.Selected is null ? "null" : editor.Items.Contains(editor.Selected) ? "listed" : "not listed")})");
+    Assert(!editor.IsCreating, $"{what} left the editor creating");
+    Assert(editor.Name == editor.Selected!.Name, $"{what} left '{editor.Name}' in the editor for {editor.Selected.Name}");
+    Assert(settings.Get<string>("selectedModeId") == editor.Selected.Id.ToString("D"),
+        $"{what} left settings naming {settings.Get<string>("selectedModeId")}, not the selected {editor.Selected.Id:D}");
+}
+
+static async Task<(ModeRepository Repository, ModeReadOverlapInterceptor Overlap, Mode A, Mode B)> NewModeSaveRaceStoreAsync(string directory)
+{
+    Directory.CreateDirectory(directory);
+    var overlap = new ModeReadOverlapInterceptor(TimeSpan.FromSeconds(2));
+    var options = new DbContextOptionsBuilder<HyperWhisper.Data.HyperWhisperDbContext>()
+        .UseSqlite($"Data Source={Path.Combine(directory, "hyperwhisper.db")}")
+        .AddInterceptors(overlap)
+        .Options;
+    var database = new ApplicationDb(() => new HyperWhisper.Data.HyperWhisperDbContext(options));
+    await database.MigrateAsync();
+    var repository = new ModeRepository(database);
+    var a = new Mode { Name = "A", IsDefault = true, SortOrder = 0 };
+    var b = new Mode { Name = "B", IsDefault = false, SortOrder = 1 };
+    await repository.UpsertAsync(a);
+    await repository.UpsertAsync(b);
+    return (repository, overlap, a, b);
+}
+
+static Mode Renamed(Mode mode, string name) { mode.Name = name; return mode; }
+
+// Starts one operation, waits until the interceptor holds its read of the modes, then starts the
+// other. Answers in argument order, whichever ran first.
+static async Task<(string First, string Second)> RunModeOperationsInOrderAsync(
+    ModeReadOverlapInterceptor overlap, Func<Task<string>> first, Func<Task<string>> second, bool firstGoesFirst)
+{
+    static Task<string> Start(Func<Task<string>> operation) => Task.Run(async () =>
+    {
+        try { return await operation(); }
+        catch (ModeRuleViolationException rule) { return rule.Code; }
+        catch (ArgumentException) { return "refused"; }
+        catch (Exception exception) { return exception.GetType().Name; }
+    });
+    overlap.Armed = true;
+    try
+    {
+        var leader = Start(firstGoesFirst ? first : second);
+        await overlap.FirstReadHeld.WaitAsync(TimeSpan.FromSeconds(30));
+        var follower = Start(firstGoesFirst ? second : first);
+        var answers = await Task.WhenAll(leader, follower).WaitAsync(TimeSpan.FromSeconds(60));
+        return firstGoesFirst ? (answers[0], answers[1]) : (answers[1], answers[0]);
+    }
+    finally { overlap.Armed = false; }
+}
+
+// The Local API's patch of a name only (ApplicationLocalApiBackend.PatchModeAsync): the flag is the
+// stored row's, as for a body that never mentions isDefault.
+static async Task<string> ModeSaveApiPatchNameAsync(ModeRepository repository, Guid id, string name) =>
+    await ModeSaveApiAsync(repository, id, (existing, stored) =>
+    {
+        var mode = stored!;
+        var wasDefault = mode.IsDefault;
+        var storedName = mode.Name;
+        mode.Name = name;
+        mode.ModifiedDate = DateTime.UtcNow;
+        ModeSaveApiEnsureUniqueName(mode, existing);
+        if (SharedCoreBridge.CheckModeNameChange(wasDefault, storedName, mode.Name) == PortableModeNameChange.RejectedDefaultIsFixed)
+            throw new ArgumentException("The default mode's name cannot be changed.");
+        return mode;
+    }) is null ? "not found" : "saved";
+
+static async Task<string> ModeSaveCreateAsync(ModeRepository repository, string path, string name, int sortOrder)
+{
+    if (path == "page")
+    {
+        await ModeSavePageCreateAsync(repository, new Mode { Name = name, SortOrder = sortOrder });
+        return "saved";
+    }
+    // The Local API's create (ApplicationLocalApiBackend.CreateModeAsync).
+    await ModeSaveApiAsync(repository, null, (existing, _) =>
+    {
+        var mode = new Mode { Id = Guid.NewGuid(), Name = name, SortOrder = sortOrder, IsDefault = existing.Count == 0 };
+        ModeSaveApiEnsureUniqueName(mode, existing);
+        return mode;
+    });
+    return "saved";
+}
+
+static void ModeSaveApiEnsureUniqueName(Mode mode, IReadOnlyList<Mode> existing)
+{
+    if (existing.Any(item => item.Id != mode.Id && string.Equals(item.Name, mode.Name, StringComparison.OrdinalIgnoreCase)))
+        throw new ArgumentException("A mode with that name already exists.");
+}
+
+// The save entry points under test. Kept apart so the same cases can be run against the code
+// before issue #2748, where these were UpsertSafelyAsync and the Local API's own read-check-write.
+static async Task<string> ModeSavePageUpdateAsync(ModeRepository repository, Mode mode)
+{
+    await repository.UpdateSafelyAsync(mode);
+    return "saved";
+}
+
+static Task ModeSavePageCreateAsync(ModeRepository repository, Mode mode) => repository.CreateSafelyAsync(mode);
+
+static Task<Mode?> ModeSaveApiAsync(ModeRepository repository, Guid? updateId, Func<IReadOnlyList<Mode>, Mode?, Mode> prepare)
+    => repository.SaveAtomicallyAsync(updateId, prepare);
 
 // Issue #2667: a delete refused because another writer had removed a mode only set Status, so the
 // Modes page kept a card for a row that was gone.
@@ -4910,7 +5160,10 @@ file sealed class SingleThreadUiContext : SynchronizationContext
 file sealed class ModeReadOverlapInterceptor(TimeSpan hold) : Microsoft.EntityFrameworkCore.Diagnostics.DbCommandInterceptor
 {
     private readonly TaskCompletionSource _secondRead = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource _firstReadHeld = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int _reads;
+    /// <summary>Completes when the first armed read is being held (issue #2748: lets a test choose which operation goes first).</summary>
+    public Task FirstReadHeld => _firstReadHeld.Task;
     public volatile bool Armed;
     public int Reads => Volatile.Read(ref _reads);
 
@@ -4925,7 +5178,10 @@ file sealed class ModeReadOverlapInterceptor(TimeSpan hold) : Microsoft.EntityFr
         if (Armed && text.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase) && text.Contains("FROM \"Modes\"", StringComparison.Ordinal))
         {
             if (Interlocked.Increment(ref _reads) == 1)
+            {
+                _firstReadHeld.TrySetResult();
                 _secondRead.Task.Wait(hold);
+            }
             else
                 _secondRead.TrySetResult();
         }

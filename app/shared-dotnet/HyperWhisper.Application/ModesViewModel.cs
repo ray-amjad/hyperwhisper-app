@@ -191,7 +191,8 @@ public sealed partial class ModesViewModel : ViewModelBase
             : (Guid?)null;
         // A create dialog must insert even though Selected still points at the mode the user had
         // active — Windows keeps that selection while the create window is open.
-        var mode = (_isCreating ? null : Selected) ?? new Mode { SortOrder = Items.Count };
+        var updating = !_isCreating && Selected is not null;
+        var mode = (updating ? Selected : null) ?? new Mode { SortOrder = Items.Count };
         // ApplyEditorTo writes onto the live Mode that Items and Selected hold. Keep its stored
         // values, so a refused or failed save does not leave a name that never saved in the list.
         var storedValues = Items.Contains(mode) ? CopyModeValues(mode, new Mode()) : null;
@@ -216,7 +217,10 @@ public sealed partial class ModesViewModel : ViewModelBase
                 }
                 PersistCustomEndpoint(id);
             }
-            await _repository.UpsertSafelyAsync(mode, cancellationToken);
+            // An update never re-inserts a mode another writer deleted; the repository refuses it as
+            // modes.not_found (issue #2748).
+            if (updating) await _repository.UpdateSafelyAsync(mode, cancellationToken);
+            else await _repository.CreateSafelyAsync(mode, cancellationToken);
             CommitSavedMode(mode, customEndpointId);
         }
         catch (Exception exception)
@@ -224,7 +228,14 @@ public sealed partial class ModesViewModel : ViewModelBase
             RollBackFailedSave(settingsSnapshot, customEndpointId, credentialTouched, previousCredential);
             if (storedValues is not null) CopyModeValues(storedValues, mode);
             // A rule the repository enforces (issue #2551) says which one, not "could not save".
-            if (exception is ModeRuleViolationException rule) Status.Failure(rule.Code, rule.Message);
+            if (exception is ModeRuleViolationException rule)
+            {
+                // The mode was deleted by another writer (issue #2748): drop its card, as a refused
+                // delete does (#2667), or every later Save fails the same way. Reload first, then
+                // report, so the refusal is what the user reads.
+                if (rule.Code == "modes.not_found") await ReloadItemsAfterRefusalAsync(cancellationToken);
+                Status.Failure(rule.Code, rule.Message);
+            }
             else Status.Failure("modes.save_failed", "Could not save the mode or its secure endpoint configuration.");
         }
         finally
@@ -403,25 +414,26 @@ public sealed partial class ModesViewModel : ViewModelBase
         {
             // A refusal means the rows are not what Items shows: another writer removed a mode
             // (issue #2667). Reload first, then report, so the refusal is what the user reads.
-            await ReloadItemsAfterRefusedDeleteAsync(cancellationToken);
+            await ReloadItemsAfterRefusalAsync(cancellationToken);
             Status.Failure(rule.Code, rule.Message);
             return;
         }
         catch (Exception) { Status.Failure("modes.delete_failed", "Could not delete the mode."); return; }
         if (deleted) { Items.Remove(selected); Selected = FallbackSelection(); Status.Success("Mode deleted"); return; }
-        await ReloadItemsAfterRefusedDeleteAsync(cancellationToken);
+        await ReloadItemsAfterRefusalAsync(cancellationToken);
         Status.Failure("modes.not_found", "The mode no longer exists.");
     }
 
     /// <summary>
     /// Issue #2667: puts <see cref="Items"/> back in line with the repository after a delete it
-    /// refused, so the page drops cards whose rows another writer removed. The selected mode keeps
+    /// refused, or a save refused because the mode is gone (issue #2748), so the page drops cards
+    /// whose rows another writer removed. The selected mode keeps
     /// its instance (its stored values are copied onto it): the Linux editor's Cancel restores
     /// <see cref="Selected"/> by reference, and an instance missing from Items would make the next
     /// save add the mode a second time. A selected mode that is gone falls back as after a delete.
-    /// A failed reload leaves the list alone; the caller still reports the delete's own failure.
+    /// A failed reload leaves the list alone; the caller still reports its own failure.
     /// </summary>
-    private async Task ReloadItemsAfterRefusedDeleteAsync(CancellationToken cancellationToken)
+    private async Task ReloadItemsAfterRefusalAsync(CancellationToken cancellationToken)
     {
         IReadOnlyList<Mode> rows;
         try { rows = await _repository.ListAsync(cancellationToken); }
