@@ -130,9 +130,10 @@ for (const locale of LOCALES) {
     // Every rich-text tag rendered as its element, in every locale.
     const count = (needle: string) => html.split(needle).length - 1;
 
+    // Two from the copy (intro, contribute) and the repo bar's "View on GitHub".
     assert.equal(
       count('href="https://github.com/ray-amjad/hyperwhisper-app"'),
-      2,
+      3,
     );
     assert.equal(
       count(
