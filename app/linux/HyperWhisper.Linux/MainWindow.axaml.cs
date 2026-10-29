@@ -215,7 +215,9 @@ public partial class MainWindow : Window
             SelectDefaultMicrophone,
             () => SelectAdjacentMicrophone(-1),
             () => SelectAdjacentMicrophone(1),
-            CycleMode,
+            SelectModeFromTray,
+            () => _onboarding?.IsVisible == true,
+            () => NavigateFromTray("modes"),
             () => NavigateFromTray("history"),
             () => NavigateFromTray("settings"),
             () => OpenTrayUri(TrayHelpUri),
@@ -263,6 +265,8 @@ public partial class MainWindow : Window
         _platformServices.Tray.Unavailable += OnTrayUnavailable;
         _viewModel.Modes.PropertyChanged += OnModesChangedForParakeetPrewarm;
         _viewModel.Modes.Items.CollectionChanged += OnModeItemsChangedForParakeetPrewarm;
+        _viewModel.Modes.PropertyChanged += OnModesChangedForTray;
+        _viewModel.Modes.Items.CollectionChanged += OnModeItemsChangedForTray;
         if (_viewModel.Recording is not null)
         {
             _viewModel.Recording.TranscriptionSaved += OnOnboardingTranscriptionSaved;
@@ -330,6 +334,7 @@ public partial class MainWindow : Window
     /// tray clauses are replaced rather than appended.</summary>
     private async Task StartTrayAsync(bool launching)
     {
+        PublishTrayModeMenu();
         var tray = await _platformServices.Tray.StartAsync(_lifetime.Token);
         if (!launching)
         {
@@ -417,6 +422,9 @@ public partial class MainWindow : Window
         _platformServices.Tray.Unavailable -= OnTrayUnavailable;
         _viewModel.Modes.PropertyChanged -= OnModesChangedForParakeetPrewarm;
         _viewModel.Modes.Items.CollectionChanged -= OnModeItemsChangedForParakeetPrewarm;
+        _viewModel.Modes.PropertyChanged -= OnModesChangedForTray;
+        _viewModel.Modes.Items.CollectionChanged -= OnModeItemsChangedForTray;
+        if (_onboarding is not null) _onboarding.PropertyChanged -= OnOnboardingChangedForTray;
         if (_viewModel.Recording is not null)
         {
             _viewModel.Recording.TranscriptionSaved -= OnOnboardingTranscriptionSaved;
@@ -892,6 +900,7 @@ public partial class MainWindow : Window
             _onboarding.SetDevices(recording.AudioDevices, recording.SelectedAudioDevice);
         }
         OnboardingOverlay.DataContext = _onboarding;
+        _onboarding.PropertyChanged += OnOnboardingChangedForTray;
         _onboarding.Show();
     }
 
@@ -1472,6 +1481,71 @@ public partial class MainWindow : Window
     private LinuxModeChangeToastWindow? _modeToast;
 
     /// <summary>
+    /// The tray's Select Mode row. The id comes from the list this window published
+    /// (LinuxStatusNotifierItemService resolves the helper's index against it), and the
+    /// mode may have been deleted since, so it is looked up again. False refuses the pick.
+    /// </summary>
+    private bool SelectModeFromTray(Guid id)
+    {
+        var mode = _viewModel.Modes.Items.FirstOrDefault(item => item.Id == id);
+        if (mode is null) return false;
+        if (ReferenceEquals(mode, _viewModel.Modes.Selected)) return true;
+        _viewModel.Modes.Selected = mode;
+        try
+        {
+            _overlay.ModeChanged(LinuxOverlayModeLabel.Create(mode.Name));
+            ShowModeChangeToast(mode.Name);
+        }
+        catch { /* Feedback must not undo a selection that already happened. */ }
+        return true;
+    }
+
+    private bool _trayModeMenuQueued;
+
+    private void OnModesChangedForTray(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ModesViewModel.Selected)) ScheduleTrayModeMenu();
+    }
+
+    // Add, delete, reload, and a saved rename (Save replaces the row) all land here.
+    private void OnModeItemsChangedForTray(
+        object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) =>
+        ScheduleTrayModeMenu();
+
+    private void OnOnboardingChangedForTray(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(LinuxOnboardingViewModel.IsVisible)) ScheduleTrayModeMenu();
+    }
+
+    /// <summary>A mode list reload raises one change per row; publish once, after the burst.</summary>
+    private void ScheduleTrayModeMenu()
+    {
+        if (_shuttingDown || _trayModeMenuQueued) return;
+        _trayModeMenuQueued = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            _trayModeMenuQueued = false;
+            PublishTrayModeMenu();
+        }, DispatcherPriority.Background);
+    }
+
+    /// <summary>Windows' RefreshModeMenu: every mode in list order, the active one checked,
+    /// rows disabled while onboarding owns the active mode.</summary>
+    private void PublishTrayModeMenu()
+    {
+        if (_shuttingDown) return;
+        try
+        {
+            var modes = _viewModel.Modes;
+            _platformServices.Tray.PublishModeMenu(TrayModeMenu.Create(
+                modes.Items.Select(mode => new TrayModeEntry(mode.Id, mode.Name)).ToList(),
+                modes.Selected?.Id,
+                enabled: _onboarding?.IsVisible != true));
+        }
+        catch { /* The tray mirrors state; it must never break the window. */ }
+    }
+
+    /// <summary>
     /// Windows raises ModeChangeToastWindow on every mode change, on top of whatever the recording
     /// overlay is showing (MainWindow.xaml.cs ShowModeChangeToast). Linux only annotated the
     /// overlay, so a mode cycled with the window hidden and no recording in progress — the case
@@ -1494,7 +1568,7 @@ public partial class MainWindow : Window
     private void OnTrayActionRequested(object? sender, StatusNotifierActionEventArgs e)
         => Dispatcher.UIThread.Post(async () =>
         {
-            var result = await _trayActions.HandleAsync(e.Action, _lifetime.Token);
+            var result = await _trayActions.HandleAsync(e, _lifetime.Token);
             if (result.IsFailure && result.Error?.Code is not "tray.busy" and not "tray.unsafe_state"
                 and not "tray.cancelled" and not "tray.disposed")
                 _viewModel.Status.Failure(result.Error!.Code, result.Error.Message);
