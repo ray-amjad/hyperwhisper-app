@@ -1000,6 +1000,22 @@
       ],
       "licensed": false,
       "note": "unlicensed (no account key in box). 68 Codex steps, 0 defects; vocab persistence + mode delete verified with sqlite3 -readonly. Codex toggled Storage auto-deletion ON (30 days) during history route — turned back OFF; watch for that, it would purge the seeded History. Mode cards for Cloud modes show 'HyperWhisper' not the chosen provider/model (by design?)."
+    },
+    {
+      "at": "2026-10-29T04:17:42Z",
+      "platform": "linux",
+      "commit": "02460bcf",
+      "routes": [
+        "core-settings",
+        "licence",
+        "onboarding"
+      ],
+      "status": "nothing-found",
+      "issues": [
+        0
+      ],
+      "licensed": false,
+      "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY). Codex 0 real: licence 'Get Credits no browser' = box has no browser (#2632 toast). Onboarding walked BOTH Skip and Continue-to-Finish: unlicensed Finish completes (test disabled, by design); mic pick equal to auto-pick is not saved (by design, follows default). core-settings: 7 General + Sound + mic toggles persist across page round-trip; autostart .desktop 0600; launchMinimized is gated on a live tray. Next: these 3 routes look mined out."
     }
   ]
 }
