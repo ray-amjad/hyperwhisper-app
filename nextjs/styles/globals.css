@@ -483,7 +483,11 @@ html[data-os-banner="dismissed"] [data-os-banner-root] {
   --dusk-navy: #0a0f2a;
   --dusk-ink: #f5f5ff;
   --dusk-mute: #9aa0bf;
-  --dusk-dim: #6b7091;
+  /* Small print (11-14px): at least 4.5:1 (WCAG AA) on night (6.5:1), on
+     glass and the hovered feature tile (5.8:1), in the demo and modes panels
+     (5.9:1), and under the brightest point of the modes box's purple glow
+     (4.6:1). Same hue as --dusk-mute, one step darker. */
+  --dusk-dim: #8a90b3;
   --dusk-line: rgba(255, 255, 255, 0.09);
   --dusk-glass: rgba(255, 255, 255, 0.045);
   --dusk-lav: #c4b5fd;

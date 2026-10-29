@@ -12,7 +12,7 @@ export default function ClosingSection() {
   return (
     <section
       aria-labelledby="closing-title"
-      className="relative isolate flex h-[600px] items-start justify-center overflow-hidden text-center md:h-[760px]"
+      className="relative isolate flex min-h-[600px] items-start justify-center overflow-hidden text-center md:min-h-[760px]"
     >
       <img
         alt=""
@@ -29,7 +29,7 @@ export default function ClosingSection() {
         className="absolute inset-x-0 top-0 -z-10 h-[260px] bg-gradient-to-b from-[var(--dusk-night)] to-transparent"
       />
 
-      <div className="w-full max-w-[1000px] px-6 pt-[120px] md:pt-[170px]">
+      <div className="w-full max-w-[1000px] px-6 pb-24 pt-[120px] md:pt-[170px]">
         <Reveal>
           <h2
             className="text-[44px] font-semibold leading-[1.02] tracking-[-0.035em] text-white [overflow-wrap:anywhere] sm:text-[56px] md:text-[72px]"

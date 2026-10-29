@@ -7,7 +7,7 @@ import LogoMarquee from "@/components/landing/LogoMarquee";
 import ModesShowcase from "@/components/landing/ModesShowcase";
 import PricingSection from "@/components/landing/PricingSection";
 import StatsRow from "@/components/landing/StatsRow";
-import { fontMono } from "@/config/fonts";
+import { fontMono } from "@/config/fonts-mono";
 import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
 export const generateMetadata = localizedPageMetadata({

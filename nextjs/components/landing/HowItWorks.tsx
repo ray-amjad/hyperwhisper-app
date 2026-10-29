@@ -49,7 +49,10 @@ export default function HowItWorks() {
   const t = useTranslations("demo");
   const reduceMotion = useReducedMotion();
   const appRef = useRef<HTMLDivElement>(null);
-  const inView = useInView(appRef, { amount: 0.4, once: true });
+  // Not `once`: the loop stops when the window leaves the view, or the tab is
+  // hidden, and starts over when both are back.
+  const inView = useInView(appRef, { amount: 0.4 });
+  const [pageVisible, setPageVisible] = useState(true);
   const [shortcut, setShortcut] = useState(MAC_SHORTCUT);
   const [phase, setPhase] = useState<Phase>("idle");
   const [typed, setTyped] = useState("");
@@ -58,11 +61,20 @@ export default function HowItWorks() {
 
   useEffect(() => setShortcut(detectShortcut()), []);
 
-  // The loop: idle -> listening -> cleaning up -> the reply types in -> hold.
-  // It starts once the window is 40% in view. Reduce motion shows the end
-  // state and never advances.
   useEffect(() => {
-    if (reduceMotion || !inView) return;
+    const onChange = () => setPageVisible(!document.hidden);
+
+    onChange();
+    document.addEventListener("visibilitychange", onChange);
+
+    return () => document.removeEventListener("visibilitychange", onChange);
+  }, []);
+
+  // The loop: idle -> listening -> cleaning up -> the reply types in -> hold.
+  // It runs while the window is 40% in view in a visible tab, from the top
+  // each time it comes back. Reduce motion shows the end state and never advances.
+  useEffect(() => {
+    if (reduceMotion || !inView || !pageVisible) return;
     let cancelled = false;
     const wait = (ms: number) =>
       new Promise<void>((resolve) => window.setTimeout(resolve, ms));
@@ -98,7 +110,7 @@ export default function HowItWorks() {
     return () => {
       cancelled = true;
     };
-  }, [reduceMotion, inView, reply]);
+  }, [reduceMotion, inView, pageVisible, reply]);
 
   const shownPhase: Phase = reduceMotion ? "typing" : phase;
   const shownText = reduceMotion ? reply : typed;
@@ -113,10 +125,7 @@ export default function HowItWorks() {
   ];
 
   return (
-    <section
-      className="pb-24 pt-10 md:pb-[130px]"
-      id="demo"
-    >
+    <section className="pb-24 pt-10 md:pb-[130px]" id="demo">
       <div
         className={`${WRAP} grid items-center gap-12 lg:grid-cols-[.9fr_1.1fr] lg:gap-16`}
       >

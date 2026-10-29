@@ -10,7 +10,8 @@ import Reveal from "./Reveal";
 /**
  * The figures the site already states: 5x and 99% (the old stat row), 100+
  * languages (features.languages) and 30+ transcription models
- * (features.customizable). Nothing new is claimed here.
+ * (cloudSection.credits.features.models, "30+ models"). Nothing new is
+ * claimed here.
  */
 const STATS = [
   { value: 5, suffix: "x", label: "fasterThanTyping" },
