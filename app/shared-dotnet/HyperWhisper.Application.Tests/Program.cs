@@ -2480,6 +2480,13 @@ static async Task RunModeSaveRaceTestsAsync(string root)
         Assert(editor.Status.ErrorCode == "modes.not_found" && editor.Status.Message == "The mode no longer exists.",
             $"saving a mode another writer deleted showed {editor.Status.ErrorCode}: {editor.Status.Message}");
         Assert((await repository.ListAsync()).All(item => item.Id != other.Id), "saving a deleted mode wrote it back");
+        // The refused save drops the deleted mode's card, as a refused delete does (#2667); a card
+        // left listed and selected would fail every later Save the same way.
+        Assert(editor.Items.All(item => item.Id != other.Id) && editor.Selected?.Id != other.Id,
+            $"after a save refused as modes.not_found the page still lists the deleted mode ({editor.Items.Count} cards) " +
+            $"or has it selected ({editor.Selected?.Name})");
+        Assert(editor.Selected is not null && editor.Items.Contains(editor.Selected),
+            "after a save refused as modes.not_found nothing listed is selected");
 
         // A create from the same page still inserts.
         editor.NewCommand.Execute(null);
