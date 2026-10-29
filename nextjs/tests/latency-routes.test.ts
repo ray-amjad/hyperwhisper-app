@@ -402,7 +402,7 @@ describe("GET /api/internal/latency/prune — who may run it", () => {
   const accepted: Array<[string, Record<string, string>]> = [
     ["the internal secret in x-internal-secret", { "x-internal-secret": INTERNAL_SECRET }],
     ["the internal secret as a bearer", { authorization: `Bearer ${INTERNAL_SECRET}` }],
-    ["the Vercel cron secret as a bearer", { authorization: `Bearer ${CRON_SECRET}` }],
+    ["the cron secret as a bearer (worker.ts scheduled)", { authorization: `Bearer ${CRON_SECRET}` }],
     // Fetch strips the ends of a header value, so the only padding that reaches
     // the route is the gap between the scheme and the token.
     ["a bearer with an extra space after the scheme", { authorization: `Bearer  ${CRON_SECRET}` }],
