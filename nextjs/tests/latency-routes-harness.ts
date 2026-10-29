@@ -6,7 +6,7 @@
  * privacy page promises).
  *
  * Both routes reach three collaborators at import time: the Drizzle client
- * (`src/db/index.ts`), the Upstash-backed rate limiter (`lib/rate-limit.ts`)
+ * (`src/db/index.ts`), the Cloudflare rate limiter (`lib/rate-limit.ts`)
  * and the validated server env (`src/env/server.mjs`), which holds the secrets.
  * All three are replaced here with `mock.module`, so the tests run the REAL
  * route modules — the secret gate, the body-size guard, the batch validation,
@@ -40,7 +40,7 @@ export const calls = {
 export const behaviour = {
   /** What the rate limiter answers. */
   rateLimitSuccess: true,
-  /** Thrown by the rate limiter when set — models Upstash being unreachable. */
+  /** Thrown by the rate limiter when set — models the binding failing. */
   rateLimitError: null as unknown,
   /** Thrown by `insert().values()` when set — models a database fault. */
   insertError: null as unknown,

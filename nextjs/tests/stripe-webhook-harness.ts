@@ -152,7 +152,7 @@ export const restoreWebhookLogging = webhookLogging.restore;
 const emailOutcome = () =>
   behaviour.emailSuccess
     ? { success: true }
-    : { success: false, error: "resend refused the message" };
+    : { success: false, error: "provider refused the message" };
 
 moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
   namedExports: {

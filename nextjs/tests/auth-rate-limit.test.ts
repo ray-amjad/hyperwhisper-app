@@ -1,55 +1,60 @@
 /**
- * #2010: Better Auth's rate limiter counts in the site's shared Upstash, not
- * in each Vercel instance's memory.
+ * #2010: Better Auth's rate limiter counts in Cloudflare Rate Limiting
+ * bindings, not in each isolate's memory.
  *
- * - The REAL `auth` config has `rateLimit.enabled` and the Upstash
+ * - The REAL `auth` config has `rateLimit.enabled` and the Cloudflare
  *   `customStorage`, and NO `secondaryStorage` (which would also move sessions
  *   off Postgres — see `src/lib/auth-rate-limit-storage.ts`).
  * - Driven through the REAL `/api/auth/[...all]` route, the 6th license-key
  *   sign-in from one IP in a minute gets 429 (the plugin's own 5 / 60 s rule),
  *   and a SECOND Better Auth instance built from the same options draws on the
- *   same counter — what two Vercel instances do.
- * - Upstash failing (throwing, hanging, unconfigured) lets the request through
- *   and logs a warning.
+ *   same counter — what two isolates do.
+ * - No binding (local dev, a broken deploy) lets the request through.
  *
- * Upstash is the local REST server in `fake-upstash-server.ts`: the REAL
- * `@upstash/redis` client and the REAL `@upstash/ratelimit` Lua run against
- * `ioredis-mock`. Every sign-in below sends an empty body, so Better Auth
- * answers 400 at validation and no case reaches the database. The mocked
- * modules are `lib/clients/resend.ts`, as in auth-catch-all-route.test.ts, and
- * `src/env/server.mjs` (#682), so a test can change a value after import.
+ * The binding is a stand-in counter installed by mocking
+ * `lib/clients/cloudflare-binding.ts`; the storage's own fail-open cases are
+ * in rate-limit.test.ts. Every sign-in below sends an empty body, so Better
+ * Auth answers 400 at validation and no case reaches the database. The other
+ * mocked modules are `lib/clients/email.ts`, as in
+ * auth-catch-all-route.test.ts, and `src/env/server.mjs` (#682).
  */
 import assert from "node:assert/strict";
-import http from "node:http";
-import {
-  after,
-  afterEach,
-  before,
-  beforeEach,
-  describe,
-  mock,
-  test,
-} from "node:test";
+import { before, beforeEach, describe, test } from "node:test";
 
-import { Redis } from "@upstash/redis";
-
-import { listen, store, upstashRestServer } from "./fake-upstash-server";
 import { captureConsole, moduleMock, moduleUrl } from "./module-mock";
 
 import type { auth as AuthInstance } from "@/src/lib/auth";
 import type * as StorageModule from "@/src/lib/auth-rate-limit-storage";
 
-moduleMock.module(moduleUrl("../lib/clients/resend.ts"), {
+moduleMock.module(moduleUrl("../lib/clients/email.ts"), {
   namedExports: {
-    resend: { emails: { send: async () => ({ data: null, error: null }) } },
+    sendEmail: async () => ({ data: { id: "unused" }, error: null }),
     DEFAULT_FROM_EMAIL: "HyperWhisper <support@hyperwhisper.com>",
   },
 });
 
-/**
- * The validated env every module here reads (auth.ts, the rate-limit storage,
- * the Redis client). Mutable, and read per call by `siteRedis`.
- */
+/** Per binding name, per key: how many calls it has counted. */
+const counts = new Map<string, number>();
+/** Each binding's limit, as wrangler.jsonc sets it. Unset: no binding at all. */
+const bindingLimits = new Map<string, number>();
+
+moduleMock.module(moduleUrl("../lib/clients/cloudflare-binding.ts"), {
+  namedExports: {
+    cloudflareBinding: (name: string) => {
+      const limit = bindingLimits.get(name);
+      if (limit === undefined) return undefined;
+      return {
+        limit: async ({ key }: { key: string }) => {
+          const id = `${name}:${key}`;
+          const count = (counts.get(id) ?? 0) + 1;
+          counts.set(id, count);
+          return { success: count <= limit };
+        },
+      };
+    },
+  },
+});
+
 const fakeEnv: Record<string, string | undefined> = {};
 
 moduleMock.module(moduleUrl("../src/env/server.mjs"), {
@@ -59,43 +64,19 @@ moduleMock.module(moduleUrl("../src/env/server.mjs"), {
 const ORIGIN = "http://localhost:3000";
 const BASE = `${ORIGIN}/api/auth`;
 
-/**
- * A fixed instant for the tests that count to a limit. `@upstash/ratelimit`'s
- * sliding window reads `Date.now()` and floors the previous window's share,
- * so on the real clock six calls that straddle a 60 s boundary count as fewer
- * than five and the 6th gets 400, not 429 (#2735). Mid-window here, as in
- * rate-limit.test.ts (#2123).
- */
-const PINNED_NOW = Date.UTC(2026, 9, 27, 12, 0, 30);
-
-/**
- * Fixes `Date.now()` until the test ends; the limiter and the store both read
- * it. Node 22 reads `{ apis, now }`; the installed @types/node still types the
- * array form, so the options are cast, as in rate-limit.test.ts.
- */
-function pinClock(now: number) {
-  mock.timers.enable({ apis: ["Date"], now } as unknown as Parameters<
-    typeof mock.timers.enable
-  >[0]);
-}
-
 type Handler = (request: Request) => Promise<Response>;
 
-let site: http.Server;
 let POST: Handler;
 let auth: typeof AuthInstance;
 let storageModule: typeof StorageModule;
 
-// Variable specifiers, loaded after the mock and the env below: `auth.ts`
+// Variable specifiers, loaded after the mocks and the env below: `auth.ts`
 // builds `betterAuth()` at import time.
 const ROUTE_PATH = "../app/api/auth/[...all]/route.ts";
 const AUTH_PATH = "../src/lib/auth.ts";
 const STORAGE_PATH = "../src/lib/auth-rate-limit-storage.ts";
 
 before(async () => {
-  site = upstashRestServer();
-  fakeEnv.UPSTASH_REDIS_SITE_URL = await listen(site);
-  fakeEnv.UPSTASH_REDIS_SITE_TOKEN = "site-token-for-tests";
   fakeEnv.BETTER_AUTH_URL = ORIGIN;
 
   POST = (await import(ROUTE_PATH)).POST;
@@ -103,17 +84,11 @@ before(async () => {
   storageModule = await import(STORAGE_PATH);
 });
 
-after(() => {
-  site.closeAllConnections();
-  site.close();
-  store.disconnect();
+beforeEach(() => {
+  counts.clear();
+  bindingLimits.clear();
+  bindingLimits.set("RATE_LIMIT_AUTH_60S_5", 5);
 });
-
-beforeEach(async () => {
-  await store.flushall();
-});
-
-afterEach(() => mock.timers.reset());
 
 function licenseSignIn(ip: string): Request {
   return new Request(`${BASE}/sign-in/license-key`, {
@@ -125,16 +100,6 @@ function licenseSignIn(ip: string): Request {
     },
     body: "{}",
   });
-}
-
-/** Swallows console.warn for one call and returns what was warned. */
-async function captureWarnings<T>(run: () => Promise<T>): Promise<{ result: T; warnings: string[] }> {
-  const capture = captureConsole(["warn"]);
-  try {
-    return { result: await run(), warnings: capture.lines };
-  } finally {
-    capture.restore();
-  }
 }
 
 describe("the real auth config", () => {
@@ -154,9 +119,8 @@ describe("the real auth config", () => {
   });
 });
 
-describe("Better Auth sign-in limits count in Upstash", () => {
+describe("Better Auth sign-in limits count in the Cloudflare binding", () => {
   test("the 6th license-key sign-in from one IP in a minute gets 429", async () => {
-    pinClock(PINNED_NOW);
     const ip = "203.0.113.50";
     for (let i = 0; i < 5; i += 1) {
       const response = await POST(licenseSignIn(ip));
@@ -169,23 +133,17 @@ describe("Better Auth sign-in limits count in Upstash", () => {
     const retryAfter = Number(refused.headers.get("X-Retry-After"));
     assert.ok(retryAfter >= 1 && retryAfter <= 60, `X-Retry-After=${retryAfter}`);
 
-    // The counter lives in Upstash, under the plugin rule's own window.
-    const keys = await store.keys("ratelimit:better-auth:60s:5:*");
-    assert.ok(
-      keys.some((key) => key.includes(`${ip}|/sign-in/license-key`)),
-      keys.join("\n"),
-    );
+    // Counted in the plugin rule's own binding, under Better Auth's key.
+    assert.equal(counts.get(`RATE_LIMIT_AUTH_60S_5:${ip}|/sign-in/license-key`), 6);
 
     // Another IP is unaffected.
     assert.equal((await POST(licenseSignIn("203.0.113.51"))).status, 400);
   });
 
   test("a second Better Auth instance with the same options shares the budget", async () => {
-    pinClock(PINNED_NOW);
     const { betterAuth } = await import("better-auth");
     const { licenseKeyPlugin } = await import("@/src/lib/auth-license-key-plugin");
-    // What a second Vercel instance is: its own process, its own storage
-    // object, the same Upstash.
+    // What a second isolate is: its own storage object, the same binding.
     const otherInstance = betterAuth({
       baseURL: ORIGIN,
       rateLimit: storageModule.authRateLimitOptions(),
@@ -203,103 +161,23 @@ describe("Better Auth sign-in limits count in Upstash", () => {
     assert.equal((await POST(licenseSignIn(ip))).status, 429);
     assert.equal((await otherInstance.handler(licenseSignIn(ip))).status, 429);
   });
-});
 
-describe("Upstash unavailable fails open", () => {
-  const rule = { window: 10, max: 1 };
-
-  test("a throwing client lets every request through and warns", async () => {
-    const storage = storageModule.createUpstashAuthRateLimitStorage(async () => {
-      throw new Error("ECONNREFUSED 203.0.113.70");
-    });
-
-    const { result, warnings } = await captureWarnings(async () => [
-      await storage.consume("203.0.113.70|/sign-in/license-key", rule),
-      await storage.consume("203.0.113.70|/sign-in/license-key", rule),
-    ]);
-
-    assert.deepEqual(result, [
-      { allowed: true, retryAfter: null },
-      { allowed: true, retryAfter: null },
-    ]);
-    assert.equal(warnings.length, 2);
-    assert.match(warnings[0], /Rate limit unavailable for Better Auth, failing open: Error/);
-    assert.ok(!warnings[0].includes("203.0.113.70"), "no IP in the log line");
-  });
-
-  test("an Upstash that answers errors lets the request through and warns", async () => {
-    const broken = http.createServer((req, res) => {
-      req.resume();
-      res.statusCode = 500;
-      res.end(JSON.stringify({ error: "ERR internal" }));
-    });
-    const url = await listen(broken);
+  test("no binding: every sign-in is served, with a warning", async () => {
+    bindingLimits.clear();
+    const ip = "203.0.113.70";
+    const capture = captureConsole(["warn"]);
+    const statuses: number[] = [];
     try {
-      const storage = storageModule.createUpstashAuthRateLimitStorage(
-        async () => new Redis({ url, token: "t", retry: false }),
-      );
-
-      const { result, warnings } = await captureWarnings(() =>
-        storage.consume("203.0.113.71|/sign-in/license-key", rule),
-      );
-
-      assert.deepEqual(result, { allowed: true, retryAfter: null });
-      assert.equal(warnings.length, 1);
-      assert.match(warnings[0], /failing open/);
+      for (let i = 0; i < 7; i += 1) statuses.push((await POST(licenseSignIn(ip))).status);
     } finally {
-      broken.closeAllConnections();
-      broken.close();
+      capture.restore();
     }
-  });
 
-  test("an Upstash that hangs past the timeout lets the request through and warns", async () => {
-    const hanging = http.createServer(() => {
-      // Never answers.
-    });
-    const url = await listen(hanging);
-    try {
-      const storage = storageModule.createUpstashAuthRateLimitStorage(
-        async () => new Redis({ url, token: "t", retry: false }),
-        50,
-      );
-
-      const { result, warnings } = await captureWarnings(() =>
-        storage.consume("203.0.113.72|/sign-in/license-key", rule),
-      );
-
-      assert.deepEqual(result, { allowed: true, retryAfter: null });
-      assert.equal(warnings.length, 1);
-      assert.match(warnings[0], /Rate limit timed out for Better Auth, failing open/);
-    } finally {
-      hanging.closeAllConnections();
-      hanging.close();
-    }
-  });
-
-  test("no Upstash env: allowed, and said once, not per request", async () => {
-    const storage = storageModule.createUpstashAuthRateLimitStorage(async () => null);
-
-    const { result, warnings } = await captureWarnings(async () => [
-      await storage.consume("a|/sign-in/license-key", rule),
-      await storage.consume("a|/sign-in/license-key", rule),
-    ]);
-
-    assert.deepEqual(result, [
-      { allowed: true, retryAfter: null },
-      { allowed: true, retryAfter: null },
-    ]);
-    assert.equal(warnings.length, 1);
-    assert.match(warnings[0], /not configured, failing open/);
-  });
-
-  test("siteRedis is null without the site's Upstash env", async () => {
-    const saved = fakeEnv.UPSTASH_REDIS_SITE_URL;
-    assert.ok(await storageModule.siteRedis(), "configured: a client");
-    delete fakeEnv.UPSTASH_REDIS_SITE_URL;
-    try {
-      assert.equal(await storageModule.siteRedis(), null);
-    } finally {
-      fakeEnv.UPSTASH_REDIS_SITE_URL = saved;
-    }
+    assert.deepEqual(statuses, [400, 400, 400, 400, 400, 400, 400]);
+    assert.ok(
+      capture.lines.some((line) => /Rate limit unavailable for Better Auth, failing open: RateLimitBindingMissingError/.test(line)),
+      capture.lines.join("\n"),
+    );
+    assert.ok(capture.lines.every((line) => !line.includes(ip)), "no IP in the log line");
   });
 });
