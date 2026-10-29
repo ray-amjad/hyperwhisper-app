@@ -93,7 +93,8 @@ export const TBODY = "divide-y divide-[var(--dusk-line)]";
 export const TR_HOVER = "transition-colors hover:bg-white/[.025]";
 
 /** A skeleton bar. It pulses, and stops under Reduce motion. */
-export const SKEL = "rounded bg-white/[.08] animate-pulse motion-reduce:animate-none";
+export const SKEL =
+  "rounded bg-white/[.08] animate-pulse motion-reduce:animate-none";
 
 /** Alerts: a refusal and a success, as soft tinted boxes. */
 export const ALERT_ERROR =
