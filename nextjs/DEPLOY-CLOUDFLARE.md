@@ -203,8 +203,10 @@ A failed run throws, so it shows as an error in Workers Logs. Test locally with
    - Cron: the next 04:17 / 04:37 UTC runs succeed in Workers Logs.
    - Sentry: an error reaches Sentry (if `SENTRY_DSN` is set). On workerd the
      SDK logs `[Sentry] Failed to register diagnostics-channel injection hooks`
-     at startup; the Worker keeps serving, but delivery from Workers has not
-     been verified, so trigger a test error and confirm it lands.
+     at startup; the Worker keeps serving and delivery works (2026-10-29: a
+     route that threw under `wrangler dev` reached Sentry). Next's own
+     request errors, such as `failed to decode param`, never reach
+     `onRequestError`, so they show only in Workers Logs.
 7. Update the privacy policy's sub-processor list (Vercel -> Cloudflare) in
    `app/[locale]/legal/privacy-policy/page.tsx`.
 8. Only then delete the Vercel project, and remove the Infisical -> Vercel sync.
