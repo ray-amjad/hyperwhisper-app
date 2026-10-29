@@ -4,7 +4,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   // Must equal the Worker that nextjs-deploy.yml deploys (and the Infisical sync).
-  "name": "hyperwhisper-web",
+  "name": "hyperwhisper-web-prod",
   // Custom entry: wraps .open-next/worker.js to add the cron handler.
   "main": "worker.ts",
   // Must not be newer than the workerd bundled with the pinned wrangler.
@@ -81,7 +81,7 @@
   // onboarded for Email Sending in the dashboard.
   "send_email": [{ "name": "EMAIL" }],
   "services": [
-    { "binding": "WORKER_SELF_REFERENCE", "service": "hyperwhisper-web" }
+    { "binding": "WORKER_SELF_REFERENCE", "service": "hyperwhisper-web-prod" }
   ],
   // UTC. Keep in step with config/cron-jobs.mjs (tests/cron-jobs.test.ts).
   "triggers": {

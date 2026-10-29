@@ -1,6 +1,6 @@
 # Deploying the website on Cloudflare Workers
 
-The site (`nextjs/`) runs as the Cloudflare Worker **`hyperwhisper-web`**, built
+The site (`nextjs/`) runs as the Cloudflare Worker **`hyperwhisper-web-prod`**, built
 with [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare). GitHub
 Actions (`.github/workflows/nextjs-deploy.yml`) builds, migrates and deploys it
 on every push to `main`. There are no per-PR previews; `nextjs-ci` (typecheck, tests and an
@@ -96,7 +96,7 @@ this Worker is about 4.5 MiB gzipped).
    uses the real Hyperdrive config. The same applies to `pnpm run deploy` or
    `opennextjs-cloudflare populateCache` run from a laptop.
 4. **Runtime secrets** (Infisical -> Cloudflare Workers sync, Worker
-   `hyperwhisper-web`). Scope the sync to the website's names only; the
+   `hyperwhisper-web-prod`). Scope the sync to the website's names only; the
    Production environment also holds large signing blobs
    (`DEVELOPER_ID_P12_BASE64`, `PROVISIONING_PROFILE_BASE64`,
    `GOOGLE_SERVICE_ACCOUNT_JSON`, ...) that exceed the 5 KB per-secret limit.
@@ -214,8 +214,8 @@ A failed run throws, so it shows as an error in Workers Logs. Test locally with
 ## 6. Logs and status
 
 ```bash
-npx wrangler deployments list --name hyperwhisper-web
-npx wrangler tail hyperwhisper-web --status error --format pretty   # streams; Ctrl-C to stop
+npx wrangler deployments list --name hyperwhisper-web-prod
+npx wrangler tail hyperwhisper-web-prod --status error --format pretty   # streams; Ctrl-C to stop
 ```
 
-Past logs: Workers & Pages -> `hyperwhisper-web` -> Logs (observability is on).
+Past logs: Workers & Pages -> `hyperwhisper-web-prod` -> Logs (observability is on).

@@ -47,8 +47,8 @@ describe("cron triggers", () => {
 describe("wrangler.jsonc", () => {
   const config = readWranglerConfig();
 
-  test("is the hyperwhisper-web Worker with a HYPERDRIVE binding", () => {
-    assert.equal(config.name, "hyperwhisper-web");
+  test("is the hyperwhisper-web-prod Worker with a HYPERDRIVE binding", () => {
+    assert.equal(config.name, "hyperwhisper-web-prod");
     assert.equal(config.hyperdrive?.[0]?.binding, "HYPERDRIVE");
   });
 
